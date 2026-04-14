@@ -11,6 +11,10 @@ import AppointmentBoard from '@/app/features/appointments/components/Appointment
 import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
+import {
+  useCompanionsParentsForPrimaryOrg,
+  useLoadCompanionsForPrimaryOrg,
+} from '@/app/hooks/useCompanion';
 import { Appointment } from '@yosemite-crew/types';
 import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
 import ChangeStatus from '@/app/features/appointments/pages/Appointments/Sections/ChangeStatus';
@@ -32,19 +36,76 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 
 const Appointments = () => {
-  const appointments = useAppointmentsForPrimaryOrg();
+  const rawAppointments = useAppointmentsForPrimaryOrg();
+  useLoadCompanionsForPrimaryOrg();
+  const companions = useCompanionsParentsForPrimaryOrg();
+  const companionMetaById = useMemo(() => {
+    const entries = companions.map((item) => {
+      const photoUrl = item.companion.photoUrl?.trim() || '';
+      const parentFirstName = item.parent.firstName?.trim() || '';
+      const parentLastName = item.parent.lastName?.trim() || '';
+      const parentFullName = [parentFirstName, parentLastName].filter(Boolean).join(' ').trim();
+      return [
+        item.companion.id,
+        {
+          photoUrl,
+          parentFirstName,
+          parentLastName,
+          parentFullName,
+          parentId: item.parent.id,
+        },
+      ] as const;
+    });
+    return new Map(entries);
+  }, [companions]);
+  const appointments = useMemo(
+    () =>
+      rawAppointments.map((appointment) => {
+        const companionMeta = companionMetaById.get(appointment.companion.id);
+        if (!companionMeta) return appointment;
+        const existingPhotoUrl = (
+          appointment.companion as Appointment['companion'] & { photoUrl?: string }
+        ).photoUrl;
+        const existingParent = (appointment.companion.parent ?? {}) as {
+          id?: string;
+          name?: string;
+          firstName?: string;
+          lastName?: string;
+        };
+        const isSamePhoto = (existingPhotoUrl?.trim() || '') === companionMeta.photoUrl;
+        const isSameParent =
+          (existingParent.id || '') === companionMeta.parentId &&
+          (existingParent.firstName || '') === companionMeta.parentFirstName &&
+          (existingParent.lastName || '') === companionMeta.parentLastName &&
+          (existingParent.name || '') === companionMeta.parentFullName;
+        if (isSamePhoto && isSameParent) return appointment;
+        return {
+          ...appointment,
+          companion: {
+            ...appointment.companion,
+            photoUrl: companionMeta.photoUrl,
+            parent: {
+              ...existingParent,
+              id: companionMeta.parentId || existingParent.id || '',
+              firstName: companionMeta.parentFirstName,
+              lastName: companionMeta.parentLastName,
+              name: companionMeta.parentFullName || existingParent.name || '',
+            },
+          } as Appointment['companion'],
+        };
+      }),
+    [rawAppointments, companionMetaById]
+  );
   const { can } = usePermissions();
   const canEditAppointments =
     can(PERMISSIONS.APPOINTMENTS_EDIT_ANY) || can(PERMISSIONS.APPOINTMENTS_EDIT_OWN);
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
-  const plannerSectionRef = useRef<HTMLDivElement | null>(null);
-  const plannerAutoLockRef = useRef(false);
-  const lastScrollYRef = useRef(0);
-  const plannerLockTopOffset = 16;
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -64,6 +125,7 @@ const Appointments = () => {
   const [activeView, setActiveView] = useState<string>(resolveDefaultAppointmentsView);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
+  const { plannerSectionRef } = usePlannerAutoLock({ activeView });
 
   useEffect(() => {
     if (activeCalendar === 'week') {
@@ -99,74 +161,67 @@ const Appointments = () => {
     const open = String(searchParams.get('open') ?? '')
       .trim()
       .toLowerCase();
-    const subLabelRaw = String(searchParams.get('subLabel') ?? '').trim();
+    const subLabelRaw = String(searchParams.get('subLabel') ?? '')
+      .trim()
+      .toLowerCase();
     if (!appointmentId) return;
 
-    let subLabel = subLabelRaw;
-    if (!subLabel) {
-      if (open === 'finance') {
-        subLabel = 'summary';
-      } else if (open === 'labs') {
-        subLabel = 'idexx-labs';
-      }
+    const normalizedSubLabel = subLabelRaw === 'overview' ? 'history' : subLabelRaw;
+    const labelBySubLabel: Record<string, AppointmentViewIntent['label']> = {
+      appointment: 'info',
+      companion: 'info',
+      history: 'info',
+      summary: 'finance',
+      'payment-details': 'finance',
+      'idexx-labs': 'labs',
+      'parent-chat': 'tasks',
+      task: 'tasks',
+      'parent-task': 'tasks',
+      forms: 'prescription',
+      documents: 'prescription',
+      'audit-trail': 'prescription',
+      subjective: 'prescription',
+      objective: 'prescription',
+      assessment: 'prescription',
+      plan: 'prescription',
+      'discharge-summary': 'prescription',
+      'merck-manuals': 'prescription',
+    };
+
+    let initialIntent: AppointmentViewIntent | null = null;
+    if (open === 'labs') {
+      initialIntent = { label: 'labs', subLabel: normalizedSubLabel || 'idexx-labs' };
+    } else if (open === 'finance') {
+      initialIntent = { label: 'finance', subLabel: normalizedSubLabel || 'summary' };
+    } else if (
+      open === 'info' ||
+      open === 'details' ||
+      open === 'tasks' ||
+      open === 'prescription' ||
+      open === 'care'
+    ) {
+      const fallbackSubLabel = open === 'info' || open === 'details' ? 'appointment' : '';
+      initialIntent = {
+        label: (open === 'details' ? 'info' : open) as AppointmentViewIntent['label'],
+        subLabel: normalizedSubLabel || fallbackSubLabel || undefined,
+      };
+    } else if (normalizedSubLabel && labelBySubLabel[normalizedSubLabel]) {
+      initialIntent = { label: labelBySubLabel[normalizedSubLabel], subLabel: normalizedSubLabel };
     }
 
-    const deepLinkKey = `${appointmentId}:${open || 'details'}:${subLabel}`;
+    const resolvedSubLabel = initialIntent?.subLabel ?? normalizedSubLabel;
+
+    const deepLinkKey = `${appointmentId}:${open || 'details'}:${resolvedSubLabel}`;
     if (handledDeepLinkRef.current === deepLinkKey) return;
 
     const target = appointments.find((appointment) => appointment.id === appointmentId);
     if (!target) return;
 
     setActiveAppointment(target);
-    if (open === 'labs') {
-      setViewIntent({ label: 'labs', subLabel });
-    } else if (open === 'finance') {
-      setViewIntent({ label: 'finance', subLabel: subLabel || 'summary' });
-    } else {
-      setViewIntent(null);
-    }
+    setViewIntent(initialIntent);
     setViewPopup(true);
     handledDeepLinkRef.current = deepLinkKey;
   }, [appointments, searchParams]);
-
-  useEffect(() => {
-    if (activeView === 'list') return;
-    if (globalThis.window === undefined) return;
-
-    lastScrollYRef.current = globalThis.window.scrollY;
-
-    const onScroll = () => {
-      const section = plannerSectionRef.current;
-      if (!section) return;
-
-      const currentY = globalThis.window.scrollY;
-      const isScrollingDown = currentY > lastScrollYRef.current;
-      lastScrollYRef.current = currentY;
-
-      const rect = section.getBoundingClientRect();
-      const shouldLockToSection =
-        isScrollingDown &&
-        rect.top <= 130 &&
-        rect.top >= -180 &&
-        rect.bottom > globalThis.window.innerHeight * 0.55;
-
-      if (shouldLockToSection && !plannerAutoLockRef.current) {
-        plannerAutoLockRef.current = true;
-        globalThis.window.scrollTo({
-          top: globalThis.window.scrollY + rect.top - plannerLockTopOffset,
-          behavior: 'smooth',
-        });
-        return;
-      }
-
-      if (rect.top > 220) {
-        plannerAutoLockRef.current = false;
-      }
-    };
-
-    globalThis.window.addEventListener('scroll', onScroll, { passive: true });
-    return () => globalThis.window.removeEventListener('scroll', onScroll);
-  }, [activeView, plannerLockTopOffset]);
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -182,17 +237,29 @@ const Appointments = () => {
       const matchesStatus =
         activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
-      const matchesQuery = !q || item.companion.name?.toLowerCase().includes(q);
+      const companionDisplayName = formatCompanionNameWithOwnerLastName(
+        item.companion.name,
+        item.companion.parent,
+        ''
+      ).toLowerCase();
+      const matchesQuery = !q || companionDisplayName.includes(q);
 
       return matchesStatus && matchesFilter && matchesQuery;
     });
   }, [appointments, activeStatus, activeFilter, query, activeView]);
+  const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
+    activeView,
+    listWrapperClassName:
+      'w-full flex flex-col gap-3 h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
+    plannerClassName:
+      'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
+  });
 
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
     plannerContent = (
       <AppointmentCalendar
-        filteredList={filteredList}
+        filteredList={filteredList.filter((a) => a.status !== 'CANCELLED')}
         allAppointments={appointments}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
@@ -270,13 +337,7 @@ const Appointments = () => {
         />
 
         <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]} fallback={<Fallback />}>
-          <div
-            className={
-              activeView === 'list'
-                ? 'w-full flex flex-col gap-3 h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
-                : 'w-full flex flex-col gap-3'
-            }
-          >
+          <div className={wrapperClassName}>
             {activeView !== 'board' && (
               <Filters
                 filterOptions={AppointmentFilters}
@@ -287,14 +348,7 @@ const Appointments = () => {
                 setActiveStatus={setActiveStatus}
               />
             )}
-            <div
-              ref={plannerSectionRef}
-              className={
-                activeView === 'list'
-                  ? 'w-full flex-1 min-h-0 overflow-hidden'
-                  : 'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]'
-              }
-            >
+            <div ref={plannerSectionRef} className={plannerSectionClassName}>
               {plannerContent}
             </div>
           </div>

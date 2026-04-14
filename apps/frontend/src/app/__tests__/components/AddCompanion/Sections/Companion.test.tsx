@@ -273,6 +273,30 @@ describe('Companion Component', () => {
     expect(mockSetFormData).toHaveBeenCalled();
   });
 
+  it('hides extended fields in fasttrack mode', async () => {
+    await act(async () => {
+      render(<Companion {...defaultProps} mode="fasttrack" />);
+    });
+
+    expect(screen.getByTestId('companion-color-blood-group-row')).toHaveClass('grid-cols-1');
+    expect(screen.queryByTestId('dropdown-Blood group (optional)')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('input-Current weight (optional) (lbs)')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dropdown-Country of origin (optional)')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('select-My companion comes from:')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('input-Microchip number (optional)')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('input-Passport number (optional)')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('select-Insurance')).not.toBeInTheDocument();
+  });
+
+  it('keeps color and blood group in two columns for normal mode', async () => {
+    await act(async () => {
+      render(<Companion {...defaultProps} />);
+    });
+
+    expect(screen.getByTestId('companion-color-blood-group-row')).toHaveClass('grid-cols-2');
+    expect(screen.getByTestId('dropdown-Blood group (optional)')).toBeInTheDocument();
+  });
+
   it('handles date picker changes', async () => {
     await act(async () => {
       render(<Companion {...defaultProps} />);

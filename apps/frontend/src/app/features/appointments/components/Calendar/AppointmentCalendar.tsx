@@ -38,6 +38,7 @@ import {
   DropAvailabilityInterval,
   resolveAvailabilityIntervalsForDay,
 } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -754,7 +755,13 @@ const AppointmentCalendar = ({
           onAppointmentDragStart={(appointment) => {
             if (!isAppointmentDraggable(appointment)) return;
             setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(appointment.companion?.name ?? 'Appointment');
+            setDraggedAppointmentLabel(
+              formatCompanionNameWithOwnerLastName(
+                appointment.companion?.name,
+                appointment.companion?.parent,
+                'Appointment'
+              )
+            );
             setDragError(null);
             dragAvailabilityCacheRef.current = {};
             dragAvailabilityPendingRef.current = {};
@@ -812,7 +819,13 @@ const AppointmentCalendar = ({
           onAppointmentDragStart={(appointment) => {
             if (!isAppointmentDraggable(appointment)) return;
             setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(appointment.companion?.name ?? 'Appointment');
+            setDraggedAppointmentLabel(
+              formatCompanionNameWithOwnerLastName(
+                appointment.companion?.name,
+                appointment.companion?.parent,
+                'Appointment'
+              )
+            );
             setDragError(null);
             dragAvailabilityCacheRef.current = {};
             dragAvailabilityPendingRef.current = {};
@@ -870,7 +883,13 @@ const AppointmentCalendar = ({
           onAppointmentDragStart={(appointment) => {
             if (!isAppointmentDraggable(appointment)) return;
             setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(appointment.companion?.name ?? 'Appointment');
+            setDraggedAppointmentLabel(
+              formatCompanionNameWithOwnerLastName(
+                appointment.companion?.name,
+                appointment.companion?.parent,
+                'Appointment'
+              )
+            );
             setDragError(null);
             dragAvailabilityCacheRef.current = {};
             dragAvailabilityPendingRef.current = {};

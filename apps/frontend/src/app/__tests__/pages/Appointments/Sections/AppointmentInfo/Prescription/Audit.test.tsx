@@ -59,8 +59,8 @@ describe('Audit', () => {
     });
 
     expect(await screen.findByText('TITLE:status_change')).toBeInTheDocument();
-    expect(screen.getByText('TITLE:appointment')).toBeInTheDocument();
-    expect(screen.getByText('Actor: TITLE:user - TITLE:dr jane')).toBeInTheDocument();
+    expect(screen.getByText('Appointment')).toBeInTheDocument();
+    expect(screen.getByText('Updated by: dr jane • TITLE:USER')).toBeInTheDocument();
     expect(screen.getByText('DATE:2025-01-01T00:00:00.000Z')).toBeInTheDocument();
   });
 

@@ -19,7 +19,7 @@
   justify-content: center;
 }
 .PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead h2 {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-weight: 500;
   font-size: 40px;
   line-height: 120%;
@@ -163,7 +163,7 @@
   text-align: center;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'Clash Grotesk', sans-serif;
+  font-family: var(--font-satoshi), sans-serif;
   text-transform: uppercase;
   color: #555;
   margin-bottom: 20px;
@@ -174,7 +174,7 @@
   text-align: center;
   font-size: 20px;
   font-weight: 700;
-  font-family: 'Clash Grotesk', sans-serif;
+  font-family: var(--font-satoshi), sans-serif;
   line-height: 120%;
   text-transform: uppercase;
   letter-spacing: -0.02em;

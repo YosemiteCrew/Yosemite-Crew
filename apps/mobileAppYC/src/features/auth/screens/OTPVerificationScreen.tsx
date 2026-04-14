@@ -53,7 +53,12 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
 
-  const {email, isNewUser, challengeType = 'otp', challengeLength} = route.params;
+  const {
+    email,
+    isNewUser,
+    challengeType = 'otp',
+    challengeLength,
+  } = route.params;
   const isDemoLogin =
     allowReviewLogin &&
     (challengeType === 'demoPassword' || email === DEMO_LOGIN_EMAIL);
@@ -114,24 +119,24 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     }
   };
 
-const buildUserPayload = (
-  completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
-): User => {
-  const baseUser: User = {
-    id: completion.user.userId,
-    parentId: completion.profile.parent?.id ?? undefined,
-    email: completion.attributes.email ?? completion.user.username,
-    firstName: completion.attributes.given_name,
-    lastName: completion.attributes.family_name,
-    phone: completion.attributes.phone_number,
-    dateOfBirth: completion.attributes.birthdate,
-    profilePicture: completion.attributes.picture,
-    profileToken: completion.profile.profileToken,
-    profileCompleted: completion.profile.isComplete,
-  };
+  const buildUserPayload = (
+    completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
+  ): User => {
+    const baseUser: User = {
+      id: completion.user.userId,
+      parentId: completion.profile.parent?.id ?? undefined,
+      email: completion.attributes.email ?? completion.user.username,
+      firstName: completion.attributes.given_name,
+      lastName: completion.attributes.family_name,
+      phone: completion.attributes.phone_number,
+      dateOfBirth: completion.attributes.birthdate,
+      profilePicture: completion.attributes.picture,
+      profileToken: completion.profile.profileToken,
+      profileCompleted: completion.profile.isComplete,
+    };
 
-  return mergeUserWithParentProfile(baseUser, completion.profile.parent);
-};
+    return mergeUserWithParentProfile(baseUser, completion.profile.parent);
+  };
 
   const validateCode = (code: string): boolean => {
     const trimmed = code.trim();
@@ -146,13 +151,21 @@ const buildUserPayload = (
     return true;
   };
 
-  const handleLinkedParent = async (completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>, userPayload: User, tokens: any) => {
+  const handleLinkedParent = async (
+    completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
+    userPayload: User,
+    tokens: any,
+  ) => {
     await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
     DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
     await login(userPayload, tokens);
   };
 
-  const handleNewAccount = async (completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>, userPayload: User, tokens: any) => {
+  const handleNewAccount = async (
+    completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
+    userPayload: User,
+    tokens: any,
+  ) => {
     const createAccountPayload: AuthStackParamList['CreateAccount'] = {
       email: userPayload.email,
       userId: userPayload.id,
@@ -170,9 +183,13 @@ const buildUserPayload = (
       existingParentProfile: completion.profile.parent ?? null,
       showOtpSuccess: true,
     };
+    const pendingProfilePayload: AuthStackParamList['CreateAccount'] = {
+      ...createAccountPayload,
+      showOtpSuccess: false,
+    };
     await AsyncStorage.setItem(
       PENDING_PROFILE_STORAGE_KEY,
-      JSON.stringify(createAccountPayload),
+      JSON.stringify(pendingProfilePayload),
     );
     DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
     navigation.reset({
@@ -203,9 +220,11 @@ const buildUserPayload = (
       }
     } catch (error) {
       const formatted = formatAuthError(error);
-      setOtpError(formatted === 'Unexpected authentication error. Please retry.'
-        ? 'The code you entered is incorrect. Please try again.'
-        : formatted);
+      setOtpError(
+        formatted === 'Unexpected authentication error. Please retry.'
+          ? 'The code you entered is incorrect. Please try again.'
+          : formatted,
+      );
     } finally {
       if (!cancellationRef.current) {
         setIsVerifying(false);
@@ -289,11 +308,21 @@ const buildUserPayload = (
   }, [handleGoBack]);
 
   const isVerifyDisabled =
-    isVerifying || (isDemoLogin ? otpCode.trim().length === 0 : otpCode.length !== expectedLength);
+    isVerifying ||
+    (isDemoLogin
+      ? otpCode.trim().length === 0
+      : otpCode.length !== expectedLength);
 
   return (
     <LiquidGlassHeaderScreen
-      header={<Header title="Enter login code" showBackButton onBack={handleGoBack} glass={false} />}
+      header={
+        <Header
+          title="Enter login code"
+          showBackButton
+          onBack={handleGoBack}
+          glass={false}
+        />
+      }
       cardGap={theme.spacing['3']}
       contentPadding={theme.spacing['1']}
       showBottomFade={false}>
@@ -305,98 +334,105 @@ const buildUserPayload = (
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}>
-          <View style={styles.content}>
-            <Image
-              source={Images.catLaptop}
-              style={styles.illustration}
-              resizeMode="contain"
-            />
+            <View style={styles.content}>
+              <Image
+                source={Images.catLaptop}
+                style={styles.illustration}
+                resizeMode="contain"
+              />
 
-            <Text style={styles.subtitle}>Check your email</Text>
+              <Text style={styles.subtitle}>Check your email</Text>
 
-            {isDemoLogin ? (
-              <>
-                <Text style={styles.description}>
-                  This is the App Review login. No email was sent—use the provided review
-                  password to sign in and continue to account creation.
-                </Text>
-                <Input
-                  label="Review password"
-                  value={otpCode}
-                  onChangeText={handlePasswordChange}
-                  autoCapitalize="none"
-                  secureTextEntry
-                  returnKeyType="done"
-                  onSubmitEditing={handleVerifyCode}
-                  autoFocus
-                  containerStyle={styles.demoInputContainer}
-                  error={otpError}
-                />
-                <TouchableOpacity
-                  onPress={() => setOtpCode(DEMO_LOGIN_PASSWORD)}
-                  style={styles.prefillButton}>
-                  <Text style={styles.prefillText}>Use provided password</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={styles.description}>
-                  We've sent a {expectedLength}-digit login code to{' '}
-                  <Text style={styles.emailText}>{email}</Text>.
-                  {isNewUser
-                    ? ' Enter the code to create your Yosemite Crew account.'
-                    : ' Enter the code to continue.'}
-                </Text>
+              {isDemoLogin ? (
+                <>
+                  <Text style={styles.description}>
+                    This is the App Review login. No email was sent—use the
+                    provided review password to sign in and continue to account
+                    creation.
+                  </Text>
+                  <Input
+                    label="Review password"
+                    value={otpCode}
+                    onChangeText={handlePasswordChange}
+                    autoCapitalize="none"
+                    secureTextEntry
+                    returnKeyType="done"
+                    onSubmitEditing={handleVerifyCode}
+                    autoFocus
+                    containerStyle={styles.demoInputContainer}
+                    error={otpError}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setOtpCode(DEMO_LOGIN_PASSWORD)}
+                    style={styles.prefillButton}>
+                    <Text style={styles.prefillText}>
+                      Use provided password
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.description}>
+                    We've sent a {expectedLength}-digit login code to{' '}
+                    <Text style={styles.emailText}>{email}</Text>.
+                    {isNewUser
+                      ? ' Enter the code to create your Yosemite Crew account.'
+                      : ' Enter the code to continue.'}
+                  </Text>
 
-                <OTPInput
-                  length={expectedLength}
-                  onComplete={handleOtpFilled}
-                  error={otpError}
-                  autoFocus
-                />
-              </>
-            )}
+                  <OTPInput
+                    length={expectedLength}
+                    onComplete={handleOtpFilled}
+                    error={otpError}
+                    autoFocus
+                  />
+                </>
+              )}
             </View>
           </ScrollView>
 
           <View style={styles.bottomSection}>
-          <LiquidGlassButton
-            title={getButtonTitle()}
-            onPress={handleVerifyCode}
-            style={styles.verifyButton}
-            textStyle={styles.verifyButtonText}
-            tintColor={isVerifyDisabled ? '#A09F9F' : theme.colors.secondary}
-            height={56}
-            borderRadius={16}
-            loading={isVerifying}
-            disabled={isVerifyDisabled}
-          />
+            <LiquidGlassButton
+              title={getButtonTitle()}
+              onPress={handleVerifyCode}
+              style={styles.verifyButton}
+              textStyle={styles.verifyButtonText}
+              tintColor={isVerifyDisabled ? '#A09F9F' : theme.colors.secondary}
+              height={56}
+              borderRadius={16}
+              loading={isVerifying}
+              disabled={isVerifyDisabled}
+            />
 
-          {isDemoLogin ? (
-            <Text style={styles.resendText}>
-              Need credentials? Use {DEMO_LOGIN_PASSWORD} with the review email you entered.
-            </Text>
-          ) : (
-            <View style={styles.resendContainer}>
-              <Text style={styles.resendText}>Didn't receive the code? </Text>
-              {canResend ? (
-                <TouchableOpacity
-                  onPress={handleResendOTP}
-                  disabled={isResending}
-                  style={styles.resendButton}>
-                  {isResending ? (
-                    <ActivityIndicator size="small" color={theme.colors.primary} />
-                  ) : (
-                    <Text style={styles.resendLink}>Resend</Text>
-                  )}
-                </TouchableOpacity>
-              ) : (
-                <Text style={styles.countdownText}>
-                  00:{countdown.toString().padStart(2, '0')} sec
-                </Text>
-              )}
-            </View>
-          )}
+            {isDemoLogin ? (
+              <Text style={styles.resendText}>
+                Need credentials? Use {DEMO_LOGIN_PASSWORD} with the review
+                email you entered.
+              </Text>
+            ) : (
+              <View style={styles.resendContainer}>
+                <Text style={styles.resendText}>Didn't receive the code? </Text>
+                {canResend ? (
+                  <TouchableOpacity
+                    onPress={handleResendOTP}
+                    disabled={isResending}
+                    style={styles.resendButton}>
+                    {isResending ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.primary}
+                      />
+                    ) : (
+                      <Text style={styles.resendLink}>Resend</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.countdownText}>
+                    00:{countdown.toString().padStart(2, '0')} sec
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
         </KeyboardAvoidingView>
       )}

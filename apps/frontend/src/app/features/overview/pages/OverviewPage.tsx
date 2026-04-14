@@ -15,7 +15,6 @@ const OverviewPage = () => {
     starsChart,
     totalSelfHosters,
     totalStars,
-    totalForks,
     totalContributors,
     totalDiscordMembers,
     isLoading,

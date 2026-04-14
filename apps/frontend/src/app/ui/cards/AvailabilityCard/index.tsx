@@ -1,10 +1,10 @@
-import Image from "next/image";
-import React from "react";
-import { Team } from "@/app/features/organization/types/team";
-import { getSafeImageUrl } from "@/app/lib/urls";
-import { getStatusStyle } from "@/app/ui/tables/AvailabilityTable";
-import { toTitleCase } from "@/app/lib/validators";
-import { Secondary } from "@/app/ui/primitives/Buttons";
+import Image from 'next/image';
+import React from 'react';
+import { Team } from '@/app/features/organization/types/team';
+import { getSafeImageUrl } from '@/app/lib/urls';
+import { formatWeeklyWorkingHours, getStatusStyle } from '@/app/ui/tables/AvailabilityTable';
+import { toTitleCase } from '@/app/lib/validators';
+import { Secondary } from '@/app/ui/primitives/Buttons';
 
 type AvailabilityCardProps = {
   team: Team;
@@ -17,24 +17,20 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
       <div className="flex gap-2 items-center">
         <div className="h-10 w-10">
           <Image
-            alt={""}
-            src={getSafeImageUrl(team.image, "person")}
+            alt={''}
+            src={getSafeImageUrl(team.image, 'person')}
             height={40}
             width={40}
             className="h-10 w-10 rounded-full object-cover"
           />
         </div>
         <div className="flex flex-col gap-0">
-          <div className="text-body-3-emphasis text-text-primary">
-            {team.name}
-          </div>
+          <div className="text-body-3-emphasis text-text-primary">{team.name}</div>
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Role:</div>
-        <div className="text-caption-1 text-text-primary">
-          {toTitleCase(team.role)}
-        </div>
+        <div className="text-caption-1 text-text-primary">{toTitleCase(team.role)}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Speciality:</div>
@@ -42,28 +38,20 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
           {Array.isArray(team?.speciality) && team.speciality.length > 0
             ? team.speciality
                 .map((spec: any) =>
-                  typeof spec === "string"
-                    ? spec
-                    : spec?.name || JSON.stringify(spec)
+                  typeof spec === 'string' ? spec : spec?.name || JSON.stringify(spec)
                 )
-                .join(", ")
-            : "-"}
+                .join(', ')
+            : '-'}
         </div>
       </div>
       <div className="flex gap-1">
-        <div className="text-caption-1 text-text-extra">
-          Today&apos;s Appointment:
-        </div>
-        <div className="text-caption-1 text-text-primary">
-          {team.todayAppointment}
-        </div>
+        <div className="text-caption-1 text-text-extra">Today&apos;s Appointment:</div>
+        <div className="text-caption-1 text-text-primary">{team.todayAppointment}</div>
       </div>
       <div className="flex gap-1">
-        <div className="text-caption-1 text-text-extra">
-          Weekly working hours:
-        </div>
+        <div className="text-caption-1 text-text-extra">Weekly working hours:</div>
         <div className="text-caption-1 text-text-primary">
-          {team.weeklyWorkingHours}
+          {formatWeeklyWorkingHours(team.weeklyWorkingHours)}
         </div>
       </div>
       <div
@@ -72,12 +60,7 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
       >
         {team.status}
       </div>
-      <Secondary
-        href="#"
-        onClick={() => handleViewTeam(team)}
-        text="View"
-        className="w-full"
-      />
+      <Secondary href="#" onClick={() => handleViewTeam(team)} text="View" className="w-full" />
     </div>
   );
 };

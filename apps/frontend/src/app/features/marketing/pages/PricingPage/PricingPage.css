@@ -45,8 +45,6 @@
   flex-wrap: wrap;
 }
 .pricingFeatureBrandLogo {
-  width: 128px;
-  height: auto;
   object-fit: contain;
   border: 0;
   border-radius: 0;

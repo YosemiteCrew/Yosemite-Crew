@@ -67,7 +67,9 @@ describe('appointmentCardData', () => {
           mockImages,
         );
 
-        expect(result.avatarSource).toEqual({uri: 'https://example.com/avatar.jpg'});
+        expect(result.avatarSource).toEqual({
+          uri: 'https://example.com/avatar.jpg',
+        });
       });
 
       it('should use business photo when no employee avatar', () => {
@@ -75,7 +77,9 @@ describe('appointmentCardData', () => {
           employeeId: null,
           businessId: 'biz-1',
         });
-        const bizMap = createBusinessMap([{id: 'biz-1', photo: 'https://example.com/business.jpg'}]);
+        const bizMap = createBusinessMap([
+          {id: 'biz-1', photo: 'https://example.com/business.jpg'},
+        ]);
 
         const result = transformAppointmentCardData(
           appointment,
@@ -114,7 +118,13 @@ describe('appointmentCardData', () => {
           employeeId: null,
           companionId: 'comp-1',
         });
-        const companions = [{id: 'comp-1', profileImage: 'https://example.com/pet.jpg', name: 'Fluffy'}];
+        const companions = [
+          {
+            id: 'comp-1',
+            profileImage: 'https://example.com/pet.jpg',
+            name: 'Fluffy',
+          },
+        ];
 
         const result = transformAppointmentCardData(
           appointment,
@@ -126,7 +136,9 @@ describe('appointmentCardData', () => {
           mockImages,
         );
 
-        expect(result.avatarSource).toEqual({uri: 'https://example.com/pet.jpg'});
+        expect(result.avatarSource).toEqual({
+          uri: 'https://example.com/pet.jpg',
+        });
       });
 
       it('should use cat placeholder when no other images', () => {
@@ -154,7 +166,9 @@ describe('appointmentCardData', () => {
         const appointment = createMockAppointment({
           employeeId: 'emp-1',
         });
-        const empMap = createEmployeeMap([{id: 'emp-1', name: 'Dr. Smith', specialization: 'Surgery'}]);
+        const empMap = createEmployeeMap([
+          {id: 'emp-1', name: 'Dr. Smith', specialization: 'Surgery'},
+        ]);
 
         const result = transformAppointmentCardData(
           appointment,
@@ -198,7 +212,9 @@ describe('appointmentCardData', () => {
           employeeId: null,
           serviceId: 'svc-1',
         });
-        const svcMap = createServiceMap([{id: 'svc-1', name: 'Checkup', specialty: 'General'}]);
+        const svcMap = createServiceMap([
+          {id: 'svc-1', name: 'Checkup', specialty: 'General'},
+        ]);
 
         const result = transformAppointmentCardData(
           appointment,
@@ -261,7 +277,13 @@ describe('appointmentCardData', () => {
           serviceId: 'svc-1',
         });
         const svcMap = createServiceMap([
-          {id: 'svc-1', name: 'Checkup', specialty: 'General', basePrice: 50, currency: 'USD'},
+          {
+            id: 'svc-1',
+            name: 'Checkup',
+            specialty: 'General',
+            basePrice: 50,
+            currency: 'USD',
+          },
         ]);
 
         const result = transformAppointmentCardData(
@@ -305,7 +327,9 @@ describe('appointmentCardData', () => {
           employeeId: null,
           serviceId: 'svc-1',
         });
-        const svcMap = createServiceMap([{id: 'svc-1', name: 'Checkup', specialty: 'General'}]);
+        const svcMap = createServiceMap([
+          {id: 'svc-1', name: 'Checkup', specialty: 'General'},
+        ]);
 
         const result = transformAppointmentCardData(
           appointment,
@@ -390,7 +414,9 @@ describe('appointmentCardData', () => {
       });
 
       it('should handle missing pet name', () => {
-        const appointment = createMockAppointment({companionId: 'comp-unknown'});
+        const appointment = createMockAppointment({
+          companionId: 'comp-unknown',
+        });
 
         const result = transformAppointmentCardData(
           appointment,
@@ -481,7 +507,10 @@ describe('appointmentCardData', () => {
       });
 
       it('should enable check-in for UPCOMING status', () => {
-        const appointment = createMockAppointment({status: 'UPCOMING', employeeId: 'emp-1'});
+        const appointment = createMockAppointment({
+          status: 'UPCOMING',
+          employeeId: 'emp-1',
+        });
         const empMap = createEmployeeMap([{id: 'emp-1', name: 'Dr. Smith'}]);
 
         const result = transformAppointmentCardData(
@@ -621,6 +650,30 @@ describe('appointmentCardData', () => {
 
         expect(result.assignmentNote).toBe(
           'Check-in unlocks when you are within ~200m of the clinic and 5 minutes before start time.',
+        );
+      });
+
+      it('should use configured check-in values in assignment note', () => {
+        const appointment = createMockAppointment({
+          status: 'UPCOMING',
+          employeeId: 'emp-1',
+          appointmentCheckInBufferMinutes: 12,
+          appointmentCheckInRadiusMeters: 350,
+        });
+        const empMap = createEmployeeMap([{id: 'emp-1', name: 'Dr. Smith'}]);
+
+        const result = transformAppointmentCardData(
+          appointment,
+          createBusinessMap(),
+          empMap,
+          createServiceMap(),
+          [],
+          {},
+          mockImages,
+        );
+
+        expect(result.assignmentNote).toBe(
+          'Check-in unlocks when you are within ~350m of the clinic and 12 minutes before start time.',
         );
       });
 

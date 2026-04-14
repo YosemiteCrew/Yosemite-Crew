@@ -1,18 +1,14 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
   eventsForDayHour,
-  getNextWeek,
-  getPrevWeek,
   getWeekDays,
   HOURS_IN_DAY,
 } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
-  DEFAULT_CALENDAR_FOCUS_MINUTES,
-  getFirstRelevantTimedEventStart,
+  computeUnavailableSegments,
   getNowTopPxForHourRange,
   isAllDayForDate,
   nextDay,
-  scrollContainerToTarget,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { getStatusStyle } from '@/app/config/statusConfig';
@@ -21,11 +17,10 @@ import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
-  formatHourLabel,
-  formatMinuteLabel,
   getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
+import CalendarHourLabel from '@/app/features/appointments/components/Calendar/common/CalendarHourLabel';
 import {
   formatDateInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
@@ -35,6 +30,14 @@ import { useCalendarNow } from '@/app/features/appointments/components/Calendar/
 import SlotGridLines from '@/app/features/appointments/components/Calendar/common/SlotGridLines';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import {
+  getVisibleHourRange,
+  getVisibleHours,
+  useCalendarAutoScroll,
+  useCalendarWeekNavigation,
+  useSlotOffsetMinutes,
+} from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 const HOUR_ROW_TOP_OFFSET_PX = 0;
 type WeekCalendarProps = {
   events: Appointment[];
@@ -124,8 +127,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   }, [events, days]);
 
   const visibleHourRange = useMemo(() => {
-    if (zoomMode === 'out') return { startHour: 0, endHour: HOURS_IN_DAY - 1 };
-
     const minutes: number[] = [];
     days.forEach((day) => {
       const availability = getVisibleAvailabilityIntervals?.(day) ?? [];
@@ -140,40 +141,15 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       );
     });
 
-    if (!minutes.length) return { startHour: 0, endHour: HOURS_IN_DAY - 1 };
-
-    const minMinute = Math.max(0, Math.min(...minutes) - 30);
-    const maxMinute = Math.min(24 * 60 - 1, Math.max(...minutes) + 30);
-    const startHour = Math.max(0, Math.floor(minMinute / 60));
-    const endHour = Math.min(23, Math.ceil(maxMinute / 60));
-    return { startHour, endHour: Math.max(startHour + 2, endHour) };
+    return getVisibleHourRange(zoomMode, minutes, { endHour: HOURS_IN_DAY - 1 });
   }, [days, getVisibleAvailabilityIntervals, timedEvents, zoomMode]);
 
-  const visibleHours = useMemo(
-    () =>
-      Array.from(
-        { length: Math.max(1, visibleHourRange.endHour - visibleHourRange.startHour + 1) },
-        (_, i) => visibleHourRange.startHour + i
-      ),
-    [visibleHourRange.endHour, visibleHourRange.startHour]
-  );
+  const visibleHours = useMemo(() => getVisibleHours(visibleHourRange), [visibleHourRange]);
   const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
-
-  const handlePrevWeek = () => {
-    setWeekStart((prev) => {
-      const nextWeekStart = getPrevWeek(prev);
-      setCurrentDate(nextWeekStart);
-      return nextWeekStart;
-    });
-  };
-
-  const handleNextWeek = () => {
-    setWeekStart((prev) => {
-      const nextWeekStart = getNextWeek(prev);
-      setCurrentDate(nextWeekStart);
-      return nextWeekStart;
-    });
-  };
+  const { handlePrevWeek, handleNextWeek } = useCalendarWeekNavigation(
+    setWeekStart,
+    setCurrentDate
+  );
 
   const nowPosition = useMemo(() => {
     const todayIndex = days.findIndex((day) => isOnPreferredTimeZoneCalendarDay(now, day));
@@ -191,85 +167,43 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
     return { topPx, todayIndex };
   }, [days, height, now, visibleHourRange.endHour, visibleHourRange.startHour]);
-  const nowTimeLabel = useMemo(() => {
-    if (!nowPosition) return null;
-    return formatDateInPreferredTimeZone(now, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }, [now, nowPosition]);
+  const nowTimeLabel = useMemo(
+    () =>
+      nowPosition
+        ? formatDateInPreferredTimeZone(now, { hour: 'numeric', minute: '2-digit' })
+        : null,
+    [now, nowPosition]
+  );
 
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    if (draggedAppointmentId) return;
-
-    const rangeStart = new Date(days[0]);
-    rangeStart.setHours(0, 0, 0, 0);
-    const lastDay = days.at(-1);
-    if (!lastDay) return;
-    const rangeEnd = nextDay(lastDay);
-    const focusStart = getFirstRelevantTimedEventStart(timedEvents, rangeStart, rangeEnd);
-
-    const focusMinutes = focusStart
-      ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
-      : DEFAULT_CALENDAR_FOCUS_MINUTES;
-    const topPx = nowPosition
-      ? Math.max(0, nowPosition.topPx)
-      : ((focusMinutes - visibleHourRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
-
-    scrollContainerToTarget(scrollRef.current, topPx);
-  }, [days, draggedAppointmentId, height, nowPosition, timedEvents, visibleHourRange.startHour]);
+  useCalendarAutoScroll({
+    date: days[0] ?? weekStart,
+    events: timedEvents,
+    height,
+    nowPosition,
+    scrollContainer: scrollRef.current,
+    skip: !!draggedAppointmentId || !days.length,
+    rangeStart: days[0],
+    rangeEnd: days.at(-1) ? nextDay(days.at(-1) as Date) : undefined,
+    focusStartHour: visibleHourRange.startHour,
+    hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
+  });
 
   const unavailableByDay = useMemo(
     () =>
       days.map((day) => {
         const visible = getVisibleAvailabilityIntervals?.(day) ?? [];
-        if (!visible.length) {
-          if (!availabilityLoaded) return [];
-          const rangeStart = visibleHourRange.startHour * 60;
-          const rangeEnd = (visibleHourRange.endHour + 1) * 60;
-          return [{ startMinute: rangeStart, endMinute: rangeEnd }];
-        }
-        const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
-        const segments: { startMinute: number; endMinute: number }[] = [];
-        const rangeStart = visibleHourRange.startHour * 60;
-        const rangeEnd = (visibleHourRange.endHour + 1) * 60;
-        if (sorted[0].startMinute > rangeStart) {
-          segments.push({ startMinute: rangeStart, endMinute: sorted[0].startMinute });
-        }
-        for (let i = 0; i < sorted.length - 1; i++) {
-          if (sorted[i].endMinute < sorted[i + 1].startMinute) {
-            segments.push({
-              startMinute: sorted[i].endMinute,
-              endMinute: sorted[i + 1].startMinute,
-            });
-          }
-        }
-        const last = sorted.at(-1)!;
-        if (last.endMinute < rangeEnd) {
-          segments.push({ startMinute: last.endMinute, endMinute: rangeEnd });
-        }
-        return segments;
+        return computeUnavailableSegments(
+          visible,
+          visibleHourRange.startHour,
+          visibleHourRange.endHour,
+          availabilityLoaded
+        );
       }),
     [availabilityLoaded, days, getVisibleAvailabilityIntervals, visibleHourRange]
   );
 
   const hasAnyAllDay = allDayByDay.some((list) => list.length > 0);
-  const slotOffsetMinutes = useMemo(() => {
-    const step = Math.max(5, Math.round(slotStepMinutes || 15));
-    if (step >= 60) return [];
-    const offsets: number[] = [];
-    for (let minute = step; minute < 60; minute += step) {
-      offsets.push(minute);
-    }
-    return offsets;
-  }, [slotStepMinutes]);
-  const showSlotTimeLabels = useMemo(() => {
-    if (!slotOffsetMinutes.length) return false;
-    const firstStep = slotOffsetMinutes[0];
-    const pixelsPerSlot = (firstStep / 60) * height;
-    return pixelsPerSlot >= 14;
-  }, [height, slotOffsetMinutes]);
+  const { slotOffsetMinutes, showSlotTimeLabels } = useSlotOffsetMinutes(slotStepMinutes, zoomMode);
 
   return (
     <div className="h-full flex flex-col">
@@ -341,7 +275,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               }}
                             >
                               <div className="font-medium truncate">
-                                {ev.companion.name} • {ev.concern || ''}
+                                {formatCompanionNameWithOwnerLastName(
+                                  ev.companion.name,
+                                  ev.companion.parent
+                                )}{' '}
+                                • {ev.concern || ''}
                               </div>
                             </button>
                           ))}
@@ -370,28 +308,15 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             <div className="relative pb-4">
               {visibleHours.map((hour) => (
                 <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div
-                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2! relative"
-                    style={{ height: height + 'px' }}
-                  >
-                    <span
-                      className={`absolute top-0 ${
-                        hour === visibleHours[0] ? 'translate-y-0' : '-translate-y-1/2'
-                      }`}
-                    >
-                      {formatHourLabel(hour)}
-                    </span>
-                    {showSlotTimeLabels &&
-                      slotOffsetMinutes.map((minute) => (
-                        <span
-                          key={`slot-time-${hour}-${minute}`}
-                          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
-                          style={{ top: `${(minute / 60) * 100}%` }}
-                        >
-                          {formatMinuteLabel(hour * 60 + minute)}
-                        </span>
-                      ))}
-                  </div>
+                  <CalendarHourLabel
+                    hour={hour}
+                    height={height}
+                    slotOffsetMinutes={slotOffsetMinutes}
+                    showSlotTimeLabels={showSlotTimeLabels}
+                    pinFirstHour
+                    firstHour={visibleHours[0]}
+                    className="sticky left-0 z-20 bg-white"
+                  />
                   <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
                       const slotEvents = eventsForDayHour(timedEvents, day, hour);

@@ -16,7 +16,11 @@ import {
 } from '@/features/documents/documentSlice';
 import {setSelectedCompanion} from '@/features/companion';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
+import {
+  useCompanionFormScreen,
+  useFormFileOperations,
+} from '@/shared/hooks/useFormScreen';
+import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 
 export const AddDocumentScreen: React.FC = () => {
   const {
@@ -88,9 +92,12 @@ export const AddDocumentScreen: React.FC = () => {
         uploadDocumentFiles({
           files: formData.files,
           companionId: selectedCompanionId,
-        })
+        }),
       ).unwrap();
-      console.log('[AddDocument] Files uploaded successfully:', uploadedFiles.length);
+      console.log(
+        '[AddDocument] Files uploaded successfully:',
+        uploadedFiles.length,
+      );
 
       await dispatch(
         addDocument({
@@ -100,7 +107,10 @@ export const AddDocumentScreen: React.FC = () => {
           visitType: formData.visitType || '',
           title: formData.title,
           businessName: formData.businessName,
-          issueDate: formData.hasIssueDate ? formData.issueDate.toISOString() : '',
+          issueDate:
+            formData.hasIssueDate && formData.issueDate
+              ? formatDateToISODate(formData.issueDate)
+              : '',
           files: uploadedFiles,
           appointmentId: '',
         }),

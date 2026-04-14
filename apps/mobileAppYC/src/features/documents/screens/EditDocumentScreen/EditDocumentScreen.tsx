@@ -9,20 +9,48 @@ import {
   DocumentFormSheets,
   type DocumentFormData,
 } from '@/features/documents/components/DocumentForm/DocumentForm';
-import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {
+  DeleteDocumentBottomSheet,
+  type DeleteDocumentBottomSheetRef,
+} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useDocumentFormValidation} from '@/hooks';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
-import {updateDocument, deleteDocument, uploadDocumentFiles} from '@/features/documents/documentSlice';
+import {
+  updateDocument,
+  deleteDocument,
+  uploadDocumentFiles,
+} from '@/features/documents/documentSlice';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
+import {
+  useCompanionFormScreen,
+  useFormFileOperations,
+} from '@/shared/hooks/useFormScreen';
+import {formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
 
 type EditDocumentRouteProp = RouteProp<DocumentStackParamList, 'EditDocument'>;
+
+const parseIssueDateValue = (value?: string | null): Date => {
+  if (!value) {
+    return new Date();
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsedLocal = parseISODate(value);
+    if (!Number.isNaN(parsedLocal.getTime())) {
+      return parsedLocal;
+    }
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date();
+  }
+  return parsed;
+};
 
 export const EditDocumentScreen: React.FC = () => {
   const {
@@ -44,7 +72,9 @@ export const EditDocumentScreen: React.FC = () => {
   );
   const loading = useSelector((state: RootState) => state.documents.loading);
 
-  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(
+    null,
+  );
   const [formData, setFormData] = useState<DocumentFormData>({
     category: null,
     subcategory: null,
@@ -73,7 +103,7 @@ export const EditDocumentScreen: React.FC = () => {
         title: document.title,
         businessName: document.businessName,
         hasIssueDate: !!document.issueDate,
-        issueDate: document.issueDate ? new Date(document.issueDate) : new Date(),
+        issueDate: parseIssueDateValue(document.issueDate),
         files: document.files,
       });
     }
@@ -81,14 +111,17 @@ export const EditDocumentScreen: React.FC = () => {
 
   // Handle Android back button for delete bottom sheet
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isDeleteSheetOpen) {
-        deleteDocumentSheetRef.current?.close();
-        setIsDeleteSheetOpen(false);
-        return true;
-      }
-      return false;
-    });
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (isDeleteSheetOpen) {
+          deleteDocumentSheetRef.current?.close();
+          setIsDeleteSheetOpen(false);
+          return true;
+        }
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
   }, [isDeleteSheetOpen]);
@@ -187,7 +220,10 @@ export const EditDocumentScreen: React.FC = () => {
           visitType: formData.visitType || '',
           title: formData.title,
           businessName: formData.businessName,
-          issueDate: formData.hasIssueDate ? formData.issueDate.toISOString() : '',
+          issueDate:
+            formData.hasIssueDate && formData.issueDate
+              ? formatDateToISODate(formData.issueDate)
+              : '',
           files: uploadedFiles,
         }),
       ).unwrap();
@@ -220,7 +256,11 @@ export const EditDocumentScreen: React.FC = () => {
   if (!document) {
     return (
       <SafeArea>
-        <Header title="Edit document" showBackButton={true} onBack={() => navigation.goBack()} />
+        <Header
+          title="Edit document"
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.errorContainer}>
           <Text style={[styles.errorMessage, {color: theme.colors.error}]}>
             Document not found

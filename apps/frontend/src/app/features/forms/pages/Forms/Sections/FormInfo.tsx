@@ -213,7 +213,7 @@ const FormInfo = ({
               href="#"
               text={publishLoading ? 'Publishing...' : 'Publish'}
               onClick={handlePublish}
-              classname="h-12! text-[16px]!"
+              className="h-12! text-[16px]!"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
           </div>
@@ -225,7 +225,7 @@ const FormInfo = ({
               href="#"
               text={publishLoading ? 'Publishing...' : 'Publish'}
               onClick={handlePublish}
-              classname="h-12! text-[16px]!"
+              className="h-12! text-[16px]!"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
             <Secondary

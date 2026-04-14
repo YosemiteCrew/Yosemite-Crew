@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
@@ -36,6 +37,7 @@ import {
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
   canTransitionAppointmentStatus,
+  getAppointmentCompanionPhotoUrl,
   getAllowedAppointmentStatusTransitions,
   getPreferredNextAppointmentStatus,
   getClinicalNotesIntent,
@@ -48,6 +50,8 @@ import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useNotify } from '@/app/hooks/useNotify';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 
 type BoardStatus =
   | 'REQUESTED'
@@ -195,6 +199,7 @@ const AppointmentBoard = ({
     });
     return grouped;
   }, [todayAppointments]);
+  const router = useRouter();
 
   const openAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
@@ -209,7 +214,13 @@ const AppointmentBoard = ({
   };
 
   const openAppointmentHistory = (appointment: Appointment) => {
-    openAppointmentWithIntent(appointment, { label: 'info', subLabel: 'history' });
+    router.push(
+      buildAppointmentCompanionHistoryHref(
+        appointment.id,
+        appointment.companion?.id,
+        '/appointments'
+      )
+    );
   };
 
   const openChangeStatus = (appointment: Appointment) => {
@@ -440,14 +451,18 @@ const AppointmentBoard = ({
                     const isCardDraggable =
                       canEditAppointments &&
                       getAllowedAppointmentStatusTransitions(appointment.status).length > 0;
+                    const companionDisplayName = formatCompanionNameWithOwnerLastName(
+                      appointment.companion.name,
+                      appointment.companion.parent
+                    );
 
                     return (
                       <article
                         key={appointment.id}
                         aria-label={
                           isCardDraggable
-                            ? `Draggable appointment ${appointment.companion.name}`
-                            : `Open appointment ${appointment.companion.name}`
+                            ? `Draggable appointment ${companionDisplayName}`
+                            : `Open appointment ${companionDisplayName}`
                         }
                         className={`relative w-full min-h-[142px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-white px-4 py-3 text-left transition-colors flex flex-col items-stretch justify-start ${
                           draggedAppointmentId === (appointment.id ?? null)
@@ -480,12 +495,15 @@ const AppointmentBoard = ({
                                   event.stopPropagation();
                                   openAppointmentHistory(appointment);
                                 }}
-                                title="Open appointment history"
+                                title="Open appointment overview"
                               >
-                                {appointment.companion.name}
+                                {companionDisplayName}
                               </button>
                               <div className="break-words text-[10px] font-normal text-text-secondary">
-                                Owner: {appointment.companion.parent?.name || '-'}
+                                Speciality: {appointment.appointmentType?.speciality?.name || '-'}
+                              </div>
+                              <div className="break-words text-[10px] font-normal text-text-secondary">
+                                Service: {appointment.appointmentType?.name || '-'}
                               </div>
                               <div className="break-words text-[10px] font-normal text-text-secondary">
                                 Reason: {appointment.concern || '-'}
@@ -498,12 +516,12 @@ const AppointmentBoard = ({
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             <Image
                               src={getSafeImageUrl(
-                                '',
+                                getAppointmentCompanionPhotoUrl(appointment.companion),
                                 appointment.companion.species.toLowerCase() as ImageType
                               )}
                               height={24}
                               width={24}
-                              className="rounded-full border border-card-border bg-white"
+                              className="h-6 w-6 rounded-full border border-card-border bg-white object-cover"
                               alt=""
                             />
                             <div className="text-[10px] text-text-secondary whitespace-nowrap">
@@ -568,7 +586,7 @@ const AppointmentBoard = ({
                                 <IoEyeOutline size={16} color="#302F2E" />
                               </button>
                             </GlassTooltip>
-                            <GlassTooltip content="History" side="bottom">
+                            <GlassTooltip content="Overview" side="bottom">
                               <button
                                 type="button"
                                 className="h-8 w-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
@@ -577,7 +595,7 @@ const AppointmentBoard = ({
                                   event.stopPropagation();
                                   openAppointmentHistory(appointment);
                                 }}
-                                title="Appointment history"
+                                title="Appointment overview"
                               >
                                 <RiHistoryLine size={15} color="#302F2E" />
                               </button>

@@ -51,7 +51,7 @@
   font-weight: 500;
   font-size: 40px;
   line-height: 120%;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   margin: 0;
   color: var(--black-text);
 }
@@ -114,7 +114,7 @@
   font-weight: 500;
   font-size: 23px;
   line-height: 120%;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   border: 1px solid var(--black-bg) !important;
 }
 
@@ -123,7 +123,7 @@
   font-weight: 500;
   font-size: 19px;
   line-height: 120%;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
 }
 
 .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent {
@@ -134,7 +134,7 @@
 }
 
 .VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent a {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-weight: 500;
   font-size: 19px;
   line-height: 120%;
@@ -178,7 +178,7 @@
   border: 1px solid var(--greyborder);
   border-radius: 12px;
   text-align: center;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 19px;
   font-weight: 500;
   line-height: 120%;

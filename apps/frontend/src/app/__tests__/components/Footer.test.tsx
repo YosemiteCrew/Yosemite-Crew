@@ -1,86 +1,89 @@
 /* eslint-disable @next/next/no-img-element */
-import React from "react";
-import { render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import Footer from "@/app/ui/widgets/Footer/Footer";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import Footer from '@/app/ui/widgets/Footer/Footer';
 
-jest.mock("next/image", () => {
-    const MockImage = (props: any) => {
-        return <img {...props} alt={props.alt} />;
-    };
-    MockImage.displayName = "MockNextImage";
-    return {
-        __esModule: true,
-        default: MockImage,
-    };
+jest.mock('next/image', () => {
+  const MockImage = (props: any) => {
+    return <img {...props} alt={props.alt} />;
+  };
+  MockImage.displayName = 'MockNextImage';
+  return {
+    __esModule: true,
+    default: MockImage,
+  };
 });
 
-jest.mock("next/link", () => {
-    const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => {
-        return <a href={href}>{children}</a>;
-    };
-    MockLink.displayName = "MockNextLink";
-    return MockLink;
+jest.mock('next/link', () => {
+  const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => {
+    return <a href={href}>{children}</a>;
+  };
+  MockLink.displayName = 'MockNextLink';
+  return MockLink;
 });
 
-jest.mock("framer-motion", () => {
-    const motion = {
-        footer: (props: any) => <footer {...props} />,
-        div: (props: any) => <div {...props} />,
-        nav: (props: any) => <nav {...props} />,
-    };
+jest.mock('framer-motion', () => {
+  const motion = {
+    footer: (props: any) => <footer {...props} />,
+    div: (props: any) => <div {...props} />,
+    nav: (props: any) => <nav {...props} />,
+  };
 
-    return {
-        ...jest.requireActual("framer-motion"),
-        useInView: () => true,
-        motion: motion,
-    };
+  return {
+    ...jest.requireActual('framer-motion'),
+    useInView: () => true,
+    motion: motion,
+  };
 });
 
-describe("Footer Component", () => {
-    beforeEach(() => {
-        render(<Footer />);
-    });
+describe('Footer Component', () => {
+  beforeEach(() => {
+    render(<Footer />);
+  });
 
-    it("should render the main logo and certification images", () => {
-        expect(screen.getByAltText("Yosemite Crew Logo")).toBeInTheDocument();
-        expect(screen.getByAltText("GDPR")).toBeInTheDocument();
-        expect(screen.getByAltText("SOC2")).toBeInTheDocument();
-        expect(screen.getByAltText("FHIR")).toBeInTheDocument();
-        expect(screen.getByAltText("ISO")).toBeInTheDocument();
-    });
+  it('should render the main logo and certification images', () => {
+    expect(screen.getByAltText('Yosemite Crew Logo')).toBeInTheDocument();
+    expect(screen.getByAltText('GDPR')).toBeInTheDocument();
+    expect(screen.getByAltText('SOC2')).toBeInTheDocument();
+    expect(screen.getByAltText('FHIR')).toBeInTheDocument();
+    expect(screen.getByAltText('ISO')).toBeInTheDocument();
+  });
 
-    it("should render all navigation section titles", () => {
-        expect(screen.getByText("Developers")).toBeInTheDocument();
-        expect(screen.getByText("Community")).toBeInTheDocument();
-        expect(screen.getByText("Company")).toBeInTheDocument();
-    });
+  it('should render all navigation section titles', () => {
+    expect(screen.getByText('Developers')).toBeInTheDocument();
+    expect(screen.getByText('Community')).toBeInTheDocument();
+    expect(screen.getByText('Company')).toBeInTheDocument();
+  });
 
-    it("should render all navigation links with correct href attributes", () => {
-        const gettingStartedLink = screen.getByRole("link", { name: "Developer portal" });
-        expect(gettingStartedLink).toBeInTheDocument();
-        expect(gettingStartedLink).toHaveAttribute("href", "/developers/signup");
+  it('should render all navigation links with correct href attributes', () => {
+    const gettingStartedLink = screen.getByRole('link', { name: 'Developer portal' });
+    expect(gettingStartedLink).toBeInTheDocument();
+    expect(gettingStartedLink).toHaveAttribute('href', '/developers/signup');
 
-        const discordLink = screen.getByRole("link", { name: "Discord" });
-        expect(discordLink).toBeInTheDocument();
-        expect(discordLink).toHaveAttribute("href", "https://discord.gg/yosemitecrew");
+    const discordLink = screen.getByRole('link', { name: 'Discord' });
+    expect(discordLink).toBeInTheDocument();
+    expect(discordLink).toHaveAttribute('href', 'https://discord.gg/yosemitecrew');
 
-        const aboutUsLink = screen.getByRole("link", { name: "About us" });
-        expect(aboutUsLink).toBeInTheDocument();
-        expect(aboutUsLink).toHaveAttribute("href", "/about");
-    });
+    const aboutUsLink = screen.getByRole('link', { name: 'About us' });
+    expect(aboutUsLink).toBeInTheDocument();
+    expect(aboutUsLink).toHaveAttribute('href', '/about');
+  });
 
-    it("should render the copyright and contact information", () => {
-        expect(screen.getByText((_content, element) => {
-            return element?.textContent === 'Copyright © 2026 DuneXploration';
-        })).toBeInTheDocument();
+  it('should render the copyright and contact information', () => {
+    expect(screen.getByText('© 2026 DuneXploration UG (haftungsbeschränkt)')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Yosemite Crew™ is a trademark of DuneXploration UG (haftungsbeschränkt) in the EU, Australia, Great Britain, India, New Zealand, and the USA.'
+      )
+    ).toBeInTheDocument();
 
-        const emailLink = screen.getByRole("link", { name: "support@yosemitecrew.com" });
-        expect(emailLink).toBeInTheDocument();
-        expect(emailLink).toHaveAttribute("href", "mailto:support@yosemitecrew.com");
+    const emailLink = screen.getByRole('link', { name: 'support@yosemitecrew.com' });
+    expect(emailLink).toBeInTheDocument();
+    expect(emailLink).toHaveAttribute('href', 'mailto:support@yosemitecrew.com');
 
-        const phoneLink = screen.getByRole("link", { name: "+49 152 277 63275" });
-        expect(phoneLink).toBeInTheDocument();
-        expect(phoneLink).toHaveAttribute("href", "tel:+4915227763275");
-    });
+    const phoneLink = screen.getByRole('link', { name: '+49 152 277 63275' });
+    expect(phoneLink).toBeInTheDocument();
+    expect(phoneLink).toHaveAttribute('href', 'tel:+4915227763275');
+  });
 });

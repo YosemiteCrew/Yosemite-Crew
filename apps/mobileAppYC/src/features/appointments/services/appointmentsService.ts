@@ -121,6 +121,33 @@ const resolveLeadAvatarUrl = (
   return normalized;
 };
 
+const resolveLeadAvatarFromObject = (
+  lead: any,
+  displayName?: string | null,
+): string | null => {
+  if (!lead || typeof lead !== 'object') {
+    return null;
+  }
+  const candidates = [
+    lead.profileUrl,
+    lead.profileImageUrl,
+    lead.profileImage,
+    lead.profilePictureUrl,
+    lead.profilePicture,
+    lead.avatar,
+    lead.imageUrl,
+    lead.imageURL,
+    lead.photo,
+  ];
+  for (const candidate of candidates) {
+    const resolved = resolveLeadAvatarUrl(candidate, displayName);
+    if (resolved) {
+      return resolved;
+    }
+  }
+  return null;
+};
+
 const parseParticipant = (participants: any[], prefix: string) => {
   const match = participants?.find((p: any) =>
     (p?.actor?.reference ?? '').toString().startsWith(prefix),
@@ -150,6 +177,71 @@ const extractExtensionValue = (
   }
   const found = extensions.find(matcher);
   return found ?? null;
+};
+
+const CHECK_IN_BUFFER_MINUTES_EXTENSION_URLS = [
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-checkin-buffer-minutes',
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-check-in-buffer-minutes',
+];
+
+const CHECK_IN_RADIUS_METERS_EXTENSION_URLS = [
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-checkin-radius-meters',
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-check-in-radius-meters',
+];
+
+const parseNonNegativeInteger = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return undefined;
+};
+
+const extractIntegerFromExtensions = (
+  extensions: any[] | undefined,
+  urls: string[],
+): number | undefined => {
+  if (!Array.isArray(extensions)) {
+    return undefined;
+  }
+
+  for (const url of urls) {
+    const matched = extensions.find(ext => ext?.url === url);
+    if (!matched) {
+      continue;
+    }
+    const parsed = parseNonNegativeInteger(
+      matched.valueInteger ?? matched.valueDecimal ?? matched.valueString,
+    );
+    if (typeof parsed === 'number') {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
+const resolveCheckInConfig = (source: any) => {
+  const extensions = Array.isArray(source?.extension) ? source.extension : [];
+  return {
+    appointmentCheckInBufferMinutes:
+      parseNonNegativeInteger(source?.appointmentCheckInBufferMinutes) ??
+      extractIntegerFromExtensions(
+        extensions,
+        CHECK_IN_BUFFER_MINUTES_EXTENSION_URLS,
+      ),
+    appointmentCheckInRadiusMeters:
+      parseNonNegativeInteger(source?.appointmentCheckInRadiusMeters) ??
+      extractIntegerFromExtensions(
+        extensions,
+        CHECK_IN_RADIUS_METERS_EXTENSION_URLS,
+      ),
+  };
 };
 
 const parseAttachments = (extensions: any[] | undefined) => {
@@ -421,6 +513,7 @@ const resolveAuditTimestamps = (resource: any) => {
 const mapAppointmentResource = (incoming: any): Appointment => {
   const resource = incoming?.appointment ?? incoming;
   const org = incoming?.organisation ?? incoming?.organization;
+  const resourceLead = resource?.lead ?? incoming?.lead;
   let converted: SharedFHIRAppointmentModel | null = null;
   try {
     converted = fromFHIRAppointment(resource as FHIRAppointment);
@@ -456,6 +549,21 @@ const mapAppointmentResource = (incoming: any): Appointment => {
   );
   const {businessLat, businessLng} = resolveBusinessCoordinates(addressObj);
   const {createdAt, updatedAt} = resolveAuditTimestamps(resource);
+  const leadNameFromResource =
+    typeof resourceLead?.name === 'string' && resourceLead.name.trim()
+      ? resourceLead.name.trim()
+      : null;
+  const resolvedLeadName =
+    converted?.lead?.name ?? practitioner.display ?? leadNameFromResource;
+  const leadAvatarFromConverted = resolveLeadAvatarUrl(
+    converted?.lead?.profileUrl,
+    resolvedLeadName,
+  );
+  const leadAvatarFromResource = resolveLeadAvatarFromObject(
+    resourceLead,
+    resolvedLeadName,
+  );
+  const checkInConfig = resolveCheckInConfig(org);
 
   return {
     id: resource?.id ?? resource?._id ?? '',
@@ -473,8 +581,12 @@ const mapAppointmentResource = (incoming: any): Appointment => {
       specialityCoding?.code ??
       null,
     employeeId: converted?.lead?.id ?? practitioner.id,
-    employeeName: converted?.lead?.name ?? practitioner.display,
-    employeeAvatar: practitioner.avatar ?? converted?.lead?.profileUrl ?? null,
+    employeeName: resolvedLeadName,
+    employeeAvatar:
+      practitioner.avatar ??
+      leadAvatarFromConverted ??
+      leadAvatarFromResource ??
+      null,
     employeeTitle: practitionerRole,
     date,
     time,
@@ -509,6 +621,10 @@ const mapAppointmentResource = (incoming: any): Appointment => {
     businessLng,
     businessPhoto: org?.imageURL ?? org?.imageUrl ?? org?.logoUrl ?? null,
     businessGooglePlacesId: org?.googlePlacesId ?? org?.placeId ?? null,
+    appointmentCheckInBufferMinutes:
+      checkInConfig.appointmentCheckInBufferMinutes,
+    appointmentCheckInRadiusMeters:
+      checkInConfig.appointmentCheckInRadiusMeters,
     createdAt,
     updatedAt,
   };
@@ -864,6 +980,7 @@ const mapBusinessFromApi = (
         ext?.url ===
         'https://example.org/fhir/StructureDefinition/organisation-image',
     )?.valueUrl;
+  const checkInConfig = resolveCheckInConfig(org);
 
   const specialities =
     raw?.specialitiesWithServices ??
@@ -929,6 +1046,10 @@ const mapBusinessFromApi = (
     lng: addressObj?.longitude ?? addressObj?.location?.coordinates?.[0],
     googlePlacesId:
       org?.googlePlacesId ?? org?.placeId ?? org?.googlePlaceId ?? null,
+    appointmentCheckInBufferMinutes:
+      checkInConfig.appointmentCheckInBufferMinutes,
+    appointmentCheckInRadiusMeters:
+      checkInConfig.appointmentCheckInRadiusMeters,
   };
 
   return {business, services};

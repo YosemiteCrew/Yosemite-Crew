@@ -18,6 +18,8 @@ import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 
 import './DataTable.css';
 
@@ -137,23 +139,19 @@ const CompanionsTable = ({
   };
 
   const handleViewHistory = (companion: CompanionParent) => {
-    setActiveCompanion(companion);
-    setCompanionInfoInitialLabel?.('history');
-    setViewCompanion(true);
+    handleOpenCompanionHistoryPage(companion);
   };
 
   const handleOpenCompanionHistoryPage = (companion: CompanionParent) => {
     const companionId = String(companion.companion.id ?? '').trim();
     if (!companionId) return;
 
-    const backTo = `/companions?${new URLSearchParams({ companionId }).toString()}`;
-    const params = new URLSearchParams({
-      companionId,
-      source: 'companions',
-      backTo,
-    });
-
-    router.push(`/companions/history?${params.toString()}`);
+    router.push(
+      buildCompanionOverviewHref(
+        companionId,
+        `/companions?${new URLSearchParams({ companionId }).toString()}`
+      )
+    );
   };
 
   const columns: Column<CompanionParent>[] = [
@@ -195,7 +193,7 @@ const CompanionsTable = ({
               className="appointment-profile-title cursor-pointer hover:underline underline-offset-2 text-left"
               title="Open companion history"
             >
-              {formatDisplayValue(item.companion.name)}
+              {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
             </button>
             <div className="flex items-center">
               <div className="appointment-profile-sub truncate max-w-[75px] mr-1">

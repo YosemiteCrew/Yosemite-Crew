@@ -1,27 +1,25 @@
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import EditableAccordion, {
-  FieldConfig,
-} from "@/app/ui/primitives/Accordion/EditableAccordion";
-import ServiceSearchEdit from "@/app/ui/inputs/ServiceSearch/ServiceSearchEdit";
-import Modal from "@/app/ui/overlays/Modal";
-import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
-import ModalHeader from "@/app/ui/overlays/Modal/ModalHeader";
-import { Secondary } from "@/app/ui/primitives/Buttons";
-import Delete from "@/app/ui/primitives/Buttons/Delete";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import EditableAccordion, { FieldConfig } from '@/app/ui/primitives/Accordion/EditableAccordion';
+import ServiceSearchEdit from '@/app/ui/inputs/ServiceSearch/ServiceSearchEdit';
+import Modal from '@/app/ui/overlays/Modal';
+import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import Delete from '@/app/ui/primitives/Buttons/Delete';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   deleteSpeciality,
   updateService,
   updateSpeciality,
-} from "@/app/features/organization/services/specialityService";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
-import { Service, Speciality } from "@yosemite-crew/types";
-import React, { useEffect, useMemo, useState } from "react";
-import { MdDeleteForever } from "react-icons/md";
-import { deleteService } from "@/app/features/organization/services/serviceService";
-import Close from "@/app/ui/primitives/Icons/Close";
-import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
-import { useNotify } from "@/app/hooks/useNotify";
+} from '@/app/features/organization/services/specialityService';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
+import { Service, Speciality } from '@yosemite-crew/types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { MdDeleteForever } from 'react-icons/md';
+import { deleteService } from '@/app/features/organization/services/serviceService';
+import Close from '@/app/ui/primitives/Icons/Close';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type SpecialityInfoProps = {
   showModal: boolean;
@@ -30,18 +28,14 @@ type SpecialityInfoProps = {
   canEditSpecialities: boolean;
 };
 
-const getBasicFields = ({
-  TeamOptions,
-}: {
-  TeamOptions: { label: string; value: string }[];
-}) =>
+const getBasicFields = ({ TeamOptions }: { TeamOptions: { label: string; value: string }[] }) =>
   [
-    { label: "Name", key: "name", type: "text", required: true },
-    { label: "Head", key: "headName", type: "dropdown", options: TeamOptions },
+    { label: 'Name', key: 'name', type: 'text', required: true },
+    { label: 'Head', key: 'headName', type: 'dropdown', options: TeamOptions },
     {
-      label: "Staff",
-      key: "teamMemberIds",
-      type: "multiSelect",
+      label: 'Staff',
+      key: 'teamMemberIds',
+      type: 'multiSelect',
       options: TeamOptions,
     },
   ] satisfies FieldConfig[];
@@ -65,23 +59,23 @@ const SpecialityInfo = ({
 
   const ServiceFields = useMemo(
     () => [
-      { label: "Description", key: "description", type: "text" },
+      { label: 'Description', key: 'description', type: 'text' },
       {
-        label: "Duration (mins)",
-        key: "durationMinutes",
-        type: "number",
+        label: 'Duration (mins)',
+        key: 'durationMinutes',
+        type: 'number',
         required: true,
       },
       {
         label: `Service charge (${currency})`,
-        key: "cost",
-        type: "number",
+        key: 'cost',
+        type: 'number',
         required: true,
       },
-      { label: "Max discount (%)", key: "maxDiscount", type: "number" },
-      { label: "Name", key: "name", type: "text" },
+      { label: 'Max discount (%)', key: 'maxDiscount', type: 'number' },
+      { label: 'Name', key: 'name', type: 'text' },
     ],
-    [currency],
+    [currency]
   );
 
   const TeamOptions = useMemo(
@@ -90,21 +84,18 @@ const SpecialityInfo = ({
         label: team.name || team.practionerId,
         value: team.practionerId,
       })),
-    [teams],
+    [teams]
   );
 
-  const BasicFields = useMemo(
-    () => getBasicFields({ TeamOptions }),
-    [TeamOptions],
-  );
+  const BasicFields = useMemo(() => getBasicFields({ TeamOptions }), [TeamOptions]);
 
   const basicInfoData = useMemo(
     () => ({
-      name: activeSpeciality?.name ?? "",
-      headName: activeSpeciality?.headUserId ?? "",
+      name: activeSpeciality?.name ?? '',
+      headName: activeSpeciality?.headUserId ?? '',
       teamMemberIds: activeSpeciality?.teamMemberIds ?? [],
     }),
-    [activeSpeciality],
+    [activeSpeciality]
   );
 
   const handleDelete = async () => {
@@ -115,17 +106,17 @@ const SpecialityInfo = ({
         organisationId: activeSpeciality.organisationId,
       };
       await deleteSpeciality(payload);
-      notify("success", {
-        title: "Speciality deleted",
-        text: "Speciality has been deleted successfully.",
+      notify('success', {
+        title: 'Speciality deleted',
+        text: 'Speciality has been deleted successfully.',
       });
       setShowDeleteModal(false);
       setShowModal(false);
     } catch (error) {
       console.log(error);
-      notify("error", {
-        title: "Unable to delete speciality",
-        text: "Failed to delete speciality. Please try again.",
+      notify('error', {
+        title: 'Unable to delete speciality',
+        text: 'Failed to delete speciality. Please try again.',
       });
     }
   };
@@ -143,9 +134,7 @@ const SpecialityInfo = ({
               <Close onClick={() => {}} />
             </div>
             <div className="flex justify-center items-center gap-2">
-              <div className="text-body-1 text-text-primary">
-                View speciality
-              </div>
+              <div className="text-body-1 text-text-primary">View speciality</div>
             </div>
             <Close onClick={() => setShowModal(false)} />
           </div>
@@ -153,9 +142,7 @@ const SpecialityInfo = ({
           <div className="flex flex-col gap-6 flex-1 overflow-y-auto scrollbar-hidden">
             <div className={`flex items-center gap-2`}>
               <div className="flex items-center justify-between w-full">
-                <div className="text-body-2 text-text-primary">
-                  {activeSpeciality.name || "-"}
-                </div>
+                <div className="text-body-2 text-text-primary">{activeSpeciality.name || '-'}</div>
                 {canEditSpecialities && (
                   <MdDeleteForever
                     className="cursor-pointer"
@@ -168,22 +155,25 @@ const SpecialityInfo = ({
             </div>
 
             <EditableAccordion
-              key={activeSpeciality.name + "core-key"}
-              title={"Core"}
+              key={activeSpeciality.name + 'core-key'}
+              title={'Core'}
               fields={BasicFields}
               data={basicInfoData}
               defaultOpen={true}
               showEditIcon={canEditSpecialities}
               onSave={async (values) => {
-                const team = TeamOptions.find(
-                  (t) => t.value === values.headName,
-                );
+                const team = TeamOptions.find((t) => t.value === values.headName);
+                const teamMemberIds = Array.isArray(values.teamMemberIds)
+                  ? (values.teamMemberIds as string[])
+                  : activeSpeciality.teamMemberIds;
+                const serviceIds = (activeSpeciality.services ?? []).map((s) => s.id);
                 const payload: Speciality = {
                   ...activeSpeciality,
                   name: values.name ?? activeSpeciality.name,
                   headUserId: values.headName ?? activeSpeciality.headUserId,
                   headName: team?.label ?? activeSpeciality.headName,
-                  services: [],
+                  teamMemberIds,
+                  services: serviceIds,
                 };
                 await updateSpeciality(payload);
               }}
@@ -191,7 +181,7 @@ const SpecialityInfo = ({
 
             <Accordion
               key={activeSpeciality.name}
-              title={"Services"}
+              title={'Services'}
               defaultOpen={true}
               showEditIcon={false}
               isEditing={false}
@@ -214,15 +204,11 @@ const SpecialityInfo = ({
                       const payload: Service = {
                         ...service,
                         name: values.name ?? service.name,
-                        description:
-                          values.description ?? service.description ?? null,
-                        durationMinutes: Number(
-                          values.durationMinutes ?? service.durationMinutes,
-                        ),
+                        description: values.description ?? service.description ?? null,
+                        durationMinutes: Number(values.durationMinutes ?? service.durationMinutes),
                         cost: Number(values.cost ?? service.cost),
                         maxDiscount:
-                          values.maxDiscount === "" ||
-                          values.maxDiscount == null
+                          values.maxDiscount === '' || values.maxDiscount == null
                             ? null
                             : Number(values.maxDiscount),
                       };
@@ -243,12 +229,9 @@ const SpecialityInfo = ({
         >
           <ModalHeader title="Delete speciality" onClose={handleDeleteCancel} />
           <div className="text-body-4 text-text-primary">
-            Are you sure you want to delete{""}
-            <span className="text-body-4-emphasis">
-              {" "}
-              {activeSpeciality.name}
-            </span>
-            {""}? This action cannot be undone.
+            Are you sure you want to delete{''}
+            <span className="text-body-4-emphasis"> {activeSpeciality.name}</span>
+            {''}? This action cannot be undone.
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Secondary href="#" text="Cancel" onClick={handleDeleteCancel} />

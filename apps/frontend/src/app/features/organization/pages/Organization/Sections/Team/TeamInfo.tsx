@@ -4,6 +4,7 @@ import Availability from '@/app/features/appointments/components/Availability/Av
 import {
   AvailabilityState,
   convertAvailability,
+  convertFromGetApi,
   daysOfWeek,
   DEFAULT_INTERVAL,
   hasAtLeastOneAvailability,
@@ -166,30 +167,8 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
       const apiAvailability = Array.isArray(profile?.baseAvailability)
         ? profile.baseAvailability
         : [];
-      const apiMap = new Map<
-        string,
-        Array<{ startTime?: string; endTime?: string; isAvailable?: boolean }>
-      >(
-        apiAvailability.map((entry: any) => [
-          String(entry?.dayOfWeek ?? '').toUpperCase(),
-          Array.isArray(entry?.slots) ? entry.slots : [],
-        ])
-      );
-      const strictAvailability = daysOfWeek.reduce<AvailabilityState>((acc, day) => {
-        const key = day.toUpperCase();
-        const slots = (apiMap.get(key) ?? []).filter((slot) => slot?.isAvailable);
-        acc[day] = {
-          enabled: slots.length > 0,
-          intervals: slots.length
-            ? slots.map((slot) => ({
-                start: String(slot.startTime ?? ''),
-                end: String(slot.endTime ?? ''),
-              }))
-            : [{ ...DEFAULT_INTERVAL }],
-        };
-        return acc;
-      }, {} as AvailabilityState);
-      setAvailability(strictAvailability);
+      const converted = convertFromGetApi(apiAvailability);
+      setAvailability(converted);
 
       const logKey = `${activeTeam?._id || ''}:${JSON.stringify(apiAvailability)}`;
       if (lastAvailabilityLogKeyRef.current !== logKey) {
@@ -496,7 +475,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
                             isSavingAvailability ? 'Saving availability...' : 'Save availability'
                           }
                           onClick={updateAvailability}
-                          className="w-auto min-w-[180px]"
+                          className="w-auto min-w-45"
                           isDisabled={isSavingAvailability}
                         />
                       </div>

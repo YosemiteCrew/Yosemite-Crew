@@ -40,7 +40,7 @@
 }
 
 .OverviewMainTitle {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 3rem;
   font-weight: 500;
   color: var(--color-text-primary);
@@ -83,7 +83,7 @@
 }
 
 .OverviewGraphsTitle {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 2.25rem;
   font-weight: 500;
   color: var(--color-text-primary);
@@ -116,7 +116,7 @@
 }
 
 .StatNumber {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 4rem;
   font-weight: 500;
   color: #247aed;
@@ -388,6 +388,7 @@
 
   .ChartNavigation {
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   .ChartNavigationLabel {
@@ -403,10 +404,6 @@
     padding: 6px 12px;
     font-size: 0.75rem;
     flex: 1;
-  }
-
-  .ChartNavigation {
-    flex-wrap: wrap;
   }
 }
 

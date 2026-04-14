@@ -1,44 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
-import {
-  allowReschedule,
-  canAssignAppointmentRoom,
-  canShowStatusChangeAction,
-  getClinicalNotesIntent,
-  getClinicalNotesLabel,
-  isRequestedLikeStatus,
-} from '@/app/lib/appointments';
+import { getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import {
   autoScrollCalendarHorizontally,
   autoScrollCalendarVertically,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
-import {
-  IoEyeOutline,
-  IoCalendarOutline,
-  IoDocumentTextOutline,
-  IoCardOutline,
-  IoFlaskOutline,
-} from 'react-icons/io5';
-import { MdMeetingRoom, MdOutlineAutorenew } from 'react-icons/md';
-import { RiHistoryLine } from 'react-icons/ri';
 import { createPortal } from 'react-dom';
-import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
+import AppointmentPopover from '@/app/features/appointments/components/Calendar/common/AppointmentPopover';
+import AppointmentContextMenu from '@/app/features/appointments/components/Calendar/common/AppointmentContextMenu';
+import { getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import { getAppointmentPaymentDisplay } from '@/app/lib/paymentStatus';
-import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import {
-  acceptAppointment,
-  rejectAppointment,
-} from '@/app/features/appointments/services/appointmentService';
-import { FaCheckCircle } from 'react-icons/fa';
-import { IoIosCloseCircle } from 'react-icons/io';
-import { useOrgStore } from '@/app/stores/orgStore';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 type SlotProps = {
   slotEvents: Appointment[];
@@ -67,6 +45,14 @@ type SlotProps = {
   invoicesByAppointmentId?: Record<string, Invoice>;
 };
 
+const MARKER_CLICK_DELAY_MS = 180;
+
+type ContextMenuState = {
+  appointment: Appointment;
+  x: number;
+  y: number;
+};
+
 const Slot: React.FC<SlotProps> = ({
   slotEvents,
   height,
@@ -93,16 +79,17 @@ const Slot: React.FC<SlotProps> = ({
   zoomMode = 'in',
   invoicesByAppointmentId = {},
 }) => {
-  const orgsById = useOrgStore((s) => s.orgsById);
   const isZoomOutMode = zoomMode === 'out';
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const {
     activePopoverKey,
     setActivePopoverKey,
     activeRect,
     popoverDialogRef,
-    schedulePopoverClose,
     openPopover,
     getPopoverStyle,
   } = usePopoverManager();
@@ -115,7 +102,63 @@ const Slot: React.FC<SlotProps> = ({
     if (!draggedAppointmentId) return;
     setActivePopoverKey(null);
     setDropPreviewMinute(null);
+    setContextMenu(null);
   }, [draggedAppointmentId, setActivePopoverKey]);
+
+  useEffect(
+    () => () => {
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const closeContextMenu = () => setContextMenu(null);
+    const swallowDismissClick = () => {
+      const handleClickCapture = (event: MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if ('stopImmediatePropagation' in event) {
+          event.stopImmediatePropagation();
+        }
+        globalThis.removeEventListener('click', handleClickCapture, true);
+      };
+
+      globalThis.addEventListener('click', handleClickCapture, true);
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (contextMenuRef.current?.contains(target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if ('stopImmediatePropagation' in event) {
+        event.stopImmediatePropagation();
+      }
+      swallowDismissClick();
+      setContextMenu(null);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setContextMenu(null);
+      }
+    };
+
+    globalThis.addEventListener('pointerdown', handlePointerDown, true);
+    globalThis.addEventListener('scroll', closeContextMenu, true);
+    globalThis.addEventListener('resize', closeContextMenu);
+    globalThis.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      globalThis.removeEventListener('pointerdown', handlePointerDown, true);
+      globalThis.removeEventListener('scroll', closeContextMenu, true);
+      globalThis.removeEventListener('resize', closeContextMenu);
+      globalThis.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [contextMenu]);
 
   const sortedSlotEvents = useMemo(
     () => [...slotEvents].sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
@@ -129,35 +172,11 @@ const Slot: React.FC<SlotProps> = ({
       ) ?? null,
     [sortedSlotEvents, activePopoverKey]
   );
-  const activeEventPayment = useMemo(
-    () => (activeEvent ? getAppointmentPaymentDisplay(activeEvent, invoicesByAppointmentId) : null),
-    [activeEvent, invoicesByAppointmentId]
-  );
-
-  const formatTimeRange = (event: Appointment) => {
-    const start = formatDateInPreferredTimeZone(event.startTime, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    const end = formatDateInPreferredTimeZone(event.endTime, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    return `${start} - ${end}`;
-  };
-
-  const formatStatusLabel = (status?: string) => {
-    if (!status) return 'Unknown';
-    return status
-      .toLowerCase()
-      .split('_')
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-  };
-
-  const openAppointmentHistory = (appointment: Appointment) => {
-    handleViewAppointment(appointment, { label: 'info', subLabel: 'history' });
-  };
+  const getCompanionDisplayName = (appointment: Appointment) =>
+    formatCompanionNameWithOwnerLastName(
+      appointment.companion?.name,
+      appointment.companion?.parent
+    );
 
   const handleOpenPopover = (
     key: string,
@@ -167,13 +186,25 @@ const Slot: React.FC<SlotProps> = ({
   ): void => openPopover(key, target, draggedAppointmentId, clientX, clientY);
 
   const popoverStyle = getPopoverStyle(360, 340);
+  const contextMenuStyle = useMemo(() => {
+    if (!contextMenu) return null;
+    const width = 280;
+    const height = 420;
+    const margin = 12;
+    const left = Math.max(margin, Math.min(contextMenu.x, globalThis.innerWidth - width - margin));
+    const top = Math.max(margin, Math.min(contextMenu.y, globalThis.innerHeight - height - margin));
+    return { left, top, width };
+  }, [contextMenu]);
 
   const setCustomDragGhost = (
     event: React.DragEvent<HTMLButtonElement>,
     appointment: Appointment
   ) => {
     const ghost = document.createElement('img');
-    ghost.src = getSafeImageUrl('', appointment.companion.species.toLowerCase() as ImageType);
+    ghost.src = getSafeImageUrl(
+      getAppointmentCompanionPhotoUrl(appointment.companion),
+      appointment.companion.species.toLowerCase() as ImageType
+    );
     ghost.width = 24;
     ghost.height = 24;
     ghost.style.position = 'fixed';
@@ -287,6 +318,48 @@ const Slot: React.FC<SlotProps> = ({
     return output;
   }, [sortedSlotEvents]);
 
+  const clearPendingMarkerClick = () => {
+    if (!clickTimerRef.current) return;
+    clearTimeout(clickTimerRef.current);
+    clickTimerRef.current = null;
+  };
+
+  const handleMarkerClick = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    appointment: Appointment,
+    key: string
+  ) => {
+    const target = event.currentTarget;
+    const { clientX, clientY } = event;
+    clearPendingMarkerClick();
+    setContextMenu(null);
+    clickTimerRef.current = setTimeout(() => {
+      handleOpenPopover(key, target, clientX, clientY);
+      clickTimerRef.current = null;
+    }, MARKER_CLICK_DELAY_MS);
+  };
+
+  const handleMarkerDoubleClick = (appointment: Appointment) => {
+    clearPendingMarkerClick();
+    setContextMenu(null);
+    setActivePopoverKey(null);
+    handleViewAppointment(appointment);
+  };
+
+  const handleMarkerContextMenu = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    appointment: Appointment
+  ) => {
+    event.preventDefault();
+    clearPendingMarkerClick();
+    setActivePopoverKey(null);
+    setContextMenu({
+      appointment,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  };
+
   return (
     <>
       <div
@@ -393,12 +466,13 @@ const Slot: React.FC<SlotProps> = ({
                 const marginTopPx = (gapMinutes / 60) * height;
                 const statusStyle = getStatusStyle(ev.status);
                 const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 3);
-                const parentName = ev.companion.parent?.name?.trim() ?? '';
+                const serviceName = ev.appointmentType?.name?.trim() ?? '';
                 const concern = ev.concern?.trim() ?? '';
-                const subtitle = [parentName, concern].filter(Boolean).join(' • ');
+                const subtitle = [serviceName, concern].filter(Boolean).join(' • ');
+                const companionDisplayName = getCompanionDisplayName(ev);
                 const markerTitle = subtitle
-                  ? `${ev.companion.name} • ${subtitle}`
-                  : ev.companion.name;
+                  ? `${companionDisplayName} • ${subtitle}`
+                  : companionDisplayName;
                 const draggable = !!canDragAppointment?.(ev);
                 cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
                 return (
@@ -423,16 +497,9 @@ const Slot: React.FC<SlotProps> = ({
                       className={`min-w-0 absolute inset-x-0 -inset-y-2 z-20 ${
                         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                       }`}
-                      onClick={() => handleViewAppointment(ev)}
-                      onMouseEnter={(event) =>
-                        handleOpenPopover(
-                          itemKey,
-                          event.currentTarget,
-                          event.clientX,
-                          event.clientY
-                        )
-                      }
-                      onMouseLeave={schedulePopoverClose}
+                      onClick={(event) => handleMarkerClick(event, ev, itemKey)}
+                      onDoubleClick={() => handleMarkerDoubleClick(ev)}
+                      onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                       draggable={draggable}
                       title={markerTitle}
                       onDragStart={(event) => {
@@ -471,12 +538,13 @@ const Slot: React.FC<SlotProps> = ({
               }) => {
                 const itemKey = `${ev.companion.name}-${ev.startTime.toISOString()}-${originalIndex}`;
                 const statusStyle = getStatusStyle(ev.status);
-                const parentName = ev.companion.parent?.name?.trim() ?? '';
+                const serviceName = ev.appointmentType?.name?.trim() ?? '';
                 const concern = ev.concern?.trim() ?? '';
-                const subtitle = [parentName, concern].filter(Boolean).join(' • ');
+                const subtitle = [serviceName, concern].filter(Boolean).join(' • ');
+                const companionDisplayName = getCompanionDisplayName(ev);
                 const markerTitle = subtitle
-                  ? `${ev.companion.name} • ${subtitle}`
-                  : ev.companion.name;
+                  ? `${companionDisplayName} • ${subtitle}`
+                  : companionDisplayName;
                 const draggable = !!canDragAppointment?.(ev);
                 const laneGapPx = 3;
                 const widthPercent = 100 / laneCount;
@@ -503,16 +571,9 @@ const Slot: React.FC<SlotProps> = ({
                       className={`h-full w-full px-1.5 ${
                         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                       } ${compact ? 'py-1 flex flex-col justify-center text-center' : 'py-1.5 flex items-center gap-2'}`}
-                      onClick={() => handleViewAppointment(ev)}
-                      onMouseEnter={(event) =>
-                        handleOpenPopover(
-                          itemKey,
-                          event.currentTarget,
-                          event.clientX,
-                          event.clientY
-                        )
-                      }
-                      onMouseLeave={schedulePopoverClose}
+                      onClick={(event) => handleMarkerClick(event, ev, itemKey)}
+                      onDoubleClick={() => handleMarkerDoubleClick(ev)}
+                      onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                       draggable={draggable}
                       title={markerTitle}
                       onDragStart={(event) => {
@@ -531,17 +592,10 @@ const Slot: React.FC<SlotProps> = ({
                         opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
                       }}
                     >
-                      {!compact && (
-                        <div className="flex-none self-center max-w-[72px]">
-                          <span className="block rounded-full bg-white/85 px-1.5 py-0.5 text-[9px] font-semibold leading-[11px] text-black-text whitespace-normal break-words text-center">
-                            {formatStatusLabel(ev.status)}
-                          </span>
-                        </div>
-                      )}
                       <div className="min-w-0 flex-1 self-center">
                         <div className="w-full flex flex-col items-center justify-center text-center gap-0.5">
                           <div className="truncate w-full text-caption-1 font-semibold">
-                            {ev.companion.name}
+                            {companionDisplayName}
                           </div>
                           {subtitle && (
                             <div className="text-[10px] w-full truncate opacity-95">{subtitle}</div>
@@ -552,12 +606,13 @@ const Slot: React.FC<SlotProps> = ({
                         <div className="flex-none self-center">
                           <Image
                             src={getSafeImageUrl(
-                              '',
+                              getAppointmentCompanionPhotoUrl(ev.companion),
                               ev.companion.species.toLowerCase() as ImageType
                             )}
                             height={26}
                             width={26}
-                            className="rounded-full border border-white/60"
+                            className="rounded-full border border-white/60 object-cover"
+                            style={{ width: 26, height: 26 }}
                             alt=""
                           />
                         </div>
@@ -575,253 +630,33 @@ const Slot: React.FC<SlotProps> = ({
         activeEvent &&
         activeRect &&
         createPortal(
-          <dialog
-            ref={popoverDialogRef}
-            open
-            className="fixed z-[1000] w-[380px] rounded-2xl border border-card-border bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
-            style={popoverStyle}
-            aria-label="Appointment quick actions"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex items-center gap-2">
-                <Image
-                  src={getSafeImageUrl(
-                    '',
-                    activeEvent.companion.species.toLowerCase() as ImageType
-                  )}
-                  height={34}
-                  width={34}
-                  className="rounded-full border border-card-border bg-white"
-                  alt=""
-                />
-                <div className="min-w-0">
-                  <button
-                    type="button"
-                    className="text-body-3-emphasis text-text-primary truncate cursor-pointer hover:underline underline-offset-2 text-left"
-                    onClick={() => {
-                      openAppointmentHistory(activeEvent);
-                      setActivePopoverKey(null);
-                    }}
-                    title="Open appointment history"
-                  >
-                    {activeEvent.companion.name || '-'}
-                  </button>
-                  <div className="text-caption-1 text-text-secondary truncate">
-                    {activeEvent.companion.breed || '-'} / {activeEvent.companion.species || '-'}
-                  </div>
-                </div>
-              </div>
-              <span
-                className="text-[10px] leading-4 font-medium px-2 py-1 rounded-full text-white whitespace-nowrap"
-                style={{
-                  backgroundColor: getStatusStyle(activeEvent.status).backgroundColor || '#1a73e8',
-                }}
-              >
-                {formatStatusLabel(activeEvent.status)}
-              </span>
-            </div>
-
-            <div className="mt-3 rounded-xl border border-card-border bg-card-hover px-3 py-2 grid grid-cols-2 gap-x-3 gap-y-1">
-              <div className="text-caption-1 text-text-secondary">Time</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {formatTimeRange(activeEvent)}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Parent</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.companion.parent?.name || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Lead</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.lead?.name || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Service</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.appointmentType?.name || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Room</div>
-              <div className="text-caption-1 text-text-primary text-right truncate">
-                {activeEvent.room?.name || '-'}
-              </div>
-              <div className="text-caption-1 text-text-secondary">Payment</div>
-              <div
-                className="text-caption-1 text-right truncate font-medium"
-                style={{ color: activeEventPayment?.textColor || '#302F2E' }}
-              >
-                {activeEventPayment?.label || '-'}
-              </div>
-            </div>
-
-            <div className="mt-2 text-caption-1 text-text-secondary">Reason</div>
-            <div className="text-caption-1 text-text-primary min-h-6 line-clamp-2">
-              {activeEvent.concern || '-'}
-            </div>
-
-            <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-card-border pt-2 flex-wrap">
-              {canEditAppointments && isRequestedLikeStatus(activeEvent.status) && (
-                <>
-                  <GlassTooltip content="Accept request" side="top">
-                    <button
-                      type="button"
-                      title="Accept request"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-[#E6F4EF] border border-card-border"
-                      onClick={async () => {
-                        await acceptAppointment(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <FaCheckCircle size={18} color="#54B492" />
-                    </button>
-                  </GlassTooltip>
-                  <GlassTooltip content="Decline request" side="top">
-                    <button
-                      type="button"
-                      title="Decline request"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-[#FDEBEA] border border-card-border"
-                      onClick={async () => {
-                        await rejectAppointment(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoIosCloseCircle size={20} color="#EA3729" />
-                    </button>
-                  </GlassTooltip>
-                </>
-              )}
-              {!isRequestedLikeStatus(activeEvent.status) && (
-                <>
-                  <GlassTooltip content="View appointment" side="top">
-                    <button
-                      type="button"
-                      title="View appointment"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        handleViewAppointment(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoEyeOutline size={18} />
-                    </button>
-                  </GlassTooltip>
-                  <GlassTooltip content="History" side="top">
-                    <button
-                      type="button"
-                      title="Appointment history"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        openAppointmentHistory(activeEvent);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <RiHistoryLine size={17} />
-                    </button>
-                  </GlassTooltip>
-                  {canEditAppointments && canShowStatusChangeAction(activeEvent.status) && (
-                    <GlassTooltip content="Change status" side="top">
-                      <button
-                        type="button"
-                        title="Change status"
-                        className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                        onClick={() => {
-                          if (handleChangeStatusAppointment) {
-                            handleChangeStatusAppointment(activeEvent);
-                          } else {
-                            handleViewAppointment(activeEvent);
-                          }
-                          setActivePopoverKey(null);
-                        }}
-                      >
-                        <MdOutlineAutorenew size={18} />
-                      </button>
-                    </GlassTooltip>
-                  )}
-                  {canEditAppointments && allowReschedule(activeEvent.status) && (
-                    <GlassTooltip content="Reschedule" side="top">
-                      <button
-                        type="button"
-                        title="Reschedule"
-                        className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                        onClick={() => {
-                          handleRescheduleAppointment(activeEvent);
-                          setActivePopoverKey(null);
-                        }}
-                      >
-                        <IoCalendarOutline size={18} />
-                      </button>
-                    </GlassTooltip>
-                  )}
-                  {canEditAppointments && canAssignAppointmentRoom(activeEvent.status) && (
-                    <GlassTooltip content="Assign room" side="top">
-                      <button
-                        type="button"
-                        title="Assign room"
-                        className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                        onClick={() => {
-                          handleChangeRoomAppointment?.(activeEvent);
-                          setActivePopoverKey(null);
-                        }}
-                      >
-                        <MdMeetingRoom size={18} />
-                      </button>
-                    </GlassTooltip>
-                  )}
-                  {(() => {
-                    const orgType =
-                      (activeEvent.organisationId && orgsById[activeEvent.organisationId]?.type) ||
-                      'HOSPITAL';
-                    const clinicalNotesLabel = getClinicalNotesLabel(orgType);
-                    const clinicalNotesIntent = getClinicalNotesIntent(orgType);
-                    return (
-                      <GlassTooltip content={clinicalNotesLabel} side="top">
-                        <button
-                          type="button"
-                          title={clinicalNotesLabel}
-                          className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                          onClick={() => {
-                            handleViewAppointment(activeEvent, clinicalNotesIntent);
-                            setActivePopoverKey(null);
-                          }}
-                        >
-                          <IoDocumentTextOutline size={18} />
-                        </button>
-                      </GlassTooltip>
-                    );
-                  })()}
-                  <GlassTooltip content="Finance summary" side="top">
-                    <button
-                      type="button"
-                      title="Finance summary"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        handleViewAppointment(activeEvent, {
-                          label: 'finance',
-                          subLabel: 'summary',
-                        });
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoCardOutline size={18} />
-                    </button>
-                  </GlassTooltip>
-                  <GlassTooltip content="Lab tests" side="top">
-                    <button
-                      type="button"
-                      title="Lab tests"
-                      className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        handleViewAppointment(activeEvent, {
-                          label: 'labs',
-                          subLabel: 'idexx-labs',
-                        });
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoFlaskOutline size={18} />
-                    </button>
-                  </GlassTooltip>
-                </>
-              )}
-            </div>
-          </dialog>,
+          <AppointmentPopover
+            appointment={activeEvent}
+            invoicesByAppointmentId={invoicesByAppointmentId}
+            canEditAppointments={canEditAppointments}
+            popoverDialogRef={popoverDialogRef}
+            popoverStyle={popoverStyle}
+            handleViewAppointment={handleViewAppointment}
+            handleRescheduleAppointment={handleRescheduleAppointment}
+            handleChangeStatusAppointment={handleChangeStatusAppointment}
+            handleChangeRoomAppointment={handleChangeRoomAppointment}
+            onClose={() => setActivePopoverKey(null)}
+          />,
+          document.body
+        )}
+      {isMounted &&
+        contextMenu &&
+        contextMenuStyle &&
+        createPortal(
+          <AppointmentContextMenu
+            appointment={contextMenu.appointment}
+            canEditAppointments={canEditAppointments}
+            menuRef={contextMenuRef}
+            menuStyle={contextMenuStyle}
+            handleViewAppointment={handleViewAppointment}
+            handleRescheduleAppointment={handleRescheduleAppointment}
+            onClose={() => setContextMenu(null)}
+          />,
           document.body
         )}
     </>

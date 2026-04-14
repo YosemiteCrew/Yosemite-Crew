@@ -162,7 +162,7 @@ const Review = ({
         <Primary
           href="#"
           text={isEditing ? 'Update & publish' : 'Publish template'}
-          classname="w-full max-h-12! text-lg! tracking-wide!"
+          className="w-full max-h-12! text-lg! tracking-wide!"
           onClick={onPublish}
           isDisabled={loading}
         />

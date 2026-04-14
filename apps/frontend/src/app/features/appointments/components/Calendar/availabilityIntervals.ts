@@ -40,6 +40,12 @@ const toAbsoluteInterval = (
     endAbsoluteMinute += DAY_MINUTES;
   }
 
+  // A slot ending at 23:59 (1 minute before midnight) is treated as ending at
+  // midnight so there is no 1-minute unavailability gap at the end of the day.
+  if (endAbsoluteMinute % DAY_MINUTES === DAY_MINUTES - 1) {
+    endAbsoluteMinute += 1;
+  }
+
   return {
     startAbsoluteMinute,
     endAbsoluteMinute,

@@ -4,6 +4,7 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import SelectLabel from '@/app/ui/inputs/SelectLabel';
+import Timepicker from '@/app/ui/inputs/Timepicker';
 import { Option } from '@/app/features/companions/types/companion';
 import { Task, TaskKindOptions, TaskRecurrenceOptions } from '@/app/features/tasks/types/task';
 import { TaskFormErrors } from '@/app/lib/taskForm';
@@ -148,12 +149,11 @@ const TaskFormFields = ({
       type="input"
       error={formDataErrors.dueAt}
     />
-    <FormInput
-      intype="time"
-      inname="dueTime"
+    <Timepicker
       value={dueTimeValue}
-      inlabel="Due time"
-      onChange={(e) => setDueTimeValue(e.target.value)}
+      label="Due time"
+      name="dueTime"
+      onChange={setDueTimeValue}
       error={formDataErrors.dueAt}
     />
     <FormInput

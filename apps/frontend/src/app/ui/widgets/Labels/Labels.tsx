@@ -33,11 +33,14 @@ const Labels = ({
 }: LabelsProps) => {
   const active = labels.find((l) => l.key === activeLabel);
   const subLabels = active ? active.labels : [];
+  const useCenteredLayout = labels.length <= 3;
 
   return (
-    <div className="inline-flex flex-col gap-2 w-fit mx-auto">
+    <div className="mx-auto inline-flex w-full flex-col gap-2">
       <div
-        className="flex items-center justify-center gap-2 flex-wrap"
+        className={`flex w-full items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 ${
+          useCenteredLayout ? 'justify-center' : 'justify-start px-1 sm:px-2'
+        }`}
         role="tablist"
         aria-label="Section navigation"
       >
@@ -49,7 +52,7 @@ const Labels = ({
             aria-selected={label.key === activeLabel}
             disabled={disableClicking}
             onClick={() => setActiveLabel(label.key)}
-            className={`min-w-20 h-9 text-body-4 px-3 text-text-secondary rounded-2xl! border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text ${
+            className={`shrink-0 min-w-20 h-9 text-body-4 px-3 text-text-secondary rounded-2xl! border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text ${
               label.key === activeLabel
                 ? 'bg-blue-light text-blue-text! border-text-brand!'
                 : 'border-card-border! hover:bg-card-hover!'

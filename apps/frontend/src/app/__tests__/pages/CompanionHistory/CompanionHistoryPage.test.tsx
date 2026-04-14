@@ -4,8 +4,10 @@ import '@testing-library/jest-dom';
 import CompanionHistoryPage from '@/app/features/companionHistory/pages/CompanionHistoryPage';
 
 const pushMock = jest.fn();
+const startRouteLoaderMock = jest.fn();
 const searchGetMock = jest.fn();
 const useCompanionsParentsForPrimaryOrgMock = jest.fn();
+const useCompanionStoreMock = jest.fn();
 const replaceCompanionTextMock = jest.fn((text: string) => text);
 
 jest.mock('next/image', () => ({
@@ -57,6 +59,19 @@ jest.mock('@/app/lib/urls', () => ({
   getSafeImageUrl: jest.fn(() => '/safe-photo.jpg'),
 }));
 
+jest.mock('@/app/lib/routeLoader', () => ({
+  startRouteLoader: () => startRouteLoaderMock(),
+}));
+
+jest.mock('@/app/stores/companionStore', () => ({
+  useCompanionStore: (selector: (s: { status: string }) => unknown) =>
+    useCompanionStoreMock(selector),
+}));
+
+jest.mock('@/app/ui/overlays/Loader', () => ({
+  YosemiteLoader: ({ testId }: any) => <div data-testid={testId}>Loading...</div>,
+}));
+
 describe('CompanionHistoryPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -67,21 +82,36 @@ describe('CompanionHistoryPage', () => {
       return null;
     });
     useCompanionsParentsForPrimaryOrgMock.mockReturnValue([]);
+    useCompanionStoreMock.mockImplementation((selector: (s: { status: string }) => unknown) =>
+      selector({ status: 'loaded' })
+    );
   });
 
   it('shows missing companion notice and uses fallback back path', () => {
     render(<CompanionHistoryPage />);
 
-    expect(screen.getByText('Companion History')).toBeInTheDocument();
+    expect(screen.getByText('Companion Overview')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Companion id is missing. Please open history from Appointments or Companions.'
+        'Companion id is missing. Please open overview from Appointments or Companions.'
       )
     ).toBeInTheDocument();
     expect(screen.queryByTestId('timeline')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/companions');
+  });
+
+  it('shows loader when companions are still loading', () => {
+    useCompanionStoreMock.mockImplementation((selector: (s: { status: string }) => unknown) =>
+      selector({ status: 'loading' })
+    );
+
+    render(<CompanionHistoryPage />);
+
+    expect(screen.getByTestId('companions-history-loader')).toBeInTheDocument();
+    expect(screen.queryByText('Companion Overview')).not.toBeInTheDocument();
   });
 
   it('renders timeline and companion summary when companion id is present', () => {
@@ -110,6 +140,7 @@ describe('CompanionHistoryPage', () => {
     expect(screen.getByText('Labrador / DOG')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/appointments');
   });
 
@@ -124,9 +155,11 @@ describe('CompanionHistoryPage', () => {
     const { rerender } = render(<CompanionHistoryPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/appointments/details');
 
     pushMock.mockClear();
+    startRouteLoaderMock.mockClear();
     searchGetMock.mockImplementation((key: string) => {
       if (key === 'companionId') return 'c-1';
       if (key === 'source') return 'appointments';
@@ -137,6 +170,7 @@ describe('CompanionHistoryPage', () => {
     rerender(<CompanionHistoryPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/appointments');
   });
 });

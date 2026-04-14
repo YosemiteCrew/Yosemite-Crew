@@ -7,13 +7,13 @@
   justify-content: center;
   gap: 10px;
   border-radius: 16px;
- border: 1px dashed #747473;
- cursor: pointer;
+  border: 1px dashed #747473;
+  cursor: pointer;
 }
 .upload-title {
   color: var(--black-text);
   text-align: center;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 18px;
   font-style: normal;
   font-weight: 500;
@@ -21,12 +21,12 @@
   letter-spacing: -0.18px;
 }
 .upload-desc {
-    color: var(--black-text);
-text-align: center;
-font-family: var(--satoshi-font);
-max-width: 240px;
-font-size: 14px;
-font-style: normal;
-font-weight: 400;
-line-height: 120%;
+  color: var(--black-text);
+  text-align: center;
+  font-family: var(--satoshi-font);
+  max-width: 240px;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 120%;
 }

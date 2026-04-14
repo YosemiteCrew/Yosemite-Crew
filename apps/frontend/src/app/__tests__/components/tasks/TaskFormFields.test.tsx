@@ -40,6 +40,15 @@ jest.mock('@/app/ui/inputs/Datepicker', () => ({
   ),
 }));
 
+jest.mock('@/app/ui/inputs/Timepicker', () => ({
+  __esModule: true,
+  default: ({ onChange }: any) => (
+    <button type="button" onClick={() => onChange('09:30')}>
+      set-time
+    </button>
+  ),
+}));
+
 jest.mock('@/app/ui/inputs/SelectLabel', () => ({
   __esModule: true,
   default: ({ setOption }: any) => (
@@ -103,11 +112,13 @@ describe('TaskFormFields', () => {
     fireEvent.change(screen.getByLabelText('Reminder (in minutes)'), { target: { value: '15' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'set-due' }));
+    fireEvent.click(screen.getByRole('button', { name: 'set-time' }));
     fireEvent.click(screen.getByRole('button', { name: 'set-recurrence' }));
 
     expect(setFormData).toHaveBeenCalled();
     expect(onSelectTemplate).toHaveBeenCalledWith('tpl-1');
     expect(setDue).toHaveBeenCalled();
+    expect(setDueTimeValue).toHaveBeenCalledWith('09:30');
   });
 
   it('handles org template path and ignores zero reminder', () => {

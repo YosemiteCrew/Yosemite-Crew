@@ -1,68 +1,52 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import Datepicker from "@/app/ui/inputs/Datepicker";
+import Datepicker from '@/app/ui/inputs/Datepicker';
 
-jest.mock("react-icons/io5", () => ({
-  IoCalendarClear: () => <span data-testid="calendar-icon" />,
-}));
+jest.mock('react-datepicker', () => {
+  return {
+    __esModule: true,
+    default: ({ customInput, selected, onChange }: any) => (
+      <div>
+        {React.cloneElement(customInput, {
+          value: selected ? 'Jan 15, 2025' : '',
+        })}
+        <button type="button" onClick={() => onChange(new Date('2026-01-01T00:00:00.000Z'))}>
+          pick-date
+        </button>
+      </div>
+    ),
+  };
+});
 
-jest.mock("react-icons/gr", () => ({
-  GrNext: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      Next
-    </button>
-  ),
-  GrPrevious: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      Prev
-    </button>
-  ),
-}));
-
-jest.mock("@/app/ui/inputs/Datepicker/Month", () => ({
-  __esModule: true,
-  default: () => <div data-testid="month-picker" />,
-}));
-
-jest.mock("@/app/ui/inputs/Datepicker/Year", () => ({
-  __esModule: true,
-  default: () => <div data-testid="year-picker" />,
-}));
-
-describe("Datepicker (index)", () => {
-  it("opens calendar and selects a date", () => {
+describe('Datepicker (index)', () => {
+  it('selects a date in input mode', () => {
     const setCurrentDate = jest.fn();
-    const date = new Date(2025, 0, 15);
 
     render(
       <Datepicker
-        currentDate={date}
+        currentDate={new Date('2025-01-15T00:00:00.000Z')}
         setCurrentDate={setCurrentDate}
         placeholder="Select date"
         type="input"
       />
     );
 
-    fireEvent.click(screen.getByLabelText("Toggle calendar"));
+    fireEvent.click(screen.getByText('pick-date'));
 
-    const day = screen.getAllByText("15")[0];
-    fireEvent.click(day);
-
-    expect(setCurrentDate).toHaveBeenCalled();
+    expect(setCurrentDate).toHaveBeenCalledWith(new Date('2026-01-01T00:00:00.000Z'));
   });
 
-  it("toggles calendar with icon mode", () => {
+  it('renders icon trigger mode', () => {
     render(
       <Datepicker
-        currentDate={new Date(2025, 0, 1)}
+        currentDate={new Date('2025-01-01T00:00:00.000Z')}
         setCurrentDate={jest.fn()}
         placeholder="Select date"
       />
     );
 
-    fireEvent.click(screen.getByTestId("calendar-icon"));
-    expect(screen.getByTestId("month-picker")).toBeInTheDocument();
+    expect(screen.getByLabelText('Toggle calendar')).toBeInTheDocument();
   });
 });

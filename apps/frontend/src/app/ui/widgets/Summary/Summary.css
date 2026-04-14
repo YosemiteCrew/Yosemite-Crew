@@ -6,7 +6,7 @@
 }
 .summary-title {
   color: var(--black-text);
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 33px;
   font-style: normal;
   font-weight: 500;
@@ -89,7 +89,7 @@
   padding: 12px 24px;
   color: var(--black-text);
   text-align: center;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 19px;
   font-style: normal;
   font-weight: 500;

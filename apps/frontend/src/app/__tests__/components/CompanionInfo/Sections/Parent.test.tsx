@@ -1,11 +1,11 @@
-import React from "react";
-import { render, screen } from "@testing-library/react";
-import Parent from "@/app/features/companions/components/Sections/Parent";
-import { CompanionParent } from "@/app/features/companions/pages/Companions/types";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import Parent from '@/app/features/companions/components/Sections/Parent';
+import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 
 // --- Mocks ---
 
-jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => {
+jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => {
   return jest.fn((props) => (
     <div data-testid="editable-accordion">
       <span data-testid="title">{props.title}</span>
@@ -17,84 +17,93 @@ jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => {
   ));
 });
 
-import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
+import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 
 // --- Test Data ---
 
 const mockCompanion: CompanionParent = {
   companion: {
-    _id: "c1",
-    name: "Rex",
+    _id: 'c1',
+    name: 'Rex',
   },
   parent: {
-    _id: "p1",
-    firstName: "Jane",
-    lastName: "Doe",
-    email: "jane@example.com",
-    phoneNumber: "123-456-7890",
+    _id: 'p1',
+    firstName: 'Jane',
+    lastName: 'Doe',
+    email: 'jane@example.com',
+    phoneNumber: '123-456-7890',
+    address: {
+      addressLine: '123 Main St',
+      city: 'Austin',
+      state: 'TX',
+      postalCode: '78701',
+      country: 'USA',
+    },
   },
 } as any;
 
-describe("Parent Section Component", () => {
+describe('Parent Section Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   // --- 1. Rendering Structure ---
 
-  it("renders the main section header", () => {
+  it('renders the main section header', () => {
     render(<Parent companion={mockCompanion} />);
 
-    expect(screen.getAllByText("Parent information").length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Parent information').length).toBeGreaterThan(0);
   });
 
-  it("renders the EditableAccordion component", () => {
+  it('renders the EditableAccordion component', () => {
     render(<Parent companion={mockCompanion} />);
 
-    expect(screen.getByTestId("editable-accordion")).toBeInTheDocument();
+    expect(screen.getByTestId('editable-accordion')).toBeInTheDocument();
   });
 
   // --- 2. Data Passing ---
 
-  it("passes correct parent data to EditableAccordion", () => {
+  it('passes correct parent data to EditableAccordion', () => {
     render(<Parent companion={mockCompanion} />);
 
-    const dataJson = screen.getByTestId("data-json").textContent;
+    const dataJson = screen.getByTestId('data-json').textContent;
 
     // FIX: Use null coalescing (??) to satisfy TS (no null) and SonarQube (no !)
-    const parsedData = JSON.parse(dataJson ?? "{}");
+    const parsedData = JSON.parse(dataJson ?? '{}');
 
     expect(parsedData).toEqual(
       expect.objectContaining({
-        firstName: "Jane",
-        lastName: "Doe",
-        email: "jane@example.com",
-        phoneNumber: "123-456-7890",
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        phoneNumber: '123-456-7890',
+        address: '123 Main St, Austin, TX, 78701, USA',
       })
     );
   });
 
   // --- 3. Configuration & Props ---
 
-  it("passes the correct configuration fields", () => {
+  it('passes the correct configuration fields', () => {
     render(<Parent companion={mockCompanion} />);
 
     const passedProps = (EditableAccordion as jest.Mock).mock.calls[0][0];
     const fields = passedProps.fields;
 
-    expect(fields).toHaveLength(4);
+    expect(fields).toHaveLength(5);
     expect(fields).toEqual([
-      { label: "First name", key: "firstName", type: "text", required: true },
-      { label: "Last name", key: "lastName", type: "text", required: true },
-      { label: "Email", key: "email", type: "email", editable: false },
-      { label: "Phone number", key: "phoneNumber", type: "tel", editable: false },
+      { label: 'First name', key: 'firstName', type: 'text', required: true },
+      { label: 'Last name', key: 'lastName', type: 'text', required: true },
+      { label: 'Email', key: 'email', type: 'email', editable: false },
+      { label: 'Phone number', key: 'phoneNumber', type: 'tel', editable: false },
+      { label: 'Address', key: 'address', type: 'text', editable: false },
     ]);
   });
 
-  it("sets correct display flags (defaultOpen, showEditIcon)", () => {
+  it('sets correct display flags (defaultOpen, showEditIcon)', () => {
     render(<Parent companion={mockCompanion} />);
 
-    expect(screen.getByTestId("default-open")).toHaveTextContent("true");
-    expect(screen.getByTestId("show-edit")).toHaveTextContent("false");
+    expect(screen.getByTestId('default-open')).toHaveTextContent('true');
+    expect(screen.getByTestId('show-edit')).toHaveTextContent('false');
   });
 });

@@ -1,17 +1,18 @@
-import Modal from "@/app/ui/overlays/Modal";
-import React, { useEffect, useMemo } from "react";
-import { CompanionParent } from "@/app/features/companions/pages/Companions/types";
-import { EMPTY_APPOINTMENT } from "@/app/features/appointments/pages/Appointments/Sections/AddAppointment";
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { useAppointmentForm } from "@/app/hooks/useAppointmentForm";
-import ModalHeader from "@/app/ui/overlays/Modal/ModalHeader";
-import AppointmentDetailsSection from "@/app/features/appointments/components/AppointmentDetailsSection";
-import DateTimePickerSection from "@/app/features/appointments/components/DateTimePickerSection";
-import BillableServicesSection from "@/app/features/appointments/components/BillableServicesSection";
-import EmergencyCheckbox from "@/app/features/appointments/components/EmergencyCheckbox";
-import BookingErrorMessage from "@/app/features/appointments/components/BookingErrorMessage";
+import Modal from '@/app/ui/overlays/Modal';
+import React, { useEffect, useMemo } from 'react';
+import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
+import { EMPTY_APPOINTMENT } from '@/app/features/appointments/pages/Appointments/Sections/AddAppointment';
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import AppointmentDetailsSection from '@/app/features/appointments/components/AppointmentDetailsSection';
+import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
+import BillableServicesSection from '@/app/features/appointments/components/BillableServicesSection';
+import EmergencyCheckbox from '@/app/features/appointments/components/EmergencyCheckbox';
+import BookingErrorMessage from '@/app/features/appointments/components/BookingErrorMessage';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 type BookAppointmentProps = {
   showModal: boolean;
@@ -19,11 +20,7 @@ type BookAppointmentProps = {
   activeCompanion: CompanionParent;
 };
 
-const BookAppointment = ({
-  showModal,
-  setShowModal,
-  activeCompanion,
-}: BookAppointmentProps) => {
+const BookAppointment = ({ showModal, setShowModal, activeCompanion }: BookAppointmentProps) => {
   const {
     formData,
     setFormData,
@@ -61,7 +58,9 @@ const BookAppointment = ({
         breed: activeCompanion.companion.breed,
         parent: {
           id: activeCompanion.parent.id,
-          name: activeCompanion.parent.firstName,
+          name: [activeCompanion.parent.firstName, activeCompanion.parent.lastName]
+            .filter(Boolean)
+            .join(' '),
         },
       },
     });
@@ -75,10 +74,10 @@ const BookAppointment = ({
 
   const CompanionInfoData = useMemo(() => {
     return {
-      name: activeCompanion.companion.name ?? "",
-      species: activeCompanion.companion.type ?? "",
-      breed: activeCompanion.companion.breed ?? "",
-      parentName: activeCompanion.parent.firstName ?? "",
+      name: activeCompanion.companion.name ?? '',
+      species: activeCompanion.companion.type ?? '',
+      breed: activeCompanion.companion.breed ?? '',
+      parentName: activeCompanion.parent.firstName ?? '',
     };
   }, [activeCompanion]);
 
@@ -95,7 +94,10 @@ const BookAppointment = ({
           <div className="flex flex-col gap-6 w-full">
             {formData.companion.name && (
               <EditableAccordion
-                title={formData.companion.name}
+                title={formatCompanionNameWithOwnerLastName(
+                  formData.companion.name,
+                  formData.companion.parent
+                )}
                 fields={CompanionFields}
                 data={CompanionInfoData}
                 defaultOpen={true}
@@ -111,16 +113,10 @@ const BookAppointment = ({
               serviceError={formDataErrors.serviceId}
               servicesOptions={ServicesOptions}
               onServiceSelect={handleServiceSelect}
-              concern={formData.concern || ""}
-              onConcernChange={(value) =>
-                setFormData({ ...formData, concern: value })
-              }
+              concern={formData.concern || ''}
+              onConcernChange={(value) => setFormData({ ...formData, concern: value })}
             />
-            <Accordion
-              title="Select date & time"
-              showEditIcon={false}
-              isEditing={true}
-            >
+            <Accordion title="Select date & time" showEditIcon={false} isEditing={true}>
               <DateTimePickerSection
                 selectedDate={selectedDate}
                 setSelectedDate={setSelectedDate}
@@ -145,19 +141,12 @@ const BookAppointment = ({
             />
             <EmergencyCheckbox
               checked={formData.isEmergency ?? false}
-              onChange={(checked) =>
-                setFormData((prev) => ({ ...prev, isEmergency: checked }))
-              }
+              onChange={(checked) => setFormData((prev) => ({ ...prev, isEmergency: checked }))}
             />
           </div>
           <div className="flex flex-col items-end gap-2 w-full">
             <BookingErrorMessage error={formDataErrors.booking} />
-            <Primary
-              href="#"
-              text="Book appointment"
-              onClick={onSubmit}
-              classname="w-full"
-            />
+            <Primary href="#" text="Book appointment" onClick={onSubmit} className="w-full" />
           </div>
         </div>
       </div>

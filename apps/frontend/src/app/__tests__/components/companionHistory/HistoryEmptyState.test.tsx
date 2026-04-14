@@ -7,7 +7,7 @@ describe('HistoryEmptyState', () => {
   it('renders default empty message for non-error state', () => {
     render(<HistoryEmptyState />);
 
-    expect(screen.getByText('No history entries found.')).toBeInTheDocument();
+    expect(screen.getByText('No overview entries found.')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -15,7 +15,7 @@ describe('HistoryEmptyState', () => {
     render(<HistoryEmptyState isError />);
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByText('Unable to load history right now.')).toBeInTheDocument();
+    expect(screen.getByText('Unable to load overview right now.')).toBeInTheDocument();
   });
 
   it('renders provided custom message', () => {

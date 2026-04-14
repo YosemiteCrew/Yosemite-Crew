@@ -13,6 +13,7 @@ export interface AccordionProps {
   showDeleteIcon?: boolean;
   onDeleteClick?: () => void;
   rightElement?: React.ReactNode;
+  /** Controlled open state. When provided the component is controlled. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
@@ -32,6 +33,7 @@ const Accordion: React.FC<AccordionProps> = ({
 }) => {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const open = controlledOpen ?? uncontrolledOpen;
+
   const setOpen = (next: boolean) => {
     if (controlledOpen == null) {
       setUncontrolledOpen(next);
@@ -40,6 +42,21 @@ const Accordion: React.FC<AccordionProps> = ({
   };
 
   const hasChildren = children && !(Array.isArray(children) && children.length === 0);
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setOpen(true);
+      onEditClick?.();
+    }
+  };
+
+  const handleDeleteKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onDeleteClick?.();
+    }
+  };
 
   return (
     <div className="flex flex-col w-full gap-0">
@@ -50,42 +67,51 @@ const Accordion: React.FC<AccordionProps> = ({
           type="button"
           className="flex flex-1 items-center gap-2.5 text-left"
           onClick={() => setOpen(!open)}
+          aria-expanded={open}
           aria-label={title}
         >
           <IoIosArrowDown
             size={20}
+            aria-hidden="true"
             className={`text-black-text transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
           />
-          <div className="text-body-2 text-text-primary text-left">{title}</div>
+          <span className="text-body-2 text-text-primary text-left">{title}</span>
         </button>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2" aria-label={`${title} actions`}>
           {rightElement}
+
           {showEditIcon && !isEditing && (
-            <RiEdit2Fill
-              size={20}
-              color="#302f2e"
-              className="cursor-pointer"
+            <button
+              type="button"
+              aria-label={`Edit ${title}`}
+              className="flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand rounded"
               onClick={() => {
                 setOpen(true);
                 onEditClick?.();
               }}
-            />
+              onKeyDown={handleEditKeyDown}
+            >
+              <RiEdit2Fill size={20} color="#302f2e" aria-hidden="true" />
+            </button>
           )}
+
           {showDeleteIcon && !isEditing && (
-            <MdDeleteForever
-              size={20}
-              color="#EA3729"
-              className="cursor-pointer"
-              onClick={() => {
-                onDeleteClick?.();
-              }}
-            />
+            <button
+              type="button"
+              aria-label={`Delete ${title}`}
+              className="flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 rounded"
+              onClick={() => onDeleteClick?.()}
+              onKeyDown={handleDeleteKeyDown}
+            >
+              <MdDeleteForever size={20} color="#EA3729" aria-hidden="true" />
+            </button>
           )}
         </div>
       </div>
 
       {open && hasChildren && (
-        <div className={`pb-2 px-3 border-x border-b border-card-border rounded-b-2xl`}>
+        <div className="pb-2 px-3 border-x border-b border-card-border rounded-b-2xl">
           {children}
         </div>
       )}

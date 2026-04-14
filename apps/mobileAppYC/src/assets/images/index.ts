@@ -16,6 +16,9 @@ export const Images = {
   merckLogo: {
     uri: 'https://d2il6osz49gpup.cloudfront.net/integrations/merckLogo.png',
   },
+  msdQuickActionLogo: {
+    uri: 'https://d2il6osz49gpup.cloudfront.net/integrations/MSDLogo.png',
+  },
   backIcon: require('./icons/back.png'),
   emailIcon: require('./icons/emailIcon.png'),
   facebookIcon: require('./icons/facebookIcon.png'),

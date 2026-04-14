@@ -1,7 +1,4 @@
-import type {
-  TaskFormData,
-  Task,
-} from '@/features/tasks/types';
+import type {TaskFormData, Task} from '@/features/tasks/types';
 
 export const formatDateToISODate = (date: Date | null): string | null => {
   if (!date) return null;
@@ -41,7 +38,7 @@ const buildMedicationDetails = (formData: TaskFormData) => {
     frequency: formData.medicationFrequency!,
     startDate:
       formatDateToISODate(formData.startDate) ||
-      new Date().toISOString().split('T')[0],
+      formatDateToISODate(new Date())!,
     endDate: formatEndDateToISO(formData.endDate) || undefined,
   };
 };
@@ -98,8 +95,10 @@ export const buildTaskFromForm = (
 
   const taskDate = formData.date || formData.startDate || new Date();
   const formattedDate =
-    formatDateToISODate(taskDate) || taskDate.toISOString().split('T')[0];
-  const formattedTime = formData.time ? formatTimeToISO(formData.time) : undefined;
+    formatDateToISODate(taskDate) || formatDateToISODate(new Date())!;
+  const formattedTime = formData.time
+    ? formatTimeToISO(formData.time)
+    : undefined;
 
   return {
     companionId,

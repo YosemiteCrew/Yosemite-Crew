@@ -4,6 +4,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import Datepicker from '@/app/ui/inputs/Datepicker';
+import Timepicker from '@/app/ui/inputs/Timepicker';
 import { formatDisplayDate } from '@/app/features/inventory/pages/Inventory/utils';
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { formatTimeLabel } from '@/app/lib/forms';
@@ -209,13 +210,12 @@ const FieldComponents: Record<
     />
   ),
   timeInput: ({ field, value, onChange, error }) => (
-    <FormInput
-      intype="time"
-      inname={field.key}
+    <Timepicker
       value={value || ''}
-      inlabel={field.label}
+      label={field.label}
+      name={field.key}
       error={error}
-      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+      onChange={onChange}
       className="min-h-12!"
     />
   ),

@@ -13,6 +13,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useSearchStore } from '@/app/stores/searchStore';
 import { useUniversalSearchStore } from '@/app/stores/universalSearchStore';
 import { startRouteLoader } from '@/app/lib/routeLoader';
+import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 
 type SearchModule =
   | 'appointments'
@@ -53,8 +54,8 @@ const quickLinks: Array<{ module: SearchModule; title: string; href: string }> =
   { module: 'finance', title: 'Open Finance', href: '/finance' },
 ];
 
-const getParentName = (firstName?: string, lastName?: string) =>
-  [firstName, lastName].filter(Boolean).join(' ').trim() || 'Unknown';
+const getParentName = (firstName?: string) =>
+  [firstName].filter(Boolean).join(' ').trim() || 'Unknown';
 
 const getNextResultIndex = (activeIndex: number, resultCount: number, direction: 1 | -1) => {
   const safeCount = Math.max(resultCount, 1);
@@ -74,12 +75,16 @@ const buildSearchItems = (
   appointments.forEach((appointment) => {
     const appointmentId = String(appointment.id ?? '').trim();
     if (!appointmentId) return;
+    const companionDisplayName = formatCompanionNameWithOwnerLastName(
+      appointment.companion.name,
+      appointment.companion.parent
+    );
     moduleItems.push({
       id: `appointments:${appointmentId}`,
       module: 'appointments',
-      title: appointment.companion.name || 'Appointment',
+      title: companionDisplayName || 'Appointment',
       subtitle: `${appointment.status} • ${appointment.concern || 'No concern'} • ${appointmentId}`,
-      keywords: `${appointment.companion.name} ${appointment.companion.parent?.name || ''} ${appointment.status || ''} ${appointment.concern || ''} ${appointmentId}`,
+      keywords: `${companionDisplayName} ${getOwnerFirstName(appointment.companion.parent)} ${appointment.status || ''} ${appointment.concern || ''} ${appointmentId}`,
       href: `/appointments?appointmentId=${encodeURIComponent(appointmentId)}&open=details`,
     });
   });
@@ -100,12 +105,16 @@ const buildSearchItems = (
   companions.forEach((companionParent) => {
     const companionId = String(companionParent.companion.id ?? '').trim();
     if (!companionId) return;
+    const companionDisplayName = formatCompanionNameWithOwnerLastName(
+      companionParent.companion.name,
+      companionParent.parent
+    );
     moduleItems.push({
       id: `companions:${companionId}`,
       module: 'companions',
-      title: companionParent.companion.name || 'Companion',
-      subtitle: `${companionParent.companion.type || 'Unknown species'} • Parent: ${getParentName(companionParent.parent.firstName, companionParent.parent.lastName)} • ${companionId}`,
-      keywords: `${companionParent.companion.name || ''} ${getParentName(companionParent.parent.firstName, companionParent.parent.lastName)} ${companionParent.companion.type || ''} ${companionParent.companion.status || ''} ${companionId}`,
+      title: companionDisplayName || 'Companion',
+      subtitle: `${companionParent.companion.type || 'Unknown species'} • Parent: ${getParentName(companionParent.parent.firstName)} • ${companionId}`,
+      keywords: `${companionDisplayName} ${getParentName(companionParent.parent.firstName)} ${companionParent.companion.type || ''} ${companionParent.companion.status || ''} ${companionId}`,
       href: `/companions?companionId=${encodeURIComponent(companionId)}`,
     });
   });

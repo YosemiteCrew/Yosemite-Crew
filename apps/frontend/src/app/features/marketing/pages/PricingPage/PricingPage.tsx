@@ -30,9 +30,9 @@ const renderFeatureName = (name: string) => {
         <Image
           src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
           alt="IDEXX"
-          width={96}
+          width={106}
           height={36}
-          className="pricingFeatureBrandLogo"
+          className="pricingFeatureBrandLogo ml-4"
         />
       </div>
     );
@@ -42,11 +42,11 @@ const renderFeatureName = (name: string) => {
     return (
       <div className="pricingFeatureWithBrand">
         <Image
-          src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
+          src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
           alt="MSD Veterinary Manual"
-          width={96}
-          height={36}
-          className="pricingFeatureBrandLogo my-4"
+          width={260}
+          height={56}
+          className="pricingFeatureBrandLogo"
         />
       </div>
     );
@@ -58,9 +58,23 @@ const renderFeatureName = (name: string) => {
         <Image
           src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
           alt="RadAnalyzer"
-          width={96}
+          width={120}
+          height={46}
+          className="pricingFeatureBrandLogo ml-2"
+        />
+      </div>
+    );
+  }
+
+  if (name === 'Vetnio integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.vetnioLogoUrl}
+          alt="Vetnio"
+          width={100}
           height={36}
-          className="pricingFeatureBrandLogo"
+          className="pricingFeatureBrandLogo ml-2"
         />
       </div>
     );

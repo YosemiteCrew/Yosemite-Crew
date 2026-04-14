@@ -58,6 +58,12 @@ const {t} = useTranslation();
 
 Add new keys to `src/i18n/` before using them.
 
+## Design System Consistency
+
+- Use **Satoshi** for all user-visible text in mobile (`theme.typography` + component overrides). Do not introduce new Clash/SF text styles.
+- For appointment status UI (Home, My Appointments, View Appointment), use a single source of truth for label + color mapping from `features/appointments/utils/appointmentStatus`.
+- Keep document category/subcategory values aligned with backend enums and frontend labels. If adding/changing category IDs, update mobile constants and API serialization maps together.
+
 ---
 
 ## Forms
@@ -77,6 +83,35 @@ const {control, handleSubmit} = useForm({
 ```bash
 pnpm --filter mobileAppYC run test -- --testPathPattern="path/to/File.test.tsx"
 ```
+
+### Coverage Mandate — Non-Negotiable
+
+**Target: ≥ 95% Statements, Branches, Functions, Lines across `apps/mobileAppYC`. Every change must move coverage upward, never downward.**
+
+1. **Any file you touch** must finish with equal or higher coverage than you found it.
+2. **Any file you create** must hit ≥ 90% on first commit — no new file ships without tests.
+3. **When you delete code**, delete the matching test code too.
+4. **When you modify behaviour**, update existing tests for the changed path AND add new cases for new branches.
+5. **Snapshot tests do not substitute** for behavioural assertions — every logical branch needs at least one outcome assertion.
+
+#### All four test layers must grow together
+
+| Layer     | Tool                         | When required                                                                      |
+| --------- | ---------------------------- | ---------------------------------------------------------------------------------- |
+| Unit      | Jest                         | Every service, Redux slice, hook, utility, helper                                  |
+| Component | React Testing Library for RN | Every screen and reusable component — render + interaction + conditional rendering |
+| Snapshot  | Jest `toMatchSnapshot`       | Stable UI layouts — complement behavioural tests, never replace them               |
+| E2E       | Detox                        | Auth, booking, checkout, payment, and any critical user journey                    |
+
+#### Coverage check workflow
+
+```bash
+# Verify coverage for the file(s) you changed:
+pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>" --coverage --collectCoverageFrom="src/path/to/YourFile.tsx"
+# If Statements/Branches/Functions dropped, add tests before declaring done.
+```
+
+---
 
 ### New code = new tests (mandatory)
 
