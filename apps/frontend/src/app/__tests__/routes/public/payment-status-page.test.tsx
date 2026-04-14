@@ -2,7 +2,9 @@ import React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-import PaymentStatusPage from '@/app/(routes)/(public)/payment-status/page';
+import PaymentStatusPage, {
+  buildPaymentStatusUrl,
+} from '@/app/(routes)/(public)/payment-status/page';
 
 const getParamMock = jest.fn();
 
@@ -18,6 +20,7 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 describe('payment-status public page', () => {
   const fetchMock = jest.fn();
+  const originalBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -26,10 +29,24 @@ describe('payment-status public page', () => {
     fetchMock.mockResolvedValue({
       json: async () => ({ status: 'paid', total: 100 }),
     });
+    process.env.NEXT_PUBLIC_BASE_URL = 'https://api.example.com';
   });
 
   afterEach(() => {
     jest.useRealTimers();
+    process.env.NEXT_PUBLIC_BASE_URL = originalBaseUrl;
+  });
+
+  it('builds payment status URL from NEXT_PUBLIC_BASE_URL', () => {
+    expect(buildPaymentStatusUrl('sess_123')).toBe(
+      'https://api.example.com/fhir/v1/invoice/?session_id=sess_123'
+    );
+  });
+
+  it('falls back to a relative payment status URL when base URL is missing', () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+
+    expect(buildPaymentStatusUrl('sess_123')).toBe('/fhir/v1/invoice/?session_id=sess_123');
   });
 
   it('renders missing session state when session_id is absent', () => {
@@ -51,6 +68,10 @@ describe('payment-status public page', () => {
     await waitFor(() => expect(screen.getByText('Payment complete')).toBeInTheDocument());
     expect(screen.getByText('Status paid')).toBeInTheDocument();
     expect(screen.getByText('Session sess_1...BCDE')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/fhir/v1/invoice/?session_id=sess_1234567890ABCDE',
+      { cache: 'no-store' }
+    );
   });
 
   it('renders cancelled state when no payment is required', async () => {

@@ -1,21 +1,34 @@
-"use client";
-import { Secondary } from "@/app/ui/primitives/Buttons";
-import { useSearchParams } from "next/navigation";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+'use client';
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-type DisplayState = "paid" | "no_payment_required" | "unpaid";
+type DisplayState = 'paid' | 'no_payment_required' | 'unpaid';
 
 type Return = {
   status: DisplayState;
   total: number;
 };
 
+const PAYMENT_STATUS_ENDPOINT = '/fhir/v1/invoice/';
+
 const shortId = (value: string) =>
   value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
 
+export const buildPaymentStatusUrl = (sessionId: string): string => {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  const requestPath = `${PAYMENT_STATUS_ENDPOINT}?session_id=${encodeURIComponent(sessionId)}`;
+
+  if (!baseUrl) {
+    return requestPath;
+  }
+
+  return new URL(requestPath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString();
+};
+
 function Page() {
   const searchParams = useSearchParams();
-  const session_id = searchParams.get("session_id");
+  const session_id = searchParams.get('session_id');
 
   const [data, setData] = useState<Return | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,10 +58,9 @@ function Page() {
     async function fetchStatus() {
       if (stopPollingRef.current) return;
       try {
-        const res = await fetch(
-          `https://devapi.yosemitecrew.com/fhir/v1/invoice/?session_id=${encodeURIComponent(safeSessionId)}`,
-          { cache: "no-store" },
-        );
+        const res = await fetch(buildPaymentStatusUrl(safeSessionId), {
+          cache: 'no-store',
+        });
         const json = (await res.json()) as Return;
         if (!alive) return;
         setData(json);
@@ -75,26 +87,26 @@ function Page() {
   }, [session_id]);
 
   const title = useMemo(() => {
-    if (!session_id || !data) return "Missing payment session";
-    if (data?.status === "paid") return "Payment complete";
-    if (data?.status === "no_payment_required") return "Payment cancelled";
-    return "Waiting for confirmation";
+    if (!session_id || !data) return 'Missing payment session';
+    if (data?.status === 'paid') return 'Payment complete';
+    if (data?.status === 'no_payment_required') return 'Payment cancelled';
+    return 'Waiting for confirmation';
   }, [data, session_id]);
 
   const subtitle = useMemo(() => {
     if (!session_id || !data) {
-      return "We could not find a payment session in the URL.";
+      return 'We could not find a payment session in the URL.';
     }
-    if (data?.status === "paid") {
-      return "Thanks for your payment. Your receipt will arrive shortly.";
+    if (data?.status === 'paid') {
+      return 'Thanks for your payment. Your receipt will arrive shortly.';
     }
-    if (data?.status === "no_payment_required") {
-      return "This payment did not complete. If this looks wrong, contact support.";
+    if (data?.status === 'no_payment_required') {
+      return 'This payment did not complete. If this looks wrong, contact support.';
     }
     if (loading) {
-      return "We are confirming your payment with the bank. This usually takes a few seconds.";
+      return 'We are confirming your payment with the bank. This usually takes a few seconds.';
     }
-    return "We are still waiting on confirmation. You can safely close this tab.";
+    return 'We are still waiting on confirmation. You can safely close this tab.';
   }, [data, session_id, loading]);
 
   return (
@@ -104,14 +116,7 @@ function Page() {
           <div className="relative flex items-center justify-center w-24 h-24 rounded-full">
             {!data && (
               <svg className="w-24 h-24" viewBox="0 0 120 120" aria-hidden>
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="46"
-                  fill="none"
-                  stroke="#dc2626"
-                  strokeWidth="6"
-                />
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#dc2626" strokeWidth="6" />
                 <path
                   d="M42 42l36 36"
                   fill="none"
@@ -128,16 +133,9 @@ function Page() {
                 />
               </svg>
             )}
-            {data?.status === "paid" && (
+            {data?.status === 'paid' && (
               <svg className="w-24 h-24" viewBox="0 0 120 120" aria-hidden>
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="46"
-                  fill="none"
-                  stroke="#16a34a"
-                  strokeWidth="6"
-                />
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#16a34a" strokeWidth="6" />
                 <path
                   d="M38 62l16 16 30-34"
                   fill="none"
@@ -148,23 +146,16 @@ function Page() {
                 />
               </svg>
             )}
-            {data?.status === "unpaid" && (
+            {data?.status === 'unpaid' && (
               <div className="flex gap-2" aria-hidden>
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce" />
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce [animation-delay:150ms]" />
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-900 animate-bounce [animation-delay:300ms]" />
               </div>
             )}
-            {data?.status === "no_payment_required" && (
+            {data?.status === 'no_payment_required' && (
               <svg className="w-24 h-24" viewBox="0 0 120 120" aria-hidden>
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="46"
-                  fill="none"
-                  stroke="#dc2626"
-                  strokeWidth="6"
-                />
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#dc2626" strokeWidth="6" />
                 <path
                   d="M42 42l36 36"
                   fill="none"
@@ -186,9 +177,7 @@ function Page() {
           <div className="flex flex-col gap-2">
             <div className="text-body-4 text-text-tertiary">Yosemite Crew</div>
             <div className="text-heading-1 text-text-primary">{title}</div>
-            <div className="text-body-3 text-text-secondary max-w-xl">
-              {subtitle}
-            </div>
+            <div className="text-body-3 text-text-secondary max-w-xl">{subtitle}</div>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-caption-1 text-text-primary">
@@ -199,7 +188,7 @@ function Page() {
             )}
             {data?.status && (
               <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
-                Status {data?.status?.replaceAll("_", " ")}
+                Status {data?.status?.replaceAll('_', ' ')}
               </span>
             )}
             {stopped && (
