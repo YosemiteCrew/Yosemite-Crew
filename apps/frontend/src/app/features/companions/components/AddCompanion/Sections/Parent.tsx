@@ -16,7 +16,7 @@ import {
   findPhoneData,
   getDigitsOnly,
 } from '@/app/features/companions/components/AddCompanion/type';
-import { validatePhone } from '@/app/lib/validators';
+import { getEmailValidationError, normalizeEmail, validatePhone } from '@/app/lib/validators';
 
 type OptionProp = {
   label: string;
@@ -116,7 +116,8 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
       } = {};
       if (!formData.firstName) errors.firstName = 'First name is required';
       if (!formData.lastName) errors.lastName = 'Last name is required';
-      if (!formData.email) errors.email = 'Email is required';
+      const emailError = getEmailValidationError(formData.email);
+      if (emailError) errors.email = emailError;
       if (!selectedCountryCode?.dialCode) errors.countryCode = 'Country code is required';
       if (!localPhoneNumber) errors.phoneNumber = 'Number is required';
       if (!formData.address.addressLine?.trim()) errors.addressLine = 'Address is required';
@@ -147,6 +148,7 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
         return;
       }
       setFormDataErrors({});
+      setFormData((prev) => ({ ...prev, email: normalizeEmail(prev.email) }));
       setActiveLabel('companion');
     };
 
@@ -261,7 +263,10 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
                 inname="email"
                 value={formData.email}
                 inlabel="Email"
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  setFormDataErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 error={formDataErrors.email}
                 className="min-h-12!"
               />
