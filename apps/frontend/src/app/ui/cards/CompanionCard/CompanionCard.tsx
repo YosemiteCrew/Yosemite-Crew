@@ -9,6 +9,7 @@ import { getAgeInYears } from '@/app/lib/date';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 type CompanionCardProps = {
   companion: CompanionParent;
@@ -46,7 +47,9 @@ const CompanionCard = ({
           className="h-10 w-10 rounded-full"
         />
         <div className="flex flex-col gap-0">
-          <div className="text-body-3-emphasis text-text-primary">{companion.companion.name}</div>
+          <div className="text-body-3-emphasis text-text-primary">
+            {formatCompanionNameWithOwnerLastName(companion.companion.name, companion.parent)}
+          </div>
           <div className="text-caption-1 text-text-primary">
             {companion.companion.breed + ' / ' + companion.companion.type}
           </div>

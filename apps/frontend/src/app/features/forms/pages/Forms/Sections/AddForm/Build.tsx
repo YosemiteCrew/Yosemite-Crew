@@ -840,7 +840,8 @@ const Build = ({
     setFormData((prev) => ({
       ...prev,
       schema:
-        key === 'signature' && prev.category === 'Prescription'
+        key === 'signature' &&
+        new Set(['Prescription', 'SOAP', 'Discharge Form']).has(prev.category)
           ? ensureSingleSignatureAtEnd([...(prev.schema ?? []), newField])
           : [...(prev.schema ?? []), newField],
     }));
@@ -1132,7 +1133,7 @@ const Build = ({
         </div>
       </div>
       <div className="px-3 pb-3 flex justify-center">
-        <Primary href="#" text="Next" onClick={onNext} classname="w-fit" />
+        <Primary href="#" text="Next" onClick={onNext} className="w-fit" />
       </div>
     </div>
   );

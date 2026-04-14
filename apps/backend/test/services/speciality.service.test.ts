@@ -128,11 +128,18 @@ describe("SpecialityService", () => {
 
     it("getById returns mapped speciality", async () => {
       (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(
-        createPrismaSpeciality({ id: mockSpecId.toHexString() }),
+        createPrismaSpeciality({
+          id: mockSpecId.toHexString(),
+          headUserId: "head-only",
+          memberUserIds: [],
+        }),
       );
 
-      const res = await SpecialityService.getById(mockSpecId.toHexString());
+      const res = (await SpecialityService.getById(
+        mockSpecId.toHexString(),
+      )) as any;
       expect(res).not.toBeNull();
+      expect(res.teamMemberIds).toEqual(["head-only"]);
       expect(prisma.speciality.findFirst).toHaveBeenCalled();
     });
 
@@ -291,6 +298,39 @@ describe("SpecialityService", () => {
       expect(res).toBeDefined();
     });
 
+    it("should persist team members from the payload during update", async () => {
+      const payloadWithMembers = {
+        ...validPayload,
+        teamMemberIds: ["member-1", "member-2", "member-1"],
+      };
+
+      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
+        mockChain({ headUserId: "old" }),
+      );
+      (SpecialityModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
+        mockDoc({
+          ...validPayload,
+          _id: mockSpecId,
+          memberUserIds: ["member-1", "member-2"],
+        }),
+      );
+
+      await SpecialityService.update(
+        mockSpecId.toHexString(),
+        payloadWithMembers as any,
+      );
+
+      expect(SpecialityModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            memberUserIds: ["member-1", "member-2"],
+          }),
+        }),
+        expect.anything(),
+      );
+    });
+
     it("should return null if not found", async () => {
       (SpecialityModel.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
       const res = await SpecialityService.update(
@@ -322,6 +362,46 @@ describe("SpecialityService", () => {
       );
       const res = await SpecialityService.getById(mockSpecId.toHexString());
       expect(res).not.toBeNull();
+    });
+
+    it("should include the head user in team members when head is the only member", async () => {
+      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
+        mockChain(
+          mockDoc({
+            ...validPayload,
+            _id: mockSpecId,
+            headUserId: "head-only",
+            memberUserIds: [],
+          }),
+        ),
+      );
+
+      const res = (await SpecialityService.getById(
+        mockSpecId.toHexString(),
+      )) as any;
+
+      expect(res).not.toBeNull();
+      expect(res.teamMemberIds).toEqual(["head-only"]);
+    });
+
+    it("should not duplicate the head user in team members", async () => {
+      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
+        mockChain(
+          mockDoc({
+            ...validPayload,
+            _id: mockSpecId,
+            headUserId: "head-user",
+            memberUserIds: ["head-user", "member-2"],
+          }),
+        ),
+      );
+
+      const res = (await SpecialityService.getById(
+        mockSpecId.toHexString(),
+      )) as any;
+
+      expect(res).not.toBeNull();
+      expect(res.teamMemberIds).toEqual(["head-user", "member-2"]);
     });
 
     it("should resolve by FHIR ID (string)", async () => {

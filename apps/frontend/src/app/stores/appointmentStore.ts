@@ -1,7 +1,7 @@
-import { Appointment } from "@yosemite-crew/types";
-import { create } from "zustand";
+import { Appointment } from '@yosemite-crew/types';
+import { create } from 'zustand';
 
-type StoreStatus = "idle" | "loading" | "loaded" | "error";
+type StoreStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 type AppointmentState = {
   appointmentsById: Record<string, Appointment>;
@@ -31,7 +31,7 @@ type AppointmentState = {
 export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
   appointmentsById: {},
   appointmentIdsByOrgId: {},
-  status: "idle",
+  status: 'idle',
   error: null,
   lastFetchedAt: null,
 
@@ -49,7 +49,7 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
       return {
         appointmentsById,
         appointmentIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -72,7 +72,7 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
           ...state.appointmentIdsByOrgId,
           [orgId]: newIds,
         },
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -83,7 +83,7 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
       const id = item.id!;
       const orgId = item.organisationId;
       if (!orgId) {
-        console.warn("upsertAppointment: missing organisationId:", item);
+        console.warn('upsertAppointment: missing organisationId:', item);
         return state;
       }
       const appointmentsById = {
@@ -97,12 +97,12 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
       const existingIds = state.appointmentIdsByOrgId[orgId] ?? [];
       const appointmentIdsByOrgId = {
         ...state.appointmentIdsByOrgId,
-        [orgId]: existingIds.includes(id) ? existingIds : [...existingIds, id],
+        [orgId]: existingIds.includes(id) ? existingIds : [id, ...existingIds],
       };
       return {
         appointmentsById,
         appointmentIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -111,9 +111,7 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
   getAppointmentsByOrgId: (orgId) => {
     const { appointmentsById, appointmentIdsByOrgId } = get();
     const ids = appointmentIdsByOrgId[orgId] ?? [];
-    return ids
-      .map((id) => appointmentsById[id])
-      .filter((a): a is Appointment => a != null);
+    return ids.map((id) => appointmentsById[id]).filter((a): a is Appointment => a != null);
   },
 
   getAppointmentById: (id) => get().appointmentsById[id],
@@ -128,8 +126,7 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
         appointmentsById: rest,
         appointmentIdsByOrgId: {
           ...state.appointmentIdsByOrgId,
-          [orgId]:
-            state.appointmentIdsByOrgId[orgId]?.filter((x) => x !== id) ?? [],
+          [orgId]: state.appointmentIdsByOrgId[orgId]?.filter((x) => x !== id) ?? [],
         },
       };
     }),
@@ -147,7 +144,7 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
       return {
         appointmentsById,
         appointmentIdsByOrgId: restIdx,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -157,19 +154,19 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
     set(() => ({
       appointmentsById: {},
       appointmentIdsByOrgId: {},
-      status: "idle",
+      status: 'idle',
       error: null,
       lastFetchedAt: null,
     })),
 
-  startLoading: () => set(() => ({ status: "loading", error: null })),
+  startLoading: () => set(() => ({ status: 'loading', error: null })),
 
   endLoading: () =>
     set(() => ({
-      status: "loaded",
+      status: 'loaded',
       error: null,
       lastFetchedAt: new Date().toISOString(),
     })),
 
-  setError: (message) => set(() => ({ status: "error", error: message })),
+  setError: (message) => set(() => ({ status: 'error', error: message })),
 }));

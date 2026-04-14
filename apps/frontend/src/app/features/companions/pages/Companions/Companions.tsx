@@ -24,6 +24,7 @@ import Fallback from '@/app/ui/overlays/Fallback';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
 const Companions = () => {
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -38,6 +39,9 @@ const Companions = () => {
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
   const [viewCompanion, setViewCompanion] = useState(false);
+  const [companionInfoInitialLabel, setCompanionInfoInitialLabel] = useState<'info' | 'history'>(
+    'info'
+  );
   const [activeCompanion, setActiveCompanion] = useState<CompanionParent | null>(
     companions[0] ?? null
   );
@@ -65,6 +69,7 @@ const Companions = () => {
     if (!target) return;
 
     setActiveCompanion(target);
+    setCompanionInfoInitialLabel('info');
     setViewCompanion(true);
     handledDeepLinkRef.current = companionId;
   }, [companions, searchParams]);
@@ -80,7 +85,12 @@ const Companions = () => {
 
       const matchesStatus = statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
-      const matchesQuery = !q || item.companion.name?.toLowerCase().includes(q);
+      const companionDisplayName = formatCompanionNameWithOwnerLastName(
+        item.companion.name,
+        item.parent,
+        ''
+      ).toLowerCase();
+      const matchesQuery = !q || companionDisplayName.includes(q);
 
       return matchesStatus && matchesFilter && matchesQuery;
     });
@@ -127,6 +137,7 @@ const Companions = () => {
             filteredList={filteredList}
             setActiveCompanion={setActiveCompanion}
             setViewCompanion={setViewCompanion}
+            setCompanionInfoInitialLabel={setCompanionInfoInitialLabel}
             setBookAppointment={setBookAppointment}
             setAddTask={setAddTask}
             setChangeStatusPopup={setChangeStatusPopup}
@@ -142,6 +153,8 @@ const Companions = () => {
             showModal={viewCompanion}
             setShowModal={setViewCompanion}
             activeCompanion={activeCompanion}
+            canEditCompanionStatus={canEditCompanions}
+            initialLabel={companionInfoInitialLabel}
           />
         )}
         {activeCompanion && canEditCompanions && (

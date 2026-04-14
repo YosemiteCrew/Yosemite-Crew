@@ -42,7 +42,7 @@ const VideosCard = () => {
             Make the most of your wait — Start exploring instead.
           </div>
           <div className="flex items-center gap-2">
-            <Primary text="View More" href="/guides" classname="px-5! py-2! text-body-4" />
+            <Primary text="View More" href="/guides" className="px-5! py-2! text-body-4" />
             <Close onClick={handleClose} />
           </div>
         </div>

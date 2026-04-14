@@ -45,10 +45,12 @@ describe('VideosCard', () => {
     const video = document.querySelector('video');
     expect(video).toBeInTheDocument();
     expect(video).toHaveAttribute('poster');
-    expect(document.querySelector("[aria-hidden='true']")).toBeInTheDocument();
+    const videoContainer = video?.parentElement;
+    expect(videoContainer).toBeInTheDocument();
+    expect(videoContainer?.querySelector("[aria-hidden='true']")).toBeInTheDocument();
 
     fireEvent.loadedData(video!);
 
-    expect(document.querySelector("[aria-hidden='true']")).not.toBeInTheDocument();
+    expect(videoContainer?.querySelector("[aria-hidden='true']")).not.toBeInTheDocument();
   });
 });

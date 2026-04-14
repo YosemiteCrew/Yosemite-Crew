@@ -49,12 +49,18 @@ describe('Configuration Variables', () => {
       // Re-import to trigger the try-catch block
       const config = require('../../src/config/variables');
 
-      expect(config.API_CONFIG.baseUrl).toBe('https://devapi.yosemitecrew.com');
+      expect(config.API_CONFIG.baseUrl).toBe('https://api.yosemitecrew.com');
       expect(config.PASSWORDLESS_AUTH_CONFIG.profileServiceUrl).toBe('');
       expect(config.STREAM_CHAT_CONFIG.apiKey).toBe('');
       expect(config.STRIPE_CONFIG.urlScheme).toBe('yosemitecrew');
       expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(true);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('');
+      expect(config.CLARITY_CONFIG.projectId).toBe('');
+      expect(config.AGE_VERIFICATION_CONFIG.serviceProviderName).toBe('');
+      expect(config.MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl).toBe(
+        true,
+      );
+      expect(config.MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow).toBe('off');
     });
 
     it('exports storage keys correctly', () => {
@@ -99,6 +105,14 @@ describe('Configuration Variables', () => {
       STRIPE_CONFIG: {publishableKey: 'pk_test_override'},
       AUTH_FEATURE_FLAGS: {enableReviewLogin: false},
       DEMO_LOGIN_CONFIG: {email: 'test@example.com'},
+      CLARITY_CONFIG: {projectId: 'clarity-local-project-id'},
+      AGE_VERIFICATION_CONFIG: {
+        serviceProviderName: 'Yosemite Crew',
+      },
+      MOBILE_CONFIG_BEHAVIOR: {
+        forceProductionApiBaseUrl: false,
+        mockAppUpdateFlow: 'optional',
+      },
     };
 
     beforeEach(() => {
@@ -119,6 +133,14 @@ describe('Configuration Variables', () => {
       expect(config.STRIPE_CONFIG.publishableKey).toBe('pk_test_override');
       expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('test@example.com');
+      expect(config.CLARITY_CONFIG.projectId).toBe('clarity-local-project-id');
+      expect(config.AGE_VERIFICATION_CONFIG.serviceProviderName).toBe(
+        'Yosemite Crew',
+      );
+      expect(config.MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl).toBe(
+        false,
+      );
+      expect(config.MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow).toBe('optional');
 
       // Check that non-overridden defaults persist (e.g. timeoutMs inside API_CONFIG)
       expect(config.API_CONFIG.timeoutMs).toBe(15000);

@@ -1,4 +1,5 @@
 import { Appointment } from '@yosemite-crew/types';
+import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 
 export const normalizeAppointmentId = (appointmentId: string | undefined): string | undefined => {
   const raw = String(appointmentId ?? '').trim();
@@ -32,7 +33,7 @@ export const getCompanionNameFromAppointments = (
   appointmentId: string | undefined
 ): string => {
   const match = getAppointmentByIdFromList(appointments, appointmentId);
-  return match?.companion?.name || '-';
+  return formatCompanionNameWithOwnerLastName(match?.companion?.name, match?.companion?.parent);
 };
 
 export const getParentNameFromAppointments = (
@@ -40,5 +41,5 @@ export const getParentNameFromAppointments = (
   appointmentId: string | undefined
 ): string => {
   const match = getAppointmentByIdFromList(appointments, appointmentId);
-  return match?.companion?.parent?.name || '-';
+  return getOwnerFirstName(match?.companion?.parent) || '-';
 };

@@ -56,7 +56,7 @@
 }
 
 .BuildText h6 {
-  font-family: var(--font-grotesk);
+  font-family: var(--font-satoshi);
   font-size: 24px;
   font-weight: 500;
   line-height: 120%;
@@ -65,7 +65,7 @@
 }
 
 .BuildText h3 {
-  font-family: var(--font-grotesk);
+  font-family: var(--font-satoshi);
   font-size: 23px;
   font-weight: 500;
   line-height: 120%;
@@ -223,7 +223,7 @@
     justify-content: center;
     height: 40px;
     border-radius: 20px;
-    font-family: var(--font-grotesk);
+    font-family: var(--font-satoshi);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;

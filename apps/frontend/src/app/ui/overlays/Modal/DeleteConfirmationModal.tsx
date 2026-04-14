@@ -1,9 +1,10 @@
-import { Secondary } from "@/app/ui/primitives/Buttons";
-import Delete from "@/app/ui/primitives/Buttons/Delete";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
-import ModalHeader from "@/app/ui/overlays/Modal/ModalHeader";
-import React, { useState, useCallback } from "react";
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import Delete from '@/app/ui/primitives/Buttons/Delete';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import React, { useState, useCallback } from 'react';
+import { getEmailValidationError } from '@/app/lib/validators';
 
 type DeleteConfirmationModalProps = {
   showModal: boolean;
@@ -20,21 +21,25 @@ type DeleteConfirmationModalProps = {
 export const useDeleteConfirmation = () => {
   const [showModal, setShowModal] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   const reset = useCallback(() => {
     setShowModal(false);
-    setEmail("");
+    setEmail('');
     setConsent(false);
-    setEmailError("");
+    setEmailError('');
   }, []);
 
   const validateEmail = useCallback(() => {
-    if (!email) {
-      setEmailError("Email is required");
+    const validationError = getEmailValidationError(email);
+
+    if (validationError) {
+      setEmailError(validationError);
       return false;
     }
+
+    setEmailError('');
     return true;
   }, [email]);
 
@@ -63,15 +68,8 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
   noteText,
   onDelete,
 }) => {
-  const {
-    consent,
-    setConsent,
-    email,
-    setEmail,
-    emailError,
-    reset,
-    validateEmail,
-  } = useDeleteConfirmation();
+  const { consent, setConsent, email, setEmail, emailError, setEmailError, reset, validateEmail } =
+    useDeleteConfirmation();
 
   const handleCancel = () => {
     reset();
@@ -90,11 +88,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
   };
 
   return (
-    <CenterModal
-      showModal={showModal}
-      setShowModal={setShowModal}
-      onClose={handleCancel}
-    >
+    <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleCancel}>
       <ModalHeader title={title} onClose={handleCancel} />
       <div className="flex flex-col gap-0">
         <div className="text-body-4 text-text-primary">{confirmationQuestion}</div>
@@ -110,11 +104,14 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
       <div className="flex flex-col gap-2">
         <div className="text-body-4 text-text-primary">{emailPrompt}</div>
         <FormInput
-          intype="text"
+          intype="email"
           inname="email"
           value={email}
           inlabel="Enter email address"
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailError('');
+          }}
           error={emailError}
         />
       </div>
@@ -128,10 +125,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
             onChange={(e) => setConsent(e.target.checked)}
             className="shrink-0"
           />
-          <label
-            htmlFor="consent-checkbox"
-            className="text-body-4 text-text-primary"
-          >
+          <label htmlFor="consent-checkbox" className="text-body-4 text-text-primary">
             {consentLabel}
           </label>
         </div>

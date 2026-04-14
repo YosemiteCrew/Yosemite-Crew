@@ -1,0 +1,58 @@
+name: Chromatic
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'apps/frontend/**'
+      - 'packages/design-tokens/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/chromatic.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: chromatic-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  chromatic:
+    name: Chromatic Publish & Visual Tests
+    runs-on: ubuntu-latest
+    if: secrets.CHROMATIC_PROJECT_TOKEN != ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Chromatic
+        uses: chromaui/action@latest
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          workingDir: apps/frontend
+          onlyChanged: true
+          externals: |
+            packages/design-tokens/**
+            apps/frontend/public/**

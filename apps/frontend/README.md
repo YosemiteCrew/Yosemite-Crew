@@ -72,7 +72,7 @@ Required keys (see `.env.example`):
 
 Optional dev flags:
 
-- `NEXT_PUBLIC_DISABLE_AUTH_GUARD` (dev only)
+- `NEXT_PUBLIC_DISABLE_AUTH_GUARD` (localhost only)
 - `NEXT_PUBLIC_ORG_TYPE_OVERRIDE` (UI testing)
 
 ### 3) Run the app
@@ -98,11 +98,7 @@ From `apps/frontend`:
 
 ## 🔑 Shared Dev Login
 
-Use this account for testing on the deployed dev web app:
-
-- URL: `https://dev.yosemitecrew.com/signin`
-- Email: `test@yosemitecrew.com`
-- Password: `Yosemitecrew@123`
+Request current dev access from the maintainers through a secure channel. Do not publish shared credentials in repository documentation.
 
 ## 🧱 Project Structure
 
@@ -138,12 +134,12 @@ Shared UI lives in `src/app/ui`:
 
 ## 🔐 Development Auth Override
 
-To bypass auth guards locally:
+To bypass auth guards on your local machine only:
 
 1. Set `NEXT_PUBLIC_DISABLE_AUTH_GUARD=true` in `apps/frontend/.env`
 2. Restart the dev server
 
-This disables `ProtectedRoute` and `OrgGuard`. Keep it off in production.
+This only works on `localhost` / `127.0.0.1` and is ignored on deployed environments.
 
 ## 🧪 Testing
 

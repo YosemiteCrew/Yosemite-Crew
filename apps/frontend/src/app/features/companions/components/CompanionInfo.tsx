@@ -1,60 +1,48 @@
-import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import { CompanionParent } from "@/app/features/companions/pages/Companions/types";
-import Labels from "@/app/ui/widgets/Labels/Labels";
-import Modal from "@/app/ui/overlays/Modal";
-import {
-  Companion,
-  Parent,
-  Core,
-  History,
-  Documents,
-  AddAppointment,
-  AddTask,
-} from "@/app/features/companions/components/Sections";
-import { getSafeImageUrl, ImageType } from "@/app/lib/urls";
-import Close from "@/app/ui/primitives/Icons/Close";
+import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
+import Labels from '@/app/ui/widgets/Labels/Labels';
+import Modal from '@/app/ui/overlays/Modal';
+import { Companion, Parent, Core, History } from '@/app/features/companions/components/Sections';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import Close from '@/app/ui/primitives/Icons/Close';
+import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 
 type CompanionInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeCompanion: CompanionParent | null;
+  canEditCompanionStatus?: boolean;
+  initialLabel?: LabelKey;
 };
-type LabelKey = (typeof labels)[number]["key"];
-type SubLabelKey = (typeof labels)[number]["labels"][number]["key"];
+type LabelKey = 'info' | 'history';
+type SubLabelKey = 'companion-information' | 'parent-information' | 'history';
 
 const labels = [
   {
-    key: "info",
-    name: "Info",
+    key: 'info',
+    name: 'Info',
     labels: [
-      { key: "companion-information", name: "Companion information" },
-      { key: "parent-information", name: "Parent information" },
+      { key: 'companion-information', name: 'Patient information' },
+      { key: 'parent-information', name: 'Parent information' },
     ],
   },
   {
-    key: "records",
-    name: "Records",
-    labels: [
-      { key: "history", name: "History" },
-      { key: "documents", name: "Documents" },
-    ],
+    key: 'history',
+    name: 'Overview',
   },
 ];
 
-const COMPONENT_MAP: Record<LabelKey, Record<SubLabelKey, React.FC<any>>> = {
+const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
   info: {
-    "companion-information": Companion,
-    "parent-information": Parent,
-    "core-information": Core,
+    'companion-information': Companion,
+    'parent-information': Parent,
+    'core-information': Core,
   },
-  records: {
+  history: {
     history: History,
-    documents: Documents,
-  },
-  actions: {
-    "add-appointment": AddAppointment,
-    "add-task": AddTask,
   },
 };
 
@@ -62,25 +50,40 @@ const CompanionInfo = ({
   showModal,
   setShowModal,
   activeCompanion,
+  canEditCompanionStatus = false,
+  initialLabel = 'info',
 }: CompanionInfoProps) => {
-  const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key);
+  const router = useRouter();
+  const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key as LabelKey);
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
-    labels[0].labels[0].key
+    labels[0].labels?.[0]?.key as SubLabelKey
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
+  const activeLabelConfig = labels.find((label) => label.key === activeLabel);
+  const Content =
+    activeLabelConfig?.labels && activeLabelConfig.labels.length > 0
+      ? COMPONENT_MAP[activeLabel]?.[activeSubLabel]
+      : COMPONENT_MAP[activeLabel]?.[activeLabel];
 
   useEffect(() => {
     const current = labels.find((l) => l.key === activeLabel);
-    if (current && current.labels.length > 0) {
-      setActiveSubLabel(current.labels[0].key);
+    if (current?.labels && current.labels.length > 0) {
+      setActiveSubLabel(current.labels[0].key as SubLabelKey);
+      return;
+    }
+    if (current?.key) {
+      setActiveSubLabel(current.key as SubLabelKey);
     }
   }, [activeLabel]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeLabel, activeSubLabel]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    setActiveLabel(initialLabel);
+  }, [showModal, initialLabel, activeCompanion?.companion.id]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -98,9 +101,28 @@ const CompanionInfo = ({
                 height={40}
                 width={40}
               />
-              <div className="text-body-1 text-text-primary">
-                {activeCompanion?.companion.name}
-              </div>
+              <button
+                type="button"
+                className="text-body-1 text-text-primary cursor-pointer text-left hover:underline underline-offset-2"
+                onClick={() => {
+                  router.push(
+                    buildCompanionOverviewHref(
+                      activeCompanion?.companion?.id,
+                      activeCompanion?.companion?.id
+                        ? `/companions?${new URLSearchParams({
+                            companionId: activeCompanion.companion.id,
+                          }).toString()}`
+                        : ''
+                    )
+                  );
+                  setShowModal(false);
+                }}
+              >
+                {formatCompanionNameWithOwnerLastName(
+                  activeCompanion?.companion.name,
+                  activeCompanion?.parent
+                )}
+              </button>
               <div className="text-body-4 text-text-primary mt-1">
                 {activeCompanion?.companion.breed}
               </div>
@@ -117,11 +139,10 @@ const CompanionInfo = ({
           />
         </div>
 
-        <div
-          ref={scrollRef}
-          className="flex overflow-y-auto flex-1 scrollbar-hidden"
-        >
-          {Content ? <Content companion={activeCompanion} /> : null}
+        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-hidden">
+          {Content ? (
+            <Content companion={activeCompanion} canEditCompanionStatus={canEditCompanionStatus} />
+          ) : null}
         </div>
       </div>
     </Modal>

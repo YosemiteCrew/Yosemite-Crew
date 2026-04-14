@@ -43,7 +43,7 @@ const UserHeader = () => {
         const insertIndex = signOutIndex === -1 ? next.length : signOutIndex;
         if (merckEnabled) {
           next.splice(insertIndex, 0, {
-            name: 'Merck Manuals',
+            name: 'MSD Veterinary Manual',
             href: '/integrations/merck-manuals',
             verify: true,
           });
@@ -389,7 +389,7 @@ const UserHeader = () => {
                   onClick={() => setSelectProfile(false)}
                   className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
                 >
-                  Merck Manuals
+                  MSD Veterinary Manual
                 </Link>
               )}
               {!isDev && (

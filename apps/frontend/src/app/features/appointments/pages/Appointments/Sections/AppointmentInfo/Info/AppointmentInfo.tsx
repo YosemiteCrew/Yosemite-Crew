@@ -48,6 +48,12 @@ const getAppointmentFields = ({
       options: RoomOptions,
     },
     {
+      label: 'Speciality',
+      key: 'speciality',
+      type: 'text',
+      editable: false,
+    },
+    {
       label: 'Service',
       key: 'service',
       type: 'text',
@@ -558,6 +564,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     () => ({
       concern: activeAppointment.concern ?? '',
       room: activeAppointment.room?.id ?? '',
+      speciality: activeAppointment.appointmentType?.speciality?.name ?? '',
       service: activeAppointment.appointmentType?.name ?? '',
       date: activeAppointment.appointmentDate ?? '',
       time: activeAppointment.startTime ?? '',

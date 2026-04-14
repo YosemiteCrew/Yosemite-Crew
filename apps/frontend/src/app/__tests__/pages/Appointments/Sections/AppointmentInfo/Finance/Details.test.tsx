@@ -75,6 +75,7 @@ describe('Finance Details section', () => {
         taxTotal: 5,
         totalAmount: 95,
         status: 'PAID',
+        paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
       },
     ]);
 
@@ -86,6 +87,7 @@ describe('Finance Details section', () => {
     expect(screen.getByText('USD 100')).toBeInTheDocument();
     expect(screen.getByText('USD 95')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.getByText('In-person payment')).toBeInTheDocument();
     expect(screen.getByTestId('invoice-actions-inv-1')).toBeInTheDocument();
   });
 
@@ -93,5 +95,29 @@ describe('Finance Details section', () => {
     useInvoicesMock.mockReturnValue([]);
     render(<Details activeAppointment={activeAppointment} />);
     expect(screen.queryByText('Invoice 1')).not.toBeInTheDocument();
+  });
+
+  it('shows cash refund disclaimer for cancelled cash-paid appointments', () => {
+    useInvoicesMock.mockReturnValue([
+      {
+        id: 'inv-1',
+        appointmentId: 'appt-1',
+        createdAt: '2026-01-01T10:00:00Z',
+        subtotal: 100,
+        discountTotal: 10,
+        taxTotal: 5,
+        totalAmount: 95,
+        status: 'PAID',
+        paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+      },
+    ]);
+
+    render(<Details activeAppointment={{ id: 'appt-1', status: 'CANCELLED' } as any} />);
+
+    expect(
+      screen.getByText(
+        'This appointment was paid in cash and is now cancelled. Any refund, if applicable, should be handled directly by the service provider.'
+      )
+    ).toBeInTheDocument();
   });
 });

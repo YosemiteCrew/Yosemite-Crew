@@ -824,7 +824,7 @@ const InventoryInfo = ({
               isDisabled={
                 (inEditMode && isUpdating) || (!inEditMode && (isHiding || !activeInventory?.id))
               }
-              classname="h-12! text-lg! tracking-wide!"
+              className="h-12! text-lg! tracking-wide!"
             />
           )}
         </div>

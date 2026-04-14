@@ -17,6 +17,6 @@
 
 .SettingsRow strong {
   color: var(--black-text);
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-weight: 600;
 }

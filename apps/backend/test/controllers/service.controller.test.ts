@@ -24,6 +24,7 @@ jest.mock("../../src/services/service.service", () => {
       listOrganisationsProvidingService: jest.fn(),
       listOrganisationsProvidingServiceNearby: jest.fn(),
       getBookableSlotsService: jest.fn(),
+      getCalendarPrefillMatches: jest.fn(),
       search: jest.fn(),
     },
   };
@@ -405,6 +406,88 @@ describe("ServiceController", () => {
 
       await ServiceController.getBookableSlotsForService(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("getCalendarPrefill", () => {
+    it("returns 400 if payload is invalid", async () => {
+      req = mockRequest({
+        body: {
+          organisationId: "org-1",
+          date: "invalid-date",
+          minuteOfDay: 100,
+          serviceIds: ["svc-1"],
+        },
+      });
+
+      await ServiceController.getCalendarPrefill(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: "Invalid date format (use YYYY-MM-DD)",
+        }),
+      );
+    });
+
+    it("returns 200 on success", async () => {
+      req = mockRequest({
+        body: {
+          organisationId: "org-1",
+          date: "2026-04-01",
+          minuteOfDay: 1425,
+          leadId: "vet-1",
+          serviceIds: ["svc-1"],
+        },
+      });
+
+      (
+        ServiceService.getCalendarPrefillMatches as jest.Mock
+      ).mockResolvedValueOnce([
+        {
+          serviceId: "svc-1",
+          slot: {
+            startTime: "23:45",
+            endTime: "00:00",
+            vetIds: ["vet-1"],
+          },
+          meta: {
+            localStartMinute: 1425,
+            localEndMinute: 1440,
+          },
+        },
+      ]);
+
+      await ServiceController.getCalendarPrefill(req, res);
+
+      expect(ServiceService.getCalendarPrefillMatches).toHaveBeenCalledWith({
+        organisationId: "org-1",
+        date: expect.any(Date),
+        minuteOfDay: 1425,
+        leadId: "vet-1",
+        serviceIds: ["svc-1"],
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          matches: [
+            {
+              serviceId: "svc-1",
+              slot: {
+                startTime: "23:45",
+                endTime: "00:00",
+                vetIds: ["vet-1"],
+              },
+              meta: {
+                localStartMinute: 1425,
+                localEndMinute: 1440,
+              },
+            },
+          ],
+        },
+      });
     });
   });
 });

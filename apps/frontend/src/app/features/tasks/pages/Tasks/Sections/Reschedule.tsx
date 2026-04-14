@@ -3,7 +3,7 @@ import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Datepicker from '@/app/ui/inputs/Datepicker';
-import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import Timepicker from '@/app/ui/inputs/Timepicker';
 import { Task } from '@/app/features/tasks/types/task';
 import { updateTask } from '@/app/features/tasks/services/taskService';
 import { buildDateInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
@@ -94,12 +94,11 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
             type="input"
             placeholder="Due date"
           />
-          <FormInput
-            intype="time"
-            inname="dueTime"
+          <Timepicker
             value={dueTimeValue}
-            inlabel="Due time"
-            onChange={(event) => setDueTimeValue(event.target.value)}
+            label="Due time"
+            name="dueTime"
+            onChange={setDueTimeValue}
             className="min-h-12!"
           />
         </div>
@@ -116,7 +115,7 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
             text={saving ? 'Saving...' : 'Update'}
             onClick={handleSave}
             isDisabled={saving}
-            classname="w-auto min-w-[120px]"
+            className="w-auto min-w-[120px]"
           />
         </div>
       </div>

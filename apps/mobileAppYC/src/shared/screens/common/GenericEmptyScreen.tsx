@@ -1,7 +1,7 @@
 import React from 'react';
 import {View, Text, Image, StyleSheet, ImageSourcePropType} from 'react-native';
-import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useTheme} from '@/hooks';
 
 interface GenericEmptyScreenProps {
@@ -23,21 +23,37 @@ export const GenericEmptyScreen: React.FC<GenericEmptyScreenProps> = ({
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <SafeArea>
-      <Header title={headerTitle} showBackButton={showBackButton} />
-      <View style={styles.container}>
-        <View style={styles.contentContainer}>
-          <Image source={emptyImage} style={styles.emptyImage} />
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={headerTitle}
+          showBackButton={showBackButton}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['3']}
+      useSafeAreaView
+      containerStyle={styles.safeArea}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <View style={[styles.container, contentPaddingStyle]}>
+          <View style={styles.contentContainer}>
+            <Image source={emptyImage} style={styles.emptyImage} />
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          </View>
         </View>
-      </View>
-    </SafeArea>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,

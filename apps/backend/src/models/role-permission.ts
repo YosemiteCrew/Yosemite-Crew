@@ -248,6 +248,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "org:view",
 
+    "integrations:view:any",
+
     "specialities:view:any",
     "specialities:edit:any",
 
@@ -294,6 +296,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "analytics:view:any",
     "analytics:view:clinical",
 
+    "integrations:view:any",
+
     "specialities:view:any",
     "specialities:edit:any",
 
@@ -338,6 +342,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "billing:view:any",
     "billing:edit:any",
     "billing:edit:limited",
+
+    "integrations:view:any",
 
     "specialities:view:any",
     "specialities:edit:any",
@@ -384,6 +390,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "billing:edit:any",
     "billing:edit:limited",
 
+    "integrations:view:any",
+
     "specialities:view:any",
     "specialities:edit:any",
 
@@ -427,6 +435,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "analytics:view:any",
     "analytics:view:clinical",
+
+    "integrations:view:any",
 
     "specialities:view:any",
     "specialities:edit:any",

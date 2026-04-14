@@ -25,6 +25,10 @@ const ParentFields = [
   { label: 'Last name', key: 'lastName', type: 'text' },
   { label: 'Email', key: 'email', type: 'text' },
   { label: 'Number', key: 'phone', type: 'text' },
+  { label: 'Address line', key: 'addressLine', type: 'text' },
+  { label: 'City', key: 'city', type: 'text' },
+  { label: 'State / Province', key: 'state', type: 'text' },
+  { label: 'Postal code', key: 'postalCode', type: 'text' },
 ];
 
 const Companion = ({ activeAppointment }: CompanionProps) => {
@@ -33,6 +37,19 @@ const Companion = ({ activeAppointment }: CompanionProps) => {
   const parentId = activeAppointment.companion.parent.id;
   const companion = useCompanionStore((state) => state.getCompanionById(companionId));
   const parent = useParentStore((state) => state.getParentById(parentId));
+  const appointmentParent = activeAppointment.companion.parent as Partial<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    address: {
+      addressLine?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    };
+  }>;
 
   const CompanionInfoData = useMemo(
     () => ({
@@ -48,15 +65,19 @@ const Companion = ({ activeAppointment }: CompanionProps) => {
     [companion]
   );
 
-  const ParentInfoData = useMemo(
-    () => ({
-      firstName: parent?.firstName ?? '',
-      lastName: parent?.lastName ?? '',
-      email: parent?.email ?? '',
-      phone: parent?.phoneNumber ?? '',
-    }),
-    [parent]
-  );
+  const ParentInfoData = useMemo(() => {
+    const addr = parent?.address ?? appointmentParent?.address;
+    return {
+      firstName: parent?.firstName ?? appointmentParent?.firstName ?? '',
+      lastName: parent?.lastName ?? appointmentParent?.lastName ?? '',
+      email: parent?.email ?? appointmentParent?.email ?? '',
+      phone: parent?.phoneNumber ?? appointmentParent?.phoneNumber ?? '',
+      addressLine: addr?.addressLine ?? '',
+      city: addr?.city ?? '',
+      state: addr?.state ?? '',
+      postalCode: addr?.postalCode ?? '',
+    };
+  }, [appointmentParent, parent]);
 
   return (
     <div className="flex flex-col gap-6 w-full">

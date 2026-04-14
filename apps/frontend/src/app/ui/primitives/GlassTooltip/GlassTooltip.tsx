@@ -9,9 +9,16 @@ type GlassTooltipProps = {
   children: React.ReactNode;
   side?: TooltipSide;
   className?: string;
+  maxWidth?: number | string;
 };
 
-const GlassTooltip = ({ content, children, side = 'top', className = '' }: GlassTooltipProps) => {
+const GlassTooltip = ({
+  content,
+  children,
+  side = 'top',
+  className = '',
+  maxWidth,
+}: GlassTooltipProps) => {
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -129,6 +136,9 @@ const GlassTooltip = ({ content, children, side = 'top', className = '' }: Glass
                 top: `${position.top}px`,
                 left: `${position.left}px`,
                 transform: position.transform,
+                ...(maxWidth
+                  ? { maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth }
+                  : {}),
               }}
             >
               {content}

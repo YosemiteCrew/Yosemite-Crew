@@ -46,6 +46,8 @@ const credentialsStatusClasses: Record<string, string> = {
   invalid: 'bg-red-50 text-red-700',
   missing: 'bg-amber-50 text-amber-700',
 };
+const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
+  'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 
 const integrationFilters = [
   { key: 'all', label: 'All', bg: '#247AED', text: '#EAF3FF' },
@@ -129,7 +131,9 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
             {device.deviceSerialNumber}
           </div>
         </div>
-        <span className={`text-label-xsmall px-2 py-1 rounded ${statusClass}`}>{statusLabel}</span>
+        <span className={`text-label-xsmall px-2 py-1 rounded-2xl! ${statusClass}`}>
+          {statusLabel}
+        </span>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
         <div className="text-text-secondary">Last cloud poll</div>
@@ -148,7 +152,7 @@ const StatusPill = ({ status }: { status?: string }) => {
   const normalizedLabel = `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
   return (
     <span
-      className={`text-label-xsmall px-2 py-1 rounded ${statusClasses[key] ?? 'bg-card-hover text-text-secondary'}`}
+      className={`text-label-xsmall px-2 py-1 rounded-2xl! ${statusClasses[key] ?? 'bg-card-hover text-text-secondary'}`}
     >
       {normalizedLabel}
     </span>
@@ -415,7 +419,7 @@ const useIntegrationsPage = () => {
       await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
       refreshMerckIntegration();
     } catch (e) {
-      setError(getApiErrorMessage(e, 'Unable to update Merck Manuals status.'));
+      setError(getApiErrorMessage(e, 'Unable to update MSD Veterinary Manual status.'));
     } finally {
       setMerckSaving(false);
     }
@@ -584,7 +588,7 @@ const IdexxSettingsModal = ({
                 <div className="text-text-secondary">Credentials status</div>
                 <div className="text-right">
                   <span
-                    className={`text-label-xsmall px-2 py-1 rounded ${
+                    className={`text-label-xsmall px-2 py-1 rounded-2xl! ${
                       credentialsStatusClasses[credentialsStatusKey] ??
                       'bg-card-hover text-text-secondary'
                     }`}
@@ -657,6 +661,10 @@ const IdexxSettingsModal = ({
               <LinkedDevicesList devices={devices} />
             </div>
           </Accordion>
+
+          <div className="text-caption-2 text-text-extra pt-1 pb-1">
+            {IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}
+          </div>
         </div>
       </div>
     </Modal>
@@ -726,14 +734,14 @@ const IdexxIntegrationCard = ({
         )}
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="text-heading-3 text-text-primary pt-1">IDEXX</div>
             <StatusPill status={s.idexxIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
-            IDEXX diagnostics integration for lab ordering, in-house device workflows, and clinical
-            result visibility in Yosemite Crew.
+            Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care
+            diagnostics for a seamless workflow.
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 w-full items-center">
@@ -774,19 +782,19 @@ const MerckIntegrationCard = ({
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
           <Image
-            src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-            alt="Merck Manuals"
-            width={56}
-            height={56}
-            className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
+            src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
+            alt="MSD Veterinary Manual"
+            width={60}
+            height={60}
+            className="object-contain max-h-[60px] max-w-[60px] h-auto w-auto"
           />
         </div>
         {s.merckEnabled ? (
           <button
             type="button"
             onClick={s.handleMerckEnableDisable}
-            aria-label="Disable Merck Manuals"
-            title="Disable Merck Manuals"
+            aria-label="Disable MSD Veterinary Manual"
+            title="Disable MSD Veterinary Manual"
             className="h-10 w-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
           >
             <IoTrashOutline className="text-red-600" size={16} />
@@ -796,9 +804,9 @@ const MerckIntegrationCard = ({
         )}
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 pb-3">
           <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">Merck Manuals</div>
+            <div className="text-heading-3 text-text-primary pt-1">MSD Veterinary Manual</div>
             <StatusPill status={s.merckIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
@@ -852,15 +860,59 @@ const RadIntegrationCard = ({
         <div className="h-10 w-10" />
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="text-heading-3 text-text-primary pt-1">RadAnalyzer</div>
-            <span className="text-label-xsmall px-2 py-1 rounded bg-amber-50 text-amber-700">
+            <span className="text-label-xsmall px-2 py-1 rounded-2xl! bg-amber-50 text-amber-700">
               Coming soon
             </span>
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full items-center justify-end">
+            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VetnioIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (activeFilter === 'connected') return null;
+
+  return (
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+        <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+          <Image
+            src={MEDIA_SOURCES.futureAssets.vetnioLogoUrl}
+            alt="Vetnio"
+            width={56}
+            height={56}
+            className="object-contain max-h-[56px] max-w-[56px] h-auto w-auto"
+          />
+        </div>
+        <div className="h-10 w-10" />
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex flex-col gap-3 pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-heading-3 text-text-primary pt-1">Vetnio</div>
+            <span className="text-label-xsmall px-2 py-1 rounded-2xl! bg-amber-50 text-amber-700">
+              Coming soon
+            </span>
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-4">
+            AI-powered documentation for veterinary practices — instantly generate clinical notes,
+            discharge summaries, and client communications from consultations.
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -889,6 +941,7 @@ const IntegrationCards = ({
       <IdexxIntegrationCard s={s} buttonLabel={idexxCardButtonLabel} />
       <MerckIntegrationCard s={s} buttonLabel={merckCardButtonLabel} />
       <RadIntegrationCard activeFilter={s.activeFilter} />
+      <VetnioIntegrationCard activeFilter={s.activeFilter} />
     </div>
   );
 };

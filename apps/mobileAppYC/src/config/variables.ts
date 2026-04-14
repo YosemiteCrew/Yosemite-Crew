@@ -70,9 +70,25 @@ export interface MobileConfigBehavior {
    */
   skipRemoteFetch: boolean;
   /**
+   * When true, force all runtime API calls to use production API host.
+   */
+  forceProductionApiBaseUrl: boolean;
+  /**
+   * Local-only helper to simulate app update prompts without backend changes.
+   */
+  mockAppUpdateFlow: 'off' | 'optional' | 'required';
+  /**
    * Optional override values to layer on top of (or replace) the remote mobile-config response.
    */
   override?: Partial<MobileConfig>;
+}
+
+export interface ClarityConfig {
+  projectId: string;
+}
+
+export interface AgeVerificationConfig {
+  serviceProviderName: string;
 }
 
 // Default/test configuration (safe for CI/CD)
@@ -91,10 +107,10 @@ const DEFAULT_GOOGLE_PLACES_CONFIG: GooglePlacesConfig = {
 };
 
 const DEFAULT_API_CONFIG: ApiConfig = {
-  // Default to cloud dev API; override in variables.local.ts for other envs
-  baseUrl: 'https://devapi.yosemitecrew.com',
+  // Default to production API; override in variables.local.ts only when needed.
+  baseUrl: 'https://api.yosemitecrew.com',
   timeoutMs: 15000,
-  pmsBaseUrl: 'https://devapi.yosemitecrew.com',
+  pmsBaseUrl: 'https://api.yosemitecrew.com',
 };
 
 const DEFAULT_STREAM_CHAT_CONFIG: StreamChatConfig = {
@@ -123,7 +139,18 @@ const DEFAULT_UI_FEATURE_FLAGS: UiFeatureFlags = {
 
 const DEFAULT_MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
   skipRemoteFetch: false,
+  forceProductionApiBaseUrl: true,
+  mockAppUpdateFlow: 'off',
   override: undefined,
+};
+
+const DEFAULT_CLARITY_CONFIG: ClarityConfig = {
+  // Keep empty in source control; provide via variables.local.ts or remote config pipeline.
+  projectId: '',
+};
+
+const DEFAULT_AGE_VERIFICATION_CONFIG: AgeVerificationConfig = {
+  serviceProviderName: '',
 };
 
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
@@ -135,18 +162,25 @@ let authFlagsOverrides: Partial<AuthFeatureFlags> | undefined;
 let demoLoginOverrides: Partial<DemoLoginConfig> | undefined;
 let uiFlagsOverrides: Partial<UiFeatureFlags> | undefined;
 let mobileConfigBehaviorOverrides: Partial<MobileConfigBehavior> | undefined;
+let clarityConfigOverrides: Partial<ClarityConfig> | undefined;
+let ageVerificationConfigOverrides: Partial<AgeVerificationConfig> | undefined;
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
     return false;
   }
 
-  const candidate = error as Partial<NodeJS.ErrnoException> & {message?: string};
+  const candidate = error as Partial<NodeJS.ErrnoException> & {
+    message?: string;
+  };
   if (candidate.code !== 'MODULE_NOT_FOUND') {
     return false;
   }
 
-  return typeof candidate.message === 'string' && candidate.message.includes('variables.local');
+  return (
+    typeof candidate.message === 'string' &&
+    candidate.message.includes('variables.local')
+  );
 };
 
 // Try to load local configuration if it exists (for development)
@@ -180,13 +214,19 @@ try {
   if (localConfig.MOBILE_CONFIG_BEHAVIOR) {
     mobileConfigBehaviorOverrides = localConfig.MOBILE_CONFIG_BEHAVIOR;
   }
+  if (localConfig.CLARITY_CONFIG) {
+    clarityConfigOverrides = localConfig.CLARITY_CONFIG;
+  }
+  if (localConfig.AGE_VERIFICATION_CONFIG) {
+    ageVerificationConfigOverrides = localConfig.AGE_VERIFICATION_CONFIG;
+  }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
     // No local config file found, using defaults (this is expected in CI/CD)
     if (process.env.NODE_ENV !== 'test' && process.env.CI !== 'true') {
       console.warn(
         'No variables.local.ts found. Using default configuration. ' +
-        'For local development, copy variables.ts to variables.local.ts and add your credentials.',
+          'For local development, copy variables.ts to variables.local.ts and add your credentials.',
       );
     }
   } else {
@@ -237,6 +277,16 @@ export const UI_FEATURE_FLAGS: UiFeatureFlags = {
 export const MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
   ...DEFAULT_MOBILE_CONFIG_BEHAVIOR,
   ...mobileConfigBehaviorOverrides,
+};
+
+export const CLARITY_CONFIG: ClarityConfig = {
+  ...DEFAULT_CLARITY_CONFIG,
+  ...clarityConfigOverrides,
+};
+
+export const AGE_VERIFICATION_CONFIG: AgeVerificationConfig = {
+  ...DEFAULT_AGE_VERIFICATION_CONFIG,
+  ...ageVerificationConfigOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

@@ -1,25 +1,30 @@
-"use client";
-import React, { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+'use client';
+import React, { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 
-import { useAuthStore } from "@/app/stores/authStore";
+import { useAuthStore } from '@/app/stores/authStore';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
 };
 
+const isLocalGuardBypassEnabled = () => {
+  if (process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD !== 'true') return false;
+  const hostname = (
+    process.env.YC_TEST_HOSTNAME ?? globalThis.window?.location?.hostname
+  )?.toLowerCase();
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+};
+
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const status = useAuthStore((s) => s.status);
   const router = useRouter();
-  const pathname = usePathname() || "/";
+  const pathname = usePathname() || '/';
 
-  const isChecking = status === "idle" || status === "checking";
-  const isAuthed =
-    status === "authenticated" || status === "signin-authenticated";
+  const isChecking = status === 'idle' || status === 'checking';
+  const isAuthed = status === 'authenticated' || status === 'signin-authenticated';
 
-  // Check if auth guard is disabled via environment variable
-  const isAuthGuardDisabled =
-    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === "true";
+  const isAuthGuardDisabled = isLocalGuardBypassEnabled();
 
   useEffect(() => {
     if (isAuthGuardDisabled) return;

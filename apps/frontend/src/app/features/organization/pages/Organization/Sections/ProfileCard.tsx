@@ -6,6 +6,7 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import LogoUpdator from '@/app/ui/widgets/UploadImage/LogoUpdator';
+import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { updateOrg } from '@/app/features/organization/services/orgService';
@@ -77,9 +78,11 @@ const getRequiredError = (field: FieldConfig, value: any): string | undefined =>
   if (!field.required) return undefined;
   const label = `${field.label} is required`;
   if (Array.isArray(value)) return value.length ? undefined : label;
-  if (field.type === 'date') return value ? undefined : label;
-  if (field.type === 'dateString') return value ? undefined : label;
-  if (field.type === 'number') return value ? undefined : label;
+  if (field.type === 'date' || field.type === 'dateString') return value ? undefined : label;
+  if (field.type === 'number') {
+    if (value === 0 || value === '0') return undefined;
+    return value ? undefined : label;
+  }
   return (value ?? '').toString().trim() ? undefined : label;
 };
 
@@ -90,6 +93,7 @@ const FieldComponents: Record<
     value: any;
     error?: string;
     onChange: (v: any) => void;
+    onMultiChange?: (values: Record<string, any>) => void;
   }>
 > = {
   text: ({ field, value, onChange, error }) => (
@@ -176,6 +180,26 @@ const FieldComponents: Record<
       />
     );
   },
+  googleAddress: ({ field, value, onChange, onMultiChange, error }) => (
+    <GoogleSearchDropDown
+      intype="text"
+      inname={field.key}
+      value={value ?? ''}
+      inlabel={field.label}
+      error={error}
+      onChange={(e) => onChange(e.target.value)}
+      onlyAddress={true}
+      onAddressSelect={(address) => {
+        onChange(address.addressLine);
+        onMultiChange?.({
+          city: address.city,
+          state: address.state,
+          postalCode: address.postalCode,
+          ...(address.country ? { country: address.country } : {}),
+        });
+      }}
+    />
+  ),
 };
 
 const FieldValueRow: React.FC<{
@@ -300,6 +324,17 @@ const ProfileCard = ({
     setFormValuesErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
+  const handleMultiChange = (values: Record<string, any>) => {
+    setFormValues((prev) => ({ ...prev, ...values }));
+    setFormValuesErrors((prev) => {
+      const cleared = Object.keys(values).reduce<Record<string, undefined>>(
+        (acc, k) => ({ ...acc, [k]: undefined }),
+        {}
+      );
+      return { ...prev, ...cleared };
+    });
+  };
+
   const validate = () => {
     const errors: Record<string, string> = {};
     for (const field of fields) {
@@ -406,7 +441,7 @@ const ProfileCard = ({
                 </div>
               </div>
               {!org?.isVerified && (
-                <Primary text="Verify business profile" href="/book-onboarding" classname="" />
+                <Primary text="Verify business profile" href="/book-onboarding" className="" />
               )}
             </div>
             {!org?.isVerified && (
@@ -431,6 +466,7 @@ const ProfileCard = ({
                     value={formValues[field.key]}
                     error={formValuesErrors[field.key]}
                     onChange={(v) => handleChange(field.key, v)}
+                    onMultiChange={handleMultiChange}
                   />
                 </div>
               ) : (

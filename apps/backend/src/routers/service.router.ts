@@ -13,6 +13,10 @@ router.get(
   ServiceController.listByOrganisation,
 );
 router.post("/bookable-slots", ServiceController.getBookableSlotsForService);
+router.post(
+  "/bookable-slots/calendar-prefill",
+  ServiceController.getCalendarPrefill,
+);
 router.get("/:id", ServiceController.getServiceById);
 router.patch("/:id", ServiceController.updateService);
 router.delete("/:id", ServiceController.deleteService);

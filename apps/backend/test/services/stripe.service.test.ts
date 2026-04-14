@@ -1609,9 +1609,11 @@ describe("StripeService", () => {
         } as any);
 
         (AppointmentModel.findById as jest.Mock).mockResolvedValueOnce({});
-        (InvoiceModel.findOne as jest.Mock).mockResolvedValueOnce({
-          id: "existing",
-        });
+        (InvoiceModel.findOne as jest.Mock)
+          .mockReturnValueOnce({
+            sort: jest.fn().mockResolvedValueOnce(null),
+          })
+          .mockResolvedValueOnce({ id: "existing", status: "PAID" });
         await StripeService._handleAppointmentBookingPayment({
           metadata: { appointmentId: "app_1" },
         } as any);
@@ -1619,7 +1621,9 @@ describe("StripeService", () => {
         (AppointmentModel.findById as jest.Mock).mockResolvedValueOnce({
           appointmentType: { id: "srv_1" },
         });
-        (InvoiceModel.findOne as jest.Mock).mockResolvedValueOnce(null);
+        (InvoiceModel.findOne as jest.Mock).mockReturnValueOnce({
+          sort: jest.fn().mockResolvedValueOnce(null),
+        });
         mStripe.charges.retrieve.mockResolvedValueOnce({ id: "ch_1" });
         (ServiceModel.findById as jest.Mock).mockResolvedValueOnce(null);
         await StripeService._handleAppointmentBookingPayment({
@@ -1630,7 +1634,7 @@ describe("StripeService", () => {
     });
 
     describe("_handleInvoicePayment Edge Cases", () => {
-      it("returns early if missing/paid, refunds if wrong method", async () => {
+      it("returns early if missing/paid, skips checkout-session payments, refunds if wrong method", async () => {
         await StripeService._handleInvoicePayment({ metadata: {} } as any);
 
         (InvoiceModel.findById as jest.Mock).mockResolvedValueOnce(null);
@@ -1653,10 +1657,20 @@ describe("StripeService", () => {
           paymentCollectionMethod: "PAYMENT_LINK",
         });
         await StripeService._handleInvoicePayment({
+          id: "pi_checkout",
+          metadata: { invoiceId: "inv_checkout" },
+        } as any);
+        expect(refundSpy).not.toHaveBeenCalled();
+
+        (InvoiceModel.findById as jest.Mock).mockResolvedValueOnce({
+          status: "PENDING",
+          paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+        });
+        await StripeService._handleInvoicePayment({
           id: "pi_123",
           metadata: { invoiceId: "inv_1" },
         } as any);
-        expect(refundSpy).toHaveBeenCalled();
+        expect(refundSpy).toHaveBeenCalledWith("pi_123");
       });
 
       it("successfully marks invoice PAID", async () => {
@@ -1921,7 +1935,9 @@ describe("StripeService", () => {
           organisationId: "org_1",
           companion: { id: "comp_1", parent: { id: "par_1" } },
         });
-        (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce(null);
+        (prisma.invoice.findFirst as jest.Mock)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null);
         mStripe.charges.retrieve.mockResolvedValueOnce({
           id: "ch_1",
           receipt_url: "receipt",
@@ -1942,6 +1958,33 @@ describe("StripeService", () => {
 
         expect(prisma.invoice.create).toHaveBeenCalled();
         expect(prisma.appointment.updateMany).toHaveBeenCalled();
+      });
+
+      it("settles open invoice for appointment booking payment", async () => {
+        (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+          id: "appt_1",
+          appointmentType: { id: "svc_1" },
+          organisationId: "org_1",
+          companion: { id: "comp_1", parent: { id: "par_1" } },
+        });
+        (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+          id: "inv_open",
+          status: "AWAITING_PAYMENT",
+        });
+        mStripe.charges.retrieve.mockResolvedValueOnce({
+          id: "ch_1",
+          receipt_url: "receipt",
+        });
+
+        await StripeService._handleAppointmentBookingPayment({
+          id: "pi_1",
+          currency: "usd",
+          latest_charge: "ch_1",
+          metadata: { appointmentId: "appt_1" },
+        } as any);
+
+        expect(prisma.invoice.updateMany).toHaveBeenCalled();
+        expect(prisma.invoice.create).not.toHaveBeenCalled();
       });
 
       it("handles invoice payment and failure/refund flows", async () => {
@@ -1980,6 +2023,35 @@ describe("StripeService", () => {
 
         expect(prisma.invoice.updateMany).toHaveBeenCalled();
         expect(NotificationService.sendToUser).toHaveBeenCalled();
+      });
+
+      it("ignores checkout-session invoice payment_intent events in postgres mode", async () => {
+        const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+        process.env.READ_FROM_POSTGRES = "true";
+
+        const refundSpy = jest
+          .spyOn(StripeService, "_refundByPaymentIntentId")
+          .mockImplementation(jest.fn() as any);
+
+        (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+          id: "inv_checkout",
+          status: "PENDING",
+          paymentCollectionMethod: "PAYMENT_LINK",
+        });
+
+        await StripeService._handleInvoicePayment({
+          id: "pi_checkout",
+          metadata: { invoiceId: "inv_checkout" },
+        } as any);
+
+        expect(refundSpy).not.toHaveBeenCalled();
+        expect(prisma.invoice.updateMany).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: "inv_checkout" },
+          }),
+        );
+
+        process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
       });
 
       it("handles subscription and invoice checkout", async () => {

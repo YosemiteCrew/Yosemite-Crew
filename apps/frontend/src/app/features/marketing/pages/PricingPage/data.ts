@@ -3,7 +3,7 @@ const COMMON_FEATURES = {
   TEMPLATES: 'Templates module',
   DOC_SIGNING: 'Document e-signing portal',
   IDEX_INTEGRATION: 'IDEXX integration for lab tests and diagnostics',
-  MERCK_INTEGRATION: 'Merck Manuals integration for veterinary clinical knowledge',
+  MERCK_INTEGRATION: 'MSD Veterinary Manual integration for veterinary clinical knowledge',
   CHAT: 'Internal + companion parent chat',
   SECURITY: 'Security & compliance integrations (SOC2, ISO 27001, GDPR)',
 };
@@ -109,8 +109,9 @@ export const TableData = [
     head: 'Integrations & labs',
     rows: [
       yesYes('IDEXX integration'),
-      yesYes('Merck Manuals integration'),
+      yesYes('MSD Veterinary Manual integration'),
       row('RadAnalyzer integration', 'Coming soon', 'Coming soon'),
+      row('Vetnio integration', 'Coming soon', 'Coming soon'),
     ],
   },
   {

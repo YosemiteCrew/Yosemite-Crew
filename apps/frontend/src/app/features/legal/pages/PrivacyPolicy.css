@@ -19,7 +19,7 @@
   justify-content: center;
 }
 .PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead h2 {
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-weight: 500;
   font-size: 40px;
   line-height: 120%;
@@ -53,10 +53,7 @@
   color: var(--black-text);
   margin: 0;
 }
-.PrivacyPolicySec
-  .PrivacyPolicyData
-  .PolicyItems
-  :is(p, .policyul p, .policyul li, a) {
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is(p, .policyul p, .policyul li, a) {
   font-family: var(--satoshi-font);
   font-weight: 400;
   font-size: 18px;
@@ -83,10 +80,7 @@
   ) {
   color: var(--black-text);
 }
-.PrivacyPolicySec
-  .PrivacyPolicyData
-  .PolicyItems
-  :is(p span.warningtext a):hover {
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is(p span.warningtext a):hover {
   color: var(--blue-text);
 }
 .PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is(p span.spanlink, p a) {

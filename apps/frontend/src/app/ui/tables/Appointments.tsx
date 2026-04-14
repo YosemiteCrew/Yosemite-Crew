@@ -1,10 +1,12 @@
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import Image from 'next/image';
 import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle, IoIosCalendar } from 'react-icons/io';
 import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
+import { RiHistoryLine } from 'react-icons/ri';
 import AppointmentCard from '@/app/ui/cards/AppointmentCard';
 import { Appointment } from '@yosemite-crew/types';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
@@ -19,6 +21,7 @@ import {
   allowCalendarDrag,
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
+  getAppointmentCompanionPhotoUrl,
   getPreferredNextAppointmentStatus,
   getClinicalNotesLabel,
   isRequestedLikeStatus,
@@ -34,6 +37,8 @@ import {
   getAppointmentPaymentDisplay,
 } from '@/app/lib/paymentStatus';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 
 import './DataTable.css';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -77,6 +82,7 @@ const Appointments = ({
   canEditAppointments,
   small = false,
 }: AppointmentTableProps) => {
+  const router = useRouter();
   useLoadTeam();
   const teams = useTeamForPrimaryOrg();
   const orgsById = useOrgStore((s) => s.orgsById);
@@ -111,6 +117,16 @@ const Appointments = ({
     setActiveAppointment?.(appointment);
     setViewIntent?.(intent ?? null);
     setViewPopup?.(true);
+  };
+
+  const handleViewAppointmentHistory = (appointment: Appointment) => {
+    router.push(
+      buildAppointmentCompanionHistoryHref(
+        appointment.id,
+        appointment.companion?.id,
+        '/appointments'
+      )
+    );
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {
@@ -157,11 +173,14 @@ const Appointments = ({
       render: (item: Appointment) => (
         <div className="appointment-profile w-10 h-10">
           <Image
-            src={getSafeImageUrl('', item.companion.species as ImageType)}
+            src={getSafeImageUrl(
+              getAppointmentCompanionPhotoUrl(item.companion),
+              item.companion.species as ImageType
+            )}
             alt=""
             height={40}
             width={40}
-            style={{ borderRadius: '50%' }}
+            className="h-10 w-10 rounded-full object-cover"
           />
         </div>
       ),
@@ -173,9 +192,16 @@ const Appointments = ({
       render: (item: Appointment) => (
         <div className="appointment-profile truncate">
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">{item?.companion?.name || '-'}</div>
+            <button
+              type="button"
+              onClick={() => handleViewAppointmentHistory(item)}
+              className="appointment-profile-title cursor-pointer hover:underline underline-offset-2 text-left"
+              title="Open appointment overview"
+            >
+              {formatCompanionNameWithOwnerLastName(item?.companion?.name, item?.companion?.parent)}
+            </button>
             <div className="appointment-profile-sub truncate">
-              {item?.companion?.parent?.name || ''}
+              {getOwnerFirstName(item?.companion?.parent) || ''}
             </div>
           </div>
         </div>
@@ -331,6 +357,15 @@ const Appointments = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 >
                   <IoEyeOutline size={20} color="#302F2E" />
+                </button>
+              </GlassTooltip>
+              <GlassTooltip content="Overview" side="bottom" className="table-action-tooltip">
+                <button
+                  onClick={() => handleViewAppointmentHistory(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Appointment overview"
+                >
+                  <RiHistoryLine size={18} color="#302F2E" />
                 </button>
               </GlassTooltip>
               {canEditAppointments && canShowStatusChangeAction(item.status) && (

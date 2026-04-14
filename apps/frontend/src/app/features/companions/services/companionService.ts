@@ -1,7 +1,7 @@
-import axios from "axios";
-import { useCompanionStore } from "@/app/stores/companionStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { getData, postData, putData } from "@/app/services/axios";
+import axios from 'axios';
+import { useCompanionStore } from '@/app/stores/companionStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { getData, postData, putData } from '@/app/services/axios';
 import {
   CompanionRequestDTO,
   fromCompanionRequestDTO,
@@ -9,33 +9,30 @@ import {
   ParentRequestDTO,
   toCompanionResponseDTO,
   toParentResponseDTO,
-} from "@yosemite-crew/types";
+} from '@yosemite-crew/types';
 import {
   GetCompanionResponse,
   StoredCompanion,
   StoredParent,
-} from "@/app/features/companions/pages/Companions/types";
-import { useParentStore } from "@/app/stores/parentStore";
+} from '@/app/features/companions/pages/Companions/types';
+import { useParentStore } from '@/app/stores/parentStore';
 
 const extractCompanionPayload = (
-  data: CompanionRequestDTO | { payload?: CompanionRequestDTO },
+  data: CompanionRequestDTO | { payload?: CompanionRequestDTO }
 ): CompanionRequestDTO => {
-  if (data && typeof data === "object" && "payload" in data) {
+  if (data && typeof data === 'object' && 'payload' in data) {
     return data.payload ?? (data as CompanionRequestDTO);
   }
   return data as CompanionRequestDTO;
 };
 
-export const loadCompanionsForPrimaryOrg = async (opts?: {
-  silent?: boolean;
-  force?: boolean;
-}) => {
+export const loadCompanionsForPrimaryOrg = async (opts?: { silent?: boolean; force?: boolean }) => {
   const { startLoading, setError, setCompanionsForOrg, status, lastFetchedAt } =
     useCompanionStore.getState();
   const { addBulkParents } = useParentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
+    console.warn('No primary organization selected. Cannot load companions.');
     return;
   }
   if (!shouldFetchCompanions(status, lastFetchedAt, opts)) return;
@@ -44,27 +41,21 @@ export const loadCompanionsForPrimaryOrg = async (opts?: {
   }
   try {
     const res = await getData<GetCompanionResponse>(
-      "/v1/companion-organisation/pms/" + primaryOrgId + "/list",
+      '/v1/companion-organisation/pms/' + primaryOrgId + '/list'
     );
-    const { companionById, parentById } = buildCompanionMaps(
-      res.data,
-      primaryOrgId,
-    );
+    const { companionById, parentById } = buildCompanionMaps(res.data, primaryOrgId);
     setCompanionsForOrg(primaryOrgId, Array.from(companionById.values()));
     addBulkParents(Array.from(parentById.values()));
   } catch (err: any) {
     if (!opts?.silent) {
       handleCompanionError(err, setError);
     }
-    console.error("Failed to load orgs:", err);
+    console.error('Failed to load orgs:', err);
     throw err;
   }
 };
 
-const buildCompanionMaps = (
-  data: GetCompanionResponse,
-  primaryOrgId: string,
-) => {
+const buildCompanionMaps = (data: GetCompanionResponse, primaryOrgId: string) => {
   const companionById = new Map<string, StoredCompanion>();
   const parentById = new Map<string, StoredParent>();
   for (const entry of data) {
@@ -87,10 +78,7 @@ const buildCompanionMaps = (
   return { companionById, parentById };
 };
 
-const handleCompanionError = (
-  err: unknown,
-  setError: (message: string) => void,
-) => {
+const handleCompanionError = (err: unknown, setError: (message: string) => void) => {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;
     if (status === 403) {
@@ -98,40 +86,33 @@ const handleCompanionError = (
       return;
     }
     if (status === 404) {
-      setError("Companion service not found. Please contact support.");
+      setError('Companion service not found. Please contact support.');
       return;
     }
-    setError(
-      err.response?.data?.message ??
-        err.message ??
-        "Failed to load companions",
-    );
+    setError(err.response?.data?.message ?? err.message ?? 'Failed to load companions');
     return;
   }
-  setError("Unexpected error while fetching companions");
+  setError('Unexpected error while fetching companions');
 };
 
 const shouldFetchCompanions = (
-  status: ReturnType<typeof useCompanionStore.getState>["status"],
+  status: ReturnType<typeof useCompanionStore.getState>['status'],
   lastFetchedAt: string | null,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
-  if (status === "loading") return false;
-  if (status === "loaded" && lastFetchedAt) return false;
-  return status === "idle" || status === "error";
+  if (status === 'loading') return false;
+  if (status === 'loaded' && lastFetchedAt) return false;
+  return status === 'idle' || status === 'error';
 };
 
-export const createCompanion = async (
-  payload: StoredCompanion,
-  parentPayload: StoredParent,
-) => {
+export const createCompanion = async (payload: StoredCompanion, parentPayload: StoredParent) => {
   const { upsertCompanion } = useCompanionStore.getState();
   const { upsertParent } = useParentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
-    return;
+    console.warn('No primary organization selected. Cannot load companions.');
+    return undefined;
   }
   try {
     const fhirCompanion = toCompanionResponseDTO(payload);
@@ -140,12 +121,10 @@ export const createCompanion = async (
       parentId: payload.parentId,
     };
     const res = await postData<CompanionRequestDTO | { payload?: CompanionRequestDTO }>(
-      "/fhir/v1/companion/org/" + primaryOrgId,
-      body,
+      '/fhir/v1/companion/org/' + primaryOrgId,
+      body
     );
-    const normalCompanion = fromCompanionRequestDTO(
-      extractCompanionPayload(res.data),
-    );
+    const normalCompanion = fromCompanionRequestDTO(extractCompanionPayload(res.data));
     const newCompanion: StoredCompanion = {
       ...normalCompanion,
       id: normalCompanion.id!,
@@ -154,8 +133,9 @@ export const createCompanion = async (
     };
     upsertParent(parentPayload);
     upsertCompanion(newCompanion);
+    return newCompanion;
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
@@ -164,15 +144,12 @@ export const createParent = async (payload: StoredParent) => {
   const { upsertParent } = useParentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
+    console.warn('No primary organization selected. Cannot load companions.');
     return;
   }
   try {
     const fhirParent = toParentResponseDTO(payload);
-    const res = await postData<ParentRequestDTO>(
-      "/fhir/v1/parent/pms/parents",
-      fhirParent,
-    );
+    const res = await postData<ParentRequestDTO>('/fhir/v1/parent/pms/parents', fhirParent);
     const normalParent = fromParentRequestDTO(res.data);
     const newParent: StoredParent = {
       ...normalParent,
@@ -181,29 +158,22 @@ export const createParent = async (payload: StoredParent) => {
     upsertParent(newParent);
     return normalParent.id;
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
 
-export const linkCompanion = async (
-  payload: StoredCompanion,
-  parentPayload: StoredParent,
-) => {
+export const linkCompanion = async (payload: StoredCompanion, parentPayload: StoredParent) => {
   const { primaryOrgId } = useOrgStore.getState();
   const { upsertParent } = useParentStore.getState();
   const { upsertCompanion } = useCompanionStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
-    return;
+    console.warn('No primary organization selected. Cannot load companions.');
+    return undefined;
   }
   try {
     await postData<ParentRequestDTO>(
-      "/v1/companion-organisation/pms/" +
-        primaryOrgId +
-        "/" +
-        payload.id +
-        "/link",
+      '/v1/companion-organisation/pms/' + primaryOrgId + '/' + payload.id + '/link'
     );
     const newCompanion: StoredCompanion = {
       ...payload,
@@ -211,43 +181,39 @@ export const linkCompanion = async (
     };
     upsertCompanion(newCompanion);
     upsertParent(parentPayload);
+    return newCompanion;
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
 
-export const searchParent = async (
-  name: string,
-  signal?: AbortSignal,
-): Promise<StoredParent[]> => {
+export const searchParent = async (name: string, signal?: AbortSignal): Promise<StoredParent[]> => {
   try {
     if (!name) {
       return [];
     }
     const res = await getData<ParentRequestDTO[]>(
-      "/fhir/v1/parent/pms/search?name=" + encodeURIComponent(name),
-      { signal },
+      '/fhir/v1/parent/pms/search?name=' + encodeURIComponent(name),
+      { signal }
     );
     return res.data.map((fhirParent) => {
       const normalParent = fromParentRequestDTO(fhirParent);
       return { ...normalParent, id: normalParent.id! };
     });
   } catch (err: any) {
-    if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") {
+    if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') {
       return [];
     }
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
 
-export const getCompanionForParent = async (
-  parentId: string,
-): Promise<StoredCompanion[]> => {
+export const getCompanionForParent = async (parentId: string): Promise<StoredCompanion[]> => {
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
+    console.warn('No primary organization selected. Cannot load companions.');
     return [];
   }
   try {
@@ -255,7 +221,7 @@ export const getCompanionForParent = async (
       return [];
     }
     const res = await getData<CompanionRequestDTO[]>(
-      "/fhir/v1/companion/pms/" + parentId + "/" + primaryOrgId + "/list",
+      '/fhir/v1/companion/pms/' + parentId + '/' + primaryOrgId + '/list'
     );
     const normalCompanions: StoredCompanion[] = [];
     for (const fhirCompanion of res.data) {
@@ -264,13 +230,13 @@ export const getCompanionForParent = async (
         ...normalCompanion,
         id: normalCompanion.id!,
         parentId: parentId,
-        organisationId: "",
+        organisationId: '',
       };
       normalCompanions.push(newCompanion);
     }
     return normalCompanions;
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
@@ -279,21 +245,19 @@ export const updateCompanion = async (payload: StoredCompanion) => {
   const { upsertCompanion } = useCompanionStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot update companions.");
+    console.warn('No primary organization selected. Cannot update companions.');
     return;
   }
   try {
     if (!payload.id || !payload.parentId) {
-      throw new Error("Companion or Parent ID missing");
+      throw new Error('Companion or Parent ID missing');
     }
     const fhirCompanion = toCompanionResponseDTO(payload);
     const res = await putData<CompanionRequestDTO | { payload?: CompanionRequestDTO }>(
-      "/fhir/v1/companion/org/" + payload.id,
-      { payload: fhirCompanion },
+      '/fhir/v1/companion/org/' + payload.id,
+      { payload: fhirCompanion }
     );
-    const normalCompanion = fromCompanionRequestDTO(
-      extractCompanionPayload(res.data),
-    );
+    const normalCompanion = fromCompanionRequestDTO(extractCompanionPayload(res.data));
     const newCompanion: StoredCompanion = {
       ...normalCompanion,
       id: payload.id,
@@ -302,7 +266,7 @@ export const updateCompanion = async (payload: StoredCompanion) => {
     };
     upsertCompanion(newCompanion);
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
@@ -311,17 +275,17 @@ export const updateParent = async (payload: StoredParent) => {
   const { upsertParent } = useParentStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot update parent.");
+    console.warn('No primary organization selected. Cannot update parent.');
     return;
   }
   try {
     if (!payload.id) {
-      throw new Error("Parent ID missing");
+      throw new Error('Parent ID missing');
     }
     const fhirParent = toParentResponseDTO(payload);
     const res = await putData<ParentRequestDTO>(
-      "/fhir/v1/parent/pms/parents/" + payload.id,
-      fhirParent,
+      '/fhir/v1/parent/pms/parents/' + payload.id,
+      fhirParent
     );
     const normalParent = fromParentRequestDTO(res.data);
     const newParent: StoredParent = {
@@ -330,7 +294,7 @@ export const updateParent = async (payload: StoredParent) => {
     };
     upsertParent(newParent);
   } catch (err) {
-    console.error("Failed to update parent:", err);
+    console.error('Failed to update parent:', err);
     throw err;
   }
 };

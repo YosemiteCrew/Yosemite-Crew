@@ -21,6 +21,7 @@ import { sendEmailTemplate } from "src/utils/email";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { FormModel } from "src/models/form";
 import { prisma } from "src/config/prisma";
+import logger from "src/utils/logger";
 
 // --- Global Mocks Setup ---
 
@@ -33,6 +34,7 @@ jest.mock("@yosemite-crew/types", () => ({
 jest.mock("../../src/services/invoice.service", () => ({
   InvoiceService: {
     createDraftForAppointment: jest.fn(),
+    getOrCreateDraftForAppointment: jest.fn(),
     handleAppointmentCancellation: jest.fn(),
   },
 }));
@@ -40,6 +42,7 @@ jest.mock("../../src/services/invoice.service", () => ({
 jest.mock("../../src/services/stripe.service", () => ({
   StripeService: {
     createPaymentIntentForAppointment: jest.fn(),
+    createPaymentIntentForInvoice: jest.fn(),
     createCheckoutSessionForInvoice: jest.fn(),
   },
 }));
@@ -425,7 +428,10 @@ describe("AppointmentService", () => {
       const mockCreated = createMockDoc({ status: "NO_PAYMENT" });
       (AppointmentModel.create as jest.Mock).mockResolvedValue(mockCreated);
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_123" });
+      (
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue("pi_123");
 
       const res = await AppointmentService.createRequestedFromMobile(
@@ -749,6 +755,116 @@ describe("AppointmentService", () => {
 
       expect(res).toBeDefined();
     });
+
+    it("should skip checkout email when parent email is invalid", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({
+          cost: 100,
+          serviceType: "STANDARD",
+        }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+
+      const mockAppt = createMockDoc({
+        companion: basePmsDto.companion,
+        lead: basePmsDto.lead,
+        appointmentType: basePmsDto.appointmentType,
+      });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue([mockAppt]);
+      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
+        { _id: validObjId, totalAmount: 100, currency: "usd" },
+      );
+      (
+        StripeService.createCheckoutSessionForInvoice as jest.Mock
+      ).mockResolvedValue({ url: "http://checkout.link" });
+      (ParentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ email: "broken-email", firstName: "John" }),
+      );
+      (OrganizationModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ name: "OrgName" }),
+      );
+      (UserModel.find as jest.Mock).mockReturnValue(createQueryChain([]));
+
+      const res = await AppointmentService.createAppointmentFromPms(
+        basePmsDto as any,
+        true,
+      );
+
+      expect(res).toBeDefined();
+      expect(sendEmailTemplate).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        "Skipping checkout email for invalid parent email.",
+        expect.any(Error),
+      );
+    });
+
+    it("should not abort transaction when checkout email fails after commit", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({
+          cost: 100,
+          serviceType: "STANDARD",
+        }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+
+      const mockAppt = createMockDoc({
+        companion: basePmsDto.companion,
+        lead: basePmsDto.lead,
+        appointmentType: basePmsDto.appointmentType,
+      });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue([mockAppt]);
+      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
+        { _id: validObjId, totalAmount: 100, currency: "usd" },
+      );
+      (
+        StripeService.createCheckoutSessionForInvoice as jest.Mock
+      ).mockResolvedValue({ url: "http://checkout.link" });
+      (ParentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ email: "test@test.com", firstName: "John" }),
+      );
+      (OrganizationModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ name: "OrgName" }),
+      );
+      (UserModel.find as jest.Mock).mockReturnValue(createQueryChain([]));
+      (sendEmailTemplate as jest.Mock).mockRejectedValueOnce(
+        new Error("SES failure"),
+      );
+
+      const res = await AppointmentService.createAppointmentFromPms(
+        basePmsDto as any,
+        true,
+      );
+
+      expect(res).toBeDefined();
+      expect(mockSession.commitTransaction).toHaveBeenCalled();
+      expect(mockSession.abortTransaction).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        "Failed to send appointment checkout email.",
+        expect.any(Error),
+      );
+    });
   });
 
   describe("cancelAppointment (postgres)", () => {
@@ -893,12 +1009,15 @@ describe("AppointmentService", () => {
         attachments: null,
         formIds: ["form_1"],
       });
+      (
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_1" });
       prisma.invoice.findMany.mockResolvedValue([
         { appointmentId: "appt_1", status: "PAID" },
       ]);
 
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue({ id: "pi_1" });
 
       const dto = {
@@ -966,10 +1085,13 @@ describe("AppointmentService", () => {
           appointmentDate: startTime,
         }),
       );
+      (
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_2" });
       prisma.invoice.findMany.mockResolvedValue([]);
 
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue({ id: "pi_2" });
 
       const dto = {
@@ -1035,10 +1157,13 @@ describe("AppointmentService", () => {
           appointmentDate: startTime,
         }),
       );
+      (
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_3" });
       prisma.invoice.findMany.mockResolvedValue([]);
 
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue({ id: "pi_3" });
 
       const dto = {
@@ -1141,7 +1266,10 @@ describe("AppointmentService", () => {
       const mockCreated = createMockDoc({ status: "REQUESTED" });
       (AppointmentModel.create as jest.Mock).mockResolvedValue(mockCreated);
       (
-        StripeService.createPaymentIntentForAppointment as jest.Mock
+        InvoiceService.getOrCreateDraftForAppointment as jest.Mock
+      ).mockResolvedValue({ id: "inv_4" });
+      (
+        StripeService.createPaymentIntentForInvoice as jest.Mock
       ).mockResolvedValue("pi_123");
 
       await AppointmentService.createRequestedFromMobile({
@@ -1487,6 +1615,20 @@ describe("AppointmentService", () => {
       await expect(
         AppointmentService.updateAppointmentPMS("", {} as any),
       ).rejects.toThrow();
+    });
+
+    it("should route cancelled status through cancelAppointment", async () => {
+      const cancelSpy = jest
+        .spyOn(AppointmentService, "cancelAppointment")
+        .mockResolvedValueOnce({ status: "CANCELLED" } as any);
+
+      const result = await AppointmentService.updateAppointmentPMS(validId, {
+        status: "CANCELLED",
+        concern: "Cancelled by PMS",
+      } as any);
+
+      expect(cancelSpy).toHaveBeenCalledWith(validId, "Cancelled by PMS");
+      expect(result).toEqual({ status: "CANCELLED" });
     });
 
     it("should throw 400 if lead is missing", async () => {

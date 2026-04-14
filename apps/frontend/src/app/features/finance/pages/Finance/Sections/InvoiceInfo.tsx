@@ -10,6 +10,7 @@ import { getAppointmentByIdFromList } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { Invoice } from '@yosemite-crew/types';
 import React, { useMemo } from 'react';
+import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 
 const CompanionFields = [
   { label: 'Pet', key: 'pet', type: 'text' },
@@ -43,8 +44,11 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     const appointment = getAppointmentByIdFromList(appointments, activeInvoice?.appointmentId);
     if (appointment) {
       return {
-        pet: appointment.companion.name,
-        parent: appointment.companion.parent.name,
+        pet: formatCompanionNameWithOwnerLastName(
+          appointment.companion.name,
+          appointment.companion.parent
+        ),
+        parent: getOwnerFirstName(appointment.companion.parent) || '-',
         service: appointment.appointmentType?.name,
       };
     }

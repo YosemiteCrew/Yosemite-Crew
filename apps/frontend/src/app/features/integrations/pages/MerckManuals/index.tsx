@@ -11,6 +11,7 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
@@ -29,7 +30,13 @@ import {
   sanitizeMerckHtml,
 } from '@/app/features/integrations/constants/merck';
 import { formatDateTimeLocal } from '@/app/lib/date';
-import { IoCloseOutline, IoCopyOutline, IoOpenOutline, IoOptionsOutline } from 'react-icons/io5';
+import {
+  IoCloseOutline,
+  IoCopyOutline,
+  IoInformationCircleOutline,
+  IoOpenOutline,
+  IoOptionsOutline,
+} from 'react-icons/io5';
 
 type MerckManualsPageProps = {
   embedded?: boolean;
@@ -403,7 +410,7 @@ const executeMerckSearch = async ({
 const MerckDisabledState = ({ embedded }: { embedded: boolean }) => (
   <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
     <div className="text-body-2 text-text-primary">
-      Merck Manuals is disabled for this organization.
+      MSD Veterinary Manual is disabled for this organization.
     </div>
     {embedded ? null : <Secondary href="/integrations" text="Manage Integrations" />}
   </div>
@@ -687,44 +694,54 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
 
   return (
     <div className={containerClassName}>
-      <div className="flex justify-between items-start gap-3 flex-wrap">
-        <div className="flex flex-col gap-1">
-          <div className="h-10 w-auto relative mb-1">
+      <div className="flex w-full items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="h-[88px] w-auto relative">
             <Image
               src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-              alt="Merck Manuals"
-              width={140}
-              height={40}
-              className="object-contain h-10 w-auto"
+              alt="MSD Veterinary Manual"
+              width={352}
+              height={88}
+              className="object-contain h-[88px] w-auto"
             />
           </div>
-          <p className="text-body-3 text-text-secondary max-w-3xl">
-            Search veterinary reference content and open results inside Yosemite Crew using secure
-            reader links.
-          </p>
+          <GlassTooltip
+            content="Search veterinary reference content and open results inside Yosemite Crew using secure reader links."
+            side="bottom"
+          >
+            <button
+              type="button"
+              aria-label="MSD Veterinary Manual info"
+              className="relative pt-3 inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <IoInformationCircleOutline size={20} />
+            </button>
+          </GlassTooltip>
         </div>
-        <AudienceToggle
-          value={audience}
-          disabled={disabled}
-          onChange={(next) => {
-            setAudience(next);
-            if (primaryOrgId && query.trim()) {
-              void executeMerckSearch({
-                organisationId: primaryOrgId,
-                query: query.trim(),
-                audience: next,
-                language,
-                requestIdRef,
-                resultCacheRef,
-                // fresh: false (default) — serve from cache if available
-                setLoading,
-                setError,
-                setEntries,
-                setRecentSearches,
-              });
-            }
-          }}
-        />
+        <div className="w-[320px] max-w-full shrink-0">
+          <AudienceToggle
+            value={audience}
+            disabled={disabled}
+            onChange={(next) => {
+              setAudience(next);
+              if (primaryOrgId && query.trim()) {
+                void executeMerckSearch({
+                  organisationId: primaryOrgId,
+                  query: query.trim(),
+                  audience: next,
+                  language,
+                  requestIdRef,
+                  resultCacheRef,
+                  // fresh: false (default) — serve from cache if available
+                  setLoading,
+                  setError,
+                  setEntries,
+                  setRecentSearches,
+                });
+              }
+            }}
+          />
+        </div>
       </div>
 
       {disabled ? (

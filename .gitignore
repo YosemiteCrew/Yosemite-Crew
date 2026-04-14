@@ -152,3 +152,11 @@ apps/backend/serviceAccount.json
 # Prisma migration files
 apps/backend/prisma/migrations
 .claude/settings.local.json
+
+# Agent-generated temporary output (safe to delete anytime)
+.tmp/agent-output/
+
+build-storybook.log
+chromatic.log
+chromatic-build-*.xml
+chromatic-diagnostics.json

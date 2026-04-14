@@ -10,6 +10,7 @@ import Footer from '@/app/ui/widgets/Footer/Footer';
 import { PricingPlans, TableData } from '@/app/features/marketing/pages/PricingPage/data';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 
 import './PricingPage.css';
 
@@ -30,23 +31,23 @@ const renderFeatureName = (name: string) => {
         <Image
           src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
           alt="IDEXX"
-          width={96}
+          width={106}
           height={36}
-          className="pricingFeatureBrandLogo"
+          className="pricingFeatureBrandLogo ml-4"
         />
       </div>
     );
   }
 
-  if (name === 'Merck Manuals integration') {
+  if (name === 'MSD Veterinary Manual integration') {
     return (
       <div className="pricingFeatureWithBrand">
         <Image
           src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-          alt="Merck Manuals"
-          width={96}
-          height={36}
-          className="pricingFeatureBrandLogo my-4"
+          alt="MSD Veterinary Manual"
+          width={260}
+          height={56}
+          className="pricingFeatureBrandLogo"
         />
       </div>
     );
@@ -58,9 +59,23 @@ const renderFeatureName = (name: string) => {
         <Image
           src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
           alt="RadAnalyzer"
-          width={96}
+          width={120}
+          height={46}
+          className="pricingFeatureBrandLogo ml-2"
+        />
+      </div>
+    );
+  }
+
+  if (name === 'Vetnio integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.vetnioLogoUrl}
+          alt="Vetnio"
+          width={100}
           height={36}
-          className="pricingFeatureBrandLogo"
+          className="pricingFeatureBrandLogo ml-2"
         />
       </div>
     );
@@ -89,9 +104,11 @@ const PricingPage = () => {
       lastName?: string;
       email?: string;
     } = {};
+    const normalizedEmail = normalizeEmail(formData.email);
     if (!formData.firstName) errors.firstName = 'First name is required';
     if (!formData.lastName) errors.lastName = 'Last name is required';
-    if (!formData.email) errors.email = 'Email is required';
+    const emailError = getEmailValidationError(normalizedEmail);
+    if (emailError) errors.email = emailError;
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -248,7 +265,10 @@ const PricingPage = () => {
                 inname="Email"
                 value={formData.email}
                 inlabel="Enter email"
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  setFormDataErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 error={formDataErrors.email}
               />
               <Primary href="#" onClick={handleSend} text="Send" />

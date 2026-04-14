@@ -6,6 +6,7 @@ import type {AuthStackParamList} from './AuthNavigator';
 import type {TaskCategory} from '@/features/tasks/types';
 import type {ObservationalToolBookingContext} from '@/features/observationalTools/types';
 import type {OrganisationDocumentCategory} from '@/features/legal/services/organisationDocumentService';
+import type {MerckEntry, MerckLanguage} from '@/features/merck/types';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -165,6 +166,9 @@ export type AppointmentStackParamList = {
   MerckManuals: {
     organisationId: string;
     initialQuery?: string;
+    initialEntries?: MerckEntry[];
+    initialLanguage?: MerckLanguage;
+    initialHasSearched?: boolean;
     context?: 'appointment' | 'home';
   };
 };
@@ -183,9 +187,18 @@ export type ExpenseStackParamList = {
 };
 
 export type TaskStackParamList = {
-  TasksMain: undefined;
+  TasksMain:
+    | {
+        autoSelectDate?: string;
+      }
+    | undefined;
   TasksList: {category: TaskCategory};
-  AddTask: {reuseTaskId?: string} | undefined;
+  AddTask:
+    | {
+        reuseTaskId?: string;
+        prefillDate?: string;
+      }
+    | undefined;
   TaskView: {taskId: string; source?: 'home' | 'tasks'};
   EditTask: {taskId: string; source?: 'home' | 'tasks'};
   ObservationalTool: {taskId: string};

@@ -124,7 +124,7 @@ export const allowCalendarDrag = (status?: AppointmentStatusLike) => {
 };
 
 export const getClinicalNotesLabel = (orgType?: string) => {
-  return orgType === 'HOSPITAL' ? 'Prescription' : 'Care';
+  return orgType === 'HOSPITAL' ? 'Medical Records' : 'Care';
 };
 
 export const getClinicalNotesIntent = (orgType?: string) => {
@@ -133,4 +133,15 @@ export const getClinicalNotesIntent = (orgType?: string) => {
   }
 
   return { label: 'care', subLabel: 'forms' } as const;
+};
+
+type CompanionWithPhotoLike = {
+  photoUrl?: string | null;
+  [key: string]: unknown;
+};
+
+export const getAppointmentCompanionPhotoUrl = (companion?: CompanionWithPhotoLike): string => {
+  const value = companion?.photoUrl;
+  if (typeof value !== 'string') return '';
+  return value.trim();
 };

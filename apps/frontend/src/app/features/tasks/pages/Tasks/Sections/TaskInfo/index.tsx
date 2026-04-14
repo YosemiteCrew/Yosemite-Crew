@@ -515,7 +515,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
             <Primary
               href="#"
               text={isReusing ? 'Reusing...' : 'Reuse task'}
-              classname="w-auto min-w-[140px]"
+              className="w-auto min-w-[140px]"
               onClick={handleReuseTask}
             />
           </div>

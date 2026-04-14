@@ -1,12 +1,12 @@
 .create-profile-wrapper {
-    padding: 48px 60px 48px 60px;
+  padding: 48px 60px 48px 60px;
   display: flex;
   flex-direction: column;
   gap: 32px;
 }
 .create-profile-title {
   color: var(--black-text);
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 28px;
   font-style: normal;
   font-weight: 500;

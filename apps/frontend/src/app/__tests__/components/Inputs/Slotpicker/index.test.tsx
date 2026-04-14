@@ -1,167 +1,137 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import Slotpicker from "@/app/ui/inputs/Slotpicker";
-import { Slot } from "@/app/features/appointments/types/appointments";
-import * as weekHelpers from "@/app/features/appointments/components/Calendar/weekHelpers";
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import Slotpicker from '@/app/ui/inputs/Slotpicker';
+import { Slot } from '@/app/features/appointments/types/appointments';
 
-// --- Mocks ---
-
-// Mock helper functions from weekHelpers using the absolute path
-jest.mock("@/app/features/appointments/components/Calendar/weekHelpers", () => ({
-  __esModule: true,
-  // Use requireActual with the alias to ensure we get the real implementation where needed
-  ...jest.requireActual("@/app/features/appointments/components/Calendar/weekHelpers"),
-  getStartOfWeek: jest.fn(),
-  getWeekDays: jest.fn(),
-  getPrevWeek: jest.fn(),
-  getNextWeek: jest.fn(),
-  // Simple implementations for display logic
-  getShortWeekday: (d: Date) =>
-    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()],
-  getDateNumberPadded: (d: Date) => String(d.getDate()).padStart(2, "0"),
-}));
-
-// Mock utils using the absolute path
-jest.mock("@/app/features/appointments/components/Availability/utils", () => ({
+jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
   formatUtcTimeToLocalLabel: (time: string) => `Formatted ${time}`,
 }));
 
-// Mock icons
-jest.mock("react-icons/gr", () => ({
-  GrNext: ({ onClick }: any) => (
-    <button data-testid="next-btn" onClick={onClick}>
-      Next
-    </button>
-  ),
-  GrPrevious: ({ onClick }: any) => (
-    <button data-testid="prev-btn" onClick={onClick}>
-      Prev
-    </button>
-  ),
+jest.mock('react-icons/gr', () => ({
+  GrNext: ({ className }: any) => <span className={className}>Next</span>,
+  GrPrevious: ({ className }: any) => <span className={className}>Prev</span>,
 }));
 
-describe("Slotpicker Component", () => {
-  // Test Data Setup
+describe('Slotpicker Component', () => {
   const mockSetSelectedDate = jest.fn();
   const mockSetSelectedSlot = jest.fn();
 
-  // specific date for consistent testing: Wednesday, Oct 11, 2023
-  const baseDate = new Date("2023-10-11T12:00:00Z");
-  const startOfWeek = new Date("2023-10-08T00:00:00Z"); // Sunday Oct 8
+  // System time: Wednesday Apr 2, 2025
+  const baseDate = new Date(2025, 3, 2, 12, 0, 0); // Apr 2 2025
 
-  // FIX: Added vetIds: [] to satisfy the Slot type definition
   const mockTimeSlots: Slot[] = [
-    { startTime: "10:00", endTime: "10:30", vetIds: [] },
-    { startTime: "11:00", endTime: "11:30", vetIds: [] },
-  ];
-
-  // A full week of date objects relative to the baseDate
-  const weekDays = [
-    new Date("2023-10-08T00:00:00Z"),
-    new Date("2023-10-09T00:00:00Z"),
-    new Date("2023-10-10T00:00:00Z"),
-    new Date("2023-10-11T00:00:00Z"), // Current Selected (Wed)
-    new Date("2023-10-12T00:00:00Z"),
-    new Date("2023-10-13T00:00:00Z"),
-    new Date("2023-10-14T00:00:00Z"),
+    { startTime: '10:00', endTime: '10:30', vetIds: [] },
+    { startTime: '11:00', endTime: '11:30', vetIds: [] },
   ];
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Default mock implementations for helpers
-    (weekHelpers.getStartOfWeek as jest.Mock).mockReturnValue(startOfWeek);
-    (weekHelpers.getWeekDays as jest.Mock).mockReturnValue(weekDays);
-
-    // Mock week navigation logic simply by manipulating date
-    (weekHelpers.getPrevWeek as jest.Mock).mockImplementation((d) => {
-      const newD = new Date(d);
-      newD.setDate(newD.getDate() - 7);
-      return newD;
-    });
-    (weekHelpers.getNextWeek as jest.Mock).mockImplementation((d) => {
-      const newD = new Date(d);
-      newD.setDate(newD.getDate() + 7);
-      return newD;
-    });
-
-    // Freeze system time to baseDate so "isPastDay" logic is deterministic
     jest.useFakeTimers();
     jest.setSystemTime(baseDate);
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => 200,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+      configurable: true,
+      get: () => 1000,
+    });
   });
 
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  // --- Tests ---
-
-  it("renders correctly with initial props", () => {
+  it('renders month + year header', () => {
     render(
       <Slotpicker
         selectedDate={baseDate}
-        setSelectedDate={mockSetSelectedDate}
-        selectedSlot={null}
-        setSelectedSlot={mockSetSelectedSlot}
-        timeSlots={mockTimeSlots}
-      />
-    );
-
-    // Check Month Header
-    expect(screen.getByText("October")).toBeInTheDocument();
-
-    // Check Week Days
-    weekDays.forEach((day) => {
-      expect(
-        screen.getByText(String(day.getDate()).padStart(2, "0"))
-      ).toBeInTheDocument();
-    });
-
-    // Check Time Slots
-    expect(screen.getByText("Formatted 10:00")).toBeInTheDocument();
-    expect(screen.getByText("Formatted 11:00")).toBeInTheDocument();
-  });
-
-  it("highlights the selected date correctly", () => {
-    // Render with Oct 11 selected
-    render(
-      <Slotpicker
-        selectedDate={weekDays[3]}
         setSelectedDate={mockSetSelectedDate}
         selectedSlot={null}
         setSelectedSlot={mockSetSelectedSlot}
         timeSlots={[]}
       />
     );
-
-    // 11 is selected, 10 is not
-    const selectedDayBtn = screen.getByText("11").closest("button");
-    const otherDayBtn = screen.getByText("10").closest("button");
-
-    expect(selectedDayBtn).toHaveClass("text-[#247AED]");
-    expect(otherDayBtn).not.toHaveClass("text-[#247AED]");
+    expect(screen.getByText('April 2025')).toBeInTheDocument();
   });
 
-  it("highlights the selected slot correctly", () => {
-    const selectedSlot = mockTimeSlots[0];
+  it('renders all 30 days of April as buttons', () => {
     render(
       <Slotpicker
         selectedDate={baseDate}
         setSelectedDate={mockSetSelectedDate}
-        selectedSlot={selectedSlot}
+        selectedSlot={null}
         setSelectedSlot={mockSetSelectedSlot}
-        timeSlots={mockTimeSlots}
+        timeSlots={[]}
       />
     );
-
-    const selectedBtn = screen.getByText("Formatted 10:00");
-    const unselectedBtn = screen.getByText("Formatted 11:00");
-
-    expect(selectedBtn).toHaveClass("text-[#247AED]");
-    expect(unselectedBtn).not.toHaveClass("text-[#247AED]");
+    for (let d = 1; d <= 30; d++) {
+      expect(screen.getByText(String(d).padStart(2, '0'))).toBeInTheDocument();
+    }
   });
 
-  it("calls setSelectedSlot when a slot is clicked", () => {
+  it('highlights the selected date', () => {
+    render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+    const selectedBtn = screen.getByText('02').closest('button');
+    const otherBtn = screen.getByText('10').closest('button');
+    expect(selectedBtn).toHaveClass('text-[#247AED]');
+    expect(otherBtn).not.toHaveClass('text-[#247AED]');
+  });
+
+  it('shows blue border for the current date when not selected', () => {
+    const selectedFutureDate = new Date(2025, 3, 10, 12, 0, 0);
+    render(
+      <Slotpicker
+        selectedDate={selectedFutureDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+    const todayButton = screen.getByText('02').closest('button');
+    expect(todayButton).toHaveClass('border-[#247AED]!');
+  });
+
+  it('past dates have opacity-40 and cursor-not-allowed', () => {
+    render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+    // Apr 1 is past (today is Apr 2)
+    const pastBtn = screen.getByText('01').closest('button');
+    expect(pastBtn).toHaveClass('opacity-40');
+    expect(pastBtn).toHaveClass('cursor-not-allowed');
+  });
+
+  it('clicking a past date does NOT call setSelectedDate', () => {
+    render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+    fireEvent.click(screen.getByText('01').closest('button')!);
+    expect(mockSetSelectedDate).not.toHaveBeenCalled();
+  });
+
+  it('clicking a future date calls setSelectedDate and resets slot', () => {
     render(
       <Slotpicker
         selectedDate={baseDate}
@@ -171,32 +141,26 @@ describe("Slotpicker Component", () => {
         timeSlots={mockTimeSlots}
       />
     );
-
-    fireEvent.click(screen.getByText("Formatted 11:00"));
-    expect(mockSetSelectedSlot).toHaveBeenCalledWith(mockTimeSlots[1]);
-  });
-
-  it("calls setSelectedDate and resets slot when a valid future/current date is clicked", () => {
-    // Current date is Oct 11. Clicking Oct 12 (Future)
-    render(
-      <Slotpicker
-        selectedDate={baseDate}
-        setSelectedDate={mockSetSelectedDate}
-        selectedSlot={null}
-        setSelectedSlot={mockSetSelectedSlot}
-        timeSlots={mockTimeSlots}
-      />
-    );
-
-    const futureDateBtn = screen.getByText("12").closest("button");
-    fireEvent.click(futureDateBtn!);
-
-    expect(mockSetSelectedDate).toHaveBeenCalledWith(weekDays[4]);
+    fireEvent.click(screen.getByText('15').closest('button')!);
+    expect(mockSetSelectedDate).toHaveBeenCalledWith(new Date(2025, 3, 15));
     expect(mockSetSelectedSlot).toHaveBeenCalledWith(null);
   });
 
-  it("does NOT call setSelectedDate when a past date is clicked", () => {
-    // Current date (system time) is Oct 11. Clicking Oct 09 (Past)
+  it('highlights the selected slot', () => {
+    render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={mockTimeSlots[0]}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
+      />
+    );
+    expect(screen.getByText('Formatted 10:00')).toHaveClass('text-[#247AED]');
+    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('text-[#247AED]');
+  });
+
+  it('calls setSelectedSlot when a slot is clicked', () => {
     render(
       <Slotpicker
         selectedDate={baseDate}
@@ -206,15 +170,39 @@ describe("Slotpicker Component", () => {
         timeSlots={mockTimeSlots}
       />
     );
-
-    const pastDateBtn = screen.getByText("09").closest("button");
-    fireEvent.click(pastDateBtn!);
-
-    expect(mockSetSelectedDate).not.toHaveBeenCalled();
-    expect(mockSetSelectedSlot).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Formatted 11:00'));
+    expect(mockSetSelectedSlot).toHaveBeenCalledWith(mockTimeSlots[1]);
   });
 
-  it("navigates to the previous week", () => {
+  it("shows 'No slot available' when timeSlots is empty", () => {
+    render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+    expect(screen.getByText('No slot available')).toBeInTheDocument();
+  });
+
+  it('prev-month button has cursor-not-allowed on current month', () => {
+    render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Previous month' })).toHaveClass(
+      'cursor-not-allowed'
+    );
+  });
+
+  it('scrolls date strip right with arrow control', () => {
     render(
       <Slotpicker
         selectedDate={baseDate}
@@ -225,16 +213,23 @@ describe("Slotpicker Component", () => {
       />
     );
 
-    // Index 0: Month Navigation, Index 1: Week Navigation
-    const prevButtons = screen.getAllByTestId("prev-btn");
-    const prevWeekBtn = prevButtons[1];
+    const dateStrip = screen.getByText('02').closest('button')?.parentElement as HTMLDivElement;
+    const scrollByMock = jest.fn();
+    Object.defineProperty(dateStrip, 'scrollBy', {
+      value: scrollByMock,
+      writable: true,
+      configurable: true,
+    });
 
-    fireEvent.click(prevWeekBtn);
-
-    expect(weekHelpers.getPrevWeek).toHaveBeenCalled();
+    fireEvent.resize(window);
+    fireEvent.click(screen.getByRole('button', { name: 'Scroll dates right' }));
+    expect(scrollByMock).toHaveBeenCalledWith({
+      left: 180,
+      behavior: 'smooth',
+    });
   });
 
-  it("navigates to the next week", () => {
+  it('scrolls date strip left with arrow control', () => {
     render(
       <Slotpicker
         selectedDate={baseDate}
@@ -245,15 +240,28 @@ describe("Slotpicker Component", () => {
       />
     );
 
-    const nextButtons = screen.getAllByTestId("next-btn");
-    const nextWeekBtn = nextButtons[1];
+    const dateStrip = screen.getByText('02').closest('button')?.parentElement as HTMLDivElement;
+    const scrollByMock = jest.fn();
+    Object.defineProperty(dateStrip, 'scrollBy', {
+      value: scrollByMock,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(dateStrip, 'scrollLeft', {
+      value: 240,
+      writable: true,
+      configurable: true,
+    });
+    fireEvent.scroll(dateStrip);
 
-    fireEvent.click(nextWeekBtn);
-
-    expect(weekHelpers.getNextWeek).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Scroll dates left' }));
+    expect(scrollByMock).toHaveBeenCalledWith({
+      left: -180,
+      behavior: 'smooth',
+    });
   });
 
-  it("navigates to the previous month", () => {
+  it('navigates to next month', () => {
     render(
       <Slotpicker
         selectedDate={baseDate}
@@ -263,68 +271,39 @@ describe("Slotpicker Component", () => {
         timeSlots={[]}
       />
     );
-
-    // Month Navigation (index 0)
-    const prevButtons = screen.getAllByTestId("prev-btn");
-    const prevMonthBtn = prevButtons[0];
-
-    fireEvent.click(prevMonthBtn);
-
-    expect(weekHelpers.getStartOfWeek).toHaveBeenCalled();
-    const callArgs = (weekHelpers.getStartOfWeek as jest.Mock).mock.calls;
-    // FIX: Use .at(-1) for SonarQube compliance (S7755)
-    const dateArg = callArgs.at(-1)![0];
-    expect(dateArg.getMonth()).toBe(8); // September
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+    expect(screen.getByText('May 2025')).toBeInTheDocument();
+    // May has 31 days
+    expect(screen.getByText('31')).toBeInTheDocument();
   });
 
-  it("navigates to the next month", () => {
+  it('navigates to previous month when not on current month', () => {
+    const mayDate = new Date(2025, 4, 10, 12, 0, 0);
     render(
       <Slotpicker
-        selectedDate={baseDate}
+        selectedDate={mayDate}
         setSelectedDate={mockSetSelectedDate}
         selectedSlot={null}
         setSelectedSlot={mockSetSelectedSlot}
         timeSlots={[]}
       />
     );
-
-    // Month Navigation (index 0)
-    const nextButtons = screen.getAllByTestId("next-btn");
-    const nextMonthBtn = nextButtons[0];
-
-    fireEvent.click(nextMonthBtn);
-
-    expect(weekHelpers.getStartOfWeek).toHaveBeenCalled();
-    const callArgs = (weekHelpers.getStartOfWeek as jest.Mock).mock.calls;
-    // FIX: Use .at(-1) for SonarQube compliance (S7755)
-    const dateArg = callArgs.at(-1)![0];
-    expect(dateArg.getMonth()).toBe(10); // November
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    expect(screen.getByText('April 2025')).toBeInTheDocument();
   });
 
-  it("updates view when selectedDate prop changes from parent", () => {
-    const { rerender } = render(
+  it('wraps year on next month from December', () => {
+    const decDate = new Date(2025, 11, 15, 12, 0, 0);
+    render(
       <Slotpicker
-        selectedDate={baseDate}
+        selectedDate={decDate}
         setSelectedDate={mockSetSelectedDate}
         selectedSlot={null}
         setSelectedSlot={mockSetSelectedSlot}
         timeSlots={[]}
       />
     );
-
-    expect(weekHelpers.getStartOfWeek).toHaveBeenCalledWith(baseDate);
-
-    const newDate = new Date("2023-12-25T12:00:00Z");
-    rerender(
-      <Slotpicker
-        selectedDate={newDate}
-        setSelectedDate={mockSetSelectedDate}
-        selectedSlot={null}
-        setSelectedSlot={mockSetSelectedSlot}
-        timeSlots={[]}
-      />
-    );
-
-    expect(weekHelpers.getStartOfWeek).toHaveBeenCalledWith(newDate);
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+    expect(screen.getByText('January 2026')).toBeInTheDocument();
   });
 });

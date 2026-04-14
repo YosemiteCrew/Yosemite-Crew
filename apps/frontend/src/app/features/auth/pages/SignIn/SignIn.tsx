@@ -13,6 +13,7 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import { useRouter } from 'next/navigation';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 
 import '../AuthPages.css';
 
@@ -42,7 +43,7 @@ const SignIn = ({
 
   const handleCodeResendonError = async () => {
     try {
-      const result = await resendCode(email);
+      const result = await resendCode(normalizeEmail(email));
       if (result) {
         setShowVerifyModal(true);
       }
@@ -63,7 +64,9 @@ const SignIn = ({
     e.preventDefault();
 
     const errors: { email?: string; pError?: string } = {};
-    if (!email) errors.email = 'Email is required';
+    const normalizedEmail = normalizeEmail(email);
+    const emailError = getEmailValidationError(normalizedEmail);
+    if (emailError) errors.email = emailError;
     if (!password) errors.pError = 'Password is required';
     setInputErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -71,7 +74,7 @@ const SignIn = ({
     }
 
     try {
-      await signIn(email, password);
+      await signIn(normalizedEmail, password);
       // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
       globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
       const signedInRole =
@@ -124,7 +127,10 @@ const SignIn = ({
                 inname="email"
                 value={email}
                 inlabel="Email"
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setInputErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 error={inputErrors.email}
               />
               <FormInputPass
@@ -159,7 +165,7 @@ const SignIn = ({
         </Form>
       </div>
       <OtpModal
-        email={email}
+        email={normalizeEmail(email)}
         password={password}
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}

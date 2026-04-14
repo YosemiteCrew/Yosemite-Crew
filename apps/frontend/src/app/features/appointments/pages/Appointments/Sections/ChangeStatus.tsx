@@ -22,6 +22,16 @@ const normalizeId = (value?: string | null) => {
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
 };
 
+const createNextLead = (
+  existingLead: Appointment['lead'] | null | undefined,
+  id: string,
+  name: string
+) => {
+  const profileUrl = existingLead?.profileUrl;
+  if (profileUrl) return { id, name, profileUrl };
+  return { id, name };
+};
+
 type ChangeStatusProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -70,10 +80,9 @@ const ChangeStatus = ({
   }, [activeAppointment.id, activeAppointment.lead?.id, leadOptions, showModal]);
 
   const availableStatusOptions = React.useMemo(() => {
-    const allowed = new Set<AppointmentStatus>([
-      currentStatus,
-      ...getAllowedAppointmentStatusTransitions(currentStatus),
-    ]);
+    const transitions = getAllowedAppointmentStatusTransitions(currentStatus);
+    const allowed = new Set<AppointmentStatus>(transitions);
+    allowed.add(currentStatus);
     return AppointmentStatusOptions.filter((option) =>
       allowed.has(option.value as AppointmentStatus)
     ) as Array<{ value: AppointmentStatus; label: string }>;
@@ -115,23 +124,14 @@ const ChangeStatus = ({
           leadOptions.find((option) => option.value === selectedLeadId)?.label ??
           activeAppointment.lead?.name ??
           'Assigned vet';
-        const nextLead = activeAppointment.lead
-          ? {
-              ...activeAppointment.lead,
-              id: selectedLeadId,
-              name: selectedLeadName,
-            }
-          : {
-              id: selectedLeadId,
-              name: selectedLeadName,
-            };
-        const nextAppointment =
-          currentStatus === 'REQUESTED' && newStatus === 'UPCOMING'
-            ? {
-                ...activeAppointment,
-                lead: nextLead,
-              }
-            : activeAppointment;
+        const nextLead = createNextLead(activeAppointment.lead, selectedLeadId, selectedLeadName);
+        const shouldSetLead = currentStatus === 'REQUESTED' && newStatus === 'UPCOMING';
+        if (!shouldSetLead) {
+          await changeAppointmentStatus(activeAppointment, newStatus);
+          return;
+        }
+        const nextAppointment = structuredClone(activeAppointment);
+        nextAppointment.lead = nextLead;
         await changeAppointmentStatus(nextAppointment, newStatus);
       }}
     />

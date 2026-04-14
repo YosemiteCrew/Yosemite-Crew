@@ -14,6 +14,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { IoIosWarning } from 'react-icons/io';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 
 import '../AuthPages.css';
 
@@ -38,7 +39,6 @@ const SignUp = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agree, setAgree] = useState(false);
-  const [subscribe, setSubscribe] = useState(false);
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
@@ -48,7 +48,6 @@ const SignUp = ({
     lastName?: string;
     email?: string;
     pError?: string;
-    subscribe?: string;
     agree?: string;
   }>({});
 
@@ -89,7 +88,6 @@ const SignUp = ({
     email: string,
     password: string,
     confirmPassword: string,
-    subscribe: boolean,
     agree: boolean
   ) => {
     const errors: {
@@ -98,19 +96,15 @@ const SignUp = ({
       email?: string;
       pError?: string;
       confirmPError?: string;
-      subscribe?: string;
       agree?: string;
     } = {};
 
     if (!firstName) errors.firstName = 'First name is required';
     if (!lastName) errors.lastName = 'Last name is required';
-    if (!email) errors.email = 'Email is required';
+    const emailError = getEmailValidationError(email);
+    if (emailError) errors.email = emailError;
 
     Object.assign(errors, passwordErrors(password, confirmPassword));
-
-    if (!subscribe) {
-      errors.subscribe = 'Please check the Newsletter and Promotional emails box';
-    }
 
     if (!agree) {
       errors.agree = 'Please check the Terms and Conditions box';
@@ -143,13 +137,13 @@ const SignUp = ({
 
   const handleSignUp = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
+    const normalizedEmail = normalizeEmail(email);
     const errors = validateSignUpInputs(
       firstName,
       lastName,
-      email,
+      normalizedEmail,
       password,
       confirmPassword,
-      subscribe,
       agree
     );
 
@@ -161,8 +155,8 @@ const SignUp = ({
 
     try {
       const args: Parameters<typeof signUp> = isDeveloper
-        ? [email, password, firstName, lastName, 'developer']
-        : [email, password, firstName, lastName];
+        ? [normalizedEmail, password, firstName, lastName, 'developer']
+        : [normalizedEmail, password, firstName, lastName];
 
       const result = await signUp(...args);
 
@@ -278,7 +272,10 @@ const SignUp = ({
                   inname="email"
                   value={email}
                   inlabel="Enter email"
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setInputErrors((prev) => ({ ...prev, email: undefined }));
+                  }}
                   error={inputErrors.email}
                 />
                 <FormInputPass
@@ -333,21 +330,8 @@ const SignUp = ({
               <Form.Check
                 type="checkbox"
                 label={<>Sign me up for newsletter and promotional emails</>}
-                onChange={(e) => setSubscribe(e.target.checked)}
                 className="flex! gap-2! items-end! text-caption-1 text-text-primary"
               />
-              {/* Show error for newsletter */}
-              {inputErrors.subscribe && (
-                <div
-                  className={`
-                        flex items-center gap-1 px-4
-                        text-caption-2 text-text-error
-                      `}
-                >
-                  <IoIosWarning className="text-text-error" size={14} />
-                  {inputErrors.subscribe}
-                </div>
-              )}
             </div>
 
             <div className="flex flex-col items-center gap-3">
@@ -364,7 +348,7 @@ const SignUp = ({
         </div>
       </div>
       <OtpModal
-        email={email}
+        email={normalizeEmail(email)}
         password={password}
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}

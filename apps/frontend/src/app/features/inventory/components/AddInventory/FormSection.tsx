@@ -294,7 +294,7 @@ const FormSection: React.FC<FormSectionProps> = ({
         <Primary
           href="#"
           text={saveLabel ?? 'Next'}
-          classname="h-12! text-lg! tracking-wide!"
+          className="h-12! text-lg! tracking-wide!"
           onClick={onSave}
           isDisabled={disableSave}
         />

@@ -383,6 +383,32 @@ describe('TaskViewScreen', () => {
 
     // Medication tasks use Input for assignment
     expect(getByTestId('input-Assign task')).toBeTruthy();
+    expect(getByTestId('touchable-End Date')).toBeTruthy();
+  });
+
+  it('hides end date field for medication tasks with frequency once', () => {
+    const onceState = {
+      ...mockState,
+      tasks: {
+        ...mockState.tasks,
+        'task-med-once': {
+          ...mockState.tasks['task-med'],
+          id: 'task-med-once',
+          details: {
+            ...mockState.tasks['task-med'].details,
+            frequency: {type: 'once'},
+            endDate: null,
+          },
+        },
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(onceState));
+    mockRouteParams = {taskId: 'task-med-once', source: 'tasks'};
+
+    const {queryByTestId, getByTestId} = render(<TaskViewScreen />);
+
+    expect(getByTestId('touchable-Start Date')).toBeTruthy();
+    expect(queryByTestId('touchable-End Date')).toBeNull();
   });
 
   it('renders observational tool task correctly', () => {
@@ -420,6 +446,18 @@ describe('TaskViewScreen', () => {
 
     expect(queryByTestId('header-right')).toBeNull();
     expect(queryByTestId('btn-Start Now')).toBeNull();
+  });
+
+  it('passes task date to AddTask when tapping reuse', () => {
+    mockRouteParams = {taskId: 'task-completed', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('btn-Reuse'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('AddTask', {
+      reuseTaskId: 'task-completed',
+      prefillDate: '2025-01-01',
+    });
   });
 
   it('handles navigation - back from Tasks', () => {

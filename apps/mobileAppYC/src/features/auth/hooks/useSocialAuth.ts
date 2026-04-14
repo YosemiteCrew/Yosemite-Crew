@@ -5,7 +5,10 @@ import {
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
 } from '@/config/variables';
-import {signInWithSocialProvider, type SocialProvider} from '@/features/auth/services/socialAuth';
+import {
+  signInWithSocialProvider,
+  type SocialProvider,
+} from '@/features/auth/services/socialAuth';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 
 type SocialAuthResult = Awaited<ReturnType<typeof signInWithSocialProvider>>;
@@ -27,6 +30,9 @@ interface UseSocialAuthReturn {
 }
 
 const DEFAULT_CANCELLED_MESSAGE = 'Kindly retry.';
+const ACCOUNT_EXISTS_CODE = 'auth/account-exists-with-different-credential';
+const DEFAULT_ACCOUNT_EXISTS_MESSAGE =
+  'An account already exists with this email. Sign in with your existing login method and try again.';
 
 export const useSocialAuth = ({
   onExistingProfile,
@@ -35,13 +41,18 @@ export const useSocialAuth = ({
   cancelledMessage = DEFAULT_CANCELLED_MESSAGE,
   genericErrorMessage,
 }: UseSocialAuthOptions): UseSocialAuthReturn => {
-  const [activeProvider, setActiveProvider] = useState<SocialProvider | null>(null);
+  const [activeProvider, setActiveProvider] = useState<SocialProvider | null>(
+    null,
+  );
   const activeProviderRef = useRef<SocialProvider | null>(null);
 
-  const updateActiveProvider = useCallback((provider: SocialProvider | null) => {
-    activeProviderRef.current = provider;
-    setActiveProvider(provider);
-  }, []);
+  const updateActiveProvider = useCallback(
+    (provider: SocialProvider | null) => {
+      activeProviderRef.current = provider;
+      setActiveProvider(provider);
+    },
+    [],
+  );
 
   const handleSocialAuth = useCallback(
     async (provider: SocialProvider) => {
@@ -90,7 +101,14 @@ export const useSocialAuth = ({
         const message = String(error?.message ?? '');
         const isCancelled =
           error?.code === 'auth/cancelled' || /cancel/i.test(message);
-        throw new Error(isCancelled ? cancelledMessage : genericErrorMessage);
+        const isAccountExists = error?.code === ACCOUNT_EXISTS_CODE;
+        if (isCancelled) {
+          throw new Error(cancelledMessage);
+        }
+        if (isAccountExists) {
+          throw new Error(message || DEFAULT_ACCOUNT_EXISTS_MESSAGE);
+        }
+        throw new Error(genericErrorMessage);
       } finally {
         updateActiveProvider(null);
       }
