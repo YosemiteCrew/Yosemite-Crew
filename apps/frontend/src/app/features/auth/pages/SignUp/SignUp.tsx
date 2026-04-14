@@ -14,6 +14,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { IoIosWarning } from 'react-icons/io';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 
 import '../AuthPages.css';
 
@@ -100,7 +101,8 @@ const SignUp = ({
 
     if (!firstName) errors.firstName = 'First name is required';
     if (!lastName) errors.lastName = 'Last name is required';
-    if (!email) errors.email = 'Email is required';
+    const emailError = getEmailValidationError(email);
+    if (emailError) errors.email = emailError;
 
     Object.assign(errors, passwordErrors(password, confirmPassword));
 
@@ -135,10 +137,11 @@ const SignUp = ({
 
   const handleSignUp = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
+    const normalizedEmail = normalizeEmail(email);
     const errors = validateSignUpInputs(
       firstName,
       lastName,
-      email,
+      normalizedEmail,
       password,
       confirmPassword,
       agree
@@ -152,8 +155,8 @@ const SignUp = ({
 
     try {
       const args: Parameters<typeof signUp> = isDeveloper
-        ? [email, password, firstName, lastName, 'developer']
-        : [email, password, firstName, lastName];
+        ? [normalizedEmail, password, firstName, lastName, 'developer']
+        : [normalizedEmail, password, firstName, lastName];
 
       const result = await signUp(...args);
 
@@ -269,7 +272,10 @@ const SignUp = ({
                   inname="email"
                   value={email}
                   inlabel="Enter email"
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setInputErrors((prev) => ({ ...prev, email: undefined }));
+                  }}
                   error={inputErrors.email}
                 />
                 <FormInputPass
@@ -342,7 +348,7 @@ const SignUp = ({
         </div>
       </div>
       <OtpModal
-        email={email}
+        email={normalizeEmail(email)}
         password={password}
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}

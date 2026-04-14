@@ -162,6 +162,21 @@ describe('SignUp page', () => {
     expect(screen.getByText('Please check the Terms and Conditions box')).toBeInTheDocument();
   });
 
+  test('blocks signup when the email format is invalid', () => {
+    render(<SignUp />);
+
+    setFieldValue('First name', 'Jane');
+    setFieldValue('Last name', 'Doe');
+    setFieldValue('Enter email', 'not-an-email');
+    setFieldValue('Set up password', 'Secret!23');
+    setFieldValue('Confirm password', 'Secret!23');
+    checkTermsBox();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
+    expect(authStoreMock.signUp).not.toHaveBeenCalled();
+  });
+
   test('submits signup data and opens verification modal without newsletter opt-in', async () => {
     authStoreMock.signUp.mockResolvedValue(true);
     render(<SignUp />);

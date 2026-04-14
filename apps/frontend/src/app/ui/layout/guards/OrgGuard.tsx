@@ -34,6 +34,14 @@ type OrgGuardProps = {
   children: React.ReactNode;
 };
 
+const isLocalGuardBypassEnabled = () => {
+  if (process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD !== 'true') return false;
+  const hostname = (
+    process.env.YC_TEST_HOSTNAME ?? globalThis.window?.location?.hostname
+  )?.toLowerCase();
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+};
+
 const isStatusPending = (status?: string) => status === 'idle' || status === 'loading';
 
 type RedirectParams = {
@@ -157,8 +165,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Check if auth guard is disabled via environment variable
-  const isAuthGuardDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === 'true';
+  const isAuthGuardDisabled = isLocalGuardBypassEnabled();
 
   const orgStatus = useOrgStore((s) => s.status);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
