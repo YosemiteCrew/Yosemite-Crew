@@ -2,9 +2,8 @@ import React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-import PaymentStatusPage, {
-  buildPaymentStatusUrl,
-} from '@/app/(routes)/(public)/payment-status/page';
+import PaymentStatusPage from '@/app/(routes)/(public)/payment-status/page';
+import { buildPaymentStatusUrl } from '@/app/lib/paymentStatusUrl';
 
 const getParamMock = jest.fn();
 

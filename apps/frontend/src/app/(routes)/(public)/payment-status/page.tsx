@@ -1,4 +1,5 @@
 'use client';
+import { buildPaymentStatusUrl } from '@/app/lib/paymentStatusUrl';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { useSearchParams } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -10,21 +11,8 @@ type Return = {
   total: number;
 };
 
-const PAYMENT_STATUS_ENDPOINT = '/fhir/v1/invoice/';
-
 const shortId = (value: string) =>
   value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
-
-export const buildPaymentStatusUrl = (sessionId: string): string => {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim();
-  const requestPath = `${PAYMENT_STATUS_ENDPOINT}?session_id=${encodeURIComponent(sessionId)}`;
-
-  if (!baseUrl) {
-    return requestPath;
-  }
-
-  return new URL(requestPath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString();
-};
 
 function Page() {
   const searchParams = useSearchParams();
