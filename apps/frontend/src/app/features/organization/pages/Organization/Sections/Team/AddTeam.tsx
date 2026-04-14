@@ -7,7 +7,7 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import SelectLabel from '@/app/ui/inputs/SelectLabel';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { sendInvite } from '@/app/features/organization/services/teamService';
-import { isValidEmail } from '@/app/lib/validators';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { TeamFormDataType } from '@/app/features/organization/types/team';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -54,22 +54,23 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
       role?: string;
       booking?: string;
     } = {};
+    const normalizedEmail = normalizeEmail(formData.email);
     if (!canMore) {
       errors.booking =
         reason === 'limit_reached'
           ? 'You’ve reached your free user limit. Please upgrade to book more.'
           : 'We couldn’t verify your users limit right now. Please try again.';
     }
-    if (!formData.email) errors.email = 'Email is required';
+    const emailError = getEmailValidationError(normalizedEmail);
+    if (emailError) errors.email = emailError;
     if (formData.speciality.length === 0) errors.speciality = 'Speciality is required';
     if (!formData.role) errors.role = 'Role is required';
-    if (!isValidEmail(formData.email)) errors.email = 'Enter a valid email';
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
     try {
-      await sendInvite(formData);
+      await sendInvite({ ...formData, email: normalizedEmail });
       await refetchData();
       notify('success', {
         title: 'Invite sent',
@@ -107,7 +108,10 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 inname="email"
                 value={formData.email}
                 inlabel="Email"
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  setFormDataErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 error={formDataErrors.email}
                 className="min-h-12!"
               />
