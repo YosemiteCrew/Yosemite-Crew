@@ -120,6 +120,18 @@ describe('DeleteConfirmationModal', () => {
     expect(baseProps.onDelete).not.toHaveBeenCalled();
   });
 
+  it('shows email validation error when email format is invalid', async () => {
+    render(<DeleteConfirmationModal {...baseProps} />);
+
+    fireEvent.change(screen.getByLabelText('Enter email address'), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByText('Enter a valid email')).toBeInTheDocument();
+    expect(baseProps.onDelete).not.toHaveBeenCalled();
+  });
+
   it('deletes successfully when email is provided', async () => {
     render(<DeleteConfirmationModal {...baseProps} />);
 

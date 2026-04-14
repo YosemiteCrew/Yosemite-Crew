@@ -194,6 +194,11 @@ const GoogleSearchDropDown = ({
       onChange(event);
     }
     lastQueriedRef.current = pickedText;
+    // Full prediction text: "LODHA CROWN, near Majiwada Flyover, ..., Thane, Maharashtra, India"
+    const fullPredictionText =
+      item.mainText && item.secondaryText
+        ? `${item.mainText}, ${item.secondaryText}`
+        : (item.description ?? pickedText);
     let details: any = undefined;
     if (fetchDetails && item.kind === 'place' && item.placeId) {
       try {
@@ -214,7 +219,7 @@ const GoogleSearchDropDown = ({
         logger.error('Google place details fetch failed', e);
       }
     }
-    autofillFromPlace(details);
+    autofillFromPlace(details, fullPredictionText);
     logger.debug('Google place details', details);
     setOpen(false);
     setPredictions([]);
@@ -237,27 +242,58 @@ const GoogleSearchDropDown = ({
     pref: 'longText' | 'shortText' = 'longText'
   ) => comps.find((c) => c.types?.includes(type))?.[pref] ?? '';
 
-  const autofillFromPlace = (details: PlaceDetails) => {
+  const autofillFromPlace = (details: PlaceDetails, fullPredictionText?: string) => {
     const comps = details.addressComponents ?? [];
     const name = details.displayName?.text || '';
     const website = details.websiteUri || '';
     const phone = details.nationalPhoneNumber || '';
 
-    const address = details.formattedAddress || '';
     const countryCode = getAddr(comps, 'country', 'shortText');
     const country = countries.find((c) => c.code === countryCode);
     const city =
       getAddr(comps, 'locality') ||
       getAddr(comps, 'postal_town') ||
-      getAddr(comps, 'administrative_area_level_2'); // fallback
+      getAddr(comps, 'administrative_area_level_2');
     const state =
-      getAddr(comps, 'administrative_area_level_1', 'shortText') ||
-      getAddr(comps, 'administrative_area_level_1');
+      getAddr(comps, 'administrative_area_level_1') ||
+      getAddr(comps, 'administrative_area_level_1', 'shortText');
     const postalCode = getAddr(comps, 'postal_code');
+
+    // Derive addressLine from the full prediction text by finding where the
+    // city/state/country tail begins and cutting there. State is matched using
+    // its long form ("Maharashtra") since shortText ("MH") rarely appears in the
+    // prediction string. We find the earliest comma-segment that starts with any
+    // of these markers and cut the string at that comma.
+    //
+    // e.g. "LODHA CROWN, near Majiwada Flyover, ..., EEH, Thane West, Thane, Maharashtra, India"
+    //   segments: ["LODHA CROWN","near Majiwada Flyover",...,"EEH","Thane West","Thane","Maharashtra","India"]
+    //   city="Thane" first match at segment "Thane West" (startsWith "Thane") → cut before it
+    const locationMarkers = [city, state, postalCode, country?.name].filter(Boolean) as string[];
+
+    let addressLine = fullPredictionText ?? details.formattedAddress ?? '';
+    if (locationMarkers.length > 0) {
+      const segments = addressLine.split(',');
+      let cutSegment = -1;
+      for (let i = 1; i < segments.length; i++) {
+        const seg = segments[i].trim();
+        const isLocationSeg = locationMarkers.some(
+          (m) =>
+            seg.toLowerCase() === m.toLowerCase() || seg.toLowerCase().startsWith(m.toLowerCase())
+        );
+        if (isLocationSeg) {
+          cutSegment = i;
+          break;
+        }
+      }
+      if (cutSegment > 0) {
+        addressLine = segments.slice(0, cutSegment).join(',').trim();
+      }
+    }
+    addressLine = addressLine.replace(/,\s*$/, '').trim();
     const latitude = details.location?.latitude ?? null;
     const longitude = details.location?.longitude ?? null;
     const normalizedAddress = {
-      addressLine: address,
+      addressLine,
       city,
       state,
       postalCode,

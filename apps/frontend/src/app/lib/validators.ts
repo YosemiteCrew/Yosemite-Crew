@@ -1,6 +1,6 @@
-import countries from "@/app/lib/data/countryList";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { isEmail } from "validator";
+import countries from '@/app/lib/data/countryList';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { isEmail } from 'validator';
 
 export const validatePhone = (phone: string) => {
   const number = parsePhoneNumberFromString(phone);
@@ -21,17 +21,33 @@ export const isValidEmail = (email: string) => {
   return isEmail(cleaned);
 };
 
-export const toTitleCase = (value = "") => {
-  if (typeof value !== "string" || !value.length) return "";
+export const normalizeEmail = (email: string) => email.trim();
+
+export const getEmailValidationError = (
+  email: string,
+  requiredMessage = 'Email is required',
+  invalidMessage = 'Enter a valid email'
+) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail) {
+    return requiredMessage;
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    return invalidMessage;
+  }
+
+  return null;
+};
+
+export const toTitleCase = (value = '') => {
+  if (typeof value !== 'string' || !value.length) return '';
   return value[0].toUpperCase() + value.slice(1).toLowerCase();
 };
 
-export const toTitle = (str = "") => {
-  const s = String(str)
-    .trim()
-    .replaceAll(/[_-]+/g, " ")
-    .replaceAll(/\s+/g, " ")
-    .toLowerCase();
+export const toTitle = (str = '') => {
+  const s = String(str).trim().replaceAll(/[_-]+/g, ' ').replaceAll(/\s+/g, ' ').toLowerCase();
 
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
