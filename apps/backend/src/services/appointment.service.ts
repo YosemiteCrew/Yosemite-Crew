@@ -39,6 +39,7 @@ import InvoiceModel from "src/models/invoice";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { ensureObjectId as ensureObjectIdStrict } from "src/utils/mongo";
+import { assertEmail } from "src/utils/sanitize";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -338,6 +339,14 @@ const sendCheckoutEmailIfNeeded = async ({
         .lean();
   if (!parent?.email) return;
 
+  let recipientEmail: string;
+  try {
+    recipientEmail = assertEmail(parent.email);
+  } catch (error) {
+    logger.error("Skipping checkout email for invalid parent email.", error);
+    return;
+  }
+
   const parentName = [parent.firstName, parent.lastName]
     .filter(Boolean)
     .join(" ");
@@ -349,21 +358,25 @@ const sendCheckoutEmailIfNeeded = async ({
     "MMM D, YYYY h:mm A",
   );
 
-  await sendEmailTemplate({
-    to: parent.email,
-    templateId: "appointmentPaymentCheckout",
-    templateData: {
-      parentName: parentName || undefined,
-      companionName: appointment.companion.name,
-      organisationName: organisationName ?? undefined,
-      appointmentTime,
-      amountText,
-      checkoutUrl: checkout.url,
-      ctaUrl: checkout.url,
-      ctaLabel: "Pay Now",
-      supportEmail: SUPPORT_EMAIL_ADDRESS,
-    },
-  });
+  try {
+    await sendEmailTemplate({
+      to: recipientEmail,
+      templateId: "appointmentPaymentCheckout",
+      templateData: {
+        parentName: parentName || undefined,
+        companionName: appointment.companion.name,
+        organisationName: organisationName ?? undefined,
+        appointmentTime,
+        amountText,
+        checkoutUrl: checkout.url,
+        ctaUrl: checkout.url,
+        ctaLabel: "Pay Now",
+        supportEmail: SUPPORT_EMAIL_ADDRESS,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed to send appointment checkout email.", error);
+  }
 };
 
 const recordFormAttachmentAudit = async (
@@ -1722,6 +1735,7 @@ export const AppointmentService = {
     const persistable = toPersistable(appointment);
     const session = await mongoose.startSession();
     session.startTransaction();
+    let transactionCommitted = false;
 
     try {
       // 4.1 Check overlapping occupancy for lead vet
@@ -1780,6 +1794,7 @@ export const AppointmentService = {
       let checkout;
 
       await session.commitTransaction();
+      transactionCommitted = true;
       await session.endSession();
 
       await syncAppointmentToPostgres(doc);
@@ -1853,7 +1868,9 @@ export const AppointmentService = {
         checkout,
       };
     } catch (err) {
-      await session.abortTransaction();
+      if (!transactionCommitted) {
+        await session.abortTransaction();
+      }
       await session.endSession();
       await releaseAppointmentUsage(usageReservation);
       if (err instanceof AppointmentServiceError) throw err;

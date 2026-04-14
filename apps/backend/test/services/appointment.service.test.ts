@@ -21,6 +21,7 @@ import { sendEmailTemplate } from "src/utils/email";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { FormModel } from "src/models/form";
 import { prisma } from "src/config/prisma";
+import logger from "src/utils/logger";
 
 // --- Global Mocks Setup ---
 
@@ -753,6 +754,116 @@ describe("AppointmentService", () => {
       );
 
       expect(res).toBeDefined();
+    });
+
+    it("should skip checkout email when parent email is invalid", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({
+          cost: 100,
+          serviceType: "STANDARD",
+        }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+
+      const mockAppt = createMockDoc({
+        companion: basePmsDto.companion,
+        lead: basePmsDto.lead,
+        appointmentType: basePmsDto.appointmentType,
+      });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue([mockAppt]);
+      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
+        { _id: validObjId, totalAmount: 100, currency: "usd" },
+      );
+      (
+        StripeService.createCheckoutSessionForInvoice as jest.Mock
+      ).mockResolvedValue({ url: "http://checkout.link" });
+      (ParentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ email: "broken-email", firstName: "John" }),
+      );
+      (OrganizationModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ name: "OrgName" }),
+      );
+      (UserModel.find as jest.Mock).mockReturnValue(createQueryChain([]));
+
+      const res = await AppointmentService.createAppointmentFromPms(
+        basePmsDto as any,
+        true,
+      );
+
+      expect(res).toBeDefined();
+      expect(sendEmailTemplate).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        "Skipping checkout email for invalid parent email.",
+        expect.any(Error),
+      );
+    });
+
+    it("should not abort transaction when checkout email fails after commit", async () => {
+      (ServiceModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({
+          cost: 100,
+          serviceType: "STANDARD",
+        }),
+      );
+      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue({
+        _id: validId,
+      });
+      (OrgBilling.findOne as jest.Mock).mockReturnValue(
+        createQueryChain({ plan: "pro" }),
+      );
+      (FormService.getConsentFormForParent as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (OccupancyModel.findOne as jest.Mock).mockReturnValue(
+        createQueryChain(null),
+      );
+
+      const mockAppt = createMockDoc({
+        companion: basePmsDto.companion,
+        lead: basePmsDto.lead,
+        appointmentType: basePmsDto.appointmentType,
+      });
+      (AppointmentModel.create as jest.Mock).mockResolvedValue([mockAppt]);
+      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
+        { _id: validObjId, totalAmount: 100, currency: "usd" },
+      );
+      (
+        StripeService.createCheckoutSessionForInvoice as jest.Mock
+      ).mockResolvedValue({ url: "http://checkout.link" });
+      (ParentModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ email: "test@test.com", firstName: "John" }),
+      );
+      (OrganizationModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ name: "OrgName" }),
+      );
+      (UserModel.find as jest.Mock).mockReturnValue(createQueryChain([]));
+      (sendEmailTemplate as jest.Mock).mockRejectedValueOnce(
+        new Error("SES failure"),
+      );
+
+      const res = await AppointmentService.createAppointmentFromPms(
+        basePmsDto as any,
+        true,
+      );
+
+      expect(res).toBeDefined();
+      expect(mockSession.commitTransaction).toHaveBeenCalled();
+      expect(mockSession.abortTransaction).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        "Failed to send appointment checkout email.",
+        expect.any(Error),
+      );
     });
   });
 
