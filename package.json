@@ -33,7 +33,7 @@
     "overrides": {
       "qs": "6.14.2",
       "tar": "7.5.11",
-      "serialize-javascript": "7.0.3",
+      "serialize-javascript": "7.0.5",
       "undici": "7.24.0",
       "svgo": "3.3.3",
       "@hono/node-server": "1.19.13",
@@ -59,14 +59,17 @@
       "minimatch@9": "9.0.7",
       "minimatch@10": "10.2.3",
       "flatted": "3.4.2",
+      "follow-redirects": "1.16.0",
       "socket.io-parser": "4.2.6",
       "immutable": "3.8.3",
       "mdast-util-to-hast": "13.2.1",
       "lodash": "4.18.0",
+      "lodash-es": "4.18.0",
       "picomatch": "2.3.2",
       "yaml": "2.8.3",
       "@xmldom/xmldom": "0.8.12",
       "path-to-regexp@0.1.12": "0.1.13",
+      "brace-expansion@1.1.12": "1.1.13",
       "brace-expansion@5.0.4": "5.0.5"
     }
   }
