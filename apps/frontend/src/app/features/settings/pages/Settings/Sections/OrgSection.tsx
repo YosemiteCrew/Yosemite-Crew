@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import ProfileCard from '@/app/features/organization/pages/Organization/Sections/ProfileCard';
 import Availability from '@/app/features/appointments/components/Availability/Availability';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
@@ -71,7 +72,7 @@ const AddressFields = [
     key: 'addressLine',
     required: true,
     editable: true,
-    type: 'text',
+    type: 'googleAddress',
   },
   {
     label: 'State / Province',
@@ -172,6 +173,7 @@ const OrgSection = () => {
       return acc;
     }, {} as AvailabilityState)
   );
+  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
   const orgInfoData = useMemo(
     () => ({
       name: org?.name ?? '',
@@ -214,7 +216,14 @@ const OrgSection = () => {
   }, [availabilities]);
 
   const handleClick = async () => {
+    if (isSavingAvailability) return;
     try {
+      flushSync(() => {
+        setIsSavingAvailability(true);
+      });
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
       const converted = convertAvailability(availability);
       if (!hasAtLeastOneAvailability(converted)) {
         console.log('No availability selected');
@@ -231,6 +240,8 @@ const OrgSection = () => {
         title: 'Unable to update availability details',
         text: 'Failed to update availability details. Please try again.',
       });
+    } finally {
+      setIsSavingAvailability(false);
     }
   };
 
@@ -353,7 +364,12 @@ const OrgSection = () => {
             twoColumnLayout
           />
           <div className="w-full flex justify-end!">
-            <Primary href="#" text="Save" onClick={handleClick} />
+            <Primary
+              href="#"
+              text={isSavingAvailability ? 'Saving...' : 'Save'}
+              onClick={handleClick}
+              isDisabled={isSavingAvailability}
+            />
           </div>
         </div>
       </div>

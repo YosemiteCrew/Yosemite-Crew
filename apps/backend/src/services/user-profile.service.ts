@@ -816,11 +816,15 @@ const applyPmsPreferenceDefaults = (
   const normalizedRole = roleCode?.toUpperCase();
   const defaultOpenScreen =
     normalizedRole === "OWNER" ? "DASHBOARD" : "APPOINTMENTS";
+  const defaultAppointmentView = "STATUS_BOARD";
 
   const existingPersonalDetails = profile.personalDetails ?? {};
   const existingPrefs = existingPersonalDetails.pmsPreferences ?? {};
 
-  if (existingPrefs.defaultOpenScreen) {
+  const shouldSetDefaultOpenScreen = !existingPrefs.defaultOpenScreen;
+  const shouldSetAppointmentView = !existingPrefs.appointmentView;
+
+  if (!shouldSetDefaultOpenScreen && !shouldSetAppointmentView) {
     return profile;
   }
 
@@ -830,7 +834,10 @@ const applyPmsPreferenceDefaults = (
       ...existingPersonalDetails,
       pmsPreferences: {
         ...existingPrefs,
-        defaultOpenScreen,
+        ...(shouldSetDefaultOpenScreen ? { defaultOpenScreen } : {}),
+        ...(shouldSetAppointmentView
+          ? { appointmentView: defaultAppointmentView }
+          : {}),
       },
     },
   };

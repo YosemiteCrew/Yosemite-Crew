@@ -67,6 +67,13 @@ const stripHtml = (value: string): string => {
   return collapseWhitespace(result);
 };
 
+const sanitizeTextContent = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return stripHtml(value);
+};
+
 const readTextNode = (value: unknown): string => {
   if (typeof value === 'string') return value;
   if (value && typeof value === 'object') {
@@ -205,9 +212,10 @@ const toMerckEntryFromRawAtom = (
   audience: MerckAudience,
 ): MerckEntry | null => {
   const id = String(entry.id ?? '').trim();
-  const title = readTextNode(entry.title) || 'Manual topic';
+  const title =
+    sanitizeTextContent(readTextNode(entry.title)) || 'Manual topic';
   const summaryHtml = readTextNode(entry.summary);
-  const summaryText = stripHtml(summaryHtml);
+  const summaryText = sanitizeTextContent(summaryHtml);
   const primaryUrl = readHrefNode(entry.link);
   if (!id || !primaryUrl) return null;
   const subLinks = dedupeAndOrderSubLinks(
@@ -274,6 +282,8 @@ const sanitizeEntry = (entry: MerckEntry): MerckEntry | null => {
 
   return {
     ...entry,
+    title: sanitizeTextContent(entry.title) || 'Manual topic',
+    summaryText: sanitizeTextContent(entry.summaryText),
     audience: DEFAULT_AUDIENCE,
     primaryUrl,
     subLinks,
@@ -356,9 +366,10 @@ export const merckApi = {
   }: MerckSearchRequest & {accessToken: string}): Promise<MerckSearchResponse> {
     try {
       const {data} = await apiClient.get(
-        `/v1/knowledge/pms/organisation/${encodeURIComponent(organisationId)}/merck/manuals/search`,
+        '/v1/knowledge/mobile/merck/manuals/search',
         {
           params: {
+            organisationId,
             q: query,
             audience: DEFAULT_AUDIENCE,
             language,

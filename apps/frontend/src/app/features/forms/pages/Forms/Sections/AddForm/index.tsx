@@ -28,13 +28,16 @@ const LabelOptions = [
   },
   {
     name: (
-      <Image
-        src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-        alt="Merck Manuals"
-        width={74}
-        height={28}
-        className="object-contain"
-      />
+      <div className="flex items-center gap-2">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
+          alt=""
+          width={30}
+          height={30}
+          className="object-contain"
+        />
+        <span>MSD Veterinary Manual</span>
+      </div>
     ),
     key: 'merck-manuals',
   },

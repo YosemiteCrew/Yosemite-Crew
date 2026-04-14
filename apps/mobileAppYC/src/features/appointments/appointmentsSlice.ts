@@ -12,6 +12,10 @@ import {
   isTokenExpired,
 } from '@/features/auth/sessionManager';
 import type {RootState} from '@/app/store';
+import {
+  toFHIRAppointment,
+  type Appointment as SharedAppointmentModel,
+} from '@yosemite-crew/types';
 
 const toErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
@@ -138,136 +142,73 @@ export const createAppointment = createAsyncThunk<
       ),
     );
 
-    const attachmentExtensions = payload.attachments?.length
-      ? payload.attachments
-          .filter(att => att.key)
-          .map(att => ({
-            url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments',
-            extension: [
-              {url: 'key', valueString: att.key},
-              {url: 'name', valueString: att.name ?? att.key},
-              ...(att.contentType
-                ? [{url: 'contentType', valueString: att.contentType}]
-                : []),
-            ],
-          }))
-      : [];
-
-    const extensions = [
-      companion?.category
-        ? {
-            id: 'species',
-            url: 'https://hl7.org/fhir/animal-species',
-            valueString:
-              companion.category.charAt(0).toUpperCase() +
-              companion.category.slice(1),
-          }
-        : null,
-      companion?.breed?.breedName
-        ? {
-            id: 'breed',
-            url: 'https://hl7.org/fhir/animal-breed',
-            valueString: companion.breed.breedName,
-          }
-        : null,
-      {
-        url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-is-emergency',
-        valueBoolean: payload.emergency ?? false,
-      },
-      ...attachmentExtensions,
-    ].filter(Boolean);
-
     const leadId = payload.employeeId?.trim() || employee?.id || null;
     const leadName =
       payload.employeeName?.trim() || employee?.name?.trim() || null;
-
-    const bookPayload = {
-      resourceType: 'Appointment',
-      serviceType: [
-        {
-          coding: [
-            {
-              system: 'https://example.org/appointment-types',
-              code: payload.serviceId,
-              display: payload.serviceName,
-            },
-          ],
-          text: payload.serviceName,
+    const parentName =
+      [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+      user?.email ||
+      '';
+    const parentReferenceId = parentId ?? user?.id ?? null;
+    const sharedAppointment: SharedAppointmentModel = {
+      organisationId: payload.businessId,
+      companion: {
+        id: payload.companionId,
+        name: companion?.name ?? '',
+        species: companion?.category
+          ? companion.category.charAt(0).toUpperCase() +
+            companion.category.slice(1)
+          : '',
+        breed: companion?.breed?.breedName,
+        parent: {
+          id: parentReferenceId ?? '',
+          name: parentName,
         },
-      ],
-      speciality:
-        payload.specialityId || payload.specialityName
-          ? [
-              {
-                coding: [
-                  {
-                    system: 'https://yosemitecrew.com/fhir/specialty',
-                    code: payload.specialityId ?? payload.specialityName,
-                    display:
-                      payload.specialityName ??
-                      payload.specialityId ??
-                      undefined,
-                  },
-                ],
-              },
-            ]
-          : [],
-      participant: [
-        {
-          actor: {
-            reference: `Patient/${payload.companionId}`,
-            display: companion?.name,
-          },
+      },
+      lead: leadId
+        ? {
+            id: leadId,
+            name: leadName ?? '',
+          }
+        : undefined,
+      appointmentType: {
+        id: payload.serviceId,
+        name: payload.serviceName,
+        speciality: {
+          id: payload.specialityId ?? payload.specialityName ?? '',
+          name: payload.specialityName ?? payload.specialityId ?? '',
         },
-        ...(user?.id
-          ? [
-              {
-                actor: {
-                  reference: `RelatedPerson/${parentId ?? user.id}`,
-                  display:
-                    [user.firstName, user.lastName]
-                      .filter(Boolean)
-                      .join(' ')
-                      .trim() || user.email,
-                },
-              },
-            ]
-          : []),
-        ...(leadId
-          ? [
-              {
-                actor: {
-                  reference: `Practitioner/${leadId}`,
-                  display: leadName ?? undefined,
-                },
-                status: 'REQUESTED',
-                type: [
-                  {
-                    coding: [
-                      {
-                        code: 'PPRF',
-                        system:
-                          'https://terminology.hl7.org/CodeSystem/v3-ParticipationType',
-                        display: 'appointment lead',
-                      },
-                    ],
-                  },
-                ],
-              },
-            ]
-          : []),
-        {
-          actor: {
-            reference: `Organization/${payload.businessId}`,
-          },
-        },
-      ],
-      start: startISO,
-      end: endISO,
-      minutesDuration,
-      description: payload.concern ?? '',
-      extension: extensions,
+      },
+      appointmentDate: new Date(startISO),
+      startTime: new Date(startISO),
+      timeSlot: payload.startTime,
+      durationMinutes: minutesDuration,
+      endTime: new Date(endISO),
+      status: 'REQUESTED',
+      isEmergency: payload.emergency ?? false,
+      concern: payload.concern ?? '',
+      attachments: payload.attachments
+        ?.filter(att => att.key)
+        .map(att => ({
+          key: att.key,
+          name: att.name ?? att.key,
+          contentType: att.contentType ?? undefined,
+        })),
     };
+
+    const bookPayload = toFHIRAppointment(sharedAppointment);
+    if (payload.startTimeUtc) {
+      bookPayload.start = payload.startTimeUtc;
+    }
+    if (payload.endTimeUtc) {
+      bookPayload.end = payload.endTimeUtc;
+    }
+    if (!parentReferenceId) {
+      bookPayload.participant = (bookPayload.participant ?? []).filter(
+        (participant: any) =>
+          !participant?.actor?.reference?.startsWith('RelatedPerson/'),
+      );
+    }
 
     const {appointment, invoice, paymentIntent} =
       await appointmentApi.bookAppointment({

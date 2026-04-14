@@ -108,7 +108,7 @@
 .action-btn-text {
   color: var(#302f2e);
   text-align: center;
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-size: 16px;
   font-style: normal;
   font-weight: 500;

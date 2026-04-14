@@ -123,6 +123,28 @@ describe('TrustCenter Component', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('shows an inline error when the work email is invalid', () => {
+    render(<TrustCenter />);
+
+    switchToResourcesTab();
+
+    const requestButtons = getButtonsByText('Request access');
+    fireEvent.click(requestButtons[0]);
+
+    fireEvent.change(screen.getByLabelText(/Work Email/i), {
+      target: { value: 'not-an-email' },
+    });
+
+    const modal = screen.getByRole('dialog');
+    const submitBtn = within(modal).getByText('Request Access', {
+      selector: 'button',
+    });
+    fireEvent.click(submitBtn);
+
+    expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
+    expect(globalThis.alert).not.toHaveBeenCalled();
+  });
+
   it('handles modal close via Cancel button', () => {
     render(<TrustCenter />);
 

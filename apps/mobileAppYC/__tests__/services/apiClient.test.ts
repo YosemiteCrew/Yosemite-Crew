@@ -225,6 +225,7 @@ describe('apiClient', () => {
         expect.objectContaining({
           url: 'https://api.com/users',
           method: 'get',
+          hasBody: false,
         }),
       );
       expect(result).toBe(mockConfig);
@@ -264,7 +265,6 @@ describe('apiClient', () => {
         method: 'get',
         url: '/test',
         status: 200,
-        data: {id: 1},
       });
       expect(result).toBe(mockResponse);
     });
@@ -292,7 +292,7 @@ describe('apiClient', () => {
         method: 'post',
         url: '/submit',
         status: 400,
-        data: {error: 'Bad Request'},
+        message: 'Request failed',
       });
     });
 
@@ -313,8 +313,9 @@ describe('apiClient', () => {
       await expect(responseErrorInterceptor(mockError)).rejects.toBe(mockError);
 
       expect(consoleLogSpy).toHaveBeenCalledWith('[API] Error', {
+        method: 'get',
+        url: '',
         message: 'Network Error',
-        config: {method: 'get'},
       });
     });
   });

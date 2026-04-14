@@ -57,6 +57,9 @@ export const LabResultService = {
         const orderIds = orders
           .map((o) => o.idexxOrderId)
           .filter(Boolean) as string[];
+        if (!orderIds.length) {
+          return [];
+        }
         where.orderId = { in: orderIds };
       }
 
@@ -84,12 +87,18 @@ export const LabResultService = {
       const orderIds = orders
         .map((o) => o.idexxOrderId)
         .filter(Boolean) as string[];
+      if (!orderIds.length) {
+        return [];
+      }
       filter.orderId = { $in: orderIds };
     }
 
-    const query = LabResultModel.find(filter)
-      .sort({ updatedAt: -1 })
-      .setOptions({ sanitizeFilter: true });
+    const query = LabResultModel.find(filter).sort({ updatedAt: -1 });
+    const shouldSanitize =
+      filter.orderId == null || typeof filter.orderId === "string";
+    if (shouldSanitize) {
+      query.setOptions({ sanitizeFilter: true });
+    }
 
     if (safeLimit && safeLimit > 0) {
       query.limit(safeLimit);

@@ -72,6 +72,24 @@ describe('availabilityStore', () => {
     expect(state.lastFetchedAt).toBeNull();
   });
 
+  it('clears an org with no availability ids without affecting other orgs', () => {
+    useAvailabilityStore.setState({
+      availabilitiesById: { av2: createMockAvailability('av2', 'org2') },
+      availabilityIdsByOrgId: { org1: [], org2: ['av2'] },
+      overridesById: {},
+      overrideIdsByOrgId: {},
+      status: 'idle',
+      error: null,
+      lastFetchedAt: null,
+    });
+
+    useAvailabilityStore.getState().clearAvailabilitiesForOrg('org1');
+
+    const state = useAvailabilityStore.getState();
+    expect(state.availabilityIdsByOrgId.org1).toBeUndefined();
+    expect(state.availabilitiesById.av2).toBeDefined();
+  });
+
   // --- 2. Set Availabilities (Bulk Load) ---
 
   it('should set availabilities and map them correctly', () => {
@@ -182,6 +200,19 @@ describe('availabilityStore', () => {
     expect(state.availabilityIdsByOrgId['org1']).toEqual(['av1', 'av2']);
   });
 
+  it('merges availabilities without duplicating ids', () => {
+    const store = useAvailabilityStore.getState();
+    const av1 = createMockAvailability('av1', 'org1');
+    const av2 = createMockAvailability('av2', 'org1');
+
+    store.setAvailabilities([av1]);
+    store.mergeAvailabilities([av1, av2]);
+
+    const state = useAvailabilityStore.getState();
+    expect(state.availabilityIdsByOrgId['org1']).toEqual(['av1', 'av2']);
+    expect(state.availabilitiesById['av2']).toEqual(av2);
+  });
+
   // --- 5. Remove Availability ---
 
   it('should remove an availability and update index', () => {
@@ -284,6 +315,16 @@ describe('availabilityStore', () => {
     expect(state.overrideIdsByOrgId['org1']).toEqual(['ov3']);
   });
 
+  it('sets overrides for an org with no previous ids', () => {
+    useAvailabilityStore
+      .getState()
+      .setOverridesForOrg('org9', [{ _id: 'ov9', organisationId: 'org9' } as any]);
+
+    const state = useAvailabilityStore.getState();
+    expect(state.overridesById['ov9']).toBeDefined();
+    expect(state.overrideIdsByOrgId['org9']).toEqual(['ov9']);
+  });
+
   it('upserts and removes overrides', () => {
     const store = useAvailabilityStore.getState();
     store.upsertOverideStore({ _id: 'ov1', organisationId: 'org1', dayOfWeek: 'Monday' } as any);
@@ -300,5 +341,23 @@ describe('availabilityStore', () => {
     const snapshot = JSON.stringify(useAvailabilityStore.getState());
     useAvailabilityStore.getState().removeOverride('missing');
     expect(JSON.stringify(useAvailabilityStore.getState())).toEqual(snapshot);
+  });
+
+  it('handles removeOverride when org index is missing', () => {
+    useAvailabilityStore.setState({
+      availabilitiesById: {},
+      availabilityIdsByOrgId: {},
+      overridesById: { ov1: { _id: 'ov1', organisationId: 'org1' } as any },
+      overrideIdsByOrgId: {},
+      status: 'idle',
+      error: null,
+      lastFetchedAt: null,
+    });
+
+    useAvailabilityStore.getState().removeOverride('ov1');
+
+    const state = useAvailabilityStore.getState();
+    expect(state.overridesById['ov1']).toBeUndefined();
+    expect(state.overrideIdsByOrgId['org1']).toEqual([]);
   });
 });

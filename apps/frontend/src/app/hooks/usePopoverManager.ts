@@ -30,16 +30,42 @@ export const usePopoverManager = (): PopoverManagerReturn => {
   const popoverDialogRef = useRef<HTMLDialogElement | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const swallowDismissClick = useCallback(() => {
+    const handleClickCapture = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if ('stopImmediatePropagation' in event) {
+        event.stopImmediatePropagation();
+      }
+      globalThis.removeEventListener('click', handleClickCapture, true);
+    };
+
+    globalThis.addEventListener('click', handleClickCapture, true);
+  }, []);
+
   useEffect(() => {
     if (!activePopoverKey) return;
     const closePopover = () => setActivePopoverKey(null);
+    const closePopoverOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (popoverDialogRef.current?.contains(target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if ('stopImmediatePropagation' in event) {
+        event.stopImmediatePropagation();
+      }
+      swallowDismissClick();
+      setActivePopoverKey(null);
+    };
     globalThis.addEventListener('scroll', closePopover, true);
     globalThis.addEventListener('resize', closePopover);
+    globalThis.addEventListener('pointerdown', closePopoverOnOutsidePointer, true);
     return () => {
       globalThis.removeEventListener('scroll', closePopover, true);
       globalThis.removeEventListener('resize', closePopover);
+      globalThis.removeEventListener('pointerdown', closePopoverOnOutsidePointer, true);
     };
-  }, [activePopoverKey]);
+  }, [activePopoverKey, swallowDismissClick]);
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {

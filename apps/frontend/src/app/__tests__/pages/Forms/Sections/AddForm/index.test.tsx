@@ -141,7 +141,7 @@ describe('AddForm modal', () => {
     isDetailValid = false;
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Merck Manuals' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'MSD Veterinary Manual' }));
     expect(screen.getByText('Search Manuals')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Build form' }));
@@ -166,6 +166,6 @@ describe('AddForm modal', () => {
     isMerckEnabled = false;
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    expect(screen.queryByRole('tab', { name: 'Merck Manuals' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'MSD Veterinary Manual' })).not.toBeInTheDocument();
   });
 });

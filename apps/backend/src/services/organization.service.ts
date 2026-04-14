@@ -43,6 +43,8 @@ const FIRE_EMERGENCY_CERT_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber";
 const GOOGLE_PLACE_ID_EXTENSION_URL =
   "http://example.com/fhir/StructureDefinition/google-place-id";
+const DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES = 5;
+const DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS = 200;
 const ORGANIZATION_TYPES = new Set<Organisation["type"]>([
   "HOSPITAL",
   "BREEDER",
@@ -87,6 +89,12 @@ const toPrismaOrganizationData = (doc: OrganizationDocument) => {
     stripeAccountId: obj.stripeAccountId ?? undefined,
     averageRating: obj.averageRating ?? 0,
     ratingCount: obj.ratingCount ?? 0,
+    appointmentCheckInBufferMinutes:
+      obj.appointmentCheckInBufferMinutes ??
+      DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+    appointmentCheckInRadiusMeters:
+      obj.appointmentCheckInRadiusMeters ??
+      DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
     createdAt: obj.createdAt ?? undefined,
     updatedAt: obj.updatedAt ?? undefined,
   };
@@ -402,6 +410,42 @@ const optionalNumber = (
   );
 };
 
+const optionalNonNegativeInteger = (
+  value: unknown,
+  fieldName: string,
+): number | undefined => {
+  const parsed = optionalNumber(value, fieldName);
+
+  if (parsed == null) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(parsed)) {
+    throw new OrganizationServiceError(`${fieldName} must be an integer.`, 400);
+  }
+
+  if (parsed < 0) {
+    throw new OrganizationServiceError(
+      `${fieldName} must be non-negative.`,
+      400,
+    );
+  }
+
+  return parsed;
+};
+
+const resolveCheckInConfig = (input: {
+  appointmentCheckInBufferMinutes?: number | null;
+  appointmentCheckInRadiusMeters?: number | null;
+}) => ({
+  appointmentCheckInBufferMinutes:
+    input.appointmentCheckInBufferMinutes ??
+    DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+  appointmentCheckInRadiusMeters:
+    input.appointmentCheckInRadiusMeters ??
+    DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+});
+
 const ensureSafeIdentifier = (value: unknown): string | undefined => {
   const identifier = optionalSafeString(value, "Identifier");
 
@@ -522,6 +566,18 @@ const sanitizeBusinessAttributes = (
     "Google Places ID",
   );
   const petNamePreference = optionalPetNamePreference(dto.petNamePreference);
+  const appointmentCheckInBufferMinutes = optionalNonNegativeInteger(
+    dto.appointmentCheckInBufferMinutes,
+    "Appointment check-in buffer minutes",
+  );
+  const appointmentCheckInRadiusMeters = optionalNonNegativeInteger(
+    dto.appointmentCheckInRadiusMeters,
+    "Appointment check-in radius meters",
+  );
+  const checkInConfig = resolveCheckInConfig({
+    appointmentCheckInBufferMinutes,
+    appointmentCheckInRadiusMeters,
+  });
 
   return {
     fhirId: ensureSafeIdentifier(dto.id),
@@ -542,6 +598,10 @@ const sanitizeBusinessAttributes = (
     animalWelfareComplianceCertNo,
     fireAndEmergencyCertNo,
     googlePlacesId,
+    appointmentCheckInBufferMinutes:
+      checkInConfig.appointmentCheckInBufferMinutes,
+    appointmentCheckInRadiusMeters:
+      checkInConfig.appointmentCheckInRadiusMeters,
   };
 };
 
@@ -556,6 +616,10 @@ const buildFHIRResponse = (
   };
 
   const organisation: Organisation = {
+    ...resolveCheckInConfig({
+      appointmentCheckInBufferMinutes: rest.appointmentCheckInBufferMinutes,
+      appointmentCheckInRadiusMeters: rest.appointmentCheckInRadiusMeters,
+    }),
     _id: rest.fhirId ?? document._id,
     name: rest.name,
     taxId: rest.taxId ?? "",
@@ -598,6 +662,12 @@ const buildFHIRResponseFromPrisma = (
   organisation: PrismaOrganizationWithAddress,
 ): ReturnType<typeof toOrganizationResponseDTO> => {
   const response: Organisation = {
+    ...resolveCheckInConfig({
+      appointmentCheckInBufferMinutes:
+        organisation.appointmentCheckInBufferMinutes,
+      appointmentCheckInRadiusMeters:
+        organisation.appointmentCheckInRadiusMeters,
+    }),
     _id: organisation.fhirId ?? organisation.id,
     name: organisation.name,
     taxId: organisation.taxId ?? "",
@@ -1196,6 +1266,12 @@ export const OrganizationService = {
           imageURL: org.imageUrl ?? undefined,
           phoneNo: org.phoneNo ?? undefined,
           type: org.type,
+          appointmentCheckInBufferMinutes:
+            org.appointmentCheckInBufferMinutes ??
+            DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+          appointmentCheckInRadiusMeters:
+            org.appointmentCheckInRadiusMeters ??
+            DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
           address: org.address
             ? {
                 addressLine: org.address.addressLine ?? undefined,
@@ -1251,6 +1327,8 @@ export const OrganizationService = {
         type: 1,
         address: 1,
         googlePlacesId: 1,
+        appointmentCheckInBufferMinutes: 1,
+        appointmentCheckInRadiusMeters: 1,
       },
     )
       .skip(skip)
@@ -1268,6 +1346,8 @@ export const OrganizationService = {
           type: 1,
           address: 1,
           googlePlacesId: 1,
+          appointmentCheckInBufferMinutes: 1,
+          appointmentCheckInRadiusMeters: 1,
         },
       )
         .skip(skip)
@@ -1302,7 +1382,15 @@ export const OrganizationService = {
       });
 
       results.push({
-        org,
+        org: {
+          ...org,
+          appointmentCheckInBufferMinutes:
+            org.appointmentCheckInBufferMinutes ??
+            DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+          appointmentCheckInRadiusMeters:
+            org.appointmentCheckInRadiusMeters ??
+            DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+        },
         distanceInMeters: org.address?.location
           ? Math.round(
               Math.sqrt(

@@ -1,6 +1,8 @@
 const quote = (file) => `"${file.replaceAll('"', '\\"')}"`;
 const isMobilePath = (file) =>
   file.startsWith('apps/mobileAppYC/') || file.includes('/apps/mobileAppYC/');
+const isFrontendPath = (file) =>
+  file.startsWith('apps/frontend/') || file.includes('/apps/frontend/');
 const MOBILE_ESLINT_IGNORED_FILES = new Set([
   '.eslintrc.js',
   'jest.config.js',
@@ -27,6 +29,14 @@ const shouldLintWithMobileEslint = (relativePath) => {
   if (MOBILE_ESLINT_IGNORED_FILES.has(relativePath)) return false;
   return true;
 };
+const toFrontendRelativePath = (file) => {
+  if (file.startsWith('apps/frontend/')) {
+    return file.replace(/^apps\/frontend\//, '');
+  }
+  const marker = '/apps/frontend/';
+  const index = file.indexOf(marker);
+  return index >= 0 ? file.slice(index + marker.length) : file;
+};
 
 module.exports = {
   '**/*.{js,jsx,ts,tsx,mjs}': (files) => {
@@ -34,9 +44,13 @@ module.exports = {
       .filter((file) => isMobilePath(file))
       .map((file) => toMobileRelativePath(file))
       .filter((file) => shouldLintWithMobileEslint(file));
+    const frontendFiles = files
+      .filter((file) => isFrontendPath(file))
+      .map((file) => toFrontendRelativePath(file));
     const nonMobileFiles = files.filter(
       (file) =>
         !isMobilePath(file) &&
+        !isFrontendPath(file) &&
         !file.includes('/apps/backend/') &&
         !file.startsWith('apps/backend/') &&
         !file.includes('/packages/') &&
@@ -47,6 +61,14 @@ module.exports = {
     if (nonMobileFiles.length > 0) {
       commands.push(
         `sh -c 'ESLINT_USE_FLAT_CONFIG=false eslint --fix --max-warnings=0 "$@"' -- ${nonMobileFiles
+          .map(quote)
+          .join(' ')}`
+      );
+    }
+
+    if (frontendFiles.length > 0) {
+      commands.push(
+        `pnpm --filter frontend exec eslint --fix --max-warnings=0 ${frontendFiles
           .map(quote)
           .join(' ')}`
       );

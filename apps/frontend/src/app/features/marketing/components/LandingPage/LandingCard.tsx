@@ -1,11 +1,11 @@
-import React from "react";
-import Image from "next/image";
+import React from 'react';
+import Image from 'next/image';
 
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { InfoCard } from "@/app/features/marketing/pages/data";
-import { TextFade } from "@/app/ui/widgets/Animations/TextFade";
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { InfoCard } from '@/app/features/marketing/pages/data';
+import { TextFade } from '@/app/ui/widgets/Animations/TextFade';
 
-import "./LandingCard.css";
+import './LandingCard.css';
 
 const LandingCard = ({ item }: { item: InfoCard }) => {
   return (
@@ -22,18 +22,12 @@ const LandingCard = ({ item }: { item: InfoCard }) => {
                 <div className="text-body-2 text-text-primary">{item.description}</div>
               </TextFade>
               <TextFade direction="up">
-                <Primary size="large" text="Learn more" href={item.href} classname="w-fit" />
+                <Primary size="large" text="Learn more" href={item.href} className="w-fit" />
               </TextFade>
             </div>
           </div>
           <TextFade direction="up" className="RightLanding">
-            <Image
-              aria-hidden
-              src={item.image}
-              alt="landingimg1"
-              width={884}
-              height={600}
-            />
+            <Image aria-hidden src={item.image} alt="landingimg1" width={884} height={600} />
           </TextFade>
         </div>
       </div>

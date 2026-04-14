@@ -1,15 +1,15 @@
-import React from "react";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
+import React from 'react';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 
-import Image from "next/image";
-import { IoEye } from "react-icons/io5";
-import { Team } from "@/app/features/organization/types/team";
+import Image from 'next/image';
+import { IoEye } from 'react-icons/io5';
+import { Team } from '@/app/features/organization/types/team';
 
-import AvailabilityCard from "@/app/ui/cards/AvailabilityCard";
-import { toTitleCase } from "@/app/lib/validators";
-import { getSafeImageUrl } from "@/app/lib/urls";
+import AvailabilityCard from '@/app/ui/cards/AvailabilityCard';
+import { toTitleCase } from '@/app/lib/validators';
+import { getSafeImageUrl } from '@/app/lib/urls';
 
-import "./DataTable.css";
+import './DataTable.css';
 
 type Column<T> = {
   label: string;
@@ -18,18 +18,29 @@ type Column<T> = {
   render?: (item: T) => React.ReactNode;
 };
 
+export const formatWeeklyWorkingHours = (value: Team['weeklyWorkingHours']) => {
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    return value || '0';
+  }
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(parsed);
+};
+
 export const getStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
-    case "available":
-      return { color: "#54B492", backgroundColor: "#E6F4EF" };
-    case "consulting":
-      return { color: "#EA3729", backgroundColor: "#FDEBEA" };
-    case "off-duty":
-      return { color: "#F68523", backgroundColor: "#FEF3E9" };
-    case "requested":
-      return { color: "#302f2e", backgroundColor: "#eaeaea" };
+    case 'available':
+      return { color: '#54B492', backgroundColor: '#E6F4EF' };
+    case 'consulting':
+      return { color: '#EA3729', backgroundColor: '#FDEBEA' };
+    case 'off-duty':
+      return { color: '#F68523', backgroundColor: '#FEF3E9' };
+    case 'requested':
+      return { color: '#302f2e', backgroundColor: '#eaeaea' };
     default:
-      return { color: "#302f2e", backgroundColor: "#6b72801a" };
+      return { color: '#302f2e', backgroundColor: '#6b72801a' };
   }
 };
 
@@ -53,13 +64,13 @@ const AvailabilityTable = ({
 
   const columns: Column<Team>[] = [
     {
-      label: "",
-      key: "image",
-      width: "5%",
+      label: '',
+      key: 'image',
+      width: '5%',
       render: (item: Team) => (
         <div className="appointment-profile w-10 h-10">
           <Image
-            src={getSafeImageUrl(item.image, "person")}
+            src={getSafeImageUrl(item.image, 'person')}
             alt=""
             height={40}
             width={40}
@@ -69,65 +80,61 @@ const AvailabilityTable = ({
       ),
     },
     {
-      label: "Name",
-      key: "name",
-      width: "15%",
+      label: 'Name',
+      key: 'name',
+      width: '15%',
       render: (item: Team) => (
         <div className="appointment-profile">
-          <div className="appointment-profile-title">{item.name || "-"}</div>
+          <div className="appointment-profile-title">{item.name || '-'}</div>
         </div>
       ),
     },
     {
-      label: "Role",
-      key: "role",
-      width: "15%",
+      label: 'Role',
+      key: 'role',
+      width: '15%',
       render: (item: Team) => (
-        <div className="appointment-profile-title">
-          {toTitleCase(item.role)}
-        </div>
+        <div className="appointment-profile-title">{toTitleCase(item.role)}</div>
       ),
     },
     {
-      label: "Speciality",
-      key: "speciality",
-      width: "15%",
+      label: 'Speciality',
+      key: 'speciality',
+      width: '15%',
       render: (item: Team) => (
         <div className="appointment-profile-title">
           {Array.isArray(item?.speciality) && item.speciality.length > 0
-            ? item.speciality.map((spec: any) =>
-                typeof spec === "string"
-                  ? spec
-                  : spec?.name || JSON.stringify(spec)
-              ).join(", ")
-            : "-"}
+            ? item.speciality
+                .map((spec: any) =>
+                  typeof spec === 'string' ? spec : spec?.name || JSON.stringify(spec)
+                )
+                .join(', ')
+            : '-'}
         </div>
       ),
     },
     {
       label: "Today's Appointment",
-      key: "today",
-      width: "12.5%",
+      key: 'today',
+      width: '12.5%',
+      render: (item: Team) => (
+        <div className="appointment-profile-title">{item.todayAppointment || '0'}</div>
+      ),
+    },
+    {
+      label: 'Weekly working hours',
+      key: 'weekly',
+      width: '12.5%',
       render: (item: Team) => (
         <div className="appointment-profile-title">
-          {item.todayAppointment || "0"}
+          {formatWeeklyWorkingHours(item.weeklyWorkingHours)}
         </div>
       ),
     },
     {
-      label: "Weekly working hours",
-      key: "weekly",
-      width: "12.5%",
-      render: (item: Team) => (
-        <div className="appointment-profile-title">
-          {item.weeklyWorkingHours || "0"}
-        </div>
-      ),
-    },
-    {
-      label: "Status",
-      key: "status",
-      width: "15%",
+      label: 'Status',
+      key: 'status',
+      width: '15%',
       render: (item: Team) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {item.status}
@@ -136,9 +143,9 @@ const AvailabilityTable = ({
     },
   ];
   const actionColoumn = {
-    label: "Actions",
-    key: "actions",
-    width: "10%",
+    label: 'Actions',
+    key: 'actions',
+    width: '10%',
     render: (item: Team) => (
       <div className="action-btn-col">
         <button
@@ -174,11 +181,7 @@ const AvailabilityTable = ({
             );
           }
           return filteredList.map((item, i) => (
-            <AvailabilityCard
-              key={item._id + i}
-              team={item}
-              handleViewTeam={handleViewTeam}
-            />
+            <AvailabilityCard key={item._id + i} team={item} handleViewTeam={handleViewTeam} />
           ));
         })()}
       </div>

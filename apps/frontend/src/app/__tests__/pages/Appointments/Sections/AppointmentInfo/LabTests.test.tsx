@@ -422,4 +422,30 @@ describe('LabTests', () => {
 
     expect(container.querySelector('div.bg-red-500')).toBeInTheDocument();
   });
+
+  it('disables IDEXX iframe and acknowledgment actions for unsafe order URLs', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'ord-unsafe',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'CREATED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: 'unsafe-1',
+        tests: ['9126'],
+        uiUrl: 'javascript:alert(1)',
+        pdfUrl: 'data:text/html,<script>alert(1)</script>',
+      },
+    ]);
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Order unsafe-1')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: 'Resume order placement' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Acknowledgment PDF' })).toBeDisabled();
+  });
 });

@@ -27,7 +27,7 @@ describe('useCheckInHandler', () => {
       time: '10:00',
       companionId: 'comp-1',
     },
-    businessCoordinates: {lat: 40.7128, lng: -74.0060},
+    businessCoordinates: {lat: 40.7128, lng: -74.006},
     onCheckingInChange: jest.fn(),
     hasPermission: true,
     onPermissionDenied: jest.fn(),
@@ -48,13 +48,19 @@ describe('useCheckInHandler', () => {
     mockFetchAppointmentById.mockReturnValue({
       unwrap: jest.fn().mockResolvedValue({}),
     });
-    mockFetchAppointmentsForCompanion.mockReturnValue({type: 'appointments/fetch'});
+    mockFetchAppointmentsForCompanion.mockReturnValue({
+      type: 'appointments/fetch',
+    });
 
-    (appointmentsSlice.checkInAppointment as jest.Mock) = mockCheckInAppointment;
-    (appointmentsSlice.fetchAppointmentById as jest.Mock) = mockFetchAppointmentById;
-    (appointmentsSlice.fetchAppointmentsForCompanion as jest.Mock) = mockFetchAppointmentsForCompanion;
+    (appointmentsSlice.checkInAppointment as jest.Mock) =
+      mockCheckInAppointment;
+    (appointmentsSlice.fetchAppointmentById as jest.Mock) =
+      mockFetchAppointmentById;
+    (appointmentsSlice.fetchAppointmentsForCompanion as jest.Mock) =
+      mockFetchAppointmentsForCompanion;
 
     (checkInUtils.getCheckInConstants as jest.Mock).mockReturnValue({
+      CHECKIN_BUFFER_MINUTES: 5,
       CHECKIN_RADIUS_METERS: 200,
     });
     (checkInUtils.isWithinCheckInWindow as jest.Mock).mockReturnValue(true);
@@ -62,7 +68,7 @@ describe('useCheckInHandler', () => {
 
     (LocationService.getLocationWithRetry as jest.Mock).mockResolvedValue({
       latitude: 40.7128,
-      longitude: -74.0060,
+      longitude: -74.006,
     });
 
     const {distanceBetweenCoordsMeters} = require('@/shared/utils/geoDistance');
@@ -77,11 +83,10 @@ describe('useCheckInHandler', () => {
   });
 
   describe('basic functionality', () => {
-    it('should return handleCheckIn and CHECKIN_RADIUS_METERS', () => {
+    it('should return handleCheckIn', () => {
       const {result} = renderHook(() => useCheckInHandler());
 
       expect(result.current.handleCheckIn).toBeInstanceOf(Function);
-      expect(result.current.CHECKIN_RADIUS_METERS).toBe(200);
     });
   });
 
@@ -158,7 +163,34 @@ describe('useCheckInHandler', () => {
         await result.current.handleCheckIn(mockConfig);
       });
 
-      expect(checkInUtils.formatCheckInTime).toHaveBeenCalledWith('2024-01-15', '10:00');
+      expect(checkInUtils.formatCheckInTime).toHaveBeenCalledWith(
+        '2024-01-15',
+        '10:00',
+      );
+      expect(checkInUtils.isWithinCheckInWindow).toHaveBeenCalledWith(
+        '2024-01-15',
+        '10:00',
+        5,
+      );
+    });
+
+    it('should use backend-configured check-in minutes in alert copy', async () => {
+      (checkInUtils.getCheckInConstants as jest.Mock).mockReturnValue({
+        CHECKIN_BUFFER_MINUTES: 12,
+        CHECKIN_RADIUS_METERS: 200,
+      });
+      (checkInUtils.isWithinCheckInWindow as jest.Mock).mockReturnValue(false);
+
+      const {result} = renderHook(() => useCheckInHandler());
+
+      await act(async () => {
+        await result.current.handleCheckIn(mockConfig);
+      });
+
+      expect(mockAlert).toHaveBeenCalledWith(
+        'Too early to check in',
+        'You can check in starting 12 minutes before your appointment at 10:00 AM.',
+      );
     });
   });
 
@@ -186,7 +218,7 @@ describe('useCheckInHandler', () => {
       await act(async () => {
         await result.current.handleCheckIn({
           ...mockConfig,
-          businessCoordinates: {lat: null, lng: -74.0060},
+          businessCoordinates: {lat: null, lng: -74.006},
         });
       });
 
@@ -213,7 +245,9 @@ describe('useCheckInHandler', () => {
     });
 
     it('should return early when user location cannot be retrieved', async () => {
-      (LocationService.getLocationWithRetry as jest.Mock).mockResolvedValue(null);
+      (LocationService.getLocationWithRetry as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       const {result} = renderHook(() => useCheckInHandler());
 
@@ -226,7 +260,9 @@ describe('useCheckInHandler', () => {
     });
 
     it('should show alert when distance calculation returns null', async () => {
-      const {distanceBetweenCoordsMeters} = require('@/shared/utils/geoDistance');
+      const {
+        distanceBetweenCoordsMeters,
+      } = require('@/shared/utils/geoDistance');
       distanceBetweenCoordsMeters.mockReturnValue(null);
 
       const {result} = renderHook(() => useCheckInHandler());
@@ -242,7 +278,9 @@ describe('useCheckInHandler', () => {
     });
 
     it('should show alert when user is too far from business', async () => {
-      const {distanceBetweenCoordsMeters} = require('@/shared/utils/geoDistance');
+      const {
+        distanceBetweenCoordsMeters,
+      } = require('@/shared/utils/geoDistance');
       distanceBetweenCoordsMeters.mockReturnValue(500);
 
       const {result} = renderHook(() => useCheckInHandler());
@@ -259,7 +297,9 @@ describe('useCheckInHandler', () => {
     });
 
     it('should round distance in alert message', async () => {
-      const {distanceBetweenCoordsMeters} = require('@/shared/utils/geoDistance');
+      const {
+        distanceBetweenCoordsMeters,
+      } = require('@/shared/utils/geoDistance');
       distanceBetweenCoordsMeters.mockReturnValue(456.789);
 
       const {result} = renderHook(() => useCheckInHandler());
@@ -285,9 +325,15 @@ describe('useCheckInHandler', () => {
 
       await waitFor(() => {
         expect(mockDispatch).toHaveBeenCalledTimes(3);
-        expect(mockCheckInAppointment).toHaveBeenCalledWith({appointmentId: 'apt-1'});
-        expect(mockFetchAppointmentById).toHaveBeenCalledWith({appointmentId: 'apt-1'});
-        expect(mockFetchAppointmentsForCompanion).toHaveBeenCalledWith({companionId: 'comp-1'});
+        expect(mockCheckInAppointment).toHaveBeenCalledWith({
+          appointmentId: 'apt-1',
+        });
+        expect(mockFetchAppointmentById).toHaveBeenCalledWith({
+          appointmentId: 'apt-1',
+        });
+        expect(mockFetchAppointmentsForCompanion).toHaveBeenCalledWith({
+          companionId: 'comp-1',
+        });
       });
     });
 
@@ -299,7 +345,10 @@ describe('useCheckInHandler', () => {
       });
 
       await waitFor(() => {
-        expect(mockConfig.onCheckingInChange).toHaveBeenCalledWith('apt-1', true);
+        expect(mockConfig.onCheckingInChange).toHaveBeenCalledWith(
+          'apt-1',
+          true,
+        );
       });
     });
 
@@ -311,7 +360,10 @@ describe('useCheckInHandler', () => {
       });
 
       await waitFor(() => {
-        expect(mockConfig.onCheckingInChange).toHaveBeenCalledWith('apt-1', false);
+        expect(mockConfig.onCheckingInChange).toHaveBeenCalledWith(
+          'apt-1',
+          false,
+        );
       });
     });
 
@@ -329,7 +381,10 @@ describe('useCheckInHandler', () => {
       });
 
       await waitFor(() => {
-        expect(mockToastAndroid).toHaveBeenCalledWith('Checked in', ToastAndroid.SHORT);
+        expect(mockToastAndroid).toHaveBeenCalledWith(
+          'Checked in',
+          ToastAndroid.SHORT,
+        );
       });
 
       Object.defineProperty(Platform, 'OS', {
@@ -403,7 +458,10 @@ describe('useCheckInHandler', () => {
           'Check-in failed',
           'Unable to check in right now. Please try again.',
         );
-        expect(consoleWarnSpy).toHaveBeenCalledWith('[Appointment] Check-in failed', error);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          '[Appointment] Check-in failed',
+          error,
+        );
       });
 
       consoleWarnSpy.mockRestore();
@@ -421,7 +479,10 @@ describe('useCheckInHandler', () => {
       });
 
       await waitFor(() => {
-        expect(mockConfig.onCheckingInChange).toHaveBeenCalledWith('apt-1', false);
+        expect(mockConfig.onCheckingInChange).toHaveBeenCalledWith(
+          'apt-1',
+          false,
+        );
       });
     });
 
@@ -450,9 +511,11 @@ describe('useCheckInHandler', () => {
 
   describe('distance calculation', () => {
     it('should calculate distance with correct coordinates', async () => {
-      const {distanceBetweenCoordsMeters} = require('@/shared/utils/geoDistance');
+      const {
+        distanceBetweenCoordsMeters,
+      } = require('@/shared/utils/geoDistance');
       (LocationService.getLocationWithRetry as jest.Mock).mockResolvedValue({
-        latitude: 40.7130,
+        latitude: 40.713,
         longitude: -74.0065,
       });
 
@@ -464,16 +527,18 @@ describe('useCheckInHandler', () => {
 
       await waitFor(() => {
         expect(distanceBetweenCoordsMeters).toHaveBeenCalledWith(
-          40.7130,
+          40.713,
           -74.0065,
           40.7128,
-          -74.0060,
+          -74.006,
         );
       });
     });
 
     it('should allow check-in when distance equals radius', async () => {
-      const {distanceBetweenCoordsMeters} = require('@/shared/utils/geoDistance');
+      const {
+        distanceBetweenCoordsMeters,
+      } = require('@/shared/utils/geoDistance');
       distanceBetweenCoordsMeters.mockReturnValue(200);
 
       const {result} = renderHook(() => useCheckInHandler());
@@ -488,7 +553,9 @@ describe('useCheckInHandler', () => {
     });
 
     it('should reject check-in when distance exceeds radius by 1 meter', async () => {
-      const {distanceBetweenCoordsMeters} = require('@/shared/utils/geoDistance');
+      const {
+        distanceBetweenCoordsMeters,
+      } = require('@/shared/utils/geoDistance');
       distanceBetweenCoordsMeters.mockReturnValue(201);
 
       const {result} = renderHook(() => useCheckInHandler());

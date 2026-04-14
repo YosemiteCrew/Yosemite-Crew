@@ -4,6 +4,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import Datepicker from '@/app/ui/inputs/Datepicker';
+import Timepicker from '@/app/ui/inputs/Timepicker';
 import { formatDisplayDate } from '@/app/features/inventory/pages/Inventory/utils';
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { formatTimeLabel } from '@/app/lib/forms';
@@ -11,6 +12,7 @@ import { formatDateLocal } from '@/app/lib/date';
 import { toTitleCase } from '@/app/lib/validators';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { CountriesOptions } from '@/app/features/companions/components/AddCompanion/type';
+import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
 
 export type FieldConfig = {
   label: string;
@@ -54,6 +56,7 @@ const FieldComponents: Record<
     value: any;
     error: any;
     onChange: (v: any) => void;
+    onMultiChange?: (values: Record<string, any>) => void;
   }>
 > = {
   text: ({ field, value, onChange, error }) => {
@@ -209,14 +212,33 @@ const FieldComponents: Record<
     />
   ),
   timeInput: ({ field, value, onChange, error }) => (
-    <FormInput
-      intype="time"
-      inname={field.key}
+    <Timepicker
       value={value || ''}
+      label={field.label}
+      name={field.key}
+      error={error}
+      onChange={onChange}
+      className="min-h-12!"
+    />
+  ),
+  googleAddress: ({ field, value, onChange, onMultiChange, error }) => (
+    <GoogleSearchDropDown
+      intype="text"
+      inname={field.key}
+      value={value ?? ''}
       inlabel={field.label}
       error={error}
-      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
-      className="min-h-12!"
+      onChange={(e) => onChange(e.target.value)}
+      onlyAddress={true}
+      onAddressSelect={(address) => {
+        onChange(address.addressLine);
+        onMultiChange?.({
+          city: address.city,
+          state: address.state,
+          postalCode: address.postalCode,
+          ...(address.country ? { country: address.country } : {}),
+        });
+      }}
     />
   ),
 };
@@ -233,11 +255,20 @@ const RenderField = (
   field: any,
   value: any,
   error: string | undefined,
-  onChange: (value: any) => void
+  onChange: (value: any) => void,
+  onMultiChange?: (values: Record<string, any>) => void
 ) => {
   const type = field.type || 'text';
   const Component = FieldComponents[type] || FieldComponents['text'];
-  return <Component field={field} value={value} error={error} onChange={onChange} />;
+  return (
+    <Component
+      field={field}
+      value={value}
+      error={error}
+      onChange={onChange}
+      onMultiChange={onMultiChange}
+    />
+  );
 };
 
 const isCurrencyField = (fieldKey: string) => {
@@ -368,6 +399,12 @@ const FieldValueComponents: Record<
       </div>
     );
   },
+  googleAddress: ({ field, formValues }) => (
+    <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
+      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4 text-text-primary text-right">{formValues[field.key] || '-'}</div>
+    </div>
+  ),
 };
 
 const RenderValue = (field: any, formValues: FormValues) => {
@@ -442,6 +479,17 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   const handleChange = (key: string, value: string | string[]) => {
     setFormValues((prev) => ({ ...prev, [key]: value }));
     setFormValuesErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  const handleMultiChange = (values: Record<string, any>) => {
+    setFormValues((prev) => ({ ...prev, ...values }));
+    setFormValuesErrors((prev) => {
+      const cleared = Object.keys(values).reduce<Record<string, undefined>>(
+        (acc, k) => ({ ...acc, [k]: undefined }),
+        {}
+      );
+      return { ...prev, ...cleared };
+    });
   };
 
   const validate = useCallback(() => {
@@ -530,7 +578,8 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
                       field,
                       formValues[field.key],
                       formValuesErrors[field.key],
-                      (value) => handleChange(field.key, value)
+                      (value) => handleChange(field.key, value),
+                      handleMultiChange
                     )}
                   </div>
                 ) : (

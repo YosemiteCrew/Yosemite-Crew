@@ -33,14 +33,14 @@ const InvoicePaymentActions = ({
   const paymentState = String(activeAppointment?.paymentStatus ?? '').toUpperCase();
   const normalizedInvoiceStatus = String(invoiceStatus ?? '').toUpperCase();
   const normalizedPaymentCollectionMethod = String(paymentCollectionMethod ?? '').toUpperCase();
-  const isCashAtClinicSelected =
+  const isInPersonCashSelected =
     showCashConfirmation || normalizedPaymentCollectionMethod === 'PAYMENT_AT_CLINIC';
   const isInvoiceSettled =
     normalizedInvoiceStatus === 'PAID' ||
     normalizedInvoiceStatus === 'REFUNDED' ||
     normalizedInvoiceStatus === 'CANCELLED';
   const showOfflineCollect = !stripeReceiptUrl && !isInvoiceSettled && paymentState !== 'PAID_CASH';
-  const showPaymentLinkActions = !isCashAtClinicSelected && showOfflineCollect;
+  const showPaymentLinkActions = !isInPersonCashSelected && showOfflineCollect;
 
   const handleGenerate = async () => {
     try {
@@ -79,7 +79,7 @@ const InvoicePaymentActions = ({
       setShowCashConfirmation(false);
       notify('success', {
         title: 'Cash payment recorded',
-        text: 'The invoice was marked paid after confirming cash collection at the clinic.',
+        text: 'The invoice was marked paid after confirming in-person cash collection.',
       });
     } catch (error) {
       console.log(error);
@@ -98,19 +98,19 @@ const InvoicePaymentActions = ({
       setSettingCashCollectionMethod(true);
       notify('warning', {
         title: 'Confirm cash collection',
-        text: 'Record cash only after you have physically received the payment at the clinic.',
+        text: 'Record cash only after you have physically received the payment from the client.',
       });
       await updateInvoicePaymentCollectionMethod(invoiceId, 'PAYMENT_AT_CLINIC');
       setShowCashConfirmation(true);
       notify('info', {
         title: 'Cash collection ready',
-        text: 'Payment collection method is set to cash at clinic. Click Collect cash after receiving payment.',
+        text: 'Payment collection method is set to in-person cash. Click Collect cash after receiving payment.',
       });
     } catch (error) {
       console.log(error);
       notify('error', {
         title: 'Cash setup failed',
-        text: 'We could not set the invoice to payment at clinic. Please try again.',
+        text: 'We could not set the invoice to in-person cash collection. Please try again.',
       });
     } finally {
       setSettingCashCollectionMethod(false);
@@ -126,13 +126,13 @@ const InvoicePaymentActions = ({
       {generatedLink ? <Secondary text="Copy link" href="#" onClick={handleCopy} /> : null}
       {showOfflineCollect ? (
         <>
-          {isCashAtClinicSelected ? (
+          {isInPersonCashSelected ? (
             <div className="rounded-2xl border border-[#F4D596] bg-[#FFF8E8] px-4 py-4 flex flex-col gap-3">
               <div className="text-body-4-emphasis text-text-primary">
                 Confirm cash payment before marking this invoice as paid.
               </div>
               <div className="text-body-4 text-text-secondary">
-                Payment collection method has been set to cash at clinic. Click Collect cash only
+                Payment collection method has been set to in-person cash. Click Collect cash only
                 after cash has been received from the client.
               </div>
               <div className="grid grid-cols-1 gap-2">

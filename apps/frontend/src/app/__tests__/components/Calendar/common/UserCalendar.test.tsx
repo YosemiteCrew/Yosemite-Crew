@@ -13,6 +13,7 @@ jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
   EVENT_VERTICAL_GAP_PX: 2,
   appointentsForUser: (...args: any[]) => mockAppointmentsForUser(...args),
+  computeUnavailableSegments: jest.fn(() => []),
   getFirstRelevantTimedEventStart: jest.fn(() => null),
   getNowTopPxForHourRange: jest.fn((_: Date, __: number, ___: number, height: number) => height),
   getTopPxForMinutes: jest.fn((minutes: number, hourHeight: number, gap: number, offset = 0) => {

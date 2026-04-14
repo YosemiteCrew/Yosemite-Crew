@@ -77,6 +77,7 @@ const setBlurred = (v: boolean) => {
 - Never mock react-icons as `<button>` in tests — use `<span>`.
 - Never nest `<button>` inside `<button>`.
 - No `onClick`/`onKeyDown` on `<dialog>` — move to inner `<div>`.
+- Remove unnecessary ARIA role wrappers like `role="group"` when native structure is already semantic.
 
 ### JSX — Ambiguous Text/Element Spacing
 
@@ -121,6 +122,7 @@ Prefer native elements over ARIA roles:
 - Nesting limit: **4 levels deep** — extract inner callbacks.
 - Nested ternaries in JSX: extract to a named `const` before `return`.
 - Nested ternaries in prop values (e.g. `value={a ? b ? 'X' : 'Y' : b ? 'Z' : 'W'}`): extract to a **named module-level helper function** placed before the component, not an inline `const`. This keeps the component body clean and the logic reusable.
+- If Sonar flags excessive callback nesting (more than 4 levels), extract inner blocks into named helper functions outside the callback.
 
 ```ts
 // Bad — nested ternary inline in prop
@@ -158,6 +160,13 @@ if (OPTIONS.has(value)) { ... }
 | `.sort()` when original mustn't change | `.toSorted()`                |
 | `{ ...{} }`                            | remove empty spread          |
 | `arr.length > 0 && arr.every(...)`     | `arr.every(...)`             |
+
+Additional constraints:
+
+- If using `replaceAll` with a RegExp, the regex **must be global** (`/g`) or runtime errors occur.
+- Replace single-character regex classes with the character itself when possible (e.g. `/[,]/g` -> `','`).
+- For regex-heavy template strings, prefer `String.raw` to reduce escaping bugs.
+- Prefer `else if` instead of `else { if (...) { ... } }` to satisfy Sonar readability rules.
 
 ### Drag & Drop Typing
 

@@ -139,7 +139,7 @@ describe('MerckManuals page', () => {
     render(<ProtectedMerckManuals />);
 
     expect(
-      screen.getByText('Merck Manuals is disabled for this organization.')
+      screen.getByText('MSD Veterinary Manual is disabled for this organization.')
     ).toBeInTheDocument();
     expect(screen.getByText('Manage Integrations')).toBeInTheDocument();
   });

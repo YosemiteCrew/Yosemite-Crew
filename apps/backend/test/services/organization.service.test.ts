@@ -254,6 +254,46 @@ describe("OrganizationService", () => {
       expect(res.response).toBeDefined();
     });
 
+    it("should reject non-integer check-in settings", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ appointmentCheckInBufferMinutes: 5.5 }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow(
+        "Appointment check-in buffer minutes must be an integer.",
+      );
+
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ appointmentCheckInRadiusMeters: "200.5" }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow(
+        "Appointment check-in radius meters must be an integer.",
+      );
+    });
+
+    it("should reject negative check-in settings", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ appointmentCheckInBufferMinutes: -1 }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow(
+        "Appointment check-in buffer minutes must be non-negative.",
+      );
+
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({ appointmentCheckInRadiusMeters: -200 }),
+      );
+      await expect(
+        OrganizationService.upsert(generateBasePayload()),
+      ).rejects.toThrow(
+        "Appointment check-in radius meters must be non-negative.",
+      );
+    });
+
     it("should allow valid optionalNumber as a pure number", async () => {
       (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
         generateDTO({ address: { latitude: 45.5, longitude: 90 } }),
@@ -399,6 +439,48 @@ describe("OrganizationService", () => {
       const res = await OrganizationService.upsert(generateBasePayload());
       expect(res.created).toBe(false);
       expect((res.response as any)._id).toBe(doc._id);
+    });
+
+    it("should apply default check-in settings when omitted", async () => {
+      const doc = mockDocument();
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        doc,
+      );
+
+      const res = await OrganizationService.upsert(generateBasePayload());
+
+      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            appointmentCheckInBufferMinutes: 5,
+            appointmentCheckInRadiusMeters: 200,
+          }),
+        }),
+        expect.anything(),
+      );
+      expect((res.response as any).appointmentCheckInBufferMinutes).toBe(5);
+      expect((res.response as any).appointmentCheckInRadiusMeters).toBe(200);
+    });
+
+    it("should preserve explicit check-in settings in the response", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
+        generateDTO({
+          appointmentCheckInBufferMinutes: 15,
+          appointmentCheckInRadiusMeters: 350,
+        }),
+      );
+      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
+        mockDocument({
+          appointmentCheckInBufferMinutes: 15,
+          appointmentCheckInRadiusMeters: 350,
+        }),
+      );
+
+      const res = await OrganizationService.upsert(generateBasePayload());
+
+      expect((res.response as any).appointmentCheckInBufferMinutes).toBe(15);
+      expect((res.response as any).appointmentCheckInRadiusMeters).toBe(350);
     });
 
     it("should create new document and handle userId linkage", async () => {
@@ -590,6 +672,8 @@ describe("OrganizationService", () => {
         stripeAccountId: null,
         averageRating: null,
         ratingCount: null,
+        appointmentCheckInBufferMinutes: null,
+        appointmentCheckInRadiusMeters: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         address: {
@@ -606,6 +690,8 @@ describe("OrganizationService", () => {
 
       const res = await OrganizationService.getById("org-1");
       expect(res).toBeDefined();
+      expect((res as any)?.appointmentCheckInBufferMinutes).toBe(5);
+      expect((res as any)?.appointmentCheckInRadiusMeters).toBe(200);
       expect(prisma.organization.findFirst).toHaveBeenCalledWith({
         where: { OR: [{ id: "org-1" }, { fhirId: "org-1" }] },
         include: { address: true },
@@ -660,6 +746,8 @@ describe("OrganizationService", () => {
           stripeAccountId: null,
           averageRating: null,
           ratingCount: null,
+          appointmentCheckInBufferMinutes: null,
+          appointmentCheckInRadiusMeters: null,
           createdAt: new Date(),
           updatedAt: new Date(),
           address: null,
@@ -668,6 +756,8 @@ describe("OrganizationService", () => {
 
       const res = await OrganizationService.listAll();
       expect(res.length).toBe(1);
+      expect((res[0] as any).appointmentCheckInBufferMinutes).toBe(5);
+      expect((res[0] as any).appointmentCheckInRadiusMeters).toBe(200);
       expect(prisma.organization.findMany).toHaveBeenCalledWith({
         include: { address: true },
       });
@@ -1074,6 +1164,8 @@ describe("OrganizationService", () => {
           stripeAccountId: null,
           averageRating: 4.5,
           ratingCount: 10,
+          appointmentCheckInBufferMinutes: null,
+          appointmentCheckInRadiusMeters: null,
           createdAt: new Date(),
           updatedAt: new Date(),
           address: {
@@ -1104,6 +1196,8 @@ describe("OrganizationService", () => {
       );
 
       expect(res.data.length).toBe(1);
+      expect((res.data[0].org as any).appointmentCheckInBufferMinutes).toBe(5);
+      expect((res.data[0].org as any).appointmentCheckInRadiusMeters).toBe(200);
       expect(res.data[0].specialitiesWithServices[0].services.length).toBe(1);
       expect(res.meta.total).toBe(1);
     });
@@ -1135,6 +1229,8 @@ describe("OrganizationService", () => {
             stripeAccountId: null,
             averageRating: null,
             ratingCount: null,
+            appointmentCheckInBufferMinutes: null,
+            appointmentCheckInRadiusMeters: null,
             createdAt: new Date(),
             updatedAt: new Date(),
             address: null,

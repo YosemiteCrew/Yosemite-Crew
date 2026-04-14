@@ -140,6 +140,21 @@ describe('SignIn Page', () => {
     expect(mockSignIn).not.toHaveBeenCalled();
   });
 
+  it('shows a validation error for an invalid email format', () => {
+    render(<SignIn />);
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByTestId('signin-btn'));
+
+    expect(screen.getByTestId('email-error')).toHaveTextContent('Enter a valid email');
+    expect(mockSignIn).not.toHaveBeenCalled();
+  });
+
   // --- 3. Success Flow ---
 
   it('calls signIn and redirects on success', async () => {

@@ -9,6 +9,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { postData } from '@/app/services/axios';
 import { useSignOut } from '@/app/hooks/useAuth';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import Close from '@/app/ui/primitives/Icons/Close';
 
 import './OtpModal.css';
 
@@ -179,10 +180,22 @@ const OtpModal = ({
     <Modal
       show={showVerifyModal}
       onHide={() => setShowVerifyModal(false)}
+      backdrop="static"
+      keyboard={false}
       centered
       contentClassName="VerifyModalSec"
     >
       <Modal.Body>
+        <div className="VerifyModalClose">
+          <button
+            type="button"
+            aria-label="Close OTP modal"
+            className="VerifyModalCloseBtn"
+            onClick={() => setShowVerifyModal(false)}
+          >
+            <Close iconOnly />
+          </button>
+        </div>
         <div className="VerifyModalTopInner">
           <div className="VerifyTexted">
             <div className="text-display-2 text-text-primary">Verify Email Address</div>

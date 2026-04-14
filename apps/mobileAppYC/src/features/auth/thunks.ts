@@ -10,6 +10,7 @@ import {resetBusinessesState} from '@/features/appointments/businessesSlice';
 import {resetLinkedBusinesses} from '@/features/linkedBusinesses';
 import {resetCoParentState} from '@/features/coParent';
 import {resetNotificationState} from '@/features/notifications';
+import {resetFormsState} from '@/features/forms';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
 import {getAuth, signOut} from '@react-native-firebase/auth';
 
@@ -129,7 +130,9 @@ export const initializeAuth = createAsyncThunk<
     console.error('[Auth] Failed to initialize auth session', error);
     dispatch(
       setAuthError(
-        error instanceof Error ? error.message : 'Failed to initialize auth session.',
+        error instanceof Error
+          ? error.message
+          : 'Failed to initialize auth session.',
       ),
     );
     dispatch(setUnauthenticated());
@@ -182,7 +185,9 @@ export const refreshSession = createAsyncThunk<
       console.error('[Auth] Failed to refresh auth session', error);
       dispatch(
         setAuthError(
-          error instanceof Error ? error.message : 'Failed to refresh auth session.',
+          error instanceof Error
+            ? error.message
+            : 'Failed to refresh auth session.',
         ),
       );
     } finally {
@@ -217,60 +222,65 @@ export const updateUserProfile = createAsyncThunk<
   dispatch(mergeUser(updates));
 });
 
-export const logout = createAsyncThunk<void, void, {state: RootState; dispatch: AppDispatch}>(
-  'auth/logout',
-  async (_, {dispatch, getState}) => {
-    const currentProvider = getState().auth.provider;
+export const logout = createAsyncThunk<
+  void,
+  void,
+  {state: RootState; dispatch: AppDispatch}
+>('auth/logout', async (_, {dispatch, getState}) => {
+  const currentProvider = getState().auth.provider;
 
+  try {
+    if (currentProvider === 'amplify') {
+      await signOutEverywhere();
+    }
+  } catch (error) {
+    console.warn('[Auth] Amplify sign out failed:', error);
+  }
+
+  if (currentProvider === 'firebase') {
     try {
-      if (currentProvider === 'amplify') {
-        await signOutEverywhere();
+      const auth = getAuth();
+      if (auth.currentUser) {
+        await signOut(auth);
+      } else {
+        console.warn('[Auth] Firebase sign out skipped: no current user');
       }
     } catch (error) {
-      console.warn('[Auth] Amplify sign out failed:', error);
-    }
-
-    if (currentProvider === 'firebase') {
-      try {
-        const auth = getAuth();
-        if (auth.currentUser) {
-          await signOut(auth);
-        } else {
-          console.warn('[Auth] Firebase sign out skipped: no current user');
-        }
-      } catch (error) {
-        const code = (error as any)?.code;
-        if (code === 'auth/no-current-user') {
-          console.warn('[Auth] Firebase sign out skipped: no current user');
-        } else {
-          console.warn('[Auth] Firebase sign out failed:', error);
-        }
+      const code = (error as any)?.code;
+      if (code === 'auth/no-current-user') {
+        console.warn('[Auth] Firebase sign out skipped: no current user');
+      } else {
+        console.warn('[Auth] Firebase sign out failed:', error);
       }
     }
+  }
 
-    await clearSessionData({clearPendingProfile: true});
-    resetAuthLifecycle({clearPendingProfile: true});
-    appStateListenerRegistered = false;
+  await clearSessionData({clearPendingProfile: true});
+  resetAuthLifecycle({clearPendingProfile: true});
+  appStateListenerRegistered = false;
 
-    dispatch(resetAuthState());
-    dispatch(setUnauthenticated());
-    dispatch(setSessionExpiry(null));
-    dispatch(setLastRefresh(null));
-    dispatch(resetCompanionState());
-    dispatch(resetExpensesState());
-    dispatch(resetAppointmentsState());
-    dispatch(resetTasksState());
-    dispatch(resetDocumentState());
-    dispatch(resetBusinessesState());
-    dispatch(resetLinkedBusinesses());
-    dispatch(resetCoParentState());
-    dispatch(resetNotificationState());
+  dispatch(resetAuthState());
+  dispatch(setUnauthenticated());
+  dispatch(setSessionExpiry(null));
+  dispatch(setLastRefresh(null));
+  dispatch(resetCompanionState());
+  dispatch(resetExpensesState());
+  dispatch(resetAppointmentsState());
+  dispatch(resetTasksState());
+  dispatch(resetDocumentState());
+  dispatch(resetBusinessesState());
+  dispatch(resetLinkedBusinesses());
+  dispatch(resetCoParentState());
+  dispatch(resetNotificationState());
+  dispatch(resetFormsState());
+});
+
+export const clearAuthError = createAsyncThunk(
+  'auth/clearError',
+  async (_, {dispatch}) => {
+    dispatch(setAuthError(null));
   },
 );
-
-export const clearAuthError = createAsyncThunk('auth/clearError', async (_, {dispatch}) => {
-  dispatch(setAuthError(null));
-});
 
 export const __resetAuthListenersForTesting = () => {
   appStateListenerRegistered = false;

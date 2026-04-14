@@ -9,6 +9,7 @@ import { AuthenticatedRequest } from "./auth";
 import UserOrganizationModel from "src/models/user-organization";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
+import AppointmentModel from "src/models/appointment";
 
 export interface OrgRequest extends AuthenticatedRequest {
   userPermissions?: Permission[];
@@ -106,6 +107,33 @@ export function withOrgPermissions() {
         message: "Failed to resolve permissions",
       });
     }
+  };
+}
+
+export function withAppointmentOrgPermissions() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const appointmentId = req.params.appointmentId;
+    if (!appointmentId) {
+      return res.status(400).json({ message: "Missing appointmentId" });
+    }
+
+    const appointment = isReadFromPostgres()
+      ? await prisma.appointment.findUnique({
+          where: { id: appointmentId },
+          select: { organisationId: true },
+        })
+      : await AppointmentModel.findById(appointmentId, {
+          organisationId: 1,
+        }).lean();
+
+    const organisationId = appointment?.organisationId ?? null;
+    if (!organisationId) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    req.params.organisationId = organisationId.toString();
+
+    return withOrgPermissions()(req, res, next);
   };
 }
 

@@ -51,7 +51,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
     blocks: [
       p(
         seg(
-          'This repository may reference or include integrations, plugins, names, logos, or trademarks of third-party companies (including but not limited to IDEXX, Merck, and other partners). Such trademarks and logos are the property of their respective owners and are used solely for identification or interoperability purposes. Nothing in this repository grants any right or license to use any third-party trademarks, logos, or branding except as permitted by the respective owners.',
+          'This repository may reference or include integrations, plugins, names, logos, or trademarks of third-party companies (including but not limited to IDEXX, MSD Veterinary Manual, and other partners). Such trademarks and logos are the property of their respective owners and are used solely for identification or interoperability purposes. Nothing in this repository grants any right or license to use any third-party trademarks, logos, or branding except as permitted by the respective owners.',
         ),
       ),
     ],
@@ -624,9 +624,9 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
   ),
 
   {
-    id: 'updated-june-2025',
+    id: 'updated-march-2026',
     title: '',
-    blocks: [p(b('Updated : June 2025'))],
+    blocks: [p(b('Updated : March 2026'))],
   },
 ];
 

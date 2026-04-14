@@ -12,4 +12,8 @@ router.get("/mappings", authorizeCognito, (req, res) =>
   CodeController.listMappings(req, res),
 );
 
+router.get("/terms/suggest", authorizeCognito, (req, res) =>
+  CodeController.suggestTerms(req, res),
+);
+
 export default router;

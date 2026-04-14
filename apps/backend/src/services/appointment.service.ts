@@ -39,6 +39,7 @@ import InvoiceModel from "src/models/invoice";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { ensureObjectId as ensureObjectIdStrict } from "src/utils/mongo";
+import { assertEmail } from "src/utils/sanitize";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -338,6 +339,14 @@ const sendCheckoutEmailIfNeeded = async ({
         .lean();
   if (!parent?.email) return;
 
+  let recipientEmail: string;
+  try {
+    recipientEmail = assertEmail(parent.email);
+  } catch (error) {
+    logger.error("Skipping checkout email for invalid parent email.", error);
+    return;
+  }
+
   const parentName = [parent.firstName, parent.lastName]
     .filter(Boolean)
     .join(" ");
@@ -349,21 +358,25 @@ const sendCheckoutEmailIfNeeded = async ({
     "MMM D, YYYY h:mm A",
   );
 
-  await sendEmailTemplate({
-    to: parent.email,
-    templateId: "appointmentPaymentCheckout",
-    templateData: {
-      parentName: parentName || undefined,
-      companionName: appointment.companion.name,
-      organisationName: organisationName ?? undefined,
-      appointmentTime,
-      amountText,
-      checkoutUrl: checkout.url,
-      ctaUrl: checkout.url,
-      ctaLabel: "Pay Now",
-      supportEmail: SUPPORT_EMAIL_ADDRESS,
-    },
-  });
+  try {
+    await sendEmailTemplate({
+      to: recipientEmail,
+      templateId: "appointmentPaymentCheckout",
+      templateData: {
+        parentName: parentName || undefined,
+        companionName: appointment.companion.name,
+        organisationName: organisationName ?? undefined,
+        appointmentTime,
+        amountText,
+        checkoutUrl: checkout.url,
+        ctaUrl: checkout.url,
+        ctaLabel: "Pay Now",
+        supportEmail: SUPPORT_EMAIL_ADDRESS,
+      },
+    });
+  } catch (error) {
+    logger.error("Failed to send appointment checkout email.", error);
+  }
 };
 
 const recordFormAttachmentAudit = async (
@@ -1122,7 +1135,7 @@ const toPersistable = (appointment: Appointment): AppointmentMongo => ({
   concern: appointment.concern ?? undefined,
   attachments: appointment.attachments ?? undefined,
   formIds: appointment.formIds ?? [],
-  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  expiresAt: undefined,
 });
 
 const toPrismaAppointmentData = (
@@ -1257,7 +1270,6 @@ export const AppointmentService = {
 
       const appointment = buildAppointmentFromInput(input, "REQUESTED");
 
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       let created;
       try {
         created = await prisma.appointment.create({
@@ -1282,7 +1294,7 @@ export const AppointmentService = {
             attachments: (appointment.attachments ??
               undefined) as unknown as Prisma.InputJsonValue,
             formIds: appointment.formIds ?? [],
-            expiresAt,
+            expiresAt: undefined,
           },
         });
       } catch (error) {
@@ -1306,14 +1318,41 @@ export const AppointmentService = {
 
       await recordFormAttachmentAudit(appointment, created.id);
 
-      const paymentIntent =
-        await StripeService.createPaymentIntentForAppointment(created.id);
+      const invoice = await InvoiceService.getOrCreateDraftForAppointment({
+        appointmentId: created.id,
+        parentId: appointment.companion.parent.id,
+        companionId: appointment.companion.id,
+        organisationId: appointment.organisationId,
+        items: [
+          {
+            description:
+              appointment.appointmentType?.name ??
+              service.name ??
+              "Consultation",
+            quantity: 1,
+            unitPrice: service.cost,
+            discountPercent: service.maxDiscount ?? undefined,
+          },
+        ],
+        notes: appointment.concern ?? undefined,
+        paymentCollectionMethod: "PAYMENT_INTENT",
+      });
+
+      const invoiceId =
+        typeof (invoice as { id?: string }).id === "string"
+          ? (invoice as { id: string }).id
+          : (invoice as { _id?: Types.ObjectId })._id?.toString();
+
+      const paymentIntent = invoiceId
+        ? await StripeService.createPaymentIntentForInvoice(invoiceId)
+        : undefined;
 
       await maybeCreateObservationToolTask(service, appointment, created.id);
 
       return {
         appointment:
           await toAppointmentResponseDTOWithPaymentStatusFromPrisma(created),
+        invoice,
         paymentIntent,
       };
     }
@@ -1380,9 +1419,33 @@ export const AppointmentService = {
       savedAppointment._id.toString(),
     );
 
-    const paymentIntent = await StripeService.createPaymentIntentForAppointment(
-      savedAppointment._id.toString(),
-    );
+    const invoice = await InvoiceService.getOrCreateDraftForAppointment({
+      appointmentId: savedAppointment._id.toString(),
+      parentId: appointment.companion.parent.id,
+      companionId: appointment.companion.id,
+      organisationId: appointment.organisationId,
+      items: [
+        {
+          description:
+            appointment.appointmentType?.name ?? service.name ?? "Consultation",
+          quantity: 1,
+          unitPrice: service.cost,
+          discountPercent: service.maxDiscount ?? undefined,
+        },
+      ],
+      notes: appointment.concern ?? undefined,
+      paymentCollectionMethod: "PAYMENT_INTENT",
+    });
+
+    const invoiceId =
+      (invoice as { _id?: Types.ObjectId; id?: string })._id?.toString() ??
+      (typeof (invoice as { id?: string }).id === "string"
+        ? (invoice as { id: string }).id
+        : undefined);
+
+    const paymentIntent = invoiceId
+      ? await StripeService.createPaymentIntentForInvoice(invoiceId)
+      : undefined;
 
     await maybeCreateObservationToolTask(
       service,
@@ -1393,6 +1456,7 @@ export const AppointmentService = {
     return {
       appointment:
         await toAppointmentResponseDTOWithPaymentStatus(savedAppointment),
+      invoice,
       paymentIntent,
     };
   },
@@ -1508,7 +1572,7 @@ export const AppointmentService = {
               attachments: (appointment.attachments ??
                 undefined) as unknown as Prisma.InputJsonValue,
               formIds: appointment.formIds ?? [],
-              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              expiresAt: undefined,
             },
           });
 
@@ -1671,6 +1735,7 @@ export const AppointmentService = {
     const persistable = toPersistable(appointment);
     const session = await mongoose.startSession();
     session.startTransaction();
+    let transactionCommitted = false;
 
     try {
       // 4.1 Check overlapping occupancy for lead vet
@@ -1729,6 +1794,7 @@ export const AppointmentService = {
       let checkout;
 
       await session.commitTransaction();
+      transactionCommitted = true;
       await session.endSession();
 
       await syncAppointmentToPostgres(doc);
@@ -1802,7 +1868,9 @@ export const AppointmentService = {
         checkout,
       };
     } catch (err) {
-      await session.abortTransaction();
+      if (!transactionCommitted) {
+        await session.abortTransaction();
+      }
       await session.endSession();
       await releaseAppointmentUsage(usageReservation);
       if (err instanceof AppointmentServiceError) throw err;
@@ -2191,6 +2259,8 @@ export const AppointmentService = {
       // Send notification to parent
       const parentId = appointment.companion.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
+
+      return toAppointmentResponseDTOWithPaymentStatus(appointment);
     } catch (err) {
       await session.abortTransaction();
       await session.endSession();
@@ -2482,6 +2552,10 @@ export const AppointmentService = {
     }
 
     const extracted = fromAppointmentRequestDTO(dto);
+
+    if (extracted.status === "CANCELLED") {
+      return this.cancelAppointment(appointmentId, extracted.concern);
+    }
 
     if (!extracted.lead?.id) {
       throw new AppointmentServiceError(
@@ -3351,6 +3425,10 @@ export const AppointmentService = {
                 address: org.address ?? null,
                 phoneNo: org.phoneNo ?? null,
                 googlePlacesId: org.googlePlacesId ?? null,
+                appointmentCheckInBufferMinutes:
+                  org.appointmentCheckInBufferMinutes ?? 5,
+                appointmentCheckInRadiusMeters:
+                  org.appointmentCheckInRadiusMeters ?? 200,
               }
             : null,
         };
@@ -3373,7 +3451,15 @@ export const AppointmentService = {
     // 3. Fetch organisations in one query
     const organisations = await OrganizationModel.find(
       { _id: { $in: orgIds } },
-      { name: 1, imageURL: 1, address: 1, phoneNo: 1, googlePlacesId: 1 },
+      {
+        name: 1,
+        imageURL: 1,
+        address: 1,
+        phoneNo: 1,
+        googlePlacesId: 1,
+        appointmentCheckInBufferMinutes: 1,
+        appointmentCheckInRadiusMeters: 1,
+      },
     ).lean();
 
     // Convert array → map for O(1) lookup
@@ -3400,7 +3486,15 @@ export const AppointmentService = {
 
       return {
         appointment: dto,
-        organisation: org,
+        organisation: org
+          ? {
+              ...org,
+              appointmentCheckInBufferMinutes:
+                org.appointmentCheckInBufferMinutes ?? 5,
+              appointmentCheckInRadiusMeters:
+                org.appointmentCheckInRadiusMeters ?? 200,
+            }
+          : null,
       };
     });
   },

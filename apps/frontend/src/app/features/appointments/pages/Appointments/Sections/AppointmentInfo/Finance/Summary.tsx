@@ -13,6 +13,7 @@ import { toNumberSafe } from '@/app/lib/validators';
 import { useInvoicesForPrimaryOrgAppointment } from '@/app/hooks/useInvoices';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 const AppointmentFields = [
   { label: 'Service', key: 'service', type: 'text' },
@@ -29,6 +30,8 @@ const AppointmentFields = [
 ];
 
 const PAYABLE_INVOICE_STATUSES = new Set(['PENDING', 'AWAITING_PAYMENT']);
+const CASH_COLLECTION_METHOD = 'PAYMENT_AT_CLINIC';
+const SETTLED_INVOICE_STATUSES = new Set(['PAID', 'REFUNDED']);
 
 type SummaryProps = {
   formData: FormDataProps;
@@ -57,6 +60,31 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
   );
 
   const actionInvoice = payableInvoice ?? latestInvoice;
+
+  const showCashRefundDisclaimer = useMemo(() => {
+    const normalizedAppointmentStatus = String(activeAppointment.status ?? '').toUpperCase();
+    if (normalizedAppointmentStatus !== 'CANCELLED') {
+      return false;
+    }
+
+    const normalizedAppointmentPaymentStatus = String(
+      activeAppointment.paymentStatus ?? ''
+    ).toUpperCase();
+    if (normalizedAppointmentPaymentStatus === 'PAID_CASH') {
+      return true;
+    }
+
+    return invoices.some((invoice) => {
+      const normalizedCollectionMethod = String(
+        (invoice as any)?.paymentCollectionMethod ?? ''
+      ).toUpperCase();
+      const normalizedInvoiceStatus = String(invoice.status ?? '').toUpperCase();
+      return (
+        normalizedCollectionMethod === CASH_COLLECTION_METHOD &&
+        (SETTLED_INVOICE_STATUSES.has(normalizedInvoiceStatus) || Boolean((invoice as any)?.paidAt))
+      );
+    });
+  }, [activeAppointment.status, activeAppointment.paymentStatus, invoices]);
 
   const totals = useMemo(() => {
     if (!actionInvoice) {
@@ -133,6 +161,14 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
                 {formatMoney(totals.total, currency)}
               </div>
             </div>
+            {actionInvoice ? (
+              <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>
+                <div className="text-body-4 text-text-primary text-right">
+                  {getInvoicePaymentMethodLabel(actionInvoice)}
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-3 mt-3">
               <InvoicePaymentActions
                 invoiceId={actionInvoice?.id}
@@ -142,6 +178,12 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
                 activeAppointment={activeAppointment}
               />
             </div>
+            {showCashRefundDisclaimer ? (
+              <div className="rounded-2xl border border-[#F4D596] bg-[#FFF8E8] px-4 py-3 text-caption-1 text-text-secondary">
+                This appointment was paid in cash and is now cancelled. Any refund, if applicable,
+                should be handled directly by the service provider.
+              </div>
+            ) : null}
             <div className="text-caption-1 text-text-secondary py-2">
               <span className="text-[#247AED]">Note : </span>Yosemite Crew uses Stripe for secure
               payments. Your payment details are encrypted and never stored on our servers.

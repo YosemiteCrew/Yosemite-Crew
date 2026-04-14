@@ -4,6 +4,7 @@ import Availability from '@/app/features/appointments/components/Availability/Av
 import {
   AvailabilityState,
   convertAvailability,
+  convertFromGetApi,
   daysOfWeek,
   DEFAULT_INTERVAL,
   hasAtLeastOneAvailability,
@@ -13,6 +14,7 @@ import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Team } from '@/app/features/organization/types/team';
 import React, { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import PermissionsEditor, {
   computeEffectivePermissions,
 } from '@/app/features/organization/pages/Organization/Sections/Team/PermissionsEditor';
@@ -90,10 +92,10 @@ const PersonalFields = [
 ];
 
 const AddressFields = [
-  { label: 'Address', key: 'addressLine', type: 'text' },
-  { label: 'State/Province', key: 'state', type: 'text' },
-  { label: 'City', key: 'city', type: 'text' },
-  { label: 'Postal code', key: 'postalCode', type: 'text' },
+  { label: 'Address', key: 'addressLine', type: 'googleAddress', editable: true },
+  { label: 'State/Province', key: 'state', type: 'text', editable: true },
+  { label: 'City', key: 'city', type: 'text', editable: true },
+  { label: 'Postal code', key: 'postalCode', type: 'text', editable: true },
 ];
 
 const ProfessionalFields = [
@@ -133,6 +135,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
       return acc;
     }, {} as AvailabilityState)
   );
+  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
   const [profile, setProfile] = useState<any>(null);
   const lastAvailabilityLogKeyRef = React.useRef<string>('');
@@ -164,30 +167,8 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
       const apiAvailability = Array.isArray(profile?.baseAvailability)
         ? profile.baseAvailability
         : [];
-      const apiMap = new Map<
-        string,
-        Array<{ startTime?: string; endTime?: string; isAvailable?: boolean }>
-      >(
-        apiAvailability.map((entry: any) => [
-          String(entry?.dayOfWeek ?? '').toUpperCase(),
-          Array.isArray(entry?.slots) ? entry.slots : [],
-        ])
-      );
-      const strictAvailability = daysOfWeek.reduce<AvailabilityState>((acc, day) => {
-        const key = day.toUpperCase();
-        const slots = (apiMap.get(key) ?? []).filter((slot) => slot?.isAvailable);
-        acc[day] = {
-          enabled: slots.length > 0,
-          intervals: slots.length
-            ? slots.map((slot) => ({
-                start: String(slot.startTime ?? ''),
-                end: String(slot.endTime ?? ''),
-              }))
-            : [{ ...DEFAULT_INTERVAL }],
-        };
-        return acc;
-      }, {} as AvailabilityState);
-      setAvailability(strictAvailability);
+      const converted = convertFromGetApi(apiAvailability);
+      setAvailability(converted);
 
       const logKey = `${activeTeam?._id || ''}:${JSON.stringify(apiAvailability)}`;
       if (lastAvailabilityLogKeyRef.current !== logKey) {
@@ -349,6 +330,41 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     }
   };
 
+  const handleAddressSave = async (values: any) => {
+    try {
+      if (!profile?.profile) return;
+      const payload: UserProfile = {
+        ...profile.profile,
+        _id: profile.profile?._id,
+        personalDetails: {
+          ...profile.profile.personalDetails,
+          address: {
+            ...profile.profile.personalDetails?.address,
+            addressLine: values.addressLine,
+            state: values.state,
+            city: values.city,
+            postalCode: values.postalCode,
+          },
+        },
+      };
+      await upsertUserProfile(payload);
+      setProfile((prev: any) => ({
+        ...prev,
+        profile: payload,
+      }));
+      notify('success', {
+        title: 'Address updated',
+        text: 'Address details have been updated successfully.',
+      });
+    } catch (error) {
+      console.log(error);
+      notify('error', {
+        title: 'Unable to update address',
+        text: 'Failed to update address details. Please try again.',
+      });
+    }
+  };
+
   const handlePermUpdate = async ({
     extraPerissions,
     revokedPermissions,
@@ -387,7 +403,14 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   };
 
   const updateAvailability = async () => {
+    if (isSavingAvailability) return;
     try {
+      flushSync(() => {
+        setIsSavingAvailability(true);
+      });
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
       const converted = convertAvailability(availability);
       if (!hasAtLeastOneAvailability(converted)) {
         console.log('No availability selected');
@@ -404,6 +427,8 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
         title: 'Unable to update availability',
         text: 'Failed to update availability. Please try again.',
       });
+    } finally {
+      setIsSavingAvailability(false);
     }
   };
 
@@ -454,7 +479,8 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
               fields={AddressFields}
               data={addressInfoData}
               defaultOpen={false}
-              showEditIcon={false}
+              showEditIcon={isSelfMember}
+              onSave={isSelfMember ? handleAddressSave : undefined}
             />
             <EditableAccordion
               title="Professional details"
@@ -481,9 +507,12 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
                       <div className="flex justify-end">
                         <Primary
                           href="#"
-                          text="Save availability"
+                          text={
+                            isSavingAvailability ? 'Saving availability...' : 'Save availability'
+                          }
                           onClick={updateAvailability}
-                          className="w-auto min-w-[180px]"
+                          className="w-auto min-w-45"
+                          isDisabled={isSavingAvailability}
                         />
                       </div>
                     )}

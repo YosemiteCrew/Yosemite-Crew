@@ -1,31 +1,24 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
-  DEFAULT_CALENDAR_FOCUS_MINUTES,
+  computeUnavailableSegments,
   appointentsForUser,
-  getFirstRelevantTimedEventStart,
   getNowTopPxForHourRange,
-  nextDay,
-  scrollContainerToTarget,
-  startOfDayDate,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import {
   eventsForDayHour,
   HOURS_IN_DAY,
 } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import UserLabels from '@/app/features/appointments/components/Calendar/common/UserLabels';
+import CalendarDayHeader from '@/app/features/appointments/components/Calendar/common/CalendarDayHeader';
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { Appointment } from '@yosemite-crew/types';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
 import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import {
   CalendarZoomMode,
-  formatHourLabel,
-  formatMinuteLabel,
   getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
+import CalendarHourLabel from '@/app/features/appointments/components/Calendar/common/CalendarHourLabel';
 import {
   getMinutesSinceStartOfDayInPreferredTimeZone,
   formatDateInPreferredTimeZone,
@@ -36,6 +29,12 @@ import NowIndicator from '@/app/features/appointments/components/Calendar/common
 import SlotGridLines from '@/app/features/appointments/components/Calendar/common/SlotGridLines';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
+import {
+  getVisibleHourRange,
+  getVisibleHours,
+  useCalendarAutoScroll,
+  useSlotOffsetMinutes,
+} from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 
 type UserCalendarProps = {
   events: Appointment[];
@@ -110,9 +109,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const dateNumber = formatDateInPreferredTimeZone(date, { day: 'numeric' });
 
   const visibleHourRange = useMemo(() => {
-    if (zoomMode === 'out' || forceFullDayInZoomIn)
-      return { startHour: 0, endHour: HOURS_IN_DAY - 1 };
-
     const minutes: number[] = [];
     team.forEach((member) => {
       const availability =
@@ -128,23 +124,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
       );
     });
 
-    if (!minutes.length) return { startHour: 0, endHour: HOURS_IN_DAY - 1 };
-
-    const minMinute = Math.max(0, Math.min(...minutes) - 30);
-    const maxMinute = Math.min(24 * 60 - 1, Math.max(...minutes) + 30);
-    const startHour = Math.max(0, Math.floor(minMinute / 60));
-    const endHour = Math.min(23, Math.ceil(maxMinute / 60));
-    return { startHour, endHour: Math.max(startHour + 2, endHour) };
+    return getVisibleHourRange(zoomMode, minutes, {
+      forceFullDay: forceFullDayInZoomIn,
+      endHour: HOURS_IN_DAY - 1,
+    });
   }, [date, events, forceFullDayInZoomIn, getVisibleAvailabilityIntervals, team, zoomMode]);
 
-  const visibleHours = useMemo(
-    () =>
-      Array.from(
-        { length: Math.max(1, visibleHourRange.endHour - visibleHourRange.startHour + 1) },
-        (_, i) => visibleHourRange.startHour + i
-      ),
-    [visibleHourRange.endHour, visibleHourRange.startHour]
-  );
+  const visibleHours = useMemo(() => getVisibleHours(visibleHourRange), [visibleHourRange]);
   const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
 
   const nowPosition = useMemo(() => {
@@ -160,78 +146,40 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     if (topPx == null) return null;
     return { topPx };
   }, [date, height, now, visibleHourRange.endHour, visibleHourRange.startHour]);
-  const nowTimeLabel = useMemo(() => {
-    if (!nowPosition) return null;
-    return formatDateInPreferredTimeZone(now, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }, [now, nowPosition]);
+  const nowTimeLabel = useMemo(
+    () =>
+      nowPosition
+        ? formatDateInPreferredTimeZone(now, { hour: 'numeric', minute: '2-digit' })
+        : null,
+    [now, nowPosition]
+  );
   const unavailableByMember = useMemo(
     () =>
       team.map((user) => {
         const visible =
           getVisibleAvailabilityIntervals?.(date, user.practionerId || user._id) ?? [];
-        if (!visible.length) {
-          if (!availabilityLoaded) return [];
-          const rangeStart = visibleHourRange.startHour * 60;
-          const rangeEnd = (visibleHourRange.endHour + 1) * 60;
-          return [{ startMinute: rangeStart, endMinute: rangeEnd }];
-        }
-        const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
-        const segments: { startMinute: number; endMinute: number }[] = [];
-        const rangeStart = visibleHourRange.startHour * 60;
-        const rangeEnd = (visibleHourRange.endHour + 1) * 60;
-        if (sorted[0].startMinute > rangeStart) {
-          segments.push({ startMinute: rangeStart, endMinute: sorted[0].startMinute });
-        }
-        for (let i = 0; i < sorted.length - 1; i++) {
-          if (sorted[i].endMinute < sorted[i + 1].startMinute) {
-            segments.push({
-              startMinute: sorted[i].endMinute,
-              endMinute: sorted[i + 1].startMinute,
-            });
-          }
-        }
-        const last = sorted.at(-1)!;
-        if (last.endMinute < rangeEnd) {
-          segments.push({ startMinute: last.endMinute, endMinute: rangeEnd });
-        }
-        return segments;
+        return computeUnavailableSegments(
+          visible,
+          visibleHourRange.startHour,
+          visibleHourRange.endHour,
+          availabilityLoaded
+        );
       }),
     [availabilityLoaded, date, getVisibleAvailabilityIntervals, team, visibleHourRange]
   );
 
-  const slotOffsetMinutes = useMemo(() => {
-    const step = Math.max(5, Math.round(slotStepMinutes || 15));
-    if (step >= 60) return [];
-    const offsets: number[] = [];
-    for (let minute = step; minute < 60; minute += step) {
-      offsets.push(minute);
-    }
-    return offsets;
-  }, [slotStepMinutes]);
-  const showSlotTimeLabels = useMemo(() => {
-    if (!slotOffsetMinutes.length) return false;
-    const firstStep = slotOffsetMinutes[0];
-    const pixelsPerSlot = (firstStep / 60) * height;
-    return pixelsPerSlot >= 14;
-  }, [height, slotOffsetMinutes]);
+  const { slotOffsetMinutes, showSlotTimeLabels } = useSlotOffsetMinutes(slotStepMinutes, zoomMode);
 
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    if (draggedAppointmentId) return;
-    const rangeStart = startOfDayDate(date);
-    const rangeEnd = nextDay(date);
-    const focusStart = getFirstRelevantTimedEventStart(events, rangeStart, rangeEnd);
-    const focusMinutes = focusStart
-      ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
-      : DEFAULT_CALENDAR_FOCUS_MINUTES;
-    const topPx = nowPosition
-      ? Math.max(0, nowPosition.topPx)
-      : ((focusMinutes - visibleHourRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
-    scrollContainerToTarget(scrollRef.current, topPx);
-  }, [date, draggedAppointmentId, events, height, nowPosition, visibleHourRange.startHour]);
+  useCalendarAutoScroll({
+    date,
+    events,
+    height,
+    nowPosition,
+    scrollContainer: scrollRef.current,
+    skip: !!draggedAppointmentId,
+    focusStartHour: visibleHourRange.startHour,
+    hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
+  });
 
   return (
     <div className="h-full flex flex-col">
@@ -240,23 +188,14 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
         data-calendar-scroll="true"
       >
         <div className="min-w-max h-full flex flex-col">
-          <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
-            <div className="sticky left-0 z-30 bg-white flex items-center justify-center">
-              <Back onClick={handlePrevDay} />
-            </div>
-            <div className="bg-white min-w-max flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2">
-                <div className="text-body-4 text-text-brand">{weekday}</div>
-                <div className="text-body-4-emphasis text-white h-8 w-8 flex items-center justify-center rounded-full bg-text-brand">
-                  {dateNumber}
-                </div>
-              </div>
-              <UserLabels team={team} columnsStyle={teamColumnsStyle} />
-            </div>
-            <div className="sticky right-0 z-30 bg-white flex items-center justify-center">
-              <Next onClick={handleNextDay} />
-            </div>
-          </div>
+          <CalendarDayHeader
+            weekday={weekday}
+            dateNumber={dateNumber}
+            team={team}
+            teamColumnsStyle={teamColumnsStyle}
+            onPrevDay={handlePrevDay}
+            onNextDay={handleNextDay}
+          />
 
           <div
             ref={scrollRef}
@@ -274,22 +213,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
             <div className="relative pt-2 pb-4">
               {visibleHours.map((hour) => (
                 <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div
-                    className="sticky left-0 z-20 bg-white text-caption-2 text-text-primary pl-2! relative"
-                    style={{ height: height + 'px' }}
-                  >
-                    <span className="absolute top-0 -translate-y-1/2">{formatHourLabel(hour)}</span>
-                    {showSlotTimeLabels &&
-                      slotOffsetMinutes.map((minute) => (
-                        <span
-                          key={`slot-time-${hour}-${minute}`}
-                          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
-                          style={{ top: `${(minute / 60) * 100}%` }}
-                        >
-                          {formatMinuteLabel(hour * 60 + minute)}
-                        </span>
-                      ))}
-                  </div>
+                  <CalendarHourLabel
+                    hour={hour}
+                    height={height}
+                    slotOffsetMinutes={slotOffsetMinutes}
+                    showSlotTimeLabels={showSlotTimeLabels}
+                    className="sticky left-0 z-20 bg-white"
+                  />
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {team?.map((user, index) => {
                       const slotEvents = eventsForDayHour(

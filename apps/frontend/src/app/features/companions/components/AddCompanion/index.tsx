@@ -26,9 +26,16 @@ const LabelOptions = [
 type AddCompanionProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  onCompanionCreated?: (companionId: string) => void;
+  mode?: 'default' | 'fasttrack';
 };
 
-const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
+const AddCompanion = ({
+  showModal,
+  setShowModal,
+  onCompanionCreated,
+  mode = 'default',
+}: AddCompanionProps) => {
   const terminologyText = useCompanionTerminologyText();
   const [activeLabel, setActiveLabel] = useState<string>('parents');
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -87,6 +94,10 @@ const AddCompanion = ({ showModal, setShowModal }: AddCompanionProps) => {
               parentFormData={parentFormData}
               setParentFormData={setParentFormData}
               setShowModal={setShowModal}
+              mode={mode}
+              onCompanionCreated={(companion) => {
+                onCompanionCreated?.(companion.id);
+              }}
             />
           )}
         </div>

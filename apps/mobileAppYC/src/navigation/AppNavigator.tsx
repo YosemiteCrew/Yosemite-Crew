@@ -1,5 +1,8 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {createNativeStackNavigator, NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {
+  createNativeStackNavigator,
+  NativeStackNavigationProp,
+} from '@react-navigation/native-stack';
 import {useNavigation} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DeviceEventEmitter, Alert, Linking} from 'react-native';
@@ -11,7 +14,10 @@ import {TabNavigator} from './TabNavigator';
 import {OnboardingScreen} from '@/features/onboarding/screens/OnboardingScreen';
 import {useAuth, type AuthTokens} from '@/features/auth/context/AuthContext';
 import {useGlobalLoader} from '@/context/GlobalLoaderContext';
-import {EmergencyProvider, useEmergency} from '@/features/home/context/EmergencyContext';
+import {
+  EmergencyProvider,
+  useEmergency,
+} from '@/features/home/context/EmergencyContext';
 import {EmergencyBottomSheet} from '@/features/home/components/EmergencyBottomSheet';
 import CoParentInviteBottomSheet, {
   type CoParentInviteBottomSheetRef,
@@ -19,7 +25,10 @@ import CoParentInviteBottomSheet, {
 import NetworkStatusBottomSheet, {
   type NetworkStatusBottomSheetRef,
 } from '@/features/network/components/NetworkStatusBottomSheet';
-import {useNetworkStatus,NetworkProvider} from '@/features/network/context/NetworkContext';
+import {
+  useNetworkStatus,
+  NetworkProvider,
+} from '@/features/network/context/NetworkContext';
 import type {AppDispatch, RootState} from '@/app/store';
 import {
   acceptCoParentInvite,
@@ -28,8 +37,14 @@ import {
   fetchPendingInvites,
 } from '@/features/coParent';
 import {fetchCompanions, selectSelectedCompanionId} from '@/features/companion';
-import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  PENDING_PROFILE_STORAGE_KEY,
+  PENDING_PROFILE_UPDATED_EVENT,
+} from '@/config/variables';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 import {
   fetchBusinessDetails,
   selectLinkedHospitalsForCompanion,
@@ -78,7 +93,12 @@ export const AppNavigator: React.FC = () => {
       const raw = await AsyncStorage.getItem(PENDING_PROFILE_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as AuthStackParamList['CreateAccount'];
-        setPendingProfile(parsed);
+        setPendingProfile({
+          ...parsed,
+          // OTP success sheet should be shown only in immediate post-OTP navigation,
+          // not when resuming an unfinished profile from persisted storage.
+          showOtpSuccess: false,
+        });
       } else {
         setPendingProfile(null);
       }
@@ -88,14 +108,14 @@ export const AppNavigator: React.FC = () => {
     }
   }, []);
 
-useEffect(() => {
-  loadPendingProfile();
-  const subscription = DeviceEventEmitter.addListener(
-    PENDING_PROFILE_UPDATED_EVENT,
-    loadPendingProfile,
-  );
-  return () => subscription.remove();
-}, [loadPendingProfile]);
+  useEffect(() => {
+    loadPendingProfile();
+    const subscription = DeviceEventEmitter.addListener(
+      PENDING_PROFILE_UPDATED_EVENT,
+      loadPendingProfile,
+    );
+    return () => subscription.remove();
+  }, [loadPendingProfile]);
 
   useEffect(() => {
     if (pendingProfile || !isLoggedIn || isProfileComplete || !user) {
@@ -108,12 +128,16 @@ useEffect(() => {
       try {
         const storedTokens = await getFreshStoredTokens();
         if (!storedTokens) {
-          console.warn('[AppNavigator] No stored tokens available to resume pending profile.');
+          console.warn(
+            '[AppNavigator] No stored tokens available to resume pending profile.',
+          );
           return;
         }
 
         if (isTokenExpired(storedTokens.expiresAt ?? undefined)) {
-          console.warn('[AppNavigator] Stored tokens are expired; skipping pending profile seeding.');
+          console.warn(
+            '[AppNavigator] Stored tokens are expired; skipping pending profile seeding.',
+          );
           return;
         }
 
@@ -150,7 +174,10 @@ useEffect(() => {
           DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT, payload);
         }
       } catch (error) {
-        console.warn('[AppNavigator] Failed to seed pending profile for incomplete account', error);
+        console.warn(
+          '[AppNavigator] Failed to seed pending profile for incomplete account',
+          error,
+        );
       }
     };
 
@@ -161,9 +188,11 @@ useEffect(() => {
     };
   }, [pendingProfile, isLoggedIn, isProfileComplete, user]);
 
-const checkOnboardingStatus = async () => {
+  const checkOnboardingStatus = async () => {
     try {
-      const onboardingCompleted = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
+      const onboardingCompleted = await AsyncStorage.getItem(
+        ONBOARDING_COMPLETED_KEY,
+      );
       setShowOnboarding(onboardingCompleted === null);
     } catch (error) {
       console.error('Error checking onboarding status:', error);
@@ -252,10 +281,11 @@ const checkOnboardingStatus = async () => {
       </EmergencyProvider>
     </NetworkProvider>
   );
-}
+};
 
 const AppNavigatorEmergencySheet: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const dispatch = useDispatch<AppDispatch>();
   const emergencySheetRef = React.useRef<any>(null);
   const {setEmergencySheetRef} = useEmergency();
@@ -330,7 +360,10 @@ const AppNavigatorEmergencySheet: React.FC = () => {
 
   const handleCallVet = React.useCallback(async () => {
     if (!primaryHospital) {
-      Alert.alert('Hospital not linked', 'Link a hospital to quickly call your vet.');
+      Alert.alert(
+        'Hospital not linked',
+        'Link a hospital to quickly call your vet.',
+      );
       return;
     }
     const phone = hospitalPhone ?? (await fetchHospitalPhone());
@@ -351,7 +384,8 @@ const AppNavigatorEmergencySheet: React.FC = () => {
     }
     const telUrl = `tel:${normalizedPhone}`;
     const telPromptUrl = `telprompt:${normalizedPhone}`;
-    const opened = (await tryOpenDialer(telUrl)) || (await tryOpenDialer(telPromptUrl));
+    const opened =
+      (await tryOpenDialer(telUrl)) || (await tryOpenDialer(telPromptUrl));
     if (!opened) {
       Alert.alert(
         'Dialer unavailable',
@@ -361,7 +395,9 @@ const AppNavigatorEmergencySheet: React.FC = () => {
   }, [fetchHospitalPhone, hospitalPhone, primaryHospital, tryOpenDialer]);
 
   const handleAdverseEvent = React.useCallback(() => {
-    console.log('[AppNavigator] Adverse event clicked - navigating to AdverseEvent');
+    console.log(
+      '[AppNavigator] Adverse event clicked - navigating to AdverseEvent',
+    );
     try {
       // Navigate to Main tab, then to HomeStack, then to AdverseEvent
       (navigation as any).navigate('Main', {
@@ -438,7 +474,9 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
         dispatch(
           fetchParentAccess({
             parentId: user.parentId,
-            companionIds: invite.companion?.id ? [invite.companion.id] : undefined,
+            companionIds: invite.companion?.id
+              ? [invite.companion.id]
+              : undefined,
           }),
         );
         dispatch(fetchCompanions(user.parentId));
@@ -470,7 +508,7 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
       inviteeName={currentInvite?.inviteeName}
       inviterName={
         currentInvite?.invitedBy?.fullName ??
-        ((`${currentInvite?.invitedBy?.firstName ?? ''} ${currentInvite?.invitedBy?.lastName ?? ''}`).trim() ||
+        (`${currentInvite?.invitedBy?.firstName ?? ''} ${currentInvite?.invitedBy?.lastName ?? ''}`.trim() ||
           undefined)
       }
       inviterProfileImage={currentInvite?.invitedBy?.profileImageUrl}
@@ -488,13 +526,11 @@ const AppNavigatorNetworkStatusSheet: React.FC = () => {
 
   React.useEffect(() => {
     if (sheetRef.current) {
-      setNetworkSheetRef(sheetRef as React.RefObject<{open: () => void; close: () => void}>);
+      setNetworkSheetRef(
+        sheetRef as React.RefObject<{open: () => void; close: () => void}>,
+      );
     }
   }, [setNetworkSheetRef]);
 
-  return (
-    <NetworkStatusBottomSheet
-      ref={sheetRef}
-    />
-  );
+  return <NetworkStatusBottomSheet ref={sheetRef} />;
 };

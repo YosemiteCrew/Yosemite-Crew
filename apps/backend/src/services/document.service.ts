@@ -153,18 +153,22 @@ const applySimpleFieldUpdates = (
     doc.title = updates.title.trim();
   }
 
-  if (updates.visitType) {
-    doc.visitType = updates.visitType;
+  if (updates.visitType !== undefined) {
+    doc.visitType = updates.visitType ? updates.visitType : null;
   }
 
   if (updates.issuingBusinessName !== undefined) {
     doc.issuingBusinessName = updates.issuingBusinessName || null;
   }
 
-  if (updates.issueDate) {
-    const parsed = new Date(updates.issueDate);
-    if (!Number.isNaN(parsed.getTime())) {
-      doc.issueDate = parsed;
+  if (updates.issueDate !== undefined) {
+    if (!updates.issueDate) {
+      doc.issueDate = null;
+    } else {
+      const parsed = new Date(updates.issueDate);
+      if (!Number.isNaN(parsed.getTime())) {
+        doc.issueDate = parsed;
+      }
     }
   }
 };

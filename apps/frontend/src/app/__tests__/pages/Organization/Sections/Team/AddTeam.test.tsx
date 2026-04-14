@@ -1,15 +1,15 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import AddTeam from "@/app/features/organization/pages/Organization/Sections/Team/AddTeam";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import AddTeam from '@/app/features/organization/pages/Organization/Sections/Team/AddTeam';
 
-jest.mock("@/app/ui/overlays/Modal", () => ({
+jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock("@/app/ui/primitives/Icons/Close", () => ({
+jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -18,7 +18,7 @@ jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
+jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div>
@@ -28,7 +28,7 @@ jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Buttons", () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -43,46 +43,47 @@ const FieldMock = ({ error, inlabel, placeholder }: any) => (
   </div>
 );
 
-jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
+jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: (props: any) => <FieldMock {...props} />,
 }));
 
-jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
+jest.mock('@/app/ui/inputs/MultiSelectDropdown', () => ({
   __esModule: true,
   default: (props: any) => <FieldMock {...props} />,
 }));
 
-jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
+jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
   default: (props: any) => <FieldMock {...props} />,
 }));
 
-jest.mock("@/app/ui/inputs/SelectLabel", () => ({
+jest.mock('@/app/ui/inputs/SelectLabel', () => ({
   __esModule: true,
   default: ({ title }: any) => <div>{title}</div>,
 }));
 
-jest.mock("@/app/hooks/useSpecialities", () => ({
+jest.mock('@/app/hooks/useSpecialities', () => ({
   useSpecialitiesForPrimaryOrg: () => [],
 }));
 
-jest.mock("@/app/features/organization/services/teamService", () => ({
+jest.mock('@/app/features/organization/services/teamService', () => ({
   sendInvite: jest.fn(),
 }));
 
-jest.mock("@/app/lib/validators", () => ({
-  isValidEmail: () => false,
+jest.mock('@/app/lib/validators', () => ({
+  getEmailValidationError: () => 'Enter a valid email',
+  normalizeEmail: (value: string) => value.trim(),
 }));
 
-describe("AddTeam", () => {
-  it("shows validation errors when fields are missing", () => {
+describe('AddTeam', () => {
+  it('shows validation errors when fields are missing', () => {
     render(<AddTeam showModal setShowModal={jest.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send invite' }));
 
-    expect(screen.getByText("Enter a valid email")).toBeInTheDocument();
-    expect(screen.getByText("Speciality is required")).toBeInTheDocument();
-    expect(screen.getByText("Role is required")).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
+    expect(screen.getByText('Speciality is required')).toBeInTheDocument();
+    expect(screen.getByText('Role is required')).toBeInTheDocument();
   });
 });

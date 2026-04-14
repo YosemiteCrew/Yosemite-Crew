@@ -1,20 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
-import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Secondary } from '@/app/ui/primitives/Buttons';
 import Fallback from '@/app/ui/overlays/Fallback';
-import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
-import { IoIosWarning } from 'react-icons/io';
 import {
-  Category,
-  CategoryOptions,
   CompanionRecord,
   emptyCompanionRecord,
-  HealthCategoryOptions,
-  HygieneCategoryOptions,
-  Subcategory,
 } from '@/app/features/documents/types/companionDocuments';
 import {
   createCompanionDocument,
@@ -23,7 +15,10 @@ import {
 } from '@/app/features/companions/services/companionDocumentService';
 import { toTitle } from '@/app/lib/validators';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
-import CompanionDoc from '@/app/ui/widgets/UploadImage/CompanionDoc';
+import { useOrgStore } from '@/app/stores/orgStore';
+import CompanionDocumentUploadForm, {
+  DocumentUploadFormErrors,
+} from '@/app/features/documents/components/CompanionDocumentUploadForm';
 
 type CompanionDocumentsSectionProps = {
   companionId: string;
@@ -32,14 +27,22 @@ type CompanionDocumentsSectionProps = {
 const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<CompanionRecord>(emptyCompanionRecord);
-  const [formDataErrors, setFormDataErrors] = useState<{
-    name?: string;
-    category?: string;
-    sub?: string;
-    fileUrl?: string;
-  }>({});
+  const [formDataErrors, setFormDataErrors] = useState<DocumentUploadFormErrors>({});
 
   const [records, setRecords] = useState<CompanionRecord[]>([]);
+  const primaryOrgId = useOrgStore((state) => state.primaryOrgId);
+  const primaryOrgName = useOrgStore((state) => {
+    if (!state.primaryOrgId) return '';
+    return state.orgsById?.[state.primaryOrgId]?.name ?? '';
+  });
+
+  useEffect(() => {
+    if (!primaryOrgName) return;
+    setFormData((prev) => {
+      if (prev.issuingBusinessName?.trim()) return prev;
+      return { ...prev, issuingBusinessName: primaryOrgName };
+    });
+  }, [primaryOrgId, primaryOrgName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +65,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
   }, [companionId]);
 
   const handleSave = async () => {
-    const errors: { title?: string; fileUrl?: string } = {};
+    const errors: DocumentUploadFormErrors = {};
     if (!formData.title) errors.title = 'Name is required';
     if (formData.attachments.length <= 0) errors.fileUrl = 'File is required';
     setFormDataErrors(errors);
@@ -73,7 +76,10 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
       await createCompanionDocument(formData, companionId);
       const data = await loadCompanionDocument(companionId);
       setRecords(data ?? []);
-      setFormData(emptyCompanionRecord);
+      setFormData({
+        ...emptyCompanionRecord,
+        issuingBusinessName: primaryOrgName || undefined,
+      });
       setFormDataErrors({});
       setFile(null);
     } catch (error) {
@@ -92,9 +98,6 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
       console.log(error);
     }
   };
-
-  const subcategoryOptions =
-    formData.category === 'HEALTH' ? HealthCategoryOptions : HygieneCategoryOptions;
 
   const formatTextValue = (value?: string | null) => {
     if (!value) return '-';
@@ -127,61 +130,15 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
             showEditIcon={false}
             isEditing={true}
           >
-            <div className="flex flex-col gap-3">
-              <LabelDropdown
-                placeholder="Category"
-                onSelect={(option) =>
-                  setFormData({
-                    ...formData,
-                    category: option.value as Category,
-                  })
-                }
-                defaultOption={formData.category}
-                options={CategoryOptions}
-                error={formDataErrors.category}
-              />
-              <LabelDropdown
-                placeholder="Sub-category"
-                onSelect={(option) =>
-                  setFormData({
-                    ...formData,
-                    subcategory: option.value as Subcategory,
-                  })
-                }
-                defaultOption={formData.subcategory}
-                options={subcategoryOptions}
-                error={formDataErrors.sub}
-              />
-              <FormInput
-                intype="text"
-                inname="name"
-                value={formData.title}
-                inlabel="Title"
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                error={formDataErrors.name}
-              />
-              <CompanionDoc
-                placeholder="Upload document"
-                apiUrl={`/v1/document/pms/upload-url`}
-                companionId={companionId}
-                onChange={(s) => setFormData({ ...formData, attachments: [{ key: s }] })}
-                file={file}
-                setFile={setFile}
-                error={formDataErrors.fileUrl}
-              />
-              {formDataErrors.fileUrl && (
-                <div
-                  className={`
-                    mt-1.5 flex items-center gap-1 px-4
-                    text-caption-2 text-text-error
-                  `}
-                >
-                  <IoIosWarning className="text-text-error" size={14} />
-                  <span>{formDataErrors.fileUrl}</span>
-                </div>
-              )}
-              <Primary href="#" text="Save" onClick={handleSave} />
-            </div>
+            <CompanionDocumentUploadForm
+              companionId={companionId}
+              formData={formData}
+              setFormData={setFormData}
+              file={file}
+              setFile={setFile}
+              formDataErrors={formDataErrors}
+              onSave={handleSave}
+            />
           </Accordion>
         </PermissionGate>
         <div className="w-full">
@@ -207,16 +164,16 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                     </div>
                     <div className="flex items-center gap-1 flex-wrap justify-end">
                       {doc.pmsVisible ? (
-                        <span className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
+                        <span className="text-label-xsmall px-2 py-1 rounded-full bg-blue-50 text-blue-700 whitespace-nowrap">
                           PMS visible
                         </span>
                       ) : null}
                       {doc.syncedFromPms ? (
-                        <span className="text-label-xsmall px-2 py-1 rounded bg-green-50 text-green-800 whitespace-nowrap">
+                        <span className="text-label-xsmall px-2 py-1 rounded-full bg-green-50 text-green-800 whitespace-nowrap">
                           Synced
                         </span>
                       ) : (
-                        <span className="text-label-xsmall px-2 py-1 rounded bg-amber-50 text-amber-700 whitespace-nowrap">
+                        <span className="text-label-xsmall px-2 py-1 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap">
                           Manual
                         </span>
                       )}

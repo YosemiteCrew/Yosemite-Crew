@@ -1743,6 +1743,48 @@ export const StripeService = {
       });
       if (!appointment) return;
 
+      const openInvoice = await prisma.invoice.findFirst({
+        where: {
+          appointmentId,
+          status: { in: ["AWAITING_PAYMENT", "PENDING"] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (openInvoice) {
+        const chargeId = pi.latest_charge as string;
+        const charge = await getStripeClient().charges.retrieve(chargeId);
+
+        await prisma.invoice.updateMany({
+          where: {
+            id: openInvoice.id,
+            status: { in: ["AWAITING_PAYMENT", "PENDING"] },
+          },
+          data: {
+            status: "PAID",
+            stripePaymentIntentId: pi.id,
+            stripeChargeId: charge.id,
+            stripeReceiptUrl: charge.receipt_url ?? undefined,
+            paymentCollectionMethod: "PAYMENT_INTENT",
+            updatedAt: new Date(),
+          },
+        });
+
+        await prisma.appointment.updateMany({
+          where: { id: appointmentId },
+          data: {
+            status: "REQUESTED",
+            updatedAt: new Date(),
+            expiresAt: null,
+          },
+        });
+
+        logger.info(
+          `Appointment ${appointmentId} booking PAID. Invoice ${openInvoice.id} settled`,
+        );
+        return;
+      }
+
       const existingInvoice = await prisma.invoice.findFirst({
         where: { appointmentId, status: "PAID" },
       });
@@ -1805,6 +1847,55 @@ export const StripeService = {
 
     const appointment = await AppointmentModel.findById(appointmentId);
     if (!appointment) return;
+
+    const openInvoice = await InvoiceModel.findOne({
+      appointmentId,
+      status: { $in: ["AWAITING_PAYMENT", "PENDING"] },
+    }).sort({ createdAt: -1 });
+
+    if (openInvoice) {
+      const chargeId = pi.latest_charge as string;
+      const charge = await getStripeClient().charges.retrieve(chargeId);
+
+      await InvoiceService.attachStripeDetails(openInvoice._id.toString(), {
+        status: "PAID",
+        stripePaymentIntentId: pi.id,
+        stripeChargeId: charge.id,
+        stripeReceiptUrl: charge.receipt_url ?? undefined,
+        paymentCollectionMethod: "PAYMENT_INTENT",
+        paidAt: new Date(),
+      });
+
+      await AppointmentModel.updateOne(
+        { _id: appointmentId },
+        {
+          status: "REQUESTED",
+          stripePaymentIntentId: pi.id,
+          stripeChargeId: charge.id,
+          updatedAt: new Date(),
+          expiresAt: undefined,
+        },
+      );
+      if (shouldDualWrite) {
+        try {
+          await prisma.appointment.updateMany({
+            where: { id: appointmentId },
+            data: {
+              status: "REQUESTED",
+              updatedAt: new Date(),
+              expiresAt: null,
+            },
+          });
+        } catch (err) {
+          handleDualWriteError("Appointment booking payment", err);
+        }
+      }
+
+      logger.info(
+        `Appointment ${appointmentId} booking PAID. Invoice ${openInvoice.id} settled`,
+      );
+      return;
+    }
 
     const existingInvoice = await InvoiceModel.findOne({
       appointmentId,
@@ -1920,6 +2011,10 @@ export const StripeService = {
 
       if (invoice.status === "PAID") return;
 
+      if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
+        return;
+      }
+
       if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {
         await this._refundByPaymentIntentId(pi.id);
         return;
@@ -1947,6 +2042,10 @@ export const StripeService = {
     if (!invoice) return;
 
     if (invoice.status === "PAID") return;
+
+    if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
+      return;
+    }
 
     // 🔒 Accept PI ONLY if invoice expects IN_APP
     if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {

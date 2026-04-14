@@ -17,7 +17,18 @@
     "enter_password": "Ingresa tu contraseña",
     "enter_name": "Ingresa tu nombre completo",
     "create_password": "Crea una contraseña",
-    "confirm_password_placeholder": "Confirma tu contraseña"
+    "confirm_password_placeholder": "Confirma tu contraseña",
+    "date_of_birth_optional": "Fecha de nacimiento (opcional)",
+    "date_of_birth_optional_placeholder": "Selecciona la fecha de nacimiento (opcional)",
+    "age_verification_info_cta": "Por qué solicitamos verificación de edad",
+    "age_verification_sheet_title": "Verificación de edad 18+",
+    "age_verification_sheet_intro": "Para cumplir con estándares globales de seguridad y requisitos legales regionales, incluidos el UK Age-Appropriate Design Code, el California Age-Appropriate Design Code y mandatos recientes de la Ley de Servicios Digitales de la UE, Yosemite Crew exige que todos los usuarios verifiquen que tienen 18 años o más.",
+    "age_verification_sheet_why_title": "Por qué lo solicitamos",
+    "age_verification_sheet_why_body": "Este proceso garantiza que el contenido restringido permanezca inaccesible para menores y nos ayuda a mantener un entorno seguro conforme a las leyes locales.",
+    "age_verification_sheet_privacy_title": "Privacidad y seguridad",
+    "age_verification_provider_fallback": "nuestro proveedor de verificación de confianza",
+    "age_verification_sheet_privacy_body": "Tus datos de verificación se procesan únicamente con el propósito de verificación de edad. Usamos {{serviceProviderName}} para validar tu estado de forma segura. Tus documentos de identificación sensibles se cifran, no se usan con fines de marketing y se gestionan en estricto cumplimiento de nuestra Política de privacidad y de los estándares de protección de datos GDPR/CCPA.",
+    "age_verification_sheet_restriction_notice": "No completar esta verificación resultará en acceso restringido a ciertas funciones o en la imposibilidad de crear una cuenta."
   },
   "navigation": {
     "home": "Inicio",
@@ -82,6 +93,7 @@
     "error": "Error",
     "success": "Éxito",
     "cancel": "Cancelar",
+    "done": "Listo",
     "save": "Guardar",
     "delete": "Eliminar",
     "edit": "Editar",
@@ -106,5 +118,19 @@
     "passwords_no_match": "Las contraseñas no coinciden",
     "companion_name_required": "El nombre de la mascota es requerido",
     "companion_type_required": "El tipo de mascota es requerido"
+  },
+  "appUpdate": {
+    "requiredTitle": "Actualización requerida",
+    "requiredMessage": "Se requiere una nueva versión de la app para continuar. Actualiza para seguir usando Yosemite Crew.",
+    "optionalTitle": "Actualización disponible",
+    "optionalMessage": "Hay una versión más reciente con mejoras. Actualiza ahora para una mejor experiencia.",
+    "updateNowButton": "Actualizar ahora",
+    "laterButton": "Más tarde",
+    "missingStoreUrl": "El enlace de actualización no está configurado. Contacta al soporte.",
+    "openStoreFailed": "No se pudo abrir la tienda de aplicaciones. Inténtalo de nuevo."
+  },
+  "payments": {
+    "cashCancellationNoticeTitle": "Importante",
+    "cashCancellationNoticeBody": "Esta cita fue pagada en efectivo y ha sido cancelada. Si se necesita un reembolso, debe gestionarse directamente con el proveedor del servicio."
   }
 }

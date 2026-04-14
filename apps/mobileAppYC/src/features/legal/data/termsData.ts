@@ -676,7 +676,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
       createNumberedParagraph(
         '15.4.',
         seg(
-          ' This repository may reference or include integrations, plugins, names, logos, or trademarks of third-party companies (including but not limited to IDEXX, Merck, and other partners). Such trademarks and logos are the property of their respective owners and are used solely for identification or interoperability purposes. Nothing in this repository grants any right or license to use any third-party trademarks, logos, or branding except as permitted by the respective owners.',
+          ' This repository may reference or include integrations, plugins, names, logos, or trademarks of third-party companies (including but not limited to IDEXX, MSD Veterinary Manual, and other partners). Such trademarks and logos are the property of their respective owners and are used solely for identification or interoperability purposes. Nothing in this repository grants any right or license to use any third-party trademarks, logos, or branding except as permitted by the respective owners.',
         ),
       ),
     ],
@@ -709,6 +709,14 @@ export const TERMS_SECTIONS: LegalSection[] = [
       createIntroParagraph(
         'Your right to revoke the contract exists independently of any warranty claims in the event of material defects. If there is a defect covered by warranty, you are entitled to demand supplementary performance, to withdraw from the contract or to reduce the purchase price within the framework of the statutory provisions.',
       ),
+    ],
+  },
+  {
+    id: 'updated-march-2026',
+    title: '',
+    blocks: [
+      createIntroParagraph(''),
+      createBoldHeader('Updated : March 2026'),
     ],
   },
 ];

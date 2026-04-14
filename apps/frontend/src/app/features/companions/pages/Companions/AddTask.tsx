@@ -78,7 +78,7 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
             <Primary
               href="#"
               text={isLoading ? 'Saving...' : 'Save'}
-              classname="w-full"
+              className="w-full"
               onClick={handleCreate}
               isDisabled={isLoading}
             />

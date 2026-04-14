@@ -128,7 +128,8 @@ describe('IDEXX Hub page', () => {
     render(<ProtectedIdexxWorkspace />);
 
     await waitFor(() => {
-      expect(screen.getByText('IDEXX Hub')).toBeInTheDocument();
+      expect(screen.getByAltText('IDEXX')).toBeInTheDocument();
+      expect(screen.getByText('Hub')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'IDEXX Hub info' })).toBeInTheDocument();
       expect(screen.getByText('Open Integrations')).toBeInTheDocument();
     });

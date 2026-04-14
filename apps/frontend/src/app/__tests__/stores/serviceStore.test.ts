@@ -297,5 +297,30 @@ describe('Service Store', () => {
       expect(useServiceStore.getState().servicesById['srv-1']).toBeDefined();
       expect(useServiceStore.getState().serviceIdsBySpecialityId['missing-spec']).toBeUndefined();
     });
+
+    it('setServicesForOrg with a service having no specialityId does not update speciality index', () => {
+      const store = useServiceStore.getState();
+      // Start with an org that has srv-1 (spec-X)
+      store.setServices([mockService1]);
+
+      // Replace with a service that has no specialityId
+      store.setServicesForOrg('org-A', [mockServiceNoSpec]);
+
+      const state = useServiceStore.getState();
+      // srv-4 is now in org-A
+      expect(state.serviceIdsByOrgId['org-A']).toEqual(['srv-4']);
+      // spec-X should be cleaned up since srv-1 was removed
+      expect(state.serviceIdsBySpecialityId['spec-X'] ?? []).toEqual([]);
+      // no new speciality index entry for srv-4
+      expect(Object.keys(state.serviceIdsBySpecialityId)).not.toContain('undefined');
+    });
+
+    it('addService with no specialityId does not create speciality index entry', () => {
+      const store = useServiceStore.getState();
+      store.addService(mockServiceNoSpec);
+      const state = useServiceStore.getState();
+      expect(state.serviceIdsByOrgId['org-A']).toContain('srv-4');
+      expect(Object.keys(state.serviceIdsBySpecialityId)).toHaveLength(0);
+    });
   });
 });

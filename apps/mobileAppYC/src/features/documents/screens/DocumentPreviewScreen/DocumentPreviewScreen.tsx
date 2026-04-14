@@ -18,10 +18,19 @@ import {
   resolveSubcategoryLabel,
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
-import {DetailsCard, type DetailItem, type DetailBadge} from '@/shared/components/common/DetailsCard';
+import {
+  DetailsCard,
+  type DetailItem,
+  type DetailBadge,
+} from '@/shared/components/common/DetailsCard';
+import {parseISODate} from '@/shared/utils/dateHelpers';
 
-type DocumentPreviewNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
-type DocumentPreviewRouteProp = RouteProp<DocumentStackParamList, 'DocumentPreview'>;
+type DocumentPreviewNavigationProp =
+  NativeStackNavigationProp<DocumentStackParamList>;
+type DocumentPreviewRouteProp = RouteProp<
+  DocumentStackParamList,
+  'DocumentPreview'
+>;
 
 export const DocumentPreviewScreen: React.FC = () => {
   const {theme} = useTheme();
@@ -40,7 +49,9 @@ export const DocumentPreviewScreen: React.FC = () => {
   );
 
   const companion = useSelector((state: RootState) =>
-    document ? state.companion.companions.find(c => c.id === document.companionId) : null,
+    document
+      ? state.companion.companions.find(c => c.id === document.companionId)
+      : null,
   );
 
   const hasViewableAttachments = React.useMemo(() => {
@@ -63,7 +74,8 @@ export const DocumentPreviewScreen: React.FC = () => {
       const hasView =
         typeof file.viewUrl === 'string' && /^https?:\/\//i.test(file.viewUrl);
       const hasDownload =
-        typeof file.downloadUrl === 'string' && /^https?:\/\//i.test(file.downloadUrl);
+        typeof file.downloadUrl === 'string' &&
+        /^https?:\/\//i.test(file.downloadUrl);
       return !(hasView && hasDownload);
     });
 
@@ -80,7 +92,9 @@ export const DocumentPreviewScreen: React.FC = () => {
     if (!document?.issueDate) {
       return '—';
     }
-    const parsed = new Date(document.issueDate);
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(document.issueDate)
+      ? parseISODate(document.issueDate)
+      : new Date(document.issueDate);
     if (Number.isNaN(parsed.getTime())) {
       return '—';
     }
@@ -94,7 +108,11 @@ export const DocumentPreviewScreen: React.FC = () => {
   if (!document) {
     return (
       <SafeArea>
-        <Header title="Document" showBackButton={true} onBack={() => navigation.goBack()} />
+        <Header
+          title="Document"
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Document not found</Text>
         </View>
@@ -126,7 +144,11 @@ export const DocumentPreviewScreen: React.FC = () => {
       hidden: !document.visitType || document.visitType === 'other',
     },
     {label: 'Issue Date', value: formattedIssueDate},
-    {label: 'Appointment ID', value: document.appointmentId || '', hidden: !document.appointmentId},
+    {
+      label: 'Appointment ID',
+      value: document.appointmentId || '',
+      hidden: !document.appointmentId,
+    },
     {label: 'Files', value: document.files?.length || 0},
     {
       label: 'Created',
@@ -170,8 +192,15 @@ export const DocumentPreviewScreen: React.FC = () => {
       {contentPaddingStyle => (
         <ScrollView
           style={styles.container}
-          contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}>
-          <DetailsCard title="Document Details" items={detailItems} badges={badges} />
+          contentContainerStyle={[
+            styles.contentContainer,
+            contentPaddingStyle,
+          ]}>
+          <DetailsCard
+            title="Document Details"
+            items={detailItems}
+            badges={badges}
+          />
 
           <View style={styles.documentPreview}>
             <DocumentAttachmentViewer

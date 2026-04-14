@@ -11,17 +11,27 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import { useAuthStore } from '@/app/stores/authStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
+const canUseLocalDeveloperFallback = () => {
+  if (process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD !== 'true') return false;
+  const hostname = (
+    process.env.YC_TEST_HOSTNAME ?? globalThis.window?.location?.hostname
+  )?.toLowerCase();
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+};
+
 const DeveloperLanding = () => {
   const router = useRouter();
-  const { status, user } = useAuthStore();
+  const { status, user, role } = useAuthStore();
 
   const handleDeveloperCTA = () => {
-    // Check if user is authenticated AND has devAuth flag set (is a developer)
     const isAuthenticated =
       (status === 'authenticated' || status === 'signin-authenticated') && user;
-    const isDevAuth = globalThis.window?.sessionStorage?.getItem('devAuth') === 'true';
+    const isDevAuth =
+      canUseLocalDeveloperFallback() &&
+      globalThis.window?.sessionStorage?.getItem('devAuth') === 'true';
+    const isDeveloper = role === 'developer' || isDevAuth;
 
-    const target = isAuthenticated && isDevAuth ? '/developers/home' : '/developers/signin';
+    const target = isAuthenticated && isDeveloper ? '/developers/home' : '/developers/signin';
     router.push(target);
   };
 

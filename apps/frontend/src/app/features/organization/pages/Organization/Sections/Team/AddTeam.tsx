@@ -1,24 +1,21 @@
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import Modal from "@/app/ui/overlays/Modal";
-import React, { useMemo, useState } from "react";
-import {
-  EmploymentTypes,
-  RoleOptions,
-} from "@/app/features/organization/pages/Organization/types";
-import { Primary } from "@/app/ui/primitives/Buttons";
-import SelectLabel from "@/app/ui/inputs/SelectLabel";
-import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
-import { sendInvite } from "@/app/features/organization/services/teamService";
-import { isValidEmail } from "@/app/lib/validators";
-import { TeamFormDataType } from "@/app/features/organization/types/team";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import Close from "@/app/ui/primitives/Icons/Close";
-import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
-import { useSubscriptionCounterUpdate } from "@/app/hooks/useStripeOnboarding";
-import { useCanMoreForPrimaryOrg } from "@/app/hooks/useBilling";
-import { IoIosWarning } from "react-icons/io";
-import { useNotify } from "@/app/hooks/useNotify";
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import Modal from '@/app/ui/overlays/Modal';
+import React, { useMemo, useState } from 'react';
+import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import SelectLabel from '@/app/ui/inputs/SelectLabel';
+import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
+import { sendInvite } from '@/app/features/organization/services/teamService';
+import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
+import { TeamFormDataType } from '@/app/features/organization/types/team';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import Close from '@/app/ui/primitives/Icons/Close';
+import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
+import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
+import { useCanMoreForPrimaryOrg } from '@/app/hooks/useBilling';
+import { IoIosWarning } from 'react-icons/io';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type AddTeamProps = {
   showModal: boolean;
@@ -26,9 +23,9 @@ type AddTeamProps = {
 };
 
 const initialData = {
-  email: "",
+  email: '',
   speciality: [],
-  role: "",
+  role: '',
   type: EmploymentTypes[0].value,
 };
 
@@ -36,7 +33,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
   const { notify } = useNotify();
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
-  const { canMore, reason } = useCanMoreForPrimaryOrg("users");
+  const { canMore, reason } = useCanMoreForPrimaryOrg('users');
   const [formData, setFormData] = useState<TeamFormDataType>(initialData);
   const [formDataErrors, setFormDataErrors] = useState<{
     email?: string;
@@ -47,7 +44,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
 
   const SpecialitiesOptions = useMemo(
     () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
-    [specialities],
+    [specialities]
   );
 
   const handleSave = async () => {
@@ -57,35 +54,35 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
       role?: string;
       booking?: string;
     } = {};
+    const normalizedEmail = normalizeEmail(formData.email);
     if (!canMore) {
       errors.booking =
-        reason === "limit_reached"
-          ? "You’ve reached your free user limit. Please upgrade to book more."
-          : "We couldn’t verify your users limit right now. Please try again.";
+        reason === 'limit_reached'
+          ? 'You’ve reached your free user limit. Please upgrade to book more.'
+          : 'We couldn’t verify your users limit right now. Please try again.';
     }
-    if (!formData.email) errors.email = "Email is required";
-    if (formData.speciality.length === 0)
-      errors.speciality = "Speciality is required";
-    if (!formData.role) errors.role = "Role is required";
-    if (!isValidEmail(formData.email)) errors.email = "Enter a valid email";
+    const emailError = getEmailValidationError(normalizedEmail);
+    if (emailError) errors.email = emailError;
+    if (formData.speciality.length === 0) errors.speciality = 'Speciality is required';
+    if (!formData.role) errors.role = 'Role is required';
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
     try {
-      await sendInvite(formData);
+      await sendInvite({ ...formData, email: normalizedEmail });
       await refetchData();
-      notify("success", {
-        title: "Invite sent",
-        text: "Invite has been sent successfully.",
+      notify('success', {
+        title: 'Invite sent',
+        text: 'Invite has been sent successfully.',
       });
       setShowModal(false);
       setFormData(initialData);
     } catch (error) {
       console.log(error);
-      notify("error", {
-        title: "Unable to send invite",
-        text: "Failed to send invite. Please try again.",
+      notify('error', {
+        title: 'Unable to send invite',
+        text: 'Failed to send invite. Please try again.',
       });
     }
   };
@@ -104,21 +101,17 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
         </div>
 
         <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
-          <Accordion
-            title="Add team"
-            defaultOpen
-            showEditIcon={false}
-            isEditing={true}
-          >
+          <Accordion title="Add team" defaultOpen showEditIcon={false} isEditing={true}>
             <div className="flex flex-col gap-3">
               <FormInput
                 intype="email"
                 inname="email"
                 value={formData.email}
                 inlabel="Email"
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  setFormDataErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 error={formDataErrors.email}
                 className="min-h-12!"
               />
@@ -131,9 +124,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
               />
               <LabelDropdown
                 placeholder="Role"
-                onSelect={(option) =>
-                  setFormData({ ...formData, role: option.value })
-                }
+                onSelect={(option) => setFormData({ ...formData, role: option.value })}
                 defaultOption={formData.role}
                 error={formDataErrors.role}
                 options={RoleOptions.slice(1)}
@@ -142,9 +133,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 title="Employee type"
                 options={EmploymentTypes}
                 activeOption={formData.type}
-                setOption={(value: string) =>
-                  setFormData({ ...formData, type: value })
-                }
+                setOption={(value: string) => setFormData({ ...formData, type: value })}
                 type="coloumn"
               />
             </div>
@@ -156,12 +145,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                 <span>{formDataErrors.booking}</span>
               </div>
             )}
-            <Primary
-              href="#"
-              text="Send invite"
-              onClick={handleSave}
-              classname="w-full"
-            />
+            <Primary href="#" text="Send invite" onClick={handleSave} className="w-full" />
           </div>
         </div>
       </div>

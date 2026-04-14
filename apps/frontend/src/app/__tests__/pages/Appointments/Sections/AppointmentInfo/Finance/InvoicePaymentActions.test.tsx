@@ -62,11 +62,11 @@ describe('InvoicePaymentActions', () => {
     expect(screen.getByText('Collect cash')).toBeInTheDocument();
     expect(notifyMock).toHaveBeenCalledWith('warning', {
       title: 'Confirm cash collection',
-      text: 'Record cash only after you have physically received the payment at the clinic.',
+      text: 'Record cash only after you have physically received the payment from the client.',
     });
     expect(notifyMock).toHaveBeenCalledWith('info', {
       title: 'Cash collection ready',
-      text: 'Payment collection method is set to cash at clinic. Click Collect cash after receiving payment.',
+      text: 'Payment collection method is set to in-person cash. Click Collect cash after receiving payment.',
     });
     expect(screen.queryByText('Generate & Mail link')).not.toBeInTheDocument();
   });
@@ -99,7 +99,7 @@ describe('InvoicePaymentActions', () => {
     expect(loadAppointmentsForPrimaryOrgMock).toHaveBeenCalledWith({ force: true, silent: true });
     expect(notifyMock).toHaveBeenCalledWith('success', {
       title: 'Cash payment recorded',
-      text: 'The invoice was marked paid after confirming cash collection at the clinic.',
+      text: 'The invoice was marked paid after confirming in-person cash collection.',
     });
   });
 

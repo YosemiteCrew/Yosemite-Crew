@@ -1,5 +1,8 @@
 import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
 import {resolveObservationToolIdSync} from '@/features/observationalTools/services/observationToolService';
 import type {
@@ -11,7 +14,11 @@ import type {
   RecurrenceType,
   TaskFormData,
 } from '@/features/tasks/types';
-import {formatDateToISODate, formatTimeToISO, formatEndDateToISO} from '@/features/tasks/utils/taskBuilder';
+import {
+  formatDateToISODate,
+  formatTimeToISO,
+  formatEndDateToISO,
+} from '@/features/tasks/utils/taskBuilder';
 
 export interface TaskDraftPayload {
   companionId: string;
@@ -44,7 +51,10 @@ export interface TaskDraftPayload {
   observationToolId?: string | null;
 }
 
-const ensureAccessToken = async (): Promise<{accessToken: string; userId?: string}> => {
+const ensureAccessToken = async (): Promise<{
+  accessToken: string;
+  userId?: string;
+}> => {
   const tokens = await getFreshStoredTokens();
   const accessToken = tokens?.accessToken;
   const userId = tokens?.userId;
@@ -60,11 +70,13 @@ const ensureAccessToken = async (): Promise<{accessToken: string; userId?: strin
   return {accessToken, userId};
 };
 
-const resolveDateParts = (dueAt?: string | null): {date: string; time?: string} => {
+const resolveDateParts = (
+  dueAt?: string | null,
+): {date: string; time?: string} => {
   if (!dueAt) {
     const today = new Date();
     return {
-      date: formatDateToISODate(today) ?? today.toISOString().split('T')[0],
+      date: formatDateToISODate(today)!,
       time: undefined,
     };
   }
@@ -73,18 +85,20 @@ const resolveDateParts = (dueAt?: string | null): {date: string; time?: string} 
   if (Number.isNaN(dt.getTime())) {
     const today = new Date();
     return {
-      date: formatDateToISODate(today) ?? today.toISOString().split('T')[0],
+      date: formatDateToISODate(today)!,
       time: undefined,
     };
   }
 
   return {
-    date: formatDateToISODate(dt) ?? dt.toISOString().split('T')[0],
+    date: formatDateToISODate(dt)!,
     time: formatTimeToISO(dt) ?? undefined,
   };
 };
 
-const mapReminderOptionFromOffset = (offsetMinutes?: number | null): Task['reminderOptions'] => {
+const mapReminderOptionFromOffset = (
+  offsetMinutes?: number | null,
+): Task['reminderOptions'] => {
   if (offsetMinutes == null) return null;
   const mapping: Record<number, Task['reminderOptions']> = {
     5: '5-mins-prior',
@@ -97,7 +111,9 @@ const mapReminderOptionFromOffset = (offsetMinutes?: number | null): Task['remin
   return mapping[offsetMinutes] ?? null;
 };
 
-const mapReminderOptionToOffset = (option: TaskFormData['reminderOptions']): number | null => {
+const mapReminderOptionToOffset = (
+  option: TaskFormData['reminderOptions'],
+): number | null => {
   const mapping: Record<string, number> = {
     '5-mins-prior': 5,
     '30-mins-prior': 30,
@@ -124,7 +140,9 @@ const mapBackendCategoryToUi = (category?: string): Task['category'] => {
   }
 };
 
-const mapRecurrenceToFrequency = (recurrence?: {type?: RecurrenceType}): Task['frequency'] => {
+const mapRecurrenceToFrequency = (recurrence?: {
+  type?: RecurrenceType;
+}): Task['frequency'] => {
   switch (recurrence?.type) {
     case 'DAILY':
       return 'daily';
@@ -137,7 +155,9 @@ const mapRecurrenceToFrequency = (recurrence?: {type?: RecurrenceType}): Task['f
   }
 };
 
-const mapFrequencyToRecurrence = (frequency?: TaskFormData['frequency'] | TaskFormData['medicationFrequency']): RecurrenceType => {
+const mapFrequencyToRecurrence = (
+  frequency?: TaskFormData['frequency'] | TaskFormData['medicationFrequency'],
+): RecurrenceType => {
   if (!frequency) return 'ONCE';
   const freq = frequency.toString().toLowerCase();
   if (freq === 'daily' || freq === 'every-day') return 'DAILY';
@@ -149,15 +169,8 @@ const mapFrequencyToRecurrence = (frequency?: TaskFormData['frequency'] | TaskFo
 
 const normalizeAttachment = (att: any): TaskAttachment => {
   const keyFromId =
-    typeof att?.id === 'string' && att.id.includes('/')
-      ? att.id
-      : undefined;
-  const key =
-    att?.key ??
-    keyFromId ??
-    att?.id ??
-    att?._id ??
-    att?.name;
+    typeof att?.id === 'string' && att.id.includes('/') ? att.id : undefined;
+  const key = att?.key ?? keyFromId ?? att?.id ?? att?._id ?? att?.name;
   const name = att?.name ?? att?.fileName ?? key ?? 'attachment';
   const guessMimeFromName = (fileName?: string | null): string | undefined => {
     if (!fileName || typeof fileName !== 'string') return undefined;
@@ -167,7 +180,8 @@ const normalizeAttachment = (att: any): TaskAttachment => {
     if (lower.endsWith('.webp')) return 'image/webp';
     if (lower.endsWith('.pdf')) return 'application/pdf';
     if (lower.endsWith('.doc')) return 'application/msword';
-    if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    if (lower.endsWith('.docx'))
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     return undefined;
   };
 
@@ -249,8 +263,10 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
     reminderOffsetMinutes: reminder?.offsetMinutes,
     reminderOptions: reminderOption,
     syncWithCalendar: Boolean(apiTask?.syncWithCalendar),
-    calendarProvider: apiTask?.calendarProvider ?? apiTask?.calendar_provider ?? null,
-    calendarEventId: apiTask?.calendarEventId ?? apiTask?.calendar_event_id ?? null,
+    calendarProvider:
+      apiTask?.calendarProvider ?? apiTask?.calendar_provider ?? null,
+    calendarEventId:
+      apiTask?.calendarEventId ?? apiTask?.calendar_event_id ?? null,
     attachDocuments: attachmentList.length > 0,
     attachments: attachmentList,
     additionalNote: undefined,
@@ -259,7 +275,9 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
     completedAt: apiTask?.completedAt,
     createdAt: apiTask?.createdAt ?? new Date().toISOString(),
     updatedAt: apiTask?.updatedAt ?? new Date().toISOString(),
-    observationToolId: resolveObservationToolIdSync(apiTask?.observationToolId ?? null),
+    observationToolId: resolveObservationToolIdSync(
+      apiTask?.observationToolId ?? null,
+    ),
     appointmentId: apiTask?.appointmentId ?? null,
     otSubmissionId: apiTask?.otSubmissionId ?? null,
     details: (() => {
@@ -269,8 +287,14 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
           doses.length > 0
             ? doses.map((dose: any, index: number) => ({
                 id: dose?.id ?? `dose-${index + 1}`,
-                label: dose?.dosage ?? dose?.label ?? medication?.dosage ?? `Dose ${index + 1}`,
-                time: formatDoseTime(dose?.time ?? time ?? formatTimeToISO(new Date(dueAt))),
+                label:
+                  dose?.dosage ??
+                  dose?.label ??
+                  medication?.dosage ??
+                  `Dose ${index + 1}`,
+                time: formatDoseTime(
+                  dose?.time ?? time ?? formatTimeToISO(new Date(dueAt)),
+                ),
               }))
             : (() => {
                 const timeIso = time || formatTimeToISO(new Date(dueAt));
@@ -314,11 +338,19 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
         };
       }
 
-      if (apiTask?.category === 'OBSERVATION_TOOL' || apiTask?.observationToolId) {
-        const resolvedToolId = resolveObservationToolIdSync(apiTask?.observationToolId ?? null);
+      if (
+        apiTask?.category === 'OBSERVATION_TOOL' ||
+        apiTask?.observationToolId
+      ) {
+        const resolvedToolId = resolveObservationToolIdSync(
+          apiTask?.observationToolId ?? null,
+        );
         return {
           taskType: 'take-observational-tool',
-          toolType: resolvedToolId ?? apiTask?.observationToolId ?? 'observational-tool',
+          toolType:
+            resolvedToolId ??
+            apiTask?.observationToolId ??
+            'observational-tool',
           chronicConditionType: apiTask?.chronicConditionType,
         };
       }
@@ -342,9 +374,12 @@ export const buildTaskDraftFromForm = ({
   const taskDate = formData.date || formData.startDate || new Date();
   const formattedDate =
     formatDateToISODate(taskDate) || taskDate.toISOString().split('T')[0];
-  const formattedTime =
-    formData.time ? formatTimeToISO(formData.time) : undefined;
-  const dueAt = new Date(`${formattedDate}T${formattedTime ?? '00:00:00'}`).toISOString();
+  const formattedTime = formData.time
+    ? formatTimeToISO(formData.time)
+    : undefined;
+  const dueAt = new Date(
+    `${formattedDate}T${formattedTime ?? '00:00:00'}`,
+  ).toISOString();
   const timezone = (() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
@@ -353,7 +388,9 @@ export const buildTaskDraftFromForm = ({
     }
   })();
 
-  const reminderOffsetMinutes = mapReminderOptionToOffset(formData.reminderOptions);
+  const reminderOffsetMinutes = mapReminderOptionToOffset(
+    formData.reminderOptions,
+  );
 
   // For medication tasks, prioritize medicationFrequency over frequency
   const selectedFrequency = formData.medicationFrequency || formData.frequency;
@@ -379,7 +416,9 @@ export const buildTaskDraftFromForm = ({
     category = 'CUSTOM';
   }
 
-  const attachments: TaskAttachment[] = (formData.attachments || []).map(att => normalizeAttachment(att));
+  const attachments: TaskAttachment[] = (formData.attachments || []).map(att =>
+    normalizeAttachment(att),
+  );
 
   return {
     companionId,
@@ -392,7 +431,9 @@ export const buildTaskDraftFromForm = ({
     assignedTo: formData.assignedTo || undefined,
     recurrence: {
       type: recurrenceType,
-      endDate: formData.endDate ? formatEndDateToISO(formData.endDate) : undefined,
+      endDate: formData.endDate
+        ? formatEndDateToISO(formData.endDate)
+        : undefined,
       cronExpression: undefined,
     },
     calendarEventId: undefined,
@@ -411,16 +452,15 @@ export const buildTaskDraftFromForm = ({
         ? ({
             name: formData.medicineName,
             type: formData.medicineType ?? undefined,
-            doses:
-              formData.dosages?.length
-                ? formData.dosages.map((dose, index) => {
-                    const hhmm = formatDoseTime(dose.time);
-                    return {
-                      dosage: dose.label || `Dose ${index + 1}`,
-                      time: hhmm,
-                    };
-                  })
-                : undefined,
+            doses: formData.dosages?.length
+              ? formData.dosages.map((dose, index) => {
+                  const hhmm = formatDoseTime(dose.time);
+                  return {
+                    dosage: dose.label || `Dose ${index + 1}`,
+                    time: hhmm,
+                  };
+                })
+              : undefined,
             dosage: undefined,
             frequency:
               (formData.medicationFrequency
@@ -430,7 +470,9 @@ export const buildTaskDraftFromForm = ({
         : null,
     observationToolId:
       category === 'OBSERVATION_TOOL'
-        ? resolveObservationToolIdSync(observationToolId ?? formData.observationalTool ?? null)
+        ? resolveObservationToolIdSync(
+            observationToolId ?? formData.observationalTool ?? null,
+          )
         : null,
   };
 };
@@ -476,12 +518,16 @@ export const taskApi = {
 
   async update(taskId: string, updates: Partial<TaskDraftPayload>) {
     const {accessToken, userId} = await ensureAccessToken();
-    const response = await apiClient.patch(`/v1/task/mobile/${taskId}`, updates, {
-      headers: {
-        ...withAuthHeaders(accessToken),
-        ...(userId ? {'x-user-id': userId} : {}),
+    const response = await apiClient.patch(
+      `/v1/task/mobile/${taskId}`,
+      updates,
+      {
+        headers: {
+          ...withAuthHeaders(accessToken),
+          ...(userId ? {'x-user-id': userId} : {}),
+        },
       },
-    });
+    );
     return mapApiTaskToTask(response.data);
   },
 

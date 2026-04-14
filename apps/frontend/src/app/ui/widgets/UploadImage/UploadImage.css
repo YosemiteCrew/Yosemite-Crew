@@ -25,7 +25,7 @@
 }
 .UploadAreaData .upldCont h6 {
   color: var(--black-text);
-  font-family: var(--grotesk-font);
+  font-family: var(--font-satoshi);
   font-weight: 500;
   font-size: 18px;
   line-height: 120%;

@@ -3,10 +3,13 @@
 exports[`GenericEmptyScreen renders correctly and matches snapshot 1`] = `
 <View
   style={
-    {
-      "backgroundColor": "#FFFEFE",
-      "flex": 1,
-    }
+    [
+      {
+        "backgroundColor": "#FFFEFE",
+        "flex": 1,
+      },
+      {},
+    ]
   }
 >
   <View

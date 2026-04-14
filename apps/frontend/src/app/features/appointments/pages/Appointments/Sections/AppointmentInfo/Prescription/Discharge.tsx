@@ -1,7 +1,7 @@
-import React from "react";
-import { Appointment } from "@yosemite-crew/types";
-import { FormDataProps } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo";
-import PrescriptionFormSection from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/PrescriptionFormSection";
+import React from 'react';
+import { Appointment } from '@yosemite-crew/types';
+import { FormDataProps } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo';
+import PrescriptionFormSection from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/PrescriptionFormSection';
 
 type DischargeSummaryProps = {
   formData: FormDataProps;
@@ -20,7 +20,7 @@ const Discharge = ({
     title="Discharge summary"
     submissionsTitle="Previous discharge submissions"
     searchPlaceholder="Search"
-    category="Prescription"
+    category="Discharge Form"
     formDataKey="discharge"
     formData={formData}
     setFormData={setFormData}

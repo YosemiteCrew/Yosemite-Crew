@@ -12,7 +12,8 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
       {id: 'passport', label: 'Passport', fileCount: 0},
       {
         id: 'certificates',
-        label: 'Certificates (incl. pedigree, microchip, awards, breeder papers)',
+        label:
+          'Certificates (incl. pedigree, microchip, awards, breeder papers)',
         fileCount: 0,
       },
       {id: 'insurance', label: 'Insurance', fileCount: 0},
@@ -33,7 +34,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
       },
       {
         id: 'vaccination-parasite',
-        label: 'Vaccination, parasite prevention & chronic condition',
+        label: 'Vaccination & parasite prevention',
         fileCount: 0,
       },
       {id: 'lab-tests', label: 'Lab tests', fileCount: 0},
@@ -50,7 +51,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
       {id: 'boarding-records', label: 'Boarding records', fileCount: 0},
       {
         id: 'training-behaviour',
-        label: 'Training & behaviour reports',
+        label: 'Training & behavior reports',
         fileCount: 0,
       },
       {id: 'breeder-interactions', label: 'Breeder interactions', fileCount: 0},
@@ -62,7 +63,9 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     icon: Images.dietaryIcon,
     isSynced: false,
     fileCount: 0,
-    subcategories: [{id: 'nutrition-plans', label: 'Nutrition plans', fileCount: 0}],
+    subcategories: [
+      {id: 'nutrition-plans', label: 'Nutrition plans', fileCount: 0},
+    ],
   },
   {
     id: 'others',

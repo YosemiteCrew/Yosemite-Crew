@@ -7,13 +7,18 @@ import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSea
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import LogoUploader from '@/app/ui/widgets/UploadImage/LogoUploader';
 import { BusinessTypes } from '@/app/features/organization/types/org';
-import { getCountryCode, validatePhone } from '@/app/lib/validators';
+import { validatePhone } from '@/app/lib/validators';
 import { createOrg } from '@/app/features/organization/services/orgService';
 import { Organisation } from '@yosemite-crew/types';
 
 import './Step.css';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import { CountriesOptions } from '@/app/features/companions/components/AddCompanion/type';
+import {
+  CountryDialCodeOption,
+  CountryDialCodeOptions,
+  findPhoneData,
+  getDigitsOnly,
+} from '@/app/features/companions/components/AddCompanion/type';
 import {
   CompanionTerminologyOption,
   bindPendingCompanionTerminologyToOrg,
@@ -39,6 +44,11 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
   const [companionTerminology, setCompanionTerminology] = useState<CompanionTerminologyOption>(
     getCompanionTerminologyForOrg(undefined, formData.type)
   );
+  const initialPhoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
+  const [selectedCountryCode, setSelectedCountryCode] = useState<CountryDialCodeOption>(
+    initialPhoneData.selectedCode
+  );
+  const [localPhoneNumber, setLocalPhoneNumber] = useState(initialPhoneData.localNumber);
 
   useEffect(() => {
     setCompanionTerminology(getCompanionTerminologyForOrg(undefined, formData.type));
@@ -53,17 +63,16 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
     } = {};
     if (!formData.name) errors.name = 'Name is required';
     if (!formData.address?.country) errors.country = 'Country is required';
-    if (!formData.phoneNo) errors.number = 'Number is required';
+    if (!selectedCountryCode?.dialCode) errors.number = 'Country code is required';
+    if (!localPhoneNumber) errors.number = 'Number is required';
     if (!formData.taxId) errors.taxId = 'TaxID is required';
-    const selectedCountry = getCountryCode(formData.address?.country);
-    if (selectedCountry) {
-      const countryCode = selectedCountry.dial_code;
-      const fullMobile = countryCode + formData.phoneNo;
+    if (!selectedCountryCode?.dialCode || !localPhoneNumber) {
+      errors.number = 'Valid number is required';
+    } else {
+      const fullMobile = `${selectedCountryCode.dialCode}${localPhoneNumber}`;
       if (!validatePhone(fullMobile)) {
         errors.number = 'Valid number is required';
       }
-    } else {
-      errors.number = 'Valid number is required';
     }
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -78,6 +87,31 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
     } catch (error: any) {
       console.error('Error creating organization:', error);
     }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const sanitized = getDigitsOnly(value).slice(0, 15);
+    setLocalPhoneNumber(sanitized);
+    setFormData((prev) => ({
+      ...prev,
+      phoneNo: sanitized ? `${selectedCountryCode.dialCode}${sanitized}` : '',
+    }));
+  };
+
+  const handleCountryCodeSelect = (value: string) => {
+    const selected = CountryDialCodeOptions.find((option) => option.value === value);
+    if (!selected) {
+      return;
+    }
+    setSelectedCountryCode(selected);
+    setFormData((prev) => ({
+      ...prev,
+      phoneNo: localPhoneNumber ? `${selected.dialCode}${localPhoneNumber}` : '',
+      address: {
+        ...prev.address,
+        country: selected.countryName,
+      },
+    }));
   };
 
   return (
@@ -131,27 +165,26 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
               onChange={(e) => setFormData({ ...formData, website: e.target.value })}
             />
           </div>
-          <div className="step-two-input">
-            <LabelDropdown
-              placeholder="Select country"
-              onSelect={(option) =>
-                setFormData({
-                  ...formData,
-                  address: { ...formData.address, country: option.value },
-                })
-              }
-              defaultOption={formData.address?.country}
-              options={CountriesOptions}
-              error={formDataErrors.country}
-            />
-            <FormInput
-              intype="tel"
-              inname="number"
-              value={formData.phoneNo || ''}
-              inlabel="Phone number"
-              onChange={(e) => setFormData({ ...formData, phoneNo: e.target.value })}
-              error={formDataErrors.number}
-            />
+          <div className="grid grid-cols-12 gap-3">
+            <div className="col-span-5">
+              <LabelDropdown
+                placeholder="Country code"
+                onSelect={(option) => handleCountryCodeSelect(option.value)}
+                defaultOption={selectedCountryCode.value}
+                options={CountryDialCodeOptions}
+                error={formDataErrors.country}
+              />
+            </div>
+            <div className="col-span-7">
+              <FormInput
+                intype="tel"
+                inname="number"
+                value={localPhoneNumber}
+                inlabel="Phone number"
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                error={formDataErrors.number}
+              />
+            </div>
           </div>
 
           <div className="step-two-input">
@@ -179,6 +212,32 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
               inlabel="Tax ID"
               onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
               error={formDataErrors.taxId}
+            />
+          </div>
+          <div className="step-two-input">
+            <FormInput
+              intype="number"
+              inname="appointment-checkin-buffer-minutes"
+              value={String(formData.appointmentCheckInBufferMinutes ?? 5)}
+              inlabel="Check-in opens (minutes before appointment)"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  appointmentCheckInBufferMinutes: Number(e.target.value || 0),
+                })
+              }
+            />
+            <FormInput
+              intype="number"
+              inname="appointment-checkin-radius-meters"
+              value={String(formData.appointmentCheckInRadiusMeters ?? 200)}
+              inlabel="Check-in radius (meters)"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  appointmentCheckInRadiusMeters: Number(e.target.value || 0),
+                })
+              }
             />
           </div>
         </div>

@@ -26,9 +26,15 @@ Tooling: **pnpm workspaces** + **Turbo**. Package manager: `pnpm@8.15.6`.
 
 ---
 
+## Project Architecture Reference
+
+For architecture decisions, technical narratives, or product-engineering context, read `.claude/skills/monorepo-ops/project-baseline.md`.
+
 ## Running Commands
 
 Always use `--filter` to scope to the relevant workspace. Never run commands at root without `--filter` unless intentionally affecting all packages.
+
+When the touched workspace is `apps/frontend`, apply Sonar rules from `.claude/skills/frontend-sonar/SKILL.md` and run the mandatory frontend check order (`tsc` -> `lint` -> targeted tests).
 
 ```bash
 # Dev
@@ -104,8 +110,9 @@ Husky + commitlint are configured. Pre-commit runs lint + type-check. Commit mes
 ```
 <type>(<scope>): <subject>
 Types: feat | fix | chore | refactor | test | docs | style | perf | ci
-Scopes: frontend | backend | mobile | types | docs | repo
 ```
+
+Scope allowlist is defined centrally in root `AGENTS.md` and enforced by `commitlint.config.cjs`.
 
 Never skip hooks with `--no-verify`.
 
