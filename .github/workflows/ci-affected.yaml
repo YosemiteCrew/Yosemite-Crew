@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: '20'
 
 jobs:
   detect:
@@ -39,7 +39,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+          cache: 'pnpm'
 
       - name: Compute base SHA
         id: base
@@ -132,7 +132,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+          cache: 'pnpm'
 
       - name: Compute pnpm store path
         id: store
@@ -166,7 +166,11 @@ jobs:
         run: pnpm run build --filter "${{ matrix.workspace }}"
 
       - name: Test
-        run: pnpm run test --filter "${{ matrix.workspace }}" -- --ci
+        run: pnpm run test --filter "${{ matrix.workspace }}" -- --ci --maxWorkers=2
+
+      - name: Test (with coverage)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+        run: pnpm run test --filter "${{ matrix.workspace }}" -- --ci --maxWorkers=2 --coverage
 
   # No-ops job for PRs with no affected workspaces (keeps status checks predictable)
   no-affected:
