@@ -104,18 +104,18 @@ describe("CompanionOrganisationController", () => {
   // ----------------------------------------------------------------------
 
   describe("User ID Resolution (Coverage for helper)", () => {
-    it("should resolve user id from header x-user-id", async () => {
+    it("should ignore x-user-id and require authenticated req.userId", async () => {
       req.headers = { "x-user-id": "header-user" };
-      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue(null);
 
       await CompanionOrganisationController.linkByParent(
         req as Request,
         res as Response,
       );
 
+      expect(statusMock).toHaveBeenCalledWith(401);
       expect(
         mockedAuthUserMobileService.getByProviderUserId,
-      ).toHaveBeenCalledWith("header-user");
+      ).not.toHaveBeenCalled();
     });
 
     it("should resolve user id from req.userId", async () => {

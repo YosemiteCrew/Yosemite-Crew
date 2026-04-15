@@ -91,7 +91,7 @@ describe("CompanionOrganisationController", () => {
   });
 
   describe("resolveUserIdFromRequest & Payload Parsers (Implicitly Tested)", () => {
-    it("should prefer authReq.userId when header and auth userId are both present", async () => {
+    it("should ignore x-user-id and use authReq.userId", async () => {
       req.headers["x-user-id"] = "header_id";
       (
         AuthUserMobileService.getByProviderUserId as jest.Mock
