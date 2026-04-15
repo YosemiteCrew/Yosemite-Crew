@@ -56,7 +56,6 @@ describe('Configuration Variables', () => {
       expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(true);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('');
       expect(config.CLARITY_CONFIG.projectId).toBe('');
-      expect(config.AGE_VERIFICATION_CONFIG.serviceProviderName).toBe('');
       expect(config.MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl).toBe(
         true,
       );
@@ -106,9 +105,6 @@ describe('Configuration Variables', () => {
       AUTH_FEATURE_FLAGS: {enableReviewLogin: false},
       DEMO_LOGIN_CONFIG: {email: 'test@example.com'},
       CLARITY_CONFIG: {projectId: 'clarity-local-project-id'},
-      AGE_VERIFICATION_CONFIG: {
-        serviceProviderName: 'Yosemite Crew',
-      },
       MOBILE_CONFIG_BEHAVIOR: {
         forceProductionApiBaseUrl: false,
         mockAppUpdateFlow: 'optional',
@@ -134,9 +130,6 @@ describe('Configuration Variables', () => {
       expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('test@example.com');
       expect(config.CLARITY_CONFIG.projectId).toBe('clarity-local-project-id');
-      expect(config.AGE_VERIFICATION_CONFIG.serviceProviderName).toBe(
-        'Yosemite Crew',
-      );
       expect(config.MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl).toBe(
         false,
       );

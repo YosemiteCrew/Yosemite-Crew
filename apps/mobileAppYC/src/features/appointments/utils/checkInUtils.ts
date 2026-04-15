@@ -37,6 +37,36 @@ export const getCheckInConstants = (config?: {
   };
 };
 
+const parseLocalDateTime = (
+  dateStr: string,
+  timeStr?: string | null,
+): Date | null => {
+  const normalizedTime = normalizeTimeString(timeStr ?? '00:00');
+  const [yearRaw, monthRaw, dayRaw] = dateStr.split('-');
+  const [hourRaw, minuteRaw, secondRaw = '0'] = normalizedTime.split(':');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  const second = Number(secondRaw);
+  if (
+    Number.isNaN(year) ||
+    Number.isNaN(month) ||
+    Number.isNaN(day) ||
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    Number.isNaN(second)
+  ) {
+    return null;
+  }
+  const date = new Date(year, month - 1, day, hour, minute, second);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
+};
+
 /**
  * Check if current time is within the check-in window
  */
@@ -48,12 +78,11 @@ export const isWithinCheckInWindow = (
   const {CHECKIN_BUFFER_MS} = getCheckInConstants({
     CHECKIN_BUFFER_MINUTES: checkInBufferMinutes,
   });
-  const normalizedTime = normalizeTimeString(timeStr ?? '00:00');
-  const start = new Date(`${dateStr}T${normalizedTime}Z`).getTime();
-  if (Number.isNaN(start)) {
+  const startDate = parseLocalDateTime(dateStr, timeStr);
+  if (!startDate) {
     return true;
   }
-  return Date.now() >= start - CHECKIN_BUFFER_MS;
+  return Date.now() >= startDate.getTime() - CHECKIN_BUFFER_MS;
 };
 
 /**
@@ -63,12 +92,11 @@ export const formatCheckInTime = (
   dateStr: string,
   timeStr?: string | null,
 ): string => {
-  const normalizedTime = normalizeTimeString(timeStr ?? '00:00');
-  const start = new Date(`${dateStr}T${normalizedTime}Z`);
-  if (Number.isNaN(start.getTime())) {
+  const startDate = parseLocalDateTime(dateStr, timeStr);
+  if (!startDate) {
     return timeStr ?? '';
   }
-  return start.toLocaleTimeString('en-US', {
+  return startDate.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
   });

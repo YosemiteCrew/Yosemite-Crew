@@ -102,13 +102,16 @@ describe('mobileConfig Service', () => {
 
     it('fetches mobile config successfully', async () => {
       // Setup mock response
-      mockedAxios.get.mockResolvedValueOnce({ data: mockConfig });
+      mockedAxios.get.mockResolvedValueOnce({data: mockConfig});
 
       const result = await fetchMobileConfig();
 
       // Verify axios call
       expect(mockedAxios.get).toHaveBeenCalledWith(
-        'https://api.yosemitecrew.com/v1/mobile-config/'
+        'https://api.yosemitecrew.com/v1/mobile-config/',
+        {
+          timeout: 8000,
+        },
       );
       // Verify result
       expect(result).toEqual(mockConfig);
@@ -119,6 +122,19 @@ describe('mobileConfig Service', () => {
       mockedAxios.get.mockRejectedValueOnce(error);
 
       await expect(fetchMobileConfig()).rejects.toThrow('Network Error');
+    });
+
+    it('uses a request timeout so startup does not hang on splash indefinitely', async () => {
+      mockedAxios.get.mockResolvedValueOnce({data: mockConfig});
+
+      await fetchMobileConfig();
+
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        'https://api.yosemitecrew.com/v1/mobile-config/',
+        {
+          timeout: 8000,
+        },
+      );
     });
   });
 });
