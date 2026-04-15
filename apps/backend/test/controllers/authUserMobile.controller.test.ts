@@ -54,6 +54,7 @@ describe("AuthUserMobileController", () => {
         userId: "provider-1",
         provider: "congito",
         email: "user@example.com",
+        emailVerified: true,
       } as any;
       const res = createResponse();
       const authUser = { id: "auth-1" };
@@ -79,6 +80,33 @@ describe("AuthUserMobileController", () => {
         authUser,
         parentLinked: true,
         parent,
+      });
+    });
+
+    it("does not auto-link parent when email is not verified", async () => {
+      const req = {
+        userId: "provider-1",
+        provider: "firebase",
+        email: "user@example.com",
+        emailVerified: false,
+      } as any;
+      const res = createResponse();
+      const authUser = { id: "auth-1" };
+      mockedAuthUserMobileService.createOrGetAuthUser.mockResolvedValueOnce(
+        authUser,
+      );
+
+      await AuthUserMobileController.signup(req, res as any);
+
+      expect(
+        mockedAuthUserMobileService.autoLinkParentByEmail,
+      ).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        authUser,
+        parentLinked: false,
+        parent: null,
       });
     });
 
