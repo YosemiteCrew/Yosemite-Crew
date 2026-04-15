@@ -211,6 +211,16 @@ function App(): React.JSX.Element {
           MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow,
         );
 
+        console.log('[MobileConfig] Effective runtime config', {
+          skipRemoteFetch: MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch,
+          forceProductionApiBaseUrl:
+            MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl,
+          mockAppUpdateFlow: MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow,
+          env: config.env,
+          hasAppUpdate: Boolean(config.appUpdate),
+          appUpdate: config.appUpdate,
+        });
+
         if (mounted) {
           const resolvedBaseUrl =
             MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl
@@ -254,14 +264,31 @@ function App(): React.JSX.Element {
             bundleId,
           );
 
+          console.log('[AppUpdate] Prompt evaluation', {
+            currentVersion,
+            currentBuildNumber,
+            bundleId,
+            evaluatedPrompt,
+          });
+
           if (evaluatedPrompt?.kind === 'optional') {
             const lastPromptedAt = await AsyncStorage.getItem(
               OPTIONAL_UPDATE_LAST_PROMPTED_AT_KEY,
             );
-            const shouldShow = shouldShowOptionalPrompt(
+            const shouldBypassDeferral =
+              MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow === 'optional';
+            const shouldShow =
+              shouldBypassDeferral ||
+              shouldShowOptionalPrompt(
+                lastPromptedAt,
+                evaluatedPrompt.remindAfterHours,
+              );
+            console.log('[AppUpdate] Optional prompt visibility', {
               lastPromptedAt,
-              evaluatedPrompt.remindAfterHours,
-            );
+              remindAfterHours: evaluatedPrompt.remindAfterHours,
+              shouldBypassDeferral,
+              shouldShow,
+            });
             setAppUpdatePrompt(shouldShow ? evaluatedPrompt : null);
           } else {
             setAppUpdatePrompt(evaluatedPrompt);
@@ -433,7 +460,20 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
   const updateSheetRef = useRef<AppUpdateBottomSheetRef>(null);
 
   useEffect(() => {
+    console.log('[AppUpdate] Gate state', {
+      kind: prompt?.kind ?? null,
+      hasStoreUrl: Boolean(prompt?.storeUrl),
+    });
     if (!prompt) return;
+    if (prompt.kind === 'required') {
+      return;
+    }
+    if (
+      prompt.kind === 'optional' &&
+      MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow === 'optional'
+    ) {
+      return;
+    }
 
     let cancelled = false;
     let retries = 0;
@@ -446,6 +486,10 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
 
       const ref = updateSheetRef.current;
       if (ref) {
+        console.log('[AppUpdate] Opening update sheet', {
+          kind: prompt.kind,
+          retry: retries,
+        });
         ref.open();
         return;
       }
@@ -473,11 +517,15 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
 
   return (
     <>
-      {prompt?.kind === 'required' ? null : children}
+      {children}
       {prompt ? (
         <AppUpdateBottomSheet
           ref={updateSheetRef}
           prompt={prompt}
+          initialOpen={
+            prompt.kind === 'optional' &&
+            MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow === 'optional'
+          }
           onDeferred={onDeferred}
         />
       ) : null}

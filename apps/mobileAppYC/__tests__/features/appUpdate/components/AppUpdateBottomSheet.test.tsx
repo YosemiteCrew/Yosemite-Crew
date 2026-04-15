@@ -105,6 +105,7 @@ describe('AppUpdateBottomSheet', () => {
     render(<AppUpdateBottomSheet prompt={requiredPrompt} />);
 
     const props = mockConfirmActionBottomSheet.mock.calls[0][0];
+    expect(props.initialIndex).toBe(0);
     expect(props.enablePanDown).toBe(false);
     expect(props.enableHandlePanning).toBe(false);
     expect(props.showCloseButton).toBe(false);
@@ -118,10 +119,24 @@ describe('AppUpdateBottomSheet', () => {
     );
 
     const props = mockConfirmActionBottomSheet.mock.calls[0][0];
+    expect(props.initialIndex).toBe(-1);
     expect(props.enablePanDown).toBe(true);
     expect(props.showCloseButton).toBe(true);
     expect(props.backdropPressBehavior).toBe('close');
     expect(props.secondaryButton).toBeDefined();
+  });
+
+  it('can mount optional prompt open when requested for local mock testing', () => {
+    render(
+      <AppUpdateBottomSheet
+        prompt={optionalPrompt}
+        onDeferred={jest.fn()}
+        initialOpen
+      />,
+    );
+
+    const props = mockConfirmActionBottomSheet.mock.calls[0][0];
+    expect(props.initialIndex).toBe(0);
   });
 
   it('uses custom title/message from prompt when provided', () => {

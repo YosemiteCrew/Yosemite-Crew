@@ -107,6 +107,28 @@ describe('documentService', () => {
       expect(res.uploadUrl).toBe('url');
       expect(res.key).toBe('key');
     });
+
+    it('should support uploadURL, filePath, and publicUrl response keys', async () => {
+      (apiClient.post as jest.Mock).mockResolvedValue({
+        data: {
+          uploadURL: 'http://upload-alt',
+          filePath: 'file-path',
+          publicUrl: 'http://public',
+        },
+      });
+
+      const res = await documentApi.requestUploadUrl({
+        mimeType: 'application/pdf',
+        companionId: mockCompanionId,
+        accessToken: mockToken,
+      });
+
+      expect(res).toEqual({
+        uploadUrl: 'http://upload-alt',
+        key: 'file-path',
+        fileUrl: 'http://public',
+      });
+    });
   });
 
   describe('uploadAttachment', () => {
@@ -328,6 +350,32 @@ describe('documentService', () => {
       const callArg = (apiClient.patch as jest.Mock).mock.calls[0][1];
       expect(callArg.attachments).toBeUndefined();
     });
+
+    it('should preserve provided files when the update response has no attachments', async () => {
+      const files = [
+        {id: 'file-1', key: 'k1', name: 'Existing file', uri: 'file://one'},
+      ];
+      (apiClient.patch as jest.Mock).mockResolvedValue({
+        data: {id: 'doc-1', title: 'Updated without files'},
+      });
+
+      const res = await documentApi.update({
+        documentId: 'doc-1',
+        companionId: 'c1',
+        category: 'admin',
+        subcategory: null,
+        visitType: null,
+        title: 'Updated without files',
+        businessName: 'Biz',
+        issueDate: '',
+        files: files as any,
+        accessToken: mockToken,
+      });
+
+      expect(res.files).toEqual(
+        expect.arrayContaining([expect.objectContaining({key: 'k1'})]),
+      );
+    });
   });
 
   describe('list', () => {
@@ -467,6 +515,31 @@ describe('documentService', () => {
       expect(files[0].uri).toBe('http://url');
     });
 
+    it('should normalize direct download url objects when no attachment array is returned', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: {
+          downloadUrl: 'http://download',
+          contentType: 'application/pdf',
+          fileKey: 'download-key',
+        },
+      });
+
+      const files = await documentApi.fetchView({
+        documentId: 'd1',
+        accessToken: 't',
+      });
+
+      expect(files).toEqual([
+        expect.objectContaining({
+          key: 'download-key',
+          uri: 'http://download',
+          viewUrl: 'http://download',
+          downloadUrl: 'http://download',
+          type: 'application/pdf',
+        }),
+      ]);
+    });
+
     it('should propagate error', async () => {
       (apiClient.get as jest.Mock).mockRejectedValue(new Error('Fetch failed'));
       await expect(
@@ -501,6 +574,15 @@ describe('documentService', () => {
         accessToken: 't',
       });
       expect(list3[0].isUserAdded).toBe(true);
+
+      const syncedDoc = {source: 'pms', isUserAdded: true};
+      (apiClient.get as jest.Mock).mockResolvedValue({data: [syncedDoc]});
+      const list4 = await documentApi.list({
+        companionId: 'c',
+        accessToken: 't',
+      });
+      expect(list4[0].isSynced).toBe(true);
+      expect(list4[0].isUserAdded).toBe(true);
     });
 
     it('normalizeDocumentFromApi: Subcategory normalization', async () => {
@@ -520,6 +602,17 @@ describe('documentService', () => {
       });
       expect(list2[0].category).toBe('hygiene-maintenance');
       expect(list2[0].subcategory).toBe('other');
+
+      const doc3 = {
+        category: 'health',
+        subcategory: 'training-and-behaviour-reports',
+      };
+      (apiClient.get as jest.Mock).mockResolvedValue({data: [doc3]});
+      const list3 = await documentApi.list({
+        companionId: 'c',
+        accessToken: 't',
+      });
+      expect(list3[0].subcategory).toBe('training-behaviour');
     });
 
     it('mapAttachmentFromApi: Size extraction variants', async () => {
@@ -686,6 +779,28 @@ describe('documentService', () => {
       expect(files[0].viewUrl).toBe('http://new'); // Check mapped property
       expect(files[0].name).toBe('OriginalName');
       expect(files[0].size).toBe(500);
+    });
+
+    it('normalizes visit type and fallback business fields from alternate API keys', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: [
+          {
+            id: 'doc-visit',
+            category: 'HEALTH',
+            subType: 'LAB_TESTS',
+            visit_type_name: 'FOLLOW_UP_VISIT',
+            issuing_business_name: 'Clinic Alias',
+            attachments: [{storageKey: 'stored-key'}],
+          },
+        ],
+      });
+
+      const list = await documentApi.list({companionId: 'c', accessToken: 't'});
+
+      expect(list[0].subcategory).toBe('lab-tests');
+      expect(list[0].visitType).toBe('follow-up-visit');
+      expect(list[0].businessName).toBe('Clinic Alias');
+      expect(list[0].files[0].key).toBe('stored-key');
     });
   });
 });

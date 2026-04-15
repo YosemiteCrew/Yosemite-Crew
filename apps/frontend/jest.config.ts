@@ -27,8 +27,9 @@ const config: Config = {
   // Automatically clear mock calls, instances, contexts and results before every test
   clearMocks: true,
 
-  // Indicates whether the coverage information should be collected while executing the test
-  collectCoverage: true,
+  // Coverage is opt-in — pass --coverage flag explicitly (or CI coverage job).
+  // Do NOT default to true: it adds ~3× overhead on every test run.
+  collectCoverage: false,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
   collectCoverageFrom: [

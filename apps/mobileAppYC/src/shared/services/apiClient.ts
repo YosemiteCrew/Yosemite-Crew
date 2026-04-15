@@ -100,6 +100,12 @@ export const updateApiClientBaseConfig = (config: {
   if (typeof config.timeoutMs === 'number') {
     client.defaults.timeout = config.timeoutMs;
   }
+  if (shouldLogNetworkActivity) {
+    console.log('[API] Base config updated', {
+      baseURL: client.defaults.baseURL,
+      timeout: client.defaults.timeout,
+    });
+  }
 };
 
 export const withAuthHeaders = (
