@@ -56,12 +56,32 @@ const parseLocalDateTime = (
     Number.isNaN(day) ||
     Number.isNaN(hour) ||
     Number.isNaN(minute) ||
-    Number.isNaN(second)
+    Number.isNaN(second) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59 ||
+    second < 0 ||
+    second > 59
   ) {
     return null;
   }
   const date = new Date(year, month - 1, day, hour, minute, second);
   if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute ||
+    date.getSeconds() !== second
+  ) {
     return null;
   }
   return date;
