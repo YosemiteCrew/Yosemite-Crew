@@ -12,6 +12,7 @@ import OrganizationModel from "src/models/organization";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import { AuthenticatedRequest } from "src/middlewares/auth";
 
 type CompanionRequestBody =
   | CompanionRequestDTO
@@ -28,6 +29,17 @@ const isCompanionPayload = (
     "resourceType" in payload &&
     (payload as { resourceType?: unknown }).resourceType === "Patient"
   );
+};
+
+// Resolve User ID
+const resolveMobileUserId = (req: Request): string | undefined => {
+  const authReq = req as AuthenticatedRequest;
+  const userId = authReq.userId;
+  if (typeof userId === "string") {
+    const trimmedUserId = userId.trim();
+    return trimmedUserId || undefined;
+  }
+  return undefined;
 };
 
 // extract FHIR
