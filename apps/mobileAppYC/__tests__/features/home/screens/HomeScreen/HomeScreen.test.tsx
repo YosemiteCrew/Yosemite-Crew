@@ -801,6 +801,54 @@ describe('HomeScreen', () => {
         );
       }
     });
+
+    it('opens the emergency sheet when emergency access is allowed', () => {
+      const store = createStore();
+      const {getAllByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      fireEvent.press(getAllByTestId('liquid-glass-icon-button')[0]);
+      expect(mockOpenEmergencySheet).toHaveBeenCalled();
+    });
+
+    it('blocks the emergency sheet when emergency access is restricted', () => {
+      const spy = jest.spyOn(Alert, 'alert');
+      const store = createStore({
+        coParent: {
+          accessByCompanionId: {
+            c1: {
+              role: 'GUEST',
+              permissions: {emergencyBasedPermissions: false},
+            },
+          },
+          lastFetchedRole: 'GUEST',
+          defaultAccess: null,
+          lastFetchedPermissions: null,
+          accessLoading: false,
+        },
+      });
+
+      const {getAllByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      fireEvent.press(getAllByTestId('liquid-glass-icon-button')[0]);
+
+      expect(mockOpenEmergencySheet).not.toHaveBeenCalled();
+      if (Platform.OS === 'android') {
+        expect(ToastAndroid.show).toHaveBeenCalled();
+      } else {
+        expect(spy).toHaveBeenCalledWith(
+          'Permission needed',
+          expect.stringContaining('emergency actions'),
+        );
+      }
+    });
   });
 
   describe('Edge Cases', () => {
@@ -857,6 +905,26 @@ describe('HomeScreen', () => {
       });
     });
 
+    it('shows an alert when merck manuals are unavailable for the selected companion', () => {
+      const spy = jest.spyOn(Alert, 'alert');
+      const store = createStore({
+        linkedBusinesses: {loading: false, linkedBusinesses: []},
+      });
+
+      const {getByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      fireEvent.press(getByText('MSD Veterinary Manual'));
+
+      expect(spy).toHaveBeenCalledWith(
+        'MSD Veterinary Manuals unavailable',
+        'Link a hospital for this companion to use MSD Veterinary Manual search.',
+      );
+    });
+
     it('shows toast when searching without companion', () => {
       const mockHandleSearchChange = jest.fn();
       const usePlacesBusinessSearchMock = require('@/features/linkedBusinesses/hooks/usePlacesBusinessSearch');
@@ -911,6 +979,167 @@ describe('HomeScreen', () => {
       );
 
       expect(getByTestId('appointment-card')).toBeTruthy();
+    });
+
+    it('falls back to opening maps by address when no place id is available', () => {
+      const {
+        openMapsToAddress,
+        openMapsToPlaceId,
+      } = require('@/shared/utils/openMaps');
+      const transformAppointmentCardData = require('@/features/appointments/utils/appointmentCardData');
+      transformAppointmentCardData.transformAppointmentCardData.mockReturnValue(
+        {
+          cardTitle: 'Dr. Test',
+          cardSubtitle: 'General',
+          businessName: 'Test Clinic',
+          businessAddress: '456 Oak St',
+          avatarSource: {uri: 'test'},
+          fallbackPhoto: null,
+          googlePlacesId: null,
+          assignmentNote: 'Note',
+          needsPayment: false,
+          isRequested: false,
+          statusAllowsActions: true,
+          isInProgress: false,
+          checkInLabel: 'Check In',
+          checkInDisabled: false,
+        },
+      );
+      const store = createStore({
+        appointments: {
+          upcoming: [
+            {
+              id: 'a1',
+              date: '2025-01-01',
+              time: '10:00',
+              status: 'CONFIRMED',
+              companionId: 'c1',
+              businessId: 'b1',
+            },
+          ],
+          loading: false,
+          hydratedCompanions: {c1: true},
+        },
+      });
+
+      const {getByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      fireEvent.press(getByTestId('apt-directions'));
+      expect(openMapsToAddress).toHaveBeenCalledWith('456 Oak St');
+      expect(openMapsToPlaceId).not.toHaveBeenCalled();
+    });
+
+    it('shows empty-state navigation for appointments and tasks', () => {
+      const store = createStore({
+        appointments: {
+          upcoming: [],
+          loading: false,
+          hydratedCompanions: {c1: true},
+        },
+        tasks: {
+          byId: {},
+          allIds: [],
+          hydratedCompanions: {c1: true},
+        },
+      });
+      mockGetParent.mockReturnValue({navigate: mockNavigate});
+
+      const {getByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      fireEvent.press(getByTestId('appointments-empty-tile'));
+      fireEvent.press(getByTestId('tasks-empty-tile'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+        screen: 'BrowseBusinesses',
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
+        screen: 'TasksMain',
+      });
+    });
+
+    it('renders task actions and routes observational-tool tasks through view', () => {
+      const store = createStore({
+        tasks: {
+          byId: {
+            t1: {
+              id: 't1',
+              title: 'Observation',
+              category: 'health',
+              date: '2025-01-01',
+              time: '10:00',
+              status: 'PENDING',
+              companionId: 'c1',
+              details: {taskType: 'take-observational-tool'},
+            },
+          },
+          allIds: ['t1'],
+          hydratedCompanions: {c1: true},
+        },
+      });
+      const tasksModule = require('@/features/tasks');
+      tasksModule.selectNextUpcomingTask.mockImplementation(
+        () => (state: any) => state.tasks.byId.t1,
+      );
+      mockGetParent.mockReturnValue({navigate: mockNavigate});
+
+      const {getByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      fireEvent.press(getByTestId('task-view'));
+      fireEvent.press(getByTestId('task-edit'));
+      fireEvent.press(getByTestId('task-complete'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
+        screen: 'TaskView',
+        params: {taskId: 't1', source: 'home'},
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
+        screen: 'EditTask',
+        params: {taskId: 't1', source: 'home'},
+      });
+      expect(tasksModule.markTaskStatus).toHaveBeenCalledWith({
+        taskId: 't1',
+        status: 'completed',
+      });
+    });
+
+    it('renders restricted task state when task access is disabled', () => {
+      const store = createStore({
+        coParent: {
+          accessByCompanionId: {
+            c1: {
+              role: 'GUEST',
+              permissions: {tasks: false},
+            },
+          },
+          lastFetchedRole: 'GUEST',
+          defaultAccess: null,
+          lastFetchedPermissions: null,
+          accessLoading: false,
+        },
+      });
+
+      const {getByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByText('Tasks restricted')).toBeTruthy();
+      expect(
+        getByText('Ask the primary parent to enable tasks access for you.'),
+      ).toBeTruthy();
     });
   });
 });

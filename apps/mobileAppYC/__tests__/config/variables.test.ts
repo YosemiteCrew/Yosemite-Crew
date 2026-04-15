@@ -79,6 +79,15 @@ describe('Configuration Variables', () => {
       expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
 
+    it('suppresses console warning in CI even outside test environment', () => {
+      process.env.NODE_ENV = 'development';
+      process.env.CI = 'true';
+
+      require('../../src/config/variables');
+
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
     it('logs warning if not in test/CI environment and file is missing', () => {
       process.env.NODE_ENV = 'development';
       process.env.CI = 'false';
@@ -106,9 +115,16 @@ describe('Configuration Variables', () => {
       DEMO_LOGIN_CONFIG: {email: 'test@example.com'},
       CLARITY_CONFIG: {projectId: 'clarity-local-project-id'},
       MOBILE_CONFIG_BEHAVIOR: {
+        skipRemoteFetch: true,
         forceProductionApiBaseUrl: false,
         mockAppUpdateFlow: 'optional',
+        override: {
+          appUpdate: {
+            enabled: true,
+          },
+        },
       },
+      UI_FEATURE_FLAGS: {forceLiquidGlassBorder: true},
     };
 
     beforeEach(() => {
@@ -133,7 +149,14 @@ describe('Configuration Variables', () => {
       expect(config.MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl).toBe(
         false,
       );
+      expect(config.MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch).toBe(true);
       expect(config.MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow).toBe('optional');
+      expect(config.MOBILE_CONFIG_BEHAVIOR.override).toEqual({
+        appUpdate: {
+          enabled: true,
+        },
+      });
+      expect(config.UI_FEATURE_FLAGS.forceLiquidGlassBorder).toBe(true);
 
       // Check that non-overridden defaults persist (e.g. timeoutMs inside API_CONFIG)
       expect(config.API_CONFIG.timeoutMs).toBe(15000);
@@ -157,6 +180,21 @@ describe('Configuration Variables', () => {
       expect(() => {
         require('../../src/config/variables');
       }).toThrow('SyntaxError: Unexpected token');
+    });
+
+    it('re-throws module-not-found errors for other files', () => {
+      mockLocalModule(
+        () => {
+          const error: any = new Error("Cannot find module './different-file'");
+          error.code = 'MODULE_NOT_FOUND';
+          throw error;
+        },
+        {virtual: true},
+      );
+
+      expect(() => {
+        require('../../src/config/variables');
+      }).toThrow("Cannot find module './different-file'");
     });
 
     it('handles non-object errors gracefully', () => {
