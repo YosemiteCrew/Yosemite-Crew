@@ -180,6 +180,68 @@ const assertPmsCanAccessCompanion = async (
   }
 };
 
+const getParentAccessibleCompanionIds = async (
+  parentId: string | Types.ObjectId,
+): Promise<Types.ObjectId[]> => {
+  const _parentId = ensureObjectId(parentId, "parentId");
+
+  if (isReadFromPostgres()) {
+    const links = await prisma.parentCompanion.findMany({
+      where: {
+        parentId: _parentId.toString(),
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { companionId: true },
+    });
+
+    return links.map((link) => ensureObjectId(link.companionId, "companionId"));
+  }
+
+  const links = await ParentCompanionModel.find(
+    {
+      parentId: _parentId,
+      status: { $in: ["ACTIVE", "PENDING"] },
+    },
+    { companionId: 1 },
+    { sanitizeFilter: true },
+  )
+    .lean()
+    .exec();
+
+  return links.map((link) => ensureObjectId(link.companionId, "companionId"));
+};
+
+const getOrganisationAccessibleCompanionIds = async (
+  organisationId: string,
+): Promise<Types.ObjectId[]> => {
+  assertSafeString(organisationId, "organisationId");
+
+  if (isReadFromPostgres()) {
+    const links = await prisma.companionOrganisation.findMany({
+      where: {
+        organisationId,
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { companionId: true },
+    });
+
+    return links.map((link) => ensureObjectId(link.companionId, "companionId"));
+  }
+
+  const links = await CompanionOrganisationModel.find(
+    {
+      organisationId: ensureObjectId(organisationId, "organisationId"),
+      status: { $in: ["ACTIVE", "PENDING"] },
+    },
+    { companionId: 1 },
+    { sanitizeFilter: true },
+  )
+    .lean()
+    .exec();
+
+  return links.map((link) => ensureObjectId(link.companionId, "companionId"));
+};
+
 const getDocumentForParentAccess = async (
   documentId: string | Types.ObjectId,
   parentId: string | Types.ObjectId,
@@ -820,14 +882,23 @@ export const DocumentService = {
   },
 
   // List of Documents of Appointment for PMS
-  async listForAppointmentParent(
-    appointmentId: string | Types.ObjectId,
-  ): Promise<DocumentDto[]> {
-    appointmentId = ensureObjectId(appointmentId, "appointmentId");
+  async listForAppointmentParent(params: {
+    appointmentId: string | Types.ObjectId;
+    parentId: string | Types.ObjectId;
+  }): Promise<DocumentDto[]> {
+    const appointmentId = ensureObjectId(params.appointmentId, "appointmentId");
+    const companionIds = await getParentAccessibleCompanionIds(params.parentId);
+
+    if (!companionIds.length) {
+      return [];
+    }
 
     if (isReadFromPostgres()) {
       const docs = await prisma.document.findMany({
-        where: { appointmentId: appointmentId.toString() },
+        where: {
+          appointmentId: appointmentId.toString(),
+          companionId: { in: companionIds.map((id) => id.toString()) },
+        },
         orderBy: { createdAt: "desc" },
         include: { attachments: true },
       });
@@ -836,6 +907,7 @@ export const DocumentService = {
 
     const docs = await DocumentModel.find({
       appointmentId,
+      companionId: { $in: companionIds },
     })
       .sort({ createdAt: -1 })
       .exec();
@@ -845,16 +917,27 @@ export const DocumentService = {
 
   // List of Documents of Appointment for PMS
   async listForAppointmentPms(params: {
-    companionId: string | Types.ObjectId;
     appointmentId: string | Types.ObjectId;
+    organisationId: string;
+    companionId?: string | Types.ObjectId;
   }): Promise<DocumentDto[]> {
-    const companionId = ensureObjectId(params.companionId, "companionId");
     const appointmentId = ensureObjectId(params.appointmentId, "appointmentId");
+    const companionIds = params.companionId
+      ? [ensureObjectId(params.companionId, "companionId")]
+      : await getOrganisationAccessibleCompanionIds(params.organisationId);
+
+    if (params.companionId) {
+      await assertPmsCanAccessCompanion(params.organisationId, companionIds[0]);
+    }
+
+    if (!companionIds.length) {
+      return [];
+    }
 
     if (isReadFromPostgres()) {
       const docs = await prisma.document.findMany({
         where: {
-          companionId: companionId.toString(),
+          companionId: { in: companionIds.map((id) => id.toString()) },
           appointmentId: appointmentId.toString(),
           pmsVisible: true,
         },
@@ -865,7 +948,7 @@ export const DocumentService = {
     }
 
     const docs = await DocumentModel.find({
-      companionId,
+      companionId: { $in: companionIds },
       appointmentId,
       pmsVisible: true,
     })
@@ -887,6 +970,19 @@ export const DocumentService = {
     const doc = await DocumentModel.findById(_id);
     if (!doc) {
       throw new DocumentServiceError("Document not found.", 404);
+    }
+
+    if (context.parentId) {
+      await assertParentCanAccessCompanion(context.parentId, doc.companionId);
+    }
+    if (context.pmsUserId) {
+      if (!context.organisationId) {
+        throw new DocumentServiceError("organisationId is required.", 400);
+      }
+      await assertPmsCanAccessCompanion(
+        context.organisationId,
+        doc.companionId,
+      );
     }
 
     // 2. Permission check
@@ -979,6 +1075,63 @@ export const DocumentService = {
       mimeType: doc.attachments[index].mimeType,
       key: doc.attachments[index].key,
     }));
+  },
+
+  async getAttachmentUrlByKey(params: {
+    key: string;
+    parentId?: string | Types.ObjectId;
+    organisationId?: string;
+  }): Promise<string> {
+    if (!isNonEmptyString(params.key)) {
+      throw new DocumentServiceError("Key is required.", 400);
+    }
+
+    if (isReadFromPostgres()) {
+      const attachment = await prisma.documentAttachment.findFirst({
+        where: { key: params.key },
+      });
+
+      if (!attachment) {
+        throw new DocumentServiceError("Attachment not found.", 404);
+      }
+
+      const accessDoc = params.parentId
+        ? await getDocumentForParentAccess(
+            attachment.documentId,
+            params.parentId,
+          )
+        : params.organisationId
+          ? await getDocumentForPmsAccess(
+              attachment.documentId,
+              params.organisationId,
+              true,
+            )
+          : null;
+
+      if (!accessDoc) {
+        throw new DocumentServiceError("Attachment not found.", 404);
+      }
+
+      return generatePresignedDownloadUrl(params.key);
+    }
+
+    const doc = await DocumentModel.findOne({
+      "attachments.key": params.key,
+    }).exec();
+
+    if (!doc) {
+      throw new DocumentServiceError("Attachment not found.", 404);
+    }
+
+    if (params.parentId) {
+      await assertParentCanAccessCompanion(params.parentId, doc.companionId);
+    } else if (params.organisationId) {
+      await assertPmsCanAccessCompanion(params.organisationId, doc.companionId);
+    } else {
+      throw new DocumentServiceError("User not authorized.", 401);
+    }
+
+    return generatePresignedDownloadUrl(params.key);
   },
 
   async searchByTitleForParent(params: {

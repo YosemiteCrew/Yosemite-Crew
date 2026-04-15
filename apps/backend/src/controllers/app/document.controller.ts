@@ -6,10 +6,7 @@ import {
   DocumentService,
   DocumentServiceError,
 } from "../../services/document.service";
-import {
-  generatePresignedDownloadUrl,
-  generatePresignedUrl,
-} from "src/middlewares/upload";
+import { generatePresignedUrl } from "src/middlewares/upload";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { OrgRequest } from "src/middlewares/rbac";
 import { resolveUserIdFromRequest } from "src/utils/request";
@@ -241,10 +238,34 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
+      const authUserId = resolveUserIdFromRequest(req);
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const { appointmentId } = req.params;
 
-      const docs =
-        await DocumentService.listForAppointmentParent(appointmentId);
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated." });
+      }
+
+      const authUserMobile =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+
+      const docs = authUserMobile?.parentId
+        ? await DocumentService.listForAppointmentParent({
+            appointmentId,
+            parentId: authUserMobile.parentId,
+          })
+        : organisationId
+          ? await DocumentService.listForAppointmentPms({
+              appointmentId,
+              organisationId,
+            })
+          : null;
+
+      if (!docs) {
+        return res.status(401).json({ message: "User not authorized." });
+      }
+
       return res.status(200).json(docs);
     } catch (error) {
       if (error instanceof DocumentServiceError)
@@ -450,14 +471,43 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
+      const authUserId = resolveUserIdFromRequest(req);
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const { key } = req.body;
+
       if (!key) {
         return res.status(400).json({ message: "Key is required." });
       }
 
-      const url = await generatePresignedDownloadUrl(key);
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated." });
+      }
+
+      const authUserMobile =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+
+      const url = authUserMobile?.parentId
+        ? await DocumentService.getAttachmentUrlByKey({
+            key,
+            parentId: authUserMobile.parentId,
+          })
+        : organisationId
+          ? await DocumentService.getAttachmentUrlByKey({
+              key,
+              organisationId,
+            })
+          : null;
+
+      if (!url) {
+        return res.status(401).json({ message: "User not authorized." });
+      }
+
       return res.status(200).send(url);
     } catch (error) {
+      if (error instanceof DocumentServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
       logger.error("Failed to generate signed download URL", error);
       return res
         .status(500)

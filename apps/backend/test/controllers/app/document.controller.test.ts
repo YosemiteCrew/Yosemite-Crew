@@ -23,12 +23,14 @@ jest.mock("../../../src/services/document.service", () => {
       create: jest.fn(),
       listForParent: jest.fn(),
       listForAppointmentParent: jest.fn(),
+      listForAppointmentPms: jest.fn(),
       update: jest.fn(),
       listForPms: jest.fn(),
       getByIdForParent: jest.fn(),
       getByIdForPms: jest.fn(),
       deleteForParent: jest.fn(),
       getAllAttachmentUrls: jest.fn(),
+      getAttachmentUrlByKey: jest.fn(),
       searchByTitleForParent: jest.fn(),
     },
   };
@@ -48,7 +50,6 @@ const { DocumentServiceError } = jest.requireActual(
 // ----------------------------------------------------------------------
 const mockedDocumentService = jest.mocked(DocumentService);
 const mockedAuthMobileService = jest.mocked(AuthUserMobileService);
-const mockedUpload = jest.mocked(UploadMiddleware);
 const mockedLogger = jest.mocked(logger);
 
 describe("DocumentController", () => {
@@ -108,7 +109,7 @@ describe("DocumentController", () => {
 
     it("should success (200)", async () => {
       req.body = { companionId: "c1", mimeType: "image/png" };
-      mockedUpload.generatePresignedUrl.mockResolvedValue({
+      jest.mocked(UploadMiddleware.generatePresignedUrl).mockResolvedValue({
         url: "http://s3",
         key: "key",
       });
@@ -120,7 +121,9 @@ describe("DocumentController", () => {
 
     it("should handle generic error", async () => {
       req.body = { companionId: "c1", mimeType: "image/png" };
-      mockedUpload.generatePresignedUrl.mockRejectedValue(new Error("Fail"));
+      jest
+        .mocked(UploadMiddleware.generatePresignedUrl)
+        .mockRejectedValue(new Error("Fail"));
 
       await DocumentController.getUploadUrl(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
@@ -329,24 +332,60 @@ describe("DocumentController", () => {
   });
 
   describe("listForAppointment", () => {
-    it("should success (200)", async () => {
+    it("should success (200) for parent context", async () => {
+      (req as any).userId = "u1";
       req.params = { appointmentId: "apt1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockedDocumentService.listForAppointmentParent.mockResolvedValue(
         [] as any,
       );
       await DocumentController.listForAppointment(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(200);
+      expect(
+        mockedDocumentService.listForAppointmentParent,
+      ).toHaveBeenCalledWith({
+        appointmentId: "apt1",
+        parentId: "p1",
+      });
+    });
+
+    it("should success (200) for PMS context", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.params = { appointmentId: "apt1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue(
+        null as any,
+      );
+      mockedDocumentService.listForAppointmentPms.mockResolvedValue([] as any);
+
+      await DocumentController.listForAppointment(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(mockedDocumentService.listForAppointmentPms).toHaveBeenCalledWith({
+        appointmentId: "apt1",
+        organisationId: "org1",
+      });
     });
 
     it("should handle service error", async () => {
+      (req as any).userId = "u1";
       req.params = { appointmentId: "apt1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockServiceError("listForAppointmentParent", 400);
       await DocumentController.listForAppointment(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
     it("should handle generic error", async () => {
+      (req as any).userId = "u1";
       req.params = { appointmentId: "apt1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
       mockGenericError("listForAppointmentParent");
       await DocumentController.listForAppointment(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
@@ -625,9 +664,13 @@ describe("DocumentController", () => {
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
-    it("should success (200)", async () => {
+    it("should success (200) for parent context", async () => {
+      (req as any).userId = "u1";
       req.body = { key: "k1" };
-      mockedUpload.generatePresignedDownloadUrl.mockResolvedValue(
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
+      mockedDocumentService.getAttachmentUrlByKey.mockResolvedValue(
         "http://d/k1",
       );
       await DocumentController.getSignedDownloadUrl(
@@ -636,13 +679,56 @@ describe("DocumentController", () => {
       );
       expect(statusMock).toHaveBeenCalledWith(200);
       expect(sendMock).toHaveBeenCalledWith("http://d/k1");
+      expect(mockedDocumentService.getAttachmentUrlByKey).toHaveBeenCalledWith({
+        key: "k1",
+        parentId: "p1",
+      });
+    });
+
+    it("should success (200) for PMS context", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.body = { key: "k1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue(
+        null as any,
+      );
+      mockedDocumentService.getAttachmentUrlByKey.mockResolvedValue(
+        "http://d/k1",
+      );
+
+      await DocumentController.getSignedDownloadUrl(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(mockedDocumentService.getAttachmentUrlByKey).toHaveBeenCalledWith({
+        key: "k1",
+        organisationId: "org1",
+      });
+    });
+
+    it("should handle service error", async () => {
+      (req as any).userId = "u1";
+      req.body = { key: "k1" };
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
+      mockServiceError("getAttachmentUrlByKey", 403);
+      await DocumentController.getSignedDownloadUrl(
+        req as any,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(403);
     });
 
     it("should handle generic error", async () => {
+      (req as any).userId = "u1";
       req.body = { key: "k1" };
-      mockedUpload.generatePresignedDownloadUrl.mockRejectedValue(
-        new Error("fail"),
-      );
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "p1",
+      } as any);
+      mockGenericError("getAttachmentUrlByKey");
       await DocumentController.getSignedDownloadUrl(
         req as any,
         res as Response,
