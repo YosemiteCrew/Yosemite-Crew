@@ -1,6 +1,24 @@
 import { Schema, model, HydratedDocument } from "mongoose";
 import type { ToFHIROrganizationOptions } from "@yosemite-crew/types";
 
+const GeoPointSchema = new Schema(
+  {
+    type: { type: String, enum: ["Point"], required: true },
+    coordinates: {
+      type: [Number], // [lng, lat]
+      required: true,
+      validate: {
+        validator: (value: unknown) =>
+          Array.isArray(value) &&
+          value.length === 2 &&
+          value.every((v) => typeof v === "number" && Number.isFinite(v)),
+        message: "GeoJSON Point coordinates must be [lng, lat].",
+      },
+    },
+  },
+  { _id: false },
+);
+
 const AddressSchema = new Schema(
   {
     addressLine: { type: String },
@@ -11,17 +29,7 @@ const AddressSchema = new Schema(
     latitude: { type: Number },
     longitude: { type: Number },
 
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number], // [lng, lat]
-        default: undefined,
-      },
-    },
+    location: { type: GeoPointSchema, required: false },
   },
   { _id: false },
 );
