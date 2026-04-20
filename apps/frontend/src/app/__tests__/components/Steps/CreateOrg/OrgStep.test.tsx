@@ -1,21 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import OrgStep from '@/app/features/onboarding/components/Steps/CreateOrg/OrgStep';
 import { Organisation } from '@yosemite-crew/types';
 
-const replaceMock = jest.fn();
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: replaceMock }),
-}));
-
-jest.mock('@/app/features/organization/services/orgService', () => ({
-  createOrg: jest.fn(),
-}));
-
 jest.mock('@/app/lib/validators', () => ({
-  getCountryCode: jest.fn(),
   validatePhone: jest.fn(),
 }));
 
@@ -67,7 +56,6 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   Secondary: ({ text }: any) => <button type="button">{text}</button>,
 }));
 
-const orgService = jest.requireMock('@/app/features/organization/services/orgService');
 const validators = jest.requireMock('@/app/lib/validators');
 
 describe('OrgStep', () => {
@@ -86,24 +74,20 @@ describe('OrgStep', () => {
   });
 
   it('shows validation errors for required fields', () => {
-    validators.getCountryCode.mockReturnValue(null);
     validators.validatePhone.mockReturnValue(false);
 
     render(<OrgStep nextStep={nextStep} formData={baseFormData} setFormData={setFormData} />);
 
     fireEvent.click(screen.getByText('Next'));
 
-    expect(screen.getByText('Name is required')).toBeInTheDocument();
-    expect(screen.getByText('Country is required')).toBeInTheDocument();
-    expect(screen.getByText('Valid number is required')).toBeInTheDocument();
-    expect(screen.getByText('TaxID is required')).toBeInTheDocument();
-    expect(orgService.createOrg).not.toHaveBeenCalled();
+    expect(screen.getByText('Organisation name is required')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid phone number')).toBeInTheDocument();
+    expect(screen.getByText('Tax ID is required')).toBeInTheDocument();
+    expect(nextStep).not.toHaveBeenCalled();
   });
 
-  it('creates org and advances on valid data', async () => {
-    validators.getCountryCode.mockReturnValue({ dial_code: '+1' });
+  it('normalizes form data locally and advances on valid data', () => {
     validators.validatePhone.mockReturnValue(true);
-    orgService.createOrg.mockResolvedValue('org-123');
 
     render(
       <OrgStep
@@ -113,8 +97,7 @@ describe('OrgStep', () => {
           name: 'Vet Clinic',
           phoneNo: '123456',
           taxId: 'TX-1',
-          appointmentCheckInBufferMinutes: 10,
-          appointmentCheckInRadiusMeters: 450,
+          DUNSNumber: '123456789',
           address: { country: 'USA' },
         }}
         setFormData={setFormData}
@@ -123,16 +106,12 @@ describe('OrgStep', () => {
 
     fireEvent.click(screen.getByText('Next'));
 
-    await waitFor(() => {
-      expect(orgService.createOrg).toHaveBeenCalled();
-    });
-    expect(orgService.createOrg).toHaveBeenCalledWith(
+    expect(setFormData).toHaveBeenCalledWith(
       expect.objectContaining({
-        appointmentCheckInBufferMinutes: 10,
-        appointmentCheckInRadiusMeters: 450,
+        address: expect.objectContaining({ country: 'United States' }),
+        phoneNo: '+1123456',
       })
     );
-    expect(replaceMock).toHaveBeenCalledWith('/create-org?orgId=org-123');
     expect(nextStep).toHaveBeenCalled();
   });
 });

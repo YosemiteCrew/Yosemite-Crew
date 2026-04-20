@@ -81,6 +81,8 @@ describe('CreateOrg page', () => {
     expect(screen.getByText('Create organization')).toBeInTheDocument();
     expect(screen.getByTestId('create-org-progress')).toBeInTheDocument();
     expect(latestProgressProps?.steps).toHaveLength(3);
+    expect(latestProgressProps?.canSelectStep(0)).toBe(true);
+    expect(latestProgressProps?.canSelectStep(2)).toBe(false);
     expect(screen.getByTestId('org-step')).toBeInTheDocument();
   });
 
@@ -117,6 +119,37 @@ describe('CreateOrg page', () => {
     act(() => {
       latestAddressStepProps.prevStep();
     });
+    await waitFor(() => {
+      expect(screen.getByTestId('org-step')).toBeInTheDocument();
+    });
+  });
+
+  test('clicking a future progress step validates and keeps the user on the failing step', async () => {
+    render(<ProtectedCreateOrg />);
+
+    act(() => {
+      latestProgressProps.onStepSelect(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('org-step')).toBeInTheDocument();
+    });
+  });
+
+  test('clicking a completed progress step navigates back to it', async () => {
+    render(<ProtectedCreateOrg />);
+
+    act(() => {
+      latestOrgStepProps.nextStep();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('address-step')).toBeInTheDocument();
+    });
+
+    act(() => {
+      latestProgressProps.onStepSelect(0);
+    });
+
     await waitFor(() => {
       expect(screen.getByTestId('org-step')).toBeInTheDocument();
     });
