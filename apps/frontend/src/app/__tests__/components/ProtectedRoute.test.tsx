@@ -17,6 +17,10 @@ jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: jest.fn(),
 }));
 
+jest.mock('@/app/ui/overlays/Loader', () => ({
+  YosemiteLoader: () => <div data-testid="yosemite-loader" />,
+}));
+
 describe('ProtectedRoute Component', () => {
   const mockReplace = jest.fn();
   const mockPathname = '/dashboard/protected';
@@ -43,20 +47,20 @@ describe('ProtectedRoute Component', () => {
 
   // Scenario 1: Loading/Checking State
   // Covers: `const isChecking = true`, `if (isChecking) return null`, and the early return in `useEffect`.
-  it('renders nothing and does not redirect while checking authentication status', () => {
+  it('renders a loader and does not redirect while checking authentication status', () => {
     // Setup: Status is 'checking'
     (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector({ status: 'checking' })
     );
 
-    const { container } = render(
+    render(
       <ProtectedRoute>
         <div data-testid="child">Protected Content</div>
       </ProtectedRoute>
     );
 
-    // Assert: Renders nothing (null)
-    expect(container).toBeEmptyDOMElement();
+    // Assert: Renders loader, not children
+    expect(screen.getByTestId('yosemite-loader')).toBeInTheDocument();
     expect(screen.queryByTestId('child')).not.toBeInTheDocument();
 
     // Assert: Does NOT redirect yet

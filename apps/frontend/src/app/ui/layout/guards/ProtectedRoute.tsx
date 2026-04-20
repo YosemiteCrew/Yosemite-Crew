@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 import { useAuthStore } from '@/app/stores/authStore';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -39,7 +40,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (isChecking) {
-    return null;
+    return <YosemiteLoader variant="fullscreen-translucent" size={80} />;
   }
   if (!isAuthed) return null;
 

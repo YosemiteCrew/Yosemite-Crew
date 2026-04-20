@@ -5,6 +5,7 @@ import Header from '@/app/ui/layout/Header/Header';
 import { useAuthStore } from '@/app/stores/authStore';
 import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
 import UniversalSearchPalette from '@/app/ui/layout/UniversalSearch/UniversalSearchPalette';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useLoadOrg } from '@/app/hooks/useLoadOrg';
 import { useLoadProfiles, usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
@@ -152,7 +153,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         <UniversalSearchPalette />
 
         <div className="pt-20 flex-1 lg:pt-0 lg:overflow-y-scroll lg:[scrollbar-gutter:stable] min-w-0">
-          {isChecking ? null : children}
+          {isChecking ? <YosemiteLoader variant="fullscreen-translucent" size={80} /> : children}
         </div>
       </div>
     </div>
