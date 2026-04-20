@@ -49,7 +49,6 @@ import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMap
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 import {
-  AGE_VERIFICATION_CONFIG,
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
 } from '@/config/variables';
@@ -180,10 +179,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     initialAttributes?.profilePicture ??
     existingParentProfile?.profileImageUrl ??
     null;
-  const ageVerificationProviderName =
-    AGE_VERIFICATION_CONFIG.serviceProviderName?.trim() ||
-    t('auth.age_verification_provider_fallback');
-
   const defaultAddressValues = {
     address:
       initialAttributes?.address?.addressLine ??
@@ -1256,9 +1251,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                     {t('auth.age_verification_sheet_privacy_title')}
                   </Text>
                   <Text style={styles.ageVerificationSheetBody}>
-                    {t('auth.age_verification_sheet_privacy_body', {
-                      serviceProviderName: ageVerificationProviderName,
-                    })}
+                    {t('auth.age_verification_sheet_privacy_body')}
                   </Text>
                   <Text style={styles.ageVerificationSheetBody}>
                     {t('auth.age_verification_sheet_restriction_notice')}

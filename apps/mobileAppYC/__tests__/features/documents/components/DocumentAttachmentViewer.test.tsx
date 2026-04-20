@@ -1,5 +1,5 @@
 import React from 'react';
-import {Alert, Image, Share} from 'react-native';
+import {Alert, Image, PermissionsAndroid, Platform, Share} from 'react-native';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import RNFS from 'react-native-fs';
 import DocumentAttachmentViewer from '../../../../src/features/documents/components/DocumentAttachmentViewer';
@@ -94,6 +94,19 @@ const mockFileDoc = {
 describe('DocumentAttachmentViewer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (RNFS as any).DownloadDirectoryPath = '/downloads';
+    (RNFS as any).DocumentDirectoryPath = '/documents';
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'ios',
+    });
+    Object.defineProperty(Platform, 'Version', {
+      configurable: true,
+      value: 34,
+    });
+    jest
+      .spyOn(PermissionsAndroid, 'request')
+      .mockResolvedValue(PermissionsAndroid.RESULTS.GRANTED);
     jest
       .spyOn(AttachmentUtils, 'resolveSourceUri')
       .mockImplementation((file: any) => file.uri);
@@ -221,5 +234,188 @@ describe('DocumentAttachmentViewer', () => {
         'Preview unavailable right now. Try downloading or check back later.',
       ),
     ).toBeTruthy();
+  });
+
+  it('shows a generic share label when no title, companion, or url exists', async () => {
+    jest.spyOn(AttachmentUtils, 'resolveSourceUri').mockReturnValue(null);
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer
+        attachments={[{...mockFileDoc, name: ''} as any]}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Share attachment')[0]);
+    });
+
+    expect(shareSpy).toHaveBeenCalledWith({
+      title: 'Document',
+      message: 'Document',
+      url: '',
+    });
+  });
+
+  it('shows an alert when sharing fails', async () => {
+    shareSpy.mockRejectedValueOnce(new Error('share failed'));
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Share attachment')[0]);
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith('Error', 'share failed');
+  });
+
+  it('falls back to a generic message when share fails with a non-error value', async () => {
+    shareSpy.mockRejectedValueOnce('share exploded');
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Share attachment')[0]);
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith('Error', 'Failed to share');
+  });
+
+  it('blocks download when a source url is unavailable', async () => {
+    jest.spyOn(AttachmentUtils, 'resolveSourceUri').mockReturnValue(null);
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Download attachment')[0]);
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Unavailable',
+      'We could not find a download link for this file. Please try again later.',
+    );
+    expect(RNFS.downloadFile).not.toHaveBeenCalled();
+  });
+
+  it('requests storage permission on legacy android and stops when denied', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'android',
+    });
+    Object.defineProperty(Platform, 'Version', {
+      configurable: true,
+      value: 30,
+    });
+    (PermissionsAndroid.request as jest.Mock).mockResolvedValueOnce(
+      PermissionsAndroid.RESULTS.DENIED,
+    );
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Download attachment')[0]);
+    });
+
+    expect(PermissionsAndroid.request).toHaveBeenCalledWith(
+      PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+    );
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Permission needed',
+      'Please grant storage permission to download files.',
+    );
+    expect(RNFS.downloadFile).not.toHaveBeenCalled();
+  });
+
+  it('falls back to document directory and inferred extension when downloading unknown file types', async () => {
+    (RNFS as any).DownloadDirectoryPath = undefined;
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer
+        attachments={[
+          {
+            ...mockFileDoc,
+            name: 'folder/report',
+            type: 'application/custom-type',
+            uri: 'http://test.com/report',
+          } as any,
+        ]}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Download attachment')[0]);
+    });
+
+    expect(RNFS.mkdir).toHaveBeenCalledWith('/documents');
+    expect(RNFS.downloadFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toFile: '/documents/folder_report.custom-type',
+      }),
+    );
+  });
+
+  it('skips permission requests on android 13+ and falls back to bin filenames', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'android',
+    });
+    Object.defineProperty(Platform, 'Version', {
+      configurable: true,
+      value: 34,
+    });
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer
+        attachments={[
+          {
+            ...mockFileDoc,
+            name: '',
+            type: undefined,
+            uri: 'http://test.com/blob',
+          } as any,
+        ]}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Download attachment')[0]);
+    });
+
+    expect(PermissionsAndroid.request).not.toHaveBeenCalled();
+    expect(RNFS.downloadFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toFile: '/downloads/document.bin',
+      }),
+    );
+  });
+
+  it('shows a failure alert when download throws', async () => {
+    (RNFS.downloadFile as jest.Mock).mockReturnValueOnce({
+      promise: Promise.reject(new Error('download failed')),
+    });
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Download attachment')[0]);
+    });
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[DocumentAttachmentViewer] Download error',
+      expect.any(Error),
+    );
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Download failed',
+      'Unable to download the file. Please check your connection and try again.',
+    );
   });
 });

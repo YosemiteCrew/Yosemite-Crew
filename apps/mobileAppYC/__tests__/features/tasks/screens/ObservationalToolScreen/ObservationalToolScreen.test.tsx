@@ -6,6 +6,11 @@ import {Alert} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {selectTaskById} from '../../../../../src/features/tasks/selectors';
 import {selectAuthUser} from '../../../../../src/features/auth/selectors';
+import {
+  observationToolApi,
+  getCachedObservationTool,
+} from '../../../../../src/features/observationalTools/services/observationToolService';
+import {setSelectedCompanion} from '../../../../../src/features/companion';
 
 // --- Mocks ---
 
@@ -219,13 +224,13 @@ describe('ObservationalToolScreen', () => {
     {
       id: 'svc-1',
       businessId: 'biz-1',
-      name: 'Feline Observation',
+      name: 'Feline Grimace Scale Assessment',
       specialty: 'Observation',
     },
     {
       id: 'svc-2',
       businessId: 'biz-2',
-      name: 'General Vet',
+      name: 'Cat Observation Review',
       specialty: 'Observation',
     },
   ];
@@ -260,6 +265,64 @@ describe('ObservationalToolScreen', () => {
     // Mock Selectors
     (selectTaskById as unknown as jest.Mock).mockReturnValue(() => mockTask);
     (selectAuthUser as unknown as jest.Mock).mockReturnValue(mockUser);
+    const felineDefinition = {
+      id: 'feline-grimace-scale',
+      name: 'Feline Grimace Scale',
+      description: 'Assess pain in cats.',
+      fields: [
+        {
+          key: 'earPosition',
+          label: 'Ear Position',
+          required: true,
+          options: [
+            'Ears facing forward',
+            'Ears slightly pulled apart',
+            'Ears rotated outwards',
+          ],
+        },
+        {
+          key: 'orbitalTightening',
+          label: 'Orbital Tightening',
+          required: true,
+          options: ['Eyes opened', 'Eyes partially closed', 'Squinted eyes'],
+        },
+        {
+          key: 'muzzleTension',
+          label: 'Muzzle Tension',
+          required: true,
+          options: [
+            'Relaxed (round shape)',
+            'Mild tense muzzle',
+            'Tense (elliptical shape)',
+          ],
+        },
+        {
+          key: 'whiskerChange',
+          label: 'Whisker Change',
+          required: true,
+          options: [
+            'Loose (relaxed) and curved',
+            'Slightly curved or straight (closer together)',
+            'Straight and moving forward (rostrally, away from the face)',
+          ],
+        },
+        {
+          key: 'headPosition',
+          label: 'Head Position',
+          required: true,
+          options: [
+            'Head above the shoulder line',
+            'Head aligned with the shoulder line',
+            'Head below the shoulder line or tilted down (chin toward the chest)',
+          ],
+        },
+      ],
+    };
+    (getCachedObservationTool as jest.Mock).mockReturnValue(felineDefinition);
+    (observationToolApi.get as jest.Mock).mockResolvedValue(felineDefinition);
+    (observationToolApi.submit as jest.Mock).mockResolvedValue({
+      id: 'submission-1',
+    });
 
     (useSelector as unknown as jest.Mock).mockImplementation(selector => {
       if (selector === selectAuthUser) return mockUser;
@@ -343,6 +406,289 @@ describe('ObservationalToolScreen', () => {
         expect.objectContaining({index: 0}),
       );
       expect(mockNavigate).toHaveBeenCalledWith('HomeStack', expect.anything());
+    });
+
+    it('falls back to goBack when there is stack history', () => {
+      const {getByTestId} = renderScreen();
+      fireEvent(getByTestId('header-back'), 'onTouchEnd');
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  describe('Assessment Flow', () => {
+    it('requires provider selection before starting when multiple providers are available', async () => {
+      const {getByTestId, getByText} = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Vet Clinic A')).toBeTruthy();
+      });
+
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+
+      expect(getByText('Please select a provider')).toBeTruthy();
+    });
+
+    it('auto-selects the only provider and starts the assessment', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        return selector({
+          ...defaultMockState,
+          businesses: {
+            businesses: [mockBusinesses[0]],
+            services: [mockServices[0]],
+          },
+        });
+      });
+
+      const {getByTestId, queryByText} = renderScreen();
+
+      await waitFor(() => {
+        expect(getByTestId('btn-Next')).toBeTruthy();
+      });
+
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+
+      expect(queryByText('Please select a provider')).toBeNull();
+      expect(getByTestId('btn-Next')).toBeTruthy();
+    });
+
+    it('blocks moving to the next step when a required answer is missing', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        return selector({
+          ...defaultMockState,
+          businesses: {
+            businesses: [mockBusinesses[0]],
+            services: [mockServices[0]],
+          },
+        });
+      });
+
+      const {getByTestId, getByText} = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Vet Clinic A')).toBeTruthy();
+      });
+
+      fireEvent(getByText('Vet Clinic A'), 'press');
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(getByText('Step 1 of 5')).toBeTruthy();
+      });
+      expect(getByTestId('btn-Next').props.accessibilityState.disabled).toBe(
+        true,
+      );
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+
+      expect(getByTestId('btn-Next').props.accessibilityState.disabled).toBe(
+        true,
+      );
+    });
+
+    it('submits responses and navigates to booking form on the last step', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        return selector({
+          ...defaultMockState,
+          businesses: {
+            businesses: [mockBusinesses[0]],
+            services: [mockServices[0]],
+          },
+        });
+      });
+
+      const {getByTestId, getByText} = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Vet Clinic A')).toBeTruthy();
+      });
+
+      fireEvent(getByText('Vet Clinic A'), 'press');
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(getByText('Step 1 of 5')).toBeTruthy();
+      });
+      [
+        'Ears facing forward',
+        'Eyes opened',
+        'Relaxed (round shape)',
+        'Loose (relaxed) and curved',
+      ].forEach(option => {
+        fireEvent(getByText(option), 'press');
+        fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      });
+      fireEvent(getByText('Head above the shoulder line'), 'press');
+      fireEvent(
+        getByTestId('btn-Submit and schedule appointment'),
+        'onTouchEnd',
+      );
+
+      await waitFor(() => {
+        expect(observationToolApi.submit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            toolId: 'feline-grimace-scale',
+            companionId: 'comp-1',
+            taskId: 'task-123',
+            answers: expect.objectContaining({
+              earPosition: 'Ears facing forward',
+              orbitalTightening: 'Eyes opened',
+              muzzleTension: 'Relaxed (round shape)',
+              whiskerChange: 'Loose (relaxed) and curved',
+              headPosition: 'Head above the shoulder line',
+            }),
+          }),
+        );
+      });
+
+      expect(setSelectedCompanion).toHaveBeenCalledWith('comp-1');
+      expect(mockDispatch).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'Appointments',
+        expect.objectContaining({
+          screen: 'BookingForm',
+        }),
+      );
+    });
+
+    it('disables the landing action when no provider can be resolved', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        return selector({
+          ...defaultMockState,
+          businesses: {businesses: [], services: []},
+        });
+      });
+
+      const {getByTestId, getByText} = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Not just yet!')).toBeTruthy();
+      });
+
+      expect(getByTestId('btn-Next').props.accessibilityState.disabled).toBe(
+        true,
+      );
+    });
+
+    it('shows a submission failure alert when OT submission fails', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        return selector({
+          ...defaultMockState,
+          businesses: {
+            businesses: [mockBusinesses[0]],
+            services: [mockServices[0]],
+          },
+        });
+      });
+      (observationToolApi.submit as jest.Mock).mockRejectedValueOnce(
+        new Error('Submit exploded'),
+      );
+
+      const {getByTestId, getByText} = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Vet Clinic A')).toBeTruthy();
+      });
+
+      fireEvent(getByText('Vet Clinic A'), 'press');
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(getByText('Step 1 of 5')).toBeTruthy();
+      });
+      [
+        'Ears facing forward',
+        'Eyes opened',
+        'Relaxed (round shape)',
+        'Loose (relaxed) and curved',
+      ].forEach(option => {
+        fireEvent(getByText(option), 'press');
+        fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      });
+      fireEvent(getByText('Head above the shoulder line'), 'press');
+      fireEvent(
+        getByTestId('btn-Submit and schedule appointment'),
+        'onTouchEnd',
+      );
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Submission failed',
+          'Submit exploded',
+        );
+      });
+    });
+  });
+
+  describe('Loading States', () => {
+    it('shows a loading state while the remote definition is loading and no steps are ready', () => {
+      const unknownCompanion = {
+        id: 'comp-2',
+        name: 'Hopper',
+        category: 'rabbit',
+        profileImage: null,
+      };
+      (selectTaskById as unknown as jest.Mock).mockReturnValue(() => ({
+        ...mockTask,
+        companionId: 'comp-2',
+        observationToolId: 'unknown-tool',
+        details: {toolType: 'unknown-tool'},
+      }));
+      (observationToolApi.get as jest.Mock).mockImplementation(
+        () => new Promise(() => {}),
+      );
+      (getCachedObservationTool as jest.Mock).mockReturnValue(null);
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        if (typeof selector === 'function') {
+          return selector({
+            ...defaultMockState,
+            companion: {companions: [unknownCompanion]},
+          });
+        }
+        return undefined;
+      });
+
+      const {getByText} = renderScreen();
+      expect(getByText('Loading observational tool...')).toBeTruthy();
+    });
+
+    it('shows an unable-to-load state when no definition can be resolved', async () => {
+      const unknownCompanion = {
+        id: 'comp-2',
+        name: 'Hopper',
+        category: 'rabbit',
+        profileImage: null,
+      };
+      (getCachedObservationTool as jest.Mock).mockReturnValue(null);
+      (selectTaskById as unknown as jest.Mock).mockReturnValue(() => ({
+        ...mockTask,
+        companionId: 'comp-2',
+        observationToolId: 'unknown-tool',
+        details: {toolType: 'unknown-tool'},
+      }));
+      (observationToolApi.get as jest.Mock).mockResolvedValue({
+        id: 'unknown-tool',
+        name: '',
+        description: '',
+        fields: [],
+      });
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        if (typeof selector === 'function') {
+          return selector({
+            ...defaultMockState,
+            companion: {companions: [unknownCompanion]},
+            businesses: {businesses: [], services: []},
+          });
+        }
+        return undefined;
+      });
+
+      const {getByText} = renderScreen();
+      await waitFor(() => {
+        expect(getByText('Unable to load observational tool.')).toBeTruthy();
+      });
     });
   });
 });

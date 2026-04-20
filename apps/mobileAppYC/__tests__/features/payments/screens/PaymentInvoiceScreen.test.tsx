@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {useRoute} from '@react-navigation/native';
+import {Alert, Linking} from 'react-native';
 
 // --- Mocks ---
 
@@ -214,6 +215,13 @@ describe('PaymentInvoiceScreen', () => {
   const mockDispatch = jest.fn(() => ({
     unwrap: jest.fn().mockResolvedValue({}),
   }));
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  const canOpenUrlSpy = jest
+    .spyOn(Linking, 'canOpenURL')
+    .mockResolvedValue(true as any);
+  const openUrlSpy = jest
+    .spyOn(Linking, 'openURL')
+    .mockResolvedValue(true as any);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -234,6 +242,12 @@ describe('PaymentInvoiceScreen', () => {
     (useSelector as unknown as jest.Mock).mockImplementation(selectorFn => {
       return selectorFn(mockStateBase);
     });
+  });
+
+  afterAll(() => {
+    alertSpy.mockRestore();
+    canOpenUrlSpy.mockRestore();
+    openUrlSpy.mockRestore();
   });
 
   // --- Rendering Tests ---
@@ -298,6 +312,47 @@ describe('PaymentInvoiceScreen', () => {
         screen.getByText(/must be handled directly by the service provider/),
       ).toBeTruthy();
     });
+  });
+
+  it('shows "Payment at Provider" when payment will be collected at clinic but is not yet paid', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            status: 'AWAITING_PAYMENT',
+            paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+            paidAt: null,
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    expect(screen.getByText('Payment at Provider')).toBeTruthy();
+  });
+
+  it('shows "Paid" when a stripe-backed invoice is paid and not marked as cash', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            status: 'PAID',
+            stripePaymentIntentId: 'pi_live_123',
+            metadata: {source: 'stripe'},
+            paidAt: '2026-03-25T10:00:00.000Z',
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    expect(screen.getByText('Paid')).toBeTruthy();
   });
 
   // --- Branch Coverage: Date Formatting ---
@@ -555,6 +610,58 @@ describe('PaymentInvoiceScreen', () => {
     expect(screen.getByText('Tax')).toBeTruthy();
   });
 
+  it('renders total price components and filters informational/grand-total rows', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            totalPriceComponent: [
+              {
+                type: 'base',
+                code: {text: 'consultation fee'},
+                amount: {value: 100, currency: 'USD'},
+              },
+              {
+                type: 'discount',
+                amount: {value: 5, currency: 'USD'},
+              },
+              {
+                type: 'informational',
+                code: {text: 'ignored'},
+                amount: {value: 1, currency: 'USD'},
+              },
+              {
+                type: 'tax',
+                code: {text: 'grand-total'},
+                amount: {value: 999, currency: 'USD'},
+              },
+              {
+                type: 'tax',
+                amount: {value: 10, currency: 'USD'},
+              },
+              {
+                type: 'misc',
+                code: {text: ''},
+                amount: {},
+              },
+            ],
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    expect(screen.getByText('Consultation fee')).toBeTruthy();
+    expect(screen.getByText('Discount')).toBeTruthy();
+    expect(screen.getByText('Tax')).toBeTruthy();
+    expect(screen.queryByText('ignored')).toBeNull();
+    expect(screen.queryByText('Grand-total')).toBeNull();
+    expect(screen.getByText('—')).toBeTruthy();
+  });
+
   // --- Interaction Tests ---
 
   it('navigates back when header back button is pressed', () => {
@@ -570,6 +677,275 @@ describe('PaymentInvoiceScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('Invoice details')).toBeTruthy();
       expect(screen.getByText('INV-001')).toBeTruthy();
+    });
+  });
+
+  it('opens the invoice receipt url when the browser can handle it', async () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            downloadUrl: 'https://example.com/invoice/1',
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    fireEvent.press(screen.getByText('View invoice'));
+
+    await waitFor(() => {
+      expect(canOpenUrlSpy).toHaveBeenCalledWith(
+        'https://example.com/invoice/1',
+      );
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/invoice/1');
+    });
+  });
+
+  it('shows an alert when the invoice receipt url cannot be opened', async () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            downloadUrl: 'https://example.com/invoice/2',
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    canOpenUrlSpy.mockResolvedValueOnce(false as any);
+
+    render(<PaymentInvoiceScreen />);
+
+    fireEvent.press(screen.getByText('View invoice'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Unable to open invoice',
+        'Please try again or copy the link from your receipt.',
+      );
+    });
+  });
+
+  it('falls back to the stated due date when the due date is invalid', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            dueDate: 'not-a-real-date',
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    expect(
+      screen.getByText(/Payment is due by the stated due date/),
+    ).toBeTruthy();
+  });
+
+  it('fetches a payment intent when payment is pending and the existing intent is incomplete', async () => {
+    const state = createSafeState({
+      appointments: {
+        items: [
+          {
+            ...mockStateBase.appointments.items[0],
+            status: 'AWAITING_PAYMENT',
+            paymentIntent: {amount: 150, currency: 'USD'},
+          },
+        ],
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Preparing payment details…')).toBeTruthy();
+    });
+  });
+
+  it('does not fetch invoice details again for pending-payment appointments without an invoice', async () => {
+    const state = createSafeState({
+      appointments: {
+        items: [
+          {
+            ...mockStateBase.appointments.items[0],
+            status: 'AWAITING_PAYMENT',
+          },
+        ],
+        invoices: {},
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    await waitFor(() => {
+      expect(mockDispatch).not.toHaveBeenCalledWith(
+        expect.objectContaining({type: 'FETCH_INVOICE'}),
+      );
+    });
+  });
+
+  it('renders invoice-based flow with refund details and receipt actions', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {
+        expenseId: 'exp-1',
+        invoice: {
+          ...mockInvoiceData,
+          id: 'inv-exp-1',
+          status: 'REFUNDED',
+          refundId: 'refund-1',
+          refundStatus: 'REFUNDED',
+          refundAmount: 25,
+          refundDate: '2026-03-21T10:00:00.000Z',
+          refundReceiptUrl: 'https://example.com/refund/1',
+          organisation: {
+            name: 'Invoice Org',
+            image: 'https://example.com/org.png',
+            placesId: 'place-org-1',
+            address: {
+              addressLine: '1 Invoice Way',
+              city: 'Austin',
+              state: 'TX',
+              postalCode: '73301',
+            },
+          },
+        },
+        paymentIntent: {
+          clientSecret: 'pi_invoice_secret',
+          paymentIntentId: 'pi_invoice_1',
+          amount: 150,
+          currency: 'USD',
+        },
+      },
+    });
+
+    render(<PaymentInvoiceScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Refund')).toBeTruthy();
+      expect(screen.getByText('Refund ID')).toBeTruthy();
+      expect(screen.getByText('refund-1')).toBeTruthy();
+      expect(screen.getByText('$25.00')).toBeTruthy();
+      expect(screen.getByText(/Services are provided by/)).toBeTruthy();
+      expect(screen.getByText('View refund receipt')).toBeTruthy();
+      expect(screen.queryByText('Invoice for')).toBeNull();
+    });
+
+    fireEvent.press(screen.getByText('View refund receipt'));
+
+    expect(openUrlSpy).toHaveBeenCalledWith('https://example.com/refund/1');
+  });
+
+  it('uses downloadUrl when refundReceiptUrl is unavailable', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {
+        expenseId: 'exp-2',
+        invoice: {
+          ...mockInvoiceData,
+          id: 'inv-exp-2',
+          status: 'REFUNDED',
+          refundId: 'refund-2',
+          refundStatus: 'PARTIALLY_REFUNDED',
+          refundAmount: 10,
+          refundDate: '2026-03-22T10:00:00.000Z',
+          downloadUrl: 'https://example.com/refund-fallback/2',
+        },
+      },
+    });
+
+    render(<PaymentInvoiceScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('View refund receipt')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('View refund receipt'));
+    expect(openUrlSpy).toHaveBeenCalledWith(
+      'https://example.com/refund-fallback/2',
+    );
+  });
+
+  it('omits the refund receipt action when no refund receipt url is available', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {
+        expenseId: 'exp-4',
+        invoice: {
+          ...mockInvoiceData,
+          id: 'inv-exp-4',
+          status: 'REFUNDED',
+          refundId: 'refund-4',
+          refundStatus: 'REFUNDED',
+          refundAmount: 5,
+          refundDate: '2026-03-23T10:00:00.000Z',
+          refundReceiptUrl: null,
+          downloadUrl: null,
+        },
+      },
+    });
+
+    render(<PaymentInvoiceScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Refund')).toBeTruthy();
+      expect(screen.queryByText('View refund receipt')).toBeNull();
+    });
+  });
+
+  it('shows pay now for invoice-based unpaid flow when a client secret is available', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {
+        expenseId: 'exp-3',
+        invoice: {
+          ...mockInvoiceData,
+          id: 'inv-exp-3',
+          status: 'AWAITING_PAYMENT',
+        },
+        paymentIntent: {
+          clientSecret: 'pi_invoice_pay_secret',
+          paymentIntentId: 'pi_invoice_pay_1',
+          amount: 150,
+          currency: 'USD',
+        },
+      },
+    });
+
+    render(<PaymentInvoiceScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pay now')).toBeTruthy();
+    });
+  });
+
+  it('shows the missing data alert and navigates back when no appointment or invoice is provided', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {},
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn =>
+      fn(
+        createSafeState({
+          appointments: {items: [], invoices: {}},
+        }),
+      ),
+    );
+
+    render(<PaymentInvoiceScreen />);
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Missing data',
+        'Could not open payment screen without appointment or invoice.',
+      );
+      expect(mockGoBack).toHaveBeenCalled();
     });
   });
 });

@@ -10,9 +10,7 @@ module.exports = {
   testEnvironment: require.resolve('react-native/jest/react-native-env.js'),
   // Use React Native's resolver so platform extensions (.ios/.android) resolve correctly
   resolver: require.resolve('react-native/jest/resolver'),
-  setupFiles: [
-    '<rootDir>/jest.setup-before-env.js',
-  ],
+  setupFiles: ['<rootDir>/jest.setup-before-env.js'],
   setupFilesAfterEnv: [
     // Load RN's setup after env so it is transformed by Babel (ESM in RN >=0.81)
     'react-native/jest/setup',
@@ -24,7 +22,7 @@ module.exports = {
   },
   // Allow RN and related packages to be transformed, even within pnpm's virtual store
   transformIgnorePatterns: [
-    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|react-native-blob-util|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime)/)'
+    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|react-native-blob-util|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime)/)',
   ],
   moduleFileExtensions: [
     'ios.js',
@@ -47,13 +45,18 @@ module.exports = {
     // Stub asset imports if needed
     '\\.(svg)$': '<rootDir>/__mocks__/svgMock.js',
     '\\.(png|jpg|jpeg|gif|webp|bmp)$': '<rootDir>/__mocks__/fileMock.js',
-    '^react-native/Libraries/Image/Image$': 'react-native/Libraries/Image/Image.ios.js',
-    '^react-native-permissions$': '<rootDir>/__mocks__/react-native-permissions.ts',
-    '^@react-native-community/datetimepicker$': '<rootDir>/__mocks__/@react-native-community/datetimepicker.js',
-    '^@react-native-community/geolocation$': '<rootDir>/__mocks__/react-native-geolocation.js',
+    '^react-native/Libraries/Image/Image$':
+      'react-native/Libraries/Image/Image.ios.js',
+    '^react-native-permissions$':
+      '<rootDir>/__mocks__/react-native-permissions.ts',
+    '^@react-native-community/datetimepicker$':
+      '<rootDir>/__mocks__/@react-native-community/datetimepicker.js',
+    '^@react-native-community/geolocation$':
+      '<rootDir>/__mocks__/react-native-geolocation.js',
     '^react-native-webview$': '<rootDir>/__mocks__/react-native-webview.js',
     '^react-native-pdf$': '<rootDir>/__mocks__/react-native-pdf.js',
-    '^react-native-calendar-events$': '<rootDir>/__mocks__/react-native-calendar-events.js',
+    '^react-native-calendar-events$':
+      '<rootDir>/__mocks__/react-native-calendar-events.js',
   },
   testPathIgnorePatterns: [
     '/node_modules/',
@@ -66,8 +69,9 @@ module.exports = {
     '<rootDir>/node_modules/.pnpm/',
     '<rootDir>/.jest-cache/',
   ],
-  // Coverage configuration
-  collectCoverage: true,
+  // Coverage is opt-in — pass --coverage flag explicitly (or CI coverage job).
+  // Do NOT default to true: it adds ~3× overhead on every test run.
+  collectCoverage: false,
   collectCoverageFrom: [
     'src/**/*.{ts,tsx,js,jsx}',
     '!src/**/*.d.ts',
@@ -80,7 +84,7 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   // `text` reporter prints a huge table; keep a concise summary by default.
-  coverageReporters: ['lcov', 'text-summary', 'html', 'json-summary'],
+  coverageReporters: ['lcov', 'text-summary'],
   coveragePathIgnorePatterns: [
     '/node_modules/',
     '/android/',
@@ -89,6 +93,9 @@ module.exports = {
     '/__tests__/',
     '/coverage/',
   ],
+  // Use 50% of available CPUs — scales correctly on dev machines and CI.
+  // CI overrides this to --maxWorkers=2 via the test step flag.
+  maxWorkers: '50%',
   // Ensure lingering native timers/handles from mocks don't hang the runner
   forceExit: true,
 };
