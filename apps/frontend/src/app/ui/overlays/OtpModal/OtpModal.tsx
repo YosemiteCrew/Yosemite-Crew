@@ -8,8 +8,8 @@ import { Icon } from '@iconify/react/dist/iconify.js';
 import { useAuthStore } from '@/app/stores/authStore';
 import { postData } from '@/app/services/axios';
 import { useSignOut } from '@/app/hooks/useAuth';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import Close from '@/app/ui/primitives/Icons/Close';
+import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 import './OtpModal.css';
 
@@ -36,6 +36,7 @@ const OtpModal = ({
 
   const [timer, setTimer] = useState(150); // 2.30 minutes in seconds
   const [timerActive, setTimerActive] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
     const val = e.target.value.replaceAll(/\D/g, '');
@@ -91,6 +92,7 @@ const OtpModal = ({
     }
 
     try {
+      setIsVerifying(true);
       const result = await confirmSignUp(email, code.join(''));
       if (result) {
         setCode(new Array(6).fill(''));
@@ -102,9 +104,15 @@ const OtpModal = ({
           globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
           const signedInRole =
             typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
-          router.push(redirectPath ?? resolveDefaultOpenScreenRoute(signedInRole));
+          const nextRoute = await resolvePostAuthRedirect({
+            fallbackRole: signedInRole,
+            redirectPath,
+            isDeveloper,
+          });
+          router.push(nextRoute);
         } catch (error) {
           console.log(error);
+          setIsVerifying(false);
           showErrorTost({
             message: `Sign in failed`,
             errortext: 'Error',
@@ -118,6 +126,7 @@ const OtpModal = ({
     } catch (error: any) {
       globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
       console.log(error);
+      setIsVerifying(false);
       setInvalidOtp(true);
     }
   };
@@ -233,8 +242,11 @@ const OtpModal = ({
         </div>
         <div className="VerifyModalBottomInner">
           <div className="VerifyBtnDiv">
-            <Button onClick={handleVerify} disabled={timer === 0 || code.includes('')}>
-              Verify Code
+            <Button
+              onClick={handleVerify}
+              disabled={isVerifying || timer === 0 || code.includes('')}
+            >
+              {isVerifying ? 'Verifying...' : 'Verify Code'}
             </Button>
             <span>
               {timer > 0

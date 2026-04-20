@@ -1,8 +1,16 @@
-import React from "react";
-import PrivacyPolicy from "@/app/features/legal/pages/PrivacyPolicy";
+import React, { Suspense } from 'react';
+import PrivacyPolicy from '@/app/features/legal/pages/PrivacyPolicy';
+import BackToSignup from '@/app/features/legal/components/BackToSignup';
 
 function page() {
-  return <PrivacyPolicy />;
+  return (
+    <>
+      <Suspense fallback={null}>
+        <BackToSignup />
+      </Suspense>
+      <PrivacyPolicy />
+    </>
+  );
 }
 
 export default page;

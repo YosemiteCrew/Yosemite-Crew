@@ -90,11 +90,13 @@ jest.mock('react-bootstrap', () => {
     Primary: ({
       text,
       onClick,
+      isDisabled,
     }: {
       text: string;
       onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+      isDisabled?: boolean;
     }) => (
-      <button type="button" onClick={(e) => onClick?.(e)}>
+      <button type="button" onClick={(e) => onClick?.(e)} disabled={isDisabled}>
         {text}
       </button>
     ),
@@ -125,6 +127,10 @@ jest.mock('react-bootstrap', () => {
     Form: MockForm,
   };
 });
+
+jest.mock('@/app/ui/overlays/Loader', () => ({
+  YosemiteLoader: ({ label, testId }: any) => <div data-testid={testId}>{label}</div>,
+}));
 
 import SignUp from '@/app/features/auth/pages/SignUp/SignUp';
 
@@ -196,6 +202,34 @@ describe('SignUp page', () => {
         'Doe'
       )
     );
+  });
+
+  test('shows a loader while signup is pending', async () => {
+    let resolveSignUp: (() => void) | undefined;
+    authStoreMock.signUp.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSignUp = () => resolve(true);
+        })
+    );
+
+    render(<SignUp />);
+
+    setFieldValue('First name', 'Jane');
+    setFieldValue('Last name', 'Doe');
+    setFieldValue('Enter email', 'jane@example.com');
+    setFieldValue('Set up password', 'Secret!23');
+    setFieldValue('Confirm password', 'Secret!23');
+    checkTermsBox();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(screen.getByTestId('signup-loader')).toHaveTextContent('Creating your account...');
+    expect(screen.getByRole('button', { name: 'Creating account...' })).toBeDisabled();
+
+    await waitFor(() => {
+      resolveSignUp?.();
+      expect(authStoreMock.signUp).toHaveBeenCalled();
+    });
   });
 
   test('surfaces toast error when Cognito returns UsernameExistsException', async () => {

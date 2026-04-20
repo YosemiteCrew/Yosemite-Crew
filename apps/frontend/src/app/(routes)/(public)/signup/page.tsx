@@ -4,15 +4,19 @@ import { useRouter } from 'next/navigation';
 
 import SignUp from '@/app/features/auth/pages/SignUp/SignUp';
 import { useAuthStore } from '@/app/stores/authStore';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 function Page() {
   const router = useRouter();
-  const { status, role } = useAuthStore();
+  const status = useAuthStore((s) => s.status);
+  const role = useAuthStore((s) => s.role);
 
+  // Redirect already-authenticated users away from the sign-up page
   useEffect(() => {
     if (status === 'authenticated') {
-      router.push(resolveDefaultOpenScreenRoute(role));
+      void resolvePostAuthRedirect({ fallbackRole: role }).then((route) => {
+        router.replace(route);
+      });
     }
   }, [status, role, router]);
 
