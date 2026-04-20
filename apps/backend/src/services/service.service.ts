@@ -22,6 +22,10 @@ import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { ServiceType } from "@prisma/client";
 import { isReadFromPostgres } from "src/config/read-switch";
 import UserProfileModel from "src/models/user-profile";
+import {
+  addCachedPromise,
+  type CachedPromise,
+} from "src/utils/cached-promise-cache";
 
 dayjs.extend(utc);
 
@@ -62,14 +66,11 @@ type PreferredTimeZoneClock = {
   dayOffset: number;
 };
 
-type CachedPromise<T> = {
-  expiresAt: number;
-  promise: Promise<T>;
-};
-
 const DAY_MINUTES = 24 * 60;
 const SLOT_MATCH_TOLERANCE_MINUTES = 5;
 const CALENDAR_PREFILL_CACHE_TTL_MS = 15_000;
+const CALENDAR_PREFILL_CACHE_MAX_ENTRIES = 2_000;
+const CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS = 15_000;
 const UTC_CLOCK_TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?([+-])(\d{1,2}):(\d{2})$/;
 const calendarPrefillCache = new Map<
@@ -213,31 +214,6 @@ const mapOrganisationWithAddress = (org: {
       }
     : undefined,
 });
-
-const addCachedPromise = <T>(
-  cache: Map<string, CachedPromise<T>>,
-  key: string,
-  ttlMs: number,
-  factory: () => Promise<T>,
-) => {
-  const now = Date.now();
-  const existing = cache.get(key);
-  if (existing && existing.expiresAt > now) {
-    return existing.promise;
-  }
-
-  const promise = factory().catch((error) => {
-    cache.delete(key);
-    throw error;
-  });
-
-  cache.set(key, {
-    expiresAt: now + ttlMs,
-    promise,
-  });
-
-  return promise;
-};
 
 const extractTimezoneFromPersonalDetails = (value: unknown): string | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -976,7 +952,7 @@ export const ServiceService = {
           .map((serviceId) => requireSafeString(serviceId, "serviceId"))
           .filter(Boolean),
       ),
-    );
+    ).sort();
 
     if (serviceIds.length === 0) {
       return [];
@@ -1083,6 +1059,10 @@ export const ServiceService = {
         });
 
         return matches;
+      },
+      {
+        maxEntries: CALENDAR_PREFILL_CACHE_MAX_ENTRIES,
+        pruneIntervalMs: CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS,
       },
     );
   },

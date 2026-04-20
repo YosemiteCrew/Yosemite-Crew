@@ -117,7 +117,7 @@ const handleError = (error: unknown, res: Response) => {
 
 const resolveUserId = (req: Request): string => {
   const authReq = req as AuthenticatedRequest;
-  return authReq.userId!;
+  return typeof authReq.userId === "string" ? authReq.userId : "";
 };
 
 export const TaskController = {

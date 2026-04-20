@@ -6,6 +6,24 @@ import {
   CompanionHistoryServiceError,
   type HistoryEntryType,
 } from "src/services/companion-history.service";
+import { OrgRequest } from "src/middlewares/rbac";
+
+const LAB_VIEW_PERMISSION = "labs:view:any" as const;
+const DEFAULT_HISTORY_TYPES: HistoryEntryType[] = [
+  "APPOINTMENT",
+  "TASK",
+  "FORM_SUBMISSION",
+  "DOCUMENT",
+  "LAB_RESULT",
+  "INVOICE",
+];
+const DEFAULT_NON_LAB_TYPES: HistoryEntryType[] = [
+  "APPOINTMENT",
+  "TASK",
+  "FORM_SUBMISSION",
+  "DOCUMENT",
+  "INVOICE",
+];
 
 const ObjectIdSchema = z.string().regex(/^[a-fA-F0-9]{24}$/);
 
@@ -40,6 +58,14 @@ const parseTypes = (value?: string) => {
 export const CompanionHistoryController = {
   listForCompanion: async (req: Request, res: Response): Promise<Response> => {
     try {
+      const typedReq = req as OrgRequest;
+      if (!typedReq.userPermissions) {
+        return res.status(500).json({
+          message:
+            "Permissions not loaded. Include withOrgPermissions before handler.",
+        });
+      }
+
       const paramsResult = ParamsSchema.safeParse(req.params);
       if (!paramsResult.success) {
         return res.status(400).json({ message: "Invalid route parameters" });
@@ -50,14 +76,28 @@ export const CompanionHistoryController = {
         return res.status(400).json({ message: "Invalid query parameters" });
       }
 
-      const types = parseTypes(queryResult.data.types);
+      const typesFilter = parseTypes(queryResult.data.types);
+      const canViewLabs =
+        typedReq.userPermissions.includes(LAB_VIEW_PERMISSION);
+
+      if (typesFilter?.includes("LAB_RESULT") && !canViewLabs) {
+        return res
+          .status(403)
+          .json({ message: "Forbidden – insufficient permissions" });
+      }
+
+      const types = typesFilter?.length
+        ? (typesFilter as HistoryEntryType[])
+        : canViewLabs
+          ? DEFAULT_HISTORY_TYPES
+          : DEFAULT_NON_LAB_TYPES;
 
       const result = await CompanionHistoryService.listForCompanion({
         organisationId: paramsResult.data.organisationId,
         companionId: paramsResult.data.companionId,
         limit: queryResult.data.limit,
         cursor: queryResult.data.cursor,
-        types: types as HistoryEntryType[] | undefined,
+        types,
       });
 
       return res.status(200).json(result);

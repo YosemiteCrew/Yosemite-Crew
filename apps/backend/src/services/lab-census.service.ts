@@ -2,6 +2,8 @@ import { Types } from "mongoose";
 import CompanionModel from "src/models/companion";
 import { ParentModel } from "src/models/parent";
 import CodeMappingModel from "src/models/code-mapping";
+import CompanionOrganisationModel from "src/models/companion-organisation";
+import ParentCompanionModel from "src/models/parent-companion";
 import { IntegrationService } from "src/services/integration.service";
 import { IdexxClient } from "src/integrations/idexx/idexx.client";
 import { normalizeLabProvider } from "src/labs";
@@ -65,6 +67,7 @@ const resolveDocId = (doc: { id?: string; _id?: { toString(): string } }) => {
 };
 
 const buildCensusPayload = async (input: {
+  organisationId: string;
   companionId: IdLike;
   parentId: IdLike;
   veterinarian?: string | null;
@@ -72,6 +75,72 @@ const buildCensusPayload = async (input: {
 }) => {
   const safeCompanionId = ensureObjectIdLike(input.companionId, "companionId");
   const safeParentId = ensureObjectIdLike(input.parentId, "parentId");
+
+  if (isReadFromPostgres()) {
+    const [companionOrgLink, parentCompanionLink] = await Promise.all([
+      prisma.companionOrganisation.findFirst({
+        where: {
+          organisationId: input.organisationId,
+          companionId: safeCompanionId.toString(),
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+        select: { id: true },
+      }),
+      prisma.parentCompanion.findFirst({
+        where: {
+          parentId: safeParentId.toString(),
+          companionId: safeCompanionId.toString(),
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!companionOrgLink) {
+      throw new LabOrderServiceError("Companion not found.", 404);
+    }
+    if (!parentCompanionLink) {
+      throw new LabOrderServiceError("Parent not found.", 404);
+    }
+  } else {
+    const safeOrganisationId = ensureObjectIdLike(
+      input.organisationId,
+      "organisationId",
+    );
+
+    const [companionOrgLink, parentCompanionLink] = await Promise.all([
+      CompanionOrganisationModel.findOne(
+        {
+          organisationId: safeOrganisationId,
+          companionId: safeCompanionId,
+          status: { $in: ["ACTIVE", "PENDING"] },
+        },
+        { _id: 1 },
+        { sanitizeFilter: true },
+      )
+        .lean()
+        .exec(),
+      ParentCompanionModel.findOne(
+        {
+          parentId: safeParentId,
+          companionId: safeCompanionId,
+          status: { $in: ["ACTIVE", "PENDING"] },
+        },
+        { _id: 1 },
+        { sanitizeFilter: true },
+      )
+        .lean()
+        .exec(),
+    ]);
+
+    if (!companionOrgLink) {
+      throw new LabOrderServiceError("Companion not found.", 404);
+    }
+    if (!parentCompanionLink) {
+      throw new LabOrderServiceError("Parent not found.", 404);
+    }
+  }
+
   const companion = isReadFromPostgres()
     ? await prisma.companion.findUnique({
         where: { id: safeCompanionId.toString() },
@@ -258,26 +327,14 @@ export const LabCensusService = {
       throw new LabOrderServiceError("parentId is required for census.", 400);
     }
 
-    const safeCompanionId = ensureObjectIdLike(
-      input.companionId,
-      "companionId",
-    );
-    const safeParentId = ensureObjectIdLike(input.parentId, "parentId");
-
-    const companionId = isReadFromPostgres()
-      ? safeCompanionId.toString()
-      : safeCompanionId;
-    const parentId = isReadFromPostgres()
-      ? safeParentId.toString()
-      : safeParentId;
-
     const normalizedIvls = input.ivls?.map((item) =>
       typeof item === "string" ? { serialNumber: item } : item,
     );
 
     const payload = await buildCensusPayload({
-      companionId,
-      parentId,
+      organisationId,
+      companionId: input.companionId,
+      parentId: input.parentId,
       veterinarian: input.veterinarian ?? undefined,
       ivls: normalizedIvls,
     });
