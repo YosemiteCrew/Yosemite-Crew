@@ -22,6 +22,7 @@ describe('AnnualInventoryTurnoverStat', () => {
   it('renders turnover numbers and date range labels', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { annualInventoryTurnover: ['Last 1 year'] },
+      emptyState: { annualInventoryTurnover: false },
       inventoryTurnover: {
         turnsPerYear: 6.4,
         targetTurnsPerYear: 8,
@@ -50,6 +51,7 @@ describe('AnnualInventoryTurnoverStat', () => {
   it('clamps negative values and handles empty trend', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { annualInventoryTurnover: ['Last 1 year'] },
+      emptyState: { annualInventoryTurnover: false },
       inventoryTurnover: {
         turnsPerYear: -1,
         targetTurnsPerYear: -3,

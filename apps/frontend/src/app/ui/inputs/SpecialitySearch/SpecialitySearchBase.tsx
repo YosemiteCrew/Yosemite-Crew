@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { IoSearch } from "react-icons/io5";
-import { specialties as SPECIALITIES } from "@/app/lib/specialities";
-import { useOrgStore } from "@/app/stores/orgStore";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { IoSearch } from 'react-icons/io5';
+import { specialties as SPECIALITIES } from '@/app/lib/specialities';
+import { useOrgStore } from '@/app/stores/orgStore';
 
-import "./SpecialitySearch.css";
+import './SpecialitySearch.css';
 
 type SpecialitySearchBaseProps<T extends { name: string }> = {
+  organisationId?: string | null;
   specialities: T[];
   setSpecialities: React.Dispatch<React.SetStateAction<T[]>>;
   multiple?: boolean;
@@ -13,24 +14,25 @@ type SpecialitySearchBaseProps<T extends { name: string }> = {
 };
 
 const SpecialitySearchBase = <T extends { name: string }>({
+  organisationId,
   specialities,
   setSpecialities,
   multiple = true,
   currentSpecialities = [],
 }: SpecialitySearchBaseProps<T>) => {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
   const currentNames = useMemo(
     () => new Set(currentSpecialities.map((s) => s.name.toLowerCase())),
-    [currentSpecialities],
+    [currentSpecialities]
   );
 
   const selectedNames = useMemo(
     () => new Set(specialities.map((s) => s.name.toLowerCase())),
-    [specialities],
+    [specialities]
   );
 
   const filtered = useMemo(() => {
@@ -46,58 +48,51 @@ const SpecialitySearchBase = <T extends { name: string }>({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
-      ) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
   const handleSelectSpeciality = (speciality: { name: string }) => {
-    if (!primaryOrgId) return;
-    const newItem = ({
+    const resolvedOrgId = organisationId ?? primaryOrgId ?? '';
+    const newItem = {
       name: speciality.name,
-      organisationId: primaryOrgId,
-    } as unknown) as T;
+      organisationId: resolvedOrgId,
+    } as unknown as T;
     setSpecialities((prev: T[]) => {
       if (!multiple) {
         return [newItem];
       }
-      const exists = prev.some(
-        (s) => s.name.toLowerCase() === speciality.name.toLowerCase(),
-      );
+      const exists = prev.some((s) => s.name.toLowerCase() === speciality.name.toLowerCase());
       if (exists) return prev;
       return [...prev, newItem];
     });
-    setQuery("");
+    setQuery('');
     setOpen(false);
   };
 
   const handleAddSpeciality = () => {
     const name = query.trim();
     if (!name) return;
-    if (!primaryOrgId) return;
-    const newItem = ({
+    const resolvedOrgId = organisationId ?? primaryOrgId ?? '';
+    const newItem = {
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      organisationId: primaryOrgId,
-    } as unknown) as T;
+      organisationId: resolvedOrgId,
+    } as unknown as T;
     setSpecialities((prev) => {
       if (!multiple) {
         return [newItem];
       }
-      const exists = prev.some(
-        (s) => s.name.toLowerCase() === name.toLowerCase(),
-      );
+      const exists = prev.some((s) => s.name.toLowerCase() === name.toLowerCase());
       if (exists) return prev;
       return [newItem, ...prev];
     });
-    setQuery("");
+    setQuery('');
     setOpen(false);
   };
 
@@ -125,17 +120,11 @@ const SpecialitySearchBase = <T extends { name: string }>({
                 className="step-search-speciality"
                 onClick={() => handleSelectSpeciality(speciality)}
               >
-                <div className="step-search-speciality-title">
-                  {speciality.name}
-                </div>
+                <div className="step-search-speciality-title">{speciality.name}</div>
               </button>
             ))
           ) : (
-            <button
-              type="button"
-              className="step-search-add"
-              onClick={handleAddSpeciality}
-            >
+            <button type="button" className="step-search-add" onClick={handleAddSpeciality}>
               Add speciality “{query.trim()}”
             </button>
           )}

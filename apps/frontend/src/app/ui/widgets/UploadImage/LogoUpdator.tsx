@@ -1,11 +1,12 @@
-import React, { useEffect, useId, useRef, useState } from "react";
-import CenterModal from "@/app/ui/overlays/Modal/CenterModal";
-import Image from "next/image";
-import { MdArrowRightAlt } from "react-icons/md";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
-import { postData } from "@/app/services/axios";
-import axios from "axios";
-import { IoCamera } from "react-icons/io5";
+/* eslint-disable @next/next/no-img-element */
+import React, { useEffect, useId, useRef, useState } from 'react';
+import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import { MdArrowRightAlt } from 'react-icons/md';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { postData } from '@/app/services/axios';
+import axios from 'axios';
+import { IoCamera } from 'react-icons/io5';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 type LogoUpdatorProps = {
   imageUrl: string;
@@ -17,13 +18,7 @@ type LogoUpdatorProps = {
 
 type GetSignedUrlResponse = { uploadUrl: string; s3Key: string };
 
-const LogoUpdator = ({
-  imageUrl,
-  apiUrl,
-  title,
-  onSave,
-  disabled,
-}: LogoUpdatorProps) => {
+const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorProps) => {
   const [updatePopup, setUpdatePopup] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -46,7 +41,7 @@ const LogoUpdator = ({
     setPreview(null);
     setFile(null);
     setUploadError(null);
-    if (fileRef.current) fileRef.current.value = "";
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   const handleCancel = () => {
@@ -63,7 +58,7 @@ const LogoUpdator = ({
 
   const uploadToS3 = async (uploadUrl: string, f: File) => {
     await axios.put(uploadUrl, f, {
-      headers: { "Content-Type": f.type },
+      headers: { 'Content-Type': f.type },
       withCredentials: false,
     });
   };
@@ -80,12 +75,12 @@ const LogoUpdator = ({
 
   const handleUpdate = async () => {
     if (!apiUrl) {
-      setUploadError("Profile is not ready yet.");
+      setUploadError('Profile is not ready yet.');
       return;
     }
     if (disabled || isUploading) return;
     if (!file) {
-      setUploadError("Please choose an image to upload.");
+      setUploadError('Please choose an image to upload.');
       return;
     }
     setIsUploading(true);
@@ -97,7 +92,7 @@ const LogoUpdator = ({
       setUpdatePopup(false);
       resetSelection();
     } catch (err: any) {
-      setUploadError(err?.message || "Upload failed");
+      setUploadError(err?.message || 'Upload failed');
     } finally {
       setIsUploading(false);
     }
@@ -106,30 +101,32 @@ const LogoUpdator = ({
   return (
     <>
       <div className="flex justify-center h-10 w-10 shrink-0">
-        <Image
+        <img
           src={imageUrl}
           alt="Logo"
           height={40}
           width={40}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = MEDIA_SOURCES.avatars.person;
+          }}
           onClick={() => !disabled && setUpdatePopup(true)}
           className="rounded-full cursor-pointer h-10 w-10 object-cover"
         />
       </div>
-      <CenterModal
-        showModal={updatePopup}
-        setShowModal={setUpdatePopup}
-        onClose={handleCancel}
-      >
+      <CenterModal showModal={updatePopup} setShowModal={setUpdatePopup} onClose={handleCancel}>
         <div className="flex flex-col gap-8">
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">{title}</div>
           </div>
           <div className="flex gap-6 sm:gap-10 items-center justify-center w-full px-3">
-            <Image
+            <img
               src={imageUrl}
               alt="Logo"
               height={100}
               width={100}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = MEDIA_SOURCES.avatars.person;
+              }}
               onClick={() => setUpdatePopup(true)}
               className="rounded-full h-[100px] w-[100px] object-cover"
             />
@@ -146,15 +143,13 @@ const LogoUpdator = ({
                 />
                 <label
                   htmlFor={inputId}
-                  className={`h-[100px] w-[100px] relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${preview ? "border-0" : "border"} ${isUploading ? "pointer-events-none" : ""}`}
+                  className={`h-[100px] w-[100px] relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${preview ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
                   aria-label="Upload logo"
                 >
                   {preview ? (
-                    <Image
+                    <img
                       src={preview}
                       alt="New Logo"
-                      height={100}
-                      width={100}
                       className="rounded-full object-cover h-[100px] w-[100px]"
                     />
                   ) : (
@@ -166,9 +161,7 @@ const LogoUpdator = ({
                 </label>
               </div>
               {uploadError && (
-                <div className="text-sm text-red-600 text-center max-w-[220px]">
-                  {uploadError}
-                </div>
+                <div className="text-sm text-red-600 text-center max-w-[220px]">{uploadError}</div>
               )}
             </div>
           </div>
@@ -177,7 +170,7 @@ const LogoUpdator = ({
             <Primary
               href="#"
               onClick={handleUpdate}
-              text={isUploading ? "Updating..." : "Update"}
+              text={isUploading ? 'Updating...' : 'Update'}
             />
           </div>
         </div>

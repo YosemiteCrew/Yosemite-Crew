@@ -19,21 +19,23 @@ describe('IndividualProductTurnoverStat', () => {
     jest.clearAllMocks();
   });
 
-  it('renders fallback message when no products are available', () => {
+  it('renders empty state when no products are available', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { individualProductTurnover: ['Last 1 year'] },
       productTurnover: [],
+      emptyState: { individualProductTurnover: true },
     });
 
     render(<IndividualProductTurnoverStat />);
 
     expect(screen.getByTestId('card-header')).toHaveTextContent('Individual product turnover');
-    expect(screen.getByText('No product turnover data.')).toBeInTheDocument();
+    expect(screen.getByText('No data available')).toBeInTheDocument();
   });
 
   it('renders top six products with proportional widths', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { individualProductTurnover: ['Last 1 year'] },
+      emptyState: { individualProductTurnover: false },
       productTurnover: [
         { itemId: '1', name: 'A', turnover: 10 },
         { itemId: '2', name: 'B', turnover: 5 },
