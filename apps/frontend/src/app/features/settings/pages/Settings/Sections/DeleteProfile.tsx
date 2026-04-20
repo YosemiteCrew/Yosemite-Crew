@@ -1,15 +1,16 @@
-import Delete from "@/app/ui/primitives/Buttons/Delete";
-import DeleteConfirmationModal from "@/app/ui/overlays/Modal/DeleteConfirmationModal";
-import { useSignOut } from "@/app/hooks/useAuth";
-import { useRouter } from "next/navigation";
-import React, { useState, useCallback } from "react";
+import Delete from '@/app/ui/primitives/Buttons/Delete';
+import DeleteConfirmationModal from '@/app/ui/overlays/Modal/DeleteConfirmationModal';
+import { useSignOut } from '@/app/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import React, { useState, useCallback } from 'react';
+import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 
 const PROFILE_ITEMS_TO_REMOVE = [
-  "Personal details",
-  "Professional information",
-  "Availability & schedule",
-  "Assigned tasks & appointment history",
-  "Access permissions within all organizations",
+  'Personal details',
+  'Professional information',
+  'Availability & schedule',
+  'Assigned tasks & appointment history',
+  'Access permissions within all organizations',
 ];
 
 const DeleteProfile = () => {
@@ -18,18 +19,19 @@ const DeleteProfile = () => {
   const [deletePopup, setDeletePopup] = useState(false);
 
   const handleDelete = useCallback(async () => {
-    await signOut();
-    router.replace("/signin");
+    startRouteLoader();
+    try {
+      await signOut();
+      router.replace('/signin');
+    } catch {
+      stopRouteLoader();
+    }
   }, [signOut, router]);
 
   return (
     <>
       <div className="flex justify-center">
-        <Delete
-          href="#"
-          onClick={() => setDeletePopup(true)}
-          text="Delete profile"
-        />
+        <Delete href="#" onClick={() => setDeletePopup(true)} text="Delete profile" />
       </div>
       <DeleteConfirmationModal
         showModal={deletePopup}

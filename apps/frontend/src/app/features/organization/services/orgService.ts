@@ -1,5 +1,5 @@
-import { deleteData, getData, postData, putData } from "@/app/services/axios";
-import { useOrgStore } from "@/app/stores/orgStore";
+import { deleteData, getData, postData, putData } from '@/app/services/axios';
+import { useOrgStore } from '@/app/stores/orgStore';
 import {
   OrganizationRequestDTO,
   Organisation,
@@ -8,20 +8,20 @@ import {
   fromUserOrganizationRequestDTO,
   UserOrganization,
   UserOrganizationRequestDTO,
-} from "@yosemite-crew/types";
-import axios from "axios";
-import { useAuthStore } from "@/app/stores/authStore";
-import { useAvailabilityStore } from "@/app/stores/availabilityStore";
-import { useCompanionStore } from "@/app/stores/companionStore";
-import { useOrganizationDocumentStore } from "@/app/stores/documentStore";
-import { useOrganisationRoomStore } from "@/app/stores/roomStore";
-import { useServiceStore } from "@/app/stores/serviceStore";
-import { useSpecialityStore } from "@/app/stores/specialityStore";
-import { useTeamStore } from "@/app/stores/teamStore";
-import { useUserProfileStore } from "@/app/stores/profileStore";
-import { BillingCounter, BillingSubscription } from "@/app/features/billing/types/billing";
-import { useCounterStore } from "@/app/stores/counterStore";
-import { useSubscriptionStore } from "@/app/stores/subscriptionStore";
+} from '@yosemite-crew/types';
+import axios from 'axios';
+import { useAuthStore } from '@/app/stores/authStore';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { useCompanionStore } from '@/app/stores/companionStore';
+import { useOrganizationDocumentStore } from '@/app/stores/documentStore';
+import { useOrganisationRoomStore } from '@/app/stores/roomStore';
+import { useServiceStore } from '@/app/stores/serviceStore';
+import { useSpecialityStore } from '@/app/stores/specialityStore';
+import { useTeamStore } from '@/app/stores/teamStore';
+import { useUserProfileStore } from '@/app/stores/profileStore';
+import { BillingCounter, BillingSubscription } from '@/app/features/billing/types/billing';
+import { useCounterStore } from '@/app/stores/counterStore';
+import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
 
 type MappingResponse = {
   mapping: UserOrganizationRequestDTO;
@@ -33,8 +33,7 @@ type MappingResponse = {
 let loadOrgsPromise: Promise<void> | null = null;
 
 export const loadOrgs = async (opts?: { silent?: boolean }) => {
-  const { startLoading, setOrgs, setError, setUserOrgMappings } =
-    useOrgStore.getState();
+  const { startLoading, setOrgs, setError, setUserOrgMappings } = useOrgStore.getState();
   const { setCounters } = useCounterStore.getState();
   const { setSubscriptions } = useSubscriptionStore.getState();
   if (loadOrgsPromise) {
@@ -45,9 +44,7 @@ export const loadOrgs = async (opts?: { silent?: boolean }) => {
   }
   loadOrgsPromise = (async () => {
     try {
-      const res = await getData<MappingResponse[]>(
-        "/fhir/v1/user-organization/user/mapping"
-      );
+      const res = await getData<MappingResponse[]>('/fhir/v1/user-organization/user/mapping');
       const orgMappings: UserOrganization[] = [];
       const orgs: Organisation[] = [];
       const counters: BillingCounter[] = [];
@@ -70,19 +67,15 @@ export const loadOrgs = async (opts?: { silent?: boolean }) => {
           if (status === 403) {
             setError("You don't have permission to fetch organizations.");
           } else if (status === 404) {
-            setError("Organization service not found. Please contact support.");
+            setError('Organization service not found. Please contact support.');
           } else {
-            setError(
-              err.response?.data?.message ??
-                err.message ??
-                "Failed to load organizations"
-            );
+            setError(err.response?.data?.message ?? err.message ?? 'Failed to load organizations');
           }
         } else {
-          setError("Unexpected error while fetching organization");
+          setError('Unexpected error while fetching organization');
         }
       }
-      console.error("Failed to load orgs:", err);
+      console.error('Failed to load orgs:', err);
       throw err;
     } finally {
       loadOrgsPromise = null;
@@ -93,20 +86,12 @@ export const loadOrgs = async (opts?: { silent?: boolean }) => {
 };
 
 export const createOrg = async (formData: Organisation) => {
-  const {
-    setError,
-    upsertOrg,
-    setPrimaryOrg,
-    upsertUserOrgMapping,
-  } = useOrgStore.getState();
+  const { upsertOrg, setPrimaryOrg, upsertUserOrgMapping } = useOrgStore.getState();
   const { user, attributes } = useAuthStore.getState();
-  const practitionerId = attributes?.sub || user?.getUsername() || "";
+  const practitionerId = attributes?.sub || user?.getUsername() || '';
   try {
     const fhirPayload = toOrganizationResponseDTO(formData);
-    const res = await postData<OrganizationRequestDTO>(
-      "/fhir/v1/organization",
-      fhirPayload
-    );
+    const res = await postData<OrganizationRequestDTO>('/fhir/v1/organization', fhirPayload);
     const newOrg = fromOrganizationRequestDTO(res.data);
     const _id = newOrg._id?.toString() || newOrg.name;
     const newExtendedOrg = { ...newOrg, _id };
@@ -115,30 +100,14 @@ export const createOrg = async (formData: Organisation) => {
     const ownerMapping: UserOrganization = {
       practitionerReference: practitionerId,
       organizationReference: _id,
-      roleCode: "owner",
-      roleDisplay: "Owner",
+      roleCode: 'owner',
+      roleDisplay: 'Owner',
       active: false,
     };
     upsertUserOrgMapping(ownerMapping);
     return _id;
   } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      const status = err.response?.status;
-      if (status === 403) {
-        setError("You don't have permission to create organizations.");
-      } else if (status === 404) {
-        setError("Organization service not found. Please contact support.");
-      } else {
-        setError(
-          err.response?.data?.message ??
-            err.message ??
-            "Failed to load organizations"
-        );
-      }
-    } else {
-      setError("Unexpected error while creating organization");
-    }
-    console.error("Failed to load orgs:", err);
+    console.error('Failed to load orgs:', err);
     throw err;
   }
 };
@@ -152,10 +121,7 @@ export const updateOrg = async (formData: Organisation) => {
       return;
     }
     const fhirPayload = toOrganizationResponseDTO(formData);
-    const res = await putData<OrganizationRequestDTO>(
-      "/fhir/v1/organization/" + _id,
-      fhirPayload
-    );
+    const res = await putData<OrganizationRequestDTO>('/fhir/v1/organization/' + _id, fhirPayload);
     const newOrg = fromOrganizationRequestDTO(res.data);
     updateOrg(_id, newOrg);
   } catch (err: unknown) {
@@ -164,18 +130,14 @@ export const updateOrg = async (formData: Organisation) => {
       if (status === 403) {
         setError("You don't have permission to update organizations.");
       } else if (status === 404) {
-        setError("Organization service not found. Please contact support.");
+        setError('Organization service not found. Please contact support.');
       } else {
-        setError(
-          err.response?.data?.message ??
-            err.message ??
-            "Failed to load organizations"
-        );
+        setError(err.response?.data?.message ?? err.message ?? 'Failed to load organizations');
       }
     } else {
-      setError("Unexpected error while updating organization");
+      setError('Unexpected error while updating organization');
     }
-    console.error("Failed to load orgs:", err);
+    console.error('Failed to load orgs:', err);
     throw err;
   }
 };
@@ -184,11 +146,11 @@ export const deleteOrg = async () => {
   const { removeOrg, setError } = useOrgStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load specialities.");
+    console.warn('No primary organization selected. Cannot load specialities.');
     return;
   }
   try {
-    await deleteData("/fhir/v1/organization/" + primaryOrgId);
+    await deleteData('/fhir/v1/organization/' + primaryOrgId);
     useCompanionStore.getState().clearCompanionsForOrg(primaryOrgId);
     useAvailabilityStore.getState().clearAvailabilitiesForOrg(primaryOrgId);
     useOrganizationDocumentStore.getState().clearDocumentsForOrg(primaryOrgId);
@@ -204,18 +166,14 @@ export const deleteOrg = async () => {
       if (status === 403) {
         setError("You don't have permission to update organizations.");
       } else if (status === 404) {
-        setError("Organization service not found. Please contact support.");
+        setError('Organization service not found. Please contact support.');
       } else {
-        setError(
-          err.response?.data?.message ??
-            err.message ??
-            "Failed to load organizations"
-        );
+        setError(err.response?.data?.message ?? err.message ?? 'Failed to load organizations');
       }
     } else {
-      setError("Unexpected error while updating organization");
+      setError('Unexpected error while updating organization');
     }
-    console.error("Failed to load orgs:", err);
+    console.error('Failed to load orgs:', err);
     throw err;
   }
 };
