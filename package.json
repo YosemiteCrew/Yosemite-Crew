@@ -31,13 +31,14 @@
   "name": "yosemitecrew",
   "pnpm": {
     "overrides": {
+      "protobufjs": "7.5.5",
       "qs": "6.14.2",
       "tar": "7.5.11",
       "serialize-javascript": "7.0.3",
       "undici": "7.24.0",
       "svgo": "3.3.3",
       "@hono/node-server": "1.19.13",
-      "hono": "4.12.12",
+      "hono": "4.12.14",
       "yauzl": "3.2.1",
       "@tootallnate/once": "3.0.1",
       "node-forge": "1.4.0",
