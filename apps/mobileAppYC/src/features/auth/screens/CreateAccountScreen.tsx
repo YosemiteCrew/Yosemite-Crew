@@ -52,6 +52,7 @@ import {
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
 } from '@/config/variables';
+import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 import LocationService from '@/shared/services/LocationService';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -684,11 +685,29 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     return () => sub.remove();
   }, [handleGoBack]);
 
+  /**
+   * Returns a fresh access token using the same provider-aware refresh path
+   * used by every other authenticated screen in the app.
+   * On failure (session gone), clears pending state and routes to SignIn.
+   */
+  const requireFreshAccessToken = useCallback(async (): Promise<string> => {
+    const fresh = await getFreshStoredTokens();
+    if (!fresh?.accessToken) {
+      // Session is gone — give the user a clean re-auth path
+      await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+      await logout();
+      navigation.reset({index: 0, routes: [{name: 'SignIn'}]});
+      throw new Error('Authentication expired. Please sign in again.');
+    }
+    return fresh.accessToken;
+  }, [logout, navigation]);
+
   const submitParentProfile = useCallback(
     async (payload: ParentProfileUpsertPayload) => {
-      if (!tokens.accessToken) {
-        throw new Error('Authentication expired. Please sign in again.');
-      }
+      // Refresh the token before every submit so an idle session (token TTL
+      // ~1 h) never causes a silent 401 on this critical path.
+      const accessToken = await requireFreshAccessToken();
 
       const parentId =
         existingParentProfile?.id ?? payload.parentId ?? undefined;
@@ -703,10 +722,10 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           ...payload,
           parentId,
         },
-        tokens.accessToken,
+        accessToken,
       );
     },
-    [existingParentProfile, hasRemoteProfile, tokens.accessToken],
+    [existingParentProfile, hasRemoteProfile, requireFreshAccessToken],
   );
 
   const handleSignUp = handleSubmit(async () => {
@@ -761,12 +780,10 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         existingPhotoUrl = photoPayload.remoteUrl ?? null;
 
         if (photoPayload.localFile) {
-          if (!tokens.accessToken) {
-            throw new Error('Authentication expired. Please sign in again.');
-          }
+          const uploadToken = await requireFreshAccessToken();
 
           const presigned = await requestParentProfileUploadUrl({
-            accessToken: tokens.accessToken,
+            accessToken: uploadToken,
             mimeType: photoPayload.localFile.mimeType,
           });
 
@@ -836,10 +853,14 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
       await login(userPayload, tokens);
     } catch (error) {
+      // Prefer the backend's response body message over axios's generic
+      // "Request failed with status code NNN" string.
+      const axiosMessage = (error as any)?.response?.data?.message ?? undefined;
       const message =
-        error instanceof Error
+        axiosMessage ??
+        (error instanceof Error
           ? error.message
-          : 'Something went wrong while creating your account. Please try again.';
+          : 'Something went wrong while creating your account. Please try again.');
       setSubmissionError(message);
       console.error('Signup error:', error);
     } finally {
@@ -1119,11 +1140,10 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
               {currentStep === 1 ? renderStep1() : renderStep2()}
             </ScrollView>
 
-            {submissionError ? (
-              <Text style={styles.submissionError}>{submissionError}</Text>
-            ) : null}
-
             <View style={styles.buttonContainer}>
+              {submissionError ? (
+                <Text style={styles.submissionError}>{submissionError}</Text>
+              ) : null}
               <LiquidGlassButton
                 title={(() => {
                   if (currentStep === 1) {
