@@ -101,17 +101,24 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
   return (
     <>
       <div className="flex justify-center h-10 w-10 shrink-0">
-        <img
-          src={imageUrl}
-          alt="Logo"
-          height={40}
-          width={40}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = MEDIA_SOURCES.avatars.person;
-          }}
+        <button
+          type="button"
           onClick={() => !disabled && setUpdatePopup(true)}
-          className="rounded-full cursor-pointer h-10 w-10 object-cover"
-        />
+          className="rounded-full cursor-pointer h-10 w-10 p-0 border-0 bg-transparent"
+          aria-label="Update logo"
+          disabled={disabled}
+        >
+          <img
+            src={imageUrl}
+            alt="Logo"
+            height={40}
+            width={40}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = MEDIA_SOURCES.avatars.person;
+            }}
+            className="rounded-full h-10 w-10 object-cover"
+          />
+        </button>
       </div>
       <CenterModal showModal={updatePopup} setShowModal={setUpdatePopup} onClose={handleCancel}>
         <div className="flex flex-col gap-8">
@@ -127,8 +134,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = MEDIA_SOURCES.avatars.person;
               }}
-              onClick={() => setUpdatePopup(true)}
-              className="rounded-full h-[100px] w-[100px] object-cover"
+              className="rounded-full h-25 w-25 object-cover"
             />
             <MdArrowRightAlt size={24} color="#302f2e" />
             <div className="flex flex-col items-center gap-3">
@@ -143,14 +149,14 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
                 />
                 <label
                   htmlFor={inputId}
-                  className={`h-[100px] w-[100px] relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${preview ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
+                  className={`h-25 w-25 relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${preview ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
                   aria-label="Upload logo"
                 >
                   {preview ? (
                     <img
                       src={preview}
                       alt="New Logo"
-                      className="rounded-full object-cover h-[100px] w-[100px]"
+                      className="rounded-full object-cover h-25 w-25"
                     />
                   ) : (
                     <IoCamera
@@ -161,7 +167,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
                 </label>
               </div>
               {uploadError && (
-                <div className="text-sm text-red-600 text-center max-w-[220px]">{uploadError}</div>
+                <div className="text-sm text-red-600 text-center max-w-55">{uploadError}</div>
               )}
             </div>
           </div>

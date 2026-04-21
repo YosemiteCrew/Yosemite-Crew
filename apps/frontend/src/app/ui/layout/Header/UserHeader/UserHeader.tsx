@@ -101,7 +101,7 @@ const UserHeader = () => {
       }
       router.replace(logoutRedirect);
     } catch (error) {
-      console.error('Signout error:', error);
+      console.error('⚠️ Cognito signout error:', error);
       stopRouteLoader();
     }
   };

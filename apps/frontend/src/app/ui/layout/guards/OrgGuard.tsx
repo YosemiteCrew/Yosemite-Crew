@@ -56,6 +56,30 @@ type RedirectParams = {
   availabilities: ApiDayAvailability[];
 };
 
+const isUnverifiedPathAllowed = (pathname: string): boolean =>
+  pathname === '/book-onboarding' ||
+  pathname === '/team-onboarding' ||
+  pathname === '/guides' ||
+  pathname.startsWith('/guides/') ||
+  appRoutes.some(
+    (route) =>
+      route.verify === false && (pathname === route.href || pathname.startsWith(`${route.href}/`))
+  );
+
+const resolveUnverifiedOwnerRedirect = (
+  step: number,
+  profileStep: number,
+  pathname: string,
+  primaryOrgId: string
+): string | null => {
+  if (step < 3) return `/create-org?orgId=${primaryOrgId}`;
+  if (profileStep < 3 && pathname !== '/team-onboarding') {
+    return `/team-onboarding?orgId=${primaryOrgId}`;
+  }
+  if (isUnverifiedPathAllowed(pathname)) return '';
+  return '/dashboard';
+};
+
 const resolveOrgRedirect = ({
   pathname,
   primaryOrgId,
@@ -67,35 +91,12 @@ const resolveOrgRedirect = ({
 }: RedirectParams): string | null => {
   const step = computeOrgOnboardingStep(primaryOrg, specialities);
   const profileStep = computeTeamOnboardingStep(profile, availabilities);
-  const isVerified = primaryOrg.isVerified;
   const role = membership.roleDisplay ?? membership.roleCode;
 
   if (role.toLowerCase() === 'owner') {
-    if (!isVerified) {
-      if (step < 3) {
-        return `/create-org?orgId=${primaryOrgId}`;
-      }
-      // step === 3: org onboarding done but not yet verified
-      // Allow profile onboarding, book-onboarding, and verify:false routes; gate everything else
-      if (profileStep < 3 && pathname !== '/team-onboarding') {
-        return `/team-onboarding?orgId=${primaryOrgId}`;
-      }
-      const unverifiedAllowed =
-        pathname === '/book-onboarding' ||
-        pathname === '/team-onboarding' ||
-        pathname === '/guides' ||
-        pathname.startsWith('/guides/') ||
-        appRoutes.some(
-          (route) =>
-            route.verify === false &&
-            (pathname === route.href || pathname.startsWith(`${route.href}/`))
-        );
-      if (unverifiedAllowed) {
-        return '';
-      }
-      return '/dashboard';
+    if (!primaryOrg.isVerified) {
+      return resolveUnverifiedOwnerRedirect(step, profileStep, pathname, primaryOrgId);
     }
-    // Org verified — check if owner still needs to complete their profile
     if (profileStep < 3 && pathname !== '/team-onboarding') {
       return `/team-onboarding?orgId=${primaryOrgId}`;
     }

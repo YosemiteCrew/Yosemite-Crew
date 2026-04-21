@@ -21,10 +21,9 @@ const CalBookingOverlay = ({ open, onClose }: CalBookingOverlayProps) => {
   if (!open || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      open
+      className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 m-0 w-full h-full max-w-none border-0"
       aria-label="Book onboarding call"
     >
       <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-300 max-h-[95vh] flex flex-col overflow-hidden">
@@ -48,7 +47,7 @@ const CalBookingOverlay = ({ open, onClose }: CalBookingOverlayProps) => {
           />
         </div>
       </div>
-    </div>,
+    </dialog>,
     document.body
   );
 };

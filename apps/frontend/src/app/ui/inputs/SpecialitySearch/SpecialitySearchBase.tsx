@@ -60,6 +60,7 @@ const SpecialitySearchBase = <T extends { name: string }>({
 
   const handleSelectSpeciality = (speciality: { name: string }) => {
     const resolvedOrgId = organisationId ?? primaryOrgId ?? '';
+    if (!resolvedOrgId) return;
     const newItem = {
       name: speciality.name,
       organisationId: resolvedOrgId,
@@ -80,6 +81,7 @@ const SpecialitySearchBase = <T extends { name: string }>({
     const name = query.trim();
     if (!name) return;
     const resolvedOrgId = organisationId ?? primaryOrgId ?? '';
+    if (!resolvedOrgId) return;
     const newItem = {
       name: name.charAt(0).toUpperCase() + name.slice(1),
       organisationId: resolvedOrgId,
