@@ -68,6 +68,14 @@ const getSpecialitySummary = (businessType: string, specialityName: string) =>
     ?.summary ??
   `A configurable specialty for ${specialityName.toLowerCase()} services in your organization.`;
 
+const filterWithoutService = (services: Service[], originalName: string | null): Service[] => {
+  if (originalName == null) return services;
+  return services.filter((service) => normalizeName(service.name) !== normalizeName(originalName));
+};
+
+const filterServicesByName = (services: Service[], serviceName: string): Service[] =>
+  services.filter((service) => normalizeName(service.name) !== normalizeName(serviceName));
+
 const buildServicePayload = (
   organisationId: string,
   specialityId: string,
@@ -307,13 +315,7 @@ const SpecialityStep = ({
         };
 
         const existingServices = speciality.services ?? [];
-        const withoutOriginal =
-          serviceEditor.originalName == null
-            ? existingServices
-            : existingServices.filter(
-                (service) =>
-                  normalizeName(service.name) !== normalizeName(serviceEditor.originalName ?? '')
-              );
+        const withoutOriginal = filterWithoutService(existingServices, serviceEditor.originalName);
 
         return {
           ...speciality,
@@ -334,11 +336,36 @@ const SpecialityStep = ({
 
         return {
           ...speciality,
-          services: (speciality.services ?? []).filter(
-            (service) => normalizeName(service.name) !== normalizeName(serviceName)
-          ),
+          services: filterServicesByName(speciality.services ?? [], serviceName),
         };
       })
+    );
+  };
+
+  const handleServiceNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setServiceEditor((previous) =>
+      previous == null
+        ? previous
+        : { ...previous, service: { ...previous.service, name: event.target.value } }
+    );
+  };
+
+  const handleServiceDurationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setServiceEditor((previous) =>
+      previous == null
+        ? previous
+        : {
+            ...previous,
+            service: { ...previous.service, durationMinutes: Number(event.target.value || 0) },
+          }
+    );
+  };
+
+  const handleServiceCostChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setServiceEditor((previous) =>
+      previous == null
+        ? previous
+        : { ...previous, service: { ...previous.service, cost: Number(event.target.value || 0) } }
     );
   };
 
@@ -716,19 +743,7 @@ const SpecialityStep = ({
               inname="service-name"
               value={serviceEditor?.service.name ?? ''}
               inlabel="Service name"
-              onChange={(event) =>
-                setServiceEditor((previous) =>
-                  previous == null
-                    ? previous
-                    : {
-                        ...previous,
-                        service: {
-                          ...previous.service,
-                          name: event.target.value,
-                        },
-                      }
-                )
-              }
+              onChange={handleServiceNameChange}
             />
             <div className="step-two-input">
               <FormInput
@@ -736,38 +751,14 @@ const SpecialityStep = ({
                 inname="service-duration"
                 value={String(serviceEditor?.service.durationMinutes ?? 30)}
                 inlabel="Duration (mins)"
-                onChange={(event) =>
-                  setServiceEditor((previous) =>
-                    previous == null
-                      ? previous
-                      : {
-                          ...previous,
-                          service: {
-                            ...previous.service,
-                            durationMinutes: Number(event.target.value || 0),
-                          },
-                        }
-                  )
-                }
+                onChange={handleServiceDurationChange}
               />
               <FormInput
                 intype="number"
                 inname="service-price"
                 value={String(serviceEditor?.service.cost ?? 0)}
                 inlabel={`Price (${currency})`}
-                onChange={(event) =>
-                  setServiceEditor((previous) =>
-                    previous == null
-                      ? previous
-                      : {
-                          ...previous,
-                          service: {
-                            ...previous.service,
-                            cost: Number(event.target.value || 0),
-                          },
-                        }
-                  )
-                }
+                onChange={handleServiceCostChange}
               />
             </div>
           </div>

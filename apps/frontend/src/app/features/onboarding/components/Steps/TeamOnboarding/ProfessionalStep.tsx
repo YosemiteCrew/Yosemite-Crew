@@ -161,9 +161,9 @@ const ProfessionalStep = forwardRef<StepHandle, ProfessionalStepProps>(
               intype="number"
               inname="Years of experience"
               value={
-                formData.professionalDetails?.yearsOfExperience !== undefined
-                  ? String(formData.professionalDetails.yearsOfExperience)
-                  : ''
+                formData.professionalDetails?.yearsOfExperience === undefined
+                  ? ''
+                  : String(formData.professionalDetails.yearsOfExperience)
               }
               inlabel="Years of experience"
               onChange={(e) =>

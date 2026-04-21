@@ -50,7 +50,7 @@ const MIN_AGE = 16;
 
 const isValidDob = (dob: string): boolean => {
   const date = new Date(dob);
-  if (isNaN(date.getTime())) return false;
+  if (Number.isNaN(date.getTime())) return false;
   const today = new Date();
   const minDob = new Date(today.getFullYear() - MIN_AGE, today.getMonth(), today.getDate());
   return date <= minDob;

@@ -210,11 +210,6 @@
   border: 1px solid #eaeaea;
   border-radius: 18px;
   background: #fff;
-}
-
-.step-three-search-panel,
-.step-three-selected-card,
-.step-three-empty-state {
   padding: 18px;
 }
 
