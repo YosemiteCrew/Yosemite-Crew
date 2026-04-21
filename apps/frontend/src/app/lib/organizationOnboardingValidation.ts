@@ -37,7 +37,7 @@ const normalizeWebsite = (value?: string | null) => {
 
   try {
     const parsed = new URL(candidate);
-    if (!parsed.hostname || !parsed.hostname.includes('.')) {
+    if (!parsed.hostname?.includes('.')) {
       return null;
     }
     return parsed.toString();
@@ -47,7 +47,10 @@ const normalizeWebsite = (value?: string | null) => {
 };
 
 const toInteger = (value: unknown) => {
-  const parsed = Number.parseInt(String(value ?? ''), 10);
+  const parsed = Number.parseInt(
+    typeof value === 'string' || typeof value === 'number' ? String(value) : '',
+    10
+  );
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 };
 
@@ -79,7 +82,7 @@ export const validateOrgBasics = ({
   const normalizedLocalPhoneNumber = getDigitsOnly(localPhoneNumber).slice(0, 15);
   const normalizedWebsite = normalizeWebsite(formData.website);
   const normalizedCountry = normalizeText(
-    selectedCountryCode?.countryName || formData.address?.country
+    selectedCountryCode?.countryName ?? formData.address?.country
   );
   if (!normalizedName) {
     errors.name = 'Organisation name is required';
@@ -93,9 +96,11 @@ export const validateOrgBasics = ({
     errors.country = 'Country is required';
   }
 
-  if (!selectedCountryCode?.dialCode || !normalizedLocalPhoneNumber) {
-    errors.number = 'Enter a valid phone number';
-  } else if (!validatePhone(`${selectedCountryCode.dialCode}${normalizedLocalPhoneNumber}`)) {
+  if (
+    !selectedCountryCode?.dialCode ||
+    !normalizedLocalPhoneNumber ||
+    !validatePhone(`${selectedCountryCode.dialCode}${normalizedLocalPhoneNumber}`)
+  ) {
     errors.number = 'Enter a valid phone number';
   }
 

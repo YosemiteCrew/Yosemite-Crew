@@ -12,13 +12,43 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import {
   buildStarterServicesForSpeciality,
   getResolvedBusinessType,
+  OnboardingServiceTemplate,
 } from '@/app/lib/onboardingSpecialityCatalog';
+import { BusinessType } from '@/app/features/organization/types/org';
 import { Service } from '@yosemite-crew/types';
 
 type AddSpecialityProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   specialities: SpecialityWeb[];
+};
+
+const buildServiceItem = (
+  service: OnboardingServiceTemplate,
+  primaryOrgId: string | null,
+  specialityId: string | undefined
+): Service =>
+  ({
+    ...service,
+    id: '',
+    organisationId: primaryOrgId ?? '',
+    specialityId,
+    isActive: true,
+  }) as Service;
+
+const applyStarterServices = (
+  speciality: SpecialityWeb,
+  businessType: BusinessType,
+  primaryOrgId: string | null
+): { speciality: SpecialityWeb; changed: boolean } => {
+  if (Array.isArray(speciality.services) && speciality.services.length > 0) {
+    return { speciality, changed: false };
+  }
+  const starterServices = buildStarterServicesForSpeciality(speciality.name, businessType).map(
+    (service) => buildServiceItem(service, primaryOrgId, speciality._id)
+  );
+  if (starterServices.length === 0) return { speciality, changed: false };
+  return { speciality: { ...speciality, services: starterServices }, changed: true };
 };
 
 const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityProps) => {
@@ -34,35 +64,10 @@ const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityP
     setFormData((previous) => {
       let hasChanges = false;
       const nextState = previous.map((speciality) => {
-        if (Array.isArray(speciality.services) && speciality.services.length > 0) {
-          return speciality;
-        }
-
-        const starterServices = buildStarterServicesForSpeciality(
-          speciality.name,
-          businessType
-        ).map(
-          (service) =>
-            ({
-              ...service,
-              id: '',
-              organisationId: primaryOrgId ?? '',
-              specialityId: speciality._id,
-              isActive: true,
-            }) as Service
-        );
-
-        if (starterServices.length === 0) {
-          return speciality;
-        }
-
-        hasChanges = true;
-        return {
-          ...speciality,
-          services: starterServices,
-        };
+        const result = applyStarterServices(speciality, businessType, primaryOrgId);
+        if (result.changed) hasChanges = true;
+        return result.speciality;
       });
-
       return hasChanges ? nextState : previous;
     });
   }, [businessType, primaryOrgId]);

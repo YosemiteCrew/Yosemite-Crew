@@ -43,9 +43,9 @@ const Organization = () => {
     <div className="flex flex-col gap-6 sm:gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <Profile primaryOrg={primaryorg} />
       <Specialities />
-      <Team isVerified={primaryorg.isVerified} />
       {primaryorg.isVerified && (
         <>
+          <Team />
           <Rooms />
           <Payment />
           <LinkedMedicalDevices />

@@ -107,6 +107,19 @@ export const createOrg = async (formData: Organisation) => {
     upsertUserOrgMapping(ownerMapping);
     return _id;
   } catch (err: unknown) {
+    const { setError } = useOrgStore.getState();
+    if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 403) {
+        setError("You don't have permission to create organizations.");
+      } else if (status === 404) {
+        setError('Organization service not found. Please contact support.');
+      } else {
+        setError(err.response?.data?.message ?? err.message ?? 'Failed to create organization');
+      }
+    } else {
+      setError('Unexpected error while creating organization');
+    }
     console.error('Failed to load orgs:', err);
     throw err;
   }
