@@ -174,8 +174,126 @@ All drag handlers shared across element types: use `React.DragEvent<HTMLElement>
 
 ---
 
+### CSS
+
+- Never repeat the same selector group — merge duplicate rulesets into one block:
+
+```css
+/* Bad — same selector twice */
+.foo,
+.bar {
+  border: 1px solid #eee;
+}
+.foo,
+.bar {
+  padding: 18px;
+}
+
+/* Good — merged */
+.foo,
+.bar {
+  border: 1px solid #eee;
+  padding: 18px;
+}
+```
+
+### Validation / Conditionals
+
+- Prefer positive conditions in ternaries — flip `!== undefined ? value : fallback` to `=== undefined ? fallback : value`.
+- Merge `if` / `else if` branches that set the same value into a single combined condition.
+- Use `??` (nullish coalescing) rather than `||` when the left-hand side is an optional chain — `a?.b ?? c` not `a?.b || c` (avoids falsiness bugs with empty strings and 0).
+- For `String(value ?? '')` where `value` is typed `unknown`, guard the type first to avoid `[object Object]`: `typeof value === 'string' || typeof value === 'number' ? String(value) : ''`.
+- Use optional chaining on repeated property accesses: `!parsed.hostname?.includes('.')` not `!parsed.hostname || !parsed.hostname.includes('.')`.
+
+### Unused Imports
+
+- Remove every import that is not referenced in the file body. Sonar flags each one individually.
+- When stripping a hook or utility, also remove its import — do not leave dead imports.
+
+### Non-Interactive Elements with Click Handlers
+
+- Never put `onClick` on `<img>`, `<div>`, or `<span>` directly.
+- Preferred fix: wrap the element in a `<button>` with `type="button"` and move the handler there. Set `disabled` instead of guarding inside the handler.
+- Only use the `role` + `tabIndex` + `onKeyDown` approach when wrapping in a `<button>` would break layout (e.g. inside a `<label>`).
+
+### `<dialog>` Migration
+
+When converting `<div role="dialog">` to `<dialog open>`:
+
+- Add `open` attribute — without it the browser hides the element.
+- Override browser defaults with Tailwind: add `m-0 w-full h-full max-w-none border-0` to neutralise native `<dialog>` styles.
+- Drop `aria-modal="true"` — it is implied on `<dialog>` and can cause double-announcement.
+- Do **not** add `onClick`/`onKeyDown` directly on `<dialog>` — keep interactive handlers on inner elements.
+- The `fixed inset-0` overlay pattern still works on `<dialog open>` when combined with the overrides above.
+
+### Nesting / Complexity — Practical Patterns
+
+**Extracting `setState` updaters** (fixes nesting > 4 in `onChange` callbacks):
+
+```tsx
+// Bad — 5 levels deep inline
+onChange={(event) =>
+  setEditor((prev) =>
+    prev == null ? prev : { ...prev, service: { ...prev.service, name: event.target.value } }
+  )
+}
+
+// Good — named handler outside JSX
+const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  setEditor((prev) =>
+    prev == null ? prev : { ...prev, service: { ...prev.service, name: event.target.value } }
+  );
+};
+// then: onChange={handleNameChange}
+```
+
+**Reducing cognitive complexity in guard functions** — extract sub-conditions into named helpers:
+
+```ts
+// Bad — one large function with nested if/else
+const resolveRedirect = (...) => {
+  if (owner) {
+    if (!verified) {
+      if (step < 3) { ... }
+      if (...) { ... }
+      ...
+    }
+  }
+};
+
+// Good — extract unverified-owner branch
+const resolveUnverifiedOwnerRedirect = (step, profileStep, pathname, orgId) => {
+  if (step < 3) return `/create-org?orgId=${orgId}`;
+  if (profileStep < 3 && pathname !== '/team-onboarding') return `/team-onboarding?orgId=${orgId}`;
+  if (isUnverifiedPathAllowed(pathname)) return '';
+  return '/dashboard';
+};
+```
+
+**Extracting inner `.map()` callbacks** (fixes nesting inside `setFormData` updaters):
+
+```ts
+// Bad — nested .map() inside setState callback inside useEffect
+setFormData((prev) => {
+  const next = prev.map((item) => {
+    return items.map((s) => ({ ...s, id: '', organisationId: orgId })); // 5 levels
+  });
+});
+
+// Good — module-level helper
+const buildItem = (s: Template, orgId: string): Service => ({
+  ...s,
+  id: '',
+  organisationId: orgId,
+});
+// then: .map((s) => buildItem(s, orgId))
+```
+
+---
+
 ## Gotchas
 
 - Running `eslint --fix` will auto-fix some of these but NOT semantic HTML, complexity, or accessibility issues — fix those manually.
 - Sonar and ESLint sometimes disagree — Sonar wins.
 - After any fix, run: `npx tsc --noemit` + `pnpm --filter frontend run lint` before marking resolved.
+- Tailwind 4 prefers canonical utility names — Sonar/IDE will warn when arbitrary values have a canonical equivalent (e.g. `h-[100px]` → `h-25`, `z-[5000]` → `z-5000`, `max-w-[220px]` → `max-w-55`). Fix these when the IDE flags them.

@@ -62,20 +62,22 @@ Full rule set in `.claude/skills/frontend-sonar/SKILL.md`. Summary of the most c
 
 - `useState` must be destructured: `const [value, setValue] = useState(...)`.
 - No `const [, setter]` — use `useRef` when the value is never read.
-- No `<div role="...">` where a native HTML element exists.
-- Non-interactive elements with `onClick` need `role`, `tabIndex={0}`, `onKeyDown`.
+- No `<div role="...">` where a native HTML element exists. Use `<dialog open>` not `<div role="dialog">`.
+- **Non-interactive `<img>`, `<div>`, `<span>` with `onClick`** — wrap in `<button type="button">` with `disabled` prop instead. Only fall back to `role`+`tabIndex`+`onKeyDown` when a `<button>` would break layout.
 - Cognitive complexity ≤ 15. Nesting ≤ 4 levels. No nested ternaries in JSX.
+- **Deep `setState` updater callbacks** — extract named handler functions before the JSX `return` rather than nesting lambdas inside `onChange`.
+- **Deep `.map()` inside `setState`** — extract inner transform to a module-level named function.
+- **High-complexity guard functions** — extract sub-branches (e.g. unverified-owner logic) into named helper functions defined before the main function.
 - Nested ternaries inside prop values → extract to a **named module-level helper function**, not an inline const.
-- Raw text node adjacent to a sibling JSX element → wrap the text in a JSX expression: `{"Label"}` not bare `Label` (fixes "ambiguous spacing before next element span").
+- Raw text node adjacent to a sibling JSX element → wrap the text in a JSX expression: `{"Label"}` not bare `Label`.
 - Arrays only used for `.includes()` → convert to `Set` and use `.has()`.
-- Use `globalThis.window` not bare `window`.
-- Prefer `.at(-1)` over `arr[arr.length - 1]`.
-- Avoid `else { if (...) { ... } }` patterns; collapse to `else if`.
-- If `replaceAll` uses a RegExp, it must be global (`/g`), and prefer direct characters over single-character classes (`/[,]/` -> `,`).
-- Use `String.raw` for regex-heavy template literals to avoid excess escaping.
-- Remove empty object spreads and other no-op spreads.
-- Prefer native semantic elements over ARIA-role shims (`<dialog>` over `role="dialog"`, no `role="group"` wrappers when not needed).
-- Keep callback/function nesting depth at 4 or less by extracting named helpers for inner logic.
+- Use `globalThis.window` not bare `window`. Use `Number.isNaN` not `isNaN`.
+- Prefer positive conditions in ternaries — `=== undefined ? fallback : value` not `!== undefined ? value : fallback`.
+- Use `??` not `||` when left side is an optional chain.
+- Merge duplicate CSS selector blocks into one. Remove duplicate `if`/`else if` branches that set the same value.
+- Remove every unused import individually. Never leave dead imports.
+- Prefer `.at(-1)` over `arr[arr.length - 1]`. Avoid `else { if (...) { } }` — collapse to `else if`.
+- Remove empty object spreads. Use canonical Tailwind class names (e.g. `h-25` not `h-[100px]`, `z-5000` not `z-[5000]`).
 
 After any change: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
 
