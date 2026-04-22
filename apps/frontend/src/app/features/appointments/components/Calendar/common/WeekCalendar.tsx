@@ -367,6 +367,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             onDragHoverTarget={onDragHoverTarget}
                             onCreateAppointmentAt={onCreateAppointmentAt}
                             dropAvailabilityIntervals={getDropAvailabilityIntervals?.(day) ?? []}
+                            unavailableSegments={unavailableByDay[dayIndex]}
                             draggedAppointmentDurationMinutes={draggedAppointmentDurationMinutes}
                             dropDate={day}
                             dropHour={hour}

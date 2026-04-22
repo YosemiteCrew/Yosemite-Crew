@@ -277,6 +277,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                               getDropAvailabilityIntervals?.(date, user.practionerId || user._id) ??
                               []
                             }
+                            unavailableSegments={unavailableByMember[index]}
                             draggedAppointmentDurationMinutes={draggedAppointmentDurationMinutes}
                             dropDate={date}
                             dropHour={hour}

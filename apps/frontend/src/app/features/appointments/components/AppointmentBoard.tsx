@@ -430,12 +430,27 @@ const AppointmentBoard = ({
                 className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
               >
                 <div
-                  className="rounded-t-2xl border-b border-card-border px-3 py-2"
-                  style={{ backgroundColor: style.backgroundColor }}
+                  className="rounded-t-2xl border-b px-3 py-2"
+                  style={{
+                    backgroundColor: style.backgroundColor,
+                    borderBottomColor: style.borderColor,
+                  }}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-body-4-emphasis text-text-primary">{column.label}</div>
-                    <div className="text-caption-1 rounded-full px-2 py-0.5 bg-white text-black-text">
+                    <div className="text-body-4-emphasis" style={{ color: style.color }}>
+                      {column.label}
+                    </div>
+                    <div
+                      className="text-caption-1 rounded-full px-2 py-0.5"
+                      style={{
+                        backgroundColor: style.backgroundColor,
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: style.borderColor,
+                        color: style.color,
+                        opacity: 0.85,
+                      }}
+                    >
                       {columnAppointments.length}
                     </div>
                   </div>

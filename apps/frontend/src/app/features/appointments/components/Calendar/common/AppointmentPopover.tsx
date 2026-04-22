@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -6,10 +7,12 @@ import {
   allowReschedule,
   canAssignAppointmentRoom,
   canShowStatusChangeAction,
+  getAllowedAppointmentStatusTransitions,
   getAppointmentCompanionPhotoUrl,
   getClinicalNotesIntent,
   getClinicalNotesLabel,
   isRequestedLikeStatus,
+  toStatusLabel,
 } from '@/app/lib/appointments';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
@@ -18,6 +21,7 @@ import { getAppointmentPaymentDisplay } from '@/app/lib/paymentStatus';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import {
   acceptAppointment,
+  changeAppointmentStatus,
   rejectAppointment,
 } from '@/app/features/appointments/services/appointmentService';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
@@ -31,10 +35,11 @@ import {
   IoCardOutline,
   IoFlaskOutline,
 } from 'react-icons/io5';
-import { MdMeetingRoom, MdOutlineAutorenew } from 'react-icons/md';
+import { MdMeetingRoom } from 'react-icons/md';
 import { RiHistoryLine } from 'react-icons/ri';
-import { FaCheckCircle } from 'react-icons/fa';
+import { FaCaretDown, FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle } from 'react-icons/io';
+import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 
 type AppointmentPopoverProps = {
   appointment: Appointment;
@@ -44,18 +49,9 @@ type AppointmentPopoverProps = {
   popoverStyle: React.CSSProperties;
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
-  handleChangeStatusAppointment?: (appt: Appointment) => void;
   handleChangeRoomAppointment?: (appt: Appointment) => void;
   onClose: () => void;
-};
-
-const formatStatusLabel = (status?: string) => {
-  if (!status) return 'Unknown';
-  return status
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  registerAnchorEl: (el: HTMLElement | null) => () => void;
 };
 
 const formatTimeRange = (event: Appointment) => {
@@ -78,9 +74,9 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
   popoverStyle,
   handleViewAppointment,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   onClose,
+  registerAnchorEl,
 }) => {
   const router = useRouter();
   const orgsById = useOrgStore((s) => s.orgsById);
@@ -90,6 +86,74 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
     (appointment.organisationId && orgsById[appointment.organisationId]?.type) || 'HOSPITAL';
   const clinicalNotesLabel = getClinicalNotesLabel(orgType);
   const clinicalNotesIntent = getClinicalNotesIntent(orgType);
+
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const statusTriggerRef = useRef<HTMLButtonElement>(null);
+  const statusPanelRef = useRef<HTMLDivElement>(null);
+
+  const statusStyle = getStatusStyle(appointment.status);
+  const allowedTransitions = getAllowedAppointmentStatusTransitions(appointment.status);
+  const canChangeStatus =
+    canEditAppointments &&
+    !isRequestedLikeStatus(appointment.status) &&
+    canShowStatusChangeAction(appointment.status) &&
+    allowedTransitions.length > 0;
+
+  const positionDropdown = () => {
+    if (!statusTriggerRef.current) return;
+    const rect = statusTriggerRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: 'max-content',
+      zIndex: 10000,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (statusDropdownOpen) positionDropdown();
+  }, [statusDropdownOpen]); // positionDropdown reads refs, no deps needed
+
+  useEffect(() => {
+    if (!statusDropdownOpen) return;
+    return registerAnchorEl(statusPanelRef.current);
+  }, [statusDropdownOpen, registerAnchorEl]);
+
+  useEffect(() => {
+    if (!statusDropdownOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (
+        statusTriggerRef.current?.contains(e.target as Node) ||
+        statusPanelRef.current?.contains(e.target as Node)
+      )
+        return;
+      setStatusDropdownOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [statusDropdownOpen]);
+
+  const handleStatusChange = async (nextStatus: AppointmentStatus) => {
+    try {
+      setSavingStatus(true);
+      setStatusError(null);
+      await changeAppointmentStatus(appointment, nextStatus);
+      setStatusDropdownOpen(false);
+      onClose();
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        'Failed to update status.';
+      setStatusError(String(msg));
+    } finally {
+      setSavingStatus(false);
+    }
+  };
 
   return (
     <dialog
@@ -135,14 +199,54 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
             </div>
           </div>
         </div>
-        <span
-          className="text-[10px] leading-4 font-medium px-2 py-1 rounded-full text-white whitespace-nowrap"
-          style={{
-            backgroundColor: getStatusStyle(appointment.status).backgroundColor || '#1a73e8',
-          }}
-        >
-          {formatStatusLabel(appointment.status)}
-        </span>
+
+        {/* Status pill — acts as dropdown trigger if status can be changed */}
+        <div className="relative flex-shrink-0">
+          {canChangeStatus ? (
+            <button
+              ref={statusTriggerRef}
+              type="button"
+              data-popover-panel="true"
+              disabled={savingStatus}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => setStatusDropdownOpen((v) => !v)}
+              className="flex items-center gap-1 text-caption-2 px-2 py-1 rounded-2xl! whitespace-nowrap"
+              style={{
+                backgroundColor: statusStyle.backgroundColor,
+                color: statusStyle.color,
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: statusStyle.borderColor,
+                opacity: savingStatus ? 0.6 : 1,
+              }}
+            >
+              {savingStatus ? 'Saving…' : toStatusLabel(appointment.status)}
+              <FaCaretDown
+                size={10}
+                className={`shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+          ) : (
+            <span
+              className="text-caption-2 px-2 py-1 rounded-2xl! whitespace-nowrap"
+              style={{
+                backgroundColor: statusStyle.backgroundColor,
+                color: statusStyle.color,
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: statusStyle.borderColor,
+              }}
+            >
+              {toStatusLabel(appointment.status)}
+            </span>
+          )}
+
+          {statusError && (
+            <div className="absolute right-0 top-full mt-1 text-[10px] text-text-error whitespace-nowrap bg-white border border-card-border rounded-lg px-2 py-1 shadow-sm z-10">
+              {statusError}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-3 rounded-xl border border-card-border bg-card-hover px-3 py-2 grid grid-cols-2 gap-x-3 gap-y-1">
@@ -249,25 +353,6 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
                 <RiHistoryLine size={17} />
               </button>
             </GlassTooltip>
-            {canEditAppointments && canShowStatusChangeAction(appointment.status) && (
-              <GlassTooltip content="Change status" side="top">
-                <button
-                  type="button"
-                  title="Change status"
-                  className="h-9 w-9 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                  onClick={() => {
-                    if (handleChangeStatusAppointment) {
-                      handleChangeStatusAppointment(appointment);
-                    } else {
-                      handleViewAppointment(appointment);
-                    }
-                    onClose();
-                  }}
-                >
-                  <MdOutlineAutorenew size={18} />
-                </button>
-              </GlassTooltip>
-            )}
             {canEditAppointments && allowReschedule(appointment.status) && (
               <GlassTooltip content="Reschedule" side="top">
                 <button
@@ -340,6 +425,48 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
           </>
         )}
       </div>
+
+      {/* Status dropdown portal — hover events handled via registerAnchorEl */}
+      {statusDropdownOpen &&
+        createPortal(
+          <div
+            ref={statusPanelRef}
+            data-popover-panel="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            className="rounded-2xl! bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden whitespace-nowrap"
+            style={{
+              ...dropdownStyle,
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              borderColor: 'var(--color-card-border)',
+            }}
+          >
+            {allowedTransitions.map((nextStatus) => {
+              const s = getStatusStyle(nextStatus);
+              return (
+                <button
+                  key={nextStatus}
+                  type="button"
+                  disabled={savingStatus}
+                  onClick={() => void handleStatusChange(nextStatus)}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-caption-2 text-left transition-colors hover:bg-card-hover rounded-none!"
+                >
+                  <span
+                    className="inline-block h-2 w-2 rounded-full shrink-0"
+                    style={{
+                      backgroundColor: s.borderColor,
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: s.borderColor,
+                    }}
+                  />
+                  <span style={{ color: s.color }}>{toStatusLabel(nextStatus)}</span>
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )}
     </dialog>
   );
 };

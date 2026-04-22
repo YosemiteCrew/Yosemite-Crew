@@ -291,10 +291,18 @@ const Appointments = ({
       render: (item: Appointment) => {
         const displayStatus = item.status === 'REQUESTED' ? 'REQUESTED' : item.status;
         const payment = getAppointmentPaymentDisplay(item, invoicesByAppointmentId);
+        const statusStyle = getStatusStyle(displayStatus);
 
         return (
           <div className="appointment-profile-two">
-            <div className="appointment-status" style={getStatusStyle(displayStatus)}>
+            <div
+              className="appointment-status"
+              style={{
+                ...statusStyle,
+                borderWidth: '1px',
+                borderStyle: 'solid',
+              }}
+            >
               {toTitle(displayStatus)}
             </div>
             <div

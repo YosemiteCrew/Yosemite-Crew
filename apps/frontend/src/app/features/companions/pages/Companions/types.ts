@@ -1,9 +1,4 @@
-import {
-  Companion,
-  CompanionRequestDTO,
-  Parent,
-  ParentRequestDTO,
-} from "@yosemite-crew/types";
+import { Companion, CompanionRequestDTO, Parent, ParentRequestDTO } from '@yosemite-crew/types';
 
 export type StoredParent = Parent & {
   id: string;
@@ -35,6 +30,7 @@ export type FilterOption = {
 export type StatusOption = FilterOption & {
   bg?: string;
   text?: string;
+  border?: string;
 };
 
 export const filter = (name: string, key: string): FilterOption => ({ name, key });
@@ -43,20 +39,21 @@ export const status = (
   name: string,
   key: string,
   bg: string,
-  text: string = "#fff"
-): StatusOption => ({ name, key, bg, text });
+  text: string = '#fff',
+  border?: string
+): StatusOption => ({ name, key, bg, text, border: border ?? bg });
 
 export const CompanionsSpeciesFilters: FilterOption[] = [
-  filter("All", "all"),
-  filter("Dog", "dog"),
-  filter("Horse", "horse"),
-  filter("Cat", "cat"),
-  filter("Other", "other"),
+  filter('All', 'all'),
+  filter('Dog', 'dog'),
+  filter('Horse', 'horse'),
+  filter('Cat', 'cat'),
+  filter('Other', 'other'),
 ];
 
 export const CompanionsStatusFilters: StatusOption[] = [
-  status("All", "all", "#5C614B"),
-  status("Active", "active", "#D28F9A"),
-  status("Inactive", "inactive", "#BF9FAA"),
-  status("Archived", "archived", "#747283"),
+  status('All', 'all', '#5C614B'),
+  status('Active', 'active', '#D28F9A'),
+  status('Inactive', 'inactive', '#BF9FAA'),
+  status('Archived', 'archived', '#747283'),
 ];

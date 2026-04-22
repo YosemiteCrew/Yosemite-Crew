@@ -194,6 +194,35 @@
   --color-delete: #ea3729;
   --color-pending-text: #f68523;
   --font-satoshi: 'Satoshi', sans-serif;
+
+  /* Appointment status tokens (from Figma node 753-1319) */
+  --status-requested-bg: #f5f3f1;
+  --status-requested-text: #5c5956;
+  --status-requested-border: #a9a39e;
+
+  --status-upcoming-bg: #e6f2ff;
+  --status-upcoming-text: #0057c2;
+  --status-upcoming-border: #007cf5;
+
+  --status-checked-in-bg: #eef2ff;
+  --status-checked-in-text: #3730a3;
+  --status-checked-in-border: #6366f1;
+
+  --status-in-progress-bg: #f5f3ff;
+  --status-in-progress-text: #5b21b6;
+  --status-in-progress-border: #8b5cf6;
+
+  --status-completed-bg: #f0fdf4;
+  --status-completed-text: #166534;
+  --status-completed-border: #64c487;
+
+  --status-cancelled-bg: #fff7ed;
+  --status-cancelled-text: #9a3412;
+  --status-cancelled-border: #f97316;
+
+  --status-no-show-bg: #fff7ed;
+  --status-no-show-text: #9a3412;
+  --status-no-show-border: #f97316;
 }
 :root {
   --black-text: var(--color-black-text);
@@ -376,6 +405,24 @@ input[type='number'] {
   .text-caption-2 {
     @apply font-satoshi text-[0.75rem] font-normal leading-[1.125rem] tracking-[-0.015rem];
   }
+}
+
+/* Typography overrides outside @layer — beats Bootstrap's unlayered element resets on button/input.
+   Bootstrap loads after globals.css but @layer styles lose to unlayered styles regardless of
+   specificity. These rules use !important so they win on button elements too. */
+.text-caption-2 {
+  font-size: 0.75rem !important;
+  font-weight: 400 !important;
+  line-height: 1.125rem !important;
+}
+
+/* Caption - 10px/0.625rem - Status pills, compact labels. */
+.text-caption-3 {
+  font-family: var(--font-satoshi), sans-serif;
+  font-size: 0.625rem !important;
+  font-weight: 500 !important;
+  line-height: 1rem !important;
+  letter-spacing: -0.0125rem;
 }
 
 /* Mobile responsive typography - applies to all heading/display classes */

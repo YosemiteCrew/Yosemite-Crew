@@ -38,6 +38,7 @@ import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import AppointmentPopover from '@/app/features/appointments/components/Calendar/common/AppointmentPopover';
 import AppointmentContextMenu from '@/app/features/appointments/components/Calendar/common/AppointmentContextMenu';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type DayCalendarProps = {
   events: Appointment[];
@@ -87,7 +88,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   zoomMode = 'in',
   handleViewAppointment,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   canEditAppointments,
   setCurrentDate,
@@ -105,6 +105,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   slotStepMinutes = 15,
   availabilityLoaded = false,
 }) => {
+  const { notify } = useNotify();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -118,7 +119,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     popoverDialogRef,
     openPopover,
     getPopoverStyle,
-  } = usePopoverManager();
+    registerAnchorEl,
+  } = usePopoverManager({ closeOnHoverLeave: false });
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
   const now = useCalendarNow();
@@ -362,7 +364,18 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   const createAppointmentAtMinute = (clientY: number, container: HTMLDivElement) => {
     if (!onCreateAppointmentAt || draggedAppointmentId) return;
     const minute = getMinuteFromTimelinePointer(clientY, container);
-    onCreateAppointmentAt(date, Math.round(minute / 5) * 5);
+    const snapped = Math.round(minute / 5) * 5;
+    const isUnavailable = unavailableSegments.some(
+      (seg) => snapped >= seg.startMinute && snapped < seg.endMinute
+    );
+    if (isUnavailable) {
+      notify('warning', {
+        title: 'Slot unavailable',
+        text: 'This time is outside available hours. Please select a different slot.',
+      });
+      return;
+    }
+    onCreateAppointmentAt(date, snapped);
   };
 
   const createAppointmentAtOffset = (offsetY: number, container: HTMLDivElement) => {
@@ -380,11 +393,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     clickTimerRef.current = null;
   };
 
-  const handleMarkerClick = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    appointment: Appointment,
-    key: string
-  ) => {
+  const handleMarkerClick = (event: React.MouseEvent<HTMLButtonElement>, key: string) => {
     const target = event.currentTarget;
     const { clientX, clientY } = event;
     clearPendingMarkerClick();
@@ -449,7 +458,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 <button
                   key={itemKey}
                   type="button"
-                  onClick={(event) => handleMarkerClick(event, ev, itemKey)}
+                  onClick={(event) => handleMarkerClick(event, itemKey)}
                   onDoubleClick={() => handleMarkerDoubleClick(ev)}
                   onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                   className="flex items-center gap-2 rounded-full! px-3 py-1 text-xs font-satoshi"
@@ -652,7 +661,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     className={`min-w-0 ${
                       draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                     } ${isZoomOut ? 'absolute inset-x-0 -inset-y-2 z-20' : 'h-full w-full flex items-center gap-2'}`}
-                    onClick={(event) => handleMarkerClick(event, ev, itemKey)}
+                    onClick={(event) => handleMarkerClick(event, itemKey)}
                     onDoubleClick={() => handleMarkerDoubleClick(ev)}
                     onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                     draggable={draggable}
@@ -724,9 +733,9 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             popoverStyle={popoverStyle}
             handleViewAppointment={handleViewAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
-            handleChangeStatusAppointment={handleChangeStatusAppointment}
             handleChangeRoomAppointment={handleChangeRoomAppointment}
             onClose={() => setActivePopoverKey(null)}
+            registerAnchorEl={registerAnchorEl}
           />,
           document.body
         )}
