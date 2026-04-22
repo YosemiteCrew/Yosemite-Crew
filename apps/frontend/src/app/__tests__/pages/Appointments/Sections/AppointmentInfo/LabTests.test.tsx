@@ -346,6 +346,14 @@ describe('LabTests', () => {
     render(<LabTests activeAppointment={appointment} />);
 
     await waitFor(() => {
+      expect(listIdexxOrdersMock).toHaveBeenCalledWith({
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        companionId: 'patient-1',
+      });
+    });
+
+    await waitFor(() => {
       expect(listIdexxResultsMock).toHaveBeenCalled();
     });
 
