@@ -12,6 +12,7 @@ import SpecialityStep from '@/app/features/onboarding/components/Steps/CreateOrg
 import { Organisation, Speciality } from '@yosemite-crew/types';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useOrgOnboarding } from '@/app/hooks/useOrgOnboarding';
+import { useSpecialitiesWithServiceNamesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { findPhoneData } from '@/app/features/companions/components/AddCompanion/type';
 import { validateOrgAddress, validateOrgBasics } from '@/app/lib/organizationOnboardingValidation';
@@ -92,10 +93,11 @@ const CreateOrg = () => {
     specialities: storeSpecialities,
     isReady,
   } = useOrgOnboarding(orgIdFromQuery);
+  const storeSpecialitiesWithServices = useSpecialitiesWithServiceNamesForPrimaryOrg();
 
   const [activeStep, setActiveStep] = useState<number>(computedStep);
   const [addressErrors, setAddressErrors] = useState<AddressStepErrors>({});
-  const [initialSpecialities, setInitialSpecialities] = useState<Speciality[]>([]);
+  const [initialSpecialities, setInitialSpecialities] = useState<SpecialityWeb[]>([]);
   const [orgErrors, setOrgErrors] = useState<OrgStepErrors>({});
   const [specialities, setSpecialities] = useState<SpecialityWeb[]>([]);
   const [formData, setFormData] = useState<Organisation>(EMPTY_ORG);
@@ -115,20 +117,19 @@ const CreateOrg = () => {
       setFormData(org);
     }
     if (storeSpecialities.length > 0) {
-      setInitialSpecialities(storeSpecialities);
+      setInitialSpecialities(storeSpecialitiesWithServices);
       setSpecialities(
-        storeSpecialities.map((speciality) => ({
+        storeSpecialitiesWithServices.map((speciality) => ({
           ...speciality,
-          services: buildOnboardingServiceDrafts(
-            speciality.name,
-            speciality.services ?? [],
-            getResolvedBusinessType(org?.type ?? EMPTY_ORG.type),
-            speciality.organisationId || org?._id?.toString() || ''
-          ),
+          services: (speciality.services ?? []).map((service) => ({
+            ...service,
+            organisationId:
+              service.organisationId || speciality.organisationId || org?._id?.toString() || '',
+          })),
         }))
       );
     }
-  }, [org, storeSpecialities, computedStep, isReady, router]);
+  }, [org, storeSpecialities, storeSpecialitiesWithServices, computedStep, isReady, router]);
 
   if (!isReady) {
     return null;

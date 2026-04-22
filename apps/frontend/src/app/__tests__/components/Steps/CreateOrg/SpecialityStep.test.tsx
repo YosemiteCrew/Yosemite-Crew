@@ -5,9 +5,11 @@ import SpecialityStep from '@/app/features/onboarding/components/Steps/CreateOrg
 import {
   createService,
   createSpeciality,
+  updateService,
   deleteSpeciality,
 } from '@/app/features/organization/services/specialityService';
 import { createOrg, updateOrg } from '@/app/features/organization/services/orgService';
+import { deleteService } from '@/app/features/organization/services/serviceService';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useRouter } from 'next/navigation';
 import { Organisation, Service, Speciality } from '@yosemite-crew/types';
@@ -19,8 +21,13 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/app/features/organization/services/specialityService', () => ({
   createService: jest.fn(),
   createSpeciality: jest.fn(),
+  updateService: jest.fn(),
   deleteSpeciality: jest.fn(),
   loadSpecialitiesForOrg: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/app/features/organization/services/serviceService', () => ({
+  deleteService: jest.fn(),
 }));
 
 jest.mock('@/app/features/organization/services/orgService', () => ({
@@ -80,7 +87,9 @@ describe('SpecialityStep Component', () => {
       ...payload,
       _id: `${payload.name}-id`,
     }));
+    (updateService as jest.Mock).mockResolvedValue({});
     (deleteSpeciality as jest.Mock).mockResolvedValue({});
+    (deleteService as jest.Mock).mockResolvedValue({});
     (createOrg as jest.Mock).mockResolvedValue('org-1');
     (updateOrg as jest.Mock).mockResolvedValue({});
   });
@@ -260,8 +269,8 @@ describe('SpecialityStep Component', () => {
       _id: 'spec-1',
       name: 'Existing',
       organisationId: 'org-existing',
-      services: ['Care plan'],
-    } as Speciality;
+      services: [],
+    } as SpecialityWeb;
 
     render(
       <SpecialityStep
@@ -270,7 +279,7 @@ describe('SpecialityStep Component', () => {
           initialSpecialities: [existingSpeciality],
           isExistingOrg: true,
           specialities: [
-            existingSpeciality as unknown as SpecialityWeb,
+            existingSpeciality,
             { name: 'New Spec', organisationId: '', services: [] } as SpecialityWeb,
           ],
         })}
@@ -285,6 +294,104 @@ describe('SpecialityStep Component', () => {
       expect(createSpeciality).toHaveBeenCalledWith(
         expect.objectContaining({ name: 'New Spec', organisationId: 'org-existing' })
       );
+    });
+  });
+
+  it('updates deleted, edited, and newly added services for an existing speciality', async () => {
+    const initialSpecialities = [
+      {
+        _id: 'spec-1',
+        name: 'Existing',
+        organisationId: 'org-existing',
+        services: [
+          {
+            id: 'svc-1',
+            name: 'Care plan',
+            cost: 75,
+            durationMinutes: 30,
+            isActive: true,
+            organisationId: 'org-existing',
+            specialityId: 'spec-1',
+          },
+          {
+            id: 'svc-2',
+            name: 'Vaccination',
+            cost: 40,
+            durationMinutes: 15,
+            isActive: true,
+            organisationId: 'org-existing',
+            specialityId: 'spec-1',
+          },
+        ],
+      } as SpecialityWeb,
+    ];
+
+    const specialities = [
+      {
+        _id: 'spec-1',
+        name: 'Existing',
+        organisationId: 'org-existing',
+        services: [
+          {
+            id: 'svc-1',
+            name: 'Care plan',
+            cost: 95,
+            durationMinutes: 45,
+            isActive: true,
+            organisationId: 'org-existing',
+            specialityId: 'spec-1',
+          },
+          {
+            id: '',
+            name: 'Wellness exam',
+            cost: 55,
+            durationMinutes: 20,
+            isActive: true,
+            organisationId: 'org-existing',
+            specialityId: 'spec-1',
+          },
+        ],
+      } as SpecialityWeb,
+    ];
+
+    render(
+      <SpecialityStep
+        {...getProps({
+          formData: { ...baseFormData, _id: 'org-existing' } as Organisation,
+          initialSpecialities,
+          isExistingOrg: true,
+          specialities,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(updateOrg).toHaveBeenCalledWith(expect.objectContaining({ _id: 'org-existing' }));
+      expect(updateService).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'svc-1',
+          name: 'Care plan',
+          cost: 95,
+          durationMinutes: 45,
+          specialityId: 'spec-1',
+        })
+      );
+      expect(deleteService).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'svc-2',
+          name: 'Vaccination',
+        })
+      );
+      expect(createService).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Wellness exam',
+          organisationId: 'org-existing',
+          specialityId: 'spec-1',
+        })
+      );
+      expect(mockRouterPush).toHaveBeenCalledWith('/dashboard');
     });
   });
 });

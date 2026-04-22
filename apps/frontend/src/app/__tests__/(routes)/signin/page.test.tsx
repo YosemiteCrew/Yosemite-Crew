@@ -1,14 +1,13 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import Page from '@/app/(routes)/(public)/signup/page';
+import Page from '@/app/(routes)/(public)/signin/page';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useRouter } from 'next/navigation';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
-// Mock the child SignUp component to isolate the page logic
-jest.mock('@/app/features/auth/pages/SignUp/SignUp', () => {
-  return function MockSignUp() {
-    return <div data-testid="mock-signup">SignUp Component</div>;
+jest.mock('@/app/features/auth/pages/SignIn/SignIn', () => {
+  return function MockSignIn() {
+    return <div data-testid="mock-signin">SignIn Component</div>;
   };
 });
 
@@ -24,7 +23,7 @@ jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),
 }));
 
-describe('Signup Page', () => {
+describe('Signin Page', () => {
   const mockReplace = jest.fn();
 
   beforeEach(() => {
@@ -36,12 +35,12 @@ describe('Signup Page', () => {
     (resolvePostAuthRedirect as jest.Mock).mockResolvedValue('/dashboard');
   });
 
-  it('renders the SignUp component', () => {
+  it('renders the SignIn component', () => {
     render(<Page />);
-    expect(screen.getByTestId('mock-signup')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-signin')).toBeInTheDocument();
   });
 
-  it('redirects users in signin-authenticated state away from signup', async () => {
+  it('redirects users in signin-authenticated state away from signin', async () => {
     (useAuthStore as unknown as jest.Mock).mockImplementation(
       (selector: (state: unknown) => unknown) =>
         selector({ status: 'signin-authenticated', role: 'owner' })

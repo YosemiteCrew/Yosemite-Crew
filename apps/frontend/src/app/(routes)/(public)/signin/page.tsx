@@ -13,7 +13,7 @@ function Page() {
 
   // Redirect already-authenticated users away from the sign-in page
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' || status === 'signin-authenticated') {
       void resolvePostAuthRedirect({ fallbackRole: role }).then((route) => {
         router.replace(route);
       });

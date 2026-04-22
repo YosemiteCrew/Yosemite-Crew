@@ -14,9 +14,11 @@ import { createOrg, updateOrg } from '@/app/features/organization/services/orgSe
 import {
   createService,
   createSpeciality,
+  updateService,
   deleteSpeciality,
   loadSpecialitiesForOrg,
 } from '@/app/features/organization/services/specialityService';
+import { deleteService } from '@/app/features/organization/services/serviceService';
 import { bindPendingCompanionTerminologyToOrg } from '@/app/lib/companionTerminology';
 import {
   buildCustomOnboardingServiceTemplate,
@@ -35,7 +37,7 @@ import './Step.css';
 
 type SpecialityStepProps = {
   formData: Organisation;
-  initialSpecialities: Speciality[];
+  initialSpecialities: SpecialityWeb[];
   isExistingOrg: boolean;
   prevStep: () => void;
   specialities: SpecialityWeb[];
@@ -88,6 +90,24 @@ const buildServicePayload = (
     organisationId,
     specialityId,
   }) as Service;
+
+const areServicesEquivalent = (left: Service, right: Service) =>
+  normalizeName(left.name) === normalizeName(right.name) &&
+  Number(left.cost ?? 0) === Number(right.cost ?? 0) &&
+  Number(left.durationMinutes ?? 0) === Number(right.durationMinutes ?? 0) &&
+  Boolean(left.isActive ?? true) === Boolean(right.isActive ?? true);
+
+const getServiceMatch = (services: Service[], candidate: Service) => {
+  const candidateId = String(candidate.id ?? '').trim();
+  if (candidateId) {
+    const byId = services.find((service) => String(service.id ?? '').trim() === candidateId);
+    if (byId) {
+      return byId;
+    }
+  }
+
+  return services.find((service) => normalizeName(service.name) === normalizeName(candidate.name));
+};
 
 const SpecialityStep = ({
   formData,
@@ -413,7 +433,7 @@ const SpecialityStep = ({
       });
 
       const deleteResults = await Promise.allSettled(
-        removedSpecialities.map((speciality) => deleteSpeciality(speciality))
+        removedSpecialities.map((speciality) => deleteSpeciality(speciality as Speciality))
       );
       if (deleteResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your specialties. Please try again.');
@@ -450,12 +470,13 @@ const SpecialityStep = ({
         }
       });
 
-      const initialServiceNamesBySpeciality = new Map<string, Set<string>>();
+      const initialServicesBySpecialityId = new Map<string, Service[]>();
       initialSpecialities.forEach((speciality) => {
-        initialServiceNamesBySpeciality.set(
-          normalizeName(speciality.name),
-          new Set((speciality.services ?? []).map((serviceName) => normalizeName(serviceName)))
-        );
+        const specialityId = String(speciality._id ?? '').trim();
+        if (!specialityId) {
+          return;
+        }
+        initialServicesBySpecialityId.set(specialityId, speciality.services ?? []);
       });
 
       const servicesToCreate = nextSpecialities.flatMap((speciality) => {
@@ -464,17 +485,59 @@ const SpecialityStep = ({
           return [];
         }
 
-        const existingServiceNames =
-          initialServiceNamesBySpeciality.get(normalizeName(speciality.name)) ?? new Set<string>();
+        const initialServices = initialServicesBySpecialityId.get(specialityId) ?? [];
 
         return (speciality.services ?? [])
-          .filter((service) => !existingServiceNames.has(normalizeName(service.name)))
+          .filter((service) => !getServiceMatch(initialServices, service))
           .map((service) => buildServicePayload(resolvedOrgId, specialityId, service));
       });
 
-      const serviceResults = await Promise.allSettled(
-        servicesToCreate.map((service) => createService(service))
-      );
+      const servicesToUpdate = nextSpecialities.flatMap((speciality) => {
+        const specialityId = specialityIdByName.get(normalizeName(speciality.name));
+        if (!specialityId) {
+          return [];
+        }
+
+        const initialServices = initialServicesBySpecialityId.get(specialityId) ?? [];
+
+        return (speciality.services ?? []).flatMap((service) => {
+          const matchedService = getServiceMatch(initialServices, service);
+          if (!matchedService || areServicesEquivalent(matchedService, service)) {
+            return [];
+          }
+
+          return [
+            {
+              ...matchedService,
+              ...service,
+              id: matchedService.id,
+              isActive: service.isActive ?? matchedService.isActive ?? true,
+              organisationId: resolvedOrgId,
+              specialityId,
+            } as Service,
+          ];
+        });
+      });
+
+      const servicesToDelete = nextSpecialities.flatMap((speciality) => {
+        const specialityId = specialityIdByName.get(normalizeName(speciality.name));
+        if (!specialityId) {
+          return [];
+        }
+
+        const initialServices = initialServicesBySpecialityId.get(specialityId) ?? [];
+        const nextServices = speciality.services ?? [];
+
+        return initialServices.filter(
+          (initialService) => !getServiceMatch(nextServices, initialService)
+        );
+      });
+
+      const serviceResults = await Promise.allSettled([
+        ...servicesToDelete.map((service) => deleteService(service)),
+        ...servicesToUpdate.map((service) => updateService(service)),
+        ...servicesToCreate.map((service) => createService(service)),
+      ]);
       if (serviceResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your services. Please try again.');
         setIsSubmitting(false);
