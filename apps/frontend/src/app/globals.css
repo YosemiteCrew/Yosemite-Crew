@@ -376,9 +376,9 @@ input[type='number'] {
     @apply font-satoshi text-[1.125rem] font-normal leading-[1.625rem] tracking-[-0.0225rem];
   }
 
-  /* Body - 18px/1.125rem - Emphasized body (buttons) */
+  /* Body - 16px/1rem - Emphasized body (buttons) */
   .text-body-3-emphasis {
-    @apply font-satoshi text-[1.125rem] font-medium leading-[1.625rem];
+    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem];
   }
 
   /* Body - 16px/1rem - Small body text */
@@ -450,9 +450,9 @@ input[type='number'] {
 
   .text-body-3-emphasis {
     font-family: var(--font-satoshi) !important;
-    font-size: 1.125rem !important;
+    font-size: 1rem !important;
     font-weight: 500 !important;
-    line-height: 1.625rem !important;
+    line-height: 1.5rem !important;
   }
 }
 

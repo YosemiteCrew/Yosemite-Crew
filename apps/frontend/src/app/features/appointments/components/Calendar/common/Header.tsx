@@ -9,6 +9,7 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
+import { Primary } from '@/app/ui/primitives/Buttons';
 
 type FilterOption = { key: string; name: string };
 type StatusOption = { key: string; name: string; bg?: string; text?: string; border?: string };
@@ -105,8 +106,9 @@ const Header = ({
 
   return (
     <div className="relative z-[140] overflow-visible flex w-full items-center justify-between gap-2 px-3 py-2 border-b border-grey-light">
-      {/* Left: filter pills + month */}
+      {/* Left: month + filter pills */}
       <div className="flex items-center gap-2 shrink-0">
+        <div className="text-heading-2 text-text-primary pr-3">{getMonthYear(currentDate)}</div>
         {filterOptions?.map((filter) => (
           <button
             key={filter.key}
@@ -147,11 +149,19 @@ const Header = ({
             )}
           </button>
         ))}
-        <div className="text-heading-2 text-text-primary pl-5">{getMonthYear(currentDate)}</div>
       </div>
 
       {/* Right: status dropdown + date picker + view selector + zoom + add */}
       <div className="flex items-center gap-2">
+        {showAddButton && (
+          <Primary
+            text="Add Appointment"
+            onClick={onAddButtonClick}
+            icon={<IoAdd size={18} aria-hidden="true" />}
+            className="gap-2 px-4 py-3 whitespace-nowrap hover:scale-100"
+          />
+        )}
+
         {statusOptions && statusOptions.length > 0 && (
           <>
             <button
@@ -235,20 +245,6 @@ const Header = ({
                 document.body
               )}
           </>
-        )}
-
-        {showAddButton && (
-          <GlassTooltip content="Add appointment" side="bottom">
-            <button
-              type="button"
-              title="Add appointment"
-              aria-label="Add appointment"
-              onClick={onAddButtonClick}
-              className="rounded-2xl! border! border-input-border-default! px-3.25 py-3.25 transition-all duration-300 ease-in-out hover:bg-card-bg"
-            >
-              <IoAdd size={20} color="#302f2e" />
-            </button>
-          </GlassTooltip>
         )}
 
         <GlassTooltip content="Select date" side="bottom">

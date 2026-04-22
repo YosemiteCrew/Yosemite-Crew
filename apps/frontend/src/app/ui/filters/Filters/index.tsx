@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { IoAdd } from 'react-icons/io5';
 
 type FiltersProps = {
   filterOptions?: FilterOption[];
@@ -13,6 +15,8 @@ type FiltersProps = {
   activeStatus?: string;
   setActiveStatus?: (v: string) => void;
   hasEmergency?: boolean;
+  showAddButton?: boolean;
+  onAddButtonClick?: () => void;
 };
 
 const Filters = ({
@@ -23,6 +27,8 @@ const Filters = ({
   activeStatus,
   setActiveStatus,
   hasEmergency = false,
+  showAddButton = false,
+  onAddButtonClick,
 }: FiltersProps) => {
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -120,91 +126,101 @@ const Filters = ({
         ))}
       </div>
 
-      {/* Right: status dropdown */}
-      {statusOptions && statusOptions.length > 0 && (
-        <>
-          <button
-            ref={triggerRef}
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-2 px-3 py-1.25 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
-            style={
-              selectedStatus?.bg
-                ? {
-                    backgroundColor: selectedStatus.bg,
-                    color: selectedStatus.text ?? '#000',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: selectedStatus.border ?? selectedStatus.bg,
-                  }
-                : {
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: 'var(--color-card-border)',
-                    color: 'var(--color-text-tertiary)',
-                  }
-            }
-          >
-            <span>{selectedStatus?.name ?? 'Status'}</span>
-            <FaCaretDown
-              size={14}
-              className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
-            />
-          </button>
+      {/* Right: status dropdown + add */}
+      <div className="flex items-center gap-2 flex-wrap justify-end">
+        {statusOptions && statusOptions.length > 0 && (
+          <>
+            <button
+              ref={triggerRef}
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="flex items-center gap-2 px-3 py-1.25 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
+              style={
+                selectedStatus?.bg
+                  ? {
+                      backgroundColor: selectedStatus.bg,
+                      color: selectedStatus.text ?? '#000',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: selectedStatus.border ?? selectedStatus.bg,
+                    }
+                  : {
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: 'var(--color-card-border)',
+                      color: 'var(--color-text-tertiary)',
+                    }
+              }
+            >
+              <span>{selectedStatus?.name ?? 'Status'}</span>
+              <FaCaretDown
+                size={14}
+                className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
+              />
+            </button>
 
-          {isMounted &&
-            open &&
-            createPortal(
-              <div
-                ref={panelRef}
-                className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
-                style={dropdownStyle}
-              >
-                {statusOptions.map((status) => {
-                  const isActive = status.key === activeStatus;
-                  return (
-                    <button
-                      key={status.key}
-                      type="button"
-                      onClick={() => {
-                        setActiveStatus?.(status.key);
-                        setOpen(false);
-                      }}
-                      className={clsx(
-                        'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
-                        isActive ? 'font-medium' : 'hover:bg-card-hover'
-                      )}
-                    >
-                      {status.border && (
-                        <span
-                          className="inline-block h-3 w-3 rounded-full shrink-0"
-                          style={{
-                            backgroundColor: status.border,
-                            borderWidth: '1px',
-                            borderStyle: 'solid',
-                            borderColor: status.border,
-                          }}
-                        />
-                      )}
-                      <span style={{ color: status.text ?? 'var(--color-text-primary)' }}>
-                        {status.name}
-                      </span>
-                      {isActive && (
-                        <span
-                          className="ml-auto text-sm font-semibold"
-                          style={{ color: status.text }}
-                        >
-                          ✓
+            {isMounted &&
+              open &&
+              createPortal(
+                <div
+                  ref={panelRef}
+                  className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+                  style={dropdownStyle}
+                >
+                  {statusOptions.map((status) => {
+                    const isActive = status.key === activeStatus;
+                    return (
+                      <button
+                        key={status.key}
+                        type="button"
+                        onClick={() => {
+                          setActiveStatus?.(status.key);
+                          setOpen(false);
+                        }}
+                        className={clsx(
+                          'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
+                          isActive ? 'font-medium' : 'hover:bg-card-hover'
+                        )}
+                      >
+                        {status.border && (
+                          <span
+                            className="inline-block h-3 w-3 rounded-full shrink-0"
+                            style={{
+                              backgroundColor: status.border,
+                              borderWidth: '1px',
+                              borderStyle: 'solid',
+                              borderColor: status.border,
+                            }}
+                          />
+                        )}
+                        <span style={{ color: status.text ?? 'var(--color-text-primary)' }}>
+                          {status.name}
                         </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>,
-              document.body
-            )}
-        </>
-      )}
+                        {isActive && (
+                          <span
+                            className="ml-auto text-sm font-semibold"
+                            style={{ color: status.text }}
+                          >
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>,
+                document.body
+              )}
+          </>
+        )}
+        {showAddButton && (
+          <Primary
+            text="Add Appointment"
+            onClick={onAddButtonClick}
+            icon={<IoAdd size={18} aria-hidden="true" />}
+            className="gap-2 px-4 py-3 whitespace-nowrap hover:scale-100"
+          />
+        )}
+      </div>
     </div>
   );
 };

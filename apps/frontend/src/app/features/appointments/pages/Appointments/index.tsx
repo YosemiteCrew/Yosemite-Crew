@@ -299,6 +299,11 @@ const Appointments = () => {
       'w-full h-[calc(100vh-236px)] min-h-[500px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
   });
 
+  const openAddAppointment = () => {
+    setAddAppointmentPrefill(null);
+    setAddPopup(true);
+  };
+
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
     plannerContent = (
@@ -323,10 +328,7 @@ const Appointments = () => {
           setAddAppointmentPrefill(prefill);
           setAddPopup(true);
         }}
-        onAddAppointment={() => {
-          setAddAppointmentPrefill(null);
-          setAddPopup(true);
-        }}
+        onAddAppointment={openAddAppointment}
         filterOptions={AppointmentFilters}
         statusOptions={AppointmentStatusFiltersUI}
         activeFilter={activeFilter}
@@ -350,10 +352,10 @@ const Appointments = () => {
         setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
         setReschedulePopup={setReschedulePopup}
         setChangeRoomPopup={setChangeRoomPopup}
-        onAddAppointment={() => {
-          setAddAppointmentPrefill(null);
-          setAddPopup(true);
-        }}
+        onAddAppointment={openAddAppointment}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        hasEmergency={hasEmergency}
       />
     );
   } else {
@@ -384,7 +386,7 @@ const Appointments = () => {
           count={appointments.length}
           activeView={activeView}
           setActiveView={setActiveView}
-          showAdd={canEditAppointments}
+          showAdd={false}
         />
 
         <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]} fallback={<Fallback />}>
@@ -398,6 +400,8 @@ const Appointments = () => {
                 setActiveFilter={setActiveFilter}
                 setActiveStatus={setActiveStatus}
                 hasEmergency={hasEmergency}
+                showAddButton={canEditAppointments}
+                onAddButtonClick={openAddAppointment}
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

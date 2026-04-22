@@ -42,7 +42,7 @@ describe('Header Component', () => {
     expect(getMonthYear).toHaveBeenCalledWith(mockDate);
   });
 
-  it('renders the emergencies toggle before the month label and places add appointment next to status', () => {
+  it('renders the month label before the emergencies toggle and places add appointment before status', () => {
     render(
       <Header
         {...defaultProps}
@@ -60,13 +60,13 @@ describe('Header Component', () => {
     const emergenciesPill = screen.getByRole('button', { name: 'Emergencies' });
     const monthLabel = screen.getByText('January 2023');
     const statusButton = screen.getByRole('button', { name: /Scheduled/i });
-    const addAppointmentButton = screen.getByRole('button', { name: 'Add appointment' });
+    const addAppointmentButton = screen.getByRole('button', { name: 'Add Appointment' });
     const datepicker = screen.getByTestId('datepicker');
 
-    expect(emergenciesPill.compareDocumentPosition(monthLabel)).toBe(
+    expect(monthLabel.compareDocumentPosition(emergenciesPill)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
-    expect(statusButton.compareDocumentPosition(addAppointmentButton)).toBe(
+    expect(addAppointmentButton.compareDocumentPosition(statusButton)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
     expect(addAppointmentButton.compareDocumentPosition(datepicker)).toBe(

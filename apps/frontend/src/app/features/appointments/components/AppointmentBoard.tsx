@@ -52,6 +52,8 @@ import { useNotify } from '@/app/hooks/useNotify';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import clsx from 'clsx';
 
 type BoardStatus =
   | 'REQUESTED'
@@ -117,6 +119,9 @@ type AppointmentBoardProps = {
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setChangeRoomPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   onAddAppointment?: () => void;
+  activeFilter?: string;
+  setActiveFilter?: (value: string) => void;
+  hasEmergency?: boolean;
 };
 
 const AppointmentBoard = ({
@@ -132,6 +137,9 @@ const AppointmentBoard = ({
   setReschedulePopup,
   setChangeRoomPopup,
   onAddAppointment,
+  activeFilter,
+  setActiveFilter,
+  hasEmergency = false,
 }: AppointmentBoardProps) => {
   const { notify } = useNotify();
   const orgsById = useOrgStore((s) => s.orgsById);
@@ -200,6 +208,10 @@ const AppointmentBoard = ({
     return grouped;
   }, [todayAppointments]);
   const router = useRouter();
+  const toggleEmergencyFilter = () => {
+    if (!setActiveFilter) return;
+    setActiveFilter(activeFilter === 'emergencies' ? 'all' : 'emergencies');
+  };
 
   const openAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
@@ -379,20 +391,45 @@ const AppointmentBoard = ({
                 })
               }
             />
+            <button
+              type="button"
+              onClick={toggleEmergencyFilter}
+              className={clsx(
+                'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! transition-all duration-300',
+                activeFilter === 'emergencies'
+                  ? 'text-[#EF4444]! bg-[#FEE7E7]!'
+                  : 'text-text-tertiary hover:bg-card-hover!'
+              )}
+              style={{
+                borderWidth: activeFilter === 'emergencies' ? '2px' : '1px',
+                borderStyle: 'solid',
+                borderColor:
+                  activeFilter === 'emergencies' ? '#EF4444' : 'var(--color-card-border)',
+              }}
+            >
+              Emergencies
+              {hasEmergency && (
+                <span
+                  aria-label="Emergency appointments present"
+                  className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
+                  style={{
+                    backgroundColor: '#EF4444',
+                    borderColor: '#EF4444',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                  }}
+                />
+              )}
+            </button>
           </div>
           <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
             {canEditAppointments && (
-              <GlassTooltip content="Add appointment" side="bottom">
-                <button
-                  type="button"
-                  title="Add appointment"
-                  aria-label="Add appointment"
-                  onClick={onAddAppointment}
-                  className="rounded-2xl! border! border-input-border-default! px-[13px] py-[13px] transition-all duration-300 ease-in-out hover:bg-card-bg"
-                >
-                  <IoAdd size={20} color="#302f2e" />
-                </button>
-              </GlassTooltip>
+              <Primary
+                text="Add Appointment"
+                onClick={onAddAppointment}
+                icon={<IoAdd size={18} aria-hidden="true" />}
+                className="gap-2 px-4 py-3 whitespace-nowrap hover:scale-100"
+              />
             )}
             <GlassTooltip content="Select date" side="bottom">
               <Datepicker

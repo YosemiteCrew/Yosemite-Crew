@@ -5,6 +5,7 @@ export type ButtonSize = 'default' | 'large';
 
 export type BaseButtonProps = {
   text: string;
+  icon?: React.ReactNode;
   href?: string;
   onClick?: React.MouseEventHandler<HTMLAnchorElement | HTMLButtonElement>;
   style?: React.CSSProperties;
@@ -18,6 +19,7 @@ export type BaseButtonProps = {
 
 const BaseButton = ({
   text,
+  icon,
   href,
   onClick,
   style,
@@ -48,7 +50,10 @@ const BaseButton = ({
         }}
         style={style}
       >
-        {text}
+        <>
+          {icon}
+          <span>{text}</span>
+        </>
       </Link>
     );
   }
@@ -62,7 +67,10 @@ const BaseButton = ({
       onClick={onClick}
       style={style}
     >
-      {text}
+      <>
+        {icon}
+        <span>{text}</span>
+      </>
     </button>
   );
 };
