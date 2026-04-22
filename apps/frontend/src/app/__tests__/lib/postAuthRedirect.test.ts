@@ -1,13 +1,49 @@
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 import { loadOrgs } from '@/app/features/organization/services/orgService';
+import { loadProfiles } from '@/app/features/organization/services/profileService';
+import { loadAvailability } from '@/app/features/organization/services/availabilityService';
+import { loadSpecialitiesForOrg } from '@/app/features/organization/services/specialityService';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useUserProfileStore } from '@/app/stores/profileStore';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { useSpecialityStore } from '@/app/stores/specialityStore';
 
 jest.mock('@/app/features/organization/services/orgService', () => ({
   loadOrgs: jest.fn(),
 }));
 
+jest.mock('@/app/features/organization/services/profileService', () => ({
+  loadProfiles: jest.fn(),
+}));
+
+jest.mock('@/app/features/organization/services/availabilityService', () => ({
+  loadAvailability: jest.fn(),
+}));
+
+jest.mock('@/app/features/organization/services/specialityService', () => ({
+  loadSpecialitiesForOrg: jest.fn(),
+}));
+
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: {
+    getState: jest.fn(),
+  },
+}));
+
+jest.mock('@/app/stores/profileStore', () => ({
+  useUserProfileStore: {
+    getState: jest.fn(),
+  },
+}));
+
+jest.mock('@/app/stores/availabilityStore', () => ({
+  useAvailabilityStore: {
+    getState: jest.fn(),
+  },
+}));
+
+jest.mock('@/app/stores/specialityStore', () => ({
+  useSpecialityStore: {
     getState: jest.fn(),
   },
 }));
@@ -18,15 +54,36 @@ jest.mock('@/app/lib/defaultOpenScreen', () => ({
   ),
 }));
 
+jest.mock('@/app/lib/orgOnboarding', () => ({
+  computeOrgOnboardingStep: jest.fn(() => 0),
+}));
+
+jest.mock('@/app/lib/teamOnboarding', () => ({
+  computeTeamOnboardingStep: jest.fn(() => 3),
+}));
+
 describe('resolvePostAuthRedirect', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (loadOrgs as jest.Mock).mockResolvedValue(undefined);
+    (loadProfiles as jest.Mock).mockResolvedValue(undefined);
+    (loadAvailability as jest.Mock).mockResolvedValue(undefined);
+    (loadSpecialitiesForOrg as jest.Mock).mockResolvedValue(undefined);
     (useOrgStore.getState as jest.Mock).mockReturnValue({
       membershipsByOrgId: {},
       orgIds: [],
       orgsById: {},
       primaryOrgId: null,
+    });
+    (useUserProfileStore.getState as jest.Mock).mockReturnValue({
+      profilesByOrgId: {},
+    });
+    (useAvailabilityStore.getState as jest.Mock).mockReturnValue({
+      availabilityIdsByOrgId: {},
+      availabilitiesById: {},
+    });
+    (useSpecialityStore.getState as jest.Mock).mockReturnValue({
+      getSpecialitiesByOrgId: jest.fn(() => []),
     });
   });
 
