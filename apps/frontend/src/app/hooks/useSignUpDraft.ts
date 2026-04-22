@@ -86,7 +86,10 @@ export const useSignUpDraft = ({
   // Persist whenever non-sensitive fields change
   useEffect(() => {
     if (!restoredRef.current) return;
-    if (!firstName && !lastName && !email) return;
+    if (!firstName && !lastName && !email) {
+      clearDraft();
+      return;
+    }
     writeDraft(firstName, lastName, email);
   }, [firstName, lastName, email]);
 

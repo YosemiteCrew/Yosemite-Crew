@@ -109,4 +109,25 @@ describe('useSignUpDraft', () => {
     renderHook(() => useSignUpDraft(defaultOptions()));
     expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
   });
+
+  it('clears a previously saved draft when all fields are emptied', () => {
+    const { rerender } = renderHook((opts) => useSignUpDraft(opts), {
+      initialProps: {
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        setFirstName,
+        setLastName,
+        setEmail,
+      },
+    });
+
+    expect(sessionStorage.getItem(STORAGE_KEY)).not.toBeNull();
+
+    act(() => {
+      rerender(defaultOptions());
+    });
+
+    expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
 });
