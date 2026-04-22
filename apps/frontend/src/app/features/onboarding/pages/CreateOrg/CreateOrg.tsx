@@ -9,17 +9,13 @@ import CreateOrgProgress from '@/app/features/onboarding/components/Steps/Progre
 import OrgStep from '@/app/features/onboarding/components/Steps/CreateOrg/OrgStep';
 import AddressStep from '@/app/features/onboarding/components/Steps/CreateOrg/AddressStep';
 import SpecialityStep from '@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep';
-import { Organisation, Speciality } from '@yosemite-crew/types';
+import { Organisation } from '@yosemite-crew/types';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useOrgOnboarding } from '@/app/hooks/useOrgOnboarding';
 import { useSpecialitiesWithServiceNamesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { findPhoneData } from '@/app/features/companions/components/AddCompanion/type';
 import { validateOrgAddress, validateOrgBasics } from '@/app/lib/organizationOnboardingValidation';
-import {
-  buildOnboardingServiceDrafts,
-  getResolvedBusinessType,
-} from '@/app/lib/onboardingSpecialityCatalog';
 
 import './CreateOrg.css';
 
