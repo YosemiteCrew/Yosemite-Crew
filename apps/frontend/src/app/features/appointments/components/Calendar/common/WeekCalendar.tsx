@@ -354,7 +354,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             dayIndex={dayIndex}
                             handleViewAppointment={handleViewAppointment}
                             handleRescheduleAppointment={handleRescheduleAppointment}
-                            handleChangeStatusAppointment={handleChangeStatusAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
                             canEditAppointments={canEditAppointments}
                             length={days.length - 1}

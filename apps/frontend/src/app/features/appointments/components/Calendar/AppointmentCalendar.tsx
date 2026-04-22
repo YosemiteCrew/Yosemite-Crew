@@ -766,7 +766,6 @@ const AppointmentCalendar = ({
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
@@ -894,7 +893,6 @@ const AppointmentCalendar = ({
           forceFullDayInZoomIn
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}

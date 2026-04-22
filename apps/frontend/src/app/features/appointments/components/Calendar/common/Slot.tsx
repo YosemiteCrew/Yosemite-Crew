@@ -24,7 +24,6 @@ type SlotProps = {
   height: number;
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
-  handleChangeStatusAppointment?: (appt: Appointment) => void;
   handleChangeRoomAppointment?: (appt: Appointment) => void;
   dayIndex: number;
   length: number;
@@ -588,6 +587,62 @@ const Slot: React.FC<SlotProps> = ({
                 // tall: scales 48px (30-min/90px) → 60px (60-min/180px); medium: 34px
                 const imgSize = tall ? Math.min(60, Math.round(blockHeightPx * 0.52)) : 34;
 
+                let verticalPadding: string;
+                if (tall) {
+                  verticalPadding = 'py-2.5';
+                } else if (medium) {
+                  verticalPadding = 'py-2';
+                } else {
+                  verticalPadding = 'py-1';
+                }
+                const cursorClass = draggable
+                  ? 'cursor-grab active:cursor-grabbing'
+                  : 'cursor-pointer';
+
+                const subtitleClass =
+                  'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px]';
+                let subtitleNode: React.ReactNode = null;
+                if (tall) {
+                  subtitleNode = (
+                    <>
+                      {serviceName && (
+                        <div className={`${subtitleClass} mt-1.5`}>
+                          {'• '}
+                          {serviceName}
+                        </div>
+                      )}
+                      {concern && (
+                        <div className={`${subtitleClass} mt-1`}>
+                          {'• '}
+                          {concern}
+                        </div>
+                      )}
+                    </>
+                  );
+                } else if (medium && (serviceName || concern)) {
+                  subtitleNode = (
+                    <div className={`${subtitleClass} mt-1.5`}>
+                      {[serviceName, concern].filter(Boolean).join(' • ')}
+                    </div>
+                  );
+                } else if (multiLane && serviceName) {
+                  subtitleNode = <div className={`${subtitleClass} mt-1`}>{serviceName}</div>;
+                }
+
+                const handleDragStart = (event: React.DragEvent<HTMLButtonElement>) => {
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
+                  setCustomDragGhost(event, ev);
+                  document.body.style.cursor = 'grabbing';
+                  onAppointmentDragStart?.(ev);
+                };
+
+                const handleDragEnd = () => {
+                  setDropPreviewMinute(null);
+                  document.body.style.cursor = '';
+                  onAppointmentDragEnd?.();
+                };
+
                 return (
                   <div
                     key={itemKey}
@@ -606,26 +661,14 @@ const Slot: React.FC<SlotProps> = ({
                   >
                     <button
                       type="button"
-                      className={`h-full w-full flex items-center justify-between gap-2.5 pl-3 pr-3 text-left ${
-                        tall ? 'py-2.5' : medium ? 'py-2' : 'py-1'
-                      } ${draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
+                      className={`h-full w-full flex items-center justify-between gap-2.5 pl-3 pr-3 text-left ${verticalPadding} ${cursorClass}`}
                       onClick={(event) => handleMarkerClick(event, itemKey)}
                       onDoubleClick={() => handleMarkerDoubleClick(ev)}
                       onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                       draggable={draggable}
                       title={markerTitle}
-                      onDragStart={(event) => {
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
-                        setCustomDragGhost(event, ev);
-                        document.body.style.cursor = 'grabbing';
-                        onAppointmentDragStart?.(ev);
-                      }}
-                      onDragEnd={() => {
-                        setDropPreviewMinute(null);
-                        document.body.style.cursor = '';
-                        onAppointmentDragEnd?.();
-                      }}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
                       style={{
                         opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
                       }}
@@ -649,30 +692,7 @@ const Slot: React.FC<SlotProps> = ({
                         <div className="truncate text-caption-1 font-bold leading-[1.2]">
                           {companionDisplayName}
                         </div>
-                        {tall ? (
-                          <>
-                            {serviceName && (
-                              <div className="truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] mt-1.5">
-                                {'• '}
-                                {serviceName}
-                              </div>
-                            )}
-                            {concern && (
-                              <div className="truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] mt-1">
-                                {'• '}
-                                {concern}
-                              </div>
-                            )}
-                          </>
-                        ) : medium && (serviceName || concern) ? (
-                          <div className="truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] mt-1.5">
-                            {[serviceName, concern].filter(Boolean).join(' • ')}
-                          </div>
-                        ) : multiLane && serviceName ? (
-                          <div className="truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] mt-1">
-                            {serviceName}
-                          </div>
-                        ) : null}
+                        {subtitleNode}
                       </div>
                     </button>
                   </div>

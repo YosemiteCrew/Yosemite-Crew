@@ -14,6 +14,18 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 type FilterOption = { key: string; name: string };
 type StatusOption = { key: string; name: string; bg?: string; text?: string; border?: string };
 
+const getFilterClassName = (filterKey: string, activeFilter: string): string => {
+  if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
+  if (filterKey === 'emergencies') return 'text-[#EF4444]! bg-[#FEE7E7]!';
+  return 'bg-blue-light text-blue-text!';
+};
+
+const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
+  if (filterKey !== activeFilter) return 'var(--color-card-border)';
+  if (filterKey === 'emergencies') return '#EF4444';
+  return 'var(--color-text-brand)';
+};
+
 type Headerprops = {
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
@@ -116,22 +128,13 @@ const Header = ({
             onClick={() => handleFilterToggle(filter.key)}
             className={clsx(
               'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! transition-all duration-300',
-              filter.key === activeFilter
-                ? filter.key === 'emergencies'
-                  ? 'text-[#EF4444]! bg-[#FEE7E7]!'
-                  : 'bg-blue-light text-blue-text!'
-                : 'text-text-tertiary hover:bg-card-hover!'
+              getFilterClassName(filter.key, activeFilter ?? '')
             )}
             style={{
               borderWidth:
                 filter.key === activeFilter && filter.key === 'emergencies' ? '2px' : '1px',
               borderStyle: 'solid',
-              borderColor:
-                filter.key === activeFilter
-                  ? filter.key === 'emergencies'
-                    ? '#EF4444'
-                    : 'var(--color-text-brand)'
-                  : 'var(--color-card-border)',
+              borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
             }}
           >
             {filter.name}

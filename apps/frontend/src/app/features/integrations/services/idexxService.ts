@@ -178,7 +178,7 @@ export const listIdexxOrders = async (opts: {
       ...(appointmentId ? { appointmentId } : {}),
       ...(companionId ? { companionId } : {}),
       ...(status ? { status } : {}),
-      ...(limit !== undefined ? { limit } : {}),
+      ...(limit === undefined ? {} : { limit }),
     }
   );
   const payload = res.data;

@@ -47,7 +47,6 @@ type DayCalendarProps = {
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: (appointment: Appointment) => void;
-  handleChangeStatusAppointment?: (appointment: Appointment) => void;
   handleChangeRoomAppointment?: (appointment: Appointment) => void;
   canEditAppointments: boolean;
   draggedAppointmentId?: string | null;

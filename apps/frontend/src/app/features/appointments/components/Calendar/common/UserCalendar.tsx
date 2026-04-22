@@ -261,7 +261,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                             dayIndex={index}
                             handleViewAppointment={handleViewAppointment}
                             handleRescheduleAppointment={handleRescheduleAppointment}
-                            handleChangeStatusAppointment={handleChangeStatusAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
                             length={team.length - 1}
                             canEditAppointments={canEditAppointments}

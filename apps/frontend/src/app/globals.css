@@ -413,7 +413,7 @@ input[type='number'] {
 .text-caption-2 {
   font-size: 0.75rem !important;
   font-weight: 400 !important;
-  line-height: 1.125rem !important;
+  line-height: 1.125rem;
 }
 
 /* Caption - 10px/0.625rem - Status pills, compact labels. */
@@ -421,7 +421,7 @@ input[type='number'] {
   font-family: var(--font-satoshi), sans-serif;
   font-size: 0.625rem !important;
   font-weight: 500 !important;
-  line-height: 1rem !important;
+  line-height: 1rem;
   letter-spacing: -0.0125rem;
 }
 

@@ -71,8 +71,6 @@ const RouteLoaderOverlay = () => {
     };
   }, [isLoading]);
 
-  if (!isLoading) return null;
-
   return null;
 };
 

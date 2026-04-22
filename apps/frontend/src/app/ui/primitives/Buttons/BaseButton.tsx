@@ -67,10 +67,8 @@ const BaseButton = ({
       onClick={onClick}
       style={style}
     >
-      <>
-        {icon}
-        <span>{text}</span>
-      </>
+      {icon}
+      <span>{text}</span>
     </button>
   );
 };
