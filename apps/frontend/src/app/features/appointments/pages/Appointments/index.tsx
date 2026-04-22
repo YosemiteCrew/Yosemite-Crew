@@ -157,7 +157,10 @@ const Appointments = () => {
   const [activeView, setActiveView] = useState<string>(resolveDefaultAppointmentsView);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
-  const { plannerSectionRef } = usePlannerAutoLock({ activeView });
+  const { plannerSectionRef } = usePlannerAutoLock({
+    activeView,
+    topOffset: activeView === 'list' ? 72 : 16,
+  });
 
   useEffect(() => {
     if (activeCalendar === 'week') {
@@ -294,7 +297,7 @@ const Appointments = () => {
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView,
     listWrapperClassName:
-      'w-full flex flex-col gap-3 h-[calc(100vh-272px)] min-h-[540px] max-h-[calc(100vh-272px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-136px)] lg:min-h-[calc(100dvh-136px)] lg:max-h-[calc(100dvh-136px)]',
+      'w-full flex flex-col gap-3 h-[calc(100vh-236px)] min-h-[540px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
     plannerClassName:
       'w-full h-[calc(100vh-236px)] min-h-[500px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
   });

@@ -153,22 +153,13 @@ const Header = ({
 
       {/* Right: status dropdown + date picker + view selector + zoom + add */}
       <div className="flex items-center gap-2">
-        {showAddButton && (
-          <Primary
-            text="Add Appointment"
-            onClick={onAddButtonClick}
-            icon={<IoAdd size={18} aria-hidden="true" />}
-            className="gap-2 px-4 py-3 whitespace-nowrap hover:scale-100"
-          />
-        )}
-
         {statusOptions && statusOptions.length > 0 && (
           <>
             <button
               ref={triggerRef}
               type="button"
               onClick={() => setStatusOpen((v) => !v)}
-              className="flex items-center gap-2 px-3 py-1.25 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
               style={
                 selectedStatus?.bg
                   ? {
@@ -245,6 +236,15 @@ const Header = ({
                 document.body
               )}
           </>
+        )}
+
+        {showAddButton && (
+          <Primary
+            text="Add Appointment"
+            onClick={onAddButtonClick}
+            icon={<IoAdd size={18} aria-hidden="true" />}
+            className="gap-2 px-4 py-2.5 whitespace-nowrap hover:scale-100"
+          />
         )}
 
         <GlassTooltip content="Select date" side="bottom">

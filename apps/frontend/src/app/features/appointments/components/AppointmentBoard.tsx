@@ -428,7 +428,7 @@ const AppointmentBoard = ({
                 text="Add Appointment"
                 onClick={onAddAppointment}
                 icon={<IoAdd size={18} aria-hidden="true" />}
-                className="gap-2 px-4 py-3 whitespace-nowrap hover:scale-100"
+                className="gap-2 px-4 py-2.5 whitespace-nowrap hover:scale-100"
               />
             )}
             <GlassTooltip content="Select date" side="bottom">
