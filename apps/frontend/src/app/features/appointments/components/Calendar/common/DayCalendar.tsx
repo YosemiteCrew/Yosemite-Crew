@@ -686,11 +686,11 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                       <>
                         <div className="min-w-0 flex-1 self-center">
                           <div className="w-full flex flex-col items-center justify-center text-center gap-0.5">
-                            <div className="truncate w-full text-caption-1 font-semibold">
+                            <div className="truncate w-full text-caption-1 font-bold leading-[1.2]">
                               {companionDisplayName}
                             </div>
                             {subtitle && (
-                              <div className="text-[10px] w-full truncate opacity-95">
+                              <div className="font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] w-full truncate">
                                 {subtitle}
                               </div>
                             )}

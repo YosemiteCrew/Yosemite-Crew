@@ -585,8 +585,8 @@ const Slot: React.FC<SlotProps> = ({
                 // medium: ≥44px single-lane — smaller pic, one subtitle line
                 const medium = !multiLane && blockHeightPx >= 44;
                 const showImage = medium || tall;
-                // tall: scales 44px (30-min/90px) → 56px (60-min/180px); medium: 28px
-                const imgSize = tall ? Math.min(56, Math.round(blockHeightPx * 0.48)) : 28;
+                // tall: scales 48px (30-min/90px) → 60px (60-min/180px); medium: 34px
+                const imgSize = tall ? Math.min(60, Math.round(blockHeightPx * 0.52)) : 34;
 
                 return (
                   <div
@@ -606,9 +606,9 @@ const Slot: React.FC<SlotProps> = ({
                   >
                     <button
                       type="button"
-                      className={`h-full w-full flex items-center justify-between gap-2.5 pl-3 pr-3 py-1 text-left ${
-                        draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-                      }`}
+                      className={`h-full w-full flex items-center justify-between gap-2.5 pl-3 pr-3 text-left ${
+                        tall ? 'py-2.5' : medium ? 'py-2' : 'py-1'
+                      } ${draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
                       onClick={(event) => handleMarkerClick(event, itemKey)}
                       onDoubleClick={() => handleMarkerDoubleClick(ev)}
                       onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
@@ -646,27 +646,31 @@ const Slot: React.FC<SlotProps> = ({
                         </div>
                       )}
                       <div className="min-w-0 flex-1 overflow-hidden">
-                        <div className="truncate text-caption-1 font-semibold leading-tight">
+                        <div className="truncate text-caption-1 font-bold leading-[1.2]">
                           {companionDisplayName}
                         </div>
                         {tall ? (
                           <>
                             {serviceName && (
-                              <div className="truncate text-[10px] opacity-95 leading-tight mt-0.5">
+                              <div className="truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] mt-1.5">
                                 {'• '}
                                 {serviceName}
                               </div>
                             )}
                             {concern && (
-                              <div className="truncate text-[10px] opacity-95 leading-tight">
+                              <div className="truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] mt-1">
                                 {'• '}
                                 {concern}
                               </div>
                             )}
                           </>
-                        ) : (medium || multiLane) && (serviceName || concern) ? (
-                          <div className="truncate text-[10px] opacity-95 leading-tight mt-0.5">
+                        ) : medium && (serviceName || concern) ? (
+                          <div className="truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] mt-1.5">
                             {[serviceName, concern].filter(Boolean).join(' • ')}
+                          </div>
+                        ) : multiLane && serviceName ? (
+                          <div className="truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] mt-1">
+                            {serviceName}
                           </div>
                         ) : null}
                       </div>
