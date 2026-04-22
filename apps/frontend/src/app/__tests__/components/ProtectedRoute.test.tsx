@@ -5,6 +5,7 @@ import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 // 1. Mock dependencies
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/app/stores/authStore';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 // Mock Next.js navigation hooks
 jest.mock('next/navigation', () => ({
@@ -17,8 +18,8 @@ jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: jest.fn(),
 }));
 
-jest.mock('@/app/ui/overlays/Loader', () => ({
-  YosemiteLoader: () => <div data-testid="yosemite-loader" />,
+jest.mock('@/app/hooks/useFullscreenLoader', () => ({
+  useFullscreenLoader: jest.fn(),
 }));
 
 describe('ProtectedRoute Component', () => {
@@ -59,8 +60,7 @@ describe('ProtectedRoute Component', () => {
       </ProtectedRoute>
     );
 
-    // Assert: Renders loader, not children
-    expect(screen.getByTestId('yosemite-loader')).toBeInTheDocument();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('auth-guard', true);
     expect(screen.queryByTestId('child')).not.toBeInTheDocument();
 
     // Assert: Does NOT redirect yet
@@ -106,6 +106,7 @@ describe('ProtectedRoute Component', () => {
 
     // Assert: Children are visible
     expect(screen.getByTestId('child')).toBeInTheDocument();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('auth-guard', false);
 
     // Assert: No redirect happens
     expect(mockReplace).not.toHaveBeenCalled();

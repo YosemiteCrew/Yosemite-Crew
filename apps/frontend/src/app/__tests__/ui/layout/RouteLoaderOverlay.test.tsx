@@ -21,10 +21,6 @@ jest.mock('@/app/stores/routeLoaderStore', () => ({
   useRouteLoaderStore: jest.fn(),
 }));
 
-jest.mock('@/app/ui/overlays/Loader', () => ({
-  YosemiteLoader: ({ testId }: any) => <div data-testid={testId}>loader</div>,
-}));
-
 describe('RouteLoaderOverlay', () => {
   const store = { isLoading: false };
 
@@ -75,9 +71,8 @@ describe('RouteLoaderOverlay', () => {
 
   it('auto-stops loader after timeout when loading remains true', () => {
     store.isLoading = true;
-    render(<RouteLoaderOverlay />);
-
-    expect(screen.getByTestId('global-route-loader')).toBeInTheDocument();
+    const { container } = render(<RouteLoaderOverlay />);
+    expect(container).toBeEmptyDOMElement();
 
     act(() => {
       jest.advanceTimersByTime(15000);

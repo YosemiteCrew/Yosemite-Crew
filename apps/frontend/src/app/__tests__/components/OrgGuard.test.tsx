@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { usePathname, useRouter } from 'next/navigation';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 const replaceMock = jest.fn();
 let mockPathname = '/dashboard';
@@ -74,6 +75,10 @@ jest.mock('@/app/hooks/useBilling', () => ({
 
 jest.mock('@/app/hooks/useInvoices', () => ({
   useLoadInvoicesForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock('@/app/hooks/useFullscreenLoader', () => ({
+  useFullscreenLoader: jest.fn(),
 }));
 
 const computeOrgOnboardingStepMock = jest.fn();
@@ -160,6 +165,7 @@ describe('OrgGuard', () => {
     );
 
     expect(screen.getByTestId('child')).toBeInTheDocument();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('org-guard', false);
     expect(replaceMock).not.toHaveBeenCalled();
   });
 

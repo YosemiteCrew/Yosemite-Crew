@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useSpecialityStore } from '@/app/stores/specialityStore';
 import { computeOrgOnboardingStep } from '@/app/lib/orgOnboarding';
@@ -30,7 +31,6 @@ import {
   resolveFirstAccessibleAppRoute,
 } from '@/app/lib/routePermissions';
 import { appRoutes } from '@/app/constants/routes';
-import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -210,6 +210,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const profileStatus = useUserProfileStore((s) => s.status);
 
   const [checked, setChecked] = useState(false);
+  useFullscreenLoader('org-guard', !isAuthGuardDisabled && !checked);
 
   useEffect(() => {
     if (isAuthGuardDisabled) {
@@ -292,7 +293,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     membership,
   ]);
 
-  if (!checked) return <YosemiteLoader variant="fullscreen-translucent" size={80} />;
+  if (!checked) return null;
 
   return <>{children}</>;
 };

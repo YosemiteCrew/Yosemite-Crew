@@ -1,5 +1,5 @@
-import { YosemiteLoader } from '@/app/ui/overlays/Loader';
+import GlobalFullscreenLoader from '@/app/ui/layout/GlobalFullscreenLoader';
 
 export default function Loading() {
-  return <YosemiteLoader variant="fullscreen-translucent" size={160} testId="app-route-loader" />;
+  return <GlobalFullscreenLoader testId="app-route-loader" />;
 }
