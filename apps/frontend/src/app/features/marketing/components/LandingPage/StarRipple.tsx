@@ -1,6 +1,6 @@
-"use client";
-import React from "react";
-import { motion } from "framer-motion";
+'use client';
+import React from 'react';
+import { motion } from 'framer-motion';
 
 const generateSmoothStarPath = (
   cx: number,
@@ -24,12 +24,16 @@ const generateSmoothStarPath = (
 
   const smoothness = 0.5;
 
-  const getControlPoints = (p0: {x: number, y: number}, p1: {x: number, y: number}, p2: {x: number, y: number}) => {
+  const getControlPoints = (
+    p0: { x: number; y: number },
+    p1: { x: number; y: number },
+    p2: { x: number; y: number }
+  ) => {
     const d01 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
     const d12 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
-    const fa = smoothness * d01 / (d01 + d12);
-    const fb = smoothness * d12 / (d01 + d12);
+    const fa = (smoothness * d01) / (d01 + d12);
+    const fb = (smoothness * d12) / (d01 + d12);
 
     const cp1x = p1.x - fa * (p2.x - p0.x);
     const cp1y = p1.y - fa * (p2.y - p0.y);
@@ -39,7 +43,7 @@ const generateSmoothStarPath = (
     return { cp1: { x: cp1x, y: cp1y }, cp2: { x: cp2x, y: cp2y } };
   };
 
-  const controlPoints: { cp1: {x: number, y: number}, cp2: {x: number, y: number} }[] = [];
+  const controlPoints: { cp1: { x: number; y: number }; cp2: { x: number; y: number } }[] = [];
   for (let i = 0; i < totalPoints; i++) {
     const p0 = starPoints[(i - 1 + totalPoints) % totalPoints];
     const p1 = starPoints[i];
@@ -66,35 +70,34 @@ interface RippleProps {
   duration: number;
   size: number;
   color: string;
-  position: "top-right" | "bottom-left";
+  position: 'top-right' | 'bottom-left';
 }
 
 const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position }) => {
   const starPath = generateSmoothStarPath(500, 500, 400, 340, 8);
   const gradientId = React.useId();
 
-  const positionStyles = position === "top-right"
-    ? { right: "-50%", top: "-50%" }
-    : { left: "-50%", bottom: "-50%" };
+  const positionStyles =
+    position === 'top-right' ? { right: '-50%', top: '-50%' } : { left: '-50%', bottom: '-50%' };
 
   return (
     <div
       style={{
-        position: "absolute",
+        position: 'absolute',
         ...positionStyles,
         width: size,
         height: size,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
       <motion.svg
         viewBox="0 0 1000 1000"
         className="star-ripple"
         style={{
-          width: "100%",
-          height: "100%",
+          width: '100%',
+          height: '100%',
         }}
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{
@@ -112,11 +115,11 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
       >
         <defs>
           <linearGradient id={gradientId} gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#247AED" stopOpacity="0.8" />
+            <stop offset="0%" stopColor="var(--color-badge-blue-bg)" stopOpacity="0.8" />
             <stop offset="30%" stopColor={color} stopOpacity="0.5" />
             <stop offset="50%" stopColor={color} stopOpacity="0.2" />
             <stop offset="70%" stopColor={color} stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#247AED" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="var(--color-badge-blue-bg)" stopOpacity="0.8" />
             <animateTransform
               attributeName="gradientTransform"
               type="rotate"
@@ -140,13 +143,16 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
   );
 };
 
-const RIPPLE_COLORS = ["#7AB4F5", "#5299F1", "#3687EF", "#247AED"] as const;
+const RIPPLE_COLORS = ['#7AB4F5', '#5299F1', '#3687EF', 'var(--color-badge-blue-bg)'] as const;
 const RIPPLE_SIZES = [1000, 1200, 1400, 1600] as const;
 const RIPPLE_DELAYS = [0, 2.5, 5, 7.5] as const;
 const DURATION = 10;
 
-const createRipple = (index: number, position: "top-right" | "bottom-left"): RippleProps & { id: string } => ({
-  id: `${position === "top-right" ? "tr" : "bl"}-${index + 1}`,
+const createRipple = (
+  index: number,
+  position: 'top-right' | 'bottom-left'
+): RippleProps & { id: string } => ({
+  id: `${position === 'top-right' ? 'tr' : 'bl'}-${index + 1}`,
   delay: RIPPLE_DELAYS[index],
   duration: DURATION,
   size: RIPPLE_SIZES[index],
@@ -155,8 +161,8 @@ const createRipple = (index: number, position: "top-right" | "bottom-left"): Rip
 });
 
 const StarRipple: React.FC = () => {
-  const topRightRipples = [0, 1, 2, 3].map((i) => createRipple(i, "top-right"));
-  const bottomLeftRipples = [0, 1, 2, 3].map((i) => createRipple(i, "bottom-left"));
+  const topRightRipples = [0, 1, 2, 3].map((i) => createRipple(i, 'top-right'));
+  const bottomLeftRipples = [0, 1, 2, 3].map((i) => createRipple(i, 'bottom-left'));
 
   return (
     <div className="star-ripple-container">

@@ -25,11 +25,11 @@ type OrganizationListProps = {
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case 'active':
-      return { color: '#54B492', backgroundColor: '#E6F4EF' };
+      return { color: 'var(--color-success-400)', backgroundColor: 'var(--color-success-100)' };
     case 'pending':
-      return { color: '#F68523', backgroundColor: '#FEF3E9' };
+      return { color: 'var(--color-warning-600)', backgroundColor: '#FEF3E9' };
     default:
-      return { color: '#fff', backgroundColor: '#247AED' };
+      return { color: 'var(--color-neutral-0)', backgroundColor: 'var(--color-badge-blue-bg)' };
   }
 };
 

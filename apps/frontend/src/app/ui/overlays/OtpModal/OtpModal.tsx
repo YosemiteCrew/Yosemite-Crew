@@ -84,7 +84,12 @@ const OtpModal = ({
         message: 'Please enter the full OTP',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -117,7 +122,12 @@ const OtpModal = ({
             message: `Sign in failed`,
             errortext: 'Error',
             iconElement: (
-              <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+              <Icon
+                icon="solar:danger-triangle-bold"
+                width="20"
+                height="20"
+                color="var(--color-danger-600)"
+              />
             ),
             className: 'errofoundbg',
           });
@@ -140,7 +150,12 @@ const OtpModal = ({
           message: 'A new verification code has been sent to your email.',
           errortext: 'Code Resent',
           iconElement: (
-            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-success-bright)"
+            />
           ),
           className: 'CongratsBg',
         });
@@ -155,7 +170,12 @@ const OtpModal = ({
         message: error.message || 'Error resending code.',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });

@@ -1,18 +1,15 @@
-import React from "react";
-import { MdDeleteForever } from "react-icons/md";
-import { Speciality } from "@yosemite-crew/types";
+import React from 'react';
+import { MdDeleteForever } from 'react-icons/md';
+import { Speciality } from '@yosemite-crew/types';
 
-import "./SpecialityCard.css";
+import './SpecialityCard.css';
 
 type SpecialityCardProps = {
   speciality: Speciality;
   setSpecialities: React.Dispatch<React.SetStateAction<Speciality[]>>;
 };
 
-const SpecialityCard = ({
-  speciality,
-  setSpecialities,
-}: SpecialityCardProps) => {
+const SpecialityCard = ({ speciality, setSpecialities }: SpecialityCardProps) => {
   const handleDelete = () => {
     setSpecialities((prev) => prev.filter((s) => s.name !== speciality.name));
   };
@@ -23,7 +20,7 @@ const SpecialityCard = ({
         <div className="speciality-title">{speciality.name}</div>
         <MdDeleteForever
           size={20}
-          color="#EA3729"
+          color="var(--color-danger-600)"
           className="speciality-delete"
           onClick={handleDelete}
         />

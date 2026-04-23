@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           <div className="PrivacyPolicyData mb-5">
             <div className="privacyHead">
               <div className="privacyhead">
-                {/* <Link href=""><Icon icon="solar:round-arrow-left-bold" width="24" height="24" color='#302F2E'/></Link> */}
+                {/* <Link href=""><Icon icon="solar:round-arrow-left-bold" width="24" height="24" color='var(--color-neutral-900)'/></Link> */}
                 <h2>Privacy Policy</h2>
                 {/* <h6></h6> */}
               </div>

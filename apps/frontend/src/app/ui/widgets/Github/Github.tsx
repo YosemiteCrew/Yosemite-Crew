@@ -1,12 +1,12 @@
-"use client";
-import React, { useEffect, useState } from "react";
-import { IoCloseSharp } from "react-icons/io5";
-import { usePathname } from "next/navigation";
-import { Icon } from "@iconify/react/dist/iconify.js";
-import { publicRoutes } from "@/app/lib/const";
+'use client';
+import React, { useEffect, useState } from 'react';
+import { IoCloseSharp } from 'react-icons/io5';
+import { usePathname } from 'next/navigation';
+import { Icon } from '@iconify/react/dist/iconify.js';
+import { publicRoutes } from '@/app/lib/const';
 
-const owner = "YosemiteCrew";
-const repo = "Yosemite-Crew";
+const owner = 'YosemiteCrew';
+const repo = 'Yosemite-Crew';
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const cacheKey = (o: string, r: string) => `gh:stars:${o}/${r}`;
@@ -19,7 +19,7 @@ const readCache = (o: string, r: string): number | null => {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CacheShape;
     if (Date.now() - parsed.ts > CACHE_TTL_MS) return null;
-    return typeof parsed.value === "number" ? parsed.value : null;
+    return typeof parsed.value === 'number' ? parsed.value : null;
   } catch {
     return null;
   }
@@ -46,7 +46,7 @@ const Github = () => {
 
   const formatStars = (n: number) =>
     Intl.NumberFormat(undefined, {
-      notation: "compact",
+      notation: 'compact',
       maximumFractionDigits: 1,
     }).format(n);
 
@@ -61,35 +61,32 @@ const Github = () => {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 10_000);
 
-        const res = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}`,
-          {
-            signal: ctrl.signal,
-            headers: {
-              // These headers are optional but nice to include
-              Accept: "application/vnd.github+json",
-            },
-          }
-        );
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+          signal: ctrl.signal,
+          headers: {
+            // These headers are optional but nice to include
+            Accept: 'application/vnd.github+json',
+          },
+        });
         clearTimeout(t);
 
         if (!res.ok) {
           // If we’re rate-limited or offline, keep cached value if present
-          if (!cancelled) setError("—");
+          if (!cancelled) setError('—');
           return;
         }
 
         const data = await res.json();
         const count = Number(data?.stargazers_count ?? 0);
 
-        if (!Number.isFinite(count)) throw new Error("Bad star count");
+        if (!Number.isFinite(count)) throw new Error('Bad star count');
 
         if (!cancelled) {
           setStars(count);
           writeCache(owner, repo, count);
         }
       } catch {
-        if (!cancelled) setError("—");
+        if (!cancelled) setError('—');
       }
     }
     loadStars();
@@ -107,7 +104,7 @@ const Github = () => {
 
   return (
     <div
-      className={`${publicRoutes.has(pathname) ? "flex!" : "hidden!"} fixed left-0 bottom-[30px] z-9999 flex items-center justify-center w-full pointer-events-none`}
+      className={`${publicRoutes.has(pathname) ? 'flex!' : 'hidden!'} fixed left-0 bottom-[30px] z-9999 flex items-center justify-center w-full pointer-events-none`}
     >
       <div className="px-6 py-[12px] flex items-center justify-center gap-2 bg-text-primary pointer-events-auto rounded-2xl">
         <div className="text-body-2 text-white">Star us on Github</div>
@@ -117,12 +114,12 @@ const Github = () => {
           className="flex items-center justify-center gap-2 rounded-2xl cursor-pointer bg-white px-2"
         >
           <div className="flex items-center gap-1">
-            <Icon icon="mdi:github" width="28" height="28" color="#302F2E" />
+            <Icon icon="mdi:github" width="28" height="28" color="var(--color-neutral-900)" />
             <div className="text-caption-1 text-text-primary">Stars</div>
           </div>
           <div className="h-[15px] w-px bg-text-tertiary"></div>
           <div className="text-caption-1 text-text-brand">
-            {error ?? (stars === null ? "…" : formatStars(stars))}
+            {error ?? (stars === null ? '…' : formatStars(stars))}
           </div>
         </a>
         <button
@@ -131,7 +128,7 @@ const Github = () => {
           aria-label="Close"
           type="button"
         >
-          <IoCloseSharp color="#fff" size={18} />
+          <IoCloseSharp color="var(--color-neutral-0)" size={18} />
         </button>
       </div>
     </div>

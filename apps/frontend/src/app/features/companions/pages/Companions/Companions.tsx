@@ -25,6 +25,7 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 
 const Companions = () => {
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -48,6 +49,7 @@ const Companions = () => {
   const [bookAppointment, setBookAppointment] = useState(false);
   const [addTask, setAddTask] = useState(false);
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
+  const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
 
   useEffect(() => {
     setActiveCompanion((prev) => {
@@ -95,9 +97,15 @@ const Companions = () => {
       return matchesStatus && matchesFilter && matchesQuery;
     });
   }, [companions, activeStatus, activeFilter, query]);
+  const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
+    activeView: 'list',
+    listWrapperClassName:
+      'w-full flex flex-col gap-3 h-[calc(100vh-236px)] min-h-[540px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
+    plannerClassName: '',
+  });
 
   return (
-    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1 flex items-center gap-2">
@@ -124,7 +132,7 @@ const Companions = () => {
         )}
       </div>
       <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
-        <div className="w-full flex flex-col gap-3">
+        <div className={wrapperClassName}>
           <Filters
             filterOptions={CompanionsSpeciesFilters}
             statusOptions={CompanionsStatusFilters}
@@ -133,18 +141,20 @@ const Companions = () => {
             setActiveFilter={setActiveFilter}
             setActiveStatus={setActiveStatus}
           />
-          <CompanionsTable
-            filteredList={filteredList}
-            setActiveCompanion={setActiveCompanion}
-            setViewCompanion={setViewCompanion}
-            setCompanionInfoInitialLabel={setCompanionInfoInitialLabel}
-            setBookAppointment={setBookAppointment}
-            setAddTask={setAddTask}
-            setChangeStatusPopup={setChangeStatusPopup}
-            canEditAppointments={canEditAppointments}
-            canEditTasks={canEditTasks}
-            canEditCompanions={canEditCompanions}
-          />
+          <div ref={plannerSectionRef} className={plannerSectionClassName}>
+            <CompanionsTable
+              filteredList={filteredList}
+              setActiveCompanion={setActiveCompanion}
+              setViewCompanion={setViewCompanion}
+              setCompanionInfoInitialLabel={setCompanionInfoInitialLabel}
+              setBookAppointment={setBookAppointment}
+              setAddTask={setAddTask}
+              setChangeStatusPopup={setChangeStatusPopup}
+              canEditAppointments={canEditAppointments}
+              canEditTasks={canEditTasks}
+              canEditCompanions={canEditCompanions}
+            />
+          </div>
         </div>
 
         <AddCompanion showModal={addPopup} setShowModal={setAddPopup} />

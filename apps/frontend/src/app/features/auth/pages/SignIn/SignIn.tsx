@@ -55,7 +55,12 @@ const SignIn = ({
         message: error.message || 'Error resending code.',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -97,7 +102,12 @@ const SignIn = ({
           message: error.message || `Sign in failed`,
           errortext: 'Error',
           iconElement: (
-            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-danger-600)"
+            />
           ),
           className: 'errofoundbg',
         });

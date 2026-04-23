@@ -26,15 +26,15 @@ import {
 const TeamSteps: StepContent[] = [
   {
     title: 'Personal details',
-    logo: <FaUser color="#fff" size={20} />,
+    logo: <FaUser color="var(--color-neutral-0)" size={20} />,
   },
   {
     title: 'Professional details',
-    logo: <IoDocument color="#fff" size={20} />,
+    logo: <IoDocument color="var(--color-neutral-0)" size={20} />,
   },
   {
     title: 'Availability and consultation',
-    logo: <FaCalendar color="#fff" size={18} />,
+    logo: <FaCalendar color="var(--color-neutral-0)" size={18} />,
   },
 ];
 

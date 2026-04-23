@@ -2,24 +2,53 @@ import {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
   UserOrganization,
-} from "@yosemite-crew/types";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useTeamStore } from "@/app/stores/teamStore";
-import { Invite, Team, TeamFormDataType, TeamResponse } from "@/app/features/organization/types/team";
-import { deleteData, getData, postData, putData } from "@/app/services/axios";
-import { loadOrgs } from "@/app/features/organization/services/orgService";
-import { loadProfiles } from "@/app/features/organization/services/profileService";
-import { PractitionerRole } from "@yosemite-crew/fhirtypes";
-import { toPermissionArray } from "@/app/lib/permissions";
+} from '@yosemite-crew/types';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useTeamStore } from '@/app/stores/teamStore';
+import {
+  Invite,
+  Team,
+  TeamFormDataType,
+  TeamResponse,
+  TeamStatusProps,
+} from '@/app/features/organization/types/team';
+import { deleteData, getData, postData, putData } from '@/app/services/axios';
+import { loadOrgs } from '@/app/features/organization/services/orgService';
+import { loadProfiles } from '@/app/features/organization/services/profileService';
+import { PractitionerRole } from '@yosemite-crew/fhirtypes';
+import { toPermissionArray } from '@/app/lib/permissions';
 
-export const loadTeam = async (opts?: {
-  silent?: boolean;
-  force?: boolean;
-}) => {
+const normalizeTeamStatus = (raw: string | undefined): TeamStatusProps => {
+  switch (
+    String(raw ?? '')
+      .toLowerCase()
+      .trim()
+  ) {
+    case 'available':
+    case 'active':
+      return 'Available';
+    case 'consulting':
+    case 'in_progress':
+    case 'busy':
+      return 'Consulting';
+    case 'off-duty':
+    case 'off_duty':
+    case 'offduty':
+    case 'inactive':
+    case 'unavailable':
+      return 'Off-Duty';
+    case 'requested':
+      return 'Requested';
+    default:
+      return 'Available';
+  }
+};
+
+export const loadTeam = async (opts?: { silent?: boolean; force?: boolean }) => {
   const { startLoading, status, setTeamsForOrg } = useTeamStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot send invite.");
+    console.warn('No primary organization selected. Cannot send invite.');
     return [];
   }
   if (!shouldFetchTeam(status, opts)) return;
@@ -28,7 +57,7 @@ export const loadTeam = async (opts?: {
   }
   try {
     const res = await getData<TeamResponse[]>(
-      "/fhir/v1/user-organization/org/mapping/" + primaryOrgId,
+      '/fhir/v1/user-organization/org/mapping/' + primaryOrgId
     );
     const temp: Team[] = [];
     for (const data of res.data) {
@@ -46,7 +75,7 @@ export const loadTeam = async (opts?: {
         speciality: data.speciality,
         todayAppointment: data.count,
         weeklyWorkingHours: data.weeklyHours,
-        status: data.currentStatus,
+        status: normalizeTeamStatus(data.currentStatus),
         effectivePermissions: toPermissionArray(oM.effectivePermissions),
         extraPerissions: toPermissionArray(oM.extraPermissions),
         revokedPermissions: toPermissionArray(oM.revokedPermissions),
@@ -55,24 +84,24 @@ export const loadTeam = async (opts?: {
     }
     setTeamsForOrg(primaryOrgId, temp);
   } catch (err: any) {
-    console.error("Failed to load invites:", err);
+    console.error('Failed to load invites:', err);
     throw err;
   }
 };
 
 const shouldFetchTeam = (
-  status: ReturnType<typeof useTeamStore.getState>["status"],
-  opts?: { force?: boolean },
+  status: ReturnType<typeof useTeamStore.getState>['status'],
+  opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
-  return status === "idle" || status === "error";
+  return status === 'idle' || status === 'error';
 };
 
 export const sendInvite = async (invite: TeamFormDataType) => {
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot send invite.");
-    throw new Error("No primary organization selected");
+    console.warn('No primary organization selected. Cannot send invite.');
+    throw new Error('No primary organization selected');
   }
   try {
     const body = {
@@ -81,23 +110,23 @@ export const sendInvite = async (invite: TeamFormDataType) => {
       role: invite.role,
       employmentType: invite.type,
     };
-    await postData("/fhir/v1/organization/" + primaryOrgId + "/invites", body);
+    await postData('/fhir/v1/organization/' + primaryOrgId + '/invites', body);
   } catch (err: any) {
-    console.error("Failed to add team:", err);
+    console.error('Failed to add team:', err);
     throw err;
   }
 };
 
 export const loadInvites = async () => {
   try {
-    const res = await getData("/fhir/v1/organisation-invites/me/pending");
+    const res = await getData('/fhir/v1/organisation-invites/me/pending');
     const invites: Invite[] = [];
     for (const invite of res.data as any) {
       invites.push({ ...invite.invite, ...invite });
     }
     return invites;
   } catch (err: any) {
-    console.error("Failed to load invites:", err);
+    console.error('Failed to load invites:', err);
     throw err;
   }
 };
@@ -105,9 +134,7 @@ export const loadInvites = async () => {
 export const acceptInvite = async (invite: Invite) => {
   const { setPrimaryOrg } = useOrgStore.getState();
   try {
-    await postData<Invite[]>(
-      "/fhir/v1/organisation-invites/" + invite.token + "/accept",
-    );
+    await postData<Invite[]>('/fhir/v1/organisation-invites/' + invite.token + '/accept');
     await loadOrgs({ silent: true });
     await loadProfiles({ silent: true });
     await loadTeam({ silent: true });
@@ -119,9 +146,7 @@ export const acceptInvite = async (invite: Invite) => {
 
 export const rejectInvite = async (invite: Invite) => {
   try {
-    await postData<Invite[]>(
-      "/fhir/v1/organisation-invites/" + invite.token + "/decline",
-    );
+    await postData<Invite[]>('/fhir/v1/organisation-invites/' + invite.token + '/decline');
   } catch (error) {
     console.log(error);
   }
@@ -130,20 +155,18 @@ export const rejectInvite = async (invite: Invite) => {
 export const getProfileForUserForPrimaryOrg = async (userId: string) => {
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
+    console.warn('No primary organization selected. Cannot load companions.');
     return [];
   }
   try {
     if (!userId) {
       return [];
     }
-    const res = await getData(
-      "/fhir/v1/user-profile/" + userId + "/" + primaryOrgId + "/profile",
-    );
+    const res = await getData('/fhir/v1/user-profile/' + userId + '/' + primaryOrgId + '/profile');
     const data = res.data;
     return data;
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
@@ -153,12 +176,12 @@ export const removeMember = async (member: Team) => {
   try {
     const id = member._id;
     if (!id) {
-      throw new Error("Member ID is missing.");
+      throw new Error('Member ID is missing.');
     }
-    await deleteData("/fhir/v1/user-organization/" + id);
+    await deleteData('/fhir/v1/user-organization/' + id);
     removeTeam(id);
   } catch (err) {
-    console.error("Failed to delete member:", err);
+    console.error('Failed to delete member:', err);
     throw err;
   }
 };
@@ -167,7 +190,7 @@ export const updateMember = async (member: Team) => {
   const { updateTeam } = useTeamStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load companions.");
+    console.warn('No primary organization selected. Cannot load companions.');
     return;
   }
   try {
@@ -182,12 +205,10 @@ export const updateMember = async (member: Team) => {
     };
     const fhirMapping = toUserOrganizationResponseDTO(fhirPayload);
     const res = await putData<PractitionerRole>(
-      "/fhir/v1/user-organization/" + member._id,
-      fhirMapping,
+      '/fhir/v1/user-organization/' + member._id,
+      fhirMapping
     );
-    const normalTeam: UserOrganization = fromUserOrganizationRequestDTO(
-      res.data,
-    );
+    const normalTeam: UserOrganization = fromUserOrganizationRequestDTO(res.data);
     const teamObject: Team = {
       ...member,
       role: normalTeam.roleCode,
@@ -197,7 +218,7 @@ export const updateMember = async (member: Team) => {
     };
     updateTeam(teamObject);
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };

@@ -264,7 +264,7 @@ const UserHeader = () => {
                 type="button"
                 key={route.name}
                 onClick={onClick}
-                className={`text-body-4 px-3 py-2 rounded-2xl! border border-card-border! text-start transition-all duration-300 ease-in hover:bg-card-border ${isActive && 'text-text-brand border-text-brand! bg-brand-100'} ${isDisabled && 'text-[#A09F9F]!'}`}
+                className={`text-body-4 px-3 py-2 rounded-2xl! border border-card-border! text-start transition-all duration-300 ease-in hover:bg-card-border ${isActive && 'text-text-brand border-text-brand! bg-brand-100'} ${isDisabled && 'text-neutral-500!'}`}
               >
                 {route.name}
               </button>
@@ -352,7 +352,11 @@ const UserHeader = () => {
           </span>
         </button>
 
-        <MdNotificationsActive color="#302f2e" size={22} style={{ cursor: 'pointer' }} />
+        <MdNotificationsActive
+          color="var(--color-neutral-900)"
+          size={22}
+          style={{ cursor: 'pointer' }}
+        />
 
         <div className="relative hidden lg:flex" ref={profileDropdownRef}>
           <button

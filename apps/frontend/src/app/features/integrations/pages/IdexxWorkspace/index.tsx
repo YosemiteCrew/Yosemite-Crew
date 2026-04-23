@@ -76,9 +76,17 @@ const formatCensusIvlsDevices = (entry: CensusEntry) => {
 const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
   const key = String(status ?? '').toLowerCase();
   if (key.includes('complete') || key.includes('final'))
-    return { color: '#F7F7F7', backgroundColor: '#D9A488' };
+    return {
+      color: 'var(--color-pill-success-text)',
+      backgroundColor: 'var(--color-pill-success-bg)',
+      borderColor: 'var(--color-pill-success-border)',
+    };
   if (key.includes('error') || key.includes('fail') || key.includes('cancel')) {
-    return { color: '#F7F7F7', backgroundColor: '#D28F9A' };
+    return {
+      color: 'var(--color-pill-warning-text)',
+      backgroundColor: 'var(--color-pill-warning-bg)',
+      borderColor: 'var(--color-pill-warning-border)',
+    };
   }
   if (
     key.includes('pending') ||
@@ -86,9 +94,17 @@ const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
     key.includes('partial') ||
     key.includes('inprocess')
   ) {
-    return { color: '#F7F7F7', backgroundColor: '#747283' };
+    return {
+      color: 'var(--color-pill-progress-text)',
+      backgroundColor: 'var(--color-pill-progress-bg)',
+      borderColor: 'var(--color-pill-progress-border)',
+    };
   }
-  return { color: '#302F2E', backgroundColor: '#F1D4B0' };
+  return {
+    color: 'var(--color-pill-neutral-text)',
+    backgroundColor: 'var(--color-pill-neutral-bg)',
+    borderColor: 'var(--color-pill-neutral-border)',
+  };
 };
 
 const parseFloatSafe = (value?: string): number | null => {
@@ -484,7 +500,7 @@ const getRefreshButtonLabel = (loading: boolean): string => {
 
 const getResultModalOverlayClassName = (showResultModal: boolean): string => {
   const visibleClass = showResultModal ? 'opacity-100' : 'opacity-0 pointer-events-none';
-  return `fixed backdrop-blur-[2px] inset-0 bg-[#302f2e80] z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
+  return `fixed backdrop-blur-[2px] inset-0 bg-black/50 z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
 };
 
 const getResultModalContainerClassName = (showResultModal: boolean): string => {

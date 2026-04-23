@@ -411,7 +411,7 @@ const GroupModal: React.FC<GroupModalProps> = ({
                             }`}
                             title="Remove member"
                           >
-                            <MdDeleteForever size={20} color="#EA3729" />
+                            <MdDeleteForever size={20} color="var(--color-danger-600)" />
                           </button>
                         )}
                       </div>
@@ -486,7 +486,7 @@ const GroupModal: React.FC<GroupModalProps> = ({
                           }`}
                           title="Add member"
                         >
-                          <IoIosAddCircleOutline size={24} color="#302f2e" />
+                          <IoIosAddCircleOutline size={24} color="var(--color-neutral-900)" />
                         </button>
                       </div>
                     ))}
@@ -972,8 +972,8 @@ const ChatMainPanel: React.FC<ChatMainPanelProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#f8fbff',
-            color: '#595958',
+            background: 'var(--color-chat-surface)',
+            color: 'var(--color-neutral-700)',
             fontFamily: 'var(--font-satoshi)',
             padding: '24px',
             textAlign: 'center',
@@ -983,7 +983,7 @@ const ChatMainPanel: React.FC<ChatMainPanelProps> = ({
             <p style={{ margin: 0, fontWeight: 600, fontSize: '16px' }}>
               Select a conversation to start chatting
             </p>
-            <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#747473' }}>
+            <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--color-neutral-600)' }}>
               Choose a channel from the list to load messages here.
             </p>
           </div>
@@ -1838,7 +1838,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
           minHeight: '360px',
         }}
       >
-        <p style={{ color: '#d32f2f' }}>{errorMessage}</p>
+        <p style={{ color: 'var(--color-danger-700)' }}>{errorMessage}</p>
       </div>
     );
   }

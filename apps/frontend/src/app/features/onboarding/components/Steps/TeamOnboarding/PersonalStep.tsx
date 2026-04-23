@@ -247,7 +247,7 @@ const PersonalStep = forwardRef<StepHandle, PersonalStepProps>(
             </div>
             <div className="col-span-7 md:col-span-5">
               <FormInput
-                intype="tel"
+                intype="text"
                 inname="number"
                 value={localPhoneNumber}
                 inlabel="Phone number"

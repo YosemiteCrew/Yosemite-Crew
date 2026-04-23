@@ -22,15 +22,15 @@ import './CreateOrg.css';
 const OrgSteps = [
   {
     title: 'Organization',
-    logo: <HiShoppingBag color="#fff" size={20} />,
+    logo: <HiShoppingBag color="var(--color-neutral-0)" size={20} />,
   },
   {
     title: 'Address',
-    logo: <IoLocationSharp color="#fff" size={20} />,
+    logo: <IoLocationSharp color="var(--color-neutral-0)" size={20} />,
   },
   {
     title: 'Specialties',
-    logo: <FaSuitcaseMedical color="#fff" size={18} />,
+    logo: <FaSuitcaseMedical color="var(--color-neutral-0)" size={18} />,
   },
 ];
 

@@ -454,7 +454,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
                     className="cursor-pointer"
                     onClick={() => setShowDeleteModal(true)}
                     size={26}
-                    color="#EA3729"
+                    color="var(--color-danger-600)"
                   />
                 )}
               </div>

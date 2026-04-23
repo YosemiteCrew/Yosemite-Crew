@@ -6,7 +6,7 @@
   gap: 8px;
   border-radius: 16px;
   border: 1px solid var(--lightgrey);
-  background: #fff;
+  background: var(--color-neutral-0);
   width: 100%;
   min-width: 300px;
 }

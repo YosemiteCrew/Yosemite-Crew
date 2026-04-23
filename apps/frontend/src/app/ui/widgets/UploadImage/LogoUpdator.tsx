@@ -136,7 +136,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
               }}
               className="rounded-full h-25 w-25 object-cover"
             />
-            <MdArrowRightAlt size={24} color="#302f2e" />
+            <MdArrowRightAlt size={24} color="var(--color-neutral-900)" />
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
                 <input

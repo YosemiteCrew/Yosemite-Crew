@@ -189,7 +189,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
               />
             </div>
             <FormInput
-              intype="tel"
+              intype="text"
               inname="number"
               value={localPhoneNumber}
               inlabel="Phone number"

@@ -24,16 +24,38 @@ type FormsTableProps = {
 };
 
 export const getStatusStyle = (status: string) => {
-  if (!status) return { color: '#302F2E', backgroundColor: '#F3F3F3' };
+  if (!status) {
+    return {
+      color: 'var(--color-pill-neutral-text)',
+      backgroundColor: 'var(--color-pill-neutral-bg)',
+      borderColor: 'var(--color-pill-neutral-border)',
+    };
+  }
   switch (status.toLowerCase()) {
     case 'published':
-      return { color: '#F7F7F7', backgroundColor: '#747283' };
+      return {
+        color: 'var(--color-pill-info-text)',
+        backgroundColor: 'var(--color-pill-info-bg)',
+        borderColor: 'var(--color-pill-info-border)',
+      };
     case 'draft':
-      return { color: '#F7F7F7', backgroundColor: '#BF9FAA' };
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      };
     case 'archived':
-      return { color: '#F7F7F7', backgroundColor: '#D9A488' };
+      return {
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      };
     default:
-      return { color: '#F7F7F7', backgroundColor: '#D28F9A' };
+      return {
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
+      };
   }
 };
 
@@ -131,7 +153,7 @@ const FormsTable = ({
             onClick={() => handleViewForm(item)}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
-            <IoEye size={20} color="#302F2E" />
+            <IoEye size={20} color="var(--color-neutral-900)" />
           </button>
         </div>
       ),
@@ -139,8 +161,8 @@ const FormsTable = ({
   ];
 
   return (
-    <div className="w-full">
-      <div className="hidden xl:flex">
+    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+      <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         {loading ? (
           <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
             Loading forms...
@@ -155,7 +177,7 @@ const FormsTable = ({
           />
         )}
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {(() => {
           if (loading) {
             return (

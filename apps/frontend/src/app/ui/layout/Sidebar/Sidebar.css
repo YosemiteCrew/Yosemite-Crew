@@ -137,7 +137,7 @@
   border: 1px solid var(--color-brand-950);
 }
 .route-disabled {
-  color: #a09f9f !important;
+  color: var(--color-neutral-500) !important;
   cursor: not-allowed;
 }
 .route-label {

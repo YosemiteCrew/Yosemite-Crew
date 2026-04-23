@@ -9,6 +9,7 @@ type ModalBaseProps = {
   /** Return false to block closing. */
   canClose?: () => boolean;
   overlayClassName: string;
+  overlayStyle?: React.CSSProperties;
   containerClassName: string;
   ignoreOutsideClick?: (target: HTMLElement | null) => boolean;
   /**
@@ -32,6 +33,7 @@ const ModalBase = ({
   onClose,
   canClose,
   overlayClassName,
+  overlayStyle,
   containerClassName,
   ignoreOutsideClick,
   'aria-label': ariaLabel,
@@ -114,7 +116,7 @@ const ModalBase = ({
   return createPortal(
     <>
       {/* Backdrop — purely visual; click-outside is handled via mousedown listener */}
-      <div className={overlayClassName} aria-hidden="true" />
+      <div className={overlayClassName} style={overlayStyle} aria-hidden="true" />
 
       <dialog
         open

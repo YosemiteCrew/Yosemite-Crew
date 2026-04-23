@@ -34,25 +34,73 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import { IoInformationCircleOutline, IoRefreshOutline, IoTrashOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
-const statusClasses: Record<string, string> = {
-  enabled: 'bg-green-50 text-green-800',
-  disabled: 'bg-amber-50 text-amber-700',
-  error: 'bg-red-50 text-red-700',
-  pending: 'bg-blue-50 text-blue-700',
+type StatusTokens = { bg: string; text: string; border: string };
+
+const statusTokens: Record<string, StatusTokens> = {
+  enabled: {
+    bg: 'var(--color-pill-success-bg)',
+    text: 'var(--color-pill-success-text)',
+    border: 'var(--color-pill-success-border)',
+  },
+  disabled: {
+    bg: 'var(--color-pill-warning-bg)',
+    text: 'var(--color-pill-warning-text)',
+    border: 'var(--color-pill-warning-border)',
+  },
+  error: {
+    bg: 'var(--color-pill-warning-bg)',
+    text: 'var(--color-pill-warning-text)',
+    border: 'var(--color-pill-warning-border)',
+  },
+  pending: {
+    bg: 'var(--color-pill-info-bg)',
+    text: 'var(--color-pill-info-text)',
+    border: 'var(--color-pill-info-border)',
+  },
 };
 
-const credentialsStatusClasses: Record<string, string> = {
-  valid: 'bg-green-50 text-green-800',
-  invalid: 'bg-red-50 text-red-700',
-  missing: 'bg-amber-50 text-amber-700',
+const credentialsStatusTokens: Record<string, StatusTokens> = {
+  valid: {
+    bg: 'var(--color-pill-success-bg)',
+    text: 'var(--color-pill-success-text)',
+    border: 'var(--color-pill-success-border)',
+  },
+  invalid: {
+    bg: 'var(--color-pill-warning-bg)',
+    text: 'var(--color-pill-warning-text)',
+    border: 'var(--color-pill-warning-border)',
+  },
+  missing: {
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
+  },
 };
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
   'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 
 const integrationFilters = [
-  { key: 'all', label: 'All', bg: '#247AED', text: '#EAF3FF' },
-  { key: 'connected', label: 'Connected', bg: '#F1D4B0', text: '#302f2e' },
-  { key: 'available', label: 'Available', bg: '#D9A488', text: '#F7F7F7' },
+  {
+    key: 'all',
+    label: 'All',
+    bg: 'var(--color-badge-blue-bg)',
+    text: 'var(--color-badge-blue-text)',
+    border: 'var(--color-primary-500)',
+  },
+  {
+    key: 'connected',
+    label: 'Connected',
+    bg: 'var(--color-pill-success-bg)',
+    text: 'var(--color-pill-success-text)',
+    border: 'var(--color-pill-success-border)',
+  },
+  {
+    key: 'available',
+    label: 'Available',
+    bg: 'var(--color-pill-info-bg)',
+    text: 'var(--color-pill-info-text)',
+    border: 'var(--color-pill-info-border)',
+  },
 ] as const;
 
 type ValidateState = 'idle' | 'valid' | 'invalid';
@@ -117,11 +165,23 @@ const getValidateStateMeta = (
   return { text: 'Credentials are invalid or not available.', className: 'text-text-error' };
 };
 
+const deviceStatusTokens = (key: string): StatusTokens =>
+  key === 'active'
+    ? {
+        bg: 'var(--color-pill-success-bg)',
+        text: 'var(--color-pill-success-text)',
+        border: 'var(--color-pill-success-border)',
+      }
+    : {
+        bg: 'var(--color-pill-warning-bg)',
+        text: 'var(--color-pill-warning-text)',
+        border: 'var(--color-pill-warning-border)',
+      };
+
 const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   const statusKey = String(device.vcpActivatedStatus || 'unknown').toLowerCase();
   const statusLabel = `${statusKey.charAt(0).toUpperCase()}${statusKey.slice(1)}`;
-  const statusClass =
-    statusKey === 'active' ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-700';
+  const dt = deviceStatusTokens(statusKey);
   return (
     <div key={device.deviceSerialNumber} className="rounded-2xl border border-card-border p-3">
       <div className="flex items-start justify-between gap-3">
@@ -131,7 +191,15 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
             {device.deviceSerialNumber}
           </div>
         </div>
-        <span className={`text-label-xsmall px-2 py-1 rounded-2xl! ${statusClass}`}>
+        <span
+          className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+          style={{
+            backgroundColor: dt.bg,
+            color: dt.text,
+            borderColor: dt.border,
+            borderStyle: 'solid',
+          }}
+        >
           {statusLabel}
         </span>
       </div>
@@ -150,9 +218,25 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
 const StatusPill = ({ status }: { status?: string }) => {
   const key = (status ?? 'disabled').toLowerCase();
   const normalizedLabel = `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+  const tokens = statusTokens[key];
   return (
     <span
-      className={`text-label-xsmall px-2 py-1 rounded-2xl! ${statusClasses[key] ?? 'bg-card-hover text-text-secondary'}`}
+      className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+      style={
+        tokens
+          ? {
+              backgroundColor: tokens.bg,
+              color: tokens.text,
+              borderColor: tokens.border,
+              borderStyle: 'solid',
+            }
+          : {
+              backgroundColor: 'var(--color-card-hover)',
+              color: 'var(--color-text-secondary)',
+              borderColor: 'var(--color-card-border)',
+              borderStyle: 'solid',
+            }
+      }
     >
       {normalizedLabel}
     </span>
@@ -588,10 +672,23 @@ const IdexxSettingsModal = ({
                 <div className="text-text-secondary">Credentials status</div>
                 <div className="text-right">
                   <span
-                    className={`text-label-xsmall px-2 py-1 rounded-2xl! ${
-                      credentialsStatusClasses[credentialsStatusKey] ??
-                      'bg-card-hover text-text-secondary'
-                    }`}
+                    className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+                    style={(() => {
+                      const t = credentialsStatusTokens[credentialsStatusKey];
+                      return t
+                        ? {
+                            backgroundColor: t.bg,
+                            color: t.text,
+                            borderColor: t.border,
+                            borderStyle: 'solid',
+                          }
+                        : {
+                            backgroundColor: 'var(--color-card-hover)',
+                            color: 'var(--color-text-secondary)',
+                            borderColor: 'var(--color-card-border)',
+                            borderStyle: 'solid',
+                          };
+                    })()}
                   >
                     {credentialsStatusLabel}
                   </span>
@@ -688,8 +785,18 @@ const IntegrationFilterTabs = ({
           key={tab.key}
           type="button"
           onClick={() => setActiveFilter(tab.key)}
-          className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
-          style={isActive ? { backgroundColor: tab.bg, color: tab.text } : undefined}
+          className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
+          style={
+            isActive
+              ? {
+                  backgroundColor: tab.bg,
+                  color: tab.text,
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: tab.border,
+                }
+              : undefined
+          }
         >
           {tab.label}
         </button>
@@ -863,7 +970,15 @@ const RadIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="text-heading-3 text-text-primary pt-1">RadAnalyzer</div>
-            <span className="text-label-xsmall px-2 py-1 rounded-2xl! bg-amber-50 text-amber-700">
+            <span
+              className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
               Coming soon
             </span>
           </div>
@@ -906,7 +1021,15 @@ const VetnioIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="text-heading-3 text-text-primary pt-1">Vetnio</div>
-            <span className="text-label-xsmall px-2 py-1 rounded-2xl! bg-amber-50 text-amber-700">
+            <span
+              className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
               Coming soon
             </span>
           </div>
@@ -979,14 +1102,18 @@ const IntegrationsPage = () => {
             </GlassTooltip>
           </div>
         </div>
-        <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
-          Active integrations: <span className="text-text-primary">{s.linkedCount}</span>
+        <div className="ml-auto flex items-start justify-end gap-3 flex-wrap">
+          <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
+            Active integrations: <span className="text-text-primary">{s.linkedCount}</span>
+          </div>
+          <IntegrationFilterTabs
+            activeFilter={s.activeFilter}
+            setActiveFilter={s.setActiveFilter}
+          />
         </div>
       </div>
 
       {s.error ? <div className="text-body-4 text-text-error">{s.error}</div> : null}
-
-      <IntegrationFilterTabs activeFilter={s.activeFilter} setActiveFilter={s.setActiveFilter} />
 
       <IntegrationCards
         s={s}

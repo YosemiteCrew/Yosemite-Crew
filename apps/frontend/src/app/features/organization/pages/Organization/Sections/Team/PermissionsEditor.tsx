@@ -310,7 +310,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
     <Accordion title="Permissions" defaultOpen={false} showEditIcon={false} isEditing={false}>
       <div className={''}>
         <div className="flex items-center justify-end pb-3">
-          <div className="font-satoshi text-[18px] text-[#2b2b2a] font-medium hidden">
+          <div className="font-satoshi text-[18px] text-[var(--color-text-hidden)] font-medium hidden">
             Permissions
           </div>
           <button
@@ -323,10 +323,10 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
         </div>
         <div className="flex flex-col overflow-hidden">
           <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white">
-            <div className="text-body-4 text-[#747473]">Permission</div>
+            <div className="text-body-4 text-grey-text">Permission</div>
             <div className="flex gap-10 items-center">
-              <div className="text-body-4 text-[#747473] w-[72px] text-center">View</div>
-              <div className="text-body-4 text-[#747473] w-[72px] text-center">Edit</div>
+              <div className="text-body-4 text-grey-text w-[72px] text-center">View</div>
+              <div className="text-body-4 text-grey-text w-[72px] text-center">Edit</div>
             </div>
           </div>
           {PERMISSION_ROWS.map((row) => {
@@ -345,7 +345,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
                 <div className="flex gap-10 items-center">
                   <div className="w-[72px] flex justify-center">
                     {viewDisabled ? (
-                      <span className="text-[#c2c2c1]">—</span>
+                      <span className="text-[var(--color-muted-400)]">—</span>
                     ) : (
                       <input
                         type="checkbox"
@@ -358,7 +358,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
                   </div>
                   <div className="w-[72px] flex justify-center">
                     {editDisabled ? (
-                      <span className="text-[#c2c2c1]">—</span>
+                      <span className="text-[var(--color-muted-400)]">—</span>
                     ) : (
                       <input
                         type="checkbox"

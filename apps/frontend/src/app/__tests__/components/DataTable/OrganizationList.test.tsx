@@ -91,22 +91,34 @@ describe('OrganizationList Component', () => {
   describe('getStatusStyle', () => {
     it("returns correct style for 'Active'", () => {
       const style = getStatusStyle('Active');
-      expect(style).toEqual({ color: '#54B492', backgroundColor: '#E6F4EF' });
+      expect(style).toEqual({
+        color: 'var(--color-success-400)',
+        backgroundColor: 'var(--color-success-100)',
+      });
     });
 
     it("returns correct style for 'active' (case insensitive)", () => {
       const style = getStatusStyle('active');
-      expect(style).toEqual({ color: '#54B492', backgroundColor: '#E6F4EF' });
+      expect(style).toEqual({
+        color: 'var(--color-success-400)',
+        backgroundColor: 'var(--color-success-100)',
+      });
     });
 
     it("returns correct style for 'Pending'", () => {
       const style = getStatusStyle('Pending');
-      expect(style).toEqual({ color: '#F68523', backgroundColor: '#FEF3E9' });
+      expect(style).toEqual({
+        color: 'var(--color-warning-600)',
+        backgroundColor: '#FEF3E9',
+      });
     });
 
     it('returns default style for unknown status', () => {
       const style = getStatusStyle('Unknown');
-      expect(style).toEqual({ color: '#fff', backgroundColor: '#247AED' });
+      expect(style).toEqual({
+        color: 'var(--color-neutral-0)',
+        backgroundColor: 'var(--color-badge-blue-bg)',
+      });
     });
   });
 
@@ -123,7 +135,7 @@ describe('OrganizationList Component', () => {
     // Status Logic for Verified: isVerified ? "Active" : "Pending"
     expect(screen.getByText('Active')).toBeInTheDocument();
     const activeBadge = screen.getByText('Active').closest('div');
-    expect(activeBadge).toHaveStyle('background-color: #E6F4EF');
+    expect(activeBadge).toHaveStyle('background-color: var(--color-success-100)');
 
     // Row 2 (Unverified)
     expect(screen.getByText('Pending Inc')).toBeInTheDocument();
