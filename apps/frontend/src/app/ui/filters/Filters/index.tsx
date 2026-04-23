@@ -6,16 +6,18 @@ import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { IoAdd } from 'react-icons/io5';
+const getDropdownStatusTextColor = (status: StatusOption): string =>
+  status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
 const getFilterClassName = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
-  if (filterKey === 'emergencies') return 'text-[#EF4444]! bg-[#FEE7E7]!';
+  if (filterKey === 'emergencies') return 'text-danger-500!';
   return 'bg-blue-light text-blue-text!';
 };
 
 const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'var(--color-card-border)';
-  if (filterKey === 'emergencies') return '#EF4444';
+  if (filterKey === 'emergencies') return 'var(--color-danger-500)';
   return 'var(--color-text-brand)';
 };
 
@@ -29,6 +31,7 @@ type FiltersProps = {
   hasEmergency?: boolean;
   showAddButton?: boolean;
   onAddButtonClick?: () => void;
+  className?: string;
 };
 
 const Filters = ({
@@ -41,6 +44,7 @@ const Filters = ({
   hasEmergency = false,
   showAddButton = false,
   onAddButtonClick,
+  className,
 }: FiltersProps) => {
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -94,7 +98,7 @@ const Filters = ({
   }, [open]);
 
   return (
-    <div className="w-full flex items-center justify-between flex-wrap gap-2">
+    <div className={clsx('w-full flex items-center justify-between flex-wrap gap-2', className)}>
       {/* Left: filter pills (All / Emergencies) */}
       <div className="flex items-center gap-2 flex-wrap">
         {filterOptions?.map((filter) => (
@@ -102,7 +106,7 @@ const Filters = ({
             key={filter.key}
             onClick={() => handleFilterToggle(filter.key)}
             className={clsx(
-              'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! transition-all duration-300',
+              'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! border! transition-all duration-300',
               getFilterClassName(filter.key, activeFilter ?? '')
             )}
             style={{
@@ -110,6 +114,10 @@ const Filters = ({
                 filter.key === activeFilter && filter.key === 'emergencies' ? '2px' : '1px',
               borderStyle: 'solid',
               borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
+              backgroundColor:
+                filter.key === activeFilter && filter.key === 'emergencies'
+                  ? 'var(--color-danger-soft)'
+                  : undefined,
             }}
           >
             {filter.name}
@@ -118,8 +126,8 @@ const Filters = ({
                 aria-label="Emergency appointments present"
                 className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
                 style={{
-                  backgroundColor: '#EF4444',
-                  borderColor: '#EF4444',
+                  backgroundColor: 'var(--color-danger-500)',
+                  borderColor: 'var(--color-danger-500)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                 }}
@@ -142,7 +150,7 @@ const Filters = ({
                 selectedStatus?.bg
                   ? {
                       backgroundColor: selectedStatus.bg,
-                      color: selectedStatus.text ?? '#000',
+                      color: selectedStatus.text ?? 'var(--color-black-pure)',
                       borderWidth: '1px',
                       borderStyle: 'solid',
                       borderColor: selectedStatus.border ?? selectedStatus.bg,
@@ -196,13 +204,13 @@ const Filters = ({
                             }}
                           />
                         )}
-                        <span style={{ color: status.text ?? 'var(--color-text-primary)' }}>
+                        <span style={{ color: getDropdownStatusTextColor(status) }}>
                           {status.name}
                         </span>
                         {isActive && (
                           <span
                             className="ml-auto text-sm font-semibold"
-                            style={{ color: status.text }}
+                            style={{ color: getDropdownStatusTextColor(status) }}
                           >
                             ✓
                           </span>

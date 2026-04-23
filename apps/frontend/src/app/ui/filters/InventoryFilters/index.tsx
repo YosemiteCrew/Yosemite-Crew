@@ -1,16 +1,58 @@
-import React, { useEffect, useMemo } from "react";
-import { InventoryFiltersState } from "@/app/features/inventory/pages/Inventory/types";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
+import React, { useEffect, useMemo } from 'react';
+import { InventoryFiltersState } from '@/app/features/inventory/pages/Inventory/types';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 
 // Colors match getStatusBadgeStyle in utils.ts for consistency with table badges
 const Statuses = [
-  { name: "All", key: "ALL", bg: "#247AED", text: "#EAF3FF" },
-  { name: "Active", key: "ACTIVE", bg: "#F1D4B0", text: "#302f2e" },
-  { name: "Hidden", key: "HIDDEN", bg: "#A8A181", text: "#F7F7F7" },
-  { name: "Low stock", key: "LOW_STOCK", bg: "#BF9FAA", text: "#F7F7F7" },
-  { name: "Expired", key: "EXPIRED", bg: "#D28F9A", text: "#F7F7F7" },
-  { name: "Expiring soon", key: "EXPIRING_SOON", bg: "#5C614B", text: "#F7F7F7" },
-  { name: "Healthy", key: "HEALTHY", bg: "#D9A488", text: "#F7F7F7" },
+  {
+    name: 'All',
+    key: 'ALL',
+    bg: 'var(--color-badge-blue-bg)',
+    text: 'var(--color-badge-blue-text)',
+    border: 'var(--color-primary-500)',
+  },
+  {
+    name: 'Active',
+    key: 'ACTIVE',
+    bg: 'var(--color-pill-success-bg)',
+    text: 'var(--color-pill-success-text)',
+    border: 'var(--color-pill-success-border)',
+  },
+  {
+    name: 'Hidden',
+    key: 'HIDDEN',
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
+  },
+  {
+    name: 'Low stock',
+    key: 'LOW_STOCK',
+    bg: 'var(--color-pill-progress-bg)',
+    text: 'var(--color-pill-progress-text)',
+    border: 'var(--color-pill-progress-border)',
+  },
+  {
+    name: 'Expired',
+    key: 'EXPIRED',
+    bg: 'var(--color-pill-warning-bg)',
+    text: 'var(--color-pill-warning-text)',
+    border: 'var(--color-pill-warning-border)',
+  },
+  {
+    name: 'Expiring soon',
+    key: 'EXPIRING_SOON',
+    bg: 'var(--color-pill-info-bg)',
+    text: 'var(--color-pill-info-text)',
+    border: 'var(--color-pill-info-border)',
+  },
+  {
+    name: 'Healthy',
+    key: 'HEALTHY',
+    bg: 'var(--color-pill-success-bg)',
+    text: 'var(--color-pill-success-text)',
+    border: 'var(--color-pill-success-border)',
+  },
 ];
 
 type InventoryFiltersProps = {
@@ -28,16 +70,16 @@ const InventoryFilters = ({
 }: InventoryFiltersProps) => {
   const categoryOptions = useMemo(
     () =>
-      ["all", ...categories].map((cat) => ({
-        label: cat === "all" ? "All categories" : cat,
+      ['all', ...categories].map((cat) => ({
+        label: cat === 'all' ? 'All categories' : cat,
         value: cat,
       })),
     [categories]
   );
 
   useEffect(() => {
-    if (filters.category !== "all" && !categories.includes(filters.category)) {
-      onChange({ ...filters, category: "all" });
+    if (filters.category !== 'all' && !categories.includes(filters.category)) {
+      onChange({ ...filters, category: 'all' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories]);
@@ -47,28 +89,34 @@ const InventoryFilters = ({
   };
 
   return (
-    <div className="w-full flex items-center justify-between flex-wrap gap-3">
-      <div className="flex items-center gap-2 flex-wrap">
-        {Statuses.map((status) => (
-          <button
-            key={status.key}
-            disabled={loading}
-            onClick={() => updateFilters({ status: status.key })}
-            className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
-            style={
-              status.key === filters.status
-                ? {
-                    backgroundColor: status.bg,
-                    color: status.text,
-                  }
-                : undefined
-            }
-          >
-            {status.name}
-          </button>
-        ))}
+    <div className="w-full flex items-start justify-between flex-wrap gap-x-6 gap-y-3">
+      <div className="flex flex-1 min-w-[280px] items-center gap-2 flex-wrap">
+        {Statuses.map((status) => {
+          const isActive = status.key === filters.status;
+          return (
+            <button
+              key={status.key}
+              disabled={loading}
+              onClick={() => updateFilters({ status: status.key })}
+              className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
+              style={
+                isActive
+                  ? {
+                      backgroundColor: status.bg,
+                      color: status.text,
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: status.border,
+                    }
+                  : undefined
+              }
+            >
+              {status.name}
+            </button>
+          );
+        })}
       </div>
-      <div className="w-full sm:w-[220px] min-w-[180px]">
+      <div className="w-full sm:w-55 min-w-45 shrink-0">
         <LabelDropdown
           placeholder="Category"
           options={categoryOptions}

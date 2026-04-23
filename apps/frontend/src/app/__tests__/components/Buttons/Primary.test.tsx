@@ -35,4 +35,12 @@ describe('Primary button', () => {
     expect(screen.getByRole('button', { name: 'Add Appointment' })).toBeInTheDocument();
     expect(screen.getByTestId('primary-icon')).toBeInTheDocument();
   });
+
+  test('applies the shared token-backed primary background color', () => {
+    render(<Primary text="Continue" />);
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveStyle({
+      backgroundColor: 'var(--color-text-primary)',
+    });
+  });
 });

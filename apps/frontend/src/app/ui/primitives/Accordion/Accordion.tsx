@@ -92,7 +92,7 @@ const Accordion: React.FC<AccordionProps> = ({
               }}
               onKeyDown={handleEditKeyDown}
             >
-              <RiEdit2Fill size={20} color="#302f2e" aria-hidden="true" />
+              <RiEdit2Fill size={20} color="var(--color-neutral-900)" aria-hidden="true" />
             </button>
           )}
 
@@ -104,7 +104,7 @@ const Accordion: React.FC<AccordionProps> = ({
               onClick={() => onDeleteClick?.()}
               onKeyDown={handleDeleteKeyDown}
             >
-              <MdDeleteForever size={20} color="#EA3729" aria-hidden="true" />
+              <MdDeleteForever size={20} color="var(--color-danger-600)" aria-hidden="true" />
             </button>
           )}
         </div>

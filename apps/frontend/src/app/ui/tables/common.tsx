@@ -1,6 +1,6 @@
-import React from "react";
-import { IoEye } from "react-icons/io5";
-import { IoIosCalendar } from "react-icons/io";
+import React from 'react';
+import { IoEye } from 'react-icons/io5';
+import { IoIosCalendar } from 'react-icons/io';
 
 export type Column<T> = {
   label: string;
@@ -24,7 +24,7 @@ export const ViewButton = ({ onClick }: ActionButtonProps) => (
     onClick={onClick}
     className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
   >
-    <IoEye size={18} color="#302F2E" />
+    <IoEye size={18} color="var(--color-neutral-900)" />
   </button>
 );
 
@@ -33,7 +33,7 @@ export const RescheduleButton = ({ onClick }: ActionButtonProps) => (
     onClick={onClick}
     className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
   >
-    <IoIosCalendar size={18} color="#302F2E" />
+    <IoIosCalendar size={18} color="var(--color-neutral-900)" />
   </button>
 );
 

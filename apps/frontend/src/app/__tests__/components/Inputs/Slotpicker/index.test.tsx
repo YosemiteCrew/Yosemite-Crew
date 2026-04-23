@@ -82,8 +82,8 @@ describe('Slotpicker Component', () => {
     );
     const selectedBtn = screen.getByText('02').closest('button');
     const otherBtn = screen.getByText('10').closest('button');
-    expect(selectedBtn).toHaveClass('text-[#247AED]');
-    expect(otherBtn).not.toHaveClass('text-[#247AED]');
+    expect(selectedBtn).toHaveClass('text-blue-text');
+    expect(otherBtn).not.toHaveClass('text-blue-text');
   });
 
   it('shows blue border for the current date when not selected', () => {
@@ -98,7 +98,7 @@ describe('Slotpicker Component', () => {
       />
     );
     const todayButton = screen.getByText('02').closest('button');
-    expect(todayButton).toHaveClass('border-[#247AED]!');
+    expect(todayButton).toHaveClass('border-blue-text!');
   });
 
   it('past dates have opacity-40 and cursor-not-allowed', () => {
@@ -156,8 +156,8 @@ describe('Slotpicker Component', () => {
         timeSlots={mockTimeSlots}
       />
     );
-    expect(screen.getByText('Formatted 10:00')).toHaveClass('text-[#247AED]');
-    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('text-[#247AED]');
+    expect(screen.getByText('Formatted 10:00')).toHaveClass('text-blue-text');
+    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('text-blue-text');
   });
 
   it('calls setSelectedSlot when a slot is clicked', () => {

@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { IoSearch } from "react-icons/io5";
-import { specialtiesByKey } from "@/app/lib/specialities";
-import { Service } from "@yosemite-crew/types";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { IoSearch } from 'react-icons/io5';
+import { specialtiesByKey } from '@/app/lib/specialities';
+import { Service } from '@yosemite-crew/types';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 
-import "./ServiceSearch.css";
+import './ServiceSearch.css';
 
 type ServiceSearchBaseProps = {
   speciality: SpecialityWeb;
@@ -18,19 +18,16 @@ const ServiceSearchBase = ({
   onAddService,
 }: ServiceSearchBaseProps) => {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
   const services = useMemo(
     () => specialtiesByKey[speciality.name]?.services || [],
-    [speciality.name],
+    [speciality.name]
   );
 
   const selectedNames = useMemo(
-    () =>
-      new Set(
-        (speciality.services || []).map((s: Service) => s.name.toLowerCase()),
-      ),
-    [speciality],
+    () => new Set((speciality.services || []).map((s: Service) => s.name.toLowerCase())),
+    [speciality]
   );
 
   const filtered = useMemo(() => {
@@ -45,22 +42,19 @@ const ServiceSearchBase = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
-      ) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
   const handleSelect = async (serviceName: string) => {
     await onSelectService(serviceName);
-    setQuery("");
+    setQuery('');
     setOpen(false);
   };
 
@@ -68,13 +62,13 @@ const ServiceSearchBase = ({
     const name = query.trim();
     if (!name) return;
     await onAddService(name);
-    setQuery("");
+    setQuery('');
     setOpen(false);
   };
 
   return (
     <div className="service-search" ref={wrapperRef}>
-      <IoSearch size={20} className="service-search-icon" color="#302F2E" />
+      <IoSearch size={20} className="service-search-icon" color="var(--color-neutral-900)" />
       <input
         type="text"
         name="speciality-search"

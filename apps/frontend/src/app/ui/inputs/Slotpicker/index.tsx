@@ -36,10 +36,10 @@ function getDaysInMonth(year: number, month: number): Date[] {
 }
 
 function getDayButtonClass(isCurrent: boolean, isPast: boolean, isTodayDay: boolean): string {
-  if (isCurrent) return 'text-[#247AED] bg-[#E9F2FD] border-[#247AED]!';
-  if (isPast) return 'border-[#747473]! bg-white opacity-40 cursor-not-allowed';
-  if (isTodayDay) return 'border-[#247AED]! bg-[#F5FAFF]';
-  return 'border-[#747473]! bg-white';
+  if (isCurrent) return 'text-blue-text bg-blue-light border-blue-text!';
+  if (isPast) return 'border-grey-text! bg-white opacity-40 cursor-not-allowed';
+  if (isTodayDay) return 'border-blue-text! bg-brand-100';
+  return 'border-grey-text! bg-white';
 }
 
 const Slotpicker = ({
@@ -159,7 +159,7 @@ const Slotpicker = ({
           aria-label="Previous month"
           onClick={handlePrevMonth}
           disabled={isAtTodayMonth}
-          className={isAtTodayMonth ? 'cursor-not-allowed text-[#c0bfbe]' : 'cursor-pointer'}
+          className={isAtTodayMonth ? 'cursor-not-allowed text-neutral-200' : 'cursor-pointer'}
         >
           <GrPrevious size={16} />
         </button>
@@ -186,7 +186,7 @@ const Slotpicker = ({
           className={
             canScrollDatesLeft
               ? 'cursor-pointer text-text-primary'
-              : 'cursor-not-allowed text-[#c0bfbe]'
+              : 'cursor-not-allowed text-neutral-200'
           }
         >
           <GrPrevious size={16} />
@@ -196,7 +196,7 @@ const Slotpicker = ({
             const isCurrent = isSameDay(selectedDate, day);
             const isTodayDay = isSameDay(day, today);
             const isPast = isPastDay(day);
-            const labelClass = isCurrent || isTodayDay ? 'text-[#247AED]' : 'text-text-primary';
+            const labelClass = isCurrent || isTodayDay ? 'text-blue-text' : 'text-text-primary';
             return (
               <button
                 key={day.toISOString()}
@@ -225,7 +225,7 @@ const Slotpicker = ({
           className={
             canScrollDatesRight
               ? 'cursor-pointer text-text-primary'
-              : 'cursor-not-allowed text-[#c0bfbe]'
+              : 'cursor-not-allowed text-neutral-200'
           }
         >
           <GrNext size={16} />
@@ -244,7 +244,7 @@ const Slotpicker = ({
               <button
                 key={slot.startTime + i}
                 onClick={() => setSelectedSlot(slot)}
-                className={`${selected ? 'text-[#247AED] bg-[#E9F2FD] border-[#247AED]!' : 'border-[#747473]! bg-white'} px-3.5 py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
+                className={`${selected ? 'text-blue-text bg-blue-light border-blue-text!' : 'border-grey-text! bg-white'} px-3.5 py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
               >
                 {formatUtcTimeToLocalLabel(slot.startTime)}
               </button>

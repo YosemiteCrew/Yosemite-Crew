@@ -9,10 +9,16 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 const baseClasses =
-  'px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0!';
+  'px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi text-neutral-0!';
 
-const Primary = ({ className, ...rest }: Readonly<PrimaryProps>) => (
-  <BaseButton {...rest} className={className} sizeClasses={sizeClasses} baseClasses={baseClasses} />
+const Primary = ({ className, style, ...rest }: Readonly<PrimaryProps>) => (
+  <BaseButton
+    {...rest}
+    className={className}
+    style={{ backgroundColor: 'var(--color-text-primary)', ...style }}
+    sizeClasses={sizeClasses}
+    baseClasses={baseClasses}
+  />
 );
 
 export default Primary;

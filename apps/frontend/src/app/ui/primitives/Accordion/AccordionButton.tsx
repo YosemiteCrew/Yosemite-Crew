@@ -102,7 +102,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
         >
           <IoIosArrowDown
             size={22}
-            color="#302f2e"
+            color="var(--color-neutral-900)"
             className={`text-black-text transition-transform shrink-0 ${open ? 'rotate-0' : '-rotate-90'}`}
           />
           <div className="text-heading-3 text-text-primary">{title}</div>
