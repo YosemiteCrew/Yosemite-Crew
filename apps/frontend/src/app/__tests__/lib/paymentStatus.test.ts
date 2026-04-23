@@ -134,7 +134,7 @@ describe('paymentStatus', () => {
       {}
     );
     expect(display.state).toBe('UNPAID');
-    expect(display.textColor).toBe('#F68523');
+    expect(display.textColor).toBe('var(--color-warning-600)');
   });
 
   it('returns PAID when stripePaymentLinkId present', () => {

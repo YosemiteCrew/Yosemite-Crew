@@ -13,21 +13,57 @@ export type StatusLabel = {
 };
 
 const statusStyles: Record<string, StatusStyle> = {
-  no_payment: { color: '#9a3412', backgroundColor: '#fff7ed', borderColor: '#f97316' },
-  in_progress: { color: '#5b21b6', backgroundColor: '#f5f3ff', borderColor: '#8b5cf6' },
-  completed: { color: '#166534', backgroundColor: '#f0fdf4', borderColor: '#64c487' },
-  checked_in: { color: '#3730a3', backgroundColor: '#eef2ff', borderColor: '#6366f1' },
-  requested: { color: '#5c5956', backgroundColor: '#f5f3f1', borderColor: '#a9a39e' },
-  cancelled: { color: '#9a3412', backgroundColor: '#fff7ed', borderColor: '#f97316' },
-  no_show: { color: '#9a3412', backgroundColor: '#fff7ed', borderColor: '#f97316' },
-  pending: { color: '#5c5956', backgroundColor: '#f5f3f1', borderColor: '#a9a39e' },
-  upcoming: { color: '#0057c2', backgroundColor: '#e6f2ff', borderColor: '#007cf5' },
+  no_payment: {
+    color: 'var(--status-cancelled-text)',
+    backgroundColor: 'var(--status-cancelled-bg)',
+    borderColor: 'var(--status-cancelled-border)',
+  },
+  in_progress: {
+    color: 'var(--status-in-progress-text)',
+    backgroundColor: 'var(--status-in-progress-bg)',
+    borderColor: 'var(--status-in-progress-border)',
+  },
+  completed: {
+    color: 'var(--status-completed-text)',
+    backgroundColor: 'var(--status-completed-bg)',
+    borderColor: 'var(--status-completed-border)',
+  },
+  checked_in: {
+    color: 'var(--status-checked-in-text)',
+    backgroundColor: 'var(--status-checked-in-bg)',
+    borderColor: 'var(--status-checked-in-border)',
+  },
+  requested: {
+    color: 'var(--status-requested-text)',
+    backgroundColor: 'var(--status-requested-bg)',
+    borderColor: 'var(--status-requested-border)',
+  },
+  cancelled: {
+    color: 'var(--status-cancelled-text)',
+    backgroundColor: 'var(--status-cancelled-bg)',
+    borderColor: 'var(--status-cancelled-border)',
+  },
+  no_show: {
+    color: 'var(--status-no-show-text)',
+    backgroundColor: 'var(--status-no-show-bg)',
+    borderColor: 'var(--status-no-show-border)',
+  },
+  pending: {
+    color: 'var(--status-requested-text)',
+    backgroundColor: 'var(--status-requested-bg)',
+    borderColor: 'var(--status-requested-border)',
+  },
+  upcoming: {
+    color: 'var(--status-upcoming-text)',
+    backgroundColor: 'var(--status-upcoming-bg)',
+    borderColor: 'var(--status-upcoming-border)',
+  },
 };
 
 const defaultStatusStyle: StatusStyle = {
-  color: '#5c5956',
-  backgroundColor: '#f5f3f1',
-  borderColor: '#a9a39e',
+  color: 'var(--status-requested-text)',
+  backgroundColor: 'var(--status-requested-bg)',
+  borderColor: 'var(--status-requested-border)',
 };
 
 export const getStatusStyle = (status: string): StatusStyle => {
@@ -35,17 +71,77 @@ export const getStatusStyle = (status: string): StatusStyle => {
 };
 
 export const AppointmentLabels: StatusLabel[] = [
-  { name: 'Requested', key: 'requested', bg: '#f5f3f1', text: '#5c5956', border: '#a9a39e' },
-  { name: 'Upcoming', key: 'upcoming', bg: '#e6f2ff', text: '#0057c2', border: '#007cf5' },
-  { name: 'Checked-in', key: 'checked_in', bg: '#eef2ff', text: '#3730a3', border: '#6366f1' },
-  { name: 'In progress', key: 'in_progress', bg: '#f5f3ff', text: '#5b21b6', border: '#8b5cf6' },
-  { name: 'Completed', key: 'completed', bg: '#f0fdf4', text: '#166534', border: '#64c487' },
-  { name: 'Cancelled', key: 'cancelled', bg: '#fff7ed', text: '#9a3412', border: '#f97316' },
+  {
+    name: 'Requested',
+    key: 'requested',
+    bg: 'var(--status-requested-bg)',
+    text: 'var(--status-requested-text)',
+    border: 'var(--status-requested-border)',
+  },
+  {
+    name: 'Upcoming',
+    key: 'upcoming',
+    bg: 'var(--status-upcoming-bg)',
+    text: 'var(--status-upcoming-text)',
+    border: 'var(--status-upcoming-border)',
+  },
+  {
+    name: 'Checked-in',
+    key: 'checked_in',
+    bg: 'var(--status-checked-in-bg)',
+    text: 'var(--status-checked-in-text)',
+    border: 'var(--status-checked-in-border)',
+  },
+  {
+    name: 'In progress',
+    key: 'in_progress',
+    bg: 'var(--status-in-progress-bg)',
+    text: 'var(--status-in-progress-text)',
+    border: 'var(--status-in-progress-border)',
+  },
+  {
+    name: 'Completed',
+    key: 'completed',
+    bg: 'var(--status-completed-bg)',
+    text: 'var(--status-completed-text)',
+    border: 'var(--status-completed-border)',
+  },
+  {
+    name: 'Cancelled',
+    key: 'cancelled',
+    bg: 'var(--status-cancelled-bg)',
+    text: 'var(--status-cancelled-text)',
+    border: 'var(--status-cancelled-border)',
+  },
 ];
 
 export const TaskLabels: StatusLabel[] = [
-  { name: 'Pending', key: 'pending', bg: '#f5f3f1', text: '#5c5956', border: '#a9a39e' },
-  { name: 'In progress', key: 'in_progress', bg: '#f5f3ff', text: '#5b21b6', border: '#8b5cf6' },
-  { name: 'Completed', key: 'completed', bg: '#f0fdf4', text: '#166534', border: '#64c487' },
-  { name: 'Cancelled', key: 'cancelled', bg: '#fff7ed', text: '#9a3412', border: '#f97316' },
+  {
+    name: 'Pending',
+    key: 'pending',
+    bg: 'var(--status-requested-bg)',
+    text: 'var(--status-requested-text)',
+    border: 'var(--status-requested-border)',
+  },
+  {
+    name: 'In progress',
+    key: 'in_progress',
+    bg: 'var(--status-in-progress-bg)',
+    text: 'var(--status-in-progress-text)',
+    border: 'var(--status-in-progress-border)',
+  },
+  {
+    name: 'Completed',
+    key: 'completed',
+    bg: 'var(--status-completed-bg)',
+    text: 'var(--status-completed-text)',
+    border: 'var(--status-completed-border)',
+  },
+  {
+    name: 'Cancelled',
+    key: 'cancelled',
+    bg: 'var(--status-cancelled-bg)',
+    text: 'var(--status-cancelled-text)',
+    border: 'var(--status-cancelled-border)',
+  },
 ];
