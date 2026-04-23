@@ -58,6 +58,13 @@ type AppointmentCalendarProps = {
   canEditAppointments: boolean;
   onCreateFromCalendarSlot?: (prefill: AppointmentDraftPrefill) => void;
   onAddAppointment?: () => void;
+  activeFilter?: string;
+  setActiveFilter?: (v: string) => void;
+  activeStatus?: string;
+  setActiveStatus?: (v: string) => void;
+  hasEmergency?: boolean;
+  filterOptions?: { key: string; name: string }[];
+  statusOptions?: { key: string; name: string; bg?: string; text?: string; border?: string }[];
 };
 
 type DragContext = {
@@ -111,6 +118,13 @@ const AppointmentCalendar = ({
   canEditAppointments,
   onCreateFromCalendarSlot,
   onAddAppointment,
+  activeFilter,
+  setActiveFilter,
+  activeStatus,
+  setActiveStatus,
+  hasEmergency,
+  filterOptions,
+  statusOptions,
 }: AppointmentCalendarProps) => {
   const { notify } = useNotify();
   const getErrorMessage = useCallback((error: unknown, fallback: string) => {
@@ -732,6 +746,13 @@ const AppointmentCalendar = ({
         setActiveCalendar={setActiveCalendar}
         showAddButton={canEditAppointments}
         onAddButtonClick={onAddAppointment}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        activeStatus={activeStatus}
+        setActiveStatus={setActiveStatus}
+        hasEmergency={hasEmergency}
+        filterOptions={filterOptions}
+        statusOptions={statusOptions}
       />
       {dragError ? (
         <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">
@@ -745,7 +766,6 @@ const AppointmentCalendar = ({
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
@@ -873,7 +893,6 @@ const AppointmentCalendar = ({
           forceFullDayInZoomIn
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}

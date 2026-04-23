@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useSpecialityStore } from '@/app/stores/specialityStore';
 import { computeOrgOnboardingStep } from '@/app/lib/orgOnboarding';
@@ -29,6 +30,7 @@ import {
   canAccessPathByPermissions,
   resolveFirstAccessibleAppRoute,
 } from '@/app/lib/routePermissions';
+import { appRoutes } from '@/app/constants/routes';
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -54,6 +56,30 @@ type RedirectParams = {
   availabilities: ApiDayAvailability[];
 };
 
+const isUnverifiedPathAllowed = (pathname: string): boolean =>
+  pathname === '/book-onboarding' ||
+  pathname === '/team-onboarding' ||
+  pathname === '/guides' ||
+  pathname.startsWith('/guides/') ||
+  appRoutes.some(
+    (route) =>
+      route.verify === false && (pathname === route.href || pathname.startsWith(`${route.href}/`))
+  );
+
+const resolveUnverifiedOwnerRedirect = (
+  step: number,
+  profileStep: number,
+  pathname: string,
+  primaryOrgId: string
+): string | null => {
+  if (step < 3) return `/create-org?orgId=${primaryOrgId}`;
+  if (profileStep < 3 && pathname !== '/team-onboarding') {
+    return `/team-onboarding?orgId=${primaryOrgId}`;
+  }
+  if (isUnverifiedPathAllowed(pathname)) return '';
+  return '/dashboard';
+};
+
 const resolveOrgRedirect = ({
   pathname,
   primaryOrgId,
@@ -65,25 +91,19 @@ const resolveOrgRedirect = ({
 }: RedirectParams): string | null => {
   const step = computeOrgOnboardingStep(primaryOrg, specialities);
   const profileStep = computeTeamOnboardingStep(profile, availabilities);
-  const isVerified = primaryOrg.isVerified;
   const role = membership.roleDisplay ?? membership.roleCode;
 
   if (role.toLowerCase() === 'owner') {
-    if (!isVerified) {
-      if (step < 3) {
-        return `/create-org?orgId=${primaryOrgId}`;
-      }
-      if (step === 3) {
-        if (pathname === '/organization' || pathname === '/book-onboarding') {
-          return '';
-        }
-        return '/dashboard';
-      }
+    if (!primaryOrg.isVerified) {
+      return resolveUnverifiedOwnerRedirect(step, profileStep, pathname, primaryOrgId);
+    }
+    if (profileStep < 3 && pathname !== '/team-onboarding') {
+      return `/team-onboarding?orgId=${primaryOrgId}`;
     }
     return null;
   }
 
-  if (profileStep < 3 && pathname !== '/organizations') {
+  if (profileStep < 3 && pathname !== '/organizations' && pathname !== '/team-onboarding') {
     return `/team-onboarding?orgId=${primaryOrgId}`;
   }
 
@@ -190,6 +210,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   const profileStatus = useUserProfileStore((s) => s.status);
 
   const [checked, setChecked] = useState(false);
+  useFullscreenLoader('org-guard', !isAuthGuardDisabled && !checked);
 
   useEffect(() => {
     if (isAuthGuardDisabled) {

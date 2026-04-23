@@ -28,6 +28,7 @@ const AppointmentStat = () => {
       />
       <DynamicChartCard
         data={analytics.charts.appointments}
+        isEmpty={analytics.emptyState.appointmentsChart}
         keys={[
           { name: 'Completed', color: '#111' },
           { name: 'Cancelled', color: '#ccc' },

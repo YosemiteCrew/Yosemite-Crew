@@ -1,20 +1,22 @@
-"use client";
-import React from "react";
-import Image from "next/image";
-import { FaClock } from "react-icons/fa6";
+'use client';
+import React, { useState } from 'react';
+import Image from 'next/image';
+import { FaClock } from 'react-icons/fa6';
 
-import { Primary } from "@/app/ui/primitives/Buttons";
-import { usePrimaryOrg } from "@/app/hooks/useOrgSelectors";
-import { useAuthStore } from "@/app/stores/authStore";
-import { getSafeImageUrl } from "@/app/lib/urls";
-import { usePrimaryOrgProfile } from "@/app/hooks/useProfiles";
-import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
-import { PERMISSIONS } from "@/app/lib/permissions";
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
+import { useAuthStore } from '@/app/stores/authStore';
+import { getSafeImageUrl } from '@/app/lib/urls';
+import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
+import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import { PERMISSIONS } from '@/app/lib/permissions';
+import CalBookingOverlay from '@/app/ui/overlays/CalBookingOverlay';
 
 const DashboardProfile = () => {
   const profile = usePrimaryOrgProfile();
   const primaryOrg = usePrimaryOrg();
   const attributes = useAuthStore((s) => s.attributes);
+  const [calOpen, setCalOpen] = useState(false);
 
   if (!primaryOrg) return null;
 
@@ -23,24 +25,18 @@ const DashboardProfile = () => {
       <div className="text-bpdy-4 text-text-tertiary">Welcome</div>
       <div className="flex items-center gap-2">
         <Image
-          src={getSafeImageUrl(
-            profile?.personalDetails?.profilePictureUrl,
-            "person"
-          )}
+          src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
           alt="logo"
           height={40}
           width={40}
           className="rounded-full object-cover h-10 min-w-10 max-h-10"
         />
         <div className="text-heading-1 text-text-primary">
-          {(attributes?.given_name || "") +
-            " " +
-            (attributes?.family_name || "")}
+          {(attributes?.given_name || '') + ' ' + (attributes?.family_name || '')}
         </div>
       </div>
       <div className="text-bpdy-4-emphasis text-text-tertiary">
-        Your central hub for insights, performance tracking and quick access to
-        essential tools
+        Your central hub for insights, performance tracking and quick access to essential tools
       </div>
       <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>
         <div className="flex items-center justify-between gap-2 w-full flex-wrap">
@@ -52,19 +48,19 @@ const DashboardProfile = () => {
                   Verification in progress — Limited access enabled
                 </span>
               </div>
-              <Primary text="Verify business profile" href="/book-onboarding" />
+              <Primary text="Verify business profile" href="#" onClick={() => setCalOpen(true)} />
             </>
           )}
         </div>
         {!primaryOrg.isVerified && (
           <div className="text-caption-1 text-text-primary w-full sm:max-w-[500px]">
-            <span className="text-text-brand">Note : </span>This short chat
-            helps us confirm your business and add you to our trusted network of
-            verified pet professionals - so you can start connecting with
-            clients faster.
+            <span className="text-text-brand">Note : </span>This short chat helps us confirm your
+            business and add you to our trusted network of verified pet professionals - so you can
+            start connecting with clients faster.
           </div>
         )}
       </PermissionGate>
+      <CalBookingOverlay open={calOpen} onClose={() => setCalOpen(false)} />
     </div>
   );
 };

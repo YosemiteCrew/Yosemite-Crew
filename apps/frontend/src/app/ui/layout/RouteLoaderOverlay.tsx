@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useRouteLoaderStore } from '@/app/stores/routeLoaderStore';
 
@@ -72,11 +71,7 @@ const RouteLoaderOverlay = () => {
     };
   }, [isLoading]);
 
-  if (!isLoading) return null;
-
-  return (
-    <YosemiteLoader variant="fullscreen-translucent" size={150} testId="global-route-loader" />
-  );
+  return null;
 };
 
 export default RouteLoaderOverlay;

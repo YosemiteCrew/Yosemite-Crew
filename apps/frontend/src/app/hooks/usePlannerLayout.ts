@@ -27,7 +27,6 @@ export const usePlannerAutoLock = ({ activeView, topOffset = 16 }: PlannerLayout
   const lastScrollYRef = useRef(0);
 
   useEffect(() => {
-    if (activeView === 'list') return;
     if (globalThis.window === undefined) return;
 
     lastScrollYRef.current = globalThis.window.scrollY;

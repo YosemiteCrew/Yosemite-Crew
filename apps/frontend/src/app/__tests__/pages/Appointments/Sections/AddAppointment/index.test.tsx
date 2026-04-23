@@ -357,4 +357,29 @@ describe('AddAppointment Component', () => {
       expect(mockSetShowModal).toHaveBeenCalledWith(false);
     });
   });
+
+  it('toggles the emergency checkbox when clicking its label text', () => {
+    render(<AddAppointment {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('search-companion'));
+    fireEvent.click(screen.getAllByText('Next')[0]);
+    fireEvent.click(screen.getByTestId('select-Speciality'));
+    fireEvent.click(screen.getByTestId('select-Service'));
+    fireEvent.change(screen.getByTestId('concern-input'), { target: { value: 'Limping' } });
+    fireEvent.click(screen.getAllByText('Next')[1]);
+    fireEvent.click(screen.getByTestId('slot-0'));
+    fireEvent.click(screen.getByTestId('select-Lead'));
+    fireEvent.click(screen.getAllByText('Next')[2]);
+
+    const emergencyLabel = screen.getByText('I confirm this is an emergency.');
+    const emergencyCheckbox = screen.getByLabelText('I confirm this is an emergency.');
+
+    expect(emergencyCheckbox).not.toBeChecked();
+
+    fireEvent.click(emergencyLabel);
+    expect(emergencyCheckbox).toBeChecked();
+
+    fireEvent.click(emergencyLabel);
+    expect(emergencyCheckbox).not.toBeChecked();
+  });
 });

@@ -5,6 +5,7 @@ import SignIn from '@/app/features/auth/pages/SignIn/SignIn';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useRouter } from 'next/navigation';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
+import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 // --- Mocks ---
 
@@ -21,6 +22,10 @@ jest.mock('@/app/stores/authStore', () => ({
 // Mock Toast
 jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
   useErrorTost: jest.fn(),
+}));
+
+jest.mock('@/app/lib/postAuthRedirect', () => ({
+  resolvePostAuthRedirect: jest.fn(),
 }));
 
 // Mock Components
@@ -53,11 +58,15 @@ jest.mock('@/app/ui/overlays/OtpModal/OtpModal', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button data-testid="signin-btn" onClick={onClick}>
+  Primary: ({ text, onClick, isDisabled }: any) => (
+    <button data-testid="signin-btn" onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),
+}));
+
+jest.mock('@/app/ui/overlays/Loader', () => ({
+  YosemiteLoader: ({ label, testId }: any) => <div data-testid={testId}>{label}</div>,
 }));
 
 // Mock Storage
@@ -93,6 +102,8 @@ describe('SignIn Page', () => {
       showErrorTost: mockShowErrorTost,
       ErrorTostPopup: <div data-testid="toast-popup" />,
     });
+
+    (resolvePostAuthRedirect as jest.Mock).mockResolvedValue('/create-org');
   });
 
   // --- 1. Rendering ---
@@ -174,7 +185,12 @@ describe('SignIn Page', () => {
     });
 
     expect(mockSignIn).toHaveBeenCalledWith('test@example.com', 'pass123');
-    expect(mockRouterPush).toHaveBeenCalledWith('/appointments');
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith({
+      fallbackRole: undefined,
+      redirectPath: undefined,
+      isDeveloper: false,
+    });
+    expect(mockRouterPush).toHaveBeenCalledWith('/create-org');
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith('devAuth', 'false');
   });
 
@@ -195,6 +211,41 @@ describe('SignIn Page', () => {
     });
 
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith('devAuth', 'true');
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith({
+      fallbackRole: undefined,
+      redirectPath: undefined,
+      isDeveloper: true,
+    });
+  });
+
+  it('shows a loader while the sign-in request is pending', async () => {
+    let resolveSignIn: (() => void) | undefined;
+    mockSignIn.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSignIn = () => resolve({});
+        })
+    );
+
+    render(<SignIn />);
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(screen.getByTestId('signin-loader')).toHaveTextContent('Signing you in...');
+    expect(screen.getByTestId('signin-btn')).toBeDisabled();
+
+    await act(async () => {
+      resolveSignIn?.();
+    });
   });
 
   // --- 4. Error Handling & Edge Cases ---

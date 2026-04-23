@@ -154,9 +154,9 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: pnpm prisma generate
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: ${{ matrix.dir }}
-        run: pnpm test -- --coverage
+        run: pnpm test:coverage
 
       - name: Sonar Scan
         uses: SonarSource/sonarqube-scan-action@v6

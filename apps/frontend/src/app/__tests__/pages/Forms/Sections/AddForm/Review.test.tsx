@@ -1,20 +1,18 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import Review from "@/app/features/forms/pages/Forms/Sections/AddForm/Review";
-import { FormsProps, FormField } from "@/app/features/forms/types/forms";
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import Review from '@/app/features/forms/pages/Forms/Sections/AddForm/Review';
+import { FormsProps, FormField } from '@/app/features/forms/types/forms';
 
 // --- Mocks ---
 
 // Mock Accordion components
-jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
+jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
-  default: ({ title, children }: any) => (
-    <div data-testid={`accordion-${title}`}>{children}</div>
-  ),
+  default: ({ title, children }: any) => <div data-testid={`accordion-${title}`}>{children}</div>,
 }));
 
-jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
+jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   __esModule: true,
   default: ({ title, data }: any) => (
     <div data-testid={`editable-accordion-${title}`}>Data: {data.name}</div>
@@ -22,7 +20,7 @@ jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => ({
 }));
 
 // Mock Buttons
-jest.mock("@/app/ui/primitives/Buttons", () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
     <button data-testid="primary-btn" onClick={onClick} disabled={isDisabled}>
       {text}
@@ -36,32 +34,29 @@ jest.mock("@/app/ui/primitives/Buttons", () => ({
 }));
 
 // Mock FormRenderer to test value passing and change handling
-jest.mock("@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer", () => ({
+jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer', () => ({
   __esModule: true,
   default: ({ values, onChange }: any) => (
     <div data-testid="form-renderer">
       <span data-testid="renderer-values">{JSON.stringify(values)}</span>
-      <button
-        data-testid="trigger-change"
-        onClick={() => onChange("test_text", "updated value")}
-      >
+      <button data-testid="trigger-change" onClick={() => onChange('test_text', 'updated value')}>
         Trigger Change
       </button>
     </div>
   ),
 }));
 
-describe("Review Component", () => {
+describe('Review Component', () => {
   const mockOnPublish = jest.fn();
   const mockOnSaveDraft = jest.fn();
-  const serviceOptions = [{ label: "Service A", value: "A" }];
+  const serviceOptions = [{ label: 'Service A', value: 'A' }];
 
   const baseFormData: FormsProps = {
-    _id: "form1",
-    name: "Test Form",
-    category: "Consent form",
-    description: "Desc",
-    usage: "Internal",
+    _id: 'form1',
+    name: 'Test Form',
+    category: 'Consent form',
+    description: 'Desc',
+    usage: 'Internal',
     services: [],
     species: [],
     schema: [],
@@ -73,7 +68,7 @@ describe("Review Component", () => {
 
   // --- 1. Rendering & Initial State Generation ---
 
-  it("renders basic structure correctly", () => {
+  it('renders basic structure correctly', () => {
     render(
       <Review
         formData={baseFormData}
@@ -83,39 +78,29 @@ describe("Review Component", () => {
       />
     );
 
-    expect(
-      screen.getByTestId("editable-accordion-Form details")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("editable-accordion-Usage & visibility")
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('editable-accordion-Form details')).toBeInTheDocument();
+    expect(screen.getByTestId('editable-accordion-Usage & visibility')).toBeInTheDocument();
 
     // Schema is empty, so Form Accordion/Renderer should NOT show
-    expect(screen.queryByTestId("accordion-Form")).not.toBeInTheDocument();
+    expect(screen.queryByTestId('accordion-Form')).not.toBeInTheDocument();
 
     // Check default button texts
-    expect(screen.getByTestId("primary-btn")).toHaveTextContent(
-      "Publish template"
-    );
-    expect(screen.getByTestId("secondary-btn")).toHaveTextContent(
-      "Save as draft"
-    );
+    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Publish template');
+    expect(screen.getByTestId('secondary-btn')).toHaveTextContent('Save as draft');
   });
 
-  it("generates correct initial values from complex schema (buildInitialValues coverage)", () => {
+  it('generates correct initial values from complex schema (buildInitialValues coverage)', () => {
     const complexSchema: FormField[] = [
-      { id: "test_text", type: "text", placeholder: "Enter text" } as any,
-      { id: "test_number", type: "number" } as any,
-      { id: "test_date", type: "date" } as any,
-      { id: "test_bool", type: "boolean" } as any,
-      { id: "test_check", type: "checkbox" } as any,
-      { id: "test_default", type: "text" } as any, // Missing placeholder branch
+      { id: 'test_text', type: 'text', placeholder: 'Enter text' } as any,
+      { id: 'test_number', type: 'number' } as any,
+      { id: 'test_date', type: 'date' } as any,
+      { id: 'test_bool', type: 'boolean' } as any,
+      { id: 'test_check', type: 'checkbox' } as any,
+      { id: 'test_default', type: 'text' } as any, // Missing placeholder branch
       {
-        id: "group_1",
-        type: "group",
-        fields: [
-          { id: "nested_text", type: "text", placeholder: "Nested" } as any,
-        ],
+        id: 'group_1',
+        type: 'group',
+        fields: [{ id: 'nested_text', type: 'text', placeholder: 'Nested' } as any],
       } as any,
     ];
 
@@ -130,25 +115,26 @@ describe("Review Component", () => {
       />
     );
 
-    expect(screen.getByTestId("accordion-Form")).toBeInTheDocument();
+    expect(screen.getByTestId('accordion-Form')).toBeInTheDocument();
 
-    const valuesEl = screen.getByTestId("renderer-values");
-    const values = JSON.parse(valuesEl.textContent || "{}");
+    const valuesEl = screen.getByTestId('renderer-values');
+    const values = JSON.parse(valuesEl.textContent || '{}');
 
     // Verify all types initialized correctly according to buildInitialValues
-    expect(values["test_text"]).toBe("Enter text");
-    expect(values["test_number"]).toBe("");
-    expect(values["test_date"]).toBe("");
-    expect(values["test_bool"]).toBe(false);
-    expect(values["test_check"]).toEqual([]);
-    expect(values["test_default"]).toBe(""); // Placeholder undefined fallback
-    expect(values["nested_text"]).toBe("Nested"); // Recursion check
-    expect(values["group_1"]).toBeUndefined(); // Groups themselves store no value
+    // placeholder is hint text only — initial value is always "" for text/number fields
+    expect(values['test_text']).toBe('');
+    expect(values['test_number']).toBe('');
+    expect(values['test_date']).toBe('');
+    expect(values['test_bool']).toBe(false);
+    expect(values['test_check']).toEqual([]);
+    expect(values['test_default']).toBe('');
+    expect(values['nested_text']).toBe(''); // Recursion check — placeholder not seeded
+    expect(values['group_1']).toBeUndefined(); // Groups themselves store no value
   });
 
   // --- 2. Interactions & State Updates ---
 
-  it("handles button clicks", () => {
+  it('handles button clicks', () => {
     render(
       <Review
         formData={baseFormData}
@@ -158,17 +144,15 @@ describe("Review Component", () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId("primary-btn"));
+    fireEvent.click(screen.getByTestId('primary-btn'));
     expect(mockOnPublish).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByTestId("secondary-btn"));
+    fireEvent.click(screen.getByTestId('secondary-btn'));
     expect(mockOnSaveDraft).toHaveBeenCalled();
   });
 
-  it("updates local state when FormRenderer triggers onChange", () => {
-    const schema = [
-      { id: "test_text", type: "text", placeholder: "Initial" },
-    ] as any;
+  it('updates local state when FormRenderer triggers onChange', () => {
+    const schema = [{ id: 'test_text', type: 'text', placeholder: 'hint text only' }] as any;
     const formData = { ...baseFormData, schema };
 
     render(
@@ -180,24 +164,24 @@ describe("Review Component", () => {
       />
     );
 
-    const valuesEl = screen.getByTestId("renderer-values");
-    // Initial State
-    expect(JSON.parse(valuesEl.textContent || "{}")).toEqual({ test_text: "Initial" });
+    const valuesEl = screen.getByTestId('renderer-values');
+    // Initial state is empty string — placeholder is never the value
+    expect(JSON.parse(valuesEl.textContent || '{}')).toEqual({ test_text: '' });
 
     // Trigger Change (Mock simulates changing "test_text" to "updated value")
-    fireEvent.click(screen.getByTestId("trigger-change"));
+    fireEvent.click(screen.getByTestId('trigger-change'));
 
     // Verify Update
-    expect(JSON.parse(valuesEl.textContent || "{}")).toEqual({
-      test_text: "updated value",
+    expect(JSON.parse(valuesEl.textContent || '{}')).toEqual({
+      test_text: 'updated value',
     });
   });
 
   // --- 3. Effects ---
 
-  it("resets values when formData schema changes", () => {
-    const schema1 = [{ id: "field1", type: "text", placeholder: "A" }] as any;
-    const schema2 = [{ id: "field1", type: "text", placeholder: "B" }] as any;
+  it('resets values when formData schema changes', () => {
+    const schema1 = [{ id: 'field1', type: 'text', defaultValue: 'A' }] as any;
+    const schema2 = [{ id: 'field1', type: 'text', defaultValue: 'B' }] as any;
 
     const { rerender } = render(
       <Review
@@ -208,7 +192,7 @@ describe("Review Component", () => {
       />
     );
 
-    expect(screen.getByTestId("renderer-values")).toHaveTextContent("A");
+    expect(screen.getByTestId('renderer-values')).toHaveTextContent('A');
 
     // Re-render with new schema
     rerender(
@@ -220,12 +204,12 @@ describe("Review Component", () => {
       />
     );
 
-    expect(screen.getByTestId("renderer-values")).toHaveTextContent("B");
+    expect(screen.getByTestId('renderer-values')).toHaveTextContent('B');
   });
 
   // --- 4. Props Variations (Edit Mode & Loading) ---
 
-  it("renders correctly in Edit mode", () => {
+  it('renders correctly in Edit mode', () => {
     render(
       <Review
         formData={baseFormData}
@@ -236,15 +220,11 @@ describe("Review Component", () => {
       />
     );
 
-    expect(screen.getByTestId("primary-btn")).toHaveTextContent(
-      "Update & publish"
-    );
-    expect(screen.getByTestId("secondary-btn")).toHaveTextContent(
-      "Update draft"
-    );
+    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Update & publish');
+    expect(screen.getByTestId('secondary-btn')).toHaveTextContent('Update draft');
   });
 
-  it("disables buttons when loading", () => {
+  it('disables buttons when loading', () => {
     render(
       <Review
         formData={baseFormData}
@@ -255,7 +235,7 @@ describe("Review Component", () => {
       />
     );
 
-    expect(screen.getByTestId("primary-btn")).toBeDisabled();
-    expect(screen.getByTestId("secondary-btn")).toBeDisabled();
+    expect(screen.getByTestId('primary-btn')).toBeDisabled();
+    expect(screen.getByTestId('secondary-btn')).toBeDisabled();
   });
 });

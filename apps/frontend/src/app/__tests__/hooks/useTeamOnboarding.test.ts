@@ -150,32 +150,33 @@ describe('useTeamOnboarding Hook', () => {
 
   // --- 3. Logic: Role Based (Owner) ---
 
-  it("skips onboarding (step 3) if user is 'owner'", () => {
+  it('computes real step for owner (owner goes through profile onboarding like any member)', () => {
     setupMocks({
       membershipsByOrgId: {
         [mockOrgId]: { roleCode: 'owner' },
       },
+      computedStep: 1,
     });
 
     const { result } = renderHook(() => useTeamOnboarding(mockOrgId));
 
-    expect(result.current.step).toBe(3);
+    expect(result.current.step).toBe(1);
     expect(result.current.shouldRedirectToOrganizations).toBe(false);
-    // Profile is returned as null in the owner shortcut block in the source code
-    expect(result.current.profile).toBeNull();
+    expect(result.current.profile).toEqual(mockProfile);
     expect(result.current.isReady).toBe(true);
   });
 
-  it("handles 'Owner' case-insensitively via roleDisplay", () => {
+  it("handles 'Owner' case-insensitively via roleDisplay and computes real step", () => {
     setupMocks({
       membershipsByOrgId: {
         [mockOrgId]: { roleDisplay: 'OWNER' },
       },
+      computedStep: 2,
     });
 
     const { result } = renderHook(() => useTeamOnboarding(mockOrgId));
 
-    expect(result.current.step).toBe(3);
+    expect(result.current.step).toBe(2);
   });
 
   // --- 4. Logic: Standard Flow (Staff) ---

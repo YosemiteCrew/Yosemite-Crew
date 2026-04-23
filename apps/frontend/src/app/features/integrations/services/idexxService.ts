@@ -29,14 +29,18 @@ export const getApiErrorMessage = (error: unknown, fallback: string): string => 
       : 'Forbidden (403): You are not authorized for this organization/resource.';
   }
   if (status) {
-    return backendMessage ? `${fallback} (${status}): ${backendMessage}` : `${fallback} (${status})`;
+    return backendMessage
+      ? `${fallback} (${status}): ${backendMessage}`
+      : `${fallback} (${status})`;
   }
   return fallback;
 };
 
 export const getOrgIntegrations = async (organisationId: string): Promise<OrgIntegration[]> => {
   try {
-    const res = await getData<OrgIntegration[]>(`/v1/integration/pms/organisation/${organisationId}`);
+    const res = await getData<OrgIntegration[]>(
+      `/v1/integration/pms/organisation/${organisationId}`
+    );
     return res.data ?? [];
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -54,7 +58,7 @@ export const getIntegrationByProvider = async (
   const normalizedProvider = provider.toLowerCase();
   const match = integrations.find(
     (integration) =>
-      String(integration?.provider ?? "")
+      String(integration?.provider ?? '')
         .trim()
         .toLowerCase() === normalizedProvider
   );
@@ -163,18 +167,28 @@ export const getIdexxOrderById = async (opts: {
 export const listIdexxOrders = async (opts: {
   organisationId: string;
   appointmentId?: string;
+  companionId?: string;
+  status?: string;
+  limit?: number;
 }): Promise<LabOrder[]> => {
-  const { organisationId, appointmentId } = opts;
-  const res = await getData<LabOrder[] | { orders?: LabOrder[] }>(
-    `/v1/labs/pms/organisation/${organisationId}/idexx/orders`,
-    appointmentId ? { appointmentId } : {}
+  const { organisationId, appointmentId, companionId, status, limit } = opts;
+  const res = await postData<LabOrder[] | { orders?: LabOrder[] }, Record<string, string | number>>(
+    `/v1/labs/pms/organisation/${organisationId}/idexx/orders/search`,
+    {
+      ...(appointmentId ? { appointmentId } : {}),
+      ...(companionId ? { companionId } : {}),
+      ...(status ? { status } : {}),
+      ...(limit === undefined ? {} : { limit }),
+    }
   );
   const payload = res.data;
   if (Array.isArray(payload)) return payload;
   return payload?.orders ?? [];
 };
 
-export const listIdexxIvlsDevices = async (organisationId: string): Promise<IvlsDevicesResponse> => {
+export const listIdexxIvlsDevices = async (
+  organisationId: string
+): Promise<IvlsDevicesResponse> => {
   const res = await getData<IvlsDevicesResponse>(
     `/v1/labs/pms/organisation/${organisationId}/idexx/ivls/devices`
   );
@@ -198,10 +212,8 @@ export const getIdexxResultById = async (opts: {
   return res.data;
 };
 
-export const getIdexxResultPdfUrl = (opts: {
-  organisationId: string;
-  resultId: string;
-}) => `${process.env.NEXT_PUBLIC_BASE_URL}/v1/labs/pms/organisation/${opts.organisationId}/IDEXX/results/${opts.resultId}/pdf`;
+export const getIdexxResultPdfUrl = (opts: { organisationId: string; resultId: string }) =>
+  `${process.env.NEXT_PUBLIC_BASE_URL}/v1/labs/pms/organisation/${opts.organisationId}/IDEXX/results/${opts.resultId}/pdf`;
 
 const looksLikeHex = (value: string) => /^[0-9a-fA-F]+$/.test(value) && value.length % 2 === 0;
 

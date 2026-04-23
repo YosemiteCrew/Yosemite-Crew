@@ -1,9 +1,9 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import SpecialityCard from "@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityCard";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import SpecialityCard from '@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityCard';
 
-jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
+jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
   default: ({ title, children, onDeleteClick }: any) => (
     <div>
@@ -16,25 +16,7 @@ jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, onSelect }: any) => (
-    <button type="button" onClick={() => onSelect({ label: "Lead", key: "lead-1" })}>
-      {placeholder}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
-  __esModule: true,
-  default: ({ placeholder, onChange }: any) => (
-    <button type="button" onClick={() => onChange(["team-1"])}>
-      {placeholder}
-    </button>
-  ),
-}));
-
-jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
+jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange }: any) => (
     <label>
@@ -44,27 +26,19 @@ jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/ServiceSearch/ServiceSearch", () => ({
+jest.mock('@/app/ui/inputs/ServiceSearch/ServiceSearch', () => ({
   __esModule: true,
   default: () => <div>ServiceSearch</div>,
 }));
 
-jest.mock("@/app/hooks/useTeam", () => ({
-  useTeamForPrimaryOrg: () => [
-    { _id: "team-1", name: "Dr. Who" },
-  ],
-}));
-
-describe("SpecialityCard", () => {
-  it("updates staff and services", () => {
+describe('SpecialityCard', () => {
+  it('updates and removes services', () => {
     const setFormData = jest.fn();
     const speciality = {
-      headUserId: "",
-      teamMemberIds: [],
       services: [
         {
-          name: "Checkup",
-          description: "Initial",
+          name: 'Checkup',
+          description: 'Initial',
           durationMinutes: 30,
           cost: 10,
           maxDiscount: 5,
@@ -72,18 +46,13 @@ describe("SpecialityCard", () => {
       ],
     } as any;
 
-    render(
-      <SpecialityCard setFormData={setFormData} speciality={speciality} index={0} />
-    );
+    render(<SpecialityCard setFormData={setFormData} speciality={speciality} index={0} />);
 
-    fireEvent.click(screen.getByText("Select Lead"));
-    fireEvent.click(screen.getByText("Assigned staff"));
-
-    fireEvent.change(screen.getByLabelText("Description"), {
-      target: { value: "Updated" },
+    fireEvent.change(screen.getByLabelText('Description'), {
+      target: { value: 'Updated' },
     });
 
-    fireEvent.click(screen.getByText("Delete"));
+    fireEvent.click(screen.getByText('Delete'));
 
     expect(setFormData).toHaveBeenCalled();
   });

@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { usePathname, useRouter } from 'next/navigation';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 const replaceMock = jest.fn();
 let mockPathname = '/dashboard';
@@ -74,6 +75,10 @@ jest.mock('@/app/hooks/useBilling', () => ({
 
 jest.mock('@/app/hooks/useInvoices', () => ({
   useLoadInvoicesForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock('@/app/hooks/useFullscreenLoader', () => ({
+  useFullscreenLoader: jest.fn(),
 }));
 
 const computeOrgOnboardingStepMock = jest.fn();
@@ -160,6 +165,7 @@ describe('OrgGuard', () => {
     );
 
     expect(screen.getByTestId('child')).toBeInTheDocument();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('org-guard', false);
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
@@ -230,6 +236,66 @@ describe('OrgGuard', () => {
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith('/team-onboarding?orgId=org-2');
     });
+  });
+
+  it('redirects owners to team-onboarding when org is done but profile is incomplete', async () => {
+    const orgId = 'org-owner-profile';
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        primaryOrgId: orgId,
+        orgsById: {
+          [orgId]: { id: orgId, isVerified: true, type: 'GROOMER' },
+        },
+        membershipsByOrgId: {
+          [orgId]: { roleDisplay: 'Owner', effectivePermissions: [] },
+        },
+      })
+    );
+    computeOrgOnboardingStepMock.mockReturnValue(3);
+    computeTeamOnboardingStepMock.mockReturnValue(1);
+
+    render(
+      <OrgGuard>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith('/team-onboarding?orgId=org-owner-profile');
+    });
+  });
+
+  it('allows owners through when profile is complete', async () => {
+    const orgId = 'org-owner-done';
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        primaryOrgId: orgId,
+        orgsById: {
+          [orgId]: { id: orgId, isVerified: true, type: 'GROOMER' },
+        },
+        membershipsByOrgId: {
+          [orgId]: {
+            roleDisplay: 'Owner',
+            effectivePermissions: ['analytics:view:any'],
+          },
+        },
+      })
+    );
+    computeOrgOnboardingStepMock.mockReturnValue(3);
+    computeTeamOnboardingStepMock.mockReturnValue(3);
+
+    render(
+      <OrgGuard>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('child')).toBeInTheDocument();
+    });
+    expect(replaceMock).not.toHaveBeenCalledWith(expect.stringContaining('/team-onboarding'));
   });
 
   it('redirects when current route requires a permission the user does not have', async () => {

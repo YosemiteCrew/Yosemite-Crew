@@ -18,6 +18,9 @@ jest.mock('@/app/features/dashboard/hooks/useDashboardAnalytics', () => ({
     durationOptions: {
       appointments: ['Last week'],
     },
+    emptyState: {
+      appointmentsChart: false,
+    },
   }),
 }));
 

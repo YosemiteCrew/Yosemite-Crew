@@ -60,19 +60,6 @@ export const useTeamOnboarding = (
         isReady: true,
       };
     }
-    const role = (membership.roleDisplay ?? membership.roleCode ?? '').toLowerCase();
-    const isOwner = role === 'owner';
-
-    if (isOwner) {
-      return {
-        step: 3 as TeamOnboardingStep,
-        slots: [] as any[],
-        effectiveprofile: null as UserProfile | null,
-        shouldRedirectToOrganizations: false,
-        isReady: true,
-      };
-    }
-
     if (!profile) {
       return {
         step: 0 as TeamOnboardingStep,

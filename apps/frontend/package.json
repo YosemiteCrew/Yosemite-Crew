@@ -9,6 +9,7 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build -o storybook-static",
     "chromatic": "chromatic --build-script-name=storybook:build --exit-zero-on-changes",

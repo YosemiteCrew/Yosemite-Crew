@@ -62,13 +62,23 @@ jest.mock('@/app/ui/widgets/TitleCalendar', () => (props: any) => (
     <button type="button" onClick={() => props.setActiveView('list')}>
       List
     </button>
-    <button type="button" onClick={() => props.setAddPopup(true)}>
-      Add
-    </button>
+    {props.showAdd ? (
+      <button type="button" onClick={() => props.setAddPopup(true)}>
+        Add
+      </button>
+    ) : null}
   </div>
 ));
 
-jest.mock('@/app/ui/filters/Filters', () => () => <div data-testid="filters" />);
+jest.mock('@/app/ui/filters/Filters', () => (props: any) => (
+  <div data-testid="filters">
+    {props.showAddButton ? (
+      <button type="button" onClick={props.onAddButtonClick}>
+        Add Appointment
+      </button>
+    ) : null}
+  </div>
+));
 
 jest.mock(
   '@/app/features/appointments/components/Calendar/AppointmentCalendar',
@@ -163,10 +173,11 @@ describe('Appointments page', () => {
     );
   });
 
-  it('opens add appointment modal when add is clicked', () => {
+  it('opens add appointment modal from the list filters row', () => {
     render(<ProtectedAppointments />);
 
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByText('List'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Appointment' }));
     expect(addAppointmentSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
   });
 

@@ -47,9 +47,9 @@ export const buildInitialValues = (fields: FormField[]): Record<string, any> => 
       } else if (field.type === 'date') {
         acc[field.id] = defaultValue ?? '';
       } else if (field.type === 'number') {
-        acc[field.id] = defaultValue ?? field.placeholder ?? '';
+        acc[field.id] = defaultValue ?? '';
       } else {
-        acc[field.id] = defaultValue ?? field.placeholder ?? '';
+        acc[field.id] = defaultValue ?? '';
       }
     });
   };
