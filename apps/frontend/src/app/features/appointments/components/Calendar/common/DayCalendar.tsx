@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
 import {
@@ -105,6 +106,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   availabilityLoaded = false,
 }) => {
   const { notify } = useNotify();
+  const onWheelBoundary = useScrollBoundaryWheel();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -449,7 +451,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       </div>
       {allDayEvents.length > 0 && (
         <div className="px-2 py-2 border-b border-grey-light bg-slate-50">
-          <div className="text-xs font-satoshi text-[#747473] mb-1">All-day</div>
+          <div className="text-xs font-satoshi text-grey-text mb-1">All-day</div>
           <div className="flex flex-wrap gap-2">
             {allDayEvents.map((ev, idx) => {
               const itemKey = getEventKey(ev, idx, 'all-day');
@@ -494,6 +496,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
           paddingTop: 12,
         }}
         ref={scrollRef}
+        onWheel={onWheelBoundary}
         data-calendar-scroll="true"
       >
         <div
@@ -570,7 +573,11 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 <div
                   key={`unavailable-${seg.startMinute}-${seg.endMinute}`}
                   className="pointer-events-none absolute left-0 right-0 z-[1]"
-                  style={{ top, height: segHeight, backgroundColor: 'rgba(0,0,0,0.045)' }}
+                  style={{
+                    top,
+                    height: segHeight,
+                    backgroundColor: 'var(--color-calendar-dim-overlay)',
+                  }}
                 />
               );
             })}
@@ -587,7 +594,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 return (
                   <div
                     key={`drag-availability-${interval.startMinute}-${interval.endMinute}-${index}`}
-                    className="pointer-events-none absolute left-1 right-1 z-20 rounded-xl border border-grey-light bg-[rgba(42,168,121,0.12)]"
+                    className="pointer-events-none absolute left-1 right-1 z-20 rounded-xl border border-grey-light bg-[var(--color-calendar-availability-overlay)]"
                     style={{ top, height }}
                   />
                 );
@@ -600,7 +607,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 }}
               >
                 <div
-                  className="rounded-xl border-2 border-dashed border-grey-light bg-[rgba(36,122,237,0.18)]"
+                  className="rounded-xl border-2 border-dashed border-grey-light bg-[var(--color-calendar-preview-overlay)]"
                   style={{
                     height: Math.max(
                       12,

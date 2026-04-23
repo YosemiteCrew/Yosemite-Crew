@@ -12,17 +12,26 @@ import { createPortal } from 'react-dom';
 import { Primary } from '@/app/ui/primitives/Buttons';
 
 type FilterOption = { key: string; name: string };
-type StatusOption = { key: string; name: string; bg?: string; text?: string; border?: string };
+type StatusOption = {
+  key: string;
+  name: string;
+  bg?: string;
+  text?: string;
+  border?: string;
+  dropdownText?: string;
+};
+const getDropdownStatusTextColor = (status: StatusOption): string =>
+  status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
 const getFilterClassName = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
-  if (filterKey === 'emergencies') return 'text-[#EF4444]! bg-[#FEE7E7]!';
+  if (filterKey === 'emergencies') return 'text-danger-500!';
   return 'bg-blue-light text-blue-text!';
 };
 
 const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'var(--color-card-border)';
-  if (filterKey === 'emergencies') return '#EF4444';
+  if (filterKey === 'emergencies') return 'var(--color-danger-500)';
   return 'var(--color-text-brand)';
 };
 
@@ -117,7 +126,7 @@ const Header = ({
   }, [statusOpen]);
 
   return (
-    <div className="relative z-[140] overflow-visible flex w-full items-center justify-between gap-2 px-3 py-2 border-b border-grey-light">
+    <div className="sticky top-0 z-[140] shrink-0 overflow-visible flex w-full items-center justify-between gap-2 border-b border-grey-light bg-white px-3 py-2">
       {/* Left: month + filter pills */}
       <div className="flex items-center gap-2 shrink-0">
         <div className="text-heading-2 text-text-primary pr-3">{getMonthYear(currentDate)}</div>
@@ -135,6 +144,10 @@ const Header = ({
                 filter.key === activeFilter && filter.key === 'emergencies' ? '2px' : '1px',
               borderStyle: 'solid',
               borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
+              backgroundColor:
+                filter.key === activeFilter && filter.key === 'emergencies'
+                  ? 'var(--color-danger-soft)'
+                  : undefined,
             }}
           >
             {filter.name}
@@ -143,8 +156,8 @@ const Header = ({
                 aria-label="Emergency appointments present"
                 className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
                 style={{
-                  backgroundColor: '#EF4444',
-                  borderColor: '#EF4444',
+                  backgroundColor: 'var(--color-danger-500)',
+                  borderColor: 'var(--color-danger-500)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                 }}
@@ -167,7 +180,7 @@ const Header = ({
                 selectedStatus?.bg
                   ? {
                       backgroundColor: selectedStatus.bg,
-                      color: selectedStatus.text ?? '#000',
+                      color: selectedStatus.text ?? 'var(--color-black-pure)',
                       borderWidth: '1px',
                       borderStyle: 'solid',
                       borderColor: selectedStatus.border ?? selectedStatus.bg,
@@ -221,13 +234,13 @@ const Header = ({
                             }}
                           />
                         )}
-                        <span style={{ color: status.text ?? 'var(--color-text-primary)' }}>
+                        <span style={{ color: getDropdownStatusTextColor(status) }}>
                           {status.name}
                         </span>
                         {isActive && (
                           <span
                             className="ml-auto text-sm font-semibold"
-                            style={{ color: status.text }}
+                            style={{ color: getDropdownStatusTextColor(status) }}
                           >
                             ✓
                           </span>

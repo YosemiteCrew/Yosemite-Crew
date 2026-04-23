@@ -444,13 +444,13 @@ const Slot: React.FC<SlotProps> = ({
           availabilitySegments.map((segment, index) => (
             <div
               key={`drop-availability-${index}-${segment.top}`}
-              className="pointer-events-none absolute inset-x-1 z-20 rounded-md border border-grey-light bg-[rgba(42,168,121,0.12)]"
+              className="pointer-events-none absolute inset-x-1 z-20 rounded-md border border-grey-light bg-[var(--color-calendar-availability-overlay)]"
               style={{ top: segment.top, height: segment.segmentHeight }}
             />
           ))}
         {draggedAppointmentId && dropPreviewMinute != null && (
           <div
-            className="pointer-events-none absolute inset-x-1 z-30 rounded-md border-2 border-dashed border-grey-light bg-[rgba(36,122,237,0.18)]"
+            className="pointer-events-none absolute inset-x-1 z-30 rounded-md border-2 border-dashed border-grey-light bg-[var(--color-calendar-preview-overlay)]"
             style={{
               top: `${((dropPreviewMinute % 60) / 60) * height}px`,
               height: `${Math.max(

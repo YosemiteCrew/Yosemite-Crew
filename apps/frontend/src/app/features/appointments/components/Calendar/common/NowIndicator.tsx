@@ -12,12 +12,25 @@ const NowIndicator = ({ topPx, timeLabel }: NowIndicatorProps) => (
       <div className="relative">
         <div className="absolute left-0 right-2 z-20" style={{ top: topPx }}>
           {timeLabel && (
-            <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+            <div
+              className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
+              style={{ color: 'var(--color-danger-500)' }}
+            >
               {timeLabel}
             </div>
           )}
-          <div className="absolute -left-3 w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
-          <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+          <div
+            className="absolute -left-3 w-3 h-3 rounded-full translate-y-[-50%]"
+            style={{ backgroundColor: 'var(--color-danger-500)' }}
+          />
+          <div
+            className="translate-y-[-50%]"
+            style={{
+              borderTopWidth: '2px',
+              borderTopStyle: 'solid',
+              borderTopColor: 'var(--color-danger-500)',
+            }}
+          />
         </div>
       </div>
       <div />

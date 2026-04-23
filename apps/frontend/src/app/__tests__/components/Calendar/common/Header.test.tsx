@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 
 // --- Mocks ---
@@ -72,5 +72,36 @@ describe('Header Component', () => {
     expect(addAppointmentButton.compareDocumentPosition(datepicker)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+  });
+
+  it('keeps the calendar header sticky at the top of the planner', () => {
+    const { container } = render(<Header {...defaultProps} />);
+
+    expect(container.firstChild).toHaveClass('sticky', 'top-0', 'bg-white');
+  });
+
+  it('uses readable dropdown text when a status pill uses light text tokens', () => {
+    render(
+      <Header
+        {...defaultProps}
+        activeStatus="pending"
+        setActiveStatus={jest.fn()}
+        statusOptions={[
+          {
+            key: 'pending',
+            name: 'Pending',
+            bg: 'var(--color-badge-slate-bg)',
+            text: 'var(--color-badge-light-text)',
+            dropdownText: 'var(--color-badge-slate-bg)',
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Pending/i }));
+
+    expect(screen.getAllByText('Pending')[1]).toHaveStyle({
+      color: 'var(--color-badge-slate-bg)',
+    });
   });
 });

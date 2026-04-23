@@ -72,6 +72,17 @@ const getSubmitErrorTargetStep = ({
   return null;
 };
 
+const scrollModalSectionIntoView = (
+  container: HTMLDivElement | null,
+  section: HTMLDivElement | null
+) => {
+  if (!(container && section)) return;
+
+  const sectionTop = section.offsetTop;
+  const nextTop = Math.max(0, sectionTop - 12);
+  container.scrollTo({ top: nextTop, behavior: 'smooth' });
+};
+
 const syncModalOpenState = ({
   showModal,
   resetForm,
@@ -200,7 +211,7 @@ const AddAppointment = ({
   );
 
   const scrollToStep = useCallback((ref: React.RefObject<HTMLDivElement | null>) => {
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollModalSectionIntoView(scrollContainerRef.current, ref.current);
   }, []);
 
   useEffect(() => {
@@ -214,6 +225,11 @@ const AddAppointment = ({
       setPendingAutoSelectCompanionId,
       onPrefillConsumed,
     });
+
+    if (showModal) {
+      scrollModalSectionIntoView(scrollContainerRef.current, null);
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    }
   }, [showModal, resetForm, onPrefillConsumed]);
 
   useEffect(() => {

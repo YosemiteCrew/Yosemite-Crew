@@ -397,14 +397,18 @@ const AppointmentBoard = ({
               className={clsx(
                 'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! transition-all duration-300',
                 activeFilter === 'emergencies'
-                  ? 'text-[#EF4444]! bg-[#FEE7E7]!'
+                  ? 'text-danger-500!'
                   : 'text-text-tertiary hover:bg-card-hover!'
               )}
               style={{
                 borderWidth: activeFilter === 'emergencies' ? '2px' : '1px',
                 borderStyle: 'solid',
                 borderColor:
-                  activeFilter === 'emergencies' ? '#EF4444' : 'var(--color-card-border)',
+                  activeFilter === 'emergencies'
+                    ? 'var(--color-danger-500)'
+                    : 'var(--color-card-border)',
+                backgroundColor:
+                  activeFilter === 'emergencies' ? 'var(--color-danger-soft)' : undefined,
               }}
             >
               Emergencies
@@ -413,8 +417,8 @@ const AppointmentBoard = ({
                   aria-label="Emergency appointments present"
                   className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
                   style={{
-                    backgroundColor: '#EF4444',
-                    borderColor: '#EF4444',
+                    backgroundColor: 'var(--color-danger-500)',
+                    borderColor: 'var(--color-danger-500)',
                     borderWidth: '1px',
                     borderStyle: 'solid',
                   }}
@@ -598,27 +602,27 @@ const AppointmentBoard = ({
                             <GlassTooltip content="Accept request" side="bottom">
                               <button
                                 type="button"
-                                className="h-7 w-7 rounded-full! bg-[#E6F4EF] border border-[#d3eadf] flex items-center justify-center"
+                                className="h-7 w-7 rounded-full! bg-success-100 border border-success-200 flex items-center justify-center"
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
                                   void acceptAppointment(appointment);
                                 }}
                               >
-                                <FaCheckCircle size={14} color="#54B492" />
+                                <FaCheckCircle size={14} color="var(--color-success-400)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Decline request" side="bottom">
                               <button
                                 type="button"
-                                className="h-7 w-7 rounded-full! bg-[#FDEBEA] border border-[#f5d0ce] flex items-center justify-center"
+                                className="h-7 w-7 rounded-full! bg-danger-100 border border-danger-200 flex items-center justify-center"
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
                                   void rejectAppointment(appointment);
                                 }}
                               >
-                                <IoIosCloseCircle size={16} color="#EA3729" />
+                                <IoIosCloseCircle size={16} color="var(--color-danger-600)" />
                               </button>
                             </GlassTooltip>
                           </div>
@@ -635,7 +639,7 @@ const AppointmentBoard = ({
                                   openAppointmentWithIntent(appointment);
                                 }}
                               >
-                                <IoEyeOutline size={16} color="#302F2E" />
+                                <IoEyeOutline size={16} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Overview" side="bottom">
@@ -649,7 +653,7 @@ const AppointmentBoard = ({
                                 }}
                                 title="Appointment overview"
                               >
-                                <RiHistoryLine size={15} color="#302F2E" />
+                                <RiHistoryLine size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             {canEditAppointments &&
@@ -664,7 +668,10 @@ const AppointmentBoard = ({
                                       openChangeStatus(appointment);
                                     }}
                                   >
-                                    <MdOutlineAutorenew size={15} color="#302F2E" />
+                                    <MdOutlineAutorenew
+                                      size={15}
+                                      color="var(--color-neutral-900)"
+                                    />
                                   </button>
                                 </GlassTooltip>
                               )}
@@ -679,7 +686,7 @@ const AppointmentBoard = ({
                                     openReschedule(appointment);
                                   }}
                                 >
-                                  <IoIosCalendar size={15} color="#302F2E" />
+                                  <IoIosCalendar size={15} color="var(--color-neutral-900)" />
                                 </button>
                               </GlassTooltip>
                             )}
@@ -695,7 +702,7 @@ const AppointmentBoard = ({
                                       openChangeRoom(appointment);
                                     }}
                                   >
-                                    <MdMeetingRoom size={15} color="#302F2E" />
+                                    <MdMeetingRoom size={15} color="var(--color-neutral-900)" />
                                   </button>
                                 </GlassTooltip>
                               )}
@@ -720,7 +727,7 @@ const AppointmentBoard = ({
                                   getBoardOrgType(appointment, orgsById)
                                 )}
                               >
-                                <IoDocumentTextOutline size={15} color="#302F2E" />
+                                <IoDocumentTextOutline size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Finance summary" side="bottom">
@@ -736,7 +743,7 @@ const AppointmentBoard = ({
                                   });
                                 }}
                               >
-                                <IoCardOutline size={15} color="#302F2E" />
+                                <IoCardOutline size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Lab tests" side="bottom">
@@ -752,7 +759,7 @@ const AppointmentBoard = ({
                                   });
                                 }}
                               >
-                                <MdScience size={15} color="#302F2E" />
+                                <MdScience size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                           </div>

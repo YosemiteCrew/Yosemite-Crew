@@ -99,30 +99,47 @@ describe('AvailabilityTable Component', () => {
   describe('getStatusStyle', () => {
     it("returns correct style for 'Available'", () => {
       const style = getStatusStyle('Available');
-      expect(style).toEqual({ color: '#54B492', backgroundColor: '#E6F4EF' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      });
     });
 
     it("returns correct style for 'Consulting'", () => {
       const style = getStatusStyle('Consulting');
-      expect(style).toEqual({ color: '#EA3729', backgroundColor: '#FDEBEA' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
+      });
     });
 
     it("returns correct style for 'Off-duty'", () => {
       const style = getStatusStyle('Off-duty');
-      expect(style).toEqual({ color: '#F68523', backgroundColor: '#FEF3E9' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      });
     });
 
     it('returns default style for unknown status', () => {
       const style = getStatusStyle('Unknown');
       expect(style).toEqual({
-        color: '#302f2e',
-        backgroundColor: '#6b72801a',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       });
     });
 
     it('handles case insensitivity', () => {
       const style = getStatusStyle('available');
-      expect(style).toEqual({ color: '#54B492', backgroundColor: '#E6F4EF' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      });
     });
   });
 

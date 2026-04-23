@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
+import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 import Image from 'next/image';
@@ -178,7 +179,7 @@ const TaskCard = ({
             onOpen(task);
           }}
         >
-          <IoEyeOutline size={14} color="#302F2E" />
+          <IoEyeOutline size={14} color="var(--color-neutral-900)" />
         </button>
       </GlassTooltip>
       {canEditTasks && canShowTaskStatusChangeAction(task.status) && (
@@ -192,7 +193,7 @@ const TaskCard = ({
               onChangeStatus(task);
             }}
           >
-            <MdOutlineAutorenew size={13} color="#302F2E" />
+            <MdOutlineAutorenew size={13} color="var(--color-neutral-900)" />
           </button>
         </GlassTooltip>
       )}
@@ -207,7 +208,7 @@ const TaskCard = ({
               onReschedule(task);
             }}
           >
-            <IoIosCalendar size={13} color="#302F2E" />
+            <IoIosCalendar size={13} color="var(--color-neutral-900)" />
           </button>
         </GlassTooltip>
       )}
@@ -383,6 +384,7 @@ const TaskBoard = ({
   };
 
   const { autoScrollBoardOnDrag } = useBoardDragScroll();
+  const onWheelBoundary = useScrollBoundaryWheel();
 
   const moveToStatus = useCallback(
     async (taskId: string, nextStatus: BoardStatus) => {
@@ -516,7 +518,7 @@ const TaskBoard = ({
                   onClick={onAddTask}
                   className="rounded-2xl! border! border-input-border-default! px-[13px] py-[13px] transition-all duration-300 ease-in-out hover:bg-card-bg"
                 >
-                  <IoAdd size={20} color="#302f2e" />
+                  <IoAdd size={20} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -557,12 +559,27 @@ const TaskBoard = ({
                 className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
               >
                 <div
-                  className="rounded-t-2xl border-b border-card-border px-3 py-2"
-                  style={{ backgroundColor: style.backgroundColor }}
+                  className="rounded-t-2xl border-b px-3 py-2"
+                  style={{
+                    backgroundColor: style.backgroundColor,
+                    borderBottomColor: style.borderColor,
+                  }}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-body-4-emphasis text-text-primary">{column.label}</div>
-                    <div className="text-caption-1 rounded-full px-2 py-0.5 bg-white text-black-text">
+                    <div className="text-body-4-emphasis" style={{ color: style.color }}>
+                      {column.label}
+                    </div>
+                    <div
+                      className="text-caption-1 rounded-full px-2 py-0.5"
+                      style={{
+                        backgroundColor: style.backgroundColor,
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: style.borderColor,
+                        color: style.color,
+                        opacity: 0.85,
+                      }}
+                    >
                       {columnTasks.length}
                     </div>
                   </div>
@@ -572,6 +589,7 @@ const TaskBoard = ({
                     columnScrollRefs.current[column.key] = element;
                   }}
                   className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
+                  onWheel={onWheelBoundary}
                   data-calendar-scroll="true"
                 >
                   {columnTasks.map((task) => (

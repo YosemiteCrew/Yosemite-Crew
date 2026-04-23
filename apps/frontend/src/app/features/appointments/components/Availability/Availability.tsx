@@ -120,14 +120,14 @@ const Availability: React.FC<AvailabilityProps> = ({
                   <div className="border-none outline-none bg-white flex items-center justify-center shrink-0">
                     {i === 0 ? (
                       <FaCirclePlus
-                        color="#302f2e"
+                        color="var(--color-neutral-900)"
                         size={20}
                         onClick={() => addInterval(day)}
                         className="cursor-pointer"
                       />
                     ) : (
                       <FaCircleMinus
-                        color="#302f2e"
+                        color="var(--color-neutral-900)"
                         size={20}
                         onClick={() => deleteInterval(day, i)}
                         className="cursor-pointer"

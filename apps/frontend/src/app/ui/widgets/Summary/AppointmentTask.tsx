@@ -20,6 +20,7 @@ import { AppointmentViewIntent } from '@/app/features/appointments';
 import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/ChangeRoom';
 import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
+import Filters from '@/app/ui/filters/Filters';
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
@@ -117,37 +118,24 @@ const AppointmentTask = () => {
         <div className="summary-labels flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${activeTable === 'Appointments' ? ' bg-blue-light text-blue-text! border-text-brand! border' : 'border border-card-border! hover:bg-card-hover!'}`}
+              className={`min-w-20 text-body-4 px-3 py-1.5 text-text-tertiary rounded-2xl! border! transition-all duration-300${activeTable === 'Appointments' ? ' bg-blue-light text-blue-text! border-text-brand!' : ' border-card-border! hover:bg-card-hover!'}`}
               onClick={() => setActiveTable('Appointments')}
             >
               Appointments
             </button>
             <button
-              className={`min-w-20 text-body-4 px-3 py-[5px] text-text-tertiary rounded-2xl! transition-all duration-300 ${activeTable === 'Tasks' ? ' bg-blue-light text-blue-text! border-text-brand! border' : 'border border-card-border! hover:bg-card-hover!'}`}
+              className={`min-w-20 text-body-4 px-3 py-1.5 text-text-tertiary rounded-2xl! border! transition-all duration-300${activeTable === 'Tasks' ? ' bg-blue-light text-blue-text! border-text-brand!' : ' border-card-border! hover:bg-card-hover!'}`}
               onClick={() => setActiveTable('Tasks')}
             >
               Tasks
             </button>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {activeLabels?.map((label) => (
-              <button
-                key={label.name}
-                className={`min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover!`}
-                style={
-                  label.key === activeSubLabel
-                    ? {
-                        background: label.bg,
-                        color: label.text,
-                      }
-                    : {}
-                }
-                onClick={() => setActiveSubLabel(label.key)}
-              >
-                {label.name}
-              </button>
-            ))}
-          </div>
+          <Filters
+            statusOptions={activeLabels}
+            activeStatus={activeSubLabel}
+            setActiveStatus={setActiveSubLabel}
+            className="w-auto"
+          />
         </div>
         {activeTable === 'Appointments' ? (
           <Appointments

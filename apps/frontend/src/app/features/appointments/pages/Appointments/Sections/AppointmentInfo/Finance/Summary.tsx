@@ -179,13 +179,13 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
               />
             </div>
             {showCashRefundDisclaimer ? (
-              <div className="rounded-2xl border border-[#F4D596] bg-[#FFF8E8] px-4 py-3 text-caption-1 text-text-secondary">
+              <div className="rounded-2xl border border-warning-200 bg-[color-mix(in_srgb,var(--color-warning-100)_65%,white)] px-4 py-3 text-caption-1 text-text-secondary">
                 This appointment was paid in cash and is now cancelled. Any refund, if applicable,
                 should be handled directly by the service provider.
               </div>
             ) : null}
             <div className="text-caption-1 text-text-secondary py-2">
-              <span className="text-[#247AED]">Note : </span>Yosemite Crew uses Stripe for secure
+              <span className="text-blue-text">Note : </span>Yosemite Crew uses Stripe for secure
               payments. Your payment details are encrypted and never stored on our servers.
             </div>
           </div>

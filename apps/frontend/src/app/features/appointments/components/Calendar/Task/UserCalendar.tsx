@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef } from 'react';
+import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -83,6 +84,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const height = getHourRowHeightPx(zoomMode);
   const HOUR_ROW_TOP_OFFSET_PX = 8;
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const onWheelBoundary = useScrollBoundaryWheel();
   const teamColumnsStyle = useMemo(
     () => getCalendarColumnGridStyle(team.length, zoomMode === 'out' ? 108 : 170),
     [team.length, zoomMode]
@@ -192,6 +194,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
               paddingBottom: zoomMode === 'out' ? 30 : 40,
               paddingTop: 12,
             }}
+            onWheel={onWheelBoundary}
             data-calendar-scroll="true"
           >
             <div className="relative pt-2 pb-4">

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef } from 'react';
+import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import {
   eventsForDayHour,
   getWeekDays,
@@ -98,6 +99,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const onWheelBoundary = useScrollBoundaryWheel();
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
@@ -253,7 +255,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             {hasAnyAllDay && (
               <div className="border-b border-grey-light bg-slate-50">
                 <div className="grid py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-[#747473] flex items-start pr-2">
+                  <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
                     All-day
                   </div>
                   <div className="grid min-w-max" style={dayColumnsStyle}>
@@ -303,6 +305,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
               overflowY: 'auto',
               paddingBottom: zoomMode === 'out' ? 30 : 40,
             }}
+            onWheel={onWheelBoundary}
             data-calendar-scroll="true"
           >
             <div className="relative pb-4">

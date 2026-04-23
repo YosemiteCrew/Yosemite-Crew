@@ -29,6 +29,10 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
+import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
+import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+
+type InventoryView = 'inventory' | 'turnover';
 
 const Inventory = () => {
   useLoadOrg();
@@ -70,6 +74,8 @@ const Inventory = () => {
   const [activeInventory, setActiveInventory] = useState<InventoryItem | null>(null);
   const [savingItem, setSavingItem] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<InventoryView>('inventory');
+  const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
 
   const loadingList = status === 'loading';
   const error = actionError ?? loadError;
@@ -99,6 +105,22 @@ const Inventory = () => {
       .filter((name): name is string => Boolean(name));
     return roomNames.length > 0 ? Array.from(new Set(roomNames)) : undefined;
   }, [rooms]);
+
+  const turnoverCategoryOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        turnover
+          .map((item) => item.category?.trim())
+          .filter((category): category is string => Boolean(category))
+      )
+    );
+  }, [turnover]);
+  const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
+    activeView: 'list',
+    listWrapperClassName:
+      'w-full flex flex-col gap-4 h-[calc(100vh-236px)] min-h-[540px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
+    plannerClassName: '',
+  });
 
   useEffect(() => {
     setFilteredTurnoverList(turnover);
@@ -253,8 +275,8 @@ const Inventory = () => {
   );
 
   return (
-    <div className="flex flex-col gap-3 lg:gap-20 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+      <div className="flex justify-between items-center w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
           <div className="text-text-primary text-heading-1 flex items-center gap-2">
             <span>Inventory</span>
@@ -272,40 +294,62 @@ const Inventory = () => {
             </GlassTooltip>
           </div>
         </div>
-        {canEditInventory && (
-          <Primary
-            href="#"
-            text={savingItem ? 'Saving...' : 'Add'}
-            onClick={() => setAddPopup(true)}
-            isDisabled={savingItem || !primaryOrgId}
+        <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
+          {canEditInventory && (
+            <Primary
+              href="#"
+              text={savingItem ? 'Saving...' : 'Add'}
+              onClick={() => setAddPopup(true)}
+              isDisabled={savingItem || !primaryOrgId}
+            />
+          )}
+          <BoardScopeToggle
+            showMineOnly={activeView === 'turnover'}
+            onChange={(nextShowMineOnly) =>
+              setActiveView(nextShowMineOnly ? 'turnover' : 'inventory')
+            }
+            allLabel="Inventory"
+            mineLabel="Turnover"
           />
-        )}
+        </div>
       </div>
 
       {error && <div className="text-red-500 text-sm font-satoshi font-semibold">{error}</div>}
 
       <PermissionGate allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]} fallback={<Fallback />}>
-        <div className="w-full flex flex-col gap-6">
-          <InventoryFilters
-            filters={filters}
-            onChange={setFilters}
-            categories={categoryOptions}
-            loading={loadingList}
-          />
-          {loadingList && (
+        <div className={wrapperClassName}>
+          <div className="w-full shrink-0">
+            {activeView === 'inventory' ? (
+              <InventoryFilters
+                filters={filters}
+                onChange={setFilters}
+                categories={categoryOptions}
+                loading={loadingList}
+              />
+            ) : (
+              <InventoryTurnoverFilters
+                list={turnover}
+                setFilteredList={setFilteredTurnoverList}
+                categories={turnoverCategoryOptions}
+              />
+            )}
+          </div>
+
+          {loadingList && activeView === 'inventory' && (
             <div className="text-grey-noti text-sm font-satoshi">Loading inventory...</div>
           )}
-          <InventoryTable
-            setActiveInventory={setActiveInventory}
-            setViewInventory={setViewInventory}
-            filteredList={filteredInventory}
-          />
-        </div>
 
-        <div className="w-full flex flex-col gap-6">
-          <div className="text-text-primary text-heading-1">Turnover</div>
-          <InventoryTurnoverFilters list={turnover} setFilteredList={setFilteredTurnoverList} />
-          <InventoryTurnoverTable filteredList={filteredTurnoverList} />
+          <div ref={plannerSectionRef} className={plannerSectionClassName}>
+            {activeView === 'inventory' ? (
+              <InventoryTable
+                setActiveInventory={setActiveInventory}
+                setViewInventory={setViewInventory}
+                filteredList={filteredInventory}
+              />
+            ) : (
+              <InventoryTurnoverTable filteredList={filteredTurnoverList} />
+            )}
+          </div>
         </div>
 
         <AddInventory

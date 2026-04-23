@@ -207,6 +207,8 @@ describe('AddAppointment Component', () => {
     (appointmentService.getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([
       { startTime: '10:00', endTime: '10:30', vetIds: ['lead-1'] },
     ]);
+    Element.prototype.scrollIntoView = jest.fn();
+    HTMLDivElement.prototype.scrollTo = jest.fn();
   });
 
   it('renders base modal and companion section', () => {
@@ -271,6 +273,18 @@ describe('AddAppointment Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Book appointment')).toBeInTheDocument();
     });
+  });
+
+  it('scrolls the modal container instead of the page when advancing steps', async () => {
+    render(<AddAppointment {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('search-companion'));
+
+    await waitFor(() => {
+      expect(HTMLDivElement.prototype.scrollTo).toHaveBeenCalled();
+    });
+
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
   });
 
   it('shows companion validation when submitting without required input', async () => {

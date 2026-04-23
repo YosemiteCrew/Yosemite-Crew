@@ -17,6 +17,7 @@ import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
+import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 
 const Finance = () => {
   const invoices = useInvoicesForPrimaryOrg();
@@ -27,6 +28,7 @@ const Finance = () => {
   const [activeStatus, setActiveStatus] = useState('all');
   const [viewInvoice, setViewInvoice] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(invoices[0] || null);
+  const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
 
   useEffect(() => {
     setActiveInvoice((prev) => {
@@ -63,9 +65,15 @@ const Finance = () => {
       return matchesStatus && matchesQuery;
     });
   }, [invoices, activeStatus, query]);
+  const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
+    activeView: 'list',
+    listWrapperClassName:
+      'w-full flex flex-col gap-3 h-[calc(100vh-236px)] min-h-[540px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
+    plannerClassName: '',
+  });
 
   return (
-    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>
         {subscription && !subscription.canAcceptPayments && (
           <div className="px-6 py-3 border border-card-border rounded-2xl w-full flex items-center justify-between gap-3 flex-col sm:flex-row">
@@ -84,41 +92,41 @@ const Finance = () => {
           </div>
         )}
       </PermissionGate>
-      <div className="flex justify-between items-center w-full flex-wrap gap-2">
-        <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1 flex items-center gap-2">
-            <span>
-              {'Finance'}
-              <span className="text-text-tertiary">{` (${invoices.length})`}</span>
-            </span>
-            <GlassTooltip
-              content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
-              side="bottom"
-            >
-              <button
-                type="button"
-                aria-label="Finance info"
-                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
-              >
-                <IoInformationCircleOutline size={20} />
-              </button>
-            </GlassTooltip>
-          </div>
-        </div>
-      </div>
-
       <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
-        <div className="w-full flex flex-col gap-3">
-          <Filters
-            statusOptions={InvoiceStatusFilters}
-            activeStatus={activeStatus}
-            setActiveStatus={setActiveStatus}
-          />
-          <InvoiceDataTable
-            setActiveInvoice={setActiveInvoice}
-            setViewInvoice={setViewInvoice}
-            filteredList={filteredList}
-          />
+        <div className={wrapperClassName}>
+          <div className="flex items-center justify-between w-full flex-wrap gap-2">
+            <div className="text-text-primary text-heading-1 flex items-center gap-2">
+              <span>
+                {'Finance'}
+                <span className="text-text-tertiary">{` (${invoices.length})`}</span>
+              </span>
+              <GlassTooltip
+                content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
+                side="bottom"
+              >
+                <button
+                  type="button"
+                  aria-label="Finance info"
+                  className="relative top-0.75 inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <IoInformationCircleOutline size={20} />
+                </button>
+              </GlassTooltip>
+            </div>
+            <Filters
+              statusOptions={InvoiceStatusFilters}
+              activeStatus={activeStatus}
+              setActiveStatus={setActiveStatus}
+              className="w-auto"
+            />
+          </div>
+          <div ref={plannerSectionRef} className={plannerSectionClassName}>
+            <InvoiceDataTable
+              setActiveInvoice={setActiveInvoice}
+              setViewInvoice={setViewInvoice}
+              filteredList={filteredList}
+            />
+          </div>
         </div>
         {activeInvoice && (
           <InvoiceInfo

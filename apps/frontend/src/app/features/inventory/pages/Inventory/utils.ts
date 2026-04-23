@@ -132,20 +132,47 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
   const key = (statusLabel || '').toLowerCase();
   switch (key) {
     case 'low stock':
-      return { color: '#F7F7F7', backgroundColor: '#BF9FAA' };
+      return {
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
+      };
     case 'expired':
     case 'out of stock':
-      return { color: '#F7F7F7', backgroundColor: '#D28F9A' };
+      return {
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      };
     case 'hidden':
-      return { color: '#F7F7F7', backgroundColor: '#A8A181' };
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      };
     case 'expiring soon':
-      return { color: '#F7F7F7', backgroundColor: '#5C614B' };
+      return {
+        color: 'var(--color-pill-info-text)',
+        backgroundColor: 'var(--color-pill-info-bg)',
+        borderColor: 'var(--color-pill-info-border)',
+      };
     case 'healthy':
-      return { color: '#F7F7F7', backgroundColor: '#D9A488' };
+      return {
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      };
     case 'active':
-      return { color: '#302f2e', backgroundColor: '#F1D4B0' };
+      return {
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      };
     default:
-      return { color: '#EAF3FF', backgroundColor: '#247AED' };
+      return {
+        color: 'var(--color-badge-blue-text)',
+        backgroundColor: 'var(--color-badge-blue-bg)',
+      };
   }
 };
 
