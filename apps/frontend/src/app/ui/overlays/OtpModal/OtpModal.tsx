@@ -10,6 +10,7 @@ import { postData } from '@/app/services/axios';
 import { useSignOut } from '@/app/hooks/useAuth';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
 import './OtpModal.css';
 
@@ -104,6 +105,7 @@ const OtpModal = ({
         setShowVerifyModal(false);
         try {
           await signIn(email, password);
+          defaultSidebarToCollapsed();
           await afterAuthSuccess();
           // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
           globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');

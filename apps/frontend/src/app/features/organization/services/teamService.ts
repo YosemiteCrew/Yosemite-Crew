@@ -45,13 +45,15 @@ const normalizeTeamStatus = (raw: string | undefined): TeamStatusProps => {
 };
 
 export const loadTeam = async (opts?: { silent?: boolean; force?: boolean }) => {
-  const { startLoading, status, setTeamsForOrg } = useTeamStore.getState();
+  const { startLoading, status, teamIdsByOrgId, setTeamsForOrg, setError } =
+    useTeamStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn('No primary organization selected. Cannot send invite.');
     return [];
   }
-  if (!shouldFetchTeam(status, opts)) return;
+  const hasOrgData = !teamIdsByOrgId || Object.hasOwn(teamIdsByOrgId, primaryOrgId);
+  if (!shouldFetchTeam(status, hasOrgData, opts)) return;
   if (!opts?.silent) {
     startLoading();
   }
@@ -84,6 +86,7 @@ export const loadTeam = async (opts?: { silent?: boolean; force?: boolean }) => 
     }
     setTeamsForOrg(primaryOrgId, temp);
   } catch (err: any) {
+    setError('Failed to load team.');
     console.error('Failed to load invites:', err);
     throw err;
   }
@@ -91,9 +94,11 @@ export const loadTeam = async (opts?: { silent?: boolean; force?: boolean }) => 
 
 const shouldFetchTeam = (
   status: ReturnType<typeof useTeamStore.getState>['status'],
+  hasOrgData: boolean,
   opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
+  if (!hasOrgData) return true;
   return status === 'idle' || status === 'error';
 };
 

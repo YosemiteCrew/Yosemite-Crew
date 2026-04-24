@@ -4,8 +4,8 @@ import {
   DefaultOpenScreenPreference,
   PmsPreferences,
 } from '@/app/features/users/types/profile';
-import { DefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
-import { DefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import type { DefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
+import type { DefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { parseTimezoneFromProfileValue } from '@/app/lib/timezone';
 
 export const DEFAULT_PMS_PREFERENCES: Required<PmsPreferences> = {

@@ -108,7 +108,9 @@ export const findPhoneData = (
   if (parsedPhoneNumber) {
     const dialCode = `+${parsedPhoneNumber.countryCallingCode}`;
     const selectedCode =
-      CountryDialCodeOptions.find((option) => option.dialCode === dialCode) ?? defaultCode;
+      (defaultCode.dialCode === dialCode ? defaultCode : null) ??
+      CountryDialCodeOptions.find((option) => option.dialCode === dialCode) ??
+      defaultCode;
     return {
       selectedCode,
       localNumber: parsedPhoneNumber.nationalNumber,

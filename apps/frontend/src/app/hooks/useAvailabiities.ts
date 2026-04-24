@@ -12,13 +12,20 @@ import {
 export const useLoadAvailabilities = () => {
   const availabilityStatus = useAvailabilityStore((s) => s.status);
   const orgIds = useOrgStore((s) => s.orgIds);
+  const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
 
   useEffect(() => {
     if (!orgIds || orgIds.length === 0) return;
-    if (availabilityStatus === 'idle') {
+    const hasAllAvailabilitiesLoaded = orgIds.every((orgId) =>
+      availabilityIdsByOrgId ? Object.hasOwn(availabilityIdsByOrgId, orgId) : false
+    );
+    if (
+      (availabilityStatus === 'idle' || !hasAllAvailabilitiesLoaded) &&
+      availabilityStatus !== 'loading'
+    ) {
       void loadAvailability();
     }
-  }, [availabilityStatus, orgIds]);
+  }, [availabilityStatus, availabilityIdsByOrgId, orgIds]);
 };
 
 export const usePrimaryAvailability = (): {

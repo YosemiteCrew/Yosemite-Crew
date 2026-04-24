@@ -1,3 +1,9 @@
+import type { UserProfile } from '@/app/features/users/types/profile';
+import {
+  defaultOpenScreenToRoute,
+  normalizePmsPreferences,
+} from '@/app/features/settings/utils/pmsPreferences';
+
 const DEFAULT_OPEN_SCREEN_STORAGE_KEY = 'yc_default_open_screen';
 
 export type DefaultOpenScreenRoute = '/dashboard' | '/appointments';
@@ -54,4 +60,24 @@ export const resolveDefaultOpenScreenRoute = (role?: string | null): DefaultOpen
   const saved = getSavedDefaultOpenScreenRoute();
   if (saved) return saved;
   return getRoleDefaultOpenScreenRoute(role);
+};
+
+export const resolveDefaultOpenScreenRouteForProfile = ({
+  profile,
+  orgType,
+  role,
+}: {
+  profile?: UserProfile | null;
+  orgType?: string;
+  role?: string | null;
+}): DefaultOpenScreenRoute => {
+  const preferredRoute = defaultOpenScreenToRoute(
+    normalizePmsPreferences(profile?.personalDetails?.pmsPreferences, orgType).defaultOpenScreen
+  );
+
+  if (preferredRoute === '/dashboard' || preferredRoute === '/appointments') {
+    return preferredRoute;
+  }
+
+  return resolveDefaultOpenScreenRoute(role);
 };

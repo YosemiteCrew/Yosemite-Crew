@@ -53,7 +53,9 @@ describe('useLoadAvailabilities', () => {
   });
 
   it('does not load when status is not idle', async () => {
-    mockUseAvailabilityStore.mockImplementation((selector: any) => selector({ status: 'success' }));
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({ status: 'success', availabilityIdsByOrgId: { 'org-1': [] } })
+    );
 
     renderHook(() => useLoadAvailabilities());
 

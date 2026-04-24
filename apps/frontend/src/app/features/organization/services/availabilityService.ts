@@ -53,7 +53,7 @@ export const upsertTeamAvailability = async (
 
 export const loadAvailability = async (opts?: { silent?: boolean }) => {
   const { orgIds } = useOrgStore.getState();
-  const { startLoading, setAvailabilities } = useAvailabilityStore.getState();
+  const { startLoading, setAvailabilitiesForOrg } = useAvailabilityStore.getState();
   if (!opts?.silent) {
     startLoading();
   }
@@ -61,7 +61,6 @@ export const loadAvailability = async (opts?: { silent?: boolean }) => {
     if (orgIds.length === 0) {
       return;
     }
-    const temp: ApiDayAvailability[] = [];
     await Promise.allSettled(
       orgIds.map(async (orgId) => {
         try {
@@ -69,15 +68,13 @@ export const loadAvailability = async (opts?: { silent?: boolean }) => {
             '/fhir/v1/availability/' + orgId + '/base'
           );
           const availability = res.data?.data ?? [];
-          for (const a of availability) {
-            temp.push(a);
-          }
+          setAvailabilitiesForOrg(orgId, availability);
         } catch (err) {
           console.error(`Failed to fetch profile for orgId: ${orgId}`, err);
+          setAvailabilitiesForOrg(orgId, []);
         }
       })
     );
-    setAvailabilities(temp);
   } catch (err: unknown) {
     console.error('Failed to load orgs:', err);
     throw err;

@@ -60,13 +60,14 @@ export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }): Promise<void> => {
-  const { startLoading, status, setInvoicesForOrg } = useInvoiceStore.getState();
+  const { startLoading, status, invoiceIdsByOrgId, setInvoicesForOrg } = useInvoiceStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn('No primary organization selected. Cannot load specialities.');
     return;
   }
-  if (!shouldFetchInvoices(status, opts)) return;
+  const hasOrgData = !invoiceIdsByOrgId || Object.hasOwn(invoiceIdsByOrgId, primaryOrgId);
+  if (!shouldFetchInvoices(status, hasOrgData, opts)) return;
   if (!opts?.silent) startLoading();
   try {
     const res = await getData<InvoiceResponseDTO[]>(
@@ -113,9 +114,11 @@ export const loadInvoicesForAppointment = async (appointmentId: string): Promise
 
 const shouldFetchInvoices = (
   status: ReturnType<typeof useInvoiceStore.getState>['status'],
+  hasOrgData: boolean,
   opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
+  if (!hasOrgData) return true;
   return status === 'idle' || status === 'error';
 };
 

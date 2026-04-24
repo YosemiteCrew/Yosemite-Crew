@@ -76,6 +76,7 @@ describe('specialityService', () => {
       addSpeciality: mockAddSpeciality,
       updateSpeciality: mockUpdateSpeciality,
       status: 'idle',
+      specialityIdsByOrgId: {},
       setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
       setError: mockSetError,
       endLoading: jest.fn(), // Added endLoading for completeness, though not in the error
@@ -114,6 +115,38 @@ describe('specialityService', () => {
 
       expect(mockStartLoading).toHaveBeenCalled();
       expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/speciality/org-1');
+    });
+
+    it('skips fetching when the selected org already has speciality data', async () => {
+      (useSpecialityStore.getState as jest.Mock).mockReturnValue({
+        startLoading: mockStartLoading,
+        status: 'loaded',
+        specialityIdsByOrgId: { 'org-1': [] },
+        setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
+      });
+
+      await loadSpecialitiesForOrg();
+
+      expect(mockStartLoading).not.toHaveBeenCalled();
+      expect(axiosService.getData).not.toHaveBeenCalled();
+    });
+
+    it('fetches only once for duplicate in-flight requests for the same org', async () => {
+      let resolveRequest: ((value: { data: [] }) => void) | undefined;
+      (axiosService.getData as jest.Mock).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve;
+          })
+      );
+
+      const firstRequest = loadSpecialitiesForOrg({ force: true });
+      const secondRequest = loadSpecialitiesForOrg({ force: true });
+
+      resolveRequest?.({ data: [] });
+      await Promise.all([firstRequest, secondRequest]);
+
+      expect(axiosService.getData).toHaveBeenCalledTimes(1);
     });
 
     // ... (All other tests in loadSpecialitiesForOrg section remain unchanged)
@@ -417,6 +450,7 @@ describe('specialityService', () => {
         startLoading: mockStartLoading,
         setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
         status: 'loaded',
+        specialityIdsByOrgId: { 'org-1': [] },
       });
 
       await loadSpecialitiesForOrg({ force: false });
@@ -428,6 +462,7 @@ describe('specialityService', () => {
         startLoading: mockStartLoading,
         setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
         status: 'loaded',
+        specialityIdsByOrgId: { 'org-1': [] },
       });
       (axiosService.getData as jest.Mock).mockResolvedValue({ data: [] });
 

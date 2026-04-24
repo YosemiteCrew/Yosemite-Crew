@@ -22,6 +22,7 @@ import {
   daysOfWeek,
   DEFAULT_INTERVAL,
 } from '@/app/features/appointments/components/Availability/utils';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 const TeamSteps: StepContent[] = [
   {
@@ -114,6 +115,7 @@ const TeamOnboarding = () => {
   const [isSaving, setIsSaving] = useState(false);
   // Shown after the final step saves and we're about to redirect
   const [isRedirecting, setIsRedirecting] = useState(false);
+  useFullscreenLoader('team-onboarding-submit', isSaving || isRedirecting);
 
   // Refs to each step's validate() handle
   const personalRef = useRef<StepHandle>(null);

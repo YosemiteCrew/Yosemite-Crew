@@ -15,6 +15,7 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
 import '../AuthPages.css';
 
@@ -83,6 +84,7 @@ const SignIn = ({
     try {
       setIsSubmitting(true);
       await signIn(normalizedEmail, password);
+      defaultSidebarToCollapsed();
       // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
       globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
       const signedInRole =

@@ -17,6 +17,7 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
+import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
 import '../AuthPages.css';
 
@@ -126,6 +127,7 @@ const SignUp = ({
   };
 
   const handleSignupSuccess = () => {
+    defaultSidebarToCollapsed();
     clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');

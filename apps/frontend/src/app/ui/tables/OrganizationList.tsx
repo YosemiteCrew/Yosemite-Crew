@@ -9,7 +9,8 @@ import { OrgWithMembership } from '@/app/features/organization/types/org';
 
 import './DataTable.css';
 import { toTitleCase } from '@/app/lib/validators';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
+import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 
 type Column<T> = {
   label: string;
@@ -37,14 +38,16 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
   const router = useRouter();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
 
-  const handleOrgClick = (org: OrgWithMembership) => {
+  const handleOrgClick = async (org: OrgWithMembership) => {
     const id = org.org._id?.toString() || org.org.name;
     setPrimaryOrg(id);
-    if (org.org.isVerified) {
+    startRouteLoader();
+    try {
       const role = org.membership?.roleDisplay ?? org.membership?.roleCode;
-      router.push(resolveDefaultOpenScreenRoute(role));
-    } else {
-      router.push('/create-org?orgId=' + id);
+      const nextRoute = await resolveOrgScopedRedirect({ orgId: id, fallbackRole: role });
+      router.push(nextRoute);
+    } catch {
+      stopRouteLoader();
     }
   };
 

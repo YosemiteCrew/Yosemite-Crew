@@ -30,11 +30,13 @@ import { appRoutes, devRoutes } from '@/app/config/routes';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { hasAnyRequiredPermission } from '@/app/lib/routePermissions';
+import {
+  isSidebarCollapsedByDefault,
+  setSidebarCollapsedPreference,
+} from '@/app/lib/sidebarPreference';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 import './Sidebar.css';
-
-const SIDEBAR_COLLAPSED_KEY = 'yc_sidebar_collapsed';
 
 const ROUTE_ICONS: Record<string, IconType> = {
   Dashboard: MdDashboard,
@@ -57,7 +59,7 @@ const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const isDevPortal = pathname?.startsWith('/developers') || false;
   const routes = isDevPortal ? devRoutes : appRoutes;
@@ -71,11 +73,7 @@ const Sidebar = () => {
   const effectivePermissions = membership?.effectivePermissions ?? [];
 
   useEffect(() => {
-    try {
-      setIsCollapsed(globalThis.window?.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
-    } catch {
-      setIsCollapsed(false);
-    }
+    setIsCollapsed(isSidebarCollapsedByDefault());
   }, []);
 
   const routeIcons = useMemo(() => ROUTE_ICONS, []);
@@ -92,11 +90,7 @@ const Sidebar = () => {
   const handleToggleCollapse = () => {
     setIsCollapsed((prev) => {
       const next = !prev;
-      try {
-        globalThis.window?.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
-      } catch {
-        // ignore persistence errors
-      }
+      setSidebarCollapsedPreference(next);
       return next;
     });
   };

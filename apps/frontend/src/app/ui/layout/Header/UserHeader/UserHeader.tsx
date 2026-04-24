@@ -21,7 +21,7 @@ import { headerAppRoutes, headerDevRoutes } from '@/app/config/routes';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 const UserHeader = () => {
@@ -106,22 +106,33 @@ const UserHeader = () => {
     }
   };
 
-  const handleOrgClick = (orgId: string) => {
+  const handleOrgClick = async (orgId: string) => {
     setPrimaryOrg(orgId);
     setSelectOrg(false);
-    const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
     startRouteLoader();
-    router.push(resolveDefaultOpenScreenRoute(role));
+    try {
+      const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
+      const nextRoute = await resolveOrgScopedRedirect({ orgId, fallbackRole: role });
+      router.push(nextRoute);
+    } catch {
+      stopRouteLoader();
+    }
   };
 
   const handleMobileOrgClick = (orgId: string) => {
     setPrimaryOrg(orgId);
     setSelectOrg(false);
     setMenuOpen(false);
-    const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
     setTimeout(() => {
       startRouteLoader();
-      router.push(resolveDefaultOpenScreenRoute(role));
+      const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
+      void resolveOrgScopedRedirect({ orgId, fallbackRole: role })
+        .then((nextRoute) => {
+          router.push(nextRoute);
+        })
+        .catch(() => {
+          stopRouteLoader();
+        });
     }, 300);
   };
 
