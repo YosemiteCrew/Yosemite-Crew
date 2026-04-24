@@ -1,40 +1,41 @@
-import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import ServiceSearch from "@/app/ui/inputs/ServiceSearch/ServiceSearch";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
+import React from 'react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import ServiceSearch from '@/app/ui/inputs/ServiceSearch/ServiceSearch';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 
 // --- Mocks ---
 
-jest.mock("@/app/stores/orgStore");
+jest.mock('@/app/stores/orgStore');
 
-jest.mock("@/app/lib/specialities", () => ({
+jest.mock('@/app/lib/specialities', () => ({
+  specialties: [{ name: 'General Practice', services: ['Checkup', 'Vaccination'] }],
   specialtiesByKey: {
-    "General Practice": {
-      services: ["Checkup", "Vaccination", "Consultation", "Surgery"],
+    'General Practice': {
+      services: ['Checkup', 'Vaccination', 'Consultation', 'Surgery'],
     },
   },
 }));
 
-jest.mock("react-icons/io5", () => ({
+jest.mock('react-icons/io5', () => ({
   IoSearch: () => <span data-testid="search-icon">Search</span>,
 }));
 
-describe("ServiceSearch Component", () => {
+describe('ServiceSearch Component', () => {
   const mockSetSpecialities = jest.fn();
-  const mockPrimaryOrgId = "org-123";
+  const mockPrimaryOrgId = 'org-123';
 
   const defaultSpeciality: SpecialityWeb = {
-    name: "General Practice",
+    name: 'General Practice',
     services: [
       {
-        name: "Checkup",
-        description: "",
+        name: 'Checkup',
+        description: '',
         cost: 0,
         durationMinutes: 0,
         maxDiscount: 0,
-        organisationId: "",
+        organisationId: '',
       },
     ],
   } as any;
@@ -42,80 +43,62 @@ describe("ServiceSearch Component", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
-      selector({ primaryOrgId: mockPrimaryOrgId })
+      selector({
+        orgsById: { [mockPrimaryOrgId]: { _id: mockPrimaryOrgId, type: 'HOSPITAL' } },
+        primaryOrgId: mockPrimaryOrgId,
+      })
     );
   });
 
   // --- 1. Rendering ---
 
-  it("renders the input and icon", () => {
-    render(
-      <ServiceSearch
-        speciality={defaultSpeciality}
-        setSpecialities={mockSetSpecialities}
-      />
-    );
+  it('renders the input and icon', () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
 
-    expect(
-      screen.getByPlaceholderText("Search or create service")
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("search-icon")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search or create service')).toBeInTheDocument();
+    expect(screen.getByTestId('search-icon')).toBeInTheDocument();
   });
 
   // --- 2. Search & Filtering Logic ---
 
-  it("opens dropdown on focus and shows filtered options", () => {
-    render(
-      <ServiceSearch
-        speciality={defaultSpeciality}
-        setSpecialities={mockSetSpecialities}
-      />
-    );
+  it('opens dropdown on focus and shows filtered options', () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
 
-    const input = screen.getByPlaceholderText("Search or create service");
+    const input = screen.getByPlaceholderText('Search or create service');
     fireEvent.focus(input);
 
     // "Checkup" is already selected in defaultSpeciality, so it should be filtered out
-    expect(screen.queryByText("Checkup")).not.toBeInTheDocument();
+    expect(screen.queryByText('Checkup')).not.toBeInTheDocument();
 
     // Others should be present
-    expect(screen.getByText("Vaccination")).toBeInTheDocument();
-    expect(screen.getByText("Consultation")).toBeInTheDocument();
+    expect(screen.getByText('Vaccination')).toBeInTheDocument();
+    expect(screen.getByText('Consultation')).toBeInTheDocument();
   });
 
-  it("filters options based on input query", () => {
-    render(
-      <ServiceSearch
-        speciality={defaultSpeciality}
-        setSpecialities={mockSetSpecialities}
-      />
-    );
+  it('filters options based on input query', () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
 
-    const input = screen.getByPlaceholderText("Search or create service");
-    fireEvent.change(input, { target: { value: "Vac" } });
+    const input = screen.getByPlaceholderText('Search or create service');
+    fireEvent.change(input, { target: { value: 'Vac' } });
 
-    expect(screen.getByText("Vaccination")).toBeInTheDocument();
-    expect(screen.queryByText("Consultation")).not.toBeInTheDocument();
+    expect(screen.getByText('Vaccination')).toBeInTheDocument();
+    expect(screen.queryByText('Consultation')).not.toBeInTheDocument();
   });
 
   // --- 3. Selecting Existing Service ---
 
-  it("adds a selected service to the specialty", async () => {
-    render(
-      <ServiceSearch
-        speciality={defaultSpeciality}
-        setSpecialities={mockSetSpecialities}
-      />
-    );
+  it('adds a selected service to the specialty', async () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
 
-    const input = screen.getByPlaceholderText("Search or create service");
+    const input = screen.getByPlaceholderText('Search or create service');
     fireEvent.focus(input);
 
-    const option = screen.getByText("Vaccination");
+    const option = screen.getByText('Vaccination');
     await act(async () => {
       fireEvent.click(option);
     });
 
+    await act(async () => {});
     expect(mockSetSpecialities).toHaveBeenCalled();
 
     // Verify the state update function
@@ -127,22 +110,19 @@ describe("ServiceSearch Component", () => {
     expect(newState[0].services).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          name: "Vaccination",
+          name: 'Vaccination',
+          cost: 45,
+          durationMinutes: 20,
           organisationId: mockPrimaryOrgId,
         }),
       ])
     );
   });
 
-  it("does not add duplicate service if somehow selected (checkIfAlready logic)", () => {
+  it('does not add duplicate service if somehow selected (checkIfAlready logic)', () => {
     // Simulate race condition where UI hasn't filtered yet but user clicks
     // Or checking logic inside the update function
-    render(
-      <ServiceSearch
-        speciality={defaultSpeciality}
-        setSpecialities={mockSetSpecialities}
-      />
-    );
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
 
     // Trigger selection logic manually or via UI interaction if mock allows
     // Since UI filters out "Checkup", we can't click it easily.
@@ -160,38 +140,27 @@ describe("ServiceSearch Component", () => {
 
   // --- 4. Creating New Service ---
 
-  it("shows add button when no match found", () => {
-    render(
-      <ServiceSearch
-        speciality={defaultSpeciality}
-        setSpecialities={mockSetSpecialities}
-      />
-    );
+  it('shows add button when no match found', () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
 
-    const input = screen.getByPlaceholderText("Search or create service");
-    fireEvent.change(input, { target: { value: "NewCustomService" } });
+    const input = screen.getByPlaceholderText('Search or create service');
+    fireEvent.change(input, { target: { value: 'NewCustomService' } });
 
-    expect(
-      screen.getByText(/Add service.*NewCustomService/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Add service.*NewCustomService/)).toBeInTheDocument();
   });
 
-  it("adds a new custom service when clicking Add", async () => {
-    render(
-      <ServiceSearch
-        speciality={defaultSpeciality}
-        setSpecialities={mockSetSpecialities}
-      />
-    );
+  it('adds a new custom service when clicking Add', async () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
 
-    const input = screen.getByPlaceholderText("Search or create service");
-    fireEvent.change(input, { target: { value: "Custom" } });
+    const input = screen.getByPlaceholderText('Search or create service');
+    fireEvent.change(input, { target: { value: 'Custom' } });
 
     const addBtn = screen.getByText(/Add service.*Custom/);
     await act(async () => {
       fireEvent.click(addBtn);
     });
 
+    await act(async () => {});
     expect(mockSetSpecialities).toHaveBeenCalled();
 
     const updateFn = mockSetSpecialities.mock.calls[0][0];
@@ -201,26 +170,22 @@ describe("ServiceSearch Component", () => {
     expect(newState[0].services).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          name: "Custom", // Capitalized first letter logic is in component
-          cost: 15,
+          name: 'Custom', // Capitalized first letter logic is in component
+          cost: 60,
+          durationMinutes: 30,
           organisationId: mockPrimaryOrgId,
         }),
       ])
     );
   });
 
-  it("prevents adding empty service name", () => {
-    render(
-      <ServiceSearch
-        speciality={defaultSpeciality}
-        setSpecialities={mockSetSpecialities}
-      />
-    );
+  it('prevents adding empty service name', () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
 
     // If input is empty, filtered list shows all.
     // If we type spaces?
-    const input = screen.getByPlaceholderText("Search or create service");
-    fireEvent.change(input, { target: { value: "   " } });
+    const input = screen.getByPlaceholderText('Search or create service');
+    fireEvent.change(input, { target: { value: '   ' } });
 
     // The component logic for `filtered` returns true if !q.
     // So it shows the list. The "Add" button only shows if filtered is empty.
@@ -235,23 +200,20 @@ describe("ServiceSearch Component", () => {
 
   // --- 5. Interaction: Close on Outside Click ---
 
-  it("closes dropdown when clicking outside", () => {
+  it('closes dropdown when clicking outside', () => {
     render(
       <div>
         <div data-testid="outside">Outside</div>
-        <ServiceSearch
-          speciality={defaultSpeciality}
-          setSpecialities={mockSetSpecialities}
-        />
+        <ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />
       </div>
     );
 
-    const input = screen.getByPlaceholderText("Search or create service");
+    const input = screen.getByPlaceholderText('Search or create service');
     fireEvent.focus(input);
-    expect(screen.getByText("Vaccination")).toBeVisible(); // Dropdown open
+    expect(screen.getByText('Vaccination')).toBeVisible(); // Dropdown open
 
-    fireEvent.mouseDown(screen.getByTestId("outside"));
+    fireEvent.mouseDown(screen.getByTestId('outside'));
 
-    expect(screen.queryByText("Vaccination")).not.toBeInTheDocument();
+    expect(screen.queryByText('Vaccination')).not.toBeInTheDocument();
   });
 });

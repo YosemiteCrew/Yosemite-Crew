@@ -17,13 +17,13 @@ import AppointmentContextMenu from '@/app/features/appointments/components/Calen
 import { getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type SlotProps = {
   slotEvents: Appointment[];
   height: number;
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
-  handleChangeStatusAppointment?: (appt: Appointment) => void;
   handleChangeRoomAppointment?: (appt: Appointment) => void;
   dayIndex: number;
   length: number;
@@ -37,6 +37,7 @@ type SlotProps = {
   onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
   onCreateAppointmentAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
   dropAvailabilityIntervals?: Array<{ startMinute: number; endMinute: number }>;
+  unavailableSegments?: Array<{ startMinute: number; endMinute: number }>;
   draggedAppointmentDurationMinutes?: number;
   dropDate?: Date;
   dropHour?: number;
@@ -58,7 +59,6 @@ const Slot: React.FC<SlotProps> = ({
   height,
   handleViewAppointment,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   dayIndex,
   length,
@@ -72,6 +72,7 @@ const Slot: React.FC<SlotProps> = ({
   onDragHoverTarget,
   onCreateAppointmentAt,
   dropAvailabilityIntervals = [],
+  unavailableSegments = [],
   draggedAppointmentDurationMinutes,
   dropDate,
   dropHour = 0,
@@ -80,6 +81,7 @@ const Slot: React.FC<SlotProps> = ({
   invoicesByAppointmentId = {},
 }) => {
   const isZoomOutMode = zoomMode === 'out';
+  const { notify } = useNotify();
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -92,7 +94,8 @@ const Slot: React.FC<SlotProps> = ({
     popoverDialogRef,
     openPopover,
     getPopoverStyle,
-  } = usePopoverManager();
+    registerAnchorEl,
+  } = usePopoverManager({ closeOnHoverLeave: false });
 
   useEffect(() => {
     setIsMounted(true);
@@ -133,6 +136,7 @@ const Slot: React.FC<SlotProps> = ({
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (contextMenuRef.current?.contains(target)) return;
+      if ((target as Element | null)?.closest('[data-context-menu]')) return;
       event.preventDefault();
       event.stopPropagation();
       if ('stopImmediatePropagation' in event) {
@@ -324,11 +328,7 @@ const Slot: React.FC<SlotProps> = ({
     clickTimerRef.current = null;
   };
 
-  const handleMarkerClick = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    appointment: Appointment,
-    key: string
-  ) => {
+  const handleMarkerClick = (event: React.MouseEvent<HTMLButtonElement>, key: string) => {
     const target = event.currentTarget;
     const { clientX, clientY } = event;
     clearPendingMarkerClick();
@@ -409,12 +409,34 @@ const Slot: React.FC<SlotProps> = ({
             onClick={(event) => {
               const parent = event.currentTarget.parentElement as HTMLDivElement;
               const minute = getMinuteFromSlotPointer(event.clientY, parent);
-              onCreateAppointmentAt(dropDate, Math.round(minute / 5) * 5, dropPractitionerId);
+              const snapped = Math.round(minute / 5) * 5;
+              const isUnavailable = unavailableSegments.some(
+                (seg) => snapped >= seg.startMinute && snapped < seg.endMinute
+              );
+              if (isUnavailable) {
+                notify('warning', {
+                  title: 'Slot unavailable',
+                  text: 'This time is outside available hours. Please select a different slot.',
+                });
+                return;
+              }
+              onCreateAppointmentAt(dropDate, snapped, dropPractitionerId);
             }}
             onDoubleClick={(event) => {
               const parent = event.currentTarget.parentElement as HTMLDivElement;
               const minute = getMinuteFromSlotPointer(event.clientY, parent);
-              onCreateAppointmentAt(dropDate, Math.round(minute / 5) * 5, dropPractitionerId);
+              const snapped = Math.round(minute / 5) * 5;
+              const isUnavailable = unavailableSegments.some(
+                (seg) => snapped >= seg.startMinute && snapped < seg.endMinute
+              );
+              if (isUnavailable) {
+                notify('warning', {
+                  title: 'Slot unavailable',
+                  text: 'This time is outside available hours. Please select a different slot.',
+                });
+                return;
+              }
+              onCreateAppointmentAt(dropDate, snapped, dropPractitionerId);
             }}
           />
         ) : null}
@@ -490,6 +512,9 @@ const Slot: React.FC<SlotProps> = ({
                       className="pointer-events-none absolute inset-y-0 left-0.5 right-0.5 rounded-sm z-30"
                       style={{
                         backgroundColor: statusStyle.backgroundColor,
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: statusStyle.borderColor,
                       }}
                     />
                     <button
@@ -497,7 +522,7 @@ const Slot: React.FC<SlotProps> = ({
                       className={`min-w-0 absolute inset-x-0 -inset-y-2 z-20 ${
                         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                       }`}
-                      onClick={(event) => handleMarkerClick(event, ev, itemKey)}
+                      onClick={(event) => handleMarkerClick(event, itemKey)}
                       onDoubleClick={() => handleMarkerDoubleClick(ev)}
                       onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                       draggable={draggable}
@@ -526,7 +551,7 @@ const Slot: React.FC<SlotProps> = ({
             })()}
           </div>
         ) : (
-          <div className="relative h-full rounded-2xl bg-white overflow-hidden px-1">
+          <div className="relative h-full bg-white overflow-visible px-1">
             {laidOutZoomInEvents.map(
               ({
                 ev,
@@ -540,26 +565,93 @@ const Slot: React.FC<SlotProps> = ({
                 const statusStyle = getStatusStyle(ev.status);
                 const serviceName = ev.appointmentType?.name?.trim() ?? '';
                 const concern = ev.concern?.trim() ?? '';
-                const subtitle = [serviceName, concern].filter(Boolean).join(' • ');
                 const companionDisplayName = getCompanionDisplayName(ev);
-                const markerTitle = subtitle
-                  ? `${companionDisplayName} • ${subtitle}`
-                  : companionDisplayName;
+                const markerTitle = [companionDisplayName, serviceName, concern]
+                  .filter(Boolean)
+                  .join(' • ');
                 const draggable = !!canDragAppointment?.(ev);
                 const laneGapPx = 3;
                 const widthPercent = 100 / laneCount;
                 const leftPercent = widthPercent * laneIndex;
                 const topPx = (startMinute / 60) * height;
                 const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 40);
-                const compact = laneCount > 1;
-                const visibleSubtitle = compact ? serviceName : subtitle;
+
+                // Responsive tiers based on available pixel height (hour row = 180px at zoom-in)
+                // 30-min slot = 90px, 15-min = 45px
+                const multiLane = laneCount > 1;
+                // tall: ≥72px single-lane — big pic, service + reason on separate lines with •
+                const tall = !multiLane && blockHeightPx >= 72;
+                // medium: ≥44px single-lane — smaller pic, one subtitle line
+                const medium = !multiLane && blockHeightPx >= 44;
+                const showImage = medium || tall;
+                // tall: scales 48px (30-min/90px) → 60px (60-min/180px); medium: 34px
+                const imgSize = tall ? Math.min(60, Math.round(blockHeightPx * 0.52)) : 34;
+
+                let verticalPadding: string;
+                if (tall) {
+                  verticalPadding = 'py-2.5';
+                } else if (medium) {
+                  verticalPadding = 'py-2';
+                } else {
+                  verticalPadding = 'py-1';
+                }
+                const cursorClass = draggable
+                  ? 'cursor-grab active:cursor-grabbing'
+                  : 'cursor-pointer';
+
+                const subtitleClass =
+                  'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px]';
+                let subtitleNode: React.ReactNode = null;
+                if (tall) {
+                  subtitleNode = (
+                    <>
+                      {serviceName && (
+                        <div className={`${subtitleClass} mt-1.5`}>
+                          {'• '}
+                          {serviceName}
+                        </div>
+                      )}
+                      {concern && (
+                        <div className={`${subtitleClass} mt-1`}>
+                          {'• '}
+                          {concern}
+                        </div>
+                      )}
+                    </>
+                  );
+                } else if (medium && (serviceName || concern)) {
+                  subtitleNode = (
+                    <div className={`${subtitleClass} mt-1.5`}>
+                      {[serviceName, concern].filter(Boolean).join(' • ')}
+                    </div>
+                  );
+                } else if (multiLane && serviceName) {
+                  subtitleNode = <div className={`${subtitleClass} mt-1`}>{serviceName}</div>;
+                }
+
+                const handleDragStart = (event: React.DragEvent<HTMLButtonElement>) => {
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
+                  setCustomDragGhost(event, ev);
+                  document.body.style.cursor = 'grabbing';
+                  onAppointmentDragStart?.(ev);
+                };
+
+                const handleDragEnd = () => {
+                  setDropPreviewMinute(null);
+                  document.body.style.cursor = '';
+                  onAppointmentDragEnd?.();
+                };
 
                 return (
                   <div
                     key={itemKey}
-                    className="absolute z-20 overflow-hidden rounded-lg border border-[rgba(255,255,255,0.35)]"
+                    className="absolute z-20 overflow-hidden rounded-2xl!"
                     style={{
                       ...statusStyle,
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: statusStyle.borderColor,
                       top: topPx,
                       left: `calc(${leftPercent}% + ${laneGapPx}px)`,
                       width: `calc(${widthPercent}% - ${laneGapPx * 2}px)`,
@@ -569,57 +661,39 @@ const Slot: React.FC<SlotProps> = ({
                   >
                     <button
                       type="button"
-                      className={`h-full w-full px-1.5 ${
-                        draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-                      } ${compact ? 'py-1 flex flex-col justify-center text-center' : 'py-1.5 flex items-center gap-2'}`}
-                      onClick={(event) => handleMarkerClick(event, ev, itemKey)}
+                      className={`h-full w-full flex items-center justify-between gap-2.5 pl-3 pr-3 text-left ${verticalPadding} ${cursorClass}`}
+                      onClick={(event) => handleMarkerClick(event, itemKey)}
                       onDoubleClick={() => handleMarkerDoubleClick(ev)}
                       onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                       draggable={draggable}
                       title={markerTitle}
-                      onDragStart={(event) => {
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
-                        setCustomDragGhost(event, ev);
-                        document.body.style.cursor = 'grabbing';
-                        onAppointmentDragStart?.(ev);
-                      }}
-                      onDragEnd={() => {
-                        setDropPreviewMinute(null);
-                        document.body.style.cursor = '';
-                        onAppointmentDragEnd?.();
-                      }}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
                       style={{
                         opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
                       }}
                     >
-                      <div className="min-w-0 flex-1 self-center overflow-hidden">
-                        <div className="w-full flex flex-col items-center justify-center text-center gap-0.5">
-                          <div className="truncate w-full text-caption-1 font-semibold">
-                            {companionDisplayName}
-                          </div>
-                          {visibleSubtitle && (
-                            <div className="w-full truncate text-[10px] opacity-95">
-                              {visibleSubtitle}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {!compact && (
-                        <div className="flex-none self-center">
+                      {showImage && (
+                        <div className="flex-none">
                           <Image
                             src={getSafeImageUrl(
                               getAppointmentCompanionPhotoUrl(ev.companion),
                               ev.companion.species.toLowerCase() as ImageType
                             )}
-                            height={26}
-                            width={26}
+                            height={imgSize}
+                            width={imgSize}
                             className="rounded-full border border-white/60 object-cover"
-                            style={{ width: 26, height: 26 }}
+                            style={{ width: imgSize, height: imgSize }}
                             alt=""
                           />
                         </div>
                       )}
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <div className="truncate text-caption-1 font-bold leading-[1.2]">
+                          {companionDisplayName}
+                        </div>
+                        {subtitleNode}
+                      </div>
                     </button>
                   </div>
                 );
@@ -641,9 +715,9 @@ const Slot: React.FC<SlotProps> = ({
             popoverStyle={popoverStyle}
             handleViewAppointment={handleViewAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
-            handleChangeStatusAppointment={handleChangeStatusAppointment}
             handleChangeRoomAppointment={handleChangeRoomAppointment}
             onClose={() => setActivePopoverKey(null)}
+            registerAnchorEl={registerAnchorEl}
           />,
           document.body
         )}

@@ -166,4 +166,26 @@ describe('usePopoverManager', () => {
     expect(result.current.activePopoverKey).toBe('key-1');
     jest.useRealTimers();
   });
+
+  it('does not auto-close on hover leave when closeOnHoverLeave is disabled', () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => usePopoverManager({ closeOnHoverLeave: false }));
+
+    const anchor = document.createElement('button');
+    const unregister = result.current.registerAnchorEl(anchor);
+
+    act(() => {
+      result.current.setActivePopoverKey('key-1');
+    });
+
+    act(() => {
+      anchor.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      jest.advanceTimersByTime(200);
+    });
+
+    expect(result.current.activePopoverKey).toBe('key-1');
+
+    unregister();
+    jest.useRealTimers();
+  });
 });

@@ -1,8 +1,10 @@
 .steps-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 20px;
+  width: 100%;
 }
 .step {
   display: flex;
@@ -15,8 +17,20 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+.step-trigger {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: default;
+}
+.step-trigger:disabled {
+  opacity: 1;
+}
+.stepclickable {
+  cursor: pointer;
+}
 .step-heading {
-  color: #A09F9F;
+  color: #a09f9f;
   font-family: var(--font-satoshi);
   font-size: 16px;
   font-style: normal;
@@ -37,7 +51,7 @@
   width: 48px;
   height: 2px;
   border-radius: 2px;
-  background: #A09F9F;
+  background: #a09f9f;
 }
 .activestep {
   color: var(--black-text);
@@ -47,6 +61,13 @@
 }
 
 @media screen and (max-width: 768px) {
+  .steps-container {
+    justify-content: center;
+    gap: 12px;
+  }
+  .step {
+    gap: 12px;
+  }
   .step-logo {
     height: 24px;
     width: 24px;
@@ -54,5 +75,11 @@
   .step-logo svg {
     height: 12px;
     width: 12px;
+  }
+  .step-heading {
+    font-size: 14px;
+  }
+  .step-dash {
+    width: 24px;
   }
 }

@@ -145,20 +145,23 @@
 }
 .appointment-status {
   display: flex;
-  padding: 8px 16px;
+  padding: 6px 14px;
   justify-content: center;
   align-items: center;
   gap: 10px;
   align-self: stretch;
   border-radius: 16px;
-  background: #eaeaea;
-  color: var(--black-text);
+  border-width: 1px;
+  border-style: solid;
+  background: var(--status-requested-bg);
+  border-color: var(--status-requested-border);
+  color: var(--status-requested-text);
   text-align: center;
-  font-size: 16px;
+  font-size: 13px;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 150%;
-  letter-spacing: -0.32px;
+  letter-spacing: -0.16px;
   font-family: var(--satoshi-font);
 }
 .appointment-emergency-label {
@@ -171,6 +174,9 @@
   gap: 10px;
   flex-shrink: 0;
   border-radius: 8px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--error-color);
   background: #fdebea;
   color: var(--error-color);
   font-family: var(--satoshi-font);

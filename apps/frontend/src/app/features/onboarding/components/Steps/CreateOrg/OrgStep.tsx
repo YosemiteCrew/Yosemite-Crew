@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import classNames from 'classnames';
-import { useRouter } from 'next/navigation';
 
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import LogoUploader from '@/app/ui/widgets/UploadImage/LogoUploader';
 import { BusinessTypes } from '@/app/features/organization/types/org';
-import { validatePhone } from '@/app/lib/validators';
-import { createOrg } from '@/app/features/organization/services/orgService';
 import { Organisation } from '@yosemite-crew/types';
 
 import './Step.css';
@@ -21,25 +18,34 @@ import {
 } from '@/app/features/companions/components/AddCompanion/type';
 import {
   CompanionTerminologyOption,
-  bindPendingCompanionTerminologyToOrg,
   getCompanionTerminologyOptions,
   getCompanionTerminologyForOrg,
   setPendingCompanionTerminology,
 } from '@/app/lib/companionTerminology';
+import { validateOrgBasics } from '@/app/lib/organizationOnboardingValidation';
 
 type OrgStepProps = {
+  errors?: {
+    name?: string;
+    country?: string;
+    dunsNumber?: string;
+    number?: string;
+    taxId?: string;
+    website?: string;
+  };
   nextStep: () => void;
   formData: Organisation;
   setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
 };
 
-const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
-  const router = useRouter();
+const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     country?: string;
+    dunsNumber?: string;
     number?: string;
     taxId?: string;
+    website?: string;
   }>({});
   const [companionTerminology, setCompanionTerminology] = useState<CompanionTerminologyOption>(
     getCompanionTerminologyForOrg(undefined, formData.type)
@@ -54,44 +60,32 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
     setCompanionTerminology(getCompanionTerminologyForOrg(undefined, formData.type));
   }, [formData.type]);
 
-  const handleNext = async () => {
-    const errors: {
-      name?: string;
-      country?: string;
-      number?: string;
-      taxId?: string;
-    } = {};
-    if (!formData.name) errors.name = 'Name is required';
-    if (!formData.address?.country) errors.country = 'Country is required';
-    if (!selectedCountryCode?.dialCode) errors.number = 'Country code is required';
-    if (!localPhoneNumber) errors.number = 'Number is required';
-    if (!formData.taxId) errors.taxId = 'TaxID is required';
-    if (!selectedCountryCode?.dialCode || !localPhoneNumber) {
-      errors.number = 'Valid number is required';
-    } else {
-      const fullMobile = `${selectedCountryCode.dialCode}${localPhoneNumber}`;
-      if (!validatePhone(fullMobile)) {
-        errors.number = 'Valid number is required';
-      }
+  useEffect(() => {
+    if (!errors) {
+      return;
     }
+    setFormDataErrors(errors);
+  }, [errors]);
+
+  const handleNext = () => {
+    const { errors, normalizedData } = validateOrgBasics({
+      formData,
+      localPhoneNumber,
+      selectedCountryCode,
+    });
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
-    try {
-      setPendingCompanionTerminology(companionTerminology);
-      const orgId = await createOrg(formData);
-      bindPendingCompanionTerminologyToOrg(orgId);
-      router.replace(`/create-org?orgId=${orgId}`);
-      nextStep();
-    } catch (error: any) {
-      console.error('Error creating organization:', error);
-    }
+    setFormData(normalizedData);
+    setPendingCompanionTerminology(companionTerminology);
+    nextStep();
   };
 
   const handlePhoneChange = (value: string) => {
     const sanitized = getDigitsOnly(value).slice(0, 15);
     setLocalPhoneNumber(sanitized);
+    setFormDataErrors((prev) => ({ ...prev, number: undefined }));
     setFormData((prev) => ({
       ...prev,
       phoneNo: sanitized ? `${selectedCountryCode.dialCode}${sanitized}` : '',
@@ -104,6 +98,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
       return;
     }
     setSelectedCountryCode(selected);
+    setFormDataErrors((prev) => ({ ...prev, country: undefined, number: undefined }));
     setFormData((prev) => ({
       ...prev,
       phoneNo: localPhoneNumber ? `${selected.dialCode}${localPhoneNumber}` : '',
@@ -147,13 +142,16 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
         </div>
 
         <div className="step-inputs">
-          <div className="step-two-input">
+          <div className="step-three-input">
             <GoogleSearchDropDown
               intype="text"
               inname="name"
               value={formData.name}
               inlabel="Organisation name"
-              onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e: any) => {
+                setFormData({ ...formData, name: e.target.value });
+                setFormDataErrors((prev) => ({ ...prev, name: undefined }));
+              }}
               error={formDataErrors.name}
               setFormData={setFormData}
             />
@@ -162,11 +160,26 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
               inname="website"
               value={formData.website || ''}
               inlabel="Website"
-              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, website: e.target.value });
+                setFormDataErrors((prev) => ({ ...prev, website: undefined }));
+              }}
+              error={formDataErrors.website}
+            />
+            <FormInput
+              intype="text"
+              inname="tax id"
+              value={formData.taxId || ''}
+              inlabel="Tax ID"
+              onChange={(e) => {
+                setFormData({ ...formData, taxId: e.target.value });
+                setFormDataErrors((prev) => ({ ...prev, taxId: undefined }));
+              }}
+              error={formDataErrors.taxId}
             />
           </div>
-          <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-5">
+          <div className="step-three-input">
+            <div className="step-phone-input__code">
               <LabelDropdown
                 placeholder="Country code"
                 onSelect={(option) => handleCountryCodeSelect(option.value)}
@@ -175,77 +188,42 @@ const OrgStep = ({ nextStep, formData, setFormData }: OrgStepProps) => {
                 error={formDataErrors.country}
               />
             </div>
-            <div className="col-span-7">
-              <FormInput
-                intype="tel"
-                inname="number"
-                value={localPhoneNumber}
-                inlabel="Phone number"
-                onChange={(e) => handlePhoneChange(e.target.value)}
-                error={formDataErrors.number}
-              />
-            </div>
-          </div>
-
-          <div className="step-two-input">
-            <div data-terminology-lock="true">
-              <LabelDropdown
-                placeholder="What would you like to call pets?"
-                onSelect={(option) =>
-                  setCompanionTerminology(option.value as CompanionTerminologyOption)
-                }
-                defaultOption={companionTerminology}
-                options={getCompanionTerminologyOptions()}
-              />
-            </div>
+            <FormInput
+              intype="tel"
+              inname="number"
+              value={localPhoneNumber}
+              inlabel="Phone number"
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              error={formDataErrors.number}
+            />
             <FormInput
               intype="text"
               inname="duns"
               value={formData.DUNSNumber || ''}
               inlabel="DUNS number (optional)"
-              onChange={(e) => setFormData({ ...formData, DUNSNumber: e.target.value })}
-            />
-            <FormInput
-              intype="text"
-              inname="tax id"
-              value={formData.taxId || ''}
-              inlabel="Tax ID"
-              onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-              error={formDataErrors.taxId}
+              onChange={(e) => {
+                setFormData({ ...formData, DUNSNumber: e.target.value });
+                setFormDataErrors((prev) => ({ ...prev, dunsNumber: undefined }));
+              }}
+              error={formDataErrors.dunsNumber}
             />
           </div>
-          <div className="step-two-input">
-            <FormInput
-              intype="number"
-              inname="appointment-checkin-buffer-minutes"
-              value={String(formData.appointmentCheckInBufferMinutes ?? 5)}
-              inlabel="Check-in opens (minutes before appointment)"
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  appointmentCheckInBufferMinutes: Number(e.target.value || 0),
-                })
+          <div className="step-single-input" data-terminology-lock="true">
+            <LabelDropdown
+              placeholder="What would you like to call pets?"
+              onSelect={(option) =>
+                setCompanionTerminology(option.value as CompanionTerminologyOption)
               }
-            />
-            <FormInput
-              intype="number"
-              inname="appointment-checkin-radius-meters"
-              value={String(formData.appointmentCheckInRadiusMeters ?? 200)}
-              inlabel="Check-in radius (meters)"
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  appointmentCheckInRadiusMeters: Number(e.target.value || 0),
-                })
-              }
+              defaultOption={companionTerminology}
+              options={getCompanionTerminologyOptions()}
             />
           </div>
         </div>
       </div>
 
       <div className="step-buttons">
-        <Secondary href="/organizations" text="Back" />
-        <Primary href="#" text="Next" onClick={handleNext} />
+        <Secondary href="/organizations" text="Back" style={{ width: '160px' }} />
+        <Primary href="#" text="Next" style={{ width: '160px' }} onClick={handleNext} />
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ import { Organisation } from '@yosemite-crew/types';
 import React, { useEffect, useMemo, useState } from 'react';
 import { RiEdit2Fill } from 'react-icons/ri';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import CalBookingOverlay from '@/app/ui/overlays/CalBookingOverlay';
 
 type FieldConfig = {
   label: string;
@@ -307,6 +308,7 @@ const ProfileCard = ({
   const primaryOrg = usePrimaryOrg();
   const attributes = useAuthStore((s) => s.attributes);
   const [isEditing, setIsEditing] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(() => buildInitialValues(fields, org));
   const [formValuesErrors, setFormValuesErrors] = useState<Record<string, string | undefined>>({});
   const orgId = primaryOrg?._id;
@@ -441,7 +443,12 @@ const ProfileCard = ({
                 </div>
               </div>
               {!org?.isVerified && (
-                <Primary text="Verify business profile" href="/book-onboarding" className="" />
+                <Primary
+                  text="Verify business profile"
+                  href="#"
+                  onClick={() => setCalOpen(true)}
+                  className=""
+                />
               )}
             </div>
             {!org?.isVerified && (
@@ -486,6 +493,7 @@ const ProfileCard = ({
           <Primary text="Save" href="#" onClick={handleSave} />
         </div>
       )}
+      <CalBookingOverlay open={calOpen} onClose={() => setCalOpen(false)} />
     </div>
   );
 };

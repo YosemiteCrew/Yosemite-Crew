@@ -9,6 +9,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import ToastProvider from '@/app/ui/layout/ToastProvider';
+import GlobalFullscreenLoaderOverlay from '@/app/ui/layout/GlobalFullscreenLoaderOverlay';
 import RouteLoaderOverlay from '@/app/ui/layout/RouteLoaderOverlay';
 
 export const metadata: Metadata = {
@@ -56,6 +57,7 @@ export default function RootLayout({
           </Script>
         ) : null}
         {children}
+        <GlobalFullscreenLoaderOverlay />
         <Suspense>
           <RouteLoaderOverlay />
         </Suspense>

@@ -53,19 +53,19 @@ export type SlotsResponse = {
 };
 
 export const AppointmentStatusFilters: StatusOption[] = [
-  status('All', 'all', '#F1D4B0', '#000'),
-  status('Requested', 'requested', '#747283'),
-  status('Upcoming', 'upcoming', '#F1D4B0', '#000'),
-  status('Checked-in', 'checked_in', '#A8A181'),
-  status('In progress', 'in_progress', '#BF9FAA'),
-  status('Completed', 'completed', '#D28F9A'),
-  status('Cancelled', 'cancelled', '#D9A488'),
-  status('No show', 'no_show', '#747283'),
+  status('All', 'all', '#f5f3f1', '#5c5956', '#a9a39e'),
+  status('Requested', 'requested', '#f5f3f1', '#5c5956', '#a9a39e'),
+  status('Upcoming', 'upcoming', '#e6f2ff', '#0057c2', '#007cf5'),
+  status('Checked-in', 'checked_in', '#eef2ff', '#3730a3', '#6366f1'),
+  status('In progress', 'in_progress', '#f5f3ff', '#5b21b6', '#8b5cf6'),
+  status('Completed', 'completed', '#f0fdf4', '#166534', '#64c487'),
+  status('Cancelled', 'cancelled', '#fff7ed', '#9a3412', '#f97316'),
+  status('No show', 'no_show', '#fff7ed', '#9a3412', '#f97316'),
 ];
 
 export const AppointmentStatusFiltersUI: StatusOption[] = AppointmentStatusFilters;
 
-export const AppointmentFilters = [filter('All', 'all'), filter('Emergencies', 'emergencies')];
+export const AppointmentFilters = [filter('Emergencies', 'emergencies')];
 
 type ReasonOptions =
   | 'APPOINTMENT_USAGE'

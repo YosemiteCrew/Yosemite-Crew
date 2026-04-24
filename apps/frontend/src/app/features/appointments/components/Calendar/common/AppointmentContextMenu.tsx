@@ -323,6 +323,7 @@ const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
         ref={menuRef}
         role="menu"
         aria-label="Appointment context actions"
+        data-context-menu="true"
         className="fixed z-[1001] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
         style={menuPositionStyle}
       >
@@ -379,6 +380,7 @@ const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
           ref={submenuRef}
           role="menu"
           aria-label="Change appointment status"
+          data-context-menu="true"
           className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
           style={submenuStyle}
         >
@@ -413,6 +415,7 @@ const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
           ref={submenuRef}
           role="menu"
           aria-label="Assign appointment room"
+          data-context-menu="true"
           className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
           style={submenuStyle}
         >

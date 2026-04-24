@@ -20,7 +20,7 @@ import MobileMenu from '@/app/ui/layout/Header/MobileMenu';
 import { headerAppRoutes, headerDevRoutes } from '@/app/config/routes';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
-import { startRouteLoader } from '@/app/lib/routeLoader';
+import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
@@ -93,16 +93,16 @@ const UserHeader = () => {
   }, []);
 
   const handleLogout = async () => {
+    startRouteLoader();
     try {
       await signOut();
       if (globalThis.window !== undefined) {
         globalThis.localStorage.removeItem('yc_dashboard_videos_hidden');
       }
-      console.log('✅ Signed out using Cognito signout');
-      startRouteLoader();
       router.replace(logoutRedirect);
     } catch (error) {
       console.error('⚠️ Cognito signout error:', error);
+      stopRouteLoader();
     }
   };
 
@@ -127,13 +127,13 @@ const UserHeader = () => {
 
   const handleClick = (item: any) => {
     setMenuOpen(false);
+    if (item.name === 'Sign out') {
+      handleLogout();
+      return;
+    }
     setTimeout(() => {
-      if (item.name === 'Sign out') {
-        handleLogout();
-      } else {
-        startRouteLoader();
-        router.push(item.href);
-      }
+      startRouteLoader();
+      router.push(item.href);
     }, 400);
   };
 
@@ -383,7 +383,7 @@ const UserHeader = () => {
               >
                 Settings
               </Link>
-              {!isDev && merckEnabled && (
+              {!isDev && merckEnabled && orgVerified && (
                 <Link
                   href="/integrations/merck-manuals"
                   onClick={() => setSelectProfile(false)}

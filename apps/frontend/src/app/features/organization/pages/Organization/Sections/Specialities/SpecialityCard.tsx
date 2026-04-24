@@ -1,14 +1,10 @@
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import MultiSelectDropdown from "@/app/ui/inputs/MultiSelectDropdown";
-import ServiceSearch from "@/app/ui/inputs/ServiceSearch/ServiceSearch";
-import { useCurrencyForPrimaryOrg } from "@/app/hooks/useBilling";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { Option } from "@/app/features/companions/types/companion";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
-import { Service } from "@yosemite-crew/types";
-import React, { useMemo } from "react";
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import ServiceSearch from '@/app/ui/inputs/ServiceSearch/ServiceSearch';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
+import { Service } from '@yosemite-crew/types';
+import React from 'react';
 
 type SpecialityCardProps = {
   setFormData: React.Dispatch<React.SetStateAction<SpecialityWeb[]>>;
@@ -16,124 +12,71 @@ type SpecialityCardProps = {
   index: number;
 };
 
-const SpecialityCard = ({
-  setFormData,
-  speciality,
-  index,
-}: SpecialityCardProps) => {
-  const teams = useTeamForPrimaryOrg();
-  const currency = useCurrencyForPrimaryOrg();
-
-  const TeamOptions = useMemo(
-    () =>
-      teams?.map((team) => ({
-        label: team.name || team.practionerId,
-        value: team.practionerId,
-      })),
-    [teams],
+const updateServiceList = (
+  serviceIndex: number,
+  key: keyof Service,
+  value: string,
+  services: Service[] = []
+): Service[] =>
+  services.map((service, currentIndex) =>
+    currentIndex === serviceIndex ? { ...service, [key]: value } : service
   );
 
-  const updateServiceList = (
-    serviceIndex: number,
-    key: string,
-    value: string,
-    services: Service[] = [],
-  ): Service[] => {
-    return services.map((srv, srvIndex) =>
-      srvIndex === serviceIndex ? { ...srv, [key]: value } : srv,
-    );
-  };
+const filterService = (services: Service[], serviceIndex: number) =>
+  services.filter((_, index) => index !== serviceIndex);
 
-  const updateStaff = (ids: string[]) => {
-    setFormData((prev) =>
-      prev.map((sp, spIndex) => {
-        if (spIndex !== index) return sp;
-        return {
-          ...sp,
-          teamMemberIds: ids,
-        };
-      }),
-    );
-  };
+const SpecialityCard = ({ setFormData, speciality, index }: SpecialityCardProps) => {
+  const currency = useCurrencyForPrimaryOrg();
 
-  const updateLead = (lead: Option) => {
-    setFormData((prev) =>
-      prev.map((sp, spIndex) => {
-        if (spIndex !== index) return sp;
+  const updateServiceField = (serviceIndex: number, key: keyof Service, value: string) => {
+    setFormData((previous) =>
+      previous.map((item, itemIndex) => {
+        if (itemIndex !== index) {
+          return item;
+        }
         return {
-          ...sp,
-          headName: lead.label,
-          headUserId: lead.value,
+          ...item,
+          services: updateServiceList(serviceIndex, key, value, item.services),
         };
-      }),
-    );
-  };
-
-  const updateServiceField = (
-    serviceIndex: number,
-    key: string,
-    value: string,
-  ) => {
-    setFormData((prev) =>
-      prev.map((sp, spIndex) => {
-        if (spIndex !== index) return sp;
-        return {
-          ...sp,
-          services: updateServiceList(serviceIndex, key, value, sp.services),
-        };
-      }),
+      })
     );
   };
 
   const removeService = (serviceIndex: number) => {
-    setFormData((prev) =>
-      prev.map((sp, spIndex) => {
-        if (spIndex !== index) return sp;
+    setFormData((previous) =>
+      previous.map((item, itemIndex) => {
+        if (itemIndex !== index) {
+          return item;
+        }
         return {
-          ...sp,
-          services: filterService(sp.services || [], serviceIndex),
+          ...item,
+          services: filterService(item.services || [], serviceIndex),
         };
-      }),
+      })
     );
-  };
-
-  const filterService = (services: Service[], serviceIndex: number) => {
-    return services?.filter((_, i) => i !== serviceIndex);
   };
 
   return (
     <div className="flex flex-col gap-3">
-      <LabelDropdown
-        placeholder="Select Lead"
-        onSelect={(option) => updateLead(option)}
-        defaultOption={speciality.headUserId}
-        options={TeamOptions}
-      />
-      <MultiSelectDropdown
-        placeholder="Assigned staff"
-        value={speciality.teamMemberIds || []}
-        onChange={(e) => updateStaff(e)}
-        options={TeamOptions}
-      />
       <ServiceSearch speciality={speciality} setSpecialities={setFormData} />
-      {speciality?.services?.map((service, i) => (
+      {speciality.services?.map((service, serviceIndex) => (
         <Accordion
           key={service.name}
           title={service.name}
           defaultOpen
           showEditIcon={false}
-          isEditing={true}
+          isEditing
           showDeleteIcon
-          onDeleteClick={() => removeService(i)}
+          onDeleteClick={() => removeService(serviceIndex)}
         >
           <div className="flex flex-col gap-3">
             <FormInput
               intype="text"
               inname="description"
-              value={service.description || ""}
+              value={service.description || ''}
               inlabel="Description"
-              onChange={(e) =>
-                updateServiceField(i, "description", e.target.value)
+              onChange={(event) =>
+                updateServiceField(serviceIndex, 'description', event.target.value)
               }
               className="min-h-12!"
             />
@@ -142,8 +85,8 @@ const SpecialityCard = ({
               inname="duration"
               value={String(service.durationMinutes)}
               inlabel="Duration (mins)"
-              onChange={(e) =>
-                updateServiceField(i, "durationMinutes", e.target.value)
+              onChange={(event) =>
+                updateServiceField(serviceIndex, 'durationMinutes', event.target.value)
               }
               className="min-h-12!"
             />
@@ -153,7 +96,7 @@ const SpecialityCard = ({
                 inname="charge"
                 value={String(service.cost)}
                 inlabel={`Service charge (${currency})`}
-                onChange={(e) => updateServiceField(i, "cost", e.target.value)}
+                onChange={(event) => updateServiceField(serviceIndex, 'cost', event.target.value)}
                 className="min-h-12!"
               />
               <FormInput
@@ -161,8 +104,8 @@ const SpecialityCard = ({
                 inname="max-discount"
                 value={String(service.maxDiscount)}
                 inlabel="Max discount (%)"
-                onChange={(e) =>
-                  updateServiceField(i, "maxDiscount", e.target.value)
+                onChange={(event) =>
+                  updateServiceField(serviceIndex, 'maxDiscount', event.target.value)
                 }
                 className="min-h-12!"
               />

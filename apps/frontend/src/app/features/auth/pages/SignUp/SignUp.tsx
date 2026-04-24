@@ -15,6 +15,8 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import { IoIosWarning } from 'react-icons/io';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
+import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
 
 import '../AuthPages.css';
 
@@ -26,7 +28,7 @@ type SignUpProps = {
 };
 
 const SignUp = ({
-  postAuthRedirect = '/create-org',
+  postAuthRedirect,
   signinHref = '/signin',
   isDeveloper = false,
 }: Readonly<SignUpProps>) => {
@@ -40,7 +42,17 @@ const SignUp = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agree, setAgree] = useState(false);
 
+  const { clearSignUpDraft } = useSignUpDraft({
+    firstName,
+    lastName,
+    email,
+    setFirstName,
+    setLastName,
+    setEmail,
+  });
+
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [inputErrors, setInputErrors] = useState<{
     confirmPError?: string;
@@ -114,8 +126,10 @@ const SignUp = ({
   };
 
   const handleSignupSuccess = () => {
+    clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
+    setIsSubmitting(false);
     setShowVerifyModal(true);
   };
 
@@ -132,6 +146,7 @@ const SignUp = ({
       iconElement: <Icon icon="mdi:error" width="20" height="20" color="#EA3729" />,
       className: status === 409 ? 'errofoundbg' : 'oppsbg',
     });
+    setIsSubmitting(false);
     setShowVerifyModal(false);
   };
 
@@ -154,6 +169,7 @@ const SignUp = ({
     }
 
     try {
+      setIsSubmitting(true);
       const args: Parameters<typeof signUp> = isDeveloper
         ? [normalizedEmail, password, firstName, lastName, 'developer']
         : [normalizedEmail, password, firstName, lastName];
@@ -176,6 +192,14 @@ const SignUp = ({
       `}
       style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
     >
+      {isSubmitting ? (
+        <YosemiteLoader
+          variant="fullscreen-translucent"
+          label="Creating your account..."
+          size={120}
+          testId="signup-loader"
+        />
+      ) : null}
       <div className="flex gap-10 xl:gap-20 w-full md:max-w-[900px] mx-3 py-3 sm:mx-12 sm:my-12 md:flex-row flex-col items-center md:items-start">
         <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
           <div className="flex w-full items-center justify-center">
@@ -283,7 +307,10 @@ const SignUp = ({
                   inname="password"
                   value={password}
                   inlabel="Set up password"
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setInputErrors((prev) => ({ ...prev, pError: undefined }));
+                  }}
                   error={inputErrors.pError}
                 />
                 <FormInputPass
@@ -291,7 +318,10 @@ const SignUp = ({
                   inname="confirm-password"
                   value={confirmPassword}
                   inlabel="Confirm password"
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setInputErrors((prev) => ({ ...prev, confirmPError: undefined }));
+                  }}
                   error={inputErrors.confirmPError}
                 />
               </div>
@@ -303,17 +333,20 @@ const SignUp = ({
                 label={
                   <>
                     I agree to Yosemite Crew’s{' '}
-                    <Link className="policylink" href="/terms-and-conditions">
+                    <Link className="policylink" href="/terms-and-conditions?ref=signup">
                       terms and conditions
                     </Link>{' '}
                     and{' '}
-                    <Link className="policylink" href="/privacy-policy">
+                    <Link className="policylink" href="/privacy-policy?ref=signup">
                       privacy policy
                     </Link>
                   </>
                 }
                 className="flex! gap-2! items-start text-caption-1 text-text-primary"
-                onChange={(e) => setAgree(e.target.checked)}
+                onChange={(e) => {
+                  setAgree(e.target.checked);
+                  setInputErrors((prev) => ({ ...prev, agree: undefined }));
+                }}
               />
               {/* Show error for terms */}
               {inputErrors.agree && (
@@ -335,7 +368,13 @@ const SignUp = ({
             </div>
 
             <div className="flex flex-col items-center gap-3">
-              <Primary text="Sign up" onClick={handleSignUp} href="#" style={{ width: '100%' }} />
+              <Primary
+                text={isSubmitting ? 'Creating account...' : 'Sign up'}
+                onClick={handleSignUp}
+                href="#"
+                isDisabled={isSubmitting}
+                style={{ width: '100%' }}
+              />
               <div className="text-body-4 text-text-primary auth-inline-text">
                 {' '}
                 Already have an account?{' '}

@@ -12,7 +12,7 @@ import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { formatDateInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
 
-const Team = () => {
+const Team = ({ isVerified = false }: { isVerified?: boolean }) => {
   const teams = useTeamForPrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
@@ -108,7 +108,7 @@ const Team = () => {
         title="Team"
         buttonTitle="Add"
         buttonClick={setAddPopup}
-        showButton={canEditTeam}
+        showButton={canEditTeam && isVerified}
       >
         <AvailabilityTable filteredList={teams} setActive={setActiveTeam} setView={setViewPopup} />
       </AccordionButton>

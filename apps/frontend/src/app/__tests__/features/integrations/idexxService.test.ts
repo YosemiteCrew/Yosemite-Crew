@@ -272,36 +272,76 @@ describe('listIdexxOrders', () => {
 
   it('returns array when data is array', async () => {
     const orders = [{ id: 'o1' }, { id: 'o2' }];
-    getDataMock.mockResolvedValue({ data: orders });
+    postDataMock.mockResolvedValue({ data: orders });
     const result = await listIdexxOrders({ organisationId: 'org-1' });
     expect(result).toEqual(orders);
   });
 
   it('returns orders from object payload', async () => {
     const orders = [{ id: 'o1' }];
-    getDataMock.mockResolvedValue({ data: { orders } });
+    postDataMock.mockResolvedValue({ data: { orders } });
     const result = await listIdexxOrders({ organisationId: 'org-1' });
     expect(result).toEqual(orders);
   });
 
   it('returns empty array when orders property is missing', async () => {
-    getDataMock.mockResolvedValue({ data: {} });
+    postDataMock.mockResolvedValue({ data: {} });
     const result = await listIdexxOrders({ organisationId: 'org-1' });
     expect(result).toEqual([]);
   });
 
-  it('passes appointmentId when provided', async () => {
-    getDataMock.mockResolvedValue({ data: [] });
+  it('posts appointmentId when provided', async () => {
+    postDataMock.mockResolvedValue({ data: [] });
     await listIdexxOrders({ organisationId: 'org-1', appointmentId: 'appt-1' });
-    expect(getDataMock).toHaveBeenCalledWith('/v1/labs/pms/organisation/org-1/idexx/orders', {
-      appointmentId: 'appt-1',
-    });
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/labs/pms/organisation/org-1/idexx/orders/search',
+      {
+        appointmentId: 'appt-1',
+      }
+    );
   });
 
-  it('passes empty object when no appointmentId', async () => {
-    getDataMock.mockResolvedValue({ data: [] });
+  it('posts companionId, status, and limit when provided', async () => {
+    postDataMock.mockResolvedValue({ data: [] });
+    await listIdexxOrders({
+      organisationId: 'org-1',
+      companionId: 'comp-1',
+      status: 'SUBMITTED',
+      limit: 10,
+    });
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/labs/pms/organisation/org-1/idexx/orders/search',
+      {
+        companionId: 'comp-1',
+        status: 'SUBMITTED',
+        limit: 10,
+      }
+    );
+  });
+
+  it('posts merged search filters when multiple are provided', async () => {
+    postDataMock.mockResolvedValue({ data: [] });
+    await listIdexxOrders({
+      organisationId: 'org-1',
+      appointmentId: 'appt-1',
+      companionId: 'comp-1',
+    });
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/labs/pms/organisation/org-1/idexx/orders/search',
+      {
+        appointmentId: 'appt-1',
+        companionId: 'comp-1',
+      }
+    );
+  });
+
+  it('posts empty object when no search filters are provided', async () => {
+    postDataMock.mockResolvedValue({ data: [] });
     await listIdexxOrders({ organisationId: 'org-1' });
-    expect(getDataMock).toHaveBeenCalledWith('/v1/labs/pms/organisation/org-1/idexx/orders', {});
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/labs/pms/organisation/org-1/idexx/orders/search',
+      {}
+    );
   });
 });
 

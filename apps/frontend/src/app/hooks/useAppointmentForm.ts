@@ -221,9 +221,8 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     preserveExistingSelection: boolean = false
   ) => {
     if (!previousSlot) return preserveExistingSelection ? null : (availableSlots[0] ?? null);
-    const matchingSlot = availableSlots.find(
-      (slot) => slot.startTime === previousSlot.startTime && slot.endTime === previousSlot.endTime
-    );
+    // Match on startTime only — different services can have different durations so endTime varies.
+    const matchingSlot = availableSlots.find((slot) => slot.startTime === previousSlot.startTime);
     return matchingSlot ?? (preserveExistingSelection ? null : (availableSlots[0] ?? null));
   };
 

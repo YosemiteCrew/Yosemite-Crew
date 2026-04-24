@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 
 import Header from '@/app/ui/layout/Header/Header';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useAuthStore } from '@/app/stores/authStore';
 import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
 import UniversalSearchPalette from '@/app/ui/layout/UniversalSearch/UniversalSearchPalette';
@@ -142,6 +143,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   }, [primaryOrgId]);
 
   const isChecking = status === 'idle' || status === 'checking';
+  useFullscreenLoader('session-initializer', isChecking);
 
   return (
     <div className="flex h-screen flex-1 lg:overflow-hidden">

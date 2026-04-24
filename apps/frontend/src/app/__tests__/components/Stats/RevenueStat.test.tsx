@@ -17,6 +17,9 @@ jest.mock('@/app/features/dashboard/hooks/useDashboardAnalytics', () => ({
     durationOptions: {
       revenue: ['Last 6 months'],
     },
+    emptyState: {
+      revenueChart: false,
+    },
   }),
 }));
 

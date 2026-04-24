@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useAuthStore } from '@/app/stores/authStore';
 
 type ProtectedRouteProps = {
@@ -25,6 +26,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const isAuthed = status === 'authenticated' || status === 'signin-authenticated';
 
   const isAuthGuardDisabled = isLocalGuardBypassEnabled();
+  useFullscreenLoader('auth-guard', !isAuthGuardDisabled && isChecking);
 
   useEffect(() => {
     if (isAuthGuardDisabled) return;

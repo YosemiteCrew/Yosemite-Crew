@@ -17,6 +17,7 @@ type ChartProps = {
   data: any[];
   type?: 'bar' | 'line';
   keys: { name: string; color: string }[];
+  isEmpty?: boolean;
   yTickFormatter?: (value: number) => string;
   yAxisWidth?: number;
   chartHeight?: number;
@@ -277,10 +278,25 @@ const ChartLegend = ({ keys }: { keys: ChartKey[] }) => (
   </div>
 );
 
+const EmptyChartState = ({ height }: { height: number }) => (
+  <div
+    className="flex flex-col items-center justify-center gap-2 text-text-tertiary"
+    style={{ height }}
+  >
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+      <rect x="4" y="24" width="8" height="12" rx="2" fill="#E7E7E7" />
+      <rect x="16" y="16" width="8" height="20" rx="2" fill="#E7E7E7" />
+      <rect x="28" y="10" width="8" height="26" rx="2" fill="#E7E7E7" />
+    </svg>
+    <span className="text-body-3">No data available</span>
+  </div>
+);
+
 const DynamicChartCard: React.FC<ChartProps> = ({
   data,
   type = 'bar',
   keys,
+  isEmpty = false,
   yTickFormatter,
   yAxisWidth,
   chartHeight = 300,
@@ -316,39 +332,43 @@ const DynamicChartCard: React.FC<ChartProps> = ({
     <div className="bg-white border border-card-border p-3 flex flex-col gap-2 rounded-2xl">
       {headerContent}
       {!hideKeys && !headerContent && <ChartLegend keys={keys} />}
-      <ResponsiveContainer width="100%" height={chartHeight}>
-        {type === 'line' ? (
-          <LineChartContent
-            data={data}
-            chartMargin={chartMargin}
-            keys={keys}
-            yTickFormatter={yTickFormatter}
-            xAxisLabel={effectiveXAxisLabel}
-            yAxisLabel={yAxisLabel}
-            compactMonthAxis={compactMonthAxis}
-            xAxisDataKey={xAxisDataKey}
-            xAxisType={xAxisType}
-            xAxisTicks={xAxisTicks}
-            xAxisDomain={xAxisDomain}
-            xTickFormatter={xTickFormatter}
-            tooltipLabelFormatter={tooltipLabelFormatter}
-          />
-        ) : (
-          <BarChartContent
-            data={data}
-            layout={layout}
-            isVerticalLayout={isVerticalLayout}
-            chartMargin={chartMargin}
-            keys={keys}
-            yTickFormatter={yTickFormatter}
-            yAxisWidth={yAxisWidth}
-            xAxisLabel={effectiveXAxisLabel}
-            yAxisLabel={yAxisLabel}
-            barSize={barSize}
-            compactMonthAxis={compactMonthAxis}
-          />
-        )}
-      </ResponsiveContainer>
+      {isEmpty ? (
+        <EmptyChartState height={chartHeight} />
+      ) : (
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          {type === 'line' ? (
+            <LineChartContent
+              data={data}
+              chartMargin={chartMargin}
+              keys={keys}
+              yTickFormatter={yTickFormatter}
+              xAxisLabel={effectiveXAxisLabel}
+              yAxisLabel={yAxisLabel}
+              compactMonthAxis={compactMonthAxis}
+              xAxisDataKey={xAxisDataKey}
+              xAxisType={xAxisType}
+              xAxisTicks={xAxisTicks}
+              xAxisDomain={xAxisDomain}
+              xTickFormatter={xTickFormatter}
+              tooltipLabelFormatter={tooltipLabelFormatter}
+            />
+          ) : (
+            <BarChartContent
+              data={data}
+              layout={layout}
+              isVerticalLayout={isVerticalLayout}
+              chartMargin={chartMargin}
+              keys={keys}
+              yTickFormatter={yTickFormatter}
+              yAxisWidth={yAxisWidth}
+              xAxisLabel={effectiveXAxisLabel}
+              yAxisLabel={yAxisLabel}
+              barSize={barSize}
+              compactMonthAxis={compactMonthAxis}
+            />
+          )}
+        </ResponsiveContainer>
+      )}
       {footerContent}
     </div>
   );

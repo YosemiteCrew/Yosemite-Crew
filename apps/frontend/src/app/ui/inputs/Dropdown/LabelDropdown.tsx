@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { FaCaretDown } from "react-icons/fa6";
-import { IoIosWarning } from "react-icons/io";
-import { useDropdown, useFilteredOptions, DropdownOption } from "@/app/hooks/useDropdown";
+import React, { useEffect, useState } from 'react';
+import { FaCaretDown } from 'react-icons/fa6';
+import { IoIosWarning } from 'react-icons/io';
+import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
 
 type DropdownProps = {
   placeholder: string;
@@ -9,6 +9,7 @@ type DropdownProps = {
   defaultOption?: string;
   onSelect: (option: DropdownOption) => void;
   error?: string;
+  hasError?: boolean;
   searchable?: boolean;
 };
 
@@ -18,6 +19,7 @@ const LabelDropdown = ({
   defaultOption,
   onSelect,
   error,
+  hasError,
   searchable = true,
 }: DropdownProps) => {
   const [selected, setSelected] = useState<DropdownOption | null>(null);
@@ -53,7 +55,7 @@ const LabelDropdown = ({
     <div className="w-full relative" ref={dropdownRef}>
       <button
         type="button"
-        className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer ${open ? "border-input-text-placeholder-active! rounded-t-2xl!" : "border-input-border-default! rounded-2xl!"} ${!selected && error && "border-input-border-error!"}`}
+        className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer bg-(--whitebg) ${open ? 'border-input-text-placeholder-active! rounded-t-2xl! relative z-20' : 'border-input-border-default! rounded-2xl!'} ${error || hasError ? 'border-input-border-error!' : ''}`}
         onClick={() => {
           if (!open) {
             openDropdown();
@@ -71,9 +73,7 @@ const LabelDropdown = ({
           />
         )}
         {(!open || !searchable) && selected && (
-          <div className="text-black-text text-body-4 max-w-[200px] truncate">
-            {selected.label}
-          </div>
+          <div className="text-black-text text-body-4 max-w-[200px] truncate">{selected.label}</div>
         )}
         {(!open || !searchable) && !selected && (
           <div className="text-input-text-placeholder text-body-4 max-w-[200px] truncate">
@@ -82,7 +82,7 @@ const LabelDropdown = ({
         )}
         <FaCaretDown
           size={20}
-          className={`text-black-text transition-transform cursor-pointer shrink-0 ${open ? "rotate-180" : ""}`}
+          className={`text-black-text transition-transform cursor-pointer shrink-0 ${open ? 'rotate-180' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
             toggleDropdown();
@@ -117,15 +117,15 @@ const LabelDropdown = ({
             ))}
           {filteredOptions.length === 0 && (
             <div className="text-caption-1 py-3 text-text-primary text-center">
-              {searchQuery ? "No matches found" : "No options"}
+              {searchQuery ? 'No matches found' : 'No options'}
             </div>
           )}
         </div>
       )}
-      {!open && !selected && error && (
+      {error && (
         <div
           className={`
-            mt-1.5 flex items-center gap-1 px-4
+            min-h-6 mt-1.5 flex items-center gap-1 px-4
             text-caption-2 text-text-error
             `}
         >

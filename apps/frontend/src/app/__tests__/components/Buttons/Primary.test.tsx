@@ -1,31 +1,38 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-jest.mock("next/link", () => {
+jest.mock('next/link', () => {
   return ({ children, ...props }: any) => <a {...props}>{children}</a>;
 });
 
-import Primary from "@/app/ui/primitives/Buttons/Primary";
+import Primary from '@/app/ui/primitives/Buttons/Primary';
 
-describe("Primary button", () => {
-  test("renders the provided text and href", () => {
+describe('Primary button', () => {
+  test('renders the provided text and href', () => {
     render(<Primary text="Book onboarding call" href="/book-demo" />);
 
-    const link = screen.getByRole("link", { name: "Book onboarding call" });
+    const link = screen.getByRole('link', { name: 'Book onboarding call' });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/book-demo");
+    expect(link).toHaveAttribute('href', '/book-demo');
   });
 
-  test("prevents default navigation and calls onClick handler", () => {
+  test('prevents default navigation and calls onClick handler', () => {
     const handleClick = jest.fn();
 
     render(<Primary text="Next" href="/next" onClick={handleClick} />);
 
-    const link = screen.getByRole("link", { name: "Next" });
+    const link = screen.getByRole('link', { name: 'Next' });
     fireEvent.click(link);
 
     expect(handleClick).toHaveBeenCalledTimes(1);
     expect(handleClick.mock.calls[0][0].defaultPrevented).toBe(true);
+  });
+
+  test('renders an icon alongside the button text', () => {
+    render(<Primary text="Add Appointment" icon={<span data-testid="primary-icon" />} />);
+
+    expect(screen.getByRole('button', { name: 'Add Appointment' })).toBeInTheDocument();
+    expect(screen.getByTestId('primary-icon')).toBeInTheDocument();
   });
 });

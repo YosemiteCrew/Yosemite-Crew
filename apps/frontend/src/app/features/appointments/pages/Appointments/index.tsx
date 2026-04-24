@@ -15,6 +15,8 @@ import {
   useCompanionsParentsForPrimaryOrg,
   useLoadCompanionsForPrimaryOrg,
 } from '@/app/hooks/useCompanion';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { useAuthStore } from '@/app/stores/authStore';
 import { Appointment } from '@yosemite-crew/types';
 import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
 import ChangeStatus from '@/app/features/appointments/pages/Appointments/Sections/ChangeStatus';
@@ -101,8 +103,31 @@ const Appointments = () => {
     [rawAppointments, companionMetaById]
   );
   const { can } = usePermissions();
-  const canEditAppointments =
-    can(PERMISSIONS.APPOINTMENTS_EDIT_ANY) || can(PERMISSIONS.APPOINTMENTS_EDIT_OWN);
+  const canEditAny = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
+  const canEditOwn = can(PERMISSIONS.APPOINTMENTS_EDIT_OWN);
+  const canEditAppointments = canEditAny || canEditOwn;
+
+  const team = useTeamForPrimaryOrg();
+  const authUserId = useAuthStore(
+    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
+  );
+  const normalizeLeadId = (value?: string | null) =>
+    String(value ?? '')
+      .trim()
+      .split('/')
+      .pop()
+      ?.toLowerCase() ?? '';
+  const currentUserLeadId = useMemo(() => {
+    const normalizedCurrentUser = normalizeLeadId(authUserId);
+    if (!normalizedCurrentUser) return '';
+    const member = team.find(
+      (item) =>
+        normalizeLeadId(item.practionerId) === normalizedCurrentUser ||
+        normalizeLeadId(item._id) === normalizedCurrentUser
+    );
+    return normalizeLeadId(member?.practionerId || member?._id);
+  }, [authUserId, team]);
+
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
@@ -121,11 +146,21 @@ const Appointments = () => {
   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(
     appointments[0] ?? null
   );
+  const canEditActiveAppointment = useMemo(() => {
+    if (!canEditOwn && !canEditAny) return false;
+    if (canEditAny) return true;
+    if (!activeAppointment) return false;
+    return normalizeLeadId(activeAppointment.lead?.id) === currentUserLeadId;
+  }, [canEditAny, canEditOwn, activeAppointment, currentUserLeadId]);
+
   const [activeCalendar, setActiveCalendar] = useState('team');
   const [activeView, setActiveView] = useState<string>(resolveDefaultAppointmentsView);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
-  const { plannerSectionRef } = usePlannerAutoLock({ activeView });
+  const { plannerSectionRef } = usePlannerAutoLock({
+    activeView,
+    topOffset: activeView === 'list' ? 72 : 16,
+  });
 
   useEffect(() => {
     if (activeCalendar === 'week') {
@@ -223,6 +258,18 @@ const Appointments = () => {
     handledDeepLinkRef.current = deepLinkKey;
   }, [appointments, searchParams]);
 
+  const hasEmergency = useMemo(
+    () =>
+      appointments.some(
+        (a) =>
+          a.isEmergency &&
+          a.status !== 'CANCELLED' &&
+          a.status !== 'COMPLETED' &&
+          a.status !== 'NO_SHOW'
+      ),
+    [appointments]
+  );
+
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filterWanted = activeFilter.toLowerCase();
@@ -250,10 +297,15 @@ const Appointments = () => {
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView,
     listWrapperClassName:
-      'w-full flex flex-col gap-3 h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
+      'w-full flex flex-col gap-3 h-[calc(100vh-236px)] min-h-[540px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
     plannerClassName:
-      'w-full h-[calc(100vh-248px)] min-h-[588px] max-h-[calc(100vh-248px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
+      'w-full h-[calc(100vh-236px)] min-h-[500px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
   });
+
+  const openAddAppointment = () => {
+    setAddAppointmentPrefill(null);
+    setAddPopup(true);
+  };
 
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
@@ -279,10 +331,14 @@ const Appointments = () => {
           setAddAppointmentPrefill(prefill);
           setAddPopup(true);
         }}
-        onAddAppointment={() => {
-          setAddAppointmentPrefill(null);
-          setAddPopup(true);
-        }}
+        onAddAppointment={openAddAppointment}
+        filterOptions={AppointmentFilters}
+        statusOptions={AppointmentStatusFiltersUI}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        activeStatus={activeStatus}
+        setActiveStatus={setActiveStatus}
+        hasEmergency={hasEmergency}
       />
     );
   } else if (activeView === 'board') {
@@ -299,10 +355,10 @@ const Appointments = () => {
         setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
         setReschedulePopup={setReschedulePopup}
         setChangeRoomPopup={setChangeRoomPopup}
-        onAddAppointment={() => {
-          setAddAppointmentPrefill(null);
-          setAddPopup(true);
-        }}
+        onAddAppointment={openAddAppointment}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        hasEmergency={hasEmergency}
       />
     );
   } else {
@@ -333,12 +389,12 @@ const Appointments = () => {
           count={appointments.length}
           activeView={activeView}
           setActiveView={setActiveView}
-          showAdd={canEditAppointments}
+          showAdd={false}
         />
 
         <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]} fallback={<Fallback />}>
           <div className={wrapperClassName}>
-            {activeView !== 'board' && (
+            {activeView === 'list' && (
               <Filters
                 filterOptions={AppointmentFilters}
                 statusOptions={AppointmentStatusFiltersUI}
@@ -346,6 +402,9 @@ const Appointments = () => {
                 activeStatus={activeStatus}
                 setActiveFilter={setActiveFilter}
                 setActiveStatus={setActiveStatus}
+                hasEmergency={hasEmergency}
+                showAddButton={canEditAppointments}
+                onAddButtonClick={openAddAppointment}
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>
@@ -367,7 +426,7 @@ const Appointments = () => {
               setShowModal={setViewPopup}
               activeAppointment={activeAppointment}
               initialViewIntent={viewIntent}
-              canEditAppointments={canEditAppointments}
+              canEditAppointments={canEditActiveAppointment}
               onReschedule={(appointment) => {
                 setActiveAppointment(appointment);
                 setViewPopup(false);

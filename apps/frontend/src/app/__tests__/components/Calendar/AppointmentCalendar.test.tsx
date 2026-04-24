@@ -268,8 +268,8 @@ describe('AppointmentCalendar', () => {
 
   it('blocks status change when appointment has no allowed next action', () => {
     (canShowStatusChangeAction as jest.Mock).mockReturnValue(false);
-    renderCalendar();
-    const props = dayCalendarSpy.mock.calls[0][0];
+    renderCalendar({ activeCalendar: 'week' });
+    const props = weekCalendarSpy.mock.calls[0][0];
 
     act(() => {
       props.handleChangeStatusAppointment(appointments[0]);
@@ -311,8 +311,8 @@ describe('AppointmentCalendar', () => {
   });
 
   it('opens status-change popup with preferred next status', () => {
-    renderCalendar();
-    const props = dayCalendarSpy.mock.calls[0][0];
+    renderCalendar({ activeCalendar: 'week' });
+    const props = weekCalendarSpy.mock.calls[0][0];
 
     act(() => {
       props.handleChangeStatusAppointment(appointments[0]);
