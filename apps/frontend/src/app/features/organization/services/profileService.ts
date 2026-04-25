@@ -58,9 +58,35 @@ const syncProfileTimezoneToLocalDevice = async (
   }
 };
 
-export const loadProfiles = async (opts?: { silent?: boolean }) => {
-  const { startLoading, setProfiles } = useUserProfileStore.getState();
+const fetchProfileForOrg = async (orgId: string): Promise<UserProfile | null> => {
+  try {
+    const res = await getData<any>(
+      `/fhir/v1/user-profile/${orgId}/profile`,
+      {},
+      { suppressStatuses: [404] }
+    );
+    const profile = res.data?.profile as UserProfile;
+    return await syncProfileTimezoneToLocalDevice(orgId, profile);
+  } catch (err: any) {
+    if (err?.response?.status !== 404) {
+      console.error(`Failed to fetch profile for orgId: ${orgId}`, err);
+    }
+    return null;
+  }
+};
+
+export const loadProfiles = async (opts?: { silent?: boolean; orgId?: string }) => {
+  const { startLoading, setProfiles, addProfile, updateProfile } = useUserProfileStore.getState();
   const { orgIds } = useOrgStore.getState();
+
+  // Single-org fast path — used during org switch to avoid fan-out
+  if (opts?.orgId) {
+    if (!opts?.silent) startLoading();
+    const profile = await fetchProfileForOrg(opts.orgId);
+    if (profile) updateProfile(profile);
+    return;
+  }
+
   if (loadProfilesPromise) {
     return loadProfilesPromise;
   }
@@ -74,15 +100,8 @@ export const loadProfiles = async (opts?: { silent?: boolean }) => {
     const temp: UserProfile[] = [];
     await Promise.allSettled(
       orgIds.map(async (orgId) => {
-        try {
-          const res = await getData<any>(`/fhir/v1/user-profile/${orgId}/profile`);
-          const pro = res.data;
-          const profile = pro.profile as UserProfile;
-          const syncedProfile = await syncProfileTimezoneToLocalDevice(orgId, profile);
-          temp.push(syncedProfile);
-        } catch (err) {
-          console.error(`Failed to fetch profile for orgId: ${orgId}`, err);
-        }
+        const profile = await fetchProfileForOrg(orgId);
+        if (profile) temp.push(profile);
       })
     );
     setProfiles(temp);
@@ -111,7 +130,11 @@ export const createUserProfile = async (formData: UserProfile, orgIdFromQuery: s
     // Check if profile exists and is in DRAFT status
     let isDraft = false;
     try {
-      const existingProfile = await getData<{ profile: UserProfile }>(endpoint);
+      const existingProfile = await getData<{ profile: UserProfile }>(
+        endpoint,
+        {},
+        { suppressStatuses: [404] }
+      );
       if (existingProfile.data?.profile?.status === 'DRAFT') {
         isDraft = true;
       }

@@ -22,6 +22,7 @@ import { useUserProfileStore } from '@/app/stores/profileStore';
 import { BillingCounter, BillingSubscription } from '@/app/features/billing/types/billing';
 import { useCounterStore } from '@/app/stores/counterStore';
 import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
+import { ROLE_PERMISSIONS } from '@/app/lib/permissions';
 
 type MappingResponse = {
   mapping: UserOrganizationRequestDTO;
@@ -100,9 +101,12 @@ export const createOrg = async (formData: Organisation) => {
     const ownerMapping: UserOrganization = {
       practitionerReference: practitionerId,
       organizationReference: _id,
-      roleCode: 'owner',
+      roleCode: 'OWNER',
       roleDisplay: 'Owner',
       active: false,
+      effectivePermissions: ROLE_PERMISSIONS.OWNER,
+      extraPermissions: [],
+      revokedPermissions: [],
     };
     upsertUserOrgMapping(ownerMapping);
     return _id;

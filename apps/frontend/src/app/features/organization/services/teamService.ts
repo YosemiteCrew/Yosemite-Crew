@@ -165,14 +165,16 @@ export const getProfileForUserForPrimaryOrg = async (userId: string) => {
   }
   try {
     if (!userId) {
-      return [];
+      return null;
     }
     const res = await getData('/fhir/v1/user-profile/' + userId + '/' + primaryOrgId + '/profile');
-    const data = res.data;
-    return data;
-  } catch (err) {
-    console.error('Failed to create service:', err);
-    throw err;
+    return res.data;
+  } catch (err: any) {
+    // 404 = member hasn't completed profile yet — expected pre-onboarding state
+    if (err?.response?.status !== 404) {
+      console.error('Failed to load member profile:', err);
+    }
+    return null;
   }
 };
 
