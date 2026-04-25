@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useRouteLoaderStore } from '@/app/stores/routeLoaderStore';
+import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 
 const ROUTE_LOADER_ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 
@@ -58,6 +59,7 @@ const RouteLoaderOverlay = () => {
       return;
     }
     stopRouteLoader();
+    useFullscreenLoaderStore.getState().hide('org-switch');
   }, [pathname, searchKey]);
 
   useEffect(() => {

@@ -11,6 +11,7 @@ import './DataTable.css';
 import { toTitleCase } from '@/app/lib/validators';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
+import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 
 type Column<T> = {
   label: string;
@@ -41,12 +42,15 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
   const handleOrgClick = async (org: OrgWithMembership) => {
     const id = org.org._id?.toString() || org.org.name;
     setPrimaryOrg(id);
+    const { show, hide } = useFullscreenLoaderStore.getState();
+    show('org-switch');
     startRouteLoader();
     try {
       const role = org.membership?.roleDisplay ?? org.membership?.roleCode;
       const nextRoute = await resolveOrgScopedRedirect({ orgId: id, fallbackRole: role });
       router.push(nextRoute);
     } catch {
+      hide('org-switch');
       stopRouteLoader();
     }
   };
