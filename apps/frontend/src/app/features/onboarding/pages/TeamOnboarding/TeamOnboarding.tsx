@@ -72,13 +72,6 @@ const EMPTY_PROFILE: UserProfile = {
   updatedAt: '',
 };
 
-const RedirectingOverlay = () => (
-  <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 bg-white/80 backdrop-blur-sm">
-    <div className="w-10 h-10 rounded-full border-4 border-neutral-200 border-t-text-brand animate-spin" />
-    <div className="text-body-3 text-text-secondary">Setting up your profile…</div>
-  </div>
-);
-
 const TeamOnboarding = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -115,7 +108,9 @@ const TeamOnboarding = () => {
   const [isSaving, setIsSaving] = useState(false);
   // Shown after the final step saves and we're about to redirect
   const [isRedirecting, setIsRedirecting] = useState(false);
-  useFullscreenLoader('team-onboarding-submit', isSaving || isRedirecting);
+  const shouldBlockForRedirect =
+    isRedirecting || (isReady && (computedStep === 3 || shouldRedirectToOrganizations));
+  useFullscreenLoader('team-onboarding-submit', isSaving || shouldBlockForRedirect);
 
   // Refs to each step's validate() handle
   const personalRef = useRef<StepHandle>(null);
@@ -136,6 +131,7 @@ const TeamOnboarding = () => {
     if (!isReady) return;
 
     if (shouldRedirectToOrganizations) {
+      setIsRedirecting(true);
       router.replace('/organizations');
       return;
     }
@@ -180,6 +176,10 @@ const TeamOnboarding = () => {
     );
   }
 
+  if (shouldBlockForRedirect) {
+    return null;
+  }
+
   const nextStep = () => setActiveStep((s) => Math.min(s + 1, TeamSteps.length - 1));
   const prevStep = () => setActiveStep((s) => Math.max(s - 1, 0));
 
@@ -209,55 +209,52 @@ const TeamOnboarding = () => {
   };
 
   return (
-    <>
-      {isRedirecting && <RedirectingOverlay />}
-      <div className="create-profile-wrapper">
-        <Progress
-          activeStep={activeStep}
-          steps={TeamSteps}
-          canSelectStep={canSelectStep}
-          onStepSelect={handleStepSelect}
-        />
-        <div className="flex flex-col gap-6">
-          <div className="create-profile-title">Create profile</div>
-          {activeStep === 0 && (
-            <PersonalStep
-              ref={personalRef}
-              nextStep={nextStep}
-              formData={formData}
-              setFormData={setFormData}
-              orgIdFromQuery={orgIdFromQuery}
-              isSaving={isSaving}
-              setIsSaving={setIsSaving}
-            />
-          )}
-          {activeStep === 1 && (
-            <ProfessionalStep
-              ref={professionalRef}
-              nextStep={nextStep}
-              prevStep={prevStep}
-              formData={formData}
-              setFormData={setFormData}
-              orgIdFromQuery={orgIdFromQuery}
-              isSaving={isSaving}
-              setIsSaving={setIsSaving}
-            />
-          )}
-          {activeStep === 2 && (
-            <AvailabilityStep
-              ref={availabilityRef}
-              prevStep={prevStep}
-              orgIdFromQuery={orgIdFromQuery}
-              availability={availability}
-              setAvailability={setAvailability}
-              isSaving={isSaving}
-              setIsSaving={setIsSaving}
-              setIsRedirecting={setIsRedirecting}
-            />
-          )}
-        </div>
+    <div className="create-profile-wrapper">
+      <Progress
+        activeStep={activeStep}
+        steps={TeamSteps}
+        canSelectStep={canSelectStep}
+        onStepSelect={handleStepSelect}
+      />
+      <div className="flex flex-col gap-6">
+        <div className="create-profile-title">Create organization profile</div>
+        {activeStep === 0 && (
+          <PersonalStep
+            ref={personalRef}
+            nextStep={nextStep}
+            formData={formData}
+            setFormData={setFormData}
+            orgIdFromQuery={orgIdFromQuery}
+            isSaving={isSaving}
+            setIsSaving={setIsSaving}
+          />
+        )}
+        {activeStep === 1 && (
+          <ProfessionalStep
+            ref={professionalRef}
+            nextStep={nextStep}
+            prevStep={prevStep}
+            formData={formData}
+            setFormData={setFormData}
+            orgIdFromQuery={orgIdFromQuery}
+            isSaving={isSaving}
+            setIsSaving={setIsSaving}
+          />
+        )}
+        {activeStep === 2 && (
+          <AvailabilityStep
+            ref={availabilityRef}
+            prevStep={prevStep}
+            orgIdFromQuery={orgIdFromQuery}
+            availability={availability}
+            setAvailability={setAvailability}
+            isSaving={isSaving}
+            setIsSaving={setIsSaving}
+            setIsRedirecting={setIsRedirecting}
+          />
+        )}
       </div>
-    </>
+    </div>
   );
 };
 

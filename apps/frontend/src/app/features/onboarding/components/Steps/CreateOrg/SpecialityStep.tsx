@@ -41,6 +41,7 @@ type SpecialityStepProps = {
   formData: Organisation;
   initialSpecialities: SpecialityWeb[];
   isExistingOrg: boolean;
+  onRedirectingChange?: (isRedirecting: boolean) => void;
   prevStep: () => void;
   specialities: SpecialityWeb[];
   setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
@@ -115,6 +116,7 @@ const SpecialityStep = ({
   formData,
   initialSpecialities,
   isExistingOrg,
+  onRedirectingChange,
   prevStep,
   specialities,
   setFormData,
@@ -400,6 +402,7 @@ const SpecialityStep = ({
 
     try {
       setIsSubmitting(true);
+      onRedirectingChange?.(true);
       setError(null);
 
       let resolvedOrgId = organisationId;
@@ -440,6 +443,7 @@ const SpecialityStep = ({
       );
       if (deleteResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your specialties. Please try again.');
+        onRedirectingChange?.(false);
         setIsSubmitting(false);
         return;
       }
@@ -457,6 +461,7 @@ const SpecialityStep = ({
 
       if (createdSpecialityResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your specialties. Please try again.');
+        onRedirectingChange?.(false);
         setIsSubmitting(false);
         return;
       }
@@ -543,6 +548,7 @@ const SpecialityStep = ({
       ]);
       if (serviceResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your services. Please try again.');
+        onRedirectingChange?.(false);
         setIsSubmitting(false);
         return;
       }
@@ -559,6 +565,7 @@ const SpecialityStep = ({
         ? (submissionError.response?.data?.message ?? submissionError.message)
         : 'We could not save your specialties. Please try again.';
       setError(message);
+      onRedirectingChange?.(false);
       setIsSubmitting(false);
     }
   };
