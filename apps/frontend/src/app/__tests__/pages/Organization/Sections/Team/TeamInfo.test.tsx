@@ -451,6 +451,50 @@ describe('TeamInfo', () => {
     );
   });
 
+  it('allows a team editor to update another non-owner member address and availability', async () => {
+    editableSavePayloads['Address details'] = {
+      addressLine: 'Street 2',
+      state: 'KA',
+      city: 'Bengaluru',
+      postalCode: '560001',
+    };
+
+    render(
+      <TeamInfo
+        showModal
+        setShowModal={setShowModal}
+        activeTeam={{ ...activeTeam, practionerId: 'Practitioner/prac-2' }}
+        canEditTeam={true}
+      />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    expect(screen.getByText('availability-editable')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'save-Address details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
+
+    await waitFor(() => {
+      expect(upsertUserProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          personalDetails: expect.objectContaining({
+            address: expect.objectContaining({
+              addressLine: 'Street 2',
+              state: 'KA',
+              city: 'Bengaluru',
+              postalCode: '560001',
+            }),
+          }),
+        })
+      );
+    });
+    expect(upsertTeamAvailability).toHaveBeenCalledWith(
+      expect.objectContaining({ practionerId: 'Practitioner/prac-2' }),
+      convertedAvailability,
+      null
+    );
+  });
+
   it('does not save availability when none is selected', async () => {
     (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(false);
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});

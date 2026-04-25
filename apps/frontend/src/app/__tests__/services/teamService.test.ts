@@ -328,9 +328,9 @@ describe('Team Service', () => {
       expect(result).toEqual([]);
     });
 
-    it('returns [] if userId is missing', async () => {
+    it('returns null if userId is missing', async () => {
       const result = await getProfileForUserForPrimaryOrg('');
-      expect(result).toEqual([]);
+      expect(result).toBeNull();
       expect(axios.getData).not.toHaveBeenCalled();
     });
 
@@ -343,12 +343,22 @@ describe('Team Service', () => {
       expect(result).toEqual({ name: 'Profile' });
     });
 
-    it('logs and throws on error', async () => {
-      const error = new Error('Profile Error');
+    it('returns null silently on 404 (member has no profile yet)', async () => {
+      const error = Object.assign(new Error('Not Found'), { response: { status: 404 } });
       (axios.getData as jest.Mock).mockRejectedValue(error);
 
-      await expect(getProfileForUserForPrimaryOrg('user-1')).rejects.toThrow('Profile Error');
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to create service:', error);
+      const result = await getProfileForUserForPrimaryOrg('user-1');
+      expect(result).toBeNull();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('logs and returns null on non-404 errors', async () => {
+      const error = Object.assign(new Error('Server Error'), { response: { status: 500 } });
+      (axios.getData as jest.Mock).mockRejectedValue(error);
+
+      const result = await getProfileForUserForPrimaryOrg('user-1');
+      expect(result).toBeNull();
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to load member profile:', error);
     });
   });
 

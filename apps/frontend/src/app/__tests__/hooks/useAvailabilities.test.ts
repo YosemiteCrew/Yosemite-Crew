@@ -6,7 +6,10 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { loadAvailability } from '@/app/features/organization/services/availabilityService';
 
 jest.mock('@/app/stores/orgStore', () => ({ useOrgStore: jest.fn() }));
-jest.mock('@/app/stores/availabilityStore', () => ({ useAvailabilityStore: jest.fn() }));
+const mockAvailGetState = jest.fn(() => ({ status: 'idle' }));
+jest.mock('@/app/stores/availabilityStore', () => ({
+  useAvailabilityStore: Object.assign(jest.fn(), { getState: () => mockAvailGetState() }),
+}));
 jest.mock('@/app/stores/authStore', () => ({ useAuthStore: jest.fn() }));
 jest.mock('@/app/features/organization/services/availabilityService', () => ({
   loadAvailability: jest.fn(),
@@ -23,22 +26,34 @@ const mockUseAuthStore = useAuthStore as unknown as jest.Mock;
 describe('useLoadAvailabilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseOrgStore.mockImplementation((selector: any) => selector({ orgIds: ['org-1'] }));
-    mockUseAvailabilityStore.mockImplementation((selector: any) => selector({ status: 'idle' }));
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({ availabilityIdsByOrgId: {} })
+    );
+    mockAvailGetState.mockReturnValue({ status: 'idle' });
   });
 
-  it('loads availability when idle and orgs exist', () => {
+  it('loads availability when primaryOrgId set and not yet loaded', () => {
     renderHook(() => useLoadAvailabilities());
-    expect(loadAvailability).toHaveBeenCalled();
+    expect(loadAvailability).toHaveBeenCalledWith({ silent: true, orgId: 'org-1' });
   });
 
-  it('skips load when no orgs or already loading', () => {
-    mockUseOrgStore.mockImplementation((selector: any) => selector({ orgIds: [] }));
+  it('skips load when no primaryOrgId', () => {
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: null }));
     renderHook(() => useLoadAvailabilities());
     expect(loadAvailability).not.toHaveBeenCalled();
+  });
 
-    mockUseOrgStore.mockImplementation((selector: any) => selector({ orgIds: ['org-1'] }));
-    mockUseAvailabilityStore.mockImplementation((selector: any) => selector({ status: 'loading' }));
+  it('skips load when already loading', () => {
+    mockAvailGetState.mockReturnValue({ status: 'loading' });
+    renderHook(() => useLoadAvailabilities());
+    expect(loadAvailability).not.toHaveBeenCalled();
+  });
+
+  it('skips load when already loaded for primaryOrgId', () => {
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({ availabilityIdsByOrgId: { 'org-1': [] } })
+    );
     renderHook(() => useLoadAvailabilities());
     expect(loadAvailability).not.toHaveBeenCalled();
   });

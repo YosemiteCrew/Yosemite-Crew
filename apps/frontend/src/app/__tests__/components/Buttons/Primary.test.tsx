@@ -43,4 +43,13 @@ describe('Primary button', () => {
       backgroundColor: 'var(--color-text-primary)',
     });
   });
+
+  test('uses the shared primary feedback class without shadow or scale utilities', () => {
+    render(<Primary text="Save" />);
+
+    const button = screen.getByRole('button', { name: 'Save' });
+    expect(button.className).toContain('yc-primary-button');
+    expect(button.className).not.toContain('hover:shadow-');
+    expect(button.className).not.toContain('hover:scale');
+  });
 });

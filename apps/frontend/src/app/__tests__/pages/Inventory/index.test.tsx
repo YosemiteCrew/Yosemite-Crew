@@ -28,8 +28,9 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 // Mock Filters
 jest.mock('@/app/ui/filters/InventoryFilters', () => ({
   __esModule: true,
-  default: ({ onChange, filters }: any) => (
+  default: ({ onChange, filters, categoryAction }: any) => (
     <div data-testid="inventory-filters">
+      {categoryAction}
       <input
         data-testid="search-input"
         value={filters.search}

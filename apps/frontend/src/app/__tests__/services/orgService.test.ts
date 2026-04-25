@@ -331,6 +331,10 @@ describe('orgService', () => {
       expect.objectContaining({
         practitionerReference: 'user-fallback',
         organizationReference: 'org-2',
+        roleCode: 'OWNER',
+        effectivePermissions: expect.arrayContaining(['org:view', 'teams:edit:any']),
+        extraPermissions: [],
+        revokedPermissions: [],
       })
     );
   });

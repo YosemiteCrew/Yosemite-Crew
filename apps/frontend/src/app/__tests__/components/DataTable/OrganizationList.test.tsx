@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import OrganizationList, { getStatusStyle } from '@/app/ui/tables/OrganizationList';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -20,6 +20,25 @@ jest.mock('@/app/stores/orgStore', () => ({
 
 jest.mock('@/app/lib/defaultOpenScreen', () => ({
   resolveDefaultOpenScreenRoute: jest.fn(() => '/appointments'),
+}));
+
+jest.mock('@/app/lib/postAuthRedirect', () => ({
+  resolveOrgScopedRedirect: jest.fn(({ orgId }: { orgId: string }) =>
+    orgId === 'org-1'
+      ? Promise.resolve('/appointments')
+      : Promise.resolve(`/create-org?orgId=${orgId}`)
+  ),
+}));
+
+jest.mock('@/app/stores/fullscreenLoaderStore', () => ({
+  useFullscreenLoaderStore: {
+    getState: jest.fn(() => ({ show: jest.fn(), hide: jest.fn() })),
+  },
+}));
+
+jest.mock('@/app/lib/routeLoader', () => ({
+  startRouteLoader: jest.fn(),
+  stopRouteLoader: jest.fn(),
 }));
 
 // Mock GenericTable to test render props in columns
@@ -155,17 +174,17 @@ describe('OrganizationList Component', () => {
 
   // --- 3. Interaction Tests ---
 
-  it('navigates to resolved default route when clicking a verified org (Table)', () => {
+  it('navigates to resolved default route when clicking a verified org (Table)', async () => {
     render(<OrganizationList orgs={[mockVerifiedOrg]} />);
 
     const nameButton = screen.getByText('Verified Corp');
     fireEvent.click(nameButton);
 
     expect(mockSetPrimaryOrg).toHaveBeenCalledWith('org-1');
-    expect(mockPush).toHaveBeenCalledWith('/appointments');
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments'));
   });
 
-  it('navigates to create-org when clicking an unverified org (Table)', () => {
+  it('navigates to create-org when clicking an unverified org (Table)', async () => {
     render(<OrganizationList orgs={[mockUnverifiedOrg]} />);
 
     const nameButton = screen.getByText('Pending Inc');
@@ -173,16 +192,16 @@ describe('OrganizationList Component', () => {
 
     // Should use fallback 'name' as ID since _id is missing
     expect(mockSetPrimaryOrg).toHaveBeenCalledWith('Pending Inc');
-    expect(mockPush).toHaveBeenCalledWith('/create-org?orgId=Pending Inc');
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/create-org?orgId=Pending Inc'));
   });
 
-  it('navigates correctly when clicking a mobile card', () => {
+  it('navigates correctly when clicking a mobile card', async () => {
     render(<OrganizationList orgs={[mockVerifiedOrg]} />);
 
     const cardButton = screen.getByText('Select Card');
     fireEvent.click(cardButton);
 
     expect(mockSetPrimaryOrg).toHaveBeenCalledWith('org-1');
-    expect(mockPush).toHaveBeenCalledWith('/appointments');
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments'));
   });
 });

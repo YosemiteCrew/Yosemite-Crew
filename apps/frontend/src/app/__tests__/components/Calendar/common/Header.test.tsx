@@ -30,6 +30,11 @@ describe('Header Component', () => {
     jest.clearAllMocks();
   });
 
+  const getEmergencyDot = (button: HTMLElement) =>
+    Array.from(button.querySelectorAll('span')).find((span) =>
+      span.className.includes('h-2.5')
+    ) as HTMLElement;
+
   // --- 1. Rendering ---
 
   it('renders the month/year label correctly', () => {
@@ -42,12 +47,16 @@ describe('Header Component', () => {
     expect(getMonthYear).toHaveBeenCalledWith(mockDate);
   });
 
-  it('renders the month label before the emergencies toggle and places status before add appointment', () => {
+  it('orders calendar controls from date through zoom actions', () => {
     render(
       <Header
         {...defaultProps}
         showAddButton
         onAddButtonClick={jest.fn()}
+        activeCalendar="week"
+        setActiveCalendar={jest.fn()}
+        zoomMode="in"
+        setZoomMode={jest.fn()}
         activeFilter="all"
         setActiveFilter={jest.fn()}
         activeStatus="scheduled"
@@ -62,16 +71,75 @@ describe('Header Component', () => {
     const statusButton = screen.getByRole('button', { name: /Scheduled/i });
     const addAppointmentButton = screen.getByRole('button', { name: 'Add Appointment' });
     const datepicker = screen.getByTestId('datepicker');
+    const viewSelector = screen.getByTestId('dropdown');
+    const zoomInButton = screen.getByTitle('Zoom in timeline');
 
-    expect(monthLabel.compareDocumentPosition(emergenciesPill)).toBe(
+    expect(datepicker.compareDocumentPosition(monthLabel)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(monthLabel.compareDocumentPosition(statusButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(statusButton.compareDocumentPosition(emergenciesPill)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
-    expect(statusButton.compareDocumentPosition(addAppointmentButton)).toBe(
+    expect(emergenciesPill.compareDocumentPosition(addAppointmentButton)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
-    expect(addAppointmentButton.compareDocumentPosition(datepicker)).toBe(
+    expect(addAppointmentButton.compareDocumentPosition(viewSelector)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+    expect(viewSelector.compareDocumentPosition(zoomInButton)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
+  it('renders the emergency pill with semantic styles and a stateful filled warning icon', () => {
+    const { rerender } = render(
+      <Header
+        {...defaultProps}
+        activeFilter="all"
+        setActiveFilter={jest.fn()}
+        hasEmergency
+        filterOptions={[{ key: 'emergencies', name: 'Emergencies' }]}
+      />
+    );
+
+    const inactiveIcon = screen.getByRole('button', { name: 'Emergencies' }).querySelector('svg');
+    const inactivePill = screen.getByRole('button', { name: 'Emergencies' });
+    const inactiveDot = getEmergencyDot(inactivePill);
+    expect(inactivePill).toHaveClass('h-12');
+    expect(inactivePill).toHaveStyle({
+      backgroundColor: 'var(--color-neutral-0)',
+      borderColor: 'var(--color-neutral-500)',
+      color: 'var(--color-neutral-700)',
+    });
+    expect(inactivePill).toHaveClass('text-body-4');
+    expect(inactiveIcon).toHaveAttribute('color', 'var(--color-neutral-700)');
+    expect(inactiveDot.getAttribute('style')).toContain(
+      'background-color: var(--color-semantic-error-700)'
+    );
+    expect(inactiveDot.getAttribute('style')).toContain('outline: 2px solid white');
+
+    rerender(
+      <Header
+        {...defaultProps}
+        activeFilter="emergencies"
+        setActiveFilter={jest.fn()}
+        hasEmergency
+        filterOptions={[{ key: 'emergencies', name: 'Emergencies' }]}
+      />
+    );
+
+    const activePill = screen.getByRole('button', { name: 'Emergencies' });
+    const activeIcon = activePill.querySelector('svg');
+    const activeDot = getEmergencyDot(activePill);
+    expect(activePill).toHaveStyle({
+      backgroundColor: 'var(--color-semantic-error-100)',
+      borderColor: 'var(--color-semantic-error-500)',
+      color: 'var(--color-semantic-error-700)',
+    });
+    expect(activeIcon).toHaveAttribute('color', 'var(--color-semantic-error-700)');
+    expect(activeDot.getAttribute('style')).toContain(
+      'background-color: var(--color-semantic-error-700)'
+    );
+    expect(activeDot.getAttribute('style')).toContain('outline: 2px solid white');
   });
 
   it('keeps the calendar header sticky at the top of the planner', () => {
