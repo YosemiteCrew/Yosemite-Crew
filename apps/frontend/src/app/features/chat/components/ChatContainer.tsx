@@ -20,6 +20,8 @@ import type { Channel as StreamChannel } from 'stream-chat';
 import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-chat-react';
 import { MdDeleteForever } from 'react-icons/md';
 import { IoIosAddCircleOutline } from 'react-icons/io';
+import Primary from '@/app/ui/primitives/Buttons/Primary';
+import Delete from '@/app/ui/primitives/Buttons/Delete';
 
 import 'stream-chat-react/dist/css/v2/index.css';
 import './ChatContainer.css';
@@ -192,12 +194,6 @@ type OrgUserOption = {
   role?: string;
 };
 
-const primaryActionClasses =
-  'px-8 py-[12px] flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 font-satoshi text-[18px] font-medium leading-[26px] text-center bg-text-primary text-white';
-const dangerActionClasses =
-  'px-8 py-[12px] flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 font-satoshi text-[18px] font-medium leading-[26px] text-center bg-text-error text-white';
-const disabledActionClasses = 'opacity-60 cursor-not-allowed';
-
 interface GroupModalProps {
   open: boolean;
   mode: 'create' | 'edit';
@@ -351,16 +347,12 @@ const GroupModal: React.FC<GroupModalProps> = ({
                   onChange={(e) => onTitleChange(e.target.value)}
                 />
                 {mode === 'edit' && (
-                  <button
-                    type="button"
+                  <Primary
+                    text={busy ? 'Saving...' : 'Save Title'}
                     onClick={handleSaveTitle}
-                    disabled={busy || !title.trim()}
-                    className={`${primaryActionClasses} self-start ${
-                      busy || !title.trim() ? disabledActionClasses : 'cursor-pointer'
-                    }`}
-                  >
-                    {busy ? 'Saving...' : 'Save Title'}
-                  </button>
+                    isDisabled={busy || !title.trim()}
+                    className="self-start"
+                  />
                 )}
               </div>
             )}
@@ -505,28 +497,18 @@ const GroupModal: React.FC<GroupModalProps> = ({
 
           <div className="flex justify-center gap-3 pb-1 px-3">
             {mode === 'create' && (
-              <button
-                type="button"
+              <Primary
+                text={busy ? 'Creating...' : 'Create Group'}
                 onClick={handleCreate}
-                disabled={busy}
-                className={`${primaryActionClasses} ${
-                  busy ? disabledActionClasses : 'cursor-pointer'
-                }`}
-              >
-                {busy ? 'Creating...' : 'Create Group'}
-              </button>
+                isDisabled={busy}
+              />
             )}
             {mode === 'edit' && isCreator && (
-              <button
-                type="button"
+              <Delete
+                text={busy ? 'Deleting...' : 'Delete Group'}
                 onClick={onDelete}
-                disabled={busy}
-                className={`${dangerActionClasses} ${
-                  busy ? disabledActionClasses : 'cursor-pointer'
-                }`}
-              >
-                {busy ? 'Deleting...' : 'Delete Group'}
-              </button>
+                isDisabled={busy}
+              />
             )}
           </div>
         </div>
@@ -757,17 +739,14 @@ const ChannelHeaderWithCounterpart: React.FC<{
       <ChannelHeader title={title} />
       <div className="flex items-center gap-3">
         {isGroupChat && (
-          <button
-            type="button"
+          <Primary
+            text="Group Info"
             onClick={() => {
               if (channel) {
                 groupModalCtx.openEdit?.(channel);
               }
             }}
-            className={`${primaryActionClasses} cursor-pointer`}
-          >
-            Group Info
-          </button>
+          />
         )}
         {isClientChat && hasSessionClosed && (
           <div className="px-3 py-1.5 bg-grey-light border border-grey-border rounded-lg">
@@ -775,15 +754,11 @@ const ChannelHeaderWithCounterpart: React.FC<{
           </div>
         )}
         {isClientChat && !hasSessionClosed && (
-          <button
+          <Primary
+            text={closingSession ? 'Closing...' : 'Close Session'}
             onClick={handleCloseSession}
-            disabled={closingSession}
-            className={`${primaryActionClasses} bg-black-bg border border-black-bg hover:shadow-lg ${
-              closingSession ? disabledActionClasses : 'cursor-pointer'
-            }`}
-          >
-            {closingSession ? 'Closing...' : 'Close Session'}
-          </button>
+            isDisabled={closingSession}
+          />
         )}
       </div>
     </div>
@@ -1983,13 +1958,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
             )}
 
             {scope === 'groups' && (
-              <button
-                type="button"
-                onClick={openCreateGroupModal}
-                className={`${primaryActionClasses} w-fit cursor-pointer`}
-              >
-                Create Group
-              </button>
+              <Primary text="Create Group" onClick={openCreateGroupModal} className="w-fit" />
             )}
           </div>
         )

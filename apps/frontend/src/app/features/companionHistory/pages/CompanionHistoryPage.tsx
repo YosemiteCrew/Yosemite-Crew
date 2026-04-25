@@ -82,7 +82,7 @@ const CompanionHistoryPage = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Back onClick={handleBack} />
-              <div className="text-heading-1 text-text-primary">{historyTitle}</div>
+              <div className="text-heading-2 text-text-primary">{historyTitle}</div>
             </div>
 
             {activeCompanion ? (

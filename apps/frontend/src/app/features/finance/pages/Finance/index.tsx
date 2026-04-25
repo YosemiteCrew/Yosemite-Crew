@@ -95,10 +95,10 @@ const Finance = () => {
       <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
           <div className="flex items-center justify-between w-full flex-wrap gap-2">
-            <div className="text-text-primary text-heading-1 flex items-center gap-2">
+            <div className="text-text-primary text-heading-2 flex items-center gap-2">
               <span>
                 {'Finance'}
-                <span className="text-text-tertiary">{` (${invoices.length})`}</span>
+                <span className="text-body-2 text-text-tertiary">{` (${invoices.length})`}</span>
               </span>
               <GlassTooltip
                 content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
@@ -107,7 +107,7 @@ const Finance = () => {
                 <button
                   type="button"
                   aria-label="Finance info"
-                  className="relative top-0.75 inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
                 >
                   <IoInformationCircleOutline size={20} />
                 </button>

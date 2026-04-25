@@ -258,17 +258,17 @@ const Appointments = () => {
     handledDeepLinkRef.current = deepLinkKey;
   }, [appointments, searchParams]);
 
-  const hasEmergency = useMemo(
-    () =>
-      appointments.some(
-        (a) =>
-          a.isEmergency &&
-          a.status !== 'CANCELLED' &&
-          a.status !== 'COMPLETED' &&
-          a.status !== 'NO_SHOW'
-      ),
-    [appointments]
-  );
+  const hasEmergency = useMemo(() => {
+    const now = new Date();
+    return appointments.some(
+      (a) =>
+        a.isEmergency &&
+        a.startTime > now &&
+        a.status !== 'CANCELLED' &&
+        a.status !== 'COMPLETED' &&
+        a.status !== 'NO_SHOW'
+    );
+  }, [appointments]);
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -381,7 +381,7 @@ const Appointments = () => {
 
   return (
     <div className="flex flex-col relative min-w-0">
-      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+      <div className="flex flex-col gap-3 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-4! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-4! lg:pb-3!">
         <TitleCalendar
           title="Appointments"
           description="Schedule and manage appointments across day, week, and team views, then drill into tasks, chat, and billing details for each visit."

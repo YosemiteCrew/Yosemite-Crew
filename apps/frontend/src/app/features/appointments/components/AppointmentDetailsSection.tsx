@@ -81,12 +81,7 @@ const AppointmentDetailsSection = ({
       />
       {onNext ? (
         <div className="flex justify-center pt-3 pb-1">
-          <Primary
-            href="#"
-            text="Next"
-            onClick={onNext}
-            className="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
-          />
+          <Primary href="#" text="Next" onClick={onNext} className="w-auto min-w-42.5" />
         </div>
       ) : null}
     </div>

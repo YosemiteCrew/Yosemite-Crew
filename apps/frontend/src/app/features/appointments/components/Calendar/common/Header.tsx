@@ -4,7 +4,7 @@ import { CalendarZoomMode } from '@/app/features/appointments/components/Calenda
 import { FiZoomIn, FiZoomOut } from 'react-icons/fi';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import Dropdown from '@/app/ui/inputs/Dropdown';
-import { IoAdd } from 'react-icons/io5';
+import { IoAdd, IoWarning } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
@@ -34,6 +34,16 @@ const getFilterBorderColor = (filterKey: string, activeFilter: string): string =
   if (filterKey === 'emergencies') return 'var(--color-danger-500)';
   return 'var(--color-text-brand)';
 };
+
+const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
+  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
+  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderRadius: '16px',
+  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
+  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
+});
 
 type Headerprops = {
   currentDate: Date;
@@ -81,6 +91,7 @@ const Header = ({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const selectedStatus = statusOptions?.find((s) => s.key === activeStatus) ?? statusOptions?.[0];
+  const isEmergencyFilterActive = activeFilter === 'emergencies';
   const handleFilterToggle = (filterKey: string) => {
     if (!setActiveFilter) return;
     setActiveFilter(activeFilter === filterKey ? 'all' : filterKey);
@@ -125,57 +136,77 @@ const Header = ({
     };
   }, [statusOpen]);
 
-  return (
-    <div className="sticky top-0 z-[140] shrink-0 overflow-visible flex w-full items-center justify-between gap-2 border-b border-grey-light bg-white px-3 py-2">
-      {/* Left: month + filter pills */}
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="text-heading-2 text-text-primary pr-3">{getMonthYear(currentDate)}</div>
-        {filterOptions?.map((filter) => (
-          <button
-            key={filter.key}
-            type="button"
-            onClick={() => handleFilterToggle(filter.key)}
-            className={clsx(
-              'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! transition-all duration-300',
-              getFilterClassName(filter.key, activeFilter ?? '')
-            )}
+  const filterButtons = filterOptions?.map((filter) => {
+    const isEmergencyFilter = filter.key === 'emergencies';
+    const isActiveFilter = filter.key === activeFilter;
+    const emergencyTextColor = isEmergencyFilterActive
+      ? 'var(--color-semantic-error-700)'
+      : 'var(--color-neutral-700)';
+    const emergencyIconColor = emergencyTextColor;
+    const emergencyPillStyle = isEmergencyFilter
+      ? getEmergencyPillStyle(isActiveFilter)
+      : {
+          borderWidth: isActiveFilter && isEmergencyFilter ? '2px' : '1px',
+          borderStyle: 'solid',
+          borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
+          backgroundColor:
+            isActiveFilter && isEmergencyFilter ? 'var(--color-danger-soft)' : undefined,
+        };
+
+    return (
+      <button
+        key={filter.key}
+        type="button"
+        onClick={() => handleFilterToggle(filter.key)}
+        className={clsx(
+          'relative flex h-12 min-w-32 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
+          getFilterClassName(filter.key, activeFilter ?? '')
+        )}
+        style={emergencyPillStyle}
+      >
+        {isEmergencyFilter && (
+          <IoWarning size={18} aria-hidden="true" className="shrink-0" color={emergencyIconColor} />
+        )}
+        <span>{filter.name}</span>
+        {isEmergencyFilter && hasEmergency && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full"
             style={{
-              borderWidth:
-                filter.key === activeFilter && filter.key === 'emergencies' ? '2px' : '1px',
-              borderStyle: 'solid',
-              borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
-              backgroundColor:
-                filter.key === activeFilter && filter.key === 'emergencies'
-                  ? 'var(--color-danger-soft)'
-                  : undefined,
+              backgroundColor: 'var(--color-semantic-error-700)',
+              outline: '2px solid white',
             }}
-          >
-            {filter.name}
-            {filter.key === 'emergencies' && hasEmergency && (
-              <span
-                aria-label="Emergency appointments present"
-                className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
-                style={{
-                  backgroundColor: 'var(--color-danger-500)',
-                  borderColor: 'var(--color-danger-500)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                }}
-              />
-            )}
-          </button>
-        ))}
+          />
+        )}
+      </button>
+    );
+  });
+
+  return (
+    <div className="sticky top-0 z-[140] shrink-0 overflow-visible flex w-full items-center justify-between gap-4 border-b border-grey-light bg-white px-3 py-2">
+      <div className="flex min-w-0 shrink-0 items-center gap-3">
+        <GlassTooltip content="Select date" side="bottom">
+          <div className="relative z-150">
+            <Datepicker
+              currentDate={currentDate}
+              setCurrentDate={setCurrentDate}
+              placeholder="Select Date"
+            />
+          </div>
+        </GlassTooltip>
+        <div className="whitespace-nowrap text-body-3 font-medium text-text-primary">
+          {getMonthYear(currentDate)}
+        </div>
       </div>
 
-      {/* Right: status dropdown + date picker + view selector + zoom + add */}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
         {statusOptions && statusOptions.length > 0 && (
           <>
             <button
               ref={triggerRef}
               type="button"
               onClick={() => setStatusOpen((v) => !v)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
+              className="h-12 flex items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
               style={
                 selectedStatus?.bg
                   ? {
@@ -254,27 +285,22 @@ const Header = ({
           </>
         )}
 
+        {filterButtons}
+
         {showAddButton && (
-          <Primary
-            text="Add Appointment"
-            onClick={onAddButtonClick}
-            icon={<IoAdd size={18} aria-hidden="true" />}
-            className="gap-2 px-4 py-2.5 whitespace-nowrap hover:scale-100"
-          />
+          <>
+            <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
+            <Primary
+              text="Add Appointment"
+              onClick={onAddButtonClick}
+              icon={<IoAdd size={18} aria-hidden="true" />}
+              className="gap-2 px-4 whitespace-nowrap hover:scale-100"
+            />
+          </>
         )}
 
-        <GlassTooltip content="Select date" side="bottom">
-          <div className="relative z-150 scale-[0.94] origin-right">
-            <Datepicker
-              currentDate={currentDate}
-              setCurrentDate={setCurrentDate}
-              placeholder="Select Date"
-            />
-          </div>
-        </GlassTooltip>
-
         {showCalendarTypeSelector && (
-          <div className="relative z-150 scale-[0.94] origin-right">
+          <div className="relative z-150">
             <Dropdown
               options={[
                 { key: 'day', label: 'Day' },

@@ -107,6 +107,11 @@ const Tasks = () => {
     setViewPopup(false);
     setAddPopup(true);
   }, []);
+
+  const openAddTask = useCallback(() => {
+    setAddTaskPrefill(null);
+    setAddPopup(true);
+  }, []);
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView,
     listWrapperClassName:
@@ -148,10 +153,7 @@ const Tasks = () => {
         setChangeStatusPopup={setChangeStatusPopup}
         setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
         setReschedulePopup={setReschedulePopup}
-        onAddTask={() => {
-          setAddTaskPrefill(null);
-          setAddPopup(true);
-        }}
+        onAddTask={openAddTask}
       />
     );
   } else {
@@ -183,7 +185,7 @@ const Tasks = () => {
           count={tasks.length}
           activeView={activeView}
           setActiveView={setActiveView}
-          showAdd={canEditTasks}
+          showAdd={false}
           viewOptions={['calendar', 'board', 'list']}
         />
 
@@ -197,6 +199,9 @@ const Tasks = () => {
                 activeStatus={activeStatus}
                 setActiveFilter={setActiveFilter}
                 setActiveStatus={setActiveStatus}
+                showAddButton={canEditTasks}
+                onAddButtonClick={openAddTask}
+                addButtonText="Add"
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

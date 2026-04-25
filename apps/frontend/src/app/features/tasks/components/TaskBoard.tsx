@@ -18,6 +18,7 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
 import { IoAdd, IoEyeOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import { MdOutlineAutorenew } from 'react-icons/md';
 import { IoIosCalendar } from 'react-icons/io';
@@ -480,48 +481,7 @@ const TaskBoard = ({
     <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
       <div className="border-b border-card-border bg-white px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[220px]">
-            <Back
-              onClick={() =>
-                setCurrentDate((prev) => {
-                  const next = new Date(prev);
-                  next.setDate(next.getDate() - 1);
-                  return next;
-                })
-              }
-            />
-            <div>
-              {formatDateInPreferredTimeZone(currentDate, {
-                weekday: 'long',
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-              })}
-            </div>
-            <Next
-              onClick={() =>
-                setCurrentDate((prev) => {
-                  const next = new Date(prev);
-                  next.setDate(next.getDate() + 1);
-                  return next;
-                })
-              }
-            />
-          </div>
-          <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
-            {canEditTasks && (
-              <GlassTooltip content="Add task" side="bottom">
-                <button
-                  type="button"
-                  title="Add task"
-                  aria-label="Add task"
-                  onClick={onAddTask}
-                  className="rounded-2xl! border! border-input-border-default! px-[13px] py-[13px] transition-all duration-300 ease-in-out hover:bg-card-bg"
-                >
-                  <IoAdd size={20} color="var(--color-neutral-900)" />
-                </button>
-              </GlassTooltip>
-            )}
+          <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">
             <GlassTooltip content="Select date" side="bottom">
               <Datepicker
                 currentDate={currentDate}
@@ -529,6 +489,45 @@ const TaskBoard = ({
                 placeholder="Select Date"
               />
             </GlassTooltip>
+            <div className="flex items-center gap-2">
+              <Back
+                onClick={() =>
+                  setCurrentDate((prev) => {
+                    const next = new Date(prev);
+                    next.setDate(next.getDate() - 1);
+                    return next;
+                  })
+                }
+              />
+              <div>
+                {formatDateInPreferredTimeZone(currentDate, {
+                  weekday: 'long',
+                  month: 'short',
+                  day: '2-digit',
+                  year: 'numeric',
+                })}
+              </div>
+              <Next
+                onClick={() =>
+                  setCurrentDate((prev) => {
+                    const next = new Date(prev);
+                    next.setDate(next.getDate() + 1);
+                    return next;
+                  })
+                }
+              />
+            </div>
+          </div>
+          <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
+            {canEditTasks && (
+              <Primary
+                text="Add"
+                ariaLabel="Add task"
+                onClick={onAddTask}
+                icon={<IoAdd size={18} aria-hidden="true" />}
+                className="gap-2 px-4 whitespace-nowrap hover:scale-100"
+              />
+            )}
             <BoardScopeToggle
               showMineOnly={showMineOnly}
               onChange={setShowMineOnly}

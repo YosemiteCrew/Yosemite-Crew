@@ -532,7 +532,7 @@ const AddAppointment = ({
                           href="#"
                           text="Next"
                           onClick={goToDetailsStep}
-                          className="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+                          className="w-auto min-w-42.5"
                         />
                       </div>
                     </>
@@ -636,7 +636,7 @@ const AddAppointment = ({
                         href="#"
                         text="Next"
                         onClick={isCalendarSlotFlow ? goToDetailsFromDateTimeStep : goToBillingStep}
-                        className="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+                        className="w-auto min-w-42.5"
                       />
                     </div>
                   </Accordion>

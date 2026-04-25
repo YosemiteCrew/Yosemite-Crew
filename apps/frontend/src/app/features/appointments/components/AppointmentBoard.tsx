@@ -25,7 +25,13 @@ import {
   createInvoiceByAppointmentId,
   getAppointmentPaymentDisplay,
 } from '@/app/lib/paymentStatus';
-import { IoAdd, IoCardOutline, IoDocumentTextOutline, IoEyeOutline } from 'react-icons/io5';
+import {
+  IoAdd,
+  IoCardOutline,
+  IoDocumentTextOutline,
+  IoEyeOutline,
+  IoWarning,
+} from 'react-icons/io5';
 import { RiHistoryLine } from 'react-icons/ri';
 import Image from 'next/image';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -77,6 +83,15 @@ const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
 const normalizeStatus = (status?: string): BoardStatus | null => {
   return normalizeAppointmentStatus(status);
 };
+
+const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
+  minHeight: 48,
+  color: isActive ? 'var(--color-error-700)' : 'var(--color-neutral-700)',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: isActive ? 'var(--color-error-500)' : 'var(--color-neutral-500)',
+  backgroundColor: isActive ? 'var(--color-error-100)' : 'var(--color-neutral-0)',
+});
 
 const getBoardOrgType = (
   appointment: Appointment,
@@ -212,6 +227,8 @@ const AppointmentBoard = ({
     if (!setActiveFilter) return;
     setActiveFilter(activeFilter === 'emergencies' ? 'all' : 'emergencies');
   };
+  const isEmergencyActive = activeFilter === 'emergencies';
+  const emergencyColor = isEmergencyActive ? 'var(--color-error-700)' : 'var(--color-neutral-700)';
 
   const openAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
@@ -364,77 +381,7 @@ const AppointmentBoard = ({
     <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
       <div className="border-b border-card-border bg-white px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[220px]">
-            <Back
-              onClick={() =>
-                setCurrentDate((prev) => {
-                  const next = new Date(prev);
-                  next.setDate(next.getDate() - 1);
-                  return next;
-                })
-              }
-            />
-            <div>
-              {formatDateInPreferredTimeZone(currentDate, {
-                weekday: 'long',
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-              })}
-            </div>
-            <Next
-              onClick={() =>
-                setCurrentDate((prev) => {
-                  const next = new Date(prev);
-                  next.setDate(next.getDate() + 1);
-                  return next;
-                })
-              }
-            />
-            <button
-              type="button"
-              onClick={toggleEmergencyFilter}
-              className={clsx(
-                'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! transition-all duration-300',
-                activeFilter === 'emergencies'
-                  ? 'text-danger-500!'
-                  : 'text-text-tertiary hover:bg-card-hover!'
-              )}
-              style={{
-                borderWidth: activeFilter === 'emergencies' ? '2px' : '1px',
-                borderStyle: 'solid',
-                borderColor:
-                  activeFilter === 'emergencies'
-                    ? 'var(--color-danger-500)'
-                    : 'var(--color-card-border)',
-                backgroundColor:
-                  activeFilter === 'emergencies' ? 'var(--color-danger-soft)' : undefined,
-              }}
-            >
-              Emergencies
-              {hasEmergency && (
-                <span
-                  aria-label="Emergency appointments present"
-                  className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
-                  style={{
-                    backgroundColor: 'var(--color-danger-500)',
-                    borderColor: 'var(--color-danger-500)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                  }}
-                />
-              )}
-            </button>
-          </div>
-          <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
-            {canEditAppointments && (
-              <Primary
-                text="Add Appointment"
-                onClick={onAddAppointment}
-                icon={<IoAdd size={18} aria-hidden="true" />}
-                className="gap-2 px-4 py-2.5 whitespace-nowrap hover:scale-100"
-              />
-            )}
+          <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">
             <GlassTooltip content="Select date" side="bottom">
               <Datepicker
                 currentDate={currentDate}
@@ -442,6 +389,69 @@ const AppointmentBoard = ({
                 placeholder="Select Date"
               />
             </GlassTooltip>
+            <div className="flex items-center gap-2">
+              <Back
+                onClick={() =>
+                  setCurrentDate((prev) => {
+                    const next = new Date(prev);
+                    next.setDate(next.getDate() - 1);
+                    return next;
+                  })
+                }
+              />
+              <div>
+                {formatDateInPreferredTimeZone(currentDate, {
+                  weekday: 'long',
+                  month: 'short',
+                  day: '2-digit',
+                  year: 'numeric',
+                })}
+              </div>
+              <Next
+                onClick={() =>
+                  setCurrentDate((prev) => {
+                    const next = new Date(prev);
+                    next.setDate(next.getDate() + 1);
+                    return next;
+                  })
+                }
+              />
+            </div>
+          </div>
+          <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
+            <button
+              type="button"
+              onClick={toggleEmergencyFilter}
+              className={clsx(
+                'relative inline-flex min-w-20 items-center gap-2 text-body-4 px-3 py-1.25 rounded-2xl! transition-all duration-300',
+                !isEmergencyActive && 'hover:bg-card-hover!'
+              )}
+              style={getEmergencyPillStyle(isEmergencyActive)}
+            >
+              <IoWarning size={16} aria-hidden="true" color={emergencyColor} />
+              <span>Emergencies</span>
+              {hasEmergency && (
+                <span
+                  aria-label="Emergency appointments present"
+                  className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full"
+                  style={{
+                    backgroundColor: 'var(--color-error-700)',
+                    outline: '2px solid white',
+                  }}
+                />
+              )}
+            </button>
+            {canEditAppointments && (
+              <>
+                <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
+                <Primary
+                  text="Add Appointment"
+                  onClick={onAddAppointment}
+                  icon={<IoAdd size={18} aria-hidden="true" />}
+                  className="gap-2 px-4 whitespace-nowrap hover:scale-100"
+                />
+              </>
+            )}
             <BoardScopeToggle
               showMineOnly={showMineOnly}
               onChange={setShowMineOnly}

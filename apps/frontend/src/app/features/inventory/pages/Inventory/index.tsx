@@ -278,7 +278,7 @@ const Inventory = () => {
     <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <div className="flex justify-between items-center w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1 flex items-center gap-2">
+          <div className="text-text-primary text-heading-2 flex items-center gap-2">
             <span>Inventory</span>
             <GlassTooltip
               content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."
@@ -287,7 +287,7 @@ const Inventory = () => {
               <button
                 type="button"
                 aria-label="Inventory info"
-                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
               >
                 <IoInformationCircleOutline size={20} />
               </button>
@@ -295,14 +295,6 @@ const Inventory = () => {
           </div>
         </div>
         <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
-          {canEditInventory && (
-            <Primary
-              href="#"
-              text={savingItem ? 'Saving...' : 'Add'}
-              onClick={() => setAddPopup(true)}
-              isDisabled={savingItem || !primaryOrgId}
-            />
-          )}
           <BoardScopeToggle
             showMineOnly={activeView === 'turnover'}
             onChange={(nextShowMineOnly) =>
@@ -325,6 +317,16 @@ const Inventory = () => {
                 onChange={setFilters}
                 categories={categoryOptions}
                 loading={loadingList}
+                categoryAction={
+                  canEditInventory ? (
+                    <Primary
+                      href="#"
+                      text={savingItem ? 'Saving...' : 'Add'}
+                      onClick={() => setAddPopup(true)}
+                      isDisabled={savingItem || !primaryOrgId}
+                    />
+                  ) : null
+                }
               />
             ) : (
               <InventoryTurnoverFilters

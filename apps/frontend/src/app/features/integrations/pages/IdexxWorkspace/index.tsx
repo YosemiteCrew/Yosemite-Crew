@@ -1113,13 +1113,13 @@ const IdexxWorkspacePage = () => {
   if (!s.integrationEnabled && !s.loading) {
     return (
       <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-        <div className="text-heading-1 text-text-primary flex items-center gap-2">
+        <div className="text-heading-2 text-text-primary flex items-center gap-2">
           {idexxHubLabel}
           <GlassTooltip content="IDEXX integration is currently disabled." side="bottom">
             <button
               type="button"
               aria-label="IDEXX Hub info"
-              className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
             >
               <IoInformationCircleOutline size={20} />
             </button>
@@ -1152,7 +1152,7 @@ const IdexxWorkspacePage = () => {
 
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <div className="text-heading-1 text-text-primary flex items-center gap-2">
+          <div className="text-heading-2 text-text-primary flex items-center gap-2">
             {idexxHubLabel}
             <GlassTooltip
               content="Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care diagnostics for a seamless workflow."
@@ -1161,7 +1161,7 @@ const IdexxWorkspacePage = () => {
               <button
                 type="button"
                 aria-label="IDEXX Hub info"
-                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
               >
                 <IoInformationCircleOutline size={20} />
               </button>

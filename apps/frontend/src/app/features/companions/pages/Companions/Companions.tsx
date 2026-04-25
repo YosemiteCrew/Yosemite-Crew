@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
-import { Primary } from '@/app/ui/primitives/Buttons';
 import Filters from '@/app/ui/filters/Filters';
 import CompanionsTable from '@/app/ui/tables/CompanionsTable';
 import AddCompanion from '@/app/features/companions/components/AddCompanion';
@@ -108,10 +107,10 @@ const Companions = () => {
     <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1 flex items-center gap-2">
+          <div className="text-text-primary text-heading-2 flex items-center gap-2">
             <span>
               {'Companions'}
-              <span className="text-text-tertiary">{` (${companions.length})`}</span>
+              <span className="text-body-2 text-text-tertiary">{` (${companions.length})`}</span>
             </span>
             <GlassTooltip
               content="View companion and parent details, access their documents, and jump into related tasks or appointments without leaving the profile."
@@ -120,16 +119,13 @@ const Companions = () => {
               <button
                 type="button"
                 aria-label="Companions info"
-                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
               >
                 <IoInformationCircleOutline size={20} />
               </button>
             </GlassTooltip>
           </div>
         </div>
-        {canEditCompanions && (
-          <Primary href="#" onClick={() => setAddPopup((e) => !e)} text="Add" />
-        )}
       </div>
       <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
@@ -140,6 +136,9 @@ const Companions = () => {
             activeStatus={activeStatus}
             setActiveFilter={setActiveFilter}
             setActiveStatus={setActiveStatus}
+            showAddButton={canEditCompanions}
+            onAddButtonClick={() => setAddPopup((e) => !e)}
+            addButtonText="Add"
           />
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
             <CompanionsTable
