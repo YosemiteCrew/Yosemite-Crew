@@ -155,6 +155,9 @@
   --color-danger-800: #a6271d;
   --color-danger-900: #811e17;
   --color-danger-950: #621711;
+  --color-semantic-error-100: #fee7e7;
+  --color-semantic-error-500: #ef4444;
+  --color-semantic-error-700: #b91c1c;
 
   --color-text-primary: var(--color-neutral-900);
   --color-text-cta: var(--color-neutral-900);
@@ -197,6 +200,9 @@
   --color-white-pending: #fef3e9;
   --color-pink-border: #37223cb2;
   --color-error: #ee5f54;
+  --color-error-100: #fee7e7;
+  --color-error-500: #ef4444;
+  --color-error-700: #b91c1c;
   --color-delete: #ea3729;
   --color-pending-text: #f68523;
   --color-danger-soft: #fee7e7;

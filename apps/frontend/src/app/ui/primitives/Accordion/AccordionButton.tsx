@@ -20,6 +20,7 @@ interface AccordionButtonProps {
 
 type PaddingArgs = {
   finance: boolean;
+  hasFinanceAction: boolean;
   hasCustomerId: boolean;
   plan?: string;
   showButton: boolean;
@@ -27,21 +28,31 @@ type PaddingArgs = {
 
 const getAccordionPaddingYClass = ({
   finance,
+  hasFinanceAction,
   hasCustomerId,
   plan,
   showButton,
 }: PaddingArgs): string => {
+  if (showButton || hasFinanceAction) {
+    return 'py-2';
+  }
+
   if (finance) {
     // Keep finance accordions visually aligned with other sections.
     if (plan === 'free' || (plan === 'business' && hasCustomerId)) {
       return 'py-[20px]';
     }
   }
-  if (showButton) {
-    return 'py-2';
-  }
   return 'py-[20px]';
 };
+
+const isInteractiveClick = (target: EventTarget | null) =>
+  target instanceof Element &&
+  Boolean(
+    target.closest(
+      'button,a,input,select,textarea,[role="button"],[data-accordion-click-ignore="true"]'
+    )
+  );
 
 const AccordionButton: React.FC<AccordionButtonProps> = ({
   title,
@@ -58,15 +69,24 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   const canEditSubscription = can(PERMISSIONS.SUBSCRIPTION_EDIT_ANY);
   const plan = subscription?.plan;
   const hasCustomerId = Boolean(subscription?.stripeCustomerId);
+  const hasFinanceAction = canEditSubscription && finance && (hasCustomerId || plan === 'free');
   const [open, setOpen] = useState(defaultOpen);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const paddingYClass = getAccordionPaddingYClass({
     finance,
+    hasFinanceAction,
     hasCustomerId,
     plan,
     showButton,
   });
+
+  const handleAccordionClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (isInteractiveClick(event.target)) {
+      return;
+    }
+    setOpen((current) => !current);
+  };
 
   const handleBillingPortal = async () => {
     setError(null);
@@ -91,7 +111,8 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${paddingYClass}`}
+      className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${paddingYClass} cursor-pointer`}
+      onClick={handleAccordionClick}
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <button
@@ -134,7 +155,11 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
       </div>
 
       {(open || keepMounted) && (
-        <div className={open ? '' : 'hidden'} aria-hidden={!open}>
+        <div
+          className={open ? 'cursor-default' : 'hidden'}
+          aria-hidden={!open}
+          data-accordion-click-ignore="true"
+        >
           {children}
         </div>
       )}

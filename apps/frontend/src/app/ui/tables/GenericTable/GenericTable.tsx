@@ -21,6 +21,9 @@ interface GenericTableProps<T extends object> {
   pageSize?: number;
 }
 
+// Bottom padding applied by .TableBodyScroll — must match Generictable.css
+const TABLE_BODY_PADDING_BOTTOM = 16;
+
 const GenericTable = <T extends object>({
   data,
   columns,
@@ -29,6 +32,7 @@ const GenericTable = <T extends object>({
   pageSize = 10,
 }: Readonly<GenericTableProps<T>>) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const bodyScrollRef = useRef<HTMLDivElement | null>(null);
   const [autoPageSize, setAutoPageSize] = useState(pageSize);
 
@@ -42,15 +46,16 @@ const GenericTable = <T extends object>({
   }, [autoPageSize, currentPage, data.length]);
 
   useLayoutEffect(() => {
-    const node = bodyScrollRef.current;
-    if (!node || !pagination) {
+    const container = containerRef.current;
+    const scrollNode = bodyScrollRef.current;
+    if (!container || !scrollNode || !pagination) {
       setAutoPageSize(pageSize);
       return;
     }
 
     const updatePageSize = () => {
-      const headerRow = node.querySelector('thead tr') as HTMLTableRowElement | null;
-      const bodyRow = node.querySelector('tbody tr') as HTMLTableRowElement | null;
+      const headerRow = scrollNode.querySelector('thead tr') as HTMLTableRowElement | null;
+      const bodyRow = scrollNode.querySelector('tbody tr') as HTMLTableRowElement | null;
       if (!headerRow || !bodyRow) {
         setAutoPageSize(pageSize);
         return;
@@ -63,45 +68,59 @@ const GenericTable = <T extends object>({
         return;
       }
 
-      const availableHeight = node.clientHeight - headerHeight;
-      const fittedRows = Math.max(pageSize, Math.floor(availableHeight / rowHeight));
+      // Measure the outer container (includes pagination bar space) so the
+      // fitted-row calculation is stable regardless of whether the bar is
+      // currently rendered — this breaks the show-pagination ↔ resize loop.
+      const containerHeight = container.getBoundingClientRect().height;
+
+      // Reserve space for the pagination bar (≈ 36px icon + 8px gap above +
+      // 8px gap below) so the last row never gets hidden behind it.
+      const PAGINATION_BAR_RESERVE = 52;
+
+      const usableHeight =
+        containerHeight - headerHeight - TABLE_BODY_PADDING_BOTTOM - PAGINATION_BAR_RESERVE;
+
+      const fittedRows = Math.max(pageSize, Math.floor(usableHeight / rowHeight));
       setAutoPageSize(fittedRows);
     };
 
     updatePageSize();
 
-    const resizeObserver = new ResizeObserver(() => {
-      updatePageSize();
-    });
-
-    resizeObserver.observe(node);
+    const resizeObserver = new ResizeObserver(updatePageSize);
+    resizeObserver.observe(container);
     globalThis.window.addEventListener('resize', updatePageSize);
 
     return () => {
       resizeObserver.disconnect();
       globalThis.window.removeEventListener('resize', updatePageSize);
     };
-  }, [data.length, pageSize, pagination]);
+    // Intentionally excludes data.length: data changes don't affect row/header
+    // height, and including it was causing a resize-loop when filters changed.
+  }, [pageSize, pagination]);
 
   const total = data.length;
   const totalPages = Math.ceil(total / autoPageSize);
   const startIdx = (currentPage - 1) * autoPageSize;
   const endIdx = startIdx + autoPageSize;
   const paginatedData = pagination ? data?.slice(startIdx, endIdx) : data;
-  const showPagination = pagination && total > autoPageSize;
-  const fillsAvailableHeight = showPagination;
+  const showPagination = pagination && totalPages > 1;
+
+  // Shrink to content when all rows fit — no empty space below last row.
+  // Keep h-full only when data overflows (needs scroll or pagination).
+  const needsFill = pagination && total > autoPageSize;
 
   const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
 
   return (
     <div
-      className={`flex min-h-0 w-full flex-col gap-3 overflow-hidden ${fillsAvailableHeight ? 'h-full' : ''} ${showPagination ? 'pb-2' : ''}`}
+      ref={containerRef}
+      className={`flex min-h-0 w-full flex-col gap-3 overflow-hidden ${needsFill ? 'h-full' : 'h-auto'} ${showPagination ? 'pb-2' : ''}`}
     >
-      <div className={`TableShell min-h-0 ${fillsAvailableHeight ? 'flex-1' : ''}`}>
+      <div className={`TableShell min-h-0 ${needsFill ? 'flex-1' : ''}`}>
         <div
           ref={bodyScrollRef}
-          className={`TableBodyScroll min-h-0 overflow-y-auto scrollbar-custom ${fillsAvailableHeight ? 'h-full' : ''}`}
+          className={`TableBodyScroll min-h-0 overflow-y-auto scrollbar-custom ${needsFill ? 'h-full' : 'h-auto'}`}
         >
           <table className="TableDiv">
             <colgroup>
@@ -142,7 +161,7 @@ const GenericTable = <T extends object>({
           </table>
         </div>
       </div>
-      {showPagination && totalPages > 1 && (
+      {showPagination && (
         <div className="shrink-0 flex items-center justify-center gap-3">
           <Back
             onClick={handlePrev}

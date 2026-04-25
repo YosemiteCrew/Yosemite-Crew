@@ -36,7 +36,7 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
           ref={ref}
           type="button"
           onClick={onClick}
-          className="rounded-2xl! border! border-input-border-default! px-[13px] py-[13px] transition-all duration-300 ease-in-out"
+          className="h-12 w-12 flex items-center justify-center rounded-2xl! border! border-input-border-default! transition-all duration-300 ease-in-out"
           aria-label="Toggle calendar"
         >
           <IoCalendarClear size={20} color="var(--color-neutral-900)" />

@@ -60,6 +60,7 @@ type InventoryFiltersProps = {
   onChange: (filters: InventoryFiltersState) => void;
   categories: string[];
   loading?: boolean;
+  categoryAction?: React.ReactNode;
 };
 
 const InventoryFilters = ({
@@ -67,6 +68,7 @@ const InventoryFilters = ({
   onChange,
   categories,
   loading = false,
+  categoryAction,
 }: InventoryFiltersProps) => {
   const categoryOptions = useMemo(
     () =>
@@ -116,13 +118,16 @@ const InventoryFilters = ({
           );
         })}
       </div>
-      <div className="w-full sm:w-55 min-w-45 shrink-0">
-        <LabelDropdown
-          placeholder="Category"
-          options={categoryOptions}
-          defaultOption={filters.category}
-          onSelect={(option) => updateFilters({ category: option.value })}
-        />
+      <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+        {categoryAction}
+        <div className="w-full sm:w-55 min-w-45">
+          <LabelDropdown
+            placeholder="Category"
+            options={categoryOptions}
+            defaultOption={filters.category}
+            onSelect={(option) => updateFilters({ category: option.value })}
+          />
+        </div>
       </div>
     </div>
   );

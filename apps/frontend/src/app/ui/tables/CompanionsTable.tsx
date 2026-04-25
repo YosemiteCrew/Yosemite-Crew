@@ -374,7 +374,7 @@ const CompanionsTable = ({
 
   return (
     <div className="table-wrapper h-full min-h-0 overflow-hidden">
-      <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
+      <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-hidden">
         <GenericTable
           data={filteredList}
           columns={columns}

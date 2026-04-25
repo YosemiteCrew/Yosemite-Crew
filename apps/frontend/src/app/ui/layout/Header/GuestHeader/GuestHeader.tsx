@@ -130,11 +130,11 @@ const GuestHeader = () => {
 
   return (
     <div
-      className="flex items-center justify-between px-3! sm:px-12! lg:px-20! gap-10 w-full h-20"
+      className="flex items-center justify-between px-4! sm:px-12! lg:px-20! gap-10 w-full h-20"
       data-terminology-lock="true"
     >
-      <Link href="/" className="logo">
-        <Image src={logoUrl} alt="Logo" width={90} height={83} priority />
+      <Link href="/" className="yc-guest-logo-link">
+        <Image src={logoUrl} alt="Logo" width={112} height={72} priority />
       </Link>
 
       <div className="max-w-[800px] flex-1 hidden lg:flex">
@@ -143,7 +143,7 @@ const GuestHeader = () => {
             <li key={item.label}>
               <Link
                 href={item.href ? item.href : '#'}
-                className={`${item.href === pathname ? 'text-text-primary!' : 'text-text-tertiary!'} inline-block text-body-4 hover:text-text-brand! transition-all duration-200 ease-out hover:scale-108!`}
+                className={`${item.href === pathname ? 'text-text-primary!' : 'text-text-tertiary!'} inline-block text-body-4 hover:text-text-brand! transition-colors duration-200 ease-out`}
               >
                 {item.label}
               </Link>

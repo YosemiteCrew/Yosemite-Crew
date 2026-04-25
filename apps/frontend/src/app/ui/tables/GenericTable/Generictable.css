@@ -7,7 +7,6 @@
 }
 
 .TableBodyScroll {
-  height: 100%;
   min-height: 0;
   padding: 0 16px 16px !important;
 }

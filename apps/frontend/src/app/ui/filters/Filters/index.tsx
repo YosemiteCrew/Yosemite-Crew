@@ -5,7 +5,7 @@ import { FilterOption, StatusOption } from '@/app/features/companions/pages/Comp
 import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { IoAdd } from 'react-icons/io5';
+import { IoAdd, IoWarning } from 'react-icons/io5';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
@@ -21,6 +21,15 @@ const getFilterBorderColor = (filterKey: string, activeFilter: string): string =
   return 'var(--color-text-brand)';
 };
 
+const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
+  minHeight: 48,
+  color: isActive ? 'var(--color-error-700)' : 'var(--color-neutral-700)',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: isActive ? 'var(--color-error-500)' : 'var(--color-neutral-500)',
+  backgroundColor: isActive ? 'var(--color-error-100)' : 'var(--color-neutral-0)',
+});
+
 type FiltersProps = {
   filterOptions?: FilterOption[];
   statusOptions?: StatusOption[];
@@ -31,6 +40,7 @@ type FiltersProps = {
   hasEmergency?: boolean;
   showAddButton?: boolean;
   onAddButtonClick?: () => void;
+  addButtonText?: string;
   className?: string;
 };
 
@@ -44,6 +54,7 @@ const Filters = ({
   hasEmergency = false,
   showAddButton = false,
   onAddButtonClick,
+  addButtonText = 'Add Appointment',
   className,
 }: FiltersProps) => {
   const [open, setOpen] = useState(false);
@@ -101,40 +112,49 @@ const Filters = ({
     <div className={clsx('w-full flex items-center justify-between flex-wrap gap-2', className)}>
       {/* Left: filter pills (All / Emergencies) */}
       <div className="flex items-center gap-2 flex-wrap">
-        {filterOptions?.map((filter) => (
-          <button
-            key={filter.key}
-            onClick={() => handleFilterToggle(filter.key)}
-            className={clsx(
-              'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! border! transition-all duration-300',
-              getFilterClassName(filter.key, activeFilter ?? '')
-            )}
-            style={{
-              borderWidth:
-                filter.key === activeFilter && filter.key === 'emergencies' ? '2px' : '1px',
-              borderStyle: 'solid',
-              borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
-              backgroundColor:
-                filter.key === activeFilter && filter.key === 'emergencies'
-                  ? 'var(--color-danger-soft)'
-                  : undefined,
-            }}
-          >
-            {filter.name}
-            {filter.key === 'emergencies' && hasEmergency && (
-              <span
-                aria-label="Emergency appointments present"
-                className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
-                style={{
-                  backgroundColor: 'var(--color-danger-500)',
-                  borderColor: 'var(--color-danger-500)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                }}
-              />
-            )}
-          </button>
-        ))}
+        {filterOptions?.map((filter) => {
+          const isEmergency = filter.key === 'emergencies';
+          const isActiveEmergency = isEmergency && filter.key === activeFilter;
+          const emergencyColor = isActiveEmergency
+            ? 'var(--color-error-700)'
+            : 'var(--color-neutral-700)';
+          return (
+            <button
+              key={filter.key}
+              onClick={() => handleFilterToggle(filter.key)}
+              className={clsx(
+                'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! border! transition-all duration-300',
+                isEmergency
+                  ? 'inline-flex items-center gap-2'
+                  : getFilterClassName(filter.key, activeFilter ?? '')
+              )}
+              style={
+                isEmergency
+                  ? getEmergencyPillStyle(isActiveEmergency)
+                  : {
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
+                    }
+              }
+            >
+              {isEmergency && <IoWarning size={16} aria-hidden="true" color={emergencyColor} />}
+              <span>{filter.name}</span>
+              {isEmergency && hasEmergency && (
+                <span
+                  aria-label="Emergency appointments present"
+                  className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
+                  style={{
+                    backgroundColor: emergencyColor,
+                    borderColor: emergencyColor,
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Right: status dropdown + add */}
@@ -145,7 +165,7 @@ const Filters = ({
               ref={triggerRef}
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
+              className="h-12 flex items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
               style={
                 selectedStatus?.bg
                   ? {
@@ -225,10 +245,10 @@ const Filters = ({
         )}
         {showAddButton && (
           <Primary
-            text="Add Appointment"
+            text={addButtonText}
             onClick={onAddButtonClick}
             icon={<IoAdd size={18} aria-hidden="true" />}
-            className="gap-2 px-4 py-2.5 whitespace-nowrap hover:scale-100"
+            className="gap-2 px-4 whitespace-nowrap hover:scale-100"
           />
         )}
       </div>

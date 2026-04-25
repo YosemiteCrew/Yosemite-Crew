@@ -16,9 +16,15 @@ type FormsFiltersProps = {
   list: FormsProps[];
   setFilteredList: any;
   searchQuery?: string;
+  categoryAction?: React.ReactNode;
 };
 
-const FormsFilters = ({ list, setFilteredList, searchQuery = '' }: FormsFiltersProps) => {
+const FormsFilters = ({
+  list,
+  setFilteredList,
+  searchQuery = '',
+  categoryAction,
+}: FormsFiltersProps) => {
   const [activeStatus, setActiveStatus] = useState<FormsStatus | 'All'>('All');
   const [activeCategory, setActiveCategory] = useState<FormsCategory | 'All'>('All');
 
@@ -104,15 +110,18 @@ const FormsFilters = ({ list, setFilteredList, searchQuery = '' }: FormsFiltersP
           );
         })}
       </div>
-      <div className="w-full sm:w-55 min-w-45">
-        <LabelDropdown
-          placeholder="Category"
-          options={filteredCategoryOptions}
-          defaultOption={activeCategory}
-          onSelect={(option) => {
-            setActiveCategory(option.value as FormsCategory | 'All');
-          }}
-        />
+      <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+        {categoryAction}
+        <div className="w-full sm:w-55 min-w-45">
+          <LabelDropdown
+            placeholder="Category"
+            options={filteredCategoryOptions}
+            defaultOption={activeCategory}
+            onSelect={(option) => {
+              setActiveCategory(option.value as FormsCategory | 'All');
+            }}
+          />
+        </div>
       </div>
     </div>
   );

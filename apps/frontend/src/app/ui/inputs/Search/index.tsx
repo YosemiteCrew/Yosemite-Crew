@@ -17,7 +17,7 @@ const Search = ({ value, setSearch, className, placeholder = 'Search' }: SearchP
         type="text"
         value={value}
         onChange={(e) => setSearch(e.target.value)}
-        className="outline-none border-0 w-full text-body-4 placeholder:text-text-secondary text-text-primary"
+        className="font-satoshi outline-none border-0 w-full text-body-4 placeholder:text-text-secondary text-text-primary"
         placeholder={placeholder}
       />
       <IoIosSearch size={22} color="var(--color-neutral-900)" className="cursor-pointer" />
