@@ -71,6 +71,11 @@ export const resolveDefaultOpenScreenRouteForProfile = ({
   orgType?: string;
   role?: string | null;
 }): DefaultOpenScreenRoute => {
+  const configuredDefaultOpenScreen = profile?.personalDetails?.pmsPreferences?.defaultOpenScreen;
+  if (!configuredDefaultOpenScreen) {
+    return resolveDefaultOpenScreenRoute(role);
+  }
+
   const preferredRoute = defaultOpenScreenToRoute(
     normalizePmsPreferences(profile?.personalDetails?.pmsPreferences, orgType).defaultOpenScreen
   );

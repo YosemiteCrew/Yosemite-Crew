@@ -2,6 +2,7 @@ import { loadOrgs } from '@/app/features/organization/services/orgService';
 import { loadProfiles } from '@/app/features/organization/services/profileService';
 import { loadAvailability } from '@/app/features/organization/services/availabilityService';
 import { loadSpecialitiesForOrg } from '@/app/features/organization/services/specialityService';
+import { loadInvites } from '@/app/features/organization/services/teamService';
 import {
   resolveDefaultOpenScreenRoute,
   resolveDefaultOpenScreenRouteForProfile,
@@ -61,7 +62,10 @@ export const resolveOrgScopedRedirect = async ({
   }
 
   try {
-    await Promise.all([loadProfiles({ silent: true }), loadAvailability({ silent: true })]);
+    await Promise.all([
+      loadProfiles({ silent: true, orgId }),
+      loadAvailability({ silent: true, orgId }),
+    ]);
   } catch {
     return resolveDefaultOpenScreenRoute(effectiveRole);
   }
@@ -108,8 +112,16 @@ export const resolvePostAuthRedirect = async ({
 
   const { orgIds, primaryOrgId } = useOrgStore.getState();
 
-  // New user with no org → create org flow
+  // New user with no org — check for pending invites before sending to create-org
   if (orgIds.length === 0) {
+    try {
+      const invites = await loadInvites();
+      if (invites.length > 0) {
+        return '/organizations';
+      }
+    } catch {
+      // Ignore invite fetch failures — fall through to create-org
+    }
     return '/create-org';
   }
 
