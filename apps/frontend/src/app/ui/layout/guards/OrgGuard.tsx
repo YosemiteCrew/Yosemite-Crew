@@ -26,7 +26,7 @@ import { useLoadTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { useLoadSubscriptionCounterForPrimaryOrg } from '@/app/hooks/useBilling';
 import { useLoadInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { useLoadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
 import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import {
   canAccessPathByPermissions,
@@ -299,7 +299,11 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
 
-    const preferredLanding = resolveDefaultOpenScreenRoute(role);
+    const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
+      profile,
+      orgType: primaryOrg.type,
+      role,
+    });
     const landingRedirect = applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
     if (landingRedirect) {
       router.replace(landingRedirect);
