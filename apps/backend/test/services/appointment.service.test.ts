@@ -1667,12 +1667,46 @@ describe("AppointmentService", () => {
         lead: { id: "new_lead" },
         startTime: newTime,
         endTime: newTime,
+        concern: "Updated concern",
       } as any);
 
       expect(OccupancyModel.deleteMany).toHaveBeenCalled(); // Triggered because vet/time changed
       expect(OccupancyModel.create).toHaveBeenCalled();
       expect(mockDoc.lead.id).toBe("new_lead");
+      expect(mockDoc.concern).toBe("Updated concern");
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "APPOINTMENT_RESCHEDULED",
+          metadata: expect.objectContaining({
+            concern: "Updated concern",
+          }),
+        }),
+      );
       expect(mockSession.commitTransaction).toHaveBeenCalled();
+    });
+
+    it("should record audit trail on PMS status update", async () => {
+      const mockDoc: any = createMockDoc({
+        status: "UPCOMING",
+        lead: { id: "vet_1", name: "Vet" },
+      });
+
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      await AppointmentService.updateAppointmentPMS(validId, {
+        lead: { id: "vet_1", name: "Vet" },
+        status: "CHECKED_IN",
+      } as any);
+
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "APPOINTMENT_CHECKED_IN",
+          metadata: expect.objectContaining({
+            status: "CHECKED_IN",
+            previousStatus: "UPCOMING",
+          }),
+        }),
+      );
     });
   });
 
@@ -2081,9 +2115,18 @@ describe("AppointmentService", () => {
         lead: { id: "vet_1", name: "Vet" },
         startTime: new Date("2026-02-01T10:00:00Z"),
         endTime: new Date("2026-02-01T11:00:00Z"),
+        concern: "Updated concern",
       } as any);
 
       expect(prisma.occupancy.create).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "APPOINTMENT_RESCHEDULED",
+          metadata: expect.objectContaining({
+            concern: "Updated concern",
+          }),
+        }),
+      );
     });
 
     it("attachFormsToAppointment uses prisma path", async () => {
