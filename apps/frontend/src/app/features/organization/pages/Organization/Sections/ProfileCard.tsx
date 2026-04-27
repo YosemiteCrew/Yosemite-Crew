@@ -461,6 +461,9 @@ const ProfileCard = ({
           </div>
         )}
         {fields.map((field, index) => {
+          if (field.type === 'separator') {
+            return isEditing ? <div key={field.key} className="h-2" /> : null;
+          }
           const type = field.type || 'text';
           const Component = FieldComponents[type] || FieldComponents.text;
           const showDivider = index !== fields.length - 1;
