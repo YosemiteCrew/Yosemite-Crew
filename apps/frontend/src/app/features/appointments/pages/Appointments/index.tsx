@@ -40,6 +40,12 @@ import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsVie
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
+import { useOrgStore } from '@/app/stores/orgStore';
+import {
+  appointmentViewToLocal,
+  normalizePmsPreferences,
+} from '@/app/features/settings/utils/pmsPreferences';
 
 const Appointments = () => {
   const rawAppointments = useAppointmentsForPrimaryOrg();
@@ -153,6 +159,11 @@ const Appointments = () => {
     return normalizeLeadId(activeAppointment.lead?.id) === currentUserLeadId;
   }, [canEditAny, canEditOwn, activeAppointment, currentUserLeadId]);
 
+  const profile = usePrimaryOrgProfile();
+  const primaryOrgType = useOrgStore((s) =>
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
+  );
+
   const [activeCalendar, setActiveCalendar] = useState('team');
   const [activeView, setActiveView] = useState<string>(resolveDefaultAppointmentsView);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -161,6 +172,15 @@ const Appointments = () => {
     activeView,
     topOffset: activeView === 'list' ? 72 : 16,
   });
+
+  const viewInitializedFromProfileRef = useRef(false);
+  useEffect(() => {
+    if (viewInitializedFromProfileRef.current || !profile) return;
+    const prefs = normalizePmsPreferences(profile.personalDetails?.pmsPreferences, primaryOrgType);
+    const profileView = appointmentViewToLocal(prefs.appointmentView);
+    setActiveView(profileView);
+    viewInitializedFromProfileRef.current = true;
+  }, [profile, primaryOrgType]);
 
   useEffect(() => {
     if (activeCalendar === 'week') {

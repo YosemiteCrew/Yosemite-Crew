@@ -3,7 +3,6 @@ import { getMonthYear } from '@/app/features/appointments/components/Calendar/he
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { FiZoomIn, FiZoomOut } from 'react-icons/fi';
 import Datepicker from '@/app/ui/inputs/Datepicker';
-import Dropdown from '@/app/ui/inputs/Dropdown';
 import { IoAdd, IoWarning } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { FaCaretDown } from 'react-icons/fa6';
@@ -86,9 +85,19 @@ const Header = ({
 
   const [statusOpen, setStatusOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarDropdownStyle, setCalendarDropdownStyle] = useState<React.CSSProperties>({});
   const [isMounted, setIsMounted] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const calendarTriggerRef = useRef<HTMLButtonElement>(null);
+  const calendarPanelRef = useRef<HTMLDivElement>(null);
+
+  const CALENDAR_OPTIONS = [
+    { key: 'day', label: 'Day' },
+    { key: 'week', label: 'Week' },
+    { key: 'team', label: 'Team' },
+  ];
 
   const selectedStatus = statusOptions?.find((s) => s.key === activeStatus) ?? statusOptions?.[0];
   const isEmergencyFilterActive = activeFilter === 'emergencies';
@@ -113,9 +122,25 @@ const Header = ({
     });
   }, []);
 
+  const positionCalendarPanel = useCallback(() => {
+    if (!calendarTriggerRef.current) return;
+    const rect = calendarTriggerRef.current.getBoundingClientRect();
+    setCalendarDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 6,
+      right: window.innerWidth - rect.right,
+      minWidth: rect.width,
+      zIndex: 9999,
+    });
+  }, []);
+
   useLayoutEffect(() => {
     if (statusOpen) positionPanel();
   }, [statusOpen, positionPanel]);
+
+  useLayoutEffect(() => {
+    if (calendarOpen) positionCalendarPanel();
+  }, [calendarOpen, positionCalendarPanel]);
 
   useEffect(() => {
     if (!statusOpen) return;
@@ -135,6 +160,25 @@ const Header = ({
       window.removeEventListener('scroll', handleScroll, { capture: true });
     };
   }, [statusOpen]);
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const handleClose = (e: MouseEvent) => {
+      if (
+        calendarTriggerRef.current?.contains(e.target as Node) ||
+        calendarPanelRef.current?.contains(e.target as Node)
+      )
+        return;
+      setCalendarOpen(false);
+    };
+    const handleScroll = () => setCalendarOpen(false);
+    document.addEventListener('mousedown', handleClose);
+    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClose);
+      window.removeEventListener('scroll', handleScroll, { capture: true });
+    };
+  }, [calendarOpen]);
 
   const filterButtons = filterOptions?.map((filter) => {
     const isEmergencyFilter = filter.key === 'emergencies';
@@ -159,7 +203,7 @@ const Header = ({
         type="button"
         onClick={() => handleFilterToggle(filter.key)}
         className={clsx(
-          'relative flex h-12 min-w-32 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
+          'relative flex h-12 shrink-0 min-w-32 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
           getFilterClassName(filter.key, activeFilter ?? '')
         )}
         style={emergencyPillStyle}
@@ -183,8 +227,8 @@ const Header = ({
   });
 
   return (
-    <div className="sticky top-0 z-[140] shrink-0 overflow-visible flex w-full items-center justify-between gap-4 border-b border-grey-light bg-white px-3 py-2">
-      <div className="flex min-w-0 shrink-0 items-center gap-3">
+    <div className="sticky top-0 z-[140] shrink-0 flex w-full items-center gap-4 border-b border-grey-light bg-white px-3 py-2">
+      <div className="flex shrink-0 items-center gap-3">
         <GlassTooltip content="Select date" side="bottom">
           <div className="relative z-150">
             <Datepicker
@@ -199,149 +243,191 @@ const Header = ({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
-        {statusOptions && statusOptions.length > 0 && (
-          <>
-            <button
-              ref={triggerRef}
-              type="button"
-              onClick={() => setStatusOpen((v) => !v)}
-              className="h-12 flex items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
-              style={
-                selectedStatus?.bg
-                  ? {
-                      backgroundColor: selectedStatus.bg,
-                      color: selectedStatus.text ?? 'var(--color-black-pure)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: selectedStatus.border ?? selectedStatus.bg,
-                    }
-                  : {
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: 'var(--color-card-border)',
-                      color: 'var(--color-text-tertiary)',
-                    }
-              }
-            >
-              <span>{selectedStatus?.name ?? 'Status'}</span>
-              <FaCaretDown
-                size={14}
-                className={clsx('shrink-0 transition-transform', statusOpen && 'rotate-180')}
-              />
-            </button>
+      <div
+        className="min-w-0 flex-1 overflow-x-auto scrollbar-hidden py-1 -my-1"
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+      >
+        <div className="flex w-max items-center gap-3 ml-auto">
+          {statusOptions && statusOptions.length > 0 && (
+            <>
+              <button
+                ref={triggerRef}
+                type="button"
+                onClick={() => setStatusOpen((v) => !v)}
+                className="flex h-12 shrink-0 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between whitespace-nowrap"
+                style={
+                  selectedStatus?.bg
+                    ? {
+                        backgroundColor: selectedStatus.bg,
+                        color: selectedStatus.text ?? 'var(--color-black-pure)',
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: selectedStatus.border ?? selectedStatus.bg,
+                      }
+                    : {
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: 'var(--color-card-border)',
+                        color: 'var(--color-text-tertiary)',
+                      }
+                }
+              >
+                <span>{selectedStatus?.name ?? 'Status'}</span>
+                <FaCaretDown
+                  size={14}
+                  className={clsx('shrink-0 transition-transform', statusOpen && 'rotate-180')}
+                />
+              </button>
 
-            {isMounted &&
-              statusOpen &&
-              createPortal(
-                <div
-                  ref={panelRef}
-                  className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
-                  style={dropdownStyle}
-                >
-                  {statusOptions.map((status) => {
-                    const isActive = status.key === activeStatus;
-                    return (
-                      <button
-                        key={status.key}
-                        type="button"
-                        onClick={() => {
-                          setActiveStatus?.(status.key);
-                          setStatusOpen(false);
-                        }}
-                        className={clsx(
-                          'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
-                          isActive ? 'font-medium' : 'hover:bg-card-hover'
-                        )}
-                      >
-                        {status.border && (
-                          <span
-                            className="inline-block h-3 w-3 rounded-full shrink-0"
-                            style={{
-                              backgroundColor: status.border,
-                              borderWidth: '1px',
-                              borderStyle: 'solid',
-                              borderColor: status.border,
-                            }}
-                          />
-                        )}
-                        <span style={{ color: getDropdownStatusTextColor(status) }}>
-                          {status.name}
-                        </span>
-                        {isActive && (
-                          <span
-                            className="ml-auto text-sm font-semibold"
-                            style={{ color: getDropdownStatusTextColor(status) }}
-                          >
-                            ✓
+              {isMounted &&
+                statusOpen &&
+                createPortal(
+                  <div
+                    ref={panelRef}
+                    className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+                    style={dropdownStyle}
+                  >
+                    {statusOptions.map((status) => {
+                      const isActive = status.key === activeStatus;
+                      return (
+                        <button
+                          key={status.key}
+                          type="button"
+                          onClick={() => {
+                            setActiveStatus?.(status.key);
+                            setStatusOpen(false);
+                          }}
+                          className={clsx(
+                            'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
+                            isActive ? 'font-medium' : 'hover:bg-card-hover'
+                          )}
+                        >
+                          {status.border && (
+                            <span
+                              className="inline-block h-3 w-3 rounded-full shrink-0"
+                              style={{
+                                backgroundColor: status.border,
+                                borderWidth: '1px',
+                                borderStyle: 'solid',
+                                borderColor: status.border,
+                              }}
+                            />
+                          )}
+                          <span style={{ color: getDropdownStatusTextColor(status) }}>
+                            {status.name}
                           </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>,
-                document.body
-              )}
-          </>
-        )}
+                          {isActive && (
+                            <span
+                              className="ml-auto text-sm font-semibold"
+                              style={{ color: getDropdownStatusTextColor(status) }}
+                            >
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>,
+                  document.body
+                )}
+            </>
+          )}
 
-        {filterButtons}
+          {filterButtons}
 
-        {showAddButton && (
-          <>
-            <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
-            <Primary
-              text="Add Appointment"
-              onClick={onAddButtonClick}
-              icon={<IoAdd size={18} aria-hidden="true" />}
-              className="gap-2 px-4 whitespace-nowrap hover:scale-100"
-            />
-          </>
-        )}
+          {showAddButton && (
+            <>
+              <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
+              <Primary
+                text="Add Appointment"
+                onClick={onAddButtonClick}
+                icon={<IoAdd size={18} aria-hidden="true" />}
+                className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+              />
+            </>
+          )}
 
-        {showCalendarTypeSelector && (
-          <div className="relative z-150">
-            <Dropdown
-              options={[
-                { key: 'day', label: 'Day' },
-                { key: 'week', label: 'Week' },
-                { key: 'team', label: 'Team' },
-              ]}
-              placeholder="View"
-              defaultOption={activeCalendar}
-              onSelect={(option) => setActiveCalendar(option.key)}
-            />
-          </div>
-        )}
+          {showCalendarTypeSelector && (
+            <>
+              <button
+                ref={calendarTriggerRef}
+                type="button"
+                onClick={() => setCalendarOpen((v) => !v)}
+                className="flex h-12 shrink-0 items-center gap-2 px-3 rounded-2xl! border border-card-border transition-all duration-300 text-body-4 whitespace-nowrap text-text-secondary"
+              >
+                <span>
+                  {CALENDAR_OPTIONS.find((o) => o.key === activeCalendar)?.label ?? 'View'}
+                </span>
+                <FaCaretDown
+                  size={14}
+                  className={clsx('shrink-0 transition-transform', calendarOpen && 'rotate-180')}
+                />
+              </button>
+              {isMounted &&
+                calendarOpen &&
+                createPortal(
+                  <div
+                    ref={calendarPanelRef}
+                    className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+                    style={calendarDropdownStyle}
+                  >
+                    {CALENDAR_OPTIONS.map((option) => {
+                      const isActive = option.key === activeCalendar;
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => {
+                            setActiveCalendar(option.key);
+                            setCalendarOpen(false);
+                          }}
+                          className={clsx(
+                            'w-full flex items-center px-3 py-2.5 text-body-4 text-left transition-colors',
+                            isActive
+                              ? 'font-medium text-text-primary'
+                              : 'text-text-secondary hover:bg-card-hover'
+                          )}
+                        >
+                          {option.label}
+                          {isActive && <span className="ml-auto font-semibold">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>,
+                  document.body
+                )}
+            </>
+          )}
 
-        {zoomMode && setZoomMode && (
-          <div className="inline-flex items-center rounded-full border border-card-border bg-card-bg p-1">
-            <button
-              type="button"
-              onClick={() => setZoomMode('in')}
-              title="Zoom in timeline"
-              className={`h-9 w-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
-                isZoomIn
-                  ? 'bg-white text-text-primary border border-card-border'
-                  : 'text-text-secondary hover:bg-card-hover border border-transparent'
-              }`}
-            >
-              <FiZoomIn size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoomMode('out')}
-              title="Zoom out timeline"
-              className={`h-9 w-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
-                isZoomOut
-                  ? 'bg-white text-text-primary border border-card-border'
-                  : 'text-text-secondary hover:bg-card-hover border border-transparent'
-              }`}
-            >
-              <FiZoomOut size={18} />
-            </button>
-          </div>
-        )}
+          {zoomMode && setZoomMode && (
+            <div className="inline-flex shrink-0 items-center rounded-full border border-card-border bg-card-bg p-1">
+              <button
+                type="button"
+                onClick={() => setZoomMode('in')}
+                title="Zoom in timeline"
+                className={`h-9 w-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
+                  isZoomIn
+                    ? 'bg-white text-text-primary border border-card-border'
+                    : 'text-text-secondary hover:bg-card-hover border border-transparent'
+                }`}
+              >
+                <FiZoomIn size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoomMode('out')}
+                title="Zoom out timeline"
+                className={`h-9 w-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
+                  isZoomOut
+                    ? 'bg-white text-text-primary border border-card-border'
+                    : 'text-text-secondary hover:bg-card-hover border border-transparent'
+                }`}
+              >
+                <FiZoomOut size={18} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

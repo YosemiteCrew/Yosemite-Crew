@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
-import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
+import AppointmentScopeToggle from '@/app/ui/primitives/AppointmentScopeToggle/AppointmentScopeToggle';
 import { Appointment } from '@yosemite-crew/types';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import {
@@ -85,12 +85,13 @@ const normalizeStatus = (status?: string): BoardStatus | null => {
 };
 
 const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  minHeight: 48,
-  color: isActive ? 'var(--color-error-700)' : 'var(--color-neutral-700)',
+  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
+  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
   borderWidth: '1px',
   borderStyle: 'solid',
-  borderColor: isActive ? 'var(--color-error-500)' : 'var(--color-neutral-500)',
-  backgroundColor: isActive ? 'var(--color-error-100)' : 'var(--color-neutral-0)',
+  borderRadius: '16px',
+  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
+  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
 });
 
 const getBoardOrgType = (
@@ -228,7 +229,9 @@ const AppointmentBoard = ({
     setActiveFilter(activeFilter === 'emergencies' ? 'all' : 'emergencies');
   };
   const isEmergencyActive = activeFilter === 'emergencies';
-  const emergencyColor = isEmergencyActive ? 'var(--color-error-700)' : 'var(--color-neutral-700)';
+  const emergencyColor = isEmergencyActive
+    ? 'var(--color-semantic-error-700)'
+    : 'var(--color-neutral-700)';
 
   const openAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
@@ -379,9 +382,9 @@ const AppointmentBoard = ({
 
   return (
     <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
-      <div className="border-b border-card-border bg-white px-3 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">
+      <div className="shrink-0 border-b border-grey-light bg-white px-3 py-2">
+        <div className="flex w-full items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 text-body-4-emphasis text-text-primary">
             <GlassTooltip content="Select date" side="bottom">
               <Datepicker
                 currentDate={currentDate}
@@ -399,7 +402,7 @@ const AppointmentBoard = ({
                   })
                 }
               />
-              <div>
+              <div className="whitespace-nowrap">
                 {formatDateInPreferredTimeZone(currentDate, {
                   weekday: 'long',
                   month: 'short',
@@ -418,46 +421,53 @@ const AppointmentBoard = ({
               />
             </div>
           </div>
-          <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
-            <button
-              type="button"
-              onClick={toggleEmergencyFilter}
-              className={clsx(
-                'relative inline-flex min-w-20 items-center gap-2 text-body-4 px-3 py-1.25 rounded-2xl! transition-all duration-300',
-                !isEmergencyActive && 'hover:bg-card-hover!'
-              )}
-              style={getEmergencyPillStyle(isEmergencyActive)}
-            >
-              <IoWarning size={16} aria-hidden="true" color={emergencyColor} />
-              <span>Emergencies</span>
-              {hasEmergency && (
-                <span
-                  aria-label="Emergency appointments present"
-                  className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full"
-                  style={{
-                    backgroundColor: 'var(--color-error-700)',
-                    outline: '2px solid white',
-                  }}
+          <div
+            className="relative z-20 min-w-0 flex-1 overflow-x-auto scrollbar-hidden py-1 -my-1"
+            style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+          >
+            <div className="flex w-max items-center gap-3 ml-auto">
+              <button
+                type="button"
+                onClick={toggleEmergencyFilter}
+                className={clsx(
+                  'relative flex h-12 w-fit shrink-0 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
+                  !isEmergencyActive && 'hover:bg-card-hover!'
+                )}
+                style={getEmergencyPillStyle(isEmergencyActive)}
+              >
+                <IoWarning
+                  size={18}
+                  aria-hidden="true"
+                  className="shrink-0"
+                  color={emergencyColor}
                 />
+                <span>Emergencies</span>
+                {hasEmergency && (
+                  <span
+                    aria-label="Emergency appointments present"
+                    className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full"
+                    style={{
+                      backgroundColor: 'var(--color-semantic-error-700)',
+                      outline: '2px solid white',
+                    }}
+                  />
+                )}
+              </button>
+              {canEditAppointments && (
+                <>
+                  <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
+                  <Primary
+                    text="Add Appointment"
+                    onClick={onAddAppointment}
+                    icon={<IoAdd size={18} aria-hidden="true" />}
+                    className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+                  />
+                </>
               )}
-            </button>
-            {canEditAppointments && (
-              <>
-                <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
-                <Primary
-                  text="Add Appointment"
-                  onClick={onAddAppointment}
-                  icon={<IoAdd size={18} aria-hidden="true" />}
-                  className="gap-2 px-4 whitespace-nowrap hover:scale-100"
-                />
-              </>
-            )}
-            <BoardScopeToggle
-              showMineOnly={showMineOnly}
-              onChange={setShowMineOnly}
-              allLabel="All appointments"
-              mineLabel="My appointments"
-            />
+              <div className="shrink-0">
+                <AppointmentScopeToggle showMineOnly={showMineOnly} onChange={setShowMineOnly} />
+              </div>
+            </div>
           </div>
         </div>
       </div>

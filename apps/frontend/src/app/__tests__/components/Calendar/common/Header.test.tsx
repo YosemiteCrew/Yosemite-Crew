@@ -71,7 +71,7 @@ describe('Header Component', () => {
     const statusButton = screen.getByRole('button', { name: /Scheduled/i });
     const addAppointmentButton = screen.getByRole('button', { name: 'Add Appointment' });
     const datepicker = screen.getByTestId('datepicker');
-    const viewSelector = screen.getByTestId('dropdown');
+    const viewSelector = screen.getByRole('button', { name: /week/i });
     const zoomInButton = screen.getByTitle('Zoom in timeline');
 
     expect(datepicker.compareDocumentPosition(monthLabel)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
