@@ -3,7 +3,6 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import { MdOutlineCalendarMonth, MdTableRows, MdViewKanban } from 'react-icons/md';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import clsx from 'clsx';
 
 type TitleCalendarProps = {
   title: string;
@@ -22,18 +21,29 @@ const VIEW_OPTION_CONFIG = {
     label: 'Calendar',
     tooltip: 'Calendar view',
     Icon: MdOutlineCalendarMonth,
+    activeSlider: 'bg-blue-text',
+    activeText: 'text-neutral-0',
   },
   board: {
     label: 'Board',
     tooltip: 'Status board view',
     Icon: MdViewKanban,
+    activeSlider: 'bg-success-700',
+    activeText: 'text-neutral-0',
   },
   list: {
     label: 'Table',
     tooltip: 'Table view',
     Icon: MdTableRows,
+    activeSlider: 'bg-text-primary',
+    activeText: 'text-neutral-0',
   },
 } as const;
+
+const SEGMENT_WIDTH: Record<number, string> = {
+  2: 'w-full sm:w-[320px]',
+  3: 'w-full sm:w-[390px]',
+};
 
 const TitleCalendar = ({
   title,
@@ -46,6 +56,14 @@ const TitleCalendar = ({
   actionBeforeAdd,
   viewOptions = ['calendar', 'board', 'list'],
 }: TitleCalendarProps) => {
+  const n = viewOptions.length;
+  const activeIndex = viewOptions.indexOf(activeView as 'calendar' | 'board' | 'list');
+  const safeIndex = activeIndex === -1 ? 0 : activeIndex;
+  const activeConfig = VIEW_OPTION_CONFIG[viewOptions[safeIndex]];
+  const containerW = SEGMENT_WIDTH[n] ?? 'w-[300px]';
+  const segW = n === 2 ? 'w-1/2' : 'w-1/3';
+  const sliderTranslate = `translateX(${safeIndex * 100}%)`;
+
   return (
     <div className="flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-2">
       <div className="flex min-w-0 items-center gap-2">
@@ -67,7 +85,7 @@ const TitleCalendar = ({
           ) : null}
         </div>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+      <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto">
         {actionBeforeAdd}
         {showAdd && (
           <Primary
@@ -78,29 +96,31 @@ const TitleCalendar = ({
           />
         )}
         <div
-          className="inline-flex h-10 items-center gap-1 rounded-2xl border border-neutral-300 bg-neutral-0 p-1"
+          role="group"
           aria-label={`${title} view`}
+          className={`relative flex h-10 items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white ${containerW}`}
         >
+          <div
+            aria-hidden
+            className={`absolute top-0 bottom-0 rounded-[999px]! transition-all duration-300 ease-in-out ${activeConfig.activeSlider} ${segW}`}
+            style={{ transform: sliderTranslate }}
+          />
           {viewOptions.map((option) => {
-            const { Icon, label, tooltip } = VIEW_OPTION_CONFIG[option];
+            const { Icon, label, activeText } = VIEW_OPTION_CONFIG[option];
             const isActive = activeView === option;
             return (
-              <GlassTooltip key={option} content={tooltip} side="bottom">
-                <button
-                  type="button"
-                  onClick={() => setActiveView(option)}
-                  aria-pressed={isActive}
-                  className={clsx(
-                    'inline-flex h-8 min-w-23 items-center justify-center gap-2 rounded-xl! border px-3 text-body-4 transition-all duration-200',
-                    isActive
-                      ? 'border-primary-500 bg-primary-100 text-primary-700'
-                      : 'border-transparent bg-transparent text-neutral-700 hover:border-neutral-300 hover:bg-neutral-100 hover:text-neutral-900'
-                  )}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  <span>{label}</span>
-                </button>
-              </GlassTooltip>
+              <button
+                key={option}
+                type="button"
+                onClick={() => setActiveView(option)}
+                aria-pressed={isActive}
+                className={`relative z-10 flex items-center justify-center gap-1.5 text-body-4 transition-colors duration-200 ${segW} ${
+                  isActive ? activeText : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                <Icon size={15} aria-hidden="true" className="shrink-0" />
+                <span>{label}</span>
+              </button>
             );
           })}
         </div>

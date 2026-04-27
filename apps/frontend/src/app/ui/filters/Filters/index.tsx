@@ -22,12 +22,13 @@ const getFilterBorderColor = (filterKey: string, activeFilter: string): string =
 };
 
 const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  minHeight: 48,
-  color: isActive ? 'var(--color-error-700)' : 'var(--color-neutral-700)',
+  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
+  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
   borderWidth: '1px',
   borderStyle: 'solid',
-  borderColor: isActive ? 'var(--color-error-500)' : 'var(--color-neutral-500)',
-  backgroundColor: isActive ? 'var(--color-error-100)' : 'var(--color-neutral-0)',
+  borderRadius: '16px',
+  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
+  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
 });
 
 type FiltersProps = {
@@ -116,17 +117,16 @@ const Filters = ({
           const isEmergency = filter.key === 'emergencies';
           const isActiveEmergency = isEmergency && filter.key === activeFilter;
           const emergencyColor = isActiveEmergency
-            ? 'var(--color-error-700)'
+            ? 'var(--color-semantic-error-700)'
             : 'var(--color-neutral-700)';
           return (
             <button
               key={filter.key}
+              type="button"
               onClick={() => handleFilterToggle(filter.key)}
               className={clsx(
-                'relative min-w-20 text-body-4 px-3 py-1.25 rounded-2xl! border! transition-all duration-300',
-                isEmergency
-                  ? 'inline-flex items-center gap-2'
-                  : getFilterClassName(filter.key, activeFilter ?? '')
+                'relative inline-flex h-12 min-w-20 items-center justify-center text-body-4 px-3 rounded-2xl! border! transition-all duration-300',
+                isEmergency ? 'gap-2' : getFilterClassName(filter.key, activeFilter ?? '')
               )}
               style={
                 isEmergency
@@ -138,17 +138,22 @@ const Filters = ({
                     }
               }
             >
-              {isEmergency && <IoWarning size={16} aria-hidden="true" color={emergencyColor} />}
+              {isEmergency && (
+                <IoWarning
+                  size={18}
+                  aria-hidden="true"
+                  className="shrink-0"
+                  color={emergencyColor}
+                />
+              )}
               <span>{filter.name}</span>
               {isEmergency && hasEmergency && (
                 <span
                   aria-label="Emergency appointments present"
-                  className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border"
+                  className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full"
                   style={{
-                    backgroundColor: emergencyColor,
-                    borderColor: emergencyColor,
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
+                    backgroundColor: 'var(--color-semantic-error-700)',
+                    outline: '2px solid white',
                   }}
                 />
               )}
@@ -165,7 +170,7 @@ const Filters = ({
               ref={triggerRef}
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="h-12 flex items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
+              className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
               style={
                 selectedStatus?.bg
                   ? {
@@ -248,7 +253,7 @@ const Filters = ({
             text={addButtonText}
             onClick={onAddButtonClick}
             icon={<IoAdd size={18} aria-hidden="true" />}
-            className="gap-2 px-4 whitespace-nowrap hover:scale-100"
+            className="h-12 w-fit justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
           />
         )}
       </div>

@@ -19,6 +19,7 @@ interface GenericTableProps<T extends object> {
   bordered?: boolean;
   pagination?: boolean;
   pageSize?: number;
+  tableClassName?: string;
 }
 
 // Bottom padding applied by .TableBodyScroll — must match Generictable.css
@@ -30,6 +31,7 @@ const GenericTable = <T extends object>({
   bordered = false,
   pagination = false,
   pageSize = 10,
+  tableClassName,
 }: Readonly<GenericTableProps<T>>) => {
   const [currentPage, setCurrentPage] = useState(1);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -122,7 +124,7 @@ const GenericTable = <T extends object>({
           ref={bodyScrollRef}
           className={`TableBodyScroll min-h-0 overflow-y-auto scrollbar-custom ${needsFill ? 'h-full' : 'h-auto'}`}
         >
-          <table className="TableDiv">
+          <table className={`TableDiv${tableClassName ? ` ${tableClassName}` : ''}`}>
             <colgroup>
               {columns.map((col) => (
                 <col key={String(col.key)} style={col.width ? { width: col.width } : {}} />

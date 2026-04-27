@@ -318,7 +318,7 @@ const Appointments = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '10%',
+      width: '220px',
       render: (item: Appointment) => {
         const orgType = (item.organisationId && orgsById[item.organisationId]?.type) || 'HOSPITAL';
         const clinicalNotesLabel = getClinicalNotesLabel(orgType);
@@ -469,6 +469,7 @@ const Appointments = ({
           bordered={false}
           pagination={true}
           pageSize={small ? 5 : 10}
+          tableClassName="appointments-table-fixed"
         />
       </div>
       <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 sm:pb-3 flex gap-4 sm:gap-6 flex-wrap content-start">

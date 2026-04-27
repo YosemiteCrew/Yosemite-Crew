@@ -16,16 +16,16 @@
   z-index: 0;
   pointer-events: none;
   opacity: 0;
-  background:
-    radial-gradient(
-      circle 58px at var(--yc-button-x) var(--yc-button-y),
-      rgba(255, 255, 255, 0.28) 0%,
-      rgba(255, 255, 255, 0.16) 28%,
-      rgba(255, 255, 255, 0.05) 52%,
-      transparent 76%
-    ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 64%);
-  transition: opacity 160ms ease;
+  background: radial-gradient(
+    circle 68px at var(--yc-button-x) var(--yc-button-y),
+    rgba(136, 206, 255, 0.26) 0%,
+    rgba(92, 184, 255, 0.14) 36%,
+    rgba(0, 150, 255, 0) 78%
+  );
+  filter: blur(2px);
+  transition:
+    background 160ms ease,
+    opacity 160ms ease;
 }
 
 .yc-primary-button:hover::before,
@@ -34,15 +34,12 @@
 }
 
 .yc-primary-button:active::before {
-  background:
-    radial-gradient(
-      circle 68px at var(--yc-button-x) var(--yc-button-y),
-      rgba(255, 255, 255, 0.36) 0%,
-      rgba(255, 255, 255, 0.2) 30%,
-      rgba(255, 255, 255, 0.07) 56%,
-      transparent 78%
-    ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 66%);
+  background: radial-gradient(
+    circle 64px at var(--yc-button-x) var(--yc-button-y),
+    rgba(0, 118, 214, 0.34) 0%,
+    rgba(0, 96, 184, 0.18) 36%,
+    rgba(0, 77, 153, 0) 78%
+  );
 }
 
 .yc-primary-button:focus-visible {
