@@ -5,6 +5,7 @@ import { loadAvailability } from '@/app/features/organization/services/availabil
 const mockUseAvailabilityStore = jest.fn();
 const mockUseOrgStore = jest.fn();
 const mockUseAuthStore = jest.fn();
+const mockUsePrimaryOrgWithMembership = jest.fn();
 const mockConvertFromGetApi = jest.fn();
 
 jest.mock('@/app/features/organization/services/availabilityService', () => ({
@@ -25,6 +26,10 @@ jest.mock('@/app/stores/availabilityStore', () => ({
 
 jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: (selector: any) => mockUseAuthStore(selector),
+}));
+
+jest.mock('@/app/hooks/useOrgSelectors', () => ({
+  usePrimaryOrgWithMembership: () => mockUsePrimaryOrgWithMembership(),
 }));
 
 jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
@@ -89,6 +94,12 @@ describe('usePrimaryAvailability', () => {
     mockUseAuthStore.mockImplementation((selector: any) =>
       selector({ attributes: { sub: 'Practitioner/USER-1' } })
     );
+    mockUsePrimaryOrgWithMembership.mockReturnValue({
+      membership: {
+        id: 'membership-1',
+        practitionerReference: 'Practitioner/USER-1',
+      },
+    });
     mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
     mockUseAvailabilityStore.mockImplementation((selector: any) =>
       selector({
@@ -123,6 +134,12 @@ describe('usePrimaryAvailability', () => {
     mockUseAuthStore.mockImplementation((selector: any) =>
       selector({ attributes: { sub: 'unknown' } })
     );
+    mockUsePrimaryOrgWithMembership.mockReturnValue({
+      membership: {
+        id: 'membership-unknown',
+        practitionerReference: 'Practitioner/unknown',
+      },
+    });
 
     renderHook(() => usePrimaryAvailability());
 
