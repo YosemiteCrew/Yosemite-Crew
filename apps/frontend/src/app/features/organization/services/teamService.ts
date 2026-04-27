@@ -167,7 +167,17 @@ export const getProfileForUserForPrimaryOrg = async (userId: string) => {
     if (!userId) {
       return null;
     }
-    const res = await getData('/fhir/v1/user-profile/' + userId + '/' + primaryOrgId + '/profile');
+    const normalizedUserId = String(userId).trim().split('/').pop() ?? '';
+    if (!normalizedUserId) {
+      return null;
+    }
+    const endpoint =
+      '/fhir/v1/user-profile/' +
+      encodeURIComponent(normalizedUserId) +
+      '/' +
+      primaryOrgId +
+      '/profile';
+    const res = await getData(endpoint);
     return res.data;
   } catch (err: any) {
     // 404 = member hasn't completed profile yet — expected pre-onboarding state

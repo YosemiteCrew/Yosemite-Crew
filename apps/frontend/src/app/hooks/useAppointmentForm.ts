@@ -250,19 +250,19 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const getLeadOptionsForSlot = useCallback(
     (slot: Slot | null) => {
       if (!teams?.length || !slot) return [];
-      const vetIdSet = new Set(slot.vetIds ?? []);
+      const vetIdSet = new Set((slot.vetIds ?? []).map((vetId) => normalizeId(vetId)));
       if (!vetIdSet.size) return [];
       return teams
         .filter((team) => {
           const teamId = team.practionerId || team._id;
-          return teamId ? vetIdSet.has(teamId) : false;
+          return teamId ? vetIdSet.has(normalizeId(teamId)) : false;
         })
         .map((team) => ({
           label: team.name || team.practionerId || team._id,
           value: team.practionerId || team._id,
         }));
     },
-    [teams]
+    [normalizeId, teams]
   );
   const getLeadOptionsRef = useRef(getLeadOptionsForSlot);
   getLeadOptionsRef.current = getLeadOptionsForSlot;
@@ -384,13 +384,23 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         ...new Set(serviceCandidates.map((c) => c.serviceId).filter(Boolean)),
       ];
       const matchesByServiceId = new Map<string, SlotScopedMatch>();
-      const bulkMatches = await getCalendarPrefillMatchesForPrimaryOrg({
+      let bulkMatches = await getCalendarPrefillMatchesForPrimaryOrg({
         date: pendingPrefill.date,
         minuteOfDay: minute,
         leadId: pendingPrefill.leadId,
         serviceIds: uniqueServiceIds,
       });
       if (cancelled) return;
+
+      if (bulkMatches?.length === 0 && normalizedPrefillLeadId) {
+        bulkMatches = await getCalendarPrefillMatchesForPrimaryOrg({
+          date: pendingPrefill.date,
+          minuteOfDay: minute,
+          leadId: undefined,
+          serviceIds: uniqueServiceIds,
+        });
+        if (cancelled) return;
+      }
 
       if (bulkMatches) {
         const candidatesByServiceId = new Map(
@@ -399,6 +409,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         bulkMatches.forEach((match) => {
           const candidate = candidatesByServiceId.get(match.serviceId);
           if (!candidate) return;
+          if (!hasMatchingLead(match.slot, normalizedPrefillLeadId, normalizeId)) return;
           matchesByServiceId.set(match.serviceId, {
             ...candidate,
             matchingSlot: match.slot,

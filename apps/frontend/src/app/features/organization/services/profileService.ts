@@ -83,7 +83,7 @@ export const loadProfiles = async (opts?: { silent?: boolean; orgId?: string }) 
   if (opts?.orgId) {
     if (!opts?.silent) startLoading();
     const profile = await fetchProfileForOrg(opts.orgId);
-    if (profile) updateProfile(profile);
+    if (profile) addProfile(profile);
     return;
   }
 

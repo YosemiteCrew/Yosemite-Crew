@@ -337,7 +337,7 @@ describe('Team Service', () => {
     it('fetches profile data successfully', async () => {
       (axios.getData as jest.Mock).mockResolvedValue({ data: { name: 'Profile' } });
 
-      const result = await getProfileForUserForPrimaryOrg('user-1');
+      const result = await getProfileForUserForPrimaryOrg('Practitioner/user-1');
 
       expect(axios.getData).toHaveBeenCalledWith('/fhir/v1/user-profile/user-1/org-123/profile');
       expect(result).toEqual({ name: 'Profile' });

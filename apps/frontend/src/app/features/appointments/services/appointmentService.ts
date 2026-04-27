@@ -285,15 +285,16 @@ export const getCalendarPrefillMatchesForPrimaryOrg = async ({
     return existingRequest;
   }
 
+  const payload = {
+    organisationId: primaryOrgId,
+    date: dateLabel,
+    minuteOfDay,
+    leadId: normalizeLeadId(leadId) || undefined,
+    serviceIds: normalizedServiceIds,
+  };
   const requestPromise = postData<CalendarPrefillResolutionResponse>(
     '/fhir/v1/service/bookable-slots/calendar-prefill',
-    {
-      organisationId: primaryOrgId,
-      date: dateLabel,
-      minuteOfDay,
-      leadId: normalizeLeadId(leadId) || undefined,
-      serviceIds: normalizedServiceIds,
-    }
+    payload
   )
     .then((res) => {
       return (res.data?.data?.matches ?? [])

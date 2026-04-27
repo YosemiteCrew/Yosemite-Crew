@@ -9,12 +9,18 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { Team } from '@/app/features/organization/types/team';
 import { deleteData, getData, postData } from '@/app/services/axios';
 
+const normalizeAvailabilityUserId = (value?: string | null): string =>
+  String(value ?? '')
+    .trim()
+    .split('/')
+    .pop() ?? '';
+
 export const upsertAvailability = async (
   formData: ApiAvailability,
   orgIdFromQuery: string | null
 ) => {
   const { primaryOrgId } = useOrgStore.getState();
-  const { setAvailabilitiesForOrg } = useAvailabilityStore.getState();
+  const { setUserAvailabilitiesForOrg } = useAvailabilityStore.getState();
   try {
     const id = orgIdFromQuery || primaryOrgId;
     if (!id) return;
@@ -23,7 +29,7 @@ export const upsertAvailability = async (
       formData
     );
     const availability = res.data?.data ?? [];
-    setAvailabilitiesForOrg(id, availability);
+    setUserAvailabilitiesForOrg(id, availability[0]?.userId, availability);
   } catch (err: unknown) {
     console.error('Failed to load orgs:', err);
     throw err;
@@ -36,14 +42,17 @@ export const upsertTeamAvailability = async (
   orgIdFromQuery: string | null
 ) => {
   const { primaryOrgId } = useOrgStore.getState();
+  const { setUserAvailabilitiesForOrg } = useAvailabilityStore.getState();
   try {
     const id = orgIdFromQuery || primaryOrgId;
-    if (!id) return;
+    const userId = normalizeAvailabilityUserId(team.practionerId);
+    if (!id || !userId) return;
     const res = await postData<GetAvailabilityResponse>(
-      '/fhir/v1/availability/' + id + '/' + team.practionerId + '/base',
+      '/fhir/v1/availability/' + id + '/' + encodeURIComponent(userId) + '/base',
       formData
     );
     const availability = res.data?.data ?? [];
+    setUserAvailabilitiesForOrg(id, userId, availability);
     return availability;
   } catch (err: unknown) {
     console.error('Failed to load orgs:', err);
@@ -53,27 +62,32 @@ export const upsertTeamAvailability = async (
 
 const fetchAvailabilityForOrg = async (
   orgId: string,
-  setAvailabilitiesForOrg: (orgId: string, data: any[]) => void
+  setUserAvailabilitiesForOrg: (
+    orgId: string,
+    userId: string | undefined,
+    data: ApiDayAvailability[]
+  ) => void
 ) => {
   try {
     const res = await getData<GetAvailabilityResponse>('/fhir/v1/availability/' + orgId + '/base');
-    setAvailabilitiesForOrg(orgId, res.data?.data ?? []);
+    const availability = res.data?.data ?? [];
+    setUserAvailabilitiesForOrg(orgId, availability[0]?.userId, availability);
   } catch (err) {
     console.error(`Failed to fetch availability for orgId: ${orgId}`, err);
-    setAvailabilitiesForOrg(orgId, []);
+    setUserAvailabilitiesForOrg(orgId, undefined, []);
   }
 };
 
 export const loadAvailability = async (opts?: { silent?: boolean; orgId?: string }) => {
   const { orgIds } = useOrgStore.getState();
-  const { startLoading, setAvailabilitiesForOrg } = useAvailabilityStore.getState();
+  const { startLoading, setUserAvailabilitiesForOrg } = useAvailabilityStore.getState();
   if (!opts?.silent) {
     startLoading();
   }
 
   // Single-org fast path — used during org switch to avoid fan-out
   if (opts?.orgId) {
-    await fetchAvailabilityForOrg(opts.orgId, setAvailabilitiesForOrg);
+    await fetchAvailabilityForOrg(opts.orgId, setUserAvailabilitiesForOrg);
     return;
   }
 
@@ -82,7 +96,7 @@ export const loadAvailability = async (opts?: { silent?: boolean; orgId?: string
       return;
     }
     await Promise.allSettled(
-      orgIds.map((orgId) => fetchAvailabilityForOrg(orgId, setAvailabilitiesForOrg))
+      orgIds.map((orgId) => fetchAvailabilityForOrg(orgId, setUserAvailabilitiesForOrg))
     );
   } catch (err: unknown) {
     console.error('Failed to load availability:', err);

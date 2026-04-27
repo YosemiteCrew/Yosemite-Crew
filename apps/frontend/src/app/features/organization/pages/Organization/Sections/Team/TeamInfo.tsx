@@ -138,7 +138,6 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
   const [profile, setProfile] = useState<any>(null);
-  const lastAvailabilityLogKeyRef = React.useRef<string>('');
 
   const normalizeId = (value?: string) =>
     String(value ?? '')
@@ -152,13 +151,14 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     normalizeId(activeTeam?._id) === normalizeId(membership?.id);
   const canEditMutableMember = canEditTeam && activeTeam.role !== 'OWNER';
   const canEditRole = canEditTeam && activeTeam.role !== 'OWNER';
-  const canEditOwnOrMutableMember = isSelfMember || canEditMutableMember;
-  const canEditEmploymentType = canEditOwnOrMutableMember;
+  // Employment type can be set by team managers OR by the member themselves
+  const canEditEmploymentType = isSelfMember || canEditMutableMember;
   const canEditDepartment = false;
-  const canEditPersonal = canEditOwnOrMutableMember;
-  const canEditAddress = canEditOwnOrMutableMember;
-  const canEditProfessional = canEditOwnOrMutableMember;
-  const canEditAvailability = canEditOwnOrMutableMember;
+  // Personal profile fields are self-only — team managers cannot edit another person's profile
+  const canEditPersonal = isSelfMember;
+  const canEditAddress = isSelfMember;
+  const canEditProfessional = isSelfMember;
+  const canEditAvailability = isSelfMember;
   const canEditOrgDetails = canEditRole || canEditEmploymentType || canEditDepartment;
   const canDeleteMember = canEditTeam && activeTeam.role !== 'OWNER';
 
@@ -176,21 +176,8 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
         : [];
       const converted = convertFromGetApi(apiAvailability);
       setAvailability(converted);
-
-      const logKey = `${activeTeam?._id || ''}:${JSON.stringify(apiAvailability)}`;
-      if (lastAvailabilityLogKeyRef.current !== logKey) {
-        lastAvailabilityLogKeyRef.current = logKey;
-        console.log('[TeamInfo][ProfileAvailabilityDebug]', {
-          memberName: activeTeam?.name,
-          memberIds: {
-            practionerId: activeTeam?.practionerId,
-            _id: activeTeam?._id,
-          },
-          baseAvailability: apiAvailability,
-        });
-      }
     }
-  }, [profile, activeTeam]);
+  }, [profile]);
 
   const SpecialitiesOptions = useMemo(
     () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),

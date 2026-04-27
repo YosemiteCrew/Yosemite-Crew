@@ -19,6 +19,12 @@ type AvailabilityState = {
 
   setAvailabilities: (items: ApiDayAvailability[]) => void;
   setAvailabilitiesForOrg: (orgId: string, items: ApiDayAvailability[]) => void;
+  setBaseAvailabilitiesForOrg: (orgId: string, items: ApiDayAvailability[]) => void;
+  setUserAvailabilitiesForOrg: (
+    orgId: string,
+    userId: string | undefined,
+    items: ApiDayAvailability[]
+  ) => void;
   upsertAvailabilityStore: (item: ApiDayAvailability) => void;
   removeAvailability: (id: string) => void;
   clearAvailabilitiesForOrg: (orgId: string) => void;
@@ -33,6 +39,16 @@ type AvailabilityState = {
   endLoading: () => void;
   setError: (message: string) => void;
 };
+
+const isUserSpecificAvailability = (item?: ApiDayAvailability | null): boolean =>
+  Boolean(item?.userId && String(item.userId).trim());
+
+const normalizeAvailabilityUserId = (value?: string | null): string =>
+  String(value ?? '')
+    .trim()
+    .split('/')
+    .pop()
+    ?.toLowerCase() ?? '';
 
 export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
   availabilitiesById: {},
@@ -85,6 +101,82 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
       return {
         availabilitiesById,
         availabilityIdsByOrgId,
+        status: 'loaded',
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
+      };
+    }),
+
+  setBaseAvailabilitiesForOrg: (orgId, items) =>
+    set((state) => {
+      const availabilitiesById = { ...state.availabilitiesById };
+      const existingIds = state.availabilityIdsByOrgId[orgId] ?? [];
+      const preservedUserSpecificIds = existingIds.filter((id) =>
+        isUserSpecificAvailability(state.availabilitiesById[id])
+      );
+      const preservedUserSpecificIdSet = new Set(preservedUserSpecificIds);
+
+      for (const id of existingIds) {
+        if (!preservedUserSpecificIdSet.has(id)) {
+          delete availabilitiesById[id];
+        }
+      }
+
+      const baseIds: string[] = [];
+      for (const item of items) {
+        const id = item._id;
+        availabilitiesById[id] = item;
+        baseIds.push(id);
+      }
+
+      return {
+        availabilitiesById,
+        availabilityIdsByOrgId: {
+          ...state.availabilityIdsByOrgId,
+          [orgId]: [...baseIds, ...preservedUserSpecificIds],
+        },
+        status: 'loaded',
+        error: null,
+        lastFetchedAt: new Date().toISOString(),
+      };
+    }),
+
+  setUserAvailabilitiesForOrg: (orgId, userId, items) =>
+    set((state) => {
+      const availabilitiesById = { ...state.availabilitiesById };
+      const existingIds = state.availabilityIdsByOrgId[orgId] ?? [];
+      const normalizedUserId =
+        normalizeAvailabilityUserId(userId) ||
+        normalizeAvailabilityUserId(items.find(isUserSpecificAvailability)?.userId);
+
+      const retainedIds =
+        normalizedUserId.length > 0
+          ? existingIds.filter((id) => {
+              const existing = state.availabilitiesById[id];
+              return normalizeAvailabilityUserId(existing?.userId) !== normalizedUserId;
+            })
+          : existingIds.filter((id) => !items.some((item) => item._id === id));
+      const retainedIdSet = new Set(retainedIds);
+
+      for (const id of existingIds) {
+        if (!retainedIdSet.has(id)) {
+          delete availabilitiesById[id];
+        }
+      }
+
+      const nextIds: string[] = [];
+      for (const item of items) {
+        const id = item._id;
+        availabilitiesById[id] = item;
+        nextIds.push(id);
+      }
+
+      return {
+        availabilitiesById,
+        availabilityIdsByOrgId: {
+          ...state.availabilityIdsByOrgId,
+          [orgId]: [...retainedIds, ...nextIds],
+        },
         status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),

@@ -4,8 +4,10 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useAuthStore } from '@/app/stores/authStore';
 import { loadAvailability } from '@/app/features/organization/services/availabilityService';
+import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
 
 jest.mock('@/app/stores/orgStore', () => ({ useOrgStore: jest.fn() }));
+jest.mock('@/app/hooks/useOrgSelectors', () => ({ usePrimaryOrgWithMembership: jest.fn() }));
 const mockAvailGetState = jest.fn(() => ({ status: 'idle' }));
 jest.mock('@/app/stores/availabilityStore', () => ({
   useAvailabilityStore: Object.assign(jest.fn(), { getState: () => mockAvailGetState() }),
@@ -22,6 +24,7 @@ jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
 const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
 const mockUseAvailabilityStore = useAvailabilityStore as unknown as jest.Mock;
 const mockUseAuthStore = useAuthStore as unknown as jest.Mock;
+const mockUsePrimaryOrgWithMembership = usePrimaryOrgWithMembership as unknown as jest.Mock;
 
 describe('useLoadAvailabilities', () => {
   beforeEach(() => {
@@ -65,6 +68,12 @@ describe('usePrimaryAvailability', () => {
     mockUseAuthStore.mockImplementation((selector: any) =>
       selector({ attributes: { sub: 'user-a' } })
     );
+    mockUsePrimaryOrgWithMembership.mockReturnValue({
+      membership: {
+        id: 'membership-a',
+        practitionerReference: 'Practitioner/practitioner-a',
+      },
+    });
   });
 
   it('returns null when no primary org', () => {
@@ -105,6 +114,35 @@ describe('usePrimaryAvailability', () => {
 
     expect(result.current.availabilities).toEqual([
       { _id: 'mine', organisationId: 'org-1', dayOfWeek: 'MONDAY', userId: 'user-a' },
+    ]);
+  });
+
+  it('matches practitioner reference rows for the current membership', () => {
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({
+        availabilityIdsByOrgId: { 'org-1': ['auth', 'practitioner'] },
+        availabilitiesById: {
+          auth: { _id: 'auth', organisationId: 'org-1', dayOfWeek: 'MONDAY', userId: 'user-a' },
+          practitioner: {
+            _id: 'practitioner',
+            organisationId: 'org-1',
+            dayOfWeek: 'TUESDAY',
+            userId: 'practitioner-a',
+          },
+        },
+      })
+    );
+
+    const { result } = renderHook(() => usePrimaryAvailability());
+
+    expect(result.current.availabilities).toEqual([
+      {
+        _id: 'practitioner',
+        organisationId: 'org-1',
+        dayOfWeek: 'TUESDAY',
+        userId: 'practitioner-a',
+      },
     ]);
   });
 

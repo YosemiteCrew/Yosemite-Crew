@@ -3,6 +3,7 @@ import { loadAvailability } from '@/app/features/organization/services/availabil
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useAuthStore } from '@/app/stores/authStore';
+import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
 import {
   ApiDayAvailability,
   AvailabilityState,
@@ -30,6 +31,7 @@ export const usePrimaryAvailability = (): {
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
+  const { membership } = usePrimaryOrgWithMembership();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
   const availabilitiesById = useAvailabilityStore((s) => s.availabilitiesById);
@@ -48,18 +50,29 @@ export const usePrimaryAvailability = (): {
     if (!primaryOrgId) return { availabilities: null };
     const ids = availabilityIdsByOrgId[primaryOrgId] ?? [];
     const temp = ids.map((id) => availabilitiesById[id]).filter(Boolean);
-    const normalizedAuthUserId = normalizeId(authUserId);
-    const userRows =
-      normalizedAuthUserId.length > 0
+    const practitionerId = normalizeId(membership?.practitionerReference);
+    const membershipIds = new Set(
+      [
+        practitionerId,
+        normalizeId(membership?.id),
+        normalizeId((membership as any)?.userId),
+      ].filter(Boolean)
+    );
+    const authId = normalizeId(authUserId);
+    const findUserRows = (targetIds: Set<string>) =>
+      targetIds.size > 0
         ? temp.filter(
-            (item) =>
-              isUserSpecificAvailability(item) && normalizeId(item.userId) === normalizedAuthUserId
+            (item) => isUserSpecificAvailability(item) && targetIds.has(normalizeId(item.userId))
           )
         : [];
+    const practitionerRows = findUserRows(membershipIds);
+    const authRows =
+      practitionerRows.length > 0 ? [] : findUserRows(new Set([authId].filter(Boolean)));
+    const userRows = practitionerRows.length > 0 ? practitionerRows : authRows;
     const selectedRows =
       userRows.length > 0 ? userRows : temp.filter((item) => !isUserSpecificAvailability(item));
     return {
       availabilities: convertFromGetApi(selectedRows),
     };
-  }, [authUserId, primaryOrgId, availabilityIdsByOrgId, availabilitiesById]);
+  }, [authUserId, membership, primaryOrgId, availabilityIdsByOrgId, availabilitiesById]);
 };
