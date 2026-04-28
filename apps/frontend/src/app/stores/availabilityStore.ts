@@ -50,6 +50,20 @@ const normalizeAvailabilityUserId = (value?: string | null): string =>
     .pop()
     ?.toLowerCase() ?? '';
 
+const computeRetainedIds = (
+  existingIds: string[],
+  availabilitiesById: Record<string, ApiDayAvailability>,
+  normalizedUserId: string,
+  items: ApiDayAvailability[]
+): string[] => {
+  if (normalizedUserId.length > 0) {
+    return existingIds.filter(
+      (id) => normalizeAvailabilityUserId(availabilitiesById[id]?.userId) !== normalizedUserId
+    );
+  }
+  return existingIds.filter((id) => !items.some((item) => item._id === id));
+};
+
 export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
   availabilitiesById: {},
   availabilityIdsByOrgId: {},
@@ -149,13 +163,12 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
         normalizeAvailabilityUserId(userId) ||
         normalizeAvailabilityUserId(items.find(isUserSpecificAvailability)?.userId);
 
-      const retainedIds =
-        normalizedUserId.length > 0
-          ? existingIds.filter((id) => {
-              const existing = state.availabilitiesById[id];
-              return normalizeAvailabilityUserId(existing?.userId) !== normalizedUserId;
-            })
-          : existingIds.filter((id) => !items.some((item) => item._id === id));
+      const retainedIds = computeRetainedIds(
+        existingIds,
+        availabilitiesById,
+        normalizedUserId,
+        items
+      );
       const retainedIdSet = new Set(retainedIds);
 
       for (const id of existingIds) {

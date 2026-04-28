@@ -318,7 +318,7 @@ const Appointments = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '220px',
+      width: '352px',
       render: (item: Appointment) => {
         const orgType = (item.organisationId && orgsById[item.organisationId]?.type) || 'HOSPITAL';
         const clinicalNotesLabel = getClinicalNotesLabel(orgType);

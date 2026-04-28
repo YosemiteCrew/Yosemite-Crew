@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
@@ -69,6 +69,7 @@ type DayCalendarProps = {
   draggedAppointmentDurationMinutes?: number;
   slotStepMinutes?: number;
   availabilityLoaded?: boolean;
+  skipAutoScroll?: boolean;
 };
 
 const getCompanionDisplayName = (appointment: Appointment) =>
@@ -104,6 +105,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   draggedAppointmentDurationMinutes,
   slotStepMinutes = 15,
   availabilityLoaded = false,
+  skipAutoScroll = false,
 }) => {
   const { notify } = useNotify();
   const onWheelBoundary = useScrollBoundaryWheel();
@@ -184,7 +186,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     [timedEvents, windowStart, windowEnd]
   );
 
-  const focusTopPx = useMemo(() => {
+  const getFocusTopPx = useCallback(() => {
     const nowTopPx = getNowTopPxForWindow(date, windowStart, windowEnd, now);
     if (nowTopPx != null) return nowTopPx * yScale;
 
@@ -200,10 +202,17 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     return ((clampedMinutes - windowStart) / MINUTES_PER_STEP) * pixelsPerStep;
   }, [date, now, timedEvents, windowStart, windowEnd, pixelsPerStep, yScale]);
 
+  // Keep a ref to the latest focus position so the scroll effect can read it
+  // without depending on it — prevents re-scroll on every availability update.
+  const getFocusTopPxRef = useRef(getFocusTopPx);
+  getFocusTopPxRef.current = getFocusTopPx;
+
   useEffect(() => {
-    if (!scrollRef.current) return;
-    scrollContainerToTarget(scrollRef.current, focusTopPx);
-  }, [focusTopPx]);
+    if (!scrollRef.current || skipAutoScroll) return;
+    scrollContainerToTarget(scrollRef.current, getFocusTopPxRef.current());
+    // Only re-scroll when the date changes or skip flag is lifted.
+    // Availability changes (windowStart/windowEnd) must NOT trigger another scroll.
+  }, [date, skipAutoScroll]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -486,12 +495,11 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         </div>
       )}
       <div
-        className="overflow-x-hidden flex-1 px-2 pt-2"
+        className="overflow-x-hidden flex-1 px-2 pt-2 overflow-y-auto"
         style={{
           height: '100%',
           maxHeight: '100%',
           minHeight: 0,
-          overflowY: 'auto',
           paddingBottom: zoomMode === 'out' ? 30 : 40,
           paddingTop: 12,
         }}
@@ -577,6 +585,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     top,
                     height: segHeight,
                     backgroundColor: 'var(--color-calendar-dim-overlay)',
+                    transition: 'opacity 0.25s ease',
                   }}
                 />
               );
@@ -641,7 +650,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               return (
                 <div
                   key={ev.companion.name + i}
-                  className={`absolute scrollbar-hidden ${isZoomOut ? 'rounded-md! px-0 py-0 border-0 bg-transparent' : 'rounded-xl! px-2 py-1.5 overflow-hidden'}`}
+                  className={`absolute scrollbar-hidden ${isZoomOut ? 'rounded-md! px-0 py-0 bg-transparent' : 'rounded-xl! px-2 py-1.5 overflow-hidden'}`}
                   style={{
                     top: ev.topPx * yScale,
                     height: Math.max(
@@ -650,7 +659,15 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     ),
                     left: `calc(${leftPercent}% + ${horizontalGapPx}px)`,
                     width: `calc(${widthPercent}% - ${horizontalGapPx * 2}px)`,
-                    ...(isZoomOut ? {} : statusStyle),
+                    ...(isZoomOut
+                      ? {}
+                      : {
+                          backgroundColor: statusStyle.backgroundColor,
+                          color: statusStyle.color,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: statusStyle.borderColor,
+                        }),
                   }}
                 >
                   {isZoomOut && (

@@ -46,14 +46,6 @@ const getAccordionPaddingYClass = ({
   return 'py-[20px]';
 };
 
-const isInteractiveClick = (target: EventTarget | null) =>
-  target instanceof Element &&
-  Boolean(
-    target.closest(
-      'button,a,input,select,textarea,[role="button"],[data-accordion-click-ignore="true"]'
-    )
-  );
-
 const AccordionButton: React.FC<AccordionButtonProps> = ({
   title,
   children,
@@ -81,13 +73,6 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
     showButton,
   });
 
-  const handleAccordionClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (isInteractiveClick(event.target)) {
-      return;
-    }
-    setOpen((current) => !current);
-  };
-
   const handleBillingPortal = async () => {
     setError(null);
     setLoadingPortal(true);
@@ -111,15 +96,15 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${paddingYClass} cursor-pointer`}
-      onClick={handleAccordionClick}
+      className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${paddingYClass}`}
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <button
           type="button"
-          className="flex shrink-0 items-center gap-2 text-left"
+          className="flex shrink-0 items-center gap-2 text-left cursor-pointer"
           onClick={() => setOpen(!open)}
           aria-label={title}
+          aria-expanded={open}
         >
           <IoIosArrowDown
             size={22}

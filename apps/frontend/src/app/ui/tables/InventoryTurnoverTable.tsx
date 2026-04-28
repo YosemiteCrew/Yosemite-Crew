@@ -21,12 +21,14 @@ export const getStatusStyle = (status?: string) => {
   const key = (status || '').toLowerCase();
   switch (key) {
     case 'excellent':
+    case 'healthy':
       return {
         color: 'var(--color-pill-success-text)',
         backgroundColor: 'var(--color-pill-success-bg)',
         borderColor: 'var(--color-pill-success-border)',
       };
     case 'low':
+    case 'out of stock':
       return {
         color: 'var(--color-pill-warning-text)',
         backgroundColor: 'var(--color-pill-warning-bg)',
@@ -37,18 +39,6 @@ export const getStatusStyle = (status?: string) => {
         color: 'var(--color-pill-progress-text)',
         backgroundColor: 'var(--color-pill-progress-bg)',
         borderColor: 'var(--color-pill-progress-border)',
-      };
-    case 'out of stock':
-      return {
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
-      };
-    case 'healthy':
-      return {
-        color: 'var(--color-pill-success-text)',
-        backgroundColor: 'var(--color-pill-success-bg)',
-        borderColor: 'var(--color-pill-success-border)',
       };
     default:
       return {

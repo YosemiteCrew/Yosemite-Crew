@@ -67,8 +67,8 @@ describe('AccordionButton Component', () => {
     expect(screen.queryByText('Click Me')).not.toBeInTheDocument();
   });
 
-  it('opens a closed accordion when clicking the container body', () => {
-    const { container } = render(
+  it('opens a closed accordion when clicking the toggle button', () => {
+    render(
       <AccordionButton title="Container Click">
         <div data-testid="content">Hidden Content</div>
       </AccordionButton>
@@ -76,13 +76,13 @@ describe('AccordionButton Component', () => {
 
     expect(screen.queryByTestId('content')).not.toBeInTheDocument();
 
-    fireEvent.click(container.firstElementChild!);
+    fireEvent.click(screen.getByRole('button', { name: 'Container Click' }));
 
     expect(screen.getByTestId('content')).toBeInTheDocument();
   });
 
-  it('closes an open accordion when clicking the container body', () => {
-    const { container } = render(
+  it('closes an open accordion when clicking the toggle button', () => {
+    render(
       <AccordionButton title="Container Close" defaultOpen>
         <div data-testid="content">Visible Content</div>
       </AccordionButton>
@@ -90,7 +90,7 @@ describe('AccordionButton Component', () => {
 
     expect(screen.getByTestId('content')).toBeInTheDocument();
 
-    fireEvent.click(container.firstElementChild!);
+    fireEvent.click(screen.getByRole('button', { name: 'Container Close' }));
 
     expect(screen.queryByTestId('content')).not.toBeInTheDocument();
   });

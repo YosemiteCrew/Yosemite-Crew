@@ -95,11 +95,11 @@ const TitleCalendar = ({
             className="h-12 px-7 py-0"
           />
         )}
-        <div
-          role="group"
+        <fieldset
           aria-label={`${title} view`}
-          className={`relative flex h-10 items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white ${containerW}`}
+          className={`relative flex h-10 items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white m-0 p-0 ${containerW}`}
         >
+          <legend className="sr-only">{`${title} view`}</legend>
           <div
             aria-hidden
             className={`absolute top-0 bottom-0 rounded-[999px]! transition-all duration-300 ease-in-out ${activeConfig.activeSlider} ${segW}`}
@@ -123,7 +123,7 @@ const TitleCalendar = ({
               </button>
             );
           })}
-        </div>
+        </fieldset>
       </div>
     </div>
   );

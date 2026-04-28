@@ -76,7 +76,7 @@ const fetchProfileForOrg = async (orgId: string): Promise<UserProfile | null> =>
 };
 
 export const loadProfiles = async (opts?: { silent?: boolean; orgId?: string }) => {
-  const { startLoading, setProfiles, addProfile, updateProfile } = useUserProfileStore.getState();
+  const { startLoading, setProfiles, addProfile } = useUserProfileStore.getState();
   const { orgIds } = useOrgStore.getState();
 
   // Single-org fast path — used during org switch to avoid fan-out

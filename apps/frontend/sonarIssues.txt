@@ -1,0 +1,321 @@
+src/.../inventory/pages/Inventory/utils.ts
+This case's code block is the same as the block for the case on line 159.
+
+Adaptability
+Maintainability
+
+
+2
+Medium
+design
+suspicious
+Open
+
+
+L165
+10min effort
+12 hours ago
+Code Smell
+Major
+src/.../features/organization/services/profileService.ts
+Remove this useless assignment to variable "updateProfile".
+
+Intentionality
+Maintainability
+
+
+2
+Medium
+cwe
+unused
+Open
+
+
+L79
+1min effort
+12 hours ago
+Code Smell
+Major
+src/app/hooks/useAppointmentForm.ts
+Refactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed.
+
+Adaptability
+Maintainability
+
+
+4
+High
+brain-overload
+Open
+
+
+L382
+7min effort
+12 hours ago
+Code Smell
+Critical
+src/app/hooks/useScrollBoundaryWheel.ts
+Prefer `globalThis` over `window`.
+
+Consistency
+Maintainability
+
+
+3
+Low
+es2020
+portability
+Open
+
+
+L19
+2min effort
+4 days ago
+Code Smell
+Minor
+src/app/stores/availabilityStore.ts
+Refactor this code to not nest functions more than 4 levels deep.
+
+Adaptability
+Maintainability
+
+
+4
+High
+brain-overload
+Open
+
+
+L158
+20min effort
+12 hours ago
+Code Smell
+Critical
+src/.../ui/layout/Header/UserHeader/UserHeader.tsx
+'/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/node_modules/react-icons/fa6/index.mjs' imported multiple times.
+
+Consistency
+Maintainability
+
+
+3
+Low
+es2015
+Open
+
+
+L23
+1min effort
+12 hours ago
+Code Smell
+Minor
+'/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/node_modules/react-icons/fa6/index.mjs' imported multiple times.
+
+Consistency
+Maintainability
+
+
+3
+Low
+es2015
+Open
+
+
+L29
+1min effort
+12 hours ago
+Code Smell
+Minor
+src/app/ui/primitives/Accordion/AccordionButton.tsx
+Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element.
+
+Consistency
+Reliability
+
+
+2
+Medium
+Maintainability
+
+
+3
+Low
+accessibility
+react
+Open
+
+
+L113
+5min effort
+12 hours ago
+Code Smell
+Major
+Visible, non-interactive elements with click handlers must have at least one keyboard listener.
+
+Intentionality
+Reliability
+
+
+3
+Low
+accessibility
+react
+Open
+
+
+L113
+5min effort
+12 hours ago
+Bug
+Minor
+src/app/ui/tables/AvailabilityTable.tsx
+This case's code block is the same as the block for the case on line 52.
+
+Adaptability
+Maintainability
+
+
+2
+Medium
+design
+suspicious
+Open
+
+
+L58
+10min effort
+12 hours ago
+Code Smell
+Major
+src/app/ui/tables/CompanionsTable.tsx
+This case's code block is the same as the block for the case on line 60.
+
+Adaptability
+Maintainability
+
+
+2
+Medium
+design
+suspicious
+Open
+
+
+L66
+10min effort
+12 hours ago
+Code Smell
+Major
+src/app/ui/tables/GenericTable/GenericTable.tsx
+Refactor this code to not use nested template literals.
+
+Intentionality
+Maintainability
+
+
+2
+Medium
+brain-overload
+confusing
+...
+Open
+
+
+L127
+10min effort
+12 hours ago
+Code Smell
+Major
+src/app/ui/tables/InventoryTurnoverTable.tsx
+This case's code block is the same as the block for the case on line 29.
+
+Adaptability
+Maintainability
+
+
+2
+Medium
+design
+suspicious
+Open
+
+
+L41
+10min effort
+12 hours ago
+Code Smell
+Major
+This case's code block is the same as the block for the case on line 23.
+
+Adaptability
+Maintainability
+
+
+2
+Medium
+design
+suspicious
+Open
+
+
+L47
+10min effort
+12 hours ago
+Code Smell
+Major
+src/app/ui/tables/InvoiceTable.tsx
+This case's code block is the same as the block for the case on line 61.
+
+Adaptability
+Maintainability
+
+
+2
+Medium
+design
+suspicious
+Open
+
+
+L67
+10min effort
+12 hours ago
+Code Smell
+Major
+This case's code block is the same as the block for the case on line 43.
+
+Adaptability
+Maintainability
+
+
+2
+Medium
+design
+suspicious
+Open
+
+
+L79
+10min effort
+12 hours ago
+Code Smell
+Major
+src/app/ui/widgets/TitleCalendar/index.tsx
+Use <details>, <fieldset>, <optgroup>, or <address> instead of the "group" role to ensure accessibility across all devices.
+
+Consistency
+Maintainability
+
+
+2
+Medium
+accessibility
+react
+Open
+
+
+L98
+5min effort
+12 hours ago
+Code Smell
+Major

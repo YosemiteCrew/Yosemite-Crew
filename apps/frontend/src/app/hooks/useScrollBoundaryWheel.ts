@@ -16,7 +16,7 @@ export const useScrollBoundaryWheel = () =>
     if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
       let parent = el.parentElement;
       while (parent) {
-        const style = window.getComputedStyle(parent);
+        const style = globalThis.window.getComputedStyle(parent);
         const overflow = style.overflowY;
         if (overflow === 'auto' || overflow === 'scroll') {
           parent.scrollTop += e.deltaY;

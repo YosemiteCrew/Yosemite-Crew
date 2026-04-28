@@ -40,12 +40,6 @@ export const getInvoiceItemNames = (items: InvoiceItem[]): string => {
 
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
-    case 'pending':
-      return {
-        color: 'var(--color-pill-neutral-text)',
-        backgroundColor: 'var(--color-pill-neutral-bg)',
-        borderColor: 'var(--color-pill-neutral-border)',
-      };
     case 'awaiting_payment':
       return {
         color: 'var(--color-pill-info-text)',
@@ -59,11 +53,6 @@ export const getStatusStyle = (status: string) => {
         borderColor: 'var(--color-pill-success-border)',
       };
     case 'failed':
-      return {
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
-      };
     case 'cancelled':
       return {
         color: 'var(--color-pill-warning-text)',
@@ -76,6 +65,7 @@ export const getStatusStyle = (status: string) => {
         backgroundColor: 'var(--color-pill-progress-bg)',
         borderColor: 'var(--color-pill-progress-border)',
       };
+    case 'pending':
     default:
       return {
         color: 'var(--color-pill-neutral-text)',
@@ -248,7 +238,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Actions',
       key: 'actions',
-      width: '5%',
+      width: '64px',
       render: (item: Invoice) => (
         <div className="action-btn-col">
           <button

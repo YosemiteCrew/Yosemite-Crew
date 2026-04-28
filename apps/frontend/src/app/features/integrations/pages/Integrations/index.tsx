@@ -815,7 +815,7 @@ const IdexxIntegrationCard = ({
   if (!s.showIdexxCard) return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[360px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
           <Image
@@ -885,7 +885,7 @@ const MerckIntegrationCard = ({
   if (!s.showMerckCard) return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[360px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
           <Image
@@ -953,7 +953,7 @@ const RadIntegrationCard = ({
   if (activeFilter === 'connected') return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[360px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
           <Image
@@ -1004,7 +1004,7 @@ const VetnioIntegrationCard = ({
   if (activeFilter === 'connected') return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[360px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
           <Image

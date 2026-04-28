@@ -9,7 +9,7 @@
    shifting when the status filter changes the number of action buttons. */
 .appointments-table-fixed {
   table-layout: fixed;
-  min-width: 900px;
+  min-width: 1032px;
 }
 .card-list {
   display: none;
@@ -89,7 +89,6 @@
 .action-btn-col {
   display: inline-flex;
   align-items: center;
-  min-width: 184px;
   gap: 8px;
   position: relative;
   z-index: 0;
@@ -98,7 +97,6 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  width: 184px;
   gap: 8px;
   position: relative;
   z-index: 0;

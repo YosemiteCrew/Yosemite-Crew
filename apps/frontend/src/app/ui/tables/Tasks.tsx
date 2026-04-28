@@ -155,7 +155,7 @@ const Tasks = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '10%',
+      width: '160px',
       render: (item: Task) => (
         <div className="action-btn-col">
           <div className="action-btn-grid">

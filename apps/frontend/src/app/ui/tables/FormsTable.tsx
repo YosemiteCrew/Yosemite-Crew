@@ -146,7 +146,7 @@ const FormsTable = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '10%',
+      width: '64px',
       render: (item: FormsProps) => (
         <div className="action-btn-col">
           <button

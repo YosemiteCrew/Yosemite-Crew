@@ -124,7 +124,7 @@ const GenericTable = <T extends object>({
           ref={bodyScrollRef}
           className={`TableBodyScroll min-h-0 overflow-y-auto scrollbar-custom ${needsFill ? 'h-full' : 'h-auto'}`}
         >
-          <table className={`TableDiv${tableClassName ? ` ${tableClassName}` : ''}`}>
+          <table className={['TableDiv', tableClassName].filter(Boolean).join(' ')}>
             <colgroup>
               {columns.map((col) => (
                 <col key={String(col.key)} style={col.width ? { width: col.width } : {}} />

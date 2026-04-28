@@ -50,11 +50,6 @@ export const getStatusStyle = (status: string) => {
         borderColor: 'var(--color-pill-warning-border)',
       };
     case 'requested':
-      return {
-        color: 'var(--color-pill-neutral-text)',
-        backgroundColor: 'var(--color-pill-neutral-bg)',
-        borderColor: 'var(--color-pill-neutral-border)',
-      };
     default:
       return {
         color: 'var(--color-pill-neutral-text)',
@@ -165,7 +160,7 @@ const AvailabilityTable = ({
   const actionColoumn = {
     label: 'Actions',
     key: 'actions',
-    width: '10%',
+    width: '64px',
     render: (item: Team) => (
       <div className="action-btn-col">
         <button

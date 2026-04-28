@@ -157,11 +157,6 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
         borderColor: 'var(--color-pill-info-border)',
       };
     case 'healthy':
-      return {
-        color: 'var(--color-pill-success-text)',
-        backgroundColor: 'var(--color-pill-success-bg)',
-        borderColor: 'var(--color-pill-success-border)',
-      };
     case 'active':
       return {
         color: 'var(--color-pill-success-text)',

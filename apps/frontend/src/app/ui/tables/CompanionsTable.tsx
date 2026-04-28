@@ -58,11 +58,6 @@ export const getStatusStyle = (status: string) => {
         borderColor: 'var(--color-pill-warning-border)',
       };
     case 'inactive':
-      return {
-        color: 'var(--color-pill-neutral-text)',
-        backgroundColor: 'var(--color-pill-neutral-bg)',
-        borderColor: 'var(--color-pill-neutral-border)',
-      };
     default:
       return {
         color: 'var(--color-pill-neutral-text)',
@@ -313,7 +308,7 @@ const CompanionsTable = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '10%',
+      width: '256px',
       render: (item: CompanionParent) => (
         <div className="action-btn-col">
           <GlassTooltip content="View companion" side="bottom" className="table-action-tooltip">

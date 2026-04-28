@@ -20,13 +20,12 @@ import {
   IoSettingsOutline,
   IoWalletOutline,
 } from 'react-icons/io5';
-import { FaPaw } from 'react-icons/fa6';
+import { FaPaw, FaCaretDown } from 'react-icons/fa6';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSignOut } from '@/app/hooks/useAuth';
 
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrgList, usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
-import { FaCaretDown } from 'react-icons/fa6';
 
 import { useAuthStore } from '@/app/stores/authStore';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';

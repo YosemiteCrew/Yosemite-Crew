@@ -140,7 +140,7 @@ const InventoryTable = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '5%',
+      width: '64px',
       render: (item: InventoryItem) => (
         <div className="action-btn-col">
           <button
