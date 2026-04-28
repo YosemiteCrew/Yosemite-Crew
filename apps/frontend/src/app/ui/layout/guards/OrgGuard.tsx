@@ -267,6 +267,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     const shouldWaitForSpecialitiesForOrg =
       role.toLowerCase() === 'owner' &&
       !primaryOrg.isVerified &&
+      specialityStatus !== 'error' &&
       !Object.hasOwn(specialityIdsByOrgId, primaryOrgId);
     if (shouldWaitForSpecialitiesForOrg) {
       return;

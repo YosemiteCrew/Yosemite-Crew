@@ -186,6 +186,29 @@ describe('availabilityStore', () => {
     expect(state.availabilityIdsByOrgId['org2']).toEqual(['other-org']);
   });
 
+  it('deduplicates ids when a base row id also appears in the incoming user items', () => {
+    const { setAvailabilitiesForOrg, setUserAvailabilitiesForOrg } =
+      useAvailabilityStore.getState();
+    const shared = createMockAvailability('shared-id', 'org1');
+    const orgBase = createMockAvailability('base-only', 'org1');
+    const userOld = createMockUserAvailability('user-old', 'org1', 'user-1');
+
+    setAvailabilitiesForOrg('org1', [shared, orgBase, userOld]);
+
+    // incoming items include the shared id (same _id, now also marked as user-specific)
+    const userNew = createMockUserAvailability('user-new', 'org1', 'user-1');
+    const sharedAsUser = createMockUserAvailability('shared-id', 'org1', 'user-1');
+    setUserAvailabilitiesForOrg('org1', 'user-1', [sharedAsUser, userNew]);
+
+    const state = useAvailabilityStore.getState();
+    const ids = state.availabilityIdsByOrgId['org1'];
+    // 'shared-id' must appear exactly once
+    expect(ids.filter((id) => id === 'shared-id')).toHaveLength(1);
+    expect(ids).toContain('base-only');
+    expect(ids).toContain('user-new');
+    expect(ids).not.toContain('user-old');
+  });
+
   it('should replace only one user availability set for an org', () => {
     const { setAvailabilitiesForOrg, setUserAvailabilitiesForOrg } =
       useAvailabilityStore.getState();

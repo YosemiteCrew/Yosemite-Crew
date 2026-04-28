@@ -184,11 +184,13 @@ export const useAvailabilityStore = create<AvailabilityState>()((set, get) => ({
         nextIds.push(id);
       }
 
+      const nextIdSet = new Set(nextIds);
+      const deduped = [...retainedIds.filter((id) => !nextIdSet.has(id)), ...nextIds];
       return {
         availabilitiesById,
         availabilityIdsByOrgId: {
           ...state.availabilityIdsByOrgId,
-          [orgId]: [...retainedIds, ...nextIds],
+          [orgId]: deduped,
         },
         status: 'loaded',
         error: null,

@@ -268,6 +268,43 @@ describe('OrgGuard', () => {
     expect(replaceMock).not.toHaveBeenCalledWith(`/create-org?orgId=${orgId}`);
   });
 
+  it('does not hang forever when speciality fetch errors for an unverified owner', async () => {
+    const orgId = 'org-speciality-error';
+    const getSpecialitiesByOrgId = jest.fn(() => []);
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        primaryOrgId: orgId,
+        orgsById: {
+          [orgId]: { id: orgId, isVerified: false, type: 'GROOMER' },
+        },
+        membershipsByOrgId: {
+          [orgId]: { roleDisplay: 'Owner', effectivePermissions: [] },
+        },
+      })
+    );
+    useSpecialityStoreMock.mockImplementation((selector: any) =>
+      selector({
+        // status is error and org key is absent — simulates a failed fetch
+        status: 'error',
+        specialityIdsByOrgId: {},
+        getSpecialitiesByOrgId,
+      })
+    );
+    computeOrgOnboardingStepMock.mockReturnValue(1);
+
+    render(
+      <OrgGuard>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    // Guard should proceed (redirect to create-org) rather than stay stuck
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith(`/create-org?orgId=${orgId}`);
+    });
+  });
+
   it('redirects non-owners to team onboarding when profile incomplete', async () => {
     const orgId = 'org-2';
     useOrgStoreMock.mockImplementation((selector: any) =>
