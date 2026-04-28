@@ -28,6 +28,7 @@ import { Prisma, OrganizationType } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { isReadFromPostgres } from "src/config/read-switch";
+import { buildGeoPoint } from "src/utils/geojson";
 
 const TAX_ID_EXTENSION_URL =
   "http://example.org/fhir/StructureDefinition/taxId";
@@ -516,12 +517,11 @@ const sanitizeAddress = (
     longitude: optionalNumber(address.longitude, "Address longitude"),
   };
 
-  if (address?.latitude && address?.longitude) {
-    sanitized.location = {
-      type: "Point",
-      coordinates: [address.longitude, address.latitude],
-    };
-  }
+  const location = buildGeoPoint({
+    latitude: sanitized.latitude,
+    longitude: sanitized.longitude,
+  });
+  if (location) sanitized.location = location;
 
   return sanitized;
 };
