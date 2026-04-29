@@ -5,11 +5,48 @@
   width: 100%;
 }
 
-/* Stable column layout for the appointments table — prevents headers from
-   shifting when the status filter changes the number of action buttons. */
+/* table-layout:fixed + explicit colgroup widths on every column locks headers.
+   The browser reads widths only from <colgroup>, never from cell content,
+   so column positions never shift when the status filter changes or rows are
+   empty. Each class carries its own min-width = sum of its column px widths. */
 .appointments-table-fixed {
   table-layout: fixed;
-  min-width: 1032px;
+  min-width: 1206px; /* 56+140+120+110+100+110+120+110+130+210 */
+}
+.tasks-table-fixed {
+  table-layout: fixed;
+  min-width: 1110px; /* 160+200+110+120+120+110+130+160 */
+}
+.forms-table-fixed {
+  table-layout: fixed;
+  min-width: 914px; /* 200+130+130+140+140+110+64 */
+}
+.invoice-table-fixed {
+  table-layout: fixed;
+  min-width: 1094px; /* 160+180+150+90+80+70+80+110+110+64 */
+}
+.companions-table-fixed {
+  table-layout: fixed;
+  min-width: 1036px; /* 56+160+130+100+110+170+110+200 */
+}
+.inventory-table-fixed {
+  table-layout: fixed;
+  min-width: 1014px; /* 160+110+90+90+100+90+100+100+110+64 */
+}
+.inventory-turnover-table-fixed {
+  table-layout: fixed;
+  min-width: 1040px; /* 160+110+130+120+100+120+100+100+100 */
+}
+/* Allow fixed-layout tables to scroll horizontally when the viewport is
+   narrower than their min-width without breaking other tables. */
+.appointments-scroll-x .TableBodyScroll,
+.tasks-scroll-x .TableBodyScroll,
+.forms-scroll-x .TableBodyScroll,
+.invoice-scroll-x .TableBodyScroll,
+.companions-scroll-x .TableBodyScroll,
+.inventory-scroll-x .TableBodyScroll,
+.inventory-turnover-scroll-x .TableBodyScroll {
+  overflow-x: auto;
 }
 .card-list {
   display: none;
@@ -21,7 +58,14 @@
   .card-list {
     display: flex;
     gap: 16px;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+  }
+}
+@media screen and (min-width: 640px) and (max-width: 1280px) {
+  .card-list {
+    gap: 24px;
   }
 }
 .InviteDetails {
@@ -95,11 +139,16 @@
 }
 .action-btn-grid {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 8px;
   position: relative;
   z-index: 0;
+}
+/* Applied on tables where actions can exceed 4 — locks the grid to exactly
+   4-wide (4×40px + 3×8px = 184px) so overflow wraps to a second row. */
+.action-btn-grid-capped {
+  width: 184px;
 }
 .table-action-tooltip {
   opacity: 1 !important;

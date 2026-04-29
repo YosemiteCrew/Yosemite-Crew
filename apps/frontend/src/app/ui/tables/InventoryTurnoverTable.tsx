@@ -70,7 +70,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Item name',
       key: 'name',
-      width: '15%',
+      width: '160px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">{item.name}</div>
       ),
@@ -78,7 +78,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Category',
       key: 'category',
-      width: '10%',
+      width: '110px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">{item.category}</div>
       ),
@@ -86,7 +86,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Beginning inventory',
       key: 'Beginning inventory',
-      width: '10%',
+      width: '130px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">{item.beginningInventory}</div>
       ),
@@ -94,7 +94,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Ending inventory',
       key: 'Ending inventory',
-      width: '10%',
+      width: '120px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">{item.endingInventory}</div>
       ),
@@ -102,7 +102,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Avg inventory',
       key: 'Avg inventory',
-      width: '10%',
+      width: '100px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">{getAverageInventory(item)}</div>
       ),
@@ -110,7 +110,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Total purchases',
       key: 'Total purchases',
-      width: '10%',
+      width: '120px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">{getTotalPurchased(item)}</div>
       ),
@@ -118,7 +118,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Turns/Year',
       key: 'Turns/Year',
-      width: '10%',
+      width: '100px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">{item.turnsPerYear}</div>
       ),
@@ -126,7 +126,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Days on shelf',
       key: 'Days on shelf',
-      width: '10%',
+      width: '100px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title">{item.daysOnShelf}</div>
       ),
@@ -134,7 +134,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '100px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {formatTurnoverStatus(item.status)}
@@ -144,7 +144,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
   ];
 
   return (
-    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+    <div className="table-wrapper inventory-turnover-scroll-x h-full min-h-0 overflow-hidden">
       <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
           data={filteredList}
@@ -152,9 +152,10 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
           bordered={false}
           pagination
           pageSize={5}
+          tableClassName="inventory-turnover-table-fixed"
         />
       </div>
-      <div className="card-list flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-6 flex-wrap">
         {(() => {
           if (filteredList.length === 0) {
             return (

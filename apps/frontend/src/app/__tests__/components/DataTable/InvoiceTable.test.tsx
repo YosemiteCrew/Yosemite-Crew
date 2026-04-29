@@ -106,6 +106,9 @@ describe('InvoiceTable', () => {
     fireEvent.click(screen.getByTitle('Open appointment finance'));
 
     expect(screen.getByText('Sam / Buddy')).toBeInTheDocument();
+    expect(screen.getByText('Jan 1')).toBeInTheDocument();
+    expect(screen.getByText('10:00 AM')).toBeInTheDocument();
+    expect(screen.queryByText('Finance')).not.toBeInTheDocument();
     expect(screen.getByText('Paid in cash')).toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith(
       '/appointments?appointmentId=appt-1&open=finance&subLabel=summary'

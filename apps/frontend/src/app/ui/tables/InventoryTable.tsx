@@ -62,7 +62,7 @@ const InventoryTable = ({
     {
       label: 'Item name',
       key: 'name',
-      width: '15%',
+      width: '160px',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">{item.basicInfo.name}</div>
       ),
@@ -70,7 +70,7 @@ const InventoryTable = ({
     {
       label: 'Category',
       key: 'category',
-      width: '10%',
+      width: '110px',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">{item.basicInfo.category}</div>
       ),
@@ -78,7 +78,7 @@ const InventoryTable = ({
     {
       label: 'On hand',
       key: 'on-hand',
-      width: '10%',
+      width: '90px',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
           {displayValue(item.stock.current || '') === '—' ? '—' : `${item.stock.current} units`}
@@ -88,7 +88,7 @@ const InventoryTable = ({
     {
       label: 'Unit cost',
       key: 'unit-cost',
-      width: '7.5%',
+      width: '90px',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">{formatCurrency(item.pricing.purchaseCost)}</div>
       ),
@@ -96,7 +96,7 @@ const InventoryTable = ({
     {
       label: 'Selling price',
       key: 'selling-price',
-      width: '7.5%',
+      width: '100px',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">{formatCurrency(item.pricing.selling)}</div>
       ),
@@ -104,7 +104,7 @@ const InventoryTable = ({
     {
       label: 'Total value',
       key: 'total-vale',
-      width: '10%',
+      width: '90px',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">{totalValue(item)}</div>
       ),
@@ -112,7 +112,7 @@ const InventoryTable = ({
     {
       label: 'Expiry',
       key: 'expiry',
-      width: '10%',
+      width: '100px',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
           {formatDisplayDate(item.batch.expiryDate) || '—'}
@@ -122,7 +122,7 @@ const InventoryTable = ({
     {
       label: 'Location',
       key: 'location',
-      width: '10%',
+      width: '100px',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">{displayValue(item.stock.stockLocation)}</div>
       ),
@@ -130,7 +130,7 @@ const InventoryTable = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '110px',
       render: (item: InventoryItem) => (
         <div className="appointment-status" style={getStatusStyle(displayStatusLabel(item))}>
           {displayStatusLabel(item)}
@@ -155,7 +155,7 @@ const InventoryTable = ({
   ];
 
   return (
-    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+    <div className="table-wrapper inventory-scroll-x h-full min-h-0 overflow-hidden">
       <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
           data={filteredList}
@@ -163,9 +163,10 @@ const InventoryTable = ({
           bordered={false}
           pagination
           pageSize={5}
+          tableClassName="inventory-table-fixed"
         />
       </div>
-      <div className="card-list flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-6 flex-wrap">
         {(() => {
           if (filteredList.length === 0) {
             return (

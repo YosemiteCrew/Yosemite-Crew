@@ -101,19 +101,19 @@ const Tasks = ({
     {
       label: 'Task',
       key: 'task',
-      width: '15%',
+      width: '160px',
       render: (item: Task) => <div className="appointment-profile-title">{item.name}</div>,
     },
     {
       label: 'Description',
       key: 'description',
-      width: '20%',
+      width: '200px',
       render: (item: Task) => <div className="appointment-profile-title">{item.description}</div>,
     },
     {
       label: 'Category',
       key: 'category',
-      width: '10%',
+      width: '110px',
       render: (item: Task) => (
         <div className="appointment-profile-title">{toTitleCase(item.category)}</div>
       ),
@@ -121,7 +121,7 @@ const Tasks = ({
     {
       label: 'From',
       key: 'from',
-      width: '10%',
+      width: '120px',
       render: (item: Task) => (
         <div className="appointment-profile-title">{getMemberNameById(item.assignedBy)}</div>
       ),
@@ -129,7 +129,7 @@ const Tasks = ({
     {
       label: 'To',
       key: 'to',
-      width: '10%',
+      width: '120px',
       render: (item: Task) => (
         <div className="appointment-profile-title">{getMemberNameById(item.assignedTo)}</div>
       ),
@@ -137,7 +137,7 @@ const Tasks = ({
     {
       label: 'Due date',
       key: 'due',
-      width: '10%',
+      width: '110px',
       render: (item: Task) => (
         <div className="appointment-profile-title">{getFormattedDate(item.dueAt)}</div>
       ),
@@ -145,7 +145,7 @@ const Tasks = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '130px',
       render: (item: Task) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {toTitleCase(item.status)}
@@ -197,7 +197,7 @@ const Tasks = ({
   ];
 
   return (
-    <div className="table-wrapper h-full min-h-0 overflow-hidden" style={{ gap: 8 }}>
+    <div className="table-wrapper tasks-scroll-x h-full min-h-0 overflow-hidden" style={{ gap: 8 }}>
       <div className="table-list h-full min-h-0 overflow-y-auto pr-1 pb-1">
         <GenericTable
           data={filteredList}
@@ -205,6 +205,7 @@ const Tasks = ({
           bordered={false}
           pagination={true}
           pageSize={small ? 5 : 10}
+          tableClassName="tasks-table-fixed"
         />
       </div>
       <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 flex gap-4 sm:gap-6 flex-wrap content-start">

@@ -1,11 +1,11 @@
-import React from "react";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import DocumentsCard from "@/app/ui/cards/DocumentsCard";
-import { OrganizationDocument } from "@/app/features/documents/types/document";
-import { toTitle } from "@/app/lib/validators";
-import { Column, NoDataMessage, ViewButton, ProfileTitle } from "@/app/ui/tables/common";
+import React from 'react';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import DocumentsCard from '@/app/ui/cards/DocumentsCard';
+import { OrganizationDocument } from '@/app/features/documents/types/document';
+import { toTitle } from '@/app/lib/validators';
+import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
 
-import "./DataTable.css";
+import './DataTable.css';
 
 type DocumentsTableProps = {
   filteredList: OrganizationDocument[];
@@ -13,11 +13,7 @@ type DocumentsTableProps = {
   setView?: (open: boolean) => void;
 };
 
-const DocumentsTable = ({
-  filteredList,
-  setActive,
-  setView,
-}: DocumentsTableProps) => {
+const DocumentsTable = ({ filteredList, setActive, setView }: DocumentsTableProps) => {
   const handleViewDocument = (team: any) => {
     setActive?.(team);
     setView?.(true);
@@ -25,33 +21,27 @@ const DocumentsTable = ({
 
   const columns: Column<OrganizationDocument>[] = [
     {
-      label: "Title",
-      key: "title",
-      width: "20%",
-      render: (item: OrganizationDocument) => (
-        <ProfileTitle>{item.title}</ProfileTitle>
-      ),
+      label: 'Title',
+      key: 'title',
+      width: '22%',
+      render: (item: OrganizationDocument) => <ProfileTitle>{item.title}</ProfileTitle>,
     },
     {
-      label: "Description",
-      key: "description",
-      width: "35%",
-      render: (item: OrganizationDocument) => (
-        <ProfileTitle>{item.description}</ProfileTitle>
-      ),
+      label: 'Description',
+      key: 'description',
+      width: '40%',
+      render: (item: OrganizationDocument) => <ProfileTitle>{item.description}</ProfileTitle>,
     },
     {
-      label: "Category",
-      key: "category",
-      width: "20%",
-      render: (item: OrganizationDocument) => (
-        <ProfileTitle>{toTitle(item.category)}</ProfileTitle>
-      ),
+      label: 'Category',
+      key: 'category',
+      width: '20%',
+      render: (item: OrganizationDocument) => <ProfileTitle>{toTitle(item.category)}</ProfileTitle>,
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
+      label: 'Actions',
+      key: 'actions',
+      width: '64px',
       render: (item: OrganizationDocument) => (
         <div className="action-btn-col">
           <ViewButton onClick={() => handleViewDocument(item)} />
