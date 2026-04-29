@@ -124,6 +124,55 @@
 .footer-copy-link {
   transition: font-size 0.3s ease;
 }
+.platform-status-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-pill-neutral-border);
+  border-radius: 999px;
+  background-color: var(--color-pill-neutral-bg);
+  color: var(--color-pill-neutral-text);
+  font-family: var(--font-satoshi), sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-decoration: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+.platform-status-link:hover,
+.platform-status-link:focus {
+  color: var(--color-brand-950);
+  outline: none;
+}
+.platform-status-link-success {
+  background-color: var(--color-pill-success-bg);
+  border-color: var(--color-pill-success-border);
+  color: var(--color-pill-success-text);
+}
+.platform-status-link-warning {
+  background-color: var(--color-pill-warning-bg);
+  border-color: var(--color-pill-warning-border);
+  color: var(--color-pill-warning-text);
+}
+.platform-status-link-danger {
+  background-color: var(--color-pill-warning-bg);
+  border-color: var(--color-pill-warning-border);
+  color: var(--color-pill-warning-text);
+}
+.platform-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background-color: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);
+  flex: 0 0 auto;
+}
 
 @media screen and (max-width: 1024px) {
   .Footersec {
