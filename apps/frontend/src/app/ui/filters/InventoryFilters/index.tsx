@@ -1,9 +1,20 @@
-import React, { useEffect, useMemo } from 'react';
+'use client';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { FaCaretDown } from 'react-icons/fa6';
+import clsx from 'clsx';
 import { InventoryFiltersState } from '@/app/features/inventory/pages/Inventory/types';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 
-// Colors match getStatusBadgeStyle in utils.ts for consistency with table badges
-const Statuses = [
+type StockHealthOption = {
+  key: string;
+  name: string;
+  bg: string;
+  text: string;
+  border: string;
+};
+
+const StockHealthOptions: StockHealthOption[] = [
   {
     name: 'All',
     key: 'ALL',
@@ -12,18 +23,11 @@ const Statuses = [
     border: 'var(--color-primary-500)',
   },
   {
-    name: 'Active',
-    key: 'ACTIVE',
+    name: 'Healthy',
+    key: 'HEALTHY',
     bg: 'var(--color-pill-success-bg)',
     text: 'var(--color-pill-success-text)',
     border: 'var(--color-pill-success-border)',
-  },
-  {
-    name: 'Hidden',
-    key: 'HIDDEN',
-    bg: 'var(--color-pill-neutral-bg)',
-    text: 'var(--color-pill-neutral-text)',
-    border: 'var(--color-pill-neutral-border)',
   },
   {
     name: 'Low stock',
@@ -33,13 +37,6 @@ const Statuses = [
     border: 'var(--color-pill-progress-border)',
   },
   {
-    name: 'Expired',
-    key: 'EXPIRED',
-    bg: 'var(--color-pill-warning-bg)',
-    text: 'var(--color-pill-warning-text)',
-    border: 'var(--color-pill-warning-border)',
-  },
-  {
     name: 'Expiring soon',
     key: 'EXPIRING_SOON',
     bg: 'var(--color-pill-info-bg)',
@@ -47,11 +44,11 @@ const Statuses = [
     border: 'var(--color-pill-info-border)',
   },
   {
-    name: 'Healthy',
-    key: 'HEALTHY',
-    bg: 'var(--color-pill-success-bg)',
-    text: 'var(--color-pill-success-text)',
-    border: 'var(--color-pill-success-border)',
+    name: 'Expired',
+    key: 'EXPIRED',
+    bg: 'var(--color-pill-warning-bg)',
+    text: 'var(--color-pill-warning-text)',
+    border: 'var(--color-pill-warning-border)',
   },
 ];
 
@@ -70,6 +67,12 @@ const InventoryFilters = ({
   loading = false,
   categoryAction,
 }: InventoryFiltersProps) => {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const [isMounted, setIsMounted] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
   const categoryOptions = useMemo(
     () =>
       ['all', ...categories].map((cat) => ({
@@ -78,6 +81,10 @@ const InventoryFilters = ({
       })),
     [categories]
   );
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (filters.category !== 'all' && !categories.includes(filters.category)) {
@@ -90,34 +97,179 @@ const InventoryFilters = ({
     onChange({ ...filters, ...patch });
   };
 
+  const positionPanel = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 6,
+      right: window.innerWidth - rect.right,
+      minWidth: Math.max(rect.width, 180),
+      zIndex: 9999,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (dropdownOpen) positionPanel();
+  }, [dropdownOpen, positionPanel]);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handleClose = (e: MouseEvent) => {
+      if (
+        triggerRef.current?.contains(e.target as Node) ||
+        panelRef.current?.contains(e.target as Node)
+      )
+        return;
+      setDropdownOpen(false);
+    };
+    const handleScroll = () => setDropdownOpen(false);
+    document.addEventListener('mousedown', handleClose);
+    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClose);
+      window.removeEventListener('scroll', handleScroll, { capture: true });
+    };
+  }, [dropdownOpen]);
+
+  const selectedStockHealth =
+    StockHealthOptions.find((o) => o.key === filters.status) ?? StockHealthOptions[0];
+
+  const visibility = filters.visibility ?? 'ALL';
+  const isAll = visibility === 'ALL';
+  const isActive = visibility === 'ACTIVE';
+
+  const sliderTranslate = isAll
+    ? 'translate-x-0'
+    : isActive
+      ? 'translate-x-full'
+      : 'translate-x-[200%]';
+
   return (
     <div className="w-full flex items-start justify-between flex-wrap gap-x-6 gap-y-3">
-      <div className="flex flex-1 min-w-[280px] items-center gap-2 flex-wrap">
-        {Statuses.map((status) => {
-          const isActive = status.key === filters.status;
-          return (
-            <button
-              key={status.key}
-              disabled={loading}
-              onClick={() => updateFilters({ status: status.key })}
-              className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
-              style={
-                isActive
-                  ? {
-                      backgroundColor: status.bg,
-                      color: status.text,
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: status.border,
-                    }
-                  : undefined
-              }
+      <div className="flex flex-1 min-w-70 items-center gap-3 flex-wrap">
+        {/* Visibility toggle: All / Active / Hidden */}
+        <div
+          className="relative inline-flex items-center h-12 rounded-[999px]! border border-card-border bg-white overflow-hidden"
+          style={{ width: 240 }}
+        >
+          <div
+            aria-hidden
+            className={clsx(
+              'absolute top-0 bottom-0 left-0 rounded-[999px]! transition-all duration-300 ease-in-out',
+              sliderTranslate
+            )}
+            style={{ width: 'calc(100% / 3)', backgroundColor: '#454341' }}
+          />
+          {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((key) => {
+            const label = key === 'ALL' ? 'All' : key === 'ACTIVE' ? 'Active' : 'Hidden';
+            const isCurrent = visibility === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={loading}
+                onClick={() => updateFilters({ visibility: key })}
+                className="relative z-10 h-full transition-colors duration-200 cursor-pointer"
+                style={{
+                  width: 'calc(100% / 3)',
+                  color: isCurrent ? '#FFF' : '#8F8984',
+                  fontWeight: 500,
+                  lineHeight: '120%',
+                  letterSpacing: '-0.28px',
+                  fontFamily: 'var(--font-satoshi)',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Stock health dropdown pill */}
+        <button
+          ref={triggerRef}
+          type="button"
+          disabled={loading}
+          onClick={() => setDropdownOpen((v) => !v)}
+          className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between min-w-30"
+          style={
+            selectedStockHealth.key !== 'ALL'
+              ? {
+                  backgroundColor: selectedStockHealth.bg,
+                  color: selectedStockHealth.text,
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: selectedStockHealth.border,
+                }
+              : {
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--color-card-border)',
+                  color: 'var(--color-text-tertiary)',
+                }
+          }
+        >
+          <span>
+            {selectedStockHealth.key === 'ALL' ? 'Stock health' : selectedStockHealth.name}
+          </span>
+          <FaCaretDown
+            size={14}
+            className={clsx('shrink-0 transition-transform', dropdownOpen && 'rotate-180')}
+          />
+        </button>
+
+        {isMounted &&
+          dropdownOpen &&
+          createPortal(
+            <div
+              ref={panelRef}
+              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              style={dropdownStyle}
             >
-              {status.name}
-            </button>
-          );
-        })}
+              {StockHealthOptions.map((option) => {
+                const isSelected = option.key === filters.status;
+                const dropdownTextColor =
+                  option.key === 'ALL' ? 'var(--color-text-primary)' : option.text;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => {
+                      updateFilters({ status: option.key });
+                      setDropdownOpen(false);
+                    }}
+                    className={clsx(
+                      'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
+                      isSelected && option.key !== 'ALL' ? 'font-medium' : 'hover:bg-card-hover'
+                    )}
+                  >
+                    <span
+                      className="inline-block h-3 w-3 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: option.border,
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: option.border,
+                      }}
+                    />
+                    <span style={{ color: dropdownTextColor }}>{option.name}</span>
+                    {isSelected && (
+                      <span
+                        className="ml-auto text-sm font-semibold"
+                        style={{ color: dropdownTextColor }}
+                      >
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body
+          )}
       </div>
+
       <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
         {categoryAction}
         <div className="w-full sm:w-55 min-w-45">
