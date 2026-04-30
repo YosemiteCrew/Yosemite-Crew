@@ -10,16 +10,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed #BFBFBE;
+  border: 1px dashed #bfbfbe;
   position: relative;
 }
-.step-logo-title-container{
-    display: flex;
-    flex-direction: column;
-    gap: 0px;
+.step-logo-title-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
 }
 .step-logo-title {
-  color: #595958;
+  color: var(--color-neutral-700);
   font-family: var(--font-satoshi);
   font-size: 16px;
   font-style: normal;
@@ -33,7 +33,7 @@
   right: -8px;
   cursor: pointer;
   border: none;
-  background: #fff;
+  background: var(--color-neutral-0);
 }
 @media screen and (max-width: 1024px) {
   .step-logo-upload {

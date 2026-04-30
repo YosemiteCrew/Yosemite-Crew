@@ -11,13 +11,13 @@
   border-radius: 0px 0px 16px 16px;
 }
 .SignError.errofoundbg {
-  background: #f8c1bd;
+  background: var(--color-toast-error-bg);
 }
 .SignError.oppsbg {
-  background: #fcd9bb;
+  background: var(--color-toast-warning-bg);
 }
 .SignError.CongratsBg {
-  background: #b0dccd;
+  background: var(--color-toast-success-bg);
 }
 .SignError .ErroItemDiv {
   position: relative;

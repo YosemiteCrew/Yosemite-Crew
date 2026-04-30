@@ -20,6 +20,7 @@ interface AccordionButtonProps {
 
 type PaddingArgs = {
   finance: boolean;
+  hasFinanceAction: boolean;
   hasCustomerId: boolean;
   plan?: string;
   showButton: boolean;
@@ -27,18 +28,20 @@ type PaddingArgs = {
 
 const getAccordionPaddingYClass = ({
   finance,
+  hasFinanceAction,
   hasCustomerId,
   plan,
   showButton,
 }: PaddingArgs): string => {
+  if (showButton || hasFinanceAction) {
+    return 'py-2';
+  }
+
   if (finance) {
     // Keep finance accordions visually aligned with other sections.
     if (plan === 'free' || (plan === 'business' && hasCustomerId)) {
       return 'py-[20px]';
     }
-  }
-  if (showButton) {
-    return 'py-2';
   }
   return 'py-[20px]';
 };
@@ -58,11 +61,13 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   const canEditSubscription = can(PERMISSIONS.SUBSCRIPTION_EDIT_ANY);
   const plan = subscription?.plan;
   const hasCustomerId = Boolean(subscription?.stripeCustomerId);
+  const hasFinanceAction = canEditSubscription && finance && (hasCustomerId || plan === 'free');
   const [open, setOpen] = useState(defaultOpen);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const paddingYClass = getAccordionPaddingYClass({
     finance,
+    hasFinanceAction,
     hasCustomerId,
     plan,
     showButton,
@@ -96,13 +101,14 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <button
           type="button"
-          className="flex shrink-0 items-center gap-2 text-left"
+          className="flex shrink-0 items-center gap-2 text-left cursor-pointer"
           onClick={() => setOpen(!open)}
           aria-label={title}
+          aria-expanded={open}
         >
           <IoIosArrowDown
             size={22}
-            color="#302f2e"
+            color="var(--color-neutral-900)"
             className={`text-black-text transition-transform shrink-0 ${open ? 'rotate-0' : '-rotate-90'}`}
           />
           <div className="text-heading-3 text-text-primary">{title}</div>
@@ -134,7 +140,11 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
       </div>
 
       {(open || keepMounted) && (
-        <div className={open ? '' : 'hidden'} aria-hidden={!open}>
+        <div
+          className={open ? 'cursor-default' : 'hidden'}
+          aria-hidden={!open}
+          data-accordion-click-ignore="true"
+        >
           {children}
         </div>
       )}

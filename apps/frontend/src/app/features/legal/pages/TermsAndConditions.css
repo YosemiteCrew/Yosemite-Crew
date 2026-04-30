@@ -101,7 +101,7 @@
   flex-direction: column;
   gap: 16px;
   padding: 20px;
-  color: #302f2e;
+  color: var(--color-neutral-900);
   font-family: 'Satoshi', sans-serif;
 }
 
@@ -149,9 +149,9 @@
   width: 842px; /* match definitions + header */
   margin: 0px auto;
   padding: 20px;
-  background: #fff;
+  background: var(--color-neutral-0);
   font-family: 'Satoshi', sans-serif;
-  color: #302f2e;
+  color: var(--color-neutral-900);
   line-height: 1.6;
   display: flex;
   flex-direction: column;
@@ -178,7 +178,7 @@
   line-height: 120%;
   text-transform: uppercase;
   letter-spacing: -0.02em;
-  color: #302f2e;
+  color: var(--color-neutral-900);
   margin-bottom: 8px;
   padding-bottom: 4px;
 }
@@ -191,7 +191,7 @@
   font-family: 'Satoshi', sans-serif;
   letter-spacing: -0.02em;
   margin-bottom: 12px;
-  color: #302f2e;
+  color: var(--color-neutral-900);
 }
 
 /* Paragraph text */
@@ -207,13 +207,13 @@
 /* Clause number (1.1., 1.2., etc.) */
 .doc-clause {
   font-weight: 700;
-  color: #302f2e;
+  color: var(--color-neutral-900);
 }
 
 /* Inline strong (Technical Support Center, etc.) */
 .doc-box strong {
   font-weight: 600;
-  color: #302f2e;
+  color: var(--color-neutral-900);
 }
 
 /* Links */
@@ -230,10 +230,10 @@
   font-size: 16px;
   font-weight: bold;
   margin-bottom: 12px;
-  color: #302f2e; /* Orange heading */
+  color: var(--color-neutral-900); /* Orange heading */
 }
 .doc-table-wrapper {
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   border-radius: 10px;
   overflow: hidden; /* keeps corners rounded */
 }
@@ -247,8 +247,8 @@
 
 .doc-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #eaeaea;
-  color: #302f2e;
+  border-bottom: 1px solid var(--color-neutral-100);
+  color: var(--color-neutral-900);
 }
 
 .doc-table tr:last-child td {
@@ -257,7 +257,7 @@
 
 .doc-table-label {
   font-weight: 600;
-  color: #302f2e;
+  color: var(--color-neutral-900);
   width: 30%;
 }
 
@@ -269,20 +269,20 @@
 }
 
 .error-table th {
-  background: #fff;
-  color: #302f2e;
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-900);
   font-weight: 600;
   text-align: left;
   padding: 12px 16px;
-  border-bottom: 2px solid #eaeaea;
+  border-bottom: 2px solid var(--color-neutral-100);
 }
 
 .error-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #eaeaea;
+  border-bottom: 1px solid var(--color-neutral-100);
   vertical-align: top;
   line-height: 1.5;
-  color: #302f2e;
+  color: var(--color-neutral-900);
 }
 
 .error-table tr:last-child td {
@@ -297,7 +297,7 @@
 
 .error-serious {
   font-weight: 600;
-  color: #302f2e; /* orange */
+  color: var(--color-neutral-900); /* orange */
 }
 
 .error-moderate {
@@ -378,7 +378,7 @@ ol li::before {
   width: 842px; /* match header/definitions */
   margin: 0px auto; /* center horizontally with top/bottom spacing */
   padding: 24px;
-  background: #fff;
+  background: var(--color-neutral-0);
   border-radius: 12px; /* optional: keep consistent with .doc-box */
   font-family: 'Satoshi', sans-serif;
   font-size: 14px;
@@ -440,10 +440,10 @@ ol li::before {
 .dataCategoryHeader,
 .subjectHeader,
 .purposeHeader {
-  background-color: #fff;
+  background-color: var(--color-neutral-0);
   font-weight: bold;
   padding: 12px;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
 }
 
 .moduleCell,
@@ -451,7 +451,7 @@ ol li::before {
 .subjectCell,
 .purposeCell {
   padding: 10px;
-  border-bottom: 1px solid #eaeaea;
+  border-bottom: 1px solid var(--color-neutral-100);
   vertical-align: top; /* Ensure top alignment */
 }
 
@@ -459,7 +459,7 @@ ol li::before {
 .dataMatrix tr .dataCell,
 .dataMatrix tr .subjectCell,
 .dataMatrix tr .purposeCell {
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
 }
 
 /* FIX: Remove vertical-align: middle override for rowspan cells */

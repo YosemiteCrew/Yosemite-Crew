@@ -41,11 +41,31 @@ export const MERCK_COPYRIGHT_NOTICE =
   'Copyright \u00a9 2021 Merck & Co., Inc., known as MSD outside of the US, Kenilworth, New Jersey, USA. All rights reserved.';
 
 const MERCK_SUBTOPIC_STYLES = {
-  fullSummary: { backgroundColor: '#247AED', color: '#EAF3FF', borderColor: '#247AED' },
-  etiology: { backgroundColor: '#747283', color: '#F7F7F7', borderColor: '#747283' },
-  symptomsAndSigns: { backgroundColor: '#BF9FAA', color: '#F7F7F7', borderColor: '#BF9FAA' },
-  diagnosis: { backgroundColor: '#D9A488', color: '#F7F7F7', borderColor: '#D9A488' },
-  treatment: { backgroundColor: '#5C614B', color: '#F7F7F7', borderColor: '#5C614B' },
+  fullSummary: {
+    backgroundColor: 'var(--color-badge-blue-bg)',
+    color: 'var(--color-badge-blue-text)',
+    borderColor: 'var(--color-badge-blue-bg)',
+  },
+  etiology: {
+    backgroundColor: 'var(--color-pill-neutral-bg)',
+    color: 'var(--color-pill-neutral-text)',
+    borderColor: 'var(--color-pill-neutral-border)',
+  },
+  symptomsAndSigns: {
+    backgroundColor: 'var(--color-pill-progress-bg)',
+    color: 'var(--color-pill-progress-text)',
+    borderColor: 'var(--color-pill-progress-border)',
+  },
+  diagnosis: {
+    backgroundColor: 'var(--color-pill-info-bg)',
+    color: 'var(--color-pill-info-text)',
+    borderColor: 'var(--color-pill-info-border)',
+  },
+  treatment: {
+    backgroundColor: 'var(--color-pill-success-bg)',
+    color: 'var(--color-pill-success-text)',
+    borderColor: 'var(--color-pill-success-border)',
+  },
 } as const;
 
 const MERCK_SUBTOPIC_PALETTE = Object.values(MERCK_SUBTOPIC_STYLES);

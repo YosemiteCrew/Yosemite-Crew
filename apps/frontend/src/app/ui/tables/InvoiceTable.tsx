@@ -40,20 +40,38 @@ export const getInvoiceItemNames = (items: InvoiceItem[]): string => {
 
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
-    case 'pending':
-      return { color: '#fff', backgroundColor: '#747283' };
     case 'awaiting_payment':
-      return { color: '#fff', backgroundColor: '#A8A181' };
+      return {
+        color: 'var(--color-pill-info-text)',
+        backgroundColor: 'var(--color-pill-info-bg)',
+        borderColor: 'var(--color-pill-info-border)',
+      };
     case 'paid':
-      return { color: '#fff', backgroundColor: '#D28F9A' };
+      return {
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      };
     case 'failed':
-      return { color: '#fff', backgroundColor: '#5C614B' };
     case 'cancelled':
-      return { color: '#fff', backgroundColor: '#D9A488' };
+      return {
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      };
     case 'refunded':
-      return { color: '#fff', backgroundColor: '#BF9FAA' };
+      return {
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
+      };
+    case 'pending':
     default:
-      return { color: '#000', backgroundColor: '#F1D4B0' };
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      };
   }
 };
 
@@ -96,7 +114,6 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       key: 'appointment-id',
       width: '10%',
       render: (item: Invoice) => {
-        const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
         const companionName = getCompanionName(item.appointmentId);
         const parentName = getParentName(item.appointmentId);
         let ownerAndCompanion = '-';
@@ -118,27 +135,6 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
               >
                 {ownerAndCompanion}
               </div>
-              {appointment && (
-                <button
-                  type="button"
-                  onClick={() => goToAppointmentFinance(item.appointmentId)}
-                  className="mt-1 w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
-                  title="Open appointment finance"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="appointment-profile-sub truncate">
-                        {formatDateLabel(appointment.appointmentDate)}
-                      </div>
-                      <div className="appointment-profile-sub truncate">
-                        {formatTimeLabel(appointment.startTime ?? appointment.appointmentDate)}{' '}
-                        Finance
-                      </div>
-                    </div>
-                    <IoOpenOutline size={15} color="#302F2E" />
-                  </div>
-                </button>
-              )}
             </div>
           </div>
         );
@@ -156,11 +152,34 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       label: 'Date',
       key: 'date',
       width: '10%',
-      render: (item: Invoice) => (
-        <div className="appointment-profile-two">
-          <div className="appointment-profile-title">{formatDateLabel(item.createdAt)}</div>
-        </div>
-      ),
+      render: (item: Invoice) => {
+        const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
+        return (
+          <div className="appointment-profile-two">
+            {appointment && (
+              <button
+                type="button"
+                onClick={() => goToAppointmentFinance(item.appointmentId)}
+                className="mt-1 w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
+                title="Open appointment finance"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="appointment-profile-sub truncate">
+                      {formatDateLabel(appointment.appointmentDate)}
+                    </div>
+                    <div className="appointment-profile-sub truncate">
+                      {formatTimeLabel(appointment.startTime ?? appointment.appointmentDate)}{' '}
+                      Finance
+                    </div>
+                  </div>
+                  <IoOpenOutline size={15} color="var(--color-neutral-900)" />
+                </div>
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       label: 'Sub-total',
@@ -219,14 +238,14 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Actions',
       key: 'actions',
-      width: '5%',
+      width: '64px',
       render: (item: Invoice) => (
         <div className="action-btn-col">
           <button
             onClick={() => handleViewInvoice(item)}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
-            <IoEye size={20} color="#302F2E" />
+            <IoEye size={20} color="var(--color-neutral-900)" />
           </button>
         </div>
       ),
@@ -234,8 +253,8 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
   ];
 
   return (
-    <div className="w-full">
-      <div className="hidden xl:flex">
+    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+      <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
           data={filteredList}
           columns={columns}
@@ -244,7 +263,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           pageSize={10}
         />
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {(() => {
           if (filteredList.length === 0) {
             return (

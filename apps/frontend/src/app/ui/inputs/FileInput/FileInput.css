@@ -7,7 +7,7 @@
   justify-content: center;
   gap: 10px;
   border-radius: 16px;
-  border: 1px dashed #747473;
+  border: 1px dashed var(--color-grey-text);
   cursor: pointer;
 }
 .upload-title {

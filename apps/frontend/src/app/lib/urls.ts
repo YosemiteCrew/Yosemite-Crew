@@ -50,5 +50,9 @@ const pick = (arr?: readonly string[]) => {
 
 export const getSafeImageUrl = (src: string | null | undefined, type: ImageType): string => {
   const fallbackPool = DEFAULT_IMAGES[type] ?? DEFAULT_IMAGES.other;
+  const value = String(src ?? '').trim();
+  // Reject 'undefined'/'null' strings and paths ending in /undefined or /null
+  if (!value || value === 'undefined' || value === 'null') return pick(fallbackPool);
+  if (/\/(undefined|null)(\?.*)?$/.test(value)) return pick(fallbackPool);
   return isHttpsImageUrl(src) ? src : pick(fallbackPool);
 };

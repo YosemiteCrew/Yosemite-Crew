@@ -20,6 +20,8 @@ import {
 } from '@/app/features/organization/services/specialityService';
 import { deleteService } from '@/app/features/organization/services/serviceService';
 import { bindPendingCompanionTerminologyToOrg } from '@/app/lib/companionTerminology';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
+import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import {
   buildCustomOnboardingServiceTemplate,
   buildOnboardingServiceDraft,
@@ -39,6 +41,7 @@ type SpecialityStepProps = {
   formData: Organisation;
   initialSpecialities: SpecialityWeb[];
   isExistingOrg: boolean;
+  onRedirectingChange?: (isRedirecting: boolean) => void;
   prevStep: () => void;
   specialities: SpecialityWeb[];
   setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
@@ -113,6 +116,7 @@ const SpecialityStep = ({
   formData,
   initialSpecialities,
   isExistingOrg,
+  onRedirectingChange,
   prevStep,
   specialities,
   setFormData,
@@ -135,6 +139,7 @@ const SpecialityStep = ({
   const currency = useCurrencyForPrimaryOrg();
   const orgTypeContent = getOrgTypeSpecialityContent(businessType);
   const organisationId = formData._id?.toString() ?? '';
+  useFullscreenLoader('create-org-submit', isSubmitting);
 
   const selectedNames = useMemo(
     () => new Set(specialities.map((speciality) => normalizeName(speciality.name))),
@@ -397,6 +402,7 @@ const SpecialityStep = ({
 
     try {
       setIsSubmitting(true);
+      onRedirectingChange?.(true);
       setError(null);
 
       let resolvedOrgId = organisationId;
@@ -437,6 +443,7 @@ const SpecialityStep = ({
       );
       if (deleteResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your specialties. Please try again.');
+        onRedirectingChange?.(false);
         setIsSubmitting(false);
         return;
       }
@@ -454,6 +461,7 @@ const SpecialityStep = ({
 
       if (createdSpecialityResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your specialties. Please try again.');
+        onRedirectingChange?.(false);
         setIsSubmitting(false);
         return;
       }
@@ -540,18 +548,24 @@ const SpecialityStep = ({
       ]);
       if (serviceResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your services. Please try again.');
+        onRedirectingChange?.(false);
         setIsSubmitting(false);
         return;
       }
 
-      await loadSpecialitiesForOrg({ force: true, silent: true });
-      router.push('/dashboard');
+      await loadSpecialitiesForOrg({ force: true, silent: true, orgId: resolvedOrgId });
+      const nextRoute = await resolveOrgScopedRedirect({
+        orgId: resolvedOrgId,
+        fallbackRole: 'owner',
+      });
+      router.push(nextRoute);
     } catch (submissionError) {
       console.error('Failed to save specialties:', submissionError);
       const message = axios.isAxiosError(submissionError)
         ? (submissionError.response?.data?.message ?? submissionError.message)
         : 'We could not save your specialties. Please try again.';
       setError(message);
+      onRedirectingChange?.(false);
       setIsSubmitting(false);
     }
   };
@@ -779,10 +793,16 @@ const SpecialityStep = ({
       </div>
 
       <div className="step-buttons">
-        <Secondary href="#" text="Back" style={{ width: '160px' }} onClick={prevStep} />
+        <Secondary
+          href="#"
+          text="Back"
+          style={{ width: '160px' }}
+          onClick={prevStep}
+          isDisabled={isSubmitting}
+        />
         <Primary
           href="#"
-          text={isSubmitting ? 'Saving...' : 'Next'}
+          text={isSubmitting ? 'Creating organisation...' : 'Create organisation'}
           style={{ width: '160px' }}
           isDisabled={isSubmitting}
           onClick={handleSubmit}

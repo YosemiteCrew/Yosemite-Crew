@@ -1,9 +1,9 @@
-import React from "react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import '@testing-library/jest-dom';
 
 globalThis.HTMLElement.prototype.scrollIntoView = jest.fn();
 // Polyfill for window.matchMedia
-Object.defineProperty(globalThis, "matchMedia", {
+Object.defineProperty(globalThis, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation((query) => ({
     matches: false,
@@ -26,19 +26,31 @@ class IntersectionObserverMock {
   takeRecords = jest.fn();
 }
 
-Object.defineProperty(globalThis, "IntersectionObserver", {
+Object.defineProperty(globalThis, 'IntersectionObserver', {
   writable: true,
   configurable: true,
   value: IntersectionObserverMock,
 });
 
-Object.defineProperty(globalThis, "IntersectionObserver", {
+class ResizeObserverMock {
+  observe = jest.fn();
+  unobserve = jest.fn();
+  disconnect = jest.fn();
+}
+
+Object.defineProperty(globalThis, 'ResizeObserver', {
+  writable: true,
+  configurable: true,
+  value: ResizeObserverMock,
+});
+
+Object.defineProperty(globalThis, 'IntersectionObserver', {
   writable: true,
   configurable: true,
   value: IntersectionObserverMock,
 });
 
-Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
   value: jest.fn(),
   writable: true,
 });
@@ -46,14 +58,14 @@ Object.defineProperty(HTMLElement.prototype, "scrollTo", {
 beforeAll(() => {
   window.scrollTo = jest.fn();
   // Silence noisy logs but keep them visible locally by toggling with an env flag if you want
-  jest.spyOn(console, "log").mockImplementation(() => {});
+  jest.spyOn(console, 'log').mockImplementation(() => {});
 
   // Turn unexpected warnings/errors into failures in CI
-  jest.spyOn(console, "warn").mockImplementation((...args) => {
-    throw new Error("Unexpected console.warn: " + args.join(" "));
+  jest.spyOn(console, 'warn').mockImplementation((...args) => {
+    throw new Error('Unexpected console.warn: ' + args.join(' '));
   });
-  jest.spyOn(console, "error").mockImplementation((...args) => {
-    throw new Error("Unexpected console.error: " + args.join(" "));
+  jest.spyOn(console, 'error').mockImplementation((...args) => {
+    throw new Error('Unexpected console.error: ' + args.join(' '));
   });
 
   // Set a default timeout for all tests to prevent infinite runs
@@ -67,18 +79,18 @@ afterAll(() => {
 });
 
 const IconComponentMock = (props: any) =>
-  React.createElement("span", { "data-testid": "icon", ...props });
+  React.createElement('span', { 'data-testid': 'icon', ...props });
 
-jest.mock("@iconify/react", () => ({
+jest.mock('@iconify/react', () => ({
   Icon: IconComponentMock,
 }));
 
-jest.mock("@iconify/react/dist/iconify.js", () => ({
+jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: IconComponentMock,
 }));
 
 // Mock Next.js navigation hooks for tests
-jest.mock("next/navigation", () => ({
+jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
     replace: jest.fn(),
@@ -88,7 +100,7 @@ jest.mock("next/navigation", () => ({
     get: jest.fn(() => null),
     entries: jest.fn(() => [].entries()),
   }),
-  usePathname: () => "/",
+  usePathname: () => '/',
 }));
 
 // Global test cleanup to prevent hanging

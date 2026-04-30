@@ -1,4 +1,5 @@
 import React, { useMemo, useRef } from 'react';
+import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { Task } from '@/app/features/tasks/types/task';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
@@ -71,6 +72,7 @@ const DayCalendar = ({
   resolveDisplayName,
 }: DayCalendarProps) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const onWheelBoundary = useScrollBoundaryWheel();
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
   const now = useCalendarNow();
@@ -132,6 +134,7 @@ const DayCalendar = ({
           paddingBottom: zoomMode === 'out' ? 30 : 40,
           paddingTop: 12,
         }}
+        onWheel={onWheelBoundary}
         data-calendar-scroll="true"
       >
         <div className="relative pt-2 pb-4">

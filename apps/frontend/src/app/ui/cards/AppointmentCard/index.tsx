@@ -55,19 +55,19 @@ const AppointmentCard = ({
             <GlassTooltip content="Accept request" side="bottom">
               <button
                 className="h-10 w-10 rounded-full! flex items-center justify-center cursor-pointer"
-                style={{ background: '#E6F4EF' }}
+                style={{ background: 'var(--color-success-100)' }}
                 onClick={() => void acceptAppointment(appointment)}
               >
-                <FaCheckCircle size={22} color="#54B492" />
+                <FaCheckCircle size={22} color="var(--color-success-400)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Decline request" side="bottom">
               <button
                 className="h-10 w-10 rounded-full! flex items-center justify-center cursor-pointer"
-                style={{ background: '#FDEBEA' }}
+                style={{ background: 'var(--color-danger-100)' }}
                 onClick={() => void rejectAppointment(appointment)}
               >
-                <IoIosCloseCircle size={24} color="#EA3729" />
+                <IoIosCloseCircle size={24} color="var(--color-danger-600)" />
               </button>
             </GlassTooltip>
           </>
@@ -79,7 +79,7 @@ const AppointmentCard = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="View"
               >
-                <IoEyeOutline size={20} color="#302F2E" />
+                <IoEyeOutline size={20} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
             {canEditAppointments && canShowStatusChangeAction(appointment.status) && (
@@ -89,7 +89,7 @@ const AppointmentCard = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
-                  <MdOutlineAutorenew size={18} color="#302F2E" />
+                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -100,7 +100,7 @@ const AppointmentCard = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Reschedule"
                 >
-                  <IoIosCalendar size={18} color="#302F2E" />
+                  <IoIosCalendar size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -111,7 +111,7 @@ const AppointmentCard = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Assign room"
                 >
-                  <MdMeetingRoom size={18} color="#302F2E" />
+                  <MdMeetingRoom size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -126,7 +126,7 @@ const AppointmentCard = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title={clinicalNotesLabel}
               >
-                <IoDocumentTextOutline size={18} color="#302F2E" />
+                <IoDocumentTextOutline size={18} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Finance summary" side="bottom">
@@ -140,7 +140,7 @@ const AppointmentCard = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Finance"
               >
-                <IoCardOutline size={18} color="#302F2E" />
+                <IoCardOutline size={18} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Lab tests" side="bottom">
@@ -154,7 +154,7 @@ const AppointmentCard = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Lab tests"
               >
-                <MdScience size={18} color="#302F2E" />
+                <MdScience size={18} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           </div>

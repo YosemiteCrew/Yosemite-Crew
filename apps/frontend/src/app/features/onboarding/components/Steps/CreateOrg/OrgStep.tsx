@@ -61,6 +61,12 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
   }, [formData.type]);
 
   useEffect(() => {
+    const nextPhoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
+    setSelectedCountryCode(nextPhoneData.selectedCode);
+    setLocalPhoneNumber(nextPhoneData.localNumber);
+  }, [formData.phoneNo, formData.address?.country]);
+
+  useEffect(() => {
     if (!errors) {
       return;
     }
@@ -189,7 +195,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
               />
             </div>
             <FormInput
-              intype="tel"
+              intype="text"
               inname="number"
               value={localPhoneNumber}
               inlabel="Phone number"

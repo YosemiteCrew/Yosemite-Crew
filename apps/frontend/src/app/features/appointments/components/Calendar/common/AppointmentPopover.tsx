@@ -277,7 +277,7 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
         <div className="text-caption-1 text-text-secondary">Payment</div>
         <div
           className="text-caption-1 text-right truncate font-medium"
-          style={{ color: payment?.textColor || '#302F2E' }}
+          style={{ color: payment?.textColor || 'var(--color-neutral-900)' }}
         >
           {payment?.label || '-'}
         </div>
@@ -295,26 +295,26 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
               <button
                 type="button"
                 title="Accept request"
-                className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-[#E6F4EF] border border-card-border"
+                className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-success-100 border border-card-border"
                 onClick={async () => {
                   await acceptAppointment(appointment);
                   onClose();
                 }}
               >
-                <FaCheckCircle size={18} color="#54B492" />
+                <FaCheckCircle size={18} color="var(--color-success-400)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Decline request" side="top">
               <button
                 type="button"
                 title="Decline request"
-                className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-[#FDEBEA] border border-card-border"
+                className="h-9 w-9 rounded-full! flex items-center justify-center hover:bg-danger-100 border border-card-border"
                 onClick={async () => {
                   await rejectAppointment(appointment);
                   onClose();
                 }}
               >
-                <IoIosCloseCircle size={20} color="#EA3729" />
+                <IoIosCloseCircle size={20} color="var(--color-danger-600)" />
               </button>
             </GlassTooltip>
           </>

@@ -116,8 +116,9 @@ describe('InvoiceTable', () => {
 
   it('returns styles for known status', () => {
     expect(getStatusStyle('pending')).toEqual({
-      color: '#fff',
-      backgroundColor: '#747283',
+      color: 'var(--color-pill-neutral-text)',
+      backgroundColor: 'var(--color-pill-neutral-bg)',
+      borderColor: 'var(--color-pill-neutral-border)',
     });
   });
 });

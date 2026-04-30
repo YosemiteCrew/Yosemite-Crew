@@ -12,6 +12,7 @@ import { createOrg, updateOrg } from '@/app/features/organization/services/orgSe
 import { deleteService } from '@/app/features/organization/services/serviceService';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useRouter } from 'next/navigation';
+import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { Organisation, Service, Speciality } from '@yosemite-crew/types';
 
 jest.mock('next/navigation', () => ({
@@ -33,6 +34,10 @@ jest.mock('@/app/features/organization/services/serviceService', () => ({
 jest.mock('@/app/features/organization/services/orgService', () => ({
   createOrg: jest.fn(),
   updateOrg: jest.fn(),
+}));
+
+jest.mock('@/app/lib/postAuthRedirect', () => ({
+  resolveOrgScopedRedirect: jest.fn(),
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -92,6 +97,7 @@ describe('SpecialityStep Component', () => {
     (deleteService as jest.Mock).mockResolvedValue({});
     (createOrg as jest.Mock).mockResolvedValue('org-1');
     (updateOrg as jest.Mock).mockResolvedValue({});
+    (resolveOrgScopedRedirect as jest.Mock).mockResolvedValue('/team-onboarding?orgId=org-1');
   });
 
   const getProps = (overrides: Partial<React.ComponentProps<typeof SpecialityStep>> = {}) => ({
@@ -241,7 +247,7 @@ describe('SpecialityStep Component', () => {
           specialityId: 'Cardiology-id',
         })
       );
-      expect(mockRouterPush).toHaveBeenCalledWith('/dashboard');
+      expect(mockRouterPush).toHaveBeenCalledWith('/team-onboarding?orgId=org-1');
     });
   });
 
@@ -391,7 +397,7 @@ describe('SpecialityStep Component', () => {
           specialityId: 'spec-1',
         })
       );
-      expect(mockRouterPush).toHaveBeenCalledWith('/dashboard');
+      expect(mockRouterPush).toHaveBeenCalledWith('/team-onboarding?orgId=org-1');
     });
   });
 });

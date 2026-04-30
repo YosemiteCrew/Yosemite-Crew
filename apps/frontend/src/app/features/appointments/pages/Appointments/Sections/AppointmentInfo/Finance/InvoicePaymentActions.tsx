@@ -127,7 +127,7 @@ const InvoicePaymentActions = ({
       {showOfflineCollect ? (
         <>
           {isInPersonCashSelected ? (
-            <div className="rounded-2xl border border-[#F4D596] bg-[#FFF8E8] px-4 py-4 flex flex-col gap-3">
+            <div className="rounded-2xl border border-warning-200 bg-[color-mix(in_srgb,var(--color-warning-100)_65%,white)] px-4 py-4 flex flex-col gap-3">
               <div className="text-body-4-emphasis text-text-primary">
                 Confirm cash payment before marking this invoice as paid.
               </div>

@@ -11,9 +11,14 @@ import { deleteData, getData, postData } from '@/app/services/axios';
 
 const mockOrgGetState = jest.fn();
 const mockAvailabilityGetState = jest.fn();
+const mockAuthGetState = jest.fn();
 
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: { getState: () => mockOrgGetState() },
+}));
+
+jest.mock('@/app/stores/authStore', () => ({
+  useAuthStore: { getState: () => mockAuthGetState() },
 }));
 
 jest.mock('@/app/stores/availabilityStore', () => ({
@@ -28,6 +33,8 @@ jest.mock('@/app/services/axios', () => ({
 
 describe('availabilityService', () => {
   const setAvailabilitiesForOrg = jest.fn();
+  const setBaseAvailabilitiesForOrg = jest.fn();
+  const setUserAvailabilitiesForOrg = jest.fn();
   const setAvailabilities = jest.fn();
   const startLoading = jest.fn();
   const upsertOverideStore = jest.fn();
@@ -36,8 +43,11 @@ describe('availabilityService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     mockOrgGetState.mockReturnValue({ primaryOrgId: 'org-1', orgIds: ['org-1', 'org-2'] });
+    mockAuthGetState.mockReturnValue({ attributes: { sub: 'user-1' } });
     mockAvailabilityGetState.mockReturnValue({
       setAvailabilitiesForOrg,
+      setBaseAvailabilitiesForOrg,
+      setUserAvailabilitiesForOrg,
       setAvailabilities,
       startLoading,
       upsertOverideStore,
@@ -46,12 +56,16 @@ describe('availabilityService', () => {
   });
 
   it('upserts primary org availability and updates store', async () => {
-    (postData as jest.Mock).mockResolvedValue({ data: { data: [{ day: 'MON' }] } });
+    (postData as jest.Mock).mockResolvedValue({
+      data: { data: [{ day: 'MON', userId: 'user-1' }] },
+    });
 
     await upsertAvailability({} as any, null);
 
     expect(postData).toHaveBeenCalledWith('/fhir/v1/availability/org-1/base', {});
-    expect(setAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', [{ day: 'MON' }]);
+    expect(setUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', 'user-1', [
+      { day: 'MON', userId: 'user-1' },
+    ]);
   });
 
   it('returns early when org id is missing', async () => {
@@ -65,9 +79,14 @@ describe('availabilityService', () => {
   it('upserts team availability and returns payload', async () => {
     (postData as jest.Mock).mockResolvedValue({ data: { data: [{ day: 'TUE' }] } });
 
-    const res = await upsertTeamAvailability({ practionerId: 'prac-1' } as any, {} as any, 'org-2');
+    const res = await upsertTeamAvailability(
+      { practionerId: 'Practitioner/prac-1' } as any,
+      {} as any,
+      'org-2'
+    );
 
     expect(postData).toHaveBeenCalledWith('/fhir/v1/availability/org-2/prac-1/base', {});
+    expect(setUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-2', 'prac-1', [{ day: 'TUE' }]);
     expect(res).toEqual([{ day: 'TUE' }]);
   });
 
@@ -79,7 +98,12 @@ describe('availabilityService', () => {
     await loadAvailability();
 
     expect(startLoading).toHaveBeenCalledTimes(1);
-    expect(setAvailabilities).toHaveBeenCalledWith([{ org: 'org-1' }, { org: 'org-2' }]);
+    expect(setUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', undefined, [
+      { org: 'org-1' },
+    ]);
+    expect(setUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-2', undefined, [
+      { org: 'org-2' },
+    ]);
   });
 
   it('skips loader in silent mode and returns when no org ids', async () => {

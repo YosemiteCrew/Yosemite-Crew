@@ -10,6 +10,7 @@ import { computeOrgOnboardingStep } from '@/app/lib/orgOnboarding';
 import type { Organisation, Speciality, UserOrganization } from '@yosemite-crew/types';
 import type { UserProfile } from '@/app/features/users/types/profile';
 import { useLoadTeam } from '@/app/hooks/useTeam';
+import { useTeamStore } from '@/app/stores/teamStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
 import { computeTeamOnboardingStep } from '@/app/lib/teamOnboarding';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
@@ -25,7 +26,8 @@ import { useLoadTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { useLoadSubscriptionCounterForPrimaryOrg } from '@/app/hooks/useBilling';
 import { useLoadInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { useLoadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
+import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import {
   canAccessPathByPermissions,
   resolveFirstAccessibleAppRoute,
@@ -113,11 +115,14 @@ const resolveOrgRedirect = ({
 const shouldWaitForOrgGuardData = (
   availabilityStatus: string,
   specialityStatus: string,
-  profileStatus: string
+  profileStatus: string,
+  teamStatus: string,
+  hasTeamDataForOrg: boolean
 ) =>
   isStatusPending(availabilityStatus) ||
   isStatusPending(specialityStatus) ||
-  isStatusPending(profileStatus);
+  isStatusPending(profileStatus) ||
+  (isStatusPending(teamStatus) && !hasTeamDataForOrg);
 
 const getOrgFallbackRedirect = (pathname: string): string | null => {
   return pathname === '/organizations' ? null : '/organizations';
@@ -172,6 +177,7 @@ const applyDefaultLandingRedirect = (
  */
 const OrgGuard = ({ children }: OrgGuardProps) => {
   useLoadSubscriptionCounterForPrimaryOrg();
+  useLoadSpecialitiesForPrimaryOrg();
   useLoadTeam();
   useLoadRoomsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
@@ -199,10 +205,13 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   );
 
   const specialityStatus = useSpecialityStore((s) => s.status);
+  const specialityIdsByOrgId = useSpecialityStore((s) => s.specialityIdsByOrgId);
   const getSpecialitiesByOrgId = useSpecialityStore((s) => s.getSpecialitiesByOrgId);
 
   const availabilityStatus = useAvailabilityStore((s) => s.status);
   const getAvailabilitiesByOrgId = useAvailabilityStore((s) => s.getAvailabilitiesByOrgId);
+  const teamStatus = useTeamStore((s) => s.status);
+  const teamIdsByOrgId = useTeamStore((s) => s.teamIdsByOrgId);
 
   const profile = useUserProfileStore((s) =>
     primaryOrgId ? (s.profilesByOrgId[primaryOrgId] ?? null) : null
@@ -211,6 +220,10 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
 
   const [checked, setChecked] = useState(false);
   useFullscreenLoader('org-guard', !isAuthGuardDisabled && !checked);
+
+  useEffect(() => {
+    setChecked(false);
+  }, [primaryOrgId]);
 
   useEffect(() => {
     if (isAuthGuardDisabled) {
@@ -229,7 +242,16 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       setChecked(true);
       return;
     }
-    if (shouldWaitForOrgGuardData(availabilityStatus, specialityStatus, profileStatus)) {
+    const hasTeamDataForOrg = !teamIdsByOrgId || Object.hasOwn(teamIdsByOrgId, primaryOrgId);
+    if (
+      shouldWaitForOrgGuardData(
+        availabilityStatus,
+        specialityStatus,
+        profileStatus,
+        teamStatus,
+        hasTeamDataForOrg
+      )
+    ) {
       return;
     }
 
@@ -238,6 +260,16 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       if (orgFallbackRedirect) {
         router.replace(orgFallbackRedirect);
       }
+      return;
+    }
+
+    const role = membership.roleDisplay ?? membership.roleCode;
+    const shouldWaitForSpecialitiesForOrg =
+      role.toLowerCase() === 'owner' &&
+      !primaryOrg.isVerified &&
+      specialityStatus !== 'error' &&
+      !Object.hasOwn(specialityIdsByOrgId, primaryOrgId);
+    if (shouldWaitForSpecialitiesForOrg) {
       return;
     }
 
@@ -268,8 +300,11 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
 
-    const role = membership.roleDisplay ?? membership.roleCode;
-    const preferredLanding = resolveDefaultOpenScreenRoute(role);
+    const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
+      profile,
+      orgType: primaryOrg.type,
+      role,
+    });
     const landingRedirect = applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
     if (landingRedirect) {
       router.replace(landingRedirect);
@@ -291,6 +326,9 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     availabilityStatus,
     profileStatus,
     membership,
+    specialityIdsByOrgId,
+    teamStatus,
+    teamIdsByOrgId,
   ]);
 
   if (!checked) return null;

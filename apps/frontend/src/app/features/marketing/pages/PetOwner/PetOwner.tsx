@@ -82,7 +82,7 @@ const PetOwner = () => {
               <div className="text-display-2 text-text-primary">Paws & praises from parents</div>
             </div>
             <div className="w-full flex flex-col gap-6 md:gap-10 xl:gap-16">
-              <div className="flex items-center justify-center bg-[#EAF3FF] w-full -rotate-2 BrownDiv">
+              <div className="flex items-center justify-center bg-[var(--color-badge-blue-text)] w-full -rotate-2 BrownDiv">
                 <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! pl-16! pr-4! sm:pl-0! sm:pr-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
                   <div className="font-satoshi text-black-text text-[1rem] md:text-[1.375rem] xl:text-[2.5rem] font-medium">
                     This app has been a game-changer! I never forget my dog&rsquo;s meds anymore
@@ -92,7 +92,7 @@ const PetOwner = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-center bg-[#EAF3FF] w-full rotate-2 PurpleDiv">
+              <div className="flex items-center justify-center bg-[var(--color-badge-blue-text)] w-full rotate-2 PurpleDiv">
                 <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! px-10! sm:px-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
                   <div className="font-satoshi text-black-text text-[1rem] md:text-[1.375rem] xl:text-[2.5rem] font-medium">
                     Scheduling vet visits has never been this easy. Love it!
@@ -102,7 +102,7 @@ const PetOwner = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-center bg-[#EAF3FF] w-full -rotate-2 GreenDiv">
+              <div className="flex items-center justify-center bg-[var(--color-badge-blue-text)] w-full -rotate-2 GreenDiv">
                 <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! px-10! sm:px-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
                   <div className="font-satoshi text-black-text text-[1rem] md:text-[1.375rem] xl:text-[2.5rem] font-medium">
                     Finally, a pet app that understands what we need
@@ -184,7 +184,7 @@ const PetDownBtn = ({ launched = false }: Readonly<PetDownBtnProps>) => {
           icon={'solar:star-bold'}
           width="18"
           height="18"
-          color="#fff"
+          color="var(--color-neutral-0)"
           className="ComingSoonStar"
         />
         <div className="text-body-3-emphasis text-white">Coming Soon</div>

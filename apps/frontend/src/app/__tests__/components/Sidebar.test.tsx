@@ -46,6 +46,9 @@ jest.mock('@/app/hooks/useSpecialities', () => ({
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
 }));
+jest.mock('@/app/stores/profileStore', () => ({
+  useUserProfileStore: jest.fn((selector: any) => selector({ profilesByOrgId: {} })),
+}));
 
 const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
 const mockUseOrgList = useOrgList as unknown as jest.Mock;

@@ -35,7 +35,7 @@ describe('buildDragPreview', () => {
     const preview = buildDragPreview(source);
     expect(preview.style.borderRadius).toBe('16px');
     expect(preview.style.overflow).toBe('hidden');
-    expect(preview.style.background).toBe('rgb(255, 255, 255)');
+    expect(preview.style.background).toBe('var(--color-neutral-0)');
     expect(preview.style.boxShadow).toBe('none');
     expect(preview.style.opacity).toBe('1');
     expect(preview.style.zIndex).toBe('99999');

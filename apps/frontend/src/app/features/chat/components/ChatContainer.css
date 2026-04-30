@@ -19,8 +19,8 @@
 .str-chat__channel-list-wrapper {
   flex: 0 0 360px;
   height: 100%;
-  border-right: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-right: 1px solid var(--color-chat-divider);
+  background: var(--color-neutral-0);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -53,18 +53,18 @@
 
 .str-chat__channel-preview {
   padding: 12px 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-chat-divider-soft);
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .str-chat__channel-preview:hover {
-  background: #f9fafb;
+  background: var(--color-chat-surface-soft);
 }
 
 .str-chat__channel-preview--active {
-  background: #eff6ff;
-  border-left: 3px solid #3b82f6;
+  background: var(--color-chat-panel);
+  border-left: 3px solid var(--color-chat-panel-border);
   padding-left: 13px;
 }
 
@@ -78,16 +78,16 @@
 }
 
 .chat-preview-trigger:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-chat-panel-border);
   outline-offset: 2px;
 }
 
 .chat-back-button {
   padding: 12px 16px;
   border: none;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-chat-divider);
   cursor: pointer;
-  color: #3b82f6;
+  color: var(--color-chat-panel-border);
   font-weight: 500;
   flex-shrink: 0;
   background: transparent;
@@ -96,7 +96,7 @@
 }
 
 .chat-back-button:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-chat-panel-border);
   outline-offset: 2px;
 }
 
@@ -206,7 +206,7 @@
     height: 100%;
     min-height: 0;
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--color-chat-divider);
     overflow: hidden;
   }
 

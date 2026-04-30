@@ -5,16 +5,16 @@ import { useUserProfileStore } from '@/app/stores/profileStore';
 import { UserProfile } from '@/app/features/users/types/profile';
 
 export const useLoadProfiles = () => {
-  const orgIds = useOrgStore((s) => s.orgIds);
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const profilesByOrgId = useUserProfileStore((s) => s.profilesByOrgId);
 
   useEffect(() => {
-    if (!orgIds || orgIds.length === 0) return;
-    const hasAllProfilesLoaded = orgIds.every((orgId) => Object.hasOwn(profilesByOrgId, orgId));
-    if (!hasAllProfilesLoaded && useUserProfileStore.getState().status !== 'loading') {
-      void loadProfiles();
+    if (!primaryOrgId) return;
+    const isLoaded = Object.hasOwn(profilesByOrgId, primaryOrgId);
+    if (!isLoaded && useUserProfileStore.getState().status !== 'loading') {
+      void loadProfiles({ silent: true, orgId: primaryOrgId });
     }
-  }, [orgIds, profilesByOrgId]);
+  }, [primaryOrgId, profilesByOrgId]);
 };
 
 export const usePrimaryOrgProfile = (): UserProfile | null => {

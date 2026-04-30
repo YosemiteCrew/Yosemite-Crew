@@ -138,7 +138,6 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
   const [profile, setProfile] = useState<any>(null);
-  const lastAvailabilityLogKeyRef = React.useRef<string>('');
 
   const normalizeId = (value?: string) =>
     String(value ?? '')
@@ -148,12 +147,20 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
       ?.toLowerCase() ?? '';
 
   const isSelfMember =
-    normalizeId(activeTeam?.practionerId) === normalizeId(membership?.practitionerReference);
+    normalizeId(activeTeam?.practionerId) === normalizeId(membership?.practitionerReference) ||
+    normalizeId(activeTeam?._id) === normalizeId(membership?.id);
+  const canEditMutableMember = canEditTeam && activeTeam.role !== 'OWNER';
   const canEditRole = canEditTeam && activeTeam.role !== 'OWNER';
-  const canEditEmploymentType = canEditTeam && isSelfMember;
+  // Employment type can be set by team managers OR by the member themselves
+  const canEditEmploymentType = isSelfMember || canEditMutableMember;
   const canEditDepartment = false;
-  const canEditAvailability = canEditTeam && isSelfMember;
+  // Personal profile fields are self-only — team managers cannot edit another person's profile
+  const canEditPersonal = isSelfMember;
+  const canEditAddress = isSelfMember;
+  const canEditProfessional = isSelfMember;
+  const canEditAvailability = isSelfMember;
   const canEditOrgDetails = canEditRole || canEditEmploymentType || canEditDepartment;
+  const canDeleteMember = canEditTeam && activeTeam.role !== 'OWNER';
 
   useEffect(() => {
     if (activeTeam) {
@@ -169,21 +176,8 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
         : [];
       const converted = convertFromGetApi(apiAvailability);
       setAvailability(converted);
-
-      const logKey = `${activeTeam?._id || ''}:${JSON.stringify(apiAvailability)}`;
-      if (lastAvailabilityLogKeyRef.current !== logKey) {
-        lastAvailabilityLogKeyRef.current = logKey;
-        console.log('[TeamInfo][ProfileAvailabilityDebug]', {
-          memberName: activeTeam?.name,
-          memberIds: {
-            practionerId: activeTeam?.practionerId,
-            _id: activeTeam?._id,
-          },
-          baseAvailability: apiAvailability,
-        });
-      }
     }
-  }, [profile, activeTeam]);
+  }, [profile]);
 
   const SpecialitiesOptions = useMemo(
     () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
@@ -365,6 +359,75 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     }
   };
 
+  const handlePersonalSave = async (values: any) => {
+    try {
+      if (!profile?.profile) return;
+      const payload: UserProfile = {
+        ...profile.profile,
+        _id: profile.profile?._id,
+        personalDetails: {
+          ...profile.profile.personalDetails,
+          gender: values.gender,
+          dateOfBirth: values.dateOfBirth,
+          phoneNumber: values.phoneNumber,
+          address: {
+            ...profile.profile.personalDetails?.address,
+            country: values.country,
+          },
+        },
+      };
+      await upsertUserProfile(payload);
+      setProfile((prev: any) => ({
+        ...prev,
+        profile: payload,
+      }));
+      notify('success', {
+        title: 'Personal details updated',
+        text: 'Personal details have been updated successfully.',
+      });
+    } catch (error) {
+      console.log(error);
+      notify('error', {
+        title: 'Unable to update personal details',
+        text: 'Failed to update personal details. Please try again.',
+      });
+    }
+  };
+
+  const handleProfessionalSave = async (values: any) => {
+    try {
+      if (!profile?.profile) return;
+      const payload: UserProfile = {
+        ...profile.profile,
+        _id: profile.profile?._id,
+        professionalDetails: {
+          ...profile.profile.professionalDetails,
+          linkedin: values.linkedin,
+          medicalLicenseNumber: values.licenseNumber,
+          yearsOfExperience: values.experience,
+          specialization: values.specialisation,
+          qualification: values.qulaification,
+          biography: values.description,
+        },
+      };
+      await upsertUserProfile(payload);
+      setProfile((prev: any) => ({
+        ...prev,
+        profile: payload,
+      }));
+      notify('success', {
+        title: 'Professional details updated',
+        text: 'Professional details have been updated successfully.',
+      });
+    } catch (error) {
+      console.log(error);
+      notify('error', {
+        title: 'Unable to update professional details',
+        text: 'Failed to update professional details. Please try again.',
+      });
+    }
+  };
+
   const handlePermUpdate = async ({
     extraPerissions,
     revokedPermissions,
@@ -449,12 +512,12 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
             <div className={`flex items-center gap-2`}>
               <div className="flex items-center justify-between w-full">
                 <div className="text-body-2 text-text-primary">{activeTeam.name || '-'}</div>
-                {canEditTeam && activeTeam.role !== 'OWNER' && (
+                {canDeleteMember && (
                   <MdDeleteForever
                     className="cursor-pointer"
                     onClick={() => setShowDeleteModal(true)}
                     size={26}
-                    color="#EA3729"
+                    color="var(--color-danger-600)"
                   />
                 )}
               </div>
@@ -472,57 +535,58 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
               fields={PersonalFields}
               data={personalInfoData}
               defaultOpen={true}
-              showEditIcon={false}
+              showEditIcon={canEditPersonal}
+              onSave={canEditPersonal ? handlePersonalSave : undefined}
             />
             <EditableAccordion
               title="Address details"
               fields={AddressFields}
               data={addressInfoData}
               defaultOpen={false}
-              showEditIcon={isSelfMember}
-              onSave={isSelfMember ? handleAddressSave : undefined}
+              showEditIcon={canEditAddress}
+              onSave={canEditAddress ? handleAddressSave : undefined}
             />
             <EditableAccordion
               title="Professional details"
               fields={ProfessionalFields}
               data={professionalInfoData}
               defaultOpen={false}
-              showEditIcon={false}
+              showEditIcon={canEditProfessional}
+              onSave={canEditProfessional ? handleProfessionalSave : undefined}
             />
-            {canEditTeam && (
-              <>
-                <Accordion
-                  title="Availability"
-                  defaultOpen={false}
-                  showEditIcon={false}
-                  isEditing={false}
-                >
-                  <div className="flex flex-col w-full gap-3">
-                    <Availability
-                      availability={availability}
-                      setAvailability={setAvailability}
-                      readOnly={!canEditAvailability}
+            <Accordion
+              title="Availability"
+              defaultOpen={false}
+              showEditIcon={false}
+              isEditing={false}
+            >
+              <div className="flex flex-col w-full gap-3">
+                <Availability
+                  availability={availability}
+                  setAvailability={setAvailability}
+                  readOnly={!canEditAvailability}
+                />
+                {canEditAvailability && (
+                  <div className="flex justify-end">
+                    <Primary
+                      href="#"
+                      text={isSavingAvailability ? 'Saving availability...' : 'Save availability'}
+                      onClick={updateAvailability}
+                      className="w-auto min-w-45"
+                      isDisabled={isSavingAvailability}
                     />
-                    {canEditAvailability && (
-                      <div className="flex justify-end">
-                        <Primary
-                          href="#"
-                          text={
-                            isSavingAvailability ? 'Saving availability...' : 'Save availability'
-                          }
-                          onClick={updateAvailability}
-                          className="w-auto min-w-45"
-                          isDisabled={isSavingAvailability}
-                        />
-                      </div>
-                    )}
                   </div>
-                </Accordion>
-
-                {role && perms && (
-                  <PermissionsEditor role={role} onSave={handlePermUpdate} value={perms} />
                 )}
-              </>
+              </div>
+            </Accordion>
+
+            {role && perms && (
+              <PermissionsEditor
+                role={role}
+                onSave={handlePermUpdate}
+                value={perms}
+                readOnly={!canEditTeam}
+              />
             )}
           </div>
         </div>

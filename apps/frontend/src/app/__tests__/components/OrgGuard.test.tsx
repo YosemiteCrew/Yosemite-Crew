@@ -17,6 +17,7 @@ const orgStoreGetStateMock = jest.fn();
 const useSpecialityStoreMock = jest.fn();
 const useAvailabilityStoreMock = jest.fn();
 const useUserProfileStoreMock = jest.fn();
+const useTeamStoreMock = jest.fn();
 const originalTestHostname = process.env.YC_TEST_HOSTNAME;
 
 jest.mock('@/app/stores/orgStore', () => ({
@@ -35,6 +36,10 @@ jest.mock('@/app/stores/availabilityStore', () => ({
 
 jest.mock('@/app/stores/profileStore', () => ({
   useUserProfileStore: (selector: any) => useUserProfileStoreMock(selector),
+}));
+
+jest.mock('@/app/stores/teamStore', () => ({
+  useTeamStore: (selector: any) => useTeamStoreMock(selector),
 }));
 
 jest.mock('@/app/hooks/useTeam', () => ({
@@ -77,6 +82,10 @@ jest.mock('@/app/hooks/useInvoices', () => ({
   useLoadInvoicesForPrimaryOrg: jest.fn(),
 }));
 
+jest.mock('@/app/hooks/useSpecialities', () => ({
+  useLoadSpecialitiesForPrimaryOrg: jest.fn(),
+}));
+
 jest.mock('@/app/hooks/useFullscreenLoader', () => ({
   useFullscreenLoader: jest.fn(),
 }));
@@ -102,6 +111,7 @@ describe('OrgGuard', () => {
 
   const baseSpecialityState = {
     status: 'succeeded',
+    specialityIdsByOrgId: {},
     getSpecialitiesByOrgId: jest.fn(() => []),
   };
 
@@ -128,6 +138,12 @@ describe('OrgGuard', () => {
     useUserProfileStoreMock.mockImplementation((selector: any) =>
       selector({
         profilesByOrgId: {},
+      })
+    );
+    useTeamStoreMock.mockImplementation((selector: any) =>
+      selector({
+        status: 'succeeded',
+        teamIdsByOrgId: {},
       })
     );
     computeOrgOnboardingStepMock.mockReturnValue(3);
@@ -186,6 +202,12 @@ describe('OrgGuard', () => {
 
   it('redirects owners to create org when onboarding is incomplete', async () => {
     const orgId = 'org-1';
+    useSpecialityStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseSpecialityState,
+        specialityIdsByOrgId: { [orgId]: [] },
+      })
+    );
     useOrgStoreMock.mockImplementation((selector: any) =>
       selector({
         ...baseOrgState,
@@ -208,6 +230,78 @@ describe('OrgGuard', () => {
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith('/create-org?orgId=org-1');
+    });
+  });
+
+  it('waits for selected org specialities before redirecting an unverified owner', async () => {
+    const orgId = 'org-pending';
+    const getSpecialitiesByOrgId = jest.fn(() => []);
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        primaryOrgId: orgId,
+        orgsById: {
+          [orgId]: { id: orgId, isVerified: false, type: 'GROOMER' },
+        },
+        membershipsByOrgId: {
+          [orgId]: { roleDisplay: 'Owner', effectivePermissions: [] },
+        },
+      })
+    );
+    useSpecialityStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseSpecialityState,
+        specialityIdsByOrgId: {},
+        getSpecialitiesByOrgId,
+      })
+    );
+
+    render(
+      <OrgGuard>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    await waitFor(() => {
+      expect(getSpecialitiesByOrgId).not.toHaveBeenCalled();
+    });
+    expect(replaceMock).not.toHaveBeenCalledWith(`/create-org?orgId=${orgId}`);
+  });
+
+  it('does not hang forever when speciality fetch errors for an unverified owner', async () => {
+    const orgId = 'org-speciality-error';
+    const getSpecialitiesByOrgId = jest.fn(() => []);
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        primaryOrgId: orgId,
+        orgsById: {
+          [orgId]: { id: orgId, isVerified: false, type: 'GROOMER' },
+        },
+        membershipsByOrgId: {
+          [orgId]: { roleDisplay: 'Owner', effectivePermissions: [] },
+        },
+      })
+    );
+    useSpecialityStoreMock.mockImplementation((selector: any) =>
+      selector({
+        // status is error and org key is absent — simulates a failed fetch
+        status: 'error',
+        specialityIdsByOrgId: {},
+        getSpecialitiesByOrgId,
+      })
+    );
+    computeOrgOnboardingStepMock.mockReturnValue(1);
+
+    render(
+      <OrgGuard>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    // Guard should proceed (redirect to create-org) rather than stay stuck
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith(`/create-org?orgId=${orgId}`);
     });
   });
 

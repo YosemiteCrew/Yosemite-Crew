@@ -4,6 +4,13 @@
   gap: 24px;
   width: 100%;
 }
+
+/* Stable column layout for the appointments table — prevents headers from
+   shifting when the status filter changes the number of action buttons. */
+.appointments-table-fixed {
+  table-layout: fixed;
+  min-width: 1032px;
+}
 .card-list {
   display: none;
 }
@@ -18,42 +25,42 @@
   }
 }
 .InviteDetails {
-  color: var(--yc-upated-contrat1, #247aed);
+  color: var(--color-primary-500);
   font-size: 16px;
   font-style: normal;
   font-weight: 400;
   line-height: 150%;
   letter-spacing: -0.32px;
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
   cursor: pointer;
 }
 .InviteTime {
-  color: var(--yc-updated, #302f2e);
+  color: var(--color-neutral-900);
   font-size: 16px;
   font-style: normal;
   font-weight: 400;
   line-height: 150%;
   letter-spacing: -0.32px;
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
 }
 .InviteExpires {
-  color: var(--yc-updated, #302f2e);
+  color: var(--color-neutral-900);
   font-size: 16px;
   font-style: normal;
   font-weight: 400;
   line-height: 150%;
   letter-spacing: -0.32px;
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
 }
 
 .OrgListDetails {
-  color: var(--yc-upated-contrat1, #247aed);
+  color: var(--color-primary-500);
   font-size: 16px;
   font-style: normal;
   font-weight: 400;
   line-height: 150%;
   letter-spacing: -0.32px;
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
   cursor: pointer;
 }
 .OrgStatus {
@@ -71,7 +78,7 @@
   font-weight: 400;
   line-height: 150%;
   letter-spacing: -0.32px;
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
 }
 .OrgListDetailsCol {
   display: flex;
@@ -82,15 +89,17 @@
 .action-btn-col {
   display: inline-flex;
   align-items: center;
-  width: max-content;
   gap: 8px;
+  position: relative;
+  z-index: 0;
 }
 .action-btn-grid {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  width: 184px;
   gap: 8px;
+  position: relative;
+  z-index: 0;
 }
 .table-action-tooltip {
   opacity: 1 !important;
@@ -106,7 +115,7 @@
   cursor: pointer;
 }
 .action-btn-text {
-  color: var(#302f2e);
+  color: var(--color-neutral-900);
   text-align: center;
   font-family: var(--font-satoshi);
   font-size: 16px;
@@ -126,21 +135,21 @@
   flex-direction: column;
 }
 .appointment-profile-title {
-  font-family: var(--satoshi-font);
-  color: var(--yc-updated, #302f2e);
+  font-family: var(--font-satoshi);
+  color: var(--color-neutral-900);
   font-size: 16px;
   font-style: normal;
   font-weight: 400;
-  line-height: 150%;
+  line-height: 120%;
   letter-spacing: -0.32px;
 }
 .appointment-profile-sub {
-  font-family: var(--satoshi-font);
-  color: var(--yc-updated, #302f2e);
+  font-family: var(--font-satoshi);
+  color: var(--color-neutral-900);
   font-size: 16px;
   font-style: normal;
   font-weight: 400;
-  line-height: 150%;
+  line-height: 120%;
   letter-spacing: -0.32px;
 }
 .appointment-status {
@@ -162,7 +171,7 @@
   font-weight: 500;
   line-height: 150%;
   letter-spacing: -0.16px;
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
 }
 .appointment-emergency-label {
   display: flex;
@@ -177,9 +186,9 @@
   border-width: 1px;
   border-style: solid;
   border-color: var(--error-color);
-  background: #fdebea;
+  background: var(--color-danger-100);
   color: var(--error-color);
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
   font-size: 12px;
   font-style: normal;
   font-weight: 400;

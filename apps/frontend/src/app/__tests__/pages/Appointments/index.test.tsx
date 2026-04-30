@@ -11,6 +11,7 @@ const useLoadCompanionsForPrimaryOrgMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const useSearchParamsMock = jest.fn();
+const usePrimaryOrgProfileMock = jest.fn();
 
 const calendarSpy = jest.fn();
 const tableSpy = jest.fn();
@@ -48,6 +49,10 @@ jest.mock('@/app/stores/searchStore', () => ({
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
+}));
+
+jest.mock('@/app/hooks/useProfiles', () => ({
+  usePrimaryOrgProfile: () => usePrimaryOrgProfileMock(),
 }));
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
@@ -144,19 +149,12 @@ describe('Appointments page', () => {
     useSearchParamsMock.mockReturnValue({
       get: () => null,
     });
+    usePrimaryOrgProfileMock.mockReturnValue(null);
   });
 
-  it('renders board view by default and toggles to calendar/list', () => {
+  it('renders calendar view by default and toggles to list/board', () => {
     render(<ProtectedAppointments />);
 
-    expect(screen.getByTestId('appointment-board')).toBeInTheDocument();
-    expect(boardSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        appointments: [expect.objectContaining({ id: 'a1' })],
-      })
-    );
-
-    fireEvent.click(screen.getByText('Calendar'));
     expect(screen.getByTestId('appointment-calendar')).toBeInTheDocument();
     expect(calendarSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -169,6 +167,20 @@ describe('Appointments page', () => {
     expect(tableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [expect.objectContaining({ id: 'a1' })],
+      })
+    );
+  });
+
+  it('renders board view when profile appointmentView is STATUS_BOARD', () => {
+    usePrimaryOrgProfileMock.mockReturnValue({
+      personalDetails: { pmsPreferences: { appointmentView: 'STATUS_BOARD' } },
+    });
+    render(<ProtectedAppointments />);
+
+    expect(screen.getByTestId('appointment-board')).toBeInTheDocument();
+    expect(boardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointments: [expect.objectContaining({ id: 'a1' })],
       })
     );
   });

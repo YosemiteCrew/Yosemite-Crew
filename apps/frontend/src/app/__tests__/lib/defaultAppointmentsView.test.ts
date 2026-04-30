@@ -67,8 +67,8 @@ describe('setSavedDefaultAppointmentsView', () => {
 });
 
 describe('resolveDefaultAppointmentsView', () => {
-  it('returns "board" when nothing is saved', () => {
-    expect(resolveDefaultAppointmentsView()).toBe('board');
+  it('returns "calendar" when nothing is saved', () => {
+    expect(resolveDefaultAppointmentsView()).toBe('calendar');
   });
 
   it('returns the saved view when available', () => {

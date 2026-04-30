@@ -4,7 +4,7 @@
   align-items: flex-start;
   align-self: stretch;
   border-radius: 16px;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   width: 100%;
 }
 .speciality-title-container {
@@ -42,7 +42,7 @@
   align-items: center;
   gap: 8px;
   align-self: stretch;
-  border-bottom: 1px solid #eaeaea;
+  border-bottom: 1px solid var(--color-neutral-100);
 }
 .speciality-service-title {
   color: var(--black-text);
@@ -63,7 +63,7 @@
   .speciality-service {
     padding: 10px 6px;
   }
-  .speciality-service-title{
+  .speciality-service-title {
     font-size: 16px;
   }
 }

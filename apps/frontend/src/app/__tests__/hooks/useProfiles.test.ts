@@ -24,7 +24,6 @@ describe('useProfiles Hooks', () => {
 
     // Default Mock State
     mockOrgState = {
-      orgIds: [],
       primaryOrgId: null,
     };
 
@@ -46,17 +45,18 @@ describe('useProfiles Hooks', () => {
   // --- Section 1: useLoadProfiles Logic ---
 
   describe('useLoadProfiles', () => {
-    it("should trigger loadProfiles when status is 'idle' and orgIds exist", () => {
-      mockOrgState.orgIds = ['org-1'];
+    it('should trigger loadProfiles when primaryOrgId is set and profile not yet loaded', () => {
+      mockOrgState.primaryOrgId = 'org-1';
       mockProfileState.status = 'idle';
 
       renderHook(() => useLoadProfiles());
 
       expect(loadProfiles).toHaveBeenCalledTimes(1);
+      expect(loadProfiles).toHaveBeenCalledWith({ silent: true, orgId: 'org-1' });
     });
 
-    it('should NOT trigger loadProfiles if orgIds list is empty', () => {
-      mockOrgState.orgIds = [];
+    it('should NOT trigger loadProfiles if primaryOrgId is null', () => {
+      mockOrgState.primaryOrgId = null;
       mockProfileState.status = 'idle';
 
       renderHook(() => useLoadProfiles());
@@ -64,17 +64,8 @@ describe('useProfiles Hooks', () => {
       expect(loadProfiles).not.toHaveBeenCalled();
     });
 
-    it('should NOT trigger loadProfiles if orgIds is undefined/null', () => {
-      mockOrgState.orgIds = null;
-      mockProfileState.status = 'idle';
-
-      renderHook(() => useLoadProfiles());
-
-      expect(loadProfiles).not.toHaveBeenCalled();
-    });
-
-    it("should NOT trigger loadProfiles if status is NOT 'idle' (e.g. 'loading')", () => {
-      mockOrgState.orgIds = ['org-1'];
+    it('should NOT trigger loadProfiles if status is loading', () => {
+      mockOrgState.primaryOrgId = 'org-1';
       mockProfileState.status = 'loading';
 
       renderHook(() => useLoadProfiles());
@@ -82,8 +73,8 @@ describe('useProfiles Hooks', () => {
       expect(loadProfiles).not.toHaveBeenCalled();
     });
 
-    it("should NOT trigger loadProfiles if status is 'success' and all orgs have profiles", () => {
-      mockOrgState.orgIds = ['org-1'];
+    it('should NOT trigger loadProfiles if profile is already loaded for primaryOrgId', () => {
+      mockOrgState.primaryOrgId = 'org-1';
       mockProfileState.status = 'success';
       mockProfileState.profilesByOrgId = { 'org-1': { id: 'p1' } };
 

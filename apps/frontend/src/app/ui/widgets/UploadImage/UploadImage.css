@@ -80,17 +80,17 @@
   font-size: 32px;
 }
 .file-icon.pdf {
-  color: #e53e3e;
+  color: var(--color-upload-error-soft);
 }
 .file-icon.word {
-  color: #2563eb;
+  color: var(--color-upload-info);
 }
 .file-icon.img {
-  color: #10b981;
+  color: var(--color-upload-success);
 }
 .file-name {
   font-size: 15px;
-  color: #222;
+  color: var(--color-upload-text);
   font-family: var(--satoshi-font);
   min-width: 140px;
   max-width: 140px;
@@ -108,6 +108,6 @@
   cursor: pointer;
 }
 .delete-btn svg {
-  color: #ff3b30;
+  color: var(--color-upload-error);
   font-size: 18px;
 }

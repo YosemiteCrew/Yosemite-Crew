@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { IoIosArrowDown } from "react-icons/io";
+import React, { useState } from 'react';
+import { IoIosArrowDown } from 'react-icons/io';
 
 interface SmallAccordionButtonProps {
   title: string;
@@ -23,20 +23,13 @@ const SmallAccordionButton: React.FC<SmallAccordionButtonProps> = ({
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-card-border px-6 py-3">
       <div className="flex items-center justify-between">
-        <button
-          className="flex items-center gap-2"
-          onClick={() => setOpen(!open)}
-        >
+        <button className="flex items-center gap-2" onClick={() => setOpen(!open)}>
           <IoIosArrowDown
             size={20}
-            color="#302f2e"
-            className={`text-black-text transition-transform ${
-              open ? "rotate-0" : "-rotate-90"
-            }`}
+            color="var(--color-neutral-900)"
+            className={`text-black-text transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
           />
-          <div className="text-body-3 text-text-primary">
-            {title}
-          </div>
+          <div className="text-body-3 text-text-primary">{title}</div>
         </button>
         {showButton && (
           <button

@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   formatDateInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
@@ -206,6 +206,11 @@ export function useCalendarAutoScroll({
   hourRowGapPx = 0,
   hourRowTopOffsetPx = 0,
 }: AutoScrollOptions): void {
+  // Capture nowPosition in a ref so changes to it (every minute) don't re-fire
+  // the scroll effect — we only want to scroll once on mount / date change.
+  const nowPositionRef = useRef(nowPosition);
+  nowPositionRef.current = nowPosition;
+
   useEffect(() => {
     if (!scrollContainer || skip) return;
 
@@ -219,9 +224,10 @@ export function useCalendarAutoScroll({
     const focusMinutes = focusStart
       ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
       : DEFAULT_CALENDAR_FOCUS_MINUTES;
+    const currentNowPosition = nowPositionRef.current;
     let topPx: number;
-    if (nowPosition) {
-      topPx = Math.max(0, nowPosition.topPx);
+    if (currentNowPosition) {
+      topPx = Math.max(0, currentNowPosition.topPx);
     } else if (focusStartHour > 0) {
       topPx = ((focusMinutes - focusStartHour * 60) / 60) * height + hourRowTopOffsetPx;
     } else {
@@ -229,14 +235,16 @@ export function useCalendarAutoScroll({
     }
 
     scrollContainerToTarget(scrollContainer, topPx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     date,
-    events,
+    // events intentionally omitted: event list changing after initial render
+    // (e.g. background refresh) should not jump the scroll position.
     focusStartHour,
     height,
     hourRowGapPx,
     hourRowTopOffsetPx,
-    nowPosition,
+    // nowPosition intentionally omitted: read via ref to avoid re-firing every minute.
     rangeEnd,
     rangeStart,
     scrollContainer,

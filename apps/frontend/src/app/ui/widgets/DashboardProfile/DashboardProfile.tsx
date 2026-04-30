@@ -43,7 +43,7 @@ const DashboardProfile = () => {
           {!primaryOrg.isVerified && (
             <>
               <div className="px-6 py-[12px] bg-card-warning rounded-2xl flex items-center justify-center gap-2">
-                <FaClock color="#F68523" size={16} />
+                <FaClock color="var(--color-warning-600)" size={16} />
                 <span className="text-body-4-emphasis text-pending-text">
                   Verification in progress — Limited access enabled
                 </span>

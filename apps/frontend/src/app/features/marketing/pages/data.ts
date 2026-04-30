@@ -43,7 +43,7 @@ export const InfoCards: InfoCard[] = [
       "Yosemite Crew is not just a tool for users; it's a robust platform for developers to build and launch creative solutions like AI scribe, voice calls, and agents. Integrated into pet businesses through our developer marketplace, you can turn your ideas into market-ready products in just hours!",
     image: MEDIA_SOURCES.landing.infoDeveloper,
     href: '/developers',
-    background: '#fff',
+    background: 'var(--color-neutral-0)',
   },
 ];
 

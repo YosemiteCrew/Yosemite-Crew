@@ -107,11 +107,14 @@ jest.mock('@/app/hooks/useNotify', () => ({
   }),
 }));
 
-jest.mock('@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle', () => (props: any) => (
-  <button type="button" onClick={() => props.onChange(!props.showMineOnly)}>
-    Toggle scope
-  </button>
-));
+jest.mock(
+  '@/app/ui/primitives/AppointmentScopeToggle/AppointmentScopeToggle',
+  () => (props: any) => (
+    <button type="button" onClick={() => props.onChange(!props.showMineOnly)}>
+      Toggle scope
+    </button>
+  )
+);
 
 describe('AppointmentBoard', () => {
   const setCurrentDate = jest.fn();

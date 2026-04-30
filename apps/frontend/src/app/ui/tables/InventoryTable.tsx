@@ -1,12 +1,16 @@
-"use client";
-import React from "react";
-import { IoEye } from "react-icons/io5";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import InventoryCard from "@/app/ui/cards/InventoryCard";
-import { InventoryItem } from "@/app/features/inventory/pages/Inventory/types";
-import { displayStatusLabel, formatDisplayDate, getStatusBadgeStyle } from "@/app/features/inventory/pages/Inventory/utils";
+'use client';
+import React from 'react';
+import { IoEye } from 'react-icons/io5';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import InventoryCard from '@/app/ui/cards/InventoryCard';
+import { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
+import {
+  displayStatusLabel,
+  formatDisplayDate,
+  getStatusBadgeStyle,
+} from '@/app/features/inventory/pages/Inventory/utils';
 
-import "./DataTable.css";
+import './DataTable.css';
 
 type Column<T> = {
   label: string;
@@ -36,129 +40,114 @@ const InventoryTable = ({
   };
 
   const displayValue = (val?: string | number | null) => {
-    if (val === undefined || val === null) return "—";
-    if (typeof val === "string" && val.trim() === "") return "—";
+    if (val === undefined || val === null) return '—';
+    if (typeof val === 'string' && val.trim() === '') return '—';
     return val;
   };
 
   const formatCurrency = (value: string | number | undefined) => {
     const num = Number(value ?? 0);
-    if (!Number.isFinite(num)) return "—";
+    if (!Number.isFinite(num)) return '—';
     return `$ ${num}`;
   };
 
   const totalValue = (item: InventoryItem) => {
     const price = Number(item.pricing.selling ?? 0);
     const onHand = Number(item.stock.current ?? 0);
-    if (!Number.isFinite(price) || !Number.isFinite(onHand)) return "—";
+    if (!Number.isFinite(price) || !Number.isFinite(onHand)) return '—';
     return `$ ${Math.round(price * onHand)}`;
   };
 
   const columns: Column<InventoryItem>[] = [
     {
-      label: "Item name",
-      key: "name",
-      width: "15%",
+      label: 'Item name',
+      key: 'name',
+      width: '15%',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">{item.basicInfo.name}</div>
       ),
     },
     {
-      label: "Category",
-      key: "category",
-      width: "10%",
+      label: 'Category',
+      key: 'category',
+      width: '10%',
+      render: (item: InventoryItem) => (
+        <div className="appointment-profile-title">{item.basicInfo.category}</div>
+      ),
+    },
+    {
+      label: 'On hand',
+      key: 'on-hand',
+      width: '10%',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {item.basicInfo.category}
+          {displayValue(item.stock.current || '') === '—' ? '—' : `${item.stock.current} units`}
         </div>
       ),
     },
     {
-      label: "On hand",
-      key: "on-hand",
-      width: "10%",
+      label: 'Unit cost',
+      key: 'unit-cost',
+      width: '7.5%',
+      render: (item: InventoryItem) => (
+        <div className="appointment-profile-title">{formatCurrency(item.pricing.purchaseCost)}</div>
+      ),
+    },
+    {
+      label: 'Selling price',
+      key: 'selling-price',
+      width: '7.5%',
+      render: (item: InventoryItem) => (
+        <div className="appointment-profile-title">{formatCurrency(item.pricing.selling)}</div>
+      ),
+    },
+    {
+      label: 'Total value',
+      key: 'total-vale',
+      width: '10%',
+      render: (item: InventoryItem) => (
+        <div className="appointment-profile-title">{totalValue(item)}</div>
+      ),
+    },
+    {
+      label: 'Expiry',
+      key: 'expiry',
+      width: '10%',
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title">
-          {displayValue(item.stock.current || "") === "—"
-            ? "—"
-            : `${item.stock.current} units`}
+          {formatDisplayDate(item.batch.expiryDate) || '—'}
         </div>
       ),
     },
     {
-      label: "Unit cost",
-      key: "unit-cost",
-      width: "7.5%",
+      label: 'Location',
+      key: 'location',
+      width: '10%',
       render: (item: InventoryItem) => (
-        <div className="appointment-profile-title">
-          {formatCurrency(item.pricing.purchaseCost)}
-        </div>
+        <div className="appointment-profile-title">{displayValue(item.stock.stockLocation)}</div>
       ),
     },
     {
-      label: "Selling price",
-      key: "selling-price",
-      width: "7.5%",
+      label: 'Status',
+      key: 'status',
+      width: '15%',
       render: (item: InventoryItem) => (
-        <div className="appointment-profile-title">
-          {formatCurrency(item.pricing.selling)}
-        </div>
-      ),
-    },
-    {
-      label: "Total value",
-      key: "total-vale",
-      width: "10%",
-      render: (item: InventoryItem) => (
-        <div className="appointment-profile-title">
-          {totalValue(item)}
-        </div>
-      ),
-    },
-    {
-      label: "Expiry",
-      key: "expiry",
-      width: "10%",
-      render: (item: InventoryItem) => (
-        <div className="appointment-profile-title">
-          {formatDisplayDate(item.batch.expiryDate) || "—"}
-        </div>
-      ),
-    },
-    {
-      label: "Location",
-      key: "location",
-      width: "10%",
-      render: (item: InventoryItem) => (
-        <div className="appointment-profile-title">
-          {displayValue(item.stock.stockLocation)}
-        </div>
-      ),
-    },
-    {
-      label: "Status",
-      key: "status",
-      width: "15%",
-      render: (item: InventoryItem) => (
-        <div
-          className="appointment-status"
-          style={getStatusStyle(displayStatusLabel(item))}
-        >
+        <div className="appointment-status" style={getStatusStyle(displayStatusLabel(item))}>
           {displayStatusLabel(item)}
         </div>
       ),
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "5%",
+      label: 'Actions',
+      key: 'actions',
+      width: '64px',
       render: (item: InventoryItem) => (
         <div className="action-btn-col">
           <button
             onClick={() => handleViewInventory(item)}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
-            <IoEye size={20} color="#302F2E" />
+            <IoEye size={20} color="var(--color-neutral-900)" />
           </button>
         </div>
       ),
@@ -166,8 +155,8 @@ const InventoryTable = ({
   ];
 
   return (
-    <div className="w-full">
-      <div className="hidden xl:flex">
+    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+      <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
           data={filteredList}
           columns={columns}
@@ -176,7 +165,7 @@ const InventoryTable = ({
           pageSize={5}
         />
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {(() => {
           if (filteredList.length === 0) {
             return (

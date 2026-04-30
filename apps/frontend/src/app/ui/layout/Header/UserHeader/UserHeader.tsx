@@ -1,12 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { MdNotificationsActive } from 'react-icons/md';
+import {
+  MdDashboard,
+  MdInventory2,
+  MdNotificationsActive,
+  MdOutlineChecklist,
+  MdOutlineCorporateFare,
+} from 'react-icons/md';
+import {
+  IoBookOutline,
+  IoCalendarOutline,
+  IoChatbubbleEllipsesOutline,
+  IoExtensionPuzzleOutline,
+  IoGitNetworkOutline,
+  IoGlobeOutline,
+  IoHelpCircleOutline,
+  IoKeyOutline,
+  IoLogOutOutline,
+  IoSettingsOutline,
+  IoWalletOutline,
+} from 'react-icons/io5';
+import { FaPaw, FaCaretDown } from 'react-icons/fa6';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSignOut } from '@/app/hooks/useAuth';
 
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrgList, usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
-import { FaCaretDown } from 'react-icons/fa6';
 
 import { useAuthStore } from '@/app/stores/authStore';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
@@ -21,8 +40,61 @@ import { headerAppRoutes, headerDevRoutes } from '@/app/config/routes';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
+import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
+import './UserHeader.css';
+
+const ROUTE_ICONS = {
+  Dashboard: MdDashboard,
+  Organization: MdOutlineCorporateFare,
+  Appointments: IoCalendarOutline,
+  Tasks: MdOutlineChecklist,
+  Chat: IoChatbubbleEllipsesOutline,
+  Finance: IoWalletOutline,
+  Companions: FaPaw,
+  Inventory: MdInventory2,
+  Integrations: IoGitNetworkOutline,
+  Templates: IoBookOutline,
+  'API Keys': IoKeyOutline,
+  'Website - Builder': IoGlobeOutline,
+  Plugins: IoExtensionPuzzleOutline,
+  Documentation: IoBookOutline,
+  Settings: IoSettingsOutline,
+  Guides: IoHelpCircleOutline,
+  'MSD Veterinary Manual': IoBookOutline,
+  'Sign out': IoLogOutOutline,
+} as const;
+
+const APP_MOBILE_ROUTE_GROUPS = [
+  { label: 'Overview', routeNames: ['Dashboard'] },
+  { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
+  { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
+  { label: 'Business', routeNames: ['Finance', 'Inventory'] },
+  { label: 'Administration', routeNames: ['Organization', 'Integrations'] },
+  { label: 'Support', routeNames: ['Guides', 'MSD Veterinary Manual'] },
+  { label: 'Account', routeNames: ['Settings', 'Sign out'] },
+] as const;
+
+const DEV_MOBILE_ROUTE_GROUPS = [
+  { label: 'Developer', routeNames: ['Dashboard', 'API Keys', 'Website - Builder'] },
+  { label: 'Platform', routeNames: ['Plugins', 'Documentation'] },
+  { label: 'Account', routeNames: ['Settings', 'Sign out'] },
+] as const;
+
+const groupRoutesByName = (
+  routes: typeof headerAppRoutes,
+  groups: readonly { label: string; routeNames: readonly string[] }[]
+) =>
+  groups
+    .map((group) => ({
+      label: group.label,
+      routes: group.routeNames
+        .map((routeName) => routes.find((route) => route.name === routeName))
+        .filter((route): route is (typeof routes)[number] => Boolean(route)),
+    }))
+    .filter((group) => group.routes.length > 0);
 
 const UserHeader = () => {
   const terminologyText = useCompanionTerminologyText();
@@ -51,6 +123,10 @@ const UserHeader = () => {
         next.splice(insertIndex, 0, { name: 'Guides', href: '/guides', verify: false });
         return next;
       })();
+  const mobileRouteGroups = groupRoutesByName(
+    mobileRoutes,
+    isDev ? DEV_MOBILE_ROUTE_GROUPS : APP_MOBILE_ROUTE_GROUPS
+  );
   const [selectOrg, setSelectOrg] = useState(false);
   const [selectProfile, setSelectProfile] = useState(false);
   const orgs = useOrgList();
@@ -106,22 +182,39 @@ const UserHeader = () => {
     }
   };
 
-  const handleOrgClick = (orgId: string) => {
+  const handleOrgClick = async (orgId: string) => {
     setPrimaryOrg(orgId);
     setSelectOrg(false);
-    const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
+    const { show, hide } = useFullscreenLoaderStore.getState();
+    show('org-switch');
     startRouteLoader();
-    router.push(resolveDefaultOpenScreenRoute(role));
+    try {
+      const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
+      const nextRoute = await resolveOrgScopedRedirect({ orgId, fallbackRole: role });
+      router.push(nextRoute);
+    } catch {
+      hide('org-switch');
+      stopRouteLoader();
+    }
   };
 
   const handleMobileOrgClick = (orgId: string) => {
     setPrimaryOrg(orgId);
     setSelectOrg(false);
     setMenuOpen(false);
-    const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
+    const { show, hide } = useFullscreenLoaderStore.getState();
+    show('org-switch');
     setTimeout(() => {
       startRouteLoader();
-      router.push(resolveDefaultOpenScreenRoute(role));
+      const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
+      void resolveOrgScopedRedirect({ orgId, fallbackRole: role })
+        .then((nextRoute) => {
+          router.push(nextRoute);
+        })
+        .catch(() => {
+          hide('org-switch');
+          stopRouteLoader();
+        });
     }, 300);
   };
 
@@ -188,135 +281,163 @@ const UserHeader = () => {
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/guides') ||
     (pathname.startsWith('/integrations') && !pathname.startsWith('/integrations/idexx-workspace'));
-  const authenticatedLogoHref = isDev ? '/developers/home' : '/dashboard';
+  const primaryOrgId = primaryOrg?._id?.toString();
+  const currentMembership = primaryOrgId ? membershipsByOrgId[primaryOrgId] : null;
+  const currentRole = currentMembership?.roleDisplay ?? currentMembership?.roleCode;
+  // Computed client-side only to avoid SSR/client hydration mismatch — store
+  // is empty on the server so the resolved href would differ from the client.
+  const [authenticatedLogoHref, setAuthenticatedLogoHref] = useState('/');
+  useEffect(() => {
+    if (isDev) {
+      setAuthenticatedLogoHref('/developers/home');
+    } else {
+      setAuthenticatedLogoHref(
+        resolveDefaultOpenScreenRouteForProfile({
+          profile,
+          orgType: primaryOrg?.type,
+          role: currentRole ?? 'owner',
+        })
+      );
+    }
+  }, [isDev, profile, primaryOrg?.type, currentRole]);
+  const displayName =
+    `${attributes?.given_name ?? ''} ${attributes?.family_name ?? ''}`.trim() || 'Account';
 
   return (
-    <div className="flex items-center justify-between px-3 sm:px-12! lg:px-[36px]! w-full h-20 gap-0">
+    <div className="yc-user-header">
       <MobileMenu isOpen={menuOpen}>
-        {primaryOrg && !isDev && (
-          <div className="relative w-fit" ref={orgDropdownRef}>
-            <button
-              className={`flex items-center gap-2 w-60 z-1000 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? 'border border-card-border! rounded-t-2xl!' : 'border-white! border'}`}
-              onClick={() => setSelectOrg((e) => !e)}
-            >
-              <div className="flex justify-center h-8 w-8 shrink-0">
-                <Image
-                  src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
-                  alt="Logo"
-                  height={32}
-                  width={32}
-                  className="rounded-full cursor-pointer h-8 w-8 object-cover"
-                />
-              </div>
-              <div className="text-black-text text-body-4 truncate max-w-[200px]">
-                {primaryOrg?.name}
-              </div>
-              <FaCaretDown
-                size={20}
-                className={`text-black-text transition-transform cursor-pointer`}
-              />
-            </button>
-            {selectOrg && (
-              <div className="absolute top-[100%] left-0 z-1000 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
-                {orgs.slice(0, 3).map((org, i) => (
-                  <button
-                    key={org.name + i}
-                    className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! transition-all duration-300 text-text-secondary! hover:text-text-primary! w-full truncate"
-                    onClick={() => handleMobileOrgClick(org._id?.toString() || org.name)}
-                  >
-                    {org.name}
-                  </button>
-                ))}
-                <Link
-                  href={'/organizations'}
-                  onClick={() => {
-                    setSelectOrg(false);
-                    setMenuOpen(false);
-                  }}
-                  className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full hover:bg-card-hover rounded-2xl! transition-all duration-300"
-                >
-                  View all
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-        <div className="flex flex-col gap-3">
-          {mobileRoutes.map((route) => {
-            const needsVerifiedOrg = route.verify;
-            // Developer portal routes don't need org verification
-            const isDisabled = isDev
-              ? false
-              : route.name !== 'Sign out' &&
-                route.name !== 'Settings' &&
-                (orgMissing || (needsVerifiedOrg && !orgVerified));
-
-            const isActive = pathname === route.href;
-
-            const onClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
-              e.preventDefault();
-              if (isDisabled) return;
-              handleClick(route);
-            };
-
-            return (
+        <div className="yc-mobile-menu-shell">
+          {primaryOrg && !isDev && (
+            <div className="yc-mobile-org-card" ref={orgDropdownRef}>
               <button
                 type="button"
-                key={route.name}
-                onClick={onClick}
-                className={`text-body-4 px-3 py-2 rounded-2xl! border border-card-border! text-start transition-all duration-300 ease-in hover:bg-card-border ${isActive && 'text-text-brand border-text-brand! bg-brand-100'} ${isDisabled && 'text-[#A09F9F]!'}`}
+                className="yc-mobile-org-trigger"
+                onClick={() => setSelectOrg((e) => !e)}
               >
-                {route.name}
+                <Image
+                  src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
+                  alt=""
+                  height={34}
+                  width={34}
+                  className="yc-header-avatar"
+                />
+                <span className="yc-mobile-org-copy">
+                  <span className="yc-header-kicker">Organization</span>
+                  <span className="yc-header-primary-text">{primaryOrg?.name}</span>
+                </span>
+                <FaCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={16} />
               </button>
-            );
-          })}
+              {selectOrg && (
+                <div className="yc-mobile-dropdown-list">
+                  {orgs.slice(0, 4).map((org) => (
+                    <button
+                      key={org._id?.toString() || org.name}
+                      type="button"
+                      className="yc-menu-row"
+                      onClick={() => handleMobileOrgClick(org._id?.toString() || org.name)}
+                    >
+                      {org.name}
+                    </button>
+                  ))}
+                  <Link
+                    href="/organizations"
+                    onClick={() => {
+                      setSelectOrg(false);
+                      setMenuOpen(false);
+                    }}
+                    className="yc-menu-row yc-menu-row-accent"
+                  >
+                    View all organizations
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+          {mobileRouteGroups.map((group) => (
+            <div className="yc-mobile-route-group" key={group.label}>
+              <div className="yc-mobile-section-label">{group.label}</div>
+              {group.routes.map((route) => {
+                const RouteIcon =
+                  ROUTE_ICONS[route.name as keyof typeof ROUTE_ICONS] ?? IoBookOutline;
+                const needsVerifiedOrg = route.verify;
+                const isDisabled = isDev
+                  ? false
+                  : route.name !== 'Sign out' &&
+                    route.name !== 'Settings' &&
+                    (orgMissing || (needsVerifiedOrg && !orgVerified));
+
+                const isActive = pathname === route.href;
+
+                const onClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+                  e.preventDefault();
+                  if (isDisabled) return;
+                  handleClick(route);
+                };
+
+                return (
+                  <button
+                    type="button"
+                    key={route.name}
+                    onClick={onClick}
+                    className={`yc-mobile-route ${isActive ? 'yc-mobile-route-active' : ''} ${isDisabled ? 'yc-mobile-route-disabled' : ''}`}
+                  >
+                    <span className="yc-mobile-route-icon" aria-hidden>
+                      <RouteIcon size={18} />
+                    </span>
+                    <span className="yc-mobile-route-label">{route.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </MobileMenu>
 
-      <div className="flex lg:hidden">
-        <Link href={authenticatedLogoHref} className="logo">
-          <Image src={MEDIA_SOURCES.logo} alt="Logo" width={90} height={83} priority />
+      <div className="yc-header-mobile-brand">
+        <Link href={authenticatedLogoHref} className="yc-header-logo-link">
+          <Image src={MEDIA_SOURCES.logo} alt="Logo" width={86} height={56} priority />
         </Link>
       </div>
-      <div className="hidden lg:flex">
+      <div className="yc-header-left">
         {primaryOrg && !isDev && (
-          <div className="relative" ref={orgDropdownRef}>
+          <div className="yc-header-dropdown-wrap" ref={orgDropdownRef}>
             <button
-              className={`flex items-center gap-2 w-60 xl:w-[260px] justify-between px-6 py-2 ${selectOrg ? 'border border-card-border! rounded-t-2xl!' : 'border-white! border'}`}
+              type="button"
+              className={`yc-header-org-trigger ${selectOrg ? 'yc-header-trigger-open' : ''}`}
               onClick={() => setSelectOrg((e) => !e)}
             >
-              <div className="flex justify-center h-8 w-8 shrink-0">
-                <Image
-                  src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
-                  alt="Logo"
-                  height={32}
-                  width={32}
-                  className="rounded-full cursor-pointer h-8 w-8 object-cover"
-                />
-              </div>
-              <div className="text-black-text text-body-4 truncate flex-1">{primaryOrg?.name}</div>
-              <FaCaretDown
-                size={20}
-                className={`text-black-text transition-transform cursor-pointer`}
+              <Image
+                src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
+                alt=""
+                height={34}
+                width={34}
+                className="yc-header-avatar"
               />
+              <span className="yc-header-trigger-copy">
+                <span className="yc-header-kicker">Organization</span>
+                <span className="yc-header-primary-text">{primaryOrg?.name}</span>
+              </span>
+              <FaCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={15} />
             </button>
             {selectOrg && (
-              <div className="absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
-                {orgs.slice(0, 3).map((org, i) => (
+              <div className="yc-header-dropdown-panel">
+                <div className="yc-header-dropdown-title">Switch organization</div>
+                {orgs.slice(0, 4).map((org) => (
                   <button
-                    key={org.name + i}
-                    className="px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! transition-all duration-300 text-text-secondary! hover:text-text-primary! w-full truncate"
+                    key={org._id?.toString() || org.name}
+                    type="button"
+                    className="yc-menu-row"
                     onClick={() => handleOrgClick(org._id?.toString() || org.name)}
                   >
                     {org.name}
                   </button>
                 ))}
                 <Link
-                  href={'/organizations'}
+                  href="/organizations"
                   onClick={() => setSelectOrg(false)}
-                  className="text-text-brand px-[1.25rem] py-[0.75rem] text-body-4 text-center w-full hover:bg-card-hover rounded-2xl! transition-all duration-300"
+                  className="yc-menu-row yc-menu-row-accent"
                 >
-                  View all
+                  View all organizations
                 </Link>
               </div>
             )}
@@ -324,71 +445,66 @@ const UserHeader = () => {
         )}
       </div>
 
-      <div className="flex items-center justify-center gap-3">
+      <div className="yc-header-actions">
         {!hideSearch && (
           <Search
             value={query}
             setSearch={setQuery}
-            className={'lg:flex hidden'}
+            className="yc-header-search"
             placeholder={getSearchPlaceholder()}
           />
         )}
         <button
           type="button"
           onClick={openUniversalSearch}
-          className="hidden lg:flex h-12 items-center gap-2 rounded-2xl! border border-input-border-default bg-white px-3.5 text-body-4 text-text-secondary hover:border-input-border-active hover:text-text-brand hover:bg-brand-100/40 transition-all duration-200"
+          className="yc-command-button"
           aria-label="Open universal search"
         >
-          <span className="rounded-md border border-card-border bg-white px-1.5 py-0.5 text-caption-1 leading-none">
-            ⌘
-          </span>
-          <span className="text-caption-1 text-text-secondary/70">/</span>
-          <span className="rounded-md border border-card-border bg-white px-1.5 py-0.5 text-caption-1 leading-none">
-            Ctrl
-          </span>
-          <span className="text-caption-1 text-text-secondary/70">+</span>
-          <span className="rounded-md border border-card-border bg-white px-1.5 py-0.5 text-caption-1 leading-none">
-            K
-          </span>
+          <span className="yc-command-key">⌘</span>
+          <span className="yc-command-divider">/</span>
+          <span className="yc-command-key">Ctrl</span>
+          <span className="yc-command-divider">+</span>
+          <span className="yc-command-key">K</span>
         </button>
 
-        <MdNotificationsActive color="#302f2e" size={22} style={{ cursor: 'pointer' }} />
+        <button type="button" className="yc-icon-button" aria-label="Notifications">
+          <MdNotificationsActive size={19} />
+        </button>
 
-        <div className="relative hidden lg:flex" ref={profileDropdownRef}>
+        <div className="yc-profile-wrap" ref={profileDropdownRef}>
           <button
-            className={`flex items-center gap-2 w-[200px] justify-between px-6 py-2 ${selectProfile ? 'border border-card-border! rounded-t-2xl!' : 'border-white! border'}`}
+            type="button"
+            className={`yc-profile-trigger ${selectProfile ? 'yc-header-trigger-open' : ''}`}
             onClick={() => setSelectProfile((e) => !e)}
           >
             <Image
               src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
-              alt="Logo"
-              height={32}
-              width={32}
-              className="rounded-full object-cover h-8 min-w-8 max-h-8"
+              alt=""
+              height={34}
+              width={34}
+              className="yc-header-avatar"
             />
-            <div className="text-black-text text-body-4 flex-1 truncate">
-              {attributes?.given_name + ' ' + attributes?.family_name}
-            </div>
-            <FaCaretDown
-              size={20}
-              className={`text-black-text transition-transform cursor-pointer`}
-            />
+            <span className="yc-profile-name">{displayName}</span>
+            <FaCaretDown className={selectProfile ? 'yc-chevron-open' : ''} size={15} />
           </button>
           {selectProfile && (
-            <div className="absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b border-card-border bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
+            <div className="yc-header-dropdown-panel yc-profile-panel">
+              <div className="yc-header-dropdown-title">Account</div>
               <Link
                 href={isDev ? '/developers/settings' : '/settings'}
                 onClick={() => setSelectProfile(false)}
-                className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
+                className="yc-menu-row"
               >
+                <IoSettingsOutline size={16} className="yc-menu-row-icon" aria-hidden />
                 Settings
               </Link>
               {!isDev && merckEnabled && orgVerified && (
                 <Link
                   href="/integrations/merck-manuals"
                   onClick={() => setSelectProfile(false)}
-                  className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
+                  className="yc-menu-row"
                 >
+                  <IoBookOutline size={16} className="yc-menu-row-icon" aria-hidden />
                   MSD Veterinary Manual
                 </Link>
               )}
@@ -396,15 +512,18 @@ const UserHeader = () => {
                 <Link
                   href="/guides"
                   onClick={() => setSelectProfile(false)}
-                  className="text-center px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-secondary! hover:bg-card-hover rounded-2xl! transition-all duration-300"
+                  className="yc-menu-row"
                 >
+                  <IoHelpCircleOutline size={16} className="yc-menu-row-icon" aria-hidden />
                   Guides
                 </Link>
               )}
               <button
+                type="button"
                 onClick={handleLogout}
-                className="px-[1.25rem] py-[0.75rem] text-body-4 w-full text-text-error hover:bg-card-hover rounded-2xl! transition-all duration-300"
+                className="yc-menu-row yc-menu-row-danger"
               >
+                <IoLogOutOutline size={16} className="yc-menu-row-icon" aria-hidden />
                 Sign out
               </button>
             </div>

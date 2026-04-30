@@ -16,7 +16,7 @@ import './PricingPage.css';
 
 const renderCell = (text: string) => {
   if (text === 'yes') {
-    return <IoIosCheckmark size={20} color="#595958" />;
+    return <IoIosCheckmark size={20} color="var(--color-neutral-700)" />;
   } else if (text === 'no') {
     return '-';
   } else {
@@ -229,13 +229,13 @@ const PricingPage = () => {
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] sm:w-[500px] z-10 bg-white py-6! sm:py-8! px-4! sm:px-5! flex flex-col gap-3 sm:gap-6 rounded-3xl shadow-[0_0_32px_0_rgba(0,0,0,0.32)]">
               <div className="flex w-full items-center justify-between">
                 <button className="opacity-0">
-                  <IoIosCloseCircleOutline size={28} color="#302f2e" />
+                  <IoIosCloseCircleOutline size={28} color="var(--color-neutral-900)" />
                 </button>
                 <div className="font-satoshi font-medium text-[1.375rem] text-black-text">
                   Get notified
                 </div>
                 <button onClick={() => setNotify(false)}>
-                  <IoIosCloseCircleOutline size={28} color="#302f2e" />
+                  <IoIosCloseCircleOutline size={28} color="var(--color-neutral-900)" />
                 </button>
               </div>
               <div className="font-satoshi text-black-text font-semibold text-[18px]">

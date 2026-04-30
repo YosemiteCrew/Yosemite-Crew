@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   createInventoryBatch,
   createInventoryItem,
@@ -8,27 +8,24 @@ import {
   unhideInventoryItem,
   updateInventoryBatch,
   updateInventoryItem,
-} from "@/app/features/inventory/services/inventoryService";
+} from '@/app/features/inventory/services/inventoryService';
 import {
   BatchValues,
   InventoryApiItem,
   InventoryBatchApi,
   InventoryItem,
   InventoryTurnoverItem,
-} from "@/app/features/inventory/pages/Inventory/types";
+} from '@/app/features/inventory/pages/Inventory/types';
 import {
   buildBatchPayload,
   buildInventoryPayload,
   mapApiItemToInventoryItem,
-} from "@/app/features/inventory/pages/Inventory/utils";
-import { useInventoryStore } from "@/app/stores/inventoryStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { BusinessType } from "@/app/features/organization/types/org";
+} from '@/app/features/inventory/pages/Inventory/utils';
+import { useInventoryStore } from '@/app/stores/inventoryStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { BusinessType } from '@/app/features/organization/types/org';
 
-const withBusinessType = (
-  item: InventoryItem,
-  fallback: BusinessType
-): InventoryItem => ({
+const withBusinessType = (item: InventoryItem, fallback: BusinessType): InventoryItem => ({
   ...item,
   businessType: item.businessType ?? fallback,
 });
@@ -40,32 +37,24 @@ const inFlightLoads: Record<string, Promise<any> | undefined> = {};
 
 export const useInventoryModule = (businessType: BusinessType) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const previousOrgIdRef = useRef<string | null>(primaryOrgId);
   const itemsById = useInventoryStore((s) => s.itemsById);
   const inventoryIds = useInventoryStore(
     (s) => (primaryOrgId ? s.itemIdsByOrgId[primaryOrgId] : undefined) ?? EMPTY_IDS
   );
-  const turnoverFromStore = useInventoryStore(
-    (s) => (primaryOrgId ? s.turnoverByOrgId[primaryOrgId] : undefined)
+  const turnoverFromStore = useInventoryStore((s) =>
+    primaryOrgId ? s.turnoverByOrgId[primaryOrgId] : undefined
   );
 
   const inventory = useMemo(
-    () =>
-      inventoryIds
-        .map((id) => itemsById[id])
-        .filter((x): x is InventoryItem => x != null),
+    () => inventoryIds.map((id) => itemsById[id]).filter((x): x is InventoryItem => x != null),
     [inventoryIds, itemsById]
   );
   const turnover = turnoverFromStore ?? EMPTY_TURNOVER;
 
-  const status = useInventoryStore(
-    (s) => s.statusByOrgId[primaryOrgId ?? ""] ?? "idle"
-  );
-  const loadError = useInventoryStore(
-    (s) => s.errorByOrgId[primaryOrgId ?? ""] ?? null
-  );
-  const lastFetched = useInventoryStore(
-    (s) => s.lastFetchedByOrgId[primaryOrgId ?? ""] ?? null
-  );
+  const status = useInventoryStore((s) => s.statusByOrgId[primaryOrgId ?? ''] ?? 'idle');
+  const loadError = useInventoryStore((s) => s.errorByOrgId[primaryOrgId ?? ''] ?? null);
+  const lastFetched = useInventoryStore((s) => s.lastFetchedByOrgId[primaryOrgId ?? ''] ?? null);
 
   const setInventoryForOrg = useInventoryStore((s) => s.setInventoryForOrg);
   const setTurnoverForOrg = useInventoryStore((s) => s.setTurnoverForOrg);
@@ -118,7 +107,7 @@ export const useInventoryModule = (businessType: BusinessType) => {
           setTurnoverForOrg(organisationId, turnoverItems);
           return { items: mapped, turnover: turnoverItems };
         } catch (err) {
-          setError(organisationId, "Unable to load inventory right now.");
+          setError(organisationId, 'Unable to load inventory right now.');
           throw err;
         } finally {
           delete inFlightLoads[organisationId];
@@ -126,33 +115,29 @@ export const useInventoryModule = (businessType: BusinessType) => {
       })();
       return inFlightLoads[organisationId];
     },
-    [
-      primaryOrgId,
-      businessType,
-      startLoading,
-      setInventoryForOrg,
-      setTurnoverForOrg,
-      setError,
-    ]
+    [primaryOrgId, businessType, startLoading, setInventoryForOrg, setTurnoverForOrg, setError]
   );
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (status === "loading") return;
-    if (status === "error" && lastFetched) return;
+    if (status === 'loading') return;
+    const switchedOrg = previousOrgIdRef.current !== primaryOrgId;
+    previousOrgIdRef.current = primaryOrgId;
+    if (switchedOrg) {
+      void loadInventory(primaryOrgId);
+      return;
+    }
+    if (status === 'error' && lastFetched) return;
     if (lastFetched) return;
     void loadInventory(primaryOrgId);
   }, [primaryOrgId, status, lastFetched, loadInventory]);
 
   const createItem = useCallback(
     async (data: InventoryItem) => {
-      if (!primaryOrgId) throw new Error("No organisation selected.");
+      if (!primaryOrgId) throw new Error('No organisation selected.');
       const payload = buildInventoryPayload(data, primaryOrgId, businessType);
       const created = await createInventoryItem(payload);
-      const mapped = withBusinessType(
-        mapApiItemToInventoryItem(created),
-        businessType
-      );
+      const mapped = withBusinessType(mapApiItemToInventoryItem(created), businessType);
       upsertInventory(mapped);
       return mapped;
     },
@@ -162,18 +147,11 @@ export const useInventoryModule = (businessType: BusinessType) => {
   const updateItem = useCallback(
     async (item: InventoryItem) => {
       if (!primaryOrgId || !item.id) {
-        throw new Error("No organisation selected.");
+        throw new Error('No organisation selected.');
       }
-      const payload = buildInventoryPayload(
-        item,
-        primaryOrgId,
-        item.businessType ?? businessType
-      );
+      const payload = buildInventoryPayload(item, primaryOrgId, item.businessType ?? businessType);
       const res = await updateInventoryItem(item.id, payload);
-      const mapped = withBusinessType(
-        mapApiItemToInventoryItem(res),
-        businessType
-      );
+      const mapped = withBusinessType(mapApiItemToInventoryItem(res), businessType);
       upsertInventory(mapped);
       return mapped;
     },
@@ -182,14 +160,11 @@ export const useInventoryModule = (businessType: BusinessType) => {
 
   const hideItem = useCallback(
     async (itemId: string) => {
-      if (!itemId) throw new Error("No inventory item to hide.");
+      if (!itemId) throw new Error('No inventory item to hide.');
       const res = await hideInventoryItem(itemId);
       if (res) {
         const withBatches = mergeApiWithExistingBatches(res, itemsById[itemId]);
-        const mapped = withBusinessType(
-          mapApiItemToInventoryItem(withBatches),
-          businessType
-        );
+        const mapped = withBusinessType(mapApiItemToInventoryItem(withBatches), businessType);
         upsertInventory(mapped);
         return mapped;
       }
@@ -203,14 +178,11 @@ export const useInventoryModule = (businessType: BusinessType) => {
 
   const unhideItem = useCallback(
     async (itemId: string) => {
-      if (!itemId) throw new Error("No inventory item to unhide.");
+      if (!itemId) throw new Error('No inventory item to unhide.');
       const res = await unhideInventoryItem(itemId);
       if (res) {
         const withBatches = mergeApiWithExistingBatches(res, itemsById[itemId]);
-        const mapped = withBusinessType(
-          mapApiItemToInventoryItem(withBatches),
-          businessType
-        );
+        const mapped = withBusinessType(mapApiItemToInventoryItem(withBatches), businessType);
         upsertInventory(mapped);
         return mapped;
       }
@@ -224,8 +196,8 @@ export const useInventoryModule = (businessType: BusinessType) => {
 
   const addBatch = useCallback(
     async (itemId: string, batches: BatchValues[]) => {
-      if (!itemId) throw new Error("No inventory item to update.");
-      if (!primaryOrgId) throw new Error("No organisation selected.");
+      if (!itemId) throw new Error('No inventory item to update.');
+      if (!primaryOrgId) throw new Error('No organisation selected.');
       const payloads = batches
         .map((b) =>
           buildBatchPayload({
@@ -236,9 +208,7 @@ export const useInventoryModule = (businessType: BusinessType) => {
         )
         .filter(Boolean);
       if (!payloads.length) return;
-      await Promise.all(
-        payloads.map((payload) => createInventoryBatch(itemId, payload!))
-      );
+      await Promise.all(payloads.map((payload) => createInventoryBatch(itemId, payload!)));
       await loadInventory(primaryOrgId);
     },
     [primaryOrgId, loadInventory]
@@ -246,8 +216,8 @@ export const useInventoryModule = (businessType: BusinessType) => {
 
   const updateBatch = useCallback(
     async (itemId: string, batches: BatchValues[]) => {
-      if (!itemId) throw new Error("No inventory item to update.");
-      if (!primaryOrgId) throw new Error("No organisation selected.");
+      if (!itemId) throw new Error('No inventory item to update.');
+      if (!primaryOrgId) throw new Error('No organisation selected.');
       const updates = batches
         .filter((b) => b._id)
         .map((b) => ({
@@ -261,9 +231,7 @@ export const useInventoryModule = (businessType: BusinessType) => {
         .filter((entry) => entry.payload);
       if (!updates.length) return;
       await Promise.all(
-        updates.map(({ batchId, payload }) =>
-          updateInventoryBatch(batchId, payload!)
-        )
+        updates.map(({ batchId, payload }) => updateInventoryBatch(batchId, payload!))
       );
       await loadInventory(primaryOrgId);
     },
@@ -287,13 +255,10 @@ export const useInventoryModule = (businessType: BusinessType) => {
     turnover: InventoryTurnoverItem[];
     status: string;
     error: string | null;
-    loadInventory: (orgId?: string) => Promise<
-      | {
-          items: InventoryItem[];
-          turnover: InventoryTurnoverItem[];
-        }
-      | void
-    >;
+    loadInventory: (orgId?: string) => Promise<{
+      items: InventoryItem[];
+      turnover: InventoryTurnoverItem[];
+    } | void>;
     createItem: (item: InventoryItem) => Promise<InventoryItem>;
     updateItem: (item: InventoryItem) => Promise<InventoryItem>;
     hideItem: (itemId: string) => Promise<InventoryItem | void>;

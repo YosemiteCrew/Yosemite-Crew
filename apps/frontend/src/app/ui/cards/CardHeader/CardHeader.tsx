@@ -48,7 +48,7 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
           className="outline-none w-[140px] flex items-center justify-end gap-2 border-0 bg-white"
         >
           <span className="text-body-4 text-text-primary">{selectedValue}</span>
-          <FaAngleDown color="#302F2E" size={14} className="mt-0.5" />
+          <FaAngleDown color="var(--color-neutral-900)" size={14} className="mt-0.5" />
         </button>
         {open && (
           <div className="bg-white border border-card-border px-2 py-1 w-full absolute top-[120%] left-0 flex flex-col rounded-2xl z-10">

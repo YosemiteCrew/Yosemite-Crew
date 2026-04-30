@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   AvailabilityState,
   daysOfWeek,
   DEFAULT_INTERVAL,
   Interval,
   SetAvailability,
-} from "@/app/features/appointments/components/Availability/utils";
-import { IoCopy } from "react-icons/io5";
+} from '@/app/features/appointments/components/Availability/utils';
+import { IoCopy } from 'react-icons/io5';
 
 type DublicateProps = {
   setAvailability: SetAvailability;
@@ -31,16 +31,12 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
 
   const handleSelect = (dayName: string) => {
     setCopyTargets((prev: CopyTarget[]) =>
-      prev.map((item) =>
-        item.name === dayName ? { ...item, active: !item.active } : item
-      )
+      prev.map((item) => (item.name === dayName ? { ...item, active: !item.active } : item))
     );
   };
 
   const handleApply = () => {
-    const selectedTargets = copyTargets
-      .filter((t) => t.active && !t.disable)
-      .map((t) => t.name);
+    const selectedTargets = copyTargets.filter((t) => t.active && !t.disable).map((t) => t.name);
 
     if (selectedTargets.length === 0) {
       setOpen(false);
@@ -69,7 +65,7 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
   return (
     <div className="relative flex items-center h-[45px]">
       <IoCopy
-        color="#000"
+        color="var(--color-black-pure)"
         size={20}
         className="cursor-pointer mt-0.5"
         onClick={() => setOpen((e) => !e)}

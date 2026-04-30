@@ -19,7 +19,7 @@
   gap: 16px;
 }
 .step-type-title {
-  color: #595958;
+  color: var(--color-neutral-700);
   font-family: var(--font-satoshi);
   font-size: 16px;
   font-style: normal;
@@ -166,7 +166,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 16px;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   height: 200px;
   color: var(--black-text);
   font-family: var(--satoshi-font);
@@ -197,7 +197,7 @@
 }
 
 .step-three-overview-copy {
-  color: #595958;
+  color: var(--color-neutral-700);
   font-family: var(--font-satoshi);
   font-size: 14px;
   font-weight: 400;
@@ -207,9 +207,9 @@
 .step-three-search-panel,
 .step-three-selected-card,
 .step-three-empty-state {
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   border-radius: 18px;
-  background: #fff;
+  background: var(--color-neutral-0);
   padding: 18px;
 }
 
@@ -234,7 +234,7 @@
 .step-three-card-copy,
 .step-three-service-card-meta,
 .step-three-modal-copy {
-  color: #595958;
+  color: var(--color-neutral-700);
   font-family: var(--font-satoshi);
   font-size: 14px;
   font-weight: 400;
@@ -251,15 +251,15 @@
   align-items: center;
   min-height: 50px;
   padding: 0 16px 0 44px;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   border-radius: 16px;
-  background: #fff;
+  background: var(--color-neutral-0);
 }
 
 .step-three-search-icon {
   position: absolute;
   left: 16px;
-  color: #595958;
+  color: var(--color-neutral-700);
 }
 
 .step-three-speciality-input {
@@ -290,18 +290,18 @@
   right: 0;
   z-index: 20;
   padding: 10px;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   border-radius: 16px;
-  background: #fff;
+  background: var(--color-neutral-0);
   box-shadow: 0 16px 32px rgba(48, 47, 46, 0.08);
 }
 
 .step-three-picker-option {
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   border-radius: 14px;
   padding: 12px 14px;
   text-align: left;
-  background: #fff;
+  background: var(--color-neutral-0);
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease;
@@ -370,7 +370,7 @@
   padding: 0 9px;
   border-radius: 999px;
   background: #f4f4f4;
-  color: #595958;
+  color: var(--color-neutral-700);
   font-family: var(--font-satoshi);
   font-size: 12px;
   font-weight: 700;
@@ -403,9 +403,9 @@
 .step-three-recommendation-chip {
   height: 38px;
   padding: 0 14px;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   border-radius: 999px;
-  background: #fff;
+  background: var(--color-neutral-0);
   color: var(--black-text);
   font-family: var(--font-satoshi);
   font-size: 14px;
@@ -425,9 +425,9 @@
 .step-three-remove-button,
 .step-three-inline-action,
 .step-three-service-icon {
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   border-radius: 14px;
-  background: #fff;
+  background: var(--color-neutral-0);
 }
 
 .step-three-remove-button,
@@ -450,9 +450,9 @@
 }
 
 .step-three-service-card {
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   border-radius: 14px;
-  background: #fff;
+  background: var(--color-neutral-0);
 }
 
 .step-three-service-card-main {
@@ -483,7 +483,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #595958;
+  color: var(--color-neutral-700);
   border: none;
   border-radius: 999px;
   background: transparent;

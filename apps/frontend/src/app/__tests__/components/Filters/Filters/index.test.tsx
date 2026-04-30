@@ -55,4 +55,31 @@ describe('Filters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Appointment' }));
     expect(onAddButtonClick).toHaveBeenCalledTimes(1);
   });
+
+  it('uses readable dropdown text when status pills use light text tokens', () => {
+    render(
+      <Filters
+        filterOptions={filterOptions}
+        statusOptions={[
+          {
+            key: 'pending',
+            name: 'Pending',
+            bg: 'var(--color-badge-slate-bg)',
+            text: 'var(--color-badge-light-text)',
+            dropdownText: 'var(--color-badge-slate-bg)',
+          },
+        ]}
+        activeFilter="all"
+        activeStatus="pending"
+        setActiveFilter={jest.fn()}
+        setActiveStatus={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pending' }));
+
+    expect(screen.getAllByText('Pending')[1]).toHaveStyle({
+      color: 'var(--color-badge-slate-bg)',
+    });
+  });
 });

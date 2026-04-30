@@ -12,7 +12,7 @@ const UserLabels = ({ team, columnsStyle }: UserLabels) => {
   const currentUserId = attributes?.sub || attributes?.email;
 
   return (
-    <div className="grid min-w-max py-1" style={columnsStyle}>
+    <div className="grid min-w-max py-1.5" style={columnsStyle}>
       {team.map((user, idx) => {
         const isCurrentUser = !!currentUserId && user.practionerId === currentUserId;
         return (
@@ -21,7 +21,7 @@ const UserLabels = ({ team, columnsStyle }: UserLabels) => {
             className="flex items-center justify-center flex-col"
           >
             <div
-              className={`text-body-3 ${isCurrentUser ? 'text-text-brand' : 'text-text-secondary'}`}
+              className={`text-body-4 font-medium ${isCurrentUser ? 'text-text-brand' : 'text-text-tertiary'}`}
             >
               {user.name || ''}
             </div>

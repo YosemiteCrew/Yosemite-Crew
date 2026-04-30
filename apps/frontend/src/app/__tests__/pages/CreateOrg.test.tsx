@@ -68,6 +68,10 @@ import ProtectedCreateOrg from '@/app/features/onboarding/pages/CreateOrg/Create
 
 describe('CreateOrg page', () => {
   beforeEach(() => {
+    mockUseOrgOnboardingResult.org = null;
+    mockUseOrgOnboardingResult.step = 0;
+    mockUseOrgOnboardingResult.specialities = [];
+    mockUseOrgOnboardingResult.isReady = true;
     latestProgressProps = undefined;
     latestOrgStepProps = undefined;
     latestAddressStepProps = undefined;
@@ -152,6 +156,24 @@ describe('CreateOrg page', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('org-step')).toBeInTheDocument();
+    });
+  });
+
+  test('keeps create org content hidden while transitioning to profile setup', async () => {
+    mockUseOrgOnboardingResult.step = 2;
+    const { container } = render(<ProtectedCreateOrg />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('speciality-step')).toBeInTheDocument();
+    });
+
+    act(() => {
+      latestSpecialityStepProps.onRedirectingChange(true);
+    });
+
+    await waitFor(() => {
+      expect(container.querySelector('.create-org-wrapper')).toHaveClass('invisible');
+      expect(container.querySelector('.create-org-wrapper')).toHaveClass('pointer-events-none');
     });
   });
 });

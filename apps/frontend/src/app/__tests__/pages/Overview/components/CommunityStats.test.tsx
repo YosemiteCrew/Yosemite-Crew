@@ -345,9 +345,9 @@ describe('CommunityStats Component', () => {
 
     // Verify all three labels are permanently passed to the legend
     expect(chartKeys).toEqual([
-      { name: 'Self Hosters', color: '#247AED' },
+      { name: 'Self Hosters', color: 'var(--color-badge-blue-bg)' },
       { name: 'Builders', color: '#10B981' },
-      { name: 'Github Stars', color: '#F68523' },
+      { name: 'Github Stars', color: 'var(--color-warning-600)' },
     ]);
   });
 });

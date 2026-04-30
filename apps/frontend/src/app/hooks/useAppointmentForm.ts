@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { useServiceStore } from '@/app/stores/serviceStore';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import {
+  CalendarPrefillSlotMatch,
   createAppointment,
   getCalendarPrefillMatchesForPrimaryOrg,
   loadAppointmentsForPrimaryOrg,
@@ -176,6 +177,96 @@ const resolveSlotScopedMatchForCandidate = (
   };
 };
 
+type ServiceCandidate = { specialityId: string; serviceId: string; serviceName: string };
+
+const populateBulkMatches = (
+  bulkMatches: CalendarPrefillSlotMatch[],
+  serviceCandidates: ServiceCandidate[],
+  matchesByServiceId: Map<string, SlotScopedMatch>,
+  normalizedPrefillLeadId: string,
+  normalizeId: (value?: string) => string
+) => {
+  const candidatesByServiceId = new Map(
+    serviceCandidates.map((candidate) => [candidate.serviceId, candidate] as const)
+  );
+  bulkMatches.forEach((match) => {
+    const candidate = candidatesByServiceId.get(match.serviceId);
+    if (!candidate) return;
+    if (!hasMatchingLead(match.slot, normalizedPrefillLeadId, normalizeId)) return;
+    matchesByServiceId.set(match.serviceId, {
+      ...candidate,
+      matchingSlot: match.slot,
+      matchingSlotMeta: match.meta,
+    });
+  });
+};
+
+const populateFallbackMatches = async (
+  uniqueServiceIds: string[],
+  serviceCandidates: ServiceCandidate[],
+  matchesByServiceId: Map<string, SlotScopedMatch>,
+  date: Date,
+  minute: number,
+  normalizedPrefillLeadId: string,
+  normalizeId: (value?: string) => string
+) => {
+  const slotsByServiceId = new Map<string, ThreeDaySlots>();
+  await mapWithConcurrency(uniqueServiceIds, 4, async (serviceId) => {
+    const slots = await fetchThreeDaySlots(serviceId, date);
+    slotsByServiceId.set(serviceId, slots);
+    return slots;
+  });
+  serviceCandidates.forEach((candidate) => {
+    const threeDaySlots = slotsByServiceId.get(candidate.serviceId);
+    if (!threeDaySlots) return;
+    const resolvedMatch = resolveSlotScopedMatchForCandidate(
+      candidate,
+      threeDaySlots,
+      minute,
+      normalizedPrefillLeadId,
+      normalizeId
+    );
+    if (!resolvedMatch) return;
+    matchesByServiceId.set(candidate.serviceId, resolvedMatch);
+  });
+};
+
+type ApplyPrefillSlotCtx = {
+  setTimeSlots: (slots: Slot[]) => void;
+  setSelectedSlot: (slot: Slot | null) => void;
+  getLeadOptionsForSlot: (slot: Slot) => Array<{ value: string; label: string }>;
+  normalizeId: (value?: string) => string;
+  getLeadProfileUrl: (id: string) => string | undefined;
+  setFormData: React.Dispatch<React.SetStateAction<Appointment>>;
+};
+
+const applyPrefillSlot = (
+  prefillSlot: Slot,
+  preferredMatch: SlotScopedMatch,
+  prefillLeadId: string,
+  slotMetaByRef: { current: WeakMap<Slot, NormalizedSlotMeta> },
+  ctx: ApplyPrefillSlotCtx
+) => {
+  const slotMetaMap = new WeakMap<Slot, NormalizedSlotMeta>();
+  slotMetaMap.set(prefillSlot, preferredMatch.matchingSlotMeta);
+  slotMetaByRef.current = slotMetaMap;
+  ctx.setTimeSlots([prefillSlot]);
+  ctx.setSelectedSlot(prefillSlot);
+  if (!prefillLeadId) return;
+  const leadOption = ctx
+    .getLeadOptionsForSlot(prefillSlot)
+    .find((option) => ctx.normalizeId(option.value) === ctx.normalizeId(prefillLeadId));
+  if (!leadOption) return;
+  ctx.setFormData((prev) => ({
+    ...prev,
+    lead: {
+      id: leadOption.value,
+      name: leadOption.label,
+      profileUrl: ctx.getLeadProfileUrl(leadOption.value),
+    },
+  }));
+};
+
 export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const { onSuccess, initialPrefill, calendarSlotFlow = false } = options;
   const terminologyText = useCompanionTerminologyText();
@@ -250,19 +341,19 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const getLeadOptionsForSlot = useCallback(
     (slot: Slot | null) => {
       if (!teams?.length || !slot) return [];
-      const vetIdSet = new Set(slot.vetIds ?? []);
+      const vetIdSet = new Set((slot.vetIds ?? []).map((vetId) => normalizeId(vetId)));
       if (!vetIdSet.size) return [];
       return teams
         .filter((team) => {
           const teamId = team.practionerId || team._id;
-          return teamId ? vetIdSet.has(teamId) : false;
+          return teamId ? vetIdSet.has(normalizeId(teamId)) : false;
         })
         .map((team) => ({
           label: team.name || team.practionerId || team._id,
           value: team.practionerId || team._id,
         }));
     },
-    [teams]
+    [normalizeId, teams]
   );
   const getLeadOptionsRef = useRef(getLeadOptionsForSlot);
   getLeadOptionsRef.current = getLeadOptionsForSlot;
@@ -384,7 +475,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         ...new Set(serviceCandidates.map((c) => c.serviceId).filter(Boolean)),
       ];
       const matchesByServiceId = new Map<string, SlotScopedMatch>();
-      const bulkMatches = await getCalendarPrefillMatchesForPrimaryOrg({
+      let bulkMatches = await getCalendarPrefillMatchesForPrimaryOrg({
         date: pendingPrefill.date,
         minuteOfDay: minute,
         leadId: pendingPrefill.leadId,
@@ -392,42 +483,36 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       });
       if (cancelled) return;
 
-      if (bulkMatches) {
-        const candidatesByServiceId = new Map(
-          serviceCandidates.map((candidate) => [candidate.serviceId, candidate] as const)
-        );
-        bulkMatches.forEach((match) => {
-          const candidate = candidatesByServiceId.get(match.serviceId);
-          if (!candidate) return;
-          matchesByServiceId.set(match.serviceId, {
-            ...candidate,
-            matchingSlot: match.slot,
-            matchingSlotMeta: match.meta,
-          });
-        });
-      } else {
-        // Fallback path until the backend bulk endpoint is deployed.
-        const slotsByServiceId = new Map<string, ThreeDaySlots>();
-        await mapWithConcurrency(uniqueServiceIds, 4, async (serviceId) => {
-          const slots = await fetchThreeDaySlots(serviceId, pendingPrefill.date);
-          slotsByServiceId.set(serviceId, slots);
-          return slots;
+      if (bulkMatches?.length === 0 && normalizedPrefillLeadId) {
+        bulkMatches = await getCalendarPrefillMatchesForPrimaryOrg({
+          date: pendingPrefill.date,
+          minuteOfDay: minute,
+          leadId: undefined,
+          serviceIds: uniqueServiceIds,
         });
         if (cancelled) return;
+      }
 
-        serviceCandidates.forEach((candidate) => {
-          const threeDaySlots = slotsByServiceId.get(candidate.serviceId);
-          if (!threeDaySlots) return;
-          const resolvedMatch = resolveSlotScopedMatchForCandidate(
-            candidate,
-            threeDaySlots,
-            minute,
-            normalizedPrefillLeadId,
-            normalizeId
-          );
-          if (!resolvedMatch) return;
-          matchesByServiceId.set(candidate.serviceId, resolvedMatch);
-        });
+      if (bulkMatches) {
+        populateBulkMatches(
+          bulkMatches,
+          serviceCandidates,
+          matchesByServiceId,
+          normalizedPrefillLeadId,
+          normalizeId
+        );
+      } else {
+        // Fallback path until the backend bulk endpoint is deployed.
+        await populateFallbackMatches(
+          uniqueServiceIds,
+          serviceCandidates,
+          matchesByServiceId,
+          pendingPrefill.date,
+          minute,
+          normalizedPrefillLeadId,
+          normalizeId
+        );
+        if (cancelled) return;
       }
       if (cancelled) return;
 
@@ -460,27 +545,14 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       const preferredMatch = findPreferredSlotMatch(matches, normalizedPrefillLeadId, normalizeId);
       const prefillSlot = preferredMatch?.matchingSlot ?? null;
       if (prefillSlot) {
-        const slotMetaMap = new WeakMap<Slot, NormalizedSlotMeta>();
-        slotMetaMap.set(prefillSlot, preferredMatch.matchingSlotMeta);
-        slotMetaByRef.current = slotMetaMap;
-        setTimeSlots([prefillSlot]);
-        setSelectedSlot(prefillSlot);
-        const prefillLeadId = pendingPrefill.leadId ?? '';
-        if (prefillLeadId) {
-          const leadOption = getLeadOptionsForSlot(prefillSlot).find(
-            (option) => normalizeId(option.value) === normalizeId(prefillLeadId)
-          );
-          if (leadOption) {
-            setFormData((prev) => ({
-              ...prev,
-              lead: {
-                id: leadOption.value,
-                name: leadOption.label,
-                profileUrl: getLeadProfileUrlRef.current(leadOption.value),
-              },
-            }));
-          }
-        }
+        applyPrefillSlot(prefillSlot, preferredMatch, pendingPrefill.leadId ?? '', slotMetaByRef, {
+          setTimeSlots,
+          setSelectedSlot,
+          getLeadOptionsForSlot,
+          normalizeId,
+          getLeadProfileUrl: getLeadProfileUrlRef.current,
+          setFormData,
+        });
       }
       setSlotScopedSpecialityIds(Array.from(specialityIdSet));
       setSlotScopedServicesBySpecialityId(servicesBySpeciality);

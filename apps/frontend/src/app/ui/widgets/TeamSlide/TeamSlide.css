@@ -21,11 +21,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  background: #0a66c2;
+  color: var(--color-neutral-0);
+  background: var(--color-linkedin-blue);
   border-radius: 50%;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .team-slide-item .linkedin-badge:hover {
   transform: translateY(-2px);

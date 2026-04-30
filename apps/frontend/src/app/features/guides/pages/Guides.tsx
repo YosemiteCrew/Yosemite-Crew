@@ -11,13 +11,13 @@ import { guidesData } from '@/app/features/guides/data/guidesData';
 import { GuideVideo } from '@/app/features/guides/types/guides';
 
 const categoryPalette = [
-  { bg: '#247AED', text: '#EAF3FF' },
-  { bg: '#F1D4B0', text: '#302f2e' },
-  { bg: '#A8A181', text: '#F7F7F7' },
-  { bg: '#BF9FAA', text: '#F7F7F7' },
-  { bg: '#D28F9A', text: '#F7F7F7' },
-  { bg: '#5C614B', text: '#F7F7F7' },
-  { bg: '#D9A488', text: '#F7F7F7' },
+  { bg: 'var(--color-badge-blue-bg)', text: 'var(--color-badge-blue-text)' },
+  { bg: 'var(--color-pill-neutral-bg)', text: 'var(--color-pill-neutral-text)' },
+  { bg: 'var(--color-pill-info-bg)', text: 'var(--color-pill-info-text)' },
+  { bg: 'var(--color-pill-progress-bg)', text: 'var(--color-pill-progress-text)' },
+  { bg: 'var(--color-pill-success-bg)', text: 'var(--color-pill-success-text)' },
+  { bg: 'var(--color-pill-warning-bg)', text: 'var(--color-pill-warning-text)' },
+  { bg: 'var(--color-pill-accent-bg)', text: 'var(--color-pill-accent-text)' },
 ];
 
 const Guides = () => {
@@ -70,9 +70,9 @@ const Guides = () => {
     <div className="flex flex-col gap-8 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1">
+          <div className="text-text-primary text-heading-2">
             Guides & Tutorials{' '}
-            <span className="text-text-tertiary">{`(${guidesData.length})`}</span>
+            <span className="text-body-2 text-text-tertiary">{`(${guidesData.length})`}</span>
           </div>
           <p className="text-body-3 text-text-secondary max-w-3xl mb-0!">
             Learn how to set up your animal health practice, streamline workflows, and get the most
@@ -93,7 +93,7 @@ const Guides = () => {
             >
               <div className="absolute inset-0 bg-black/35" />
               <div className="relative flex items-center justify-center h-16 w-16 rounded-full bg-white/20">
-                <FaCirclePlay size={50} color="#fff" />
+                <FaCirclePlay size={50} color="var(--color-neutral-0)" />
               </div>
               <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-white/90 text-body-4 text-text-primary">
                 {featuredGuide.duration}
@@ -101,7 +101,14 @@ const Guides = () => {
             </button>
             <div className="flex flex-col gap-3 px-6 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10 lg:justify-center">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="text-body-4 text-text-primary bg-[#F1D4B0] px-3 py-1 rounded-full">
+                <div
+                  className="text-body-4 px-3 py-1 rounded-full"
+                  style={{
+                    color: 'var(--color-pill-neutral-text)',
+                    backgroundColor: 'var(--color-pill-neutral-bg)',
+                    border: '1px solid var(--color-pill-neutral-border)',
+                  }}
+                >
                   Featured
                 </div>
                 <div className="text-body-4 text-text-brand bg-brand-100 px-3 py-1 rounded-full">
@@ -172,7 +179,7 @@ const Guides = () => {
               >
                 <div className="absolute inset-0 bg-black/35 rounded-t-2xl" />
                 <div className="relative flex items-center justify-center h-14 w-14 rounded-full bg-white/20">
-                  <FaCirclePlay size={46} color="#fff" />
+                  <FaCirclePlay size={46} color="var(--color-neutral-0)" />
                 </div>
                 <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-white/90 text-body-4 text-text-primary">
                   {video.duration}

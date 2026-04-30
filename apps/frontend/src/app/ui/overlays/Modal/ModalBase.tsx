@@ -9,6 +9,7 @@ type ModalBaseProps = {
   /** Return false to block closing. */
   canClose?: () => boolean;
   overlayClassName: string;
+  overlayStyle?: React.CSSProperties;
   containerClassName: string;
   ignoreOutsideClick?: (target: HTMLElement | null) => boolean;
   /**
@@ -32,6 +33,7 @@ const ModalBase = ({
   onClose,
   canClose,
   overlayClassName,
+  overlayStyle,
   containerClassName,
   ignoreOutsideClick,
   'aria-label': ariaLabel,
@@ -49,14 +51,21 @@ const ModalBase = ({
   }, [canClose, setShowModal, onClose]);
 
   // Focus management: move focus into modal on open, restore on close.
+  // Body scroll is locked while open to prevent layout shifts (scrollbar width change)
+  // from displacing sticky calendar rows or triggering the planner auto-lock hook.
   useEffect(() => {
     if (showModal) {
       previousFocusRef.current = document.activeElement as HTMLElement;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
       const firstFocusable = containerRef.current?.querySelector<HTMLElement>(FOCUSABLE);
       firstFocusable?.focus();
     } else {
       previousFocusRef.current?.focus();
       previousFocusRef.current = null;
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
     }
   }, [showModal]);
 
@@ -114,7 +123,7 @@ const ModalBase = ({
   return createPortal(
     <>
       {/* Backdrop — purely visual; click-outside is handled via mousedown listener */}
-      <div className={overlayClassName} aria-hidden="true" />
+      <div className={overlayClassName} style={overlayStyle} aria-hidden="true" />
 
       <dialog
         open
