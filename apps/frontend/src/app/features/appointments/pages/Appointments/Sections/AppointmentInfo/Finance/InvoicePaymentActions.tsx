@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { IoClose } from 'react-icons/io5';
 import {
   getPaymentLink,
   loadInvoicesForOrgPrimaryOrg,
@@ -33,12 +34,13 @@ const InvoicePaymentActions = ({
   const paymentState = String(activeAppointment?.paymentStatus ?? '').toUpperCase();
   const normalizedInvoiceStatus = String(invoiceStatus ?? '').toUpperCase();
   const normalizedPaymentCollectionMethod = String(paymentCollectionMethod ?? '').toUpperCase();
-  const isInPersonCashSelected =
-    showCashConfirmation || normalizedPaymentCollectionMethod === 'PAYMENT_AT_CLINIC';
   const isInvoiceSettled =
     normalizedInvoiceStatus === 'PAID' ||
     normalizedInvoiceStatus === 'REFUNDED' ||
     normalizedInvoiceStatus === 'CANCELLED';
+  const isInPersonCashSelected =
+    !isInvoiceSettled &&
+    (showCashConfirmation || normalizedPaymentCollectionMethod === 'PAYMENT_AT_CLINIC');
   const showOfflineCollect = !stripeReceiptUrl && !isInvoiceSettled && paymentState !== 'PAID_CASH';
   const showPaymentLinkActions = !isInPersonCashSelected && showOfflineCollect;
 
@@ -118,50 +120,69 @@ const InvoicePaymentActions = ({
   };
 
   if (stripeReceiptUrl) {
-    return <Secondary text="Download" href="#" onClick={handleDownload} />;
+    return (
+      <div className="flex flex-wrap justify-center gap-2">
+        <Secondary text="Download" href="#" onClick={handleDownload} className="w-fit" />
+      </div>
+    );
   }
 
   return (
     <>
-      {generatedLink ? <Secondary text="Copy link" href="#" onClick={handleCopy} /> : null}
-      {showOfflineCollect ? (
-        <>
-          {isInPersonCashSelected ? (
-            <div className="rounded-2xl border border-warning-200 bg-[color-mix(in_srgb,var(--color-warning-100)_65%,white)] px-4 py-4 flex flex-col gap-3">
-              <div className="text-body-4-emphasis text-text-primary">
-                Confirm cash payment before marking this invoice as paid.
-              </div>
-              <div className="text-body-4 text-text-secondary">
-                Payment collection method has been set to in-person cash. Click Collect cash only
-                after cash has been received from the client.
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                <Primary
-                  text={markingOfflinePaid ? 'Saving...' : 'Collect cash'}
-                  href="#"
-                  onClick={handleCollectOfflinePayment}
-                  isDisabled={!invoiceId || markingOfflinePaid}
-                />
-              </div>
+      {isInPersonCashSelected ? (
+        <div className="rounded-2xl border border-warning-200 bg-[color-mix(in_srgb,var(--color-warning-100)_65%,white)] px-4 py-4 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="text-body-4-emphasis text-text-primary">
+              Confirm cash payment before marking this invoice as paid.
             </div>
-          ) : (
+            <button
+              type="button"
+              aria-label="Dismiss cash confirmation"
+              onClick={() => setShowCashConfirmation(false)}
+              className="shrink-0 text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <IoClose size={16} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="text-body-4 text-text-secondary">
+            Payment collection method has been set to in-person cash. Click Collect cash only after
+            cash has been received from the client.
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Primary
+              text={markingOfflinePaid ? 'Saving...' : 'Collect cash'}
+              href="#"
+              onClick={handleCollectOfflinePayment}
+              isDisabled={!invoiceId || markingOfflinePaid}
+              className="w-fit"
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap justify-center gap-2">
+          {generatedLink ? (
+            <Secondary text="Copy link" href="#" onClick={handleCopy} className="w-fit" />
+          ) : null}
+          {showOfflineCollect ? (
             <Secondary
               text={settingCashCollectionMethod ? 'Preparing...' : 'Pay in cash'}
               href="#"
               onClick={handleStartCashCollection}
               isDisabled={!invoiceId || markingOfflinePaid || settingCashCollectionMethod}
+              className="w-fit"
             />
-          )}
-        </>
-      ) : null}
-      {showPaymentLinkActions ? (
-        <Secondary
-          text="Generate & Mail link"
-          href="#"
-          onClick={handleGenerate}
-          isDisabled={!invoiceId}
-        />
-      ) : null}
+          ) : null}
+          {showPaymentLinkActions ? (
+            <Secondary
+              text="Generate & Mail link"
+              href="#"
+              onClick={handleGenerate}
+              isDisabled={!invoiceId}
+              className="w-fit"
+            />
+          ) : null}
+        </div>
+      )}
     </>
   );
 };

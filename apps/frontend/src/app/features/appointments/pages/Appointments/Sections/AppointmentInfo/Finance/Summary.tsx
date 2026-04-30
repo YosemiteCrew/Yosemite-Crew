@@ -14,6 +14,8 @@ import { useInvoicesForPrimaryOrgAppointment } from '@/app/hooks/useInvoices';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
+import { getStatusStyle } from '@/app/ui/tables/InvoiceTable';
+import { toTitle } from '@/app/lib/validators';
 
 const AppointmentFields = [
   { label: 'Service', key: 'service', type: 'text' },
@@ -129,7 +131,7 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
           />
           <div className="flex flex-col px-3! py-3! rounded-2xl border border-card-border">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-body-1 text-text-primary">Pay</div>
+              <div className="text-body-2 text-text-primary">Pay</div>
               <Image
                 alt={'Powered by stripe'}
                 src={MEDIA_SOURCES.appointments.stripe}
@@ -162,12 +164,26 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
               </div>
             </div>
             {actionInvoice ? (
-              <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-                <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>
-                <div className="text-body-4 text-text-primary text-right">
-                  {getInvoicePaymentMethodLabel(actionInvoice)}
+              <>
+                <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                  <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>
+                  <div className="text-body-4 text-text-primary text-right">
+                    {getInvoicePaymentMethodLabel(actionInvoice)}
+                  </div>
                 </div>
-              </div>
+                <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                  <div className="text-body-4-emphasis text-text-tertiary">Status: </div>
+                  <span
+                    className="rounded-2xl px-3 py-0.5 text-caption-1 border"
+                    style={(() => {
+                      const s = getStatusStyle(actionInvoice.status);
+                      return { ...s, borderColor: s.color };
+                    })()}
+                  >
+                    {toTitle(actionInvoice.status)}
+                  </span>
+                </div>
+              </>
             ) : null}
             <div className="flex flex-col gap-3 mt-3">
               <InvoicePaymentActions
