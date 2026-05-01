@@ -106,7 +106,7 @@ const syncAuthenticatedState = async (
 
 const getCurrentCognitoUser = () => {
   if (!userPool) {
-    throw new Error('UserPool is not initialized');
+    return null;
   }
   return userPool.getCurrentUser();
 };
@@ -219,7 +219,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   checkSession: async () => {
     if (!userPool) {
-      throw new Error('UserPool is not initialized');
+      resetAuthState(set);
+      return null;
     }
     if (checkSessionPromise) {
       return checkSessionPromise;
@@ -262,7 +263,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   refreshSession: async () => {
     if (!userPool) {
-      throw new Error('UserPool is not initialized');
+      resetAuthState(set);
+      return null;
     }
     if (refreshSessionPromise) {
       return refreshSessionPromise;
