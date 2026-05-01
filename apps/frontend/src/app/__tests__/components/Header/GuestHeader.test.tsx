@@ -1,7 +1,7 @@
 import '../../../jest.mocks/testMocks';
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 const mockPathname = jest.fn();
@@ -15,6 +15,13 @@ jest.mock('next/navigation', () => ({
 const mockUseAuthStore = jest.fn();
 jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: () => mockUseAuthStore(),
+}));
+
+jest.mock('@/app/ui/layout/Header/MobileMenu', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="mobile-menu">{children}</div>
+  ),
 }));
 
 import GuestHeader from '@/app/ui/layout/Header/GuestHeader/GuestHeader';
@@ -46,7 +53,8 @@ describe('GuestHeader', () => {
     mockUseAuthStore.mockReturnValue({ user: null });
 
     render(<GuestHeader />);
-    const cta = screen.queryByTestId('primary-btn');
+    const mobileMenu = screen.getByTestId('mobile-menu');
+    const cta = within(mobileMenu).getByTestId('primary-btn');
     expect(cta).toBeInTheDocument();
     expect(cta).toHaveTextContent('Sign up');
     expect(cta).toHaveAttribute('href', '/signup');
@@ -57,7 +65,8 @@ describe('GuestHeader', () => {
     mockUseAuthStore.mockReturnValue({ user: null });
 
     render(<GuestHeader />);
-    const cta = screen.queryByTestId('primary-btn');
+    const mobileMenu = screen.getByTestId('mobile-menu');
+    const cta = within(mobileMenu).getByTestId('primary-btn');
     expect(cta).toBeInTheDocument();
     expect(cta).toHaveTextContent('Sign in');
     expect(cta).toHaveAttribute('href', '/signin');
@@ -69,5 +78,38 @@ describe('GuestHeader', () => {
 
     render(<GuestHeader />);
     expect(screen.queryByTestId('primary-btn')).not.toBeInTheDocument();
+  });
+
+  test('uses a real route for the mobile developer CTA', () => {
+    mockPathname.mockReturnValue('/developers');
+    mockUseAuthStore.mockReturnValue({
+      status: 'authenticated',
+      user: { id: '123' },
+      role: 'developer',
+    });
+
+    render(<GuestHeader />);
+
+    const mobileMenu = screen.getByTestId('mobile-menu');
+    const mobileCta = within(mobileMenu).getByRole('link', { name: /go to app/i });
+
+    expect(mobileCta).toHaveAttribute('href', '/developers/home');
+
+    fireEvent.click(mobileCta);
+    jest.advanceTimersByTime(400);
+
+    expect(mockPush).toHaveBeenCalledWith('/developers/home');
+  });
+
+  test('uses real routes for the mobile sign up and sign in CTAs', () => {
+    mockPathname.mockReturnValue('/signin');
+    mockUseAuthStore.mockReturnValue({ user: null });
+
+    render(<GuestHeader />);
+
+    const mobileMenu = screen.getByTestId('mobile-menu');
+    const signUpCta = within(mobileMenu).getByRole('link', { name: /sign up/i });
+
+    expect(signUpCta).toHaveAttribute('href', '/signup');
   });
 });
