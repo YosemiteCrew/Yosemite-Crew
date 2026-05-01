@@ -1,8 +1,19 @@
 /* eslint-disable @next/next/no-img-element */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import DeveloperLanding from "@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding";
+
+const mockPush = jest.fn();
+const mockUseAuthStore = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
+
+jest.mock("@/app/stores/authStore", () => ({
+  useAuthStore: () => mockUseAuthStore(),
+}));
 
 jest.mock("@iconify/react/dist/iconify.js", () => ({
   Icon: () => <div data-testid="icon-mock" />,
@@ -38,6 +49,12 @@ jest.mock("@/app/ui/widgets/Footer/Footer", () =>
 
 describe("DeveloperLanding Page", () => {
   beforeEach(() => {
+    mockPush.mockReset();
+    mockUseAuthStore.mockReturnValue({
+      status: "unauthenticated",
+      user: null,
+      role: null,
+    });
     render(<DeveloperLanding />);
   });
 
@@ -81,6 +98,9 @@ describe("DeveloperLanding Page", () => {
 
     const links = screen.getAllByRole('link', { name: /Developer portal/i });
     expect(links.length).toBeGreaterThan(0);
+
+    fireEvent.click(links[0]);
+    expect(mockPush).toHaveBeenCalledWith('/developers/signin');
 
     expect(screen.getByText(/^Sign up$/i)).toBeInTheDocument();
     expect(
