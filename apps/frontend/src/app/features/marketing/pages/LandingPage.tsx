@@ -77,6 +77,8 @@ const NewHeroSection = () => {
           alt="Dog"
           width={200}
           height={200}
+          priority
+          sizes="(max-width: 768px) 9.6vw, 8vw"
           style={{ objectFit: 'contain' }}
         />
       </motion.div>
@@ -93,6 +95,7 @@ const NewHeroSection = () => {
           alt="Horse"
           width={250}
           height={250}
+          sizes="(max-width: 768px) 27.5vw, 25vw"
           style={{ objectFit: 'contain' }}
           priority
         />
@@ -147,7 +150,13 @@ const OldHeroSection = ({
             {SlidesData.map((slide) => (
               <Carousel.Item key={slide.id}>
                 <div className="LandingCarouselDiv">
-                  <Image src={slide.image} alt={slide.alt} width={887} height={565} />
+                  <Image
+                    src={slide.image}
+                    alt={slide.alt}
+                    width={887}
+                    height={565}
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
                   <div className="carousel-text">
                     <div className="text-heading-1 text-text-primary">{slide.text}</div>
                   </div>
