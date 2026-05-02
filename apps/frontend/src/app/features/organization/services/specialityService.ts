@@ -131,6 +131,32 @@ export const createSpeciality = async (payload: Speciality) => {
   }
 };
 
+const getBulkResponseItems = <T>(data: T[] | { created?: T[] }): T[] => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return Array.isArray(data.created) ? data.created : [];
+};
+
+export const createSpecialitiesBulk = async (payload: Speciality[]) => {
+  const { addSpeciality } = useSpecialityStore.getState();
+  try {
+    const fhirSpecialities = payload.map((speciality) => toSpecialityResponseDTO(speciality));
+    const res = await postData<SpecialityRequestDTO[] | { created?: SpecialityRequestDTO[] }>(
+      '/fhir/v1/speciality/bulk',
+      fhirSpecialities
+    );
+    const normalSpecialities = getBulkResponseItems(res.data).map((speciality) =>
+      fromSpecialityRequestDTO(speciality)
+    );
+    normalSpecialities.forEach(addSpeciality);
+    return normalSpecialities;
+  } catch (err) {
+    console.error('Failed to create specialities:', err);
+    throw err;
+  }
+};
+
 export const createService = async (payload: Service) => {
   const { addService } = useServiceStore.getState();
   try {
@@ -144,24 +170,57 @@ export const createService = async (payload: Service) => {
   }
 };
 
+export const createServicesBulk = async (payload: Service[]) => {
+  const { addService } = useServiceStore.getState();
+  try {
+    const fhirServices = payload.map((service) => toServiceResponseDTO(service));
+    const res = await postData<ServiceRequestDTO[] | { created?: ServiceRequestDTO[] }>(
+      '/fhir/v1/service/bulk',
+      fhirServices
+    );
+    const normalServices = getBulkResponseItems(res.data).map((service) =>
+      fromServiceRequestDTO(service)
+    );
+    normalServices.forEach(addService);
+    return normalServices;
+  } catch (err) {
+    console.error('Failed to create services:', err);
+    throw err;
+  }
+};
+
 export const createBulkSpecialityServices = async (payload: SpecialityWeb[]) => {
   try {
-    for (const item of payload) {
-      if (!item) continue;
-      const speciaity: Speciality = {
+    const specialitiesToCreate = payload.filter(Boolean).map(
+      (item): Speciality => ({
         ...item,
         services: [],
-      };
-      const addedSpeciality = await createSpeciality(speciaity);
-      const services = item.services || [];
-      await Promise.allSettled(
-        services.map((s) =>
-          createService({
-            ...s,
-            specialityId: addedSpeciality._id,
-          })
-        )
+      })
+    );
+    const addedSpecialities = await createSpecialitiesBulk(specialitiesToCreate);
+    const specialityIdByName = new Map(
+      addedSpecialities.map((speciality) => [
+        String(speciality.name ?? '')
+          .trim()
+          .toLowerCase(),
+        speciality._id,
+      ])
+    );
+    const servicesToCreate = payload.flatMap((item) => {
+      if (!item) return [];
+      const specialityId = specialityIdByName.get(
+        String(item.name ?? '')
+          .trim()
+          .toLowerCase()
       );
+      if (!specialityId) return [];
+      return (item.services ?? []).map((service) => ({
+        ...service,
+        specialityId,
+      }));
+    });
+    if (servicesToCreate.length > 0) {
+      await createServicesBulk(servicesToCreate);
     }
   } catch (err) {
     console.error('Failed to create speciality:', err);
