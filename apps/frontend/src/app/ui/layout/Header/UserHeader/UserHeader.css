@@ -133,7 +133,7 @@
   font-family: var(--font-satoshi);
   font-size: 11px;
   font-weight: 650;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.22px;
   line-height: 14px;
   text-transform: uppercase;
 }
@@ -147,7 +147,7 @@
   font-family: var(--font-satoshi);
   font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0;
+  letter-spacing: -0.26px;
   line-height: 17px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -191,7 +191,7 @@
   font-family: var(--font-satoshi);
   font-size: 11px;
   font-weight: 650;
-  letter-spacing: 0;
+  letter-spacing: -0.22px;
   line-height: 14px;
   text-transform: uppercase;
 }
@@ -333,7 +333,7 @@
   background: rgba(255, 255, 255, 0.86);
   color: var(--color-text-primary);
   font-family: var(--font-satoshi);
-  letter-spacing: 0;
+  letter-spacing: -0.26px;
 }
 
 .yc-mobile-org-trigger {

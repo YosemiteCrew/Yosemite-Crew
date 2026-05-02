@@ -102,7 +102,7 @@
   gap: 16px;
   padding: 20px;
   color: var(--color-neutral-900);
-  font-family: 'Satoshi', sans-serif;
+  font-family: var(--font-satoshi);
 }
 
 /* Title */
@@ -150,7 +150,7 @@
   margin: 0px auto;
   padding: 20px;
   background: var(--color-neutral-0);
-  font-family: 'Satoshi', sans-serif;
+  font-family: var(--font-satoshi);
   color: var(--color-neutral-900);
   line-height: 1.6;
   display: flex;
@@ -188,7 +188,7 @@
   font-size: 16px;
   font-weight: bold;
   line-height: 120%;
-  font-family: 'Satoshi', sans-serif;
+  font-family: var(--font-satoshi);
   letter-spacing: -0.02em;
   margin-bottom: 12px;
   color: var(--color-neutral-900);
@@ -380,7 +380,7 @@ ol li::before {
   padding: 24px;
   background: var(--color-neutral-0);
   border-radius: 12px; /* optional: keep consistent with .doc-box */
-  font-family: 'Satoshi', sans-serif;
+  font-family: var(--font-satoshi);
   font-size: 14px;
   color: #333;
   line-height: 1.6;

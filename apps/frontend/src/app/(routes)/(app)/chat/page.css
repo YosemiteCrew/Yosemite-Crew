@@ -73,7 +73,7 @@
 .chat-identity-eyebrow {
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: -0.22px;
   color: var(--color-text-tertiary);
   margin: 0;
 }
