@@ -652,7 +652,18 @@ const getServiceSchedulingContext = async (
 
 export const ServiceService = {
   async create(dto: ServiceRequestDTO) {
-    const service = fromServiceRequestDTO(dto);
+    let service: Service;
+    try {
+      service = fromServiceRequestDTO(dto);
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Expected FHIR HealthcareService")
+      ) {
+        throw new ServiceServiceError(error.message, 400);
+      }
+      throw error;
+    }
     const orgId = ensureObjectId(service.organisationId, "organisationId");
 
     const mongoPayload: ServiceMongo = {
@@ -677,6 +688,30 @@ export const ServiceService = {
     await syncServiceToPostgres(doc);
 
     return toServiceResponseDTO(mapDocToDomain(doc));
+  },
+
+  async createMany(dtos: ServiceRequestDTO[]) {
+    if (!Array.isArray(dtos) || !dtos.length) {
+      throw new ServiceServiceError("Payload list cannot be empty.", 400);
+    }
+
+    const results = [];
+    for (const [index, dto] of dtos.entries()) {
+      try {
+        const created = await ServiceService.create(dto);
+        results.push(created);
+      } catch (error: unknown) {
+        if (error instanceof ServiceServiceError) {
+          throw new ServiceServiceError(
+            `Item ${index}: ${error.message}`,
+            error.statusCode,
+          );
+        }
+        throw error;
+      }
+    }
+
+    return results;
   },
 
   async getById(id: string) {

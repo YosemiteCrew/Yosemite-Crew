@@ -4,6 +4,7 @@ import { ServiceController } from "../controllers/web/service.controller";
 const router = Router();
 
 router.post("/", ServiceController.createService);
+router.post("/bulk", ServiceController.createMany);
 router.get(
   "/organisation/search",
   ServiceController.listOrganisationByServiceName,
