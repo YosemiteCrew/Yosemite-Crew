@@ -34,6 +34,7 @@ const PetOwner = () => {
                 quality={100}
                 src={MEDIA_SOURCES.petOwner.hero}
                 priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
               />
             </div>
           </div>
@@ -130,6 +131,7 @@ const PetOwner = () => {
                   alt="glimpsimg"
                   width={1291}
                   height={917}
+                  sizes="(max-width: 768px) 100vw, 85vw"
                 />
               </div>
             </div>
@@ -159,6 +161,7 @@ const PetOwner = () => {
                   alt="petapppic"
                   width={569}
                   height={569}
+                  sizes="(max-width: 1024px) 100vw, 35vw"
                 />
               </div>
             </div>
