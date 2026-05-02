@@ -54,7 +54,7 @@ type SubmenuPosition = {
 
 const getMenuItemClassName = (destructive = false, active = false) =>
   [
-    'flex w-full items-center justify-between gap-1 rounded-[12px] px-1.5 py-[2px] text-left font-sans text-[16px] font-normal leading-[1rem] transition-colors',
+    'flex w-full items-center justify-between gap-1 rounded-[12px] px-1.5 py-[2px] text-left font-satoshi text-[16px] font-normal leading-[1rem] tracking-[-0.32px] transition-colors',
     destructive ? 'text-text-error hover:bg-danger-100/72' : 'text-text-primary hover:bg-white/50',
     active ? 'bg-white/58' : 'bg-transparent',
   ].join(' ');

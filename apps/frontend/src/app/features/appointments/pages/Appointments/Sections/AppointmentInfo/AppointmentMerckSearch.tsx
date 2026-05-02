@@ -48,13 +48,25 @@ const getMerckSearchError = (error: unknown) => {
 const getAppointmentEntriesContent = (
   entries: MerckEntry[],
   loading: boolean,
+  hasSearched: boolean,
   onOpenReader: (entry: MerckEntry, url: string) => void,
   onCopyUrl: (url: string) => Promise<void>
 ) => {
   if (entries.length === 0) {
-    return loading ? (
-      <div className="text-body-4 text-text-secondary">Searching manuals...</div>
-    ) : null;
+    if (loading) {
+      return <div className="text-body-4 text-text-secondary">Searching manuals...</div>;
+    }
+    if (hasSearched) {
+      return (
+        <div className="flex flex-col items-center gap-2 py-6 text-center">
+          <div className="text-body-4 text-text-secondary">No results found</div>
+          <div className="text-caption-1 text-text-tertiary">
+            Try different keywords or switch between Professional and Consumer.
+          </div>
+        </div>
+      );
+    }
+    return null;
   }
 
   return entries.map((entry) => (
@@ -128,7 +140,9 @@ const CompactAudienceToggle = ({
   onChange: (next: MerckAudience) => void;
 }) => {
   const isProfessional = value === 'PROV';
-  const sliderClass = isProfessional ? 'translate-x-0 bg-blue-text' : 'translate-x-full';
+  const sliderClass = isProfessional
+    ? 'translate-x-0 bg-blue-text'
+    : 'translate-x-full bg-blue-text';
   const professionalTextClass = isProfessional ? 'text-neutral-0' : 'text-text-secondary';
   const consumerTextClass = isProfessional ? 'text-text-secondary' : 'text-neutral-0';
 
@@ -199,6 +213,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [entries, setEntries] = useState<MerckEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -217,6 +232,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     const cached = resultCacheRef.current.get(cacheKey);
     if (cached) {
       setEntries(cached);
+      setHasSearched(true);
       return;
     }
 
@@ -239,6 +255,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
       const safe = getSafeMerckEntries(response.entries);
       resultCacheRef.current.set(cacheKey, safe);
       setEntries(safe);
+      setHasSearched(true);
     } catch (e: unknown) {
       if (reqId !== requestRef.current) return;
       setEntries([]);
@@ -278,7 +295,13 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     }
   };
 
-  const entriesContent = getAppointmentEntriesContent(entries, loading, openReader, copyUrl);
+  const entriesContent = getAppointmentEntriesContent(
+    entries,
+    loading,
+    hasSearched,
+    openReader,
+    copyUrl
+  );
 
   if (!isEnabled) {
     return (
