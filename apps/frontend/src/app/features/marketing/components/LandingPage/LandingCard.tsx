@@ -27,7 +27,14 @@ const LandingCard = ({ item }: { item: InfoCard }) => {
             </div>
           </div>
           <TextFade direction="up" className="RightLanding">
-            <Image aria-hidden src={item.image} alt="landingimg1" width={884} height={600} />
+            <Image
+              aria-hidden
+              src={item.image}
+              alt="landingimg1"
+              width={884}
+              height={600}
+              sizes="(max-width: 1280px) 100vw, 60vw"
+            />
           </TextFade>
         </div>
       </div>
