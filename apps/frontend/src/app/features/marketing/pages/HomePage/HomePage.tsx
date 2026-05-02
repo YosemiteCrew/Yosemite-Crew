@@ -68,6 +68,8 @@ const HomePage = () => {
                 alt="Hero"
                 width={733}
                 height={564}
+                priority
+                sizes="(max-width: 1024px) 100vw, 55vw"
               />
             </div>
           </div>
@@ -276,6 +278,7 @@ const HomePage = () => {
                 alt="betterimg"
                 width={507}
                 height={433}
+                sizes="(max-width: 1024px) 100vw, 45vw"
               />
             </div>
           </div>
