@@ -96,7 +96,7 @@
     "toastify-react-native": "^7.2.3",
     "ui-react-native": "link: @aws-amplify/ui-react-native",
     "use-sync-external-store": "^1.6.0",
-    "uuid": "9.0.1",
+    "uuid": "14.0.0",
     "yup": "^1.7.0"
   },
   "devDependencies": {
