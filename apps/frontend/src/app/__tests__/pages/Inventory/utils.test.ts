@@ -643,6 +643,7 @@ describe('Inventory Utils', () => {
     expect(defaultFilters).toEqual({
       category: 'all',
       status: 'ALL',
+      visibility: 'ALL',
       search: '',
     });
   });
