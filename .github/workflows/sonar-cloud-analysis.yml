@@ -18,7 +18,7 @@ jobs:
   changes:
     name: Detect workspace changes
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'YosemiteCrew'
+    if: github.repository_owner == 'YosemiteCrew' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
@@ -113,6 +113,7 @@ jobs:
   sonarqube:
     if: >
       github.repository_owner == 'YosemiteCrew' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
       (
         github.event_name == 'schedule' ||
         needs.changes.outputs.has_changes == 'true'
