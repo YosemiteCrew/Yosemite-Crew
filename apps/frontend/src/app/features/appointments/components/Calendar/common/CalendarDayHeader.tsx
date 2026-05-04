@@ -53,7 +53,6 @@ export const CalendarTeamNamesRow = ({ team, teamColumnsStyle }: CalendarTeamNam
   </div>
 );
 
-/** @deprecated Use CalendarDayNav + CalendarTeamNamesRow separately. */
 type CalendarDayHeaderProps = {
   weekday: string;
   dateNumber: string;

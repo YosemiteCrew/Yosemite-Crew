@@ -52,6 +52,36 @@ const StockHealthOptions: StockHealthOption[] = [
   },
 ];
 
+const getSliderTranslate = (visibility: string): string => {
+  if (visibility === 'ALL') return 'translate-x-0';
+  if (visibility === 'ACTIVE') return 'translate-x-full';
+  return 'translate-x-[200%]';
+};
+
+const getVisibilityLabel = (key: 'ALL' | 'ACTIVE' | 'HIDDEN'): string => {
+  if (key === 'ALL') return 'All';
+  if (key === 'ACTIVE') return 'Active';
+  return 'Hidden';
+};
+
+const getStockHealthButtonStyle = (option: StockHealthOption): React.CSSProperties => {
+  if (option.key === 'ALL') {
+    return {
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'var(--color-card-border)',
+      color: 'var(--color-text-tertiary)',
+    };
+  }
+  return {
+    backgroundColor: option.bg,
+    color: option.text,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: option.border,
+  };
+};
+
 type InventoryFiltersProps = {
   filters: InventoryFiltersState;
   onChange: (filters: InventoryFiltersState) => void;
@@ -136,14 +166,8 @@ const InventoryFilters = ({
     StockHealthOptions.find((o) => o.key === filters.status) ?? StockHealthOptions[0];
 
   const visibility = filters.visibility ?? 'ALL';
-  const isAll = visibility === 'ALL';
-  const isActive = visibility === 'ACTIVE';
 
-  const sliderTranslate = isAll
-    ? 'translate-x-0'
-    : isActive
-      ? 'translate-x-full'
-      : 'translate-x-[200%]';
+  const sliderTranslate = getSliderTranslate(visibility);
 
   return (
     <div className="w-full flex items-start justify-between flex-wrap gap-x-6 gap-y-3">
@@ -162,7 +186,7 @@ const InventoryFilters = ({
             style={{ width: 'calc(100% / 3)', backgroundColor: '#454341' }}
           />
           {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((key) => {
-            const label = key === 'ALL' ? 'All' : key === 'ACTIVE' ? 'Active' : 'Hidden';
+            const label = getVisibilityLabel(key);
             const isCurrent = visibility === key;
             return (
               <button
@@ -193,22 +217,7 @@ const InventoryFilters = ({
           disabled={loading}
           onClick={() => setDropdownOpen((v) => !v)}
           className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between min-w-30"
-          style={
-            selectedStockHealth.key !== 'ALL'
-              ? {
-                  backgroundColor: selectedStockHealth.bg,
-                  color: selectedStockHealth.text,
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: selectedStockHealth.border,
-                }
-              : {
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--color-card-border)',
-                  color: 'var(--color-text-tertiary)',
-                }
-          }
+          style={getStockHealthButtonStyle(selectedStockHealth)}
         >
           <span>
             {selectedStockHealth.key === 'ALL' ? 'Stock health' : selectedStockHealth.name}

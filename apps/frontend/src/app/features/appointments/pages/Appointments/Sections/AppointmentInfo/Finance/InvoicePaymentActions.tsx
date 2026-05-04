@@ -11,12 +11,122 @@ import { Appointment } from '@yosemite-crew/types';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { useNotify } from '@/app/hooks/useNotify';
 
+const reloadAfterPayment = () =>
+  Promise.all([
+    loadInvoicesForOrgPrimaryOrg({ force: true, silent: true }),
+    loadAppointmentsForPrimaryOrg({ force: true, silent: true }),
+  ]);
+
+const generatePaymentLink = async (invoiceId: string, setGeneratedLink: (url: string) => void) => {
+  try {
+    const url = await getPaymentLink(invoiceId);
+    if (typeof url === 'string') {
+      setGeneratedLink(url);
+    }
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const copyLinkToClipboard = async (generatedLink: string) => {
+  try {
+    await navigator.clipboard.writeText(generatedLink);
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+type NotifyFn = ReturnType<typeof useNotify>['notify'];
+
+const collectOfflinePayment = async (
+  invoiceId: string,
+  setMarkingOfflinePaid: (v: boolean) => void,
+  setShowCashConfirmation: (v: boolean) => void,
+  notify: NotifyFn
+) => {
+  try {
+    setMarkingOfflinePaid(true);
+    await markInvoicePaid(invoiceId);
+    await reloadAfterPayment();
+    setShowCashConfirmation(false);
+    notify('success', {
+      title: 'Cash payment recorded',
+      text: 'The invoice was marked paid after confirming in-person cash collection.',
+    });
+  } catch (error) {
+    console.log(error);
+    notify('error', {
+      title: 'Cash payment failed',
+      text: 'We could not record the cash collection. Please try again.',
+    });
+  } finally {
+    setMarkingOfflinePaid(false);
+  }
+};
+
+const startCashCollection = async (
+  invoiceId: string,
+  setSettingCashCollectionMethod: (v: boolean) => void,
+  setShowCashConfirmation: (v: boolean) => void,
+  notify: NotifyFn
+) => {
+  try {
+    setSettingCashCollectionMethod(true);
+    notify('warning', {
+      title: 'Confirm cash collection',
+      text: 'Record cash only after you have physically received the payment from the client.',
+    });
+    await updateInvoicePaymentCollectionMethod(invoiceId, 'PAYMENT_AT_CLINIC');
+    setShowCashConfirmation(true);
+    notify('info', {
+      title: 'Cash collection ready',
+      text: 'Payment collection method is set to in-person cash. Click Collect cash after receiving payment.',
+    });
+  } catch (error) {
+    console.log(error);
+    notify('error', {
+      title: 'Cash setup failed',
+      text: 'We could not set the invoice to in-person cash collection. Please try again.',
+    });
+  } finally {
+    setSettingCashCollectionMethod(false);
+  }
+};
+
 type InvoicePaymentActionsProps = {
   invoiceId?: string;
   invoiceStatus?: string;
   paymentCollectionMethod?: string;
   stripeReceiptUrl?: string;
   activeAppointment?: Appointment;
+};
+
+type PaymentDisplayState = {
+  isInvoiceSettled: boolean;
+  isInPersonCashSelected: boolean;
+  showOfflineCollect: boolean;
+  showPaymentLinkActions: boolean;
+};
+
+const derivePaymentDisplayState = (
+  invoiceStatus: string | undefined,
+  paymentCollectionMethod: string | undefined,
+  paymentState: string,
+  stripeReceiptUrl: string | undefined,
+  showCashConfirmation: boolean
+): PaymentDisplayState => {
+  const normalizedInvoiceStatus = String(invoiceStatus ?? '').toUpperCase();
+  const normalizedPaymentCollectionMethod = String(paymentCollectionMethod ?? '').toUpperCase();
+  const isInvoiceSettled =
+    normalizedInvoiceStatus === 'PAID' ||
+    normalizedInvoiceStatus === 'REFUNDED' ||
+    normalizedInvoiceStatus === 'CANCELLED';
+  const isInPersonCashSelected =
+    !isInvoiceSettled &&
+    (showCashConfirmation || normalizedPaymentCollectionMethod === 'PAYMENT_AT_CLINIC');
+  const showOfflineCollect = !stripeReceiptUrl && !isInvoiceSettled && paymentState !== 'PAID_CASH';
+  const showPaymentLinkActions = !isInPersonCashSelected && showOfflineCollect;
+  return { isInvoiceSettled, isInPersonCashSelected, showOfflineCollect, showPaymentLinkActions };
 };
 
 const InvoicePaymentActions = ({
@@ -32,91 +142,35 @@ const InvoicePaymentActions = ({
   const [settingCashCollectionMethod, setSettingCashCollectionMethod] = useState(false);
   const [markingOfflinePaid, setMarkingOfflinePaid] = useState(false);
   const paymentState = String(activeAppointment?.paymentStatus ?? '').toUpperCase();
-  const normalizedInvoiceStatus = String(invoiceStatus ?? '').toUpperCase();
-  const normalizedPaymentCollectionMethod = String(paymentCollectionMethod ?? '').toUpperCase();
-  const isInvoiceSettled =
-    normalizedInvoiceStatus === 'PAID' ||
-    normalizedInvoiceStatus === 'REFUNDED' ||
-    normalizedInvoiceStatus === 'CANCELLED';
-  const isInPersonCashSelected =
-    !isInvoiceSettled &&
-    (showCashConfirmation || normalizedPaymentCollectionMethod === 'PAYMENT_AT_CLINIC');
-  const showOfflineCollect = !stripeReceiptUrl && !isInvoiceSettled && paymentState !== 'PAID_CASH';
-  const showPaymentLinkActions = !isInPersonCashSelected && showOfflineCollect;
+  const { isInPersonCashSelected, showOfflineCollect, showPaymentLinkActions } =
+    derivePaymentDisplayState(
+      invoiceStatus,
+      paymentCollectionMethod,
+      paymentState,
+      stripeReceiptUrl,
+      showCashConfirmation
+    );
 
-  const handleGenerate = async () => {
-    try {
-      if (!invoiceId) return;
-      const url = await getPaymentLink(invoiceId);
-      if (typeof url === 'string') {
-        setGeneratedLink(url);
-      }
-    } catch (error) {
-      console.log(error);
-    }
+  const handleGenerate = () => {
+    if (invoiceId) generatePaymentLink(invoiceId, setGeneratedLink);
   };
 
-  const handleCopy = async () => {
-    try {
-      if (!generatedLink) return;
-      await navigator.clipboard.writeText(generatedLink);
-    } catch (error) {
-      console.log(error);
-    }
+  const handleCopy = () => {
+    if (generatedLink) copyLinkToClipboard(generatedLink);
   };
 
   const handleDownload = () => {
     globalThis.open(stripeReceiptUrl, '_blank');
   };
 
-  const handleCollectOfflinePayment = async () => {
+  const handleCollectOfflinePayment = () => {
     if (!invoiceId || markingOfflinePaid) return;
-    try {
-      setMarkingOfflinePaid(true);
-      await markInvoicePaid(invoiceId);
-      await Promise.all([
-        loadInvoicesForOrgPrimaryOrg({ force: true, silent: true }),
-        loadAppointmentsForPrimaryOrg({ force: true, silent: true }),
-      ]);
-      setShowCashConfirmation(false);
-      notify('success', {
-        title: 'Cash payment recorded',
-        text: 'The invoice was marked paid after confirming in-person cash collection.',
-      });
-    } catch (error) {
-      console.log(error);
-      notify('error', {
-        title: 'Cash payment failed',
-        text: 'We could not record the cash collection. Please try again.',
-      });
-    } finally {
-      setMarkingOfflinePaid(false);
-    }
+    collectOfflinePayment(invoiceId, setMarkingOfflinePaid, setShowCashConfirmation, notify);
   };
 
-  const handleStartCashCollection = async () => {
+  const handleStartCashCollection = () => {
     if (!invoiceId || markingOfflinePaid || settingCashCollectionMethod) return;
-    try {
-      setSettingCashCollectionMethod(true);
-      notify('warning', {
-        title: 'Confirm cash collection',
-        text: 'Record cash only after you have physically received the payment from the client.',
-      });
-      await updateInvoicePaymentCollectionMethod(invoiceId, 'PAYMENT_AT_CLINIC');
-      setShowCashConfirmation(true);
-      notify('info', {
-        title: 'Cash collection ready',
-        text: 'Payment collection method is set to in-person cash. Click Collect cash after receiving payment.',
-      });
-    } catch (error) {
-      console.log(error);
-      notify('error', {
-        title: 'Cash setup failed',
-        text: 'We could not set the invoice to in-person cash collection. Please try again.',
-      });
-    } finally {
-      setSettingCashCollectionMethod(false);
-    }
+    startCashCollection(invoiceId, setSettingCashCollectionMethod, setShowCashConfirmation, notify);
   };
 
   if (stripeReceiptUrl) {

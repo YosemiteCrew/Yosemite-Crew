@@ -9,13 +9,12 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
-import { toNumberSafe } from '@/app/lib/validators';
+import { toNumberSafe, toTitle } from '@/app/lib/validators';
 import { useInvoicesForPrimaryOrgAppointment } from '@/app/hooks/useInvoices';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { getStatusStyle } from '@/app/ui/tables/InvoiceTable';
-import { toTitle } from '@/app/lib/validators';
 
 const AppointmentFields = [
   { label: 'Service', key: 'service', type: 'text' },

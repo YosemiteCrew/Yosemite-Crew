@@ -404,103 +404,101 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
           </>
         )}
         {!isRequestedLikeStatus(appointment.status) && (
-          <>
-            <div className="scrollbar-hidden flex w-48 shrink-0 items-center gap-2 overflow-x-auto pr-1">
-              <GlassTooltip content="Overview" side="top">
+          <div className="scrollbar-hidden flex w-48 shrink-0 items-center gap-2 overflow-x-auto pr-1">
+            <GlassTooltip content="Overview" side="top">
+              <button
+                type="button"
+                title="Appointment overview"
+                className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                onClick={() => {
+                  router.push(
+                    buildAppointmentCompanionHistoryHref(
+                      appointment.id,
+                      appointment.companion?.id,
+                      '/appointments'
+                    )
+                  );
+                  onClose();
+                }}
+              >
+                <RiHistoryLine size={20} />
+              </button>
+            </GlassTooltip>
+            <GlassTooltip content="Finance summary" side="top">
+              <button
+                type="button"
+                title="Finance summary"
+                className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                onClick={() => {
+                  handleViewAppointment(appointment, { label: 'finance', subLabel: 'summary' });
+                  onClose();
+                }}
+              >
+                <IoCardOutline size={20} />
+              </button>
+            </GlassTooltip>
+            <GlassTooltip content="Lab tests" side="top">
+              <button
+                type="button"
+                title="Lab tests"
+                className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                onClick={() => {
+                  handleViewAppointment(appointment, { label: 'labs', subLabel: 'idexx-labs' });
+                  onClose();
+                }}
+              >
+                <IoFlaskOutline size={20} />
+              </button>
+            </GlassTooltip>
+            {canEditAppointments && allowReschedule(appointment.status) && (
+              <GlassTooltip content="Reschedule" side="top">
                 <button
                   type="button"
-                  title="Appointment overview"
+                  title="Reschedule"
                   className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                   onClick={() => {
-                    router.push(
-                      buildAppointmentCompanionHistoryHref(
-                        appointment.id,
-                        appointment.companion?.id,
-                        '/appointments'
-                      )
-                    );
+                    handleRescheduleAppointment(appointment);
                     onClose();
                   }}
                 >
-                  <RiHistoryLine size={20} />
+                  <IoCalendarOutline size={20} />
                 </button>
               </GlassTooltip>
-              <GlassTooltip content="Finance summary" side="top">
+            )}
+            {canEditAppointments && canAssignAppointmentRoom(appointment.status) && (
+              <GlassTooltip content="Assign room" side="top">
                 <button
                   type="button"
-                  title="Finance summary"
+                  title="Assign room"
                   className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                   onClick={() => {
-                    handleViewAppointment(appointment, { label: 'finance', subLabel: 'summary' });
+                    handleChangeRoomAppointment?.(appointment);
                     onClose();
                   }}
                 >
-                  <IoCardOutline size={20} />
+                  <MdMeetingRoom size={20} />
                 </button>
               </GlassTooltip>
-              <GlassTooltip content="Lab tests" side="top">
-                <button
-                  type="button"
-                  title="Lab tests"
-                  className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                  onClick={() => {
-                    handleViewAppointment(appointment, { label: 'labs', subLabel: 'idexx-labs' });
-                    onClose();
-                  }}
-                >
-                  <IoFlaskOutline size={20} />
-                </button>
-              </GlassTooltip>
-              {canEditAppointments && allowReschedule(appointment.status) && (
-                <GlassTooltip content="Reschedule" side="top">
-                  <button
-                    type="button"
-                    title="Reschedule"
-                    className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                    onClick={() => {
-                      handleRescheduleAppointment(appointment);
-                      onClose();
-                    }}
-                  >
-                    <IoCalendarOutline size={20} />
-                  </button>
-                </GlassTooltip>
-              )}
-              {canEditAppointments && canAssignAppointmentRoom(appointment.status) && (
-                <GlassTooltip content="Assign room" side="top">
-                  <button
-                    type="button"
-                    title="Assign room"
-                    className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                    onClick={() => {
-                      handleChangeRoomAppointment?.(appointment);
-                      onClose();
-                    }}
-                  >
-                    <MdMeetingRoom size={20} />
-                  </button>
-                </GlassTooltip>
-              )}
-              <GlassTooltip content={clinicalNotesLabel} side="top">
-                <button
-                  type="button"
-                  title={clinicalNotesLabel}
-                  className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                  onClick={() => {
-                    handleViewAppointment(appointment, clinicalNotesIntent);
-                    onClose();
-                  }}
-                >
-                  <IoDocumentTextOutline size={20} />
-                </button>
-              </GlassTooltip>
-            </div>
-          </>
+            )}
+            <GlassTooltip content={clinicalNotesLabel} side="top">
+              <button
+                type="button"
+                title={clinicalNotesLabel}
+                className="h-12 w-12 shrink-0 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+                onClick={() => {
+                  handleViewAppointment(appointment, clinicalNotesIntent);
+                  onClose();
+                }}
+              >
+                <IoDocumentTextOutline size={20} />
+              </button>
+            </GlassTooltip>
+          </div>
         )}
         <button
           type="button"
           title="View appointment"
-          className="flex h-12 w-[200px] shrink-0 items-center justify-end gap-2 rounded-2xl! bg-black-bg px-4 font-satoshi text-[16px] font-medium leading-[120%] tracking-[-0.02rem] text-white-text hover:bg-black-hover"
+          className="flex h-12 w-50 shrink-0 items-center justify-end gap-2 rounded-2xl! bg-black-bg px-4 font-satoshi text-[16px] font-medium leading-[120%] tracking-[-0.02rem] text-white-text hover:bg-black-hover"
           onClick={() => {
             handleViewAppointment(appointment);
             onClose();

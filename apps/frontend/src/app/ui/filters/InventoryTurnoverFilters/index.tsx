@@ -51,6 +51,26 @@ const STATUS_OPTIONS = [
   },
 ];
 
+const getTurnoverStatusButtonStyle = (
+  option: (typeof STATUS_OPTIONS)[number]
+): React.CSSProperties => {
+  if (option.key === 'ALL') {
+    return {
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'var(--color-card-border)',
+      color: 'var(--color-text-tertiary)',
+    };
+  }
+  return {
+    backgroundColor: option.bg,
+    color: option.text,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: option.border,
+  };
+};
+
 type InventoryTurnoverFiltersProps = {
   list: InventoryTurnoverItem[];
   setFilteredList: (items: InventoryTurnoverItem[]) => void;
@@ -149,22 +169,7 @@ const InventoryTurnoverFilters = ({
           type="button"
           onClick={() => setDropdownOpen((v) => !v)}
           className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between min-w-30"
-          style={
-            selectedStatus.key !== 'ALL'
-              ? {
-                  backgroundColor: selectedStatus.bg,
-                  color: selectedStatus.text,
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: selectedStatus.border,
-                }
-              : {
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--color-card-border)',
-                  color: 'var(--color-text-tertiary)',
-                }
-          }
+          style={getTurnoverStatusButtonStyle(selectedStatus)}
         >
           <span>{selectedStatus.key === 'ALL' ? 'Status' : selectedStatus.name}</span>
           <FaCaretDown
