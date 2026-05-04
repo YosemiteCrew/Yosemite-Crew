@@ -36,6 +36,14 @@
   justify-content: space-between;
   align-items: flex-start;
 }
+.ClientLogoGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
 .leftFooter .ClientLogo {
   display: flex;
   align-items: center;
@@ -129,7 +137,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 0;
   padding: 6px 12px;
   border: 1px solid var(--color-pill-neutral-border);
   border-radius: 999px;
@@ -186,7 +194,10 @@
     flex-direction: row;
     max-width: 100%;
     min-height: auto;
-    align-items: center;
+    align-items: flex-start;
+  }
+  .ClientLogoGroup {
+    align-items: flex-start;
   }
   .RytFooter {
     justify-content: space-between;

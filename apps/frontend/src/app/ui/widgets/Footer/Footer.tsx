@@ -141,39 +141,50 @@ const Footer = () => {
                   height={83}
                 />
               </Link>
-              <div className="ClientLogo" aria-label="Certifications">
-                <Image
-                  aria-hidden
-                  src={MEDIA_SOURCES.footer.gdpr}
-                  alt="GDPR"
-                  width={55}
-                  height={56}
-                  className="gdpr-footer"
-                />
-                <Image
-                  aria-hidden
-                  src={MEDIA_SOURCES.footer.soc2}
-                  alt="SOC2"
-                  width={56}
-                  height={56}
-                  className="soc-footer"
-                />
-                <Image
-                  aria-hidden
-                  src={MEDIA_SOURCES.footer.iso}
-                  alt="ISO"
-                  width={54}
-                  height={60}
-                  className="iso-footer"
-                />
-                <Image
-                  aria-hidden
-                  src={MEDIA_SOURCES.footer.fhir}
-                  alt="FHIR"
-                  width={117}
-                  height={28}
-                  className="fhir-footer"
-                />
+              <div className="ClientLogoGroup">
+                <div className="ClientLogo" aria-label="Certifications">
+                  <Image
+                    aria-hidden
+                    src={MEDIA_SOURCES.footer.gdpr}
+                    alt="GDPR"
+                    width={55}
+                    height={56}
+                    className="gdpr-footer"
+                  />
+                  <Image
+                    aria-hidden
+                    src={MEDIA_SOURCES.footer.soc2}
+                    alt="SOC2"
+                    width={56}
+                    height={56}
+                    className="soc-footer"
+                  />
+                  <Image
+                    aria-hidden
+                    src={MEDIA_SOURCES.footer.iso}
+                    alt="ISO"
+                    width={54}
+                    height={60}
+                    className="iso-footer"
+                  />
+                  <Image
+                    aria-hidden
+                    src={MEDIA_SOURCES.footer.fhir}
+                    alt="FHIR"
+                    width={117}
+                    height={28}
+                    className="fhir-footer"
+                  />
+                </div>
+                <Link
+                  href={PLATFORM_STATUS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`platform-status-link platform-status-link-${platformStatus.tone}`}
+                >
+                  <span className="platform-status-dot" aria-hidden="true" />
+                  <span>{platformStatus.label}</span>
+                </Link>
               </div>
             </div>
             <motion.nav
@@ -234,15 +245,6 @@ const Footer = () => {
                 Yosemite Crew™ is a trademark of DuneXploration UG (haftungsbeschränkt) in the EU,
                 Australia, Great Britain, India, New Zealand, and the USA.
               </div>
-              <Link
-                href={PLATFORM_STATUS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`platform-status-link platform-status-link-${platformStatus.tone}`}
-              >
-                <span className="platform-status-dot" aria-hidden="true" />
-                <span>{platformStatus.label}</span>
-              </Link>
             </div>
           </div>
         </div>
