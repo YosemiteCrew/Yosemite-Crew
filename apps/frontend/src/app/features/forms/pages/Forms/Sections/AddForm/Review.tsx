@@ -107,7 +107,7 @@ const Review = ({
         label: 'Species',
         key: 'species',
         type: 'multiSelect',
-        options: ['Dog', 'Cat', 'Horse'],
+        options: ['Canine', 'Feline', 'Equine'],
       },
     ],
     [serviceOptions]

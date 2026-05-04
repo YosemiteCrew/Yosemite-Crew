@@ -3,11 +3,11 @@ import { fn } from 'storybook/test';
 import MultiSelectDropdown from './index';
 
 const SPECIES_OPTIONS = [
-  { label: 'Dog', value: 'dog' },
-  { label: 'Cat', value: 'cat' },
+  { label: 'Canine', value: 'dog' },
+  { label: 'Feline', value: 'cat' },
   { label: 'Rabbit', value: 'rabbit' },
   { label: 'Bird', value: 'bird' },
-  { label: 'Horse', value: 'horse' },
+  { label: 'Equine', value: 'horse' },
   { label: 'Reptile', value: 'reptile' },
 ];
 

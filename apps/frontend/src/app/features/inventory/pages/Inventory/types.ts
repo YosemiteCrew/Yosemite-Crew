@@ -325,7 +325,7 @@ export const UnitOptions = [
   'can',
   'jar',
 ];
-export const SpeciesOptions = ['Dog', 'Cat', 'Horse'];
+export const SpeciesOptions = ['Canine', 'Feline', 'Equine'];
 export const AdminstrationOptions = [
   'Oral',
   'Topical',
