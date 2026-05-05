@@ -14,6 +14,7 @@ import {
   isRequestedLikeStatus,
   toStatusLabel,
 } from '@/app/lib/appointments';
+import { IoWarning } from 'react-icons/io5';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
@@ -288,7 +289,7 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
         </div>
 
         {/* Status pill — acts as dropdown trigger if status can be changed */}
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0 flex flex-col items-end gap-1.5">
           {canChangeStatus ? (
             <button
               ref={statusTriggerRef}
@@ -297,7 +298,7 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
               disabled={savingStatus}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => setStatusDropdownOpen((v) => !v)}
-              className="flex h-8 w-[120px] items-center justify-end gap-1 rounded-2xl! px-3 py-2 font-satoshi text-[14px] font-medium leading-[120%] tracking-[-0.0175rem] whitespace-nowrap shadow-[0_1px_10px_0_rgba(169,163,158,0.10)]"
+              className="flex h-8 min-w-25 items-center justify-between gap-1.5 rounded-2xl! px-3 py-2 font-satoshi text-[14px] font-medium leading-[120%] tracking-[-0.0175rem] whitespace-nowrap shadow-[0_1px_10px_0_rgba(169,163,158,0.10)]"
               style={{
                 backgroundColor: statusStyle.backgroundColor,
                 color: statusStyle.color,
@@ -312,7 +313,7 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
                 opacity: savingStatus ? 0.6 : 1,
               }}
             >
-              {savingStatus ? 'Saving…' : toStatusLabel(appointment.status)}
+              <span>{savingStatus ? 'Saving…' : toStatusLabel(appointment.status)}</span>
               <FaCaretDown
                 size={10}
                 className={`shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`}
@@ -320,7 +321,7 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
             </button>
           ) : (
             <span
-              className="flex h-8 w-[120px] items-center justify-end rounded-2xl! px-3 py-2 font-satoshi text-[14px] font-medium leading-[120%] tracking-[-0.0175rem] whitespace-nowrap shadow-[0_1px_10px_0_rgba(169,163,158,0.10)]"
+              className="flex h-8 min-w-25 items-center justify-center rounded-2xl! px-3 py-2 font-satoshi text-[14px] font-medium leading-[120%] tracking-[-0.0175rem] whitespace-nowrap shadow-[0_1px_10px_0_rgba(169,163,158,0.10)]"
               style={{
                 backgroundColor: statusStyle.backgroundColor,
                 color: statusStyle.color,
@@ -336,6 +337,25 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
             >
               {toStatusLabel(appointment.status)}
             </span>
+          )}
+
+          {appointment.isEmergency && (
+            <div
+              className="flex h-5.5 items-center gap-1 rounded-lg px-2 whitespace-nowrap"
+              style={{
+                border: '1px solid var(--error-color)',
+                background: 'var(--color-danger-100)',
+                color: 'var(--error-color)',
+                fontFamily: 'var(--font-satoshi)',
+                fontSize: '11px',
+                fontWeight: 500,
+                lineHeight: '150%',
+                letterSpacing: '-0.22px',
+              }}
+            >
+              <IoWarning size={11} aria-hidden="true" />
+              {'Emergency'}
+            </div>
           )}
 
           {statusError && (
@@ -497,10 +517,13 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
         )}
         <button
           type="button"
-          title="View appointment"
+          title={primaryActionLabel}
           className="flex h-12 w-50 shrink-0 items-center justify-end gap-2 rounded-2xl! bg-black-bg px-4 font-satoshi text-[16px] font-medium leading-[120%] tracking-[-0.02rem] text-white-text hover:bg-black-hover"
           onClick={() => {
-            handleViewAppointment(appointment);
+            handleViewAppointment(
+              appointment,
+              appointment.status === 'UPCOMING' ? clinicalNotesIntent : undefined
+            );
             onClose();
           }}
         >

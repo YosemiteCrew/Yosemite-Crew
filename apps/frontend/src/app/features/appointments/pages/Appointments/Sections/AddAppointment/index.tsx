@@ -628,7 +628,7 @@ const AddAppointment = ({
                       leadOptions={LeadOptions}
                       onLeadSelect={handleLeadSelect}
                       supportStaffIds={formData.supportStaff?.map((s) => s.id) || []}
-                      teamOptions={TeamOptions}
+                      teamOptions={TeamOptions?.filter((o) => o.value !== formData.lead?.id)}
                       onSupportStaffChange={handleSupportStaffChange}
                     />
                     <div className="flex justify-center pt-3 pb-1">

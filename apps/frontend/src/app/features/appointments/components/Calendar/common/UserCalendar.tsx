@@ -217,7 +217,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     }
     scrollContainerToTarget(container, topPx);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateKey, scrollRef.current, draggedAppointmentId, skipAutoScroll, height]);
+  }, [dateKey, draggedAppointmentId, skipAutoScroll, height]);
 
   return (
     <div className="h-full flex flex-col">

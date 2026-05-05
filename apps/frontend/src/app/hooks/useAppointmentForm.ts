@@ -319,8 +319,6 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
   const ServiceFields = useMemo(
     () => [
-      { label: 'Name', key: 'name', type: 'text' },
-      { label: 'Description', key: 'description', type: 'text' },
       { label: 'Duration (mins)', key: 'duration', type: 'text' },
       { label: `Cost (${currency})`, key: 'cost', type: 'text' },
       { label: 'Max discount', key: 'maxDiscount', type: 'text' },
