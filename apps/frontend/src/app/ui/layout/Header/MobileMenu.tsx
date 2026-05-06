@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 type MobileMenuProps = {
   isOpen: boolean;
@@ -7,27 +6,18 @@ type MobileMenuProps = {
 };
 
 const MobileMenu = ({ isOpen, children }: MobileMenuProps) => (
-  <AnimatePresence>
-    {isOpen && (
-      <motion.div
-        initial={{ height: 0, opacity: 0 }}
-        animate={{
-          height: `calc(100vh - 72px)`,
-          opacity: 1,
-          transition: { duration: 0.4, ease: [0.42, 0, 0.58, 1] },
-        }}
-        exit={{
-          height: 0,
-          opacity: 0,
-          transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] },
-        }}
-        style={{ top: '72px' }}
-        className="yc-mobile-menu-drawer px-3 sm:px-12! py-6 z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3 lg:hidden"
-      >
-        {children}
-      </motion.div>
-    )}
-  </AnimatePresence>
+  <div
+    style={{ top: '72px' }}
+    className={[
+      'yc-mobile-menu-drawer px-3 sm:px-12! py-6 z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3 lg:hidden',
+      'transition-all duration-300 ease-[cubic-bezier(0.42,0,0.58,1)]',
+      isOpen
+        ? 'opacity-100 h-[calc(100vh-72px)] pointer-events-auto'
+        : 'opacity-0 h-0 pointer-events-none',
+    ].join(' ')}
+  >
+    {children}
+  </div>
 );
 
 export default MobileMenu;

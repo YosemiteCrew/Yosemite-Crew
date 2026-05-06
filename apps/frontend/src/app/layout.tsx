@@ -1,16 +1,12 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import Script from 'next/script';
 import './globals.css';
 
-import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-datepicker/dist/react-datepicker.css';
-
-import 'slick-carousel/slick/slick.css';
-import 'slick-carousel/slick/slick-theme.css';
 import ToastProvider from '@/app/ui/layout/ToastProvider';
 import GlobalFullscreenLoaderOverlay from '@/app/ui/layout/GlobalFullscreenLoaderOverlay';
 import RouteLoaderOverlay from '@/app/ui/layout/RouteLoaderOverlay';
+import ClarityScript from '@/app/ui/layout/ClarityScript';
 
 export const metadata: Metadata = {
   title: 'Yosemite Crew',
@@ -40,22 +36,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const clarityProjectId = process.env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID?.trim();
-  const shouldLoadClarity = Boolean(clarityProjectId);
 
   return (
     <html lang="en">
       <body>
-        {shouldLoadClarity ? (
-          <Script id="microsoft-clarity" strategy="afterInteractive">
-            {`
-              (function(c,l,a,r,i,t,y){
-                  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-              })(window, document, "clarity", "script", "${clarityProjectId}");
-            `}
-          </Script>
-        ) : null}
+        {clarityProjectId ? <ClarityScript projectId={clarityProjectId} /> : null}
         {children}
         <GlobalFullscreenLoaderOverlay />
         <Suspense>

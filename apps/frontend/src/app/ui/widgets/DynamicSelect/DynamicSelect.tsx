@@ -1,10 +1,9 @@
-"use client";
-import React from "react";
-import { Form } from "react-bootstrap";
-import { FaCaretDown } from "react-icons/fa6";
-import { useDropdown, useFilteredOptions, DropdownOption } from "@/app/hooks/useDropdown";
+'use client';
+import React from 'react';
+import { FaCaretDown } from 'react-icons/fa6';
+import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
 
-import "./DynamicSelect.css";
+import './DynamicSelect.css';
 
 export type Option = DropdownOption;
 
@@ -20,7 +19,7 @@ interface DynamicSelectProps {
 
 const DynamicSelect: React.FC<DynamicSelectProps> = ({
   options,
-  placeholder = "Select an option",
+  placeholder = 'Select an option',
   value,
   onChange,
   inname,
@@ -38,8 +37,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
     closeDropdown,
   } = useDropdown({ searchable });
 
-  const selectedLabel =
-    options.find((opt) => opt.value === value)?.label || placeholder;
+  const selectedLabel = options.find((opt) => opt.value === value)?.label || placeholder;
 
   const filteredOptions = useFilteredOptions(options, searchQuery);
 
@@ -52,7 +50,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
     <div className="SelectedInptDropdown" ref={dropdownRef}>
       <button
         type="button"
-        className={`custom-dropdown-toggle ${open ? "open" : ""}`}
+        className={`custom-dropdown-toggle ${open ? 'open' : ''}`}
         onClick={() => {
           if (!open) openDropdown();
         }}
@@ -70,7 +68,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
           <span>{selectedLabel}</span>
         )}
         <FaCaretDown
-          className={`dropdown-caret ${open ? "rotate" : ""}`}
+          className={`dropdown-caret ${open ? 'rotate' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
             toggleDropdown();
@@ -81,11 +79,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
       {open && (
         <div className="custom-dropdown-menu show">
           {!searchQuery && (
-            <button
-              type="button"
-              className="dropdown-item"
-              onClick={() => handleSelect("")}
-            >
+            <button type="button" className="dropdown-item" onClick={() => handleSelect('')}>
               {placeholder}
             </button>
           )}
@@ -95,7 +89,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
               <button
                 type="button"
                 key={option.value}
-                className={`dropdown-item ${option.value === value ? "selected" : ""}`}
+                className={`dropdown-item ${option.value === value ? 'selected' : ''}`}
                 onClick={() => handleSelect(option.value)}
               >
                 {option.label}
@@ -103,13 +97,13 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
             ))
           ) : (
             <div className="dropdown-item disabled">
-              {searchQuery ? "No matches found" : "No options available"}
+              {searchQuery ? 'No matches found' : 'No options available'}
             </div>
           )}
         </div>
       )}
 
-      {error && <Form.Text className="text-danger">{error}</Form.Text>}
+      {error && <span className="text-xs text-red-600 mt-1">{error}</span>}
     </div>
   );
 };

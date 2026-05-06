@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, Modal } from 'react-bootstrap';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -207,16 +206,14 @@ const OtpModal = ({
     }
   }, [showVerifyModal]);
 
+  if (!showVerifyModal) return null;
+
   return (
-    <Modal
-      show={showVerifyModal}
-      onHide={() => setShowVerifyModal(false)}
-      backdrop="static"
-      keyboard={false}
-      centered
-      contentClassName="VerifyModalSec"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      role="presentation"
     >
-      <Modal.Body>
+      <div className="VerifyModalSec">
         <div className="VerifyModalClose">
           <button
             type="button"
@@ -264,12 +261,14 @@ const OtpModal = ({
         </div>
         <div className="VerifyModalBottomInner">
           <div className="VerifyBtnDiv">
-            <Button
+            <button
+              type="button"
               onClick={handleVerify}
               disabled={isVerifying || timer === 0 || code.includes('')}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               {isVerifying ? 'Verifying...' : 'Verify Code'}
-            </Button>
+            </button>
             <span>
               {timer > 0
                 ? `${String(Math.floor(timer / 60)).padStart(2, '0')}:${String(timer % 60).padStart(2, '0')} sec`
@@ -291,8 +290,8 @@ const OtpModal = ({
             </Link>
           </div>
         </div>
-      </Modal.Body>
-    </Modal>
+      </div>
+    </div>
   );
 };
 

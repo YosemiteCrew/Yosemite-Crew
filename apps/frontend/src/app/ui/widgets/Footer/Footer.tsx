@@ -2,7 +2,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
-import { Container } from 'react-bootstrap';
 import { motion, Variants, useInView } from 'framer-motion';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
@@ -128,7 +127,7 @@ const Footer = () => {
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
       transition={{ duration: 0.7, ease: 'easeOut' }}
     >
-      <Container>
+      <div className="container mx-auto px-4">
         <div className="FooterData">
           <div className="FootTopData">
             <div className="leftFooter">
@@ -248,7 +247,7 @@ const Footer = () => {
             </div>
           </div>
         </div>
-      </Container>
+      </div>
     </motion.footer>
   );
 };

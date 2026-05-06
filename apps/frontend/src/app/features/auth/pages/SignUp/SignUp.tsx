@@ -1,6 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-import { Form } from 'react-bootstrap';
 import Link from 'next/link';
 import { GoCheckCircleFill } from 'react-icons/go';
 import { Icon } from '@iconify/react/dist/iconify.js';
@@ -282,7 +281,7 @@ const SignUp = ({
         </div>
 
         <div className="w-full sm:w-[70%] md:w-1/2 bg-white p-[20px] border border-card-border rounded-3xl elevation-1">
-          <Form onSubmit={handleSignUp} method="post" className="flex flex-col gap-6">
+          <form onSubmit={handleSignUp} method="post" className="flex flex-col gap-6">
             <div className="flex flex-col gap-6">
               <div className="text-display-2 text-text-primary text-center auth-title">
                 {isDeveloper ? 'Sign up for developer access' : 'Sign up'}
@@ -342,43 +341,35 @@ const SignUp = ({
             </div>
 
             <div className="flex flex-col gap-2">
-              <Form.Check
-                type="checkbox"
-                label={
-                  <>
-                    I agree to Yosemite Crew’s{' '}
-                    <Link className="policylink" href="/terms-and-conditions?ref=signup">
-                      terms and conditions
-                    </Link>{' '}
-                    and{' '}
-                    <Link className="policylink" href="/privacy-policy?ref=signup">
-                      privacy policy
-                    </Link>
-                  </>
-                }
-                className="flex! gap-2! items-start text-caption-1 text-text-primary"
-                onChange={(e) => {
-                  setAgree(e.target.checked);
-                  setInputErrors((prev) => ({ ...prev, agree: undefined }));
-                }}
-              />
-              {/* Show error for terms */}
+              <label className="flex! gap-2! items-start text-caption-1 text-text-primary cursor-pointer">
+                <input
+                  type="checkbox"
+                  onChange={(e) => {
+                    setAgree(e.target.checked);
+                    setInputErrors((prev) => ({ ...prev, agree: undefined }));
+                  }}
+                />
+                <span>
+                  {"I agree to Yosemite Crew's "}
+                  <Link className="policylink" href="/terms-and-conditions?ref=signup">
+                    terms and conditions
+                  </Link>
+                  {' and '}
+                  <Link className="policylink" href="/privacy-policy?ref=signup">
+                    privacy policy
+                  </Link>
+                </span>
+              </label>
               {inputErrors.agree && (
-                <div
-                  className={`
-                      flex items-center gap-1 px-4
-                      text-caption-2 text-text-error
-                    `}
-                >
+                <div className="flex items-center gap-1 px-4 text-caption-2 text-text-error">
                   <IoIosWarning className="text-text-error" size={14} />
                   {inputErrors.agree}
                 </div>
               )}
-              <Form.Check
-                type="checkbox"
-                label={<>Sign me up for newsletter and promotional emails</>}
-                className="flex! gap-2! items-end! text-caption-1 text-text-primary"
-              />
+              <label className="flex! gap-2! items-end! text-caption-1 text-text-primary cursor-pointer">
+                <input type="checkbox" />
+                <span>Sign me up for newsletter and promotional emails</span>
+              </label>
             </div>
 
             <div className="flex flex-col items-center gap-3">
@@ -397,7 +388,7 @@ const SignUp = ({
                 </Link>
               </div>
             </div>
-          </Form>
+          </form>
         </div>
       </div>
       <OtpModal

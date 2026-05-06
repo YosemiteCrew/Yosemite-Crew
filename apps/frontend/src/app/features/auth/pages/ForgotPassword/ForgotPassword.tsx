@@ -1,7 +1,6 @@
 'use client';
 import React, { useState } from 'react';
 import { AxiosError } from 'axios';
-import { Form } from 'react-bootstrap';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@iconify/react/dist/iconify.js';
@@ -279,10 +278,10 @@ const ForgotPassword = () => {
       {ErrorTostPopup}
       <div
         className={`
-          flex h-fit w-[450px] flex-col items-center justify-center gap-6
+          flex h-fit w-112.5 flex-col items-center justify-center gap-6
           rounded-3xl border border-card-border
           bg-(--whitebg)
-          p-[1.25rem]
+          p-5
           elevation-1
         `}
       >
@@ -295,7 +294,7 @@ const ForgotPassword = () => {
                 Enter your registered email, and we’ll send you a code to reset it.
               </div>
             </div>
-            <Form className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6">
               <FormInput
                 intype="email"
                 inname="email"
@@ -307,7 +306,7 @@ const ForgotPassword = () => {
                 <Primary href="#" onClick={handleOtp} text="Send code" />
                 <Secondary href="/signin" text="Back" />
               </div>
-            </Form>
+            </div>
           </div>
         )}
 
@@ -321,21 +320,19 @@ const ForgotPassword = () => {
               </div>
             </div>
 
-            <Form style={{ marginBottom: '0px' }}>
-              <div className="verifyInput">
-                {otp.map((digit, index) => (
-                  <Form.Control
-                    key={`${digit}-${index}`}
-                    type="text"
-                    value={digit}
-                    id={`otp-input-${index}`}
-                    onChange={(e) => handleChange(e, index)}
-                    onKeyDown={(e) => handleKeyDown(e, index)} // Handle backspace
-                    maxLength={1}
-                  />
-                ))}
-              </div>
-            </Form>
+            <div className="verifyInput">
+              {otp.map((digit, index) => (
+                <input
+                  key={`${digit}-${index}`}
+                  type="text"
+                  value={digit}
+                  id={`otp-input-${index}`}
+                  onChange={(e) => handleChange(e, index)}
+                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  maxLength={1}
+                />
+              ))}
+            </div>
 
             <div className="flex flex-col gap-3 items-center w-full">
               <Primary
@@ -363,31 +360,29 @@ const ForgotPassword = () => {
 
         {showNewPassword && (
           <div className="flex flex-col gap-6 w-full">
-            <Form className="flex flex-col gap-6 w-full">
-              <div className="flex flex-col gap-6 w-full">
-                <div className="text-display-2 text-text-primary text-center">Set new password</div>
-                <div className="flex flex-col gap-3">
-                  <FormInputPass
-                    intype="password"
-                    inname="password"
-                    value={password}
-                    inlabel="Enter New Password"
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <FormInputPass
-                    intype="password"
-                    inname="confirmPassword"
-                    value={confirmPassword}
-                    inlabel="Confirm Password"
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
+            <div className="flex flex-col gap-6 w-full">
+              <div className="text-display-2 text-text-primary text-center">Set new password</div>
+              <div className="flex flex-col gap-3">
+                <FormInputPass
+                  intype="password"
+                  inname="password"
+                  value={password}
+                  inlabel="Enter New Password"
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <FormInputPass
+                  intype="password"
+                  inname="confirmPassword"
+                  value={confirmPassword}
+                  inlabel="Confirm Password"
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
               </div>
-              <div className="flex flex-col gap-3 w-full">
-                <Primary href="#" onClick={handlePasswordChange} text="Reset password" />
-                <Secondary href="#" text="Back" onClick={() => setShowNewPassword(false)} />
-              </div>
-            </Form>
+            </div>
+            <div className="flex flex-col gap-3 w-full">
+              <Primary href="#" onClick={handlePasswordChange} text="Reset password" />
+              <Secondary href="#" text="Back" onClick={() => setShowNewPassword(false)} />
+            </div>
           </div>
         )}
       </div>
