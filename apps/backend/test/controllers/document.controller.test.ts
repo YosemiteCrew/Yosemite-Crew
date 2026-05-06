@@ -34,6 +34,7 @@ jest.mock("../../src/services/document.service", () => {
       getByIdForPms: jest.fn(),
       deleteForParent: jest.fn(),
       getAllAttachmentUrls: jest.fn(),
+      getAttachmentUrlByKey: jest.fn(),
       searchByTitleForParent: jest.fn(),
     },
   };
@@ -555,9 +556,12 @@ describe("DocumentController", () => {
 
     it("should return 200 and url on success", async () => {
       req.body = { key: "k1" };
-      (generatePresignedDownloadUrl as jest.Mock).mockResolvedValue(
-        "signed_url",
-      );
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: "p1" });
+      (
+        DocumentService.getAttachmentUrlByKey as jest.Mock
+      ).mockResolvedValueOnce("signed_url");
       await DocumentController.getSignedDownloadUrl(req, res);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.send).toHaveBeenCalledWith("signed_url");
@@ -565,9 +569,12 @@ describe("DocumentController", () => {
 
     it("should handle errors", async () => {
       req.body = { key: "k1" };
-      (generatePresignedDownloadUrl as jest.Mock).mockRejectedValue(
-        new Error("Test error"),
-      );
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: "p1" });
+      (
+        DocumentService.getAttachmentUrlByKey as jest.Mock
+      ).mockRejectedValueOnce(new Error("Test error"));
       await DocumentController.getSignedDownloadUrl(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });

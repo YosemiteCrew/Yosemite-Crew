@@ -4,6 +4,7 @@ const authorizeCognito = jest.fn((_req, _res, next) => next());
 
 const ServiceController = {
   createService: jest.fn(),
+  createMany: jest.fn(),
   listOrganisationByServiceName: jest.fn(),
   listByOrganisation: jest.fn(),
   getBookableSlotsForService: jest.fn(),

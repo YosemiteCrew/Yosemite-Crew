@@ -952,7 +952,7 @@ export const ServiceService = {
           .map((serviceId) => requireSafeString(serviceId, "serviceId"))
           .filter(Boolean),
       ),
-    ).sort();
+    ).sort((a, b) => a.localeCompare(b));
 
     if (serviceIds.length === 0) {
       return [];
