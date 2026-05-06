@@ -53,6 +53,11 @@ export const usePopoverManager = ({
   useEffect(() => {
     if (!activePopoverKey) return;
     const closePopover = (event: Event) => {
+      // resize fires on window — event.target is not a DOM Node, always close
+      if (event.type === 'resize') {
+        setActivePopoverKey(null);
+        return;
+      }
       const target = event.target as Node | null;
       if (popoverDialogRef.current?.contains(target)) return;
       if ((target as Element | null)?.closest?.('[data-popover-panel]')) return;
