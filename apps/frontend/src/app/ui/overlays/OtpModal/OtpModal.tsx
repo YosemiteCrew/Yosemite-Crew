@@ -10,6 +10,7 @@ import { postData } from '@/app/services/axios';
 import { useSignOut } from '@/app/hooks/useAuth';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
 import './OtpModal.css';
 
@@ -84,7 +85,12 @@ const OtpModal = ({
         message: 'Please enter the full OTP',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -99,6 +105,7 @@ const OtpModal = ({
         setShowVerifyModal(false);
         try {
           await signIn(email, password);
+          defaultSidebarToCollapsed();
           await afterAuthSuccess();
           // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
           globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
@@ -117,7 +124,12 @@ const OtpModal = ({
             message: `Sign in failed`,
             errortext: 'Error',
             iconElement: (
-              <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+              <Icon
+                icon="solar:danger-triangle-bold"
+                width="20"
+                height="20"
+                color="var(--color-danger-600)"
+              />
             ),
             className: 'errofoundbg',
           });
@@ -140,7 +152,12 @@ const OtpModal = ({
           message: 'A new verification code has been sent to your email.',
           errortext: 'Code Resent',
           iconElement: (
-            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-success-bright)"
+            />
           ),
           className: 'CongratsBg',
         });
@@ -155,7 +172,12 @@ const OtpModal = ({
         message: error.message || 'Error resending code.',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });

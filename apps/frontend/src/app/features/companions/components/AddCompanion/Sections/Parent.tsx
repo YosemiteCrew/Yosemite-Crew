@@ -282,7 +282,7 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
                 </div>
                 <div className="col-span-7">
                   <FormInput
-                    intype="tel"
+                    intype="text"
                     inname="number"
                     value={localPhoneNumber || ''}
                     inlabel="Phone number"

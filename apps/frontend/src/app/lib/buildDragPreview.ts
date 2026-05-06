@@ -12,7 +12,7 @@ export const buildDragPreview = (
   preview.style.borderRadius = '16px';
   preview.style.overflow = 'hidden';
   preview.style.boxShadow = 'none';
-  preview.style.background = '#fff';
+  preview.style.background = 'var(--color-neutral-0)';
   preview.style.transform = `scale(${options?.scale ?? 1})`;
   if (options?.transformOrigin) {
     preview.style.transformOrigin = options.transformOrigin;

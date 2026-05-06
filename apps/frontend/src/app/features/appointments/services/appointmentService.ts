@@ -115,13 +115,15 @@ export const loadAppointmentsForPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }): Promise<void> => {
-  const { startLoading, status, setAppointmentsForOrg } = useAppointmentStore.getState();
+  const { startLoading, status, appointmentIdsByOrgId, setAppointmentsForOrg } =
+    useAppointmentStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn('No primary organization selected. Cannot load appointments.');
     return;
   }
-  if (!shouldFetchAppointments(status, opts)) return;
+  const hasOrgData = !appointmentIdsByOrgId || Object.hasOwn(appointmentIdsByOrgId, primaryOrgId);
+  if (!shouldFetchAppointments(status, hasOrgData, opts)) return;
   if (!opts?.silent) startLoading();
   try {
     const res = await getData<{ data: AppointmentResponseDTO[] }>(
@@ -137,9 +139,11 @@ export const loadAppointmentsForPrimaryOrg = async (opts?: {
 
 const shouldFetchAppointments = (
   status: ReturnType<typeof useAppointmentStore.getState>['status'],
+  hasOrgData: boolean,
   opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
+  if (!hasOrgData) return true;
   return status === 'idle' || status === 'error';
 };
 
@@ -281,15 +285,16 @@ export const getCalendarPrefillMatchesForPrimaryOrg = async ({
     return existingRequest;
   }
 
+  const payload = {
+    organisationId: primaryOrgId,
+    date: dateLabel,
+    minuteOfDay,
+    leadId: normalizeLeadId(leadId) || undefined,
+    serviceIds: normalizedServiceIds,
+  };
   const requestPromise = postData<CalendarPrefillResolutionResponse>(
     '/fhir/v1/service/bookable-slots/calendar-prefill',
-    {
-      organisationId: primaryOrgId,
-      date: dateLabel,
-      minuteOfDay,
-      leadId: normalizeLeadId(leadId) || undefined,
-      serviceIds: normalizedServiceIds,
-    }
+    payload
   )
     .then((res) => {
       return (res.data?.data?.matches ?? [])

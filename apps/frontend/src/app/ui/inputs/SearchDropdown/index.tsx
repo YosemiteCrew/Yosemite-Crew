@@ -91,7 +91,7 @@ const SearchDropdown = ({
           className="outline-none border-0 text-body-4 text-text-primary w-full placeholder:text-input-text-placeholder placeholder:text-body-4"
           placeholder={placeholder}
         />
-        <IoIosSearch size={22} color="#302F2E" className="cursor-pointer" />
+        <IoIosSearch size={22} color="var(--color-neutral-900)" className="cursor-pointer" />
       </div>
       {canSearch && (
         <div

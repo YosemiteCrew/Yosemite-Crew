@@ -17,14 +17,14 @@ const BoardScopeToggle = ({
 }: BoardScopeToggleProps) => {
   const isAll = !showMineOnly;
   const sliderClass = isAll
-    ? 'translate-x-0 bg-[#247AED] border-[#247AED]'
-    : 'translate-x-full bg-[#D28F9A] border-[#D28F9A]';
+    ? 'translate-x-0 bg-blue-text border-blue-text'
+    : 'translate-x-full bg-success-700 border-success-700';
   const allTextClass = isAll ? 'text-neutral-0' : 'text-text-secondary';
   const mineTextClass = isAll ? 'text-text-secondary' : 'text-neutral-0';
 
   return (
     <div
-      className={`relative inline-flex items-center h-9 w-[320px] max-w-full rounded-[999px]! border border-card-border bg-white overflow-hidden ${
+      className={`relative inline-flex items-center h-10 w-[320px] max-w-full rounded-[999px]! border border-card-border bg-white overflow-hidden ${
         disabled ? 'opacity-70' : ''
       }`}
     >

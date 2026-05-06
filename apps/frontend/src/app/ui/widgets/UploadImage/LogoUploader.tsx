@@ -1,12 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useEffect, useState } from "react";
-import { IoCamera } from "react-icons/io5";
-import { FiMinusCircle } from "react-icons/fi";
-import { postData } from "@/app/services/axios";
-import axios from "axios";
-import { sanitizeUrl } from "@braintree/sanitize-url";
+import React, { useEffect, useState } from 'react';
+import { IoCamera } from 'react-icons/io5';
+import { FiMinusCircle } from 'react-icons/fi';
+import { postData } from '@/app/services/axios';
+import axios from 'axios';
+import { sanitizeUrl } from '@braintree/sanitize-url';
 
-import "./LogoUploader.css";
+import './LogoUploader.css';
 
 type LogoUploaderProps = {
   title: string;
@@ -20,7 +20,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isSafePreviewUrl = (url: string) => url.startsWith("blob:");
+  const isSafePreviewUrl = (url: string) => url.startsWith('blob:');
 
   useEffect(() => {
     return () => {
@@ -31,7 +31,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
   useEffect(() => {
     if (preview && !isSafePreviewUrl(preview)) {
       setPreview(null);
-      setError("Invalid preview source");
+      setError('Invalid preview source');
     }
   }, [preview]);
 
@@ -44,7 +44,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
 
   const uploadToS3 = async (uploadUrl: string, file: File) => {
     await axios.put(uploadUrl, file, {
-      headers: { "Content-Type": file?.type },
+      headers: { 'Content-Type': file?.type },
       withCredentials: false,
     });
   };
@@ -54,8 +54,8 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
     if (!file) return;
     setError(null);
     setIsUploading(true);
-    if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
-      setError("Only non-SVG image files are supported.");
+    if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+      setError('Only non-SVG image files are supported.');
       setIsUploading(false);
       return;
     }
@@ -67,7 +67,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
       await uploadToS3(signed.uploadUrl, file);
       setImageUrl(signed.s3Key);
     } catch (err: any) {
-      setError(err?.message || "Upload failed");
+      setError(err?.message || 'Upload failed');
       handleRemoveImage();
     } finally {
       setIsUploading(false);
@@ -83,9 +83,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
   return (
     <div className="step-logo-container">
       <div className="step-logo-upload">
-        {preview &&
-        isSafePreviewUrl(preview) &&
-        sanitizeUrl(preview) !== "about:blank" ? (
+        {preview && isSafePreviewUrl(preview) && sanitizeUrl(preview) !== 'about:blank' ? (
           <>
             <img
               src={sanitizeUrl(preview)}
@@ -93,13 +91,13 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               style={{
                 width: 58,
                 height: 58,
-                objectFit: "cover",
-                borderRadius: "50%",
+                objectFit: 'cover',
+                borderRadius: '50%',
               }}
               className="step-logo-preview"
             />
             <button className="remove-icon" onClick={handleRemoveImage}>
-              <FiMinusCircle color="#247AED" size={16} />
+              <FiMinusCircle color="var(--color-primary-500)" size={16} />
             </button>
           </>
         ) : (
@@ -109,18 +107,16 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               id="logo-upload"
               accept="image/*"
               onChange={handleImageChange}
-              style={{ display: "none" }}
+              style={{ display: 'none' }}
             />
-            <label htmlFor="logo-upload" style={{ cursor: "pointer" }}>
-              <IoCamera color="#595958" size={32} />
+            <label htmlFor="logo-upload" style={{ cursor: 'pointer' }}>
+              <IoCamera color="var(--color-neutral-700)" size={32} />
             </label>
           </>
         )}
       </div>
       <div className="step-logo-title-container">
-        <div className="step-logo-title">
-          {isUploading ? "Uploading..." : title}
-        </div>
+        <div className="step-logo-title">{isUploading ? 'Uploading...' : title}</div>
         {error && <div className="text-red-600 text-sm">{error}</div>}
       </div>
     </div>

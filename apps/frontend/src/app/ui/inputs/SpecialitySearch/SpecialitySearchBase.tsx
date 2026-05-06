@@ -100,7 +100,7 @@ const SpecialitySearchBase = <T extends { name: string }>({
 
   return (
     <div className="step-search" ref={wrapperRef}>
-      <IoSearch size={20} className="step-search-icon" color="#302F2E" />
+      <IoSearch size={20} className="step-search-icon" color="var(--color-neutral-900)" />
       <input
         type="text"
         name="speciality-search"

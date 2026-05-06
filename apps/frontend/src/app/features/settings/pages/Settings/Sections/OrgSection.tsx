@@ -7,19 +7,27 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import {
   AvailabilityState,
   convertAvailability,
+  convertFromGetApi,
   daysOfWeek,
   DEFAULT_INTERVAL,
   hasAtLeastOneAvailability,
 } from '@/app/features/appointments/components/Availability/utils';
-import { upsertAvailability } from '@/app/features/organization/services/availabilityService';
+import {
+  upsertAvailability,
+  upsertTeamAvailability,
+} from '@/app/features/organization/services/availabilityService';
 import { usePrimaryAvailability } from '@/app/hooks/useAvailabiities';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { Gender, UserProfile } from '@/app/features/users/types/profile';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
+import { updateUser } from '@/app/features/users/services/userService';
 import { GenderOptions } from '@/app/features/companions/types/companion';
 import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useNotify } from '@/app/hooks/useNotify';
 import { resolveTimezoneFromCountry, setPreferredTimeZone } from '@/app/lib/timezone';
+import { useAuthStore } from '@/app/stores/authStore';
+import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/services/teamService';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 const ProfessionalFields = [
   {
@@ -97,14 +105,11 @@ const AddressFields = [
   },
 ];
 
-const OrgRelatedFields = [
-  {
-    label: 'Name',
-    key: 'name',
-    required: false,
-    editable: false,
-    type: 'text',
-  },
+const UserOrgProfileFields = [
+  { label: 'First name', key: 'given_name', required: true, editable: true, type: 'text' },
+  { label: 'Last name', key: 'family_name', required: true, editable: true, type: 'text' },
+  { label: 'Email address', key: 'email', required: true, editable: false, type: 'text' },
+  { label: 'Org name', key: 'name', required: false, editable: false, type: 'text' },
   {
     label: 'Role',
     key: 'roleDisplay',
@@ -121,6 +126,7 @@ const OrgRelatedFields = [
     type: 'select',
     options: EmploymentTypes,
   },
+  { label: '', key: '_sep1', required: false, editable: false, type: 'separator' },
   {
     label: 'Gender',
     key: 'gender',
@@ -136,23 +142,13 @@ const OrgRelatedFields = [
     editable: true,
     type: 'dateString',
   },
-  {
-    label: 'Phone number',
-    key: 'phoneNumber',
-    required: false,
-    editable: true,
-    type: 'text',
-  },
-  {
-    label: 'Country',
-    key: 'country',
-    required: false,
-    editable: true,
-    type: 'country',
-  },
+  { label: 'Phone number', key: 'phoneNumber', required: false, editable: true, type: 'text' },
+  { label: 'Country', key: 'country', required: false, editable: true, type: 'country' },
 ];
 
 const OrgSection = () => {
+  const attributes = useAuthStore((s) => s.attributes);
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const { org, membership } = usePrimaryOrgWithMembership();
   const { availabilities } = usePrimaryAvailability();
   const { notify } = useNotify();
@@ -174,8 +170,11 @@ const OrgSection = () => {
     }, {} as AvailabilityState)
   );
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
-  const orgInfoData = useMemo(
+  const userOrgProfileData = useMemo(
     () => ({
+      given_name: attributes?.given_name ?? '',
+      family_name: attributes?.family_name ?? '',
+      email: attributes?.email ?? '',
       name: org?.name ?? '',
       roleDisplay: membership?.roleDisplay ?? '',
       employmentType: profile?.personalDetails?.employmentType ?? '',
@@ -184,7 +183,7 @@ const OrgSection = () => {
       phoneNumber: profile?.personalDetails?.phoneNumber ?? '',
       country: profile?.personalDetails?.address?.country ?? '',
     }),
-    [org, membership, profile]
+    [attributes, org, membership, profile]
   );
 
   const addressData = useMemo(
@@ -210,10 +209,30 @@ const OrgSection = () => {
   );
 
   useEffect(() => {
-    if (availabilities) {
+    if (availabilities && !membership?.practitionerReference) {
       setAvailability(availabilities);
     }
-  }, [availabilities]);
+  }, [availabilities, membership?.practitionerReference]);
+
+  useEffect(() => {
+    const practitionerId = membership?.practitionerReference;
+    if (!practitionerId) return;
+    let cancelled = false;
+
+    (async () => {
+      const data = await getProfileForUserForPrimaryOrg(practitionerId);
+      if (cancelled) return;
+      const response = data as { baseAvailability?: unknown };
+      const baseAvailability = Array.isArray(response?.baseAvailability)
+        ? response.baseAvailability
+        : [];
+      setAvailability(convertFromGetApi(baseAvailability));
+    })().catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [membership?.practitionerReference]);
 
   const handleClick = async () => {
     if (isSavingAvailability) return;
@@ -229,7 +248,19 @@ const OrgSection = () => {
         console.log('No availability selected');
         return;
       }
-      await upsertAvailability(converted, null);
+      if (membership?.practitionerReference) {
+        await upsertTeamAvailability(
+          {
+            _id: membership.id ?? membership.practitionerReference,
+            practionerId: membership.practitionerReference,
+            organisationId: primaryOrgId ?? String(org?._id ?? ''),
+          } as any,
+          converted,
+          null
+        );
+      } else {
+        await upsertAvailability(converted, null);
+      }
       notify('success', {
         title: 'Availability updated',
         text: 'Availability have been updated successfully.',
@@ -245,41 +276,39 @@ const OrgSection = () => {
     }
   };
 
-  if (!org || !membership) return null;
+  if (!attributes || !org || !membership) return null;
 
-  const updateOrgFields = async (values: any) => {
+  const updateUserOrgProfileFields = async (values: any) => {
     try {
-      if (!profile) return;
-      const payload: UserProfile = {
-        ...profile,
-        _id: profile?._id,
-        personalDetails: {
-          ...profile?.personalDetails,
-          gender: values.gender as Gender,
-          dateOfBirth: values.dateOfBirth,
-          phoneNumber: values.phoneNumber,
-          address: {
-            ...profile?.personalDetails?.address,
-            country: values.country,
+      await updateUser(values.given_name, values.family_name);
+      if (profile) {
+        const payload: UserProfile = {
+          ...profile,
+          _id: profile._id,
+          personalDetails: {
+            ...profile.personalDetails,
+            gender: values.gender as Gender,
+            dateOfBirth: values.dateOfBirth,
+            phoneNumber: values.phoneNumber,
+            address: {
+              ...profile.personalDetails?.address,
+              country: values.country,
+            },
           },
-        },
-      };
-      await upsertUserProfile(payload);
-      const resolvedTimezone = resolveTimezoneFromCountry(values.country);
-      if (resolvedTimezone) {
-        setPreferredTimeZone(resolvedTimezone);
+        };
+        await upsertUserProfile(payload);
+        const resolvedTimezone = resolveTimezoneFromCountry(values.country);
+        if (resolvedTimezone) setPreferredTimeZone(resolvedTimezone);
       }
       notify('success', {
-        title: 'Personal details updated',
-        text: resolvedTimezone
-          ? `Personal details have been updated successfully. Timezone set to ${resolvedTimezone}.`
-          : 'Personal details have been updated successfully.',
+        title: 'Profile updated',
+        text: 'User profile has been updated successfully.',
       });
     } catch (error) {
       console.log(error);
       notify('error', {
-        title: 'Unable to update personal details',
-        text: 'Failed to update personal details. Please try again.',
+        title: 'Unable to update profile',
+        text: 'Failed to update user profile. Please try again.',
       });
     }
   };
@@ -348,10 +377,11 @@ const OrgSection = () => {
   return (
     <div className="flex flex-col gap-6">
       <ProfileCard
-        title="Org Details"
-        fields={OrgRelatedFields}
-        org={orgInfoData}
-        onSave={updateOrgFields}
+        title="User profile"
+        fields={UserOrgProfileFields}
+        org={userOrgProfileData}
+        showProfileUser
+        onSave={updateUserOrgProfileFields}
       />
       <div className="border border-card-border rounded-2xl">
         <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">

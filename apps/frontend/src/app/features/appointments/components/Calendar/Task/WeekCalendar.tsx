@@ -1,4 +1,5 @@
 import React, { useMemo, useRef } from 'react';
+import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import {
   getWeekDays,
   HOURS_IN_DAY,
@@ -86,6 +87,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const onWheelBoundary = useScrollBoundaryWheel();
   const now = useCalendarNow();
   const height = getHourRowHeightPx(zoomMode);
   const dayColumnsStyle = useMemo(
@@ -188,6 +190,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
               overflowY: 'auto',
               paddingBottom: zoomMode === 'out' ? 30 : 40,
             }}
+            onWheel={onWheelBoundary}
             data-calendar-scroll="true"
           >
             <div className="relative pb-4">
@@ -263,12 +266,25 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               }}
                             >
                               {nowTimeLabel && (
-                                <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+                                <div
+                                  className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
+                                  style={{ color: 'var(--color-danger-500)' }}
+                                >
                                   {nowTimeLabel}
                                 </div>
                               )}
-                              <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
-                              <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+                              <div
+                                className="absolute -left-1.25 w-3 h-3 rounded-full translate-y-[-50%]"
+                                style={{ backgroundColor: 'var(--color-danger-500)' }}
+                              />
+                              <div
+                                className="translate-y-[-50%]"
+                                style={{
+                                  borderTopWidth: '2px',
+                                  borderTopStyle: 'solid',
+                                  borderTopColor: 'var(--color-danger-500)',
+                                }}
+                              />
                             </div>
                           )}
                         </div>

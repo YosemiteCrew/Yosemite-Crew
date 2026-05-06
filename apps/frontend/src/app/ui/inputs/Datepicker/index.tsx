@@ -36,10 +36,10 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
           ref={ref}
           type="button"
           onClick={onClick}
-          className="rounded-2xl! border! border-input-border-default! px-[13px] py-[13px] transition-all duration-300 ease-in-out"
+          className={`flex h-12 w-12 items-center justify-center rounded-2xl! border! border-input-border-default! transition-all duration-300 ease-in-out ${className ?? ''}`}
           aria-label="Toggle calendar"
         >
-          <IoCalendarClear size={20} color="#302f2e" />
+          <IoCalendarClear size={20} color="var(--color-neutral-900)" />
         </button>
       );
     }
@@ -65,7 +65,7 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
           {placeholder || 'Date of birth'}
         </span>
         <span className="absolute right-6 top-1/2 -translate-y-1/2">
-          <IoCalendarClear size={20} color="#302f2e" />
+          <IoCalendarClear size={20} color="var(--color-neutral-900)" />
         </span>
       </button>
     );

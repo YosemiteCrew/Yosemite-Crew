@@ -34,5 +34,5 @@ export const setSavedDefaultAppointmentsView = (view: DefaultAppointmentsView | 
 };
 
 export const resolveDefaultAppointmentsView = (): DefaultAppointmentsView => {
-  return getSavedDefaultAppointmentsView() ?? 'board';
+  return getSavedDefaultAppointmentsView() ?? 'calendar';
 };

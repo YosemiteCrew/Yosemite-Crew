@@ -1,5 +1,5 @@
-import React from "react";
-import { IoIosClose } from "react-icons/io";
+import React from 'react';
+import { IoIosClose } from 'react-icons/io';
 
 type CloseProps = {
   onClick?: () => void;
@@ -8,7 +8,7 @@ type CloseProps = {
 
 const Close = ({ onClick, iconOnly = false }: CloseProps) => {
   if (iconOnly) {
-    return <IoIosClose size={28} color="#302f2e" className="cursor-pointer" />;
+    return <IoIosClose size={28} color="var(--color-neutral-900)" className="cursor-pointer" />;
   }
 
   return (
@@ -17,7 +17,7 @@ const Close = ({ onClick, iconOnly = false }: CloseProps) => {
       className="flex items-center justify-center rounded-full! hover:bg-card-hover! p-2 transition-all duration-300 ease-in-out"
       onClick={onClick}
     >
-      <IoIosClose size={28} color="#302f2e" className="cursor-pointer" />
+      <IoIosClose size={28} color="var(--color-neutral-900)" className="cursor-pointer" />
     </button>
   );
 };

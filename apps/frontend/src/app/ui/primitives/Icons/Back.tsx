@@ -1,5 +1,5 @@
-import React from "react";
-import { IoChevronBack } from "react-icons/io5";
+import React from 'react';
+import { IoChevronBack } from 'react-icons/io5';
 
 const Back = ({
   onClick,
@@ -16,7 +16,7 @@ const Back = ({
       onClick={onClick}
       disabled={disabled}
     >
-      <IoChevronBack size={20} color="#302f2e" />
+      <IoChevronBack size={20} color="var(--color-neutral-900)" />
     </button>
   );
 };

@@ -5,6 +5,7 @@ import { loadAvailability } from '@/app/features/organization/services/availabil
 const mockUseAvailabilityStore = jest.fn();
 const mockUseOrgStore = jest.fn();
 const mockUseAuthStore = jest.fn();
+const mockUsePrimaryOrgWithMembership = jest.fn();
 const mockConvertFromGetApi = jest.fn();
 
 jest.mock('@/app/features/organization/services/availabilityService', () => ({
@@ -15,12 +16,20 @@ jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: (selector: any) => mockUseOrgStore(selector),
 }));
 
+const mockAvailabilityGetState = jest.fn(() => ({ status: 'idle' }));
+
 jest.mock('@/app/stores/availabilityStore', () => ({
-  useAvailabilityStore: (selector: any) => mockUseAvailabilityStore(selector),
+  useAvailabilityStore: Object.assign((selector: any) => mockUseAvailabilityStore(selector), {
+    getState: () => mockAvailabilityGetState(),
+  }),
 }));
 
 jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: (selector: any) => mockUseAuthStore(selector),
+}));
+
+jest.mock('@/app/hooks/useOrgSelectors', () => ({
+  usePrimaryOrgWithMembership: () => mockUsePrimaryOrgWithMembership(),
 }));
 
 jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
@@ -30,20 +39,24 @@ jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
 describe('useLoadAvailabilities', () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    mockUseOrgStore.mockImplementation((selector: any) => selector({ orgIds: ['org-1'] }));
-    mockUseAvailabilityStore.mockImplementation((selector: any) => selector({ status: 'idle' }));
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({ availabilityIdsByOrgId: {} })
+    );
+    mockAvailabilityGetState.mockReturnValue({ status: 'idle' });
   });
 
-  it('loads availability when status is idle and org ids exist', async () => {
+  it('loads availability when primaryOrgId is set and not yet loaded', async () => {
     renderHook(() => useLoadAvailabilities());
 
     await waitFor(() => {
       expect(loadAvailability).toHaveBeenCalledTimes(1);
     });
+    expect(loadAvailability).toHaveBeenCalledWith({ silent: true, orgId: 'org-1' });
   });
 
-  it('does not load when org ids are empty', async () => {
-    mockUseOrgStore.mockImplementation((selector: any) => selector({ orgIds: [] }));
+  it('does not load when primaryOrgId is null', async () => {
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: null }));
 
     renderHook(() => useLoadAvailabilities());
 
@@ -52,8 +65,20 @@ describe('useLoadAvailabilities', () => {
     });
   });
 
-  it('does not load when status is not idle', async () => {
-    mockUseAvailabilityStore.mockImplementation((selector: any) => selector({ status: 'success' }));
+  it('does not load when availability already loaded for primaryOrgId', async () => {
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({ availabilityIdsByOrgId: { 'org-1': [] } })
+    );
+
+    renderHook(() => useLoadAvailabilities());
+
+    await waitFor(() => {
+      expect(loadAvailability).not.toHaveBeenCalled();
+    });
+  });
+
+  it('does not load when status is loading', async () => {
+    mockAvailabilityGetState.mockReturnValue({ status: 'loading' });
 
     renderHook(() => useLoadAvailabilities());
 
@@ -69,6 +94,12 @@ describe('usePrimaryAvailability', () => {
     mockUseAuthStore.mockImplementation((selector: any) =>
       selector({ attributes: { sub: 'Practitioner/USER-1' } })
     );
+    mockUsePrimaryOrgWithMembership.mockReturnValue({
+      membership: {
+        id: 'membership-1',
+        practitionerReference: 'Practitioner/USER-1',
+      },
+    });
     mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
     mockUseAvailabilityStore.mockImplementation((selector: any) =>
       selector({
@@ -103,6 +134,12 @@ describe('usePrimaryAvailability', () => {
     mockUseAuthStore.mockImplementation((selector: any) =>
       selector({ attributes: { sub: 'unknown' } })
     );
+    mockUsePrimaryOrgWithMembership.mockReturnValue({
+      membership: {
+        id: 'membership-unknown',
+        practitionerReference: 'Practitioner/unknown',
+      },
+    });
 
     renderHook(() => usePrimaryAvailability());
 

@@ -45,7 +45,7 @@ const TimeInputButton = forwardRef<HTMLButtonElement, TimeInputButtonProps>(
           {label}
         </span>
         <span className="absolute right-6 top-1/2 -translate-y-1/2">
-          <IoTimeOutline size={20} color="#302f2e" />
+          <IoTimeOutline size={20} color="var(--color-neutral-900)" />
         </span>
       </button>
     );

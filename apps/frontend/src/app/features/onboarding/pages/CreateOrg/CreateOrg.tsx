@@ -16,21 +16,22 @@ import { useSpecialitiesWithServiceNamesForPrimaryOrg } from '@/app/hooks/useSpe
 import { useRouter, useSearchParams } from 'next/navigation';
 import { findPhoneData } from '@/app/features/companions/components/AddCompanion/type';
 import { validateOrgAddress, validateOrgBasics } from '@/app/lib/organizationOnboardingValidation';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 import './CreateOrg.css';
 
 const OrgSteps = [
   {
     title: 'Organization',
-    logo: <HiShoppingBag color="#fff" size={20} />,
+    logo: <HiShoppingBag color="var(--color-neutral-0)" size={20} />,
   },
   {
     title: 'Address',
-    logo: <IoLocationSharp color="#fff" size={20} />,
+    logo: <IoLocationSharp color="var(--color-neutral-0)" size={20} />,
   },
   {
     title: 'Specialties',
-    logo: <FaSuitcaseMedical color="#fff" size={18} />,
+    logo: <FaSuitcaseMedical color="var(--color-neutral-0)" size={18} />,
   },
 ];
 
@@ -97,12 +98,17 @@ const CreateOrg = () => {
   const [orgErrors, setOrgErrors] = useState<OrgStepErrors>({});
   const [specialities, setSpecialities] = useState<SpecialityWeb[]>([]);
   const [formData, setFormData] = useState<Organisation>(EMPTY_ORG);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const isCompletedRedirect = isReady && computedStep === 3;
+  const shouldBlockForTransition = isTransitioning || isCompletedRedirect;
+  useFullscreenLoader('create-org-transition', shouldBlockForTransition);
 
   useEffect(() => {
     if (!isReady) {
       return;
     }
     if (computedStep === 3) {
+      setIsTransitioning(true);
       router.replace('/dashboard');
       return;
     }
@@ -127,7 +133,7 @@ const CreateOrg = () => {
     }
   }, [org, storeSpecialities, storeSpecialitiesWithServices, computedStep, isReady, router]);
 
-  if (!isReady) {
+  if (!isReady || isCompletedRedirect) {
     return null;
   }
 
@@ -184,7 +190,7 @@ const CreateOrg = () => {
   const prevStep = () => setActiveStep((s) => Math.max(s - 1, 0));
 
   return (
-    <div className="create-org-wrapper">
+    <div className={`create-org-wrapper${isTransitioning ? ' invisible pointer-events-none' : ''}`}>
       <CreateOrgProgress
         activeStep={activeStep}
         canSelectStep={canSelectStep}
@@ -215,6 +221,7 @@ const CreateOrg = () => {
             formData={formData}
             initialSpecialities={initialSpecialities}
             isExistingOrg={Boolean(orgIdFromQuery)}
+            onRedirectingChange={setIsTransitioning}
             prevStep={prevStep}
             specialities={specialities}
             setFormData={setFormData}

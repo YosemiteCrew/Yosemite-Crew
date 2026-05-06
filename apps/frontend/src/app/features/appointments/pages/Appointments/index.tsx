@@ -40,6 +40,12 @@ import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsVie
 import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
+import { useOrgStore } from '@/app/stores/orgStore';
+import {
+  appointmentViewToLocal,
+  normalizePmsPreferences,
+} from '@/app/features/settings/utils/pmsPreferences';
 
 const Appointments = () => {
   const rawAppointments = useAppointmentsForPrimaryOrg();
@@ -153,6 +159,11 @@ const Appointments = () => {
     return normalizeLeadId(activeAppointment.lead?.id) === currentUserLeadId;
   }, [canEditAny, canEditOwn, activeAppointment, currentUserLeadId]);
 
+  const profile = usePrimaryOrgProfile();
+  const primaryOrgType = useOrgStore((s) =>
+    s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
+  );
+
   const [activeCalendar, setActiveCalendar] = useState('team');
   const [activeView, setActiveView] = useState<string>(resolveDefaultAppointmentsView);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -161,6 +172,15 @@ const Appointments = () => {
     activeView,
     topOffset: activeView === 'list' ? 72 : 16,
   });
+
+  const viewInitializedFromProfileRef = useRef(false);
+  useEffect(() => {
+    if (viewInitializedFromProfileRef.current || !profile) return;
+    const prefs = normalizePmsPreferences(profile.personalDetails?.pmsPreferences, primaryOrgType);
+    const profileView = appointmentViewToLocal(prefs.appointmentView);
+    setActiveView(profileView);
+    viewInitializedFromProfileRef.current = true;
+  }, [profile, primaryOrgType]);
 
   useEffect(() => {
     if (activeCalendar === 'week') {
@@ -258,17 +278,17 @@ const Appointments = () => {
     handledDeepLinkRef.current = deepLinkKey;
   }, [appointments, searchParams]);
 
-  const hasEmergency = useMemo(
-    () =>
-      appointments.some(
-        (a) =>
-          a.isEmergency &&
-          a.status !== 'CANCELLED' &&
-          a.status !== 'COMPLETED' &&
-          a.status !== 'NO_SHOW'
-      ),
-    [appointments]
-  );
+  const hasEmergency = useMemo(() => {
+    const now = new Date();
+    return appointments.some(
+      (a) =>
+        a.isEmergency &&
+        a.startTime > now &&
+        a.status !== 'CANCELLED' &&
+        a.status !== 'COMPLETED' &&
+        a.status !== 'NO_SHOW'
+    );
+  }, [appointments]);
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -381,7 +401,7 @@ const Appointments = () => {
 
   return (
     <div className="flex flex-col relative min-w-0">
-      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+      <div className="flex flex-col gap-3 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-4! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-4! lg:pb-3!">
         <TitleCalendar
           title="Appointments"
           description="Schedule and manage appointments across day, week, and team views, then drill into tasks, chat, and billing details for each visit."

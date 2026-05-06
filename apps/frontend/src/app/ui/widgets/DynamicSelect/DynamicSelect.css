@@ -16,7 +16,7 @@
   background-color: transparent;
   position: relative;
   border: 1px solid var(--notibg);
-  color: #31294399;
+  color: var(--color-select-ink-muted);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -36,17 +36,17 @@
   font-size: 18px;
   font-family: var(--satoshi-font);
   background: transparent;
-  color: #312943;
+  color: var(--color-select-ink);
 }
 
 .SelectedInptDropdown .dropdown-inline-search::placeholder {
-  color: #31294399;
+  color: var(--color-select-ink-muted);
 }
 
 .SelectedInptDropdown .dropdown-caret {
   transition: transform 0.2s ease;
   flex-shrink: 0;
-  color: #312943;
+  color: var(--color-select-ink);
 }
 
 .SelectedInptDropdown .dropdown-caret.rotate {
@@ -73,15 +73,15 @@
   cursor: pointer;
   font-size: 16px;
   font-family: var(--satoshi-font);
-  color: #312943;
+  color: var(--color-select-ink);
 }
 
 .SelectedInptDropdown .dropdown-item:hover {
-  background-color: #f5f5f5;
+  background-color: var(--color-surface-disabled);
 }
 
 .SelectedInptDropdown .dropdown-item.disabled {
-  color: #999;
+  color: var(--color-muted-999);
   cursor: default;
 }
 

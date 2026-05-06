@@ -3,67 +3,65 @@ import {
   OrganisationRoom,
   OrganisationRoomResponseDTO,
   toOrganisationRoomResponseDTO,
-} from "@yosemite-crew/types";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { useOrganisationRoomStore } from "@/app/stores/roomStore";
-import { deleteData, getData, postData, putData } from "@/app/services/axios";
+} from '@yosemite-crew/types';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useOrganisationRoomStore } from '@/app/stores/roomStore';
+import { deleteData, getData, postData, putData } from '@/app/services/axios';
 
 export const loadRoomsForOrgPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }): Promise<void> => {
-  const { startLoading, status, setRoomsForOrg } =
+  const { startLoading, status, roomIdsByOrgId, setRoomsForOrg } =
     useOrganisationRoomStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load rooms.");
+    console.warn('No primary organization selected. Cannot load rooms.');
     return;
   }
-  if (!shouldFetchRooms(status, opts)) return;
+  const hasOrgData = !roomIdsByOrgId || Object.hasOwn(roomIdsByOrgId, primaryOrgId);
+  if (!shouldFetchRooms(status, hasOrgData, opts)) return;
   if (!opts?.silent) startLoading();
   try {
     const res = await getData<OrganisationRoomResponseDTO[]>(
-      "/fhir/v1/organisation-room/organization/" + primaryOrgId
+      '/fhir/v1/organisation-room/organization/' + primaryOrgId
     );
-    const rooms = res.data.map((fhirRoom) =>
-      fromOrganisationRoomRequestDTO(fhirRoom)
-    );
+    const rooms = res.data.map((fhirRoom) => fromOrganisationRoomRequestDTO(fhirRoom));
     setRoomsForOrg(primaryOrgId, rooms);
   } catch (err) {
-    console.error("Failed to load rooms:", err);
+    console.error('Failed to load rooms:', err);
     throw err;
   }
 };
 
 const shouldFetchRooms = (
-  status: ReturnType<typeof useOrganisationRoomStore.getState>["status"],
+  status: ReturnType<typeof useOrganisationRoomStore.getState>['status'],
+  hasOrgData: boolean,
   opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
-  return status === "idle" || status === "error";
+  if (!hasOrgData) return true;
+  return status === 'idle' || status === 'error';
 };
 
 export const createRoom = async (room: OrganisationRoom) => {
   const { upsertRoom } = useOrganisationRoomStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot create room.");
+    console.warn('No primary organization selected. Cannot create room.');
     return;
   }
   try {
     const payload: OrganisationRoom = {
       ...room,
-      organisationId: primaryOrgId
+      organisationId: primaryOrgId,
     };
     const fhirRoom = toOrganisationRoomResponseDTO(payload);
-    const res = await postData<OrganisationRoomResponseDTO>(
-      "/fhir/v1/organisation-room",
-      fhirRoom
-    );
+    const res = await postData<OrganisationRoomResponseDTO>('/fhir/v1/organisation-room', fhirRoom);
     const normalRoom = fromOrganisationRoomRequestDTO(res.data);
     upsertRoom(normalRoom);
   } catch (err) {
-    console.error("Failed to create room:", err);
+    console.error('Failed to create room:', err);
     throw err;
   }
 };
@@ -72,19 +70,19 @@ export const updateRoom = async (payload: OrganisationRoom) => {
   const { upsertRoom } = useOrganisationRoomStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot update room.");
+    console.warn('No primary organization selected. Cannot update room.');
     return;
   }
   try {
     const fhirRoom = toOrganisationRoomResponseDTO(payload);
     const res = await putData<OrganisationRoomResponseDTO>(
-      "/fhir/v1/organisation-room/" + payload.id,
+      '/fhir/v1/organisation-room/' + payload.id,
       fhirRoom
     );
     const normalRoom = fromOrganisationRoomRequestDTO(res.data);
     upsertRoom(normalRoom);
   } catch (err) {
-    console.error("Failed to update room:", err);
+    console.error('Failed to update room:', err);
     throw err;
   }
 };
@@ -94,12 +92,12 @@ export const deleteRoom = async (room: OrganisationRoom) => {
   try {
     const id = room.id;
     if (!id) {
-      throw new Error("Room ID is missing.");
+      throw new Error('Room ID is missing.');
     }
-    await deleteData("/fhir/v1/organisation-room/" + id);
+    await deleteData('/fhir/v1/organisation-room/' + id);
     removeRoom(id);
   } catch (err) {
-    console.error("Failed to delete room:", err);
+    console.error('Failed to delete room:', err);
     throw err;
   }
 };

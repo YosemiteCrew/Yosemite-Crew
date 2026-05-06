@@ -35,7 +35,15 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock('@/app/ui/filters/Filters', () => () => <div data-testid="filters" />);
+jest.mock('@/app/ui/filters/Filters', () => (props: any) => (
+  <div data-testid="filters">
+    {props.showAddButton && (
+      <button type="button" onClick={props.onAddButtonClick}>
+        {props.addButtonText}
+      </button>
+    )}
+  </div>
+));
 
 jest.mock('@/app/ui/tables/CompanionsTable', () => (props: any) => {
   companionsTableSpy(props);

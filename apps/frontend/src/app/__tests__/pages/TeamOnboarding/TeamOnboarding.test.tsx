@@ -90,7 +90,7 @@ describe('TeamOnboarding Page', () => {
 
   it('renders PersonalStep initially (step 0)', () => {
     render(<ProtectedTeamOnboarding />);
-    expect(screen.getByText('Create profile')).toBeInTheDocument();
+    expect(screen.getByText('Create organization profile')).toBeInTheDocument();
     expect(screen.getByTestId('personal-step')).toBeInTheDocument();
     expect(screen.getByTestId('progress')).toHaveTextContent('Step 1');
   });
@@ -115,6 +115,8 @@ describe('TeamOnboarding Page', () => {
 
     render(<ProtectedTeamOnboarding />);
     expect(mockRouterReplace).toHaveBeenCalledWith('/dashboard');
+    expect(screen.queryByTestId('personal-step')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Setting up your profile/)).not.toBeInTheDocument();
   });
 
   // --- 3. Step Transitions & State Sync ---

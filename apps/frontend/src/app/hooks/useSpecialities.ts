@@ -14,7 +14,7 @@ export const useLoadSpecialitiesForPrimaryOrg = () => {
     if (!primaryOrgId) return;
     if (useSpecialityStore.getState().status === 'loading') return;
     if (Object.hasOwn(specialityIdsByOrgId, primaryOrgId)) return;
-    void loadSpecialitiesForOrg();
+    void loadSpecialitiesForOrg({ orgId: primaryOrgId });
   }, [primaryOrgId, specialityIdsByOrgId]);
 };
 

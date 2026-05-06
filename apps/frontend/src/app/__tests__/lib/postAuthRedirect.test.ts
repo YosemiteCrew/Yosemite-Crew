@@ -3,6 +3,7 @@ import { loadOrgs } from '@/app/features/organization/services/orgService';
 import { loadProfiles } from '@/app/features/organization/services/profileService';
 import { loadAvailability } from '@/app/features/organization/services/availabilityService';
 import { loadSpecialitiesForOrg } from '@/app/features/organization/services/specialityService';
+import { loadInvites } from '@/app/features/organization/services/teamService';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
@@ -22,6 +23,10 @@ jest.mock('@/app/features/organization/services/availabilityService', () => ({
 
 jest.mock('@/app/features/organization/services/specialityService', () => ({
   loadSpecialitiesForOrg: jest.fn(),
+}));
+
+jest.mock('@/app/features/organization/services/teamService', () => ({
+  loadInvites: jest.fn(),
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
@@ -69,6 +74,7 @@ describe('resolvePostAuthRedirect', () => {
     (loadProfiles as jest.Mock).mockResolvedValue(undefined);
     (loadAvailability as jest.Mock).mockResolvedValue(undefined);
     (loadSpecialitiesForOrg as jest.Mock).mockResolvedValue(undefined);
+    (loadInvites as jest.Mock).mockResolvedValue([]);
     (useOrgStore.getState as jest.Mock).mockReturnValue({
       membershipsByOrgId: {},
       orgIds: [],
@@ -99,6 +105,13 @@ describe('resolvePostAuthRedirect', () => {
 
   it('routes users with no orgs directly to create org', async () => {
     await expect(resolvePostAuthRedirect({ fallbackRole: 'member' })).resolves.toBe('/create-org');
+  });
+
+  it('routes users with no orgs but pending invites to the organizations page', async () => {
+    (loadInvites as jest.Mock).mockResolvedValue([{ _id: 'invite-1' }]);
+    await expect(resolvePostAuthRedirect({ fallbackRole: 'member' })).resolves.toBe(
+      '/organizations'
+    );
   });
 
   it('routes owners with an unverified org back into create org', async () => {

@@ -3,36 +3,31 @@ import {
   FilterOption,
   status,
   StatusOption,
-} from "@/app/features/companions/pages/Companions/types";
+} from '@/app/features/companions/pages/Companions/types';
 
-export type TaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-export type RecurrenceType = "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
-export type TaskKind =
-  | "MEDICATION"
-  | "OBSERVATION_TOOL"
-  | "HYGIENE"
-  | "DIET"
-  | "CUSTOM";
+export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
+export type TaskKind = 'MEDICATION' | 'OBSERVATION_TOOL' | 'HYGIENE' | 'DIET' | 'CUSTOM';
 
 export const TaskRecurrenceOptions = [
-  { label: "Once", value: "ONCE" },
-  { label: "Daily", value: "DAILY" },
-  { label: "Weekly", value: "WEEKLY" },
+  { label: 'Once', value: 'ONCE' },
+  { label: 'Daily', value: 'DAILY' },
+  { label: 'Weekly', value: 'WEEKLY' },
 ];
 
 export const TaskKindOptions = [
-  { label: "Medication", value: "MEDICATION" },
-  { label: "Observation Tool", value: "OBSERVATION_TOOL" },
-  { label: "Hygiene", value: "HYGIENE" },
-  { label: "Diet", value: "DIET" },
-  { label: "Custom", value: "CUSTOM" },
+  { label: 'Medication', value: 'MEDICATION' },
+  { label: 'Observation Tool', value: 'OBSERVATION_TOOL' },
+  { label: 'Hygiene', value: 'HYGIENE' },
+  { label: 'Diet', value: 'DIET' },
+  { label: 'Custom', value: 'CUSTOM' },
 ];
 
 export const TaskStatusOptions = [
-  { label: "Pending", value: "PENDING" },
-  { label: "In Progress", value: "IN_PROGRESS" },
-  { label: "Completed", value: "COMPLETED" },
-  { label: "Cancelled", value: "CANCELLED" },
+  { label: 'Pending', value: 'PENDING' },
+  { label: 'In Progress', value: 'IN_PROGRESS' },
+  { label: 'Completed', value: 'COMPLETED' },
+  { label: 'Cancelled', value: 'CANCELLED' },
 ];
 
 export type Task = {
@@ -43,8 +38,8 @@ export type Task = {
   createdBy?: string;
   assignedBy?: string;
   assignedTo: string;
-  audience: "EMPLOYEE_TASK" | "PARENT_TASK";
-  source: "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
+  audience: 'EMPLOYEE_TASK' | 'PARENT_TASK';
+  source: 'YC_LIBRARY' | 'ORG_TEMPLATE' | 'CUSTOM';
   libraryTaskId?: string;
   templateId?: string;
   category: string;
@@ -91,14 +86,14 @@ export type Task = {
 
 export type TaskTemplate = {
   _id: string;
-  source: "ORG_TEMPLATE";
+  source: 'ORG_TEMPLATE';
   organisationId: string;
   libraryTaskId?: string;
   category: string;
   name: string;
   description?: string;
   kind: TaskKind;
-  defaultRole: "EMPLOYEE" | "PARENT";
+  defaultRole: 'EMPLOYEE' | 'PARENT';
   defaultMedication?: {
     name?: string;
     type?: string;
@@ -107,7 +102,7 @@ export type TaskTemplate = {
   };
   defaultObservationToolId?: string;
   defaultRecurrence?: {
-    type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+    type: 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
     customCron?: string;
     defaultEndOffsetDays?: number;
   };
@@ -120,7 +115,7 @@ export type TaskTemplate = {
 
 export type TaskLibrary = {
   _id: string;
-  source: "YC_LIBRARY";
+  source: 'YC_LIBRARY';
   kind: TaskKind;
   category: string;
   name: string;
@@ -141,51 +136,86 @@ export type TaskLibrary = {
 };
 
 export const EMPTY_TASK: Task = {
-  _id: "",
-  assignedTo: "",
-  audience: "EMPLOYEE_TASK",
-  source: "CUSTOM",
+  _id: '',
+  assignedTo: '',
+  audience: 'EMPLOYEE_TASK',
+  source: 'CUSTOM',
   libraryTaskId: undefined,
   templateId: undefined,
-  category: "MEDICATION",
+  category: 'MEDICATION',
   recurrence: {
-    type: "ONCE",
+    type: 'ONCE',
     isMaster: false,
   },
-  name: "",
-  description: "",
+  name: '',
+  description: '',
   dueAt: new Date(),
-  status: "PENDING",
+  status: 'PENDING',
 };
 
 export const EMPTY_COMPANION_TASK: Task = {
-  _id: "",
-  assignedTo: "",
-  audience: "PARENT_TASK",
-  source: "CUSTOM",
+  _id: '',
+  assignedTo: '',
+  audience: 'PARENT_TASK',
+  source: 'CUSTOM',
   libraryTaskId: undefined,
   templateId: undefined,
-  category: "MEDICATION",
+  category: 'MEDICATION',
   recurrence: {
-    type: "ONCE",
+    type: 'ONCE',
     isMaster: false,
   },
-  name: "",
-  description: "",
+  name: '',
+  description: '',
   dueAt: new Date(),
-  status: "PENDING",
+  status: 'PENDING',
 };
 
 export const TaskStatusFilters: StatusOption[] = [
-  status("All", "all", "#5C614B"),
-  status("Pending", "pending", "#747283"),
-  status("In progress", "in_progress", "#BF9FAA"),
-  status("Completed", "completed", "#D28F9A"),
-  status("Cancelled", "cancelled", "#D9A488"),
+  status(
+    'All',
+    'all',
+    'var(--color-pill-neutral-bg)',
+    'var(--color-pill-neutral-text)',
+    'var(--color-pill-neutral-border)',
+    'var(--color-pill-neutral-text)'
+  ),
+  status(
+    'Pending',
+    'pending',
+    'var(--color-pill-neutral-bg)',
+    'var(--color-pill-neutral-text)',
+    'var(--color-pill-neutral-border)',
+    'var(--color-pill-neutral-text)'
+  ),
+  status(
+    'In progress',
+    'in_progress',
+    'var(--color-pill-progress-bg)',
+    'var(--color-pill-progress-text)',
+    'var(--color-pill-progress-border)',
+    'var(--color-pill-progress-text)'
+  ),
+  status(
+    'Completed',
+    'completed',
+    'var(--color-pill-success-bg)',
+    'var(--color-pill-success-text)',
+    'var(--color-pill-success-border)',
+    'var(--color-pill-success-text)'
+  ),
+  status(
+    'Cancelled',
+    'cancelled',
+    'var(--color-pill-warning-bg)',
+    'var(--color-pill-warning-text)',
+    'var(--color-pill-warning-border)',
+    'var(--color-pill-warning-text)'
+  ),
 ];
 
 export const TaskFilters: FilterOption[] = [
-  filter("All", "all"),
-  filter("Organizations", "employee_task"),
-  filter("Companions", "parent_task"),
+  filter('All', 'all'),
+  filter('Organizations', 'employee_task'),
+  filter('Companions', 'parent_task'),
 ];

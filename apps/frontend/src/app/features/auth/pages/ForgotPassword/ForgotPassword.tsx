@@ -74,7 +74,12 @@ const ForgotPassword = () => {
         message: emailError,
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -91,7 +96,12 @@ const ForgotPassword = () => {
           message: 'If an account with this email exists, a reset code has been sent',
           errortext: 'Success',
           iconElement: (
-            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-success-bright)"
+            />
           ),
           className: 'CongratsBg',
         });
@@ -106,7 +116,12 @@ const ForgotPassword = () => {
         message: `OTP failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -124,7 +139,12 @@ const ForgotPassword = () => {
         message: 'Please enter the full OTP',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -146,7 +166,12 @@ const ForgotPassword = () => {
         message: 'Both Passwords are required',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -161,7 +186,12 @@ const ForgotPassword = () => {
         message: 'Passwords do not match',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -175,7 +205,12 @@ const ForgotPassword = () => {
           message: 'Password Changed successfully',
           errortext: 'Success',
           iconElement: (
-            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-success-bright)"
+            />
           ),
           className: 'CongratsBg',
         });
@@ -200,7 +235,12 @@ const ForgotPassword = () => {
           message: 'Code Mismatch',
           errortext: 'Error',
           iconElement: (
-            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-danger-600)"
+            />
           ),
           className: 'errofoundbg',
         });
@@ -210,7 +250,12 @@ const ForgotPassword = () => {
           message: 'Something went wrong',
           errortext: 'Error',
           iconElement: (
-            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-danger-600)"
+            />
           ),
           className: 'errofoundbg',
         });

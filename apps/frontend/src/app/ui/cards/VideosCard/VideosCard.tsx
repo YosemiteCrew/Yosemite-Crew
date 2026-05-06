@@ -65,7 +65,7 @@ const VideosCard = () => {
             >
               <div className="absolute inset-0 bg-black/40 rounded-t-2xl"></div>
               <div className="relative">
-                <FaCirclePlay size={50} color="#fff" />
+                <FaCirclePlay size={50} color="var(--color-neutral-0)" />
               </div>
             </div>
             <div className="px-3 py-[20px] text-body-2 text-text-primary">{video.title}</div>

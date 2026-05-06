@@ -72,6 +72,17 @@ const getSubmitErrorTargetStep = ({
   return null;
 };
 
+const scrollModalSectionIntoView = (
+  container: HTMLDivElement | null,
+  section: HTMLDivElement | null
+) => {
+  if (!(container && section)) return;
+
+  const sectionTop = section.offsetTop;
+  const nextTop = Math.max(0, sectionTop - 12);
+  container.scrollTo({ top: nextTop, behavior: 'smooth' });
+};
+
 const syncModalOpenState = ({
   showModal,
   resetForm,
@@ -200,7 +211,7 @@ const AddAppointment = ({
   );
 
   const scrollToStep = useCallback((ref: React.RefObject<HTMLDivElement | null>) => {
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollModalSectionIntoView(scrollContainerRef.current, ref.current);
   }, []);
 
   useEffect(() => {
@@ -214,6 +225,11 @@ const AddAppointment = ({
       setPendingAutoSelectCompanionId,
       onPrefillConsumed,
     });
+
+    if (showModal) {
+      scrollModalSectionIntoView(scrollContainerRef.current, null);
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    }
   }, [showModal, resetForm, onPrefillConsumed]);
 
   useEffect(() => {
@@ -516,7 +532,7 @@ const AddAppointment = ({
                           href="#"
                           text="Next"
                           onClick={goToDetailsStep}
-                          className="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+                          className="w-auto min-w-42.5"
                         />
                       </div>
                     </>
@@ -620,7 +636,7 @@ const AddAppointment = ({
                         href="#"
                         text="Next"
                         onClick={isCalendarSlotFlow ? goToDetailsFromDateTimeStep : goToBillingStep}
-                        className="py-[12px] px-8 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out hover:scale-105 text-body-3-emphasis text-center font-satoshi bg-text-primary text-neutral-0! w-auto min-w-[170px]"
+                        className="w-auto min-w-42.5"
                       />
                     </div>
                   </Accordion>

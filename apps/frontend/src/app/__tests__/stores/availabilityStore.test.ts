@@ -10,6 +10,16 @@ const createMockAvailability = (id: string, orgId: string): ApiDayAvailability =
     // relying on the component logic to handle the full object structure.
   }) as unknown as ApiDayAvailability;
 
+const createMockUserAvailability = (
+  id: string,
+  orgId: string,
+  userId: string
+): ApiDayAvailability =>
+  ({
+    ...createMockAvailability(id, orgId),
+    userId,
+  }) as unknown as ApiDayAvailability;
+
 describe('availabilityStore', () => {
   // Reset store before each test to ensure isolation
   beforeEach(() => {
@@ -152,6 +162,71 @@ describe('availabilityStore', () => {
     const state = useAvailabilityStore.getState();
     expect(state.availabilitiesById['av1']).toBeDefined();
     expect(state.availabilityIdsByOrgId['org1']).toEqual(['av1']);
+  });
+
+  it('should preserve user-specific rows when replacing base availabilities for an org', () => {
+    const { setAvailabilitiesForOrg, setBaseAvailabilitiesForOrg } =
+      useAvailabilityStore.getState();
+    const baseOld = createMockAvailability('base-old', 'org1');
+    const userSpecific = createMockUserAvailability('user-1-mon', 'org1', 'practitioner-1');
+    const otherOrg = createMockAvailability('other-org', 'org2');
+
+    setAvailabilitiesForOrg('org1', [baseOld, userSpecific]);
+    setAvailabilitiesForOrg('org2', [otherOrg]);
+
+    const baseNew = createMockAvailability('base-new', 'org1');
+    setBaseAvailabilitiesForOrg('org1', [baseNew]);
+
+    const state = useAvailabilityStore.getState();
+    expect(state.availabilitiesById['base-old']).toBeUndefined();
+    expect(state.availabilitiesById['base-new']).toEqual(baseNew);
+    expect(state.availabilitiesById['user-1-mon']).toEqual(userSpecific);
+    expect(state.availabilitiesById['other-org']).toEqual(otherOrg);
+    expect(state.availabilityIdsByOrgId['org1']).toEqual(['base-new', 'user-1-mon']);
+    expect(state.availabilityIdsByOrgId['org2']).toEqual(['other-org']);
+  });
+
+  it('deduplicates ids when a base row id also appears in the incoming user items', () => {
+    const { setAvailabilitiesForOrg, setUserAvailabilitiesForOrg } =
+      useAvailabilityStore.getState();
+    const shared = createMockAvailability('shared-id', 'org1');
+    const orgBase = createMockAvailability('base-only', 'org1');
+    const userOld = createMockUserAvailability('user-old', 'org1', 'user-1');
+
+    setAvailabilitiesForOrg('org1', [shared, orgBase, userOld]);
+
+    // incoming items include the shared id (same _id, now also marked as user-specific)
+    const userNew = createMockUserAvailability('user-new', 'org1', 'user-1');
+    const sharedAsUser = createMockUserAvailability('shared-id', 'org1', 'user-1');
+    setUserAvailabilitiesForOrg('org1', 'user-1', [sharedAsUser, userNew]);
+
+    const state = useAvailabilityStore.getState();
+    const ids = state.availabilityIdsByOrgId['org1'];
+    // 'shared-id' must appear exactly once
+    expect(ids.filter((id) => id === 'shared-id')).toHaveLength(1);
+    expect(ids).toContain('base-only');
+    expect(ids).toContain('user-new');
+    expect(ids).not.toContain('user-old');
+  });
+
+  it('should replace only one user availability set for an org', () => {
+    const { setAvailabilitiesForOrg, setUserAvailabilitiesForOrg } =
+      useAvailabilityStore.getState();
+    const userOld = createMockUserAvailability('user-old', 'org1', 'Practitioner/user-1');
+    const userOther = createMockUserAvailability('user-other', 'org1', 'user-2');
+    const orgDefault = createMockAvailability('org-default', 'org1');
+
+    setAvailabilitiesForOrg('org1', [orgDefault, userOld, userOther]);
+
+    const userNew = createMockUserAvailability('user-new', 'org1', 'user-1');
+    setUserAvailabilitiesForOrg('org1', 'Practitioner/user-1', [userNew]);
+
+    const state = useAvailabilityStore.getState();
+    expect(state.availabilitiesById['user-old']).toBeUndefined();
+    expect(state.availabilitiesById['org-default']).toEqual(orgDefault);
+    expect(state.availabilitiesById['user-other']).toEqual(userOther);
+    expect(state.availabilitiesById['user-new']).toEqual(userNew);
+    expect(state.availabilityIdsByOrgId.org1).toEqual(['org-default', 'user-other', 'user-new']);
   });
 
   // --- 4. Upsert (Add or Update) ---

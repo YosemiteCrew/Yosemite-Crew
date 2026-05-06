@@ -7,6 +7,15 @@ import * as availabilityUtils from '@/app/features/appointments/components/Avail
 const usePrimaryOrgWithMembershipMock = jest.fn();
 const usePrimaryAvailabilityMock = jest.fn();
 const usePrimaryOrgProfileMock = jest.fn();
+const useAuthStoreMock = jest.fn();
+
+jest.mock('@/app/stores/authStore', () => ({
+  useAuthStore: (selector: any) => selector(useAuthStoreMock()),
+}));
+
+jest.mock('@/app/features/users/services/userService', () => ({
+  updateUser: jest.fn(),
+}));
 
 jest.mock('@/app/hooks/useOrgSelectors', () => ({
   usePrimaryOrgWithMembership: () => usePrimaryOrgWithMembershipMock(),
@@ -62,6 +71,13 @@ const buildAvailability = () =>
 
 describe('Settings OrgSection', () => {
   beforeEach(() => {
+    useAuthStoreMock.mockReturnValue({
+      attributes: { given_name: 'Taylor', family_name: 'Fox', email: 'tf@example.com' },
+    });
+    usePrimaryOrgWithMembershipMock.mockReturnValue({
+      org: { name: 'Clinic' },
+      membership: { roleDisplay: 'Admin' },
+    });
     usePrimaryAvailabilityMock.mockReturnValue({
       availabilities: buildAvailability(),
     });

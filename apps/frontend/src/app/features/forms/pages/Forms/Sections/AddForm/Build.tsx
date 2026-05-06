@@ -189,7 +189,7 @@ const AddFieldDropdown: React.FC<{
     <div className={`relative ${buttonClassName ?? ''}`} ref={dropdownRef}>
       <IoIosAddCircleOutline
         size={28}
-        color="#302f2e"
+        color="var(--color-neutral-900)"
         onClick={() => setOpen((e) => !e)}
         className="cursor-pointer"
       />

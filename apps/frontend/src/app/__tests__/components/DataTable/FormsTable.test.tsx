@@ -97,27 +97,47 @@ describe('FormsTable Component', () => {
   describe('getStatusStyle', () => {
     it("returns correct style for 'Published'", () => {
       const style = getStatusStyle('Published');
-      expect(style).toEqual({ color: '#F7F7F7', backgroundColor: '#747283' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-info-text)',
+        backgroundColor: 'var(--color-pill-info-bg)',
+        borderColor: 'var(--color-pill-info-border)',
+      });
     });
 
     it("returns correct style for 'published' (case insensitive)", () => {
       const style = getStatusStyle('published');
-      expect(style).toEqual({ color: '#F7F7F7', backgroundColor: '#747283' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-info-text)',
+        backgroundColor: 'var(--color-pill-info-bg)',
+        borderColor: 'var(--color-pill-info-border)',
+      });
     });
 
     it("returns correct style for 'Draft'", () => {
       const style = getStatusStyle('Draft');
-      expect(style).toEqual({ color: '#F7F7F7', backgroundColor: '#BF9FAA' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      });
     });
 
     it('returns default style for unknown status', () => {
       const style = getStatusStyle('Archived');
-      expect(style).toEqual({ color: '#F7F7F7', backgroundColor: '#D9A488' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      });
     });
 
-    it('returns empty style for empty status', () => {
+    it('returns neutral style for empty status', () => {
       const style = getStatusStyle('');
-      expect(style).toEqual({ color: '#302F2E', backgroundColor: '#F3F3F3' });
+      expect(style).toEqual({
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      });
     });
   });
 

@@ -32,7 +32,7 @@ const OrgPageSkeleton = () => (
   </div>
 );
 
-const Organization = () => {
+export const Organization = () => {
   const primaryorg = usePrimaryOrg();
   const orgStatus = useOrgStore((s) => s.status);
 
@@ -45,7 +45,7 @@ const Organization = () => {
       <Specialities />
       {primaryorg.isVerified && (
         <>
-          <Team />
+          <Team isVerified={primaryorg.isVerified} />
           <Rooms />
           <Payment />
           <LinkedMedicalDevices />

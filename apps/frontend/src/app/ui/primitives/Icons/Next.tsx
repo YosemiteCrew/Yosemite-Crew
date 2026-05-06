@@ -1,5 +1,5 @@
-import React from "react";
-import { IoChevronForward } from "react-icons/io5";
+import React from 'react';
+import { IoChevronForward } from 'react-icons/io5';
 
 const Next = ({
   onClick,
@@ -16,7 +16,7 @@ const Next = ({
       onClick={onClick}
       disabled={disabled}
     >
-      <IoChevronForward size={20} color="#302f2e" />
+      <IoChevronForward size={20} color="var(--color-neutral-900)" />
     </button>
   );
 };

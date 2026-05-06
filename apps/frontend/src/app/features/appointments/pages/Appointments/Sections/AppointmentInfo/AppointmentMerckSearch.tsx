@@ -128,9 +128,7 @@ const CompactAudienceToggle = ({
   onChange: (next: MerckAudience) => void;
 }) => {
   const isProfessional = value === 'PROV';
-  const sliderClass = isProfessional
-    ? 'translate-x-0 bg-[#247AED]'
-    : 'translate-x-full bg-[#D28F9A]';
+  const sliderClass = isProfessional ? 'translate-x-0 bg-blue-text' : 'translate-x-full';
   const professionalTextClass = isProfessional ? 'text-neutral-0' : 'text-text-secondary';
   const consumerTextClass = isProfessional ? 'text-text-secondary' : 'text-neutral-0';
 

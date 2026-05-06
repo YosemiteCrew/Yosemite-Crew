@@ -4,9 +4,14 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useAuthStore } from '@/app/stores/authStore';
 import { loadAvailability } from '@/app/features/organization/services/availabilityService';
+import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
 
 jest.mock('@/app/stores/orgStore', () => ({ useOrgStore: jest.fn() }));
-jest.mock('@/app/stores/availabilityStore', () => ({ useAvailabilityStore: jest.fn() }));
+jest.mock('@/app/hooks/useOrgSelectors', () => ({ usePrimaryOrgWithMembership: jest.fn() }));
+const mockAvailGetState = jest.fn(() => ({ status: 'idle' }));
+jest.mock('@/app/stores/availabilityStore', () => ({
+  useAvailabilityStore: Object.assign(jest.fn(), { getState: () => mockAvailGetState() }),
+}));
 jest.mock('@/app/stores/authStore', () => ({ useAuthStore: jest.fn() }));
 jest.mock('@/app/features/organization/services/availabilityService', () => ({
   loadAvailability: jest.fn(),
@@ -19,26 +24,39 @@ jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
 const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
 const mockUseAvailabilityStore = useAvailabilityStore as unknown as jest.Mock;
 const mockUseAuthStore = useAuthStore as unknown as jest.Mock;
+const mockUsePrimaryOrgWithMembership = usePrimaryOrgWithMembership as unknown as jest.Mock;
 
 describe('useLoadAvailabilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseOrgStore.mockImplementation((selector: any) => selector({ orgIds: ['org-1'] }));
-    mockUseAvailabilityStore.mockImplementation((selector: any) => selector({ status: 'idle' }));
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({ availabilityIdsByOrgId: {} })
+    );
+    mockAvailGetState.mockReturnValue({ status: 'idle' });
   });
 
-  it('loads availability when idle and orgs exist', () => {
+  it('loads availability when primaryOrgId set and not yet loaded', () => {
     renderHook(() => useLoadAvailabilities());
-    expect(loadAvailability).toHaveBeenCalled();
+    expect(loadAvailability).toHaveBeenCalledWith({ silent: true, orgId: 'org-1' });
   });
 
-  it('skips load when no orgs or already loading', () => {
-    mockUseOrgStore.mockImplementation((selector: any) => selector({ orgIds: [] }));
+  it('skips load when no primaryOrgId', () => {
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: null }));
     renderHook(() => useLoadAvailabilities());
     expect(loadAvailability).not.toHaveBeenCalled();
+  });
 
-    mockUseOrgStore.mockImplementation((selector: any) => selector({ orgIds: ['org-1'] }));
-    mockUseAvailabilityStore.mockImplementation((selector: any) => selector({ status: 'loading' }));
+  it('skips load when already loading', () => {
+    mockAvailGetState.mockReturnValue({ status: 'loading' });
+    renderHook(() => useLoadAvailabilities());
+    expect(loadAvailability).not.toHaveBeenCalled();
+  });
+
+  it('skips load when already loaded for primaryOrgId', () => {
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({ availabilityIdsByOrgId: { 'org-1': [] } })
+    );
     renderHook(() => useLoadAvailabilities());
     expect(loadAvailability).not.toHaveBeenCalled();
   });
@@ -50,6 +68,12 @@ describe('usePrimaryAvailability', () => {
     mockUseAuthStore.mockImplementation((selector: any) =>
       selector({ attributes: { sub: 'user-a' } })
     );
+    mockUsePrimaryOrgWithMembership.mockReturnValue({
+      membership: {
+        id: 'membership-a',
+        practitionerReference: 'Practitioner/practitioner-a',
+      },
+    });
   });
 
   it('returns null when no primary org', () => {
@@ -90,6 +114,35 @@ describe('usePrimaryAvailability', () => {
 
     expect(result.current.availabilities).toEqual([
       { _id: 'mine', organisationId: 'org-1', dayOfWeek: 'MONDAY', userId: 'user-a' },
+    ]);
+  });
+
+  it('matches practitioner reference rows for the current membership', () => {
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({
+        availabilityIdsByOrgId: { 'org-1': ['auth', 'practitioner'] },
+        availabilitiesById: {
+          auth: { _id: 'auth', organisationId: 'org-1', dayOfWeek: 'MONDAY', userId: 'user-a' },
+          practitioner: {
+            _id: 'practitioner',
+            organisationId: 'org-1',
+            dayOfWeek: 'TUESDAY',
+            userId: 'practitioner-a',
+          },
+        },
+      })
+    );
+
+    const { result } = renderHook(() => usePrimaryAvailability());
+
+    expect(result.current.availabilities).toEqual([
+      {
+        _id: 'practitioner',
+        organisationId: 'org-1',
+        dayOfWeek: 'TUESDAY',
+        userId: 'practitioner-a',
+      },
     ]);
   });
 

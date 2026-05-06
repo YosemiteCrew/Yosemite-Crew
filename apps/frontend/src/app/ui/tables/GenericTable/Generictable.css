@@ -1,8 +1,17 @@
-.TableDiv {
+.TableShell {
   background: var(--whitebg) !important;
   border: 1px solid var(--lightgrey) !important;
   border-radius: 16px !important;
-  padding: 16px 16px !important;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.TableBodyScroll {
+  min-height: 0;
+  padding: 0 16px 16px !important;
+}
+
+.TableDiv {
   vertical-align: middle !important;
   margin: 0 !important;
   width: 100%;
@@ -15,14 +24,27 @@
   vertical-align: middle;
   border-bottom: 1px solid var(--lightgrey);
 }
-.TableDiv thead tr th {
-  color: #747473;
-  font-size: 12px;
-  font-weight: 400;
-  font-family: var(--satoshi-font);
-  letter-spacing: -0.24px;
-  line-height: 150%;
+.TableDiv tbody tr td {
+  position: relative;
+  z-index: 0;
 }
+.TableDiv thead tr th {
+  padding-top: 16px;
+  padding-bottom: 10px;
+  text-align: left;
+  color: var(--color-neutral-600);
+  font-size: 16px;
+  font-weight: 400;
+  font-family: var(--font-satoshi);
+  letter-spacing: -0.32px;
+  line-height: 120%;
+  background: var(--whitebg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 0 var(--lightgrey);
+}
+
 .TableDiv tbody tr:last-child td {
   border-bottom: none;
 }

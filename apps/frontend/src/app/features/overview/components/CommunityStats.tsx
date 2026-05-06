@@ -257,9 +257,9 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
 
   // We ALWAYS pass all three keys so the legend permanently shows them all.
   const chartKeys = [
-    { name: 'Self Hosters', color: '#247AED' },
+    { name: 'Self Hosters', color: 'var(--color-badge-blue-bg)' },
     { name: 'Builders', color: '#10B981' },
-    { name: 'Github Stars', color: '#F68523' },
+    { name: 'Github Stars', color: 'var(--color-warning-600)' },
   ];
 
   const granularityOptions = getGranularityOptions(view);

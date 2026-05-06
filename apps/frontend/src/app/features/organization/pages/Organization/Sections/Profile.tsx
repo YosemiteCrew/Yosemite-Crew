@@ -3,7 +3,6 @@ import ProfileCard from '@/app/features/organization/pages/Organization/Sections
 import { Organisation } from '@yosemite-crew/types';
 import { updateOrg } from '@/app/features/organization/services/orgService';
 import { BusinessOptions } from '@/app/features/organization/types/org';
-import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -149,32 +148,30 @@ const Profile = ({ primaryOrg }: ProfileProps) => {
   };
 
   return (
-    <PermissionGate allOf={[PERMISSIONS.ORG_VIEW]}>
-      <div className="flex flex-col gap-6">
-        <ProfileCard
-          title="Organization"
-          fields={BasicFields}
-          org={{ ...formData, country: formData.address?.country }}
-          showProfile
-          onSave={canEditOrg ? handleOrgSave : undefined}
-        />
-        <ProfileCard
-          title="Address"
-          fields={AddressFields}
-          org={{ ...formData.address }}
-          onSave={canEditOrg ? handleAddressSave : undefined}
-        />
-        <ProfileCard
-          title="Check-in settings"
-          fields={CheckInFields}
-          org={{
-            appointmentCheckInBufferMinutes: formData.appointmentCheckInBufferMinutes ?? 5,
-            appointmentCheckInRadiusMeters: formData.appointmentCheckInRadiusMeters ?? 200,
-          }}
-          onSave={canEditOrg ? handleCheckInSave : undefined}
-        />
-      </div>
-    </PermissionGate>
+    <div className="flex flex-col gap-6">
+      <ProfileCard
+        title="Organization"
+        fields={BasicFields}
+        org={{ ...formData, country: formData.address?.country }}
+        showProfile
+        onSave={canEditOrg ? handleOrgSave : undefined}
+      />
+      <ProfileCard
+        title="Address"
+        fields={AddressFields}
+        org={{ ...formData.address }}
+        onSave={canEditOrg ? handleAddressSave : undefined}
+      />
+      <ProfileCard
+        title="Check-in settings"
+        fields={CheckInFields}
+        org={{
+          appointmentCheckInBufferMinutes: formData.appointmentCheckInBufferMinutes ?? 5,
+          appointmentCheckInRadiusMeters: formData.appointmentCheckInRadiusMeters ?? 200,
+        }}
+        onSave={canEditOrg ? handleCheckInSave : undefined}
+      />
+    </div>
   );
 };
 

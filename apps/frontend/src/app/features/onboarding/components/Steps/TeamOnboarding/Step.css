@@ -20,7 +20,7 @@
   align-items: center;
 }
 .team-type-title {
-  color: #595958;
+  color: var(--color-neutral-700);
   font-family: var(--font-satoshi);
   font-size: 16px;
   font-style: normal;

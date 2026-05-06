@@ -1,8 +1,13 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   computeUnavailableSegments,
   appointentsForUser,
+  DEFAULT_CALENDAR_FOCUS_MINUTES,
+  getFirstRelevantTimedEventStart,
   getNowTopPxForHourRange,
+  nextDay,
+  scrollContainerToTarget,
+  startOfDayDate,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import {
   eventsForDayHour,
@@ -32,7 +37,6 @@ import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
 import {
   getVisibleHourRange,
   getVisibleHours,
-  useCalendarAutoScroll,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 
@@ -66,6 +70,7 @@ type UserCalendarProps = {
   forceFullDayInZoomIn?: boolean;
   slotStepMinutes?: number;
   availabilityLoaded?: boolean;
+  skipAutoScroll?: boolean;
 };
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
@@ -92,6 +97,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   forceFullDayInZoomIn = false,
   slotStepMinutes = 15,
   availabilityLoaded = false,
+  skipAutoScroll = false,
 }) => {
   const HOUR_ROW_TOP_OFFSET_PX = 8;
   const team = useTeamForPrimaryOrg();
@@ -170,16 +176,48 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
 
   const { slotOffsetMinutes, showSlotTimeLabels } = useSlotOffsetMinutes(slotStepMinutes, zoomMode);
 
-  useCalendarAutoScroll({
-    date,
-    events,
-    height,
-    nowPosition,
-    scrollContainer: scrollRef.current,
-    skip: !!draggedAppointmentId,
-    focusStartHour: visibleHourRange.startHour,
-    hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
-  });
+  // Track the date key for which we've already scrolled so availability
+  // re-renders and nowPosition minute-ticks don't re-fire the scroll.
+  const scrolledDateRef = useRef<string | null>(null);
+  const dateKey = date.toISOString();
+
+  const nowPositionRef = useRef(nowPosition);
+  nowPositionRef.current = nowPosition;
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+  const visibleHourRangeRef = useRef(visibleHourRange);
+  visibleHourRangeRef.current = visibleHourRange;
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !!draggedAppointmentId || skipAutoScroll) return;
+    if (scrolledDateRef.current === dateKey) return;
+    scrolledDateRef.current = dateKey;
+
+    const currentNowPosition = nowPositionRef.current;
+    const currentEvents = eventsRef.current;
+    const currentRange = visibleHourRangeRef.current;
+
+    const rangeStart = startOfDayDate(date);
+    const rangeEnd = nextDay(date);
+
+    let topPx: number;
+    if (currentNowPosition) {
+      topPx = Math.max(0, currentNowPosition.topPx);
+    } else {
+      const focusStart = getFirstRelevantTimedEventStart(
+        currentEvents as never,
+        rangeStart,
+        rangeEnd
+      );
+      const focusMinutes = focusStart
+        ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
+        : DEFAULT_CALENDAR_FOCUS_MINUTES;
+      topPx = ((focusMinutes - currentRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
+    }
+    scrollContainerToTarget(container, topPx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateKey, scrollRef.current, draggedAppointmentId, skipAutoScroll, height]);
 
   return (
     <div className="h-full flex flex-col">
@@ -250,6 +288,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                                     top: `${topPct}%`,
                                     height: `${heightPct}%`,
                                     backgroundColor: 'rgba(0,0,0,0.045)',
+                                    transition: 'opacity 0.25s ease',
                                   }}
                                 />
                               );

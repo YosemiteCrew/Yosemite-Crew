@@ -17,6 +17,7 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
+import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
 import '../AuthPages.css';
 
@@ -126,6 +127,7 @@ const SignUp = ({
   };
 
   const handleSignupSuccess = () => {
+    defaultSidebarToCollapsed();
     clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
@@ -143,7 +145,7 @@ const SignUp = ({
     showErrorTost({
       message,
       errortext: status === 409 ? 'Already Registered' : 'Signup Error',
-      iconElement: <Icon icon="mdi:error" width="20" height="20" color="#EA3729" />,
+      iconElement: <Icon icon="mdi:error" width="20" height="20" color="var(--color-danger-600)" />,
       className: status === 409 ? 'errofoundbg' : 'oppsbg',
     });
     setIsSubmitting(false);
@@ -213,7 +215,11 @@ const SignUp = ({
           <div className="flex flex-col gap-6">
             <div className="flex gap-2">
               <div className="w-[20px]">
-                <GoCheckCircleFill color="#247aed" size={20} className="mt-[3px]" />
+                <GoCheckCircleFill
+                  color="var(--color-primary-500)"
+                  size={20}
+                  className="mt-[3px]"
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <div className="text-body-3-emphasis text-text-primary auth-feature-title">
@@ -231,7 +237,11 @@ const SignUp = ({
 
             <div className="flex gap-2">
               <div className="w-[20px]">
-                <GoCheckCircleFill color="#247aed" size={20} className="mt-[3px]" />
+                <GoCheckCircleFill
+                  color="var(--color-primary-500)"
+                  size={20}
+                  className="mt-[3px]"
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <div className="text-body-3-emphasis text-text-primary auth-feature-title">
@@ -249,7 +259,11 @@ const SignUp = ({
 
             <div className="flex gap-2">
               <div className="w-[20px]">
-                <GoCheckCircleFill color="#247aed" size={20} className="mt-[3px]" />
+                <GoCheckCircleFill
+                  color="var(--color-primary-500)"
+                  size={20}
+                  className="mt-[3px]"
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <div className="text-body-3-emphasis text-text-primary auth-feature-title">

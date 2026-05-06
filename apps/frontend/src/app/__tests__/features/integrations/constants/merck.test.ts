@@ -8,9 +8,9 @@ describe('getMerckSubtopicPillStyle', () => {
     const style = getMerckSubtopicPillStyle('Etiology');
 
     expect(style).toEqual({
-      backgroundColor: '#747283',
-      color: '#F7F7F7',
-      borderColor: '#747283',
+      backgroundColor: 'var(--color-pill-neutral-bg)',
+      color: 'var(--color-pill-neutral-text)',
+      borderColor: 'var(--color-pill-neutral-border)',
     });
   });
 

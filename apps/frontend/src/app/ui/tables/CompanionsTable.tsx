@@ -46,13 +46,24 @@ type CompanionsTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case 'active':
-      return { color: '#fff', backgroundColor: '#D28F9A' };
+      return {
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      };
     case 'archived':
-      return { color: '#fff', backgroundColor: '#747283' };
+      return {
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      };
     case 'inactive':
-      return { color: '#fff', backgroundColor: '#BF9FAA' };
     default:
-      return { color: '#fff', backgroundColor: 'rgba(107,114,128,0.1)' };
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      };
   }
 };
 
@@ -274,7 +285,7 @@ const CompanionsTable = ({
                     {formatTimeLabel(upcoming.startTime)}
                   </div>
                 </div>
-                <IoOpenOutline size={15} color="#302F2E" />
+                <IoOpenOutline size={15} color="var(--color-neutral-900)" />
               </div>
             </button>
           </GlassTooltip>
@@ -297,7 +308,7 @@ const CompanionsTable = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '10%',
+      width: '256px',
       render: (item: CompanionParent) => (
         <div className="action-btn-col">
           <GlassTooltip content="View companion" side="bottom" className="table-action-tooltip">
@@ -306,7 +317,7 @@ const CompanionsTable = ({
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="View companion"
             >
-              <IoEye size={20} color="#302F2E" />
+              <IoEye size={20} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
           <GlassTooltip content="View history" side="bottom" className="table-action-tooltip">
@@ -315,7 +326,7 @@ const CompanionsTable = ({
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="View history"
             >
-              <RiHistoryLine size={16} color="#302F2E" />
+              <RiHistoryLine size={16} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
           {canEditCompanions && (
@@ -325,7 +336,7 @@ const CompanionsTable = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Change status"
               >
-                <MdOutlineAutorenew size={18} color="#302F2E" />
+                <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           )}
@@ -336,7 +347,7 @@ const CompanionsTable = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Book appointment"
               >
-                <FaCalendar size={14} color="#302F2E" />
+                <FaCalendar size={14} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           )}
@@ -347,7 +358,7 @@ const CompanionsTable = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Add task"
               >
-                <FaTasks size={14} color="#302F2E" />
+                <FaTasks size={14} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           )}
@@ -357,8 +368,8 @@ const CompanionsTable = ({
   ];
 
   return (
-    <div className="w-full">
-      <div className="hidden xl:flex">
+    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+      <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-hidden">
         <GenericTable
           data={filteredList}
           columns={columns}
@@ -367,7 +378,7 @@ const CompanionsTable = ({
           pageSize={10}
         />
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {(() => {
           if (filteredList.length === 0) {
             return (

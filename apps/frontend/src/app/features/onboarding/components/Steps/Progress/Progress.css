@@ -30,7 +30,7 @@
   cursor: pointer;
 }
 .step-heading {
-  color: #a09f9f;
+  color: var(--color-neutral-500);
   font-family: var(--font-satoshi);
   font-size: 16px;
   font-style: normal;
@@ -45,13 +45,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #a09f9f;
+  background: var(--color-neutral-500);
 }
 .step-dash {
   width: 48px;
   height: 2px;
   border-radius: 2px;
-  background: #a09f9f;
+  background: var(--color-neutral-500);
 }
 .activestep {
   color: var(--black-text);

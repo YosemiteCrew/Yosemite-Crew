@@ -224,13 +224,14 @@ function computeSavePayload(draft: Permission[], roleDefaults: Permission[]) {
 type PermissionsEditorProps = {
   role: RoleCode;
   value: Permission[];
+  readOnly?: boolean;
   onSave: (payload: {
     extraPerissions: Permission[];
     revokedPermissions: Permission[];
   }) => Promise<void> | void;
 };
 
-const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
+const PermissionsEditor = ({ value, onSave, role, readOnly = false }: PermissionsEditorProps) => {
   const roleDefaults = React.useMemo(() => ROLE_PERMISSIONS[role] ?? [], [role]);
 
   const [draft, setDraft] = React.useState<Permission[]>(value);
@@ -309,24 +310,23 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
   return (
     <Accordion title="Permissions" defaultOpen={false} showEditIcon={false} isEditing={false}>
       <div className={''}>
-        <div className="flex items-center justify-end pb-3">
-          <div className="font-satoshi text-[18px] text-[#2b2b2a] font-medium hidden">
-            Permissions
+        {!readOnly && (
+          <div className="flex items-center justify-end pb-3">
+            <button
+              type="button"
+              onClick={resetToRoleDefaults}
+              className="text-caption-1 px-2 py-1.5 text-text-brand"
+            >
+              Reset to role defaults
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={resetToRoleDefaults}
-            className="text-caption-1 px-2 py-1.5 text-text-brand"
-          >
-            Reset to role defaults
-          </button>
-        </div>
+        )}
         <div className="flex flex-col overflow-hidden">
           <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white">
-            <div className="text-body-4 text-[#747473]">Permission</div>
+            <div className="text-body-4 text-grey-text">Permission</div>
             <div className="flex gap-10 items-center">
-              <div className="text-body-4 text-[#747473] w-[72px] text-center">View</div>
-              <div className="text-body-4 text-[#747473] w-[72px] text-center">Edit</div>
+              <div className="text-body-4 text-grey-text w-[72px] text-center">View</div>
+              <div className="text-body-4 text-grey-text w-[72px] text-center">Edit</div>
             </div>
           </div>
           {PERMISSION_ROWS.map((row) => {
@@ -345,26 +345,28 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
                 <div className="flex gap-10 items-center">
                   <div className="w-[72px] flex justify-center">
                     {viewDisabled ? (
-                      <span className="text-[#c2c2c1]">—</span>
+                      <span className="text-[var(--color-muted-400)]">—</span>
                     ) : (
                       <input
                         type="checkbox"
                         name={`${row.key}-view`}
                         checked={viewChecked}
-                        onChange={(e) => toggle('view', row, e.target.checked)}
+                        onChange={(e) => !readOnly && toggle('view', row, e.target.checked)}
+                        disabled={readOnly}
                         className="h-2 w-2"
                       />
                     )}
                   </div>
                   <div className="w-[72px] flex justify-center">
                     {editDisabled ? (
-                      <span className="text-[#c2c2c1]">—</span>
+                      <span className="text-[var(--color-muted-400)]">—</span>
                     ) : (
                       <input
                         type="checkbox"
                         name={`${row.key}-edit`}
                         checked={editChecked}
-                        onChange={(e) => toggle('edit', row, e.target.checked)}
+                        onChange={(e) => !readOnly && toggle('edit', row, e.target.checked)}
+                        disabled={readOnly}
                         className="h-2 w-2"
                       />
                     )}
@@ -374,7 +376,7 @@ const PermissionsEditor = ({ value, onSave, role }: PermissionsEditorProps) => {
             );
           })}
         </div>
-        {isDirty && (
+        {!readOnly && isDirty && (
           <div className="flex w-full gap-3 mt-6">
             <Secondary
               text="Cancel"

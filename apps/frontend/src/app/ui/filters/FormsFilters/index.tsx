@@ -16,9 +16,15 @@ type FormsFiltersProps = {
   list: FormsProps[];
   setFilteredList: any;
   searchQuery?: string;
+  categoryAction?: React.ReactNode;
 };
 
-const FormsFilters = ({ list, setFilteredList, searchQuery = '' }: FormsFiltersProps) => {
+const FormsFilters = ({
+  list,
+  setFilteredList,
+  searchQuery = '',
+  categoryAction,
+}: FormsFiltersProps) => {
   const [activeStatus, setActiveStatus] = useState<FormsStatus | 'All'>('All');
   const [activeCategory, setActiveCategory] = useState<FormsCategory | 'All'>('All');
 
@@ -80,33 +86,42 @@ const FormsFilters = ({ list, setFilteredList, searchQuery = '' }: FormsFiltersP
     <div className="w-full flex items-center justify-between flex-wrap gap-3">
       <div className="flex items-center gap-2 flex-wrap">
         {FormsStatusFilters.map((status) => {
-          const active = status === activeStatus;
+          const isActive = status === activeStatus;
           const statusStyle =
             status === 'All'
-              ? { color: '#EAF3FF', backgroundColor: '#247AED' }
+              ? {
+                  color: 'var(--color-badge-blue-text)',
+                  backgroundColor: 'var(--color-badge-blue-bg)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--color-primary-500)',
+                }
               : getFormsStatusStyle(status || '');
 
           return (
             <button
               key={status}
               onClick={() => setActiveStatus(status)}
-              className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
-              style={active ? statusStyle : undefined}
+              className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
+              style={isActive ? statusStyle : undefined}
             >
               {status}
             </button>
           );
         })}
       </div>
-      <div className="w-full sm:w-[220px] min-w-[180px]">
-        <LabelDropdown
-          placeholder="Category"
-          options={filteredCategoryOptions}
-          defaultOption={activeCategory}
-          onSelect={(option) => {
-            setActiveCategory(option.value as FormsCategory | 'All');
-          }}
-        />
+      <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+        {categoryAction}
+        <div className="w-full sm:w-55 min-w-45">
+          <LabelDropdown
+            placeholder="Category"
+            options={filteredCategoryOptions}
+            defaultOption={activeCategory}
+            onSelect={(option) => {
+              setActiveCategory(option.value as FormsCategory | 'All');
+            }}
+          />
+        </div>
       </div>
     </div>
   );

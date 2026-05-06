@@ -138,6 +138,13 @@ const AppointmentCalendar = ({
   const [draggedAppointmentLabel, setDraggedAppointmentLabel] = useState<string | null>(null);
   const [dragError, setDragError] = useState<string | null>(null);
   const [dragContext, setDragContext] = useState<DragContext | null>(null);
+  const [suppressAutoScroll, setSuppressAutoScroll] = useState(false);
+  const suppressAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markDropped = () => {
+    if (suppressAutoScrollTimerRef.current) clearTimeout(suppressAutoScrollTimerRef.current);
+    setSuppressAutoScroll(true);
+    suppressAutoScrollTimerRef.current = setTimeout(() => setSuppressAutoScroll(false), 4000);
+  };
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const slotsCacheRef = useRef<Partial<Record<string, Slot[]>>>({});
@@ -812,6 +819,7 @@ const AppointmentCalendar = ({
           availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute) => {
+            markDropped();
             moveAppointment(dropDate, minute).catch(() => undefined);
             setDraggedAppointmentId(null);
             setDraggedAppointmentLabel(null);
@@ -819,6 +827,7 @@ const AppointmentCalendar = ({
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}
+          skipAutoScroll={suppressAutoScroll}
         />
       )}
       {activeCalendar === 'week' && (
@@ -876,6 +885,7 @@ const AppointmentCalendar = ({
           availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute) => {
+            markDropped();
             moveAppointment(dropDate, minute).catch(() => undefined);
             setDraggedAppointmentId(null);
             setDraggedAppointmentLabel(null);
@@ -883,6 +893,7 @@ const AppointmentCalendar = ({
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}
+          skipAutoScroll={suppressAutoScroll}
         />
       )}
       {activeCalendar === 'team' && (
@@ -939,6 +950,7 @@ const AppointmentCalendar = ({
           availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute, targetLeadId) => {
+            markDropped();
             moveAppointment(dropDate, minute, targetLeadId).catch(() => undefined);
             setDraggedAppointmentId(null);
             setDraggedAppointmentLabel(null);
@@ -946,6 +958,7 @@ const AppointmentCalendar = ({
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}
+          skipAutoScroll={suppressAutoScroll}
         />
       )}
     </div>

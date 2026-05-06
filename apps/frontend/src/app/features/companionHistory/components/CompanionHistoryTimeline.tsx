@@ -634,7 +634,7 @@ const CompanionHistoryTimeline = ({
               <button
                 type="button"
                 aria-label="Overview info"
-                className="relative top-[2px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary transition-colors hover:text-text-primary"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary transition-colors hover:text-text-primary"
               >
                 <IoInformationCircleOutline size={18} />
               </button>
