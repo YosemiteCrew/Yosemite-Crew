@@ -23,6 +23,7 @@ jest.mock("../../src/models/inventory", () => ({
   InventoryItemModel: {
     create: jest.fn(),
     findById: jest.fn(),
+    findOne: jest.fn(),
     find: jest.fn(),
     findByIdAndUpdate: jest.fn(),
   },
@@ -299,22 +300,22 @@ describe("Inventory Service Suite", () => {
 
   describe("InventoryService.updateItem", () => {
     it("throws if itemId is invalid", async () => {
-      await expect(InventoryService.updateItem("bad-id", {})).rejects.toThrow(
-        "Invalid itemId",
-      );
+      await expect(
+        InventoryService.updateItem("bad-id", {}, "org1"),
+      ).rejects.toThrow("Invalid itemId");
     });
     it("throws if item not found", async () => {
-      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+      (InventoryItemModel.findOne as jest.Mock).mockReturnValueOnce(
         createChainable(null),
       );
-      await expect(InventoryService.updateItem(validId, {})).rejects.toThrow(
-        "Inventory item not found",
-      );
+      await expect(
+        InventoryService.updateItem(validId, {}, "org1"),
+      ).rejects.toThrow("Inventory item not found");
     });
 
     it("updates all fields correctly", async () => {
       const mockDoc = createMockDoc({ organisationId: "org1" });
-      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+      (InventoryItemModel.findOne as jest.Mock).mockReturnValueOnce(
         createChainable(mockDoc),
       );
       (OrgBilling.findOne as jest.Mock).mockResolvedValueOnce({
@@ -324,21 +325,25 @@ describe("Inventory Service Suite", () => {
         createChainable([]),
       );
 
-      await InventoryService.updateItem(validId, {
-        name: "New",
-        sku: "SKU1",
-        category: "C",
-        subCategory: "S",
-        description: "D",
-        imageUrl: "I",
-        attributes: { a: 1 },
-        unitCost: 100,
-        sellingPrice: 150,
-        currency: "usd", // will be overridden by getOrgBillingCurrency
-        reorderLevel: 5,
-        vendorId: validId,
-        status: "HIDDEN",
-      });
+      await InventoryService.updateItem(
+        validId,
+        {
+          name: "New",
+          sku: "SKU1",
+          category: "C",
+          subCategory: "S",
+          description: "D",
+          imageUrl: "I",
+          attributes: { a: 1 },
+          unitCost: 100,
+          sellingPrice: 150,
+          currency: "usd",
+          reorderLevel: 5,
+          vendorId: validId,
+          status: "HIDDEN",
+        },
+        "org1",
+      );
 
       expect(mockDoc.name).toBe("New");
       expect(mockDoc.currency).toBe("gbp");
@@ -347,19 +352,23 @@ describe("Inventory Service Suite", () => {
 
     it("handles undefined/null resets perfectly", async () => {
       const mockDoc = createMockDoc({ organisationId: "org1" });
-      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+      (InventoryItemModel.findOne as jest.Mock).mockReturnValueOnce(
         createChainable(mockDoc),
       );
       (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
         createChainable([]),
       );
 
-      await InventoryService.updateItem(validId, {
-        unitCost: null,
-        sellingPrice: null,
-        reorderLevel: null,
-        vendorId: null,
-      });
+      await InventoryService.updateItem(
+        validId,
+        {
+          unitCost: null,
+          sellingPrice: null,
+          reorderLevel: null,
+          vendorId: null,
+        },
+        "org1",
+      );
 
       expect(mockDoc.unitCost).toBeUndefined();
       expect(mockDoc.save).toHaveBeenCalled();
@@ -367,14 +376,14 @@ describe("Inventory Service Suite", () => {
 
     it("updates nothing if empty input (hits uncovered negative branches)", async () => {
       const mockDoc = createMockDoc({ organisationId: "org1" });
-      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+      (InventoryItemModel.findOne as jest.Mock).mockReturnValueOnce(
         createChainable(mockDoc),
       );
       (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
         createChainable([]),
       );
 
-      await InventoryService.updateItem(validId, {});
+      await InventoryService.updateItem(validId, {}, "org1");
 
       expect(mockDoc.save).toHaveBeenCalled();
     });
@@ -397,12 +406,16 @@ describe("Inventory Service Suite", () => {
       });
       (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
 
-      const res = await InventoryService.updateItem("item-1", {
-        name: "Updated",
-        category: "Cat",
-        currency: "cad",
-        status: "ACTIVE",
-      });
+      const res = await InventoryService.updateItem(
+        "item-1",
+        {
+          name: "Updated",
+          category: "Cat",
+          currency: "cad",
+          status: "ACTIVE",
+        },
+        "org1",
+      );
 
       expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -416,50 +429,55 @@ describe("Inventory Service Suite", () => {
   describe("InventoryService status toggles (hide/archive/active)", () => {
     it("hideItem works", async () => {
       const mockDoc = createMockDoc({ status: "ACTIVE" });
-      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+      (InventoryItemModel.findOne as jest.Mock).mockReturnValueOnce(
         createChainable(mockDoc),
       );
-      await InventoryService.hideItem(validId);
+      await InventoryService.hideItem(validId, "org1");
       expect(mockDoc.status).toBe("HIDDEN");
     });
     it("archiveItem works", async () => {
       const mockDoc = createMockDoc({ status: "ACTIVE" });
-      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+      (InventoryItemModel.findOne as jest.Mock).mockReturnValueOnce(
         createChainable(mockDoc),
       );
-      await InventoryService.archiveItem(validId);
+      await InventoryService.archiveItem(validId, "org1");
       expect(mockDoc.status).toBe("DELETED");
     });
     it("activeItem works", async () => {
       const mockDoc = createMockDoc({ status: "HIDDEN" });
-      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+      (InventoryItemModel.findOne as jest.Mock).mockReturnValueOnce(
         createChainable(mockDoc),
       );
-      await InventoryService.activeItem(validId);
+      await InventoryService.activeItem(validId, "org1");
       expect(mockDoc.status).toBe("ACTIVE");
     });
     it("throws if not found", async () => {
-      (InventoryItemModel.findById as jest.Mock).mockReturnValue(
+      (InventoryItemModel.findOne as jest.Mock).mockReturnValue(
         createChainable(null),
       );
-      await expect(InventoryService.hideItem(validId)).rejects.toThrow(
+      await expect(InventoryService.hideItem(validId, "org1")).rejects.toThrow(
         "Inventory item not found",
       );
-      await expect(InventoryService.archiveItem(validId)).rejects.toThrow(
-        "Inventory item not found",
-      );
-      await expect(InventoryService.activeItem(validId)).rejects.toThrow(
-        "Inventory item not found",
-      );
+      await expect(
+        InventoryService.archiveItem(validId, "org1"),
+      ).rejects.toThrow("Inventory item not found");
+      await expect(
+        InventoryService.activeItem(validId, "org1"),
+      ).rejects.toThrow("Inventory item not found");
     });
 
     it("uses prisma when READ_FROM_POSTGRES is true", async () => {
       process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "org1",
+      });
       (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
         id: "item-1",
+        organisationId: "org1",
         status: "HIDDEN",
       });
-      const hidden = await InventoryService.hideItem("item-1");
+      const hidden = await InventoryService.hideItem("item-1", "org1");
       expect(hidden.status).toBe("HIDDEN");
     });
   });
@@ -645,14 +663,32 @@ describe("Inventory Service Suite", () => {
     });
     it("returns item and batches", async () => {
       (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
-        createChainable({ id: 1 }),
+        createChainable({ id: 1, organisationId: "org" }),
       );
       (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
         createChainable([{ id: 2 }]),
       );
       const res = await InventoryService.getItemWithBatches(validId, "org");
-      expect(res.item).toEqual({ id: 1 });
+      expect(res.item).toEqual({ id: 1, organisationId: "org" });
       expect(res.batches).toHaveLength(1);
+    });
+
+    it("throws if item belongs to a different organisation", async () => {
+      (InventoryItemModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({
+          id: 1,
+          organisationId: {
+            toString: () => "other-org",
+          },
+        }),
+      );
+      (InventoryBatchModel.find as jest.Mock).mockReturnValueOnce(
+        createChainable([]),
+      );
+
+      await expect(
+        InventoryService.getItemWithBatches(validId, "org"),
+      ).rejects.toThrow("Inventory item not found");
     });
 
     it("uses prisma when READ_FROM_POSTGRES is true", async () => {
@@ -668,6 +704,19 @@ describe("Inventory Service Suite", () => {
       const res = await InventoryService.getItemWithBatches("item-1", "org");
       expect(res.item).toEqual(expect.objectContaining({ _id: "item-1" }));
       expect(res.batches).toHaveLength(1);
+    });
+
+    it("throws for prisma reads when item belongs to a different organisation", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+        id: "item-1",
+        organisationId: "other-org",
+      });
+      (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+
+      await expect(
+        InventoryService.getItemWithBatches("item-1", "org"),
+      ).rejects.toThrow("Inventory item not found");
     });
   });
 

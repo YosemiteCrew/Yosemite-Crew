@@ -840,12 +840,20 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   // UPDATE ITEM
   // ─────────────────────────────────────────────
-  async updateItem(itemId: string, input: UpdateInventoryItemInput) {
+  async updateItem(
+    itemId: string,
+    input: UpdateInventoryItemInput,
+    organisationId: string,
+  ) {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
       const existing = await prisma.inventoryItem.findFirst({
-        where: { id: itemId },
+        where: { id: itemId, organisationId: safeOrganisationId },
       });
       if (!existing) {
         throw new InventoryServiceError("Inventory item not found", 404);
@@ -901,7 +909,10 @@ export const InventoryService = {
       };
     }
 
-    const item = await InventoryItemModel.findById(itemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
@@ -953,19 +964,35 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   // SOFT HIDE / ARCHIVE (map to HIDDEN / DELETED)
   // ─────────────────────────────────────────────
-  async hideItem(itemId: string): Promise<InventoryItemDocument> {
+  async hideItem(
+    itemId: string,
+    organisationId: string,
+  ): Promise<InventoryItemDocument> {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (isReadFromPostgres()) {
-      const item = await prisma.inventoryItem.update({
+      const item = await prisma.inventoryItem.findFirst({
+        where: { id: itemId, organisationId: safeOrganisationId },
+      });
+      if (!item) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
+      const updated = await prisma.inventoryItem.update({
         where: { id: itemId },
         data: { status: "HIDDEN" },
       });
       return {
-        ...item,
-        _id: toObjectId(item.id),
+        ...updated,
+        _id: toObjectId(updated.id),
       } as unknown as InventoryItemDocument;
     }
-    const item = await InventoryItemModel.findById(itemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
@@ -975,19 +1002,35 @@ export const InventoryService = {
     return item;
   },
 
-  async archiveItem(itemId: string): Promise<InventoryItemDocument> {
+  async archiveItem(
+    itemId: string,
+    organisationId: string,
+  ): Promise<InventoryItemDocument> {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (isReadFromPostgres()) {
-      const item = await prisma.inventoryItem.update({
+      const item = await prisma.inventoryItem.findFirst({
+        where: { id: itemId, organisationId: safeOrganisationId },
+      });
+      if (!item) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
+      const updated = await prisma.inventoryItem.update({
         where: { id: itemId },
         data: { status: "DELETED" },
       });
       return {
-        ...item,
-        _id: toObjectId(item.id),
+        ...updated,
+        _id: toObjectId(updated.id),
       } as unknown as InventoryItemDocument;
     }
-    const item = await InventoryItemModel.findById(itemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
@@ -997,19 +1040,35 @@ export const InventoryService = {
     return item;
   },
 
-  async activeItem(itemId: string): Promise<InventoryItemDocument> {
+  async activeItem(
+    itemId: string,
+    organisationId: string,
+  ): Promise<InventoryItemDocument> {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (isReadFromPostgres()) {
-      const item = await prisma.inventoryItem.update({
+      const item = await prisma.inventoryItem.findFirst({
+        where: { id: itemId, organisationId: safeOrganisationId },
+      });
+      if (!item) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
+      const updated = await prisma.inventoryItem.update({
         where: { id: itemId },
         data: { status: "ACTIVE" },
       });
       return {
-        ...item,
-        _id: toObjectId(item.id),
+        ...updated,
+        _id: toObjectId(updated.id),
       } as unknown as InventoryItemDocument;
     }
-    const item = await InventoryItemModel.findById(itemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
@@ -1193,6 +1252,9 @@ export const InventoryService = {
       if (!item) {
         throw new InventoryServiceError("Inventory item not found", 404);
       }
+      if (item.organisationId !== safeOrganisationId) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
 
       return {
         item: {
@@ -1214,6 +1276,9 @@ export const InventoryService = {
     ]);
 
     if (!item) {
+      throw new InventoryServiceError("Inventory item not found", 404);
+    }
+    if (item.organisationId.toString() !== safeOrganisationId) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
 

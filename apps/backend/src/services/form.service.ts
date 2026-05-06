@@ -453,6 +453,19 @@ const buildQuestionnaireResponse = async (
   );
 };
 
+const resolveAppointmentParentId = (
+  appointment: { companion?: unknown } | null | undefined,
+) => {
+  const companion = appointment?.companion;
+  if (!companion || typeof companion !== "object") return undefined;
+
+  const parent = (companion as { parent?: unknown }).parent;
+  if (!parent || typeof parent !== "object") return undefined;
+
+  const parentId = (parent as { id?: unknown }).id;
+  return typeof parentId === "string" ? parentId : undefined;
+};
+
 // Helpers
 
 const flattenFields = (schema: FormField[]): FormField[] => {
@@ -1076,14 +1089,15 @@ export const FormService = {
       : initialSubmission;
 
     const signingRequired = FormService.hasSignatureField(resolvedSchema);
-    const signing =
-      signingRequired && !submission.signing
-        ? {
-            required: true,
-            status: "NOT_STARTED",
-            provider: "DOCUMENSO",
-          }
-        : submission.signing;
+    // Never trust signing metadata from client-submitted FHIR extensions.
+    // Signed state and document IDs must be written by server-side signing flows.
+    const signing = signingRequired
+      ? {
+          required: true,
+          status: "NOT_STARTED" as const,
+          provider: "DOCUMENSO" as const,
+        }
+      : undefined;
 
     const formIdString = String(submission.formId);
     if (isReadFromPostgres()) {
@@ -1523,7 +1537,11 @@ export const FormService = {
 
   async getSOAPNotesByAppointment(
     appointmentId: string,
-    options?: { latestOnly?: boolean },
+    options?: {
+      latestOnly?: boolean;
+      requesterOrgId?: string;
+      requesterParentId?: string;
+    },
   ) {
     type SubmissionLean = Omit<FormSubmissionDocument, "formId"> & {
       _id: Types.ObjectId | string;
@@ -1564,14 +1582,34 @@ export const FormService = {
     const appointment = isReadFromPostgres()
       ? await prisma.appointment.findUnique({
           where: { id: appointmentObjectId },
-          select: { organisationId: true },
+          select: { organisationId: true, companion: true },
         })
       : await AppointmentModel.findById(appointmentObjectId)
-          .select({ organisationId: 1 })
+          .select({ organisationId: 1, companion: 1 })
           .lean();
 
     if (!appointment) {
       throw new FormServiceError("Appointment not found", 404);
+    }
+
+    if (
+      options?.requesterOrgId &&
+      appointment.organisationId !== options.requesterOrgId
+    ) {
+      throw new FormServiceError(
+        "Forbidden: appointment does not belong to this organisation",
+        403,
+      );
+    }
+
+    if (options?.requesterParentId) {
+      const appointmentParentId = resolveAppointmentParentId(appointment);
+      if (
+        !appointmentParentId ||
+        appointmentParentId !== options.requesterParentId
+      ) {
+        throw new FormServiceError("Forbidden", 403);
+      }
     }
 
     const orgType = await resolveOrganizationType(appointment.organisationId);
@@ -1854,6 +1892,7 @@ export const FormService = {
     serviceId?: string;
     species?: string;
     isPMS?: boolean;
+    viewerParentId?: string;
   }) {
     const appointmentId = ensureObjectId(
       params.appointmentId,
@@ -1863,11 +1902,20 @@ export const FormService = {
     const appointment = isReadFromPostgres()
       ? await prisma.appointment.findUnique({
           where: { id: appointmentId },
-          select: { organisationId: true, formIds: true },
+          select: { organisationId: true, formIds: true, companion: true },
         })
       : await AppointmentModel.findById(appointmentId).lean();
     if (!appointment) {
       throw new FormServiceError("Appointment not found", 404);
+    }
+    if (params.viewerParentId) {
+      const appointmentParentId = resolveAppointmentParentId(appointment);
+      if (
+        !appointmentParentId ||
+        appointmentParentId !== params.viewerParentId
+      ) {
+        throw new FormServiceError("Forbidden", 403);
+      }
     }
 
     const orgType = await resolveOrganizationType(appointment.organisationId);

@@ -39,6 +39,7 @@ jest.mock("../../src/models/appointment", () => ({
   __esModule: true,
   default: {
     findById: jest.fn(),
+    findOne: jest.fn(),
   },
 }));
 
@@ -106,7 +107,7 @@ jest.mock("../../src/utils/logger", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    appointment: { findUnique: jest.fn() },
+    appointment: { findUnique: jest.fn(), findFirst: jest.fn() },
     invoice: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -576,12 +577,13 @@ describe("InvoiceService", () => {
     it("markInvoicePaidManually should throw on wrong method", async () => {
       (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "inv_3",
+        organisationId: "org_1",
         paymentCollectionMethod: "PAYMENT_LINK",
         status: "AWAITING_PAYMENT",
       });
 
       await expect(
-        InvoiceService.markInvoicePaidManually("inv_3"),
+        InvoiceService.markInvoicePaidManually("inv_3", "org_1"),
       ).rejects.toThrow(
         new InvoiceServiceError(
           "Invoice is not marked for in-clinic payment.",
@@ -590,15 +592,30 @@ describe("InvoiceService", () => {
       );
     });
 
+    it("markInvoicePaidManually should throw when invoice belongs to another organisation", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_3b",
+        organisationId: "org_2",
+        paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+        status: "AWAITING_PAYMENT",
+      });
+
+      await expect(
+        InvoiceService.markInvoicePaidManually("inv_3b", "org_1"),
+      ).rejects.toThrow(new InvoiceServiceError("Invoice not found.", 404));
+    });
+
     it("updatePaymentCollectionMethod returns same method if unchanged", async () => {
       (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "inv_4",
+        organisationId: "org_1",
         status: "AWAITING_PAYMENT",
         paymentCollectionMethod: "PAYMENT_LINK",
       });
 
       const res = await InvoiceService.updatePaymentCollectionMethod(
         "inv_4",
+        "org_1",
         "PAYMENT_LINK",
       );
       expect(res).toBeDefined();
@@ -607,15 +624,37 @@ describe("InvoiceService", () => {
 
     it("updatePaymentCollectionMethod throws on invalid method", async () => {
       await expect(
-        InvoiceService.updatePaymentCollectionMethod("inv_bad", "invalid"),
+        InvoiceService.updatePaymentCollectionMethod(
+          "inv_bad",
+          "org_1",
+          "invalid",
+        ),
       ).rejects.toThrow(
         new InvoiceServiceError("Invalid payment collection method.", 400),
       );
     });
 
+    it("updatePaymentCollectionMethod throws when invoice belongs to another organisation", async () => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_4x",
+        organisationId: "org_2",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+
+      await expect(
+        InvoiceService.updatePaymentCollectionMethod(
+          "inv_4x",
+          "org_1",
+          "PAYMENT_AT_CLINIC",
+        ),
+      ).rejects.toThrow(new InvoiceServiceError("Invoice not found.", 404));
+    });
+
     it("updatePaymentCollectionMethod normalizes metadata and items", async () => {
       (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "inv_4b",
+        organisationId: "org_1",
         status: "AWAITING_PAYMENT",
         paymentCollectionMethod: "PAYMENT_LINK",
         items: [
@@ -631,7 +670,6 @@ describe("InvoiceService", () => {
         metadata: { ok: "yes", count: 2, flag: true, bad: { nested: 1 } },
         parentId: null,
         companionId: null,
-        organisationId: null,
         appointmentId: null,
         subtotal: 10,
         totalAmount: 10,
@@ -654,6 +692,7 @@ describe("InvoiceService", () => {
 
       const res = await InvoiceService.updatePaymentCollectionMethod(
         "inv_4b",
+        "org_1",
         "PAYMENT_LINK",
       );
 
@@ -1149,6 +1188,19 @@ describe("InvoiceService", () => {
       });
     });
 
+    it("findOpenInvoiceForAppointment should scope by organisation when provided", async () => {
+      const mockSort = jest.fn().mockResolvedValue("doc");
+      (InvoiceModel.findOne as jest.Mock).mockReturnValue({ sort: mockSort });
+
+      await InvoiceService.findOpenInvoiceForAppointment(validId, "org_1");
+
+      expect(InvoiceModel.findOne).toHaveBeenCalledWith({
+        appointmentId: validId,
+        organisationId: "org_1",
+        status: { $in: ["AWAITING_PAYMENT", "PENDING"] },
+      });
+    });
+
     it("addChargesToAppointment should create extra invoice if open invoice does not exist", async () => {
       const spyOpen = jest
         .spyOn(InvoiceService, "findOpenInvoiceForAppointment")
@@ -1165,7 +1217,26 @@ describe("InvoiceService", () => {
       spyExtra.mockRestore();
     });
 
+    it("addChargesToAppointment should validate appointment belongs to organisation", async () => {
+      (AppointmentModel.findOne as jest.Mock).mockReturnValue({
+        setOptions: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      await expect(
+        InvoiceService.addChargesToAppointment(validId, [], "org_1"),
+      ).rejects.toThrow("Appointment not found for organisation");
+    });
+
     it("addChargesToAppointment should add to open invoice if it exists", async () => {
+      (AppointmentModel.findOne as jest.Mock).mockReturnValue({
+        setOptions: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue({ _id: validId }),
+        }),
+      });
       const spyOpen = jest
         .spyOn(InvoiceService, "findOpenInvoiceForAppointment")
         .mockResolvedValue({ _id: validId } as any);
@@ -1173,8 +1244,13 @@ describe("InvoiceService", () => {
         .spyOn(InvoiceService, "addItemsToInvoice")
         .mockResolvedValue("added" as any);
 
-      const res = await InvoiceService.addChargesToAppointment(validId, []);
+      const res = await InvoiceService.addChargesToAppointment(
+        validId,
+        [],
+        "org_1",
+      );
       expect(res).toBe("added");
+      expect(spyOpen).toHaveBeenCalledWith(validId, "org_1");
       expect(spyAdd).toHaveBeenCalledWith(validId, []);
 
       spyOpen.mockRestore();
@@ -1280,6 +1356,17 @@ describe("InvoiceService", () => {
     it("should return domain DTO on success", async () => {
       (InvoiceModel.findOne as jest.Mock).mockResolvedValue(createMockDoc());
       expect(await InvoiceService.getByPaymentIntentId("pi_123")).toBeDefined();
+    });
+
+    it("should scope payment intent lookup by organisation when provided", async () => {
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(createMockDoc());
+
+      await InvoiceService.getByPaymentIntentId("pi_123", "org_1");
+
+      expect(InvoiceModel.findOne).toHaveBeenCalledWith({
+        stripePaymentIntentId: "pi_123",
+        organisationId: "org_1",
+      });
     });
   });
 

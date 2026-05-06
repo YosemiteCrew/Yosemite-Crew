@@ -168,11 +168,20 @@ describe("Inventory Controllers", () => {
 
     describe("updateItem", () => {
       it("should update item successfully", async () => {
-        req = mockRequest({ params: { itemId: "1" }, body: { name: "Up" } });
+        req = mockRequest({
+          params: { itemId: "1" },
+          body: { name: "Up" },
+          organisationId: "org1",
+        } as any);
         (InventoryService.updateItem as jest.Mock).mockResolvedValueOnce({
           id: "1",
         });
         await InventoryController.updateItem(req as any, res);
+        expect(InventoryService.updateItem).toHaveBeenCalledWith(
+          "1",
+          { name: "Up" },
+          "org1",
+        );
         expect(res.json).toHaveBeenCalledWith({ id: "1" });
       });
       it("catches errors", async () => {
@@ -187,11 +196,15 @@ describe("Inventory Controllers", () => {
 
     describe("hideItem", () => {
       it("should hide item successfully", async () => {
-        req = mockRequest({ params: { itemId: "1" } });
+        req = mockRequest({
+          params: { itemId: "1" },
+          organisationId: "org1",
+        } as any);
         (InventoryService.hideItem as jest.Mock).mockResolvedValueOnce({
           id: "1",
         });
         await InventoryController.hideItem(req as any, res);
+        expect(InventoryService.hideItem).toHaveBeenCalledWith("1", "org1");
         expect(res.json).toHaveBeenCalledWith({ id: "1" });
       });
       it("catches errors", async () => {
@@ -206,11 +219,15 @@ describe("Inventory Controllers", () => {
 
     describe("activeItem", () => {
       it("should activate item successfully", async () => {
-        req = mockRequest({ params: { itemId: "1" } });
+        req = mockRequest({
+          params: { itemId: "1" },
+          organisationId: "org1",
+        } as any);
         (InventoryService.activeItem as jest.Mock).mockResolvedValueOnce({
           id: "1",
         });
         await InventoryController.activeItem(req as any, res);
+        expect(InventoryService.activeItem).toHaveBeenCalledWith("1", "org1");
         expect(res.json).toHaveBeenCalledWith({ id: "1" });
       });
       it("catches errors", async () => {
@@ -225,11 +242,15 @@ describe("Inventory Controllers", () => {
 
     describe("archiveItem", () => {
       it("should archive item successfully", async () => {
-        req = mockRequest({ params: { itemId: "1" } });
+        req = mockRequest({
+          params: { itemId: "1" },
+          organisationId: "org1",
+        } as any);
         (InventoryService.archiveItem as jest.Mock).mockResolvedValueOnce({
           id: "1",
         });
         await InventoryController.archiveItem(req as any, res);
+        expect(InventoryService.archiveItem).toHaveBeenCalledWith("1", "org1");
         expect(res.json).toHaveBeenCalledWith({ id: "1" });
       });
       it("catches errors", async () => {
@@ -304,11 +325,18 @@ describe("Inventory Controllers", () => {
 
     describe("getItemWithBatches", () => {
       it("fetches item details", async () => {
-        req = mockRequest({ params: { itemId: "1", organisationId: "org1" } });
+        req = mockRequest({
+          params: { itemId: "1" },
+          organisationId: "org1",
+        } as any);
         (
           InventoryService.getItemWithBatches as jest.Mock
         ).mockResolvedValueOnce({ id: "1" });
         await InventoryController.getItemWithBatches(req as any, res);
+        expect(InventoryService.getItemWithBatches).toHaveBeenCalledWith(
+          "1",
+          "org1",
+        );
         expect(res.json).toHaveBeenCalledWith({ id: "1" });
       });
       it("catches errors", async () => {
@@ -416,15 +444,16 @@ describe("Inventory Controllers", () => {
     });
 
     describe("adjustStock & User Resolution", () => {
-      it("resolves user from x-user-id string header", async () => {
+      it("uses authenticated userId instead of trusting x-user-id", async () => {
         req = mockRequest({
           params: { itemId: "1" },
           body: { newOnHand: 10, reason: "Audit" },
           headers: { "x-user-id": "headerUser123" },
         });
+        (req as any).userId = "authReqUser123";
         await InventoryController.adjustStock(req as any, res);
         expect(InventoryAdjustmentService.adjustStock).toHaveBeenCalledWith(
-          expect.objectContaining({ userId: "headerUser123" }),
+          expect.objectContaining({ userId: "authReqUser123" }),
         );
       });
 

@@ -146,6 +146,9 @@ describe("CoParentInviteService", () => {
 
     it("should create and return an invite with trimmed inviteeName", async () => {
       (randomUUID as jest.Mock).mockReturnValue("mock-uuid-token");
+      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValueOnce({
+        _id: "link-1",
+      });
 
       const res = await CoParentInviteService.sendInvite({
         email: "TEST@example.com",
@@ -169,6 +172,9 @@ describe("CoParentInviteService", () => {
     });
 
     it("should create and return an invite when inviteeName is missing (null fallback)", async () => {
+      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValueOnce({
+        _id: "link-1",
+      });
       const res = await CoParentInviteService.sendInvite({
         email: "test2@example.com",
         companionId: validCompanionId,
@@ -177,9 +183,29 @@ describe("CoParentInviteService", () => {
       expect(res.inviteeName).toBeNull();
     });
 
+    it("should reject invite creation when inviter is not primary for companion", async () => {
+      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        CoParentInviteService.sendInvite({
+          email: "test@example.com",
+          companionId: validCompanionId,
+          invitedByParentId: validParentId,
+        }),
+      ).rejects.toThrow(
+        new CoParentInviteServiceError(
+          "You are not authorized to invite a co-parent for this companion.",
+          403,
+        ),
+      );
+    });
+
     it("uses prisma when READ_FROM_POSTGRES is true", async () => {
       process.env.READ_FROM_POSTGRES = "true";
       (randomUUID as jest.Mock).mockReturnValue("mock-uuid-token");
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-1",
+      });
       (prisma.coParentInvite.create as jest.Mock).mockResolvedValue({
         id: "pg-1",
       });
@@ -196,6 +222,9 @@ describe("CoParentInviteService", () => {
 
     it("handles dual-write errors", async () => {
       (randomUUID as jest.Mock).mockReturnValue("mock-uuid-token");
+      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValueOnce({
+        _id: "link-1",
+      });
       (CoParentInviteModel.create as jest.Mock).mockResolvedValue({
         _id: { toString: () => "mongo-1" },
         createdAt: new Date(),

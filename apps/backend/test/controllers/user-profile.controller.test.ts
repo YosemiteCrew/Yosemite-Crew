@@ -180,15 +180,16 @@ describe("UserProfileController", () => {
   });
 
   describe("getByUserId", () => {
-    it("should success (200) using header user-id", async () => {
+    it("should ignore header user-id and use req.userId", async () => {
       req.headers = { "x-user-id": "headerUser" };
+      (req as any).userId = "reqUser";
       req.params = { organizationId: "org1" };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedProfileService.getByUserId as any).mockResolvedValue({ id: "p1" });
 
       await UserProfileController.getByUserId(req as any, res as Response);
       expect(mockedProfileService.getByUserId).toHaveBeenCalledWith(
-        "headerUser",
+        "reqUser",
         "org1",
       );
       expect(statusMock).toHaveBeenCalledWith(200);
@@ -228,7 +229,8 @@ describe("UserProfileController", () => {
   });
 
   describe("getUserProfileById", () => {
-    it("should success (200) using path param userId", async () => {
+    it("should success (200) when path userId matches authenticated user", async () => {
+      (req as any).userId = "pathUser";
       req.params = { userId: "pathUser", organizationId: "org1" };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedProfileService.getByUserId as any).mockResolvedValue({ id: "p1" });
@@ -244,8 +246,25 @@ describe("UserProfileController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("should return 403 when path userId does not match authenticated user", async () => {
+      (req as any).userId = "authUser";
+      req.params = { userId: "pathUser", organizationId: "org1" };
+
+      await UserProfileController.getUserProfileById(
+        req as any,
+        res as Response,
+      );
+
+      expect(mockedProfileService.getByUserId).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "You are not authorized to access this user profile.",
+      });
+    });
+
     it("should 404 if not found", async () => {
-      req.params = { userId: "pathUser" };
+      (req as any).userId = "pathUser";
+      req.params = { userId: "pathUser", organizationId: "org1" };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedProfileService.getByUserId as any).mockResolvedValue(null);
       await UserProfileController.getUserProfileById(
@@ -256,7 +275,8 @@ describe("UserProfileController", () => {
     });
 
     it("should handle service error", async () => {
-      req.params = { userId: "pathUser" };
+      (req as any).userId = "pathUser";
+      req.params = { userId: "pathUser", organizationId: "org1" };
       mockServiceError("getByUserId", 400);
       await UserProfileController.getUserProfileById(
         req as any,
@@ -266,7 +286,8 @@ describe("UserProfileController", () => {
     });
 
     it("should handle generic error", async () => {
-      req.params = { userId: "pathUser" };
+      (req as any).userId = "pathUser";
+      req.params = { userId: "pathUser", organizationId: "org1" };
       mockGenericError("getByUserId");
       await UserProfileController.getUserProfileById(
         req as any,

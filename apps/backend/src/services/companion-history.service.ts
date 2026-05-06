@@ -106,12 +106,20 @@ type HistoryCursor = {
   id: string;
 };
 
-const HISTORY_TYPES: HistoryEntryType[] = [
+const ALL_HISTORY_TYPES: HistoryEntryType[] = [
   "APPOINTMENT",
   "TASK",
   "FORM_SUBMISSION",
   "DOCUMENT",
   "LAB_RESULT",
+  "INVOICE",
+];
+
+const DEFAULT_HISTORY_TYPES: HistoryEntryType[] = [
+  "APPOINTMENT",
+  "TASK",
+  "FORM_SUBMISSION",
+  "DOCUMENT",
   "INVOICE",
 ];
 
@@ -322,8 +330,8 @@ export const CompanionHistoryService = {
     const limit = resolveLimit(params.limit);
     const cursor = parseCursor(params.cursor);
 
-    const types = params.types?.length ? params.types : HISTORY_TYPES;
-    const invalidType = types.find((type) => !HISTORY_TYPES.includes(type));
+    const types = params.types?.length ? params.types : DEFAULT_HISTORY_TYPES;
+    const invalidType = types.find((type) => !ALL_HISTORY_TYPES.includes(type));
     if (invalidType) {
       throw new CompanionHistoryServiceError("Invalid types filter", 400);
     }
@@ -546,7 +554,10 @@ export const CompanionHistoryService = {
 
     if (types.includes("DOCUMENT")) {
       try {
-        const documents = await DocumentService.listForPms({ companionId });
+        const documents = await DocumentService.listForPms({
+          companionId,
+          organisationId,
+        });
         const appointmentIds =
           documents
             .map((doc) => doc.appointmentId ?? undefined)

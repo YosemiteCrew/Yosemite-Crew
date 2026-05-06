@@ -22,6 +22,10 @@ import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { ServiceType } from "@prisma/client";
 import { isReadFromPostgres } from "src/config/read-switch";
 import UserProfileModel from "src/models/user-profile";
+import {
+  addCachedPromise,
+  type CachedPromise,
+} from "src/utils/cached-promise-cache";
 
 dayjs.extend(utc);
 
@@ -62,14 +66,11 @@ type PreferredTimeZoneClock = {
   dayOffset: number;
 };
 
-type CachedPromise<T> = {
-  expiresAt: number;
-  promise: Promise<T>;
-};
-
 const DAY_MINUTES = 24 * 60;
 const SLOT_MATCH_TOLERANCE_MINUTES = 5;
 const CALENDAR_PREFILL_CACHE_TTL_MS = 15_000;
+const CALENDAR_PREFILL_CACHE_MAX_ENTRIES = 2_000;
+const CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS = 15_000;
 const UTC_CLOCK_TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const OFFSET_TIMEZONE_REGEX = /^(?:UTC)?([+-])(\d{1,2}):(\d{2})$/;
 const calendarPrefillCache = new Map<
@@ -213,31 +214,6 @@ const mapOrganisationWithAddress = (org: {
       }
     : undefined,
 });
-
-const addCachedPromise = <T>(
-  cache: Map<string, CachedPromise<T>>,
-  key: string,
-  ttlMs: number,
-  factory: () => Promise<T>,
-) => {
-  const now = Date.now();
-  const existing = cache.get(key);
-  if (existing && existing.expiresAt > now) {
-    return existing.promise;
-  }
-
-  const promise = factory().catch((error) => {
-    cache.delete(key);
-    throw error;
-  });
-
-  cache.set(key, {
-    expiresAt: now + ttlMs,
-    promise,
-  });
-
-  return promise;
-};
 
 const extractTimezoneFromPersonalDetails = (value: unknown): string | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -652,7 +628,18 @@ const getServiceSchedulingContext = async (
 
 export const ServiceService = {
   async create(dto: ServiceRequestDTO) {
-    const service = fromServiceRequestDTO(dto);
+    let service: Service;
+    try {
+      service = fromServiceRequestDTO(dto);
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Expected FHIR HealthcareService")
+      ) {
+        throw new ServiceServiceError(error.message, 400);
+      }
+      throw error;
+    }
     const orgId = ensureObjectId(service.organisationId, "organisationId");
 
     const mongoPayload: ServiceMongo = {
@@ -677,6 +664,30 @@ export const ServiceService = {
     await syncServiceToPostgres(doc);
 
     return toServiceResponseDTO(mapDocToDomain(doc));
+  },
+
+  async createMany(dtos: ServiceRequestDTO[]) {
+    if (!Array.isArray(dtos) || !dtos.length) {
+      throw new ServiceServiceError("Payload list cannot be empty.", 400);
+    }
+
+    const results = [];
+    for (const [index, dto] of dtos.entries()) {
+      try {
+        const created = await ServiceService.create(dto);
+        results.push(created);
+      } catch (error: unknown) {
+        if (error instanceof ServiceServiceError) {
+          throw new ServiceServiceError(
+            `Item ${index}: ${error.message}`,
+            error.statusCode,
+          );
+        }
+        throw error;
+      }
+    }
+
+    return results;
   },
 
   async getById(id: string) {
@@ -941,7 +952,7 @@ export const ServiceService = {
           .map((serviceId) => requireSafeString(serviceId, "serviceId"))
           .filter(Boolean),
       ),
-    );
+    ).sort((a, b) => a.localeCompare(b));
 
     if (serviceIds.length === 0) {
       return [];
@@ -1048,6 +1059,10 @@ export const ServiceService = {
         });
 
         return matches;
+      },
+      {
+        maxEntries: CALENDAR_PREFILL_CACHE_MAX_ENTRIES,
+        pruneIntervalMs: CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS,
       },
     );
   },
