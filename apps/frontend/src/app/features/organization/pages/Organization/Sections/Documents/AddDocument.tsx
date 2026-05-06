@@ -139,7 +139,7 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
           <Primary
             href="#"
             text="Save"
-            className="max-h-12! text-lg! tracking-wide!"
+            className="max-h-12! text-lg! tracking-[-0.36px]!"
             onClick={handleSave}
           />
         </div>

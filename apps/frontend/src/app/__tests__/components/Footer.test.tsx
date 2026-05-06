@@ -16,8 +16,16 @@ jest.mock('next/image', () => {
 });
 
 jest.mock('next/link', () => {
-  const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => {
-    return <a href={href}>{children}</a>;
+  const MockLink = ({
+    children,
+    href,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => {
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
   };
   MockLink.displayName = 'MockNextLink';
   return MockLink;
@@ -37,12 +45,27 @@ jest.mock('framer-motion', () => {
   };
 });
 
+const mockPlatformStatusFetch = (status?: string) => {
+  if (status === undefined) {
+    globalThis.fetch = jest.fn(() => new Promise<Response>(() => undefined)) as jest.Mock;
+    return;
+  }
+
+  globalThis.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: jest.fn().mockResolvedValue({ status }),
+  }) as jest.Mock;
+};
+
 describe('Footer Component', () => {
-  beforeEach(() => {
+  const renderFooter = (status?: string) => {
+    mockPlatformStatusFetch(status);
     render(<Footer />);
-  });
+  };
 
   it('should render the main logo and certification images', () => {
+    renderFooter();
+
     expect(screen.getByAltText('Yosemite Crew Logo')).toBeInTheDocument();
     expect(screen.getByAltText('GDPR')).toBeInTheDocument();
     expect(screen.getByAltText('SOC2')).toBeInTheDocument();
@@ -51,12 +74,16 @@ describe('Footer Component', () => {
   });
 
   it('should render all navigation section titles', () => {
+    renderFooter();
+
     expect(screen.getByText('Developers')).toBeInTheDocument();
     expect(screen.getByText('Community')).toBeInTheDocument();
     expect(screen.getByText('Company')).toBeInTheDocument();
   });
 
   it('should render all navigation links with correct href attributes', () => {
+    renderFooter();
+
     const gettingStartedLink = screen.getByRole('link', { name: 'Developer portal' });
     expect(gettingStartedLink).toBeInTheDocument();
     expect(gettingStartedLink).toHaveAttribute('href', '/developers/signup');
@@ -71,6 +98,8 @@ describe('Footer Component', () => {
   });
 
   it('should render the copyright and contact information', () => {
+    renderFooter();
+
     expect(screen.getByText('© 2026 DuneXploration UG (haftungsbeschränkt)')).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -85,5 +114,15 @@ describe('Footer Component', () => {
     const phoneLink = screen.getByRole('link', { name: '+49 152 277 63275' });
     expect(phoneLink).toBeInTheDocument();
     expect(phoneLink).toHaveAttribute('href', 'tel:+4915227763275');
+  });
+
+  it('should render the platform status link', async () => {
+    renderFooter('operational');
+
+    const statusLink = await screen.findByRole('link', { name: 'All systems operational' });
+
+    expect(statusLink).toHaveAttribute('href', 'https://yosemite-crew.openstatus.dev/');
+    expect(statusLink).toHaveAttribute('target', '_blank');
+    expect(statusLink).toHaveClass('platform-status-link-success');
   });
 });

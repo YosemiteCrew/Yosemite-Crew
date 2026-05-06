@@ -386,7 +386,7 @@ const UniversalSearchPalette = () => {
                         <div className="truncate pr-2 font-satoshi text-body-4 text-text-primary">
                           {item.title}
                         </div>
-                        <div className="shrink-0 rounded-xl border border-white/65 bg-white/72 px-2 py-0.5 font-satoshi text-[0.65rem] font-medium uppercase tracking-[0.05em] text-text-secondary">
+                        <div className="shrink-0 rounded-xl border border-white/65 bg-white/72 px-2 py-0.5 font-satoshi text-[0.65rem] font-medium uppercase tracking-[-0.22px] text-text-secondary">
                           {moduleLabels[item.module]}
                         </div>
                       </div>

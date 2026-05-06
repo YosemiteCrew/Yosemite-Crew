@@ -2353,7 +2353,7 @@ const TermsAndConditions = () => {
                   <td className="dataCell">Age</td>
                 </tr>
                 <tr>
-                  <td className="dataCell">Pet Type (Cat/Dog/Horse)</td>
+                  <td className="dataCell">Pet Type (Feline/Canine/Equine)</td>
                 </tr>
                 <tr>
                   <td className="dataCell">Gender (Male/Female)</td>

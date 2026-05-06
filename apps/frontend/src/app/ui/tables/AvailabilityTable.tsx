@@ -81,7 +81,7 @@ const AvailabilityTable = ({
     {
       label: '',
       key: 'image',
-      width: '5%',
+      width: '56px',
       render: (item: Team) => (
         <div className="appointment-profile w-10 h-10">
           <Image
@@ -97,7 +97,7 @@ const AvailabilityTable = ({
     {
       label: 'Name',
       key: 'name',
-      width: '15%',
+      width: '18%',
       render: (item: Team) => (
         <div className="appointment-profile">
           <div className="appointment-profile-title">{item.name || '-'}</div>
@@ -107,7 +107,7 @@ const AvailabilityTable = ({
     {
       label: 'Role',
       key: 'role',
-      width: '15%',
+      width: '14%',
       render: (item: Team) => (
         <div className="appointment-profile-title">{toTitleCase(item.role)}</div>
       ),
@@ -115,7 +115,7 @@ const AvailabilityTable = ({
     {
       label: 'Speciality',
       key: 'speciality',
-      width: '15%',
+      width: '18%',
       render: (item: Team) => (
         <div className="appointment-profile-title">
           {Array.isArray(item?.speciality) && item.speciality.length > 0
@@ -131,7 +131,7 @@ const AvailabilityTable = ({
     {
       label: "Today's Appointment",
       key: 'today',
-      width: '12.5%',
+      width: '14%',
       render: (item: Team) => (
         <div className="appointment-profile-title">{item.todayAppointment || '0'}</div>
       ),
@@ -139,7 +139,7 @@ const AvailabilityTable = ({
     {
       label: 'Weekly working hours',
       key: 'weekly',
-      width: '12.5%',
+      width: '16%',
       render: (item: Team) => (
         <div className="appointment-profile-title">
           {formatWeeklyWorkingHours(item.weeklyWorkingHours)}
@@ -149,7 +149,7 @@ const AvailabilityTable = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '12%',
       render: (item: Team) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {item.status}

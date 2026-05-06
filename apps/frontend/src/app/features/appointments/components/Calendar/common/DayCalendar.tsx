@@ -300,7 +300,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     clientY?: number
   ): void => openPopover(key, target, draggedAppointmentId, clientX, clientY);
 
-  const popoverStyle = getPopoverStyle(360, 340);
+  const popoverStyle = getPopoverStyle(440, 490);
   const contextMenuStyle = useMemo(() => {
     if (!contextMenu) return null;
     const width = 280;

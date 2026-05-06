@@ -1,3 +1,4 @@
+'use client';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -8,9 +9,18 @@ import { formatDateLabel } from '@/app/lib/forms';
 import { formatMoney } from '@/app/lib/money';
 import { getAppointmentByIdFromList } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
+import { toTitle } from '@/app/lib/validators';
 import { Invoice } from '@yosemite-crew/types';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
+import { useRouter } from 'next/navigation';
+import clsx from 'clsx';
+import Image from 'next/image';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getStatusStyle } from '@/app/ui/tables/InvoiceTable';
+
+type ActiveTab = 'details' | 'payment';
 
 const CompanionFields = [
   { label: 'Pet', key: 'pet', type: 'text' },
@@ -35,13 +45,21 @@ type InvoiceInfoProps = {
 const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<ActiveTab>('details');
 
-  const handleDownload = (link: string | undefined) => {
-    globalThis.open(link, '_blank');
-  };
+  const appointment = useMemo(
+    () => getAppointmentByIdFromList(appointments, activeInvoice?.appointmentId),
+    [appointments, activeInvoice]
+  );
+
+  const invoiceStatusLabel = toTitle(activeInvoice?.status ?? '');
+  const invoiceStatusStyle = (() => {
+    const s = getStatusStyle(activeInvoice?.status ?? '');
+    return { ...s, borderColor: s.color };
+  })();
 
   const appointmentInfoData = useMemo(() => {
-    const appointment = getAppointmentByIdFromList(appointments, activeInvoice?.appointmentId);
     if (appointment) {
       return {
         pet: formatCompanionNameWithOwnerLastName(
@@ -52,12 +70,8 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
         service: appointment.appointmentType?.name,
       };
     }
-    return {
-      pet: '-',
-      parent: '-',
-      service: '-',
-    };
-  }, [activeInvoice, appointments]);
+    return { pet: '-', parent: '-', service: '-' };
+  }, [appointment]);
 
   const paymentInfoData = useMemo(
     () => ({
@@ -71,60 +85,182 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     [activeInvoice, currency]
   );
 
-  const paymentCollectionMethod = String(
-    (activeInvoice as any)?.paymentCollectionMethod ?? ''
-  ).toUpperCase();
-  const showDownload = Boolean(activeInvoice?.stripeReceiptUrl);
-  const showGenerateLink =
-    !showDownload &&
-    paymentCollectionMethod !== 'PAYMENT_AT_CLINIC' &&
-    activeInvoice?.status !== 'PAID';
+  const goToAppointmentFinance = () => {
+    if (!appointment?.id) return;
+    const params = new URLSearchParams({
+      appointmentId: appointment.id,
+      open: 'finance',
+      subLabel: 'summary',
+    });
+    router.push(`/appointments?${params.toString()}`);
+    setShowModal(false);
+  };
+
+  const tabs: { key: ActiveTab; label: string }[] = [
+    { key: 'details', label: 'Details' },
+    { key: 'payment', label: 'Payment' },
+  ];
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-6">
+      <div className="flex flex-col h-full gap-4">
+        {/* Header */}
         <div className="flex justify-between items-center">
-          <div className="opacity-0">
+          <div className="opacity-0 pointer-events-none">
             <Close onClick={() => {}} />
           </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">View invoice</div>
-          </div>
+          <div className="text-body-1 text-text-primary">View invoice</div>
           <Close onClick={() => setShowModal(false)} />
         </div>
-        <div className="flex overflow-y-auto flex-1 justify-between flex-col gap-6 w-full scrollbar-hidden">
-          <div className="flex flex-col gap-6 w-full">
-            <EditableAccordion
-              key={'Appointments-key'}
-              title={'Appointments details'}
-              fields={CompanionFields}
-              data={appointmentInfoData}
-              defaultOpen={true}
-              showEditIcon={false}
-            />
-            <EditableAccordion
-              key={'Payments-key'}
-              title={'Payment details'}
-              fields={InvoiceFields}
-              data={paymentInfoData}
-              defaultOpen={true}
-              showEditIcon={false}
-            />
-          </div>
-          <div className="flex flex-col gap-3 mt-2">
-            {showDownload && (
-              <Secondary
-                text="Download"
-                href=""
-                onClick={() => handleDownload(activeInvoice?.stripeReceiptUrl)}
+
+        {/* Tab pills */}
+        <div className="flex items-center justify-center gap-2 border-b border-card-border pb-3">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={clsx(
+                'h-9 px-4 rounded-2xl! text-body-4 transition-all duration-200',
+                activeTab === tab.key
+                  ? 'bg-blue-light text-blue-text!'
+                  : 'text-text-tertiary hover:bg-card-hover!'
+              )}
+              style={{
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor:
+                  activeTab === tab.key ? 'var(--color-text-brand)' : 'var(--color-card-border)',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex overflow-y-auto flex-1 flex-col gap-6 scrollbar-hidden">
+          {activeTab === 'details' && (
+            <>
+              <EditableAccordion
+                key="Appointments-key"
+                title="Appointment details"
+                fields={CompanionFields}
+                data={appointmentInfoData}
+                defaultOpen={true}
+                showEditIcon={false}
+                rightElement={
+                  invoiceStatusLabel ? (
+                    <span
+                      className="rounded-2xl px-3 py-0.5 text-caption-1 border"
+                      style={invoiceStatusStyle}
+                    >
+                      {invoiceStatusLabel}
+                    </span>
+                  ) : undefined
+                }
               />
-            )}
-            {!showDownload && showGenerateLink && (
-              <div className="text-caption-1 text-text-secondary">
-                Payment link actions are available from the appointment finance flow.
+              <EditableAccordion
+                key="Payments-key"
+                title="Payment details"
+                fields={InvoiceFields}
+                data={paymentInfoData}
+                defaultOpen={true}
+                showEditIcon={false}
+              />
+              {appointment && (
+                <div className="flex justify-center">
+                  <Secondary
+                    text="Open in appointments"
+                    href="#"
+                    onClick={goToAppointmentFinance}
+                    className="w-fit"
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'payment' && (
+            <div className="flex flex-col gap-6 w-full flex-1 justify-between">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col px-3! py-3! rounded-2xl border border-card-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-body-2 text-text-primary">Pay</div>
+                    <Image
+                      alt="Powered by stripe"
+                      src={MEDIA_SOURCES.appointments.stripe}
+                      height={30}
+                      width={120}
+                    />
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">Subtotal: </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {paymentInfoData.subTotal}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">Discount: </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {paymentInfoData.discount}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">Tax: </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {paymentInfoData.tax}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">Estimated total: </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {paymentInfoData.total}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>
+                    <div className="text-body-4 text-text-primary text-right">
+                      {paymentInfoData.paymentMethod}
+                    </div>
+                  </div>
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
+                    <div className="text-body-4-emphasis text-text-tertiary">Status: </div>
+                    <span
+                      className="rounded-2xl px-3 py-0.5 text-caption-1 border"
+                      style={invoiceStatusStyle}
+                    >
+                      {invoiceStatusLabel || '-'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-3 mt-3">
+                    <InvoicePaymentActions
+                      invoiceId={activeInvoice?.id}
+                      invoiceStatus={activeInvoice?.status}
+                      paymentCollectionMethod={(activeInvoice as any)?.paymentCollectionMethod}
+                      stripeReceiptUrl={activeInvoice?.stripeReceiptUrl}
+                      activeAppointment={appointment}
+                    />
+                  </div>
+                  <div className="text-caption-1 text-text-secondary py-2">
+                    <span className="text-blue-text">Note : </span>Yosemite Crew uses Stripe for
+                    secure payments. Your payment details are encrypted and never stored on our
+                    servers.
+                  </div>
+                </div>
+                {appointment && (
+                  <div className="flex justify-center">
+                    <Secondary
+                      text="Open in appointments"
+                      href="#"
+                      onClick={goToAppointmentFinance}
+                      className="w-fit"
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </Modal>

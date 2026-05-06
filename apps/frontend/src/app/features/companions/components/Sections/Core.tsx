@@ -1,21 +1,13 @@
-import React from "react";
-import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
+import React from 'react';
+import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 
-const BreedingFields = [{ label: "Breed dog", key: "breedDog", type: "text" }];
+const BreedingFields = [{ label: 'Breed canine', key: 'breedDog', type: 'text' }];
 
 const Core = ({ companion }: any) => {
   return (
     <div className="flex flex-col gap-6 w-full">
-      <EditableAccordion
-        title="Breeding information"
-        fields={BreedingFields}
-        data={companion}
-      />
-      <EditableAccordion
-        title="Physical information"
-        fields={BreedingFields}
-        data={companion}
-      />
+      <EditableAccordion title="Breeding information" fields={BreedingFields} data={companion} />
+      <EditableAccordion title="Physical information" fields={BreedingFields} data={companion} />
     </div>
   );
 };

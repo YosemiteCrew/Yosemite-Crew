@@ -3,8 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import SpecialityStep from '@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep';
 import {
-  createService,
-  createSpeciality,
+  createServicesBulk,
+  createSpecialitiesBulk,
   updateService,
   deleteSpeciality,
 } from '@/app/features/organization/services/specialityService';
@@ -20,8 +20,8 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/app/features/organization/services/specialityService', () => ({
-  createService: jest.fn(),
-  createSpeciality: jest.fn(),
+  createServicesBulk: jest.fn(),
+  createSpecialitiesBulk: jest.fn(),
   updateService: jest.fn(),
   deleteSpeciality: jest.fn(),
   loadSpecialitiesForOrg: jest.fn().mockResolvedValue(undefined),
@@ -87,11 +87,13 @@ describe('SpecialityStep Component', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     (useRouter as jest.Mock).mockReturnValue({ push: mockRouterPush });
-    (createService as jest.Mock).mockResolvedValue({});
-    (createSpeciality as jest.Mock).mockImplementation(async (payload: Speciality) => ({
-      ...payload,
-      _id: `${payload.name}-id`,
-    }));
+    (createServicesBulk as jest.Mock).mockResolvedValue([]);
+    (createSpecialitiesBulk as jest.Mock).mockImplementation(async (payload: Speciality[]) =>
+      payload.map((speciality) => ({
+        ...speciality,
+        _id: `${speciality.name}-id`,
+      }))
+    );
     (updateService as jest.Mock).mockResolvedValue({});
     (deleteSpeciality as jest.Mock).mockResolvedValue({});
     (deleteService as jest.Mock).mockResolvedValue({});
@@ -195,8 +197,8 @@ describe('SpecialityStep Component', () => {
 
     expect(screen.getByText('Add at least one specialty to continue')).toBeInTheDocument();
     expect(createOrg).not.toHaveBeenCalled();
-    expect(createSpeciality).not.toHaveBeenCalled();
-    expect(createService).not.toHaveBeenCalled();
+    expect(createSpecialitiesBulk).not.toHaveBeenCalled();
+    expect(createServicesBulk).not.toHaveBeenCalled();
     expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
@@ -232,27 +234,32 @@ describe('SpecialityStep Component', () => {
 
     await waitFor(() => {
       expect(createOrg).toHaveBeenCalledWith(baseFormData);
-      expect(createSpeciality).toHaveBeenCalledWith(
+      expect(createSpecialitiesBulk).toHaveBeenCalledWith([
         expect.objectContaining({
           name: 'Cardiology',
           organisationId: 'org-1',
           services: [],
-        })
-      );
-      expect(createService).toHaveBeenCalledTimes(2);
-      expect(createService).toHaveBeenCalledWith(
+        }),
+      ]);
+      expect(createServicesBulk).toHaveBeenCalledTimes(1);
+      expect(createServicesBulk).toHaveBeenCalledWith([
         expect.objectContaining({
           name: 'Heart Check-up',
           organisationId: 'org-1',
           specialityId: 'Cardiology-id',
-        })
-      );
+        }),
+        expect.objectContaining({
+          name: 'Blood Pressure Measurement',
+          organisationId: 'org-1',
+          specialityId: 'Cardiology-id',
+        }),
+      ]);
       expect(mockRouterPush).toHaveBeenCalledWith('/team-onboarding?orgId=org-1');
     });
   });
 
   it('shows an error if specialty creation fails', async () => {
-    (createSpeciality as jest.Mock).mockRejectedValueOnce(new Error('Fail'));
+    (createSpecialitiesBulk as jest.Mock).mockRejectedValueOnce(new Error('Fail'));
 
     const specialities = [
       { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
@@ -297,9 +304,9 @@ describe('SpecialityStep Component', () => {
     await waitFor(() => {
       expect(updateOrg).toHaveBeenCalledWith(expect.objectContaining({ _id: 'org-existing' }));
       expect(createOrg).not.toHaveBeenCalled();
-      expect(createSpeciality).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'New Spec', organisationId: 'org-existing' })
-      );
+      expect(createSpecialitiesBulk).toHaveBeenCalledWith([
+        expect.objectContaining({ name: 'New Spec', organisationId: 'org-existing' }),
+      ]);
     });
   });
 
@@ -390,13 +397,13 @@ describe('SpecialityStep Component', () => {
           name: 'Vaccination',
         })
       );
-      expect(createService).toHaveBeenCalledWith(
+      expect(createServicesBulk).toHaveBeenCalledWith([
         expect.objectContaining({
           name: 'Wellness exam',
           organisationId: 'org-existing',
           specialityId: 'spec-1',
-        })
-      );
+        }),
+      ]);
       expect(mockRouterPush).toHaveBeenCalledWith('/team-onboarding?orgId=org-1');
     });
   });

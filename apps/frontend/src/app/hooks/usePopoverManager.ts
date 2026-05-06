@@ -52,7 +52,12 @@ export const usePopoverManager = ({
 
   useEffect(() => {
     if (!activePopoverKey) return;
-    const closePopover = () => setActivePopoverKey(null);
+    const closePopover = (event: Event) => {
+      const target = event.target as Node | null;
+      if (popoverDialogRef.current?.contains(target)) return;
+      if ((target as Element | null)?.closest?.('[data-popover-panel]')) return;
+      setActivePopoverKey(null);
+    };
     const closePopoverOnOutsidePointer = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (popoverDialogRef.current?.contains(target)) return;
@@ -188,20 +193,23 @@ export const usePopoverManager = ({
   const getPopoverStyle = useCallback(
     (popoverWidth: number, popoverHeight: number) => {
       if (!activeRect) return { top: 0, left: 0, width: popoverWidth };
-      const margin = 8;
+      const margin = 12;
       const viewportWidth = globalThis.innerWidth;
       const viewportHeight = globalThis.innerHeight;
       const anchorX = activeCursor?.x ?? activeRect.left + activeRect.width / 2;
-      const anchorY = activeCursor?.y ?? activeRect.top;
+      const anchorTop = activeCursor?.y ?? activeRect.top;
+      const anchorBottom = activeCursor?.y ?? activeRect.bottom;
       const availableRight = viewportWidth - anchorX - margin;
       const availableLeft = anchorX - margin;
       const shouldPlaceRight = availableRight >= popoverWidth || availableRight >= availableLeft;
       const preferredLeft = shouldPlaceRight ? anchorX + margin : anchorX - popoverWidth - margin;
       const left = Math.max(margin, Math.min(preferredLeft, viewportWidth - popoverWidth - margin));
-      const placeAbove = anchorY + popoverHeight + margin > viewportHeight;
-      const top = placeAbove
-        ? Math.max(margin, anchorY - popoverHeight - margin)
-        : Math.max(margin, anchorY);
+      const availableBelow = viewportHeight - anchorBottom - margin;
+      const availableAbove = anchorTop - margin;
+      const placeAbove = availableBelow < popoverHeight && availableAbove > availableBelow;
+      const preferredTop = placeAbove ? anchorTop - popoverHeight - margin : anchorBottom + margin;
+      const maxTop = Math.max(margin, viewportHeight - popoverHeight - margin);
+      const top = Math.max(margin, Math.min(preferredTop, maxTop));
       return { top, left, width: popoverWidth };
     },
     [activeRect, activeCursor]

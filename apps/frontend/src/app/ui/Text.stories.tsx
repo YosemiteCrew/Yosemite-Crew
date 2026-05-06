@@ -53,7 +53,7 @@ export const AllVariants: Story = {
     <div className="flex flex-col gap-4 w-full max-w-xl">
       {ALL_VARIANTS.map((v) => (
         <div key={v} className="flex items-baseline gap-4">
-          <span className="w-40 shrink-0 text-caption-2 text-text-secondary font-mono">{v}</span>
+          <span className="w-40 shrink-0 text-caption-2 text-text-secondary font-satoshi">{v}</span>
           <Text variant={v}>Yosemite Crew</Text>
         </div>
       ))}

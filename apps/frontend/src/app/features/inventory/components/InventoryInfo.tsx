@@ -814,7 +814,7 @@ const InventoryInfo = ({
             text={inEditMode ? 'Cancel' : 'Close'}
             onClick={handleSecondaryAction}
             isDisabled={isUpdating || isHiding}
-            className="h-12! text-lg! tracking-wide!"
+            className="h-12! text-lg! tracking-[-0.36px]!"
           />
           {(canEdit || inEditMode) && (
             <Primary
@@ -824,7 +824,7 @@ const InventoryInfo = ({
               isDisabled={
                 (inEditMode && isUpdating) || (!inEditMode && (isHiding || !activeInventory?.id))
               }
-              className="h-12! text-lg! tracking-wide!"
+              className="h-12! text-lg! tracking-[-0.36px]!"
             />
           )}
         </div>

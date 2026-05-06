@@ -169,7 +169,7 @@ const Appointments = ({
     {
       label: '',
       key: 'logo',
-      width: '5%',
+      width: '56px',
       render: (item: Appointment) => (
         <div className="appointment-profile w-10 h-10">
           <Image
@@ -188,9 +188,9 @@ const Appointments = ({
     {
       label: 'Name',
       key: 'name',
-      width: '10%',
+      width: '140px',
       render: (item: Appointment) => (
-        <div className="appointment-profile truncate">
+        <div className="appointment-profile">
           <div className="appointment-profile-two">
             <button
               type="button"
@@ -200,7 +200,7 @@ const Appointments = ({
             >
               {formatCompanionNameWithOwnerLastName(item?.companion?.name, item?.companion?.parent)}
             </button>
-            <div className="appointment-profile-sub truncate">
+            <div className="appointment-profile-sub">
               {getOwnerFirstName(item?.companion?.parent) || ''}
             </div>
           </div>
@@ -210,9 +210,9 @@ const Appointments = ({
     {
       label: 'Reason',
       key: 'reason',
-      width: '10%',
+      width: '120px',
       render: (item: Appointment) => (
-        <div className="appointment-profile-two truncate">
+        <div className="appointment-profile-two">
           <div className="appointment-profile-title">{item.concern || '-'}</div>
           {item.isEmergency && <div className="appointment-emergency-label">Emergency</div>}
         </div>
@@ -221,7 +221,7 @@ const Appointments = ({
     {
       label: 'Service',
       key: 'service',
-      width: '10%',
+      width: '110px',
       render: (item: Appointment) => (
         <div className="appointment-profile-title">{item.appointmentType?.name || '-'}</div>
       ),
@@ -229,7 +229,7 @@ const Appointments = ({
     {
       label: 'Room',
       key: 'room',
-      width: '10%',
+      width: '100px',
       render: (item: Appointment) => (
         <div className="appointment-profile-title">{item.room?.name || '-'}</div>
       ),
@@ -237,7 +237,7 @@ const Appointments = ({
     {
       label: 'Date/Time',
       key: 'date/time',
-      width: '10%',
+      width: '110px',
       render: (item: Appointment) => (
         <div className="appointment-profile-two">
           <div className="appointment-profile-sub">{formatDateLabel(item.appointmentDate)}</div>
@@ -248,7 +248,7 @@ const Appointments = ({
     {
       label: 'Lead',
       key: 'lead',
-      width: '10%',
+      width: '120px',
       render: (item: Appointment) => {
         const leadId = normalizeLeadId(item.lead?.id);
         const leadName =
@@ -265,7 +265,7 @@ const Appointments = ({
     {
       label: 'Support',
       key: 'support',
-      width: '10%',
+      width: '110px',
       render: (item: Appointment) => {
         const supportStaff = item.supportStaff ?? [];
 
@@ -287,7 +287,7 @@ const Appointments = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '130px',
       render: (item: Appointment) => {
         const displayStatus = item.status === 'REQUESTED' ? 'REQUESTED' : item.status;
         const payment = getAppointmentPaymentDisplay(item, invoicesByAppointmentId);
@@ -318,7 +318,7 @@ const Appointments = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '352px',
+      width: '210px',
       render: (item: Appointment) => {
         const orgType = (item.organisationId && orgsById[item.organisationId]?.type) || 'HOSPITAL';
         const clinicalNotesLabel = getClinicalNotesLabel(orgType);
@@ -326,35 +326,41 @@ const Appointments = ({
         if (isRequestedLikeStatus(item.status)) {
           return (
             <div className="action-btn-col">
-              <GlassTooltip content="Accept request" side="bottom" className="table-action-tooltip">
-                <button
-                  className="action-btn"
-                  style={{ background: 'var(--color-success-100)' }}
-                  onClick={() => handleAcceptAppointment(item)}
+              <div className="action-btn-grid action-btn-grid-capped">
+                <GlassTooltip
+                  content="Accept request"
+                  side="bottom"
+                  className="table-action-tooltip"
                 >
-                  <FaCheckCircle size={22} color="var(--color-success-400)" />
-                </button>
-              </GlassTooltip>
-              <GlassTooltip
-                content="Decline request"
-                side="bottom"
-                className="table-action-tooltip"
-              >
-                <button
-                  onClick={() => handleCancelAppointment(item)}
-                  className="action-btn"
-                  style={{ background: 'var(--color-danger-100)' }}
+                  <button
+                    className="action-btn"
+                    style={{ background: 'var(--color-success-100)' }}
+                    onClick={() => handleAcceptAppointment(item)}
+                  >
+                    <FaCheckCircle size={22} color="var(--color-success-400)" />
+                  </button>
+                </GlassTooltip>
+                <GlassTooltip
+                  content="Decline request"
+                  side="bottom"
+                  className="table-action-tooltip"
                 >
-                  <IoIosCloseCircle size={24} color="var(--color-danger-600)" />
-                </button>
-              </GlassTooltip>
+                  <button
+                    onClick={() => handleCancelAppointment(item)}
+                    className="action-btn"
+                    style={{ background: 'var(--color-danger-100)' }}
+                  >
+                    <IoIosCloseCircle size={24} color="var(--color-danger-600)" />
+                  </button>
+                </GlassTooltip>
+              </div>
             </div>
           );
         }
 
         return (
           <div className="action-btn-col">
-            <div className="action-btn-grid">
+            <div className="action-btn-grid action-btn-grid-capped">
               <GlassTooltip
                 content="View appointment"
                 side="bottom"
@@ -461,7 +467,7 @@ const Appointments = ({
   ];
 
   return (
-    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+    <div className="table-wrapper appointments-scroll-x h-full min-h-0 overflow-hidden">
       <div className="table-list h-full min-h-0 overflow-y-auto pr-1">
         <GenericTable
           data={filteredList}

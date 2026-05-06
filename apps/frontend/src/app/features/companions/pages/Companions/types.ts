@@ -47,9 +47,9 @@ export const status = (
 
 export const CompanionsSpeciesFilters: FilterOption[] = [
   filter('All', 'all'),
-  filter('Dog', 'dog'),
-  filter('Horse', 'horse'),
-  filter('Cat', 'cat'),
+  filter('Canine', 'dog'),
+  filter('Equine', 'horse'),
+  filter('Feline', 'cat'),
   filter('Other', 'other'),
 ];
 

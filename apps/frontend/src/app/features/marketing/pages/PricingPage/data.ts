@@ -112,6 +112,7 @@ export const TableData = [
       yesYes('MSD Veterinary Manual integration'),
       row('RadAnalyzer integration', 'Coming soon', 'Coming soon'),
       row('Vetnio integration', 'Coming soon', 'Coming soon'),
+      row('QuickBooks integration', 'Coming soon', 'Coming soon'),
     ],
   },
   {

@@ -509,6 +509,7 @@ export const buildInventoryPayload = (
 
 export const defaultFilters: InventoryFiltersState = {
   category: 'all',
+  visibility: 'ALL',
   status: 'ALL',
   search: '',
 };

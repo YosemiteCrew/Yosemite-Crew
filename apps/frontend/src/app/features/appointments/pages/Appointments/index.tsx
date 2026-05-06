@@ -191,6 +191,7 @@ const Appointments = () => {
   useEffect(() => {
     if (!viewPopup) {
       setViewIntent(null);
+      handledDeepLinkRef.current = null;
     }
   }, [viewPopup]);
 

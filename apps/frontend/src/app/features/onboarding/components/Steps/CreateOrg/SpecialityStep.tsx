@@ -12,8 +12,8 @@ import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { createOrg, updateOrg } from '@/app/features/organization/services/orgService';
 import {
-  createService,
-  createSpeciality,
+  createServicesBulk,
+  createSpecialitiesBulk,
   updateService,
   deleteSpeciality,
   loadSpecialitiesForOrg,
@@ -448,18 +448,20 @@ const SpecialityStep = ({
         return;
       }
 
-      const createdSpecialityResults = await Promise.allSettled(
-        nextSpecialities
+      let createdSpecialities: Speciality[] = [];
+      try {
+        const specialitiesToCreate = nextSpecialities
           .filter((speciality) => !speciality._id)
-          .map((speciality) =>
-            createSpeciality({
-              ...speciality,
-              services: [],
-            })
-          )
-      );
-
-      if (createdSpecialityResults.some((result) => result.status === 'rejected')) {
+          .map(
+            (speciality) =>
+              ({
+                ...speciality,
+                services: [],
+              }) as Speciality
+          );
+        createdSpecialities =
+          specialitiesToCreate.length > 0 ? await createSpecialitiesBulk(specialitiesToCreate) : [];
+      } catch {
         setError('We could not save your specialties. Please try again.');
         onRedirectingChange?.(false);
         setIsSubmitting(false);
@@ -472,9 +474,9 @@ const SpecialityStep = ({
           specialityIdByName.set(normalizeName(speciality.name), speciality._id.toString());
         }
       });
-      createdSpecialityResults.forEach((result) => {
-        if (result.status === 'fulfilled' && result.value?._id) {
-          specialityIdByName.set(normalizeName(result.value.name), result.value._id.toString());
+      createdSpecialities.forEach((speciality) => {
+        if (speciality._id) {
+          specialityIdByName.set(normalizeName(speciality.name), speciality._id.toString());
         }
       });
 
@@ -544,7 +546,7 @@ const SpecialityStep = ({
       const serviceResults = await Promise.allSettled([
         ...servicesToDelete.map((service) => deleteService(service)),
         ...servicesToUpdate.map((service) => updateService(service)),
-        ...servicesToCreate.map((service) => createService(service)),
+        ...(servicesToCreate.length > 0 ? [createServicesBulk(servicesToCreate)] : []),
       ]);
       if (serviceResults.some((result) => result.status === 'rejected')) {
         setError('We could not save your services. Please try again.');

@@ -63,7 +63,7 @@ const OrgInvites = ({ invites, setInvites, onAccepting, onNavigate }: OrgInvites
     {
       label: 'Name',
       key: 'name',
-      width: '25%',
+      width: '28%',
       render: (item: Invite) => <div className="InviteDetails">{item.organisationName}</div>,
     },
     {
@@ -89,7 +89,7 @@ const OrgInvites = ({ invites, setInvites, onAccepting, onNavigate }: OrgInvites
     {
       label: 'Actions',
       key: 'actions',
-      width: '15%',
+      width: '100px',
       render: (item: Invite) => {
         const isProcessing = processingId === item._id;
         return (

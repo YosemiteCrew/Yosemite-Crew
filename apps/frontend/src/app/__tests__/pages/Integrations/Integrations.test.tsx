@@ -206,6 +206,15 @@ describe('Integrations settings', () => {
     });
   });
 
+  it('shows QuickBooks as a coming soon integration', async () => {
+    render(<ProtectedIntegrations />);
+
+    expect(await screen.findByText('QuickBooks')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Accounting sync for invoices, payments, customers/i)
+    ).toBeInTheDocument();
+  });
+
   it('respects disconnect confirmation and avoids disable on cancel', async () => {
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
 

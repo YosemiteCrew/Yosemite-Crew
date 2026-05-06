@@ -188,7 +188,9 @@ const Filters = ({
                     }
               }
             >
-              <span>{selectedStatus?.name ?? 'Status'}</span>
+              <span>
+                {selectedStatus?.key === 'all' ? 'Status' : (selectedStatus?.name ?? 'Status')}
+              </span>
               <FaCaretDown
                 size={14}
                 className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
@@ -215,7 +217,7 @@ const Filters = ({
                         }}
                         className={clsx(
                           'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
-                          isActive ? 'font-medium' : 'hover:bg-card-hover'
+                          isActive && status.key !== 'all' ? 'font-medium' : 'hover:bg-card-hover'
                         )}
                       >
                         {status.border && (

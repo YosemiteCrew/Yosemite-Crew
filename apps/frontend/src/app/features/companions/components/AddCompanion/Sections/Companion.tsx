@@ -48,9 +48,9 @@ type BreedOption = OptionProp & {
 };
 
 const DEFAULT_SPECIES_OPTIONS: SpeciesOption[] = [
-  { label: 'Dog', value: 'dog', type: 'dog', speciesCode: '', speciesQuery: 'canine' },
-  { label: 'Cat', value: 'cat', type: 'cat', speciesCode: '', speciesQuery: 'feline' },
-  { label: 'Horse', value: 'horse', type: 'horse', speciesCode: '', speciesQuery: 'equine' },
+  { label: 'Canine', value: 'dog', type: 'dog', speciesCode: '', speciesQuery: 'canine' },
+  { label: 'Feline', value: 'cat', type: 'cat', speciesCode: '', speciesQuery: 'feline' },
+  { label: 'Equine', value: 'horse', type: 'horse', speciesCode: '', speciesQuery: 'equine' },
 ];
 
 const BLOOD_GROUP_OPTIONS_BY_SPECIES: Record<CompanionType, OptionProp[]> = {
