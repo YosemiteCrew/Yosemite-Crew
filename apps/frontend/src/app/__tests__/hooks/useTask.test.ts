@@ -14,7 +14,7 @@ jest.mock('@/app/stores/orgStore', () => ({
 }));
 
 jest.mock('@/app/stores/taskStore', () => ({
-  useTaskStore: jest.fn(),
+  useTaskStore: Object.assign(jest.fn(), { getState: jest.fn() }),
 }));
 
 jest.mock('@/app/features/tasks/services/taskService', () => ({
@@ -25,19 +25,40 @@ const makeTask = (_id: string, assignedTo?: string): Task =>
   ({ _id, assignedTo }) as unknown as Task;
 
 describe('useLoadTasksForPrimaryOrg', () => {
+  const mockTaskState = { status: 'idle', taskIdsByOrgId: {} };
+
+  beforeEach(() => {
+    (useTaskStore as unknown as jest.Mock & { getState: jest.Mock }).getState.mockReturnValue(
+      mockTaskState
+    );
+  });
+
   it('loads tasks when primaryOrgId is set', () => {
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
       selector({ primaryOrgId: 'org1' })
     );
 
     renderHook(() => useLoadTasksForPrimaryOrg());
-    expect(loadTasksForPrimaryOrg).toHaveBeenCalledWith({ force: true });
+    expect(loadTasksForPrimaryOrg).toHaveBeenCalledWith({ silent: true });
   });
 
   it('does not load tasks when primaryOrgId is null', () => {
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
       selector({ primaryOrgId: null })
     );
+
+    renderHook(() => useLoadTasksForPrimaryOrg());
+    expect(loadTasksForPrimaryOrg).not.toHaveBeenCalled();
+  });
+
+  it('does not load tasks when already loaded for the org', () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org1' })
+    );
+    (useTaskStore as unknown as jest.Mock & { getState: jest.Mock }).getState.mockReturnValue({
+      status: 'loaded',
+      taskIdsByOrgId: { org1: ['t1'] },
+    });
 
     renderHook(() => useLoadTasksForPrimaryOrg());
     expect(loadTasksForPrimaryOrg).not.toHaveBeenCalled();

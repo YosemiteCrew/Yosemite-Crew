@@ -6,14 +6,14 @@ import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 
 export const useLoadRoomsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const roomIdsByOrgId = useOrganisationRoomStore((s) => s.roomIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (useOrganisationRoomStore.getState().status === 'loading') return;
-    if (Object.hasOwn(roomIdsByOrgId, primaryOrgId)) return;
+    const state = useOrganisationRoomStore.getState();
+    if (state.status === 'loading') return;
+    if (Object.hasOwn(state.roomIdsByOrgId ?? {}, primaryOrgId)) return;
     void loadRoomsForOrgPrimaryOrg();
-  }, [primaryOrgId, roomIdsByOrgId]);
+  }, [primaryOrgId]);
 };
 
 export const useRoomsForPrimaryOrg = (): OrganisationRoom[] => {

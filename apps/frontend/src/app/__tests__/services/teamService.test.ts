@@ -11,8 +11,6 @@ import {
 import * as axios from '@/app/services/axios';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useTeamStore } from '@/app/stores/teamStore';
-import * as orgService from '@/app/features/organization/services/orgService';
-import * as profileService from '@/app/features/organization/services/profileService';
 import {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
@@ -26,8 +24,6 @@ import { toPermissionArray } from '@/app/lib/permissions';
 jest.mock('@/app/services/axios');
 jest.mock('@/app/stores/orgStore');
 jest.mock('@/app/stores/teamStore');
-jest.mock('@/app/features/organization/services/orgService');
-jest.mock('@/app/features/organization/services/profileService');
 jest.mock('@/app/lib/permissions');
 jest.mock('@yosemite-crew/types', () => ({
   fromUserOrganizationRequestDTO: jest.fn(),
@@ -271,14 +267,13 @@ describe('Team Service', () => {
   describe('acceptInvite', () => {
     const invite = { token: 'tok-123', organisationId: 'new-org-id' } as any;
 
-    it('accepts invite and reloads dependencies', async () => {
+    it('accepts invite and sets primary org', async () => {
       (axios.postData as jest.Mock).mockResolvedValue({});
 
       await acceptInvite(invite);
 
       expect(axios.postData).toHaveBeenCalledWith('/fhir/v1/organisation-invites/tok-123/accept');
-      expect(orgService.loadOrgs).toHaveBeenCalledWith({ silent: true });
-      expect(profileService.loadProfiles).toHaveBeenCalledWith({ silent: true });
+      expect(mockSetPrimaryOrg).toHaveBeenCalledWith('new-org-id');
     });
 
     it('catches and logs errors (does not throw)', async () => {

@@ -6,14 +6,14 @@ import { useOrganizationDocumentStore } from '@/app/stores/documentStore';
 
 export const useLoadDocumentsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const documentIdsByOrgId = useOrganizationDocumentStore((s) => s.documentIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (useOrganizationDocumentStore.getState().status === 'loading') return;
-    if (Object.hasOwn(documentIdsByOrgId, primaryOrgId)) return;
+    const state = useOrganizationDocumentStore.getState();
+    if (state.status === 'loading') return;
+    if (Object.hasOwn(state.documentIdsByOrgId ?? {}, primaryOrgId)) return;
     void loadDocumentsForOrgPrimaryOrg();
-  }, [primaryOrgId, documentIdsByOrgId]);
+  }, [primaryOrgId]);
 };
 
 export const useDocumentsForPrimaryOrg = (): OrganizationDocument[] => {

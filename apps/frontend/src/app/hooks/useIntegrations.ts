@@ -39,13 +39,13 @@ export const loadIntegrationsForPrimaryOrg = async (opts?: {
 
 export const useLoadIntegrationsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const integrationIdsByOrgId = useIntegrationStore((s) => s.integrationIdsByOrgId);
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (useIntegrationStore.getState().status === 'loading') return;
-    if (Object.hasOwn(integrationIdsByOrgId, primaryOrgId)) return;
+    const state = useIntegrationStore.getState();
+    if (state.status === 'loading') return;
+    if (Object.hasOwn(state.integrationIdsByOrgId ?? {}, primaryOrgId)) return;
     void loadIntegrationsForPrimaryOrg();
-  }, [primaryOrgId, integrationIdsByOrgId]);
+  }, [primaryOrgId]);
 };
 
 export const useIntegrationsForPrimaryOrg = (): OrgIntegration[] => {

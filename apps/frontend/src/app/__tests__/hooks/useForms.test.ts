@@ -18,7 +18,7 @@ jest.mock('@/app/stores/orgStore', () => ({
 }));
 
 jest.mock('@/app/stores/formsStore', () => ({
-  useFormsStore: jest.fn(),
+  useFormsStore: Object.assign(jest.fn(), { getState: jest.fn() }),
 }));
 
 describe('useForms Hooks', () => {
@@ -47,6 +47,9 @@ describe('useForms Hooks', () => {
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector) => selector(mockOrgState));
     (useFormsStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockFormState)
+    );
+    (useFormsStore as unknown as jest.Mock & { getState: jest.Mock }).getState.mockReturnValue(
+      mockFormState
     );
   });
 

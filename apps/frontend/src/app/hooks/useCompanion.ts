@@ -7,14 +7,14 @@ import { useParentStore } from '@/app/stores/parentStore';
 
 export const useLoadCompanionsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const companionsIdsByOrgId = useCompanionStore((s) => s.companionsIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (useCompanionStore.getState().status === 'loading') return;
-    if (Object.hasOwn(companionsIdsByOrgId, primaryOrgId)) return;
+    const state = useCompanionStore.getState();
+    if (state.status === 'loading') return;
+    if (Object.hasOwn(state.companionsIdsByOrgId ?? {}, primaryOrgId)) return;
     void loadCompanionsForPrimaryOrg();
-  }, [primaryOrgId, companionsIdsByOrgId]);
+  }, [primaryOrgId]);
 };
 
 export const useCompanionsForPrimaryOrg = (): StoredCompanion[] => {

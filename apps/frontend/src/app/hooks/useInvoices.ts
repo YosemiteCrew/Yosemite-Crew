@@ -10,21 +10,16 @@ import { appointmentIdsMatch } from '@/app/lib/invoice';
 
 export const useLoadInvoicesForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const invoiceIdsByOrgId = useInvoiceStore((s) => s.invoiceIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (useInvoiceStore.getState().status === 'loading') return;
-    if (Object.hasOwn(invoiceIdsByOrgId, primaryOrgId)) return;
-    const loadInvoices = async () => {
-      try {
-        await loadInvoicesForOrgPrimaryOrg();
-      } catch (error) {
-        console.error('Failed to load invoices for organization:', error);
-      }
-    };
-    loadInvoices();
-  }, [primaryOrgId, invoiceIdsByOrgId]);
+    const state = useInvoiceStore.getState();
+    if (state.status === 'loading') return;
+    if (Object.hasOwn(state.invoiceIdsByOrgId ?? {}, primaryOrgId)) return;
+    loadInvoicesForOrgPrimaryOrg().catch((error) => {
+      console.error('Failed to load invoices for organization:', error);
+    });
+  }, [primaryOrgId]);
 };
 
 export const useInvoicesForPrimaryOrg = (): Invoice[] => {

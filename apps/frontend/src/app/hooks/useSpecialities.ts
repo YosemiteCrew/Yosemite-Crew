@@ -8,14 +8,14 @@ import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 
 export const useLoadSpecialitiesForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const specialityIdsByOrgId = useSpecialityStore((s) => s.specialityIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (useSpecialityStore.getState().status === 'loading') return;
-    if (Object.hasOwn(specialityIdsByOrgId, primaryOrgId)) return;
+    const state = useSpecialityStore.getState();
+    if (state.status === 'loading') return;
+    if (Object.hasOwn(state.specialityIdsByOrgId ?? {}, primaryOrgId)) return;
     void loadSpecialitiesForOrg({ orgId: primaryOrgId });
-  }, [primaryOrgId, specialityIdsByOrgId]);
+  }, [primaryOrgId]);
 };
 
 export const useSpecialitiesForPrimaryOrg = (): Speciality[] => {

@@ -6,14 +6,14 @@ import { useAppointmentStore } from '@/app/stores/appointmentStore';
 
 export const useLoadAppointmentsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const appointmentIdsByOrgId = useAppointmentStore((s) => s.appointmentIdsByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (useAppointmentStore.getState().status === 'loading') return;
-    if (Object.hasOwn(appointmentIdsByOrgId, primaryOrgId)) return;
+    const state = useAppointmentStore.getState();
+    if (state.status === 'loading') return;
+    if (Object.hasOwn(state.appointmentIdsByOrgId ?? {}, primaryOrgId)) return;
     void loadAppointmentsForPrimaryOrg();
-  }, [primaryOrgId, appointmentIdsByOrgId]);
+  }, [primaryOrgId]);
 };
 
 export const useAppointmentsForPrimaryOrg = (): Appointment[] => {

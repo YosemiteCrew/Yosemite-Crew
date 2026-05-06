@@ -13,8 +13,6 @@ import {
   TeamStatusProps,
 } from '@/app/features/organization/types/team';
 import { deleteData, getData, postData, putData } from '@/app/services/axios';
-import { loadOrgs } from '@/app/features/organization/services/orgService';
-import { loadProfiles } from '@/app/features/organization/services/profileService';
 import { PractitionerRole } from '@yosemite-crew/fhirtypes';
 import { toPermissionArray } from '@/app/lib/permissions';
 
@@ -140,9 +138,6 @@ export const acceptInvite = async (invite: Invite) => {
   const { setPrimaryOrg } = useOrgStore.getState();
   try {
     await postData<Invite[]>('/fhir/v1/organisation-invites/' + invite.token + '/accept');
-    await loadOrgs({ silent: true });
-    await loadProfiles({ silent: true });
-    await loadTeam({ silent: true });
     setPrimaryOrg(invite.organisationId);
   } catch (error) {
     console.log(error);

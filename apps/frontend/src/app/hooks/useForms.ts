@@ -6,15 +6,14 @@ import { loadForms } from '@/app/features/forms/services/formService';
 
 export const useLoadFormsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const loading = useFormsStore((s) => s.loading);
-  const lastFetchedByOrgId = useFormsStore((s) => s.lastFetchedByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    if (loading) return;
-    if (lastFetchedByOrgId[primaryOrgId]) return;
+    const state = useFormsStore.getState();
+    if (state.loading) return;
+    if (state.lastFetchedByOrgId[primaryOrgId]) return;
     void loadForms();
-  }, [primaryOrgId, loading, lastFetchedByOrgId]);
+  }, [primaryOrgId]);
 };
 
 export const useFormsForPrimaryOrgByCategory = (category: FormsCategory): FormsProps[] => {

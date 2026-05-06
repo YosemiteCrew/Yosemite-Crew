@@ -6,15 +6,14 @@ import { UserProfile } from '@/app/features/users/types/profile';
 
 export const useLoadProfiles = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const profilesByOrgId = useUserProfileStore((s) => s.profilesByOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
-    const isLoaded = Object.hasOwn(profilesByOrgId, primaryOrgId);
-    if (!isLoaded && useUserProfileStore.getState().status !== 'loading') {
-      void loadProfiles({ silent: true, orgId: primaryOrgId });
-    }
-  }, [primaryOrgId, profilesByOrgId]);
+    const state = useUserProfileStore.getState();
+    if (state.status === 'loading') return;
+    if (Object.hasOwn(state.profilesByOrgId ?? {}, primaryOrgId)) return;
+    void loadProfiles({ silent: true, orgId: primaryOrgId });
+  }, [primaryOrgId]);
 };
 
 export const usePrimaryOrgProfile = (): UserProfile | null => {

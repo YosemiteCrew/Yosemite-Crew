@@ -30,6 +30,7 @@ describe('useInvoices Hooks', () => {
     // Default Mock State
     mockOrgState = { primaryOrgId: null };
     mockInvoiceState = {
+      status: 'idle',
       invoicesById: {},
       invoiceIdsByOrgId: {},
     };
@@ -42,6 +43,7 @@ describe('useInvoices Hooks', () => {
     mockInvoiceGetState.mockReturnValue(mockInvoiceState);
     (useInvoiceStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
       mockInvoiceGetState;
+    (loadInvoicesForOrgPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
   });
 
   describe('useLoadInvoicesForPrimaryOrg', () => {
