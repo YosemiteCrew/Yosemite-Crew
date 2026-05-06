@@ -7,9 +7,14 @@ import {
 import { Types } from "mongoose";
 import { ParentService } from "src/services/parent.service";
 import type { ParentCompanionPermissions } from "@yosemite-crew/types";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 
-// Resolve UserID
+const resolveAuthenticatedUserId = (req: Request): string | undefined => {
+  const userId = (req as AuthenticatedRequest).userId;
+  if (typeof userId !== "string") return undefined;
+  const trimmedUserId = userId.trim();
+  return trimmedUserId || undefined;
+};
 
 const resolveParentId = (parent: {
   id?: string;
@@ -59,7 +64,7 @@ export const ParentCompanionController = {
 
   updatePermissions: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserId(req);
       const requestingParent = await ParentService.findByLinkedUserId(
         authUserId!,
       );
@@ -102,7 +107,7 @@ export const ParentCompanionController = {
 
   promoteToPrimary: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserId(req);
       const requestingParent = await ParentService.findByLinkedUserId(
         authUserId!,
       );
@@ -141,7 +146,7 @@ export const ParentCompanionController = {
 
   removeCoParent: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserId(req);
       const requestingParent = await ParentService.findByLinkedUserId(
         authUserId!,
       );

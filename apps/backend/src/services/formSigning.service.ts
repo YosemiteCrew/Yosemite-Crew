@@ -33,6 +33,19 @@ const hasToHexString = (
 };
 
 export class FormSigningService {
+  private static normalizeId(value: unknown): string | undefined {
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+
+    if (hasToHexString(value)) {
+      const id = value.toHexString();
+      return id.length > 0 ? id : undefined;
+    }
+
+    return undefined;
+  }
+
   private static extractSigningStatus(
     signing: Prisma.JsonValue | null | undefined,
   ) {
@@ -154,9 +167,11 @@ export class FormSigningService {
   private static async resolveSignerInfo({
     isParent,
     initiatedBy,
+    submittedBy,
   }: {
     isParent?: boolean;
     initiatedBy?: string;
+    submittedBy?: string;
   }) {
     if (isParent) {
       logger.info("Signing initiated by parent: ", initiatedBy);
@@ -173,9 +188,13 @@ export class FormSigningService {
       };
     }
 
+    if (!submittedBy) {
+      throw new Error("Unable to find submitting user");
+    }
+
     const user = isReadFromPostgres()
-      ? await prisma.user.findUnique({ where: { userId: initiatedBy ?? "" } })
-      : await UserModel.findOne({ userId: initiatedBy }).lean();
+      ? await prisma.user.findUnique({ where: { userId: submittedBy } })
+      : await UserModel.findOne({ userId: submittedBy }).lean();
     if (!user) {
       throw new Error("Unable to find submitting user");
     }
@@ -184,6 +203,17 @@ export class FormSigningService {
       signerName: user.firstName + " " + user.lastName,
       signerRole: "VET" as const,
     };
+  }
+
+  private static ensureParentOwnsSubmission(
+    submissionParentId: unknown,
+    initiatedBy?: string,
+  ) {
+    const ownerParentId = FormSigningService.normalizeId(submissionParentId);
+
+    if (!ownerParentId || !initiatedBy || ownerParentId !== initiatedBy) {
+      throw new Error("Unauthorized to sign this submission");
+    }
   }
 
   static async startSigning({
@@ -198,6 +228,13 @@ export class FormSigningService {
     if (isReadFromPostgres()) {
       const submission =
         await FormSigningService.loadSubmissionOrThrowPrisma(submissionId);
+
+      if (isParent) {
+        FormSigningService.ensureParentOwnsSubmission(
+          submission.parentId,
+          initiatedBy,
+        );
+      }
 
       FormSigningService.ensureNotAlreadySigned(
         FormSigningService.extractSigningStatus(submission.signing),
@@ -229,6 +266,7 @@ export class FormSigningService {
         await FormSigningService.resolveSignerInfo({
           isParent,
           initiatedBy,
+          submittedBy: submission.submittedBy ?? undefined,
         });
 
       if (!signerEmail) {
@@ -278,6 +316,13 @@ export class FormSigningService {
     const submission =
       await FormSigningService.loadSubmissionOrThrow(submissionId);
 
+    if (isParent) {
+      FormSigningService.ensureParentOwnsSubmission(
+        submission.parentId,
+        initiatedBy,
+      );
+    }
+
     // 2️⃣ Validate state
     FormSigningService.ensureNotAlreadySigned(submission.signing?.status);
 
@@ -318,6 +363,7 @@ export class FormSigningService {
       await FormSigningService.resolveSignerInfo({
         isParent,
         initiatedBy,
+        submittedBy: submission.submittedBy,
       });
 
     if (!signerEmail) {

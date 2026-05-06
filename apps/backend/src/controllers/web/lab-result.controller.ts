@@ -28,6 +28,19 @@ const ensureIdexxProvider = (res: Response, provider: string) => {
   return true;
 };
 
+const resolveOrganisationId = (req: Request) => {
+  const orgReq = req as OrgRequest;
+  return orgReq.organisationId ?? req.params.organisationId;
+};
+
+const ensureOrganisationId = (res: Response, organisationId?: string) => {
+  if (!organisationId) {
+    res.status(400).json({ message: "organisationId required." });
+    return false;
+  }
+  return true;
+};
+
 const sendPdfResponse = (
   res: Response,
   payload: { data: ArrayBuffer; headers: Record<string, string> },
@@ -92,23 +105,23 @@ export const LabResultController = {
 
   async get(req: Request, res: Response) {
     try {
+      const organisationId = resolveOrganisationId(req);
       const provider = req.params.provider;
       const resultId = req.params.resultId;
 
+      if (!ensureOrganisationId(res, organisationId)) {
+        return;
+      }
       if (!ensureProviderAndResultId(res, provider, resultId)) {
         return;
       }
 
-      const stored = await LabResultService.getByResultId(provider, resultId);
+      const stored = await LabResultService.getByResultId(
+        organisationId,
+        provider,
+        resultId,
+      );
       if (stored) return res.status(200).json(stored);
-
-      if (provider.toUpperCase() === "IDEXX") {
-        const remote = await IdexxResultsQueryService.getResult(resultId);
-        if (!remote) {
-          return res.status(404).json({ message: "Result not found." });
-        }
-        return res.status(200).json(remote);
-      }
 
       return res.status(404).json({ message: "Result not found." });
     } catch (error) {
@@ -123,14 +136,27 @@ export const LabResultController = {
 
   async getPdf(req: Request, res: Response) {
     try {
+      const organisationId = resolveOrganisationId(req);
       const provider = req.params.provider;
       const resultId = req.params.resultId;
+      if (!ensureOrganisationId(res, organisationId)) {
+        return;
+      }
       if (!ensureProviderAndResultId(res, provider, resultId)) {
         return;
       }
 
       if (!ensureIdexxProvider(res, provider)) {
         return;
+      }
+
+      const stored = await LabResultService.getByResultId(
+        organisationId,
+        provider,
+        resultId,
+      );
+      if (!stored) {
+        return res.status(404).json({ message: "Result not found." });
       }
 
       const payload = await IdexxResultsQueryService.getResultPdf(resultId);
@@ -150,14 +176,27 @@ export const LabResultController = {
 
   async getNotificationsPdf(req: Request, res: Response) {
     try {
+      const organisationId = resolveOrganisationId(req);
       const provider = req.params.provider;
       const resultId = req.params.resultId;
+      if (!ensureOrganisationId(res, organisationId)) {
+        return;
+      }
       if (!ensureProviderAndResultId(res, provider, resultId)) {
         return;
       }
 
       if (!ensureIdexxProvider(res, provider)) {
         return;
+      }
+
+      const stored = await LabResultService.getByResultId(
+        organisationId,
+        provider,
+        resultId,
+      );
+      if (!stored) {
+        return res.status(404).json({ message: "Result not found." });
       }
 
       const payload =
@@ -178,7 +217,15 @@ export const LabResultController = {
 
   async search(req: Request, res: Response) {
     try {
+      const organisationId = resolveOrganisationId(req);
       const provider = req.params.provider;
+      const { orderId, companionId, limit } = req.query as Record<
+        string,
+        string
+      >;
+      if (!ensureOrganisationId(res, organisationId)) {
+        return;
+      }
       if (!provider) {
         return res.status(400).json({ message: "provider required." });
       }
@@ -187,14 +234,15 @@ export const LabResultController = {
         return;
       }
 
-      const data = await IdexxResultsQueryService.search(
-        req.query as Record<string, string>,
-      );
-      if (!data) {
-        return res.status(500).json({ message: "Search unavailable." });
-      }
+      const results = await LabResultService.list({
+        organisationId,
+        provider,
+        orderId,
+        companionId,
+        limit: limit ? Number(limit) : undefined,
+      });
 
-      return res.status(200).json(data);
+      return res.status(200).json(results);
     } catch (error) {
       return handleIdexxError(
         res,

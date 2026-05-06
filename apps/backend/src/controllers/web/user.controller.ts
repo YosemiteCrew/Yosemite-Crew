@@ -67,10 +67,22 @@ export const UserController = {
 
   deleteById: async (req: GetUserRequest, res: Response) => {
     try {
+      const authRequest = req as AuthenticatedRequest;
       const { id } = req.params;
+      const requesterId = authRequest.userId;
 
       if (!id) {
         res.status(400).json({ message: "User id is required." });
+        return;
+      }
+
+      if (!requesterId) {
+        res.status(401).json({ message: "Missing user identity from token." });
+        return;
+      }
+
+      if (requesterId !== id) {
+        res.status(403).json({ message: "You can only delete your own user." });
         return;
       }
 

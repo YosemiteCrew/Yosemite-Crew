@@ -1,4 +1,6 @@
 import { Types } from "mongoose";
+import AppointmentModel from "src/models/appointment";
+import CompanionOrganisationModel from "src/models/companion-organisation";
 import TaskModel from "src/models/task";
 import { TaskService } from "src/services/task.service";
 import {
@@ -56,6 +58,27 @@ const assertObjectId = (value: unknown, field: string): string => {
   return trimmed;
 };
 
+const ensureMongoObjectId = (value: unknown, field: string): Types.ObjectId => {
+  if (typeof value !== "string") {
+    throw new ObservationToolSubmissionServiceError(
+      `${field} must be a string`,
+      400,
+    );
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed || trimmed.includes("$") || trimmed.includes(".")) {
+    throw new ObservationToolSubmissionServiceError(`Invalid ${field}`, 400);
+  }
+
+  if (!Types.ObjectId.isValid(trimmed)) {
+    throw new ObservationToolSubmissionServiceError(`Invalid ${field}`, 400);
+  }
+
+  return new Types.ObjectId(trimmed);
+};
+
 export interface CreateObservationToolSubmissionInput {
   toolId: string;
   taskId?: string;
@@ -68,6 +91,7 @@ export interface CreateObservationToolSubmissionInput {
 }
 
 export interface LinkSubmissionToAppointmentInput {
+  organisationId?: string;
   submissionId: string;
   appointmentId: string;
   // Optional enforcement: block multiple submissions linked to same appointment
@@ -75,6 +99,7 @@ export interface LinkSubmissionToAppointmentInput {
 }
 
 export interface ListSubmissionsFilter {
+  organisationId?: string;
   companionId?: string;
   toolId?: string;
   fromDate?: Date;
@@ -241,6 +266,78 @@ const applyDateRangeFilter = (
   if (fromDate) createdAt.$gte = fromDate;
   if (toDate) createdAt.$lte = toDate;
   q.createdAt = createdAt;
+};
+
+const ensureCompanionInOrganisation = async (
+  companionId: string,
+  organisationId: string,
+): Promise<void> => {
+  if (isReadFromPostgres()) {
+    const link = await prisma.companionOrganisation.findFirst({
+      where: {
+        companionId,
+        organisationId,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+
+    if (!link) {
+      throw new ObservationToolSubmissionServiceError("Forbidden", 403);
+    }
+    return;
+  }
+
+  const safeCompanionId = ensureMongoObjectId(companionId, "companionId");
+  const safeOrganisationId = ensureMongoObjectId(
+    organisationId,
+    "organisationId",
+  );
+
+  const link = await CompanionOrganisationModel.findOne({
+    companionId: safeCompanionId,
+    organisationId: safeOrganisationId,
+    status: "ACTIVE",
+  })
+    .setOptions({ sanitizeFilter: true })
+    .select({ _id: 1 })
+    .lean();
+
+  if (!link) {
+    throw new ObservationToolSubmissionServiceError("Forbidden", 403);
+  }
+};
+
+const ensureAppointmentInOrganisation = async (
+  appointmentId: string,
+  organisationId: string,
+): Promise<void> => {
+  if (isReadFromPostgres()) {
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+      select: { id: true },
+    });
+
+    if (!appointment) {
+      throw new ObservationToolSubmissionServiceError("Forbidden", 403);
+    }
+    return;
+  }
+
+  const safeAppointmentId = ensureMongoObjectId(appointmentId, "appointmentId");
+  const safeOrganisationId = assertObjectId(organisationId, "organisationId");
+
+  const appointment = await AppointmentModel.findOne({
+    _id: safeAppointmentId,
+    organisationId: safeOrganisationId,
+  })
+    .setOptions({ sanitizeFilter: true })
+    .select({ _id: 1 })
+    .lean();
+
+  if (!appointment) {
+    throw new ObservationToolSubmissionServiceError("Forbidden", 403);
+  }
 };
 
 const toPrismaObservationToolSubmissionData = (
@@ -438,6 +535,7 @@ export const ObservationToolSubmissionService = {
   async linkToAppointment(
     input: LinkSubmissionToAppointmentInput,
   ): Promise<ObservationToolSubmissionDocument> {
+    const organisationId = asNonEmptyString(input.organisationId);
     const submissionId = assertObjectId(input.submissionId, "submissionId");
     const appointmentId = assertObjectId(input.appointmentId, "appointmentId");
 
@@ -451,6 +549,10 @@ export const ObservationToolSubmissionService = {
           "Submission not found",
           404,
         );
+      }
+      if (organisationId) {
+        await ensureCompanionInOrganisation(doc.companionId, organisationId);
+        await ensureAppointmentInOrganisation(appointmentId, organisationId);
       }
 
       if (input.enforceSingleSubmissionPerAppointment) {
@@ -483,6 +585,10 @@ export const ObservationToolSubmissionService = {
         404,
       );
     }
+    if (organisationId) {
+      await ensureCompanionInOrganisation(doc.companionId, organisationId);
+      await ensureAppointmentInOrganisation(appointmentId, organisationId);
+    }
 
     // ✅ Optional enforcement: only 1 submission linked to an appointment
     if (input.enforceSingleSubmissionPerAppointment) {
@@ -506,22 +612,37 @@ export const ObservationToolSubmissionService = {
     return doc;
   },
 
-  async getById(id: string): Promise<ObservationToolSubmissionDocument | null> {
+  async getById(
+    id: string,
+    organisationId?: string,
+  ): Promise<ObservationToolSubmissionDocument | null> {
+    const safeOrganisationId = asNonEmptyString(organisationId);
     const safeId = assertObjectId(id, "id");
     if (isReadFromPostgres()) {
       const doc = await prisma.observationToolSubmission.findFirst({
         where: { id: safeId },
       });
+      if (doc && safeOrganisationId) {
+        await ensureCompanionInOrganisation(
+          doc.companionId,
+          safeOrganisationId,
+        );
+      }
       return (doc ??
         null) as unknown as ObservationToolSubmissionDocument | null;
     }
 
-    return ObservationToolSubmissionModel.findById(safeId).exec();
+    const doc = await ObservationToolSubmissionModel.findById(safeId).exec();
+    if (doc && safeOrganisationId) {
+      await ensureCompanionInOrganisation(doc.companionId, safeOrganisationId);
+    }
+    return doc;
   },
 
   async listSubmissions(
     filter: ListSubmissionsFilter,
   ): Promise<ObservationToolSubmissionDocument[]> {
+    const organisationId = asNonEmptyString(filter.organisationId);
     const q: Record<string, unknown> = {};
 
     applyStringFilter(q, "companionId", filter.companionId);
@@ -538,12 +659,46 @@ export const ObservationToolSubmissionService = {
         if (filter.fromDate) where.createdAt.gte = filter.fromDate;
         if (filter.toDate) where.createdAt.lte = filter.toDate;
       }
+      if (organisationId) {
+        if (filter.companionId) {
+          await ensureCompanionInOrganisation(
+            filter.companionId,
+            organisationId,
+          );
+        } else {
+          const scopedCompanions = await prisma.companionOrganisation.findMany({
+            where: { organisationId, status: "ACTIVE" },
+            select: { companionId: true },
+          });
+          where.companionId = {
+            in: scopedCompanions.map((item) => item.companionId),
+          };
+        }
+      }
 
       const docs = await prisma.observationToolSubmission.findMany({
         where,
         orderBy: { createdAt: "desc" },
       });
       return docs as unknown as ObservationToolSubmissionDocument[];
+    }
+
+    if (organisationId) {
+      if (filter.companionId) {
+        await ensureCompanionInOrganisation(filter.companionId, organisationId);
+      } else {
+        const scopedCompanions = await CompanionOrganisationModel.find({
+          organisationId,
+          status: "ACTIVE",
+        })
+          .setOptions({ sanitizeFilter: true })
+          .select({ companionId: 1 })
+          .lean();
+
+        q.companionId = {
+          $in: scopedCompanions.map((item) => item.companionId.toString()),
+        };
+      }
     }
 
     return ObservationToolSubmissionModel.find(q)
@@ -554,8 +709,16 @@ export const ObservationToolSubmissionService = {
 
   async listForAppointment(
     appointmentId: string,
+    organisationId?: string,
   ): Promise<ObservationToolSubmissionDocument[]> {
     const safeAppointmentId = assertObjectId(appointmentId, "appointmentId");
+    const safeOrganisationId = asNonEmptyString(organisationId);
+    if (safeOrganisationId) {
+      await ensureAppointmentInOrganisation(
+        safeAppointmentId,
+        safeOrganisationId,
+      );
+    }
     if (isReadFromPostgres()) {
       const docs = await prisma.observationToolSubmission.findMany({
         where: { evaluationAppointmentId: safeAppointmentId },

@@ -177,9 +177,9 @@ describe("LabResultService", () => {
   });
 
   it("gets by result id in postgres", async () => {
-    await LabResultService.getByResultId("IDEXX", "res");
+    await LabResultService.getByResultId("org", "IDEXX", "res");
     expect(prisma.labResult.findFirst).toHaveBeenCalledWith({
-      where: { provider: "IDEXX", resultId: "res" },
+      where: { organisationId: "org", provider: "IDEXX", resultId: "res" },
     });
   });
 
@@ -191,17 +191,18 @@ describe("LabResultService", () => {
     };
     (LabResultModel.findOne as jest.Mock).mockReturnValue(mockQuery);
 
-    await LabResultService.getByResultId("IDEXX", "res");
+    await LabResultService.getByResultId("org", "IDEXX", "res");
 
     expect(LabResultModel.findOne).toHaveBeenCalledWith({
+      organisationId: "org",
       provider: "IDEXX",
       resultId: "res",
     });
   });
 
-  it("rejects invalid provider or resultId", async () => {
-    await expect(LabResultService.getByResultId("", "")).rejects.toThrow(
-      "Invalid provider or resultId",
+  it("rejects invalid organisationId, provider or resultId", async () => {
+    await expect(LabResultService.getByResultId("", "", "")).rejects.toThrow(
+      "Invalid organisationId, provider or resultId",
     );
   });
 });

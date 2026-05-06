@@ -6,7 +6,7 @@ import {
 } from "src/services/coparentInvite.service";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 
 type SendInviteBody = {
   email?: string;
@@ -18,7 +18,12 @@ type TokenBody = {
   token?: string;
 };
 
-// Resolve UserID
+const resolveAuthenticatedUserId = (req: Request): string | undefined => {
+  const userId = (req as AuthenticatedRequest).userId;
+  if (typeof userId !== "string") return undefined;
+  const trimmedUserId = userId.trim();
+  return trimmedUserId || undefined;
+};
 
 const resolveParentId = (parent: {
   id?: string;
@@ -32,7 +37,7 @@ const resolveParentId = (parent: {
 export const CoParentInviteController = {
   sendInvite: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserId(req);
 
       if (!authUserId) {
         return res.status(401).json({ message: "Authentication required." });
@@ -93,7 +98,7 @@ export const CoParentInviteController = {
 
   acceptInvite: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserId(req);
 
       if (!authUserId) {
         return res.status(401).json({ message: "Authentication required." });
@@ -141,7 +146,7 @@ export const CoParentInviteController = {
 
   getPendingInvites: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserId(req);
       if (!authUserId) {
         return res.status(400).json({ message: "Authentication required." });
       }

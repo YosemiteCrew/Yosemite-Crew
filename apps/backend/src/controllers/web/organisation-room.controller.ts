@@ -5,6 +5,7 @@ import {
   OrganisationRoomServiceError,
   type OrganisationRoomFHIRPayload,
 } from "../../services/organisation-room.service";
+import { OrgRequest } from "src/middlewares/rbac";
 
 const isFHIRLocationPayload = (
   payload: unknown,
@@ -136,12 +137,23 @@ export const OrganisationRoomController = {
   delete: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      const { organisationId } = req as OrgRequest;
 
       if (!requireParam(res, id, "Room identifier is required.")) {
         return;
       }
 
-      const resource = await OrganisationRoomService.delete(id);
+      if (
+        !requireParam(
+          res,
+          organisationId,
+          "Organization identifier is required.",
+        )
+      ) {
+        return;
+      }
+
+      const resource = await OrganisationRoomService.delete(id, organisationId);
 
       if (!resource) {
         respondNotFound(res);

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { FormService, FormServiceError } from "src/services/form.service";
 import { FormRequestDTO, FormSubmissionRequestDTO } from "@yosemite-crew/types";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
@@ -236,10 +237,37 @@ export const FormController = {
       const { appointmentId } = req.params;
       const { latestOnly } = (req.body as Record<string, unknown>) ?? {};
       const latestOnlyFlag = latestOnly === true || latestOnly === "true";
+      const isMobileRequest =
+        typeof req.path === "string" && req.path.includes("/mobile/");
+      const requesterOrgId = isMobileRequest
+        ? undefined
+        : (req as OrgRequest).organisationId;
+
+      let requesterParentId: string | undefined;
+      if (isMobileRequest) {
+        const authUserId = resolveUserIdFromRequest(req);
+        if (!authUserId) {
+          return res
+            .status(401)
+            .json({ message: "Unauthorized: User ID missing" });
+        }
+
+        const authUser =
+          await AuthUserMobileService.getByProviderUserId(authUserId);
+        requesterParentId = authUser?.parentId?.toString();
+
+        if (!requesterParentId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
 
       const result = await FormService.getSOAPNotesByAppointment(
         appointmentId,
-        { latestOnly: latestOnlyFlag },
+        {
+          latestOnly: latestOnlyFlag,
+          requesterOrgId,
+          requesterParentId,
+        },
       );
 
       res.status(200).json(result);
@@ -280,9 +308,29 @@ export const FormController = {
       const { appointmentId } = req.params;
       const { serviceId, species, isPMS } =
         (req.body as Record<string, unknown>) ?? {};
+      const isMobileRequest =
+        typeof req.path === "string" && req.path.includes("/mobile/");
 
       if (!appointmentId) {
         return res.status(400).json({ message: "appointmentId is required" });
+      }
+
+      let viewerParentId: string | undefined;
+      if (isMobileRequest) {
+        const authUserId = resolveUserIdFromRequest(req);
+        if (!authUserId) {
+          return res
+            .status(401)
+            .json({ message: "Unauthorized: User ID missing" });
+        }
+
+        const authUser =
+          await AuthUserMobileService.getByProviderUserId(authUserId);
+        viewerParentId = authUser?.parentId?.toString();
+
+        if (!viewerParentId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
       }
 
       const result = await FormService.getFormsForAppointment({
@@ -290,6 +338,7 @@ export const FormController = {
         serviceId: typeof serviceId === "string" ? serviceId : undefined,
         species: typeof species === "string" ? species : undefined,
         isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
+        viewerParentId,
       });
 
       return res.status(200).json(result);

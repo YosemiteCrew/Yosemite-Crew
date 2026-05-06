@@ -21,10 +21,15 @@ router.get(
   OrganizationController.getNearbyPaginated,
 );
 
-router.post("/logo/presigned-url", OrganizationController.getLogoUploadUrl);
+router.post(
+  "/logo/presigned-url",
+  authorizeCognito,
+  OrganizationController.getLogoUploadUrl,
+);
 
 router.post(
   "/logo/presigned-url/:orgId",
+  authorizeCognito,
   OrganizationController.getLogoUploadUrl,
 );
 

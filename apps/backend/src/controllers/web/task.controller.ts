@@ -2,6 +2,7 @@
 import { Request, Response } from "express";
 import { ParamsDictionary } from "express-serve-static-core";
 import { AuthenticatedRequest } from "src/middlewares/auth";
+import type { OrgRequest } from "src/middlewares/rbac";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
   CompleteTaskInput,
@@ -116,11 +117,7 @@ const handleError = (error: unknown, res: Response) => {
 
 const resolveUserId = (req: Request): string => {
   const authReq = req as AuthenticatedRequest;
-
-  const headerUser = req.headers["x-user-id"];
-  if (headerUser && typeof headerUser === "string") return headerUser;
-
-  return authReq.userId!;
+  return typeof authReq.userId === "string" ? authReq.userId : "";
 };
 
 export const TaskController = {
@@ -394,7 +391,8 @@ export const TaskController = {
     res: Response,
   ) => {
     try {
-      const { organisationId } = req.params; // override param
+      const organisationId =
+        (req as OrgRequest).organisationId ?? req.params.organisationId;
       const userId = req.query.userId;
 
       const tasks = await TaskService.listForEmployee({
@@ -428,8 +426,10 @@ export const TaskController = {
     res: Response,
   ) => {
     try {
+      const organisationId = (req as OrgRequest).organisationId;
       const tasks = await TaskService.listForCompanion({
         companionId: req.params.companionId,
+        organisationId,
         audience: parseAudience(req.query.audience),
         fromDueAt: parseDateQuery(req.query.fromDueAt),
         toDueAt: parseDateQuery(req.query.toDueAt),

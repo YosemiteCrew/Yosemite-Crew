@@ -107,20 +107,36 @@ export const LabResultService = {
     return query.lean();
   },
 
-  async getByResultId(provider: string, resultId: string) {
+  async getByResultId(
+    organisationId: string,
+    provider: string,
+    resultId: string,
+  ) {
+    const safeOrganisationId =
+      typeof organisationId === "string" && organisationId.trim()
+        ? organisationId
+        : null;
     const safeProvider =
       typeof provider === "string" && provider.trim() ? provider : null;
     const safeResultId =
       typeof resultId === "string" && resultId.trim() ? resultId : null;
-    if (!safeProvider || !safeResultId) {
-      throw new LabResultServiceError("Invalid provider or resultId", 400);
+    if (!safeOrganisationId || !safeProvider || !safeResultId) {
+      throw new LabResultServiceError(
+        "Invalid organisationId, provider or resultId",
+        400,
+      );
     }
     if (isReadFromPostgres()) {
       return prisma.labResult.findFirst({
-        where: { provider: safeProvider, resultId: safeResultId },
+        where: {
+          organisationId: safeOrganisationId,
+          provider: safeProvider,
+          resultId: safeResultId,
+        },
       });
     }
     return LabResultModel.findOne({
+      organisationId: safeOrganisationId,
       provider: safeProvider,
       resultId: safeResultId,
     })

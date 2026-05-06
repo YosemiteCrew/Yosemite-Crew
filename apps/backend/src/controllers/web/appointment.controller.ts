@@ -296,11 +296,15 @@ export const AppointmentController = {
   },
 
   attachFormsToAppointment: async (
-    req: Request<{ appointmentId: string }, unknown, AttachFormsBody>,
+    req: Request<
+      { organisationId: string; appointmentId: string },
+      unknown,
+      AttachFormsBody
+    >,
     res: Response,
   ) => {
     try {
-      const { appointmentId } = req.params;
+      const { organisationId, appointmentId } = req.params;
       const { formIds } = req.body;
 
       if (!Array.isArray(formIds) || formIds.length === 0) {
@@ -308,6 +312,7 @@ export const AppointmentController = {
       }
 
       const result = await AppointmentService.attachFormsToAppointment(
+        organisationId,
         appointmentId,
         formIds,
       );

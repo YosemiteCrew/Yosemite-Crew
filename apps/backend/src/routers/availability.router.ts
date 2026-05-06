@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { AvailabilityController } from "src/controllers/web/availability.controller";
 import { authorizeCognito } from "src/middlewares/auth";
+import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -13,8 +14,12 @@ router.post("/:orgId/base", (req, res) =>
 router.get("/:orgId/base", (req, res) =>
   AvailabilityController.getBaseAvailability(req, res),
 );
-router.get("/:orgId/base/all", (req, res) =>
-  AvailabilityController.getOrganisationBaseAvailability(req, res),
+router.get(
+  "/:orgId/base/all",
+  withOrgPermissions(),
+  requirePermission("appointments:view:any"),
+  (req, res) =>
+    AvailabilityController.getOrganisationBaseAvailability(req, res),
 );
 router.delete("/:orgId/base", (req, res) =>
   AvailabilityController.deleteBaseAvailability(req, res),

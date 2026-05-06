@@ -160,6 +160,20 @@ describe("Task Controllers", () => {
     });
 
     describe("createFromLibrary", () => {
+      it("should prefer authenticated userId over x-user-id header", async () => {
+        req.headers = { "x-user-id": "spoofed-user" };
+        (req as any).userId = "real-user";
+        req.body = { libraryId: "lib1" };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskService.createFromLibrary as any).mockResolvedValue({});
+
+        await TaskController.createFromLibrary(req as any, res as Response);
+
+        expect(mockedTaskService.createFromLibrary).toHaveBeenCalledWith(
+          expect.objectContaining({ createdBy: "real-user" }),
+        );
+      });
+
       it("should success (201)", async () => {
         (req as any).userId = "pms1";
         req.body = { libraryId: "lib1" };
@@ -377,6 +391,7 @@ describe("Task Controllers", () => {
     describe("listEmployeeTasks", () => {
       it("should list with filters", async () => {
         req.params = { organisationId: "o1" };
+        (req as any).organisationId = "org-from-rbac";
         req.query = { userId: "u2", status: ["PENDING"] as any }; // array input
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedTaskService.listForEmployee as any).mockResolvedValue([]);
@@ -384,7 +399,7 @@ describe("Task Controllers", () => {
         await TaskController.listEmployeeTasks(req as any, res as Response);
         expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
           expect.objectContaining({
-            organisationId: "o1",
+            organisationId: "org-from-rbac",
             userId: "u2",
             status: ["PENDING"],
           }),
@@ -401,6 +416,7 @@ describe("Task Controllers", () => {
     describe("listForCompanion", () => {
       it("should list with filters", async () => {
         req.params = { companionId: "c1" };
+        (req as any).organisationId = "org-1";
         req.query = { audience: "EMPLOYEE_TASK" };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedTaskService.listForCompanion as any).mockResolvedValue([]);
@@ -409,6 +425,7 @@ describe("Task Controllers", () => {
         expect(mockedTaskService.listForCompanion).toHaveBeenCalledWith(
           expect.objectContaining({
             companionId: "c1",
+            organisationId: "org-1",
             audience: "EMPLOYEE_TASK",
           }),
         );
@@ -416,6 +433,7 @@ describe("Task Controllers", () => {
 
       it("should handle invalid audience/status filters", async () => {
         req.params = { companionId: "c1" };
+        (req as any).organisationId = "org-1";
         req.query = { audience: "INVALID", status: "INVALID" };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedTaskService.listForCompanion as any).mockResolvedValue([]);
@@ -423,6 +441,7 @@ describe("Task Controllers", () => {
         await TaskController.listForCompanion(req as any, res as Response);
         expect(mockedTaskService.listForCompanion).toHaveBeenCalledWith(
           expect.objectContaining({
+            organisationId: "org-1",
             audience: undefined,
             status: undefined,
           }),
@@ -431,6 +450,7 @@ describe("Task Controllers", () => {
 
       it("should handle array inputs for query params", async () => {
         req.params = { companionId: "c1" };
+        (req as any).organisationId = "org-1";
         req.query = {
           audience: ["PARENT_TASK"] as any,
           status: ["COMPLETED"] as any,
@@ -441,6 +461,7 @@ describe("Task Controllers", () => {
         await TaskController.listForCompanion(req as any, res as Response);
         expect(mockedTaskService.listForCompanion).toHaveBeenCalledWith(
           expect.objectContaining({
+            organisationId: "org-1",
             audience: "PARENT_TASK",
             status: ["COMPLETED"],
           }),

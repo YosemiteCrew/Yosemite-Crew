@@ -636,6 +636,35 @@ describe("FormService", () => {
       );
     });
 
+    it("ignores client-provided signing metadata on submit", async () => {
+      (FormVersionModel.findOne as jest.Mock).mockReturnValueOnce(
+        createChainable({ schemaSnapshot: [{ type: "signature" }] }),
+      );
+      (FormSubmissionModel.create as jest.Mock).mockResolvedValueOnce(
+        mockDoc({ _id: validId }),
+      );
+
+      await FormService.submitFHIR({
+        formId: validId,
+        signing: {
+          required: true,
+          status: "SIGNED",
+          provider: "DOCUMENSO",
+          documentId: "9999",
+        },
+      } as any);
+
+      expect(FormSubmissionModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signing: {
+            required: true,
+            status: "NOT_STARTED",
+            provider: "DOCUMENSO",
+          },
+        }),
+      );
+    });
+
     it("uses prisma when READ_FROM_POSTGRES is true", async () => {
       process.env.READ_FROM_POSTGRES = "true";
       (prisma.formSubmission.create as jest.Mock).mockResolvedValue({
@@ -830,6 +859,35 @@ describe("FormService", () => {
       await expect(
         FormService.getSOAPNotesByAppointment(validId),
       ).rejects.toThrow("Appointment not found");
+    });
+
+    it("throws forbidden when requester parent does not own appointment", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({
+          organisationId: "org-h",
+          companion: { parent: { id: "parent-a" } },
+        }),
+      );
+
+      await expect(
+        FormService.getSOAPNotesByAppointment(validId, {
+          requesterParentId: "parent-b",
+        }),
+      ).rejects.toThrow("Forbidden");
+    });
+
+    it("throws forbidden when requester organisation does not match appointment organisation", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({ organisationId: "org-appointment" }),
+      );
+
+      await expect(
+        FormService.getSOAPNotesByAppointment(validId, {
+          requesterOrgId: "org-requester",
+        }),
+      ).rejects.toThrow(
+        "Forbidden: appointment does not belong to this organisation",
+      );
     });
 
     it("returns empty if non-hospital cache check", async () => {
@@ -1087,6 +1145,22 @@ describe("FormService", () => {
       await expect(
         FormService.getFormsForAppointment({ appointmentId: validId }),
       ).rejects.toThrow("Appointment not found");
+    });
+
+    it("throws forbidden when viewer parent does not own appointment", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({
+          organisationId: "o",
+          companion: { parent: { id: "parent-a" } },
+        }),
+      );
+
+      await expect(
+        FormService.getFormsForAppointment({
+          appointmentId: validId,
+          viewerParentId: "parent-b",
+        }),
+      ).rejects.toThrow("Forbidden");
     });
 
     it("returns empty items if no forms mapped", async () => {

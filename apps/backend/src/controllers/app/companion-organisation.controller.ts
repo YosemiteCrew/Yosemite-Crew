@@ -12,7 +12,7 @@ import OrganizationModel, {
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 
 type OrganisationType = OrganizationMongo["type"];
 
@@ -117,10 +117,24 @@ const resolveParentId = (parent: {
   throw new Error("Parent id missing");
 };
 
+const resolveAuthenticatedUserIdFromRequest = (
+  req: Request,
+): string | undefined => {
+  const authReq = req as AuthenticatedRequest;
+  const userId = authReq.userId;
+
+  if (typeof userId !== "string") {
+    return undefined;
+  }
+
+  const trimmedUserId = userId.trim();
+  return trimmedUserId || undefined;
+};
+
 export const CompanionOrganisationController = {
   linkByParent: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserIdFromRequest(req);
       if (!authUserId)
         return res.status(401).json({ message: "User not authenticated" });
 
@@ -155,7 +169,7 @@ export const CompanionOrganisationController = {
 
   linkByPmsUser: async (req: Request, res: Response) => {
     try {
-      const pmsUser = resolveUserIdFromRequest(req);
+      const pmsUser = resolveAuthenticatedUserIdFromRequest(req);
       if (!pmsUser)
         return res.status(401).json({ message: "User not authenticated" });
 
@@ -195,7 +209,7 @@ export const CompanionOrganisationController = {
 
   approvePendingLink: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserIdFromRequest(req);
 
       if (!authUserId) {
         return res
@@ -230,7 +244,7 @@ export const CompanionOrganisationController = {
 
   sendInvite: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserIdFromRequest(req);
       if (!authUserId)
         return res.status(401).json({ message: "User not authenticated" });
 
@@ -267,7 +281,7 @@ export const CompanionOrganisationController = {
 
   denyPendingLink: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveAuthenticatedUserIdFromRequest(req);
       if (!authUserId) {
         return res.status(401).json({ message: "Not authenticated." });
       }

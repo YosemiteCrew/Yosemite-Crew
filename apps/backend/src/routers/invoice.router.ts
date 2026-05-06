@@ -3,7 +3,10 @@ import { InvoiceController } from "../controllers/app/invoice.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 import {
   requirePermission,
+  withOrgPermissions,
   withAppointmentOrgPermissions,
+  withInvoiceOrgPermissions,
+  withPaymentIntentOrgPermissions,
 } from "src/middlewares/rbac";
 
 const router = Router();
@@ -32,6 +35,8 @@ router.get(
 router.post(
   "/appointment/:appointmentId/charges",
   authorizeCognito,
+  withAppointmentOrgPermissions(),
+  requirePermission("billing:edit:any"),
   InvoiceController.addChargesToAppointment,
 );
 
@@ -39,6 +44,8 @@ router.post(
 router.post(
   "/appointment/:appointmentId",
   authorizeCognito,
+  withAppointmentOrgPermissions(),
+  requirePermission("billing:view:any"),
   InvoiceController.listInvoicesForAppointment,
 );
 
@@ -54,12 +61,16 @@ router.post(
 router.get(
   "/payment-intent/:paymentIntentId",
   authorizeCognito,
+  withPaymentIntentOrgPermissions(),
+  requirePermission("billing:view:any"),
   InvoiceController.getInvoiceByPaymentIntentId,
 );
 
 router.get(
   "/organisation/:organisationId/list",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
   InvoiceController.listInvoicesForOrganisation,
 );
 
@@ -74,6 +85,8 @@ router.post(
 router.post(
   "/:invoiceId/mark-paid",
   authorizeCognito,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:edit:any"),
   InvoiceController.markInvoicePaidManually,
 );
 
@@ -81,6 +94,8 @@ router.post(
 router.patch(
   "/:invoiceId/payment-collection-method",
   authorizeCognito,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:edit:any"),
   InvoiceController.updatePaymentCollectionMethod,
 );
 

@@ -100,7 +100,11 @@ describe("CoParentInviteController", () => {
     });
 
     it("validates request body", async () => {
-      const req = { headers: { "x-user-id": "user-1" }, body: {} } as any;
+      const req = {
+        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+        body: {},
+      } as any;
       const res = createResponse();
 
       await CoParentInviteController.sendInvite(req, res as any);
@@ -115,6 +119,7 @@ describe("CoParentInviteController", () => {
     it("creates invite", async () => {
       const req = {
         headers: { "x-user-id": "user-1" },
+        userId: "user-1",
         body: {
           email: "test@example.com",
           companionId: "cmp-1",
@@ -144,9 +149,36 @@ describe("CoParentInviteController", () => {
       });
     });
 
+    it("uses authenticated user id when x-user-id header is spoofed", async () => {
+      const req = {
+        headers: { "x-user-id": "victim-user-id" },
+        userId: "auth-user-id",
+        body: {
+          email: "test@example.com",
+          companionId: "cmp-1",
+          inviteeName: "Alex",
+        },
+      } as any;
+      const res = createResponse();
+      mockedParentService.findByLinkedUserId.mockResolvedValueOnce({
+        _id: { toString: () => "parent-1" },
+      });
+      mockedCoParentInviteService.sendInvite.mockResolvedValueOnce({});
+
+      await CoParentInviteController.sendInvite(req, res as any);
+
+      expect(mockedParentService.findByLinkedUserId).toHaveBeenCalledWith(
+        "auth-user-id",
+      );
+      expect(mockedParentService.findByLinkedUserId).not.toHaveBeenCalledWith(
+        "victim-user-id",
+      );
+    });
+
     it("maps service errors", async () => {
       const req = {
         headers: { "x-user-id": "user-1" },
+        userId: "user-1",
         body: {
           email: "test@example.com",
           companionId: "cmp-1",
@@ -170,6 +202,7 @@ describe("CoParentInviteController", () => {
     it("handles unexpected errors", async () => {
       const req = {
         headers: { "x-user-id": "user-1" },
+        userId: "user-1",
         body: {
           email: "test@example.com",
           companionId: "cmp-1",
@@ -252,7 +285,11 @@ describe("CoParentInviteController", () => {
     });
 
     it("requires token", async () => {
-      const req = { headers: { "x-user-id": "user-1" }, body: {} } as any;
+      const req = {
+        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+        body: {},
+      } as any;
       const res = createResponse();
 
       await CoParentInviteController.acceptInvite(req, res as any);
@@ -266,6 +303,7 @@ describe("CoParentInviteController", () => {
     it("accepts invite", async () => {
       const req = {
         headers: { "x-user-id": "user-1" },
+        userId: "user-1",
         body: { token: "token-1" },
       } as any;
       const res = createResponse();
@@ -287,6 +325,7 @@ describe("CoParentInviteController", () => {
     it("maps service errors", async () => {
       const req = {
         headers: { "x-user-id": "user-1" },
+        userId: "user-1",
         body: { token: "token-1" },
       } as any;
       const res = createResponse();
@@ -359,7 +398,10 @@ describe("CoParentInviteController", () => {
     });
 
     it("returns 404 when user email missing", async () => {
-      const req = { headers: { "x-user-id": "user-1" } } as any;
+      const req = {
+        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+      } as any;
       const res = createResponse();
       mockedAuthUserMobileService.getByProviderUserId.mockResolvedValueOnce(
         null,
@@ -374,7 +416,10 @@ describe("CoParentInviteController", () => {
     });
 
     it("returns pending invites", async () => {
-      const req = { headers: { "x-user-id": "user-1" } } as any;
+      const req = {
+        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+      } as any;
       const res = createResponse();
       const authUser = { email: "user@example.com" };
       const invites = { pendingInvites: [] };
@@ -398,7 +443,10 @@ describe("CoParentInviteController", () => {
     });
 
     it("maps service errors", async () => {
-      const req = { headers: { "x-user-id": "user-1" } } as any;
+      const req = {
+        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+      } as any;
       const res = createResponse();
       mockedAuthUserMobileService.getByProviderUserId.mockResolvedValueOnce({
         email: "user@example.com",
