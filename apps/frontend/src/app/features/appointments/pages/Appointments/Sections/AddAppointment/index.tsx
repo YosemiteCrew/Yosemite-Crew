@@ -510,7 +510,7 @@ const AddAppointment = ({
                       />
                       <button
                         type="button"
-                        className="w-fit text-body-4-emphasis text-text-brand"
+                        className="w-fit text-body-4-emphasis text-(--color-primary-700)"
                         onClick={() => setShowAddCompanionModal(true)}
                       >
                         + {terminologyText('Add new companion')}

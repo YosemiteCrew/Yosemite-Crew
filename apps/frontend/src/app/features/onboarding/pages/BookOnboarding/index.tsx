@@ -1,16 +1,19 @@
 'use client';
 import React, { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
-import Cal, { getCalApi } from '@calcom/embed-react';
 import { useRouter } from 'next/navigation';
 import { IoArrowBack } from 'react-icons/io5';
+
+const Cal = dynamic(() => import('@calcom/embed-react'), { ssr: false });
 
 const BookOnboarding = () => {
   const router = useRouter();
 
   useEffect(() => {
     (async function () {
+      const { getCalApi } = await import('@calcom/embed-react');
       const cal = await getCalApi({ namespace: '30min' });
       cal('ui', { hideEventTypeDetails: false, layout: 'month_view' });
     })();

@@ -21,7 +21,7 @@ const UserLabels = ({ team, columnsStyle }: UserLabels) => {
             className="flex items-center justify-center flex-col"
           >
             <div
-              className={`text-body-4 font-medium ${isCurrentUser ? 'text-text-brand' : 'text-text-tertiary'}`}
+              className={`text-body-4 font-medium ${isCurrentUser ? 'text-(--color-primary-700)' : 'text-text-secondary'}`}
             >
               {user.name || ''}
             </div>

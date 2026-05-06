@@ -22,7 +22,9 @@ const DayLabels = ({ days, currentDate, columnsStyle }: DayLabels) => {
           : 'bg-card-bg text-text-secondary border-transparent';
         return (
           <div key={idx + day.getDate()} className="flex items-center justify-center gap-2">
-            <div className={`text-body-4 ${isToday ? 'text-text-brand' : 'text-text-primary'}`}>
+            <div
+              className={`text-body-4 ${isToday ? 'text-(--color-primary-700)' : 'text-text-primary'}`}
+            >
               {weekday}
             </div>
             <div

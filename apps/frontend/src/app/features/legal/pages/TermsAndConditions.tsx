@@ -1,5 +1,4 @@
 import React from 'react';
-import { Container } from 'react-bootstrap';
 
 import { NeedHealp } from '@/app/features/marketing/pages/PricingPage/PricingPage';
 
@@ -8,7 +7,7 @@ import './TermsAndConditions.css';
 const TermsAndConditions = () => {
   return (
     <section className="PrivacyPolicySec">
-      <Container>
+      <div className="container mx-auto px-4">
         <div className="PrivacyPolicyData mb-5">
           <div className="privacyHead">
             <div className="privacyhead">
@@ -4571,7 +4570,7 @@ const TermsAndConditions = () => {
           </div>
         </div>
         <NeedHealp />
-      </Container>
+      </div>
     </section>
   );
 };

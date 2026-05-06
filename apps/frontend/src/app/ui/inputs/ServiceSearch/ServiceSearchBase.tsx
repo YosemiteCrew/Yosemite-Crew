@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { IoSearch } from 'react-icons/io5';
 import { specialtiesByKey } from '@/app/lib/specialities';
 import { Service } from '@yosemite-crew/types';
@@ -17,6 +17,9 @@ const ServiceSearchBase = ({
   onSelectService,
   onAddService,
 }: ServiceSearchBaseProps) => {
+  const uid = useId();
+  const inputId = `service-search-input-${uid}`;
+  const listboxId = `service-search-listbox-${uid}`;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -71,7 +74,8 @@ const ServiceSearchBase = ({
       <IoSearch size={20} className="service-search-icon" color="var(--color-neutral-900)" />
       <input
         type="text"
-        name="speciality-search"
+        id={inputId}
+        name={inputId}
         placeholder="Search or create service"
         className="service-search-input"
         value={query}
@@ -82,7 +86,7 @@ const ServiceSearchBase = ({
         onFocus={() => setOpen(true)}
       />
       {open && (
-        <div className="service-search-dropdown" id="speciality-search-listbox">
+        <div className="service-search-dropdown" id={listboxId} role="listbox">
           {filtered?.length > 0 ? (
             filtered.map((service: any) => (
               <button

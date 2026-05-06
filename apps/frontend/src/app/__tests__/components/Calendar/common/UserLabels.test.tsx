@@ -88,7 +88,7 @@ describe('UserLabels', () => {
 
     render(<UserLabels team={team} />);
 
-    expect(screen.getByText('Sam')).toHaveClass('text-text-brand');
-    expect(screen.getByText('Alex')).toHaveClass('text-text-tertiary');
+    expect(screen.getByText('Sam')).toHaveClass('text-(--color-primary-700)');
+    expect(screen.getByText('Alex')).toHaveClass('text-text-secondary');
   });
 });

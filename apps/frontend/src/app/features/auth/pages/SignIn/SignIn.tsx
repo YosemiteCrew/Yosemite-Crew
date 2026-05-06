@@ -1,7 +1,6 @@
 'use client';
 import Link from 'next/link';
 import React, { useState } from 'react';
-import { Form } from 'react-bootstrap';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
 import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
@@ -145,7 +144,7 @@ const SignIn = ({
           elevation-1
         `}
       >
-        <Form onSubmit={handleSignIn} className="flex h-full w-full flex-col gap-6">
+        <form onSubmit={handleSignIn} className="flex h-full w-full flex-col gap-6">
           <div className="flex w-full flex-col gap-6">
             <div className="text-display-2 text-text-primary text-center auth-title">
               {isDeveloper ? 'Sign in to your developer account' : 'Sign in'}
@@ -197,7 +196,7 @@ const SignIn = ({
               </Link>
             </div>
           </div>
-        </Form>
+        </form>
       </div>
       <OtpModal
         email={normalizeEmail(email)}

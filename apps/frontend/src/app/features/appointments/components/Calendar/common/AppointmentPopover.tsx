@@ -148,7 +148,7 @@ const StaffInput = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
+const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
   appointment,
   invoicesByAppointmentId,
   canEditAppointments,
@@ -585,4 +585,5 @@ const AppointmentPopover: React.FC<AppointmentPopoverProps> = ({
   );
 };
 
+const AppointmentPopover = React.memo(AppointmentPopoverComponent);
 export default AppointmentPopover;

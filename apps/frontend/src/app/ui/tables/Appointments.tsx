@@ -70,7 +70,7 @@ type AppointmentTableProps = {
   small?: boolean;
 };
 
-const Appointments = ({
+const AppointmentsComponent = ({
   filteredList,
   setActiveAppointment,
   setViewPopup,
@@ -505,4 +505,5 @@ const Appointments = ({
   );
 };
 
+const Appointments = React.memo(AppointmentsComponent);
 export default Appointments;

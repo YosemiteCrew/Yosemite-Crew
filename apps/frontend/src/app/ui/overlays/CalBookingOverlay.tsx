@@ -1,8 +1,10 @@
 'use client';
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import Cal, { getCalApi } from '@calcom/embed-react';
+import dynamic from 'next/dynamic';
 import Close from '@/app/ui/primitives/Icons/Close';
+
+const Cal = dynamic(() => import('@calcom/embed-react'), { ssr: false });
 
 type CalBookingOverlayProps = {
   open: boolean;
@@ -13,6 +15,7 @@ const CalBookingOverlay = ({ open, onClose }: CalBookingOverlayProps) => {
   useEffect(() => {
     if (!open) return;
     (async () => {
+      const { getCalApi } = await import('@calcom/embed-react');
       const cal = await getCalApi({ namespace: '30min' });
       cal('ui', { hideEventTypeDetails: false, layout: 'month_view' });
     })();

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Container } from 'react-bootstrap';
 import Link from 'next/link';
 
 import Footer from '@/app/ui/widgets/Footer/Footer';
@@ -11,7 +10,7 @@ const PrivacyPolicy = () => {
   return (
     <>
       <section className="PrivacyPolicySec">
-        <Container>
+        <div className="container mx-auto px-4">
           <div className="PrivacyPolicyData mb-5">
             <div className="privacyHead">
               <div className="privacyhead">
@@ -1022,7 +1021,7 @@ const PrivacyPolicy = () => {
           </div>
 
           <NeedHealp />
-        </Container>
+        </div>
       </section>
 
       <Footer />

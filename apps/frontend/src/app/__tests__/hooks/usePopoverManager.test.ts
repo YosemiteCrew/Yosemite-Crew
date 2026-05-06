@@ -242,6 +242,22 @@ describe('usePopoverManager', () => {
     jest.useRealTimers();
   });
 
+  it('closes popover on window resize without accessing event.target', () => {
+    const { result } = renderHook(() => usePopoverManager());
+
+    act(() => {
+      result.current.setActivePopoverKey('key-1');
+    });
+
+    expect(result.current.activePopoverKey).toBe('key-1');
+
+    act(() => {
+      globalThis.dispatchEvent(new Event('resize'));
+    });
+
+    expect(result.current.activePopoverKey).toBeNull();
+  });
+
   it('does not auto-close on hover leave when closeOnHoverLeave is disabled', () => {
     jest.useFakeTimers();
     const { result } = renderHook(() => usePopoverManager({ closeOnHoverLeave: false }));

@@ -66,7 +66,7 @@ const TimeLabels: React.FC<TimeLabelsProps> = ({
       {slotLabels.map(({ key, top, label }) => (
         <div
           key={`slot-label-${key}`}
-          className="absolute text-[10px] leading-none text-text-tertiary translate-y-[-50%]"
+          className="absolute text-[10px] leading-none text-text-secondary translate-y-[-50%]"
           style={{ top }}
         >
           {label}

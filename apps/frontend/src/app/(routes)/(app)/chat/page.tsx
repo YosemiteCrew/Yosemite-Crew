@@ -7,42 +7,51 @@
  * Supports opening specific appointment chats via ?appointmentId query param
  */
 
-"use client";
+'use client';
 
-import React, { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import { ChatContainer, ChatScope } from "@/app/features/chat/components/ChatContainer";
-import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
-import OrgGuard from "@/app/ui/layout/guards/OrgGuard";
-import { useSearchParams } from "next/navigation";
-import { useAuthStore } from "@/app/stores/authStore";
-import { useOrgStore } from "@/app/stores/orgStore";
-import "./page.css";
+import React, { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
+import type { ChatScope } from '@/app/features/chat/components/ChatContainer';
+
+const ChatContainer = dynamic(
+  () =>
+    import('@/app/features/chat/components/ChatContainer').then((m) => ({
+      default: m.ChatContainer,
+    })),
+  { ssr: false, loading: () => null }
+);
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import { useSearchParams } from 'next/navigation';
+import { useAuthStore } from '@/app/stores/authStore';
+import { useOrgStore } from '@/app/stores/orgStore';
+import './page.css';
 
 const chatScopes: Array<{
   key: ChatScope;
   label: string;
   hint: string;
 }> = [
-  { key: "clients", label: "Clients", hint: "Pet parents & appointments" },
-  { key: "colleagues", label: "Colleagues", hint: "Internal PMS team chat" },
-  { key: "groups", label: "Common groups", hint: "Shared rooms & updates" },
+  { key: 'clients', label: 'Clients', hint: 'Pet parents & appointments' },
+  { key: 'colleagues', label: 'Colleagues', hint: 'Internal PMS team chat' },
+  { key: 'groups', label: 'Common groups', hint: 'Shared rooms & updates' },
 ];
 
 function ChatPageContent() {
   const searchParams = useSearchParams();
-  const [activeScope, setActiveScope] = useState<ChatScope>("clients");
-  const appointmentId = searchParams.get("appointmentId");
+  const [activeScope, setActiveScope] = useState<ChatScope>('clients');
+  const appointmentId = searchParams.get('appointmentId');
   const attributes = useAuthStore((s) => s.attributes);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgsById = useOrgStore((s) => s.orgsById);
 
   const displayName = useMemo(() => {
-    if (!attributes) return "Loading user...";
-    const first = attributes.given_name || "";
-    const last = attributes.family_name || "";
+    if (!attributes) return 'Loading user...';
+    const first = attributes.given_name || '';
+    const last = attributes.family_name || '';
     const fullName = `${first} ${last}`.trim();
-    return fullName || attributes.email || "You";
+    return fullName || attributes.email || 'You';
   }, [attributes]);
 
   const avatar = attributes?.picture;
@@ -50,20 +59,19 @@ function ChatPageContent() {
   const email = attributes?.email;
 
   const initials = useMemo(() => {
-    const parts = displayName.split(" ").filter(Boolean);
-    if (parts.length === 0) return "Y";
-    if (parts.length === 1) return parts[0][0]?.toUpperCase() || "Y";
-    return `${parts[0][0]}${parts.at(-1)?.[0] ?? ""}`.toUpperCase();
+    const parts = displayName.split(' ').filter(Boolean);
+    if (parts.length === 0) return 'Y';
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() || 'Y';
+    return `${parts[0][0]}${parts.at(-1)?.[0] ?? ''}`.toUpperCase();
   }, [displayName]);
 
   useEffect(() => {
     if (appointmentId) {
-      setActiveScope("clients");
+      setActiveScope('clients');
     }
   }, [appointmentId]);
 
-  const effectiveAppointmentId =
-    activeScope === "clients" ? appointmentId : null;
+  const effectiveAppointmentId = activeScope === 'clients' ? appointmentId : null;
 
   return (
     <ProtectedRoute>
@@ -82,17 +90,15 @@ function ChatPageContent() {
                       className="chat-identity-avatar__image"
                     />
                   ) : (
-                    <div className="chat-identity-avatar__fallback">
-                      {initials}
-                    </div>
+                    <div className="chat-identity-avatar__fallback">{initials}</div>
                   )}
                 </div>
                 <div className="chat-identity-copy">
                   <p className="chat-identity-eyebrow">Messaging as</p>
                   <h1 className="chat-identity-name">{displayName}</h1>
                   <p className="chat-identity-meta">
-                    {orgName ? `${orgName} • ` : ""}
-                    {email ?? "Signed in"}
+                    {orgName ? `${orgName} • ` : ''}
+                    {email ?? 'Signed in'}
                   </p>
                 </div>
               </div>
@@ -106,7 +112,7 @@ function ChatPageContent() {
                       type="button"
                       role="tab"
                       aria-selected={isActive}
-                      className={`chat-scope ${isActive ? "chat-scope--active" : ""}`}
+                      className={`chat-scope ${isActive ? 'chat-scope--active' : ''}`}
                       onClick={() => setActiveScope(scope.key)}
                     >
                       <span className="chat-scope__label">{scope.label}</span>

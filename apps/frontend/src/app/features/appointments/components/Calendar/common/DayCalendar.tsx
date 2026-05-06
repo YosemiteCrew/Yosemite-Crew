@@ -83,7 +83,7 @@ type ContextMenuState = {
   y: number;
 };
 
-export const DayCalendar: React.FC<DayCalendarProps> = ({
+const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   events,
   date,
   zoomMode = 'in',
@@ -451,7 +451,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light">
         <Back onClick={handlePrevDay} />
         <div className="flex items-center gap-2 text-center">
-          <div className="text-body-4 text-text-brand">{weekday}</div>
+          <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
           <div className="text-body-4-emphasis text-white h-10 w-10 flex items-center justify-center rounded-full bg-text-brand">
             {dateNumber}
           </div>
@@ -481,6 +481,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     )}
                     height={20}
                     width={20}
+                    priority
                     className="h-5 w-5 rounded-full object-cover"
                     alt={''}
                   />
@@ -727,6 +728,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                             )}
                             height={26}
                             width={26}
+                            priority
                             className="rounded-full border border-white/60 object-cover"
                             style={{ width: 26, height: 26 }}
                             alt=""
@@ -781,4 +783,5 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   );
 };
 
+export const DayCalendar = React.memo(DayCalendarComponent);
 export default DayCalendar;

@@ -115,7 +115,7 @@ const DayCalendar = ({
       <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light">
         <Back onClick={handlePrevDay} />
         <div className="flex items-center gap-2 text-center">
-          <div className="text-body-4 text-text-brand">{weekday}</div>
+          <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
           <div className="text-body-4-emphasis text-white h-10 w-10 flex items-center justify-center rounded-full bg-text-brand">
             {dateNumber}
           </div>

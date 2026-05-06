@@ -100,7 +100,7 @@ type AppointmentInfoProps = {
 
 const ReadOnlyEditField = ({ label, value }: { label: string; value?: string | null }) => (
   <div className="py-2.5! flex items-center gap-2 justify-between border border-card-border rounded-2xl px-4 bg-card-hover/40">
-    <div className="text-body-4-emphasis text-text-tertiary">{label}</div>
+    <div className="text-body-4-emphasis text-text-secondary">{label}</div>
     <div className="text-body-4 text-text-primary text-right">{value || '-'}</div>
   </div>
 );
@@ -854,7 +854,7 @@ const AppointmentInfo = ({
                       key={field.key}
                       className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border"
                     >
-                      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+                      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
                       <span
                         className="text-caption-2 font-medium px-2.5 py-1 rounded-2xl! whitespace-nowrap"
                         style={{
@@ -876,7 +876,7 @@ const AppointmentInfo = ({
                     key={field.key}
                     className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border"
                   >
-                    <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+                    <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
                     <div className="text-body-4 text-text-primary text-right">{display}</div>
                   </div>
                 );

@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
-import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
+import dynamic from 'next/dynamic';
+const DynamicChartCard = dynamic(() => import('@/app/ui/widgets/DynamicChart/DynamicChartCard'), {
+  ssr: false,
+});
 import {
   DashboardDurationOption,
   mapDashboardDurationOption,

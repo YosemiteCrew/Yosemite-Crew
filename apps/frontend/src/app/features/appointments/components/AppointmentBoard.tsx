@@ -140,7 +140,7 @@ type AppointmentBoardProps = {
   hasEmergency?: boolean;
 };
 
-const AppointmentBoard = ({
+const AppointmentBoardComponent = ({
   appointments,
   currentDate,
   setCurrentDate,
@@ -807,4 +807,5 @@ const AppointmentBoard = ({
   );
 };
 
+const AppointmentBoard = React.memo(AppointmentBoardComponent);
 export default AppointmentBoard;

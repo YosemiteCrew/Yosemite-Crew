@@ -24,7 +24,7 @@ export const CalendarDayNav = ({
   <div className="flex items-center justify-between gap-2 py-2 px-2 bg-white shrink-0">
     <Back onClick={onPrevDay} />
     <div className="flex items-center gap-2">
-      <div className="text-body-4 text-text-brand">{weekday}</div>
+      <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
       <div className="text-body-4-emphasis text-white h-8 w-8 flex items-center justify-center rounded-full bg-text-brand">
         {dateNumber}
       </div>

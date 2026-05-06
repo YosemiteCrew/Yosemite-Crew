@@ -1,14 +1,17 @@
-"use client";
-import React, { useEffect } from "react";
-import Cal, { getCalApi } from "@calcom/embed-react";
+'use client';
+import React, { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 
-import "./BookDemo.css";
+import './BookDemo.css';
+
+const Cal = dynamic(() => import('@calcom/embed-react'), { ssr: false });
 
 const BookDemo = () => {
   useEffect(() => {
     (async function () {
-      const cal = await getCalApi({ namespace: "30min" });
-      cal("ui", { hideEventTypeDetails: false, layout: "month_view" });
+      const { getCalApi } = await import('@calcom/embed-react');
+      const cal = await getCalApi({ namespace: '30min' });
+      cal('ui', { hideEventTypeDetails: false, layout: 'month_view' });
     })();
   }, []);
 
@@ -17,8 +20,8 @@ const BookDemo = () => {
       <Cal
         namespace="30min"
         calLink="yosemitecrew/demo"
-        style={{ width: "100%", height: "100%", overflow: "scroll" }}
-        config={{ theme: "light", layout: "month_view" }}
+        style={{ width: '100%', height: '100%', overflow: 'scroll' }}
+        config={{ theme: 'light', layout: 'month_view' }}
       />
     </div>
   );

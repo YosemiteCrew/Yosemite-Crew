@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { IoIosWarning } from 'react-icons/io';
 import { IoEye, IoEyeOff } from 'react-icons/io5';
 
@@ -20,6 +20,7 @@ const FormInputPass = ({
   autoComplete,
   error,
 }: FormInputPassProps & { error?: string }) => {
+  const uid = useId();
   const [showPassword, setShowPassword] = useState(false);
 
   const togglePasswordVisibility = () => {
@@ -32,7 +33,7 @@ const FormInputPass = ({
         <input
           type={showPassword ? 'text' : intype}
           name={inname}
-          id={inname}
+          id={uid}
           value={value ?? ''}
           autoComplete={autoComplete}
           onChange={onChange}
@@ -47,7 +48,7 @@ const FormInputPass = ({
           `}
         />
         <label
-          htmlFor={inname}
+          htmlFor={uid}
           className={`
             pointer-events-none absolute left-6
             top-1/2 -translate-y-1/2

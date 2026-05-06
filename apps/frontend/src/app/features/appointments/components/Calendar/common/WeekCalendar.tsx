@@ -271,7 +271,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     <div key={day.toISOString()} className="flex items-center justify-center gap-2">
                       <div
                         className={`text-body-4 ${
-                          isToday ? 'text-text-brand' : 'text-text-primary'
+                          isToday ? 'text-(--color-primary-700)' : 'text-text-primary'
                         }`}
                       >
                         {weekday}

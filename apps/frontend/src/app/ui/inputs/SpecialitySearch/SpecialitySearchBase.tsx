@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { IoSearch } from 'react-icons/io5';
 import { specialties as SPECIALITIES } from '@/app/lib/specialities';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -20,6 +20,9 @@ const SpecialitySearchBase = <T extends { name: string }>({
   multiple = true,
   currentSpecialities = [],
 }: SpecialitySearchBaseProps<T>) => {
+  const uid = useId();
+  const inputId = `speciality-search-input-${uid}`;
+  const listboxId = `speciality-search-listbox-${uid}`;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -103,7 +106,8 @@ const SpecialitySearchBase = <T extends { name: string }>({
       <IoSearch size={20} className="step-search-icon" color="var(--color-neutral-900)" />
       <input
         type="text"
-        name="speciality-search"
+        id={inputId}
+        name={inputId}
         placeholder="Search or create specialty"
         className="step-search-input"
         value={query}
@@ -114,7 +118,7 @@ const SpecialitySearchBase = <T extends { name: string }>({
         onFocus={() => setOpen(true)}
       />
       {open && (
-        <div className="step-search-dropdown" id="speciality-search-listbox">
+        <div className="step-search-dropdown" id={listboxId} role="listbox">
           {filtered?.length > 0 ? (
             filtered.map((speciality: any) => (
               <button

@@ -74,7 +74,7 @@ const getRoomStatusLabel = (selected: boolean, saving: boolean) => {
   return null;
 };
 
-const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
+const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = ({
   appointment,
   canEditAppointments,
   menuRef,
@@ -460,4 +460,5 @@ const AppointmentContextMenu: React.FC<AppointmentContextMenuProps> = ({
   );
 };
 
+const AppointmentContextMenu = React.memo(AppointmentContextMenuComponent);
 export default AppointmentContextMenu;

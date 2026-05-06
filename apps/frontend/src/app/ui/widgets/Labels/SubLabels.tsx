@@ -98,12 +98,12 @@ const SubLabels = ({
   const containerClassName = getContainerClassName(isLogoOnlyIdexx);
 
   return (
-    <div className={containerClassName}>
+    <div className={containerClassName} role="tablist">
       {labels.map((label) => {
         const disabledClass = disableClicking ? 'opacity-70 cursor-not-allowed' : '';
         const activeClass =
           activeLabel === label.key
-            ? 'bg-white! text-blue-text! border-text-brand!'
+            ? 'bg-white! text-(--color-primary-700)! border-text-brand!'
             : 'text-black-text border-transparent hover:bg-white';
         const isLogoOnlyWithRedirect = isLogoOnlyIdexx && Boolean(label.redirectHref);
         const hasEmbeddedRedirect = Boolean(label.redirectHref);

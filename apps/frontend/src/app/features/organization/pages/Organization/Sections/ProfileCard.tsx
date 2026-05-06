@@ -18,7 +18,10 @@ import { Organisation } from '@yosemite-crew/types';
 import React, { useEffect, useMemo, useState } from 'react';
 import { RiEdit2Fill } from 'react-icons/ri';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
-import CalBookingOverlay from '@/app/ui/overlays/CalBookingOverlay';
+import dynamic from 'next/dynamic';
+const CalBookingOverlay = dynamic(() => import('@/app/ui/overlays/CalBookingOverlay'), {
+  ssr: false,
+});
 
 type FieldConfig = {
   label: string;

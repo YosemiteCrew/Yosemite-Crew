@@ -14,6 +14,7 @@ const Close = ({ onClick, iconOnly = false }: CloseProps) => {
   return (
     <button
       type="button"
+      aria-label="Close"
       className="flex items-center justify-center rounded-full! hover:bg-card-hover! p-2 transition-all duration-300 ease-in-out"
       onClick={onClick}
     >

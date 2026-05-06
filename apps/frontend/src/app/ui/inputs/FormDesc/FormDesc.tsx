@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { IoIosWarning } from 'react-icons/io';
 
 type FormDescProps = {
@@ -25,12 +25,13 @@ const FormDesc = ({
   error,
   className,
 }: Readonly<FormDescProps>) => {
+  const uid = useId();
   return (
     <div className="w-full">
       <div className={`relative`}>
         <textarea
           name={inname}
-          id={inname}
+          id={uid}
           value={value ?? ''}
           onChange={onChange}
           onBlur={onBlur}
@@ -49,7 +50,7 @@ const FormDesc = ({
           `}
         />
         <label
-          htmlFor={inname}
+          htmlFor={uid}
           className={`
             pointer-events-none absolute left-6
             top-[20%] -translate-y-1/2

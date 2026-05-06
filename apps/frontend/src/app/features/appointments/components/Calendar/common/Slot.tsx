@@ -54,7 +54,7 @@ type ContextMenuState = {
   y: number;
 };
 
-const Slot: React.FC<SlotProps> = ({
+const SlotComponent: React.FC<SlotProps> = ({
   slotEvents,
   height,
   handleViewAppointment,
@@ -740,4 +740,5 @@ const Slot: React.FC<SlotProps> = ({
   );
 };
 
+const Slot = React.memo(SlotComponent);
 export default Slot;

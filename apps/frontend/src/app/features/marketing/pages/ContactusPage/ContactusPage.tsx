@@ -1,6 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-import { Button } from 'react-bootstrap';
 import { TicketCategory } from '@yosemite-crew/types';
 import Link from 'next/link';
 import { isEmail } from 'validator';
@@ -474,7 +473,8 @@ const ContactusPage = () => {
                     ))}
                   </div>
 
-                  <Button
+                  <button
+                    type="button"
                     className="SendBtn"
                     onClick={handleContectSubmit}
                     disabled={submitting || !isDSARValid}
@@ -484,7 +484,7 @@ const ContactusPage = () => {
                     }}
                   >
                     {submitting ? 'submitting...' : 'Send message'}
-                  </Button>
+                  </button>
                 </div>
               )}
 
@@ -584,7 +584,8 @@ const ContactusPage = () => {
                     ))}
                   </div>
 
-                  <Button
+                  <button
+                    type="button"
                     className="SendBtn"
                     onClick={handleContectSubmit}
                     disabled={submitting || !isComplaintValid}
@@ -594,7 +595,7 @@ const ContactusPage = () => {
                     }}
                   >
                     {submitting ? 'submitting...' : 'Send message'}
-                  </Button>
+                  </button>
                 </div>
               )}
 
@@ -624,7 +625,8 @@ const ContactusPage = () => {
                       </div>
                     )}
                   </div>
-                  <Button
+                  <button
+                    type="button"
                     className="SendBtn"
                     onClick={handleContectSubmit}
                     disabled={submitting || !isGeneralValid}
@@ -634,7 +636,7 @@ const ContactusPage = () => {
                     }}
                   >
                     {submitting ? 'submitting...' : 'Send message'}
-                  </Button>
+                  </button>
                 </>
               )}
             </div>

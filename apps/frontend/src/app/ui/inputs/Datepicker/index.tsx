@@ -50,7 +50,11 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
         type="button"
         onClick={onClick}
         className={`peer relative flex min-h-12 w-full items-center rounded-2xl! border bg-transparent px-6 py-2.5 text-left text-body-4 text-text-primary outline-none transition-colors ${className ?? ''}`}
-        aria-label="Toggle calendar"
+        aria-label={
+          value
+            ? `${placeholder || 'Date'}: ${value}, toggle calendar`
+            : `${placeholder || 'Date'}, toggle calendar`
+        }
         aria-haspopup="dialog"
         aria-controls={inputId}
       >

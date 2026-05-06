@@ -284,7 +284,7 @@ const FieldValueComponents: Record<
 > = {
   text: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
-      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {Array.isArray(formValues[field.key])
           ? (formValues[field.key] as string[]).join(', ')
@@ -294,7 +294,7 @@ const FieldValueComponents: Record<
   ),
   status: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
-      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {toTitleCase(formValues[field.key])}
       </div>
@@ -302,13 +302,13 @@ const FieldValueComponents: Record<
   ),
   number: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
-      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">{formValues[field.key] || '-'}</div>
     </div>
   ),
   select: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
-      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
@@ -321,7 +321,7 @@ const FieldValueComponents: Record<
   ),
   dropdown: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
-      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
@@ -334,7 +334,7 @@ const FieldValueComponents: Record<
   ),
   multiSelect: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
-      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
         {(() => {
           const value = formValues[field.key];
@@ -356,7 +356,7 @@ const FieldValueComponents: Record<
   ),
   country: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
-      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">{formValues[field.key] || '-'}</div>
     </div>
   ),
@@ -366,7 +366,7 @@ const FieldValueComponents: Record<
       <div
         className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
       >
-        <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+        <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
         <div className="text-body-4 text-text-primary text-right">
           {typeof value === 'string'
             ? formatDisplayDate(value) || '-'
@@ -381,7 +381,7 @@ const FieldValueComponents: Record<
       <div
         className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
       >
-        <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+        <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
         <div className="text-body-4 text-text-primary text-right">{formatTimeLabel(value)}</div>
       </div>
     );
@@ -392,7 +392,7 @@ const FieldValueComponents: Record<
       <div
         className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
       >
-        <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+        <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
         <div className="text-body-4 text-text-primary text-right">
           {value ? formatTimeLabel(value) : '-'}
         </div>
@@ -401,7 +401,7 @@ const FieldValueComponents: Record<
   },
   googleAddress: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
-      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+      <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">{formValues[field.key] || '-'}</div>
     </div>
   ),

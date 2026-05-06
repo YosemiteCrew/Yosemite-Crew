@@ -12,6 +12,7 @@ const Next = ({
 }) => {
   return (
     <button
+      aria-label="Next"
       className={`${className} flex items-center justify-center rounded-full! hover:bg-card-hover! p-2 transition-all duration-300 ease-in-out`}
       onClick={onClick}
       disabled={disabled}

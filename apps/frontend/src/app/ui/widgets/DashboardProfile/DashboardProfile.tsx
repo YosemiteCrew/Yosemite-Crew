@@ -10,7 +10,10 @@ import { getSafeImageUrl } from '@/app/lib/urls';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
-import CalBookingOverlay from '@/app/ui/overlays/CalBookingOverlay';
+import dynamic from 'next/dynamic';
+const CalBookingOverlay = dynamic(() => import('@/app/ui/overlays/CalBookingOverlay'), {
+  ssr: false,
+});
 
 const DashboardProfile = () => {
   const profile = usePrimaryOrgProfile();
@@ -42,7 +45,7 @@ const DashboardProfile = () => {
         <div className="flex items-center justify-between gap-2 w-full flex-wrap">
           {!primaryOrg.isVerified && (
             <>
-              <div className="px-6 py-[12px] bg-card-warning rounded-2xl flex items-center justify-center gap-2">
+              <div className="px-6 py-3 bg-card-warning rounded-2xl flex items-center justify-center gap-2">
                 <FaClock color="var(--color-warning-600)" size={16} />
                 <span className="text-body-4-emphasis text-pending-text">
                   Verification in progress — Limited access enabled
@@ -53,7 +56,7 @@ const DashboardProfile = () => {
           )}
         </div>
         {!primaryOrg.isVerified && (
-          <div className="text-caption-1 text-text-primary w-full sm:max-w-[500px]">
+          <div className="text-caption-1 text-text-primary w-full sm:max-w-125">
             <span className="text-text-brand">Note : </span>This short chat helps us confirm your
             business and add you to our trusted network of verified pet professionals - so you can
             start connecting with clients faster.

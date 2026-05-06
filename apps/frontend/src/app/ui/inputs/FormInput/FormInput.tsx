@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { IoIosWarning } from 'react-icons/io';
 
 type FormInputProps = {
@@ -30,6 +30,7 @@ const FormInput = ({
   className,
   tabIndex,
 }: Readonly<FormInputProps>) => {
+  const uid = useId();
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     onClick?.(e);
     if (intype === 'time' || intype === 'date') {
@@ -46,7 +47,7 @@ const FormInput = ({
         <input
           type={intype}
           name={inname}
-          id={inname}
+          id={uid}
           value={value ?? ''}
           onChange={onChange}
           autoComplete="off"
@@ -67,7 +68,7 @@ const FormInput = ({
           `}
         />
         <label
-          htmlFor={inname}
+          htmlFor={uid}
           className={`
             pointer-events-none absolute left-6
             top-1/2 -translate-y-1/2

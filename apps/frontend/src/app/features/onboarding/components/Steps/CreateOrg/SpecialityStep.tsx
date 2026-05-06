@@ -16,7 +16,6 @@ import {
   createSpecialitiesBulk,
   updateService,
   deleteSpeciality,
-  loadSpecialitiesForOrg,
 } from '@/app/features/organization/services/specialityService';
 import { deleteService } from '@/app/features/organization/services/serviceService';
 import { bindPendingCompanionTerminologyToOrg } from '@/app/lib/companionTerminology';
@@ -555,7 +554,6 @@ const SpecialityStep = ({
         return;
       }
 
-      await loadSpecialitiesForOrg({ force: true, silent: true, orgId: resolvedOrgId });
       const nextRoute = await resolveOrgScopedRedirect({
         orgId: resolvedOrgId,
         fallbackRole: 'owner',

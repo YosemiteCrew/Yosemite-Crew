@@ -21,7 +21,7 @@ const VIEW_OPTION_CONFIG = {
     label: 'Calendar',
     tooltip: 'Calendar view',
     Icon: MdOutlineCalendarMonth,
-    activeSlider: 'bg-blue-text',
+    activeSlider: 'bg-(--color-primary-700)',
     activeText: 'text-neutral-0',
   },
   board: {
@@ -70,7 +70,7 @@ const TitleCalendar = ({
         <div className="flex min-w-0 items-center gap-2 text-heading-2 text-text-primary">
           <span>
             {title}
-            <span className="text-body-2 text-text-tertiary">{` (${count})`}</span>
+            <span className="text-body-2 text-text-secondary">{` (${count})`}</span>
           </span>
           {description ? (
             <GlassTooltip content={description} side="bottom">

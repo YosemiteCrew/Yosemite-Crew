@@ -1,6 +1,9 @@
 'use client';
 import React, { useState } from 'react';
-import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
+import dynamic from 'next/dynamic';
+const DynamicChartCard = dynamic(() => import('@/app/ui/widgets/DynamicChart/DynamicChartCard'), {
+  ssr: false,
+});
 import { TrafficDataPoint, StarsDataPoint } from '../hooks/useOverviewStats';
 
 type CommunityStatsProps = {
