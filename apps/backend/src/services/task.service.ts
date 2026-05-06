@@ -1100,6 +1100,7 @@ export const TaskService = {
 
   async listForCompanion(params: {
     companionId: string;
+    organisationId?: string;
     audience?: TaskAudience;
     fromDueAt?: Date;
     toDueAt?: Date;
@@ -1114,6 +1115,9 @@ export const TaskService = {
       const where: Prisma.TaskWhereInput = {
         companionId,
       };
+
+      const organisationId = asNonEmptyString(params.organisationId);
+      if (organisationId) where.organisationId = organisationId;
 
       const audience = sanitizeAudience(params.audience);
       if (audience) where.audience = audience;
@@ -1141,6 +1145,9 @@ export const TaskService = {
     const filter: Record<string, unknown> = {
       companionId,
     };
+
+    const organisationId = asNonEmptyString(params.organisationId);
+    if (organisationId) filter.organisationId = organisationId;
 
     const audience = sanitizeAudience(params.audience);
     if (audience) filter.audience = audience;

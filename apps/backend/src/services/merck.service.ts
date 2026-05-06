@@ -2,6 +2,7 @@ import axios from "axios";
 import { MerckHealthlinkClient } from "src/integrations/merck/merck.client";
 import { IntegrationService } from "src/services/integration.service";
 import logger from "src/utils/logger";
+import { toSafeErrorLog } from "src/utils/safe-error-log";
 
 type MerckAudience = "PROV" | "PAT";
 type MerckLanguage = "en" | "es";
@@ -727,7 +728,7 @@ const buildSearchParams = (input: MerckSearchBaseParams) => {
     if (subTopicDisplay) params["subTopic.v.dn"] = subTopicDisplay;
   }
 
-  return { params, audience, language, media, username, password };
+  return { params, audience, language, media };
 };
 
 const buildAlternateBaseUrl = (baseUrl: string) => {
@@ -917,7 +918,7 @@ const executeSearch = async (
           upstreamBaseUrl: routing.baseUrl,
           routingReason: routing.reason,
           timezone: input.timezone ?? null,
-          error: retryError,
+          error: toSafeErrorLog(retryError),
         });
         throw retryError;
       }
@@ -930,7 +931,7 @@ const executeSearch = async (
       upstreamBaseUrl: routing.baseUrl,
       routingReason: routing.reason,
       timezone: input.timezone ?? null,
-      error,
+      error: toSafeErrorLog(error),
     });
     throw error;
   }

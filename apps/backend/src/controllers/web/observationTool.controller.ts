@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { AuthenticatedRequest } from "src/middlewares/auth";
+import { OrgRequest } from "src/middlewares/rbac";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
   ObservationToolDefinitionService,
@@ -32,9 +33,12 @@ const handleError = (error: unknown, res: Response) => {
 
 const resolveUserId = (req: Request): string | undefined => {
   const authReq = req as AuthenticatedRequest;
+  if (authReq.userId) return authReq.userId;
+
   const headerUser = req.headers["x-user-id"];
   if (headerUser && typeof headerUser === "string") return headerUser;
-  return authReq.userId;
+
+  return undefined;
 };
 
 export const ObservationToolDefinitionController = {
@@ -158,9 +162,11 @@ export const ObservationToolSubmissionController = {
       const toDate = req.query.toDate
         ? new Date(req.query.toDate as string)
         : undefined;
+      const organisationId = (req as OrgRequest).organisationId;
 
       const submissions =
         await ObservationToolSubmissionService.listSubmissions({
+          organisationId,
           companionId: companionId || undefined,
           toolId,
           fromDate,
@@ -176,8 +182,10 @@ export const ObservationToolSubmissionController = {
   // PMS — get one
   getById: async (req: Request, res: Response) => {
     try {
+      const organisationId = (req as OrgRequest).organisationId;
       const submission = await ObservationToolSubmissionService.getById(
         req.params.submissionId,
+        organisationId,
       );
       if (!submission) {
         return res
@@ -194,12 +202,14 @@ export const ObservationToolSubmissionController = {
   linkAppointment: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.submissionId;
+      const organisationId = (req as OrgRequest).organisationId;
       const { appointmentId, enforceSingle } = req.body as {
         appointmentId: string;
         enforceSingle?: boolean;
       };
 
       const updated = await ObservationToolSubmissionService.linkToAppointment({
+        organisationId,
         submissionId,
         appointmentId,
         enforceSingleSubmissionPerAppointment: enforceSingle === true,
@@ -220,9 +230,11 @@ export const ObservationToolSubmissionController = {
   listForAppointment: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
+      const organisationId = (req as OrgRequest).organisationId;
       const submissions =
         await ObservationToolSubmissionService.listForAppointment(
           appointmentId,
+          organisationId,
         );
       res.json(submissions);
     } catch (error) {

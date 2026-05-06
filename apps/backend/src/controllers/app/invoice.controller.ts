@@ -5,6 +5,7 @@ import {
   InvoiceServiceError,
 } from "src/services/invoice.service";
 import logger from "src/utils/logger";
+import { OrgRequest } from "src/middlewares/rbac";
 
 type AddChargesBody = {
   items?: unknown;
@@ -44,7 +45,11 @@ export const InvoiceController = {
   async listInvoicesForAppointment(this: void, req: Request, res: Response) {
     try {
       const appointmentId = req.params.appointmentId;
-      const invoices = await InvoiceService.getByAppointmentId(appointmentId);
+      const organisationId = (req as OrgRequest).organisationId;
+      const invoices = await InvoiceService.getByAppointmentId(
+        appointmentId,
+        organisationId,
+      );
       return res.status(200).json(invoices);
     } catch (err) {
       logger.error("Error fetching appointment invoices", err);
@@ -67,8 +72,11 @@ export const InvoiceController = {
   async getInvoiceByPaymentIntentId(this: void, req: Request, res: Response) {
     try {
       const paymentIntentId = req.params.paymentIntentId;
-      const invoice =
-        await InvoiceService.getByPaymentIntentId(paymentIntentId);
+      const organisationId = (req as OrgRequest).organisationId;
+      const invoice = await InvoiceService.getByPaymentIntentId(
+        paymentIntentId,
+        organisationId,
+      );
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
@@ -114,6 +122,7 @@ export const InvoiceController = {
     try {
       const { appointmentId } = req.params;
       const { items }: AddChargesBody = req.body;
+      const organisationId = (req as OrgRequest).organisationId;
 
       if (!isInvoiceItemArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Items are required" });
@@ -122,6 +131,7 @@ export const InvoiceController = {
       const invoice = await InvoiceService.addChargesToAppointment(
         appointmentId,
         items,
+        organisationId,
       );
 
       return res.status(200).json(invoice);
@@ -183,12 +193,21 @@ export const InvoiceController = {
 
   async markInvoicePaidManually(this: void, req: Request, res: Response) {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const invoiceId = req.params.invoiceId;
       if (!invoiceId) {
         return res.status(400).json({ message: "Invoice Id is required" });
       }
 
-      const invoice = await InvoiceService.markInvoicePaidManually(invoiceId);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const invoice = await InvoiceService.markInvoicePaidManually(
+        invoiceId,
+        organisationId,
+      );
       if (!invoice) {
         return res.status(409).json({ message: "Invoice already paid." });
       }
@@ -218,9 +237,15 @@ export const InvoiceController = {
     res: Response,
   ) {
     try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
       const invoiceId = req.params.invoiceId;
       if (!invoiceId) {
         return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
       }
 
       const { paymentCollectionMethod } = req.body;
@@ -232,6 +257,7 @@ export const InvoiceController = {
 
       const invoice = await InvoiceService.updatePaymentCollectionMethod(
         invoiceId,
+        organisationId,
         paymentCollectionMethod,
       );
 

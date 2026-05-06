@@ -17,9 +17,10 @@ export const AuthUserMobileController = {
         authRequest.email!,
       );
 
-      // Auto-link parent if PMS already created a Parent with same email
-      const parent =
-        await AuthUserMobileService.autoLinkParentByEmail(authUser);
+      // Auto-link parent only when upstream provider confirms email ownership
+      const parent = authRequest.emailVerified
+        ? await AuthUserMobileService.autoLinkParentByEmail(authUser)
+        : null;
 
       return res.status(200).json({
         success: true,

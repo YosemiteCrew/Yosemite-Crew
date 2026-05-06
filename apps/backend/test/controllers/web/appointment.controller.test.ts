@@ -618,6 +618,41 @@ describe("AppointmentController", () => {
     });
   });
 
+  describe("attachFormsToAppointment", () => {
+    it("should return 400 when formIds is missing or empty", async () => {
+      req.params = { organisationId: "org_1", appointmentId: "appt_1" };
+      req.body = { formIds: [] };
+
+      await AppointmentController.attachFormsToAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "formIds are required",
+      });
+    });
+
+    it("should pass organisationId to service", async () => {
+      req.params = { organisationId: "org_1", appointmentId: "appt_1" };
+      req.body = { formIds: ["form_1"] };
+      mockedAppointmentService.attachFormsToAppointment.mockResolvedValue(
+        {} as any,
+      );
+
+      await AppointmentController.attachFormsToAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(
+        mockedAppointmentService.attachFormsToAppointment,
+      ).toHaveBeenCalledWith("org_1", "appt_1", ["form_1"]);
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+  });
+
   describe("listByLead", () => {
     it("should success (200)", async () => {
       req.params = { leadId: "l1" };

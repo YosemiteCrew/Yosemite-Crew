@@ -416,8 +416,11 @@ export const OrganisationRoomService = {
     }
   },
 
-  async delete(id: string) {
-    const query = resolveIdQuery(id);
+  async delete(id: string, organisationId: string) {
+    const query = {
+      ...resolveIdQuery(id),
+      organisationId: requireOrganizationId(organisationId),
+    };
 
     const document = await OrganisationRoomModel.findOneAndDelete(query, {
       sanitizeFilter: true,

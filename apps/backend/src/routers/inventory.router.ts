@@ -1,12 +1,16 @@
 import { Router } from "express";
 import {
-  InventoryController,
-  InventoryVendorController,
-  InventoryMetaFieldController,
   InventoryAlertController,
+  InventoryController,
+  InventoryMetaFieldController,
+  InventoryVendorController,
 } from "src/controllers/web/inventory.controller";
 import { authorizeCognito } from "src/middlewares/auth";
-import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+import {
+  requirePermission,
+  withInventoryItemOrgPermissions,
+  withOrgPermissions,
+} from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -27,7 +31,7 @@ router.post(
 router.patch(
   "/items/:itemId",
   authorizeCognito,
-  withOrgPermissions(),
+  withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.updateItem,
 );
@@ -36,7 +40,7 @@ router.patch(
 router.post(
   "/items/:itemId/hide",
   authorizeCognito,
-  withOrgPermissions(),
+  withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.hideItem,
 );
@@ -44,7 +48,7 @@ router.post(
 router.post(
   "/items/:itemId/archive",
   authorizeCognito,
-  withOrgPermissions(),
+  withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.archiveItem,
 );
@@ -52,7 +56,7 @@ router.post(
 router.post(
   "/items/:itemId/active",
   authorizeCognito,
-  withOrgPermissions(),
+  withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.activeItem,
 );
@@ -78,6 +82,8 @@ router.get(
 // Get item with batches
 router.get(
   "/items/:itemId",
+  authorizeCognito,
+  withInventoryItemOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryController.getItemWithBatches,
 );

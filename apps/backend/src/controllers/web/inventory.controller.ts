@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { AuthenticatedRequest } from "src/middlewares/auth";
+import { OrgRequest } from "src/middlewares/rbac";
 import {
   InventoryService,
   InventoryAdjustmentService,
@@ -45,10 +46,6 @@ const handleError = (error: unknown, res: Response): void => {
  */
 const resolveUserId = (req: Request): string | undefined => {
   const authReq = req as AuthenticatedRequest;
-  const headerUserId = req.headers["x-user-id"];
-  if (typeof headerUserId === "string" && headerUserId.trim().length > 0) {
-    return headerUserId;
-  }
   return authReq.userId;
 };
 
@@ -109,8 +106,13 @@ export const InventoryController = {
     try {
       const { itemId } = req.params;
       const input = req.body;
+      const { organisationId } = req as OrgRequest;
 
-      const item = await InventoryService.updateItem(itemId, input);
+      const item = await InventoryService.updateItem(
+        itemId,
+        input,
+        organisationId!,
+      );
       res.json(item);
     } catch (error) {
       handleError(error, res);
@@ -126,7 +128,8 @@ export const InventoryController = {
   ): Promise<void> => {
     try {
       const { itemId } = req.params;
-      const item = await InventoryService.hideItem(itemId);
+      const { organisationId } = req as OrgRequest;
+      const item = await InventoryService.hideItem(itemId, organisationId!);
       res.json(item);
     } catch (error) {
       handleError(error, res);
@@ -139,7 +142,8 @@ export const InventoryController = {
   ): Promise<void> => {
     try {
       const { itemId } = req.params;
-      const item = await InventoryService.activeItem(itemId);
+      const { organisationId } = req as OrgRequest;
+      const item = await InventoryService.activeItem(itemId, organisationId!);
       res.json(item);
     } catch (error) {
       handleError(error, res);
@@ -155,7 +159,8 @@ export const InventoryController = {
   ): Promise<void> => {
     try {
       const { itemId } = req.params;
-      const item = await InventoryService.archiveItem(itemId);
+      const { organisationId } = req as OrgRequest;
+      const item = await InventoryService.archiveItem(itemId, organisationId!);
       res.json(item);
     } catch (error) {
       handleError(error, res);
@@ -217,14 +222,15 @@ export const InventoryController = {
   // ITEM: DETAIL (with batches)
   // ─────────────────────────────────────────────
   getItemWithBatches: async (
-    req: Request<{ itemId: string; organisationId: string }>,
+    req: Request<{ itemId: string }>,
     res: Response,
   ): Promise<void> => {
     try {
-      const { itemId, organisationId } = req.params;
+      const { itemId } = req.params;
+      const { organisationId } = req as OrgRequest;
       const result = await InventoryService.getItemWithBatches(
         itemId,
-        organisationId,
+        organisationId!,
       );
       res.json(result);
     } catch (error) {

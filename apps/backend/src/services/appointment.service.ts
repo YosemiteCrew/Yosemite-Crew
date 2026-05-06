@@ -2994,9 +2994,14 @@ export const AppointmentService = {
   },
 
   async attachFormsToAppointment(
+    organisationId: string,
     appointmentId: string,
     formIds: string[],
   ): Promise<AppointmentResponseDTO> {
+    if (!organisationId) {
+      throw new AppointmentServiceError("Organisation ID is required", 400);
+    }
+
     if (!appointmentId) {
       throw new AppointmentServiceError("Appointment ID is required", 400);
     }
@@ -3020,6 +3025,12 @@ export const AppointmentService = {
 
       if (!appointment) {
         throw new AppointmentServiceError("Appointment not found", 404);
+      }
+      if (appointment.organisationId !== organisationId) {
+        throw new AppointmentServiceError(
+          "Appointment does not belong to organisation",
+          403,
+        );
       }
 
       const forms = await prisma.form.findMany({
@@ -3076,11 +3087,21 @@ export const AppointmentService = {
       return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
     }
 
+    const organisationObjectId = ensureObjectId(
+      organisationId,
+      "organisationId",
+    );
     const appointmentObjectId = ensureObjectId(appointmentId, "appointmentId");
     const appointment = await AppointmentModel.findById(appointmentObjectId);
 
     if (!appointment) {
       throw new AppointmentServiceError("Appointment not found", 404);
+    }
+    if (String(appointment.organisationId) !== String(organisationObjectId)) {
+      throw new AppointmentServiceError(
+        "Appointment does not belong to organisation",
+        403,
+      );
     }
 
     const formObjectIds = uniqueFormIds.map((id) =>

@@ -5,13 +5,13 @@ import {
   CompanionServiceError,
 } from "../../services/companion.service";
 import type { CompanionRequestDTO } from "@yosemite-crew/types";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { Types } from "mongoose";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { CompanionOrganisationService } from "src/services/companion-organisation.service";
 import OrganizationModel from "src/models/organization";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type CompanionRequestBody =
   | CompanionRequestDTO
@@ -28,15 +28,6 @@ const isCompanionPayload = (
     "resourceType" in payload &&
     (payload as { resourceType?: unknown }).resourceType === "Patient"
   );
-};
-
-// Resolve User ID
-const resolveMobileUserId = (req: Request): string | undefined => {
-  const authReq = req as AuthenticatedRequest;
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") return headerUserId;
-
-  return authReq.userId;
 };
 
 // extract FHIR
@@ -89,7 +80,7 @@ export const CompanionController = {
     try {
       const payload = extractFHIRPayload(req);
 
-      const authUserId = resolveMobileUserId(req);
+      const authUserId = resolveUserIdFromRequest(req);
       if (!authUserId) {
         return res.status(401).json({
           message: "Authentication required for mobile companion creation.",
@@ -137,7 +128,7 @@ export const CompanionController = {
           });
         }
 
-        const authUser = resolveMobileUserId(req);
+        const authUser = resolveUserIdFromRequest(req);
         if (!authUser) {
           return res.status(401).json({
             message:
@@ -226,7 +217,7 @@ export const CompanionController = {
   deleteCompanion: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const authUserId = resolveMobileUserId(req);
+      const authUserId = resolveUserIdFromRequest(req);
       if (!requireParam(res, id, "Companion ID is required.")) {
         return;
       }

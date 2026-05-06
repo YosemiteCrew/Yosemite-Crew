@@ -83,7 +83,7 @@ describe("FormController", () => {
   });
 
   describe("Internal Helper (resolveUserIdFromRequest)", () => {
-    it("should use x-user-id header if available", async () => {
+    it("should prefer authReq.userId when header and auth userId are both present", async () => {
       req.headers["x-user-id"] = "header_user_id";
       req.params.orgId = "org1";
       req.body = { title: "Test Form" };
@@ -93,7 +93,7 @@ describe("FormController", () => {
       expect(FormService.create).toHaveBeenCalledWith(
         "org1",
         req.body,
-        "header_user_id",
+        "auth_user_123",
       );
     });
 
@@ -548,6 +548,7 @@ describe("FormController", () => {
   describe("getSOAPNotesByAppointment", () => {
     it("should correctly parse latestOnly boolean and string values", async () => {
       req.params.appointmentId = "a1";
+      (req as any).organisationId = "org-1";
 
       // Test string "true"
       req.body = { latestOnly: "true" };
@@ -557,6 +558,8 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: true,
+        requesterOrgId: "org-1",
+        requesterParentId: undefined,
       });
 
       // Test boolean true
@@ -564,6 +567,8 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: true,
+        requesterOrgId: "org-1",
+        requesterParentId: undefined,
       });
 
       // Test falsy / missing
@@ -571,9 +576,46 @@ describe("FormController", () => {
       await FormController.getSOAPNotesByAppointment(req, res);
       expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
         latestOnly: false,
+        requesterOrgId: "org-1",
+        requesterParentId: undefined,
       });
 
       expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("should enforce parent ownership context for mobile route", async () => {
+      req.path = "/mobile/appointments/a1/soap-notes";
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
+        parentId: { toString: () => "parent-1" },
+      });
+      (FormService.getSOAPNotesByAppointment as jest.Mock).mockResolvedValue(
+        [],
+      );
+
+      await FormController.getSOAPNotesByAppointment(req, res);
+
+      expect(FormService.getSOAPNotesByAppointment).toHaveBeenCalledWith("a1", {
+        latestOnly: false,
+        requesterOrgId: undefined,
+        requesterParentId: "parent-1",
+      });
+    });
+
+    it("should return 403 for mobile route when parent is missing", async () => {
+      req.path = "/mobile/appointments/a1/soap-notes";
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
+
+      await FormController.getSOAPNotesByAppointment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: "Forbidden" });
+      expect(FormService.getSOAPNotesByAppointment).not.toHaveBeenCalled();
     });
 
     it("should handle FormServiceError and generic errors", async () => {
@@ -659,6 +701,7 @@ describe("FormController", () => {
         serviceId: "s1",
         species: "CAT",
         isPMS: true,
+        viewerParentId: undefined,
       });
       expect(res.status).toHaveBeenCalledWith(200);
     });
@@ -674,7 +717,42 @@ describe("FormController", () => {
         serviceId: undefined,
         species: undefined,
         isPMS: undefined,
+        viewerParentId: undefined,
       });
+    });
+
+    it("should enforce parent ownership context for mobile route", async () => {
+      req.path = "/mobile/appointments/a1/forms";
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({
+        parentId: { toString: () => "parent-1" },
+      });
+
+      await FormController.getFormsForAppointment(req, res);
+
+      expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
+        appointmentId: "a1",
+        serviceId: undefined,
+        species: undefined,
+        isPMS: undefined,
+        viewerParentId: "parent-1",
+      });
+    });
+
+    it("should return 403 for mobile route when parent is missing", async () => {
+      req.path = "/mobile/appointments/a1/forms";
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
+
+      await FormController.getFormsForAppointment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: "Forbidden" });
+      expect(FormService.getFormsForAppointment).not.toHaveBeenCalled();
     });
 
     it("should handle FormServiceError and generic errors", async () => {

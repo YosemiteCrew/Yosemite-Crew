@@ -55,7 +55,10 @@ describe("InvoiceController", () => {
         mockResponse as Response,
       );
 
-      expect(InvoiceService.getByAppointmentId).toHaveBeenCalledWith("app_123");
+      expect(InvoiceService.getByAppointmentId).toHaveBeenCalledWith(
+        "app_123",
+        undefined,
+      );
       expect(responseStatus).toHaveBeenCalledWith(200);
       expect(responseJson).toHaveBeenCalledWith(mockInvoices);
     });
@@ -149,6 +152,7 @@ describe("InvoiceController", () => {
 
       expect(InvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
         "pi_123",
+        undefined,
       );
       expect(responseStatus).toHaveBeenCalledWith(200);
       expect(responseJson).toHaveBeenCalledWith(mockInvoice);
@@ -167,6 +171,7 @@ describe("InvoiceController", () => {
 
       expect(InvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
         "pi_123",
+        undefined,
       );
       expect(responseStatus).toHaveBeenCalledWith(404);
       expect(responseJson).toHaveBeenCalledWith({

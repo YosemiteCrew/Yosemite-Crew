@@ -52,7 +52,7 @@ describe("AvailabilityController", () => {
   });
 
   describe("Internal Helpers (Implicitly Tested)", () => {
-    it("resolveUserIdFromRequest: should use x-user-id header if present", async () => {
+    it("resolveUserIdFromRequest: should prefer auth userId over x-user-id header", async () => {
       req.headers["x-user-id"] = "header_user_id";
       req.params.orgId = "org1";
 
@@ -61,7 +61,7 @@ describe("AvailabilityController", () => {
 
       expect(AvailabilityService.getBaseAvailability).toHaveBeenCalledWith(
         "org1",
-        "header_user_id",
+        "auth_user_123",
       );
     });
 
