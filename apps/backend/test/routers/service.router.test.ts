@@ -1,6 +1,8 @@
 import type { Router } from "express";
 
 const authorizeCognito = jest.fn((_req, _res, next) => next());
+const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
+const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
 const ServiceController = {
   createService: jest.fn(),
@@ -16,6 +18,11 @@ const ServiceController = {
 
 jest.mock("../../src/middlewares/auth", () => ({
   authorizeCognito,
+}));
+
+jest.mock("../../src/middlewares/rbac", () => ({
+  withOrgPermissions: () => withOrgPermissionsMiddleware,
+  requirePermission: () => requirePermissionMiddleware,
 }));
 
 jest.mock("../../src/controllers/web/service.controller", () => ({
@@ -50,7 +57,20 @@ describe("service.router", () => {
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
       authorizeCognito,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
       ServiceController.createService,
+    ]);
+  });
+
+  it("requires Cognito auth for bulk create service", () => {
+    const route = findRoute("/bulk", "post");
+
+    expect(route?.stack.map((layer) => layer.handle)).toEqual([
+      authorizeCognito,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      ServiceController.createMany,
     ]);
   });
 

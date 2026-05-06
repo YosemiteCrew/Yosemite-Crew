@@ -23,12 +23,36 @@ export interface OrgRequest extends AuthenticatedRequest {
  * Extract orgId from params, headers, or body.
  */
 function extractOrgId(req: Request): string | null {
+  const body = (req as Request & { body?: unknown }).body as unknown;
+  const bodyOrgId =
+    typeof body === "object" &&
+    body !== null &&
+    !Array.isArray(body) &&
+    "organisationId" in (body as Record<string, unknown>)
+      ? ((body as Record<string, unknown>).organisationId as unknown)
+      : undefined;
+
+  if (Array.isArray(body)) {
+    const orgIds = new Set<string>();
+    for (const entry of body) {
+      if (typeof entry === "object" && entry !== null) {
+        const oid = (entry as Record<string, unknown>).organisationId;
+        if (typeof oid === "string" && oid.trim()) {
+          orgIds.add(oid.trim());
+        }
+      }
+    }
+    if (orgIds.size === 1) {
+      return [...orgIds][0]!;
+    }
+  }
+
   return (
     req.params.orgId ||
     req.params.organisationId ||
     req.params.organizationId ||
     (req.headers["x-org-id"] as string) ||
-    req.body?.organisationId ||
+    (typeof bodyOrgId === "string" ? bodyOrgId : null) ||
     null
   );
 }
@@ -262,7 +286,7 @@ export function requirePermission(required: Permission | Permission[]) {
     }
 
     const ok = Array.isArray(required)
-      ? required.every((r) => perms.includes(r))
+      ? required.some((r) => perms.includes(r))
       : perms.includes(required);
 
     if (!ok) {

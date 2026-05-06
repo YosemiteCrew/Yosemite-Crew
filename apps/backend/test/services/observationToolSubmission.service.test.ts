@@ -88,6 +88,7 @@ describe("ObservationToolSubmissionService", () => {
   const userId = newId();
   const submissionId = newId();
   const appointmentId = newId();
+  const organisationId = newId();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -514,7 +515,7 @@ describe("ObservationToolSubmissionService", () => {
       );
 
       await ObservationToolSubmissionService.linkToAppointment({
-        organisationId: "org1",
+        organisationId,
         submissionId,
         appointmentId,
       });
@@ -641,7 +642,10 @@ describe("ObservationToolSubmissionService", () => {
         mockChain({ _id: "link1" }),
       );
 
-      await ObservationToolSubmissionService.getById(submissionId, "org1");
+      await ObservationToolSubmissionService.getById(
+        submissionId,
+        organisationId,
+      );
 
       expect(CompanionOrganisationModel.findOne).toHaveBeenCalled();
     });
@@ -678,7 +682,7 @@ describe("ObservationToolSubmissionService", () => {
       );
 
       await ObservationToolSubmissionService.listSubmissions({
-        organisationId: "org1",
+        organisationId,
       });
 
       expect(ObservationToolSubmissionModel.find).toHaveBeenCalledWith(
@@ -699,7 +703,7 @@ describe("ObservationToolSubmissionService", () => {
       );
 
       await ObservationToolSubmissionService.listSubmissions({
-        organisationId: "org1",
+        organisationId,
         companionId,
       });
 
@@ -732,7 +736,7 @@ describe("ObservationToolSubmissionService", () => {
 
       await ObservationToolSubmissionService.listForAppointment(
         appointmentId,
-        "org1",
+        organisationId,
       );
 
       expect(AppointmentModel.findOne).toHaveBeenCalled();

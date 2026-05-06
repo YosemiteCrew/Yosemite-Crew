@@ -163,9 +163,11 @@ const assertPmsCanAccessCompanion = async (
     return;
   }
 
+  const safeOrganisationId = ensureObjectId(organisationId, "organisationId");
+
   const link = await CompanionOrganisationModel.findOne(
     {
-      organisationId: ensureObjectId(organisationId, "organisationId"),
+      organisationId: safeOrganisationId,
       companionId,
       status: { $in: ["ACTIVE", "PENDING"] },
     },
@@ -228,9 +230,11 @@ const getOrganisationAccessibleCompanionIds = async (
     return links.map((link) => ensureObjectId(link.companionId, "companionId"));
   }
 
+  const safeOrganisationId = ensureObjectId(organisationId, "organisationId");
+
   const links = await CompanionOrganisationModel.find(
     {
-      organisationId: ensureObjectId(organisationId, "organisationId"),
+      organisationId: safeOrganisationId,
       status: { $in: ["ACTIVE", "PENDING"] },
     },
     { companionId: 1 },

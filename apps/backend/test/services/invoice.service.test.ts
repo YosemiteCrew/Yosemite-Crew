@@ -1219,6 +1219,7 @@ describe("InvoiceService", () => {
 
     it("addChargesToAppointment should validate appointment belongs to organisation", async () => {
       (AppointmentModel.findOne as jest.Mock).mockReturnValue({
+        setOptions: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnValue({
           lean: jest.fn().mockResolvedValue(null),
         }),
@@ -1231,6 +1232,7 @@ describe("InvoiceService", () => {
 
     it("addChargesToAppointment should add to open invoice if it exists", async () => {
       (AppointmentModel.findOne as jest.Mock).mockReturnValue({
+        setOptions: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnValue({
           lean: jest.fn().mockResolvedValue({ _id: validId }),
         }),

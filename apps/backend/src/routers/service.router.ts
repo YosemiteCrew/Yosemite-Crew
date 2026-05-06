@@ -1,11 +1,24 @@
 import { Router } from "express";
 import { ServiceController } from "../controllers/web/service.controller";
 import { authorizeCognito } from "src/middlewares/auth";
+import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
-router.post("/", authorizeCognito, ServiceController.createService);
-router.post("/bulk", authorizeCognito, ServiceController.createMany);
+router.post(
+  "/",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:edit:any"),
+  ServiceController.createService,
+);
+router.post(
+  "/bulk",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:edit:any"),
+  ServiceController.createMany,
+);
 router.get(
   "/organisation/search",
   ServiceController.listOrganisationByServiceName,

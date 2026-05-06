@@ -58,6 +58,27 @@ const assertObjectId = (value: unknown, field: string): string => {
   return trimmed;
 };
 
+const ensureMongoObjectId = (value: unknown, field: string): Types.ObjectId => {
+  if (typeof value !== "string") {
+    throw new ObservationToolSubmissionServiceError(
+      `${field} must be a string`,
+      400,
+    );
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed || trimmed.includes("$") || trimmed.includes(".")) {
+    throw new ObservationToolSubmissionServiceError(`Invalid ${field}`, 400);
+  }
+
+  if (!Types.ObjectId.isValid(trimmed)) {
+    throw new ObservationToolSubmissionServiceError(`Invalid ${field}`, 400);
+  }
+
+  return new Types.ObjectId(trimmed);
+};
+
 export interface CreateObservationToolSubmissionInput {
   toolId: string;
   taskId?: string;
@@ -267,9 +288,15 @@ const ensureCompanionInOrganisation = async (
     return;
   }
 
-  const link = await CompanionOrganisationModel.findOne({
-    companionId,
+  const safeCompanionId = ensureMongoObjectId(companionId, "companionId");
+  const safeOrganisationId = ensureMongoObjectId(
     organisationId,
+    "organisationId",
+  );
+
+  const link = await CompanionOrganisationModel.findOne({
+    companionId: safeCompanionId,
+    organisationId: safeOrganisationId,
     status: "ACTIVE",
   })
     .setOptions({ sanitizeFilter: true })
@@ -297,9 +324,12 @@ const ensureAppointmentInOrganisation = async (
     return;
   }
 
+  const safeAppointmentId = ensureMongoObjectId(appointmentId, "appointmentId");
+  const safeOrganisationId = assertObjectId(organisationId, "organisationId");
+
   const appointment = await AppointmentModel.findOne({
-    _id: appointmentId,
-    organisationId,
+    _id: safeAppointmentId,
+    organisationId: safeOrganisationId,
   })
     .setOptions({ sanitizeFilter: true })
     .select({ _id: 1 })

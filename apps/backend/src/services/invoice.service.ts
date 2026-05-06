@@ -24,6 +24,7 @@ import { isReadFromPostgres } from "src/config/read-switch";
 import { getOrgBillingCurrency } from "src/utils/billing";
 import { ensureObjectId as ensureObjectIdStrict } from "src/utils/mongo";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
+import { assertSafeString } from "src/utils/sanitize";
 import {
   InvoiceStatus as PrismaInvoiceStatus,
   PaymentCollectionMethod,
@@ -53,6 +54,8 @@ const assertAppointmentInOrganisation = async (
   appointmentId: string,
   organisationId: string,
 ) => {
+  assertSafeString(organisationId, "organisationId");
+
   if (isReadFromPostgres()) {
     const appointment = await prisma.appointment.findFirst({
       where: { id: appointmentId, organisationId },
@@ -73,6 +76,7 @@ const assertAppointmentInOrganisation = async (
     _id: appointmentObjectId,
     organisationId,
   })
+    .setOptions({ sanitizeFilter: true })
     .select("_id")
     .lean();
 
