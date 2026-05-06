@@ -87,6 +87,34 @@ describe("LabCensusService", () => {
   });
 
   describe("addCensusPatient", () => {
+    it("rejects invalid organisationId before any DB calls (mongo)", async () => {
+      readSwitch.mockReturnValue(false);
+
+      await expect(
+        LabCensusService.addCensusPatient("IDEXX", {} as unknown as string, {
+          companionId,
+          parentId,
+        }),
+      ).rejects.toThrow("Invalid organisationId.");
+
+      expect(CompanionOrganisationModel.findOne).not.toHaveBeenCalled();
+      expect(ParentCompanionModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid companionId before any DB calls (mongo)", async () => {
+      readSwitch.mockReturnValue(false);
+
+      await expect(
+        LabCensusService.addCensusPatient("IDEXX", organisationId, {
+          companionId: {} as unknown as string,
+          parentId,
+        }),
+      ).rejects.toThrow("Invalid companionId.");
+
+      expect(CompanionOrganisationModel.findOne).not.toHaveBeenCalled();
+      expect(ParentCompanionModel.findOne).not.toHaveBeenCalled();
+    });
+
     it("rejects when companion is not linked to organisation (postgres)", async () => {
       readSwitch.mockReturnValue(true);
       (prisma.companionOrganisation.findFirst as jest.Mock).mockResolvedValue(
