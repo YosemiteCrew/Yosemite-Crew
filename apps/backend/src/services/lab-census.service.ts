@@ -50,16 +50,6 @@ const resolveGenderCode = (gender: string, isNeutered?: boolean) => {
 
 type IdLike = Types.ObjectId | string;
 
-const ensureObjectIdLike = (value: IdLike, field: string): Types.ObjectId => {
-  if (value instanceof Types.ObjectId) {
-    return value;
-  }
-  if (!Types.ObjectId.isValid(value)) {
-    throw new LabOrderServiceError(`Invalid ${field}.`, 400);
-  }
-  return new Types.ObjectId(value);
-};
-
 const resolveDocId = (doc: { id?: string; _id?: { toString(): string } }) => {
   if ("id" in doc && typeof doc.id === "string") return doc.id;
   if ("_id" in doc && doc._id) return doc._id.toString();
@@ -73,8 +63,25 @@ const buildCensusPayload = async (input: {
   veterinarian?: string | null;
   ivls?: Array<{ serialNumber: string }>;
 }) => {
-  const safeCompanionId = ensureObjectIdLike(input.companionId, "companionId");
-  const safeParentId = ensureObjectIdLike(input.parentId, "parentId");
+  const safeCompanionId =
+    input.companionId instanceof Types.ObjectId
+      ? input.companionId
+      : (() => {
+          if (!Types.ObjectId.isValid(input.companionId)) {
+            throw new LabOrderServiceError("Invalid companionId.", 400);
+          }
+          return new Types.ObjectId(input.companionId);
+        })();
+
+  const safeParentId =
+    input.parentId instanceof Types.ObjectId
+      ? input.parentId
+      : (() => {
+          if (!Types.ObjectId.isValid(input.parentId)) {
+            throw new LabOrderServiceError("Invalid parentId.", 400);
+          }
+          return new Types.ObjectId(input.parentId);
+        })();
 
   if (isReadFromPostgres()) {
     const [companionOrgLink, parentCompanionLink] = await Promise.all([
@@ -103,32 +110,28 @@ const buildCensusPayload = async (input: {
       throw new LabOrderServiceError("Parent not found.", 404);
     }
   } else {
-    const safeOrganisationId = ensureObjectIdLike(
-      input.organisationId,
-      "organisationId",
-    );
+    if (!Types.ObjectId.isValid(input.organisationId)) {
+      throw new LabOrderServiceError("Invalid organisationId.", 400);
+    }
+    const safeOrganisationId = new Types.ObjectId(input.organisationId);
 
     const [companionOrgLink, parentCompanionLink] = await Promise.all([
-      CompanionOrganisationModel.findOne(
-        {
-          organisationId: safeOrganisationId,
-          companionId: safeCompanionId,
-          status: { $in: ["ACTIVE", "PENDING"] },
-        },
-        { _id: 1 },
-        { sanitizeFilter: true },
-      )
+      CompanionOrganisationModel.findOne({
+        organisationId: safeOrganisationId,
+        companionId: safeCompanionId,
+        status: { $in: ["ACTIVE", "PENDING"] },
+      })
+        .setOptions({ sanitizeFilter: true })
+        .select({ _id: 1 })
         .lean()
         .exec(),
-      ParentCompanionModel.findOne(
-        {
-          parentId: safeParentId,
-          companionId: safeCompanionId,
-          status: { $in: ["ACTIVE", "PENDING"] },
-        },
-        { _id: 1 },
-        { sanitizeFilter: true },
-      )
+      ParentCompanionModel.findOne({
+        parentId: safeParentId,
+        companionId: safeCompanionId,
+        status: { $in: ["ACTIVE", "PENDING"] },
+      })
+        .setOptions({ sanitizeFilter: true })
+        .select({ _id: 1 })
         .lean()
         .exec(),
     ]);

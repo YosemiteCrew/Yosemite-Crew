@@ -64,11 +64,15 @@ jest.mock("../../src/models/code-mapping", () => ({
   },
 }));
 
-const mongoQuery = <T>(result: T) => ({
-  lean: () => ({
-    exec: jest.fn().mockResolvedValue(result),
-  }),
-});
+const mongoQuery = <T>(result: T) => {
+  const exec = jest.fn().mockResolvedValue(result);
+  const query: any = {};
+  query.setOptions = jest.fn().mockReturnValue(query);
+  query.select = jest.fn().mockReturnValue(query);
+  query.lean = jest.fn().mockReturnValue({ exec });
+  query.exec = exec;
+  return query;
+};
 
 describe("LabCensusService", () => {
   const readSwitch = isReadFromPostgres as jest.Mock;
