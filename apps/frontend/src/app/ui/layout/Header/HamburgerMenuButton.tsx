@@ -3,14 +3,17 @@ import React from 'react';
 type HamburgerMenuButtonProps = {
   menuOpen: boolean;
   onClick: () => void;
+  controlsId?: string;
 };
 
-const HamburgerMenuButton = ({ menuOpen, onClick }: HamburgerMenuButtonProps) => (
+const HamburgerMenuButton = ({ menuOpen, onClick, controlsId }: HamburgerMenuButtonProps) => (
   <button
     type="button"
     className="yc-hamburger-button cursor-pointer lg:hidden"
     onClick={onClick}
     aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+    aria-expanded={menuOpen}
+    aria-controls={controlsId}
   >
     <div className="yc-hamburger-lines">
       <span

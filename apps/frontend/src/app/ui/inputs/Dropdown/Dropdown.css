@@ -52,6 +52,9 @@
 .floating-input.focused .select-input-container {
   border-color: var(--blue-text) !important;
 }
+.select-input-container:focus-visible {
+  outline: none;
+}
 .floating-input.focused .select-floating-label {
   top: 2px;
   font-size: 15px;
@@ -92,7 +95,6 @@
 .select-input-dropdown-item {
   cursor: pointer;
   padding: 14px 8px;
-  outline: none;
   background: var(--whitebg);
   text-align: start;
   color: var(--lightblack);

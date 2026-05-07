@@ -72,6 +72,7 @@ const GuestHeader = () => {
   const hideButtons = pathname === '/organizations' || pathname === '/forgot-password';
   const defaultAppRoute =
     role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
+  const mobileMenuId = 'guest-mobile-menu';
 
   const getMobileAuthButton = () => {
     if (user) {
@@ -133,8 +134,8 @@ const GuestHeader = () => {
       className="flex items-center justify-between px-4! sm:px-12! lg:px-20! gap-10 w-full h-20"
       data-terminology-lock="true"
     >
-      <Link href="/" className="yc-guest-logo-link">
-        <Image src={logoUrl} alt="Logo" width={112} height={72} priority />
+      <Link href="/" className="yc-guest-logo-link" aria-label="Yosemite Crew home">
+        <Image src={logoUrl} alt="Yosemite Crew" width={112} height={72} priority />
       </Link>
 
       <div className="max-w-[800px] flex-1 hidden lg:flex">
@@ -143,6 +144,7 @@ const GuestHeader = () => {
             <li key={item.label}>
               <Link
                 href={item.href ? item.href : '#'}
+                aria-current={item.href === pathname ? 'page' : undefined}
                 className={`${item.href === pathname ? 'text-text-primary!' : 'text-text-tertiary!'} inline-block text-body-4 hover:text-text-brand! transition-colors duration-200 ease-out`}
               >
                 {item.label}
@@ -152,7 +154,7 @@ const GuestHeader = () => {
         </ul>
       </div>
 
-      <MobileMenu isOpen={menuOpen}>
+      <MobileMenu isOpen={menuOpen} id={mobileMenuId} onClose={() => setMenuOpen(false)}>
         {publicNavItems.map((item) => (
           <button
             type="button"
@@ -166,7 +168,7 @@ const GuestHeader = () => {
         {!hideButtons && getMobileAuthButton()}
       </MobileMenu>
 
-      <HamburgerMenuButton menuOpen={menuOpen} onClick={toggleMenu} />
+      <HamburgerMenuButton menuOpen={menuOpen} onClick={toggleMenu} controlsId={mobileMenuId} />
 
       {!hideButtons && getDesktopAuthButton()}
     </div>

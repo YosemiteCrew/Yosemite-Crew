@@ -151,12 +151,14 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       width: '150px',
       render: (item: Invoice) => {
         const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
+        const companionName = getCompanionName(item.appointmentId);
         return (
           <div className="appointment-profile-two">
             {appointment && (
               <button
                 type="button"
                 onClick={() => goToAppointmentFinance(item.appointmentId)}
+                aria-label={`Open finance details for ${companionName}`}
                 className="mt-1 w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
                 title="Open appointment finance"
               >
@@ -238,7 +240,9 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       render: (item: Invoice) => (
         <div className="action-btn-col">
           <button
+            type="button"
             onClick={() => handleViewInvoice(item)}
+            aria-label={`View invoice ${item.id ?? ''}`.trim()}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
             <IoEye size={20} color="var(--color-neutral-900)" />
@@ -258,14 +262,19 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           pagination
           pageSize={10}
           tableClassName="invoice-table-fixed"
+          caption="Invoices with appointment details, totals, statuses, payment methods, and actions"
         />
       </div>
       <div className="card-list flex xl:hidden gap-4 sm:gap-6 flex-wrap">
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
+              <div
+                className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary"
+                role="status"
+                aria-live="polite"
+              >
+                No invoices match the current filters.
               </div>
             );
           }

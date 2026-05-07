@@ -8,8 +8,11 @@
 }
 
 .yosemite-loader__image {
-  display: block;
-  object-fit: contain;
+  display: inline-block;
+  border: 3px solid var(--color-card-border, #e5e7eb);
+  border-top-color: var(--color-primary-700, #2f6fed);
+  border-radius: 9999px;
+  animation: yosemite-loader-spin 0.8s linear infinite;
 }
 
 .yosemite-loader__label {
@@ -45,4 +48,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@keyframes yosemite-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

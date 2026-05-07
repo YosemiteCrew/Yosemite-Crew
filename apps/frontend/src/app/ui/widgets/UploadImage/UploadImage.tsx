@@ -74,10 +74,12 @@ const UploadImage = ({
   return (
     <>
       <button
+        type="button"
         className="UploadAreaData"
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
+        aria-label={placeholder}
       >
         <div className="upldCont">
           <FaCloudUploadAlt className="upload-cloud" />
@@ -93,6 +95,7 @@ const UploadImage = ({
             multiple
             accept=".pdf,.doc,.docx,.png,.jpeg,.jpg"
             style={{ display: 'none' }}
+            aria-label={placeholder}
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
@@ -117,7 +120,12 @@ const UploadImage = ({
                 <span className="file-name">{file.name}</span>
               </div>
             )}
-            <button type="button" className="delete-btn" onClick={() => handleDelete(idx)}>
+            <button
+              type="button"
+              className="delete-btn"
+              onClick={() => handleDelete(idx)}
+              aria-label={`Remove ${file.name}`}
+            >
               <FaTrashAlt />
             </button>
           </div>
@@ -140,7 +148,12 @@ const UploadImage = ({
                 <span className="file-name">{file.name}</span>
               </div>
             )}
-            <button type="button" className="delete-btn" onClick={() => handleDeleteExisting(idx)}>
+            <button
+              type="button"
+              className="delete-btn"
+              onClick={() => handleDeleteExisting(idx)}
+              aria-label={`Remove ${file.name}`}
+            >
               <FaTrashAlt />
             </button>
           </div>

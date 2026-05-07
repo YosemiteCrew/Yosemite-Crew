@@ -198,7 +198,7 @@ const DayCalendar = ({
                     }}
                   >
                     {nowTimeLabel && (
-                      <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+                      <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
                         {nowTimeLabel}
                       </div>
                     )}

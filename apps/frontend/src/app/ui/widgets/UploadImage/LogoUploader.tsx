@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { IoCamera } from 'react-icons/io5';
 import { FiMinusCircle } from 'react-icons/fi';
 import { postData } from '@/app/services/axios';
@@ -16,6 +16,7 @@ type LogoUploaderProps = {
 type GetSignedUrlResponse = { uploadUrl: string; s3Key: string };
 
 const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
+  const inputId = useId();
   const [preview, setPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,28 +97,39 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               }}
               className="step-logo-preview"
             />
-            <button className="remove-icon" onClick={handleRemoveImage}>
-              <FiMinusCircle color="var(--color-primary-500)" size={16} />
+            <button
+              type="button"
+              className="remove-icon"
+              onClick={handleRemoveImage}
+              aria-label="Remove uploaded logo"
+            >
+              <FiMinusCircle color="var(--color-primary-500)" size={16} aria-hidden="true" />
             </button>
           </>
         ) : (
           <>
             <input
               type="file"
-              id="logo-upload"
+              id={inputId}
               accept="image/*"
               onChange={handleImageChange}
               style={{ display: 'none' }}
             />
-            <label htmlFor="logo-upload" style={{ cursor: 'pointer' }}>
-              <IoCamera color="var(--color-neutral-700)" size={32} />
+            <label htmlFor={inputId} style={{ cursor: 'pointer' }} aria-label={title}>
+              <IoCamera color="var(--color-neutral-700)" size={32} aria-hidden="true" />
             </label>
           </>
         )}
       </div>
       <div className="step-logo-title-container">
-        <div className="step-logo-title">{isUploading ? 'Uploading...' : title}</div>
-        {error && <div className="text-red-600 text-sm">{error}</div>}
+        <div className="step-logo-title" aria-live="polite">
+          {isUploading ? 'Uploading...' : title}
+        </div>
+        {error && (
+          <div className="text-red-600 text-sm" role="alert">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );

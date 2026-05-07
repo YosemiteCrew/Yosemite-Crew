@@ -68,10 +68,12 @@ const PdfDocUploader = ({
   return (
     <>
       <button
+        type="button"
         className="UploadAreaData"
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
+        aria-label={placeholder}
       >
         <div className="upldCont">
           <FaCloudUploadAlt className="upload-cloud" />
@@ -86,6 +88,7 @@ const PdfDocUploader = ({
             type="file"
             accept=".pdf"
             style={{ display: 'none' }}
+            aria-label={placeholder}
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
@@ -102,11 +105,14 @@ const PdfDocUploader = ({
               {file.name}
             </span>
           </div>
-          <FaTrashAlt
+          <button
+            type="button"
             className="absolute top-3 right-3 cursor-pointer"
             onClick={handleRemove}
-            color="#ff3b30"
-          />
+            aria-label={`Remove ${file.name}`}
+          >
+            <FaTrashAlt color="#ff3b30" />
+          </button>
         </div>
       )}
     </>

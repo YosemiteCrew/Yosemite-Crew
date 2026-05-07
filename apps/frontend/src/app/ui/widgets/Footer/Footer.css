@@ -108,7 +108,12 @@
 .FtLinks a:hover,
 .FtLinks a:focus {
   color: var(--color-brand-950);
-  outline: none;
+}
+
+.FtLinks a:focus-visible {
+  outline: 2px solid var(--color-input-border-active);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .FtLinks a:hover::after,
@@ -156,7 +161,11 @@
 .platform-status-link:hover,
 .platform-status-link:focus {
   color: var(--color-brand-950);
-  outline: none;
+}
+
+.platform-status-link:focus-visible {
+  outline: 2px solid var(--color-input-border-active);
+  outline-offset: 2px;
 }
 .platform-status-link-success {
   background-color: var(--color-pill-success-bg);

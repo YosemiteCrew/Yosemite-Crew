@@ -75,7 +75,10 @@
   line-height: 120%;
   letter-spacing: -0.3px;
   border: none;
-  outline: none;
+}
+.summary-label-right:focus-visible {
+  outline: 2px solid var(--color-input-border-active);
+  outline-offset: 2px;
 }
 .see-all-button {
   display: flex;

@@ -23,13 +23,81 @@
   font-style: italic;
 }
 
+html {
+  scroll-behavior: auto;
+}
+
+body {
+  min-height: 100vh;
+}
+
 * {
   box-sizing: border-box;
-  scroll-behavior: smooth;
   font-family: inherit;
   font-optical-sizing: auto;
   font-kerning: normal;
   font-synthesis-weight: none;
+}
+
+#main-content {
+  scroll-margin-top: 96px;
+}
+
+.yc-skip-link {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10000;
+  transform: translateY(-220%);
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-input-border-active);
+  background: var(--color-white-bg);
+  color: var(--color-text-primary);
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px 0 var(--color-shadow-soft);
+  transition: transform 0.2s ease;
+}
+
+.yc-skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+:where(
+  a[href],
+  button,
+  summary,
+  [role='button'],
+  [role='tab'],
+  [tabindex]:not([tabindex='-1'])
+):focus-visible {
+  outline: 2px solid var(--color-input-border-active);
+  outline-offset: 2px;
+}
+
+/* Inputs, selects, and textareas manage focus via border-color change.
+   The global ring is suppressed here to avoid double-border on styled fields.
+   Each field shows border-color: var(--color-input-border-active) on focus. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 @layer utilities {
   .scrollbar-hidden {
@@ -594,6 +662,12 @@ input[type='number'] {
   padding: 3px 8px;
   outline: none;
   cursor: pointer;
+}
+
+.yc-datepicker-calendar .react-datepicker__month-select:focus-visible,
+.yc-datepicker-calendar .react-datepicker__year-select:focus-visible {
+  outline: 2px solid var(--color-input-border-active);
+  outline-offset: 1px;
 }
 
 .yc-datepicker-calendar .react-datepicker__month-select:focus,

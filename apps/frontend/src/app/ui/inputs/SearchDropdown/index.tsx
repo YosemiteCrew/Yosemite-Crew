@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { IoIosSearch, IoIosWarning } from 'react-icons/io';
 
 type OptionProps = {
@@ -13,6 +13,7 @@ type SearchDropdownProps = {
   placeholder: string;
   query: string;
   setQuery: (v: string) => void;
+  label?: string;
   minChars?: number;
   error?: string;
   onReachEnd?: () => void;
@@ -28,6 +29,7 @@ const SearchDropdown = ({
   placeholder,
   query,
   setQuery,
+  label,
   minChars = 2,
   error,
   onReachEnd,
@@ -39,14 +41,14 @@ const SearchDropdown = ({
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [hasSelected, setHasSelected] = useState(false);
+  const inputId = useId();
+  const listboxId = useId();
+  const errorId = useId();
+  const accessibleLabel = label ?? placeholder;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return options.filter((s: OptionProps) => {
-      const name = s.label.toLowerCase();
-      if (!q) return true;
-      return name.includes(q);
-    });
+    return options.filter((s: OptionProps) => s.label.toLowerCase().includes(q) || !q);
   }, [query, options]);
 
   useEffect(() => {
@@ -59,6 +61,15 @@ const SearchDropdown = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
+
   const onSelectOption = (key: string) => {
     onSelect(key);
     setHasSelected(true);
@@ -66,65 +77,92 @@ const SearchDropdown = ({
   };
 
   const canSearch = open && query.length >= minChars && filtered.length > 0;
+
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (!onReachEnd || !hasMore || isLoadingMore) return;
     const node = e.currentTarget;
-    const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;
-    if (remaining <= 24) {
+    if (node.scrollHeight - node.scrollTop - node.clientHeight <= 24) {
       onReachEnd();
     }
   };
 
   return (
     <div className="relative" ref={dropdownRef}>
+      <label htmlFor={inputId} className="sr-only">
+        {accessibleLabel}
+      </label>
       <div
-        className={`h-12 border px-4 py-2.5 flex items-center justify-center w-full ${canSearch ? 'border-input-border-active! rounded-t-2xl!' : 'border-input-border-default! rounded-2xl!'}`}
+        className={`h-12 border px-4 py-2.5 flex items-center justify-center w-full focus-within:border-input-border-active! ${canSearch ? 'border-input-border-active! rounded-t-2xl!' : 'border-input-border-default! rounded-2xl!'}`}
       >
         <input
-          type="text"
+          id={inputId}
+          type="search"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          className="outline-none border-0 text-body-4 text-text-primary w-full placeholder:text-input-text-placeholder placeholder:text-body-4"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={canSearch}
+          aria-controls={listboxId}
+          aria-haspopup="listbox"
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
+          className="border-0 text-body-4 text-text-primary w-full placeholder:text-input-text-placeholder placeholder:text-body-4 focus-visible:outline-none"
           placeholder={placeholder}
+          autoComplete="off"
         />
-        <IoIosSearch size={22} color="var(--color-neutral-900)" className="cursor-pointer" />
+        <IoIosSearch
+          size={22}
+          color="var(--color-neutral-900)"
+          className="cursor-pointer"
+          aria-hidden="true"
+        />
       </div>
+
       {canSearch && (
         <div
-          className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]"
+          id={listboxId}
+          role="listbox"
+          aria-label={accessibleLabel}
+          className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-3 py-2.5"
           onScroll={handleScroll}
         >
           {filtered.map((option) => (
             <button
               key={option.value}
+              role="option"
+              aria-selected={false}
               onClick={() => onSelectOption(option.value)}
               className={
                 optionClassName ??
-                'px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start'
+                'px-5 py-3 text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start'
               }
             >
               {renderOption ? renderOption(option) : option.label}
             </button>
           ))}
           {isLoadingMore ? (
-            <div className="text-caption-1 py-2 text-text-secondary w-full text-center">
-              Loading more tests...
+            <div
+              role="status"
+              aria-live="polite"
+              className="text-caption-1 py-2 text-text-secondary w-full text-center"
+            >
+              Loading more results…
             </div>
           ) : null}
         </div>
       )}
+
       {!open && error && !hasSelected && (
         <div
-          className={`
-            mt-1.5 flex items-center gap-1 px-4
-            text-caption-2 text-text-error
-            `}
+          id={errorId}
+          role="alert"
+          className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error"
         >
-          <IoIosWarning className="text-text-error" size={14} />
+          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}

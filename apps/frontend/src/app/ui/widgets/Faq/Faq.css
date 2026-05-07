@@ -49,8 +49,11 @@
 }
 .Faq_button {
   border-radius: 16px !important;
-  outline: none !important;
   padding: 28px 32px;
+}
+.Faq_button:focus-visible {
+  outline: 2px solid var(--color-input-border-active) !important;
+  outline-offset: 2px;
 }
 .accordion-button:focus {
   box-shadow: none !important;

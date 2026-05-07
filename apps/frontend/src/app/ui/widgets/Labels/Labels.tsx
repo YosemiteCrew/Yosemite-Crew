@@ -54,7 +54,7 @@ const Labels = ({
             onClick={() => setActiveLabel(label.key)}
             className={`shrink-0 min-w-20 h-9 text-body-4 px-3 text-text-secondary rounded-2xl! border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text ${
               label.key === activeLabel
-                ? 'bg-blue-light text-blue-text! border-text-brand!'
+                ? 'bg-blue-light text-primary-700! border-text-brand!'
                 : 'border-card-border! hover:bg-card-hover!'
             } ${disableClicking ? 'opacity-70 cursor-not-allowed' : ''}`}
           >

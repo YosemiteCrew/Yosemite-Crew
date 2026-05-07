@@ -20,7 +20,8 @@ export type PopoverManagerReturn = {
     target: HTMLButtonElement,
     draggedId?: string | null,
     clientX?: number,
-    clientY?: number
+    clientY?: number,
+    interactionType?: 'focus' | 'pointer'
   ) => void;
   getPopoverStyle: (
     popoverWidth: number,
@@ -36,6 +37,8 @@ export const usePopoverManager = ({
   const [activeCursor, setActiveCursor] = useState<{ x: number; y: number } | null>(null);
   const popoverDialogRef = useRef<HTMLDialogElement | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const restoredFocusRef = useRef<HTMLElement | null>(null);
 
   const swallowDismissClick = useCallback(() => {
     const handleClickCapture = (event: MouseEvent) => {
@@ -49,6 +52,16 @@ export const usePopoverManager = ({
 
     globalThis.addEventListener('click', handleClickCapture, true);
   }, []);
+
+  useEffect(() => {
+    if (!activePopoverKey) return;
+    const dialogEl = popoverDialogRef.current;
+    if (!dialogEl) return;
+    const focusTimer = globalThis.setTimeout(() => {
+      dialogEl.focus({ preventScroll: true });
+    }, 0);
+    return () => globalThis.clearTimeout(focusTimer);
+  }, [activePopoverKey]);
 
   useEffect(() => {
     if (!activePopoverKey) return;
@@ -174,16 +187,31 @@ export const usePopoverManager = ({
     };
   }, [clearCloseTimer]);
 
+  useEffect(() => {
+    if (activePopoverKey) return;
+    if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
+      restoredFocusRef.current = previousFocusRef.current;
+      previousFocusRef.current.focus();
+    }
+    previousFocusRef.current = null;
+  }, [activePopoverKey]);
+
   const openPopover = useCallback(
     (
       key: string,
       target: HTMLButtonElement,
       draggedId?: string | null,
       clientX?: number,
-      clientY?: number
+      clientY?: number,
+      interactionType: 'focus' | 'pointer' = 'pointer'
     ) => {
       if (draggedId) return;
+      if (interactionType === 'focus' && restoredFocusRef.current === target) {
+        restoredFocusRef.current = null;
+        return;
+      }
       clearCloseTimer();
+      previousFocusRef.current = target;
       setActiveRect(target.getBoundingClientRect());
       if (typeof clientX === 'number' && typeof clientY === 'number') {
         setActiveCursor({ x: clientX, y: clientY });

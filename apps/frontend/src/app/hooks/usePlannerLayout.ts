@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { prefersReducedMotion } from '@/app/features/appointments/components/Calendar/helpers';
 
 type PlannerLayoutOptions = {
   activeView: string;
@@ -90,7 +91,7 @@ export const usePlannerAutoLock = ({ activeView, topOffset = 16 }: PlannerLayout
         plannerAutoLockRef.current = true;
         globalThis.window.scrollTo({
           top: globalThis.window.scrollY + rect.top - config.scrollOffset,
-          behavior: 'smooth',
+          behavior: prefersReducedMotion() ? 'auto' : 'smooth',
         });
         return;
       }

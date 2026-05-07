@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FaSortDown } from 'react-icons/fa';
 import { IoSearch } from 'react-icons/io5';
 import classNames from 'classnames';
@@ -39,6 +39,10 @@ const Dropdown = ({
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
+  const errorId = useId();
+  const searchInputId = useId();
+
   const list = useMemo(() => {
     if (type === 'country') {
       return countries.map((option) => ({
@@ -70,14 +74,14 @@ const Dropdown = ({
       return { key: index, label: str, value: str };
     });
   }, [options, type]);
+
   const [query, setQuery] = useState('');
 
   const filteredList = useMemo(() => {
     if (search) {
-      return list.filter((item: any) => {
-        const matchesSearch = (item.label || '').toLowerCase().includes(query.toLowerCase());
-        return matchesSearch;
-      });
+      return list.filter((item: any) =>
+        (item.label || '').toLowerCase().includes(query.toLowerCase())
+      );
     }
     return list;
   }, [list, query, search]);
@@ -89,10 +93,18 @@ const Dropdown = ({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
 
   const isActive = open || !!value;
   const selected = list.find((opt: any) => opt.value === value);
@@ -100,12 +112,11 @@ const Dropdown = ({
   return (
     <div className="select-wrapper">
       <div
-        className={classNames('select-container floating-input', {
-          focused: isActive,
-        })}
+        className={classNames('select-container floating-input', { focused: isActive })}
         ref={dropdownRef}
       >
         <button
+          type="button"
           className={classNames(
             'select-input-container',
             { blueborder: value, 'pointer-events-none opacity-70': disabled },
@@ -115,55 +126,78 @@ const Dropdown = ({
             if (disabled) return;
             setOpen((prev) => !prev);
           }}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={listboxId}
+          aria-label={selected ? `${placeholder}: ${selected.label}` : placeholder}
+          aria-describedby={error ? errorId : undefined}
+          disabled={disabled}
         >
           {selected && <div className="select-input-selected">{selected.label}</div>}
-          <div className="select-input-drop-icon">
+          <div className="select-input-drop-icon" aria-hidden="true">
             <FaSortDown color="var(--color-neutral-600)" size={20} />
           </div>
         </button>
-        <label className="select-floating-label">{placeholder}</label>
+        <label className="select-floating-label" aria-hidden="true">
+          {placeholder}
+        </label>
+
         {open && !disabled && (
-          <div className={`select-input-dropdown ${dropdownClassName}`}>
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-label={placeholder}
+            className={`select-input-dropdown ${dropdownClassName ?? ''}`}
+          >
             {search && (
-              <div
-                className={`h-12! rounded-2xl border! border-input-border-default! px-4! py-2! flex items-center justify-center`}
-              >
+              <div className="h-12! rounded-2xl border! border-input-border-default! px-4! py-2! flex items-center justify-center">
+                <label htmlFor={searchInputId} className="sr-only">
+                  Search {placeholder}
+                </label>
                 <input
-                  type="text"
+                  id={searchInputId}
+                  type="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="outline-none border-0 text-[16px]! w-full px-2"
-                  placeholder="Search"
+                  className="border-0 text-[16px]! w-full px-2 focus-visible:outline-none"
+                  placeholder={`Search ${placeholder}`}
+                  autoComplete="off"
                 />
-                <IoSearch size={22} color="var(--color-neutral-200)" className="cursor-pointer" />
+                <IoSearch
+                  size={22}
+                  color="var(--color-neutral-200)"
+                  className="cursor-pointer"
+                  aria-hidden="true"
+                />
               </div>
             )}
-            {filteredList.length > 0 &&
-              filteredList.map((option: any, index: number) => {
-                const label: string = option.label ?? option.value ?? '';
-                const valueToSend: string = option.value ?? option.label ?? '';
-                const handleClick = () => {
-                  onChange(returnObject ? option : valueToSend);
-                  setOpen(false);
-                  setQuery('');
-                };
-                return (
-                  <button
-                    className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'}`}
-                    key={label + 'team-key' + index}
-                    onClick={handleClick}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+            {filteredList.map((option: any, index: number) => {
+              const label: string = option.label ?? option.value ?? '';
+              const valueToSend: string = option.value ?? option.label ?? '';
+              const isSelected = valueToSend === value;
+              return (
+                <button
+                  key={label + 'team-key' + index}
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'}`}
+                  onClick={() => {
+                    onChange(returnObject ? option : valueToSend);
+                    setOpen(false);
+                    setQuery('');
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
       {error && (
-        <div className="Errors">
-          <Icon icon="mdi:error" width="16" height="16" />
+        <div id={errorId} role="alert" className="Errors">
+          <Icon icon="mdi:error" width="16" height="16" aria-hidden="true" />
           {error}
         </div>
       )}

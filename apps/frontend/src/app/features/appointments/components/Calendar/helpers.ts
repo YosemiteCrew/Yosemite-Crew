@@ -247,11 +247,25 @@ export function getFirstRelevantTimedEventStart(
   return upcoming ?? startsInRange[0] ?? null;
 }
 
+export function prefersReducedMotion() {
+  if (
+    typeof globalThis.window === 'undefined' ||
+    typeof globalThis.window.matchMedia !== 'function'
+  ) {
+    return false;
+  }
+  return globalThis.window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export function scrollContainerToTarget(container: HTMLElement, targetTopPx: number) {
   // Keep the focus point in the upper area (about top 32%) instead of center.
   const anchorTop = targetTopPx - container.clientHeight * 0.15;
   const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
-  container.scrollTop = Math.max(0, Math.min(anchorTop, maxTop));
+  const nextTop = Math.max(0, Math.min(anchorTop, maxTop));
+  container.scrollTo({
+    top: nextTop,
+    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+  });
 }
 
 export function autoScrollCalendarHorizontally(

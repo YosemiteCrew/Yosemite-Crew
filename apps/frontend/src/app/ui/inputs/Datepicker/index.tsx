@@ -26,10 +26,16 @@ type DateInputButtonProps = {
   inputId: string;
   placeholder: string;
   className?: string;
+  errorId?: string;
 };
 
 const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
-  function DateInputButton({ value, onClick, isIconOnly, inputId, placeholder, className }, ref) {
+  function DateInputButton(
+    { value, onClick, isIconOnly, inputId, placeholder, className, errorId },
+    ref
+  ) {
+    const accessibleLabel = placeholder || 'Date of birth';
+
     if (isIconOnly) {
       return (
         <button
@@ -38,8 +44,9 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
           onClick={onClick}
           className={`flex h-12 w-12 items-center justify-center rounded-2xl! border! border-input-border-default! transition-all duration-300 ease-in-out ${className ?? ''}`}
           aria-label="Toggle calendar"
+          aria-describedby={errorId}
         >
-          <IoCalendarClear size={20} color="var(--color-neutral-900)" />
+          <IoCalendarClear size={20} color="var(--color-neutral-900)" aria-hidden="true" />
         </button>
       );
     }
@@ -52,11 +59,12 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
         className={`peer relative flex min-h-12 w-full items-center rounded-2xl! border bg-transparent px-6 py-2.5 text-left text-body-4 text-text-primary outline-none transition-colors ${className ?? ''}`}
         aria-label={
           value
-            ? `${placeholder || 'Date'}: ${value}, toggle calendar`
-            : `${placeholder || 'Date'}, toggle calendar`
+            ? `${accessibleLabel}: ${value}, toggle calendar`
+            : `${accessibleLabel}, toggle calendar`
         }
         aria-haspopup="dialog"
         aria-controls={inputId}
+        aria-describedby={errorId}
       >
         <span>{value || ''}</span>
         <span
@@ -66,10 +74,10 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
               : 'top-1/2 -translate-y-1/2 text-input-text-placeholder'
           }`}
         >
-          {placeholder || 'Date of birth'}
+          {accessibleLabel}
         </span>
         <span className="absolute right-6 top-1/2 -translate-y-1/2">
-          <IoCalendarClear size={20} color="var(--color-neutral-900)" />
+          <IoCalendarClear size={20} color="var(--color-neutral-900)" aria-hidden="true" />
         </span>
       </button>
     );
@@ -88,6 +96,7 @@ const Datepicker = ({
   error,
 }: DatepickerProps) => {
   const inputId = useId();
+  const errorId = error ? `${inputId}-error` : undefined;
   const updateDate = setCurrentDate as React.Dispatch<React.SetStateAction<Date | null>>;
   const minDate = new Date(minYear, 0, 1);
   const maxDate = new Date(maxYear, 11, 31);
@@ -120,14 +129,19 @@ const Datepicker = ({
             isIconOnly={!isInput}
             inputId={inputId}
             placeholder={placeholder}
+            errorId={errorId}
             className={`${error ? 'border-input-border-error!' : 'border-input-border-default!'} focus:border-input-border-active! ${className ?? ''}`}
           />
         }
       />
 
       {error && (
-        <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
-          <IoIosWarning className="text-text-error" size={14} />
+        <div
+          id={errorId}
+          role="alert"
+          className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error"
+        >
+          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}

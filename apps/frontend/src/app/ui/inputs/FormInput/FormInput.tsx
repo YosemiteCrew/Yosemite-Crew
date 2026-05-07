@@ -31,6 +31,8 @@ const FormInput = ({
   tabIndex,
 }: Readonly<FormInputProps>) => {
   const uid = useId();
+  const errorId = error ? `${uid}-error` : undefined;
+
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     onClick?.(e);
     if (intype === 'time' || intype === 'date') {
@@ -55,6 +57,8 @@ const FormInput = ({
           required
           placeholder=" "
           tabIndex={tabIndex}
+          aria-invalid={Boolean(error)}
+          aria-describedby={errorId}
           onFocus={onFocus}
           onBlur={onBlur}
           onClick={handleInputClick}
@@ -90,12 +94,14 @@ const FormInput = ({
 
       {error && (
         <div
+          id={errorId}
+          role="alert"
           className={`
             mt-1.5 flex items-center gap-1 px-4
             text-caption-2 text-text-error
           `}
         >
-          <IoIosWarning className="text-text-error" size={14} />
+          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}

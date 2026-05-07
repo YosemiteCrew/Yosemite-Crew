@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { FaCaretDown } from 'react-icons/fa6';
 import { IoIosWarning } from 'react-icons/io';
 import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
@@ -23,6 +23,8 @@ const LabelDropdown = ({
   searchable = true,
 }: DropdownProps) => {
   const [selected, setSelected] = useState<DropdownOption | null>(null);
+  const listboxId = useId();
+  const triggerLabel = selected ? `${placeholder}: ${selected.label}` : placeholder;
   const {
     open,
     searchQuery,
@@ -55,12 +57,16 @@ const LabelDropdown = ({
     <div className="w-full relative" ref={dropdownRef}>
       <button
         type="button"
-        className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer bg-(--whitebg) ${open ? 'border-input-text-placeholder-active! rounded-t-2xl! relative z-20' : 'border-input-border-default! rounded-2xl!'} ${error || hasError ? 'border-input-border-error!' : ''}`}
+        className={`w-full flex items-center justify-between gap-2 px-6 py-[11px] min-w-[120px] border cursor-pointer bg-(--whitebg) focus-visible:outline-none! ${open ? 'border-input-text-placeholder-active! rounded-t-2xl! relative z-20' : 'border-input-border-default! rounded-2xl!'} ${error || hasError ? 'border-input-border-error!' : ''}`}
         onClick={() => {
           if (!open) {
             openDropdown();
           }
         }}
+        aria-label={triggerLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
       >
         {open && searchable && (
           <input
@@ -69,7 +75,7 @@ const LabelDropdown = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={selected ? selected.label : placeholder}
-            className="w-full bg-transparent text-body-4 text-black-text outline-none placeholder:text-input-text-placeholder"
+            className="w-full bg-transparent text-body-4 text-black-text focus-visible:outline-none placeholder:text-input-text-placeholder"
           />
         )}
         {(!open || !searchable) && selected && (
@@ -100,11 +106,19 @@ const LabelDropdown = ({
         </div>
       )}
       {open && (
-        <div className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]">
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-label={placeholder}
+          className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]"
+        >
           {filteredOptions.length > 0 &&
             filteredOptions.map((option, i) => (
               <button
                 key={option.value + i}
+                type="button"
+                role="option"
+                aria-selected={selected?.value === option.value}
                 className="px-[1.25rem] py-[0.75rem] text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
                 onClick={() => {
                   setSelected(option);

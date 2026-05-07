@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
@@ -32,7 +32,10 @@ import {
   CalendarZoomMode,
   getPixelsPerStepForZoom,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import { getMinutesSinceStartOfDayInPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  formatDateInPreferredTimeZone,
+  getMinutesSinceStartOfDayInPreferredTimeZone,
+} from '@/app/lib/timezone';
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
@@ -124,11 +127,18 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
     getPopoverStyle,
     registerAnchorEl,
   } = usePopoverManager({ closeOnHoverLeave: false });
+  const appointmentPopoverId = useId();
+  const timelineInstructionsId = useId();
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
+  const timelineLabel = `Appointments timeline for ${formatDateInPreferredTimeZone(date, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })}`;
 
   const { allDayEvents, timedEvents } = useMemo(() => {
     const allDay: Appointment[] = [];
@@ -468,6 +478,10 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                 <button
                   key={itemKey}
                   type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded={activePopoverKey === itemKey}
+                  aria-controls={appointmentPopoverId}
+                  aria-label={`All-day appointment for ${getCompanionDisplayName(ev)}${ev.concern ? `. ${ev.concern}` : ''}`}
                   onClick={(event) => handleMarkerClick(event, itemKey)}
                   onDoubleClick={() => handleMarkerDoubleClick(ev)}
                   onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
@@ -509,12 +523,11 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
         data-calendar-scroll="true"
       >
         <div
-          role="application"
+          role="region"
           tabIndex={onCreateAppointmentAt && !draggedAppointmentId ? 0 : -1}
-          aria-label={
-            onCreateAppointmentAt && !draggedAppointmentId
-              ? 'Create appointment in this calendar day'
-              : undefined
+          aria-label={timelineLabel}
+          aria-describedby={
+            onCreateAppointmentAt && !draggedAppointmentId ? timelineInstructionsId : undefined
           }
           className="grid grid-cols-[52px_1fr]"
           style={{
@@ -559,6 +572,12 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
             onAppointmentDropAt(date, nearest);
           }}
         >
+          {onCreateAppointmentAt && !draggedAppointmentId ? (
+            <p id={timelineInstructionsId} className="sr-only">
+              Press Enter or Space to create an appointment at the middle of this visible timeline,
+              or click a time slot directly.
+            </p>
+          ) : null}
           <TimeLabels
             windowStart={windowStart}
             windowEnd={windowEnd}
@@ -685,6 +704,9 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                     className={`min-w-0 ${
                       draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                     } ${isZoomOut ? 'absolute inset-x-0 -inset-y-2 z-20' : 'h-full w-full flex items-center gap-2'}`}
+                    aria-haspopup="dialog"
+                    aria-expanded={activePopoverKey === itemKey}
+                    aria-controls={appointmentPopoverId}
                     onClick={(event) => handleMarkerClick(event, itemKey)}
                     onDoubleClick={() => handleMarkerDoubleClick(ev)}
                     onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
@@ -754,6 +776,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
             appointment={activeEvent}
             invoicesByAppointmentId={invoicesByAppointmentId}
             canEditAppointments={canEditAppointments}
+            popoverId={appointmentPopoverId}
             popoverDialogRef={popoverDialogRef}
             popoverStyle={popoverStyle}
             handleViewAppointment={handleViewAppointment}

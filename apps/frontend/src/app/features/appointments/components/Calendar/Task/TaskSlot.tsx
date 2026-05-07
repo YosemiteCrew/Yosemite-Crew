@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { IoEyeOutline } from 'react-icons/io5';
 import { getStatusStyle } from '@/app/ui/tables/Tasks';
@@ -93,6 +93,8 @@ const TaskSlot = ({
     getPopoverStyle,
   } = usePopoverManager();
   const resolvedDayIndex = dayIndex ?? index ?? 0;
+  const taskPopoverTitleId = useId();
+  const taskPopoverId = useId();
   const hourStartMinute = hour * 60;
   const hourEndMinute = hourStartMinute + 60;
   const TASK_BLOCK_DURATION_MINUTES = 30;
@@ -106,6 +108,23 @@ const TaskSlot = ({
     },
     [resolveDisplayName]
   );
+
+  const createTaskLabel = `Create task on ${formatDateInPreferredTimeZone(dropDate, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })} at ${formatDateInPreferredTimeZone(new Date(dropDate.getTime() + hour * 60 * 60 * 1000), {
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`;
+  const taskSlotLabel = `Tasks slot for ${formatDateInPreferredTimeZone(dropDate, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })} at ${formatDateInPreferredTimeZone(new Date(dropDate.getTime() + hour * 60 * 60 * 1000), {
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`;
 
   useEffect(() => {
     if (!draggedTaskId) return;
@@ -195,8 +214,8 @@ const TaskSlot = ({
   return (
     <>
       <div
-        role="application"
-        tabIndex={-1}
+        role="region"
+        aria-label={taskSlotLabel}
         className={`relative bg-white border-l border-grey-light ${
           resolvedDayIndex === length ? 'border-r' : ''
         }`}
@@ -230,7 +249,7 @@ const TaskSlot = ({
         {onCreateTaskAt && !draggedTaskId ? (
           <button
             type="button"
-            aria-label="Create task in this calendar slot"
+            aria-label={createTaskLabel}
             className="absolute inset-0 z-[1] rounded-none!"
             onClick={(event) => {
               createTaskAtMinute(
@@ -324,6 +343,9 @@ const TaskSlot = ({
               <button
                 type="button"
                 className={markerClassName}
+                aria-haspopup="dialog"
+                aria-expanded={activePopoverKey === taskKey}
+                aria-controls={taskPopoverId}
                 style={{
                   ...getStatusStyle(task.status),
                   borderColor: isZoomOutMode ? 'rgba(0,0,0,0.08)' : undefined,
@@ -339,7 +361,16 @@ const TaskSlot = ({
                   handleOpenPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
                 }
                 onMouseLeave={schedulePopoverClose}
-                onFocus={(event) => handleOpenPopover(taskKey, event.currentTarget)}
+                onFocus={(event) =>
+                  openPopover(
+                    taskKey,
+                    event.currentTarget,
+                    draggedTaskId,
+                    undefined,
+                    undefined,
+                    'focus'
+                  )
+                }
                 onBlur={schedulePopoverClose}
                 onDragStart={() => onTaskDragStart?.(task)}
                 onDragEnd={() => {
@@ -389,19 +420,31 @@ const TaskSlot = ({
       {activeTask && activePopoverKey && typeof document !== 'undefined'
         ? createPortal(
             <dialog
+              id={taskPopoverId}
               ref={popoverDialogRef}
               open
               className="fixed z-[1000] m-0 box-border w-[304px] max-w-[calc(100vw-16px)] rounded-2xl border border-card-border bg-white p-3 shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] outline-none"
               style={popoverStyle}
+              aria-labelledby={taskPopoverTitleId}
+              aria-modal="false"
+              data-popover-panel="true"
+              tabIndex={-1}
               onMouseEnter={clearCloseTimer}
               onMouseLeave={schedulePopoverClose}
               onFocus={clearCloseTimer}
               onBlur={schedulePopoverClose}
+              onCancel={(event) => {
+                event.preventDefault();
+                setActivePopoverKey(null);
+              }}
             >
               <div className="flex min-w-0 w-full flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-body-4-emphasis text-text-primary">
+                    <div
+                      id={taskPopoverTitleId}
+                      className="truncate text-body-4-emphasis text-text-primary"
+                    >
                       {activeTask.name || '-'}
                     </div>
                     <div className="mt-0.5 text-[11px] leading-4 text-text-secondary">
@@ -460,13 +503,14 @@ const TaskSlot = ({
                     <button
                       type="button"
                       title="View task"
+                      aria-label="View task"
                       className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                       onClick={() => {
                         handleViewTask(activeTask);
                         setActivePopoverKey(null);
                       }}
                     >
-                      <IoEyeOutline size={16} />
+                      <IoEyeOutline size={16} aria-hidden="true" />
                     </button>
                   </GlassTooltip>
                   {canEditTasks && canShowTaskStatusChangeAction(activeTask.status) && (
@@ -474,13 +518,14 @@ const TaskSlot = ({
                       <button
                         type="button"
                         title="Change status"
+                        aria-label="Change task status"
                         className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                         onClick={() => {
                           handleChangeStatusTask?.(activeTask);
                           setActivePopoverKey(null);
                         }}
                       >
-                        <MdOutlineAutorenew size={16} />
+                        <MdOutlineAutorenew size={16} aria-hidden="true" />
                       </button>
                     </GlassTooltip>
                   )}
@@ -489,13 +534,14 @@ const TaskSlot = ({
                       <button
                         type="button"
                         title="Reschedule"
+                        aria-label="Reschedule task"
                         className="h-8 w-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
                         onClick={() => {
                           handleRescheduleTask?.(activeTask);
                           setActivePopoverKey(null);
                         }}
                       >
-                        <IoIosCalendar size={16} />
+                        <IoIosCalendar size={16} aria-hidden="true" />
                       </button>
                     </GlassTooltip>
                   )}

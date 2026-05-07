@@ -39,7 +39,7 @@ const CalendarHourLabel: React.FC<CalendarHourLabelProps> = ({
       slotOffsetMinutes.map((minute) => (
         <span
           key={`slot-time-${hour}-${minute}`}
-          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-tertiary text-right whitespace-nowrap"
+          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-secondary text-right whitespace-nowrap"
           style={{ top: `${(minute / 60) * 100}%` }}
         >
           {formatMinuteLabel(hour * 60 + minute)}

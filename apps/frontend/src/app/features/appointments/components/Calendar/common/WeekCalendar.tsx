@@ -108,6 +108,14 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
   const height = getHourRowHeightPx(zoomMode);
+  const weekTimelineLabel = `Appointments week calendar starting ${formatDateInPreferredTimeZone(
+    weekStart,
+    {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }
+  )}`;
   const dayColumnsStyle = useMemo(
     () => getCalendarColumnGridStyle(days.length, zoomMode === 'out' ? 96 : 140),
     [days.length, zoomMode]
@@ -250,6 +258,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       <div
         className="w-full flex-1 overflow-x-auto relative rounded-2xl"
         data-calendar-scroll="true"
+        role="region"
+        aria-label={weekTimelineLabel}
       >
         <div className="min-w-max h-full flex flex-col">
           <div className="z-30 bg-white">
@@ -306,6 +316,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               key={`${ev.companion.name}-${ev.startTime.toISOString()}`}
                               type="button"
                               onClick={() => handleViewAppointment(ev)}
+                              aria-label={`All-day appointment for ${formatCompanionNameWithOwnerLastName(
+                                ev.companion.name,
+                                ev.companion.parent
+                              )}${ev.concern ? `. ${ev.concern}` : ''}`}
                               className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
                               style={{
                                 ...({
@@ -444,7 +458,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               }}
                             >
                               {nowTimeLabel && (
-                                <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-red-500 whitespace-nowrap">
+                                <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
                                   {nowTimeLabel}
                                 </div>
                               )}

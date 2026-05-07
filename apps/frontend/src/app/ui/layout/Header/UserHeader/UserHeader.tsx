@@ -139,6 +139,9 @@ const UserHeader = () => {
   const openUniversalSearch = useUniversalSearchStore((s) => s.open);
   const orgDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuId = 'user-mobile-menu';
+  const orgMenuId = 'user-header-org-menu';
+  const profileMenuId = 'user-header-profile-menu';
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
@@ -305,7 +308,14 @@ const UserHeader = () => {
 
   return (
     <div className="yc-user-header">
-      <MobileMenu isOpen={menuOpen}>
+      <MobileMenu
+        isOpen={menuOpen}
+        id={mobileMenuId}
+        onClose={() => {
+          setMenuOpen(false);
+          setSelectOrg(false);
+        }}
+      >
         <div className="yc-mobile-menu-shell">
           {primaryOrg && !isDev && (
             <div className="yc-mobile-org-card" ref={orgDropdownRef}>
@@ -313,6 +323,9 @@ const UserHeader = () => {
                 type="button"
                 className="yc-mobile-org-trigger"
                 onClick={() => setSelectOrg((e) => !e)}
+                aria-expanded={selectOrg}
+                aria-controls={orgMenuId}
+                aria-haspopup="menu"
               >
                 <Image
                   src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
@@ -328,13 +341,14 @@ const UserHeader = () => {
                 <FaCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={16} />
               </button>
               {selectOrg && (
-                <div className="yc-mobile-dropdown-list">
+                <div id={orgMenuId} className="yc-mobile-dropdown-list" role="menu">
                   {orgs.slice(0, 4).map((org) => (
                     <button
                       key={org._id?.toString() || org.name}
                       type="button"
                       className="yc-menu-row"
                       onClick={() => handleMobileOrgClick(org._id?.toString() || org.name)}
+                      role="menuitem"
                     >
                       {org.name}
                     </button>
@@ -346,6 +360,7 @@ const UserHeader = () => {
                       setMenuOpen(false);
                     }}
                     className="yc-menu-row yc-menu-row-accent"
+                    role="menuitem"
                   >
                     View all organizations
                   </Link>
@@ -395,7 +410,14 @@ const UserHeader = () => {
 
       <div className="yc-header-mobile-brand">
         <Link href={authenticatedLogoHref} className="yc-header-logo-link">
-          <Image src={MEDIA_SOURCES.logo} alt="Logo" width={86} height={56} priority />
+          <Image
+            src={MEDIA_SOURCES.logo}
+            alt="Logo"
+            width={86}
+            height={56}
+            priority
+            fetchPriority="high"
+          />
         </Link>
       </div>
       <div className="yc-header-left">
@@ -405,6 +427,9 @@ const UserHeader = () => {
               type="button"
               className={`yc-header-org-trigger ${selectOrg ? 'yc-header-trigger-open' : ''}`}
               onClick={() => setSelectOrg((e) => !e)}
+              aria-expanded={selectOrg}
+              aria-controls={orgMenuId}
+              aria-haspopup="menu"
             >
               <Image
                 src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
@@ -420,7 +445,16 @@ const UserHeader = () => {
               <FaCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={15} />
             </button>
             {selectOrg && (
-              <div className="yc-header-dropdown-panel">
+              <div
+                id={orgMenuId}
+                className="yc-header-dropdown-panel"
+                role="menu"
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    setSelectOrg(false);
+                  }
+                }}
+              >
                 <div className="yc-header-dropdown-title">Switch organization</div>
                 {orgs.slice(0, 4).map((org) => (
                   <button
@@ -428,6 +462,7 @@ const UserHeader = () => {
                     type="button"
                     className="yc-menu-row"
                     onClick={() => handleOrgClick(org._id?.toString() || org.name)}
+                    role="menuitem"
                   >
                     {org.name}
                   </button>
@@ -436,6 +471,7 @@ const UserHeader = () => {
                   href="/organizations"
                   onClick={() => setSelectOrg(false)}
                   className="yc-menu-row yc-menu-row-accent"
+                  role="menuitem"
                 >
                   View all organizations
                 </Link>
@@ -476,6 +512,9 @@ const UserHeader = () => {
             type="button"
             className={`yc-profile-trigger ${selectProfile ? 'yc-header-trigger-open' : ''}`}
             onClick={() => setSelectProfile((e) => !e)}
+            aria-expanded={selectProfile}
+            aria-controls={profileMenuId}
+            aria-haspopup="menu"
           >
             <Image
               src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
@@ -488,12 +527,22 @@ const UserHeader = () => {
             <FaCaretDown className={selectProfile ? 'yc-chevron-open' : ''} size={15} />
           </button>
           {selectProfile && (
-            <div className="yc-header-dropdown-panel yc-profile-panel">
+            <div
+              id={profileMenuId}
+              className="yc-header-dropdown-panel yc-profile-panel"
+              role="menu"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setSelectProfile(false);
+                }
+              }}
+            >
               <div className="yc-header-dropdown-title">Account</div>
               <Link
                 href={isDev ? '/developers/settings' : '/settings'}
                 onClick={() => setSelectProfile(false)}
                 className="yc-menu-row"
+                role="menuitem"
               >
                 <IoSettingsOutline size={16} className="yc-menu-row-icon" aria-hidden />
                 Settings
@@ -503,6 +552,7 @@ const UserHeader = () => {
                   href="/integrations/merck-manuals"
                   onClick={() => setSelectProfile(false)}
                   className="yc-menu-row"
+                  role="menuitem"
                 >
                   <IoBookOutline size={16} className="yc-menu-row-icon" aria-hidden />
                   MSD Veterinary Manual
@@ -513,6 +563,7 @@ const UserHeader = () => {
                   href="/guides"
                   onClick={() => setSelectProfile(false)}
                   className="yc-menu-row"
+                  role="menuitem"
                 >
                   <IoHelpCircleOutline size={16} className="yc-menu-row-icon" aria-hidden />
                   Guides
@@ -522,6 +573,7 @@ const UserHeader = () => {
                 type="button"
                 onClick={handleLogout}
                 className="yc-menu-row yc-menu-row-danger"
+                role="menuitem"
               >
                 <IoLogOutOutline size={16} className="yc-menu-row-icon" aria-hidden />
                 Sign out
@@ -530,7 +582,7 @@ const UserHeader = () => {
           )}
         </div>
 
-        <HamburgerMenuButton menuOpen={menuOpen} onClick={toggleMenu} />
+        <HamburgerMenuButton menuOpen={menuOpen} onClick={toggleMenu} controlsId={mobileMenuId} />
       </div>
     </div>
   );

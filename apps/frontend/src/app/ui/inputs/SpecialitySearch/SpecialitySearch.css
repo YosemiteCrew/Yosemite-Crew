@@ -54,9 +54,13 @@
 .step-search-speciality:hover {
   background-color: var(--color-card-hover);
 }
+.step-search-add:focus-visible {
+  outline: 2px solid var(--color-input-border-active);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .step-search-add {
   border: none;
-  outline: none;
   height: 48px;
   padding: 10px 24px;
   cursor: pointer;
