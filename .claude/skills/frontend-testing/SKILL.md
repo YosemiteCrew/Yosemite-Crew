@@ -74,7 +74,7 @@ npx tsc --noemit
 # 2. Lint — run from repo root
 pnpm --filter frontend run lint
 
-# 3. Targeted test — only the files you modified, NEVER the full suite
+# 3. Prefer targeted tests for the files you modified; full Jest runs are allowed if the user explicitly asks or if you are validating shared test infrastructure
 pnpm --filter frontend run test -- --testPathPattern="<ModifiedComponentName>"
 
 # Examples
@@ -83,7 +83,7 @@ pnpm --filter frontend run test -- --testPathPattern="Availability"
 pnpm --filter frontend run test -- --testPathPattern="__tests__/features/billing"
 ```
 
-**Full suite is forbidden.** It takes 100+ seconds and hangs the machine. Always derive the `--testPathPattern` from the filenames you actually changed.
+**Full suite is discouraged by default.** Use targeted runs for normal development, but a full Jest run is allowed if the user explicitly asks, if you are triaging repo-wide breakage, or if you changed shared test infrastructure. Playwright and accessibility runs are allowed whenever they are relevant.
 
 **When modifying an existing file**, always check whether a test file already exists for it (look in `src/app/__tests__/` mirroring the source path). If it does, run it and fix any failures your change introduced before declaring the task done. A change is not complete if it breaks existing tests.
 

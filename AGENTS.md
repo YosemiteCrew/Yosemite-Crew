@@ -32,7 +32,7 @@ Claude Code users: same rules also structured as skills in `.claude/skills/`.
 4. Before every checkpoint, run and report lint + typecheck + targeted tests for each touched workspace.
 5. When resuming interrupted work, inspect `git status` first — preserve all uncommitted changes unless the user explicitly says otherwise.
 6. **NEVER run `git commit` yourself.** After every logical batch, tell the user: "**COMMIT CHECKPOINT** — suggested message: `<conventional commit message>`"
-7. Never run the full test suite without `--testPathPattern` — takes 100+ seconds, forbidden.
+7. Prefer targeted Jest runs with `--testPathPattern` during development. Full Jest runs are allowed when the user explicitly asks, when validating repo-wide failures, or when changing shared test infrastructure. Playwright, E2E, and accessibility runs are allowed whenever relevant.
 8. Never commit secrets, tokens, private keys, or `.env` values.
 9. Never add co-author lines or signatures to commit messages.
 10. Let all pre-commit hooks pass naturally — `--no-verify` is forbidden.

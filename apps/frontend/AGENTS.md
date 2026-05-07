@@ -86,7 +86,7 @@ After any change: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
 ## Testing
 
 ```bash
-# Targeted only — never the full suite
+# Prefer targeted Jest runs during development. Full Jest runs are allowed when the user explicitly asks, when validating repo-wide failures, or when changing shared test infrastructure. Playwright and accessibility runs are allowed whenever relevant.
 pnpm --filter frontend run test -- --testPathPattern="ComponentName"
 ```
 
