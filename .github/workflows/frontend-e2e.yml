@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  playwright:
-    name: Playwright E2E (frontend)
+  playwright-public:
+    name: Playwright public smoke + a11y
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -56,14 +56,20 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter frontend exec playwright install --with-deps chromium
 
-      - name: Run frontend E2E
-        run: pnpm --filter frontend e2e:ci
+      - name: Run jest-axe accessibility batch
+        run: pnpm --filter frontend run test:a11y
+
+      - name: Run public smoke flow
+        run: pnpm --filter frontend run e2e:ci:smoke
+
+      - name: Run Playwright accessibility flow
+        run: pnpm --filter frontend run e2e:ci:a11y
 
       - name: Upload Playwright HTML report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-playwright-report
+          name: frontend-playwright-public-report
           path: apps/frontend/playwright-report
           if-no-files-found: ignore
 
@@ -71,6 +77,69 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-playwright-test-results
+          name: frontend-playwright-public-test-results
+          path: apps/frontend/test-results
+          if-no-files-found: ignore
+
+  playwright-auth:
+    name: Playwright authenticated flow
+    if: ${{ secrets.YC_E2E_EMAIL != '' && secrets.YC_E2E_PASSWORD != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      YC_E2E_EMAIL: ${{ secrets.YC_E2E_EMAIL }}
+      YC_E2E_PASSWORD: ${{ secrets.YC_E2E_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        run: pnpm --filter frontend exec playwright install --with-deps chromium
+
+      - name: Run authenticated Playwright flow
+        run: pnpm --filter frontend run e2e:ci:auth
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-playwright-auth-report
+          path: apps/frontend/playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-playwright-auth-test-results
           path: apps/frontend/test-results
           if-no-files-found: ignore

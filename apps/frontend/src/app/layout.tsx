@@ -7,6 +7,8 @@ import ToastProvider from '@/app/ui/layout/ToastProvider';
 import GlobalFullscreenLoaderOverlay from '@/app/ui/layout/GlobalFullscreenLoaderOverlay';
 import RouteLoaderOverlay from '@/app/ui/layout/RouteLoaderOverlay';
 import ClarityScript from '@/app/ui/layout/ClarityScript';
+import RouteAnnouncer from '@/app/ui/layout/RouteAnnouncer';
+import SkipLink from '@/app/ui/layout/SkipLink';
 
 export const metadata: Metadata = {
   title: 'Yosemite Crew',
@@ -40,7 +42,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <SkipLink />
         {clarityProjectId ? <ClarityScript projectId={clarityProjectId} /> : null}
+        <RouteAnnouncer />
         {children}
         <GlobalFullscreenLoaderOverlay />
         <Suspense>

@@ -1,5 +1,14 @@
 import React from 'react';
 import '@testing-library/jest-dom';
+import { configureAxe } from 'jest-axe';
+
+// Configure axe with WCAG 2.1 AA rules as the project accessibility baseline
+configureAxe({
+  rules: {
+    // Disable color-contrast in jsdom — colours are not rendered in test env
+    'color-contrast': { enabled: false },
+  },
+});
 
 globalThis.HTMLElement.prototype.scrollIntoView = jest.fn();
 // Polyfill for window.matchMedia
