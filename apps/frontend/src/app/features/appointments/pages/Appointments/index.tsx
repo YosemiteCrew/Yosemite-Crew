@@ -515,9 +515,9 @@ const Appointments = () => {
 
 const ProtectedAppoitments = () => {
   return (
-    <ProtectedRoute>
-      <OrgGuard>
-        <Suspense>
+    <ProtectedRoute skeleton={<AppointmentsSkeleton />}>
+      <OrgGuard skeleton={<AppointmentsSkeleton />}>
+        <Suspense fallback={<AppointmentsSkeleton />}>
           <Appointments />
         </Suspense>
       </OrgGuard>

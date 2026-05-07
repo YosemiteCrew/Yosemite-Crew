@@ -7,6 +7,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
+  skeleton?: React.ReactNode;
 };
 
 const isLocalGuardBypassEnabled = () => {
@@ -17,7 +18,7 @@ const isLocalGuardBypassEnabled = () => {
   return hostname === 'localhost' || hostname === '127.0.0.1';
 };
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, skeleton = null }: ProtectedRouteProps) => {
   const status = useAuthStore((s) => s.status);
   const router = useRouter();
   const pathname = usePathname() || '/';
@@ -41,7 +42,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (isChecking) {
-    return null;
+    return <>{skeleton}</>;
   }
   if (!isAuthed) return null;
 

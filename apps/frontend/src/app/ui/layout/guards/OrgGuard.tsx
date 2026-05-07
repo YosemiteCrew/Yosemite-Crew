@@ -36,6 +36,7 @@ import { appRoutes } from '@/app/constants/routes';
 
 type OrgGuardProps = {
   children: React.ReactNode;
+  skeleton?: React.ReactNode;
 };
 
 const isLocalGuardBypassEnabled = () => {
@@ -47,6 +48,12 @@ const isLocalGuardBypassEnabled = () => {
 };
 
 const isStatusPending = (status?: string) => status === 'idle' || status === 'loading';
+
+const orgGuardPassedKey = (orgId: string) => `yc_org_guard_passed:${orgId}`;
+const readOrgGuardPassed = (orgId: string): boolean =>
+  globalThis.window?.sessionStorage.getItem(orgGuardPassedKey(orgId)) === '1';
+const writeOrgGuardPassed = (orgId: string) =>
+  globalThis.window?.sessionStorage.setItem(orgGuardPassedKey(orgId), '1');
 
 type RedirectParams = {
   pathname: string;
@@ -175,7 +182,7 @@ const applyDefaultLandingRedirect = (
  *    - isOnboarded === true:
  *        - if on /complete-profile → /dashboard
  */
-const OrgGuard = ({ children }: OrgGuardProps) => {
+const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
   useLoadSubscriptionCounterForPrimaryOrg();
   useLoadSpecialitiesForPrimaryOrg();
   useLoadTeam();
@@ -218,11 +225,17 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
   );
   const profileStatus = useUserProfileStore((s) => s.status);
 
-  const [checked, setChecked] = useState(false);
+  const [checked, setChecked] = useState(
+    () => isLocalGuardBypassEnabled() || (primaryOrgId ? readOrgGuardPassed(primaryOrgId) : false)
+  );
   useFullscreenLoader('org-guard', !isAuthGuardDisabled && !checked);
 
   useEffect(() => {
-    setChecked(false);
+    if (primaryOrgId && readOrgGuardPassed(primaryOrgId)) {
+      setChecked(true);
+    } else {
+      setChecked(false);
+    }
   }, [primaryOrgId]);
 
   useEffect(() => {
@@ -311,6 +324,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
       return;
     }
 
+    writeOrgGuardPassed(primaryOrgId);
     setChecked(true);
   }, [
     isAuthGuardDisabled,
@@ -331,7 +345,7 @@ const OrgGuard = ({ children }: OrgGuardProps) => {
     teamIdsByOrgId,
   ]);
 
-  if (!checked) return null;
+  if (!checked) return <>{skeleton}</>;
 
   return <>{children}</>;
 };
