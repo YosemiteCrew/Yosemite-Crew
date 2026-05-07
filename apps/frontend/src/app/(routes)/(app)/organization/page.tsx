@@ -1,5 +1,7 @@
-import React from "react";
-import ProtectedOrganization from "@/app/features/organization/pages/Organization";
+import type { Metadata } from 'next';
+export const metadata: Metadata = { title: 'Organisation — Yosemite Crew' };
+import React from 'react';
+import ProtectedOrganization from '@/app/features/organization/pages/Organization';
 
 function page() {
   return <ProtectedOrganization />;

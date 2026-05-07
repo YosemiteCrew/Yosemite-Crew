@@ -1,7 +1,9 @@
-import React from "react";
+import type { Metadata } from 'next';
+export const metadata: Metadata = { title: 'Plugins — Yosemite Crew' };
+import React from 'react';
 
-import "@/app/features/organizations/styles/Organizations.css";
-import DevRouteGuard from "@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard";
+import '@/app/features/organizations/styles/Organizations.css';
+import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 
 function Page() {
   return (
@@ -13,7 +15,9 @@ function Page() {
         <p className="text-heading-2 text-text-primary" style={{ marginBottom: 8 }}>
           Coming soon
         </p>
-        <p className="text-body-3 text-text-secondary">Publish, manage, and monitor your plugins here.</p>
+        <p className="text-body-3 text-text-secondary">
+          Publish, manage, and monitor your plugins here.
+        </p>
       </div>
     </DevRouteGuard>
   );

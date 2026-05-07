@@ -1,5 +1,7 @@
-import React from "react";
-import ProtectedBookOnboarding from "@/app/features/onboarding/pages/BookOnboarding";
+import type { Metadata } from 'next';
+export const metadata: Metadata = { title: 'Book Onboarding — Yosemite Crew' };
+import React from 'react';
+import ProtectedBookOnboarding from '@/app/features/onboarding/pages/BookOnboarding';
 
 function page() {
   return <ProtectedBookOnboarding />;

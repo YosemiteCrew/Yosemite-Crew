@@ -204,11 +204,11 @@ const SignUp = ({
       <div className="flex gap-10 xl:gap-20 w-full md:max-w-[900px] mx-3 py-3 sm:mx-12 sm:my-12 md:flex-row flex-col items-center md:items-start">
         <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
           <div className="flex w-full items-center justify-center">
-            <div className="text-display-2 text-text-primary text-center max-w-[350px] auth-title">
+            <p className="text-display-2 text-text-primary text-center max-w-87.5 auth-title">
               {isDeveloper
                 ? 'Build, test, and ship apps on Yosemite Crew'
                 : 'Built for everyone, from day one'}
-            </div>
+            </p>
           </div>
 
           <div className="flex flex-col gap-6">
@@ -283,9 +283,9 @@ const SignUp = ({
         <div className="w-full sm:w-[70%] md:w-1/2 bg-white p-[20px] border border-card-border rounded-3xl elevation-1">
           <form onSubmit={handleSignUp} method="post" className="flex flex-col gap-6">
             <div className="flex flex-col gap-6">
-              <div className="text-display-2 text-text-primary text-center auth-title">
+              <h1 className="text-display-2 text-text-primary text-center auth-title">
                 {isDeveloper ? 'Sign up for developer access' : 'Sign up'}
-              </div>
+              </h1>
 
               <div className="flex flex-col gap-3">
                 <FormInput
@@ -293,7 +293,10 @@ const SignUp = ({
                   inname="first name"
                   value={firstName}
                   inlabel="First name"
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    setInputErrors((prev) => ({ ...prev, firstName: undefined }));
+                  }}
                   error={inputErrors.firstName}
                 />
                 <FormInput
@@ -301,7 +304,10 @@ const SignUp = ({
                   inname="last name"
                   value={lastName}
                   inlabel="Last name"
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => {
+                    setLastName(e.target.value);
+                    setInputErrors((prev) => ({ ...prev, lastName: undefined }));
+                  }}
                   error={inputErrors.lastName}
                 />
                 <FormInput

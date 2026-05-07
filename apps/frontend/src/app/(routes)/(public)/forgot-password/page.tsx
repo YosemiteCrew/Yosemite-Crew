@@ -1,22 +1,11 @@
-'use client';
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import type { Metadata } from 'next';
+import ForgotPasswordPageWrapper from '@/app/features/auth/pages/ForgotPassword/ForgotPasswordPage';
 
-import ForgotPasswordPage from '@/app/features/auth/pages/ForgotPassword/ForgotPassword';
-import { useAuthStore } from '@/app/stores/authStore';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+export const metadata: Metadata = {
+  title: 'Forgot Password — Yosemite Crew',
+  description: 'Reset your Yosemite Crew account password.',
+};
 
-function Page() {
-  const router = useRouter();
-  const { user, role } = useAuthStore();
-
-  useEffect(() => {
-    if (user) {
-      router.push(resolveDefaultOpenScreenRoute(role));
-    }
-  }, [user, role, router]);
-
-  return <ForgotPasswordPage />;
+export default function Page() {
+  return <ForgotPasswordPageWrapper />;
 }
-
-export default Page;

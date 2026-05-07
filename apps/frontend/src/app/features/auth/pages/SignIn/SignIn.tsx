@@ -146,9 +146,9 @@ const SignIn = ({
       >
         <form onSubmit={handleSignIn} className="flex h-full w-full flex-col gap-6">
           <div className="flex w-full flex-col gap-6">
-            <div className="text-display-2 text-text-primary text-center auth-title">
+            <h1 className="text-display-2 text-text-primary text-center auth-title">
               {isDeveloper ? 'Sign in to your developer account' : 'Sign in'}
-            </div>
+            </h1>
             <div className="flex w-full flex-col gap-3">
               <FormInput
                 intype="email"
@@ -167,7 +167,10 @@ const SignIn = ({
                 value={password}
                 inlabel="Password"
                 autoComplete="current-password"
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setInputErrors((prev) => ({ ...prev, pError: undefined }));
+                }}
                 error={inputErrors.pError}
               />
               <div className="flex items-end justify-end">

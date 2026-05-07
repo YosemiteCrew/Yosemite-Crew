@@ -1,6 +1,12 @@
-import React, { Suspense } from "react";
+import React, { Suspense } from 'react';
+import type { Metadata } from 'next';
 
-import SignUp from "@/app/features/auth/pages/SignUp/SignUp";
+import SignUp from '@/app/features/auth/pages/SignUp/SignUp';
+
+export const metadata: Metadata = {
+  title: 'Developer Sign Up — Yosemite Crew',
+  description: 'Create a developer account to build on the Yosemite Crew platform.',
+};
 
 function Page() {
   return (
