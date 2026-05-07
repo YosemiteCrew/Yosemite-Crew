@@ -2,7 +2,7 @@ import type { NextConfig } from 'next';
 
 // Self-hosted Documenso instance URL — used in frame-src so the signing portal
 // iframe loads. Must be the origin only (https://sign.example.com), no path.
-const documensoHost = process.env.NEXT_PUBLIC_DOCUMENSO_HOST ?? '';
+const documensoHost = process.env.NEXT_PUBLIC_DOCUMENSO_HOST ?? 'https://ds.yosemitecrew.com';
 
 const securityHeaders = [
   // Prevent clickjacking — deny all framing
