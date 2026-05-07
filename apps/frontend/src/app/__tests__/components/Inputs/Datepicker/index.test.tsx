@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
 import Datepicker from '@/app/ui/inputs/Datepicker';
 
@@ -19,6 +20,8 @@ jest.mock('react-datepicker', () => {
     ),
   };
 });
+
+expect.extend(toHaveNoViolations);
 
 describe('Datepicker (index)', () => {
   it('selects a date in input mode', () => {
@@ -48,5 +51,62 @@ describe('Datepicker (index)', () => {
     );
 
     expect(screen.getByLabelText('Toggle calendar')).toBeInTheDocument();
+  });
+
+  it('wires validation helper text to the trigger', () => {
+    render(
+      <Datepicker
+        currentDate={null}
+        setCurrentDate={jest.fn()}
+        placeholder="Select date"
+        type="input"
+        error="Date is required"
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Select date, toggle calendar' });
+    const error = screen.getByRole('alert');
+
+    expect(trigger).toHaveAttribute('aria-describedby', error.id);
+    expect(error).toHaveTextContent('Date is required');
+  });
+
+  it('has no axe accessibility violations in input mode', async () => {
+    const { container } = render(
+      <Datepicker
+        currentDate={new Date('2025-01-15T00:00:00.000Z')}
+        setCurrentDate={jest.fn()}
+        placeholder="Select date"
+        type="input"
+      />
+    );
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('has no axe accessibility violations in error state', async () => {
+    const { container } = render(
+      <Datepicker
+        currentDate={null}
+        setCurrentDate={jest.fn()}
+        placeholder="Select date"
+        type="input"
+        error="Date is required"
+      />
+    );
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('has no axe accessibility violations in icon trigger mode', async () => {
+    const { container } = render(
+      <Datepicker
+        currentDate={new Date('2025-01-01T00:00:00.000Z')}
+        setCurrentDate={jest.fn()}
+        placeholder="Select date"
+      />
+    );
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

@@ -1,9 +1,12 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import Organizations from '@/app/features/organizations/pages/Organizations';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrgWithMemberships } from '@/app/hooks/useOrgSelectors';
 import { getData } from '@/app/services/axios';
+
+expect.extend(toHaveNoViolations);
 
 // --- Mocks ---
 
@@ -103,7 +106,7 @@ describe('Organizations Page', () => {
     render(<Organizations />);
 
     // Check Headers & Buttons
-    expect(screen.getByText('Overview')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Overview' })).toBeInTheDocument();
     expect(screen.getByTestId('create-org-btn')).toHaveAttribute('href', '/create-org');
     expect(screen.getByText('Existing organisations')).toBeInTheDocument();
     expect(screen.getByText('Invites')).toBeInTheDocument();
@@ -142,6 +145,19 @@ describe('Organizations Page', () => {
     expect(screen.getByTestId('org-invites-list')).toHaveTextContent('No Invites');
 
     consoleSpy.mockRestore();
+  });
+
+  it('has no axe violations when loaded', async () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ status: 'succeeded' })
+    );
+    (useOrgWithMemberships as jest.Mock).mockReturnValue(mockOrgs);
+    (getData as jest.Mock).mockResolvedValue({ data: [] });
+
+    const { container } = render(<Organizations />);
+    await screen.findByRole('heading', { level: 1, name: 'Overview' });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   // --- 4. Empty State ---

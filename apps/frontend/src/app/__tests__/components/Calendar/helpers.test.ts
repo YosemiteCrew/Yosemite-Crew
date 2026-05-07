@@ -15,6 +15,7 @@ import {
   getNowTopPxForHourRange,
   isAllDayForDate,
   eventsForDay,
+  scrollContainerToTarget,
   PIXELS_PER_STEP,
   MINUTES_PER_STEP,
 } from '@/app/features/appointments/components/Calendar/helpers';
@@ -111,6 +112,40 @@ describe('Calendar Helpers', () => {
 
     it('snapUp ceils to nearest step', () => {
       expect(snapUp(11, 5)).toBe(15);
+    });
+  });
+
+  describe('scrollContainerToTarget', () => {
+    it('uses smooth scrolling when reduced motion is not requested', () => {
+      globalThis.window.matchMedia = jest.fn().mockReturnValue({ matches: false });
+      const container = {
+        clientHeight: 400,
+        scrollHeight: 1200,
+        scrollTo: jest.fn(),
+      } as unknown as HTMLElement;
+
+      scrollContainerToTarget(container, 300);
+
+      expect(container.scrollTo).toHaveBeenCalledWith({
+        top: 240,
+        behavior: 'smooth',
+      });
+    });
+
+    it('uses instant scrolling when reduced motion is requested', () => {
+      globalThis.window.matchMedia = jest.fn().mockReturnValue({ matches: true });
+      const container = {
+        clientHeight: 400,
+        scrollHeight: 1200,
+        scrollTo: jest.fn(),
+      } as unknown as HTMLElement;
+
+      scrollContainerToTarget(container, 300);
+
+      expect(container.scrollTo).toHaveBeenCalledWith({
+        top: 240,
+        behavior: 'auto',
+      });
     });
   });
 

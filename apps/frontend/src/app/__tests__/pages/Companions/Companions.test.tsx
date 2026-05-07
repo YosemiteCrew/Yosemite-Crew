@@ -1,6 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 
 import ProtectedCompanions from '@/app/features/companions/pages/Companions/Companions';
 
@@ -102,6 +105,17 @@ describe('Companions page', () => {
       can: jest.fn(() => true),
     });
     useSearchStoreMock.mockImplementation((selector: any) => selector({ query: 'buddy' }));
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<ProtectedCompanions />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('renders h1 page heading', () => {
+    render(<ProtectedCompanions />);
+    expect(screen.getByRole('heading', { level: 1, name: /Companions/ })).toBeInTheDocument();
   });
 
   it('renders filtered companions and opens add modal', () => {

@@ -90,6 +90,9 @@ describe('TeamOnboarding Page', () => {
 
   it('renders PersonalStep initially (step 0)', () => {
     render(<ProtectedTeamOnboarding />);
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Create organization profile' })
+    ).toBeInTheDocument();
     expect(screen.getByText('Create organization profile')).toBeInTheDocument();
     expect(screen.getByTestId('personal-step')).toBeInTheDocument();
     expect(screen.getByTestId('progress')).toHaveTextContent('Step 1');

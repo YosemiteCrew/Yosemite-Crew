@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 
 jest.mock('react-icons/fa6', () => ({
@@ -10,6 +11,8 @@ jest.mock('react-icons/fa6', () => ({
 jest.mock('react-icons/io', () => ({
   IoIosWarning: () => <span data-testid="icon-warning" />,
 }));
+
+expect.extend(toHaveNoViolations);
 
 describe('LabelDropdown', () => {
   const options = [
@@ -55,5 +58,14 @@ describe('LabelDropdown', () => {
     );
 
     expect(screen.getByText('Canine')).toBeInTheDocument();
+  });
+
+  it('has no axe accessibility violations', async () => {
+    const { container } = render(
+      <LabelDropdown placeholder="Species" options={options} onSelect={jest.fn()} />
+    );
+
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

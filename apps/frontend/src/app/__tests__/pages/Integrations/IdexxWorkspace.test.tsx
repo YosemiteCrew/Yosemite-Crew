@@ -1,6 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 import ProtectedIdexxWorkspace from '@/app/features/integrations/pages/IdexxWorkspace';
 
 const getIntegrationByProviderMock = jest.fn();
@@ -294,5 +297,28 @@ describe('IDEXX Hub page', () => {
       expect(screen.getByText('IVLS Device ID')).toBeInTheDocument();
       expect(screen.getByText('PTH999900000827')).toBeInTheDocument();
     });
+  });
+
+  it('has no axe violations when integration is enabled', async () => {
+    listIdexxResultsMock.mockResolvedValue([]);
+    const { container } = render(<ProtectedIdexxWorkspace />);
+    await screen.findByRole('heading', { name: /IDEXX.*Hub/i });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('has no axe violations on the disabled state', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'disabled' });
+    const { container } = render(<ProtectedIdexxWorkspace />);
+    await screen.findByText('Open Integrations');
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('pagination nav is labelled', async () => {
+    listIdexxResultsMock.mockResolvedValue([]);
+    render(<ProtectedIdexxWorkspace />);
+    await screen.findByRole('heading', { name: /IDEXX.*Hub/i });
+    expect(screen.getByRole('navigation', { name: 'Results pagination' })).toBeInTheDocument();
   });
 });

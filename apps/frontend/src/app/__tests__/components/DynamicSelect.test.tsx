@@ -81,14 +81,7 @@ describe('DynamicSelect Component', () => {
   });
 
   it('should display a "No options available" message when options array is empty', async () => {
-    render(
-      <DynamicSelect
-        options={[]}
-        value=""
-        onChange={mockOnChange}
-        inname="fruit-selector"
-      />
-    );
+    render(<DynamicSelect options={[]} value="" onChange={mockOnChange} inname="fruit-selector" />);
 
     const dropdownToggle = screen.getByText('Select an option');
     await user.click(dropdownToggle);
@@ -111,7 +104,7 @@ describe('DynamicSelect Component', () => {
 
     const errorText = screen.getByText(errorMessage);
     expect(errorText).toBeInTheDocument();
-    expect(errorText).toHaveClass('text-danger');
+    expect(errorText).toHaveClass('text-xs', 'text-red-600', 'mt-1');
   });
 
   it('should call onChange with an empty string when the placeholder item is selected', async () => {

@@ -3,22 +3,18 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CommunityStats from '../../../../features/overview/components/CommunityStats';
 
-// ==========================================
-// 1. MOCK SETUP
-// ==========================================
-
-// Mock the DynamicChartCard to easily inspect the transformed data and props it receives
-jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => {
-  return function MockDynamicChartCard({
-    data,
-    keys,
-    yAxisWidth,
-    chartHeight,
-    compactMonthAxis,
-    headerContent,
-    footerContent,
-  }: any) {
-    return (
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: () => {
+    const MockDynamicChartCard = ({
+      data,
+      keys,
+      yAxisWidth,
+      chartHeight,
+      compactMonthAxis,
+      headerContent,
+      footerContent,
+    }: any) => (
       <div data-testid="mock-dynamic-chart">
         <div data-testid="chart-header">{headerContent}</div>
         <div data-testid="chart-data">{JSON.stringify(data)}</div>
@@ -29,8 +25,14 @@ jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => {
         <div data-testid="chart-footer">{footerContent}</div>
       </div>
     );
-  };
-});
+    MockDynamicChartCard.displayName = 'MockDynamicChartCard';
+    return MockDynamicChartCard;
+  },
+}));
+
+// ==========================================
+// 1. MOCK SETUP
+// ==========================================
 
 // ==========================================
 // 2. MOCK DATA

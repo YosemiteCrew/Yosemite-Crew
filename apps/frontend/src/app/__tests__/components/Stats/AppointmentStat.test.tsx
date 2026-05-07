@@ -3,7 +3,17 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppointmentStat from '@/app/ui/widgets/Stats/AppointmentStat';
 import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
-import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
+
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: () => {
+    const MockDynamicChartCard = ({ data, keys }: any) => (
+      <div data-testid="chart" data-points={data.length} data-keys={keys.length} />
+    );
+    MockDynamicChartCard.displayName = 'MockDynamicChartCard';
+    return MockDynamicChartCard;
+  },
+}));
 
 jest.mock('@/app/features/dashboard/hooks/useDashboardAnalytics', () => ({
   mapDashboardDurationOption: (value: string) => value,
@@ -29,13 +39,6 @@ jest.mock('@/app/ui/cards/CardHeader/CardHeader', () => ({
   default: jest.fn(({ title }: any) => <div data-testid="card-header">{title}</div>),
 }));
 
-jest.mock('@/app/ui/widgets/DynamicChart/DynamicChartCard', () => ({
-  __esModule: true,
-  default: jest.fn(({ data, keys }: any) => (
-    <div data-testid="chart" data-points={data.length} data-keys={keys.length} />
-  )),
-}));
-
 describe('AppointmentStat', () => {
   it('renders header and chart data', () => {
     render(<AppointmentStat />);
@@ -44,6 +47,5 @@ describe('AppointmentStat', () => {
     expect(screen.getByTestId('chart')).toHaveAttribute('data-points', '7');
     expect(screen.getByTestId('chart')).toHaveAttribute('data-keys', '2');
     expect(CardHeader).toHaveBeenCalled();
-    expect(DynamicChartCard).toHaveBeenCalled();
   });
 });

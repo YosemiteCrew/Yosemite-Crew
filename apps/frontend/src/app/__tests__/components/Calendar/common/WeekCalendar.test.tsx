@@ -117,8 +117,14 @@ describe('WeekCalendar (Appointments)', () => {
       />
     );
 
+    expect(
+      screen.getByRole('region', {
+        name: 'Appointments week calendar starting January 6, 2025',
+      })
+    ).toBeInTheDocument();
     expect(screen.getByText('All-day')).toBeInTheDocument();
     const allDayButton = screen.getAllByText(/Milo/)[0].closest('button');
+    expect(allDayButton).toHaveAccessibleName('All-day appointment for Milo. Checkup');
     fireEvent.click(allDayButton!);
 
     expect(handleViewAppointment).toHaveBeenCalledWith(events[0]);

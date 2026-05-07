@@ -1,6 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 import ProtectedIntegrations from '@/app/features/integrations/pages/Integrations';
 
 const useIntegrationsForPrimaryOrgMock = jest.fn();
@@ -287,5 +290,21 @@ describe('Integrations settings', () => {
       expect(loadIntegrationsForPrimaryOrgMock).toHaveBeenCalledWith({ force: true, silent: true });
       expect(refreshMerckIntegrationMock).toHaveBeenCalled();
     });
+  });
+
+  it('has no axe violations on initial render', async () => {
+    const { container } = render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('filter tabs expose aria-pressed state', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    const allTab = screen.getByRole('button', { name: 'All' });
+    expect(allTab).toHaveAttribute('aria-pressed', 'true');
+    const connectedTab = screen.getByRole('button', { name: 'Connected' });
+    expect(connectedTab).toHaveAttribute('aria-pressed', 'false');
   });
 });

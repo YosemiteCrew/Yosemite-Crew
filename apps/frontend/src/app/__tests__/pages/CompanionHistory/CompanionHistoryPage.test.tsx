@@ -1,7 +1,10 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import CompanionHistoryPage from '@/app/features/companionHistory/pages/CompanionHistoryPage';
+
+expect.extend(toHaveNoViolations);
 
 const pushMock = jest.fn();
 const startRouteLoaderMock = jest.fn();
@@ -142,6 +145,13 @@ describe('CompanionHistoryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/appointments');
+  });
+
+  it('has no axe violations on initial render', async () => {
+    const { container } = render(<CompanionHistoryPage />);
+    await screen.findByRole('heading', { level: 1, name: 'Companion Overview' });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it('prefers safe backTo path and falls back for unsafe value', () => {

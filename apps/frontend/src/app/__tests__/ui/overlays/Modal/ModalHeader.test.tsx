@@ -18,11 +18,9 @@ describe('ModalHeader', () => {
     render(<ModalHeader title="Confirm action" onClose={onClose} />);
 
     expect(screen.getByText('Confirm action')).toBeInTheDocument();
+    // Ghost spacer button is aria-hidden — only the real close button is accessible
     const closeButtons = screen.getAllByRole('button', { name: 'close' });
-    expect(closeButtons).toHaveLength(2);
-
-    fireEvent.click(closeButtons[1]);
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(closeButtons).toHaveLength(1);
 
     fireEvent.click(closeButtons[0]);
     expect(onClose).toHaveBeenCalledTimes(1);

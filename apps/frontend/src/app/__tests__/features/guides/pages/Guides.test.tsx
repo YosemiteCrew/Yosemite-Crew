@@ -1,6 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 
 import ProtectedGuides from '@/app/features/guides/pages/Guides';
 
@@ -67,6 +70,13 @@ describe('Guides page', () => {
 
     fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'forms' } });
     expect(screen.getByText('0 results')).toBeInTheDocument();
+  });
+
+  it('has no axe violations on initial render', async () => {
+    const { container } = render(<ProtectedGuides />);
+    await screen.findByRole('heading', { level: 1, name: /Guides/ });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it('opens modal from watch now and closes it', () => {

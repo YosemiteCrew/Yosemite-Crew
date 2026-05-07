@@ -5,6 +5,10 @@ import {
   usePlannerAutoLock,
 } from '@/app/hooks/usePlannerLayout';
 
+jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
+  prefersReducedMotion: jest.fn(() => false),
+}));
+
 describe('usePlannerLayout', () => {
   it('returns list-specific planner classes', () => {
     expect(

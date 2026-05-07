@@ -1,20 +1,23 @@
-import React, { useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import SearchDropdown from "@/app/ui/inputs/SearchDropdown";
+import React, { useState } from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 
-jest.mock("react-icons/io", () => ({
+jest.mock('react-icons/io', () => ({
   IoIosSearch: () => <span data-testid="icon-search" />,
   IoIosWarning: () => <span data-testid="icon-warning" />,
 }));
 
+expect.extend(toHaveNoViolations);
+
 const Wrapper = ({ onSelect }: { onSelect: (val: string) => void }) => {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   return (
     <SearchDropdown
       options={[
-        { value: "buddy", label: "Buddy" },
-        { value: "bella", label: "Bella" },
+        { value: 'buddy', label: 'Buddy' },
+        { value: 'bella', label: 'Bella' },
       ]}
       onSelect={onSelect}
       placeholder="Search companion"
@@ -25,44 +28,51 @@ const Wrapper = ({ onSelect }: { onSelect: (val: string) => void }) => {
   );
 };
 
-describe("SearchDropdown", () => {
-  it("shows filtered options when query meets min chars", () => {
+describe('SearchDropdown', () => {
+  it('shows filtered options when query meets min chars', () => {
     render(<Wrapper onSelect={jest.fn()} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Search companion"), {
-      target: { value: "b" },
+    fireEvent.change(screen.getByPlaceholderText('Search companion'), {
+      target: { value: 'b' },
     });
 
-    expect(screen.getByText("Buddy")).toBeInTheDocument();
-    expect(screen.getByText("Bella")).toBeInTheDocument();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+    expect(screen.getByText('Bella')).toBeInTheDocument();
   });
 
-  it("selects an option and closes the list", () => {
+  it('selects an option and closes the list', () => {
     const onSelect = jest.fn();
     render(<Wrapper onSelect={onSelect} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Search companion"), {
-      target: { value: "bud" },
+    fireEvent.change(screen.getByPlaceholderText('Search companion'), {
+      target: { value: 'bud' },
     });
-    fireEvent.click(screen.getByText("Buddy"));
+    fireEvent.click(screen.getByText('Buddy'));
 
-    expect(onSelect).toHaveBeenCalledWith("buddy");
-    expect(screen.queryByText("Buddy")).not.toBeInTheDocument();
+    expect(onSelect).toHaveBeenCalledWith('buddy');
+    expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
   });
 
-  it("renders error message when provided", () => {
+  it('renders error message when provided', () => {
     render(
       <SearchDropdown
         options={[]}
         onSelect={jest.fn()}
         placeholder="Search"
-        query={""}
+        query={''}
         setQuery={jest.fn()}
         error="Required"
       />
     );
 
-    expect(screen.getByText("Required")).toBeInTheDocument();
-    expect(screen.getByTestId("icon-warning")).toBeInTheDocument();
+    expect(screen.getByText('Required')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-warning')).toBeInTheDocument();
+  });
+
+  it('has no axe accessibility violations', async () => {
+    const { container } = render(<Wrapper onSelect={jest.fn()} />);
+
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

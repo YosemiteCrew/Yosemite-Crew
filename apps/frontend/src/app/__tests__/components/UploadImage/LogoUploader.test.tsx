@@ -1,24 +1,24 @@
-import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import LogoUploader from "@/app/ui/widgets/UploadImage/LogoUploader";
-import { postData } from "@/app/services/axios";
-import axios from "axios";
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import LogoUploader from '@/app/ui/widgets/UploadImage/LogoUploader';
+import { postData } from '@/app/services/axios';
+import axios from 'axios';
 
 // --- Mocks ---
 
 // 1. Mock Services
-jest.mock("@/app/services/axios", () => ({
+jest.mock('@/app/services/axios', () => ({
   postData: jest.fn(),
 }));
 
-jest.mock("axios");
+jest.mock('axios');
 
 // 2. Mock Icons
-jest.mock("react-icons/io5", () => ({
+jest.mock('react-icons/io5', () => ({
   IoCamera: () => <span data-testid="icon-camera" />,
 }));
 
-jest.mock("react-icons/fi", () => ({
+jest.mock('react-icons/fi', () => ({
   FiMinusCircle: () => <span data-testid="icon-remove" />,
 }));
 
@@ -37,96 +37,75 @@ afterAll(() => {
   (globalThis.URL as any).revokeObjectURL = undefined;
 });
 
-describe("LogoUploader Component", () => {
+describe('LogoUploader Component', () => {
   const mockSetImageUrl = jest.fn();
-  const mockApiUrl = "/api/logo-upload";
-  const mockTitle = "Upload Logo";
+  const mockApiUrl = '/api/logo-upload';
+  const mockTitle = 'Upload Logo';
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCreateObjectURL.mockReturnValue("blob:http://localhost/mock-image");
+    mockCreateObjectURL.mockReturnValue('blob:http://localhost/mock-image');
   });
 
   // --- Section 1: Rendering ---
-  it("renders the initial state correctly", () => {
-    render(
-      <LogoUploader
-        title={mockTitle}
-        apiUrl={mockApiUrl}
-        setImageUrl={mockSetImageUrl}
-      />
-    );
+  it('renders the initial state correctly', () => {
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
 
     expect(screen.getByText(mockTitle)).toBeInTheDocument();
-    expect(screen.getByTestId("icon-camera")).toBeInTheDocument();
+    expect(screen.getByTestId('icon-camera')).toBeInTheDocument();
 
     const input = document.querySelector('input[type="file"]');
     expect(input).toBeInTheDocument();
-    expect(input).toHaveAttribute("accept", "image/*");
+    expect(input).toHaveAttribute('accept', 'image/*');
+    expect(screen.getByLabelText(mockTitle)).toBeInTheDocument();
   });
 
   // --- Section 2: Successful Upload Flow ---
-  it("handles file selection, shows preview, and uploads successfully", async () => {
+  it('handles file selection, shows preview, and uploads successfully', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: "https://s3.url", s3Key: "logos/image.png" },
+      data: { uploadUrl: 'https://s3.url', s3Key: 'logos/image.png' },
     });
     (axios.put as jest.Mock).mockResolvedValue({});
 
-    render(
-      <LogoUploader
-        title={mockTitle}
-        apiUrl={mockApiUrl}
-        setImageUrl={mockSetImageUrl}
-      />
-    );
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
 
-    const file = new File(["dummy"], "logo.png", { type: "image/png" });
-    const input = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
+    const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
     fireEvent.change(input, { target: { files: [file] } });
 
     // 1. Check Loading State
-    expect(screen.getByText("Uploading...")).toBeInTheDocument();
+    expect(screen.getByText('Uploading...')).toBeInTheDocument();
     expect(mockCreateObjectURL).toHaveBeenCalledWith(file);
 
     await waitFor(() => {
       // 2. Verify API Calls
       expect(postData).toHaveBeenCalledWith(mockApiUrl, {
-        mimeType: "image/png",
+        mimeType: 'image/png',
       });
-      expect(axios.put).toHaveBeenCalledWith("https://s3.url", file, {
-        headers: { "Content-Type": "image/png" },
+      expect(axios.put).toHaveBeenCalledWith('https://s3.url', file, {
+        headers: { 'Content-Type': 'image/png' },
         withCredentials: false,
       });
 
       // 3. Verify Callback
-      expect(mockSetImageUrl).toHaveBeenCalledWith("logos/image.png");
+      expect(mockSetImageUrl).toHaveBeenCalledWith('logos/image.png');
     });
 
     // 4. Verify Preview State
-    expect(screen.getByAltText("Logo Preview")).toBeInTheDocument();
+    expect(screen.getByAltText('Logo Preview')).toBeInTheDocument();
     expect(screen.getByText(mockTitle)).toBeInTheDocument();
   });
 
   // --- Section 3: Error Handling ---
-  it("handles upload errors and clears preview", async () => {
-    const errorMsg = "Network Error";
+  it('handles upload errors and clears preview', async () => {
+    const errorMsg = 'Network Error';
     (postData as jest.Mock).mockRejectedValue(new Error(errorMsg));
 
-    render(
-      <LogoUploader
-        title={mockTitle}
-        apiUrl={mockApiUrl}
-        setImageUrl={mockSetImageUrl}
-      />
-    );
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
 
-    const file = new File(["dummy"], "logo.png", { type: "image/png" });
-    const input = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
+    const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
     fireEvent.change(input, { target: { files: [file] } });
 
@@ -138,24 +117,16 @@ describe("LogoUploader Component", () => {
     });
 
     expect(mockRevokeObjectURL).toHaveBeenCalled();
-    expect(screen.queryByAltText("Logo Preview")).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Logo Preview')).not.toBeInTheDocument();
   });
 
-  it("handles fallback error message logic if error object is empty", async () => {
+  it('handles fallback error message logic if error object is empty', async () => {
     (postData as jest.Mock).mockRejectedValue({}); // No message property
 
-    render(
-      <LogoUploader
-        title={mockTitle}
-        apiUrl={mockApiUrl}
-        setImageUrl={mockSetImageUrl}
-      />
-    );
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
 
-    const file = new File(["dummy"], "logo.png", { type: "image/png" });
-    const input = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
+    const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
     fireEvent.change(input, { target: { files: [file] } });
 
@@ -168,85 +139,71 @@ describe("LogoUploader Component", () => {
   });
 
   // --- Section 4: User Interactions & Edge Cases ---
-  it("removes the image when the remove button is clicked", async () => {
+  it('removes the image when the remove button is clicked', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: "url", s3Key: "key" },
+      data: { uploadUrl: 'url', s3Key: 'key' },
     });
     (axios.put as jest.Mock).mockResolvedValue({});
 
-    render(
-      <LogoUploader
-        title={mockTitle}
-        apiUrl={mockApiUrl}
-        setImageUrl={mockSetImageUrl}
-      />
-    );
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
 
-    const file = new File(["dummy"], "logo.png", { type: "image/png" });
-    const input = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
+    const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
-    await waitFor(() =>
-      expect(screen.getByAltText("Logo Preview")).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByAltText('Logo Preview')).toBeInTheDocument());
 
     // Click remove (FiMinusCircle wrapper)
-    const removeBtn = screen.getByRole("button");
+    const removeBtn = screen.getByRole('button', { name: 'Remove uploaded logo' });
     fireEvent.click(removeBtn);
 
     expect(mockRevokeObjectURL).toHaveBeenCalled();
-    expect(screen.queryByAltText("Logo Preview")).not.toBeInTheDocument();
-    expect(screen.getByTestId("icon-camera")).toBeInTheDocument();
+    expect(screen.queryByAltText('Logo Preview')).not.toBeInTheDocument();
+    expect(screen.getByTestId('icon-camera')).toBeInTheDocument();
   });
 
-  it("does nothing if no file is selected (cancel dialog)", () => {
-    render(
-      <LogoUploader
-        title={mockTitle}
-        apiUrl={mockApiUrl}
-        setImageUrl={mockSetImageUrl}
-      />
-    );
+  it('does nothing if no file is selected (cancel dialog)', () => {
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
 
-    const input = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [] } });
 
     expect(mockCreateObjectURL).not.toHaveBeenCalled();
     expect(postData).not.toHaveBeenCalled();
   });
 
-  it("cleans up object URL on unmount", async () => {
+  it('cleans up object URL on unmount', async () => {
     (postData as jest.Mock).mockResolvedValue({
-      data: { uploadUrl: "", s3Key: "" },
+      data: { uploadUrl: '', s3Key: '' },
     });
     (axios.put as jest.Mock).mockResolvedValue({});
 
     const { unmount } = render(
-      <LogoUploader
-        title={mockTitle}
-        apiUrl={mockApiUrl}
-        setImageUrl={mockSetImageUrl}
-      />
+      <LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />
     );
 
-    const file = new File(["dummy"], "logo.png", { type: "image/png" });
-    const input = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
+    const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
-    await waitFor(() =>
-      expect(screen.getByAltText("Logo Preview")).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByAltText('Logo Preview')).toBeInTheDocument());
 
     unmount();
 
-    expect(mockRevokeObjectURL).toHaveBeenCalledWith(
-      "blob:http://localhost/mock-image"
-    );
+    expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/mock-image');
+  });
+
+  it('announces upload errors accessibly', async () => {
+    (postData as jest.Mock).mockRejectedValue(new Error('Upload failed'));
+
+    render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
+
+    const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 });

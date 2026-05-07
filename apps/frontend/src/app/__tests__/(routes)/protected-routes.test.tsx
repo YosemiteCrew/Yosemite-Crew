@@ -1,33 +1,42 @@
-import React from "react";
-import { render, screen } from "@testing-library/react";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
 
-jest.mock("@/app/features/companions/pages/Companions/Companions", () => ({
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: () => {
+    const MockDynamicComponent = () => <div data-testid="route-chat">Chat container</div>;
+    MockDynamicComponent.displayName = 'MockDynamicComponent';
+    return MockDynamicComponent;
+  },
+}));
+
+jest.mock('@/app/features/companions/pages/Companions/Companions', () => ({
   __esModule: true,
   default: () => <div data-testid="route-companions">Companions page</div>,
 }));
 
-jest.mock("@/app/features/inventory/pages/Inventory", () => ({
+jest.mock('@/app/features/inventory/pages/Inventory', () => ({
   __esModule: true,
   default: () => <div data-testid="route-inventory">Inventory page</div>,
 }));
 
-jest.mock("@/app/features/chat/components/ChatContainer", () => ({
+jest.mock('@/app/features/chat/components/ChatContainer', () => ({
   __esModule: true,
   ChatContainer: () => <div data-testid="route-chat">Chat container</div>,
   default: () => <div data-testid="route-chat">Chat container</div>,
 }));
 
-jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
+jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
+jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-jest.mock("next/navigation", () => ({
+jest.mock('next/navigation', () => ({
   useSearchParams: () => ({
     get: () => null,
   }),
@@ -40,39 +49,39 @@ jest.mock("next/navigation", () => ({
   }),
 }));
 
-jest.mock("@/app/features/auth/pages/SignIn/SignIn", () => ({
+jest.mock('@/app/features/auth/pages/SignIn/SignIn', () => ({
   __esModule: true,
   default: () => <div data-testid="route-signin">Sign In</div>,
 }));
 
-import CompanionsRoute, * as CompanionsModule from "@/app/(routes)/(app)/companions/page";
-import InventoryRoute from "@/app/(routes)/(app)/inventory/page";
-import ChatRoute, * as ChatModule from "@/app/(routes)/(app)/chat/page";
-import SignInRoute, * as SignInModule from "@/app/(routes)/(public)/signin/page";
+import CompanionsRoute, * as CompanionsModule from '@/app/(routes)/(app)/companions/page';
+import InventoryRoute from '@/app/(routes)/(app)/inventory/page';
+import ChatRoute, * as ChatModule from '@/app/(routes)/(app)/chat/page';
+import SignInRoute, * as SignInModule from '@/app/(routes)/(public)/signin/page';
 
-describe("protected route wrappers", () => {
-  test("companions route renders ProtectedCompanions", () => {
+describe('protected route wrappers', () => {
+  test('companions route renders ProtectedCompanions', () => {
     render(<CompanionsRoute />);
-    expect(screen.getByTestId("route-companions")).toBeInTheDocument();
-    expect(typeof CompanionsRoute).toBe("function");
-    expect(typeof CompanionsModule.default).toBe("function");
+    expect(screen.getByTestId('route-companions')).toBeInTheDocument();
+    expect(typeof CompanionsRoute).toBe('function');
+    expect(typeof CompanionsModule.default).toBe('function');
   });
 
-  test("inventory route renders ProtectedInventory", () => {
+  test('inventory route renders ProtectedInventory', () => {
     render(<InventoryRoute />);
-    expect(screen.getByTestId("route-inventory")).toBeInTheDocument();
-    expect(typeof InventoryRoute).toBe("function");
+    expect(screen.getByTestId('route-inventory')).toBeInTheDocument();
+    expect(typeof InventoryRoute).toBe('function');
   });
 
-  test("chat route renders ChatContainer", () => {
+  test('chat route renders ChatContainer', () => {
     render(<ChatRoute />);
-    expect(screen.getByTestId("route-chat")).toBeInTheDocument();
-    expect(typeof ChatModule.default).toBe("function");
+    expect(screen.getByTestId('route-chat')).toBeInTheDocument();
+    expect(typeof ChatModule.default).toBe('function');
   });
 
-  test("signin route renders SignIn within Suspense", () => {
+  test('signin route renders SignIn within Suspense', () => {
     render(<SignInRoute />);
-    expect(screen.getByTestId("route-signin")).toBeInTheDocument();
-    expect(typeof SignInModule.default).toBe("function");
+    expect(screen.getByTestId('route-signin')).toBeInTheDocument();
+    expect(typeof SignInModule.default).toBe('function');
   });
 });

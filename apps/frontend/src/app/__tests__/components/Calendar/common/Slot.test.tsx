@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
@@ -71,6 +72,8 @@ jest.mock('react-icons/md', () => ({
   MdMeetingRoom: () => <span>room</span>,
   MdOutlineAutorenew: () => <span>change-status</span>,
 }));
+
+expect.extend(toHaveNoViolations);
 
 describe('Slot (Appointments)', () => {
   const handleViewAppointment = jest.fn();
@@ -223,9 +226,7 @@ describe('Slot (Appointments)', () => {
       />
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Create appointment in this calendar slot' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: /Create appointment on/i }));
     expect(onCreateAppointmentAt).toHaveBeenCalled();
   });
 
@@ -251,7 +252,7 @@ describe('Slot (Appointments)', () => {
       />
     );
 
-    const slot = screen.getByRole('application');
+    const slot = screen.getByRole('region', { name: /Appointments slot for/i });
     fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
     fireEvent.drop(slot, { clientX: 10, clientY: 20 });
 
@@ -280,7 +281,7 @@ describe('Slot (Appointments)', () => {
       />
     );
 
-    const slot = screen.getByRole('application');
+    const slot = screen.getByRole('region', { name: /Appointments slot for/i });
     fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
     fireEvent.drop(slot, { clientX: 10, clientY: 20 });
 
@@ -305,9 +306,7 @@ describe('Slot (Appointments)', () => {
       />
     );
 
-    fireEvent.doubleClick(
-      screen.getByRole('button', { name: 'Create appointment in this calendar slot' })
-    );
+    fireEvent.doubleClick(screen.getByRole('button', { name: /Create appointment on/i }));
     expect(onCreateAppointmentAt).toHaveBeenCalled();
   });
 
@@ -375,7 +374,7 @@ describe('Slot (Appointments)', () => {
       jest.advanceTimersByTime(200);
     });
     await act(async () => {
-      fireEvent.click(screen.getByTitle('Decline request'));
+      fireEvent.click(await screen.findByTitle('Decline request'));
     });
     expect(rejectAppointment).toHaveBeenCalledWith(expect.objectContaining({ id: 'requested-1' }));
   });
@@ -397,5 +396,66 @@ describe('Slot (Appointments)', () => {
 
     expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
+  });
+
+  it('has no axe accessibility violations when the appointment popover is open', async () => {
+    render(
+      <Slot
+        slotEvents={[event]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Rex/i }));
+    await act(async () => {
+      jest.advanceTimersByTime(200);
+    });
+
+    jest.useRealTimers();
+
+    try {
+      const results = await axe(document.body);
+      expect(results).toHaveNoViolations();
+    } finally {
+      jest.useFakeTimers();
+    }
+  });
+
+  it('wires appointment markers to a non-modal dialog popover and closes on Escape', () => {
+    render(
+      <Slot
+        slotEvents={[event]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: /Rex/i });
+    expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(trigger);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+
+    const dialog = screen.getByRole('dialog', { name: 'Rex' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(trigger).toHaveAttribute('aria-controls', dialog.getAttribute('id'));
+    expect(dialog).toHaveAttribute('aria-modal', 'false');
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: 'Rex' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 });

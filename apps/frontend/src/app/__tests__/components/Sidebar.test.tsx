@@ -92,7 +92,10 @@ describe('Sidebar', () => {
 
     render(<Sidebar />);
 
-    expect(screen.getByRole('link', { name: 'Logo' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByRole('link', { name: 'Yosemite Crew dashboard' })).toHaveAttribute(
+      'href',
+      '/dashboard'
+    );
   });
 
   it('keeps the collapsed authenticated sidebar logo linked to the dashboard', () => {
@@ -103,6 +106,9 @@ describe('Sidebar', () => {
 
     render(<Sidebar />);
 
-    expect(screen.getByRole('link', { name: 'Logo' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByRole('link', { name: 'Yosemite Crew dashboard' })).toHaveAttribute(
+      'href',
+      '/dashboard'
+    );
   });
 });

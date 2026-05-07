@@ -51,9 +51,34 @@ describe('payment-status public page', () => {
   it('renders missing session state when session_id is absent', () => {
     render(<PaymentStatusPage />);
 
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Missing payment session' })
+    ).toBeInTheDocument();
     expect(screen.getByText('Missing payment session')).toBeInTheDocument();
     expect(screen.getByText('We could not find a payment session in the URL.')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('renders a loading status before the fetch resolves', () => {
+    getParamMock.mockReturnValue('sess_loading_1234');
+    fetchMock.mockImplementation(
+      () =>
+        new Promise(() => {
+          return undefined;
+        })
+    );
+
+    render(<PaymentStatusPage />);
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Checking payment status' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'We are confirming your payment with the bank. This usually takes a few seconds.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText('Status Checking')).toBeInTheDocument();
   });
 
   it('renders paid state after successful fetch', async () => {
@@ -66,6 +91,7 @@ describe('payment-status public page', () => {
 
     await waitFor(() => expect(screen.getByText('Payment complete')).toBeInTheDocument());
     expect(screen.getByText('Status paid')).toBeInTheDocument();
+    expect(screen.getByText('Amount 100')).toBeInTheDocument();
     expect(screen.getByText('Session sess_1...BCDE')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.example.com/fhir/v1/invoice/?session_id=sess_1234567890ABCDE',
@@ -119,13 +145,40 @@ describe('payment-status public page', () => {
     await waitFor(() => expect(screen.getByText('Auto-check stopped')).toBeInTheDocument());
   });
 
+  it('stops polling after a paid response is received', async () => {
+    jest.useFakeTimers();
+    getParamMock.mockReturnValue('sess_paid_5555');
+    fetchMock.mockResolvedValue({
+      json: async () => ({ status: 'paid', total: 10 }),
+    });
+
+    render(<PaymentStatusPage />);
+
+    await waitFor(() => expect(screen.getByText('Payment complete')).toBeInTheDocument());
+
+    await act(async () => {
+      jest.advanceTimersByTime(6000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Auto-check stopped')).toBeInTheDocument();
+  });
+
   it('handles fetch failure gracefully', async () => {
     getParamMock.mockReturnValue('sess_error_4444');
     fetchMock.mockRejectedValue(new Error('network failed'));
 
     render(<PaymentStatusPage />);
 
-    await waitFor(() => expect(screen.getByText('Missing payment session')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('We could not confirm your payment')).toBeInTheDocument()
+    );
+    expect(
+      screen.getByText(
+        'We could not confirm this payment right now. Please refresh this page or contact support if the issue continues.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText('Status Unable to confirm')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalled();
   });
 });

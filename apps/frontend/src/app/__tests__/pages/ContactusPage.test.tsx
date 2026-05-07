@@ -1,17 +1,17 @@
-import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import "@testing-library/jest-dom";
-import ContactusPage from "@/app/features/marketing/pages/ContactusPage/ContactusPage";
-import { postData } from "@/app/services/axios";
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
+import ContactusPage from '@/app/features/marketing/pages/ContactusPage/ContactusPage';
+import { postData } from '@/app/services/axios';
 
-jest.mock("@/app/ui/widgets/Footer/Footer", () => {
+jest.mock('@/app/ui/widgets/Footer/Footer', () => {
   return function MockFooter() {
     return <div data-testid="mock-footer">Footer</div>;
   };
 });
 
-jest.mock("@/app/features/auth/pages/SignUp/SignUp", () => ({
+jest.mock('@/app/features/auth/pages/SignUp/SignUp', () => ({
   FormInput: jest.fn(({ inlabel, value, onChange, error, inname }) => (
     <div>
       <label htmlFor={inname}>{inlabel}</label>
@@ -21,7 +21,7 @@ jest.mock("@/app/features/auth/pages/SignUp/SignUp", () => ({
   )),
 }));
 
-jest.mock("@/app/ui/widgets/DynamicSelect/DynamicSelect", () => {
+jest.mock('@/app/ui/widgets/DynamicSelect/DynamicSelect', () => {
   return jest.fn(({ options, value, onChange, inname }) => (
     <select
       id={inname}
@@ -39,179 +39,162 @@ jest.mock("@/app/ui/widgets/DynamicSelect/DynamicSelect", () => {
   ));
 });
 
-jest.mock("next/link", () => {
+jest.mock('next/link', () => {
   return ({ children }: { children: React.ReactNode }) => children;
 });
 
-jest.mock("@/app/services/axios", () => ({
+jest.mock('@/app/services/axios', () => ({
   postData: jest.fn(),
 }));
 const mockedPostData = postData as jest.Mock;
 
-describe("ContactusPage", () => {
+describe('ContactusPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedPostData.mockResolvedValue({ data: { id: "contact-id" } });
+    mockedPostData.mockResolvedValue({ data: { id: 'contact-id' } });
   });
   it('should render the initial form correctly with "General Enquiry" selected', () => {
     render(<ContactusPage />);
     expect(
-      screen.getByText(/Need help\? We.?re all ears!/i)
+      screen.getByRole('heading', { level: 1, name: /Need help\? We.?re all ears!/i })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("radio", { name: "General Enquiry" })
-    ).toBeChecked();
-    expect(screen.getByPlaceholderText("Your Message")).toBeInTheDocument();
+    expect(screen.getByText(/Need help\? We.?re all ears!/i)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
+    expect(screen.getByPlaceholderText('Your Message')).toBeInTheDocument();
   });
 
   it('should switch to and render the "Complaint" form when selected', () => {
     render(<ContactusPage />);
-    fireEvent.click(screen.getByRole("radio", { name: "Complaint" }));
-    expect(screen.getByRole("radio", { name: "Complaint" })).toBeChecked();
-    expect(
-      screen.getByText(/Please add link regarding your complaint/i)
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
+    expect(screen.getByRole('radio', { name: 'Complaint' })).toBeChecked();
+    expect(screen.getByText(/Please add link regarding your complaint/i)).toBeInTheDocument();
   });
 
   it('should switch to and render the "Data Service Access Request" form when selected', () => {
     render(<ContactusPage />);
-    fireEvent.click(
-      screen.getByRole("radio", { name: "Data Service Access Request" })
-    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Data Service Access Request' }));
     expect(
-      screen.getByText(
-        /Under the rights of which law are you making this request/i
-      )
+      screen.getByText(/Under the rights of which law are you making this request/i)
     ).toBeInTheDocument();
   });
 
-  describe("Form Submission and Validation", () => {
-    it("should show validation errors if required fields are empty on general enquiry", async () => {
+  describe('Form Submission and Validation', () => {
+    it('should show validation errors if required fields are empty on general enquiry', async () => {
       render(<ContactusPage />);
-      const submitButton = screen.getAllByRole("button", {
-        name: "Send message",
+      const submitButton = screen.getAllByRole('button', {
+        name: 'Send message',
       })[0];
       fireEvent.click(submitButton);
     });
 
-    it("should show invalid email error", async () => {
+    it('should show invalid email error', async () => {
       render(<ContactusPage />);
 
-      fireEvent.change(screen.getByLabelText("Full Name"), {
-        target: { value: "John Doe" },
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'John Doe' },
       });
-      fireEvent.change(screen.getByPlaceholderText("Your Message"), {
-        target: { value: "A message" },
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+        target: { value: 'A message' },
       });
 
-      fireEvent.change(screen.getByLabelText("Enter Email Address"), {
-        target: { value: "not-an-email" },
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'not-an-email' },
       });
-      fireEvent.click(
-        screen.getAllByRole("button", { name: "Send message" })[0]
-      );
+      fireEvent.click(screen.getAllByRole('button', { name: 'Send message' })[0]);
 
-      expect(
-        await screen.findByText("Invalid email address")
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Invalid email address')).toBeInTheDocument();
       expect(mockedPostData).not.toHaveBeenCalled();
     });
 
-    it("should enable submit button when general enquiry form is valid and submit successfully", async () => {
+    it('should enable submit button when general enquiry form is valid and submit successfully', async () => {
       render(<ContactusPage />);
-      const submitButton = screen.getAllByRole("button", {
-        name: "Send message",
+      const submitButton = screen.getAllByRole('button', {
+        name: 'Send message',
       })[0];
       expect(submitButton).toBeInTheDocument();
 
-      fireEvent.change(screen.getByLabelText("Full Name"), {
-        target: { value: "John Doe" },
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'John Doe' },
       });
-      fireEvent.change(screen.getByLabelText("Enter Email Address"), {
-        target: { value: "john.doe@example.com" },
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'john.doe@example.com' },
       });
-      fireEvent.change(screen.getByPlaceholderText("Your Message"), {
-        target: { value: "This is a test message." },
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+        target: { value: 'This is a test message.' },
       });
 
       await waitFor(() => expect(submitButton).toBeEnabled());
       fireEvent.click(submitButton);
       await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
-      expect(mockedPostData).toHaveBeenCalledWith(
-        "/v1/contact-us/contact-web",
-        {
-          type: "GENERAL_ENQUIRY",
-          message: "This is a test message.",
-          fullName: "John Doe",
-          email: "john.doe@example.com",
-          source: "PMS_WEB",
-        },
-      );
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/contact-us/contact-web', {
+        type: 'GENERAL_ENQUIRY',
+        message: 'This is a test message.',
+        fullName: 'John Doe',
+        email: 'john.doe@example.com',
+        source: 'PMS_WEB',
+      });
     });
 
-    it("should submit a feature request successfully", async () => {
+    it('should submit a feature request successfully', async () => {
       render(<ContactusPage />);
-      fireEvent.click(screen.getByRole("radio", { name: "Feature Request" }));
+      fireEvent.click(screen.getByRole('radio', { name: 'Feature Request' }));
 
-      const submitButton = screen.getAllByRole("button", {
-        name: "Send message",
+      const submitButton = screen.getAllByRole('button', {
+        name: 'Send message',
       })[0];
 
-      fireEvent.change(screen.getByLabelText("Full Name"), {
-        target: { value: "John Doe" },
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'John Doe' },
       });
-      fireEvent.change(screen.getByLabelText("Enter Email Address"), {
-        target: { value: "john.doe@example.com" },
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'john.doe@example.com' },
       });
-      fireEvent.change(screen.getByPlaceholderText("Your Message"), {
-        target: { value: "This is a feature request." },
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+        target: { value: 'This is a feature request.' },
       });
 
       await waitFor(() => expect(submitButton).toBeEnabled());
       fireEvent.click(submitButton);
       await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
-      expect(mockedPostData).toHaveBeenCalledWith(
-        "/v1/contact-us/contact-web",
-        {
-          type: "FEATURE_REQUEST",
-          message: "This is a feature request.",
-          fullName: "John Doe",
-          email: "john.doe@example.com",
-          source: "PMS_WEB",
-        },
-      );
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/contact-us/contact-web', {
+        type: 'FEATURE_REQUEST',
+        message: 'This is a feature request.',
+        fullName: 'John Doe',
+        email: 'john.doe@example.com',
+        source: 'PMS_WEB',
+      });
     });
 
-    it("should enable submit button when complaint form is valid and submit successfully", async () => {
+    it('should enable submit button when complaint form is valid and submit successfully', async () => {
       render(<ContactusPage />);
-      fireEvent.click(screen.getByRole("radio", { name: "Complaint" }));
+      fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
 
-      const submitButton = screen.getByRole("button", { name: "Send message" });
+      const submitButton = screen.getByRole('button', { name: 'Send message' });
       expect(submitButton).toBeInTheDocument();
 
-      fireEvent.change(screen.getByLabelText("Full Name"), {
-        target: { value: "Jane Doe" },
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'Jane Doe' },
       });
-      fireEvent.change(screen.getByLabelText("Enter Email Address"), {
-        target: { value: "jane.doe@example.com" },
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'jane.doe@example.com' },
       });
-      fireEvent.change(screen.getAllByPlaceholderText("Your Message")[0], {
-        target: { value: "This is a complaint." },
+      fireEvent.change(screen.getAllByPlaceholderText('Your Message')[0], {
+        target: { value: 'This is a complaint.' },
       });
-      fireEvent.change(screen.getByLabelText("Paste link (optional)"), {
-        target: { value: "http://example.com" },
+      fireEvent.change(screen.getByLabelText('Paste link (optional)'), {
+        target: { value: 'http://example.com' },
       });
       fireEvent.click(
         screen.getByLabelText(
-          "An agent authorized by the consumer to make this request on their behalf"
+          'An agent authorized by the consumer to make this request on their behalf'
         )
       );
 
-      const file = new File(["hello"], "hello.png", { type: "image/png" });
-      const imageInput = screen.getByLabelText("Upload Image");
+      const file = new File(['hello'], 'hello.png', { type: 'image/png' });
+      const imageInput = screen.getByLabelText('Upload Image');
       await userEvent.upload(imageInput, file);
 
-      const allCheckboxes = screen.getAllByRole("checkbox");
+      const allCheckboxes = screen.getAllByRole('checkbox');
       for (const checkbox of allCheckboxes) {
         fireEvent.click(checkbox);
       }
@@ -220,59 +203,48 @@ describe("ContactusPage", () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
-      expect(mockedPostData).toHaveBeenCalledWith(
-        "/v1/contact-us/contact-web",
-        {
-          type: "COMPLAINT",
-          message: "This is a complaint.",
-          fullName: "Jane Doe",
-          email: "jane.doe@example.com",
-          source: "PMS_WEB",
-        },
-      );
-      expect(screen.getByLabelText("Full Name")).toHaveValue("");
-      expect(screen.getByLabelText("Enter Email Address")).toHaveValue("");
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/contact-us/contact-web', {
+        type: 'COMPLAINT',
+        message: 'This is a complaint.',
+        fullName: 'Jane Doe',
+        email: 'jane.doe@example.com',
+        source: 'PMS_WEB',
+      });
+      expect(screen.getByLabelText('Full Name')).toHaveValue('');
+      expect(screen.getByLabelText('Enter Email Address')).toHaveValue('');
     });
 
-    it("should show validation error on complaint form", async () => {
+    it('should show validation error on complaint form', async () => {
       render(<ContactusPage />);
-      fireEvent.click(screen.getByRole("radio", { name: "Complaint" }));
+      fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
 
-      const submitButton = screen.getByRole("button", { name: "Send message" });
+      const submitButton = screen.getByRole('button', { name: 'Send message' });
       expect(submitButton).toBeDisabled();
     });
 
-    it("should enable submit button when DSAR form is valid and submit successfully", async () => {
+    it('should enable submit button when DSAR form is valid and submit successfully', async () => {
       render(<ContactusPage />);
-      fireEvent.click(
-        screen.getByRole("radio", { name: "Data Service Access Request" })
-      );
+      fireEvent.click(screen.getByRole('radio', { name: 'Data Service Access Request' }));
 
-      const submitButton = screen.getByRole("button", { name: "Send message" });
+      const submitButton = screen.getByRole('button', { name: 'Send message' });
       expect(submitButton).toBeInTheDocument();
 
-      fireEvent.change(screen.getByLabelText("Full Name"), {
-        target: { value: "Sam Smith" },
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'Sam Smith' },
       });
-      fireEvent.change(screen.getByLabelText("Enter Email Address"), {
-        target: { value: "sam.smith@example.com" },
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'sam.smith@example.com' },
       });
-      fireEvent.change(screen.getAllByPlaceholderText("Your Message")[0], {
-        target: { value: "DSAR request." },
+      fireEvent.change(screen.getAllByPlaceholderText('Your Message')[0], {
+        target: { value: 'DSAR request.' },
       });
-      fireEvent.click(
-        screen.getByLabelText(
-          "The person whose name appears above"
-        )
-      );
-      fireEvent.change(screen.getByTestId("dynamic-select"), {
-        target: { value: "UK_GDPR" },
+      fireEvent.click(screen.getByLabelText('The person whose name appears above'));
+      fireEvent.change(screen.getByTestId('dynamic-select'), {
+        target: { value: 'UK_GDPR' },
       });
-      fireEvent.click(
-        screen.getByLabelText("Access your personal information")
-      );
+      fireEvent.click(screen.getByLabelText('Access your personal information'));
 
-      const checkboxes = screen.getAllByRole("checkbox");
+      const checkboxes = screen.getAllByRole('checkbox');
       for (const checkbox of checkboxes) {
         fireEvent.click(checkbox);
       }
@@ -281,88 +253,77 @@ describe("ContactusPage", () => {
 
       fireEvent.click(submitButton);
       await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
-      expect(mockedPostData).toHaveBeenCalledWith(
-        "/v1/contact-us/contact-web",
-        {
-          type: "DSAR",
-          message: "DSAR request.",
-          fullName: "Sam Smith",
-          email: "sam.smith@example.com",
-          source: "PMS_WEB",
-          dsarDetails: {
-            requesterType: "SELF",
-            lawBasis: "UK_GDPR",
-            rightsRequested: ["ACCESS_PERSONAL_INFORMATION"],
-            declarationAccepted: true,
-          },
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/contact-us/contact-web', {
+        type: 'DSAR',
+        message: 'DSAR request.',
+        fullName: 'Sam Smith',
+        email: 'sam.smith@example.com',
+        source: 'PMS_WEB',
+        dsarDetails: {
+          requesterType: 'SELF',
+          lawBasis: 'UK_GDPR',
+          rightsRequested: ['ACCESS_PERSONAL_INFORMATION'],
+          declarationAccepted: true,
         },
-      );
-      expect(screen.getByLabelText("Full Name")).toHaveValue("");
-      expect(screen.getByLabelText("Enter Email Address")).toHaveValue("");
-      expect(screen.getByRole("radio", { name: "General Enquiry" })).toBeChecked();
+      });
+      expect(screen.getByLabelText('Full Name')).toHaveValue('');
+      expect(screen.getByLabelText('Enter Email Address')).toHaveValue('');
+      expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
     });
 
-    it("should keep submit button disabled if DSAR form is almost valid", async () => {
+    it('should keep submit button disabled if DSAR form is almost valid', async () => {
       render(<ContactusPage />);
-      fireEvent.click(
-        screen.getByRole("radio", { name: "Data Service Access Request" })
-      );
+      fireEvent.click(screen.getByRole('radio', { name: 'Data Service Access Request' }));
 
-      const submitButton = screen.getByRole("button", { name: "Send message" });
+      const submitButton = screen.getByRole('button', { name: 'Send message' });
 
-      fireEvent.change(screen.getByLabelText("Full Name"), {
-        target: { value: "Sam Smith" },
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'Sam Smith' },
       });
-      fireEvent.change(screen.getByLabelText("Enter Email Address"), {
-        target: { value: "sam.smith@example.com" },
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'sam.smith@example.com' },
       });
-      fireEvent.change(screen.getAllByPlaceholderText("Your Message")[0], {
-        target: { value: "DSAR request." },
+      fireEvent.change(screen.getAllByPlaceholderText('Your Message')[0], {
+        target: { value: 'DSAR request.' },
       });
-      fireEvent.click(
-        screen.getByLabelText(
-          "The person whose name appears above"
-        )
-      );
-      fireEvent.change(screen.getByTestId("dynamic-select"), {
-        target: { value: "west" },
+      fireEvent.click(screen.getByLabelText('The person whose name appears above'));
+      fireEvent.change(screen.getByTestId('dynamic-select'), {
+        target: { value: 'west' },
       });
-      fireEvent.click(
-        screen.getByLabelText("Access your personal information")
-      );
+      fireEvent.click(screen.getByLabelText('Access your personal information'));
 
-      const checkboxes = screen.getAllByRole("checkbox");
+      const checkboxes = screen.getAllByRole('checkbox');
       fireEvent.click(checkboxes[0]);
       fireEvent.click(checkboxes[1]);
 
       expect(submitButton).toBeDisabled();
     });
 
-    it("should handle API submission failure gracefully", async () => {
-      mockedPostData.mockRejectedValue(new Error("API Error"));
+    it('should handle API submission failure gracefully', async () => {
+      mockedPostData.mockRejectedValue(new Error('API Error'));
 
       render(<ContactusPage />);
 
-      const submitButton = screen.getAllByRole("button", {
-        name: "Send message",
+      const submitButton = screen.getAllByRole('button', {
+        name: 'Send message',
       })[0];
 
-      fireEvent.change(screen.getByLabelText("Full Name"), {
-        target: { value: "John Doe" },
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'John Doe' },
       });
-      fireEvent.change(screen.getByLabelText("Enter Email Address"), {
-        target: { value: "john.doe@example.com" },
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'john.doe@example.com' },
       });
-      fireEvent.change(screen.getByPlaceholderText("Your Message"), {
-        target: { value: "This will fail." },
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+        target: { value: 'This will fail.' },
       });
 
       await waitFor(() => expect(submitButton).toBeEnabled());
       fireEvent.click(submitButton);
 
       await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
-      expect(screen.queryByText("submitting...")).not.toBeInTheDocument();
-      expect(screen.getByText("Send message")).toBeInTheDocument();
+      expect(screen.queryByText('submitting...')).not.toBeInTheDocument();
+      expect(screen.getByText('Send message')).toBeInTheDocument();
     });
   });
 });

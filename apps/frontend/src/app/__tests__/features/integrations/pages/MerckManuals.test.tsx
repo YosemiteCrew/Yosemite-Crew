@@ -1,6 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 
 import ProtectedMerckManuals from '@/app/features/integrations/pages/MerckManuals';
 
@@ -248,5 +251,39 @@ describe('MerckManuals page', () => {
 
     await waitFor(() => expect(searchMock).toHaveBeenCalled());
     expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ query: 'renal disease' }));
+  });
+
+  it('has no axe violations on initial render (enabled)', async () => {
+    const { container } = render(<ProtectedMerckManuals />);
+    await screen.findByRole('heading', { name: 'MSD Veterinary Manual' });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('has no axe violations when integration is disabled', async () => {
+    useResolvedMerckIntegrationForPrimaryOrgMock.mockReturnValue({
+      integration: { source: 'backend' },
+      isEnabled: false,
+    });
+    const { container } = render(<ProtectedMerckManuals />);
+    await screen.findByText('MSD Veterinary Manual is disabled for this organization.');
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('audience toggle exposes aria-pressed for each mode', () => {
+    render(<ProtectedMerckManuals />);
+    const profButton = screen.getByRole('button', { name: 'Professional' });
+    const consButton = screen.getByRole('button', { name: 'Consumer' });
+    expect(profButton).toHaveAttribute('aria-pressed', 'true');
+    expect(consButton).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('language filter pills expose aria-pressed state', async () => {
+    render(<ProtectedMerckManuals />);
+    fireEvent.click(screen.getByLabelText('Show filters'));
+    await screen.findByRole('button', { name: 'EN' });
+    expect(screen.getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'ES' })).toHaveAttribute('aria-pressed', 'false');
   });
 });

@@ -76,6 +76,7 @@ describe('SessionInitializer', () => {
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('header')).toBeInTheDocument();
     expect(screen.getByTestId('child')).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
     expect(useFullscreenLoader).toHaveBeenCalledWith('session-initializer', false);
   });
 

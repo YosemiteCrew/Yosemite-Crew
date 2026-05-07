@@ -1,6 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
 
@@ -33,12 +36,28 @@ describe('TitleCalendar', () => {
       />
     );
 
-    expect(screen.getByText('Appointments')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Appointments/ })).toBeInTheDocument();
     expect(screen.getByText('(3)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Appointments info' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Add'));
     expect(setAddPopup).toHaveBeenCalledWith(true);
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(
+      <TitleCalendar
+        title="Appointments"
+        description="Daily schedule"
+        setAddPopup={jest.fn()}
+        count={3}
+        activeView="calendar"
+        setActiveView={jest.fn()}
+        showAdd
+      />
+    );
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it('toggles active view', () => {

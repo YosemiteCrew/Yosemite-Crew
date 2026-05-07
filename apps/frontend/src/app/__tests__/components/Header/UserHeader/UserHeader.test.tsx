@@ -95,6 +95,10 @@ describe('UserHeader Component', () => {
 
     // Verify toggle button state changes
     expect(screen.getByLabelText('Close menu')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute(
+      'aria-controls',
+      'user-mobile-menu'
+    );
   });
 
   it('opens the menu and displays Developer routes when path starts with /developers', async () => {
@@ -213,5 +217,37 @@ describe('UserHeader Component', () => {
 
     consoleSpy.mockRestore();
     jest.useRealTimers();
+  });
+
+  it('wires desktop account controls with expanded and controlled menu semantics', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    render(<UserHeader />);
+
+    const profileTrigger = screen.getByRole('button', { name: /account/i });
+    expect(profileTrigger).toHaveAttribute('aria-expanded', 'false');
+    expect(profileTrigger).toHaveAttribute('aria-controls', 'user-header-profile-menu');
+
+    await act(async () => {
+      fireEvent.click(profileTrigger);
+    });
+
+    expect(screen.getByRole('menu')).toHaveAttribute('id', 'user-header-profile-menu');
+    expect(profileTrigger).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('closes the account menu when Escape is pressed', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    render(<UserHeader />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /account/i }));
+    });
+
+    const accountMenu = screen.getByRole('menu');
+    fireEvent.keyDown(accountMenu, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
   });
 });

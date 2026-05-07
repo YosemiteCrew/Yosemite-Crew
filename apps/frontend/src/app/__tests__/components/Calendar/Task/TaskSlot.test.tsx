@@ -1,6 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { Task } from '@/app/features/tasks/types/task';
@@ -19,6 +20,8 @@ jest.mock('@/app/features/appointments/components/Calendar/calendarDrop', () => 
 }));
 
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+
+expect.extend(toHaveNoViolations);
 
 describe('TaskSlot', () => {
   const handleViewTask = jest.fn();
@@ -79,7 +82,7 @@ describe('TaskSlot', () => {
       <TaskSlot slotEvents={[]} handleViewTask={handleViewTask} index={1} length={1} height={180} />
     );
 
-    const slotContainer = screen.getByRole('application');
+    const slotContainer = screen.getByRole('region', { name: /Tasks slot for/i });
     expect(slotContainer).toBeInTheDocument();
     expect(slotContainer).toHaveStyle('height: 180px');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
@@ -99,7 +102,7 @@ describe('TaskSlot', () => {
       />
     );
 
-    const createButton = screen.getByRole('button', { name: 'Create task in this calendar slot' });
+    const createButton = screen.getByRole('button', { name: /Create task on/i });
     fireEvent.click(createButton, { clientY: 40 });
     fireEvent.doubleClick(createButton, { clientY: 60 });
 
@@ -124,10 +127,85 @@ describe('TaskSlot', () => {
       />
     );
 
-    const slot = screen.getByRole('application');
+    const slot = screen.getByRole('region', { name: /Tasks slot for/i });
     fireEvent.dragOver(slot, { clientX: 12, clientY: 55 });
     fireEvent.drop(slot, { clientX: 12, clientY: 55 });
 
     expect(onTaskDropAt).toHaveBeenCalledWith(expect.any(Date), 625, undefined);
+  });
+
+  it('has no axe accessibility violations when the task popover is open', async () => {
+    const slotEvents: Task[] = [
+      {
+        name: 'Task A',
+        dueAt: new Date('2025-01-06T10:00:00Z'),
+        status: 'PENDING',
+        assignedBy: 'user-1',
+        assignedTo: 'user-1',
+        _id: 'task-a',
+        audience: 'EMPLOYEE_TASK',
+        source: 'CUSTOM',
+        category: 'General',
+      } as Task,
+    ];
+
+    render(
+      <TaskSlot
+        slotEvents={slotEvents}
+        handleViewTask={handleViewTask}
+        index={0}
+        length={1}
+        height={200}
+      />
+    );
+
+    fireEvent.focus(screen.getByRole('button', { name: /Task A/i }));
+
+    const results = await axe(document.body);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('wires task markers to a non-modal dialog popover and closes on Escape', () => {
+    const slotEvents: Task[] = [
+      {
+        name: 'Task A',
+        dueAt: new Date('2025-01-06T10:00:00Z'),
+        status: 'PENDING',
+        assignedBy: 'user-1',
+        assignedTo: 'user-1',
+        _id: 'task-a',
+        audience: 'EMPLOYEE_TASK',
+        source: 'CUSTOM',
+        category: 'General',
+      } as Task,
+    ];
+
+    render(
+      <TaskSlot
+        slotEvents={slotEvents}
+        handleViewTask={handleViewTask}
+        index={0}
+        length={1}
+        height={200}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: /Task A/i });
+    expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.focus(trigger);
+
+    const dialog = screen.getByRole('dialog', { name: 'Task A' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(trigger).toHaveAttribute('aria-controls', dialog.getAttribute('id'));
+    expect(dialog).toHaveAttribute('aria-modal', 'false');
+
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    return waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Task A' })).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
   });
 });

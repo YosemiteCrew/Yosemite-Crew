@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import InvoiceInfo from '@/app/features/finance/pages/Finance/Sections/InvoiceInfo';
 
 jest.mock('next/navigation', () => ({
@@ -93,15 +94,17 @@ jest.mock('@/app/lib/validators', () => ({
 
 const baseInvoice = { id: 'inv-1', status: 'PAID', metadata: {} } as any;
 
+expect.extend(toHaveNoViolations);
+
 describe('InvoiceInfo', () => {
   it('renders modal with tabs', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
     expect(screen.getByTestId('modal')).toBeInTheDocument();
-    expect(screen.getByText('View invoice')).toBeInTheDocument();
-    expect(screen.getByText('Details')).toBeInTheDocument();
-    expect(screen.getByText('Payment')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'View invoice' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Payment' })).toBeInTheDocument();
   });
 
   it('shows appointment details tab by default', () => {
@@ -116,10 +119,32 @@ describe('InvoiceInfo', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
-    fireEvent.click(screen.getByText('Payment'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
     expect(screen.getByTestId('payment-actions')).toBeInTheDocument();
     expect(screen.getByText('Pay')).toBeInTheDocument();
     expect(screen.getByText('Powered by stripe')).toBeInTheDocument();
+  });
+
+  it('exposes proper tab semantics for invoice sections', () => {
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
+
+    const detailsTab = screen.getByRole('tab', { name: 'Details' });
+    const paymentTab = screen.getByRole('tab', { name: 'Payment' });
+
+    expect(detailsTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute(
+      'aria-labelledby',
+      detailsTab.getAttribute('id')
+    );
+
+    fireEvent.click(paymentTab);
+
+    expect(paymentTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute(
+      'aria-labelledby',
+      paymentTab.getAttribute('id')
+    );
   });
 
   it('closes modal when close button clicked', () => {
@@ -151,9 +176,19 @@ describe('InvoiceInfo', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
-    fireEvent.click(screen.getByText('Payment'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
     expect(screen.getByText('Status:')).toBeInTheDocument();
     // Status value rendered as badge in Pay card
     expect(screen.getAllByText('PAID').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('has no axe accessibility violations', async () => {
+    const setShowModal = jest.fn();
+    const { container } = render(
+      <InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />
+    );
+
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

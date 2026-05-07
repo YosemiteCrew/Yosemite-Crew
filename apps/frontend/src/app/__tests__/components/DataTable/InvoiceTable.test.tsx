@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
 import InvoiceTable, { getStatusStyle } from '@/app/ui/tables/InvoiceTable';
 import { Invoice } from '@yosemite-crew/types';
@@ -58,6 +59,8 @@ jest.mock('@/app/lib/invoicePaymentMethod', () => ({
   getInvoicePaymentMethodLabel: () => 'Paid in cash',
 }));
 
+expect.extend(toHaveNoViolations);
+
 describe('InvoiceTable', () => {
   const invoice: Invoice = {
     id: 'inv-1',
@@ -102,8 +105,8 @@ describe('InvoiceTable', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('eye-icon').closest('button')!);
-    fireEvent.click(screen.getByTitle('Open appointment finance'));
+    fireEvent.click(screen.getByRole('button', { name: 'View invoice inv-1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open finance details for Buddy' }));
 
     expect(screen.getByText('Sam / Buddy')).toBeInTheDocument();
     expect(screen.getByText('Jan 1')).toBeInTheDocument();
@@ -115,6 +118,19 @@ describe('InvoiceTable', () => {
     );
     expect(setActiveInvoice).toHaveBeenCalledWith(invoice);
     expect(setViewInvoice).toHaveBeenCalledWith(true);
+  });
+
+  it('shows an accessible empty state when no invoices match', () => {
+    render(<InvoiceTable filteredList={[]} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('No invoices match the current filters.');
+  });
+
+  it('has no axe accessibility violations', async () => {
+    const { container } = render(<InvoiceTable filteredList={[invoice]} />);
+
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it('returns styles for known status', () => {

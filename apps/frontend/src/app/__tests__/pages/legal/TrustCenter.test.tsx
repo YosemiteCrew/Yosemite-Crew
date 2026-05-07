@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import TrustCenter from '@/app/features/legal/pages/TrustCenter';
 
 // 1. Mock next/image to filter out Next.js specific props to prevent console errors
@@ -23,6 +24,8 @@ Object.assign(navigator, {
 
 // Mock window.alert
 globalThis.alert = jest.fn();
+
+expect.extend(toHaveNoViolations);
 
 describe('TrustCenter Component', () => {
   beforeEach(() => {
@@ -192,6 +195,13 @@ describe('TrustCenter Component', () => {
     fireEvent.click(subprocTab);
     expect(screen.getByText('Authorized Sub-processors')).toBeInTheDocument();
     expect(screen.getByText('Amazon Web Services')).toBeInTheDocument();
+    expect(
+      screen.getByRole('table', {
+        name: /Authorized sub-processors, provided services, and operating locations/i,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Provider' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Amazon Web Services' })).toBeInTheDocument();
   });
 
   it("navigates to tabs via Overview 'View all' buttons", () => {
@@ -230,5 +240,11 @@ describe('TrustCenter Component', () => {
     } else {
       throw new Error('Could not find clickable copy button for accessibility test');
     }
+  });
+
+  it('has no axe accessibility violations on initial render', async () => {
+    const { container } = render(<TrustCenter />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

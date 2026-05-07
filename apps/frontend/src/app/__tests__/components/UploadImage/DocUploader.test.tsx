@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import DocUploader from '@/app/ui/widgets/UploadImage/DocUploader';
 import { postData } from '@/app/services/axios';
 import axios from 'axios';
@@ -18,10 +19,10 @@ jest.mock('axios');
 jest.mock('react-icons/fa', () => ({
   FaCloudUploadAlt: () => <span data-testid="icon-cloud" />,
   FaFilePdf: () => <span data-testid="icon-pdf" />,
-  FaTrashAlt: ({ onClick }: { onClick: () => void }) => (
-    <button type="button" data-testid="icon-trash" onClick={onClick} />
-  ),
+  FaTrashAlt: () => <span data-testid="icon-trash" />,
 }));
+
+expect.extend(toHaveNoViolations);
 
 describe('DocUploader Component', () => {
   const mockOnChange = jest.fn();
@@ -309,5 +310,20 @@ describe('DocUploader Component', () => {
     fireEvent.click(trashIcon);
 
     expect(mockSetFile).toHaveBeenCalledWith(null);
+  });
+
+  it('has no axe accessibility violations', async () => {
+    const { container } = render(
+      <DocUploader
+        placeholder={mockPlaceholder}
+        onChange={mockOnChange}
+        apiUrl={mockApiUrl}
+        file={null}
+        setFile={mockSetFile}
+      />
+    );
+
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

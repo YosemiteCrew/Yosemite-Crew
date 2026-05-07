@@ -6,6 +6,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { useSignOut } from '@/app/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { postData } from '@/app/services/axios';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
 // --- Mocks ---
 
@@ -33,6 +34,8 @@ jest.mock('@/app/hooks/useAuth', () => ({
 jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: () => <span data-testid="mock-icon" />,
 }));
+
+expect.extend(toHaveNoViolations);
 
 describe('OtpModal Component', () => {
   const testPassword = process.env.TEST_PASSWORD ?? 'test-password';
@@ -78,11 +81,14 @@ describe('OtpModal Component', () => {
   it('renders the modal with correct email and initial state', () => {
     render(<OtpModal {...defaultProps} />);
 
-    expect(screen.getByText('Verify Email Address')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Verify Email Address' })).toBeInTheDocument();
     expect(screen.getByText('test@example.com')).toBeInTheDocument();
     expect(screen.getAllByRole('textbox')).toHaveLength(6);
     expect(screen.getByText('Verify Code')).toBeInTheDocument();
     expect(screen.getByText('02:30 sec')).toBeInTheDocument();
+    expect(
+      screen.getByRole('group', { name: 'Email verification code' })
+    ).toHaveAccessibleDescription('Enter the 6-digit code from your email.');
   });
 
   it('does not render when showVerifyModal is false', () => {
@@ -389,5 +395,12 @@ describe('OtpModal Component', () => {
       code: 'Escape',
     });
     expect(mockSetShowVerifyModal).not.toHaveBeenCalled();
+  });
+
+  it('has no axe accessibility violations', async () => {
+    jest.useRealTimers();
+    const { container } = render(<OtpModal {...defaultProps} />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

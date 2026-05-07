@@ -210,7 +210,32 @@ describe('DayCalendar (Appointments)', () => {
     });
 
     expect(handleViewAppointment).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog', { name: 'Appointment quick actions' })).toBeInTheDocument();
+    expect(allDayButton).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(allDayButton).toHaveAttribute('aria-expanded', 'true');
+    expect(allDayButton).toHaveAccessibleName('All-day appointment for Buddy. Checkup');
+    expect(screen.getByRole('dialog', { name: 'Buddy' })).toBeInTheDocument();
+  });
+
+  it('labels the day timeline as a navigable region when slot creation is enabled', () => {
+    render(
+      <DayCalendar
+        events={[]}
+        date={baseDate}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments={false}
+        onCreateAppointmentAt={jest.fn()}
+      />
+    );
+
+    const timeline = screen.getByRole('region', {
+      name: 'Appointments timeline for Monday, January 6',
+    });
+
+    expect(timeline).toHaveAccessibleDescription(
+      'Press Enter or Space to create an appointment at the middle of this visible timeline, or click a time slot directly.'
+    );
   });
 
   it('renders timed events and handles reschedule clicks from the single-click popover', () => {

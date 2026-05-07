@@ -50,6 +50,9 @@ describe('PricingPage', () => {
   test('toggles billing cycles and shows plans', () => {
     render(<PricingPage />);
 
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Transparent pricing, no hidden fees' })
+    ).toBeInTheDocument();
     const monthly = screen.getByText('Pay monthly');
     const yearly = screen.getByText('Pay yearly');
     expect(yearly.className).toMatch(/bg-blue-light/);

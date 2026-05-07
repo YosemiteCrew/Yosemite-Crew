@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import SignIn from '@/app/features/auth/pages/SignIn/SignIn';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useRouter } from 'next/navigation';
@@ -33,8 +34,8 @@ jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: ({ value, onChange, error, inlabel }: any) => (
     <div data-testid="email-input-wrapper">
-      <label>{inlabel}</label>
-      <input data-testid="email-input" value={value} onChange={onChange} />
+      <label htmlFor="signin-email">{inlabel}</label>
+      <input id="signin-email" data-testid="email-input" value={value} onChange={onChange} />
       {error && <span data-testid="email-error">{error}</span>}
     </div>
   ),
@@ -44,8 +45,14 @@ jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
   __esModule: true,
   default: ({ value, onChange, error, inlabel }: any) => (
     <div data-testid="password-input-wrapper">
-      <label>{inlabel}</label>
-      <input data-testid="password-input" value={value} onChange={onChange} type="password" />
+      <label htmlFor="signin-password">{inlabel}</label>
+      <input
+        id="signin-password"
+        data-testid="password-input"
+        value={value}
+        onChange={onChange}
+        type="password"
+      />
       {error && <span data-testid="password-error">{error}</span>}
     </div>
   ),
@@ -79,6 +86,8 @@ Object.defineProperty(globalThis, 'sessionStorage', {
 Object.defineProperty(globalThis, 'scrollTo', {
   value: jest.fn(),
 });
+
+expect.extend(toHaveNoViolations);
 
 describe('SignIn Page', () => {
   const mockSignIn = jest.fn();
@@ -149,6 +158,19 @@ describe('SignIn Page', () => {
     expect(screen.getByTestId('email-error')).toHaveTextContent('Email is required');
     expect(screen.getByTestId('password-error')).toHaveTextContent('Password is required');
     expect(mockSignIn).not.toHaveBeenCalled();
+  });
+
+  it('clears the password validation error when the user edits the password field', () => {
+    render(<SignIn />);
+
+    fireEvent.click(screen.getByTestId('signin-btn'));
+    expect(screen.getByTestId('password-error')).toHaveTextContent('Password is required');
+
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'updated-password' },
+    });
+
+    expect(screen.queryByTestId('password-error')).not.toBeInTheDocument();
   });
 
   it('shows a validation error for an invalid email format', () => {
@@ -371,5 +393,11 @@ describe('SignIn Page', () => {
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Error resending code.' })
     );
+  });
+
+  it('has no axe accessibility violations', async () => {
+    const { container } = render(<SignIn />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

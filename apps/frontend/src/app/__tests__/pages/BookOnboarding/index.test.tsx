@@ -1,7 +1,20 @@
-import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import ProtectedBookOnboarding from "@/app/features/onboarding/pages/BookOnboarding";
-import { getCalApi } from "@calcom/embed-react";
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import ProtectedBookOnboarding from '@/app/features/onboarding/pages/BookOnboarding';
+import { getCalApi } from '@calcom/embed-react';
+
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: () => {
+    const MockDynamicCal = (props: any) => (
+      <div data-testid="cal-component" data-props={JSON.stringify(props)}>
+        Cal Embed Component
+      </div>
+    );
+    MockDynamicCal.displayName = 'MockDynamicCal';
+    return MockDynamicCal;
+  },
+}));
 
 // --- Mocks ---
 
@@ -9,20 +22,15 @@ import { getCalApi } from "@calcom/embed-react";
 // We need to mock both the default export (the Component) and the named export (getCalApi)
 const mockCalApiFunction = jest.fn();
 
-jest.mock("@calcom/embed-react", () => ({
+jest.mock('@calcom/embed-react', () => ({
   __esModule: true,
-  // Mock the <Cal /> component to render a dummy div with its props serialized
-  default: jest.fn((props) => (
-    <div data-testid="cal-component" data-props={JSON.stringify(props)}>
-      Cal Embed Component
-    </div>
-  )),
   // Mock getCalApi to return a Promise that resolves to our spy function
   getCalApi: jest.fn(() => Promise.resolve(mockCalApiFunction)),
+  default: () => null,
 }));
 
 // 2. Mock OrgGuard
-jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
+jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="org-guard">{children}</div>
@@ -30,65 +38,65 @@ jest.mock("@/app/ui/layout/guards/OrgGuard", () => ({
 }));
 
 // 3. Mock ProtectedRoute
-jest.mock("@/app/ui/layout/guards/ProtectedRoute", () => ({
+jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="protected-route">{children}</div>
   ),
 }));
 
-describe("BookOnboarding Page", () => {
+describe('BookOnboarding Page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("renders the page title and structure within protected guards", async () => {
+  it('renders the page title and structure within protected guards', async () => {
     render(<ProtectedBookOnboarding />);
 
     // 1. Verify Wrappers (Statements/Functions coverage for ProtectedBookOnboarding)
-    const protectedRoute = screen.getByTestId("protected-route");
-    const orgGuard = screen.getByTestId("org-guard");
+    const protectedRoute = screen.getByTestId('protected-route');
+    const orgGuard = screen.getByTestId('org-guard');
 
     expect(protectedRoute).toContainElement(orgGuard);
 
     // 2. Verify Cal embed renders
-    expect(screen.getByTestId("cal-component")).toBeInTheDocument();
+    expect(await screen.findByTestId('cal-component')).toBeInTheDocument();
   });
 
-  it("initializes the Cal API on mount", async () => {
+  it('initializes the Cal API on mount', async () => {
     render(<ProtectedBookOnboarding />);
 
     // 1. Verify getCalApi is called (Effect coverage)
     await waitFor(() => {
       expect(getCalApi).toHaveBeenCalledTimes(1);
-      expect(getCalApi).toHaveBeenCalledWith({ namespace: "30min" });
+      expect(getCalApi).toHaveBeenCalledWith({ namespace: '30min' });
     });
 
     // 2. Verify the returned cal function is configured (Branch/Statement coverage inside async IIFE)
     await waitFor(() => {
       expect(mockCalApiFunction).toHaveBeenCalledTimes(1);
-      expect(mockCalApiFunction).toHaveBeenCalledWith("ui", {
+      expect(mockCalApiFunction).toHaveBeenCalledWith('ui', {
         hideEventTypeDetails: false,
-        layout: "month_view",
+        layout: 'month_view',
       });
     });
   });
 
-  it("renders the Cal component with correct props", () => {
+  it('renders the Cal component with correct props', () => {
     render(<ProtectedBookOnboarding />);
 
-    const calComponent = screen.getByTestId("cal-component");
+    const calComponent = screen.getByTestId('cal-component');
 
     // Parse the props passed to the mock
-    const props = JSON.parse(calComponent.dataset.props ?? "{}");
+    const props = JSON.parse(calComponent.dataset.props ?? '{}');
 
     // Verify all props passed to <Cal />
     expect(props).toEqual(
       expect.objectContaining({
-        namespace: "30min",
-        calLink: "yosemitecrew/onboarding",
-        style: { width: "100%", height: "100%", overflow: "scroll" },
-        config: { theme: "light", layout: "month_view" },
+        namespace: '30min',
+        calLink: 'yosemitecrew/onboarding',
+        style: { width: '100%', height: '100%', overflow: 'scroll' },
+        config: { theme: 'light', layout: 'month_view' },
       })
     );
   });
