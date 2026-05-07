@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -235,7 +235,9 @@ const ProtectedForms = () => {
   return (
     <ProtectedRoute>
       <OrgGuard>
-        <Forms />
+        <Suspense>
+          <Forms />
+        </Suspense>
       </OrgGuard>
     </ProtectedRoute>
   );

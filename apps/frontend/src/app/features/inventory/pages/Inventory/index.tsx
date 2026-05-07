@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -384,7 +384,9 @@ const ProtectedInventory = () => {
   return (
     <ProtectedRoute>
       <OrgGuard>
-        <Inventory />
+        <Suspense>
+          <Inventory />
+        </Suspense>
       </OrgGuard>
     </ProtectedRoute>
   );

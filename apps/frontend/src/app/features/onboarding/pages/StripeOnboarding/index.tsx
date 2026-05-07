@@ -7,7 +7,7 @@ import {
   onBoardConnectedAccount,
 } from '@/app/features/billing/services/stripeService';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { loadConnectAndInitialize, StripeConnectInstance } from '@stripe/connect-js/pure';
 import {
   ConnectAccountOnboarding,
@@ -177,7 +177,9 @@ const ProtectedStripeOnboarding = () => {
   return (
     <ProtectedRoute>
       <OrgGuard>
-        <StripeOnboarding />
+        <Suspense>
+          <StripeOnboarding />
+        </Suspense>
       </OrgGuard>
     </ProtectedRoute>
   );

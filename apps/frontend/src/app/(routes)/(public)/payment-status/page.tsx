@@ -2,7 +2,7 @@
 import { buildPaymentStatusUrl } from '@/app/lib/paymentStatusUrl';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { useSearchParams } from 'next/navigation';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 type DisplayState = 'paid' | 'no_payment_required' | 'unpaid';
 type RequestState = 'missing_session' | 'loading' | 'ready' | 'error';
@@ -15,7 +15,7 @@ type Return = {
 const shortId = (value: string) =>
   value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
 
-function Page() {
+function PageContent() {
   const searchParams = useSearchParams();
   const session_id = searchParams.get('session_id');
 
@@ -236,4 +236,10 @@ function Page() {
   );
 }
 
-export default Page;
+export default function Page() {
+  return (
+    <Suspense>
+      <PageContent />
+    </Suspense>
+  );
+}

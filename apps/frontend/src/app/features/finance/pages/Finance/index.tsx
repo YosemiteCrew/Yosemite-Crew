@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import InvoiceDataTable from '@/app/ui/tables/InvoiceTable';
@@ -150,7 +150,9 @@ const ProtectedFinance = () => {
   return (
     <ProtectedRoute>
       <OrgGuard>
-        <Finance />
+        <Suspense>
+          <Finance />
+        </Suspense>
       </OrgGuard>
     </ProtectedRoute>
   );

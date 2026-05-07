@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import AppointmentsTable from '@/app/ui/tables/Appointments';
@@ -517,7 +517,9 @@ const ProtectedAppoitments = () => {
   return (
     <ProtectedRoute>
       <OrgGuard>
-        <Appointments />
+        <Suspense>
+          <Appointments />
+        </Suspense>
       </OrgGuard>
     </ProtectedRoute>
   );

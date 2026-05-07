@@ -44,7 +44,9 @@ export default function RootLayout({
       <body>
         <SkipLink />
         {clarityProjectId ? <ClarityScript projectId={clarityProjectId} /> : null}
-        <RouteAnnouncer />
+        <Suspense>
+          <RouteAnnouncer />
+        </Suspense>
         {children}
         <GlobalFullscreenLoaderOverlay />
         <Suspense>

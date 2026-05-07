@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createPortal } from 'react-dom';
@@ -847,7 +847,9 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
 const ProtectedMerckManuals = () => (
   <ProtectedRoute>
     <OrgGuard>
-      <MerckManualsPage />
+      <Suspense>
+        <MerckManualsPage />
+      </Suspense>
     </OrgGuard>
   </ProtectedRoute>
 );
@@ -855,7 +857,9 @@ const ProtectedMerckManuals = () => (
 export const EmbeddedMerckManuals = () => (
   <ProtectedRoute>
     <OrgGuard>
-      <MerckManualsPage embedded />
+      <Suspense>
+        <MerckManualsPage embedded />
+      </Suspense>
     </OrgGuard>
   </ProtectedRoute>
 );

@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import TasksTable from '@/app/ui/tables/Tasks';
@@ -248,7 +248,9 @@ const ProtectedTasks = () => {
   return (
     <ProtectedRoute>
       <OrgGuard>
-        <Tasks />
+        <Suspense>
+          <Tasks />
+        </Suspense>
       </OrgGuard>
     </ProtectedRoute>
   );

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { HiShoppingBag } from 'react-icons/hi2';
 import { IoLocationSharp } from 'react-icons/io5';
 import { FaSuitcaseMedical } from 'react-icons/fa6';
@@ -236,7 +236,9 @@ const CreateOrg = () => {
 const ProtectedCreateOrg = () => {
   return (
     <ProtectedRoute>
-      <CreateOrg />
+      <Suspense>
+        <CreateOrg />
+      </Suspense>
     </ProtectedRoute>
   );
 };

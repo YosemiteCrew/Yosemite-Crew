@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { FaUser, FaCalendar } from 'react-icons/fa';
 import { IoDocument } from 'react-icons/io5';
 
@@ -261,7 +261,9 @@ const TeamOnboarding = () => {
 const ProtectedTeamOnboarding = () => {
   return (
     <ProtectedRoute>
-      <TeamOnboarding />
+      <Suspense>
+        <TeamOnboarding />
+      </Suspense>
     </ProtectedRoute>
   );
 };

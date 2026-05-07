@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import Filters from '@/app/ui/filters/Filters';
@@ -196,7 +196,9 @@ const ProtectedCompanions = () => {
   return (
     <ProtectedRoute>
       <OrgGuard>
-        <Companions />
+        <Suspense>
+          <Companions />
+        </Suspense>
       </OrgGuard>
     </ProtectedRoute>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { Suspense, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -31,7 +31,7 @@ const resolveSafeBackPath = (candidate: string | null, source: string | null): s
   return FALLBACK_BACK_PATH;
 };
 
-const CompanionHistoryPage = () => {
+const CompanionHistoryPageInner = () => {
   useLoadCompanionsForPrimaryOrg();
   const companions = useCompanionsParentsForPrimaryOrg();
   const companionsStatus = useCompanionStore((s) => s.status);
@@ -128,5 +128,11 @@ const CompanionHistoryPage = () => {
     </ProtectedRoute>
   );
 };
+
+const CompanionHistoryPage = () => (
+  <Suspense>
+    <CompanionHistoryPageInner />
+  </Suspense>
+);
 
 export default CompanionHistoryPage;
