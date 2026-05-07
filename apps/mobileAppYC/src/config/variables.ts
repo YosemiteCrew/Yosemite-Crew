@@ -1,17 +1,20 @@
-// Central place to hold URLs and other auth-related configuration for the
-// React Native CLI app.
-//
-// IMPORTANT FOR DEVELOPERS:
-// ------------------------
-// For local development with real credentials:
-// 1. Copy this file to variables.local.ts
-// 2. Add your real API keys and credentials to variables.local.ts
-// 3. The variables.local.ts file is gitignored and will be used automatically
-//
-// This file contains safe default/test values and is committed to git so that
-// CI/CD pipelines and other developers can run tests without real credentials.
-
 import type {MobileConfig} from '@/shared/services/mobileConfig';
+
+export type AppRuntimeEnv = 'production' | 'development';
+export type MockAppUpdateFlow = 'off' | 'optional' | 'required';
+
+export const PRODUCTION_API_BASE_URL = 'https://api.yosemitecrew.com';
+export const DEVELOPMENT_API_BASE_URL = 'https://devapi.yosemitecrew.com';
+export const MOBILE_CONFIG_PATH = '/v1/mobile-config/';
+
+export interface EnvironmentConfig {
+  /**
+   * Single switch for selecting the default backend environment.
+   * `production` -> production API + production mobile-config endpoint
+   * `development` -> development API + development mobile-config endpoint
+   */
+  appEnv: AppRuntimeEnv;
+}
 
 export interface PasswordlessAuthConfig {
   profileServiceUrl: string;
@@ -31,8 +34,8 @@ export interface ApiConfig {
   baseUrl: string;
   timeoutMs: number;
   /**
-   * Optional secondary base for PMS endpoints if they live on a different host (e.g. devapi).
-   * Falls back to baseUrl when not provided.
+   * Optional secondary base for PMS endpoints if they live on a different host.
+   * Falls back to `baseUrl` when omitted.
    */
   pmsBaseUrl?: string;
 }
@@ -59,35 +62,102 @@ export interface DemoLoginConfig {
 
 export interface UiFeatureFlags {
   /**
-   * Forces a 1px black outline on all liquid glass surfaces (cards/buttons) to aid visibility.
+   * Forces a 1px black outline on all liquid glass surfaces (cards/buttons).
    */
   forceLiquidGlassBorder: boolean;
 }
 
+export interface RuntimeConfigOverrides {
+  /**
+   * Explicit local override for review/demo login.
+   * `undefined` means "follow remote mobile-config/defaults".
+   */
+  enableReviewLogin?: boolean;
+  /**
+   * Explicit local override for the resolved API base URL.
+   */
+  apiBaseUrl?: string;
+  /**
+   * Explicit local override for PMS endpoints.
+   */
+  pmsBaseUrl?: string;
+  /**
+   * Explicit local override for which mobile-config URL is fetched.
+   */
+  mobileConfigUrl?: string;
+  /**
+   * Explicit local override for the resolved Stripe publishable key.
+   */
+  stripePublishableKey?: string;
+  /**
+   * Explicit local override for the resolved UI glass-border flag.
+   */
+  forceLiquidGlassBorder?: boolean;
+  /**
+   * Optional payload layered on top of the fetched mobile-config response.
+   */
+  mobileConfig?: Partial<MobileConfig>;
+}
+
 export interface MobileConfigBehavior {
   /**
-   * When true, skip hitting the remote mobile-config endpoint (useful for local development).
+   * When true, skip hitting the remote mobile-config endpoint entirely.
+   * The app starts with the default hard-coded config (production env, payments off).
+   * Use this when you want fully offline local dev without any network call.
    */
   skipRemoteFetch: boolean;
   /**
-   * When true, force all runtime API calls to use production API host.
+   * Master switch to route ALL API calls to the dev backend.
+   * true  → https://devapi.yosemitecrew.com  (dev environment)
+   * false → https://api.yosemitecrew.com     (production — the default)
+   *
+   * This controls where the mobile-config is fetched FROM and where subsequent
+   * API calls land. Use `overrides.apiBaseUrl` for a one-off URL override instead.
    */
-  forceProductionApiBaseUrl: boolean;
+  useDevApi: boolean;
   /**
    * Local-only helper to simulate app update prompts without backend changes.
+   * 'off'      → normal behaviour
+   * 'optional' → show optional update sheet
+   * 'required' → show forced update wall
    */
-  mockAppUpdateFlow: 'off' | 'optional' | 'required';
+  mockAppUpdateFlow: MockAppUpdateFlow;
   /**
-   * Optional override values to layer on top of (or replace) the remote mobile-config response.
+   * Fine-grained local overrides applied after the remote config is fetched.
+   * Any key set here wins over both remote config and appEnv defaults.
    */
-  override?: Partial<MobileConfig>;
+  overrides: RuntimeConfigOverrides;
 }
 
 export interface ClarityConfig {
   projectId: string;
 }
 
-// Default/test configuration (safe for CI/CD)
+type LocalVariablesModule = Partial<{
+  ENVIRONMENT_CONFIG: Partial<EnvironmentConfig>;
+  PASSWORDLESS_AUTH_CONFIG: Partial<PasswordlessAuthConfig>;
+  GOOGLE_PLACES_CONFIG: Partial<GooglePlacesConfig>;
+  API_CONFIG: Partial<ApiConfig>;
+  STREAM_CHAT_CONFIG: Partial<StreamChatConfig>;
+  STRIPE_CONFIG: Partial<StripeConfig>;
+  AUTH_FEATURE_FLAGS: Partial<AuthFeatureFlags>;
+  DEMO_LOGIN_CONFIG: Partial<DemoLoginConfig>;
+  UI_FEATURE_FLAGS: Partial<UiFeatureFlags>;
+  MOBILE_CONFIG_BEHAVIOR: Partial<MobileConfigBehavior>;
+  CLARITY_CONFIG: Partial<ClarityConfig>;
+}>;
+
+export const resolveApiBaseUrlForAppEnv = (appEnv: AppRuntimeEnv): string =>
+  appEnv === 'production' ? PRODUCTION_API_BASE_URL : DEVELOPMENT_API_BASE_URL;
+
+export const resolveMobileConfigUrlForAppEnv = (
+  appEnv: AppRuntimeEnv,
+): string => `${resolveApiBaseUrlForAppEnv(appEnv)}${MOBILE_CONFIG_PATH}`;
+
+const DEFAULT_ENVIRONMENT_CONFIG: EnvironmentConfig = {
+  appEnv: 'production',
+};
+
 const DEFAULT_PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
   profileServiceUrl: '',
   createAccountUrl: '',
@@ -102,15 +172,8 @@ const DEFAULT_GOOGLE_PLACES_CONFIG: GooglePlacesConfig = {
   apiKey: '',
 };
 
-const DEFAULT_API_CONFIG: ApiConfig = {
-  // Default to production API; override in variables.local.ts only when needed.
-  baseUrl: 'https://api.yosemitecrew.com',
-  timeoutMs: 15000,
-  pmsBaseUrl: 'https://api.yosemitecrew.com',
-};
-
 const DEFAULT_STREAM_CHAT_CONFIG: StreamChatConfig = {
-  apiKey: '', // Add your Stream API key in variables.local.ts
+  apiKey: '',
 };
 
 const DEFAULT_STRIPE_CONFIG: StripeConfig = {
@@ -135,26 +198,15 @@ const DEFAULT_UI_FEATURE_FLAGS: UiFeatureFlags = {
 
 const DEFAULT_MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
   skipRemoteFetch: false,
-  forceProductionApiBaseUrl: true,
+  useDevApi: false,
   mockAppUpdateFlow: 'off',
-  override: undefined,
+  overrides: {},
 };
 
 const DEFAULT_CLARITY_CONFIG: ClarityConfig = {
-  // Keep empty in source control; provide via variables.local.ts or remote config pipeline.
   projectId: '',
 };
 
-let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
-let googlePlacesOverrides: Partial<GooglePlacesConfig> | undefined;
-let apiOverrides: Partial<ApiConfig> | undefined;
-let streamChatOverrides: Partial<StreamChatConfig> | undefined;
-let stripeOverrides: Partial<StripeConfig> | undefined;
-let authFlagsOverrides: Partial<AuthFeatureFlags> | undefined;
-let demoLoginOverrides: Partial<DemoLoginConfig> | undefined;
-let uiFlagsOverrides: Partial<UiFeatureFlags> | undefined;
-let mobileConfigBehaviorOverrides: Partial<MobileConfigBehavior> | undefined;
-let clarityConfigOverrides: Partial<ClarityConfig> | undefined;
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
     return false;
@@ -173,102 +225,95 @@ const isMissingLocalVariablesModule = (error: unknown): boolean => {
   );
 };
 
-// Try to load local configuration if it exists (for development)
-try {
-  // @ts-ignore - dynamic require for optional local config
-  const localConfig = require('./variables.local');
-  if (localConfig.PASSWORDLESS_AUTH_CONFIG) {
-    passwordlessOverrides = localConfig.PASSWORDLESS_AUTH_CONFIG;
-  }
-  if (localConfig.GOOGLE_PLACES_CONFIG) {
-    googlePlacesOverrides = localConfig.GOOGLE_PLACES_CONFIG;
-  }
-  if (localConfig.API_CONFIG) {
-    apiOverrides = localConfig.API_CONFIG;
-  }
-  if (localConfig.STREAM_CHAT_CONFIG) {
-    streamChatOverrides = localConfig.STREAM_CHAT_CONFIG;
-  }
-  if (localConfig.STRIPE_CONFIG) {
-    stripeOverrides = localConfig.STRIPE_CONFIG;
-  }
-  if (localConfig.AUTH_FEATURE_FLAGS) {
-    authFlagsOverrides = localConfig.AUTH_FEATURE_FLAGS;
-  }
-  if (localConfig.DEMO_LOGIN_CONFIG) {
-    demoLoginOverrides = localConfig.DEMO_LOGIN_CONFIG;
-  }
-  if (localConfig.UI_FEATURE_FLAGS) {
-    uiFlagsOverrides = localConfig.UI_FEATURE_FLAGS;
-  }
-  if (localConfig.MOBILE_CONFIG_BEHAVIOR) {
-    mobileConfigBehaviorOverrides = localConfig.MOBILE_CONFIG_BEHAVIOR;
-  }
-  if (localConfig.CLARITY_CONFIG) {
-    clarityConfigOverrides = localConfig.CLARITY_CONFIG;
-  }
-} catch (error) {
-  if (isMissingLocalVariablesModule(error)) {
-    // No local config file found, using defaults (this is expected in CI/CD)
-    if (process.env.NODE_ENV !== 'test' && process.env.CI !== 'true') {
-      console.warn(
-        'No variables.local.ts found. Using default configuration. ' +
-          'For local development, copy variables.ts to variables.local.ts and add your credentials.',
-      );
+const loadLocalVariablesModule = (): LocalVariablesModule => {
+  try {
+    // @ts-ignore - optional local developer config
+    return require('./variables.local') as LocalVariablesModule;
+  } catch (error) {
+    if (isMissingLocalVariablesModule(error)) {
+      if (process.env.NODE_ENV !== 'test' && process.env.CI !== 'true') {
+        console.warn(
+          'No variables.local.ts found. Using default configuration. ' +
+            'For local development, copy variables.ts to variables.local.ts and add your credentials.',
+        );
+      }
+      return {};
     }
-  } else {
+
     throw error;
   }
-}
+};
+
+const mergeMobileConfigBehavior = (
+  overrides: Partial<MobileConfigBehavior> | undefined,
+): MobileConfigBehavior => ({
+  ...DEFAULT_MOBILE_CONFIG_BEHAVIOR,
+  ...overrides,
+  overrides: {
+    ...DEFAULT_MOBILE_CONFIG_BEHAVIOR.overrides,
+    ...(overrides?.overrides ?? {}),
+  },
+});
+
+const localVariables = loadLocalVariablesModule();
+
+export const ENVIRONMENT_CONFIG: EnvironmentConfig = {
+  ...DEFAULT_ENVIRONMENT_CONFIG,
+  ...localVariables.ENVIRONMENT_CONFIG,
+};
+
+const DEFAULT_API_CONFIG: ApiConfig = {
+  baseUrl: resolveApiBaseUrlForAppEnv(ENVIRONMENT_CONFIG.appEnv),
+  timeoutMs: 15000,
+  pmsBaseUrl: resolveApiBaseUrlForAppEnv(ENVIRONMENT_CONFIG.appEnv),
+};
 
 export const PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
   ...DEFAULT_PASSWORDLESS_AUTH_CONFIG,
-  ...passwordlessOverrides,
+  ...localVariables.PASSWORDLESS_AUTH_CONFIG,
 };
 
 export const GOOGLE_PLACES_CONFIG: GooglePlacesConfig = {
   ...DEFAULT_GOOGLE_PLACES_CONFIG,
-  ...googlePlacesOverrides,
+  ...localVariables.GOOGLE_PLACES_CONFIG,
 };
 
 export const API_CONFIG: ApiConfig = {
   ...DEFAULT_API_CONFIG,
-  ...apiOverrides,
+  ...localVariables.API_CONFIG,
 };
 
 export const STREAM_CHAT_CONFIG: StreamChatConfig = {
   ...DEFAULT_STREAM_CHAT_CONFIG,
-  ...streamChatOverrides,
+  ...localVariables.STREAM_CHAT_CONFIG,
 };
 
 export const STRIPE_CONFIG: StripeConfig = {
   ...DEFAULT_STRIPE_CONFIG,
-  ...stripeOverrides,
+  ...localVariables.STRIPE_CONFIG,
 };
 
 export const AUTH_FEATURE_FLAGS: AuthFeatureFlags = {
   ...DEFAULT_AUTH_FEATURE_FLAGS,
-  ...authFlagsOverrides,
+  ...localVariables.AUTH_FEATURE_FLAGS,
 };
 
 export const DEMO_LOGIN_CONFIG: DemoLoginConfig = {
   ...DEFAULT_DEMO_LOGIN_CONFIG,
-  ...demoLoginOverrides,
+  ...localVariables.DEMO_LOGIN_CONFIG,
 };
 
 export const UI_FEATURE_FLAGS: UiFeatureFlags = {
   ...DEFAULT_UI_FEATURE_FLAGS,
-  ...uiFlagsOverrides,
+  ...localVariables.UI_FEATURE_FLAGS,
 };
 
-export const MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
-  ...DEFAULT_MOBILE_CONFIG_BEHAVIOR,
-  ...mobileConfigBehaviorOverrides,
-};
+export const MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior =
+  mergeMobileConfigBehavior(localVariables.MOBILE_CONFIG_BEHAVIOR);
 
 export const CLARITY_CONFIG: ClarityConfig = {
   ...DEFAULT_CLARITY_CONFIG,
-  ...clarityConfigOverrides,
+  ...localVariables.CLARITY_CONFIG,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

@@ -1,7 +1,25 @@
 import axios from 'axios';
+import {
+  MOBILE_CONFIG_PATH,
+  PRODUCTION_API_BASE_URL,
+  DEVELOPMENT_API_BASE_URL,
+  MOBILE_CONFIG_BEHAVIOR,
+  ENVIRONMENT_CONFIG,
+} from '@/config/variables';
 
-const MOBILE_CONFIG_URL = 'https://api.yosemitecrew.com/v1/mobile-config/';
 const MOBILE_CONFIG_TIMEOUT_MS = 8000;
+
+const resolveMobileConfigUrl = (): string => {
+  // Local override wins; otherwise appEnv picks prod vs dev endpoint
+  if (MOBILE_CONFIG_BEHAVIOR.overrides?.mobileConfigUrl) {
+    return MOBILE_CONFIG_BEHAVIOR.overrides.mobileConfigUrl;
+  }
+  const base =
+    ENVIRONMENT_CONFIG.appEnv === 'production'
+      ? PRODUCTION_API_BASE_URL
+      : DEVELOPMENT_API_BASE_URL;
+  return `${base}${MOBILE_CONFIG_PATH}`;
+};
 
 export type MobileEnv =
   | 'dev'
@@ -13,6 +31,8 @@ export type MobileEnv =
 export interface MobileConfig {
   env: MobileEnv;
   enablePayments: boolean;
+  /** When true, the review/demo bypass login is active for the test account. */
+  enableReviewLogin?: boolean;
   stripePublishableKey?: string;
   sentryDsn?: string;
   /**
@@ -81,22 +101,20 @@ export const isDevelopmentMobileEnv = (env?: MobileEnv | null): boolean => {
 };
 
 export const fetchMobileConfig = async (): Promise<MobileConfig> => {
-  console.log('[MobileConfig] Request', {url: MOBILE_CONFIG_URL});
+  const url = resolveMobileConfigUrl();
+  console.log('[MobileConfig] Request', {url});
   try {
-    const response = await axios.get<MobileConfig>(MOBILE_CONFIG_URL, {
+    const response = await axios.get<MobileConfig>(url, {
       timeout: MOBILE_CONFIG_TIMEOUT_MS,
     });
     console.log('[MobileConfig] Response', {
-      url: MOBILE_CONFIG_URL,
+      url,
       status: response.status,
       data: response.data,
     });
     return response.data;
   } catch (error) {
-    console.log('[MobileConfig] Error', {
-      url: MOBILE_CONFIG_URL,
-      error,
-    });
+    console.log('[MobileConfig] Error', {url, error});
     throw error;
   }
 };

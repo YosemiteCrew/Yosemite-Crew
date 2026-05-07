@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "Copy this file to amplify_outputs.json in this directory.",
+    "",
+    "OPTION A — Use the shared contributor Cognito pool (easiest, no AWS account needed):",
+    "  Just copy this file as-is: cp amplify_outputs.example.json amplify_outputs.json",
+    "  You can log in with any email address via OTP, or use the review-login bypass",
+    "  (test@yosemitecrew.com) when enableReviewLogin is active on the dev API.",
+    "  This pool is a shared development environment — do not store sensitive data in it.",
+    "",
+    "OPTION B — Use your own AWS Amplify sandbox (isolated, requires AWS account):",
+    "  Follow the README Step 3 to run `npx ampx sandbox`.",
+    "  It will generate a fresh amplify_outputs.json pointing to your own Cognito pool.",
+    "  Replace this file with that output."
+  ],
+  "auth": {
+    "user_pool_id": "eu-central-1_fsi2ezHyJ",
+    "aws_region": "eu-central-1",
+    "user_pool_client_id": "1lg7ft1s6qovmc8aehtqhusu3p",
+    "identity_pool_id": "eu-central-1:fdface8b-4033-49f6-9393-d5b2734ad863",
+    "mfa_methods": [],
+    "standard_required_attributes": ["email"],
+    "username_attributes": ["email"],
+    "user_verification_types": ["email"],
+    "groups": [],
+    "mfa_configuration": "NONE",
+    "password_policy": {
+      "min_length": 8,
+      "require_lowercase": true,
+      "require_numbers": true,
+      "require_symbols": true,
+      "require_uppercase": true
+    },
+    "unauthenticated_identities_enabled": true
+  },
+  "version": "1.3"
+}

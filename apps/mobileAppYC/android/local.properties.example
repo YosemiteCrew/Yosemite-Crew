@@ -1,0 +1,13 @@
+## This file is gitignored and must NOT be committed.
+## It tells Gradle where your Android SDK is installed on your machine.
+## Android Studio generates it automatically when you open the project.
+## If it is missing, create it manually with the correct path for your machine.
+
+# macOS (default location when installed via Android Studio):
+sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
+
+# Linux:
+# sdk.dir=/home/YOUR_USERNAME/Android/Sdk
+
+# Windows:
+# sdk.dir=C\:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk

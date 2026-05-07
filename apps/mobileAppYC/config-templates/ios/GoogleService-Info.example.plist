@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Copy this file to ios/GoogleService-Info.plist and fill in your Firebase project values.
+  Push notifications (FCM) will not work with placeholder values, but the app will boot and run normally.
+  Get these values from your Firebase console → Project settings → iOS app.
+-->
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>YOUR_FIREBASE_PROJECT_NUMBER-YOUR_IOS_CLIENT_ID.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.YOUR_FIREBASE_PROJECT_NUMBER-YOUR_IOS_CLIENT_ID</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>YOUR_FIREBASE_PROJECT_NUMBER-YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>YOUR_FIREBASE_IOS_API_KEY</string>
+	<key>GCM_SENDER_ID</key>
+	<string>YOUR_FIREBASE_PROJECT_NUMBER</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.yosemitecrew.mobile</string>
+	<key>PROJECT_ID</key>
+	<string>YOUR_FIREBASE_PROJECT_ID</string>
+	<key>STORAGE_BUCKET</key>
+	<string>YOUR_FIREBASE_PROJECT_ID.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:YOUR_FIREBASE_PROJECT_NUMBER:ios:YOUR_IOS_APP_HASH</string>
+</dict>
+</plist>

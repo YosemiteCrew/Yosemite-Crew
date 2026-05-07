@@ -134,41 +134,157 @@ This project uses AWS Amplify for its backend. Run a local sandbox environment t
 
 ### Step 4: Configure Environment Credentials (Crucial\!)
 
-To run the app, you need to provide your own credentials for various services. We provide example files that you must copy and fill in.
+Several config files are gitignored because they contain keys. We provide example/template files for every one of them. Run the commands below from the **root of the monorepo** unless noted otherwise.
 
-> **A Note on Environment Variables**: We are currently not using `react-native-config` due to instability with native file integration on React Native's New Architecture (Fabric). Therefore, configuration must be done directly in the native project files as described below.
+> **A Note on Environment Variables**: We do not use `react-native-config` due to instability with React Native's New Architecture (Fabric). Configuration is done directly in the native project files and a gitignored JS file as described below.
 
-#### A. JavaScript Variables
+---
 
-1.  Copy the example file to create your local configuration:
-    ```sh
-    cp apps/mobileAppYC/src/config/variables.ts apps/mobileAppYC/src/config/variables.local.ts
-    ```
-2.  Open `apps/mobileAppYC/src/config/variables.local.ts` and replace the placeholder values with your actual API keys and credentials.
+#### Quick-start checklist
 
-> **Note**: The `variables.local.ts` file is gitignored and will never be committed. The main `variables.ts` file contains safe defaults for CI/CD and is automatically committed to the repository. Your local credentials in `variables.local.ts` will be loaded automatically when present.
+Copy and tick off each item before trying to build:
 
-#### B. Android Native Configuration
+- [ ] **A. Amplify / Cognito** — `amplify_outputs.json`
+- [ ] **B. JS variables** — `variables.local.ts`
+- [ ] **C. Android: Firebase** — `google-services.json`
+- [ ] **D. Android: Native keys** — `strings.xml` + `gradle.properties` + `local.properties`
+- [ ] **E. iOS: Firebase** — `GoogleService-Info.plist`
+- [ ] **F. iOS: Native keys** — `Info.plist` + `.xcode.env.local` (if needed)
 
-1.  **Firebase**: Download your `google-services.json` file from Firebase and place it in the `android/app/` directory.
-2.  **Gradle Properties**: Copy the sample Gradle properties file:
-    ```sh
-    cp apps/mobileAppYC/android/gradle.properties.example apps/mobileAppYC/android/gradle.properties
-    ```
-3.  **Other Keys**: Copy the sample `strings.xml` file:
-    ```sh
-    cp apps/mobileAppYC/config-templates/android/strings.example.xml apps/mobileAppYC/android/app/src/main/res/values/strings.xml
-    ```
-4.  Open `android/app/src/main/res/values/strings.xml` and fill in all the required values.
+---
 
-#### C. iOS Native Configuration
+#### A. Amplify / Cognito (`amplify_outputs.json`)
 
-1.  **Firebase**: Download your `GoogleService-Info.plist` file from Firebase. Place it in `apps/mobileAppYC/ios/mobileAppYC/` and **add it to the project using Xcode**.
-2.  **Other Keys**: Copy the sample `Info.plist` file:
-    ```sh
-    cp apps/mobileAppYC/config-templates/ios/Info.plist.example apps/mobileAppYC/ios/mobileAppYC/Info.plist
-    ```
-3.  Open `apps/mobileAppYC/ios/mobileAppYC/Info.plist` and input your keys where indicated.
+The app uses AWS Amplify for authentication. Without this file the app will not boot.
+
+**Option 1 — Use the shared contributor pool (no AWS account needed, recommended for UI work):**
+
+```sh
+cp apps/mobileAppYC/amplify_outputs.example.json apps/mobileAppYC/amplify_outputs.json
+```
+
+This connects you to a shared development Cognito pool. Log in with any email address via OTP, or use the review-login bypass (`test@yosemitecrew.com`) when running against the dev API.
+
+**Option 2 — Spin up your own isolated sandbox (requires AWS account):**
+
+Follow Step 3 above to run `npx ampx sandbox`. It generates a fresh `amplify_outputs.json` pointing to your own Cognito pool. No further changes needed.
+
+---
+
+#### B. JavaScript Variables (`variables.local.ts`)
+
+This file controls which backend environment the app points to and holds optional API keys for third-party services (Stream Chat, Stripe, Google Places). It is gitignored and never committed.
+
+```sh
+cp apps/mobileAppYC/src/config/variables.local.ts apps/mobileAppYC/src/config/variables.local.ts
+# (the file already exists as a fully-commented template — open it and read the top section)
+```
+
+The only required change for development is the **master environment switch** at the top of the file:
+
+```ts
+// true  → dev backend  (https://devapi.yosemitecrew.com)
+// false → production backend  ← default
+const USE_DEV_API = true;
+```
+
+Set `USE_DEV_API = true` to route all API calls to the development backend. Everything else in the file has sensible defaults and inline comments explaining each option.
+
+> The `variables.ts` file (committed) contains safe defaults and type definitions. Your `variables.local.ts` is layered on top at runtime automatically.
+
+---
+
+#### C. Android: Firebase (`google-services.json`)
+
+Required for push notifications (FCM). The app boots and runs without real values — you will just not receive push notifications.
+
+**If you have access to the Firebase project:** download `google-services.json` from Firebase Console → Project Settings → Android app → download button, then place it at `apps/mobileAppYC/android/app/google-services.json`.
+
+**If you do not have Firebase access** (UI development only):
+
+```sh
+cp apps/mobileAppYC/config-templates/android/google-services.example.json \
+   apps/mobileAppYC/android/app/google-services.json
+```
+
+The stub file has the correct structure. Firebase init will log a warning on startup and push notifications will not work, but the rest of the app is fully functional.
+
+---
+
+#### D. Android: Native Keys (`strings.xml` + `gradle.properties` + `local.properties`)
+
+1. **API keys** (Facebook, Google Maps):
+
+   ```sh
+   cp apps/mobileAppYC/config-templates/android/strings.example.xml \
+      apps/mobileAppYC/android/app/src/main/res/values/strings.xml
+   ```
+
+   Open the file and replace `YOUR_FACEBOOK_APP_ID`, `YOUR_FACEBOOK_CLIENT_TOKEN`, and `YOUR_GOOGLE_MAPS_API_KEY` with real values. Facebook login and Google Maps will not work with placeholders, but the app still builds and runs.
+
+2. **Gradle properties** (build settings + release signing):
+
+   ```sh
+   cp apps/mobileAppYC/android/gradle.properties.example \
+      apps/mobileAppYC/android/gradle.properties
+   ```
+
+   For debug builds no further changes are needed. Release/bundle builds require filling in the four keystore fields at the bottom of the file (`YC_RELEASE_STORE_FILE`, `YC_RELEASE_STORE_PASSWORD`, `YC_RELEASE_KEY_ALIAS`, `YC_RELEASE_KEY_PASSWORD`).
+
+3. **Android SDK path** (`local.properties`):
+   ```sh
+   cp apps/mobileAppYC/android/local.properties.example \
+      apps/mobileAppYC/android/local.properties
+   ```
+   Open the file and set `sdk.dir` to your local Android SDK path. If you open the project in Android Studio it will generate this file automatically — you can skip this step in that case.
+   ```
+   # macOS example:
+   sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
+   ```
+
+---
+
+#### E. iOS: Firebase (`GoogleService-Info.plist`)
+
+Required for push notifications (APNs via FCM). Same story as Android — the app boots without real values.
+
+**If you have access to the Firebase project:** download `GoogleService-Info.plist` from Firebase Console → Project Settings → iOS app, place it at `apps/mobileAppYC/ios/GoogleService-Info.plist`, and **add it to the Xcode project** (drag into Xcode, tick "Copy items if needed").
+
+**If you do not have Firebase access** (UI development only):
+
+```sh
+cp apps/mobileAppYC/config-templates/ios/GoogleService-Info.example.plist \
+   apps/mobileAppYC/ios/GoogleService-Info.plist
+```
+
+Then add this stub file to the Xcode project the same way. Push notifications will not work; everything else will.
+
+---
+
+#### F. iOS: Native Keys (`Info.plist` + `.xcode.env.local`)
+
+1. **Info.plist** — contains Facebook SDK keys, Google Sign-In reverse client ID, and permission usage strings:
+
+   ```sh
+   cp apps/mobileAppYC/config-templates/ios/Info.plist.example \
+      apps/mobileAppYC/ios/mobileAppYC/Info.plist
+   ```
+
+   Open the file and replace:
+
+   | Placeholder                  | Where to find it                                                |
+   | ---------------------------- | --------------------------------------------------------------- |
+   | `YOUR_FACEBOOK_APP_ID`       | Facebook Developer Console → your app → App ID                  |
+   | `YOUR_FACEBOOK_CLIENT_TOKEN` | Facebook Developer Console → Settings → Advanced → Client Token |
+   | `YOUR_REVERSED_CLIENT_ID`    | `ios/GoogleService-Info.plist` → `REVERSED_CLIENT_ID` value     |
+
+   Facebook and Google Sign-In social auth will not work with placeholders, but OTP login and everything else in the app will function normally.
+
+2. **`.xcode.env.local`** — tells Xcode's build scripts where Node.js is on your machine. Required for Xcode builds (the Metro bundler script phase uses it). Create it manually:
+   ```sh
+   echo "export NODE_BINARY=$(command -v node)" > apps/mobileAppYC/ios/.xcode.env.local
+   ```
+   If you use nvm or fnm, replace `$(command -v node)` with the full path to your Node binary (e.g. `~/.nvm/versions/node/v20.x.x/bin/node`). The committed `ios/.xcode.env` already has a fallback — `.xcode.env.local` only needs to be created if your Xcode builds fail with "node: command not found".
 
 ---
 

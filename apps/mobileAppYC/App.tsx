@@ -38,7 +38,6 @@ import {
 } from '@/shared/services/firebaseNotifications';
 import {
   fetchMobileConfig,
-  isProductionMobileEnv,
   type MobileConfig,
 } from '@/shared/services/mobileConfig';
 import {
@@ -91,12 +90,6 @@ const coerceBooleanFlag = (
   return false;
 };
 
-const resolveApiBaseUrlForEnv = (env?: MobileConfig['env']): string => {
-  if (isProductionMobileEnv(env)) {
-    return 'https://api.yosemitecrew.com';
-  }
-  return 'https://devapi.yosemitecrew.com';
-};
 const PRODUCTION_API_BASE_URL = 'https://api.yosemitecrew.com';
 
 const applyMockAppUpdateFlow = (
@@ -142,10 +135,6 @@ const applyMockAppUpdateFlow = (
   };
 };
 
-const shouldDisableReviewLogin = (env?: MobileConfig['env']): boolean => {
-  return isProductionMobileEnv(env);
-};
-
 const OPTIONAL_UPDATE_LAST_PROMPTED_AT_KEY =
   '@app_update_optional_last_prompted_at';
 
@@ -185,11 +174,6 @@ function App(): React.JSX.Element {
 
     const loadMobileConfig = async () => {
       try {
-        // console.log('[MobileConfig] Loading mobile config…', {
-        //   skipRemoteFetch: MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch,
-        //   hasOverride: Boolean(MOBILE_CONFIG_BEHAVIOR.override),
-        // });
-
         let config: MobileConfig = {
           env: 'production',
           enablePayments: false,
@@ -199,11 +183,38 @@ function App(): React.JSX.Element {
           config = await fetchMobileConfig();
         }
 
-        if (MOBILE_CONFIG_BEHAVIOR.override) {
-          config = {
-            ...config,
-            ...MOBILE_CONFIG_BEHAVIOR.override,
-          };
+        // Apply local overrides on top of remote config (field is `overrides`, not `override`)
+        if (
+          MOBILE_CONFIG_BEHAVIOR.overrides &&
+          Object.keys(MOBILE_CONFIG_BEHAVIOR.overrides).length > 0
+        ) {
+          const {
+            enableReviewLogin: overrideReviewLogin,
+            apiBaseUrl: overrideApiBaseUrl,
+            pmsBaseUrl: overridePmsBaseUrl,
+            mobileConfig: overrideMobileConfig,
+            stripePublishableKey: overrideStripeKey,
+            forceLiquidGlassBorder: overrideGlassBorder,
+          } = MOBILE_CONFIG_BEHAVIOR.overrides;
+
+          if (overrideMobileConfig) {
+            config = {...config, ...overrideMobileConfig};
+          }
+          if (overrideStripeKey !== undefined) {
+            config = {...config, stripePublishableKey: overrideStripeKey};
+          }
+          if (overrideGlassBorder !== undefined) {
+            config = {...config, forceLiquidGlassBorder: overrideGlassBorder};
+          }
+          if (overrideReviewLogin !== undefined) {
+            config = {...config, enableReviewLogin: overrideReviewLogin};
+          }
+          if (
+            overrideApiBaseUrl !== undefined ||
+            overridePmsBaseUrl !== undefined
+          ) {
+            // These are applied below when resolving the base URL
+          }
         }
 
         config = applyMockAppUpdateFlow(
@@ -213,32 +224,47 @@ function App(): React.JSX.Element {
 
         console.log('[MobileConfig] Effective runtime config', {
           skipRemoteFetch: MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch,
-          forceProductionApiBaseUrl:
-            MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl,
+          useDevApi: MOBILE_CONFIG_BEHAVIOR.useDevApi,
           mockAppUpdateFlow: MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow,
           env: config.env,
+          enableReviewLogin: config.enableReviewLogin,
           hasAppUpdate: Boolean(config.appUpdate),
           appUpdate: config.appUpdate,
         });
 
         if (mounted) {
-          const resolvedBaseUrl =
-            MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl
-              ? PRODUCTION_API_BASE_URL
-              : resolveApiBaseUrlForEnv(config.env);
+          // Priority: local override apiBaseUrl > useDevApi flag > env from remote config
+          let resolvedBaseUrl: string;
+          if (MOBILE_CONFIG_BEHAVIOR.overrides?.apiBaseUrl) {
+            resolvedBaseUrl = MOBILE_CONFIG_BEHAVIOR.overrides.apiBaseUrl;
+          } else if (MOBILE_CONFIG_BEHAVIOR.useDevApi) {
+            resolvedBaseUrl = 'https://devapi.yosemitecrew.com';
+          } else {
+            resolvedBaseUrl = PRODUCTION_API_BASE_URL;
+          }
+
+          const resolvedPmsUrl =
+            MOBILE_CONFIG_BEHAVIOR.overrides?.pmsBaseUrl ?? resolvedBaseUrl;
+
           API_CONFIG.baseUrl = resolvedBaseUrl;
-          API_CONFIG.pmsBaseUrl = resolvedBaseUrl;
+          API_CONFIG.pmsBaseUrl = resolvedPmsUrl;
           updateApiClientBaseConfig({
             baseUrl: resolvedBaseUrl,
             timeoutMs: API_CONFIG.timeoutMs,
           });
           console.log('[API] Runtime base URL applied', {
             baseUrl: resolvedBaseUrl,
+            useDevApi: MOBILE_CONFIG_BEHAVIOR.useDevApi,
           });
 
-          if (shouldDisableReviewLogin(config.env)) {
-            AUTH_FEATURE_FLAGS.enableReviewLogin = false;
+          // enableReviewLogin: remote config wins; local variables.local.ts override applies via
+          // MOBILE_CONFIG_BEHAVIOR.overrides.enableReviewLogin (set above). Never silently kill it.
+          if (config.enableReviewLogin !== undefined) {
+            AUTH_FEATURE_FLAGS.enableReviewLogin = coerceBooleanFlag(
+              config.enableReviewLogin,
+            );
           }
+          // If remote didn't send enableReviewLogin at all, keep whatever variables.ts default was.
 
           UI_FEATURE_FLAGS.forceLiquidGlassBorder = coerceBooleanFlag(
             config.forceLiquidGlassBorder ??

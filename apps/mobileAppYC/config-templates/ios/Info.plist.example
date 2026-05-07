@@ -1,25 +1,154 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Copy this file to ios/mobileAppYC/Info.plist
+  Replace every YOUR_* placeholder with real values from your Firebase / Facebook / Google consoles.
+
+  Placeholder guide:
+    YOUR_FACEBOOK_APP_ID         → Facebook Developer console → App ID  (e.g. 761593156487643)
+    YOUR_FACEBOOK_CLIENT_TOKEN   → Facebook Developer console → Settings → Advanced → Client Token
+    YOUR_REVERSED_CLIENT_ID      → From ios/GoogleService-Info.plist → REVERSED_CLIENT_ID value
+                                   (looks like: com.googleusercontent.apps.PROJECT_NUMBER-CLIENT_HASH)
+-->
 <plist version="1.0">
 <dict>
-  <key>CFBundleDisplayName</key>
-  <string>YosemiteCrew</string>
-  <key>CFBundleIdentifier</key>
-  <string>com.yourcompany.yosemitecrew</string>
-  <key>CFBundleURLTypes</key>
-  <array>
-    <dict>
-      <key>CFBundleURLSchemes</key>
-      <array>
-        <string>YOUR_REVERSED_CLIENT_ID</string>
-      </array>
-    </dict>
-  </array>
-  <key>GoogleMapsAPIKey</key>
-  <string>YOUR_GOOGLE_MAPS_API_KEY</string>
-  <key>FacebookAppID</key>
-  <string>YOUR_FACEBOOK_APP_ID</string>
-  <key>FacebookClientToken</key>
-  <string>YOUR_FACEBOOK_CLIENT_TOKEN</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Yosemite Crew</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<!-- Facebook URL scheme: fb + YOUR_FACEBOOK_APP_ID -->
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fbYOUR_FACEBOOK_APP_ID</string>
+			</array>
+		</dict>
+		<!-- Google Sign-In reverse client ID (from GoogleService-Info.plist → REVERSED_CLIENT_ID) -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>YOUR_REVERSED_CLIENT_ID</string>
+			</array>
+		</dict>
+		<!-- Yosemite Crew deep-link schemes — keep as-is -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>yc</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>yc</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>yosemitecrew</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>yosemitecrew</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Facebook SDK — replace with your app values -->
+	<key>FacebookAppID</key>
+	<string>YOUR_FACEBOOK_APP_ID</string>
+	<key>FacebookClientToken</key>
+	<string>YOUR_FACEBOOK_CLIENT_TOKEN</string>
+	<key>FacebookDisplayName</key>
+	<string>Yosemite Crew</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- Required for Facebook SDK queries — keep as-is -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
+	</array>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<!-- Permission usage descriptions — keep as-is, edit only if you change the UX copy -->
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>We add your pet's tasks and appointments to your calendar so you never miss important care steps.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>We add your pet's tasks and appointments to your calendar so you never miss important care steps.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We use the camera so you can capture pet photos or documents for profiles, bookings, and updates to caregivers.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location helps us show nearby vets, groomers, walkers, and to coordinate appointments for your pet while you use the app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We use the microphone so you can record voice notes and messages for your pet's caregivers and services.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We save photos and receipts you create for pet profiles, appointments, and service history.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We access your library so you can upload pet photos or documents when booking services and appointments.</string>
+	<!-- React Native New Architecture — keep as-is -->
+	<key>RCTNewArchEnabled</key>
+	<true/>
+	<!-- Custom fonts — keep as-is -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>ClashDisplay-Bold.otf</string>
+		<string>ClashDisplay-Extralight.otf</string>
+		<string>ClashDisplay-Light.otf</string>
+		<string>ClashDisplay-Medium.otf</string>
+		<string>ClashDisplay-Regular.otf</string>
+		<string>ClashDisplay-Semibold.otf</string>
+		<string>ClashDisplay-Variable.ttf</string>
+		<string>ClashGrotesk-Medium.otf</string>
+		<string>Satoshi-Black.otf</string>
+		<string>Satoshi-Bold.otf</string>
+		<string>Satoshi-Light.otf</string>
+		<string>Satoshi-Medium.otf</string>
+		<string>Satoshi-Regular.otf</string>
+		<string>SFProText-semibold.ttf</string>
+		<string>SFProText-regular.ttf</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>BootSplash</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
 </dict>
 </plist>
