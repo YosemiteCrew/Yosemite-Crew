@@ -56,11 +56,15 @@ const ModalBase = ({
   useEffect(() => {
     if (showModal) {
       previousFocusRef.current = document.activeElement as HTMLElement;
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      const scrollbarWidth = globalThis.window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = 'hidden';
       document.body.style.paddingRight = `${scrollbarWidth}px`;
       const firstFocusable = containerRef.current?.querySelector<HTMLElement>(FOCUSABLE);
-      firstFocusable?.focus();
+      if (firstFocusable) {
+        firstFocusable.focus();
+      } else {
+        containerRef.current?.focus();
+      }
     } else {
       previousFocusRef.current?.focus();
       previousFocusRef.current = null;
@@ -132,6 +136,7 @@ const ModalBase = ({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
+        tabIndex={-1}
         onCancel={(event) => {
           event.preventDefault();
           closeModal();

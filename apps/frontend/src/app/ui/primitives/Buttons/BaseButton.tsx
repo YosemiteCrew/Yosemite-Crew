@@ -53,6 +53,7 @@ const BaseButton = ({
       <Link
         href={href}
         aria-disabled={isDisabled}
+        tabIndex={isDisabled ? -1 : undefined}
         aria-label={ariaLabel}
         className={classes}
         onClick={(e) => {

@@ -4,9 +4,10 @@ import { IoIosClose } from 'react-icons/io';
 type CloseProps = {
   onClick?: () => void;
   iconOnly?: boolean;
+  tabIndex?: number;
 };
 
-const Close = ({ onClick, iconOnly = false }: CloseProps) => {
+const Close = ({ onClick, iconOnly = false, tabIndex }: CloseProps) => {
   if (iconOnly) {
     return <IoIosClose size={28} color="var(--color-neutral-900)" className="cursor-pointer" />;
   }
@@ -15,6 +16,7 @@ const Close = ({ onClick, iconOnly = false }: CloseProps) => {
     <button
       type="button"
       aria-label="Close"
+      tabIndex={tabIndex}
       className="flex items-center justify-center rounded-full! hover:bg-card-hover! p-2 transition-all duration-300 ease-in-out"
       onClick={onClick}
     >

@@ -56,10 +56,22 @@ const Cookies = () => {
       </div>
 
       <div className="absolute -bottom-62.5 left-15 pointer-events-none z-25">
-        <Image src={MEDIA_SOURCES.cookies.cookie} alt="aboutstory" width={222} height={314} />
+        <Image
+          src={MEDIA_SOURCES.cookies.cookie}
+          alt=""
+          aria-hidden="true"
+          width={222}
+          height={314}
+        />
       </div>
       <div className="absolute -bottom-37.5 left-11.25 -z-25">
-        <Image src={MEDIA_SOURCES.cookies.background} alt="aboutstory" width={250} height={205} />
+        <Image
+          src={MEDIA_SOURCES.cookies.background}
+          alt=""
+          aria-hidden="true"
+          width={250}
+          height={205}
+        />
       </div>
     </div>
   );

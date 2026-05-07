@@ -28,8 +28,13 @@ const ErrorTost: React.FC<ErrorTostProps> = ({
             <p>{message}</p>
           </div>
         </div>
-        <button type="button" onClick={onClose} className="bg-transparent border-0 cursor-pointer">
-          <Icon icon="solar:close-circle-bold" width="24" height="24" />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Dismiss notification"
+          className="bg-transparent border-0 cursor-pointer"
+        >
+          <Icon icon="solar:close-circle-bold" width="24" height="24" aria-hidden="true" />
         </button>
       </div>
     </div>
