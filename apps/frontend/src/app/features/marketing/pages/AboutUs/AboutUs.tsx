@@ -16,16 +16,16 @@ const AboutUs = () => {
         <div className="Container">
           <div className="AbtHeroData">
             <div className="abttopHero">
-              <div className="text-display-1 text-text-primary">
+              <h1 className="text-display-1 text-text-primary">
                 Welcome to Yosemite Crew where compassion meets code
-              </div>
-              <div className="text-heading-1 text-text-secondary">
+              </h1>
+              <p className="text-heading-1 text-text-secondary">
                 For pet businesses, pet parents, and developers who want to shape the future of
                 animal care
-              </div>
+              </p>
             </div>
             <div className="AbutheroBtm">
-              <div className="text-display-1 text-text-primary">About Us</div>
+              <h2 className="text-display-1 text-text-primary">About Us</h2>
               <div className="abtherocard">
                 <div className="AbtCardItem">
                   <div className="head">
@@ -85,7 +85,7 @@ const AboutUs = () => {
             />
 
             <div className="storyTexted">
-              <div className="text-display-1 text-text-primary">Our story</div>
+              <h2 className="text-display-1 text-text-primary">Our story</h2>
               <div className="ourstorypara">
                 <div className="text-body-3 text-text-secondary">
                   Our story began in the field quite literally. Back in the days when our co-founder
@@ -114,21 +114,19 @@ const AboutUs = () => {
         <div className="Container">
           <div className="AbtTeamdata">
             <div className="AbtTeamHead">
-              <div className="text-display-1 text-text-primary">
+              <h2 className="text-display-1 text-text-primary">
                 We&rsquo;re an open source community
-              </div>
-              <div className="text-display-2 text-text-secondary">
-                That means no gates, no egos.
-              </div>
+              </h2>
+              <p className="text-display-2 text-text-secondary">That means no gates, no egos.</p>
               <div className="para">
-                <div className="text-heading-2 text-text-secondary">
+                <p className="text-heading-2 text-text-secondary">
                   Just a group of humans trying to build better tools together, with the help of
                   people like you. We&rsquo;re an open, diverse group and always growing.{' '}
-                </div>
-                <div className="text-heading-2 text-text-secondary">
+                </p>
+                <p className="text-heading-2 text-text-secondary">
                   Together, we&rsquo;re here to help our pets and our people. To make technology
                   work for care, not complicate it.
-                </div>
+                </p>
               </div>
             </div>
 

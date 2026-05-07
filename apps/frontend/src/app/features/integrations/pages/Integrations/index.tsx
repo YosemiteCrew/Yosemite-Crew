@@ -609,7 +609,7 @@ const IdexxSettingsModal = ({
       <div className="flex flex-col h-full gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-heading-3 text-text-primary">Integration settings</div>
+            <h3 className="text-heading-3 text-text-primary">Integration settings</h3>
             <div className="text-body-4 text-text-secondary">
               Configure IDEXX for this organization
             </div>
@@ -777,7 +777,7 @@ const IntegrationFilterTabs = ({
   activeFilter: IntegrationsPageState['activeFilter'];
   setActiveFilter: IntegrationsPageState['setActiveFilter'];
 }) => (
-  <div className="flex items-center gap-2 flex-wrap">
+  <div role="group" aria-label="Filter integrations" className="flex items-center gap-2 flex-wrap">
     {integrationFilters.map((tab) => {
       const isActive = activeFilter === tab.key;
       return (
@@ -785,6 +785,7 @@ const IntegrationFilterTabs = ({
           key={tab.key}
           type="button"
           onClick={() => setActiveFilter(tab.key)}
+          aria-pressed={isActive}
           className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
           style={
             isActive
@@ -1140,7 +1141,7 @@ const IntegrationsPage = () => {
     <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-2 flex items-center gap-2">
+          <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
             <span>Integrations</span>
             <GlassTooltip
               content={`Connect and manage external tools for ${
@@ -1156,7 +1157,7 @@ const IntegrationsPage = () => {
                 <IoInformationCircleOutline size={20} />
               </button>
             </GlassTooltip>
-          </div>
+          </h1>
         </div>
         <div className="ml-auto flex items-start justify-end gap-3 flex-wrap">
           <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
@@ -1169,7 +1170,11 @@ const IntegrationsPage = () => {
         </div>
       </div>
 
-      {s.error ? <div className="text-body-4 text-text-error">{s.error}</div> : null}
+      {s.error ? (
+        <div role="alert" className="text-body-4 text-text-error">
+          {s.error}
+        </div>
+      ) : null}
 
       <IntegrationCards
         s={s}
@@ -1178,11 +1183,15 @@ const IntegrationsPage = () => {
       />
 
       {showNoConnected ? (
-        <div className="text-body-4 text-text-secondary">No connected integrations yet.</div>
+        <div role="status" className="text-body-4 text-text-secondary">
+          No connected integrations yet.
+        </div>
       ) : null}
 
       {showNoAvailable ? (
-        <div className="text-body-4 text-text-secondary">No available integrations right now.</div>
+        <div role="status" className="text-body-4 text-text-secondary">
+          No available integrations right now.
+        </div>
       ) : null}
 
       <IdexxSettingsModal

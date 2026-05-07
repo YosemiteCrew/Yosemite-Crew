@@ -1,7 +1,7 @@
-import React from "react";
-import Image from "next/image";
+import React from 'react';
+import Image from 'next/image';
 
-import "./FeatureBox.css";
+import './FeatureBox.css';
 
 interface BoxPractProps {
   Bpimg: string;
@@ -14,9 +14,9 @@ const FeatureBox = ({ Bpimg, BpTxt1, BpTxt2, BpPara }: BoxPractProps) => {
   return (
     <div className="PracBox">
       <Image aria-hidden src={Bpimg} alt="Hero" width={72} height={72} />
-      <div className="text-heading-2 text-text-primary pracTitle">
+      <h3 className="text-heading-2 text-text-primary pracTitle">
         {BpTxt1} {BpTxt2}
-      </div>
+      </h3>
       <div className="text-body-4 text-text-secondary pracDesc">{BpPara}</div>
     </div>
   );

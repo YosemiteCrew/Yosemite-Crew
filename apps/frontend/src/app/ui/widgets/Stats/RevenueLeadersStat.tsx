@@ -47,22 +47,22 @@ const RevenueLeadersStat = () => {
         ) : (
           <>
             <div className="bg-text-primary w-full p-3 rounded-2xl flex flex-col justify-end gap-1 h-1/2">
-              <div className="text-heading-1 text-white">
+              <p className="text-heading-1 text-white">
                 {formatMoney(topLeader.revenue, currency)}
-              </div>
+              </p>
               <div className="text-body-4 text-white">{topLeader.label}</div>
             </div>
             <div className="grid grid-cols-2 gap-2 h-1/2">
               <div className="bg-text-primary w-full p-3 rounded-2xl flex flex-col justify-end gap-1 h-full">
-                <div className="text-heading-1 text-white">
+                <p className="text-heading-1 text-white">
                   {formatMoney(secondLeader.revenue, currency)}
-                </div>
+                </p>
                 <div className="text-body-4 text-white">{secondLeader.label}</div>
               </div>
               <div className="bg-text-primary w-full p-3 rounded-2xl flex flex-col justify-end gap-1 h-full">
-                <div className="text-heading-1 text-white">
+                <p className="text-heading-1 text-white">
                   {formatMoney(thirdLeader.revenue, currency)}
-                </div>
+                </p>
                 <div className="text-body-4 text-white">{thirdLeader.label}</div>
               </div>
             </div>

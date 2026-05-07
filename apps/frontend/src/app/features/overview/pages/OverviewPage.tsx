@@ -39,7 +39,7 @@ const OverviewPage = () => {
     <>
       <div className="OverviewPageWrapper">
         <div className="OverviewHeroSection">
-          <main className="OverviewMainContent">
+          <section className="OverviewMainContent">
             <h1 className="OverviewMainTitle">Building in Public</h1>
 
             <p className="OverviewLeadText">
@@ -84,11 +84,11 @@ const OverviewPage = () => {
                 priority
               />
             </div>
-          </main>
+          </section>
         </div>
 
         <div className="OverviewBottomSection">
-          <main className="OverviewMainContent">
+          <section className="OverviewMainContent">
             <p className="OverviewSecondaryText">
               What you measure shows what you actually care about, and it attracts people who care
               about the same things. Some months are messy. That’s part of it. Hiding it only delays
@@ -110,7 +110,7 @@ const OverviewPage = () => {
                 isLoading={isLoading}
               />
             </div>
-          </main>
+          </section>
         </div>
       </div>
       <Footer />

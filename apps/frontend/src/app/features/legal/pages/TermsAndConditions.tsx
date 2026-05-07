@@ -4,6 +4,26 @@ import { NeedHealp } from '@/app/features/marketing/pages/PricingPage/PricingPag
 
 import './TermsAndConditions.css';
 
+const SupportContactTableHead = () => (
+  <thead className="sr-only">
+    <tr>
+      <th scope="col">Support channel</th>
+      <th scope="col">Details</th>
+    </tr>
+  </thead>
+);
+
+const DataMatrixHeaders = () => (
+  <thead className="sr-only">
+    <tr>
+      <th scope="col">Module</th>
+      <th scope="col">Categories of personal data</th>
+      <th scope="col">Categories of data subjects</th>
+      <th scope="col">Purpose</th>
+    </tr>
+  </thead>
+);
+
 const TermsAndConditions = () => {
   return (
     <section className="PrivacyPolicySec">
@@ -11,9 +31,9 @@ const TermsAndConditions = () => {
         <div className="PrivacyPolicyData mb-5">
           <div className="privacyHead">
             <div className="privacyhead">
-              <h2>
+              <h1>
                 Yosemite Crew License and <br /> Subscription Terms (SaaS)
-              </h2>
+              </h1>
             </div>
           </div>
 
@@ -1124,23 +1144,27 @@ const TermsAndConditions = () => {
             <h3 className="doc-section-title-orange">6. CUSTOMER SUPPORT CENTER CONTACT</h3>
             <div className="doc-table-wrapper ">
               <table className="doc-table">
-                <thead style={{ display: 'none' }}>
-                  <tr>
-                    <th className="doc-table-label">Phone Support</th>
-                    <th>English</th>
-                  </tr>
-                </thead>
+                <caption className="sr-only">
+                  Customer support center contact channels and response options
+                </caption>
+                <SupportContactTableHead />
                 <tbody>
                   <tr>
-                    <td className="doc-table-label">Phone Support</td>
+                    <th scope="row" className="doc-table-label">
+                      Phone Support
+                    </th>
                     <td>English</td>
                   </tr>
                   <tr>
-                    <td className="doc-table-label">Support Phone</td>
+                    <th scope="row" className="doc-table-label">
+                      Support Phone
+                    </th>
                     <td>None</td>
                   </tr>
                   <tr>
-                    <td className="doc-table-label">Support Mail</td>
+                    <th scope="row" className="doc-table-label">
+                      Support Mail
+                    </th>
                     <td>
                       <a href="mailto:support@yosemitecrew.com" className="doc-link">
                         support@yosemitecrew.com
@@ -1148,7 +1172,9 @@ const TermsAndConditions = () => {
                     </td>
                   </tr>
                   <tr>
-                    <td className="doc-table-label">Support Chat</td>
+                    <th scope="row" className="doc-table-label">
+                      Support Chat
+                    </th>
                     <td>
                       <a
                         href="https://discord.gg/YVzMq97Bk"
@@ -1184,11 +1210,14 @@ const TermsAndConditions = () => {
 
             <div className="doc-table-wrapper">
               <table className="doc-table error-table">
+                <caption className="sr-only">
+                  Error response service levels and target response times
+                </caption>
                 <thead>
                   <tr>
-                    <th>Severity Level</th>
-                    <th>Description</th>
-                    <th>Response Time</th>
+                    <th scope="col">Severity Level</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Response Time</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1896,12 +1925,23 @@ const TermsAndConditions = () => {
           <div className="doc-section">
             <h3 className="annexTitle">ANNEX II: DESCRIPTION OF THE PROCESSING</h3>
             <table className="dataMatrix">
+              <caption className="sr-only">
+                Personal data processing matrix for sign up and onboarding modules
+              </caption>
               <thead>
                 <tr>
-                  <th className="moduleHeader">Module</th>
-                  <th className="dataCategoryHeader">Categories of Personal Data</th>
-                  <th className="subjectHeader">Categories of Data Subjects</th>
-                  <th className="purposeHeader">Purpose</th>
+                  <th scope="col" className="moduleHeader">
+                    Module
+                  </th>
+                  <th scope="col" className="dataCategoryHeader">
+                    Categories of Personal Data
+                  </th>
+                  <th scope="col" className="subjectHeader">
+                    Categories of Data Subjects
+                  </th>
+                  <th scope="col" className="purposeHeader">
+                    Purpose
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1977,12 +2017,7 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={38} className="moduleCell">
@@ -2113,12 +2148,7 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={8} className="moduleCell">
@@ -2157,12 +2187,7 @@ const TermsAndConditions = () => {
               </tbody>
             </table>
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={23} className="moduleCell">
@@ -2251,12 +2276,7 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={7} className="moduleCell">
@@ -2294,12 +2314,7 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={25} className="moduleCell">
@@ -2393,12 +2408,7 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={10} className="moduleCell">
@@ -2442,12 +2452,7 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={16} className="moduleCell">
@@ -2504,12 +2509,7 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={29} className="moduleCell">
@@ -2621,12 +2621,7 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
-              <thead style={{ display: 'none' }}>
-                <tr>
-                  <th className="doc-table-label">Phone Support</th>
-                  <th>English</th>
-                </tr>
-              </thead>
+              <DataMatrixHeaders />
               <tbody>
                 <tr>
                   <td rowSpan={17} className="moduleCell">
@@ -3015,12 +3010,23 @@ const TermsAndConditions = () => {
               The controller has authorised the use of the following sub-processors:
             </p>
             <table className="dataMatrix">
+              <caption className="sr-only">
+                Authorised sub-processors, addresses, and processing purposes
+              </caption>
               <thead>
                 <tr>
-                  <th className="snoHeader moduleHeader ">S.No.</th>
-                  <th className="moduleHeader">Third Party Provider</th>
-                  <th className="dataCategoryHeader">Address</th>
-                  <th className="purposeHeader">Purpose</th>
+                  <th scope="col" className="snoHeader moduleHeader ">
+                    S.No.
+                  </th>
+                  <th scope="col" className="moduleHeader">
+                    Third Party Provider
+                  </th>
+                  <th scope="col" className="dataCategoryHeader">
+                    Address
+                  </th>
+                  <th scope="col" className="purposeHeader">
+                    Purpose
+                  </th>
                 </tr>
               </thead>
               <tbody>

@@ -215,6 +215,8 @@ const AudienceToggle = ({
 
   return (
     <div
+      role="group"
+      aria-label="Audience"
       className={`relative inline-flex items-center h-11 w-full max-w-[320px] rounded-[999px]! border border-card-border bg-white overflow-hidden ${
         disabled ? 'opacity-70' : ''
       }`}
@@ -227,6 +229,7 @@ const AudienceToggle = ({
         type="button"
         onClick={() => onChange('PROV')}
         disabled={disabled}
+        aria-pressed={isProfessional}
         className={`relative z-10 w-1/2 h-full text-body-3 transition-colors duration-200 ${
           disabled ? 'cursor-not-allowed' : 'cursor-pointer'
         } ${professionalTextClass}`}
@@ -237,6 +240,7 @@ const AudienceToggle = ({
         type="button"
         onClick={() => onChange('PAT')}
         disabled={disabled}
+        aria-pressed={!isProfessional}
         className={`relative z-10 w-1/2 h-full text-body-3 transition-colors duration-200 ${
           disabled ? 'cursor-not-allowed' : 'cursor-pointer'
         } ${consumerTextClass}`}
@@ -259,6 +263,7 @@ const CompactFilterPill = ({
   <button
     type="button"
     onClick={onClick}
+    aria-pressed={active}
     className={`h-8 px-2.5 text-caption-1 rounded-2xl! border transition-all duration-200 ${
       active
         ? 'bg-blue-light text-blue-text! border-text-brand!'
@@ -509,8 +514,14 @@ const MerckSearchPanel = ({
           </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="text-caption-1 text-text-secondary">Language</div>
-          <div className="flex gap-1.5 flex-wrap">
+          <div className="text-caption-1 text-text-secondary" id="merck-language-label">
+            Language
+          </div>
+          <div
+            role="group"
+            aria-labelledby="merck-language-label"
+            className="flex gap-1.5 flex-wrap"
+          >
             <CompactFilterPill
               active={language === 'en'}
               label="EN"
@@ -567,10 +578,17 @@ const MerckReaderPortal = ({
   if (!readerOpen || !readerUrl || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="merck-reader-title"
+      className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+    >
       <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
-          <div className="text-body-2 text-text-primary truncate pr-2">{readerTitle}</div>
+          <div id="merck-reader-title" className="text-body-2 text-text-primary truncate pr-2">
+            {readerTitle}
+          </div>
           <button
             type="button"
             onClick={() => setReaderOpen(false)}
@@ -715,6 +733,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
       <div className="flex w-full items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
           <div className="h-[88px] w-auto relative">
+            <h1 className="sr-only">MSD Veterinary Manual</h1>
             <Image
               src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
               alt="MSD Veterinary Manual"
@@ -780,9 +799,15 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
           />
 
           <div className="min-h-0 flex flex-col gap-3">
-            {error ? <div className="text-body-4 text-text-error">{error}</div> : null}
+            {error ? (
+              <div role="alert" className="text-body-4 text-text-error">
+                {error}
+              </div>
+            ) : null}
             {copied ? (
-              <div className="text-body-4 text-green-700">Copied URL to clipboard.</div>
+              <div role="status" className="text-body-4 text-green-700">
+                Copied URL to clipboard.
+              </div>
             ) : null}
 
             <div className={resultsContainerClassName}>

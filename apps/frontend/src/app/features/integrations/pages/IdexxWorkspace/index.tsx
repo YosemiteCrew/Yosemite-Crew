@@ -1113,7 +1113,7 @@ const IdexxWorkspacePage = () => {
   if (!s.integrationEnabled && !s.loading) {
     return (
       <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-        <div className="text-heading-2 text-text-primary flex items-center gap-2">
+        <h1 className="text-heading-2 text-text-primary flex items-center gap-2">
           {idexxHubLabel}
           <GlassTooltip content="IDEXX integration is currently disabled." side="bottom">
             <button
@@ -1124,7 +1124,7 @@ const IdexxWorkspacePage = () => {
               <IoInformationCircleOutline size={20} />
             </button>
           </GlassTooltip>
-        </div>
+        </h1>
         <Link
           href="/integrations"
           className="text-body-4 text-text-brand underline underline-offset-2"
@@ -1152,7 +1152,7 @@ const IdexxWorkspacePage = () => {
 
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <div className="text-heading-2 text-text-primary flex items-center gap-2">
+          <h1 className="text-heading-2 text-text-primary flex items-center gap-2">
             {idexxHubLabel}
             <GlassTooltip
               content="Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care diagnostics for a seamless workflow."
@@ -1166,7 +1166,7 @@ const IdexxWorkspacePage = () => {
                 <IoInformationCircleOutline size={20} />
               </button>
             </GlassTooltip>
-          </div>
+          </h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <Secondary
@@ -1201,7 +1201,11 @@ const IdexxWorkspacePage = () => {
         </div>
       </div>
 
-      {s.error ? <div className="text-body-4 text-text-error">{s.error}</div> : null}
+      {s.error ? (
+        <div role="alert" className="text-body-4 text-text-error">
+          {s.error}
+        </div>
+      ) : null}
 
       <Accordion title="Diagnostic orders and results" defaultOpen showEditIcon={false} isEditing>
         <div className="flex flex-col gap-3 py-2">
@@ -1248,17 +1252,24 @@ const IdexxWorkspacePage = () => {
           </div>
 
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="text-caption-1 text-text-secondary">
+            <div
+              aria-live="polite"
+              aria-atomic="true"
+              className="text-caption-1 text-text-secondary"
+            >
               Showing {startRow}-{(s.page - 1) * s.pageSize + s.paginatedResults.length} of{' '}
               {s.filteredResults.length}
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
+            <nav
+              aria-label="Results pagination"
+              className="flex items-center gap-2 flex-wrap justify-end"
+            >
               <Back
                 onClick={() => s.setPage((p) => Math.max(1, p - 1))}
                 disabled={s.page <= 1}
                 className={s.page <= 1 ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''}
               />
-              <div className="text-body-4 text-text-primary">
+              <div aria-current="page" className="text-body-4 text-text-primary">
                 Page {s.page} / {s.totalPages}
               </div>
               <Next
@@ -1268,7 +1279,7 @@ const IdexxWorkspacePage = () => {
                   s.page >= s.totalPages ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''
                 }
               />
-            </div>
+            </nav>
           </div>
         </div>
       </Accordion>
@@ -1317,11 +1328,14 @@ const IdexxWorkspacePage = () => {
         setShowModal={s.setShowResultModal}
         overlayClassName={resultModalOverlayClassName}
         containerClassName={resultModalContainerClassName}
+        aria-labelledby="idexx-result-modal-title"
       >
         <div className="flex flex-col h-full gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-heading-3 text-text-primary">Result details</div>
+              <h3 id="idexx-result-modal-title" className="text-heading-3 text-text-primary">
+                Result details
+              </h3>
               <div className="text-body-4 text-text-secondary">
                 Detailed diagnostic payload in Yosemite Crew theme.
               </div>

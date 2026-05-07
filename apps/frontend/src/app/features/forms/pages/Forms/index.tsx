@@ -165,7 +165,7 @@ const Forms = () => {
     <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-2 flex items-center gap-2">
+          <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
             <span>
               {'Templates'}
               <span className="text-body-2 text-text-tertiary">{` (${list.length})`}</span>
@@ -182,7 +182,7 @@ const Forms = () => {
                 <IoInformationCircleOutline size={20} />
               </button>
             </GlassTooltip>
-          </div>
+          </h1>
         </div>
       </div>
 

@@ -1,8 +1,8 @@
-"use client";
-import React, { useEffect, useMemo, useState } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import { fetchDocumensoRedirectUrl } from "@/app/features/documents/services/documensoService";
-import { YosemiteLoader } from "@/app/ui/overlays/Loader";
+'use client';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { fetchDocumensoRedirectUrl } from '@/app/features/documents/services/documensoService';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 
 type DocSigningPortalProps = {
   embedded?: boolean;
@@ -18,7 +18,7 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
     if (!redirectUrl) return null;
     try {
       const url = new URL(redirectUrl);
-      url.pathname = url.pathname.replaceAll(/\/{2,}/g, "/");
+      url.pathname = url.pathname.replaceAll(/\/{2,}/g, '/');
       return url.toString();
     } catch {
       return redirectUrl;
@@ -34,10 +34,8 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
         const res = await fetchDocumensoRedirectUrl(primaryOrgId);
         setRedirectUrl(res.redirectUrl);
       } catch (e: any) {
-        console.error("Failed to fetch Documenso portal URL", e);
-        setError(
-          e?.response?.data?.message || e?.message || "Unable to load Doc Signing portal",
-        );
+        console.error('Failed to fetch Documenso portal URL', e);
+        setError(e?.response?.data?.message || e?.message || 'Unable to load Doc Signing portal');
       } finally {
         setLoading(false);
       }
@@ -55,14 +53,18 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
   }
 
   if (error) {
-    return <div className="text-body-3 text-error-main">{error}</div>;
+    return (
+      <div role="alert" className="text-body-3 text-error-main">
+        {error}
+      </div>
+    );
   }
 
   if (!portalUrl) {
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-16 px-4">
         <div className="flex flex-col items-center gap-4 max-w-lg text-center">
-          <h2 className="text-heading-2 text-text-primary">Document Signing Portal</h2>
+          <h1 className="text-heading-2 text-text-primary">Document Signing Portal</h1>
           <p className="text-body-3 text-text-secondary">Portal link not available</p>
         </div>
       </div>
@@ -72,7 +74,7 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
   return (
     <div
       className={`w-full overflow-hidden pb-3 ${
-        embedded ? "h-[75vh] min-h-[560px]" : "h-[calc(100vh-140px)]"
+        embedded ? 'h-[75vh] min-h-[560px]' : 'h-[calc(100vh-140px)]'
       }`}
     >
       <iframe

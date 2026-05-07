@@ -34,9 +34,9 @@ const DashboardProfile = () => {
           width={40}
           className="rounded-full object-cover h-10 min-w-10 max-h-10"
         />
-        <div className="text-heading-1 text-text-primary">
+        <p className="text-heading-1 text-text-primary">
           {(attributes?.given_name || '') + ' ' + (attributes?.family_name || '')}
-        </div>
+        </p>
       </div>
       <div className="text-bpdy-4-emphasis text-text-tertiary">
         Your central hub for insights, performance tracking and quick access to essential tools

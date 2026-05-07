@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { trustCenterData } from './trustCenterData';
@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fi';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
+import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import './TrustCenter.css';
 
 type RequestAccessFormState = {
@@ -42,6 +43,7 @@ const TrustCenter = () => {
   const [requestAccessErrors, setRequestAccessErrors] = useState<{
     workEmail?: string;
   }>({});
+  const requestAccessTitleId = useId();
 
   const {
     hero = {
@@ -570,17 +572,21 @@ const TrustCenter = () => {
               Authorized Sub-processors
             </h2>
             <table className="SubTable">
+              <caption className="sr-only">
+                Authorized sub-processors, provided services, and operating locations
+              </caption>
               <thead>
                 <tr>
-                  <th>Provider</th>
-                  <th>Service</th>
-                  <th>Location</th>
+                  <th scope="col">Provider</th>
+                  <th scope="col">Service</th>
+                  <th scope="col">Location</th>
                 </tr>
               </thead>
               <tbody>
                 {subProcessors.map((sub) => (
                   <tr key={sub.name}>
-                    <td
+                    <th
+                      scope="row"
                       style={{
                         fontWeight: '500',
                         display: 'flex',
@@ -596,16 +602,11 @@ const TrustCenter = () => {
                             height: '24px',
                           }}
                         >
-                          <Image
-                            src={sub.logo}
-                            alt={sub.name}
-                            fill
-                            style={{ objectFit: 'contain' }}
-                          />
+                          <Image src={sub.logo} alt="" fill style={{ objectFit: 'contain' }} />
                         </div>
                       )}
                       {sub.name}
-                    </td>
+                    </th>
                     <td>{sub.service}</td>
                     <td>{sub.location}</td>
                   </tr>
@@ -636,17 +637,23 @@ const TrustCenter = () => {
 
       {/* --- REQUEST ACCESS MODAL --- */}
       {isModalOpen && (
-        <div className="ModalOverlay">
-          <button
-            type="button"
-            className="ModalBackdropButton"
-            onClick={handleModalClose}
-            aria-label="Close modal overlay"
-          />
-          <dialog className="ModalContent" open aria-modal="true">
+        <ModalBase
+          showModal={isModalOpen}
+          setShowModal={setIsModalOpen}
+          onClose={handleModalClose}
+          overlayClassName="ModalOverlay"
+          containerClassName="ModalContent"
+          aria-labelledby={requestAccessTitleId}
+        >
+          <div>
             <div className="ModalHeader">
-              <h3>Request Access</h3>
-              <button className="CloseBtn" onClick={handleModalClose} aria-label="Close modal">
+              <h3 id={requestAccessTitleId}>Request Access</h3>
+              <button
+                type="button"
+                className="CloseBtn"
+                onClick={handleModalClose}
+                aria-label="Close modal"
+              >
                 <FiX />
               </button>
             </div>
@@ -754,8 +761,8 @@ const TrustCenter = () => {
                 Request Access
               </button>
             </div>
-          </dialog>
-        </div>
+          </div>
+        </ModalBase>
       )}
     </div>
   );

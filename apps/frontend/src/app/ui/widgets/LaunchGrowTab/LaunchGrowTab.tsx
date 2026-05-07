@@ -101,7 +101,7 @@ const LaunchGrowTab = () => {
                   </div>
                   <div className="BottomText">
                     <div className="Texted">
-                      <div className="text-heading-1">{growtab.heading}</div>
+                      <h3 className="text-heading-1">{growtab.heading}</h3>
                       <ul>
                         {growtab.details?.map((detail, index) => (
                           <li key={index + detail}>
@@ -138,7 +138,7 @@ const LaunchGrowTab = () => {
             </div>
             <div className="BottomText">
               <div className="Texted">
-                <div className="text-heading-1">{activeTabData.heading}</div>
+                <h3 className="text-heading-1">{activeTabData.heading}</h3>
                 <ul>
                   {activeTabData.details?.map((detail, index) => (
                     <li key={index + detail}>

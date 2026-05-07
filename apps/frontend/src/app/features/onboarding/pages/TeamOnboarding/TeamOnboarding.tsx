@@ -217,7 +217,7 @@ const TeamOnboarding = () => {
         onStepSelect={handleStepSelect}
       />
       <div className="flex flex-col gap-6">
-        <div className="create-profile-title">Create organization profile</div>
+        <h1 className="create-profile-title">Create organization profile</h1>
         {activeStep === 0 && (
           <PersonalStep
             ref={personalRef}

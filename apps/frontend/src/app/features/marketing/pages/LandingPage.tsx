@@ -33,14 +33,14 @@ const NewHeroSection = () => {
     <section className="new-hero-section">
       <StarRipple />
       <div className="new-hero-content">
-        <motion.div
+        <motion.h1
           className="text-display-1 text-text-primary text-center"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
         >
           Open source operating system for animal health
-        </motion.div>
+        </motion.h1>
         <motion.div
           className="text-body-2 text-text-primary text-center max-w-[640px]"
           initial={{ opacity: 0, y: 20 }}
@@ -112,9 +112,9 @@ const OldHeroSection = ({
       <div className="HeroContainer">
         <div className="LeftHeroSection">
           <TextFade direction="up" className="LeftHeroText">
-            <div className="text-display-1 text-text-primary">
+            <h1 className="text-display-1 text-text-primary">
               Open source operating system for animal health
-            </div>
+            </h1>
             <div className="text-body-2 text-text-primary">
               Designed for pet businesses, pet parents, and developers to collaborate in improving
               animal care. Streamline workflows while enhancing health outcomes, in one unified
@@ -136,7 +136,7 @@ const OldHeroSection = ({
                 height={565}
               />
               <div className="carousel-text">
-                <div className="text-heading-1 text-text-primary">{SlidesData[index].text}</div>
+                <p className="text-heading-1 text-text-primary">{SlidesData[index].text}</p>
               </div>
             </div>
             <button

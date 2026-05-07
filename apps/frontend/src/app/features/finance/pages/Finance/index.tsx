@@ -76,30 +76,36 @@ const Finance = () => {
     <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>
         {subscription && !subscription.canAcceptPayments && (
-          <div className="px-6 py-3 border border-card-border rounded-2xl w-full flex items-center justify-between gap-3 flex-col sm:flex-row">
+          <section
+            className="px-6 py-3 border border-card-border rounded-2xl w-full flex items-center justify-between gap-3 flex-col sm:flex-row"
+            aria-labelledby="finance-stripe-banner-title"
+          >
             <div className="flex flex-col gap-1 items-center sm:items-start">
-              <div className="text-heading-2 text-text-primary">Connect stripe account</div>
+              <h2 id="finance-stripe-banner-title" className="text-heading-2 text-text-primary">
+                Connect Stripe account
+              </h2>
               <div className="text-caption-1 text-text-primary text-center! sm:text-left!">
-                Stripe connect account is required for start receiving payments from pet parents
+                Connect Stripe before you start receiving card payments from pet parents.
               </div>
             </div>
             <div className="shrink-0">
               <Primary
                 href={`/stripe-onboarding?orgId=${subscription.orgId}`}
                 text="Connect stripe"
+                ariaLabel="Connect Stripe account"
               />
             </div>
-          </div>
+          </section>
         )}
       </PermissionGate>
       <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
           <div className="flex items-center justify-between w-full flex-wrap gap-2">
-            <div className="text-text-primary text-heading-2 flex items-center gap-2">
-              <span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-text-primary text-heading-2">
                 {'Finance'}
                 <span className="text-body-2 text-text-tertiary">{` (${invoices.length})`}</span>
-              </span>
+              </h1>
               <GlassTooltip
                 content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
                 side="bottom"

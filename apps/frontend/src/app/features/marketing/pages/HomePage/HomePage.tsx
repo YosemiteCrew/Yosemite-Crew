@@ -34,12 +34,12 @@ const HomePage = () => {
           <div className="HomeHeroData">
             <div className="LeftHeroDiv">
               <div className="herotext">
-                <div className="text-display-1 text-text-primary type first">
+                <h1 className="text-display-1 text-text-primary type first">
                   Helping you help pets,
-                </div>
-                <div className="text-display-1 text-text-primary">
-                  <span className="type second">without the hassle</span>
-                </div>
+                  <span className="text-display-1 text-text-primary">
+                    <span className="type second"> without the hassle</span>
+                  </span>
+                </h1>
               </div>
               <div className="heroPara">
                 {heroList.map((hero, index) => (
@@ -78,9 +78,9 @@ const HomePage = () => {
         <div className="Container">
           <div className="PracticedData">
             <div className="PractHeading">
-              <div className="text-display-2 text-text-primary">
+              <h2 className="text-display-2 text-text-primary">
                 Everything you need to run your pet business
-              </div>
+              </h2>
             </div>
             <div className="Practice_Box_Data">
               {practiceFeatures.map((feature, index) => (
@@ -101,7 +101,7 @@ const HomePage = () => {
         <div className="Container">
           <div className="FocusData">
             <div className="FocusTexted">
-              <div className="text-display-2 text-text-primary">Focus on care, not admin</div>
+              <h2 className="text-display-2 text-text-primary">Focus on care, not admin</h2>
               <div className="text-body-4 text-text-secondary">
                 The easy-to-use, cloud-based software that simplifies practice management and
                 elevates animal care.
@@ -210,9 +210,9 @@ const HomePage = () => {
         <div className="Container">
           <div className="whocareData">
             <div className="lftcare">
-              <div className="text-display-2 text-text-primary">
+              <h2 className="text-display-2 text-text-primary">
                 Caring for vets, who care for pets
-              </div>
+              </h2>
               <div className="text-body-4 text-text-secondary">
                 We prioritise your data security and compliance with industry-leading standards. Our
                 platform is fully compliant with GDPR, SOC 2 and ISO 27001 standards.
@@ -258,9 +258,9 @@ const HomePage = () => {
             <div className="lftbetter">
               <div className="betInner">
                 <div className="careText">
-                  <div className="text-display-2 text-text-primary">
+                  <h2 className="text-display-2 text-text-primary">
                     Better care is just a click away
-                  </div>
+                  </h2>
                   <div className="text-body-4 text-text-secondary">
                     Join hundreds of veterinary clinics already enhancing animal care and
                     streamlining their workflow.

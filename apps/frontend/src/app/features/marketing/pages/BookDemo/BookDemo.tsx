@@ -17,6 +17,7 @@ const BookDemo = () => {
 
   return (
     <div className="App">
+      <h1 className="sr-only">Book a demo</h1>
       <Cal
         namespace="30min"
         calLink="yosemitecrew/demo"

@@ -111,7 +111,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
             color="var(--color-neutral-900)"
             className={`text-black-text transition-transform shrink-0 ${open ? 'rotate-0' : '-rotate-90'}`}
           />
-          <div className="text-heading-3 text-text-primary">{title}</div>
+          <span className="text-heading-3 text-text-primary">{title}</span>
         </button>
         <div className="flex items-center gap-3 flex-wrap ml-auto">
           {error && (

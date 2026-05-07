@@ -1,7 +1,7 @@
 import Image from 'next/image';
-import React from 'react'
+import React from 'react';
 
-import './FocusCard.css'
+import './FocusCard.css';
 
 interface FocusCardProps {
   Focimg: string;
@@ -14,11 +14,11 @@ const FocusCard: React.FC<FocusCardProps> = ({ Focimg, focname, focpara }) => {
     <div className="FocusItem">
       <Image aria-hidden src={Focimg} alt="Hero" width={110} height={110} />
       <div className="focusText">
-        <div className="text-heading-2 text-text-primary focusTitle">{focname}</div>
+        <h3 className="text-heading-2 text-text-primary focusTitle">{focname}</h3>
         <div className="text-body-4 text-text-secondary focusDesc">{focpara}</div>
       </div>
     </div>
   );
 };
 
-export default FocusCard
+export default FocusCard;

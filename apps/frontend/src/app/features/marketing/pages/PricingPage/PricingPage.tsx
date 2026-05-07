@@ -139,9 +139,9 @@ const PricingPage = () => {
           <div className="PricingPage-header">
             <div className="PriceBackdiv">
               <div className="PricinhHeadquote">
-                <div className="text-display-1 text-text-primary">
+                <h1 className="text-display-1 text-text-primary">
                   Transparent pricing, no hidden fees
-                </div>
+                </h1>
                 <div className="text-body-3 text-text-primary">
                   Choose a plan that fits your pet-care practice. Upgrade anytime as you grow.
                 </div>
@@ -286,9 +286,9 @@ const PricingPage = () => {
           )}
 
           <div className="flex flex-col gap-3 md:gap-9">
-            <div className="text-display-1 text-text-primary text-center plansFeaturesHeading">
+            <h2 className="text-display-1 text-text-primary text-center plansFeaturesHeading">
               Plans and features
-            </div>
+            </h2>
             <div className="flex gap-3">
               <div className="w-[calc(33%-10px)]"></div>
               {PricingPlans.slice(0, 2).map((plan: any) => (

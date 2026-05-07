@@ -261,6 +261,10 @@
   left: 16px;
   color: var(--color-neutral-700);
 }
+.step-three-speciality-picker:focus-within,
+.step-three-service-search:focus-within {
+  border-color: var(--color-input-border-active);
+}
 
 .step-three-speciality-input {
   width: 100%;

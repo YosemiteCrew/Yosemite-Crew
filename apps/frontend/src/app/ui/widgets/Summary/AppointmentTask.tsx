@@ -109,12 +109,12 @@ const AppointmentTask = () => {
   return (
     <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_ANY]}>
       <div className="summary-container pt-1">
-        <div className="text-text-primary text-heading-1">
+        <h2 className="text-text-primary text-heading-1">
           Schedule{' '}
           <span className="text-text-tertiary">
             ({activeTable === 'Appointments' ? appointments.length : tasks.length})
           </span>
-        </div>
+        </h2>
         <div className="summary-labels flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <button

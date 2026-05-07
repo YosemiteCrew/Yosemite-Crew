@@ -198,7 +198,7 @@ const CreateOrg = () => {
         steps={OrgSteps}
       />
       <div className="flex flex-col gap-6">
-        <div className="create-org-title">Create organization</div>
+        <h1 className="create-org-title">Create organization</h1>
         {activeStep === 0 && (
           <OrgStep
             errors={orgErrors}

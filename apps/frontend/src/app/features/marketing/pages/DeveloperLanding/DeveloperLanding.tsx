@@ -42,9 +42,9 @@ const DeveloperLanding = () => {
           <div className="DevlpHeroData">
             <div className="LeftDevBanr">
               <div className="devbanrtext">
-                <div className="text-display-1 text-text-primary">
+                <h1 className="text-display-1 text-text-primary">
                   Build, customise, and launch powerful apps for the animal health ecosystem
-                </div>
+                </h1>
                 <div className="text-body-3 text-text-primary">
                   {' '}
                   Transform animal care with your ideas. Yosemite Crew offers tools and APIs to
@@ -77,14 +77,14 @@ const DeveloperLanding = () => {
         <div className="Container">
           <div className="DevlYousmiteSecData">
             <div className="YousmiteCrew">
-              <div className="text-display-1 text-text-primary">
+              <h2 className="text-display-1 text-text-primary">
                 Why developers choose Yosemite Crew
-              </div>
+              </h2>
             </div>
             <div className="DevYousmiteBoxed">
               <div className="DevCrewBox crewbox1">
                 <div className="crewText">
-                  <div className="text-heading-1 text-text-primary">Flexibilty</div>
+                  <h3 className="text-heading-1 text-text-primary">Flexibilty</h3>
                   <div className="text-body-3 text-text-primary">
                     Create custom solutions for pet businesses, adapting to any need.
                   </div>
@@ -104,7 +104,7 @@ const DeveloperLanding = () => {
                   height={140}
                 />
                 <div className="crewText">
-                  <div className="text-heading-1 text-text-primary">Seamless integrations</div>
+                  <h3 className="text-heading-1 text-text-primary">Seamless integrations</h3>
                   <div className="text-body-3 text-text-primary">
                     Easily integrate with existing healthcare systems and third-party tools to
                     enhance app functionality.
@@ -113,7 +113,7 @@ const DeveloperLanding = () => {
               </div>
               <div className="DevCrewBox crewbox3">
                 <div className="crewText">
-                  <div className="text-heading-1 text-text-primary">Open source</div>
+                  <h3 className="text-heading-1 text-text-primary">Open source</h3>
                   <div className="text-body-3 text-text-primary">
                     Developer-friendly API pricing based on an open source framework under the GPL
                     V3 license.
@@ -134,7 +134,7 @@ const DeveloperLanding = () => {
                   height={102}
                 />
                 <div className="crewText">
-                  <div className="text-heading-1 text-text-primary">Scalability</div>
+                  <h3 className="text-heading-1 text-text-primary">Scalability</h3>
                   <div className="text-body-3 text-text-primary">
                     Build apps that seamlessly grow as your user base and features expand.
                   </div>
@@ -148,7 +148,7 @@ const DeveloperLanding = () => {
                   height={92}
                 />
                 <div className="crewText">
-                  <div className="text-heading-1 text-text-primary">Comprehensive tools</div>
+                  <h3 className="text-heading-1 text-text-primary">Comprehensive tools</h3>
                   <div className="text-body-3 text-text-primary">
                     Access a wide range of APIs, SDKs, and pre-built templates that simplify
                     development.
@@ -157,7 +157,7 @@ const DeveloperLanding = () => {
               </div>
               <div className="DevCrewBox crewbox6">
                 <div className="crewText">
-                  <div className="text-heading-1 text-text-primary">Secure data handling</div>
+                  <h3 className="text-heading-1 text-text-primary">Secure data handling</h3>
                   <div className="text-body-3 text-text-primary">
                     Built with industry-leading security protocols, ensuring sensitive healthcare
                     data is always protected.
@@ -180,9 +180,9 @@ const DeveloperLanding = () => {
           <div className="DevlpToolData">
             <div className="TopResorchTool">
               <div className="leftResorch">
-                <div className="text-display-1 text-text-primary">
+                <h2 className="text-display-1 text-text-primary">
                   Everything you need to build and launch
-                </div>
+                </h2>
               </div>
               <div className="RytResorch">
                 <div className="text-body-3 text-text-primary">
@@ -203,9 +203,9 @@ const DeveloperLanding = () => {
         <div className="Container">
           <div className="StepsData">
             <div className="leftSimpleStep">
-              <div className="text-display-1 text-text-primary">
+              <h2 className="text-display-1 text-text-primary">
                 Get started in three simple steps
-              </div>
+              </h2>
               <Primary
                 href="/developers/signin"
                 onClick={handleDeveloperCTA}
@@ -222,7 +222,7 @@ const DeveloperLanding = () => {
                   height={114}
                 />
                 <div className="Stepstext">
-                  <div className="text-heading-1 text-text-primary">Sign up</div>
+                  <h3 className="text-heading-1 text-text-primary">Sign up</h3>
                   <div className="text-body-3 text-text-primary">
                     Create your developer account and access our portal.
                   </div>
@@ -236,7 +236,7 @@ const DeveloperLanding = () => {
                   height={114}
                 />
                 <div className="Stepstext">
-                  <div className="text-heading-1 text-text-primary">Explore</div>
+                  <h3 className="text-heading-1 text-text-primary">Explore</h3>
                   <div className="text-body-3 text-text-primary">
                     Browse APIs, SDKs, and templates to suit your needs.
                   </div>
@@ -250,7 +250,7 @@ const DeveloperLanding = () => {
                   height={48}
                 />
                 <div className="Stepstext">
-                  <div className="text-heading-1 text-text-primary">Build</div>
+                  <h3 className="text-heading-1 text-text-primary">Build</h3>
                   <div className="text-body-3 text-text-primary">
                     Develop, test, and deploy your app seamlessly.
                   </div>

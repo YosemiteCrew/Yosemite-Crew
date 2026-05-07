@@ -78,9 +78,9 @@ const Availability = () => {
   return (
     <PermissionGate allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}>
       <div className="summary-container">
-        <div className="text-text-primary text-heading-1">
+        <h2 className="text-text-primary text-heading-1">
           Availability <span className="text-text-tertiary">({teams.length})</span>
-        </div>
+        </h2>
         <div className="flex items-center gap-2 flex-wrap">
           {AvailabilityLabels?.map((label, i) => {
             const isActive = label.value === selectedLabel;

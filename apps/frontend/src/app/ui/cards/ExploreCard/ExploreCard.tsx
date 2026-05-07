@@ -60,7 +60,7 @@ const Explorecard = () => {
             key={stat.name}
           >
             <div className="text-body-3 text-text-tertiary">{stat.name}</div>
-            <div className="text-heading-1 text-text-primary">{stat.value}</div>
+            <p className="text-heading-1 text-text-primary">{stat.value}</p>
           </div>
         ))}
       </div>

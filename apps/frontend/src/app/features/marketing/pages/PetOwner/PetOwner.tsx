@@ -17,9 +17,9 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="Downlode_Data">
               <div className="downlodetext">
-                <div className="text-display-1 text-text-primary">
+                <h1 className="text-display-1 text-text-primary">
                   Your companion&rsquo;s health, in your hands
-                </div>
+                </h1>
                 <div className="text-body-3 text-text-primary">
                   Manage your companion&rsquo;s health records, hygiene, dietary plans, and schedule
                   vet appointments - all in one app that connects you with groomers, boarders,
@@ -43,32 +43,32 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="ToolkitData">
               <div className="ToolkitHead">
-                <div className="text-display-2 text-text-primary">
+                <h2 className="text-display-2 text-text-primary">
                   Your companion&rsquo;s all-in-one toolkit
-                </div>
+                </h2>
               </div>
               <div className="ToolkitCard">
                 <div className="CardToolItem">
                   <Icon icon="solar:calendar-mark-bold" width="150" height="150" />
-                  <div className="text-heading-3 text-white">Book and manage appointments</div>
+                  <h3 className="text-heading-3 text-white">Book and manage appointments</h3>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:library-bold" width="150" height="150" />
-                  <div className="text-heading-3 text-white">Access documents anytime</div>
+                  <h3 className="text-heading-3 text-white">Access documents anytime</h3>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:health-bold" width="150" height="150" />
-                  <div className="text-heading-3 text-white">Wellness management</div>
+                  <h3 className="text-heading-3 text-white">Wellness management</h3>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:bolt-bold" width="150" height="150" />
-                  <div className="text-heading-3 text-white">Medication and health monitoring</div>
+                  <h3 className="text-heading-3 text-white">Medication and health monitoring</h3>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:chat-round-like-bold" width="150" height="150" />
-                  <div className="text-heading-3 text-white">
+                  <h3 className="text-heading-3 text-white">
                     Hygiene maintenance and dietary plans
-                  </div>
+                  </h3>
                 </div>
               </div>
             </div>
@@ -79,7 +79,7 @@ const PetOwner = () => {
         <section className="PawsPraisesSec">
           <div className="flex flex-col gap-4 md:gap-8! xl:gap-12! w-full">
             <div className="PawsHead">
-              <div className="text-display-2 text-text-primary">Paws & praises from parents</div>
+              <h2 className="text-display-2 text-text-primary">Paws & praises from parents</h2>
             </div>
             <div className="w-full flex flex-col gap-6 md:gap-10 xl:gap-16">
               <div className="flex items-center justify-center bg-[var(--color-badge-blue-text)] w-full -rotate-2 BrownDiv">
@@ -121,7 +121,7 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="GlimsData">
               <div className="GlimpsHead">
-                <div className="text-display-2 text-text-primary">Glimpse of paw-sibilities</div>
+                <h2 className="text-display-2 text-text-primary">Glimpse of paw-sibilities</h2>
               </div>
               <div className="GlimpsImage">
                 <Image
@@ -142,9 +142,9 @@ const PetOwner = () => {
             <div className="PetAppData">
               <div className="LftpetApp">
                 <div className="PetAppText">
-                  <div className="text-display-2 text-text-primary">
+                  <h2 className="text-display-2 text-text-primary">
                     The only companion app you&rsquo;ll ever need
-                  </div>
+                  </h2>
                   <div className="text-body-4 text-text-primary">
                     Download Yosemite Crew app today and take the first step towards better health
                     for your companions.
