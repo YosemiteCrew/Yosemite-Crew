@@ -1,4 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildContentSecurityPolicy, securityHeaders } from '@/securityHeaders';
+
+const CSP_HEADER = 'Content-Security-Policy';
+const NONCE_HEADER = 'x-nonce';
+
+const createNonce = () => {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCodePoint(...bytes));
+};
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,14 +23,28 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Security headers on every response.
+  const nonce = createNonce();
+  const csp = buildContentSecurityPolicy({
+    nonce,
+    documensoHost: process.env.NEXT_PUBLIC_DOCUMENSO_HOST,
+  });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(NONCE_HEADER, nonce);
+  requestHeaders.set(CSP_HEADER, csp);
+
+  // Security headers on every document response.
   // Auth is handled client-side by ProtectedRoute + SessionInitializer —
   // amazon-cognito-identity-js stores tokens in localStorage which is not
   // accessible at the edge, so route protection cannot be done here.
-  const response = NextResponse.next();
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+  for (const header of securityHeaders) {
+    response.headers.set(header.key, header.value);
+  }
+  response.headers.set(CSP_HEADER, csp);
 
   return response;
 }
