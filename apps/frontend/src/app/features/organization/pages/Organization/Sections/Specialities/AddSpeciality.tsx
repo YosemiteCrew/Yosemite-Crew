@@ -27,14 +27,13 @@ const buildServiceItem = (
   service: OnboardingServiceTemplate,
   primaryOrgId: string | null,
   specialityId: string | undefined
-): Service =>
-  ({
-    ...service,
-    id: '',
-    organisationId: primaryOrgId ?? '',
-    specialityId,
-    isActive: true,
-  }) as Service;
+): Service => ({
+  ...service,
+  id: '',
+  organisationId: primaryOrgId ?? '',
+  specialityId,
+  isActive: true,
+});
 
 const applyStarterServices = (
   speciality: SpecialityWeb,

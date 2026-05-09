@@ -21,6 +21,8 @@ export const MEDIA_SOURCES = {
     vetnioLogoFileName: 'Vetnio.png',
     vetnioLogoS3Key: 'integrations/Vetnio.png',
     vetnioLogoUrl: ycCdn('integrations/Vetnio.png'),
+    laikaLogoUrl:
+      'https://laika.aitemsolutions.com/assets/img/ui/OFFICIAL%20HORIZONTAL%20LOGOTYPE%20LAIKA.svg',
   },
   logo: ycCdn('Logo.png'),
   avatars: {

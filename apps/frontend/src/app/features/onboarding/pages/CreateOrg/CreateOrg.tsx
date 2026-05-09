@@ -1,14 +1,11 @@
 'use client';
 import React, { Suspense, useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { HiShoppingBag } from 'react-icons/hi2';
 import { IoLocationSharp } from 'react-icons/io5';
 import { FaSuitcaseMedical } from 'react-icons/fa6';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
-import CreateOrgProgress from '@/app/features/onboarding/components/Steps/Progress/Progress';
-import OrgStep from '@/app/features/onboarding/components/Steps/CreateOrg/OrgStep';
-import AddressStep from '@/app/features/onboarding/components/Steps/CreateOrg/AddressStep';
-import SpecialityStep from '@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep';
 import { Organisation } from '@yosemite-crew/types';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useOrgOnboarding } from '@/app/hooks/useOrgOnboarding';
@@ -34,6 +31,26 @@ const OrgSteps = [
     logo: <FaSuitcaseMedical color="var(--color-neutral-0)" size={18} />,
   },
 ];
+
+const CreateOrgStepSkeleton = () => (
+  <div className="min-h-80 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const CreateOrgProgress = dynamic(
+  () => import('@/app/features/onboarding/components/Steps/Progress/Progress')
+);
+const OrgStep = dynamic(
+  () => import('@/app/features/onboarding/components/Steps/CreateOrg/OrgStep'),
+  { loading: () => <CreateOrgStepSkeleton /> }
+);
+const AddressStep = dynamic(
+  () => import('@/app/features/onboarding/components/Steps/CreateOrg/AddressStep'),
+  { loading: () => <CreateOrgStepSkeleton /> }
+);
+const SpecialityStep = dynamic(
+  () => import('@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep'),
+  { loading: () => <CreateOrgStepSkeleton /> }
+);
 
 const EMPTY_ORG: Organisation = {
   _id: '',

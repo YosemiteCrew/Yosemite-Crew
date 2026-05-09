@@ -128,10 +128,10 @@ export const changeTaskStatus = async (task: Task) => {
     const existingTask = tasksById[task._id];
     // Keep task list responsive even if status API returns a partial entity.
     upsertTask({
-      ...(existingTask ?? ({} as Task)),
+      ...existingTask,
       ...task,
       organisationId: task.organisationId || existingTask?.organisationId || primaryOrgId,
-    } as Task);
+    });
 
     const payload = {
       status: task.status,

@@ -31,9 +31,7 @@ export const loadCompanionDocument = async (companionId: string): Promise<Compan
     const res = await getData<
       CompanionRecord[] | { data?: CompanionRecord[]; documents?: CompanionRecord[] }
     >('/v1/document/pms/' + companionId, { _t: Date.now() });
-    const payload = res.data as
-      | CompanionRecord[]
-      | { data?: CompanionRecord[]; documents?: CompanionRecord[] };
+    const payload = res.data;
     if (Array.isArray(payload)) {
       return payload;
     }

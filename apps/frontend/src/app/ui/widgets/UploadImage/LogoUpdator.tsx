@@ -114,7 +114,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
             height={40}
             width={40}
             onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = MEDIA_SOURCES.avatars.person;
+              e.currentTarget.src = MEDIA_SOURCES.avatars.person;
             }}
             className="rounded-full h-10 w-10 object-cover"
           />
@@ -132,7 +132,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
               height={100}
               width={100}
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = MEDIA_SOURCES.avatars.person;
+                e.currentTarget.src = MEDIA_SOURCES.avatars.person;
               }}
               className="rounded-full h-25 w-25 object-cover"
             />

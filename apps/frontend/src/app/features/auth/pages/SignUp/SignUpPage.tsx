@@ -12,7 +12,7 @@ export default function SignUpPage() {
   const role = useAuthStore((s) => s.role);
 
   useEffect(() => {
-    if (status === 'authenticated' || status === 'signin-authenticated') {
+    if (status === 'authenticated') {
       void resolvePostAuthRedirect({ fallbackRole: role }).then((route) => {
         router.replace(route);
       });

@@ -323,10 +323,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
           key={key ?? name}
           currentDate={currentDate}
           setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
-            const resolved =
-              typeof next === 'function'
-                ? (next as (prev: Date | null) => Date | null)(currentDate)
-                : next;
+            const resolved = typeof next === 'function' ? next(currentDate) : next;
             if (!resolved) {
               onChangeHandler(batchIndex, typedName, '');
               return;

@@ -4,6 +4,7 @@ import { FaCirclePlay } from 'react-icons/fa6';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import VideoPlayerModal from '@/app/ui/overlays/Modal/VideoPlayerModal';
 import Search from '@/app/ui/inputs/Search';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -212,8 +213,8 @@ const Guides = () => {
 
 const ProtectedGuides = () => {
   return (
-    <ProtectedRoute>
-      <OrgGuard>
+    <ProtectedRoute skeleton={<PageSkeleton variant="list" />}>
+      <OrgGuard skeleton={<PageSkeleton variant="list" />}>
         <Guides />
       </OrgGuard>
     </ProtectedRoute>

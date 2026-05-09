@@ -1,6 +1,6 @@
-import { useMemo, useCallback } from "react";
-import { useOrgStore } from "@/app/stores/orgStore";
-import type { Permission } from "@/app/lib/permissions";
+import { useMemo, useCallback } from 'react';
+import { useOrgStore } from '@/app/stores/orgStore';
+import type { Permission } from '@/app/lib/permissions';
 
 type CanInput =
   | Permission
@@ -19,9 +19,7 @@ export type PermissionCheckResult = {
   activeOrgId: string | null;
 };
 
-export const usePermissions = (
-  explicitOrgId?: string | null
-): PermissionCheckResult => {
+export const usePermissions = (explicitOrgId?: string | null): PermissionCheckResult => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const status = useOrgStore((s) => s.status);
   const membershipsByOrgId = useOrgStore((s) => s.membershipsByOrgId);
@@ -61,7 +59,7 @@ export const usePermissions = (
 
   const can = useCallback(
     (input: CanInput): boolean => {
-      if (typeof input === "string") {
+      if (typeof input === 'string') {
         return hasPermission(input);
       }
       if (Array.isArray(input)) {
@@ -84,7 +82,7 @@ export const usePermissions = (
     [hasPermission, canAll, canAny]
   );
 
-  const isLoading = status === "loading";
+  const isLoading = status === 'loading' || status === 'idle';
 
   return {
     permissions,

@@ -1,16 +1,12 @@
 'use client';
 import React, { Suspense, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { FaUser, FaCalendar } from 'react-icons/fa';
 import { IoDocument } from 'react-icons/io5';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
-import Progress from '@/app/features/onboarding/components/Steps/Progress/Progress';
 import { StepContent } from '@/app/features/onboarding/components/Steps/types';
-import PersonalStep, {
-  StepHandle,
-} from '@/app/features/onboarding/components/Steps/TeamOnboarding/PersonalStep';
-import ProfessionalStep from '@/app/features/onboarding/components/Steps/TeamOnboarding/ProfessionalStep';
-import AvailabilityStep from '@/app/features/onboarding/components/Steps/TeamOnboarding/AvailabilityStep';
+import type { StepHandle } from '@/app/features/onboarding/components/Steps/TeamOnboarding/PersonalStep';
 
 import './TeamOnboarding.css';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -38,6 +34,26 @@ const TeamSteps: StepContent[] = [
     logo: <FaCalendar color="var(--color-neutral-0)" size={18} />,
   },
 ];
+
+const OnboardingStepSkeleton = () => (
+  <div className="min-h-80 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const Progress = dynamic(
+  () => import('@/app/features/onboarding/components/Steps/Progress/Progress')
+);
+const PersonalStep = dynamic(
+  () => import('@/app/features/onboarding/components/Steps/TeamOnboarding/PersonalStep'),
+  { loading: () => <OnboardingStepSkeleton /> }
+);
+const ProfessionalStep = dynamic(
+  () => import('@/app/features/onboarding/components/Steps/TeamOnboarding/ProfessionalStep'),
+  { loading: () => <OnboardingStepSkeleton /> }
+);
+const AvailabilityStep = dynamic(
+  () => import('@/app/features/onboarding/components/Steps/TeamOnboarding/AvailabilityStep'),
+  { loading: () => <OnboardingStepSkeleton /> }
+);
 
 const EMPTY_PROFILE: UserProfile = {
   _id: '',

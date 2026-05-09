@@ -29,7 +29,7 @@ const TABLE_BODY_PADDING_BOTTOM = 16;
 const GenericTable = <T extends object>({
   data,
   columns,
-  bordered = false,
+  bordered: _bordered = false,
   pagination = false,
   pageSize = 10,
   tableClassName,

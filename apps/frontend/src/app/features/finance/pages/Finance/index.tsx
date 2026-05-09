@@ -1,10 +1,10 @@
 'use client';
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
-import InvoiceDataTable from '@/app/ui/tables/InvoiceTable';
-import InvoiceInfo from '@/app/features/finance/pages/Finance/Sections/InvoiceInfo';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { Invoice } from '@yosemite-crew/types';
 import Filters from '@/app/ui/filters/Filters';
@@ -18,6 +18,17 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+
+const FinanceSectionSkeleton = () => (
+  <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const InvoiceDataTable = dynamic(() => import('@/app/ui/tables/InvoiceTable'), {
+  loading: () => <FinanceSectionSkeleton />,
+});
+const InvoiceInfo = dynamic(
+  () => import('@/app/features/finance/pages/Finance/Sections/InvoiceInfo')
+);
 
 const Finance = () => {
   const invoices = useInvoicesForPrimaryOrg();
@@ -148,9 +159,9 @@ const Finance = () => {
 
 const ProtectedFinance = () => {
   return (
-    <ProtectedRoute>
-      <OrgGuard>
-        <Suspense>
+    <ProtectedRoute skeleton={<PageSkeleton variant="list" />}>
+      <OrgGuard skeleton={<PageSkeleton variant="list" />}>
+        <Suspense fallback={<PageSkeleton variant="list" />}>
           <Finance />
         </Suspense>
       </OrgGuard>

@@ -19,7 +19,7 @@ import ChangeStatus from '@/app/features/appointments/pages/Appointments/Section
 import { AppointmentViewIntent } from '@/app/features/appointments';
 import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/ChangeRoom';
 import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
-import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
+import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 import Filters from '@/app/ui/filters/Filters';
 
 const AppointmentTask = () => {
@@ -95,7 +95,7 @@ const AppointmentTask = () => {
 
     const wanted = activeSubLabel.toLowerCase();
     return appointments.filter((item) => {
-      const s = normalizeAppointmentStatus(item.status as LegacyAppointmentStatus)?.toLowerCase();
+      const s = normalizeAppointmentStatus(item.status)?.toLowerCase();
       return s === wanted;
     });
   }, [appointments, activeTable, activeSubLabel]);

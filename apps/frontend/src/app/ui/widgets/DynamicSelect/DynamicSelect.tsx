@@ -22,7 +22,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
   placeholder = 'Select an option',
   value,
   onChange,
-  inname,
+  inname: _inname,
   error,
   searchable = true,
 }) => {

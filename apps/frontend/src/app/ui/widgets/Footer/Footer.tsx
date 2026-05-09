@@ -133,7 +133,13 @@ const Footer = () => {
           <div className="FootTopData">
             <div className="leftFooter">
               <Link href={'/'}>
-                <Image src={MEDIA_SOURCES.logo} alt="Yosemite Crew Logo" width={90} height={83} />
+                <Image
+                  src={MEDIA_SOURCES.logo}
+                  alt="Yosemite Crew Logo"
+                  width={90}
+                  height={83}
+                  style={{ height: 'auto' }}
+                />
               </Link>
               <div className="ClientLogoGroup">
                 <ul className="ClientLogo" aria-label="Certifications">
@@ -144,6 +150,7 @@ const Footer = () => {
                       width={55}
                       height={56}
                       className="gdpr-footer"
+                      style={{ height: 'auto' }}
                     />
                   </li>
                   <li>
@@ -153,6 +160,7 @@ const Footer = () => {
                       width={56}
                       height={56}
                       className="soc-footer"
+                      style={{ height: 'auto' }}
                     />
                   </li>
                   <li>
@@ -162,6 +170,7 @@ const Footer = () => {
                       width={54}
                       height={60}
                       className="iso-footer"
+                      style={{ height: 'auto' }}
                     />
                   </li>
                   <li>
@@ -171,6 +180,7 @@ const Footer = () => {
                       width={117}
                       height={28}
                       className="fhir-footer"
+                      style={{ height: 'auto' }}
                     />
                   </li>
                 </ul>

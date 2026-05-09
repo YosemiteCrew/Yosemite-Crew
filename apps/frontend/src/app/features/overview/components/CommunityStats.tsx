@@ -193,10 +193,10 @@ const buildStarsChartConfig = (
 ): ChartConfig => {
   const chartData =
     effectiveGranularity === 'Yearly'
-      ? aggregateStarsByYear(starsChart).map(({ dateKey, ...dataPoint }) => dataPoint)
+      ? aggregateStarsByYear(starsChart).map(({ dateKey: _dateKey, ...dataPoint }) => dataPoint)
       : starsChart
           .filter((dataPoint) => getYearKey(dataPoint.dateKey) === resolvedPeriodKey)
-          .map(({ dateKey, ...dataPoint }) => dataPoint);
+          .map(({ dateKey: _dateKey, ...dataPoint }) => dataPoint);
   return { chartData, yAxisWidth: 45 };
 };
 
@@ -217,7 +217,7 @@ const buildTrafficChartConfig = (
     effectiveGranularity === 'Monthly'
       ? aggregateTrafficByMonth(trafficChart, view)
           .filter((dataPoint) => getYearKey(dataPoint.dateKey) === resolvedPeriodKey)
-          .map(({ dateKey, ...dataPoint }) => dataPoint)
+          .map(({ dateKey: _dateKey, ...dataPoint }) => dataPoint)
       : trafficChart
           .filter((dataPoint) => getMonthKey(dataPoint.dateKey) === resolvedPeriodKey)
           .map(mapTrafficPoint);

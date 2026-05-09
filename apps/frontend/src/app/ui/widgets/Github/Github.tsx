@@ -4,6 +4,7 @@ import { IoCloseSharp } from 'react-icons/io5';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { publicRoutes } from '@/app/lib/const';
+import { getJsonStorageItem, setJsonStorageItem } from '@/app/lib/browserStorage';
 
 const owner = 'YosemiteCrew';
 const repo = 'Yosemite-Crew';
@@ -14,24 +15,15 @@ const cacheKey = (o: string, r: string) => `gh:stars:${o}/${r}`;
 type CacheShape = { value: number; ts: number };
 
 const readCache = (o: string, r: string): number | null => {
-  try {
-    const raw = localStorage.getItem(cacheKey(o, r));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as CacheShape;
-    if (Date.now() - parsed.ts > CACHE_TTL_MS) return null;
-    return typeof parsed.value === 'number' ? parsed.value : null;
-  } catch {
-    return null;
-  }
+  const parsed = getJsonStorageItem<CacheShape>('local', cacheKey(o, r));
+  if (!parsed) return null;
+  if (Date.now() - parsed.ts > CACHE_TTL_MS) return null;
+  return typeof parsed.value === 'number' ? parsed.value : null;
 };
 
 const writeCache = (o: string, r: string, value: number) => {
-  try {
-    const payload: CacheShape = { value, ts: Date.now() };
-    localStorage.setItem(cacheKey(o, r), JSON.stringify(payload));
-  } catch {
-    // ignore quota errors
-  }
+  const payload: CacheShape = { value, ts: Date.now() };
+  setJsonStorageItem('local', cacheKey(o, r), payload);
 };
 
 const Github = () => {

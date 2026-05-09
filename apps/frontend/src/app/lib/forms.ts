@@ -90,9 +90,9 @@ export const ensureSingleSignatureAtEnd = (
     ...withoutSignatures,
     {
       id: 'signature',
-      type: 'signature',
+      type: 'signature' as const,
       label,
-    } as FormField,
+    },
   ];
 };
 

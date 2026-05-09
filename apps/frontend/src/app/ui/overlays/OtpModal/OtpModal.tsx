@@ -9,6 +9,7 @@ import { postData } from '@/app/services/axios';
 import { useSignOut } from '@/app/hooks/useAuth';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
 import './OtpModal.css';
@@ -129,7 +130,7 @@ const OtpModal = ({
           defaultSidebarToCollapsed();
           await afterAuthSuccess();
           // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
-          globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
+          setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
           const signedInRole =
             typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
           const nextRoute = await resolvePostAuthRedirect({
@@ -231,13 +232,10 @@ const OtpModal = ({
   if (!showVerifyModal) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      role="presentation"
-    >
-      <div
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <dialog
+        open
         className="VerifyModalSec"
-        role="dialog"
         aria-modal="true"
         aria-labelledby={dialogTitleId}
         aria-describedby={dialogDescriptionId}
@@ -266,10 +264,9 @@ const OtpModal = ({
             </p>
           </div>
           <div className="verifyInputDiv">
-            <div
+            <fieldset
               className="verifyInput"
               style={{ marginBottom: 24 }}
-              role="group"
               aria-label="Email verification code"
               aria-describedby={`${otpHintId} ${invalidOtp ? otpStatusId : ''}`.trim()}
             >
@@ -289,7 +286,7 @@ const OtpModal = ({
                   onKeyDown={(e) => handleCodeKeyDown(e, idx)}
                 />
               ))}
-            </div>
+            </fieldset>
             <p id={otpHintId} className="text-caption-1 text-text-secondary">
               Enter the 6-digit code from your email.
             </p>
@@ -333,7 +330,7 @@ const OtpModal = ({
             </Link>
           </div>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 };

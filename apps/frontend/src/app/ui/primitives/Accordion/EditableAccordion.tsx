@@ -184,10 +184,7 @@ const FieldComponents: Record<
       <Datepicker
         currentDate={parseDate(value)}
         setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
-          const resolved =
-            typeof next === 'function'
-              ? (next as (prev: Date | null) => Date | null)(parseDate(value))
-              : next;
+          const resolved = typeof next === 'function' ? next(parseDate(value)) : next;
           if (resolved) {
             onChange(formatDate(resolved));
           } else {

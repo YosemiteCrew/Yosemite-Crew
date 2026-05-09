@@ -17,6 +17,7 @@ export const isHttpsImageUrl = (src?: string | null): src is string => {
 };
 
 const IDEXX_ALLOWED_HOST_SUFFIXES = ['idexx.com', 'vetconnectplus.com'] as const;
+const DEFAULT_DOCUMENSO_ORIGIN = 'https://ds.yosemitecrew.com';
 
 const hasAllowedIdexxHost = (hostname: string): boolean => {
   const normalizedHost = hostname.trim().toLowerCase();
@@ -37,6 +38,31 @@ export const getSafeIdexxIframeUrl = (
     const parsed = new URL(value);
     if (parsed.protocol !== 'https:') return '';
     if (!hasAllowedIdexxHost(parsed.hostname)) return '';
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+};
+
+const getAllowedDocumensoOrigin = (): string => {
+  const configuredOrigin = process.env.NEXT_PUBLIC_DOCUMENSO_HOST ?? DEFAULT_DOCUMENSO_ORIGIN;
+
+  try {
+    return new URL(configuredOrigin).origin;
+  } catch {
+    return DEFAULT_DOCUMENSO_ORIGIN;
+  }
+};
+
+export const getSafeDocumensoIframeUrl = (src: string | null | undefined): string => {
+  const value = String(src ?? '').trim();
+  if (!value) return '';
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') return '';
+    if (parsed.origin !== getAllowedDocumensoOrigin()) return '';
+    parsed.pathname = parsed.pathname.replaceAll(/\/{2,}/g, '/');
     return parsed.toString();
   } catch {
     return '';

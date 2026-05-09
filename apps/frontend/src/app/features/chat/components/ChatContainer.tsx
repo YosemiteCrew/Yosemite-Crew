@@ -65,6 +65,7 @@ const ChatSessionStatusContext = React.createContext<{
 });
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
 interface ChatContainerProps {
   appointmentId?: string;
@@ -1464,7 +1465,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         if (existingSession?.channelId) {
           // Found existing session, try to load the channel
           const queried = await client.queryChannels(
-            { id: { $eq: existingSession.channelId } } as Record<string, unknown>,
+            { id: { $eq: existingSession.channelId } },
             [{ last_message_at: -1 }],
             { watch: true, state: true, presence: true, limit: 1 }
           );
@@ -1483,7 +1484,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
           {
             type: 'team',
             members: { $in: [client.userID!] },
-          } as Record<string, unknown>,
+          },
           [{ last_message_at: -1 }],
           { watch: false, state: true, presence: false, limit: 100 }
         );
@@ -2021,8 +2022,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
 const ProtectedChatContainer = () => {
   return (
-    <ProtectedRoute>
-      <OrgGuard>
+    <ProtectedRoute skeleton={<PageSkeleton variant="list" />}>
+      <OrgGuard skeleton={<PageSkeleton variant="list" />}>
         <ChatContainer />
       </OrgGuard>
     </ProtectedRoute>

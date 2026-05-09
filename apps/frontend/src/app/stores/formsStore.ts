@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import { FormsProps, FormsStatus } from "@/app/features/forms/types/forms";
-import { formatDateLabel } from "@/app/lib/forms";
+import { create } from 'zustand';
+import { FormsProps, FormsStatus } from '@/app/features/forms/types/forms';
+import { formatDateLabel } from '@/app/lib/forms';
 
 type FormsState = {
   formsById: Record<string, FormsProps>;
@@ -20,10 +20,9 @@ type FormsState = {
   clear: () => void;
 };
 
-const resolveId = (form: FormsProps): string =>
-  form._id ?? form.name ?? crypto.randomUUID();
+const resolveId = (form: FormsProps): string => form._id ?? form.name ?? crypto.randomUUID();
 
-export const useFormsStore = create<FormsState>()((set, get) => ({
+export const useFormsStore = create<FormsState>()((set) => ({
   formsById: {},
   formIds: [],
   activeFormId: null,

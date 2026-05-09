@@ -44,6 +44,38 @@ const ForgotPassword = () => {
     setInputErrors((prev) => ({ ...prev, password: undefined, confirmPassword: undefined }));
   };
 
+  const scrollToTop = () => {
+    if (globalThis.window) {
+      globalThis.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const resetPasswordFormState = () => {
+    setShowNewPassword(false);
+    setPassword('');
+    setConfirmPassword('');
+    setOtp(['', '', '', '', '', '']);
+    setInputErrors({});
+  };
+
+  const getPasswordValidationErrors = () => {
+    if (!password || !confirmPassword) {
+      return {
+        password: password ? undefined : 'Enter a new password',
+        confirmPassword: confirmPassword ? undefined : 'Confirm your new password',
+      };
+    }
+
+    if (password !== confirmPassword) {
+      return {
+        password: undefined,
+        confirmPassword: 'Passwords do not match',
+      };
+    }
+
+    return null;
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     index: number
@@ -178,40 +210,15 @@ const ForgotPassword = () => {
   const handlePasswordChange = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
 
-    if (!password || !confirmPassword) {
-      setInputErrors({
-        password: password ? undefined : 'Enter a new password',
-        confirmPassword: confirmPassword ? undefined : 'Confirm your new password',
-      });
-      if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+    const passwordErrors = getPasswordValidationErrors();
+    if (passwordErrors) {
+      setInputErrors(passwordErrors);
+      scrollToTop();
       showErrorTost({
-        message: 'Both Passwords are required',
-        errortext: 'Error',
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="var(--color-danger-600)"
-          />
-        ),
-        className: 'errofoundbg',
-      });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setInputErrors({
-        password: undefined,
-        confirmPassword: 'Passwords do not match',
-      });
-      if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      showErrorTost({
-        message: 'Passwords do not match',
+        message:
+          passwordErrors.confirmPassword === 'Passwords do not match'
+            ? 'Passwords do not match'
+            : 'Both Passwords are required',
         errortext: 'Error',
         iconElement: (
           <Icon
@@ -247,18 +254,12 @@ const ForgotPassword = () => {
           router.push('/signin');
         }, 3000);
         setTimeout(() => {
-          setShowNewPassword(false);
           setShowVerifyCode(false);
-          setPassword('');
-          setConfirmPassword('');
-          setOtp(['', '', '', '', '', '']);
-          setInputErrors({});
+          resetPasswordFormState();
         }, 5000);
       }
     } catch (error: any) {
-      if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      scrollToTop();
       if (error?.code === 'CodeMismatchException') {
         setShowVerifyCode(true);
         showErrorTost({
@@ -290,11 +291,7 @@ const ForgotPassword = () => {
           className: 'errofoundbg',
         });
       }
-      setShowNewPassword(false);
-      setPassword('');
-      setConfirmPassword('');
-      setOtp(['', '', '', '', '', '']);
-      setInputErrors({});
+      resetPasswordFormState();
     }
   };
 
@@ -356,9 +353,8 @@ const ForgotPassword = () => {
               </div>
             </div>
 
-            <div
+            <fieldset
               className="verifyInput"
-              role="group"
               aria-label="Verification code"
               aria-describedby={otpDescribedBy}
             >
@@ -377,7 +373,7 @@ const ForgotPassword = () => {
                   autoComplete={index === 0 ? 'one-time-code' : 'off'}
                 />
               ))}
-            </div>
+            </fieldset>
             <p id={otpHintId} className="text-caption-1 text-text-secondary text-center">
               Enter the 6-digit code from your email.
             </p>

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
+import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 import Image from 'next/image';
@@ -386,6 +387,7 @@ const TaskBoard = ({
 
   const { autoScrollBoardOnDrag } = useBoardDragScroll();
   const onWheelBoundary = useScrollBoundaryWheel();
+  const onWheelHorizontal = useWheelToHorizontalScroll();
 
   const moveToStatus = useCallback(
     async (taskId: string, nextStatus: BoardStatus) => {
@@ -540,9 +542,10 @@ const TaskBoard = ({
 
       <div
         ref={boardRootRef}
-        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3"
+        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3 scrollbar-x-float"
         data-calendar-scroll="true"
         data-board-scroll-root="true"
+        onWheel={onWheelHorizontal}
       >
         <div className="h-full min-w-max flex items-stretch gap-3">
           {BOARD_COLUMNS.map((column) => {

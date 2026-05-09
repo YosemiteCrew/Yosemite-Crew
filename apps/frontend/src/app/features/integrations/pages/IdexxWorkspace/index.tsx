@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createPortal } from 'react-dom';
@@ -389,6 +390,7 @@ const ResultDetailModalContent = ({
   resultDetailLoading,
   activeResultDetail,
 }: ResultDetailModalContentProps) => {
+  const onWheelHorizontal = useWheelToHorizontalScroll();
   if (resultDetailLoading) {
     return <div className="text-body-4 text-text-secondary">Loading result details...</div>;
   }
@@ -422,7 +424,7 @@ const ResultDetailModalContent = ({
           className="rounded-2xl border border-card-border p-3"
         >
           <div className="text-body-4 text-text-primary mb-2">{category.name}</div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-x-float" onWheel={onWheelHorizontal}>
             <table className="w-full min-w-[620px]">
               <thead>
                 <tr className="border-b border-card-border">
@@ -562,6 +564,7 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
           className="flex-1 w-full border-0"
           loading="lazy"
           allowFullScreen
+          referrerPolicy="strict-origin"
           style={{ pointerEvents: 'auto' }}
         />
       </div>

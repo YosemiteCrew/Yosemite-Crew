@@ -30,7 +30,6 @@ const withBusinessType = (item: InventoryItem, fallback: BusinessType): Inventor
   businessType: item.businessType ?? fallback,
 });
 
-const EMPTY_INVENTORY: InventoryItem[] = [];
 const EMPTY_TURNOVER: InventoryTurnoverItem[] = [];
 const EMPTY_IDS: string[] = [];
 const inFlightLoads: Record<string, Promise<any> | undefined> = {};

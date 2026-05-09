@@ -44,6 +44,7 @@ const PdfPreviewOverlay = ({
           src={safePdfUrl}
           title={title}
           className="flex-1 w-full border-0"
+          referrerPolicy="strict-origin"
           style={{ pointerEvents: 'auto' }}
         />
       </div>

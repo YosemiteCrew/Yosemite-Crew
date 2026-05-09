@@ -298,11 +298,11 @@ const buildServicesGroup = (): FormField => ({
   fields: [
     {
       id: 'services_group_services',
-      type: 'checkbox',
+      type: 'checkbox' as const,
       label: '', // Empty label to avoid duplicate "Services" text
       options: [],
       multiple: true,
-    } as BackendFormField,
+    },
   ],
 });
 

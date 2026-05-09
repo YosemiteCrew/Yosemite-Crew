@@ -267,14 +267,13 @@ export const buildOnboardingServiceDraft = (
   serviceTemplate: OnboardingServiceTemplate,
   organisationId: string,
   specialityId?: string
-): Service =>
-  ({
-    ...serviceTemplate,
-    id: '',
-    isActive: true,
-    organisationId,
-    specialityId,
-  }) as Service;
+): Service => ({
+  ...serviceTemplate,
+  id: '',
+  isActive: true,
+  organisationId,
+  specialityId,
+});
 
 export const buildOnboardingServiceDrafts = (
   specialityName: string,

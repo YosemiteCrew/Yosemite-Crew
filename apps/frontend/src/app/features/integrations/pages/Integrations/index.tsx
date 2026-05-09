@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import Modal from '@/app/ui/overlays/Modal';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
@@ -777,7 +778,8 @@ const IntegrationFilterTabs = ({
   activeFilter: IntegrationsPageState['activeFilter'];
   setActiveFilter: IntegrationsPageState['setActiveFilter'];
 }) => (
-  <div role="group" aria-label="Filter integrations" className="flex items-center gap-2 flex-wrap">
+  <fieldset className="flex items-center gap-2 flex-wrap">
+    <legend className="sr-only">Filter integrations</legend>
     {integrationFilters.map((tab) => {
       const isActive = activeFilter === tab.key;
       return (
@@ -803,7 +805,7 @@ const IntegrationFilterTabs = ({
         </button>
       );
     })}
-  </div>
+  </fieldset>
 );
 
 const INTEGRATION_CARD_CLASS =
@@ -1104,6 +1106,60 @@ const QuickBooksIntegrationCard = ({
   );
 };
 
+const LaikaIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (activeFilter === 'connected') return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+        <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+          <Image
+            src={MEDIA_SOURCES.futureAssets.laikaLogoUrl}
+            alt="Laika"
+            width={56}
+            height={16}
+            className="object-contain max-h-14 max-w-14 h-auto w-auto"
+            unoptimized
+          />
+        </div>
+        <div className="h-10 w-10" />
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex flex-col gap-3 pb-3">
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>Laika</div>
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
+              Coming soon
+            </span>
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-4">
+            AI-powered diagnostic support for veterinary clinicians — interpret lab results, reason
+            through differentials, and get evidence-based guidance trained exclusively on veterinary
+            medical data.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full items-center justify-end">
+            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const IntegrationCards = ({
   s,
   idexxCardButtonLabel,
@@ -1122,6 +1178,7 @@ const IntegrationCards = ({
       <RadIntegrationCard activeFilter={s.activeFilter} />
       <VetnioIntegrationCard activeFilter={s.activeFilter} />
       <QuickBooksIntegrationCard activeFilter={s.activeFilter} />
+      <LaikaIntegrationCard activeFilter={s.activeFilter} />
     </div>
   );
 };
@@ -1183,15 +1240,13 @@ const IntegrationsPage = () => {
       />
 
       {showNoConnected ? (
-        <div role="status" className="text-body-4 text-text-secondary">
-          No connected integrations yet.
-        </div>
+        <output className="text-body-4 text-text-secondary">No connected integrations yet.</output>
       ) : null}
 
       {showNoAvailable ? (
-        <div role="status" className="text-body-4 text-text-secondary">
+        <output className="text-body-4 text-text-secondary">
           No available integrations right now.
-        </div>
+        </output>
       ) : null}
 
       <IdexxSettingsModal
@@ -1222,8 +1277,8 @@ const IntegrationsPage = () => {
 };
 
 const ProtectedIntegrations = () => (
-  <ProtectedRoute>
-    <OrgGuard>
+  <ProtectedRoute skeleton={<PageSkeleton variant="list" />}>
+    <OrgGuard skeleton={<PageSkeleton variant="list" />}>
       <IntegrationsPage />
     </OrgGuard>
   </ProtectedRoute>

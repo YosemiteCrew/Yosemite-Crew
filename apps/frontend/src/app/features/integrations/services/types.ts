@@ -164,6 +164,7 @@ export type LabResult = {
     categories?: LabResultCategory[];
     runSummaries?: Array<{ id: string; code: string; name: string }>;
     status?: string;
+    statusDetail?: string;
     updatedDate?: string;
   };
 };

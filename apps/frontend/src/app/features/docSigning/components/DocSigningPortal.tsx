@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { fetchDocumensoRedirectUrl } from '@/app/features/documents/services/documensoService';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
+import { getSafeDocumensoIframeUrl } from '@/app/lib/urls';
 
 type DocSigningPortalProps = {
   embedded?: boolean;
@@ -15,14 +16,8 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
   const portalUrl = useMemo(() => {
-    if (!redirectUrl) return null;
-    try {
-      const url = new URL(redirectUrl);
-      url.pathname = url.pathname.replaceAll(/\/{2,}/g, '/');
-      return url.toString();
-    } catch {
-      return redirectUrl;
-    }
+    const safeUrl = getSafeDocumensoIframeUrl(redirectUrl);
+    return safeUrl || null;
   }, [redirectUrl]);
 
   useEffect(() => {
@@ -82,6 +77,8 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
         className="w-full h-full"
         title="Doc Signing Portal"
         allow="clipboard-read; clipboard-write; fullscreen"
+        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
+        referrerPolicy="strict-origin"
       />
     </div>
   );

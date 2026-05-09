@@ -1,60 +1,58 @@
 /* eslint-disable @next/next/no-img-element */
-import React from "react";
+import React from 'react';
 
 const MOTION_PROPS = new Set([
-  "initial",
-  "animate",
-  "exit",
-  "variants",
-  "transition",
-  "whileHover",
-  "whileTap",
-  "whileFocus",
-  "whileInView",
-  "viewport",
-  "layout",
-  "layoutId",
-  "drag",
-  "dragConstraints",
-  "dragElastic",
-  "dragMomentum",
-  "onAnimationStart",
-  "onAnimationComplete",
-  "onUpdate",
-  "onTap",
-  "onTapStart",
-  "onTapCancel",
-  "onHoverStart",
-  "onHoverEnd",
+  'initial',
+  'animate',
+  'exit',
+  'variants',
+  'transition',
+  'whileHover',
+  'whileTap',
+  'whileFocus',
+  'whileInView',
+  'viewport',
+  'layout',
+  'layoutId',
+  'drag',
+  'dragConstraints',
+  'dragElastic',
+  'dragMomentum',
+  'onAnimationStart',
+  'onAnimationComplete',
+  'onUpdate',
+  'onTap',
+  'onTapStart',
+  'onTapCancel',
+  'onHoverStart',
+  'onHoverEnd',
 ]);
 
-jest.mock("next/link", () => {
+jest.mock('next/link', () => {
   return ({ children, ...props }: any) => <a {...props}>{children}</a>;
 });
 
-jest.mock("next/image", () => ({
+jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt = "", src = "", ...rest }: any) => {
+  default: ({ alt = '', src = '', ...rest }: any) => {
     const {
-      priority,
-      loader,
-      fill,
-      sizes,
-      quality,
-      placeholder,
-      blurDataURL,
-      onLoadingComplete,
-      unoptimized,
+      priority: _priority,
+      loader: _loader,
+      fill: _fill,
+      sizes: _sizes,
+      quality: _quality,
+      placeholder: _placeholder,
+      blurDataURL: _blurDataURL,
+      onLoadingComplete: _onLoadingComplete,
+      unoptimized: _unoptimized,
       ...imgProps
     } = rest;
 
-    return (
-      <img alt={alt} src={typeof src === "string" ? src : ""} {...imgProps} />
-    );
+    return <img alt={alt} src={typeof src === 'string' ? src : ''} {...imgProps} />;
   },
 }));
 
-jest.mock("framer-motion", () => {
+jest.mock('framer-motion', () => {
   const make =
     (tag: string) =>
     ({ children, ...props }: any) => {
@@ -77,8 +75,8 @@ jest.mock("framer-motion", () => {
   return { motion, AnimatePresence };
 });
 
-jest.mock("@/app/ui/primitives/Buttons", () => ({
-  Primary: ({ text, href = "#", onClick, ...props }: any) => (
+jest.mock('@/app/ui/primitives/Buttons', () => ({
+  Primary: ({ text, href = '#', onClick, ...props }: any) => (
     <a
       data-testid="primary-btn"
       href={href}
@@ -98,7 +96,7 @@ jest.mock("@/app/ui/primitives/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
+jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <label>
@@ -109,7 +107,7 @@ jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/Dropdown/Dropdown", () => ({
+jest.mock('@/app/ui/inputs/Dropdown/Dropdown', () => ({
   __esModule: true,
   default: ({ placeholder, value, onChange }: any) => (
     <label>
@@ -119,15 +117,12 @@ jest.mock("@/app/ui/inputs/Dropdown/Dropdown", () => ({
   ),
 }));
 
-jest.mock(
-  "@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown",
-  () => ({
-    __esModule: true,
-    default: ({ inlabel, value, onChange }: any) => (
-      <label>
-        {inlabel}
-        <input value={value} onChange={onChange} />
-      </label>
-    ),
-  })
-);
+jest.mock('@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown', () => ({
+  __esModule: true,
+  default: ({ inlabel, value, onChange }: any) => (
+    <label>
+      {inlabel}
+      <input value={value} onChange={onChange} />
+    </label>
+  ),
+}));

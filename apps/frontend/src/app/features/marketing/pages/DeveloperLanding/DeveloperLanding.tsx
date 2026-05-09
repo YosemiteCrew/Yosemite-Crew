@@ -8,6 +8,7 @@ import Footer from '@/app/ui/widgets/Footer/Footer';
 
 import './DeveloperLanding.css';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import { getStorageItem } from '@/app/lib/browserStorage';
 import { useAuthStore } from '@/app/stores/authStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
@@ -27,8 +28,7 @@ const DeveloperLanding = () => {
     const isAuthenticated =
       (status === 'authenticated' || status === 'signin-authenticated') && user;
     const isDevAuth =
-      canUseLocalDeveloperFallback() &&
-      globalThis.window?.sessionStorage?.getItem('devAuth') === 'true';
+      canUseLocalDeveloperFallback() && getStorageItem('session', 'devAuth') === 'true';
     const isDeveloper = role === 'developer' || isDevAuth;
 
     const target = isAuthenticated && isDeveloper ? '/developers/home' : '/developers/signin';

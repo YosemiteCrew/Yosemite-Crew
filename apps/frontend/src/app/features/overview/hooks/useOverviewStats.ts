@@ -43,59 +43,6 @@ const getCumulative = (data: any[], targetTimeMs: number, valKey: string) => {
   return lastVal;
 };
 
-const sortByTimeAsc = (data: any[]) =>
-  [...data].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-
-const getLatestCumulativeValue = (data: any[], key: string): number => {
-  const last = sortByTimeAsc(data).at(-1);
-  return last?.[key] || 0;
-};
-
-const generateTrafficData = (
-  maxDate: Date,
-  clonesData: any[],
-  clonesUniqueData: any[],
-  forksData: any[]
-): TrafficDataPoint[] => {
-  const generatedTraffic: TrafficDataPoint[] = [];
-  const dayMinus30 = new Date(maxDate);
-  dayMinus30.setUTCDate(maxDate.getUTCDate() - 30);
-  let lastForks = getCumulative(forksData, dayMinus30.getTime(), 'forks_cumulative');
-
-  for (let i = 29; i >= 0; i--) {
-    const targetDate = new Date(maxDate);
-    targetDate.setUTCDate(maxDate.getUTCDate() - i);
-
-    const dateString = targetDate.toISOString().split('T')[0];
-    const monthLabel = targetDate.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      timeZone: 'UTC',
-    });
-
-    const cloneEntry = clonesData.find((d: any) => d.time.startsWith(dateString));
-    const cloneUniqueEntry = clonesUniqueData.find((d: any) => d.time.startsWith(dateString));
-    const clonesTotal = cloneEntry ? cloneEntry.clones_total : 0;
-    const clonesUnique = cloneUniqueEntry ? cloneUniqueEntry.clones_unique : 0;
-
-    const targetTimeMs = targetDate.getTime();
-    const forksCum = getCumulative(forksData, targetTimeMs, 'forks_cumulative');
-    const forksUnique = Math.max(0, forksCum - lastForks);
-    lastForks = forksCum;
-
-    generatedTraffic.push({
-      dateKey: dateString,
-      month: monthLabel,
-      'Self Hosters (Unique)': clonesUnique,
-      'Self Hosters (Cumulative)': clonesTotal,
-      'Builders (Unique)': forksUnique,
-      'Builders (Cumulative)': forksCum,
-    });
-  }
-
-  return generatedTraffic;
-};
-
 const generateStarsData = (sortedStars: any[], maxDate: Date): StarsDataPoint[] => {
   const generatedStars: StarsDataPoint[] = [];
   if (sortedStars.length === 0) return generatedStars;

@@ -34,11 +34,9 @@ const HomePage = () => {
           <div className="HomeHeroData">
             <div className="LeftHeroDiv">
               <div className="herotext">
-                <h1 className="text-display-1 text-text-primary type first">
-                  Helping you help pets,
-                  <span className="text-display-1 text-text-primary">
-                    <span className="type second"> without the hassle</span>
-                  </span>
+                <h1 className="text-display-1 text-text-primary hero-heading">
+                  <span className="hero-line hero-line-1">Helping you help pets,</span>
+                  <span className="hero-line hero-line-2"> without the hassle</span>
                 </h1>
               </div>
               <div className="heroPara">

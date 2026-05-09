@@ -27,7 +27,7 @@ export const useOrgOnboarding = (
       return {
         step: 0 as OnboardingStep,
         specialities: [] as Speciality[],
-        effectiveOrg: null as Organisation | null,
+        effectiveOrg: null,
         isReady: true,
       };
     }
@@ -40,7 +40,7 @@ export const useOrgOnboarding = (
       return {
         step: 0 as OnboardingStep,
         specialities: [] as Speciality[],
-        effectiveOrg: null as Organisation | null,
+        effectiveOrg: null,
         isReady: false,
       };
     }
@@ -48,7 +48,7 @@ export const useOrgOnboarding = (
       return {
         step: 0 as OnboardingStep,
         specialities: [] as Speciality[],
-        effectiveOrg: null as Organisation | null,
+        effectiveOrg: null,
         isReady: true,
       };
     }
@@ -59,7 +59,7 @@ export const useOrgOnboarding = (
       return {
         step: 0 as OnboardingStep,
         specialities: [] as Speciality[],
-        effectiveOrg: null as Organisation | null,
+        effectiveOrg: null,
         isReady: true,
       };
     }

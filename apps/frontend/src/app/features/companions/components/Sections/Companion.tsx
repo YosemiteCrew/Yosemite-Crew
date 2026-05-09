@@ -242,7 +242,7 @@ const buildCompanionPayload = (
   ...companion.companion,
   ...formData,
   dateOfBirth: currentDate ?? companion.companion.dateOfBirth,
-  currentWeight: toNonNegativeNumber(formData.currentWeight as string | number | undefined),
+  currentWeight: toNonNegativeNumber(formData.currentWeight),
   type: formData.type,
   speciesCode:
     resolution.speciesCode ||

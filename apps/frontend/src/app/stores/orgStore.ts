@@ -1,8 +1,9 @@
-import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { Organisation, UserOrganization } from "@yosemite-crew/types";
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { Organisation, UserOrganization } from '@yosemite-crew/types';
+import { getPersistStorage } from '@/app/lib/browserStorage';
 
-type OrgStatus = "idle" | "loading" | "loaded" | "error";
+type OrgStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 type OrgState = {
   orgsById: Record<string, Organisation>;
@@ -14,10 +15,7 @@ type OrgState = {
   error: string | null;
   lastFetchedAt: string | null;
 
-  setOrgs: (
-    orgs: Organisation[],
-    opts?: { keepPrimaryIfPresent?: boolean }
-  ) => void;
+  setOrgs: (orgs: Organisation[], opts?: { keepPrimaryIfPresent?: boolean }) => void;
   upsertOrg: (org: Organisation) => void;
   updateOrg: (orgId: string, patch: Partial<Organisation>) => void;
   getOrgById: (orgId: string) => Organisation | null;
@@ -44,7 +42,7 @@ export const useOrgStore = create<OrgState>()(
       orgIds: [],
       primaryOrgId: null,
       membershipsByOrgId: {},
-      status: "idle",
+      status: 'idle',
       error: null,
       lastFetchedAt: null,
 
@@ -85,7 +83,7 @@ export const useOrgStore = create<OrgState>()(
             orgsById,
             orgIds,
             primaryOrgId,
-            status: "loaded",
+            status: 'loaded',
             error: null,
             lastFetchedAt: new Date().toISOString(),
           };
@@ -116,7 +114,7 @@ export const useOrgStore = create<OrgState>()(
             },
           };
           const orgIds = exists ? state.orgIds : [...state.orgIds, id];
-          return { orgsById, orgIds, status: "loaded" };
+          return { orgsById, orgIds, status: 'loaded' };
         }),
 
       updateOrg: (orgId, patch) =>
@@ -132,7 +130,7 @@ export const useOrgStore = create<OrgState>()(
               ...state.orgsById,
               [orgId]: updated,
             },
-            status: "loaded",
+            status: 'loaded',
           };
         }),
 
@@ -163,11 +161,8 @@ export const useOrgStore = create<OrgState>()(
           const { [orgId]: _removedOrg, ...nextOrgsById } = state.orgsById;
           const nextOrgIds = state.orgIds.filter((id) => id !== orgId);
           const nextPrimaryOrgId =
-            state.primaryOrgId === orgId
-              ? (nextOrgIds[0] ?? null)
-              : state.primaryOrgId;
-          const { [orgId]: _removedMemberships, ...nextMemberships } =
-            state.membershipsByOrgId;
+            state.primaryOrgId === orgId ? (nextOrgIds[0] ?? null) : state.primaryOrgId;
+          const { [orgId]: _removedMemberships, ...nextMemberships } = state.membershipsByOrgId;
           return {
             orgsById: nextOrgsById,
             orgIds: nextOrgIds,
@@ -182,26 +177,26 @@ export const useOrgStore = create<OrgState>()(
           orgIds: [],
           primaryOrgId: null,
           membershipsByOrgId: {},
-          status: "idle",
+          status: 'idle',
           error: null,
           lastFetchedAt: null,
         })),
 
       startLoading: () =>
         set(() => ({
-          status: "loading",
+          status: 'loading',
           error: null,
         })),
 
       endLoading: () =>
         set(() => ({
-          status: "loaded",
+          status: 'loaded',
           error: null,
         })),
 
       setError: (message: string) =>
         set(() => ({
-          status: "error",
+          status: 'error',
           error: message,
         })),
 
@@ -240,9 +235,9 @@ export const useOrgStore = create<OrgState>()(
       },
     }),
     {
-      name: "org-store",
+      name: 'org-store',
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getPersistStorage('local')),
       partialize: (state) => ({
         orgsById: state.orgsById,
         orgIds: state.orgIds,
@@ -250,7 +245,7 @@ export const useOrgStore = create<OrgState>()(
         lastFetchedAt: state.lastFetchedAt,
       }),
       migrate: (persisted, _version) => {
-        return persisted as OrgState;
+        return persisted;
       },
     }
   )

@@ -29,8 +29,8 @@ export const useTeamOnboarding = (
     if (!orgId) {
       return {
         step: 0 as TeamOnboardingStep,
-        slots: [] as any[],
-        effectiveprofile: null as UserProfile | null,
+        slots: [] as ApiDayAvailability[],
+        effectiveprofile: null,
         shouldRedirectToOrganizations: true,
         isReady: true,
       };
@@ -45,7 +45,7 @@ export const useTeamOnboarding = (
     ) {
       return {
         step: 0 as TeamOnboardingStep,
-        slots: [],
+        slots: [] as ApiDayAvailability[],
         effectiveprofile: null,
         shouldRedirectToOrganizations: false,
         isReady: false,
@@ -54,8 +54,8 @@ export const useTeamOnboarding = (
     if (!membership) {
       return {
         step: 0 as TeamOnboardingStep,
-        slots: [] as any[],
-        effectiveprofile: null as UserProfile | null,
+        slots: [] as ApiDayAvailability[],
+        effectiveprofile: null,
         shouldRedirectToOrganizations: true,
         isReady: true,
       };
@@ -63,8 +63,8 @@ export const useTeamOnboarding = (
     if (!profile) {
       return {
         step: 0 as TeamOnboardingStep,
-        slots: [] as any[],
-        effectiveprofile: null as UserProfile | null,
+        slots: [] as ApiDayAvailability[],
+        effectiveprofile: null,
         shouldRedirectToOrganizations: false,
         isReady: true,
       };

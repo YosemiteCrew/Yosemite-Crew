@@ -1,5 +1,6 @@
 import React from 'react';
 import SubLabels from '@/app/ui/widgets/Labels/SubLabels';
+import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 
 type LabelItem = {
   key: string;
@@ -34,13 +35,15 @@ const Labels = ({
   const active = labels.find((l) => l.key === activeLabel);
   const subLabels = active ? active.labels : [];
   const useCenteredLayout = labels.length <= 3;
+  const onWheelHorizontal = useWheelToHorizontalScroll();
 
   return (
     <div className="mx-auto inline-flex w-full flex-col gap-2">
       <div
-        className={`flex w-full items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 ${
+        className={`flex w-full items-center gap-2 overflow-x-auto scrollbar-x-float whitespace-nowrap pb-1 ${
           useCenteredLayout ? 'justify-center' : 'justify-start px-1 sm:px-2'
         }`}
+        onWheel={onWheelHorizontal}
         role="tablist"
         aria-label="Section navigation"
       >
