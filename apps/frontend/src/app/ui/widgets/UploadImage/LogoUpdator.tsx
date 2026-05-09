@@ -22,15 +22,10 @@ type GetSignedUrlResponse = { uploadUrl: string; s3Key: string };
 const getSafePreviewUrl = (src: string | null): string | null => {
   const value = String(src ?? '').trim();
   if (!value) return null;
-  if (value.startsWith('blob:')) return value;
-  if (value.startsWith('data:image/')) return value;
-  try {
-    const parsed = new URL(value);
-    if (parsed.protocol !== 'https:') return null;
-    return parsed.toString();
-  } catch {
-    return null;
-  }
+  // For local file previews, we only ever expect object URLs created by `URL.createObjectURL`.
+  // Restrict to `blob:` to avoid any scriptable URL schemes (including SVG/data URLs).
+  if (!value.startsWith('blob:')) return null;
+  return value;
 };
 
 const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorProps) => {
