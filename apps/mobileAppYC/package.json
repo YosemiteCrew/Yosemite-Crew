@@ -9,6 +9,7 @@
     "start": "react-native start",
     "type-check": "tsc --noEmit",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "e2e:build:ios": "detox build -c ios.sim.debug",
     "e2e:ios": "detox test -c ios.sim.debug",
     "e2e:build:android": "detox build -c android.emu.debug",

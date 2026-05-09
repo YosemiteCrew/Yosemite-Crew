@@ -10,6 +10,7 @@
     "type-check": "tsc",
     "lint": "prisma generate && eslint .",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "format": "prettier --write .",
     "format-check": "prettier --check .",
     "prisma": "prisma",
