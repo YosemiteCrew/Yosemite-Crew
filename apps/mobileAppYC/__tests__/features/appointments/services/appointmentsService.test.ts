@@ -219,6 +219,181 @@ describe('appointmentsService', () => {
           'https://cdn.example.com/dr-stone.png',
         );
       });
+
+      it('should fall back to check-in extensions and a valid secondary practitioner entry', () => {
+        const {mapAppointmentFromResponse} = getModule();
+        const result = mapAppointmentFromResponse({
+          id: 'apt-checkin-ext',
+          status: 'awaiting payment',
+          start: '2026-04-01T10:15:00.000Z',
+          end: '2026-04-01T10:45:00.000Z',
+          participant: [
+            {actor: {reference: 'Patient/comp-1', display: 'Buddy'}},
+            {
+              actor: {reference: 'Practitioner/null', display: '   '},
+              type: [{text: 'Ignored role'}],
+            },
+            {
+              actor: {reference: 'Practitioner/prac-2', display: 'Dr. Valid'},
+              type: [{text: 'Support Vet'}],
+            },
+            {actor: {reference: 'Organization/org-2', display: 'Fallback Vet'}},
+          ],
+          organisation: {
+            name: 'Fallback Vet',
+            appointmentCheckInBufferMinutes: -5,
+            appointmentCheckInRadiusMeters: 'bad-value',
+            extension: [
+              {
+                url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-check-in-buffer-minutes',
+                valueString: '12',
+              },
+              {
+                url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-check-in-radius-meters',
+                valueDecimal: 250,
+              },
+            ],
+          },
+        });
+
+        expect(result.employeeId).toBe('prac-2');
+        expect(result.employeeName).toBe('Dr. Valid');
+        expect(result.employeeTitle).toBe('Support Vet');
+        expect(result.status).toBe('AWAITING_PAYMENT');
+        expect(result.appointmentCheckInBufferMinutes).toBe(12);
+        expect(result.appointmentCheckInRadiusMeters).toBe(250);
+        expect(result.endTime).toMatch(/^\d{2}:\d{2}$/);
+      });
+
+      it('should build ui-avatar urls and attachment fallbacks from appointment extensions', () => {
+        const {mapAppointmentFromResponse} = getModule();
+        const result = mapAppointmentFromResponse({
+          id: 'apt-attachments',
+          status: 'scheduled',
+          start: '2026-04-02T08:00:00.000Z',
+          participant: [
+            {actor: {reference: 'Patient/pet-2', display: 'Milo'}},
+            {
+              actor: {reference: 'Practitioner/doc-2', display: 'Dr. Adams'},
+              extension: [
+                {
+                  url: 'https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url',
+                  valueString: 'https://ui-avatars.com/api/?name=',
+                },
+              ],
+            },
+            {actor: {reference: 'Organization/org-4', display: 'Clinic Four'}},
+          ],
+          extension: [
+            {
+              url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-payment-status',
+              valueString: 'paid',
+            },
+            {
+              url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments',
+              extension: [
+                {url: 'key', valueString: 'lab-report.pdf'},
+                {url: 'contentType', valueString: 'application/pdf'},
+                {url: 'url', valueUrl: 'https://files.example.com/custom.pdf'},
+                {url: 'name', valueString: ''},
+              ],
+            },
+          ],
+        });
+
+        expect(result.employeeAvatar).toBe(
+          'https://ui-avatars.com/api/?name=Dr.%20Adams',
+        );
+        expect(result.paymentStatus).toBe('PAID');
+        expect(result.uploadedFiles).toEqual([
+          expect.objectContaining({
+            id: 'lab-report.pdf',
+            name: 'Attachment 1',
+            key: 'lab-report.pdf',
+            url: 'https://files.example.com/custom.pdf',
+            type: 'application/pdf',
+          }),
+        ]);
+      });
+
+      it('should keep a ui-avatar template unchanged when no display name is available', () => {
+        const {mapAppointmentFromResponse} = getModule();
+        const result = mapAppointmentFromResponse({
+          id: 'apt-avatar-template',
+          status: 'unknown-status',
+          start: '2026-04-03T09:00:00.000Z',
+          participant: [
+            {actor: {reference: 'Patient/pet-3', display: 'Nova'}},
+            {
+              actor: {reference: 'Practitioner/doc-3', display: '   '},
+              extension: [
+                {
+                  url: 'https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url',
+                  valueString: 'https://ui-avatars.com/api/?name=',
+                },
+              ],
+            },
+            {actor: {reference: 'Organization/org-5', display: 'Clinic Five'}},
+          ],
+        });
+
+        expect(result.employeeAvatar).toBe('https://ui-avatars.com/api/?name=');
+        expect(result.status).toBe('REQUESTED');
+      });
+
+      it('should ignore invalid avatar strings and malformed attachment extensions', () => {
+        const {mapAppointmentFromResponse} = getModule();
+        const result = mapAppointmentFromResponse({
+          id: 'apt-invalid-avatar',
+          status: 'scheduled',
+          start: '2026-04-03T09:30:00.000Z',
+          participant: [
+            {actor: {reference: 'Patient/pet-4', display: 'Nova'}},
+            {
+              actor: {reference: 'Practitioner/doc-4', display: 'Dr. Blank'},
+              extension: [
+                {
+                  url: 'https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url',
+                  valueString: ' undefined ',
+                },
+              ],
+            },
+            {actor: {reference: 'Organization/org-6', display: 'Clinic Six'}},
+          ],
+          lead: {},
+          extension: [
+            {
+              url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments',
+              extension: {},
+            },
+          ],
+        });
+
+        expect(result.employeeAvatar).toBeNull();
+        expect(result.uploadedFiles).toEqual([]);
+      });
+
+      it('should ignore non-array organisation extensions for check-in config', () => {
+        const {mapAppointmentFromResponse} = getModule();
+        const result = mapAppointmentFromResponse({
+          id: 'apt-no-array-ext',
+          status: 'scheduled',
+          start: '2026-04-03T09:45:00.000Z',
+          participant: [
+            {actor: {reference: 'Patient/pet-5', display: 'Bean'}},
+            {actor: {reference: 'Organization/org-7', display: 'Clinic Seven'}},
+          ],
+          organisation: {
+            name: 'Clinic Seven',
+            appointmentCheckInBufferMinutes: 'bad-value',
+            appointmentCheckInRadiusMeters: 'still-bad',
+            extension: {url: 'not-an-array'},
+          },
+        });
+
+        expect(result.appointmentCheckInBufferMinutes).toBeUndefined();
+        expect(result.appointmentCheckInRadiusMeters).toBeUndefined();
+      });
     });
 
     describe('mapInvoiceFromResponse', () => {
@@ -290,6 +465,129 @@ describe('appointmentsService', () => {
         expect(invoice?.paymentCollectionMethod).toBe('PAYMENT_AT_CLINIC');
         expect(invoice?.paidAt).toBe('2026-03-19T10:00:00.000Z');
         expect(invoice?.metadata?.paymentMethod).toBe('cash');
+      });
+
+      it('should derive invoice details from account references, totals, and metadata extensions', () => {
+        const {mapInvoiceFromResponse} = getModule();
+        const raw = {
+          id: 'inv-fhir-like',
+          account: {reference: 'Appointment/apt-account'},
+          totalPriceComponent: [
+            {type: 'base', amount: {value: 80}},
+            {type: 'informational', amount: {value: 92}},
+          ],
+          extension: [
+            {
+              url: 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id',
+              valueString: 'pi-from-ext',
+            },
+            {
+              url: 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
+              valueString: 'https://receipts.example.com/ext-string',
+            },
+            {
+              url: 'https://yosemitecrew.com/fhir/StructureDefinition/invoice-metadata',
+              extension: [
+                {url: 'refundable', valueBoolean: true},
+                {url: 'refundAmount', valueDecimal: 12.5},
+                {url: 'refundId', valueString: 're_123'},
+                {url: 'refundDate', valueString: '2026-04-01T10:00:00.000Z'},
+                {
+                  url: 'cancellationReason',
+                  valueString: 'Customer changed plans',
+                },
+              ],
+            },
+          ],
+          currency: 'CAD',
+          dueDate: '2026-04-05T00:00:00.000Z',
+        };
+
+        const {invoice, paymentIntent} = mapInvoiceFromResponse(raw);
+
+        expect(invoice?.appointmentId).toBe('apt-account');
+        expect(invoice?.subtotal).toBe(80);
+        expect(invoice?.total).toBe(92);
+        expect(invoice?.currency).toBe('USD');
+        expect(invoice?.stripeReceiptUrl).toBe(
+          'https://receipts.example.com/ext-string',
+        );
+        expect(invoice?.metadata).toEqual(
+          expect.objectContaining({
+            refundable: true,
+            refundAmount: 12.5,
+          }),
+        );
+        expect(invoice?.refundId).toBe('re_123');
+        expect(invoice?.refundDate).toBe('2026-04-01T10:00:00.000Z');
+        expect(invoice?.refundReason).toBe('Customer changed plans');
+        expect(paymentIntent?.paymentIntentId).toBe('pi-from-ext');
+        expect(paymentIntent?.currency).toBe('CAD');
+      });
+
+      it('should normalize raw items and payment intent objects without extension fallbacks', () => {
+        const {mapInvoiceFromResponse} = getModule();
+        const raw = {
+          id: 'inv-raw-items',
+          items: [{name: 'Consult', unitPrice: 75, quantity: 2}],
+          paymentIntent: {
+            paymentIntentId: 'pi-direct',
+            clientSecret: 'secret-direct',
+            amount: 150,
+            paymentLinkUrl: 'https://pay.example.com/direct',
+          },
+          date: '2026-04-02T10:00:00.000Z',
+          downloadUrl: 'https://download.example.com/invoice.pdf',
+          payment_collection_method: 'ONLINE',
+          billedToName: 'Alex Doe',
+          billedToEmail: 'alex@example.com',
+          invoiceNo: 'INV-204',
+        };
+
+        const {invoice, paymentIntent} = mapInvoiceFromResponse(raw);
+
+        expect(invoice?.items).toEqual([
+          {
+            description: 'Consult',
+            rate: 75,
+            qty: 2,
+            lineTotal: 150,
+          },
+        ]);
+        expect(invoice?.subtotal).toBe(150);
+        expect(invoice?.total).toBe(150);
+        expect(invoice?.downloadUrl).toBe(
+          'https://download.example.com/invoice.pdf',
+        );
+        expect(invoice?.paymentCollectionMethod).toBe('ONLINE');
+        expect(invoice?.invoiceNumber).toBe('INV-204');
+        expect(invoice?.billedToName).toBe('Alex Doe');
+        expect(invoice?.billedToEmail).toBe('alex@example.com');
+        expect(paymentIntent).toEqual(
+          expect.objectContaining({
+            paymentIntentId: 'pi-direct',
+            clientSecret: 'secret-direct',
+            amount: 150,
+            paymentLinkUrl: 'https://pay.example.com/direct',
+            currency: 'USD',
+          }),
+        );
+      });
+
+      it('should keep invoice mapping stable when raw extensions are empty', () => {
+        const {mapInvoiceFromResponse} = getModule();
+        const raw = {
+          id: 'inv-fallback',
+          items: [{description: 'Consult', total: 40}],
+          paymentIntentId: 'pi-fallback',
+          extension: [],
+        };
+
+        const {invoice, paymentIntent} = mapInvoiceFromResponse(raw);
+
+        expect(invoice?.id).toBe('inv-fallback');
+        expect(invoice?.items[0].lineTotal).toBe(40);
+        expect(paymentIntent?.paymentIntentId).toBe('pi-fallback');
       });
     });
 
@@ -459,6 +757,34 @@ describe('appointmentsService', () => {
       );
     });
 
+    it('searchBusinessesByService handles direct-array and empty-object responses', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+
+      client.get.mockResolvedValueOnce({
+        data: [{org: {id: 'b2', name: 'Biz Two'}}],
+      });
+      const arrayResult = await appointmentApi.searchBusinessesByService({
+        serviceName: 'Observation',
+        lat: 1,
+        lng: 2,
+      });
+
+      client.get.mockResolvedValueOnce({data: {}});
+      const emptyResult = await appointmentApi.searchBusinessesByService({
+        serviceName: 'Observation',
+        lat: 1,
+        lng: 2,
+      });
+
+      expect(arrayResult.businesses).toEqual([
+        expect.objectContaining({id: 'b2', name: 'Biz Two'}),
+      ]);
+      expect(arrayResult.services).toEqual([]);
+      expect(emptyResult.businesses).toEqual([]);
+      expect(emptyResult.services).toEqual([]);
+    });
+
     it('fetchBookableSlots calls POST', async () => {
       const {appointmentApi} = getModule();
       const client = getApiClient();
@@ -568,6 +894,58 @@ describe('appointmentsService', () => {
       expect(result.date).toBe('2026-03-24');
     });
 
+    it('getAppointment unwraps appointment and nested data payload wrappers', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.get.mockResolvedValue({
+        data: {
+          appointment: {
+            data: {
+              resourceType: 'Appointment',
+              id: 'wrapped-appointment',
+              status: 'CONFIRMED',
+              participant: [
+                {actor: {reference: 'Patient/p9', display: 'Lucky'}},
+                {actor: {reference: 'Organization/o9', display: 'Clinic Nine'}},
+              ],
+              start: '2026-04-10T08:00:00.000Z',
+            },
+          },
+        },
+      });
+
+      const result = await appointmentApi.getAppointment({
+        appointmentId: 'wrapped-appointment',
+        accessToken: mockToken,
+      });
+
+      expect(result.id).toBe('wrapped-appointment');
+      expect(result.status).toBe('CONFIRMED');
+      expect(result.companionId).toBe('p9');
+    });
+
+    it('getAppointment tolerates primitive and unknown wrapper payloads', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+
+      client.get.mockResolvedValueOnce({data: 'oops'});
+      const primitiveResult = await appointmentApi.getAppointment({
+        appointmentId: 'primitive',
+        accessToken: mockToken,
+      });
+
+      client.get.mockResolvedValueOnce({data: {foo: 'bar'}});
+      const wrapperResult = await appointmentApi.getAppointment({
+        appointmentId: 'wrapper',
+        accessToken: mockToken,
+      });
+
+      expect(primitiveResult.id).toBe('');
+      expect(primitiveResult.status).toBe('REQUESTED');
+      expect(wrapperResult.id).toBe('');
+      expect(wrapperResult.uploadedFiles).toEqual([]);
+    });
+
     it('fetchInvoiceForAppointment handles array response', async () => {
       const {appointmentApi} = getModule();
       const client = getApiClient();
@@ -604,6 +982,45 @@ describe('appointmentsService', () => {
       });
       expect(result.invoice?.id).toBe('i1');
       expect(result.invoice?.appointmentId).toBe('a1'); // Fallback to arg
+    });
+
+    it('fetchInvoiceForAppointment prefers extension overrides', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.post.mockResolvedValue({
+        data: {
+          data: [
+            {
+              id: 'i2',
+              extension: [
+                {
+                  url: 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url',
+                  valueUri: 'https://stripe.example.com/r/i2',
+                },
+                {
+                  url: 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id',
+                  valueString: 'apt-ext-2',
+                },
+                {
+                  url: 'https://yosemitecrew.com/fhir/StructureDefinition/pms-invoice-status',
+                  valueString: 'PAID',
+                },
+              ],
+            },
+          ],
+        },
+      });
+
+      const result = await appointmentApi.fetchInvoiceForAppointment({
+        appointmentId: 'a1',
+        accessToken: mockToken,
+      });
+
+      expect(result.invoice?.appointmentId).toBe('apt-ext-2');
+      expect(result.invoice?.status).toBe('PAID');
+      expect(result.invoice?.downloadUrl).toBe(
+        'https://stripe.example.com/r/i2',
+      );
     });
 
     it('createPaymentIntent calls POST', async () => {

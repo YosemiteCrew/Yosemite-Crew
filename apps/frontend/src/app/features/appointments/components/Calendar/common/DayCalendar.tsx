@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
 import {
@@ -38,6 +39,7 @@ import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import AppointmentPopover from '@/app/features/appointments/components/Calendar/common/AppointmentPopover';
 import AppointmentContextMenu from '@/app/features/appointments/components/Calendar/common/AppointmentContextMenu';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type DayCalendarProps = {
   events: Appointment[];
@@ -46,7 +48,6 @@ type DayCalendarProps = {
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: (appointment: Appointment) => void;
-  handleChangeStatusAppointment?: (appointment: Appointment) => void;
   handleChangeRoomAppointment?: (appointment: Appointment) => void;
   canEditAppointments: boolean;
   draggedAppointmentId?: string | null;
@@ -68,6 +69,7 @@ type DayCalendarProps = {
   draggedAppointmentDurationMinutes?: number;
   slotStepMinutes?: number;
   availabilityLoaded?: boolean;
+  skipAutoScroll?: boolean;
 };
 
 const getCompanionDisplayName = (appointment: Appointment) =>
@@ -87,7 +89,6 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   zoomMode = 'in',
   handleViewAppointment,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   canEditAppointments,
   setCurrentDate,
@@ -104,7 +105,10 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   draggedAppointmentDurationMinutes,
   slotStepMinutes = 15,
   availabilityLoaded = false,
+  skipAutoScroll = false,
 }) => {
+  const { notify } = useNotify();
+  const onWheelBoundary = useScrollBoundaryWheel();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -118,7 +122,8 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     popoverDialogRef,
     openPopover,
     getPopoverStyle,
-  } = usePopoverManager();
+    registerAnchorEl,
+  } = usePopoverManager({ closeOnHoverLeave: false });
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
   const now = useCalendarNow();
@@ -181,7 +186,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     [timedEvents, windowStart, windowEnd]
   );
 
-  const focusTopPx = useMemo(() => {
+  const getFocusTopPx = useCallback(() => {
     const nowTopPx = getNowTopPxForWindow(date, windowStart, windowEnd, now);
     if (nowTopPx != null) return nowTopPx * yScale;
 
@@ -197,10 +202,17 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     return ((clampedMinutes - windowStart) / MINUTES_PER_STEP) * pixelsPerStep;
   }, [date, now, timedEvents, windowStart, windowEnd, pixelsPerStep, yScale]);
 
+  // Keep a ref to the latest focus position so the scroll effect can read it
+  // without depending on it — prevents re-scroll on every availability update.
+  const getFocusTopPxRef = useRef(getFocusTopPx);
+  getFocusTopPxRef.current = getFocusTopPx;
+
   useEffect(() => {
-    if (!scrollRef.current) return;
-    scrollContainerToTarget(scrollRef.current, focusTopPx);
-  }, [focusTopPx]);
+    if (!scrollRef.current || skipAutoScroll) return;
+    scrollContainerToTarget(scrollRef.current, getFocusTopPxRef.current());
+    // Only re-scroll when the date changes or skip flag is lifted.
+    // Availability changes (windowStart/windowEnd) must NOT trigger another scroll.
+  }, [date, skipAutoScroll]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -288,7 +300,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     clientY?: number
   ): void => openPopover(key, target, draggedAppointmentId, clientX, clientY);
 
-  const popoverStyle = getPopoverStyle(360, 340);
+  const popoverStyle = getPopoverStyle(440, 490);
   const contextMenuStyle = useMemo(() => {
     if (!contextMenu) return null;
     const width = 280;
@@ -362,7 +374,18 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
   const createAppointmentAtMinute = (clientY: number, container: HTMLDivElement) => {
     if (!onCreateAppointmentAt || draggedAppointmentId) return;
     const minute = getMinuteFromTimelinePointer(clientY, container);
-    onCreateAppointmentAt(date, Math.round(minute / 5) * 5);
+    const snapped = Math.round(minute / 5) * 5;
+    const isUnavailable = unavailableSegments.some(
+      (seg) => snapped >= seg.startMinute && snapped < seg.endMinute
+    );
+    if (isUnavailable) {
+      notify('warning', {
+        title: 'Slot unavailable',
+        text: 'This time is outside available hours. Please select a different slot.',
+      });
+      return;
+    }
+    onCreateAppointmentAt(date, snapped);
   };
 
   const createAppointmentAtOffset = (offsetY: number, container: HTMLDivElement) => {
@@ -380,11 +403,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
     clickTimerRef.current = null;
   };
 
-  const handleMarkerClick = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    appointment: Appointment,
-    key: string
-  ) => {
+  const handleMarkerClick = (event: React.MouseEvent<HTMLButtonElement>, key: string) => {
     const target = event.currentTarget;
     const { clientX, clientY } = event;
     clearPendingMarkerClick();
@@ -441,7 +460,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
       </div>
       {allDayEvents.length > 0 && (
         <div className="px-2 py-2 border-b border-grey-light bg-slate-50">
-          <div className="text-xs font-satoshi text-[#747473] mb-1">All-day</div>
+          <div className="text-xs font-satoshi text-grey-text mb-1">All-day</div>
           <div className="flex flex-wrap gap-2">
             {allDayEvents.map((ev, idx) => {
               const itemKey = getEventKey(ev, idx, 'all-day');
@@ -449,7 +468,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 <button
                   key={itemKey}
                   type="button"
-                  onClick={(event) => handleMarkerClick(event, ev, itemKey)}
+                  onClick={(event) => handleMarkerClick(event, itemKey)}
                   onDoubleClick={() => handleMarkerDoubleClick(ev)}
                   onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                   className="flex items-center gap-2 rounded-full! px-3 py-1 text-xs font-satoshi"
@@ -476,16 +495,16 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
         </div>
       )}
       <div
-        className="overflow-x-hidden flex-1 px-2 pt-2"
+        className="overflow-x-hidden flex-1 px-2 pt-2 overflow-y-auto"
         style={{
           height: '100%',
           maxHeight: '100%',
           minHeight: 0,
-          overflowY: 'auto',
           paddingBottom: zoomMode === 'out' ? 30 : 40,
           paddingTop: 12,
         }}
         ref={scrollRef}
+        onWheel={onWheelBoundary}
         data-calendar-scroll="true"
       >
         <div
@@ -562,7 +581,12 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 <div
                   key={`unavailable-${seg.startMinute}-${seg.endMinute}`}
                   className="pointer-events-none absolute left-0 right-0 z-[1]"
-                  style={{ top, height: segHeight, backgroundColor: 'rgba(0,0,0,0.045)' }}
+                  style={{
+                    top,
+                    height: segHeight,
+                    backgroundColor: 'var(--color-calendar-dim-overlay)',
+                    transition: 'opacity 0.25s ease',
+                  }}
                 />
               );
             })}
@@ -579,7 +603,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 return (
                   <div
                     key={`drag-availability-${interval.startMinute}-${interval.endMinute}-${index}`}
-                    className="pointer-events-none absolute left-1 right-1 z-20 rounded-xl border border-grey-light bg-[rgba(42,168,121,0.12)]"
+                    className="pointer-events-none absolute left-1 right-1 z-20 rounded-xl border border-grey-light bg-[var(--color-calendar-availability-overlay)]"
                     style={{ top, height }}
                   />
                 );
@@ -592,7 +616,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                 }}
               >
                 <div
-                  className="rounded-xl border-2 border-dashed border-grey-light bg-[rgba(36,122,237,0.18)]"
+                  className="rounded-xl border-2 border-dashed border-grey-light bg-[var(--color-calendar-preview-overlay)]"
                   style={{
                     height: Math.max(
                       12,
@@ -626,7 +650,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
               return (
                 <div
                   key={ev.companion.name + i}
-                  className={`absolute scrollbar-hidden ${isZoomOut ? 'rounded-md! px-0 py-0 border-0 bg-transparent' : 'rounded-xl! px-2 py-1.5 overflow-hidden'}`}
+                  className={`absolute scrollbar-hidden ${isZoomOut ? 'rounded-md! px-0 py-0 bg-transparent' : 'rounded-xl! px-2 py-1.5 overflow-hidden'}`}
                   style={{
                     top: ev.topPx * yScale,
                     height: Math.max(
@@ -635,7 +659,15 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     ),
                     left: `calc(${leftPercent}% + ${horizontalGapPx}px)`,
                     width: `calc(${widthPercent}% - ${horizontalGapPx * 2}px)`,
-                    ...(isZoomOut ? {} : statusStyle),
+                    ...(isZoomOut
+                      ? {}
+                      : {
+                          backgroundColor: statusStyle.backgroundColor,
+                          color: statusStyle.color,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: statusStyle.borderColor,
+                        }),
                   }}
                 >
                   {isZoomOut && (
@@ -652,7 +684,7 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                     className={`min-w-0 ${
                       draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                     } ${isZoomOut ? 'absolute inset-x-0 -inset-y-2 z-20' : 'h-full w-full flex items-center gap-2'}`}
-                    onClick={(event) => handleMarkerClick(event, ev, itemKey)}
+                    onClick={(event) => handleMarkerClick(event, itemKey)}
                     onDoubleClick={() => handleMarkerDoubleClick(ev)}
                     onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
                     draggable={draggable}
@@ -677,11 +709,11 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
                       <>
                         <div className="min-w-0 flex-1 self-center">
                           <div className="w-full flex flex-col items-center justify-center text-center gap-0.5">
-                            <div className="truncate w-full text-caption-1 font-semibold">
+                            <div className="truncate w-full text-caption-1 font-bold leading-[1.2]">
                               {companionDisplayName}
                             </div>
                             {subtitle && (
-                              <div className="text-[10px] w-full truncate opacity-95">
+                              <div className="font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] w-full truncate">
                                 {subtitle}
                               </div>
                             )}
@@ -724,9 +756,9 @@ export const DayCalendar: React.FC<DayCalendarProps> = ({
             popoverStyle={popoverStyle}
             handleViewAppointment={handleViewAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
-            handleChangeStatusAppointment={handleChangeStatusAppointment}
             handleChangeRoomAppointment={handleChangeRoomAppointment}
             onClose={() => setActivePopoverKey(null)}
+            registerAnchorEl={registerAnchorEl}
           />,
           document.body
         )}

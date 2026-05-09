@@ -31,7 +31,9 @@ import {
   getAllowedAppointmentStatusTransitions,
   getInvalidAppointmentStatusTransitionMessage,
   normalizeAppointmentStatus,
+  toStatusLabel,
 } from '@/app/lib/appointments';
+import { getStatusStyle } from '@/app/config/statusConfig';
 import { useNotify } from '@/app/hooks/useNotify';
 
 const getAppointmentFields = ({
@@ -93,6 +95,7 @@ const getAppointmentFields = ({
 
 type AppointmentInfoProps = {
   activeAppointment: Appointment;
+  canEditAppointments?: boolean;
 };
 
 const ReadOnlyEditField = ({ label, value }: { label: string; value?: string | null }) => (
@@ -283,7 +286,10 @@ const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
   };
 };
 
-const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
+const AppointmentInfo = ({
+  activeAppointment,
+  canEditAppointments: canEditProp = true,
+}: AppointmentInfoProps) => {
   const { notify } = useNotify();
   const rooms = useRoomsForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
@@ -320,9 +326,10 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
   const getLeadOptionsForSlot = useCallback(
     (slot: Slot | null) => {
       if (!teams?.length || !slot) return [];
-      const foundSlot = timeSlots.find(
-        (s) => s.startTime === slot.startTime && s.endTime === slot.endTime
-      );
+      const foundSlot =
+        timeSlots.find((s) => s.startTime === slot.startTime && s.endTime === slot.endTime) ??
+        // Synthesized slot (booked slot not in free-slot list) — use its own vetIds
+        (slot.vetIds?.length ? slot : null);
       if (!foundSlot?.vetIds?.length) return [];
       const vetIdSet = new Set(
         foundSlot.vetIds.map((id) => normalizeId(id)).filter(Boolean) as string[]
@@ -442,7 +449,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     return !['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(status);
   }, [activeAppointment.status]);
 
-  const canEditAppointments = canEditByStatus;
+  const canEditAppointments = canEditByStatus && canEditProp;
   const canRescheduleByStatus = allowReschedule(activeAppointment.status ?? 'REQUESTED');
   const canAssignRoomByStatus = canAssignAppointmentRoom(activeAppointment.status);
   const canChangeStatusByStatus = canShowStatusChangeAction(activeAppointment.status);
@@ -488,10 +495,18 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
         setTimeSlots(slots);
         const currentStart = toIsoTimePart(activeAppointment.startTime);
         const currentEnd = toIsoTimePart(activeAppointment.endTime);
+        // Prefer the exact matching free slot; if the booked slot is no longer in the
+        // availability list (it's already occupied), synthesize one from the appointment's
+        // own times so the form always opens with the correct pre-booked values.
         const matchingSlot =
           slots.find((slot) => slot.startTime === currentStart && slot.endTime === currentEnd) ??
-          slots[0] ??
-          null;
+          (currentStart && currentEnd
+            ? ({
+                startTime: currentStart,
+                endTime: currentEnd,
+                vetIds: activeAppointment.lead?.id ? [activeAppointment.lead.id] : [],
+              } as Slot)
+            : null);
         setSelectedSlot(matchingSlot);
       } catch (error) {
         console.log(error);
@@ -511,6 +526,7 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
     selectedDate,
     activeAppointment.startTime,
     activeAppointment.endTime,
+    activeAppointment.lead?.id,
   ]);
 
   useEffect(() => {
@@ -823,8 +839,6 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                 let display: string;
                 if (field.key === 'room') {
                   display = RoomOptions.find((option) => option.value === data)?.label || '-';
-                } else if (field.key === 'status') {
-                  display = data || '-';
                 } else if (field.key === 'date') {
                   display = formattedDate || '-';
                 } else if (field.key === 'time') {
@@ -832,6 +846,31 @@ const AppointmentInfo = ({ activeAppointment }: AppointmentInfoProps) => {
                 } else {
                   display = data || '-';
                 }
+
+                if (field.key === 'status') {
+                  const statusStyle = getStatusStyle(activeAppointment.status);
+                  return (
+                    <div
+                      key={field.key}
+                      className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border"
+                    >
+                      <div className="text-body-4-emphasis text-text-tertiary">{field.label}</div>
+                      <span
+                        className="text-caption-2 font-medium px-2.5 py-1 rounded-2xl! whitespace-nowrap"
+                        style={{
+                          backgroundColor: statusStyle.backgroundColor,
+                          color: statusStyle.color,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: statusStyle.borderColor,
+                        }}
+                      >
+                        {toStatusLabel(activeAppointment.status)}
+                      </span>
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={field.key}

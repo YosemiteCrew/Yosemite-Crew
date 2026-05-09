@@ -22,14 +22,16 @@ type PublicDocumentQuery = {
   visibility?: string;
 };
 
+const ORG_DOCUMENT_CATEGORIES: ReadonlySet<string> = new Set([
+  "TERMS_AND_CONDITIONS",
+  "PRIVACY_POLICY",
+  "CANCELLATION_POLICY",
+  "FIRE_SAFETY",
+  "GENERAL",
+]);
+
 const isOrgDocumentCategory = (value: string): value is OrgDocumentCategory =>
-  [
-    "TERMS_AND_CONDITIONS",
-    "PRIVACY_POLICY",
-    "CANCELLATION_POLICY",
-    "FIRE_SAFETY",
-    "GENERAL",
-  ].includes(value as OrgDocumentCategory);
+  ORG_DOCUMENT_CATEGORIES.has(value);
 
 const isVisibilityFilter = (
   value: string,

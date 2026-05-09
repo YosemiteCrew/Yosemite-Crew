@@ -1,6 +1,6 @@
-import { deleteData, getData, patchData, postData, putData } from "@/app/services/axios";
-import { useSpecialityStore } from "@/app/stores/specialityStore";
-import { useOrgStore } from "@/app/stores/orgStore";
+import { deleteData, getData, patchData, postData, putData } from '@/app/services/axios';
+import { useSpecialityStore } from '@/app/stores/specialityStore';
+import { useOrgStore } from '@/app/stores/orgStore';
 import {
   fromServiceRequestDTO,
   fromSpecialityRequestDTO,
@@ -11,57 +11,74 @@ import {
   SpecialityRequestDTO,
   toServiceResponseDTO,
   toSpecialityResponseDTO,
-} from "@yosemite-crew/types";
-import { SpecialityWithServices } from "@/app/features/organization/types/org";
-import { useServiceStore } from "@/app/stores/serviceStore";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
+} from '@yosemite-crew/types';
+import { SpecialityWithServices } from '@/app/features/organization/types/org';
+import { useServiceStore } from '@/app/stores/serviceStore';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
+
+const loadSpecialitiesPromisesByOrgId = new Map<string, Promise<void>>();
 
 export const loadSpecialitiesForOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
+  orgId?: string;
 }): Promise<void> => {
-  const { startLoading, status, setSpecialitiesForOrg } =
-    useSpecialityStore.getState();
+  const {
+    startLoading,
+    status,
+    setSpecialitiesForOrg,
+    setError,
+    specialityIdsByOrgId = {},
+  } = useSpecialityStore.getState();
   const { setServicesForOrg } = useServiceStore.getState();
-  const primaryOrgId = useOrgStore.getState().primaryOrgId;
-  if (!primaryOrgId) {
-    console.warn("No primary organization selected. Cannot load specialities.");
+  const resolvedOrgId = opts?.orgId ?? useOrgStore.getState().primaryOrgId;
+  if (!resolvedOrgId) {
+    console.warn('No primary organization selected. Cannot load specialities.');
     return;
   }
-  if (!shouldFetchSpecialities(status, opts)) return;
-  if (!opts?.silent) startLoading();
-  try {
-    const payload = await fetchSpecialities(primaryOrgId);
-    const { normalSpecialities, normalServices } =
-      normalizeSpecialities(payload);
-
-    setSpecialitiesForOrg(primaryOrgId, normalSpecialities);
-    setServicesForOrg(primaryOrgId, normalServices);
-  } catch (err) {
-    console.error("Failed to load specialities:", err);
-    throw err;
+  const hasOrgData = Object.hasOwn(specialityIdsByOrgId, resolvedOrgId);
+  if (!shouldFetchSpecialities(status, hasOrgData, opts)) return;
+  const existingPromise = loadSpecialitiesPromisesByOrgId.get(resolvedOrgId);
+  if (existingPromise) {
+    return existingPromise;
   }
+  if (!opts?.silent) startLoading();
+  const requestPromise = (async () => {
+    try {
+      const payload = await fetchSpecialities(resolvedOrgId);
+      const { normalSpecialities, normalServices } = normalizeSpecialities(payload);
+
+      setSpecialitiesForOrg(resolvedOrgId, normalSpecialities);
+      setServicesForOrg(resolvedOrgId, normalServices);
+    } catch (err) {
+      setError('Failed to load specialities.');
+      console.error('Failed to load specialities:', err);
+      throw err;
+    } finally {
+      loadSpecialitiesPromisesByOrgId.delete(resolvedOrgId);
+    }
+  })();
+  loadSpecialitiesPromisesByOrgId.set(resolvedOrgId, requestPromise);
+  return requestPromise;
 };
 
-const fetchSpecialities = async (
-  orgId: string
-): Promise<SpecialityWithServices[]> => {
-  const res = await getData<SpecialityWithServices[]>(
-    `/fhir/v1/speciality/${orgId}`
-  );
+const fetchSpecialities = async (orgId: string): Promise<SpecialityWithServices[]> => {
+  const res = await getData<SpecialityWithServices[]>(`/fhir/v1/speciality/${orgId}`);
   if (!Array.isArray(res.data)) {
-    console.warn("Specialities response is not an array.", res.data);
+    console.warn('Specialities response is not an array.', res.data);
     return [];
   }
   return res.data;
 };
 
 const shouldFetchSpecialities = (
-  status: ReturnType<typeof useSpecialityStore.getState>["status"],
+  status: ReturnType<typeof useSpecialityStore.getState>['status'],
+  hasOrgData: boolean,
   opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
-  return status === "idle" || status === "error";
+  if (!hasOrgData) return true;
+  return status === 'idle' || status === 'error';
 };
 
 const normalizeSpecialities = (items: SpecialityWithServices[]) => {
@@ -77,13 +94,10 @@ const normalizeSpecialities = (items: SpecialityWithServices[]) => {
   return { normalSpecialities, normalServices };
 };
 
-const addSpeciality = (
-  bucket: SpecialityDTOAttributes[],
-  item: SpecialityWithServices
-) => {
+const addSpeciality = (bucket: SpecialityDTOAttributes[], item: SpecialityWithServices) => {
   const speciality = item.speciality;
   if (!speciality) {
-    console.warn("Missing speciality in SpecialityWithServices item:", item);
+    console.warn('Missing speciality in SpecialityWithServices item:', item);
     return;
   }
   bucket.push(fromSpecialityRequestDTO(speciality));
@@ -93,10 +107,7 @@ const addServices = (bucket: Service[], item: SpecialityWithServices) => {
   const services = item.services;
   if (services == null) return;
   if (!Array.isArray(services)) {
-    console.warn(
-      "Services field is not an array in SpecialityWithServices item:",
-      item
-    );
+    console.warn('Services field is not an array in SpecialityWithServices item:', item);
     return;
   }
 
@@ -110,15 +121,38 @@ export const createSpeciality = async (payload: Speciality) => {
   const { addSpeciality } = useSpecialityStore.getState();
   try {
     const fhirSpeciality = toSpecialityResponseDTO(payload);
-    const res = await postData<SpecialityRequestDTO>(
-      "/fhir/v1/speciality",
-      fhirSpeciality
-    );
+    const res = await postData<SpecialityRequestDTO>('/fhir/v1/speciality', fhirSpeciality);
     const normalSpeciality = fromSpecialityRequestDTO(res.data);
     addSpeciality(normalSpeciality);
     return normalSpeciality;
   } catch (err) {
-    console.error("Failed to create speciality:", err);
+    console.error('Failed to create speciality:', err);
+    throw err;
+  }
+};
+
+const getBulkResponseItems = <T>(data: T[] | { created?: T[] }): T[] => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return Array.isArray(data.created) ? data.created : [];
+};
+
+export const createSpecialitiesBulk = async (payload: Speciality[]) => {
+  const { addSpeciality } = useSpecialityStore.getState();
+  try {
+    const fhirSpecialities = payload.map((speciality) => toSpecialityResponseDTO(speciality));
+    const res = await postData<SpecialityRequestDTO[] | { created?: SpecialityRequestDTO[] }>(
+      '/fhir/v1/speciality/bulk',
+      fhirSpecialities
+    );
+    const normalSpecialities = getBulkResponseItems(res.data).map((speciality) =>
+      fromSpecialityRequestDTO(speciality)
+    );
+    normalSpecialities.forEach(addSpeciality);
+    return normalSpecialities;
+  } catch (err) {
+    console.error('Failed to create specialities:', err);
     throw err;
   }
 };
@@ -127,41 +161,69 @@ export const createService = async (payload: Service) => {
   const { addService } = useServiceStore.getState();
   try {
     const fhirService = toServiceResponseDTO(payload);
-    const res = await postData<ServiceRequestDTO>(
-      "/fhir/v1/service",
-      fhirService
-    );
+    const res = await postData<ServiceRequestDTO>('/fhir/v1/service', fhirService);
     const normalService = fromServiceRequestDTO(res.data);
     addService(normalService);
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
 
-export const createBulkSpecialityServices = async (
-  payload: SpecialityWeb[]
-) => {
+export const createServicesBulk = async (payload: Service[]) => {
+  const { addService } = useServiceStore.getState();
   try {
-    for (const item of payload) {
-      if (!item) continue;
-      const speciaity: Speciality = {
+    const fhirServices = payload.map((service) => toServiceResponseDTO(service));
+    const res = await postData<ServiceRequestDTO[] | { created?: ServiceRequestDTO[] }>(
+      '/fhir/v1/service/bulk',
+      fhirServices
+    );
+    const normalServices = getBulkResponseItems(res.data).map((service) =>
+      fromServiceRequestDTO(service)
+    );
+    normalServices.forEach(addService);
+    return normalServices;
+  } catch (err) {
+    console.error('Failed to create services:', err);
+    throw err;
+  }
+};
+
+export const createBulkSpecialityServices = async (payload: SpecialityWeb[]) => {
+  try {
+    const specialitiesToCreate = payload.filter(Boolean).map(
+      (item): Speciality => ({
         ...item,
         services: [],
-      };
-      const addedSpeciality = await createSpeciality(speciaity);
-      const services = item.services || [];
-      await Promise.allSettled(
-        services.map((s) =>
-          createService({
-            ...s,
-            specialityId: addedSpeciality._id,
-          })
-        )
+      })
+    );
+    const addedSpecialities = await createSpecialitiesBulk(specialitiesToCreate);
+    const specialityIdByName = new Map(
+      addedSpecialities.map((speciality) => [
+        String(speciality.name ?? '')
+          .trim()
+          .toLowerCase(),
+        speciality._id,
+      ])
+    );
+    const servicesToCreate = payload.flatMap((item) => {
+      if (!item) return [];
+      const specialityId = specialityIdByName.get(
+        String(item.name ?? '')
+          .trim()
+          .toLowerCase()
       );
+      if (!specialityId) return [];
+      return (item.services ?? []).map((service) => ({
+        ...service,
+        specialityId,
+      }));
+    });
+    if (servicesToCreate.length > 0) {
+      await createServicesBulk(servicesToCreate);
     }
   } catch (err) {
-    console.error("Failed to create speciality:", err);
+    console.error('Failed to create speciality:', err);
     throw err;
   }
 };
@@ -171,14 +233,14 @@ export const updateSpeciality = async (payload: Speciality) => {
   try {
     const fhirSpeciality = toSpecialityResponseDTO(payload);
     const res = await putData<SpecialityRequestDTO>(
-      "/fhir/v1/speciality/" + payload._id,
+      '/fhir/v1/speciality/' + payload._id,
       fhirSpeciality
     );
     const normalSpeciality = fromSpecialityRequestDTO(res.data);
     updateSpeciality(normalSpeciality);
     return normalSpeciality;
   } catch (err) {
-    console.error("Failed to create speciality:", err);
+    console.error('Failed to create speciality:', err);
     throw err;
   }
 };
@@ -187,14 +249,11 @@ export const updateService = async (payload: Service) => {
   const { updateService } = useServiceStore.getState();
   try {
     const fhirService = toServiceResponseDTO(payload);
-    const res = await patchData<ServiceRequestDTO>(
-      "/fhir/v1/service/" + payload.id,
-      fhirService
-    );
+    const res = await patchData<ServiceRequestDTO>('/fhir/v1/service/' + payload.id, fhirService);
     const normalService = fromServiceRequestDTO(res.data);
     updateService(normalService);
   } catch (err) {
-    console.error("Failed to create service:", err);
+    console.error('Failed to create service:', err);
     throw err;
   }
 };
@@ -206,13 +265,13 @@ export const deleteSpeciality = async (speciality: Speciality) => {
     const id = speciality._id;
     const orgId = speciality.organisationId;
     if (!id || !orgId) {
-      throw new Error("Speciality ID or Organisation ID is missing.");
+      throw new Error('Speciality ID or Organisation ID is missing.');
     }
-    await deleteData("/fhir/v1/speciality/" + orgId + "/" + id);
+    await deleteData('/fhir/v1/speciality/' + orgId + '/' + id);
     deleteSpecialityById(id);
     deleteServicesBySpecialityId(id);
   } catch (err) {
-    console.error("Failed to delete speciality:", err);
+    console.error('Failed to delete speciality:', err);
     throw err;
   }
 };

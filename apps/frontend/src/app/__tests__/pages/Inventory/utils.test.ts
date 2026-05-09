@@ -177,44 +177,54 @@ describe('Inventory Utils', () => {
     it('getStatusBadgeStyle handles cases', () => {
       // low stock
       expect(getStatusBadgeStyle('Low Stock')).toEqual({
-        color: '#F7F7F7',
-        backgroundColor: '#BF9FAA',
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
       });
       // expired / out of stock
       expect(getStatusBadgeStyle('Expired')).toEqual({
-        color: '#F7F7F7',
-        backgroundColor: '#D28F9A',
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
       });
       expect(getStatusBadgeStyle('Out of Stock')).toEqual({
-        color: '#F7F7F7',
-        backgroundColor: '#D28F9A',
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
       });
       // hidden
       expect(getStatusBadgeStyle('Hidden')).toEqual({
-        color: '#F7F7F7',
-        backgroundColor: '#A8A181',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       });
       // expiring soon
       expect(getStatusBadgeStyle('Expiring Soon')).toEqual({
-        color: '#F7F7F7',
-        backgroundColor: '#5C614B',
+        color: 'var(--color-pill-info-text)',
+        backgroundColor: 'var(--color-pill-info-bg)',
+        borderColor: 'var(--color-pill-info-border)',
       });
       // healthy
       expect(getStatusBadgeStyle('Healthy')).toEqual({
-        color: '#F7F7F7',
-        backgroundColor: '#D9A488',
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
       });
       // active
       expect(getStatusBadgeStyle('Active')).toEqual({
-        color: '#302f2e',
-        backgroundColor: '#F1D4B0',
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
       });
       // default
       expect(getStatusBadgeStyle('Unknown')).toEqual({
-        color: '#EAF3FF',
-        backgroundColor: '#247AED',
+        color: 'var(--color-badge-blue-text)',
+        backgroundColor: 'var(--color-badge-blue-bg)',
       });
-      expect(getStatusBadgeStyle()).toEqual({ color: '#EAF3FF', backgroundColor: '#247AED' });
+      expect(getStatusBadgeStyle()).toEqual({
+        color: 'var(--color-badge-blue-text)',
+        backgroundColor: 'var(--color-badge-blue-bg)',
+      });
     });
   });
 
@@ -633,6 +643,7 @@ describe('Inventory Utils', () => {
     expect(defaultFilters).toEqual({
       category: 'all',
       status: 'ALL',
+      visibility: 'ALL',
       search: '',
     });
   });

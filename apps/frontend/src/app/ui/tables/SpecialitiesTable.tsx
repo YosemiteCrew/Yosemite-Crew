@@ -1,11 +1,11 @@
-import React from "react";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import { SpecialityWeb } from "@/app/features/organization/types/speciality";
-import { Service } from "@yosemite-crew/types";
-import SpecialitiesCard from "@/app/ui/cards/SpecialitiesCard";
-import { Column, NoDataMessage, ViewButton, ProfileTitle } from "@/app/ui/tables/common";
+import React from 'react';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import { SpecialityWeb } from '@/app/features/organization/types/speciality';
+import { Service } from '@yosemite-crew/types';
+import SpecialitiesCard from '@/app/ui/cards/SpecialitiesCard';
+import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
 
-import "./DataTable.css";
+import './DataTable.css';
 
 type SpecialitiesTableProps = {
   filteredList: SpecialityWeb[];
@@ -14,14 +14,10 @@ type SpecialitiesTableProps = {
 };
 
 export const getServiceNames = (services: Service[] = []): string => {
-  return services.map((s) => s.name).join(", ");
+  return services.map((s) => s.name).join(', ');
 };
 
-const SpecialitiesTable = ({
-  filteredList,
-  setActive,
-  setView,
-}: SpecialitiesTableProps) => {
+const SpecialitiesTable = ({ filteredList, setActive, setView }: SpecialitiesTableProps) => {
   const handleViewSpeciality = (speciality: any) => {
     setActive(speciality);
     setView(true);
@@ -29,43 +25,41 @@ const SpecialitiesTable = ({
 
   const columns: Column<SpecialityWeb>[] = [
     {
-      label: "Speciality",
-      key: "Speciality",
-      width: "20%",
+      label: 'Speciality',
+      key: 'Speciality',
+      width: '18%',
+      render: (item: SpecialityWeb) => <ProfileTitle>{item.name}</ProfileTitle>,
+    },
+    {
+      label: 'Services',
+      key: 'Services',
+      width: '40%',
       render: (item: SpecialityWeb) => (
-        <ProfileTitle>{item.name}</ProfileTitle>
+        <ProfileTitle>{getServiceNames(item.services) || '-'}</ProfileTitle>
       ),
     },
     {
-      label: "Services",
-      key: "Services",
-      width: "35%",
-      render: (item: SpecialityWeb) => (
-        <ProfileTitle>{getServiceNames(item.services) || "-"}</ProfileTitle>
-      ),
-    },
-    {
-      label: "Team members",
-      key: "Team members",
-      width: "15%",
+      label: 'Team members',
+      key: 'Team members',
+      width: '14%',
       render: (item: SpecialityWeb) => (
         <ProfileTitle>{item.teamMemberIds?.length || 0}</ProfileTitle>
       ),
     },
     {
-      label: "Head",
-      key: "Head",
-      width: "20%",
+      label: 'Head',
+      key: 'Head',
+      width: '22%',
       render: (item: SpecialityWeb) => (
         <div className="flex items-center gap-2">
-          <ProfileTitle>{item.headName || "-"}</ProfileTitle>
+          <ProfileTitle>{item.headName || '-'}</ProfileTitle>
         </div>
       ),
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
+      label: 'Actions',
+      key: 'actions',
+      width: '64px',
       render: (item: SpecialityWeb) => (
         <div className="action-btn-col">
           <ViewButton onClick={() => handleViewSpeciality(item)} />

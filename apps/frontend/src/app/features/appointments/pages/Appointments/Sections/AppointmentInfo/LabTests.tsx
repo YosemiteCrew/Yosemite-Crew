@@ -576,6 +576,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
       const orders = await listIdexxOrders({
         organisationId: primaryOrgId,
         appointmentId: activeAppointment.id,
+        companionId,
       });
       const normalized = normalizeOrders(orders);
       setAppointmentOrders(normalized);
@@ -591,7 +592,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     } finally {
       setOrdersLoading(false);
     }
-  }, [activeAppointment?.id, integrationEnabled, primaryOrgId]);
+  }, [activeAppointment?.id, companionId, integrationEnabled, primaryOrgId]);
 
   const refreshCensus = useCallback(async () => {
     if (!primaryOrgId || !integrationEnabled) return;
@@ -679,6 +680,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
           const refreshedOrders = await listIdexxOrders({
             organisationId: primaryOrgId,
             appointmentId: activeAppointment.id,
+            companionId,
           });
           const normalizedOrders = normalizeOrders(refreshedOrders);
           if (normalizedOrders.length > 0) {

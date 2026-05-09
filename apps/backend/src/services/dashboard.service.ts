@@ -114,8 +114,8 @@ type AppointmentTrendAgg = {
 type RevenueTrendAgg = {
   _id: { year: number; month: number; day?: number };
   revenue: number | null | undefined;
-  paidRevenue?: number | null | undefined;
-  cancelledRevenue?: number | null | undefined;
+  paidRevenue?: number | null;
+  cancelledRevenue?: number | null;
 };
 
 type StaffLeaderAgg = {
@@ -166,6 +166,7 @@ const resolveRange = (range: SummaryRange) => {
       return { from: y.startOf("day").toDate(), to: y.endOf("day").toDate() };
     }
     case "last_week":
+    case "last_7_days":
       return {
         from: now.subtract(7, "day").startOf("day").toDate(),
         to: now.endOf("day").toDate(),
@@ -188,11 +189,6 @@ const resolveRange = (range: SummaryRange) => {
     case "last_30_days":
       return {
         from: now.subtract(30, "day").startOf("day").toDate(),
-        to: now.endOf("day").toDate(),
-      };
-    case "last_7_days":
-      return {
-        from: now.subtract(7, "day").startOf("day").toDate(),
         to: now.endOf("day").toDate(),
       };
     case "this_week":

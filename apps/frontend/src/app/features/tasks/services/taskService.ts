@@ -7,13 +7,14 @@ export const loadTasksForPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
 }): Promise<void> => {
-  const { startLoading, status, setTasksForOrg } = useTaskStore.getState();
+  const { startLoading, status, taskIdsByOrgId, setTasksForOrg } = useTaskStore.getState();
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn('No primary organization selected. Cannot load tasks.');
     return;
   }
-  if (!shouldFetchTasks(status, opts)) return;
+  const hasOrgData = !taskIdsByOrgId || Object.hasOwn(taskIdsByOrgId, primaryOrgId);
+  if (!shouldFetchTasks(status, hasOrgData, opts)) return;
   if (!opts?.silent) startLoading();
   try {
     const res = await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId);
@@ -27,9 +28,11 @@ export const loadTasksForPrimaryOrg = async (opts?: {
 
 const shouldFetchTasks = (
   status: ReturnType<typeof useTaskStore.getState>['status'],
+  hasOrgData: boolean,
   opts?: { force?: boolean }
 ) => {
   if (opts?.force) return true;
+  if (!hasOrgData) return true;
   return status === 'idle' || status === 'error';
 };
 

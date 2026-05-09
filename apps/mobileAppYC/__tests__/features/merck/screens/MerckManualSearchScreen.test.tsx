@@ -3,6 +3,15 @@ import {render, fireEvent} from '@testing-library/react-native';
 import MerckManualSearchScreen from '../../../../src/features/merck/screens/MerckManualSearchScreen';
 import {mockTheme} from '../../../setup/mockTheme';
 
+let mockRouteParams = {
+  organisationId: 'org-123',
+  initialQuery: 'test query',
+  initialEntries: [],
+  initialLanguage: 'en',
+  initialHasSearched: false,
+  context: 'appointments',
+};
+
 // Mock navigation
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -22,14 +31,7 @@ jest.mock('@react-navigation/native', () => {
       addListener: mockAddListener,
     }),
     useRoute: () => ({
-      params: {
-        organisationId: 'org-123',
-        initialQuery: 'test query',
-        initialEntries: [],
-        initialLanguage: 'en',
-        initialHasSearched: false,
-        context: 'appointments',
-      },
+      params: mockRouteParams,
     }),
     useFocusEffect: (cb: any) => {
       cb();
@@ -101,7 +103,18 @@ jest.mock('react-native-safe-area-context', () => ({
 describe('MerckManualSearchScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRouteParams = {
+      organisationId: 'org-123',
+      initialQuery: 'test query',
+      initialEntries: [],
+      initialLanguage: 'en',
+      initialHasSearched: false,
+      context: 'appointments',
+    };
     mockAddListener.mockReturnValue(jest.fn());
+    mockGetParent.mockReturnValue({
+      navigate: mockNavigate,
+    });
   });
 
   it('renders screen with header and widget', () => {
@@ -150,5 +163,64 @@ describe('MerckManualSearchScreen', () => {
     // When context is 'appointments', useFocusEffect should return early
     // so mockAddListener should not be called
     expect(mockAddListener).not.toHaveBeenCalled();
+  });
+
+  it('resets to home stack when back is pressed from home context', () => {
+    mockRouteParams.context = 'home';
+
+    const {getByTestId} = render(<MerckManualSearchScreen />);
+
+    fireEvent.press(getByTestId('header-back-button'));
+
+    expect(mockReset).toHaveBeenCalledWith({
+      index: 0,
+      routes: [{name: 'MyAppointments'}],
+    });
+    expect(mockNavigate).toHaveBeenCalledWith('HomeStack', {screen: 'Home'});
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it('intercepts beforeRemove go-back actions in home context', () => {
+    mockRouteParams.context = 'home';
+    let beforeRemoveHandler: ((event: any) => void) | undefined;
+
+    mockAddListener.mockImplementation((_eventName, callback) => {
+      beforeRemoveHandler = callback;
+      return jest.fn();
+    });
+
+    render(<MerckManualSearchScreen />);
+
+    const preventDefault = jest.fn();
+    beforeRemoveHandler?.({
+      data: {action: {type: 'GO_BACK'}},
+      preventDefault,
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(mockReset).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('HomeStack', {screen: 'Home'});
+  });
+
+  it('ignores non-back navigation actions in home context', () => {
+    mockRouteParams.context = 'home';
+    let beforeRemoveHandler: ((event: any) => void) | undefined;
+
+    mockAddListener.mockImplementation((_eventName, callback) => {
+      beforeRemoveHandler = callback;
+      return jest.fn();
+    });
+
+    render(<MerckManualSearchScreen />);
+
+    const preventDefault = jest.fn();
+    beforeRemoveHandler?.({
+      data: {action: {type: 'NAVIGATE'}},
+      preventDefault,
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(mockReset).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

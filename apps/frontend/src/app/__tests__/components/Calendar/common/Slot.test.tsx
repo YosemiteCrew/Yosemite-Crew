@@ -57,11 +57,14 @@ jest.mock('@/app/lib/urls', () => ({
 
 jest.mock('react-icons/io5', () => ({
   IoChevronForward: () => <span>chevron</span>,
+  IoArrowForward: () => <span>arrow</span>,
   IoEyeOutline: () => <span>view</span>,
   IoCalendarOutline: () => <span>reschedule</span>,
   IoDocumentTextOutline: () => <span>soap</span>,
   IoCardOutline: () => <span>finance</span>,
   IoFlaskOutline: () => <span>lab</span>,
+  IoPerson: () => <span>person</span>,
+  IoTimeOutline: () => <span>time</span>,
 }));
 
 jest.mock('react-icons/md', () => ({

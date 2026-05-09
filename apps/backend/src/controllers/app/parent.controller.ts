@@ -6,7 +6,7 @@ import {
 } from "../../services/parent.service";
 import type { ParentRequestDTO } from "@yosemite-crew/types";
 import { generatePresignedUrl } from "src/middlewares/upload";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 
 // Payload checker
 type ParentRequestBody = ParentRequestDTO | { payload?: unknown } | undefined;
@@ -41,7 +41,7 @@ const extractFHIRPayload = (req: Request): ParentRequestDTO => {
 };
 
 const requireAuthUserId = (req: Request, res: Response): string | null => {
-  const authUserId = resolveUserIdFromRequest(req);
+  const authUserId = (req as AuthenticatedRequest).userId?.trim();
   if (!authUserId) {
     res.status(401).json({ message: "Authentication required" });
     return null;

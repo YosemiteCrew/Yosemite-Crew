@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/types" },
     { "path": "packages/fhirtypes" },
+    { "path": "packages/auth" },
     { "path": "apps/backend" },
     { "path": "apps/frontend" },
     { "path": "apps/mobileAppYC" }
@@ -11,7 +12,8 @@
     "baseUrl": ".",
     "paths": {
       "@yosemite-crew/types": ["packages/types/src"],
-      "@yosemite-crew/fhirtypes": ["packages/fhirtypes/src"]
+      "@yosemite-crew/fhirtypes": ["packages/fhirtypes/src"],
+      "@yosemite-crew/auth": ["packages/auth/src"]
     }
   }
 }

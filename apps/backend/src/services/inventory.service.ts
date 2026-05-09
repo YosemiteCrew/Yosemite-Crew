@@ -13,6 +13,7 @@ import type {
   InventoryBatchDocument,
   InventoryVendorDocument,
   InventoryMetaFieldDocument,
+  InventoryBatchMongo,
   InventoryItemMongo,
   InventoryVendorMongo,
 } from "src/models/inventory";
@@ -21,6 +22,8 @@ import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { getOrgBillingCurrency } from "src/utils/billing";
 import {
   InventoryBusinessType,
+  InventoryBatch as PrismaInventoryBatch,
+  InventoryItem as PrismaInventoryItem,
   InventoryItemStatus,
   Prisma,
 } from "@prisma/client";
@@ -46,10 +49,10 @@ export type StockHealthStatus =
   | "EXPIRED"
   | "EXPIRING_SOON";
 
-type InventoryListItem = InventoryItemMongo & {
-  _id: Types.ObjectId;
+type InventoryListItem = (InventoryItemMongo | PrismaInventoryItem) & {
+  _id: Types.ObjectId | string;
   stockHealth: StockHealthStatus;
-  batches?: InventoryBatchDocument[];
+  batches?: InventoryBatchLike[];
 };
 
 export class InventoryServiceError extends Error {
@@ -121,8 +124,17 @@ const sanitizePositiveNumber = (value: unknown): number | undefined => {
 const escapeRegex = (value: string) =>
   value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
-const toObjectId = (value: string) =>
-  Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : value;
+// In Postgres read-mode we still return objects shaped like the Mongo models.
+// For compatibility with existing code/tests, `_id` should be the string id, not
+// a generated ObjectId.
+const toMongoId = (value: string) => value as unknown as Types.ObjectId;
+
+type InventoryItemLike = (InventoryItemMongo | PrismaInventoryItem) & {
+  _id: Types.ObjectId | string;
+};
+type InventoryBatchLike = (InventoryBatchMongo | PrismaInventoryBatch) & {
+  _id: Types.ObjectId | string;
+};
 
 /**
  * INPUT TYPES
@@ -323,8 +335,8 @@ const applySearchFilter = (
   ];
 };
 
-const groupBatchesByItem = (batches: InventoryBatchDocument[]) => {
-  const batchesByItem = new Map<string, InventoryBatchDocument[]>();
+const groupBatchesByItem = (batches: InventoryBatchLike[]) => {
+  const batchesByItem = new Map<string, InventoryBatchLike[]>();
   for (const b of batches) {
     const key = b.itemId.toString();
     if (!batchesByItem.has(key)) batchesByItem.set(key, []);
@@ -333,7 +345,7 @@ const groupBatchesByItem = (batches: InventoryBatchDocument[]) => {
   return batchesByItem;
 };
 
-const getNearestExpiry = (batches: InventoryBatchDocument[]) => {
+const getNearestExpiry = (batches: InventoryBatchLike[]) => {
   let nearestExpiry: Date | null = null;
   for (const b of batches) {
     if (!b.expiryDate) continue;
@@ -737,12 +749,12 @@ export const InventoryService = {
       return {
         item: {
           ...item,
-          _id: toObjectId(item.id),
-        } as unknown as InventoryItemDocument,
+          _id: item.id,
+        },
         batches: batches.map((batch) => ({
           ...batch,
-          _id: toObjectId(batch.id),
-        })) as unknown as InventoryBatchDocument[],
+          _id: batch.id,
+        })),
       };
     }
 
@@ -840,12 +852,20 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   // UPDATE ITEM
   // ─────────────────────────────────────────────
-  async updateItem(itemId: string, input: UpdateInventoryItemInput) {
+  async updateItem(
+    itemId: string,
+    input: UpdateInventoryItemInput,
+    organisationId: string,
+  ) {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
       const existing = await prisma.inventoryItem.findFirst({
-        where: { id: itemId },
+        where: { id: itemId, organisationId: safeOrganisationId },
       });
       if (!existing) {
         throw new InventoryServiceError("Inventory item not found", 404);
@@ -856,28 +876,33 @@ export const InventoryService = {
       if (input.name !== undefined) data.name = input.name;
       if (input.sku !== undefined) data.sku = input.sku ?? null;
       if (input.category !== undefined) data.category = input.category;
-      if (input.subCategory !== undefined)
+      if (input.subCategory !== undefined) {
         data.subCategory = input.subCategory ?? null;
-      if (input.description !== undefined)
+      }
+      if (input.description !== undefined) {
         data.description = input.description ?? null;
-      if (input.imageUrl !== undefined) data.imageUrl = input.imageUrl ?? null;
-      if (input.attributes !== undefined)
+      }
+      if (input.imageUrl !== undefined) {
+        data.imageUrl = input.imageUrl ?? null;
+      }
+      if (input.attributes !== undefined) {
         data.attributes = input.attributes as Prisma.InputJsonValue;
+      }
 
-      if (input.unitCost !== undefined)
-        data.unitCost = input.unitCost === null ? null : input.unitCost;
-      if (input.sellingPrice !== undefined)
-        data.sellingPrice =
-          input.sellingPrice === null ? null : input.sellingPrice;
-      if (input.currency !== undefined)
+      if (input.unitCost !== undefined) data.unitCost = input.unitCost ?? null;
+      if (input.sellingPrice !== undefined) {
+        data.sellingPrice = input.sellingPrice ?? null;
+      }
+      if (input.currency !== undefined) {
         data.currency = await getOrgBillingCurrency(existing.organisationId);
-      if (input.reorderLevel !== undefined)
-        data.reorderLevel =
-          input.reorderLevel === null ? null : input.reorderLevel;
-      if (input.vendorId !== undefined)
-        data.vendorId = input.vendorId === null ? null : input.vendorId;
-      if (input.status !== undefined)
+      }
+      if (input.reorderLevel !== undefined) {
+        data.reorderLevel = input.reorderLevel ?? null;
+      }
+      if (input.vendorId !== undefined) data.vendorId = input.vendorId ?? null;
+      if (input.status !== undefined) {
         data.status = input.status as InventoryItemStatus;
+      }
 
       const updated = await prisma.inventoryItem.update({
         where: { id: itemId },
@@ -892,16 +917,19 @@ export const InventoryService = {
       return {
         item: {
           ...updated,
-          _id: toObjectId(updated.id),
-        } as unknown as InventoryItemDocument,
+          _id: updated.id,
+        },
         batches: batches.map((batch) => ({
           ...batch,
-          _id: toObjectId(batch.id),
-        })) as unknown as InventoryBatchDocument[],
+          _id: batch.id,
+        })),
       };
     }
 
-    const item = await InventoryItemModel.findById(itemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
@@ -953,70 +981,118 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   // SOFT HIDE / ARCHIVE (map to HIDDEN / DELETED)
   // ─────────────────────────────────────────────
-  async hideItem(itemId: string): Promise<InventoryItemDocument> {
+  async hideItem(
+    itemId: string,
+    organisationId: string,
+  ): Promise<InventoryItemLike> {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (isReadFromPostgres()) {
-      const item = await prisma.inventoryItem.update({
+      const item = await prisma.inventoryItem.findFirst({
+        where: { id: itemId, organisationId: safeOrganisationId },
+      });
+      if (!item) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
+      const updated = await prisma.inventoryItem.update({
         where: { id: itemId },
         data: { status: "HIDDEN" },
       });
       return {
-        ...item,
-        _id: toObjectId(item.id),
-      } as unknown as InventoryItemDocument;
+        ...updated,
+        _id: updated.id,
+      };
     }
-    const item = await InventoryItemModel.findById(itemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
     item.status = "HIDDEN";
     await item.save();
     await syncInventoryItemToPostgres(item);
-    return item;
+    return item.toObject();
   },
 
-  async archiveItem(itemId: string): Promise<InventoryItemDocument> {
+  async archiveItem(
+    itemId: string,
+    organisationId: string,
+  ): Promise<InventoryItemLike> {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (isReadFromPostgres()) {
-      const item = await prisma.inventoryItem.update({
+      const item = await prisma.inventoryItem.findFirst({
+        where: { id: itemId, organisationId: safeOrganisationId },
+      });
+      if (!item) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
+      const updated = await prisma.inventoryItem.update({
         where: { id: itemId },
         data: { status: "DELETED" },
       });
       return {
-        ...item,
-        _id: toObjectId(item.id),
-      } as unknown as InventoryItemDocument;
+        ...updated,
+        _id: updated.id,
+      };
     }
-    const item = await InventoryItemModel.findById(itemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
     item.status = "DELETED";
     await item.save();
     await syncInventoryItemToPostgres(item);
-    return item;
+    return item.toObject();
   },
 
-  async activeItem(itemId: string): Promise<InventoryItemDocument> {
+  async activeItem(
+    itemId: string,
+    organisationId: string,
+  ): Promise<InventoryItemLike> {
     ensureObjectId(itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (isReadFromPostgres()) {
-      const item = await prisma.inventoryItem.update({
+      const item = await prisma.inventoryItem.findFirst({
+        where: { id: itemId, organisationId: safeOrganisationId },
+      });
+      if (!item) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
+      const updated = await prisma.inventoryItem.update({
         where: { id: itemId },
         data: { status: "ACTIVE" },
       });
       return {
-        ...item,
-        _id: toObjectId(item.id),
-      } as unknown as InventoryItemDocument;
+        ...updated,
+        _id: updated.id,
+      };
     }
-    const item = await InventoryItemModel.findById(itemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
     item.status = "ACTIVE";
     await item.save();
     await syncInventoryItemToPostgres(item);
-    return item;
+    return item.toObject();
   },
 
   // ─────────────────────────────────────────────
@@ -1073,12 +1149,17 @@ export const InventoryService = {
             const value = entry[key] as
               | { $regex?: string; $options?: string }
               | RegExp;
-            const pattern =
-              value instanceof RegExp
-                ? value.source
-                : typeof value === "object" && value.$regex
-                  ? String(value.$regex)
-                  : "";
+            let pattern = "";
+            if (value instanceof RegExp) {
+              pattern = value.source;
+            } else if (
+              typeof value === "object" &&
+              value !== null &&
+              "$regex" in value &&
+              typeof value.$regex === "string"
+            ) {
+              pattern = value.$regex;
+            }
             return pattern
               ? { [key]: { contains: pattern, mode: "insensitive" } }
               : {};
@@ -1098,8 +1179,8 @@ export const InventoryService = {
 
       const mappedBatches = batches.map((batch) => ({
         ...batch,
-        _id: toObjectId(batch.id),
-      })) as unknown as InventoryBatchDocument[];
+        _id: batch.id,
+      }));
 
       const batchesByItem = groupBatchesByItem(mappedBatches);
 
@@ -1122,8 +1203,8 @@ export const InventoryService = {
 
         const itemObject = {
           ...item,
-          _id: toObjectId(item.id),
-        } as unknown as InventoryItemMongo & { _id: Types.ObjectId };
+          _id: item.id,
+        };
 
         result.push({ ...itemObject, stockHealth, batches: itemBatches });
       }
@@ -1193,15 +1274,18 @@ export const InventoryService = {
       if (!item) {
         throw new InventoryServiceError("Inventory item not found", 404);
       }
+      if (item.organisationId !== safeOrganisationId) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
 
       return {
         item: {
           ...item,
-          _id: toObjectId(item.id),
+          _id: toMongoId(item.id),
         } as unknown as InventoryItemDocument,
         batches: batches.map((batch) => ({
           ...batch,
-          _id: toObjectId(batch.id),
+          _id: toMongoId(batch.id),
         })) as unknown as InventoryBatchDocument[],
       };
     }
@@ -1216,6 +1300,9 @@ export const InventoryService = {
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
+    if (item.organisationId.toString() !== safeOrganisationId) {
+      throw new InventoryServiceError("Inventory item not found", 404);
+    }
 
     return { item, batches };
   },
@@ -1226,7 +1313,7 @@ export const InventoryService = {
   async addBatch(
     itemId: string,
     batchInput: InventoryBatchInput,
-  ): Promise<InventoryBatchDocument> {
+  ): Promise<InventoryBatchLike> {
     ensureObjectId(itemId);
 
     if (isReadFromPostgres()) {
@@ -1259,8 +1346,8 @@ export const InventoryService = {
 
       return {
         ...batch,
-        _id: toObjectId(batch.id),
-      } as unknown as InventoryBatchDocument;
+        _id: batch.id,
+      };
     }
 
     const item = await InventoryItemModel.findById(itemId);
@@ -1286,13 +1373,16 @@ export const InventoryService = {
     await item.save();
     await syncInventoryItemToPostgres(item);
 
-    return batch;
+    return typeof (batch as { toObject?: () => unknown }).toObject ===
+      "function"
+      ? (batch as { toObject: () => InventoryBatchLike }).toObject()
+      : (batch as unknown as InventoryBatchLike);
   },
 
   async updateBatch(
     batchId: string,
     input: Partial<InventoryBatchInput>,
-  ): Promise<InventoryBatchDocument> {
+  ): Promise<InventoryBatchLike> {
     ensureObjectId(batchId, "batchId");
 
     if (isReadFromPostgres()) {
@@ -1334,8 +1424,8 @@ export const InventoryService = {
 
       return {
         ...updated,
-        _id: toObjectId(updated.id),
-      } as unknown as InventoryBatchDocument;
+        _id: updated.id,
+      };
     }
 
     const batch = await InventoryBatchModel.findById(batchId).exec();
@@ -1377,7 +1467,7 @@ export const InventoryService = {
       }
     }
 
-    return batch;
+    return batch.toObject();
   },
 
   async deleteBatch(batchId: string): Promise<void> {
@@ -1439,7 +1529,7 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   // STOCK CONSUMPTION (FIFO by expiry)
   // ─────────────────────────────────────────────
-  async consumeStock(input: ConsumeStockInput): Promise<InventoryItemDocument> {
+  async consumeStock(input: ConsumeStockInput): Promise<InventoryItemLike> {
     const safeItemId = ensureObjectId(input.itemId, "itemId");
     if (input.quantity <= 0) {
       throw new InventoryServiceError("quantity must be > 0", 400);
@@ -1490,8 +1580,8 @@ export const InventoryService = {
 
       return {
         ...updated,
-        _id: toObjectId(updated.id),
-      } as unknown as InventoryItemDocument;
+        _id: toMongoId(updated.id),
+      };
     }
 
     const item = await InventoryItemModel.findById(safeItemId).exec();
@@ -1547,12 +1637,12 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   async bulkConsumeStock(
     input: BulkConsumeStockInput,
-  ): Promise<InventoryItemDocument[]> {
+  ): Promise<InventoryItemLike[]> {
     if (!Array.isArray(input.items) || input.items.length === 0) {
       throw new InventoryServiceError("items must be a non-empty array", 400);
     }
 
-    const results: InventoryItemDocument[] = [];
+    const results: InventoryItemLike[] = [];
     for (const itemInput of input.items) {
       results.push(await this.consumeStock(itemInput));
     }
@@ -1762,7 +1852,7 @@ export const InventoryAdjustmentService = {
     newOnHand: number;
     reason: string; // "MANUAL_ADJUSTMENT", etc.
     userId?: string;
-  }): Promise<InventoryItemDocument> {
+  }): Promise<InventoryItemLike> {
     const safeItemId = ensureObjectId(input.itemId);
 
     if (isReadFromPostgres()) {
@@ -1831,8 +1921,8 @@ export const InventoryAdjustmentService = {
 
       return {
         ...updated,
-        _id: toObjectId(updated.id),
-      } as unknown as InventoryItemDocument;
+        _id: toMongoId(updated.id),
+      };
     }
 
     const item = await InventoryItemModel.findById(safeItemId);
@@ -1917,7 +2007,7 @@ export const InventoryAllocationService = {
     itemId: string;
     quantity: number;
     referenceId: string; // appointment ID, grooming ID, boarding ID
-  }): Promise<InventoryItemDocument> {
+  }): Promise<InventoryItemLike> {
     ensureObjectId(itemId);
 
     if (isReadFromPostgres()) {
@@ -1944,8 +2034,8 @@ export const InventoryAllocationService = {
 
       return {
         ...updated,
-        _id: toObjectId(updated.id),
-      } as unknown as InventoryItemDocument;
+        _id: toMongoId(updated.id),
+      };
     }
 
     const item = await InventoryItemModel.findById(itemId);
@@ -1977,7 +2067,7 @@ export const InventoryAllocationService = {
     itemId: string;
     quantity: number;
     referenceId: string;
-  }): Promise<InventoryItemDocument> {
+  }): Promise<InventoryItemLike> {
     ensureObjectId(itemId);
 
     if (isReadFromPostgres()) {
@@ -2000,7 +2090,7 @@ export const InventoryAllocationService = {
 
       return {
         ...updated,
-        _id: toObjectId(updated.id),
+        _id: toMongoId(updated.id),
       } as unknown as InventoryItemDocument;
     }
 

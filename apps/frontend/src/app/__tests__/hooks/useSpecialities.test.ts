@@ -64,6 +64,7 @@ describe('useSpecialities Hooks', () => {
       renderHook(() => useLoadSpecialitiesForPrimaryOrg());
 
       expect(loadSpecialitiesForOrg).toHaveBeenCalledTimes(1);
+      expect(loadSpecialitiesForOrg).toHaveBeenCalledWith({ orgId: 'org-1' });
     });
 
     it('should NOT trigger service call when primaryOrgId is missing', () => {

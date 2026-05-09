@@ -1,8 +1,8 @@
-import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
-import { FormField } from "@/app/features/forms/types/forms";
+import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
+import { FormField } from '@/app/features/forms/types/forms';
 
 const TextRenderer: React.FC<{
-  field: FormField & { type: "textarea" };
+  field: FormField & { type: 'textarea' };
   value: string;
   onChange: (v: string) => void;
 }> = ({ field, value, onChange }) => (
@@ -10,8 +10,8 @@ const TextRenderer: React.FC<{
     <FormDesc
       intype="text"
       inname={field.id}
-      value={value || field.placeholder || ""}
-      inlabel={field.label || ""}
+      value={value ?? ''}
+      inlabel={field.label || ''}
       onChange={(e) => onChange(e.target.value)}
       className="min-h-[120px]! max-h-[140px]!"
     />

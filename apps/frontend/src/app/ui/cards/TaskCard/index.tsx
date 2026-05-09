@@ -72,7 +72,7 @@ const TaskCard = ({
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             title="View task"
           >
-            <IoEyeOutline size={18} color="#302F2E" />
+            <IoEyeOutline size={18} color="var(--color-neutral-900)" />
           </button>
         </GlassTooltip>
         {canEditTasks && canShowTaskStatusChangeAction(item.status) && (
@@ -82,7 +82,7 @@ const TaskCard = ({
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="Change status"
             >
-              <MdOutlineAutorenew size={18} color="#302F2E" />
+              <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}
@@ -93,7 +93,7 @@ const TaskCard = ({
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="Reschedule"
             >
-              <IoIosCalendar size={18} color="#302F2E" />
+              <IoIosCalendar size={18} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}

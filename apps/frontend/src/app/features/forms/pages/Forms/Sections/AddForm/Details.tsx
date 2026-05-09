@@ -239,7 +239,7 @@ const Details = ({
                 setFormData({ ...formData, species: e });
                 setFormDataErrors((prev) => ({ ...prev, species: undefined }));
               }}
-              options={['Dog', 'Cat', 'Horse']}
+              options={['Canine', 'Feline', 'Equine']}
             />
           </div>
         </Accordion>

@@ -24,6 +24,6 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1.2;
-  color: #fff;
+  color: var(--color-neutral-0);
   opacity: 1;
 }

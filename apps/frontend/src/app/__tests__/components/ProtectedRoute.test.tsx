@@ -5,6 +5,7 @@ import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 // 1. Mock dependencies
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/app/stores/authStore';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 // Mock Next.js navigation hooks
 jest.mock('next/navigation', () => ({
@@ -15,6 +16,10 @@ jest.mock('next/navigation', () => ({
 // Mock the auth store
 jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: jest.fn(),
+}));
+
+jest.mock('@/app/hooks/useFullscreenLoader', () => ({
+  useFullscreenLoader: jest.fn(),
 }));
 
 describe('ProtectedRoute Component', () => {
@@ -43,20 +48,19 @@ describe('ProtectedRoute Component', () => {
 
   // Scenario 1: Loading/Checking State
   // Covers: `const isChecking = true`, `if (isChecking) return null`, and the early return in `useEffect`.
-  it('renders nothing and does not redirect while checking authentication status', () => {
+  it('renders a loader and does not redirect while checking authentication status', () => {
     // Setup: Status is 'checking'
     (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector({ status: 'checking' })
     );
 
-    const { container } = render(
+    render(
       <ProtectedRoute>
         <div data-testid="child">Protected Content</div>
       </ProtectedRoute>
     );
 
-    // Assert: Renders nothing (null)
-    expect(container).toBeEmptyDOMElement();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('auth-guard', true);
     expect(screen.queryByTestId('child')).not.toBeInTheDocument();
 
     // Assert: Does NOT redirect yet
@@ -102,6 +106,7 @@ describe('ProtectedRoute Component', () => {
 
     // Assert: Children are visible
     expect(screen.getByTestId('child')).toBeInTheDocument();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('auth-guard', false);
 
     // Assert: No redirect happens
     expect(mockReplace).not.toHaveBeenCalled();

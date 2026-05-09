@@ -83,6 +83,43 @@ export const CoParentInviteService = {
     );
 
     if (isReadFromPostgres()) {
+      const inviterOwnershipLink = await prisma.parentCompanion.findFirst({
+        where: {
+          parentId: invitedByParentId,
+          companionId,
+          role: "PRIMARY",
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+
+      if (!inviterOwnershipLink) {
+        throw new CoParentInviteServiceError(
+          "You are not authorized to invite a co-parent for this companion.",
+          403,
+        );
+      }
+    } else {
+      const inviterOwnershipLink = await ParentCompanionModel.findOne(
+        {
+          parentId: new Types.ObjectId(invitedByParentId),
+          companionId: new Types.ObjectId(companionId),
+          role: "PRIMARY",
+          status: "ACTIVE",
+        },
+        null,
+        { sanitizeFilter: true },
+      );
+
+      if (!inviterOwnershipLink) {
+        throw new CoParentInviteServiceError(
+          "You are not authorized to invite a co-parent for this companion.",
+          403,
+        );
+      }
+    }
+
+    if (isReadFromPostgres()) {
       await prisma.coParentInvite.create({
         data: {
           email: email.toLowerCase(),
@@ -383,10 +420,10 @@ export const CoParentInviteService = {
     // 4. Create CO_PARENT link (as ACTIVE)
     await ParentCompanionService.linkParent({
       parentId: parentMongoId,
-      companionId: new Types.ObjectId(invite.companion.id),
+      companionId: new Types.ObjectId(String(invite.companion.id)),
       role: "CO_PARENT",
       status: "ACTIVE",
-      invitedByParentId: new Types.ObjectId(invite.invitedBy.id),
+      invitedByParentId: new Types.ObjectId(String(invite.invitedBy.id)),
       permissionsOverride: undefined,
     });
 

@@ -248,16 +248,16 @@ const TaskSlot = ({
         ) : null}
         {showGridLines && (
           <div className="pointer-events-none absolute inset-0 z-[5]">
-            <div className="absolute inset-x-0 top-0 border-t border-[#C3CEDC]" />
+            <div className="absolute inset-x-0 top-0 border-t border-[var(--color-calendar-line-strong)]" />
             {slotOffsetMinutes.map((minute) => (
               <div
                 key={`task-slot-grid-${hour}-${minute}`}
-                className="absolute inset-x-0 border-t border-[#E9EDF3]"
+                className="absolute inset-x-0 border-t border-[var(--color-calendar-line-soft)]"
                 style={{ top: `${(minute / 60) * 100}%` }}
               />
             ))}
             {isLastVisibleHour && (
-              <div className="absolute inset-x-0 top-full border-t border-[#C3CEDC]" />
+              <div className="absolute inset-x-0 top-full border-t border-[var(--color-calendar-line-strong)]" />
             )}
           </div>
         )}
@@ -265,7 +265,7 @@ const TaskSlot = ({
           availabilitySegments.map((segment, index) => (
             <div
               key={`task-drop-availability-${index}-${segment.top}`}
-              className="pointer-events-none absolute left-1 right-1 z-10 rounded-xl border border-grey-light bg-[rgba(42,168,121,0.12)]"
+              className="pointer-events-none absolute left-1 right-1 z-10 rounded-xl border border-grey-light bg-[var(--color-calendar-availability-overlay)]"
               style={{
                 top: segment.top,
                 height: segment.height,
@@ -280,7 +280,7 @@ const TaskSlot = ({
             }}
           >
             <div
-              className="rounded-xl border-2 border-dashed border-grey-light bg-[rgba(36,122,237,0.18)]"
+              className="rounded-xl border-2 border-dashed border-grey-light bg-[var(--color-calendar-preview-overlay)]"
               style={{
                 height: Math.max(12, (Math.max(5, draggedTaskDurationMinutes) / 60) * height),
               }}
@@ -378,7 +378,7 @@ const TaskSlot = ({
                     handleViewTask(task);
                   }}
                 >
-                  <IoEyeOutline size={12} color="#302F2E" />
+                  <IoEyeOutline size={12} color="var(--color-neutral-900)" />
                 </button>
               </div>
             </div>

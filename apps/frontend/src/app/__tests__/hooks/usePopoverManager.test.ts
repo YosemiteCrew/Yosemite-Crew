@@ -1,4 +1,5 @@
-import { renderHook, act } from '@testing-library/react';
+import { render, renderHook, screen, act } from '@testing-library/react';
+import React from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 
 describe('usePopoverManager', () => {
@@ -128,6 +129,80 @@ describe('usePopoverManager', () => {
     expect(style.width).toBe(200);
   });
 
+  it('getPopoverStyle places the popover above when there is not enough room below', () => {
+    const { result } = renderHook(() => usePopoverManager());
+
+    Object.defineProperty(globalThis, 'innerHeight', {
+      value: 500,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'innerWidth', {
+      value: 900,
+      writable: true,
+      configurable: true,
+    });
+
+    const mockButton = {
+      getBoundingClientRect: () =>
+        ({
+          left: 300,
+          top: 450,
+          width: 40,
+          height: 24,
+          right: 340,
+          bottom: 474,
+        }) as DOMRect,
+    } as HTMLButtonElement;
+
+    act(() => {
+      result.current.openPopover('key-1', mockButton);
+    });
+
+    const style = result.current.getPopoverStyle(440, 490);
+    expect(style.top).toBe(12);
+    expect(style.width).toBe(440);
+  });
+
+  it('does not close when scrolling inside the popover dialog', () => {
+    const TestPopover = () => {
+      const manager = usePopoverManager();
+
+      return React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(
+          'button',
+          {
+            type: 'button',
+            onClick: (event: React.MouseEvent<HTMLButtonElement>) =>
+              manager.openPopover('key-1', event.currentTarget),
+          },
+          'Open'
+        ),
+        React.createElement(
+          'dialog',
+          { ref: manager.popoverDialogRef, open: true },
+          React.createElement('div', { 'data-testid': 'inner-scroll' })
+        ),
+        React.createElement('span', null, manager.activePopoverKey ?? 'closed')
+      );
+    };
+
+    render(React.createElement(TestPopover));
+    act(() => {
+      screen.getByRole('button', { name: 'Open' }).click();
+    });
+
+    expect(screen.getByText('key-1')).toBeInTheDocument();
+
+    act(() => {
+      screen.getByTestId('inner-scroll').dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+
+    expect(screen.getByText('key-1')).toBeInTheDocument();
+  });
+
   it('schedulePopoverClose closes popover after timeout', async () => {
     jest.useFakeTimers();
     const { result } = renderHook(() => usePopoverManager());
@@ -164,6 +239,28 @@ describe('usePopoverManager', () => {
 
     // After clearing, popover should still be open
     expect(result.current.activePopoverKey).toBe('key-1');
+    jest.useRealTimers();
+  });
+
+  it('does not auto-close on hover leave when closeOnHoverLeave is disabled', () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => usePopoverManager({ closeOnHoverLeave: false }));
+
+    const anchor = document.createElement('button');
+    const unregister = result.current.registerAnchorEl(anchor);
+
+    act(() => {
+      result.current.setActivePopoverKey('key-1');
+    });
+
+    act(() => {
+      anchor.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      jest.advanceTimersByTime(200);
+    });
+
+    expect(result.current.activePopoverKey).toBe('key-1');
+
+    unregister();
     jest.useRealTimers();
   });
 });

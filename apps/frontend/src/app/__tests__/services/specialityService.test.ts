@@ -1,7 +1,9 @@
 import {
   loadSpecialitiesForOrg,
   createSpeciality,
+  createSpecialitiesBulk,
   createService,
+  createServicesBulk,
   createBulkSpecialityServices,
   updateSpeciality,
   updateService,
@@ -76,6 +78,7 @@ describe('specialityService', () => {
       addSpeciality: mockAddSpeciality,
       updateSpeciality: mockUpdateSpeciality,
       status: 'idle',
+      specialityIdsByOrgId: {},
       setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
       setError: mockSetError,
       endLoading: jest.fn(), // Added endLoading for completeness, though not in the error
@@ -114,6 +117,38 @@ describe('specialityService', () => {
 
       expect(mockStartLoading).toHaveBeenCalled();
       expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/speciality/org-1');
+    });
+
+    it('skips fetching when the selected org already has speciality data', async () => {
+      (useSpecialityStore.getState as jest.Mock).mockReturnValue({
+        startLoading: mockStartLoading,
+        status: 'loaded',
+        specialityIdsByOrgId: { 'org-1': [] },
+        setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
+      });
+
+      await loadSpecialitiesForOrg();
+
+      expect(mockStartLoading).not.toHaveBeenCalled();
+      expect(axiosService.getData).not.toHaveBeenCalled();
+    });
+
+    it('fetches only once for duplicate in-flight requests for the same org', async () => {
+      let resolveRequest: ((value: { data: [] }) => void) | undefined;
+      (axiosService.getData as jest.Mock).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve;
+          })
+      );
+
+      const firstRequest = loadSpecialitiesForOrg({ force: true });
+      const secondRequest = loadSpecialitiesForOrg({ force: true });
+
+      resolveRequest?.({ data: [] });
+      await Promise.all([firstRequest, secondRequest]);
+
+      expect(axiosService.getData).toHaveBeenCalledTimes(1);
     });
 
     // ... (All other tests in loadSpecialitiesForOrg section remain unchanged)
@@ -223,6 +258,79 @@ describe('specialityService', () => {
     });
   });
 
+  describe('createSpecialitiesBulk', () => {
+    const payload = [{ name: 'Spec A' }, { name: 'Spec B' }] as any;
+
+    it('creates specialities with the bulk endpoint', async () => {
+      (axiosService.postData as jest.Mock).mockResolvedValue({
+        data: [
+          { id: 'spec-a', name: 'Spec A' },
+          { id: 'spec-b', name: 'Spec B' },
+        ],
+      });
+
+      const result = await createSpecialitiesBulk(payload);
+
+      expect(axiosService.postData).toHaveBeenCalledWith('/fhir/v1/speciality/bulk', payload);
+      expect(mockAddSpeciality).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(2);
+      expect(result[0]._id).toBe('spec-a');
+    });
+
+    it('accepts created-array bulk responses', async () => {
+      (axiosService.postData as jest.Mock).mockResolvedValue({
+        data: { created: [{ id: 'spec-a', name: 'Spec A' }] },
+      });
+
+      const result = await createSpecialitiesBulk(payload);
+
+      expect(result).toHaveLength(1);
+      expect(mockAddSpeciality).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: 'spec-a' }),
+        expect.any(Number),
+        expect.any(Array)
+      );
+    });
+
+    it('throws error on failure', async () => {
+      (axiosService.postData as jest.Mock).mockRejectedValue(new Error('Bulk Spec Fail'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(createSpecialitiesBulk(payload)).rejects.toThrow('Bulk Spec Fail');
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('createServicesBulk', () => {
+    const payload = [{ name: 'Svc A' }, { name: 'Svc B' }] as any;
+
+    it('creates services with the bulk endpoint', async () => {
+      (axiosService.postData as jest.Mock).mockResolvedValue({
+        data: [
+          { id: 'svc-a', name: 'Svc A' },
+          { id: 'svc-b', name: 'Svc B' },
+        ],
+      });
+
+      const result = await createServicesBulk(payload);
+
+      expect(axiosService.postData).toHaveBeenCalledWith('/fhir/v1/service/bulk', payload);
+      expect(mockAddService).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('svc-a');
+    });
+
+    it('throws error on failure', async () => {
+      (axiosService.postData as jest.Mock).mockRejectedValue(new Error('Bulk Service Fail'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(createServicesBulk(payload)).rejects.toThrow('Bulk Service Fail');
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
   // ===========================================================================
   // 4. createBulkSpecialityServices
   // ===========================================================================
@@ -241,38 +349,35 @@ describe('specialityService', () => {
         null as any, // Should be skipped
       ];
 
-      // Mock createSpeciality internal call (it calls postData)
-      // Since createSpeciality is exported and used internally, mocking the axios call it makes is cleaner
-      // But here createBulk calls `createSpeciality` which calls `postData`
-      // We will mock `postData` responses sequentially.
-
       (axiosService.postData as jest.Mock)
-        // 1. Create Spec A
-        .mockResolvedValueOnce({ data: { id: 'spec-a', name: 'Spec A' } })
-        // 2. Create Svc A1
-        .mockResolvedValueOnce({ data: { id: 'svc-a1' } })
-        // 3. Create Svc A2
-        .mockResolvedValueOnce({ data: { id: 'svc-a2' } })
-        // 4. Create Spec B
-        .mockResolvedValueOnce({ data: { id: 'spec-b', name: 'Spec B' } });
+        .mockResolvedValueOnce({
+          data: [
+            { id: 'spec-a', name: 'Spec A' },
+            { id: 'spec-b', name: 'Spec B' },
+          ],
+        })
+        .mockResolvedValueOnce({
+          data: [
+            { id: 'svc-a1', name: 'Svc A1' },
+            { id: 'svc-a2', name: 'Svc A2' },
+          ],
+        });
 
       await createBulkSpecialityServices(payload);
 
-      // Verify Calls
-      // Spec A
       expect(axiosService.postData).toHaveBeenCalledWith(
-        '/fhir/v1/speciality',
-        expect.objectContaining({ name: 'Spec A' })
+        '/fhir/v1/speciality/bulk',
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Spec A', services: [] }),
+          expect.objectContaining({ name: 'Spec B', services: [] }),
+        ])
       );
-      // Services for A
       expect(axiosService.postData).toHaveBeenCalledWith(
-        '/fhir/v1/service',
-        expect.objectContaining({ name: 'Svc A1', specialityId: 'spec-a' })
-      );
-      // Spec B
-      expect(axiosService.postData).toHaveBeenCalledWith(
-        '/fhir/v1/speciality',
-        expect.objectContaining({ name: 'Spec B' })
+        '/fhir/v1/service/bulk',
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Svc A1', specialityId: 'spec-a' }),
+          expect.objectContaining({ name: 'Svc A2', specialityId: 'spec-a' }),
+        ])
       );
     });
 
@@ -417,6 +522,7 @@ describe('specialityService', () => {
         startLoading: mockStartLoading,
         setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
         status: 'loaded',
+        specialityIdsByOrgId: { 'org-1': [] },
       });
 
       await loadSpecialitiesForOrg({ force: false });
@@ -428,6 +534,7 @@ describe('specialityService', () => {
         startLoading: mockStartLoading,
         setSpecialitiesForOrg: mockSetSpecialitiesForOrg,
         status: 'loaded',
+        specialityIdsByOrgId: { 'org-1': [] },
       });
       (axiosService.getData as jest.Mock).mockResolvedValue({ data: [] });
 

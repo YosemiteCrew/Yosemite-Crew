@@ -58,7 +58,7 @@ const HorizontalLines = ({
       return (
         <div
           key={hour}
-          className="absolute left-0 right-0 border-t border-[#C3CEDC]"
+          className="absolute left-0 right-0 border-t border-[var(--color-calendar-line-strong)]"
           style={{ top }}
         />
       );
@@ -77,7 +77,7 @@ const HorizontalLines = ({
       lines.push(
         <div
           key={`slot-${minute}`}
-          className="absolute left-0 right-0 border-t border-[#E9EDF3]"
+          className="absolute left-0 right-0 border-t border-[var(--color-calendar-line-soft)]"
           style={{ top }}
         />
       );
@@ -88,11 +88,11 @@ const HorizontalLines = ({
 
   return (
     <>
-      <div className="absolute left-0 right-0 top-0 border-t border-[#C3CEDC]" />
+      <div className="absolute left-0 right-0 top-0 border-t border-[var(--color-calendar-line-strong)]" />
       {slotLines}
       {hourLines}
       <div
-        className="absolute left-0 right-0 border-t border-[#C3CEDC]"
+        className="absolute left-0 right-0 border-t border-[var(--color-calendar-line-strong)]"
         style={{ top: totalHeightPx }}
       />
       {nowTopPx != null && (

@@ -299,7 +299,10 @@ export const ClinicalTermsService = {
       }
 
       if (query) {
-        const escaped = query.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escaped = query.replaceAll(
+          /[.*+?^${}()|[\]\\]/g,
+          String.raw`\\$&`,
+        );
         filter.$or = [
           { code: new RegExp(escaped, "i") },
           { display: new RegExp(escaped, "i") },

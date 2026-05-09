@@ -9,7 +9,9 @@ import { OrgWithMembership } from '@/app/features/organization/types/org';
 
 import './DataTable.css';
 import { toTitleCase } from '@/app/lib/validators';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
+import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
+import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
+import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 
 type Column<T> = {
   label: string;
@@ -25,11 +27,11 @@ type OrganizationListProps = {
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case 'active':
-      return { color: '#54B492', backgroundColor: '#E6F4EF' };
+      return { color: 'var(--color-success-400)', backgroundColor: 'var(--color-success-100)' };
     case 'pending':
-      return { color: '#F68523', backgroundColor: '#FEF3E9' };
+      return { color: 'var(--color-warning-600)', backgroundColor: '#FEF3E9' };
     default:
-      return { color: '#fff', backgroundColor: '#247AED' };
+      return { color: 'var(--color-neutral-0)', backgroundColor: 'var(--color-badge-blue-bg)' };
   }
 };
 
@@ -37,14 +39,19 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
   const router = useRouter();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
 
-  const handleOrgClick = (org: OrgWithMembership) => {
+  const handleOrgClick = async (org: OrgWithMembership) => {
     const id = org.org._id?.toString() || org.org.name;
     setPrimaryOrg(id);
-    if (org.org.isVerified) {
+    const { show, hide } = useFullscreenLoaderStore.getState();
+    show('org-switch');
+    startRouteLoader();
+    try {
       const role = org.membership?.roleDisplay ?? org.membership?.roleCode;
-      router.push(resolveDefaultOpenScreenRoute(role));
-    } else {
-      router.push('/create-org?orgId=' + id);
+      const nextRoute = await resolveOrgScopedRedirect({ orgId: id, fallbackRole: role });
+      router.push(nextRoute);
+    } catch {
+      hide('org-switch');
+      stopRouteLoader();
     }
   };
 

@@ -34,6 +34,7 @@ jest.mock("../../src/services/document.service", () => {
       getByIdForPms: jest.fn(),
       deleteForParent: jest.fn(),
       getAllAttachmentUrls: jest.fn(),
+      getAttachmentUrlByKey: jest.fn(),
       searchByTitleForParent: jest.fn(),
     },
   };
@@ -70,6 +71,7 @@ describe("DocumentController", () => {
       body: {},
       headers: {},
       userId: "auth_user_123",
+      organisationId: "org1",
     };
 
     res = {
@@ -97,17 +99,18 @@ describe("DocumentController", () => {
 
     it("getFirstQueryValue: should extract string from array", async () => {
       req.params.companionId = "c1";
-      req.query.category = [123, "valid_string"]; // Tests skipping non-strings in array
+      req.body.category = [123, "valid_string"]; // Controller currently reads from body
       await DocumentController.listForPms(req, res);
     });
 
     it("getFirstQueryValue: should return undefined for invalid types or arrays with no strings", async () => {
       req.params.companionId = "c1";
-      req.query.category = [123, 456]; // Array with no strings
-      req.query.subcategory = 12345; // Not a string or array
+      req.body.category = [123, 456]; // Array with no strings
+      req.body.subcategory = 12345; // Not a string or array
       await DocumentController.listForPms(req, res);
       expect(DocumentService.listForPms).toHaveBeenCalledWith(
         expect.objectContaining({
+          organisationId: "org1",
           category: undefined,
           subcategory: undefined,
         }),
@@ -281,6 +284,9 @@ describe("DocumentController", () => {
     it("should return 200 on success", async () => {
       req.params.companionId = "c1";
       req.query = { category: "cat", subcategory: "sub" };
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
       (DocumentService.listForParent as jest.Mock).mockResolvedValue("docs");
 
       await DocumentController.listDocumentsForParent(req, res);
@@ -290,6 +296,9 @@ describe("DocumentController", () => {
 
     it("should handle errors", async () => {
       req.params.companionId = "c1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
       (DocumentService.listForParent as jest.Mock).mockRejectedValue(
         new DocumentServiceError("Custom", 404),
       );
@@ -365,6 +374,7 @@ describe("DocumentController", () => {
       await DocumentController.updateDocument(req, res);
       expect(DocumentService.update).toHaveBeenCalledWith("d2", req.body, {
         pmsUserId: "auth_user_123",
+        organisationId: "org1",
       });
       expect(res.status).toHaveBeenCalledWith(200);
     });
@@ -427,6 +437,9 @@ describe("DocumentController", () => {
   describe("getForParent & getForPms", () => {
     it("getForParent: return 404 if not found", async () => {
       req.params.id = "d1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
       (DocumentService.getByIdForParent as jest.Mock).mockResolvedValue(null);
       await DocumentController.getForParent(req, res);
       expect(res.status).toHaveBeenCalledWith(404);
@@ -434,6 +447,9 @@ describe("DocumentController", () => {
 
     it("getForParent: return 200 on success", async () => {
       req.params.id = "d1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
       (DocumentService.getByIdForParent as jest.Mock).mockResolvedValue("doc");
       await DocumentController.getForParent(req, res);
       expect(res.json).toHaveBeenCalledWith("doc");
@@ -441,6 +457,9 @@ describe("DocumentController", () => {
 
     it("getForParent: handle errors", async () => {
       req.params.id = "d1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
       (DocumentService.getByIdForParent as jest.Mock).mockRejectedValue(
         new DocumentServiceError("C", 403),
       );
@@ -537,9 +556,12 @@ describe("DocumentController", () => {
 
     it("should return 200 and url on success", async () => {
       req.body = { key: "k1" };
-      (generatePresignedDownloadUrl as jest.Mock).mockResolvedValue(
-        "signed_url",
-      );
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: "p1" });
+      (
+        DocumentService.getAttachmentUrlByKey as jest.Mock
+      ).mockResolvedValueOnce("signed_url");
       await DocumentController.getSignedDownloadUrl(req, res);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.send).toHaveBeenCalledWith("signed_url");
@@ -547,9 +569,12 @@ describe("DocumentController", () => {
 
     it("should handle errors", async () => {
       req.body = { key: "k1" };
-      (generatePresignedDownloadUrl as jest.Mock).mockRejectedValue(
-        new Error("Test error"),
-      );
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: "p1" });
+      (
+        DocumentService.getAttachmentUrlByKey as jest.Mock
+      ).mockRejectedValueOnce(new Error("Test error"));
       await DocumentController.getSignedDownloadUrl(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
     });
@@ -563,6 +588,9 @@ describe("DocumentController", () => {
 
     it("should return 200 and urls on success", async () => {
       req.params.documentId = "d1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
       (DocumentService.getAllAttachmentUrls as jest.Mock).mockResolvedValue([
         "url1",
       ]);
@@ -573,6 +601,9 @@ describe("DocumentController", () => {
 
     it("should handle errors", async () => {
       req.params.documentId = "d1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
 
       (DocumentService.getAllAttachmentUrls as jest.Mock).mockRejectedValue(
         new DocumentServiceError("C", 403),
@@ -605,6 +636,9 @@ describe("DocumentController", () => {
     it("should return 200 and results on success", async () => {
       req.params.companionId = "c1";
       req.query.title = "title";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
       (DocumentService.searchByTitleForParent as jest.Mock).mockResolvedValue([
         "doc1",
       ]);
@@ -616,6 +650,9 @@ describe("DocumentController", () => {
     it("should handle errors", async () => {
       req.params.companionId = "c1";
       req.query.title = "title";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "p1" });
 
       (DocumentService.searchByTitleForParent as jest.Mock).mockRejectedValue(
         new DocumentServiceError("C", 400),

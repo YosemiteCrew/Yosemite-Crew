@@ -2,7 +2,11 @@ import { Router } from "express";
 import { FormController } from "src/controllers/web/form.controller";
 import { FormSigningController } from "src/controllers/web/formSigning.contorller";
 import { authorizeCognitoMobile, authorizeCognito } from "src/middlewares/auth";
-import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+import {
+  withOrgPermissions,
+  withAppointmentOrgPermissions,
+  requirePermission,
+} from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -88,7 +92,7 @@ router.post(
 router.post(
   "/appointments/:appointmentId/soap-notes",
   authorizeCognito,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("prescription:view:any"),
   FormController.getSOAPNotesByAppointment,
 );

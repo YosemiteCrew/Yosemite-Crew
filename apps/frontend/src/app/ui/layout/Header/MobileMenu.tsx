@@ -12,7 +12,7 @@ const MobileMenu = ({ isOpen, children }: MobileMenuProps) => (
       <motion.div
         initial={{ height: 0, opacity: 0 }}
         animate={{
-          height: `calc(100vh - 80px)`,
+          height: `calc(100vh - 72px)`,
           opacity: 1,
           transition: { duration: 0.4, ease: [0.42, 0, 0.58, 1] },
         }}
@@ -21,8 +21,8 @@ const MobileMenu = ({ isOpen, children }: MobileMenuProps) => (
           opacity: 0,
           transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] },
         }}
-        style={{ top: '80px' }}
-        className="px-3 sm:px-12! py-6 bg-white z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3 lg:hidden"
+        style={{ top: '72px' }}
+        className="yc-mobile-menu-drawer px-3 sm:px-12! py-6 z-999 fixed left-0 w-screen overflow-auto flex flex-col gap-3 lg:hidden"
       >
         {children}
       </motion.div>

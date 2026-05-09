@@ -18,6 +18,7 @@ import { Organisation } from '@yosemite-crew/types';
 import React, { useEffect, useMemo, useState } from 'react';
 import { RiEdit2Fill } from 'react-icons/ri';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import CalBookingOverlay from '@/app/ui/overlays/CalBookingOverlay';
 
 type FieldConfig = {
   label: string;
@@ -41,9 +42,9 @@ type ProfileCardProps = {
 const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case 'active':
-      return { color: '#008F5D', backgroundColor: '#E6F4EF' };
+      return { color: 'var(--color-success-600)', backgroundColor: 'var(--color-success-100)' };
     case 'pending':
-      return { color: '#F68523', backgroundColor: '#FEF3E9' };
+      return { color: 'var(--color-warning-600)', backgroundColor: 'var(--color-card-warning)' };
     default:
       return { color: '', backgroundColor: '' };
   }
@@ -307,6 +308,7 @@ const ProfileCard = ({
   const primaryOrg = usePrimaryOrg();
   const attributes = useAuthStore((s) => s.attributes);
   const [isEditing, setIsEditing] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>(() => buildInitialValues(fields, org));
   const [formValuesErrors, setFormValuesErrors] = useState<Record<string, string | undefined>>({});
   const orgId = primaryOrg?._id;
@@ -400,7 +402,7 @@ const ProfileCard = ({
         {isActuallyEditable && !isEditing && (
           <RiEdit2Fill
             size={18}
-            color="#302f2e"
+            color="var(--color-neutral-900)"
             className="cursor-pointer"
             onClick={() => setIsEditing(true)}
           />
@@ -441,12 +443,17 @@ const ProfileCard = ({
                 </div>
               </div>
               {!org?.isVerified && (
-                <Primary text="Verify business profile" href="/book-onboarding" className="" />
+                <Primary
+                  text="Verify business profile"
+                  href="#"
+                  onClick={() => setCalOpen(true)}
+                  className=""
+                />
               )}
             </div>
             {!org?.isVerified && (
               <div className="text-caption-1 text-text-primary w-full sm:max-w-1/2">
-                <span className="text-[#247AED]">Note : </span>This short chat helps us confirm your
+                <span className="text-blue-text">Note : </span>This short chat helps us confirm your
                 business and add you to our trusted network of verified pet professionals - so you
                 can start connecting with clients faster.
               </div>
@@ -454,6 +461,9 @@ const ProfileCard = ({
           </div>
         )}
         {fields.map((field, index) => {
+          if (field.type === 'separator') {
+            return isEditing ? <div key={field.key} className="h-2" /> : null;
+          }
           const type = field.type || 'text';
           const Component = FieldComponents[type] || FieldComponents.text;
           const showDivider = index !== fields.length - 1;
@@ -486,6 +496,7 @@ const ProfileCard = ({
           <Primary text="Save" href="#" onClick={handleSave} />
         </div>
       )}
+      <CalBookingOverlay open={calOpen} onClose={() => setCalOpen(false)} />
     </div>
   );
 };

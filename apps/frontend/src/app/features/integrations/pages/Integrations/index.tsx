@@ -34,25 +34,73 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import { IoInformationCircleOutline, IoRefreshOutline, IoTrashOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
-const statusClasses: Record<string, string> = {
-  enabled: 'bg-green-50 text-green-800',
-  disabled: 'bg-amber-50 text-amber-700',
-  error: 'bg-red-50 text-red-700',
-  pending: 'bg-blue-50 text-blue-700',
+type StatusTokens = { bg: string; text: string; border: string };
+
+const statusTokens: Record<string, StatusTokens> = {
+  enabled: {
+    bg: 'var(--color-pill-success-bg)',
+    text: 'var(--color-pill-success-text)',
+    border: 'var(--color-pill-success-border)',
+  },
+  disabled: {
+    bg: 'var(--color-pill-warning-bg)',
+    text: 'var(--color-pill-warning-text)',
+    border: 'var(--color-pill-warning-border)',
+  },
+  error: {
+    bg: 'var(--color-pill-warning-bg)',
+    text: 'var(--color-pill-warning-text)',
+    border: 'var(--color-pill-warning-border)',
+  },
+  pending: {
+    bg: 'var(--color-pill-info-bg)',
+    text: 'var(--color-pill-info-text)',
+    border: 'var(--color-pill-info-border)',
+  },
 };
 
-const credentialsStatusClasses: Record<string, string> = {
-  valid: 'bg-green-50 text-green-800',
-  invalid: 'bg-red-50 text-red-700',
-  missing: 'bg-amber-50 text-amber-700',
+const credentialsStatusTokens: Record<string, StatusTokens> = {
+  valid: {
+    bg: 'var(--color-pill-success-bg)',
+    text: 'var(--color-pill-success-text)',
+    border: 'var(--color-pill-success-border)',
+  },
+  invalid: {
+    bg: 'var(--color-pill-warning-bg)',
+    text: 'var(--color-pill-warning-text)',
+    border: 'var(--color-pill-warning-border)',
+  },
+  missing: {
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
+  },
 };
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
   'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 
 const integrationFilters = [
-  { key: 'all', label: 'All', bg: '#247AED', text: '#EAF3FF' },
-  { key: 'connected', label: 'Connected', bg: '#F1D4B0', text: '#302f2e' },
-  { key: 'available', label: 'Available', bg: '#D9A488', text: '#F7F7F7' },
+  {
+    key: 'all',
+    label: 'All',
+    bg: 'var(--color-badge-blue-bg)',
+    text: 'var(--color-badge-blue-text)',
+    border: 'var(--color-primary-500)',
+  },
+  {
+    key: 'connected',
+    label: 'Connected',
+    bg: 'var(--color-pill-success-bg)',
+    text: 'var(--color-pill-success-text)',
+    border: 'var(--color-pill-success-border)',
+  },
+  {
+    key: 'available',
+    label: 'Available',
+    bg: 'var(--color-pill-info-bg)',
+    text: 'var(--color-pill-info-text)',
+    border: 'var(--color-pill-info-border)',
+  },
 ] as const;
 
 type ValidateState = 'idle' | 'valid' | 'invalid';
@@ -117,11 +165,23 @@ const getValidateStateMeta = (
   return { text: 'Credentials are invalid or not available.', className: 'text-text-error' };
 };
 
+const deviceStatusTokens = (key: string): StatusTokens =>
+  key === 'active'
+    ? {
+        bg: 'var(--color-pill-success-bg)',
+        text: 'var(--color-pill-success-text)',
+        border: 'var(--color-pill-success-border)',
+      }
+    : {
+        bg: 'var(--color-pill-warning-bg)',
+        text: 'var(--color-pill-warning-text)',
+        border: 'var(--color-pill-warning-border)',
+      };
+
 const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   const statusKey = String(device.vcpActivatedStatus || 'unknown').toLowerCase();
   const statusLabel = `${statusKey.charAt(0).toUpperCase()}${statusKey.slice(1)}`;
-  const statusClass =
-    statusKey === 'active' ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-700';
+  const dt = deviceStatusTokens(statusKey);
   return (
     <div key={device.deviceSerialNumber} className="rounded-2xl border border-card-border p-3">
       <div className="flex items-start justify-between gap-3">
@@ -131,7 +191,15 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
             {device.deviceSerialNumber}
           </div>
         </div>
-        <span className={`text-label-xsmall px-2 py-1 rounded-2xl! ${statusClass}`}>
+        <span
+          className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+          style={{
+            backgroundColor: dt.bg,
+            color: dt.text,
+            borderColor: dt.border,
+            borderStyle: 'solid',
+          }}
+        >
           {statusLabel}
         </span>
       </div>
@@ -150,9 +218,25 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
 const StatusPill = ({ status }: { status?: string }) => {
   const key = (status ?? 'disabled').toLowerCase();
   const normalizedLabel = `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+  const tokens = statusTokens[key];
   return (
     <span
-      className={`text-label-xsmall px-2 py-1 rounded-2xl! ${statusClasses[key] ?? 'bg-card-hover text-text-secondary'}`}
+      className="shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!"
+      style={
+        tokens
+          ? {
+              backgroundColor: tokens.bg,
+              color: tokens.text,
+              borderColor: tokens.border,
+              borderStyle: 'solid',
+            }
+          : {
+              backgroundColor: 'var(--color-card-hover)',
+              color: 'var(--color-text-secondary)',
+              borderColor: 'var(--color-card-border)',
+              borderStyle: 'solid',
+            }
+      }
     >
       {normalizedLabel}
     </span>
@@ -588,10 +672,23 @@ const IdexxSettingsModal = ({
                 <div className="text-text-secondary">Credentials status</div>
                 <div className="text-right">
                   <span
-                    className={`text-label-xsmall px-2 py-1 rounded-2xl! ${
-                      credentialsStatusClasses[credentialsStatusKey] ??
-                      'bg-card-hover text-text-secondary'
-                    }`}
+                    className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+                    style={(() => {
+                      const t = credentialsStatusTokens[credentialsStatusKey];
+                      return t
+                        ? {
+                            backgroundColor: t.bg,
+                            color: t.text,
+                            borderColor: t.border,
+                            borderStyle: 'solid',
+                          }
+                        : {
+                            backgroundColor: 'var(--color-card-hover)',
+                            color: 'var(--color-text-secondary)',
+                            borderColor: 'var(--color-card-border)',
+                            borderStyle: 'solid',
+                          };
+                    })()}
                   >
                     {credentialsStatusLabel}
                   </span>
@@ -688,8 +785,18 @@ const IntegrationFilterTabs = ({
           key={tab.key}
           type="button"
           onClick={() => setActiveFilter(tab.key)}
-          className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
-          style={isActive ? { backgroundColor: tab.bg, color: tab.text } : undefined}
+          className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
+          style={
+            isActive
+              ? {
+                  backgroundColor: tab.bg,
+                  color: tab.text,
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: tab.border,
+                }
+              : undefined
+          }
         >
           {tab.label}
         </button>
@@ -697,6 +804,13 @@ const IntegrationFilterTabs = ({
     })}
   </div>
 );
+
+const INTEGRATION_CARD_CLASS =
+  'rounded-2xl border border-card-border p-4 w-full flex items-stretch gap-4 min-h-[245px]';
+const INTEGRATION_CARD_HEADER_CLASS = 'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2';
+const INTEGRATION_CARD_TITLE_CLASS = 'min-w-0 truncate text-heading-3 text-text-primary pt-1';
+const COMING_SOON_PILL_CLASS =
+  'shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!';
 
 const IdexxIntegrationCard = ({
   s,
@@ -708,7 +822,7 @@ const IdexxIntegrationCard = ({
   if (!s.showIdexxCard) return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
           <Image
@@ -735,8 +849,8 @@ const IdexxIntegrationCard = ({
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">IDEXX</div>
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX</div>
             <StatusPill status={s.idexxIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
@@ -778,7 +892,7 @@ const MerckIntegrationCard = ({
   if (!s.showMerckCard) return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
           <Image
@@ -805,8 +919,8 @@ const MerckIntegrationCard = ({
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">MSD Veterinary Manual</div>
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>MSD Veterinary Manual</div>
             <StatusPill status={s.merckIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
@@ -846,7 +960,7 @@ const RadIntegrationCard = ({
   if (activeFilter === 'connected') return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
           <Image
@@ -861,9 +975,17 @@ const RadIntegrationCard = ({
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">RadAnalyzer</div>
-            <span className="text-label-xsmall px-2 py-1 rounded-2xl! bg-amber-50 text-amber-700">
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>RadAnalyzer</div>
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
               Coming soon
             </span>
           </div>
@@ -889,7 +1011,7 @@ const VetnioIntegrationCard = ({
   if (activeFilter === 'connected') return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[320px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
           <Image
@@ -904,15 +1026,71 @@ const VetnioIntegrationCard = ({
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">Vetnio</div>
-            <span className="text-label-xsmall px-2 py-1 rounded-2xl! bg-amber-50 text-amber-700">
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>Vetnio</div>
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
               Coming soon
             </span>
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             AI-powered documentation for veterinary practices — instantly generate clinical notes,
             discharge summaries, and client communications from consultations.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full items-center justify-end">
+            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const QuickBooksIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (activeFilter === 'connected') return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+        <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-1 flex items-center justify-center overflow-hidden">
+          <span className="font-satoshi text-[28px] font-bold leading-none tracking-[-0.56px] text-[#2ca01c]">
+            qb
+          </span>
+        </div>
+        <div className="h-10 w-10" />
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex flex-col gap-3 pb-3">
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>QuickBooks</div>
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
+              Coming soon
+            </span>
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-4">
+            Accounting sync for invoices, payments, customers, and financial workflows through
+            QuickBooks Online.
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -937,11 +1115,12 @@ const IntegrationCards = ({
   if (!s.showIdexxCard && !s.showMerckCard && s.activeFilter === 'connected') return null;
 
   return (
-    <div className="flex flex-wrap gap-4 items-stretch">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
       <IdexxIntegrationCard s={s} buttonLabel={idexxCardButtonLabel} />
       <MerckIntegrationCard s={s} buttonLabel={merckCardButtonLabel} />
       <RadIntegrationCard activeFilter={s.activeFilter} />
       <VetnioIntegrationCard activeFilter={s.activeFilter} />
+      <QuickBooksIntegrationCard activeFilter={s.activeFilter} />
     </div>
   );
 };
@@ -961,7 +1140,7 @@ const IntegrationsPage = () => {
     <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1 flex items-center gap-2">
+          <div className="text-text-primary text-heading-2 flex items-center gap-2">
             <span>Integrations</span>
             <GlassTooltip
               content={`Connect and manage external tools for ${
@@ -972,21 +1151,25 @@ const IntegrationsPage = () => {
               <button
                 type="button"
                 aria-label="Integrations info"
-                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
               >
                 <IoInformationCircleOutline size={20} />
               </button>
             </GlassTooltip>
           </div>
         </div>
-        <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
-          Active integrations: <span className="text-text-primary">{s.linkedCount}</span>
+        <div className="ml-auto flex items-start justify-end gap-3 flex-wrap">
+          <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
+            Active integrations: <span className="text-text-primary">{s.linkedCount}</span>
+          </div>
+          <IntegrationFilterTabs
+            activeFilter={s.activeFilter}
+            setActiveFilter={s.setActiveFilter}
+          />
         </div>
       </div>
 
       {s.error ? <div className="text-body-4 text-text-error">{s.error}</div> : null}
-
-      <IntegrationFilterTabs activeFilter={s.activeFilter} setActiveFilter={s.setActiveFilter} />
 
       <IntegrationCards
         s={s}

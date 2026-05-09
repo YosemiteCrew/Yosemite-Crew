@@ -68,6 +68,10 @@ import ProtectedCreateOrg from '@/app/features/onboarding/pages/CreateOrg/Create
 
 describe('CreateOrg page', () => {
   beforeEach(() => {
+    mockUseOrgOnboardingResult.org = null;
+    mockUseOrgOnboardingResult.step = 0;
+    mockUseOrgOnboardingResult.specialities = [];
+    mockUseOrgOnboardingResult.isReady = true;
     latestProgressProps = undefined;
     latestOrgStepProps = undefined;
     latestAddressStepProps = undefined;
@@ -81,6 +85,8 @@ describe('CreateOrg page', () => {
     expect(screen.getByText('Create organization')).toBeInTheDocument();
     expect(screen.getByTestId('create-org-progress')).toBeInTheDocument();
     expect(latestProgressProps?.steps).toHaveLength(3);
+    expect(latestProgressProps?.canSelectStep(0)).toBe(true);
+    expect(latestProgressProps?.canSelectStep(2)).toBe(false);
     expect(screen.getByTestId('org-step')).toBeInTheDocument();
   });
 
@@ -119,6 +125,55 @@ describe('CreateOrg page', () => {
     });
     await waitFor(() => {
       expect(screen.getByTestId('org-step')).toBeInTheDocument();
+    });
+  });
+
+  test('clicking a future progress step validates and keeps the user on the failing step', async () => {
+    render(<ProtectedCreateOrg />);
+
+    act(() => {
+      latestProgressProps.onStepSelect(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('org-step')).toBeInTheDocument();
+    });
+  });
+
+  test('clicking a completed progress step navigates back to it', async () => {
+    render(<ProtectedCreateOrg />);
+
+    act(() => {
+      latestOrgStepProps.nextStep();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('address-step')).toBeInTheDocument();
+    });
+
+    act(() => {
+      latestProgressProps.onStepSelect(0);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('org-step')).toBeInTheDocument();
+    });
+  });
+
+  test('keeps create org content hidden while transitioning to profile setup', async () => {
+    mockUseOrgOnboardingResult.step = 2;
+    const { container } = render(<ProtectedCreateOrg />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('speciality-step')).toBeInTheDocument();
+    });
+
+    act(() => {
+      latestSpecialityStepProps.onRedirectingChange(true);
+    });
+
+    await waitFor(() => {
+      expect(container.querySelector('.create-org-wrapper')).toHaveClass('invisible');
+      expect(container.querySelector('.create-org-wrapper')).toHaveClass('pointer-events-none');
     });
   });
 });

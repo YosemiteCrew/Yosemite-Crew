@@ -553,6 +553,58 @@ describe('useAppointmentForm', () => {
     expect(getSlotsForServiceAndDateForPrimaryOrg).not.toHaveBeenCalled();
   });
 
+  it('falls back to unscoped calendar prefill when the lead id shape differs', async () => {
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'spec-1', name: 'General' },
+    ]);
+    jest.requireMock('@/app/stores/serviceStore').useServiceStore.getState.mockReturnValue({
+      getServicesBySpecialityId: jest.fn(() => [{ id: 'svc-1', name: 'Consult' }]),
+    });
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', practionerId: 'Practitioner/vet-1' },
+    ]);
+    (getCalendarPrefillMatchesForPrimaryOrg as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          serviceId: 'svc-1',
+          slot: { startTime: '10:00', endTime: '10:30', vetIds: ['vet-1'] },
+          meta: { localStartMinute: 600, localEndMinute: 630 },
+        },
+      ]);
+
+    const prefill = {
+      date: new Date('2026-04-01T00:00:00.000Z'),
+      minuteOfDay: 600,
+      leadId: 'Practitioner/vet-1',
+    };
+    const { result } = renderHook(() =>
+      useAppointmentForm({
+        initialPrefill: prefill,
+        calendarSlotFlow: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedSlot?.startTime).toBe('10:00');
+      expect(result.current.formData.lead?.id).toBe('Practitioner/vet-1');
+      expect(result.current.formDataErrors.slot).toBeUndefined();
+    });
+
+    expect(getCalendarPrefillMatchesForPrimaryOrg).toHaveBeenNthCalledWith(1, {
+      date: prefill.date,
+      minuteOfDay: 600,
+      leadId: 'Practitioner/vet-1',
+      serviceIds: ['svc-1'],
+    });
+    expect(getCalendarPrefillMatchesForPrimaryOrg).toHaveBeenNthCalledWith(2, {
+      date: prefill.date,
+      minuteOfDay: 600,
+      leadId: undefined,
+      serviceIds: ['svc-1'],
+    });
+  });
+
   it('uses normalized slot metadata for cross-midnight calendar prefills', async () => {
     (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
       { _id: 'spec-1', name: 'General' },

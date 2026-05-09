@@ -14,7 +14,7 @@
   letter-spacing: -0.66px;
 }
 .summary-title span {
-  color: #747473;
+  color: var(--color-neutral-600);
 }
 .summary-labels {
   display: flex;
@@ -51,7 +51,7 @@
   border-radius: 12px;
   border: 1px solid var(--blue-text);
   color: var(--blue-text);
-  background: #e9f2fd;
+  background: var(--color-primary-100);
 }
 .summary-labels-right {
   display: flex;

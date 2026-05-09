@@ -32,15 +32,30 @@ export const formatWeeklyWorkingHours = (value: Team['weeklyWorkingHours']) => {
 export const getStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case 'available':
-      return { color: '#54B492', backgroundColor: '#E6F4EF' };
+      return {
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      };
     case 'consulting':
-      return { color: '#EA3729', backgroundColor: '#FDEBEA' };
+      return {
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
+      };
     case 'off-duty':
-      return { color: '#F68523', backgroundColor: '#FEF3E9' };
+      return {
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      };
     case 'requested':
-      return { color: '#302f2e', backgroundColor: '#eaeaea' };
     default:
-      return { color: '#302f2e', backgroundColor: '#6b72801a' };
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      };
   }
 };
 
@@ -66,7 +81,7 @@ const AvailabilityTable = ({
     {
       label: '',
       key: 'image',
-      width: '5%',
+      width: '56px',
       render: (item: Team) => (
         <div className="appointment-profile w-10 h-10">
           <Image
@@ -82,7 +97,7 @@ const AvailabilityTable = ({
     {
       label: 'Name',
       key: 'name',
-      width: '15%',
+      width: '18%',
       render: (item: Team) => (
         <div className="appointment-profile">
           <div className="appointment-profile-title">{item.name || '-'}</div>
@@ -92,7 +107,7 @@ const AvailabilityTable = ({
     {
       label: 'Role',
       key: 'role',
-      width: '15%',
+      width: '14%',
       render: (item: Team) => (
         <div className="appointment-profile-title">{toTitleCase(item.role)}</div>
       ),
@@ -100,7 +115,7 @@ const AvailabilityTable = ({
     {
       label: 'Speciality',
       key: 'speciality',
-      width: '15%',
+      width: '18%',
       render: (item: Team) => (
         <div className="appointment-profile-title">
           {Array.isArray(item?.speciality) && item.speciality.length > 0
@@ -116,7 +131,7 @@ const AvailabilityTable = ({
     {
       label: "Today's Appointment",
       key: 'today',
-      width: '12.5%',
+      width: '14%',
       render: (item: Team) => (
         <div className="appointment-profile-title">{item.todayAppointment || '0'}</div>
       ),
@@ -124,7 +139,7 @@ const AvailabilityTable = ({
     {
       label: 'Weekly working hours',
       key: 'weekly',
-      width: '12.5%',
+      width: '16%',
       render: (item: Team) => (
         <div className="appointment-profile-title">
           {formatWeeklyWorkingHours(item.weeklyWorkingHours)}
@@ -134,7 +149,7 @@ const AvailabilityTable = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '12%',
       render: (item: Team) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {item.status}
@@ -145,14 +160,14 @@ const AvailabilityTable = ({
   const actionColoumn = {
     label: 'Actions',
     key: 'actions',
-    width: '10%',
+    width: '64px',
     render: (item: Team) => (
       <div className="action-btn-col">
         <button
           onClick={() => handleViewTeam(item)}
           className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
         >
-          <IoEye size={18} color="#302F2E" />
+          <IoEye size={18} color="var(--color-neutral-900)" />
         </button>
       </div>
     ),

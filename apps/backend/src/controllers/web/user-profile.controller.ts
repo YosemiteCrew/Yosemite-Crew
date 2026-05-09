@@ -4,8 +4,8 @@ import {
   UserProfileService,
   UserProfileServiceError,
   type CreateUserProfilePayload,
-  type UpdateUserProfilePayload,
 } from "../../services/user-profile.service";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
@@ -31,10 +31,21 @@ const handleUserProfileError = (
   return res.status(500).json({ message: responseMessage });
 };
 
+const resolveAuthenticatedUserId = (req: Request): string | undefined => {
+  const authRequest = req as AuthenticatedRequest;
+  const userId = authRequest.userId;
+  if (typeof userId === "string") {
+    const trimmedUserId = userId.trim();
+    return trimmedUserId || undefined;
+  }
+
+  return undefined;
+};
+
 export const UserProfileController = {
   create: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveAuthenticatedUserId(req);
       const organizationId = req.params.organizationId;
 
       ensurePlainObjectBody(req.body);
@@ -58,7 +69,7 @@ export const UserProfileController = {
 
   update: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveAuthenticatedUserId(req);
       const organizationId = req.params.organizationId;
 
       ensurePlainObjectBody(req.body);
@@ -66,7 +77,7 @@ export const UserProfileController = {
       const profile = await UserProfileService.update(
         userId,
         organizationId,
-        req.body as UpdateUserProfilePayload,
+        req.body,
       );
 
       if (!profile) {
@@ -86,7 +97,7 @@ export const UserProfileController = {
 
   getByUserId: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveAuthenticatedUserId(req);
       const organizationId = req.params.organizationId;
 
       const profile = await UserProfileService.getByUserId(
@@ -111,8 +122,15 @@ export const UserProfileController = {
 
   getUserProfileById: async (req: Request, res: Response) => {
     try {
+      const requesterUserId = resolveUserIdFromRequest(req);
       const userId = req.params.userId;
       const organizationId = req.params.organizationId;
+
+      if (userId !== requesterUserId) {
+        return res.status(403).json({
+          message: "You are not authorized to access this user profile.",
+        });
+      }
 
       const profile = await UserProfileService.getByUserId(
         userId,

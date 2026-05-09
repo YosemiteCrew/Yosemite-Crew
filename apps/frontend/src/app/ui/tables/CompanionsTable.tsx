@@ -46,13 +46,24 @@ type CompanionsTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case 'active':
-      return { color: '#fff', backgroundColor: '#D28F9A' };
+      return {
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      };
     case 'archived':
-      return { color: '#fff', backgroundColor: '#747283' };
+      return {
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      };
     case 'inactive':
-      return { color: '#fff', backgroundColor: '#BF9FAA' };
     default:
-      return { color: '#fff', backgroundColor: 'rgba(107,114,128,0.1)' };
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      };
   }
 };
 
@@ -158,7 +169,7 @@ const CompanionsTable = ({
     {
       label: '',
       key: 'image',
-      width: '5%',
+      width: '56px',
       render: (item: CompanionParent) => (
         <div className="appointment-profile w-10 h-10">
           <Image
@@ -183,7 +194,7 @@ const CompanionsTable = ({
     {
       label: 'Name',
       key: 'name',
-      width: '15%',
+      width: '160px',
       render: (item: CompanionParent) => (
         <div className="appointment-profile">
           <div className="appointment-profile-two">
@@ -196,7 +207,7 @@ const CompanionsTable = ({
               {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
             </button>
             <div className="flex items-center">
-              <div className="appointment-profile-sub truncate max-w-[75px] mr-1">
+              <div className="appointment-profile-sub mr-1">
                 {formatDisplayValue(item.companion.breed)}
               </div>
               <div className="appointment-profile-sub">{`/ ${toTitleCase(item.companion.type)}`}</div>
@@ -208,7 +219,7 @@ const CompanionsTable = ({
     {
       label: 'Parent',
       key: 'parent',
-      width: '10%',
+      width: '130px',
       render: (item: CompanionParent) => (
         <div className="appointment-profile-title">{formatDisplayValue(item.parent.firstName)}</div>
       ),
@@ -216,7 +227,7 @@ const CompanionsTable = ({
     {
       label: 'Gender/Age',
       key: 'gender/age',
-      width: '10%',
+      width: '100px',
       render: (item: CompanionParent) => (
         <div className="appointment-profile-two">
           <div className="appointment-profile-title">
@@ -231,7 +242,7 @@ const CompanionsTable = ({
     {
       label: 'Allergy',
       key: 'allergy',
-      width: '15%',
+      width: '110px',
       render: (item: CompanionParent) => (
         <div className="appointment-profile-title">
           {formatDisplayValue(item.companion.allergy)}
@@ -241,7 +252,7 @@ const CompanionsTable = ({
     {
       label: 'Upcoming Appointment',
       key: 'Upcoming Appointment',
-      width: '20%',
+      width: '170px',
       render: (item: CompanionParent) => {
         const upcoming = getUpcomingAppointmentForCompanion(item.companion.id);
         if (!upcoming) {
@@ -267,14 +278,14 @@ const CompanionsTable = ({
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="appointment-profile-two min-w-0">
-                  <div className="appointment-profile-title truncate">
+                  <div className="appointment-profile-title">
                     {formatDateLabel(upcoming.appointmentDate)}
                   </div>
-                  <div className="appointment-profile-sub truncate">
+                  <div className="appointment-profile-sub">
                     {formatTimeLabel(upcoming.startTime)}
                   </div>
                 </div>
-                <IoOpenOutline size={15} color="#302F2E" />
+                <IoOpenOutline size={15} color="var(--color-neutral-900)" />
               </div>
             </button>
           </GlassTooltip>
@@ -284,7 +295,7 @@ const CompanionsTable = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '110px',
       render: (item: CompanionParent) => (
         <div
           className="appointment-status"
@@ -297,77 +308,84 @@ const CompanionsTable = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '10%',
+      width: '200px',
       render: (item: CompanionParent) => (
         <div className="action-btn-col">
-          <GlassTooltip content="View companion" side="bottom" className="table-action-tooltip">
-            <button
-              onClick={() => handleViewCompanion(item)}
-              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-              title="View companion"
-            >
-              <IoEye size={20} color="#302F2E" />
-            </button>
-          </GlassTooltip>
-          <GlassTooltip content="View history" side="bottom" className="table-action-tooltip">
-            <button
-              onClick={() => handleViewHistory(item)}
-              className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-              title="View history"
-            >
-              <RiHistoryLine size={16} color="#302F2E" />
-            </button>
-          </GlassTooltip>
-          {canEditCompanions && (
-            <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
+          <div className="action-btn-grid action-btn-grid-capped">
+            <GlassTooltip content="View companion" side="bottom" className="table-action-tooltip">
               <button
-                onClick={() => handleChangeStatus(item)}
+                onClick={() => handleViewCompanion(item)}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                title="Change status"
+                title="View companion"
               >
-                <MdOutlineAutorenew size={18} color="#302F2E" />
+                <IoEye size={20} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
-          )}
-          {canEditAppointments && (
-            <GlassTooltip content="Book appointment" side="bottom" className="table-action-tooltip">
+            <GlassTooltip content="View history" side="bottom" className="table-action-tooltip">
               <button
-                onClick={() => handleBookAppointment(item)}
+                onClick={() => handleViewHistory(item)}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                title="Book appointment"
+                title="View history"
               >
-                <FaCalendar size={14} color="#302F2E" />
+                <RiHistoryLine size={16} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
-          )}
-          {canEditTasks && (
-            <GlassTooltip content="Add task" side="bottom" className="table-action-tooltip">
-              <button
-                onClick={() => handleAddTask(item)}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                title="Add task"
+            {canEditCompanions && (
+              <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
+                <button
+                  onClick={() => handleChangeStatus(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Change status"
+                >
+                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                </button>
+              </GlassTooltip>
+            )}
+            {canEditAppointments && (
+              <GlassTooltip
+                content="Book appointment"
+                side="bottom"
+                className="table-action-tooltip"
               >
-                <FaTasks size={14} color="#302F2E" />
-              </button>
-            </GlassTooltip>
-          )}
+                <button
+                  onClick={() => handleBookAppointment(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Book appointment"
+                >
+                  <FaCalendar size={14} color="var(--color-neutral-900)" />
+                </button>
+              </GlassTooltip>
+            )}
+            {canEditTasks && (
+              <GlassTooltip content="Add task" side="bottom" className="table-action-tooltip">
+                <button
+                  onClick={() => handleAddTask(item)}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Add task"
+                >
+                  <FaTasks size={14} color="var(--color-neutral-900)" />
+                </button>
+              </GlassTooltip>
+            )}
+          </div>
         </div>
       ),
     },
   ];
 
   return (
-    <div className="w-full">
-      <div className="hidden xl:flex">
+    <div className="table-wrapper companions-scroll-x h-full min-h-0 overflow-hidden">
+      <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-hidden">
         <GenericTable
           data={filteredList}
           columns={columns}
           bordered={false}
           pagination
           pageSize={10}
+          tableClassName="companions-table-fixed"
         />
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-6 flex-wrap">
         {(() => {
           if (filteredList.length === 0) {
             return (

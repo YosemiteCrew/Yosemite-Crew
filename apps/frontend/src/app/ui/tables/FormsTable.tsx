@@ -24,16 +24,38 @@ type FormsTableProps = {
 };
 
 export const getStatusStyle = (status: string) => {
-  if (!status) return { color: '#302F2E', backgroundColor: '#F3F3F3' };
+  if (!status) {
+    return {
+      color: 'var(--color-pill-neutral-text)',
+      backgroundColor: 'var(--color-pill-neutral-bg)',
+      borderColor: 'var(--color-pill-neutral-border)',
+    };
+  }
   switch (status.toLowerCase()) {
     case 'published':
-      return { color: '#F7F7F7', backgroundColor: '#747283' };
+      return {
+        color: 'var(--color-pill-info-text)',
+        backgroundColor: 'var(--color-pill-info-bg)',
+        borderColor: 'var(--color-pill-info-border)',
+      };
     case 'draft':
-      return { color: '#F7F7F7', backgroundColor: '#BF9FAA' };
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      };
     case 'archived':
-      return { color: '#F7F7F7', backgroundColor: '#D9A488' };
+      return {
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      };
     default:
-      return { color: '#F7F7F7', backgroundColor: '#D28F9A' };
+      return {
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
+      };
   }
 };
 
@@ -76,13 +98,13 @@ const FormsTable = ({
     {
       label: 'Form name',
       key: 'name',
-      width: '20%',
+      width: '200px',
       render: (item: FormsProps) => <div className="appointment-profile-title">{item.name}</div>,
     },
     {
       label: 'Category',
       key: 'category',
-      width: '10%',
+      width: '130px',
       render: (item: FormsProps) => (
         <div className="appointment-profile-title">
           {getFormCategoryDisplayLabel(item.category, effectiveOrgType)}
@@ -92,13 +114,13 @@ const FormsTable = ({
     {
       label: 'Usage',
       key: 'usage',
-      width: '15%',
+      width: '130px',
       render: (item: FormsProps) => <div className="appointment-profile-title">{item.usage}</div>,
     },
     {
       label: 'Updated by',
       key: 'updatedBy',
-      width: '15%',
+      width: '140px',
       render: (item: FormsProps) => (
         <div className="appointment-profile-title">{getUserName(item.updatedBy)}</div>
       ),
@@ -106,7 +128,7 @@ const FormsTable = ({
     {
       label: 'Last updated',
       key: 'lastUpdated',
-      width: '15%',
+      width: '140px',
       render: (item: FormsProps) => (
         <div className="appointment-profile-title">{item.lastUpdated}</div>
       ),
@@ -114,7 +136,7 @@ const FormsTable = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '110px',
       render: (item: FormsProps) => (
         <div className="appointment-status" style={getStatusStyle(item.status || '')}>
           {item.status}
@@ -124,14 +146,14 @@ const FormsTable = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '10%',
+      width: '64px',
       render: (item: FormsProps) => (
         <div className="action-btn-col">
           <button
             onClick={() => handleViewForm(item)}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
-            <IoEye size={20} color="#302F2E" />
+            <IoEye size={20} color="var(--color-neutral-900)" />
           </button>
         </div>
       ),
@@ -139,8 +161,8 @@ const FormsTable = ({
   ];
 
   return (
-    <div className="w-full">
-      <div className="hidden xl:flex">
+    <div className="table-wrapper forms-scroll-x h-full min-h-0 overflow-hidden">
+      <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         {loading ? (
           <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
             Loading forms...
@@ -150,12 +172,13 @@ const FormsTable = ({
             data={filteredList}
             columns={columns}
             bordered={false}
+            tableClassName="forms-table-fixed"
             pagination
             pageSize={10}
           />
         )}
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-6 flex-wrap">
         {(() => {
           if (loading) {
             return (

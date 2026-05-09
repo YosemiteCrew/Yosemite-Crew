@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
-import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
+import AppointmentScopeToggle from '@/app/ui/primitives/AppointmentScopeToggle/AppointmentScopeToggle';
 import { Appointment } from '@yosemite-crew/types';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import {
@@ -25,7 +25,13 @@ import {
   createInvoiceByAppointmentId,
   getAppointmentPaymentDisplay,
 } from '@/app/lib/paymentStatus';
-import { IoAdd, IoCardOutline, IoDocumentTextOutline, IoEyeOutline } from 'react-icons/io5';
+import {
+  IoAdd,
+  IoCardOutline,
+  IoDocumentTextOutline,
+  IoEyeOutline,
+  IoWarning,
+} from 'react-icons/io5';
 import { RiHistoryLine } from 'react-icons/ri';
 import Image from 'next/image';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -52,6 +58,8 @@ import { useNotify } from '@/app/hooks/useNotify';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import clsx from 'clsx';
 
 type BoardStatus =
   | 'REQUESTED'
@@ -75,6 +83,16 @@ const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
 const normalizeStatus = (status?: string): BoardStatus | null => {
   return normalizeAppointmentStatus(status);
 };
+
+const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
+  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
+  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderRadius: '16px',
+  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
+  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
+});
 
 const getBoardOrgType = (
   appointment: Appointment,
@@ -117,6 +135,9 @@ type AppointmentBoardProps = {
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setChangeRoomPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   onAddAppointment?: () => void;
+  activeFilter?: string;
+  setActiveFilter?: (value: string) => void;
+  hasEmergency?: boolean;
 };
 
 const AppointmentBoard = ({
@@ -132,6 +153,9 @@ const AppointmentBoard = ({
   setReschedulePopup,
   setChangeRoomPopup,
   onAddAppointment,
+  activeFilter,
+  setActiveFilter,
+  hasEmergency = false,
 }: AppointmentBoardProps) => {
   const { notify } = useNotify();
   const orgsById = useOrgStore((s) => s.orgsById);
@@ -200,6 +224,14 @@ const AppointmentBoard = ({
     return grouped;
   }, [todayAppointments]);
   const router = useRouter();
+  const toggleEmergencyFilter = () => {
+    if (!setActiveFilter) return;
+    setActiveFilter(activeFilter === 'emergencies' ? 'all' : 'emergencies');
+  };
+  const isEmergencyActive = activeFilter === 'emergencies';
+  const emergencyColor = isEmergencyActive
+    ? 'var(--color-semantic-error-700)'
+    : 'var(--color-neutral-700)';
 
   const openAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
@@ -350,50 +382,9 @@ const AppointmentBoard = ({
 
   return (
     <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
-      <div className="border-b border-card-border bg-white px-3 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[220px]">
-            <Back
-              onClick={() =>
-                setCurrentDate((prev) => {
-                  const next = new Date(prev);
-                  next.setDate(next.getDate() - 1);
-                  return next;
-                })
-              }
-            />
-            <div>
-              {formatDateInPreferredTimeZone(currentDate, {
-                weekday: 'long',
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-              })}
-            </div>
-            <Next
-              onClick={() =>
-                setCurrentDate((prev) => {
-                  const next = new Date(prev);
-                  next.setDate(next.getDate() + 1);
-                  return next;
-                })
-              }
-            />
-          </div>
-          <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
-            {canEditAppointments && (
-              <GlassTooltip content="Add appointment" side="bottom">
-                <button
-                  type="button"
-                  title="Add appointment"
-                  aria-label="Add appointment"
-                  onClick={onAddAppointment}
-                  className="rounded-2xl! border! border-input-border-default! px-[13px] py-[13px] transition-all duration-300 ease-in-out hover:bg-card-bg"
-                >
-                  <IoAdd size={20} color="#302f2e" />
-                </button>
-              </GlassTooltip>
-            )}
+      <div className="shrink-0 border-b border-grey-light bg-white px-3 py-2">
+        <div className="flex w-full items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 text-body-4-emphasis text-text-primary">
             <GlassTooltip content="Select date" side="bottom">
               <Datepicker
                 currentDate={currentDate}
@@ -401,12 +392,82 @@ const AppointmentBoard = ({
                 placeholder="Select Date"
               />
             </GlassTooltip>
-            <BoardScopeToggle
-              showMineOnly={showMineOnly}
-              onChange={setShowMineOnly}
-              allLabel="All appointments"
-              mineLabel="My appointments"
-            />
+            <div className="flex items-center gap-2">
+              <Back
+                onClick={() =>
+                  setCurrentDate((prev) => {
+                    const next = new Date(prev);
+                    next.setDate(next.getDate() - 1);
+                    return next;
+                  })
+                }
+              />
+              <div className="whitespace-nowrap">
+                {formatDateInPreferredTimeZone(currentDate, {
+                  weekday: 'long',
+                  month: 'short',
+                  day: '2-digit',
+                  year: 'numeric',
+                })}
+              </div>
+              <Next
+                onClick={() =>
+                  setCurrentDate((prev) => {
+                    const next = new Date(prev);
+                    next.setDate(next.getDate() + 1);
+                    return next;
+                  })
+                }
+              />
+            </div>
+          </div>
+          <div
+            className="relative z-20 min-w-0 flex-1 overflow-x-auto scrollbar-hidden py-1 -my-1"
+            style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+          >
+            <div className="flex w-max items-center gap-3 ml-auto">
+              <button
+                type="button"
+                onClick={toggleEmergencyFilter}
+                className={clsx(
+                  'relative flex h-12 w-fit shrink-0 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
+                  !isEmergencyActive && 'hover:bg-card-hover!'
+                )}
+                style={getEmergencyPillStyle(isEmergencyActive)}
+              >
+                <IoWarning
+                  size={18}
+                  aria-hidden="true"
+                  className="shrink-0"
+                  color={emergencyColor}
+                />
+                <span>Emergencies</span>
+                {hasEmergency && (
+                  <span
+                    aria-label="Emergency appointments present"
+                    className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full"
+                    style={{
+                      backgroundColor: 'var(--color-semantic-error-700)',
+                      outline: '2px solid white',
+                    }}
+                  />
+                )}
+              </button>
+              {canEditAppointments && (
+                <>
+                  <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
+                  <Primary
+                    text="Add Appointment"
+                    onClick={onAddAppointment}
+                    icon={<IoAdd size={18} aria-hidden="true" />}
+                    className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+                  />
+                </>
+              )}
+              <div className="shrink-0">
+                <AppointmentScopeToggle showMineOnly={showMineOnly} onChange={setShowMineOnly} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -430,12 +491,27 @@ const AppointmentBoard = ({
                 className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
               >
                 <div
-                  className="rounded-t-2xl border-b border-card-border px-3 py-2"
-                  style={{ backgroundColor: style.backgroundColor }}
+                  className="rounded-t-2xl border-b px-3 py-2"
+                  style={{
+                    backgroundColor: style.backgroundColor,
+                    borderBottomColor: style.borderColor,
+                  }}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-body-4-emphasis text-text-primary">{column.label}</div>
-                    <div className="text-caption-1 rounded-full px-2 py-0.5 bg-white text-black-text">
+                    <div className="text-body-4-emphasis" style={{ color: style.color }}>
+                      {column.label}
+                    </div>
+                    <div
+                      className="text-caption-1 rounded-full px-2 py-0.5"
+                      style={{
+                        backgroundColor: style.backgroundColor,
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: style.borderColor,
+                        color: style.color,
+                        opacity: 0.85,
+                      }}
+                    >
                       {columnAppointments.length}
                     </div>
                   </div>
@@ -546,27 +622,27 @@ const AppointmentBoard = ({
                             <GlassTooltip content="Accept request" side="bottom">
                               <button
                                 type="button"
-                                className="h-7 w-7 rounded-full! bg-[#E6F4EF] border border-[#d3eadf] flex items-center justify-center"
+                                className="h-7 w-7 rounded-full! bg-success-100 border border-success-200 flex items-center justify-center"
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
                                   void acceptAppointment(appointment);
                                 }}
                               >
-                                <FaCheckCircle size={14} color="#54B492" />
+                                <FaCheckCircle size={14} color="var(--color-success-400)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Decline request" side="bottom">
                               <button
                                 type="button"
-                                className="h-7 w-7 rounded-full! bg-[#FDEBEA] border border-[#f5d0ce] flex items-center justify-center"
+                                className="h-7 w-7 rounded-full! bg-danger-100 border border-danger-200 flex items-center justify-center"
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
                                   void rejectAppointment(appointment);
                                 }}
                               >
-                                <IoIosCloseCircle size={16} color="#EA3729" />
+                                <IoIosCloseCircle size={16} color="var(--color-danger-600)" />
                               </button>
                             </GlassTooltip>
                           </div>
@@ -583,7 +659,7 @@ const AppointmentBoard = ({
                                   openAppointmentWithIntent(appointment);
                                 }}
                               >
-                                <IoEyeOutline size={16} color="#302F2E" />
+                                <IoEyeOutline size={16} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Overview" side="bottom">
@@ -597,7 +673,7 @@ const AppointmentBoard = ({
                                 }}
                                 title="Appointment overview"
                               >
-                                <RiHistoryLine size={15} color="#302F2E" />
+                                <RiHistoryLine size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             {canEditAppointments &&
@@ -612,7 +688,10 @@ const AppointmentBoard = ({
                                       openChangeStatus(appointment);
                                     }}
                                   >
-                                    <MdOutlineAutorenew size={15} color="#302F2E" />
+                                    <MdOutlineAutorenew
+                                      size={15}
+                                      color="var(--color-neutral-900)"
+                                    />
                                   </button>
                                 </GlassTooltip>
                               )}
@@ -627,7 +706,7 @@ const AppointmentBoard = ({
                                     openReschedule(appointment);
                                   }}
                                 >
-                                  <IoIosCalendar size={15} color="#302F2E" />
+                                  <IoIosCalendar size={15} color="var(--color-neutral-900)" />
                                 </button>
                               </GlassTooltip>
                             )}
@@ -643,7 +722,7 @@ const AppointmentBoard = ({
                                       openChangeRoom(appointment);
                                     }}
                                   >
-                                    <MdMeetingRoom size={15} color="#302F2E" />
+                                    <MdMeetingRoom size={15} color="var(--color-neutral-900)" />
                                   </button>
                                 </GlassTooltip>
                               )}
@@ -668,7 +747,7 @@ const AppointmentBoard = ({
                                   getBoardOrgType(appointment, orgsById)
                                 )}
                               >
-                                <IoDocumentTextOutline size={15} color="#302F2E" />
+                                <IoDocumentTextOutline size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Finance summary" side="bottom">
@@ -684,7 +763,7 @@ const AppointmentBoard = ({
                                   });
                                 }}
                               >
-                                <IoCardOutline size={15} color="#302F2E" />
+                                <IoCardOutline size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Lab tests" side="bottom">
@@ -700,7 +779,7 @@ const AppointmentBoard = ({
                                   });
                                 }}
                               >
-                                <MdScience size={15} color="#302F2E" />
+                                <MdScience size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                           </div>

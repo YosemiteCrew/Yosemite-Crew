@@ -107,11 +107,14 @@ jest.mock('@/app/hooks/useNotify', () => ({
   }),
 }));
 
-jest.mock('@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle', () => (props: any) => (
-  <button type="button" onClick={() => props.onChange(!props.showMineOnly)}>
-    Toggle scope
-  </button>
-));
+jest.mock(
+  '@/app/ui/primitives/AppointmentScopeToggle/AppointmentScopeToggle',
+  () => (props: any) => (
+    <button type="button" onClick={() => props.onChange(!props.showMineOnly)}>
+      Toggle scope
+    </button>
+  )
+);
 
 describe('AppointmentBoard', () => {
   const setCurrentDate = jest.fn();
@@ -222,12 +225,32 @@ describe('AppointmentBoard', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Appointment' }));
     expect(onAddAppointment).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(setCurrentDate).toHaveBeenCalledTimes(2);
+  });
+
+  it('toggles the emergencies filter from the board header', () => {
+    const setActiveFilter = jest.fn();
+
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-upcoming', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        activeFilter="all"
+        setActiveFilter={setActiveFilter}
+        hasEmergency
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Emergencies/ }));
+    expect(setActiveFilter).toHaveBeenCalledWith('emergencies');
+    expect(screen.getByLabelText('Emergency appointments present')).toBeInTheDocument();
   });
 
   it('filters to my appointments when board scope is toggled', () => {

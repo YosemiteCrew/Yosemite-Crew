@@ -69,6 +69,32 @@ const TASK_STATUSES = new Set<TaskStatus>([
 
 const TASK_AUDIENCES = new Set<TaskAudience>(["EMPLOYEE_TASK", "PARENT_TASK"]);
 
+const toMongoId = (value: string) => value as unknown as Types.ObjectId;
+
+type PrismaTaskRow = Prisma.TaskGetPayload<Record<string, never>>;
+type PrismaTaskCompletionRow = Prisma.TaskCompletionGetPayload<
+  Record<string, never>
+>;
+
+type TaskLike = (TaskDocument | PrismaTaskRow) & {
+  _id: Types.ObjectId | string;
+};
+type TaskCompletionLike =
+  | TaskCompletionDocument
+  | (PrismaTaskCompletionRow & { _id: Types.ObjectId | string });
+
+const toTaskLike = (row: PrismaTaskRow): TaskLike => ({
+  ...row,
+  _id: toMongoId(row.id),
+});
+
+const toTaskCompletionLike = (
+  row: PrismaTaskCompletionRow,
+): TaskCompletionLike => ({
+  ...row,
+  _id: toMongoId(row.id),
+});
+
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -219,8 +245,20 @@ const buildDisplayName = (
   return parts.length ? parts.join(" ") : undefined;
 };
 
-const sendTaskAssignmentEmail = async (task: TaskDocument) => {
+type TaskAssignmentEmailTask = {
+  audience: TaskAudience;
+  assignedTo?: string | null;
+  assignedBy?: string | null;
+  createdBy: string;
+  companionId?: string | null;
+  dueAt: Date;
+  name: string;
+  additionalNotes?: string | null;
+};
+
+const sendTaskAssignmentEmail = async (task: TaskAssignmentEmailTask) => {
   if (task.audience !== "EMPLOYEE_TASK") return;
+  if (!task.assignedTo) return;
   logger.info("Sending task assigned email");
   try {
     const [assignee, assigner, companion] = await Promise.all([
@@ -252,7 +290,7 @@ const sendTaskAssignmentEmail = async (task: TaskDocument) => {
         companionName: companion?.name,
         dueTime,
         assignedByName,
-        additionalNotes: task.additionalNotes,
+        additionalNotes: task.additionalNotes ?? undefined,
         ctaUrl: DEFAULT_PMS_URL,
         ctaLabel: "Open PMS",
         supportEmail: SUPPORT_EMAIL_ADDRESS,
@@ -536,7 +574,7 @@ export const TaskService = {
     const library =
       await TaskLibraryDefinitionModel.findById(libraryTaskId).exec();
 
-    if (!library || !library.isActive) {
+    if (!library?.isActive) {
       throw new TaskServiceError("Library task not found or inactive", 404);
     }
 
@@ -602,7 +640,7 @@ export const TaskService = {
     const templateId = ensureObjectId(input.templateId, "templateId");
     const template = await TaskTemplateModel.findById(templateId).exec();
 
-    if (!template || !template.isActive) {
+    if (!template?.isActive) {
       throw new TaskServiceError("Task template not found or inactive", 404);
     }
 
@@ -620,8 +658,7 @@ export const TaskService = {
     assertCompanionRequirement({
       audience,
       companionId: input.companionId,
-      medication:
-        input.medication ?? (template.defaultMedication as MedicationInput),
+      medication: input.medication ?? template.defaultMedication,
       observationToolId:
         input.observationToolId ?? template.defaultObservationToolId,
     });
@@ -675,7 +712,7 @@ export const TaskService = {
 
       medication:
         sanitizeMedication(input.medication) ??
-        sanitizeMedication(template.defaultMedication as MedicationInput),
+        sanitizeMedication(template.defaultMedication),
       observationToolId:
         input.observationToolId ?? template.defaultObservationToolId,
 
@@ -706,7 +743,7 @@ export const TaskService = {
     return doc;
   },
 
-  async createCustom(input: CreateCustomTaskInput): Promise<TaskDocument> {
+  async createCustom(input: CreateCustomTaskInput): Promise<TaskLike> {
     if (!input.category || !input.name) {
       throw new TaskServiceError("category and name are required", 400);
     }
@@ -757,8 +794,9 @@ export const TaskService = {
         },
       });
 
-      void sendTaskAssignmentEmail(doc as unknown as TaskDocument);
-      return doc as unknown as TaskDocument;
+      const mapped = toTaskLike(doc);
+      void sendTaskAssignmentEmail(mapped);
+      return mapped;
     }
 
     const doc = await TaskModel.create({
@@ -835,7 +873,7 @@ export const TaskService = {
     newStatus: TaskStatus,
     actorId: string,
     completion?: CompleteTaskInput,
-  ): Promise<{ task: TaskDocument; completion?: TaskCompletionDocument }> {
+  ): Promise<{ task: TaskLike; completion?: TaskCompletionLike }> {
     if (isReadFromPostgres()) {
       const task = await prisma.task.findFirst({
         where: { id: taskId },
@@ -850,7 +888,7 @@ export const TaskService = {
         throw new TaskServiceError("Task already finished", 400);
       }
 
-      let nextStatus: PrismaTaskStatus = task.status;
+      let nextStatus: PrismaTaskStatus;
       let completedAt: Date | null = task.completedAt ?? null;
       let completedBy: string | null = task.completedBy ?? null;
 
@@ -868,7 +906,7 @@ export const TaskService = {
         nextStatus = newStatus as PrismaTaskStatus;
       }
 
-      let completionDoc: TaskCompletionDocument | undefined;
+      let completionDoc: TaskCompletionLike | undefined;
 
       if (newStatus === "COMPLETED" && completion?.answers) {
         if (!task.companionId) {
@@ -887,7 +925,7 @@ export const TaskService = {
             summary: completion.summary ?? undefined,
           },
         });
-        completionDoc = created as unknown as TaskCompletionDocument;
+        completionDoc = toTaskCompletionLike(created);
       }
 
       const updated = await prisma.task.update({
@@ -900,7 +938,7 @@ export const TaskService = {
       });
 
       return {
-        task: updated as unknown as TaskDocument,
+        task: toTaskLike(updated),
         completion: completionDoc,
       };
     }
@@ -949,12 +987,12 @@ export const TaskService = {
     return { task, completion: completionDoc };
   },
 
-  async getById(taskId: string): Promise<TaskDocument | null> {
+  async getById(taskId: string): Promise<TaskLike | null> {
     if (isReadFromPostgres()) {
       const task = await prisma.task.findFirst({
         where: { id: taskId },
       });
-      return (task ?? null) as unknown as TaskDocument | null;
+      return task ? toTaskLike(task) : null;
     }
     return TaskModel.findById(taskId).exec();
   },
@@ -965,7 +1003,7 @@ export const TaskService = {
     fromDueAt?: Date;
     toDueAt?: Date;
     status?: TaskStatus[];
-  }): Promise<TaskDocument[]> {
+  }): Promise<TaskLike[]> {
     const parentId = asNonEmptyString(params.parentId);
     if (!parentId) {
       throw new TaskServiceError("Invalid parentId");
@@ -997,7 +1035,7 @@ export const TaskService = {
         where,
         orderBy: { dueAt: "asc" },
       });
-      return tasks as unknown as TaskDocument[];
+      return tasks.map(toTaskLike);
     }
 
     const filter: Record<string, unknown> = {
@@ -1032,7 +1070,7 @@ export const TaskService = {
     fromDueAt?: Date;
     toDueAt?: Date;
     status?: TaskStatus[];
-  }): Promise<TaskDocument[]> {
+  }): Promise<TaskLike[]> {
     const organisationId = asNonEmptyString(params.organisationId);
     if (!organisationId) {
       throw new TaskServiceError("Invalid organisationId");
@@ -1067,7 +1105,7 @@ export const TaskService = {
         where,
         orderBy: { dueAt: "asc" },
       });
-      return tasks as unknown as TaskDocument[];
+      return tasks.map(toTaskLike);
     }
 
     const filter: Record<string, unknown> = {
@@ -1100,11 +1138,12 @@ export const TaskService = {
 
   async listForCompanion(params: {
     companionId: string;
+    organisationId?: string;
     audience?: TaskAudience;
     fromDueAt?: Date;
     toDueAt?: Date;
     status?: TaskStatus[];
-  }): Promise<TaskDocument[]> {
+  }): Promise<TaskLike[]> {
     const companionId = asNonEmptyString(params.companionId);
     if (!companionId) {
       throw new TaskServiceError("Invalid companionId");
@@ -1114,6 +1153,9 @@ export const TaskService = {
       const where: Prisma.TaskWhereInput = {
         companionId,
       };
+
+      const organisationId = asNonEmptyString(params.organisationId);
+      if (organisationId) where.organisationId = organisationId;
 
       const audience = sanitizeAudience(params.audience);
       if (audience) where.audience = audience;
@@ -1135,12 +1177,15 @@ export const TaskService = {
         where,
         orderBy: { dueAt: "asc" },
       });
-      return tasks as unknown as TaskDocument[];
+      return tasks.map(toTaskLike);
     }
 
     const filter: Record<string, unknown> = {
       companionId,
     };
+
+    const organisationId = asNonEmptyString(params.organisationId);
+    if (organisationId) filter.organisationId = organisationId;
 
     const audience = sanitizeAudience(params.audience);
     if (audience) filter.audience = audience;
@@ -1166,7 +1211,7 @@ export const TaskService = {
     taskId: string;
     appointmentId: string;
     enforceSingleTaskPerAppointment?: boolean;
-  }): Promise<TaskDocument> {
+  }): Promise<TaskLike> {
     if (isReadFromPostgres()) {
       const task = await prisma.task.findFirst({
         where: { id: input.taskId },
@@ -1180,7 +1225,7 @@ export const TaskService = {
         data: { appointmentId: input.appointmentId },
       });
 
-      return updated as unknown as TaskDocument;
+      return toTaskLike(updated);
     }
 
     const task = await TaskModel.findById(input.taskId).exec();

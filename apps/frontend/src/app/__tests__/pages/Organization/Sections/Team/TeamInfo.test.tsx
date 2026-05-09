@@ -451,6 +451,28 @@ describe('TeamInfo', () => {
     );
   });
 
+  it('does not allow a team editor to edit address or availability of another member', async () => {
+    render(
+      <TeamInfo
+        showModal
+        setShowModal={setShowModal}
+        activeTeam={{ ...activeTeam, practionerId: 'Practitioner/prac-2' }}
+        canEditTeam={true}
+      />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+
+    // Address and availability are read-only — no save/edit buttons present
+    expect(screen.queryByRole('button', { name: 'save-Address details' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save availability' })).not.toBeInTheDocument();
+    expect(screen.queryByText('availability-editable')).not.toBeInTheDocument();
+
+    // Sanity: no profile or availability mutations called
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(upsertTeamAvailability).not.toHaveBeenCalled();
+  });
+
   it('does not save availability when none is selected', async () => {
     (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(false);
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});

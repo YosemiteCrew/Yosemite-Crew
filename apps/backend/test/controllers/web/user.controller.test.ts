@@ -174,7 +174,7 @@ describe("UserController", () => {
     it("should return 200 if deletion successful", async () => {
       (UserService.deleteById as jest.Mock).mockResolvedValue(true);
 
-      const req = createMockReq({ params: { id: "123" } });
+      const req = createMockReq({ params: { id: "123" }, userId: "123" });
       await UserController.deleteById(req, mockRes as Response);
 
       expect(UserService.deleteById).toHaveBeenCalledWith("123");
@@ -185,7 +185,7 @@ describe("UserController", () => {
     });
 
     it("should return 400 if id param is missing", async () => {
-      const req = createMockReq({ params: { id: "" } });
+      const req = createMockReq({ params: { id: "" }, userId: "123" });
       await UserController.deleteById(req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -195,10 +195,35 @@ describe("UserController", () => {
       expect(UserService.deleteById).not.toHaveBeenCalled();
     });
 
+    it("should return 401 when auth context is missing userId", async () => {
+      const req = createMockReq({ params: { id: "123" }, userId: undefined });
+      await UserController.deleteById(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "Missing user identity from token.",
+      });
+      expect(UserService.deleteById).not.toHaveBeenCalled();
+    });
+
+    it("should return 403 when deleting a different user", async () => {
+      const req = createMockReq({
+        params: { id: "target-user" },
+        userId: "123",
+      });
+      await UserController.deleteById(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "You can only delete your own user.",
+      });
+      expect(UserService.deleteById).not.toHaveBeenCalled();
+    });
+
     it("should return 404 if user not found (delete returned false)", async () => {
       (UserService.deleteById as jest.Mock).mockResolvedValue(false);
 
-      const req = createMockReq({ params: { id: "123" } });
+      const req = createMockReq({ params: { id: "123" }, userId: "123" });
       await UserController.deleteById(req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
@@ -210,7 +235,7 @@ describe("UserController", () => {
         new UserServiceError("Forbidden", 403),
       );
 
-      const req = createMockReq({ params: { id: "123" } });
+      const req = createMockReq({ params: { id: "123" }, userId: "123" });
       await UserController.deleteById(req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(403);
@@ -220,7 +245,7 @@ describe("UserController", () => {
       const error = new Error("Fail");
       (UserService.deleteById as jest.Mock).mockRejectedValue(error);
 
-      const req = createMockReq({ params: { id: "123" } });
+      const req = createMockReq({ params: { id: "123" }, userId: "123" });
       await UserController.deleteById(req, mockRes as Response);
 
       expect(logger.error).toHaveBeenCalledWith("Failed to delete user", error);

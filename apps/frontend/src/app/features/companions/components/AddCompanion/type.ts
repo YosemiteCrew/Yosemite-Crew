@@ -44,9 +44,9 @@ export const OriginOptions: Option[] = [
   { label: 'Unknown', value: 'unknown' },
 ];
 export const SpeciesOptions: Option[] = [
-  { value: 'dog', label: 'Dog' },
-  { value: 'cat', label: 'Cat' },
-  { value: 'horse', label: 'Horse' },
+  { value: 'dog', label: 'Canine' },
+  { value: 'cat', label: 'Feline' },
+  { value: 'horse', label: 'Equine' },
 ];
 export type Breed = {
   speciesId: number;
@@ -68,10 +68,10 @@ export const CountryDialCodeOptions: CountryDialCodeOption[] = countries
   .map((country) => {
     const dialCode = country.dial_code ?? '';
     const countryCode = country.code ?? country.name;
-    const flagPrefix = country.flag ? `${country.flag} ` : '';
+    const flagSuffix = country.flag ? ` ${country.flag}` : '';
     return {
       value: `${countryCode}-${dialCode}`,
-      label: `${flagPrefix}${dialCode} ${country.name}`,
+      label: `${dialCode} ${country.name}${flagSuffix}`,
       dialCode,
       countryCode,
       countryName: country.name,
@@ -108,7 +108,9 @@ export const findPhoneData = (
   if (parsedPhoneNumber) {
     const dialCode = `+${parsedPhoneNumber.countryCallingCode}`;
     const selectedCode =
-      CountryDialCodeOptions.find((option) => option.dialCode === dialCode) ?? defaultCode;
+      (defaultCode.dialCode === dialCode ? defaultCode : null) ??
+      CountryDialCodeOptions.find((option) => option.dialCode === dialCode) ??
+      defaultCode;
     return {
       selectedCode,
       localNumber: parsedPhoneNumber.nationalNumber,

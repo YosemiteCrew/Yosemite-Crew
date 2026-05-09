@@ -88,7 +88,7 @@ describe("CompanionController", () => {
   });
 
   describe("Internal Helpers & Payload Parsing (Tested via createCompanionMobile)", () => {
-    it("resolveMobileUserId: should use x-user-id header if available", async () => {
+    it("resolveMobileUserId: should prefer authenticated userId over x-user-id", async () => {
       req.headers["x-user-id"] = "header_id";
       req.body = validFHIR;
       (CompanionService.create as jest.Mock).mockResolvedValue({
@@ -98,7 +98,7 @@ describe("CompanionController", () => {
       await CompanionController.createCompanionMobile(req, res);
 
       expect(CompanionService.create).toHaveBeenCalledWith(validFHIR, {
-        authUserId: "header_id",
+        authUserId: "auth_user_123",
       });
     });
 

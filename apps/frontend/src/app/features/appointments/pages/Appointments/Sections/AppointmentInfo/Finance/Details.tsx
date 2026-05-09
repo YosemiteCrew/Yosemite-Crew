@@ -53,7 +53,7 @@ const Details = ({ activeAppointment }: DetailsProps) => {
       <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
         <div className="flex flex-col gap-6">
           {showCashRefundDisclaimer ? (
-            <div className="rounded-2xl border border-[#F4D596] bg-[#FFF8E8] px-4 py-3 text-caption-1 text-text-secondary">
+            <div className="rounded-2xl border border-warning-200 bg-[color-mix(in_srgb,var(--color-warning-100)_65%,white)] px-4 py-3 text-caption-1 text-text-secondary">
               This appointment was paid in cash and is now cancelled. Any refund, if applicable,
               should be handled directly by the service provider.
             </div>
@@ -107,9 +107,15 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                   </div>
                   <div className="py-2! flex items-center gap-2 justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Status: </div>
-                    <div className="rounded-2xl px-4 py-2" style={getStatusStyle(payment.status)}>
+                    <span
+                      className="rounded-2xl px-3 py-0.5 text-caption-1 border"
+                      style={(() => {
+                        const s = getStatusStyle(payment.status);
+                        return { ...s, borderColor: s.color };
+                      })()}
+                    >
                       {toTitle(payment.status)}
-                    </div>
+                    </span>
                   </div>
                   <div className="py-2! flex items-center gap-2 border-t border-grey-light justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>

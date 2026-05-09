@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+type PopoverManagerOptions = {
+  closeOnHoverLeave?: boolean;
+};
+
 export type PopoverManagerReturn = {
   activePopoverKey: string | null;
   setActivePopoverKey: React.Dispatch<React.SetStateAction<string | null>>;
@@ -10,6 +14,7 @@ export type PopoverManagerReturn = {
   popoverDialogRef: React.RefObject<HTMLDialogElement | null>;
   clearCloseTimer: () => void;
   schedulePopoverClose: () => void;
+  registerAnchorEl: (el: HTMLElement | null) => () => void;
   openPopover: (
     key: string,
     target: HTMLButtonElement,
@@ -23,7 +28,9 @@ export type PopoverManagerReturn = {
   ) => { top: number; left: number; width: number };
 };
 
-export const usePopoverManager = (): PopoverManagerReturn => {
+export const usePopoverManager = ({
+  closeOnHoverLeave = true,
+}: PopoverManagerOptions = {}): PopoverManagerReturn => {
   const [activePopoverKey, setActivePopoverKey] = useState<string | null>(null);
   const [activeRect, setActiveRect] = useState<DOMRect | null>(null);
   const [activeCursor, setActiveCursor] = useState<{ x: number; y: number } | null>(null);
@@ -45,10 +52,16 @@ export const usePopoverManager = (): PopoverManagerReturn => {
 
   useEffect(() => {
     if (!activePopoverKey) return;
-    const closePopover = () => setActivePopoverKey(null);
+    const closePopover = (event: Event) => {
+      const target = event.target as Node | null;
+      if (popoverDialogRef.current?.contains(target)) return;
+      if ((target as Element | null)?.closest?.('[data-popover-panel]')) return;
+      setActivePopoverKey(null);
+    };
     const closePopoverOnOutsidePointer = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (popoverDialogRef.current?.contains(target)) return;
+      if ((target as Element | null)?.closest?.('[data-popover-panel]')) return;
       event.preventDefault();
       event.stopPropagation();
       if ('stopImmediatePropagation' in event) {
@@ -66,6 +79,30 @@ export const usePopoverManager = (): PopoverManagerReturn => {
       globalThis.removeEventListener('pointerdown', closePopoverOnOutsidePointer, true);
     };
   }, [activePopoverKey, swallowDismissClick]);
+
+  const registerAnchorEl = useCallback(
+    (el: HTMLElement | null): (() => void) => {
+      if (!el) return () => {};
+      const onEnter = () => {
+        if (closeTimerRef.current) {
+          clearTimeout(closeTimerRef.current);
+          closeTimerRef.current = null;
+        }
+      };
+      const onLeave = () => {
+        if (!closeOnHoverLeave) return;
+        if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = setTimeout(() => setActivePopoverKey(null), 120);
+      };
+      el.addEventListener('mouseenter', onEnter);
+      el.addEventListener('mouseleave', onLeave);
+      return () => {
+        el.removeEventListener('mouseenter', onEnter);
+        el.removeEventListener('mouseleave', onLeave);
+      };
+    },
+    [closeOnHoverLeave]
+  );
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -86,7 +123,10 @@ export const usePopoverManager = (): PopoverManagerReturn => {
     if (!dialogEl || !activePopoverKey) return;
 
     const onMouseEnter = () => clearCloseTimer();
-    const onMouseLeave = () => schedulePopoverClose();
+    const onMouseLeave = () => {
+      if (!closeOnHoverLeave) return;
+      schedulePopoverClose();
+    };
     const onFocusIn = () => clearCloseTimer();
     const onFocusOut = (event: FocusEvent) => {
       const nextFocused = event.relatedTarget as Node | null;
@@ -119,7 +159,7 @@ export const usePopoverManager = (): PopoverManagerReturn => {
       dialogEl.removeEventListener('touchend', onTouchEnd);
       dialogEl.removeEventListener('keydown', onKeyDown);
     };
-  }, [activePopoverKey, clearCloseTimer, schedulePopoverClose]);
+  }, [activePopoverKey, clearCloseTimer, closeOnHoverLeave, schedulePopoverClose]);
 
   useEffect(() => {
     return () => {
@@ -153,20 +193,23 @@ export const usePopoverManager = (): PopoverManagerReturn => {
   const getPopoverStyle = useCallback(
     (popoverWidth: number, popoverHeight: number) => {
       if (!activeRect) return { top: 0, left: 0, width: popoverWidth };
-      const margin = 8;
+      const margin = 12;
       const viewportWidth = globalThis.innerWidth;
       const viewportHeight = globalThis.innerHeight;
       const anchorX = activeCursor?.x ?? activeRect.left + activeRect.width / 2;
-      const anchorY = activeCursor?.y ?? activeRect.top;
+      const anchorTop = activeCursor?.y ?? activeRect.top;
+      const anchorBottom = activeCursor?.y ?? activeRect.bottom;
       const availableRight = viewportWidth - anchorX - margin;
       const availableLeft = anchorX - margin;
       const shouldPlaceRight = availableRight >= popoverWidth || availableRight >= availableLeft;
       const preferredLeft = shouldPlaceRight ? anchorX + margin : anchorX - popoverWidth - margin;
       const left = Math.max(margin, Math.min(preferredLeft, viewportWidth - popoverWidth - margin));
-      const placeAbove = anchorY + popoverHeight + margin > viewportHeight;
-      const top = placeAbove
-        ? Math.max(margin, anchorY - popoverHeight - margin)
-        : Math.max(margin, anchorY);
+      const availableBelow = viewportHeight - anchorBottom - margin;
+      const availableAbove = anchorTop - margin;
+      const placeAbove = availableBelow < popoverHeight && availableAbove > availableBelow;
+      const preferredTop = placeAbove ? anchorTop - popoverHeight - margin : anchorBottom + margin;
+      const maxTop = Math.max(margin, viewportHeight - popoverHeight - margin);
+      const top = Math.max(margin, Math.min(preferredTop, maxTop));
       return { top, left, width: popoverWidth };
     },
     [activeRect, activeCursor]
@@ -182,6 +225,7 @@ export const usePopoverManager = (): PopoverManagerReturn => {
     popoverDialogRef,
     clearCloseTimer,
     schedulePopoverClose,
+    registerAnchorEl,
     openPopover,
     getPopoverStyle,
   };

@@ -26,7 +26,7 @@ jest.mock('@/hooks', () => ({
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: Record<string, string>) => {
+    t: (key: string) => {
       const translations: Record<string, string> = {
         'auth.date_of_birth_optional': 'Date of birth (optional)',
         'auth.date_of_birth_optional_placeholder':
@@ -34,26 +34,17 @@ jest.mock('react-i18next', () => ({
         'auth.age_verification_info_cta': 'Why we ask for age verification',
         'auth.age_verification_sheet_title': '18+ Age Verification',
         'auth.age_verification_sheet_intro':
-          'To comply with global safety standards and regional legal requirements including the UK Age-Appropriate Design Code, the California Age-Appropriate Design Code, and recent EU Digital Services Act mandates, Yosemite Crew requires all users to verify they are 18 years of age or older.',
+          'In some countries, 18+ regulations require users to be adults before creating an account and using Yosemite Crew.',
         'auth.age_verification_sheet_why_title': 'Why we ask',
         'auth.age_verification_sheet_why_body':
-          'This process ensures that restricted content remains inaccessible to minors and helps us maintain a secure environment in accordance with local laws.',
+          'We ask this because some countries require age checks for 18+ services, and we need to keep the platform compliant in those regions.',
         'auth.age_verification_sheet_privacy_title': 'Privacy & Security',
-        'auth.age_verification_provider_fallback':
-          'our trusted verification provider',
         'auth.age_verification_sheet_privacy_body':
-          'Your verification data is processed solely for the purpose of age assurance. We use {{serviceProviderName}} to securely validate your status. Your sensitive identification documents are encrypted, are not used for marketing purposes, and are handled in strict accordance with our Privacy Policy and GDPR/CCPA data protection standards.',
+          'By continuing, you confirm that you are at least 18 years old. If you are under 18, you should not create an account.',
         'auth.age_verification_sheet_restriction_notice':
-          'Failure to complete this verification will result in restricted access to certain features or the inability to create an account.',
+          'If you cannot confirm that you are 18 or older, you will not be able to create an account.',
       };
-      const template = translations[key] ?? key;
-      if (!options) {
-        return template;
-      }
-      return template.replace(
-        '{{serviceProviderName}}',
-        options.serviceProviderName ?? '',
-      );
+      return translations[key] ?? key;
     },
   }),
 }));
@@ -246,7 +237,7 @@ describe('CreateAccountScreen', () => {
     expect(getByText('18+ Age Verification')).toBeTruthy();
     expect(
       getByText(
-        'Failure to complete this verification will result in restricted access to certain features or the inability to create an account.',
+        'If you cannot confirm that you are 18 or older, you will not be able to create an account.',
       ),
     ).toBeTruthy();
   });

@@ -10,6 +10,7 @@ import {
 } from 'amazon-cognito-identity-js';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { logger } from '@/app/lib/logger';
+import { clearSessionScopedStores } from '@/app/lib/resetSessionStores';
 
 const poolData: ICognitoUserPoolData = {
   UserPoolId: process.env.NEXT_PUBLIC_COGNITO_USERPOOLID || '',
@@ -199,6 +200,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     return new Promise((resolve, reject) => {
       cognitoUser.authenticateUser(authenticationDetails, {
         onSuccess: (session) => {
+          clearSessionScopedStores();
           void syncAuthenticatedState(set, get, cognitoUser, session, 'signin-authenticated');
           resolve(session);
         },

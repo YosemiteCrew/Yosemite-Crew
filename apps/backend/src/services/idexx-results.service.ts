@@ -177,8 +177,7 @@ const syncLabOrderStatusToPostgres = async (params: {
 };
 
 const getEnv = (key: string): string | null => {
-  const value = process.env[key];
-  return value && value.trim() ? value : null;
+  return process.env[key]?.trim() || null;
 };
 
 const buildResultTaskKey = (resultId: string) => `lab-result:${resultId}`;

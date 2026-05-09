@@ -58,6 +58,16 @@ describe('checkInUtils', () => {
       expect(result).toBe(true);
     });
 
+    it('treats impossible local dates as invalid instead of normalizing them', () => {
+      const result = isWithinCheckInWindow('2024-13-20', '09:00');
+      expect(result).toBe(true);
+    });
+
+    it('treats out-of-range calendar dates as invalid instead of normalizing them', () => {
+      const result = isWithinCheckInWindow('2024-02-31', '09:00');
+      expect(result).toBe(true);
+    });
+
     it('should handle appointments on different days', () => {
       const result = isWithinCheckInWindow('2024-12-19', '14:30');
       expect(result).toBe(true); // Day before, so definitely within window
@@ -92,6 +102,11 @@ describe('checkInUtils', () => {
 
     it('should return original time for invalid date', () => {
       const result = formatCheckInTime('invalid-date', '09:00');
+      expect(result).toBe('09:00');
+    });
+
+    it('should return original time for impossible normalized local dates', () => {
+      const result = formatCheckInTime('2024-13-20', '09:00');
       expect(result).toBe('09:00');
     });
 

@@ -10,6 +10,8 @@ import {
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
 import { prisma } from "src/config/prisma";
+import ParentCompanionModel from "../../src/models/parent-companion";
+import CompanionOrganisationModel from "../../src/models/companion-organisation";
 
 // --- Global Mocks Setup ---
 
@@ -43,8 +45,32 @@ jest.mock("../../src/models/document", () => ({
   },
 }));
 
+jest.mock("../../src/models/parent-companion", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+    find: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/models/companion-organisation", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+    find: jest.fn(),
+  },
+}));
+
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    parentCompanion: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    companionOrganisation: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
     document: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -52,6 +78,7 @@ jest.mock("src/config/prisma", () => ({
     },
     documentAttachment: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
   },
 }));
@@ -101,12 +128,18 @@ describe("DocumentService", () => {
 
   let mockExec: jest.Mock;
   let mockSort: jest.Mock;
+  let mockParentCompanionExec: jest.Mock;
+  let mockCompanionOrganisationExec: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (generatePresignedDownloadUrl as jest.Mock).mockReset();
+    (deleteFromS3 as jest.Mock).mockReset();
 
     mockExec = jest.fn();
     mockSort = jest.fn();
+    mockParentCompanionExec = jest.fn();
+    mockCompanionOrganisationExec = jest.fn();
 
     // Standardized mock implementation returning a native Promise structure
     // This allows the query to be both directly awaited AND chained with .exec()
@@ -121,6 +154,43 @@ describe("DocumentService", () => {
     (DocumentModel.findOne as jest.Mock).mockImplementation(createQueryChain);
     (DocumentModel.findById as jest.Mock).mockImplementation(createQueryChain);
     (DocumentModel.deleteOne as jest.Mock).mockImplementation(createQueryChain);
+
+    (ParentCompanionModel.findOne as jest.Mock).mockImplementation(() => ({
+      lean: () => ({
+        exec: () => mockParentCompanionExec(),
+      }),
+    }));
+    (ParentCompanionModel.find as jest.Mock).mockImplementation(() => ({
+      lean: () => ({
+        exec: () => mockParentCompanionExec(),
+      }),
+    }));
+
+    (CompanionOrganisationModel.findOne as jest.Mock).mockImplementation(
+      () => ({
+        lean: () => ({
+          exec: () => mockCompanionOrganisationExec(),
+        }),
+      }),
+    );
+    (CompanionOrganisationModel.find as jest.Mock).mockImplementation(() => ({
+      lean: () => ({
+        exec: () => mockCompanionOrganisationExec(),
+      }),
+    }));
+
+    mockParentCompanionExec.mockResolvedValue([
+      {
+        _id: new Types.ObjectId(),
+        companionId: new Types.ObjectId(validObjectIdStr),
+      },
+    ]);
+    mockCompanionOrganisationExec.mockResolvedValue([
+      {
+        _id: new Types.ObjectId(),
+        companionId: new Types.ObjectId(validObjectIdStr),
+      },
+    ]);
   });
 
   describe("DocumentServiceError", () => {
@@ -139,8 +209,23 @@ describe("DocumentService", () => {
       process.env.READ_FROM_POSTGRES = "true";
       (prisma.document.findMany as jest.Mock).mockReset();
       (prisma.document.findUnique as jest.Mock).mockReset();
-      (prisma.document.findFirst as jest.Mock).mockReset();
       (prisma.documentAttachment.findMany as jest.Mock).mockReset();
+      (prisma.parentCompanion.findFirst as jest.Mock).mockReset();
+      (prisma.parentCompanion.findMany as jest.Mock).mockReset();
+      (prisma.companionOrganisation.findFirst as jest.Mock).mockReset();
+      (prisma.companionOrganisation.findMany as jest.Mock).mockReset();
+      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValue({
+        id: "pc1",
+      });
+      (prisma.parentCompanion.findMany as jest.Mock).mockResolvedValue([
+        { companionId: validObjectIdStr },
+      ]);
+      (prisma.companionOrganisation.findFirst as jest.Mock).mockResolvedValue({
+        id: "co1",
+      });
+      (prisma.companionOrganisation.findMany as jest.Mock).mockResolvedValue([
+        { companionId: validObjectIdStr },
+      ]);
     });
 
     afterEach(() => {
@@ -154,6 +239,7 @@ describe("DocumentService", () => {
 
       const res = await DocumentService.listForParent({
         companionId: validObjectIdStr,
+        parentId: validObjectIdStr,
       });
       expect(res).toHaveLength(1);
       expect(res[0].category).toBe("HEALTH");
@@ -166,6 +252,7 @@ describe("DocumentService", () => {
 
       const res = await DocumentService.listForPms({
         companionId: validObjectIdStr,
+        organisationId: validObjectIdStr,
       });
       expect(res).toHaveLength(1);
       expect(res[0].pmsVisible).toBe(true);
@@ -173,15 +260,21 @@ describe("DocumentService", () => {
 
     it("getByIdForParent returns null when missing", async () => {
       (prisma.document.findUnique as jest.Mock).mockResolvedValueOnce(null);
-      const res = await DocumentService.getByIdForParent(validObjectIdStr);
+      const res = await DocumentService.getByIdForParent(
+        validObjectIdStr,
+        validObjectIdStr,
+      );
       expect(res).toBeNull();
     });
 
     it("getByIdForPms returns mapped doc when found", async () => {
-      (prisma.document.findFirst as jest.Mock).mockResolvedValueOnce(
+      (prisma.document.findUnique as jest.Mock).mockResolvedValueOnce(
         createPrismaDoc({ pmsVisible: true }),
       );
-      const res = await DocumentService.getByIdForPms(validObjectIdStr);
+      const res = await DocumentService.getByIdForPms(
+        validObjectIdStr,
+        validObjectIdStr,
+      );
       expect(res?.id).toBeDefined();
     });
 
@@ -189,8 +282,10 @@ describe("DocumentService", () => {
       (prisma.document.findMany as jest.Mock).mockResolvedValueOnce([
         createPrismaDoc({ appointmentId: validObjectIdStr }),
       ]);
-      const res =
-        await DocumentService.listForAppointmentParent(validObjectIdStr);
+      const res = await DocumentService.listForAppointmentParent({
+        appointmentId: validObjectIdStr,
+        parentId: validObjectIdStr,
+      });
       expect(res).toHaveLength(1);
       expect(res[0].appointmentId).toBe(validObjectIdStr);
     });
@@ -200,14 +295,17 @@ describe("DocumentService", () => {
         createPrismaDoc({ appointmentId: validObjectIdStr, pmsVisible: true }),
       ]);
       const res = await DocumentService.listForAppointmentPms({
-        companionId: validObjectIdStr,
         appointmentId: validObjectIdStr,
+        organisationId: validObjectIdStr,
       });
       expect(res).toHaveLength(1);
       expect(res[0].pmsVisible).toBe(true);
     });
 
     it("getAllAttachmentUrls returns presigned urls", async () => {
+      (prisma.document.findUnique as jest.Mock).mockResolvedValueOnce(
+        createPrismaDoc(),
+      );
       (prisma.documentAttachment.findMany as jest.Mock).mockResolvedValueOnce([
         { key: "k1", mimeType: "image/png" },
       ]);
@@ -215,7 +313,10 @@ describe("DocumentService", () => {
         "https://download",
       );
 
-      const res = await DocumentService.getAllAttachmentUrls(validObjectIdStr);
+      const res = await DocumentService.getAllAttachmentUrls({
+        documentId: validObjectIdStr,
+        parentId: validObjectIdStr,
+      });
       expect(res).toEqual([
         { url: "https://download", mimeType: "image/png", key: "k1" },
       ]);
@@ -227,10 +328,31 @@ describe("DocumentService", () => {
       ]);
       const res = await DocumentService.searchByTitleForParent({
         companionId: validObjectIdStr,
+        parentId: validObjectIdStr,
         title: "Vacc",
       });
       expect(res).toHaveLength(1);
       expect(res[0].title).toBe("Vaccination");
+    });
+
+    it("getAttachmentUrlByKey returns presigned url", async () => {
+      (prisma.documentAttachment.findFirst as jest.Mock).mockResolvedValueOnce({
+        key: "k1",
+        documentId: validObjectIdStr,
+      });
+      (prisma.document.findUnique as jest.Mock).mockResolvedValueOnce(
+        createPrismaDoc(),
+      );
+      (generatePresignedDownloadUrl as jest.Mock).mockResolvedValueOnce(
+        "https://download",
+      );
+
+      const res = await DocumentService.getAttachmentUrlByKey({
+        key: "k1",
+        parentId: validObjectIdStr,
+      });
+
+      expect(res).toBe("https://download");
     });
   });
 
@@ -432,7 +554,10 @@ describe("DocumentService", () => {
       };
       mockExec.mockResolvedValue(mockDoc);
 
-      const res = await DocumentService.getByIdForParent(validObjectIdStr);
+      const res = await DocumentService.getByIdForParent(
+        validObjectIdStr,
+        validObjectIdStr,
+      );
 
       expect(res?.appointmentId).toBeNull();
       expect(res?.subcategory).toBeNull();
@@ -454,6 +579,7 @@ describe("DocumentService", () => {
 
       const result = await DocumentService.listForParent({
         companionId: validObjectIdStr,
+        parentId: validObjectIdStr,
         category: "HEALTH",
         subcategory: "HOSPITAL_VISITS",
       });
@@ -476,6 +602,7 @@ describe("DocumentService", () => {
 
       const result = await DocumentService.listForPms({
         companionId: validObjectIdStr,
+        organisationId: validObjectIdStr,
         category: "HEALTH",
         subcategory: "HOSPITAL_VISITS",
         appointmentId: validObjectIdStr,
@@ -495,32 +622,43 @@ describe("DocumentService", () => {
   describe("getByIdForParent & getByIdForPms", () => {
     it("getByIdForParent: should return null if not found", async () => {
       mockExec.mockResolvedValue(null);
-      const res = await DocumentService.getByIdForParent(validObjectIdStr);
+      const res = await DocumentService.getByIdForParent(
+        validObjectIdStr,
+        validObjectIdStr,
+      );
       expect(res).toBeNull();
     });
 
     it("getByIdForParent: should return mapped DTO on success", async () => {
       const mockDoc = createMockDoc();
       mockExec.mockResolvedValue(mockDoc);
-      const res = await DocumentService.getByIdForParent(validObjectIdStr);
+      const res = await DocumentService.getByIdForParent(
+        validObjectIdStr,
+        validObjectIdStr,
+      );
       expect(res?.id).toBe(mockDoc._id.toString());
     });
 
     it("getByIdForPms: should return null if not found", async () => {
       mockExec.mockResolvedValue(null);
-      const res = await DocumentService.getByIdForPms(validObjectIdStr);
+      const res = await DocumentService.getByIdForPms(
+        validObjectIdStr,
+        validObjectIdStr,
+      );
       expect(res).toBeNull();
     });
 
     it("getByIdForPms: should query with pmsVisible=true", async () => {
-      const mockDoc = createMockDoc();
+      const mockDoc = createMockDoc({ pmsVisible: true });
       mockExec.mockResolvedValue(mockDoc);
-      const res = await DocumentService.getByIdForPms(validObjectIdStr);
+      const res = await DocumentService.getByIdForPms(
+        validObjectIdStr,
+        validObjectIdStr,
+      );
 
-      expect(DocumentModel.findOne).toHaveBeenCalledWith({
-        _id: new Types.ObjectId(validObjectIdStr),
-        pmsVisible: true,
-      });
+      expect(DocumentModel.findById).toHaveBeenCalledWith(
+        new Types.ObjectId(validObjectIdStr),
+      );
       expect(res?.id).toBe(mockDoc._id.toString());
     });
   });
@@ -557,9 +695,13 @@ describe("DocumentService", () => {
   describe("listForAppointmentParent & listForAppointmentPms", () => {
     it("listForAppointmentParent should query by appointmentId", async () => {
       mockExec.mockResolvedValue([createMockDoc()]);
-      await DocumentService.listForAppointmentParent(validObjectIdStr);
+      await DocumentService.listForAppointmentParent({
+        appointmentId: validObjectIdStr,
+        parentId: validObjectIdStr,
+      });
       expect(DocumentModel.find).toHaveBeenCalledWith({
         appointmentId: new Types.ObjectId(validObjectIdStr),
+        companionId: { $in: [new Types.ObjectId(validObjectIdStr)] },
       });
     });
 
@@ -567,10 +709,10 @@ describe("DocumentService", () => {
       mockExec.mockResolvedValue([createMockDoc()]);
       await DocumentService.listForAppointmentPms({
         appointmentId: validObjectIdStr,
-        companionId: validObjectIdStr,
+        organisationId: validObjectIdStr,
       });
       expect(DocumentModel.find).toHaveBeenCalledWith({
-        companionId: new Types.ObjectId(validObjectIdStr),
+        companionId: { $in: [new Types.ObjectId(validObjectIdStr)] },
         appointmentId: new Types.ObjectId(validObjectIdStr),
         pmsVisible: true,
       });
@@ -614,13 +756,37 @@ describe("DocumentService", () => {
       mockExec.mockResolvedValue(mockDoc);
 
       await expect(
-        DocumentService.update(validObjectIdStr, {}, { pmsUserId: "pms1" }),
+        DocumentService.update(
+          validObjectIdStr,
+          {},
+          {
+            pmsUserId: "pms1",
+            organisationId: validObjectIdStr,
+          },
+        ),
       ).rejects.toThrow(
         new DocumentServiceError(
           "PMS cannot update documents uploaded by parent.",
           403,
         ),
       );
+    });
+
+    it("should reject PMS update when organisation cannot access companion", async () => {
+      const mockDoc = createMockDoc({ syncedFromPms: true });
+      mockExec.mockResolvedValue(mockDoc);
+      mockCompanionOrganisationExec.mockResolvedValueOnce(null);
+
+      await expect(
+        DocumentService.update(
+          validObjectIdStr,
+          {},
+          {
+            pmsUserId: "pms1",
+            organisationId: validObjectIdStr,
+          },
+        ),
+      ).rejects.toThrow(new DocumentServiceError("Document not found.", 404));
     });
 
     it("should successfully apply updates and format properties", async () => {
@@ -677,12 +843,19 @@ describe("DocumentService", () => {
     it("should throw 404 if document not found or has no attachments", async () => {
       mockExec.mockResolvedValueOnce(null);
       await expect(
-        DocumentService.getAllAttachmentUrls(validObjectIdStr),
-      ).rejects.toThrow(new DocumentServiceError("No attachments found.", 404));
+        DocumentService.getAllAttachmentUrls({
+          documentId: validObjectIdStr,
+          parentId: validObjectIdStr,
+        }),
+      ).rejects.toThrow(new DocumentServiceError("Document not found.", 404));
 
-      mockExec.mockResolvedValueOnce(createMockDoc({ attachments: [] }));
+      const emptyAttachmentDoc = createMockDoc({ attachments: [] });
+      mockExec.mockResolvedValue(emptyAttachmentDoc);
       await expect(
-        DocumentService.getAllAttachmentUrls(validObjectIdStr),
+        DocumentService.getAllAttachmentUrls({
+          documentId: validObjectIdStr,
+          parentId: validObjectIdStr,
+        }),
       ).rejects.toThrow(new DocumentServiceError("No attachments found.", 404));
     });
 
@@ -699,8 +872,10 @@ describe("DocumentService", () => {
         .mockResolvedValueOnce("url1")
         .mockResolvedValueOnce("url2");
 
-      const result =
-        await DocumentService.getAllAttachmentUrls(validObjectIdStr);
+      const result = await DocumentService.getAllAttachmentUrls({
+        documentId: validObjectIdStr,
+        parentId: validObjectIdStr,
+      });
 
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
@@ -714,6 +889,74 @@ describe("DocumentService", () => {
         key: "k2",
       });
     });
+
+    it("should deny parent access when companion ownership check fails", async () => {
+      mockExec.mockResolvedValue(createMockDoc());
+      mockParentCompanionExec.mockResolvedValueOnce(null);
+
+      await expect(
+        DocumentService.getAllAttachmentUrls({
+          documentId: validObjectIdStr,
+          parentId: validObjectIdStr,
+        }),
+      ).rejects.toThrow(new DocumentServiceError("Document not found.", 404));
+    });
+
+    it("should deny PMS access when organisation link check fails", async () => {
+      mockExec.mockResolvedValue(createMockDoc({ pmsVisible: true }));
+      mockCompanionOrganisationExec.mockResolvedValueOnce(null);
+
+      await expect(
+        DocumentService.getAllAttachmentUrls({
+          documentId: validObjectIdStr,
+          organisationId: validObjectIdStr,
+        }),
+      ).rejects.toThrow(new DocumentServiceError("Document not found.", 404));
+    });
+  });
+
+  describe("getAttachmentUrlByKey", () => {
+    it("should throw 400 when key is missing", async () => {
+      await expect(
+        DocumentService.getAttachmentUrlByKey({
+          key: "",
+          parentId: validObjectIdStr,
+        }),
+      ).rejects.toThrow(new DocumentServiceError("Key is required.", 400));
+    });
+
+    it("should return a presigned url for parent context", async () => {
+      const mockDoc = createMockDoc({
+        attachments: [{ key: "k1", mimeType: "img/png" }],
+      });
+      mockExec.mockResolvedValue(mockDoc);
+      (generatePresignedDownloadUrl as jest.Mock).mockResolvedValueOnce("url1");
+
+      const result = await DocumentService.getAttachmentUrlByKey({
+        key: "k1",
+        parentId: validObjectIdStr,
+      });
+
+      expect(DocumentModel.findOne).toHaveBeenCalledWith({
+        "attachments.key": "k1",
+      });
+      expect(result).toBe("url1");
+    });
+
+    it("should deny PMS key access when organisation link check fails", async () => {
+      const mockDoc = createMockDoc({
+        attachments: [{ key: "k1", mimeType: "img/png" }],
+      });
+      mockExec.mockResolvedValue(mockDoc);
+      mockCompanionOrganisationExec.mockResolvedValueOnce(null);
+
+      await expect(
+        DocumentService.getAttachmentUrlByKey({
+          key: "k1",
+          organisationId: validObjectIdStr,
+        }),
+      ).rejects.toThrow(new DocumentServiceError("Document not found.", 404));
+    });
   });
 
   describe("searchByTitleForParent", () => {
@@ -721,6 +964,7 @@ describe("DocumentService", () => {
       await expect(
         DocumentService.searchByTitleForParent({
           companionId: validObjectIdStr,
+          parentId: validObjectIdStr,
           title: "",
         }),
       ).rejects.toThrow(
@@ -730,6 +974,7 @@ describe("DocumentService", () => {
       await expect(
         DocumentService.searchByTitleForParent({
           companionId: validObjectIdStr,
+          parentId: validObjectIdStr,
           title: 123 as any,
         }),
       ).rejects.toThrow(
@@ -743,6 +988,7 @@ describe("DocumentService", () => {
 
       const result = await DocumentService.searchByTitleForParent({
         companionId: validObjectIdStr,
+        parentId: validObjectIdStr,
         title: " test ",
       });
 
@@ -754,6 +1000,18 @@ describe("DocumentService", () => {
       );
       expect(mockSort).toHaveBeenCalledWith({ createdAt: -1 });
       expect(result).toHaveLength(1);
+    });
+
+    it("should deny search when parent is not linked to the companion", async () => {
+      mockParentCompanionExec.mockResolvedValueOnce(null);
+
+      await expect(
+        DocumentService.searchByTitleForParent({
+          companionId: validObjectIdStr,
+          parentId: validObjectIdStr,
+          title: "test",
+        }),
+      ).rejects.toThrow(new DocumentServiceError("Document not found.", 404));
     });
   });
 });

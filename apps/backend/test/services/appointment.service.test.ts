@@ -1667,58 +1667,117 @@ describe("AppointmentService", () => {
         lead: { id: "new_lead" },
         startTime: newTime,
         endTime: newTime,
+        concern: "Updated concern",
       } as any);
 
       expect(OccupancyModel.deleteMany).toHaveBeenCalled(); // Triggered because vet/time changed
       expect(OccupancyModel.create).toHaveBeenCalled();
       expect(mockDoc.lead.id).toBe("new_lead");
+      expect(mockDoc.concern).toBe("Updated concern");
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "APPOINTMENT_RESCHEDULED",
+          metadata: expect.objectContaining({
+            concern: "Updated concern",
+          }),
+        }),
+      );
       expect(mockSession.commitTransaction).toHaveBeenCalled();
+    });
+
+    it("should record audit trail on PMS status update", async () => {
+      const mockDoc: any = createMockDoc({
+        status: "UPCOMING",
+        lead: { id: "vet_1", name: "Vet" },
+      });
+
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      await AppointmentService.updateAppointmentPMS(validId, {
+        lead: { id: "vet_1", name: "Vet" },
+        status: "CHECKED_IN",
+      } as any);
+
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "APPOINTMENT_CHECKED_IN",
+          metadata: expect.objectContaining({
+            status: "CHECKED_IN",
+            previousStatus: "UPCOMING",
+          }),
+        }),
+      );
     });
   });
 
   describe("attachFormsToAppointment", () => {
     it("should throw 400 for bad parameters", async () => {
       await expect(
-        AppointmentService.attachFormsToAppointment("", ["f1"]),
+        AppointmentService.attachFormsToAppointment("", validId, ["f1"]),
+      ).rejects.toThrow("Organisation ID is required");
+      await expect(
+        AppointmentService.attachFormsToAppointment(validId, "", ["f1"]),
       ).rejects.toThrow("Appointment ID is required");
       await expect(
-        AppointmentService.attachFormsToAppointment(validId, []),
+        AppointmentService.attachFormsToAppointment(validId, validId, []),
       ).rejects.toThrow("formIds are required");
       await expect(
-        AppointmentService.attachFormsToAppointment(validId, ["  "]),
+        AppointmentService.attachFormsToAppointment(validId, validId, ["  "]),
       ).rejects.toThrow("formIds are required"); // empty after trim
     });
 
     it("should throw 404 if appointment not found", async () => {
       (AppointmentModel.findById as jest.Mock).mockResolvedValue(null);
       await expect(
-        AppointmentService.attachFormsToAppointment(validId, [validId]),
+        AppointmentService.attachFormsToAppointment(validId, validId, [
+          validId,
+        ]),
       ).rejects.toThrow("Appointment not found");
     });
 
-    it("should throw 404 if some forms missing", async () => {
+    it("should throw 403 if appointment does not belong to organisation", async () => {
       const mockDoc = createMockDoc();
+      (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      await expect(
+        AppointmentService.attachFormsToAppointment(
+          "507f1f77bcf86cd799439012",
+          validId,
+          [validId],
+        ),
+      ).rejects.toThrow("Appointment does not belong to organisation");
+    });
+
+    it("should throw 404 if some forms missing", async () => {
+      const mockDoc = createMockDoc({ organisationId: validId });
       (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
       (FormModel.find as jest.Mock).mockReturnValue(createQueryChain([])); // found 0 forms
       await expect(
-        AppointmentService.attachFormsToAppointment(validId, [validId]),
+        AppointmentService.attachFormsToAppointment(validId, validId, [
+          validId,
+        ]),
       ).rejects.toThrow(/Forms not found:/);
     });
 
     it("should return unmodified doc if all forms already attached", async () => {
-      const mockDoc = createMockDoc({ formIds: [validId] });
+      const mockDoc = createMockDoc({
+        organisationId: validId,
+        formIds: [validId],
+      });
       (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
       // Ensure the returned ID explicitly matches validId so it successfully clears the "missing forms" check
       (FormModel.find as jest.Mock).mockReturnValue(
         createQueryChain([{ _id: new Types.ObjectId(validId) }]),
       );
 
-      await AppointmentService.attachFormsToAppointment(validId, [validId]);
+      await AppointmentService.attachFormsToAppointment(validId, validId, [
+        validId,
+      ]);
       expect(AppointmentModel.findByIdAndUpdate).not.toHaveBeenCalled();
     });
 
     it("should attach new forms successfully", async () => {
-      const mockDoc = createMockDoc({ formIds: [] });
+      const mockDoc = createMockDoc({ organisationId: validId, formIds: [] });
       (AppointmentModel.findById as jest.Mock).mockResolvedValue(mockDoc);
       // Ensure the returned ID explicitly matches validId so it successfully clears the "missing forms" check
       (FormModel.find as jest.Mock).mockReturnValue(
@@ -1730,7 +1789,9 @@ describe("AppointmentService", () => {
         updatedDoc,
       );
 
-      await AppointmentService.attachFormsToAppointment(validId, [validId]);
+      await AppointmentService.attachFormsToAppointment(validId, validId, [
+        validId,
+      ]);
       expect(AppointmentModel.findByIdAndUpdate).toHaveBeenCalled();
       expect(AuditTrailService.recordSafely).toHaveBeenCalled();
     });
@@ -2081,9 +2142,18 @@ describe("AppointmentService", () => {
         lead: { id: "vet_1", name: "Vet" },
         startTime: new Date("2026-02-01T10:00:00Z"),
         endTime: new Date("2026-02-01T11:00:00Z"),
+        concern: "Updated concern",
       } as any);
 
       expect(prisma.occupancy.create).toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "APPOINTMENT_RESCHEDULED",
+          metadata: expect.objectContaining({
+            concern: "Updated concern",
+          }),
+        }),
+      );
     });
 
     it("attachFormsToAppointment uses prisma path", async () => {
@@ -2096,7 +2166,9 @@ describe("AppointmentService", () => {
       );
       (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
 
-      await AppointmentService.attachFormsToAppointment("appt_1", ["form_1"]);
+      await AppointmentService.attachFormsToAppointment("org_1", "appt_1", [
+        "form_1",
+      ]);
 
       expect(prisma.appointment.update).toHaveBeenCalled();
       expect(AuditTrailService.recordSafely).toHaveBeenCalled();

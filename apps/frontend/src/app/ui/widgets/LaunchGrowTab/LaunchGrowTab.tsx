@@ -10,7 +10,7 @@ const Launchtabs = [
   {
     id: 1,
     title: 'APIs',
-    color: '#247AED',
+    color: 'var(--color-badge-blue-bg)',
     icon: MEDIA_SOURCES.launchGrow.tab1,
     heading: 'Application programming interface',
     details: [
@@ -109,7 +109,7 @@ const LaunchGrowTab = () => {
                               icon="solar:verified-check-bold"
                               width="24"
                               height="24"
-                              style={{ color: '#247AED', flexShrink: 0 }}
+                              style={{ color: 'var(--color-badge-blue-bg)', flexShrink: 0 }}
                             />
                             <span className="text-body-3">{detail}</span>
                           </li>
@@ -147,7 +147,7 @@ const LaunchGrowTab = () => {
                         width="20"
                         height="20"
                         style={{
-                          color: '#247AED',
+                          color: 'var(--color-badge-blue-bg)',
                           flexShrink: 0,
                           marginTop: '2px',
                         }}

@@ -18,6 +18,15 @@ router.post(
   SpecialityController.create,
 );
 
+// Bulk create specialities
+router.post(
+  "/bulk",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:edit:any"),
+  SpecialityController.createMany,
+);
+
 // List specialities by organisation
 router.get(
   "/:organisationId",

@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import SessionInitializer from '@/app/ui/layout/SessionInitializer';
 import { useAuthStore } from '@/app/stores/authStore';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { setCompanionTerminologyForOrg } from '@/app/lib/companionTerminology';
 
@@ -13,6 +14,7 @@ jest.mock('@/app/hooks/useProfiles', () => ({
   usePrimaryOrgProfile: jest.fn().mockReturnValue(null),
 }));
 jest.mock('@/app/hooks/useAvailabiities', () => ({ useLoadAvailabilities: jest.fn() }));
+jest.mock('@/app/hooks/useFullscreenLoader', () => ({ useFullscreenLoader: jest.fn() }));
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn((selector: any) =>
     selector({
@@ -58,6 +60,7 @@ describe('SessionInitializer', () => {
 
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.queryByTestId('child')).not.toBeInTheDocument();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('session-initializer', true);
     expect(mockGetState).toHaveBeenCalled(); // checkSession triggered via effect
   });
 
@@ -73,6 +76,7 @@ describe('SessionInitializer', () => {
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('header')).toBeInTheDocument();
     expect(screen.getByTestId('child')).toBeInTheDocument();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('session-initializer', false);
   });
 
   it('stores valid profile terminology for selected org', () => {

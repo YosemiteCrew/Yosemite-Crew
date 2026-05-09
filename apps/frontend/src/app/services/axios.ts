@@ -89,14 +89,16 @@ api.interceptors.response.use(
 // GET Request
 export const getData = async <T>(
   endpoint: string,
-  params: Record<string, unknown> = {}
+  params: Record<string, unknown> = {},
+  opts?: { suppressStatuses?: number[] }
 ): Promise<AxiosResponse<T>> => {
   try {
-    return await api.get<T>(endpoint, {
-      params,
-    });
+    return await api.get<T>(endpoint, { params });
   } catch (error: unknown) {
-    logger.error('API getData error:', error);
+    const status = (error as any)?.response?.status;
+    if (!opts?.suppressStatuses?.includes(status)) {
+      logger.error('API getData error:', error);
+    }
     throw error;
   }
 };

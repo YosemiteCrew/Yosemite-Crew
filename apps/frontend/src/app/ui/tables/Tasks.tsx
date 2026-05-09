@@ -38,13 +38,29 @@ type TaskTableProps = {
 export const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case 'pending':
-      return { color: '#fff', backgroundColor: '#747283' };
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      };
     case 'in_progress':
-      return { color: '#fff', backgroundColor: '#BF9FAA' };
+      return {
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
+      };
     case 'completed':
-      return { color: '#fff', backgroundColor: '#D28F9A' };
+      return {
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
+      };
     default:
-      return { color: '#fff', backgroundColor: '#D9A488' };
+      return {
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
+      };
   }
 };
 
@@ -85,19 +101,19 @@ const Tasks = ({
     {
       label: 'Task',
       key: 'task',
-      width: '15%',
+      width: '160px',
       render: (item: Task) => <div className="appointment-profile-title">{item.name}</div>,
     },
     {
       label: 'Description',
       key: 'description',
-      width: '20%',
+      width: '200px',
       render: (item: Task) => <div className="appointment-profile-title">{item.description}</div>,
     },
     {
       label: 'Category',
       key: 'category',
-      width: '10%',
+      width: '110px',
       render: (item: Task) => (
         <div className="appointment-profile-title">{toTitleCase(item.category)}</div>
       ),
@@ -105,7 +121,7 @@ const Tasks = ({
     {
       label: 'From',
       key: 'from',
-      width: '10%',
+      width: '120px',
       render: (item: Task) => (
         <div className="appointment-profile-title">{getMemberNameById(item.assignedBy)}</div>
       ),
@@ -113,7 +129,7 @@ const Tasks = ({
     {
       label: 'To',
       key: 'to',
-      width: '10%',
+      width: '120px',
       render: (item: Task) => (
         <div className="appointment-profile-title">{getMemberNameById(item.assignedTo)}</div>
       ),
@@ -121,7 +137,7 @@ const Tasks = ({
     {
       label: 'Due date',
       key: 'due',
-      width: '10%',
+      width: '110px',
       render: (item: Task) => (
         <div className="appointment-profile-title">{getFormattedDate(item.dueAt)}</div>
       ),
@@ -129,7 +145,7 @@ const Tasks = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '130px',
       render: (item: Task) => (
         <div className="appointment-status" style={getStatusStyle(item.status)}>
           {toTitleCase(item.status)}
@@ -139,7 +155,7 @@ const Tasks = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '10%',
+      width: '160px',
       render: (item: Task) => (
         <div className="action-btn-col">
           <div className="action-btn-grid">
@@ -149,7 +165,7 @@ const Tasks = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="View task"
               >
-                <IoEyeOutline size={18} color="#302F2E" />
+                <IoEyeOutline size={18} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
             {canEditTasks && canShowTaskStatusChangeAction(item.status) && (
@@ -159,7 +175,7 @@ const Tasks = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
-                  <MdOutlineAutorenew size={18} color="#302F2E" />
+                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -170,7 +186,7 @@ const Tasks = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Reschedule"
                 >
-                  <IoIosCalendar size={18} color="#302F2E" />
+                  <IoIosCalendar size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -181,7 +197,7 @@ const Tasks = ({
   ];
 
   return (
-    <div className="table-wrapper h-full min-h-0 overflow-hidden" style={{ gap: 8 }}>
+    <div className="table-wrapper tasks-scroll-x h-full min-h-0 overflow-hidden" style={{ gap: 8 }}>
       <div className="table-list h-full min-h-0 overflow-y-auto pr-1 pb-1">
         <GenericTable
           data={filteredList}
@@ -189,6 +205,7 @@ const Tasks = ({
           bordered={false}
           pagination={true}
           pageSize={small ? 5 : 10}
+          tableClassName="tasks-table-fixed"
         />
       </div>
       <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 flex gap-4 sm:gap-6 flex-wrap content-start">

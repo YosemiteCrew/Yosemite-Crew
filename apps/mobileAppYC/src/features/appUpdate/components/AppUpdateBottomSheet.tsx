@@ -14,12 +14,13 @@ export type AppUpdateBottomSheetRef = {
 type AppUpdateBottomSheetProps = {
   prompt: AppUpdatePrompt;
   onDeferred?: () => void;
+  initialOpen?: boolean;
 };
 
 const AppUpdateBottomSheet = forwardRef<
   AppUpdateBottomSheetRef,
   AppUpdateBottomSheetProps
->(({prompt, onDeferred}, ref) => {
+>(({prompt, onDeferred, initialOpen = false}, ref) => {
   const {t} = useTranslation();
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
   const deferredHandledRef = useRef(false);
@@ -62,7 +63,7 @@ const AppUpdateBottomSheet = forwardRef<
       title={title}
       message={message}
       snapPoints={['40%']}
-      initialIndex={-1}
+      initialIndex={prompt.kind === 'required' || initialOpen ? 0 : -1}
       enablePanDown={prompt.kind !== 'required'}
       enableHandlePanning={prompt.kind !== 'required'}
       showCloseButton={prompt.kind !== 'required'}

@@ -76,9 +76,17 @@ const formatCensusIvlsDevices = (entry: CensusEntry) => {
 const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
   const key = String(status ?? '').toLowerCase();
   if (key.includes('complete') || key.includes('final'))
-    return { color: '#F7F7F7', backgroundColor: '#D9A488' };
+    return {
+      color: 'var(--color-pill-success-text)',
+      backgroundColor: 'var(--color-pill-success-bg)',
+      borderColor: 'var(--color-pill-success-border)',
+    };
   if (key.includes('error') || key.includes('fail') || key.includes('cancel')) {
-    return { color: '#F7F7F7', backgroundColor: '#D28F9A' };
+    return {
+      color: 'var(--color-pill-warning-text)',
+      backgroundColor: 'var(--color-pill-warning-bg)',
+      borderColor: 'var(--color-pill-warning-border)',
+    };
   }
   if (
     key.includes('pending') ||
@@ -86,9 +94,17 @@ const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
     key.includes('partial') ||
     key.includes('inprocess')
   ) {
-    return { color: '#F7F7F7', backgroundColor: '#747283' };
+    return {
+      color: 'var(--color-pill-progress-text)',
+      backgroundColor: 'var(--color-pill-progress-bg)',
+      borderColor: 'var(--color-pill-progress-border)',
+    };
   }
-  return { color: '#302F2E', backgroundColor: '#F1D4B0' };
+  return {
+    color: 'var(--color-pill-neutral-text)',
+    backgroundColor: 'var(--color-pill-neutral-bg)',
+    borderColor: 'var(--color-pill-neutral-border)',
+  };
 };
 
 const parseFloatSafe = (value?: string): number | null => {
@@ -484,7 +500,7 @@ const getRefreshButtonLabel = (loading: boolean): string => {
 
 const getResultModalOverlayClassName = (showResultModal: boolean): string => {
   const visibleClass = showResultModal ? 'opacity-100' : 'opacity-0 pointer-events-none';
-  return `fixed backdrop-blur-[2px] inset-0 bg-[#302f2e80] z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
+  return `fixed backdrop-blur-[2px] inset-0 bg-black/50 z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
 };
 
 const getResultModalContainerClassName = (showResultModal: boolean): string => {
@@ -1097,13 +1113,13 @@ const IdexxWorkspacePage = () => {
   if (!s.integrationEnabled && !s.loading) {
     return (
       <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-        <div className="text-heading-1 text-text-primary flex items-center gap-2">
+        <div className="text-heading-2 text-text-primary flex items-center gap-2">
           {idexxHubLabel}
           <GlassTooltip content="IDEXX integration is currently disabled." side="bottom">
             <button
               type="button"
               aria-label="IDEXX Hub info"
-              className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
             >
               <IoInformationCircleOutline size={20} />
             </button>
@@ -1136,7 +1152,7 @@ const IdexxWorkspacePage = () => {
 
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <div className="text-heading-1 text-text-primary flex items-center gap-2">
+          <div className="text-heading-2 text-text-primary flex items-center gap-2">
             {idexxHubLabel}
             <GlassTooltip
               content="Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care diagnostics for a seamless workflow."
@@ -1145,7 +1161,7 @@ const IdexxWorkspacePage = () => {
               <button
                 type="button"
                 aria-label="IDEXX Hub info"
-                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
               >
                 <IoInformationCircleOutline size={20} />
               </button>

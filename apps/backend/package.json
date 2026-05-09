@@ -10,6 +10,7 @@
     "type-check": "tsc",
     "lint": "prisma generate && eslint .",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "format": "prettier --write .",
     "format-check": "prettier --check .",
     "prisma": "prisma",
@@ -20,6 +21,7 @@
     "parity:check": "tsx src/scripts/parity-check.ts"
   },
   "dependencies": {
+    "@yosemite-crew/auth": "workspace:^",
     "@prisma/client": "^5.22.0",
     "@aws-sdk/client-cognito-identity-provider": "3.772.0",
     "@aws-sdk/client-pinpoint": "^3.806.0",

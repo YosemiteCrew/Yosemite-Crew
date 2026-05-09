@@ -1,4 +1,5 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import {
   eventsForDayHour,
   getWeekDays,
@@ -6,9 +7,12 @@ import {
 } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
   computeUnavailableSegments,
+  DEFAULT_CALENDAR_FOCUS_MINUTES,
+  getFirstRelevantTimedEventStart,
   getNowTopPxForHourRange,
   isAllDayForDate,
   nextDay,
+  scrollContainerToTarget,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { getStatusStyle } from '@/app/config/statusConfig';
@@ -34,7 +38,6 @@ import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import {
   getVisibleHourRange,
   getVisibleHours,
-  useCalendarAutoScroll,
   useCalendarWeekNavigation,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
@@ -69,6 +72,7 @@ type WeekCalendarProps = {
   draggedAppointmentDurationMinutes?: number;
   slotStepMinutes?: number;
   availabilityLoaded?: boolean;
+  skipAutoScroll?: boolean;
 };
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -95,9 +99,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   draggedAppointmentDurationMinutes,
   slotStepMinutes = 15,
   availabilityLoaded = false,
+  skipAutoScroll = false,
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const onWheelBoundary = useScrollBoundaryWheel();
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
@@ -175,18 +181,52 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     [now, nowPosition]
   );
 
-  useCalendarAutoScroll({
-    date: days[0] ?? weekStart,
-    events: timedEvents,
-    height,
-    nowPosition,
-    scrollContainer: scrollRef.current,
-    skip: !!draggedAppointmentId || !days.length,
-    rangeStart: days[0],
-    rangeEnd: days.at(-1) ? nextDay(days.at(-1) as Date) : undefined,
-    focusStartHour: visibleHourRange.startHour,
-    hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
-  });
+  // Track the weekStart key for which we've already scrolled so we don't
+  // re-fire when availability loads and triggers additional renders.
+  const scrolledWeekRef = useRef<string | null>(null);
+  const weekStartKey = weekStart.toISOString();
+
+  // Keep latest scroll inputs in refs — readable inside the effect without
+  // being deps (avoids re-scrolling when only nowPosition/availability change).
+  const nowPositionRef = useRef(nowPosition);
+  nowPositionRef.current = nowPosition;
+  const timedEventsRef = useRef(timedEvents);
+  timedEventsRef.current = timedEvents;
+  const visibleHourRangeRef = useRef(visibleHourRange);
+  visibleHourRangeRef.current = visibleHourRange;
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !!draggedAppointmentId || !days.length || skipAutoScroll) return;
+    // Only scroll once per week. Re-renders from availability loading or
+    // nowPosition updates must not cause a second jump.
+    if (scrolledWeekRef.current === weekStartKey) return;
+    scrolledWeekRef.current = weekStartKey;
+
+    const currentNowPosition = nowPositionRef.current;
+    const currentTimedEvents = timedEventsRef.current;
+    const currentRange = visibleHourRangeRef.current;
+
+    const rangeStart = days[0];
+    const effectiveRangeEnd = days.at(-1) ? nextDay(days.at(-1) as Date) : nextDay(days[0]);
+
+    let topPx: number;
+    if (currentNowPosition) {
+      topPx = Math.max(0, currentNowPosition.topPx);
+    } else {
+      const focusStart = getFirstRelevantTimedEventStart(
+        currentTimedEvents as never,
+        rangeStart,
+        effectiveRangeEnd
+      );
+      const focusMinutes = focusStart
+        ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
+        : DEFAULT_CALENDAR_FOCUS_MINUTES;
+      topPx = ((focusMinutes - currentRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
+    }
+    scrollContainerToTarget(container, topPx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekStartKey, scrollRef.current, draggedAppointmentId, skipAutoScroll, days.length, height]);
 
   const unavailableByDay = useMemo(
     () =>
@@ -253,7 +293,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             {hasAnyAllDay && (
               <div className="border-b border-grey-light bg-slate-50">
                 <div className="grid py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-[#747473] flex items-start pr-2">
+                  <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
                     All-day
                   </div>
                   <div className="grid min-w-max" style={dayColumnsStyle}>
@@ -303,6 +343,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
               overflowY: 'auto',
               paddingBottom: zoomMode === 'out' ? 30 : 40,
             }}
+            onWheel={onWheelBoundary}
             data-calendar-scroll="true"
           >
             <div className="relative pb-4">
@@ -343,6 +384,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                     top: `${topPct}%`,
                                     height: `${heightPct}%`,
                                     backgroundColor: 'rgba(0,0,0,0.045)',
+                                    transition: 'opacity 0.25s ease',
                                   }}
                                 />
                               );
@@ -354,7 +396,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             dayIndex={dayIndex}
                             handleViewAppointment={handleViewAppointment}
                             handleRescheduleAppointment={handleRescheduleAppointment}
-                            handleChangeStatusAppointment={handleChangeStatusAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
                             canEditAppointments={canEditAppointments}
                             length={days.length - 1}
@@ -367,6 +408,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             onDragHoverTarget={onDragHoverTarget}
                             onCreateAppointmentAt={onCreateAppointmentAt}
                             dropAvailabilityIntervals={getDropAvailabilityIntervals?.(day) ?? []}
+                            unavailableSegments={unavailableByDay[dayIndex]}
                             draggedAppointmentDurationMinutes={draggedAppointmentDurationMinutes}
                             dropDate={day}
                             dropHour={hour}

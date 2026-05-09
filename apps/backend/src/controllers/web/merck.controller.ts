@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { OrgRequest } from "src/middlewares/rbac";
 import { MerckService } from "src/services/merck.service";
 import {

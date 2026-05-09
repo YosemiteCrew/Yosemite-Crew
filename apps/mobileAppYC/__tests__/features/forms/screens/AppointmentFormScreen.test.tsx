@@ -244,6 +244,30 @@ describe('AppointmentFormScreen', () => {
       const {getByText} = renderScreen();
       expect(getByText('Form is not available right now.')).toBeTruthy();
     });
+
+    it('does not fetch forms when the screen is not focused', () => {
+      (useIsFocused as jest.Mock).mockReturnValue(false);
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([]);
+
+      renderScreen();
+
+      expect(FormActions.fetchAppointmentForms).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch forms when the appointment is missing', () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([]);
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({
+          auth: {user: mockUser},
+          appointments: {items: []},
+          companion: {companions: [mockCompanion]},
+        }),
+      );
+
+      renderScreen();
+
+      expect(FormActions.fetchAppointmentForms).not.toHaveBeenCalled();
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -384,6 +408,42 @@ describe('AppointmentFormScreen', () => {
       expect(getByTestId('input-Locked').props.value).toBe('prefilled val');
       expect(getByTestId('input-Locked').props.editable).toBe(false);
     });
+
+    it('cleans companion placeholders and labels while leaving checkbox fields untouched', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {
+          appointmentId: 'appt-1',
+          formId: 'form-1',
+          mode: 'fill',
+          allowSign: true,
+        },
+      });
+
+      const schema = [
+        {
+          id: 'petNickname',
+          type: 'input',
+          label: 'Pet Nickname',
+          placeholder: 'pet nickname',
+        },
+        {
+          id: 'petConfirm',
+          type: 'checkbox',
+          label: 'Pet consent',
+          options: [{value: 'yes', label: 'Pet agrees'}],
+        },
+      ];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId, getByText} = renderScreen();
+
+      expect(getByTestId('input-Companion Nickname').props.value).toBe('Buddy');
+      expect(getByText('Companion consent')).toBeTruthy();
+      expect(getByTestId('checkbox-Pet agrees').props.value).toBe(false);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -461,6 +521,81 @@ describe('AppointmentFormScreen', () => {
           'FormSigning',
           expect.anything(),
         );
+      });
+    });
+
+    it('skips required validation for locked non-checkbox fields in signing mode', async () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {
+          appointmentId: 'appt-1',
+          formId: 'form-1',
+          mode: 'fill',
+          allowSign: true,
+        },
+      });
+      const schema = [
+        {
+          id: 'lockedRequired',
+          type: 'input',
+          label: 'Locked Required',
+          required: true,
+          placeholder: 'pet owner',
+        },
+        {
+          id: 'mustCheck',
+          type: 'checkbox',
+          label: 'Accept Terms',
+          required: true,
+          options: [{value: 'accepted', label: 'Accepted'}],
+        },
+      ];
+      const entry = {
+        ...baseFormEntry,
+        signingRequired: false,
+        form: {...baseFormEntry.form, schema},
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId, queryByTestId} = renderScreen();
+
+      fireEvent(getByTestId('checkbox-Accepted'), 'valueChange', true);
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(FormActions.submitAppointmentForm).toHaveBeenCalled();
+      });
+      expect(queryByTestId('error-Locked Required')).toBeNull();
+    });
+
+    it('alerts when auto-signing fails after a successful submit', async () => {
+      const entry = {...baseFormEntry, signingRequired: true};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      let callCount = 0;
+      mockDispatch.mockImplementation(() => {
+        callCount += 1;
+        const p = Promise.resolve({});
+        (p as any).unwrap = () =>
+          callCount === 1
+            ? Promise.resolve({submission: {_id: 's1'}})
+            : Promise.reject({message: 'Signer unavailable'});
+        return p;
+      });
+
+      const {getByTestId} = renderScreen();
+      fireEvent.changeText(getByTestId('input-Reason'), 'Done');
+      fireEvent(getByTestId('btn-Submit & Continue'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Signing not started',
+          'Signer unavailable',
+        );
+        expect(mockGoBack).toHaveBeenCalled();
       });
     });
   });
@@ -550,6 +685,110 @@ describe('AppointmentFormScreen', () => {
         expect(mockNavigate).toHaveBeenCalledWith(
           'FormSigning',
           expect.objectContaining({signingUrl: 'http://sign'}),
+        );
+      });
+    });
+
+    it('shows a pending signing alert when no signing url is returned', async () => {
+      const entry = {
+        ...baseFormEntry,
+        signingRequired: true,
+        status: 'completed',
+        submission: {_id: 's1', answers: {}},
+      };
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {
+          appointmentId: 'appt-1',
+          formId: 'form-1',
+          mode: 'view',
+          allowSign: true,
+        },
+      });
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      mockDispatch.mockImplementation(() => {
+        const p = Promise.resolve({});
+        (p as any).unwrap = () => Promise.resolve({});
+        return p;
+      });
+
+      const {getByTestId} = renderScreen();
+      fireEvent(getByTestId('btn-View & Sign'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Signing started',
+          'Signing link is not available yet. Please check again shortly from the appointment.',
+        );
+      });
+    });
+
+    it('renders placeholder fallback and implicit signed checkbox values in signed view', () => {
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        submission: {
+          _id: 's1',
+          answers: {notes: ''},
+          signing: {pdf: {url: 'http://pdf'}},
+        },
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {
+              id: 'notes',
+              type: 'input',
+              label: 'Clinic notes',
+              placeholder: 'pet details here',
+            },
+            {
+              id: 'consent',
+              type: 'checkbox',
+              label: 'Pet consent',
+              options: [{label: 'Consent acknowledged'}],
+            },
+            {id: 'visitDate', type: 'input', label: 'Visit date'},
+            {id: 'signatureField', type: 'signature', label: 'Signature'},
+          ],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId, queryByText} = renderScreen();
+
+      expect(getByTestId('input-Clinic notes').props.value).toBe('');
+      expect(getByTestId('checkbox-Consent acknowledged').props.value).toBe(
+        true,
+      );
+      expect(queryByText('Visit date')).toBeNull();
+      expect(queryByText('Signature')).toBeNull();
+    });
+
+    it('alerts when opening the signed pdf fails', async () => {
+      (Linking.openURL as jest.Mock).mockRejectedValueOnce(new Error('No app'));
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        submission: {
+          _id: 's1',
+          signing: {pdf: {url: 'http://pdf'}},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = renderScreen();
+      fireEvent(getByTestId('btn-View & Download'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Unable to open PDF',
+          'Please try again in a moment.',
         );
       });
     });

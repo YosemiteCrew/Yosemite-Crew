@@ -53,19 +53,67 @@ export type SlotsResponse = {
 };
 
 export const AppointmentStatusFilters: StatusOption[] = [
-  status('All', 'all', '#F1D4B0', '#000'),
-  status('Requested', 'requested', '#747283'),
-  status('Upcoming', 'upcoming', '#F1D4B0', '#000'),
-  status('Checked-in', 'checked_in', '#A8A181'),
-  status('In progress', 'in_progress', '#BF9FAA'),
-  status('Completed', 'completed', '#D28F9A'),
-  status('Cancelled', 'cancelled', '#D9A488'),
-  status('No show', 'no_show', '#747283'),
+  status(
+    'All',
+    'all',
+    'var(--status-requested-bg)',
+    'var(--status-requested-text)',
+    'var(--status-requested-border)'
+  ),
+  status(
+    'Requested',
+    'requested',
+    'var(--status-requested-bg)',
+    'var(--status-requested-text)',
+    'var(--status-requested-border)'
+  ),
+  status(
+    'Upcoming',
+    'upcoming',
+    'var(--status-upcoming-bg)',
+    'var(--status-upcoming-text)',
+    'var(--status-upcoming-border)'
+  ),
+  status(
+    'Checked-in',
+    'checked_in',
+    'var(--status-checked-in-bg)',
+    'var(--status-checked-in-text)',
+    'var(--status-checked-in-border)'
+  ),
+  status(
+    'In progress',
+    'in_progress',
+    'var(--status-in-progress-bg)',
+    'var(--status-in-progress-text)',
+    'var(--status-in-progress-border)'
+  ),
+  status(
+    'Completed',
+    'completed',
+    'var(--status-completed-bg)',
+    'var(--status-completed-text)',
+    'var(--status-completed-border)'
+  ),
+  status(
+    'Cancelled',
+    'cancelled',
+    'var(--status-cancelled-bg)',
+    'var(--status-cancelled-text)',
+    'var(--status-cancelled-border)'
+  ),
+  status(
+    'No show',
+    'no_show',
+    'var(--status-no-show-bg)',
+    'var(--status-no-show-text)',
+    'var(--status-no-show-border)'
+  ),
 ];
 
 export const AppointmentStatusFiltersUI: StatusOption[] = AppointmentStatusFilters;
 
-export const AppointmentFilters = [filter('All', 'all'), filter('Emergencies', 'emergencies')];
+export const AppointmentFilters = [filter('Emergencies', 'emergencies')];
 
 type ReasonOptions =
   | 'APPOINTMENT_USAGE'

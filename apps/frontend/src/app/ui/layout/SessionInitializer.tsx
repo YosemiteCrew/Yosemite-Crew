@@ -1,7 +1,8 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import Header from '@/app/ui/layout/Header/Header';
+import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useAuthStore } from '@/app/stores/authStore';
 import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
 import UniversalSearchPalette from '@/app/ui/layout/UniversalSearch/UniversalSearchPalette';
@@ -9,6 +10,19 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useLoadOrg } from '@/app/hooks/useLoadOrg';
 import { useLoadProfiles, usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
+import { loadAvailability } from '@/app/features/organization/services/availabilityService';
+import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
+import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
+import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
+import { loadTasksForPrimaryOrg } from '@/app/features/tasks/services/taskService';
+import { loadTeam } from '@/app/features/organization/services/teamService';
+import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/roomService';
+import { loadDocumentsForOrgPrimaryOrg } from '@/app/features/documents/services/documentService';
+import { loadForms } from '@/app/features/forms/services/formService';
+import { loadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
+import { loadOrgs } from '@/app/features/organization/services/orgService';
+import { loadProfiles } from '@/app/features/organization/services/profileService';
+import { loadSpecialitiesForOrg } from '@/app/features/organization/services/specialityService';
 import {
   getCompanionTerminologyForOrg,
   rewriteCompanionTerminologyText,
@@ -93,6 +107,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const status = useAuthStore((s) => s.status);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrgProfile = usePrimaryOrgProfile();
+  const refreshedOrgIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     useAuthStore
@@ -100,6 +115,30 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
       .checkSession()
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!primaryOrgId) return;
+    if (refreshedOrgIdRef.current === primaryOrgId) return;
+    refreshedOrgIdRef.current = primaryOrgId;
+
+    Promise.allSettled([
+      loadOrgs({ silent: true }),
+      loadProfiles({ silent: true }),
+      loadAvailability({ silent: true }),
+      loadTeam({ silent: true, force: true }),
+      loadSpecialitiesForOrg({ silent: true, force: true, orgId: primaryOrgId }),
+      loadRoomsForOrgPrimaryOrg({ silent: true, force: true }),
+      loadAppointmentsForPrimaryOrg({ silent: true, force: true }),
+      loadCompanionsForPrimaryOrg({ silent: true, force: true }),
+      loadInvoicesForOrgPrimaryOrg({ silent: true, force: true }),
+      loadTasksForPrimaryOrg({ silent: true, force: true }),
+      loadDocumentsForOrgPrimaryOrg({ silent: true, force: true }),
+      loadForms(true),
+      loadIntegrationsForPrimaryOrg({ silent: true, force: true }),
+    ]).catch((error) => {
+      console.error('Failed to refresh organization-scoped stores:', error);
+    });
+  }, [primaryOrgId]);
 
   useEffect(() => {
     if (!primaryOrgId) return;
@@ -142,6 +181,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   }, [primaryOrgId]);
 
   const isChecking = status === 'idle' || status === 'checking';
+  useFullscreenLoader('session-initializer', isChecking);
 
   return (
     <div className="flex h-screen flex-1 lg:overflow-hidden">
@@ -151,7 +191,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         <Header user />
         <UniversalSearchPalette />
 
-        <div className="pt-20 flex-1 lg:pt-0 lg:overflow-y-scroll lg:[scrollbar-gutter:stable] min-w-0">
+        <div className="pt-[72px] flex-1 lg:pt-0 lg:overflow-y-scroll lg:[scrollbar-gutter:stable] min-w-0">
           {isChecking ? null : children}
         </div>
       </div>

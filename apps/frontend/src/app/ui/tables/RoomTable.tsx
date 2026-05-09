@@ -1,14 +1,14 @@
-import React, { useMemo } from "react";
-import GenericTable from "@/app/ui/tables/GenericTable/GenericTable";
-import RoomCard from "@/app/ui/cards/RoomCard";
-import { OrganisationRoom, Speciality } from "@yosemite-crew/types";
-import { useTeamForPrimaryOrg } from "@/app/hooks/useTeam";
-import { useSpecialitiesForPrimaryOrg } from "@/app/hooks/useSpecialities";
-import { Team } from "@/app/features/organization/types/team";
-import { toTitle } from "@/app/lib/validators";
-import { Column, NoDataMessage, ViewButton, ProfileTitle } from "@/app/ui/tables/common";
+import React, { useMemo } from 'react';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import RoomCard from '@/app/ui/cards/RoomCard';
+import { OrganisationRoom, Speciality } from '@yosemite-crew/types';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
+import { Team } from '@/app/features/organization/types/team';
+import { toTitle } from '@/app/lib/validators';
+import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
 
-import "./DataTable.css";
+import './DataTable.css';
 
 type RoomTableProps = {
   filteredList: OrganisationRoom[];
@@ -17,12 +17,12 @@ type RoomTableProps = {
 };
 
 export const getStringified = (services: string[] = []): string => {
-  return services.join(", ");
+  return services.join(', ');
 };
 
 export const joinNames = (byId: Record<string, string>, ids: string[] = []) => {
   const names = ids.map((id) => byId[id]).filter(Boolean);
-  return names.length ? names.join(", ") : "-";
+  return names.length ? names.join(', ') : '-';
 };
 
 const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
@@ -31,7 +31,7 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
 
   const staffNameById = useMemo(() => {
     return teams?.reduce((acc: Record<string, string>, s: Team) => {
-      const name = s.name ?? "";
+      const name = s.name ?? '';
       if (s.practionerId) {
         acc[s.practionerId] = name;
       }
@@ -43,13 +43,10 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
   }, [teams]);
 
   const specialityNameById = useMemo(() => {
-    return specialities?.reduce(
-      (acc: Record<string, string>, sp: Speciality) => {
-        acc[sp._id || sp.name] = sp.name ?? "";
-        return acc;
-      },
-      {}
-    );
+    return specialities?.reduce((acc: Record<string, string>, sp: Speciality) => {
+      acc[sp._id || sp.name] = sp.name ?? '';
+      return acc;
+    }, {});
   }, [specialities]);
 
   const handleViewRoom = (team: OrganisationRoom) => {
@@ -59,45 +56,37 @@ const RoomTable = ({ filteredList, setActive, setView }: RoomTableProps) => {
 
   const columns: Column<OrganisationRoom>[] = [
     {
-      label: "Name",
-      key: "name",
-      width: "20%",
+      label: 'Name',
+      key: 'name',
+      width: '18%',
+      render: (item: OrganisationRoom) => <ProfileTitle>{item.name}</ProfileTitle>,
+    },
+    {
+      label: 'Type',
+      key: 'type',
+      width: '15%',
+      render: (item: OrganisationRoom) => <ProfileTitle>{toTitle(item.type)}</ProfileTitle>,
+    },
+    {
+      label: 'Assigned specialities',
+      key: 'Assigned specialities',
+      width: '30%',
       render: (item: OrganisationRoom) => (
-        <ProfileTitle>{item.name}</ProfileTitle>
+        <ProfileTitle>{joinNames(specialityNameById, item.assignedSpecialiteis)}</ProfileTitle>
       ),
     },
     {
-      label: "Type",
-      key: "type",
-      width: "20%",
+      label: 'Assigned staff',
+      key: 'Assigned staff',
+      width: '30%',
       render: (item: OrganisationRoom) => (
-        <ProfileTitle>{toTitle(item.type)}</ProfileTitle>
+        <ProfileTitle>{joinNames(staffNameById, item.assignedStaffs)}</ProfileTitle>
       ),
     },
     {
-      label: "Assigned specialities",
-      key: "Assigned specialities",
-      width: "25%",
-      render: (item: OrganisationRoom) => (
-        <ProfileTitle>
-          {joinNames(specialityNameById, item.assignedSpecialiteis)}
-        </ProfileTitle>
-      ),
-    },
-    {
-      label: "Assigned staff",
-      key: "Assigned staff",
-      width: "25%",
-      render: (item: OrganisationRoom) => (
-        <ProfileTitle>
-          {joinNames(staffNameById, item.assignedStaffs)}
-        </ProfileTitle>
-      ),
-    },
-    {
-      label: "Actions",
-      key: "actions",
-      width: "10%",
+      label: 'Actions',
+      key: 'actions',
+      width: '64px',
       render: (item: OrganisationRoom) => (
         <div className="action-btn-col">
           <ViewButton onClick={() => handleViewRoom(item)} />

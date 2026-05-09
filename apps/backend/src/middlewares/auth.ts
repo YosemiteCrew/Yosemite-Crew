@@ -207,6 +207,7 @@ export type AuthenticatedRequest<
   userId?: string;
   provider?: string;
   email?: string;
+  emailVerified?: boolean;
   firstName?: string;
   lastName?: string;
 };
@@ -272,10 +273,14 @@ export const authorizeCognitoMobile = async (
       payload = await verifyFirebaseToken(token);
     }
 
+    const normalizedEmailVerified =
+      payload.email_verified === true || payload.email_verified === "true";
+
     (req as AuthenticatedRequest).auth = payload;
     (req as AuthenticatedRequest).userId = payload.sub;
     (req as AuthenticatedRequest).provider = provider?.toString();
     (req as AuthenticatedRequest).email = payload.email!;
+    (req as AuthenticatedRequest).emailVerified = normalizedEmailVerified;
 
     next();
   } catch (error) {

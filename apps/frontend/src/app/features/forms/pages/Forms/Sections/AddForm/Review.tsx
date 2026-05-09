@@ -47,9 +47,9 @@ export const buildInitialValues = (fields: FormField[]): Record<string, any> => 
       } else if (field.type === 'date') {
         acc[field.id] = defaultValue ?? '';
       } else if (field.type === 'number') {
-        acc[field.id] = defaultValue ?? field.placeholder ?? '';
+        acc[field.id] = defaultValue ?? '';
       } else {
-        acc[field.id] = defaultValue ?? field.placeholder ?? '';
+        acc[field.id] = defaultValue ?? '';
       }
     });
   };
@@ -107,7 +107,7 @@ const Review = ({
         label: 'Species',
         key: 'species',
         type: 'multiSelect',
-        options: ['Dog', 'Cat', 'Horse'],
+        options: ['Canine', 'Feline', 'Equine'],
       },
     ],
     [serviceOptions]
@@ -162,14 +162,14 @@ const Review = ({
         <Primary
           href="#"
           text={isEditing ? 'Update & publish' : 'Publish template'}
-          className="w-full max-h-12! text-lg! tracking-wide!"
+          className="w-full max-h-12! text-lg! tracking-[-0.36px]!"
           onClick={onPublish}
           isDisabled={loading}
         />
         <Secondary
           href="#"
           text={isEditing ? 'Update draft' : 'Save as draft'}
-          className="w-full max-h-12! text-lg! tracking-wide!"
+          className="w-full max-h-12! text-lg! tracking-[-0.36px]!"
           onClick={onSaveDraft}
           isDisabled={loading}
         />

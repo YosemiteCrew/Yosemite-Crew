@@ -8,11 +8,6 @@ jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   default: ({ children }: any) => <div data-testid="protected">{children}</div>,
 }));
 
-jest.mock('@/app/features/settings/pages/Settings/Sections/Personal', () => ({
-  __esModule: true,
-  default: () => <div>Personal Section</div>,
-}));
-
 jest.mock('@/app/features/settings/pages/Settings/Sections/OrgSection', () => ({
   __esModule: true,
   default: () => <div>Org Section</div>,
@@ -33,7 +28,6 @@ describe('Settings page', () => {
     render(<Settings />);
 
     expect(screen.getByTestId('protected')).toBeInTheDocument();
-    expect(screen.getByText('Personal Section')).toBeInTheDocument();
     expect(screen.getByText('Org Section')).toBeInTheDocument();
     expect(screen.getByText('Companion Terminology')).toBeInTheDocument();
     expect(screen.getByText('Delete Profile')).toBeInTheDocument();

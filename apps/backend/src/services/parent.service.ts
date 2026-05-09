@@ -12,13 +12,12 @@ import {
   type Parent,
 } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
-import { Prisma } from "@prisma/client";
+import { ParentCreatedFrom, Prisma } from "@prisma/client";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
 import escapeStringRegexp from "escape-string-regexp";
-import { ParentCreatedFrom } from "@prisma/client";
 import { isReadFromPostgres } from "src/config/read-switch";
 
 export class ParentServiceError extends Error {
@@ -96,11 +95,10 @@ const validateTimezone = (value: string, field: string): string => {
   const trimmed = value.trim();
 
   const combinedCandidate = parseCombinedTimezone(trimmed);
-  const normalized = combinedCandidate
-    ? isValidIanaTimezone(combinedCandidate)
-      ? combinedCandidate
-      : trimmed
-    : trimmed;
+  let normalized = trimmed;
+  if (combinedCandidate && isValidIanaTimezone(combinedCandidate)) {
+    normalized = combinedCandidate;
+  }
 
   if (!normalized) {
     throw new ParentServiceError(`${field} cannot be empty.`, 400);

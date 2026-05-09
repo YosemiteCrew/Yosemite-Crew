@@ -58,6 +58,13 @@ type AppointmentCalendarProps = {
   canEditAppointments: boolean;
   onCreateFromCalendarSlot?: (prefill: AppointmentDraftPrefill) => void;
   onAddAppointment?: () => void;
+  activeFilter?: string;
+  setActiveFilter?: (v: string) => void;
+  activeStatus?: string;
+  setActiveStatus?: (v: string) => void;
+  hasEmergency?: boolean;
+  filterOptions?: { key: string; name: string }[];
+  statusOptions?: { key: string; name: string; bg?: string; text?: string; border?: string }[];
 };
 
 type DragContext = {
@@ -111,6 +118,13 @@ const AppointmentCalendar = ({
   canEditAppointments,
   onCreateFromCalendarSlot,
   onAddAppointment,
+  activeFilter,
+  setActiveFilter,
+  activeStatus,
+  setActiveStatus,
+  hasEmergency,
+  filterOptions,
+  statusOptions,
 }: AppointmentCalendarProps) => {
   const { notify } = useNotify();
   const getErrorMessage = useCallback((error: unknown, fallback: string) => {
@@ -124,6 +138,13 @@ const AppointmentCalendar = ({
   const [draggedAppointmentLabel, setDraggedAppointmentLabel] = useState<string | null>(null);
   const [dragError, setDragError] = useState<string | null>(null);
   const [dragContext, setDragContext] = useState<DragContext | null>(null);
+  const [suppressAutoScroll, setSuppressAutoScroll] = useState(false);
+  const suppressAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markDropped = () => {
+    if (suppressAutoScrollTimerRef.current) clearTimeout(suppressAutoScrollTimerRef.current);
+    setSuppressAutoScroll(true);
+    suppressAutoScrollTimerRef.current = setTimeout(() => setSuppressAutoScroll(false), 4000);
+  };
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const slotsCacheRef = useRef<Partial<Record<string, Slot[]>>>({});
@@ -732,6 +753,13 @@ const AppointmentCalendar = ({
         setActiveCalendar={setActiveCalendar}
         showAddButton={canEditAppointments}
         onAddButtonClick={onAddAppointment}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        activeStatus={activeStatus}
+        setActiveStatus={setActiveStatus}
+        hasEmergency={hasEmergency}
+        filterOptions={filterOptions}
+        statusOptions={statusOptions}
       />
       {dragError ? (
         <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">
@@ -745,7 +773,6 @@ const AppointmentCalendar = ({
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
@@ -792,6 +819,7 @@ const AppointmentCalendar = ({
           availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute) => {
+            markDropped();
             moveAppointment(dropDate, minute).catch(() => undefined);
             setDraggedAppointmentId(null);
             setDraggedAppointmentLabel(null);
@@ -799,6 +827,7 @@ const AppointmentCalendar = ({
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}
+          skipAutoScroll={suppressAutoScroll}
         />
       )}
       {activeCalendar === 'week' && (
@@ -856,6 +885,7 @@ const AppointmentCalendar = ({
           availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute) => {
+            markDropped();
             moveAppointment(dropDate, minute).catch(() => undefined);
             setDraggedAppointmentId(null);
             setDraggedAppointmentLabel(null);
@@ -863,6 +893,7 @@ const AppointmentCalendar = ({
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}
+          skipAutoScroll={suppressAutoScroll}
         />
       )}
       {activeCalendar === 'team' && (
@@ -873,7 +904,6 @@ const AppointmentCalendar = ({
           forceFullDayInZoomIn
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
@@ -920,6 +950,7 @@ const AppointmentCalendar = ({
           availabilityLoaded={availabilityLoaded}
           draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
           onAppointmentDropAt={(dropDate, minute, targetLeadId) => {
+            markDropped();
             moveAppointment(dropDate, minute, targetLeadId).catch(() => undefined);
             setDraggedAppointmentId(null);
             setDraggedAppointmentLabel(null);
@@ -927,6 +958,7 @@ const AppointmentCalendar = ({
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}
+          skipAutoScroll={suppressAutoScroll}
         />
       )}
     </div>

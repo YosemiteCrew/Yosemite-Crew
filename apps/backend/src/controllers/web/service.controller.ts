@@ -64,17 +64,49 @@ const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   return res.status(500).json({ message: defaultMessage });
 };
 
+const HealthcareServiceSchema = z
+  .object({
+    resourceType: z.literal("HealthcareService"),
+  })
+  .passthrough();
+
+const HealthcareServiceListSchema = z.array(HealthcareServiceSchema).min(1);
+
 export const ServiceController = {
   createService: async (
     req: Request<unknown, unknown, ServiceRequestDTO>,
     res: Response,
   ) => {
     try {
-      const serviceRequest = req.body;
+      const parsed = HealthcareServiceSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Invalid payload. Expected FHIR HealthcareService resource.",
+        });
+      }
+
+      const serviceRequest = parsed.data;
       const service = await ServiceService.create(serviceRequest);
       return res.status(201).json(service);
     } catch (error: unknown) {
       return handleError(error, res, "Unable to create service.");
+    }
+  },
+
+  createMany: async (req: Request, res: Response) => {
+    try {
+      const parsed = HealthcareServiceListSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message:
+            "Invalid payload list. Expected array of FHIR HealthcareService resources.",
+        });
+      }
+
+      const services = await ServiceService.createMany(parsed.data);
+      return res.status(201).json(services);
+    } catch (error: unknown) {
+      return handleError(error, res, "Unable to create services.");
     }
   },
 
@@ -179,13 +211,19 @@ export const ServiceController = {
         const query = `${parentAddress.city} ${parentAddress.postalCode}`;
 
         // 2a. Geocode city + pincode → lat/lng
-        const geo = (await helpers.getGeoLocation(query)) as {
-          lat: number;
-          lng: number;
-        };
+        const geo = await helpers.getGeoLocation(query);
 
-        lat = geo.lat;
-        lng = geo.lng;
+        const geoRecord =
+          geo && typeof geo === "object"
+            ? (geo as Record<string, unknown>)
+            : {};
+        const nextLat =
+          typeof geoRecord.lat === "number" ? geoRecord.lat : null;
+        const nextLng =
+          typeof geoRecord.lng === "number" ? geoRecord.lng : null;
+
+        lat = nextLat;
+        lng = nextLng;
 
         if (!lat || !lng) {
           return res.status(400).json({

@@ -1,23 +1,23 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import LabelDropdown from "@/app/ui/inputs/Dropdown/LabelDropdown";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 
-jest.mock("react-icons/fa6", () => ({
+jest.mock('react-icons/fa6', () => ({
   FaCaretDown: () => <span data-testid="icon-caret" />,
 }));
 
-jest.mock("react-icons/io", () => ({
+jest.mock('react-icons/io', () => ({
   IoIosWarning: () => <span data-testid="icon-warning" />,
 }));
 
-describe("LabelDropdown", () => {
+describe('LabelDropdown', () => {
   const options = [
-    { label: "Dog", value: "dog" },
-    { label: "Cat", value: "cat" },
+    { label: 'Canine', value: 'dog' },
+    { label: 'Feline', value: 'cat' },
   ];
 
-  it("renders placeholder and error when no selection", () => {
+  it('renders placeholder and error when no selection', () => {
     render(
       <LabelDropdown
         placeholder="Species"
@@ -27,30 +27,24 @@ describe("LabelDropdown", () => {
       />
     );
 
-    expect(screen.getByText("Species")).toBeInTheDocument();
-    expect(screen.getByText("Required")).toBeInTheDocument();
-    expect(screen.getByTestId("icon-warning")).toBeInTheDocument();
+    expect(screen.getByText('Species')).toBeInTheDocument();
+    expect(screen.getByText('Required')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-warning')).toBeInTheDocument();
   });
 
-  it("opens and selects an option", () => {
+  it('opens and selects an option', () => {
     const onSelect = jest.fn();
-    render(
-      <LabelDropdown
-        placeholder="Species"
-        options={options}
-        onSelect={onSelect}
-      />
-    );
+    render(<LabelDropdown placeholder="Species" options={options} onSelect={onSelect} />);
 
     // Click on the placeholder text to open the dropdown
-    fireEvent.click(screen.getByText("Species"));
-    fireEvent.click(screen.getByText("Cat"));
+    fireEvent.click(screen.getByText('Species'));
+    fireEvent.click(screen.getByText('Feline'));
 
-    expect(onSelect).toHaveBeenCalledWith({ label: "Cat", value: "cat" });
-    expect(screen.getByText("Cat")).toBeInTheDocument();
+    expect(onSelect).toHaveBeenCalledWith({ label: 'Feline', value: 'cat' });
+    expect(screen.getByText('Feline')).toBeInTheDocument();
   });
 
-  it("preselects default option", () => {
+  it('preselects default option', () => {
     render(
       <LabelDropdown
         placeholder="Species"
@@ -60,6 +54,6 @@ describe("LabelDropdown", () => {
       />
     );
 
-    expect(screen.getByText("Dog")).toBeInTheDocument();
+    expect(screen.getByText('Canine')).toBeInTheDocument();
   });
 });

@@ -169,35 +169,25 @@ export const OrganizationDocumentService = {
         updates.fileType !== undefined ||
         updates.fileSize !== undefined;
 
-      const nextVersion = fileChanged
-        ? (existing.version ?? 1) + 1
-        : (existing.version ?? 1);
+      const baseVersion = existing.version ?? 1;
+      const nextVersion = fileChanged ? baseVersion + 1 : baseVersion;
+
+      let fileUrl = existing.fileUrl ?? undefined;
+      if (updates.fileUrl !== undefined) {
+        fileUrl = getURLForKey(updates.fileUrl);
+      }
 
       const updated = await prisma.organizationDocument.update({
         where: { id: safeId },
         data: {
           title: updates.title ?? existing.title,
           description: updates.description ?? existing.description ?? "",
-          category: (updates.category ??
-            existing.category) as PrismaOrgDocumentCategory,
-          visibility: (updates.visibility ??
-            existing.visibility) as PrismaOrgDocumentVisibility,
-          fileUrl:
-            updates.fileUrl !== undefined
-              ? getURLForKey(updates.fileUrl)
-              : (existing.fileUrl ?? undefined),
-          fileName:
-            updates.fileName !== undefined
-              ? updates.fileName
-              : (existing.fileName ?? undefined),
-          fileType:
-            updates.fileType !== undefined
-              ? updates.fileType
-              : (existing.fileType ?? undefined),
-          fileSize:
-            updates.fileSize !== undefined
-              ? updates.fileSize
-              : (existing.fileSize ?? undefined),
+          category: updates.category ?? existing.category,
+          visibility: updates.visibility ?? existing.visibility,
+          fileUrl,
+          fileName: updates.fileName ?? existing.fileName ?? undefined,
+          fileType: updates.fileType ?? existing.fileType ?? undefined,
+          fileSize: updates.fileSize ?? existing.fileSize ?? undefined,
           version: nextVersion,
         },
       });

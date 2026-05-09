@@ -7,7 +7,7 @@
   flex-shrink: 0;
   align-self: stretch;
   border-radius: 16px;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--color-neutral-100);
   position: relative;
 }
 .step-search-input {
@@ -34,8 +34,8 @@
   max-height: 200px;
   overflow-y: scroll;
   z-index: 10;
-  background: #fff;
-  border: 1px solid #eaeaea;
+  background: var(--color-white-bg);
+  border: 1px solid var(--color-neutral-100);
   border-radius: 16px;
   padding: 10px 12px;
 }
@@ -52,7 +52,7 @@
   transition: all 0.3s ease-in-out;
 }
 .step-search-speciality:hover {
-  background-color: #f7f7f7;
+  background-color: var(--color-card-hover);
 }
 .step-search-add {
   border: none;

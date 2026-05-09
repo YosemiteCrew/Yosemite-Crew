@@ -2,6 +2,7 @@ import axios from "axios";
 import { MerckHealthlinkClient } from "src/integrations/merck/merck.client";
 import { IntegrationService } from "src/services/integration.service";
 import logger from "src/utils/logger";
+import { toSafeErrorLog } from "src/utils/safe-error-log";
 
 type MerckAudience = "PROV" | "PAT";
 type MerckLanguage = "en" | "es";
@@ -25,8 +26,6 @@ type MerckSearchBaseParams = {
 export type MerckSearchParams = MerckSearchBaseParams & {
   organisationId: string;
 };
-
-export type MerckConsumerSearchParams = MerckSearchBaseParams;
 
 export type MerckSearchResponse = {
   meta: {
@@ -209,9 +208,7 @@ const stripHtml = (value: string): string => {
   let inTag = false;
   let wroteSpace = false;
 
-  for (let index = 0; index < input.length; index += 1) {
-    const char = input[index];
-
+  for (const char of input) {
     if (inTag) {
       if (char === ">") {
         inTag = false;
@@ -727,7 +724,7 @@ const buildSearchParams = (input: MerckSearchBaseParams) => {
     if (subTopicDisplay) params["subTopic.v.dn"] = subTopicDisplay;
   }
 
-  return { params, audience, language, media, username, password };
+  return { params, audience, language, media };
 };
 
 const buildAlternateBaseUrl = (baseUrl: string) => {
@@ -917,7 +914,7 @@ const executeSearch = async (
           upstreamBaseUrl: routing.baseUrl,
           routingReason: routing.reason,
           timezone: input.timezone ?? null,
-          error: retryError,
+          error: toSafeErrorLog(retryError),
         });
         throw retryError;
       }
@@ -930,7 +927,7 @@ const executeSearch = async (
       upstreamBaseUrl: routing.baseUrl,
       routingReason: routing.reason,
       timezone: input.timezone ?? null,
-      error,
+      error: toSafeErrorLog(error),
     });
     throw error;
   }
@@ -944,7 +941,7 @@ export const MerckService = {
     });
   },
   async searchConsumer(
-    input: MerckConsumerSearchParams,
+    input: MerckSearchBaseParams,
   ): Promise<MerckSearchResponse> {
     return executeSearch(input, {
       enforceIntegration: false,

@@ -23,7 +23,7 @@ const getFallbackValue = (field: FormField) => {
   if (field.type === 'boolean') return false;
   if (field.type === 'number' || field.type === 'date') return '';
   if (field.type === 'textarea' || field.type === 'input') {
-    return field.placeholder || '';
+    return '';
   }
   return '';
 };

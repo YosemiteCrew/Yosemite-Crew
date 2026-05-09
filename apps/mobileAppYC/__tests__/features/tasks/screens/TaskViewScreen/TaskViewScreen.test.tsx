@@ -13,6 +13,7 @@ const mockReset = jest.fn();
 const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockGetParent = jest.fn().mockReturnValue({
   reset: mockReset,
+  navigate: mockNavigate,
 });
 
 // Mutable route params to allow changing per test
@@ -195,6 +196,38 @@ jest.mock(
   }),
 );
 
+jest.mock('@/features/tasks/thunks', () => ({
+  markTaskStatus: jest.fn(payload => ({type: 'tasks/markStatus', payload})),
+}));
+
+jest.mock('@/features/tasks/services/calendarSyncService', () => ({
+  openCalendarEvent: jest.fn(),
+}));
+
+jest.mock('@/shared/utils/cdnHelpers', () => ({
+  buildCdnUrlFromKey: jest.fn(key => (key ? `cdn://${key}` : null)),
+}));
+
+jest.mock('@/shared/utils/imageUri', () => ({
+  normalizeImageUri: jest.fn(uri => uri),
+}));
+
+jest.mock(
+  '@/features/observationalTools/services/observationToolService',
+  () => ({
+    observationToolApi: {
+      get: jest.fn(() => Promise.resolve({name: 'Pain Scale'})),
+      previewTaskSubmission: jest.fn(() =>
+        Promise.resolve({id: 'submission-1'}),
+      ),
+    },
+  }),
+);
+
+jest.mock('@/features/appointments/businessesSlice', () => ({
+  fetchBusinesses: jest.fn(() => ({type: 'businesses/fetch'})),
+}));
+
 // Silence warnings
 jest.spyOn(console, 'error').mockImplementation(() => {});
 jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -292,6 +325,16 @@ describe('TaskViewScreen', () => {
           toolType: 'pain-scale',
         },
       },
+      'task-cancelled': {
+        id: 'task-cancelled',
+        status: 'cancelled',
+        title: 'Cancelled Task',
+        category: 'general',
+        companionId: 'comp-1',
+        date: '2025-01-04',
+        statusUpdatedAt: '2025-01-04T10:00:00.000Z',
+        details: {taskType: 'custom'},
+      },
       'task-invalid-time': {
         id: 'task-invalid-time',
         status: 'pending',
@@ -341,6 +384,46 @@ describe('TaskViewScreen', () => {
         category: 'general',
         companionId: 'comp-1',
         assignedTo: null,
+        details: {taskType: 'custom'},
+      },
+      'task-ot-linked': {
+        id: 'task-ot-linked',
+        status: 'completed',
+        title: 'Linked OT',
+        category: 'health',
+        companionId: 'comp-1',
+        date: '2025-01-05',
+        appointmentId: 'apt-1',
+        otSubmissionId: 'submission-linked',
+        details: {
+          taskType: 'take-observational-tool',
+          toolType: 'pain-scale',
+        },
+      },
+      'task-calendar-event': {
+        id: 'task-calendar-event',
+        status: 'pending',
+        title: 'Calendar Task',
+        category: 'general',
+        companionId: 'comp-1',
+        date: '2025-01-05',
+        syncWithCalendar: true,
+        calendarProvider: 'google',
+        calendarEventId: 'evt-1',
+        dueAt: '2025-01-05T13:00:00.000Z',
+        details: {taskType: 'custom'},
+      },
+      'task-attachment': {
+        id: 'task-attachment',
+        status: 'pending',
+        title: 'Attachment Task',
+        category: 'general',
+        companionId: 'comp-1',
+        date: '2025-01-06',
+        attachDocuments: true,
+        attachments: [
+          {id: 'att-1', key: 'lab/report.pdf', name: 'report.pdf', type: null},
+        ],
         details: {taskType: 'custom'},
       },
     },
@@ -448,6 +531,15 @@ describe('TaskViewScreen', () => {
     expect(queryByTestId('btn-Start Now')).toBeNull();
   });
 
+  it('renders cancelled state correctly', () => {
+    mockRouteParams = {taskId: 'task-cancelled', source: 'tasks'};
+    const {getByText, queryByTestId} = render(<TaskViewScreen />);
+
+    expect(getByText('Cancelled on 2025-01-04')).toBeTruthy();
+    expect(queryByTestId('header-right')).toBeNull();
+    expect(queryByTestId('btn-Complete')).toBeNull();
+  });
+
   it('passes task date to AddTask when tapping reuse', () => {
     mockRouteParams = {taskId: 'task-completed', source: 'tasks'};
     const {getByTestId} = render(<TaskViewScreen />);
@@ -478,6 +570,26 @@ describe('TaskViewScreen', () => {
     expect(mockGoBack).toHaveBeenCalled();
   });
 
+  it('falls back to parent navigation when it cannot go back', () => {
+    mockCanGoBack.mockReturnValueOnce(false);
+    mockRouteParams = {taskId: 'task-med', source: 'home'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('header-back'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('HomeStack', {screen: 'Home'});
+  });
+
+  it('falls back to tasks main when it cannot go back from tasks source', () => {
+    mockCanGoBack.mockReturnValueOnce(false);
+    mockRouteParams = {taskId: 'task-med', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('header-back'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('Tasks', {screen: 'TasksMain'});
+  });
+
   it('handles navigation - Edit', () => {
     mockRouteParams = {taskId: 'task-med', source: 'home'};
     const {getByTestId} = render(<TaskViewScreen />);
@@ -498,6 +610,71 @@ describe('TaskViewScreen', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('ObservationalTool', {
       taskId: 'task-ot',
+    });
+  });
+
+  it('dispatches complete action for pending non-observational tasks', () => {
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('btn-Complete'));
+
+    const {markTaskStatus} = require('@/features/tasks/thunks');
+    expect(markTaskStatus).toHaveBeenCalledWith({
+      taskId: 'task-med',
+      status: 'completed',
+    });
+    expect(mockDispatch).toHaveBeenCalled();
+  });
+
+  it('opens calendar events when a calendar event id is present', () => {
+    mockRouteParams = {taskId: 'task-calendar-event', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('touchable-Calendar provider'));
+
+    const {
+      openCalendarEvent,
+    } = require('@/features/tasks/services/calendarSyncService');
+    expect(openCalendarEvent).toHaveBeenCalledWith(
+      'evt-1',
+      '2025-01-05T13:00:00.000Z',
+    );
+  });
+
+  it('does not open calendar events without a calendar event id', () => {
+    mockRouteParams = {taskId: 'task-icloud', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('touchable-Calendar provider'));
+
+    const {
+      openCalendarEvent,
+    } = require('@/features/tasks/services/calendarSyncService');
+    expect(openCalendarEvent).not.toHaveBeenCalled();
+  });
+
+  it('opens OT preview when submission is available', () => {
+    mockRouteParams = {taskId: 'task-ot-linked', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('btn-OT submission'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('ObservationalToolPreview', {
+      taskId: 'task-ot-linked',
+      submissionId: 'submission-linked',
+      toolId: 'pain-scale',
+    });
+  });
+
+  it('navigates to a linked appointment from OT booking CTA', () => {
+    mockRouteParams = {taskId: 'task-ot-linked', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('btn-Show appointment'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+      screen: 'ViewAppointment',
+      params: {appointmentId: 'apt-1'},
     });
   });
 

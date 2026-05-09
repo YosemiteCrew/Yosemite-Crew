@@ -85,7 +85,7 @@ const CompanionCard = ({
             onClick={() => handleViewCompanion(companion)}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
-            <IoEye size={20} color="#302F2E" />
+            <IoEye size={20} color="var(--color-neutral-900)" />
           </button>
         </GlassTooltip>
         {canEditCompanions && (
@@ -94,7 +94,7 @@ const CompanionCard = ({
               onClick={() => handleChangeStatus(companion)}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <MdOutlineAutorenew size={18} color="#302F2E" />
+              <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}
@@ -104,7 +104,7 @@ const CompanionCard = ({
               onClick={() => handleBookAppointment(companion)}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <FaCalendar size={14} color="#302F2E" />
+              <FaCalendar size={14} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}
@@ -114,7 +114,7 @@ const CompanionCard = ({
               onClick={() => handleAddTask(companion)}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <FaTasks size={14} color="#302F2E" />
+              <FaTasks size={14} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}

@@ -87,10 +87,6 @@ export interface ClarityConfig {
   projectId: string;
 }
 
-export interface AgeVerificationConfig {
-  serviceProviderName: string;
-}
-
 // Default/test configuration (safe for CI/CD)
 const DEFAULT_PASSWORDLESS_AUTH_CONFIG: PasswordlessAuthConfig = {
   profileServiceUrl: '',
@@ -149,10 +145,6 @@ const DEFAULT_CLARITY_CONFIG: ClarityConfig = {
   projectId: '',
 };
 
-const DEFAULT_AGE_VERIFICATION_CONFIG: AgeVerificationConfig = {
-  serviceProviderName: '',
-};
-
 let passwordlessOverrides: Partial<PasswordlessAuthConfig> | undefined;
 let googlePlacesOverrides: Partial<GooglePlacesConfig> | undefined;
 let apiOverrides: Partial<ApiConfig> | undefined;
@@ -163,8 +155,6 @@ let demoLoginOverrides: Partial<DemoLoginConfig> | undefined;
 let uiFlagsOverrides: Partial<UiFeatureFlags> | undefined;
 let mobileConfigBehaviorOverrides: Partial<MobileConfigBehavior> | undefined;
 let clarityConfigOverrides: Partial<ClarityConfig> | undefined;
-let ageVerificationConfigOverrides: Partial<AgeVerificationConfig> | undefined;
-
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') {
     return false;
@@ -216,9 +206,6 @@ try {
   }
   if (localConfig.CLARITY_CONFIG) {
     clarityConfigOverrides = localConfig.CLARITY_CONFIG;
-  }
-  if (localConfig.AGE_VERIFICATION_CONFIG) {
-    ageVerificationConfigOverrides = localConfig.AGE_VERIFICATION_CONFIG;
   }
 } catch (error) {
   if (isMissingLocalVariablesModule(error)) {
@@ -282,11 +269,6 @@ export const MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
 export const CLARITY_CONFIG: ClarityConfig = {
   ...DEFAULT_CLARITY_CONFIG,
   ...clarityConfigOverrides,
-};
-
-export const AGE_VERIFICATION_CONFIG: AgeVerificationConfig = {
-  ...DEFAULT_AGE_VERIFICATION_CONFIG,
-  ...ageVerificationConfigOverrides,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

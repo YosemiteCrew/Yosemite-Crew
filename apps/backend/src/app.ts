@@ -6,9 +6,17 @@ import { StripeController } from "./controllers/web/stripe.controller";
 import cors from "cors";
 import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
 import mongoSanitize from "express-mongo-sanitize";
+import {
+  initSuperTokens,
+  registerSuperTokensBeforeRoutes,
+  registerSuperTokensErrorHandler,
+} from "@yosemite-crew/auth";
+
+initSuperTokens();
 
 export function createApp() {
   const app = express();
+  registerSuperTokensBeforeRoutes(app);
   app.disable("x-powered-by");
 
   const limiter = rateLimit({
@@ -67,5 +75,6 @@ export function createApp() {
 
   app.get("/health", (_, res) => res.status(200).json({ status: "ok" }));
 
+  registerSuperTokensErrorHandler(app);
   return app;
 }

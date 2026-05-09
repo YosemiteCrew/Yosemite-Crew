@@ -12,8 +12,10 @@ import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { useRouter } from 'next/navigation';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
-import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
+import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
 import '../AuthPages.css';
 
@@ -40,6 +42,7 @@ const SignIn = ({
   }>({});
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCodeResendonError = async () => {
     try {
@@ -53,7 +56,12 @@ const SignIn = ({
         message: error.message || 'Error resending code.',
         errortext: 'Error',
         iconElement: (
-          <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="var(--color-danger-600)"
+          />
         ),
         className: 'errofoundbg',
       });
@@ -74,13 +82,21 @@ const SignIn = ({
     }
 
     try {
+      setIsSubmitting(true);
       await signIn(normalizedEmail, password);
+      defaultSidebarToCollapsed();
       // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
       globalThis.window?.sessionStorage?.setItem('devAuth', isDeveloper ? 'true' : 'false');
       const signedInRole =
         typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
-      router.push(redirectPath ?? resolveDefaultOpenScreenRoute(signedInRole));
+      const nextRoute = await resolvePostAuthRedirect({
+        fallbackRole: signedInRole,
+        redirectPath,
+        isDeveloper,
+      });
+      router.push(nextRoute);
     } catch (error: any) {
+      setIsSubmitting(false);
       if (error?.code === 'UserNotConfirmedException') {
         await handleCodeResendonError();
       } else {
@@ -88,7 +104,12 @@ const SignIn = ({
           message: error.message || `Sign in failed`,
           errortext: 'Error',
           iconElement: (
-            <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-danger-600)"
+            />
           ),
           className: 'errofoundbg',
         });
@@ -105,6 +126,14 @@ const SignIn = ({
       `}
       style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
     >
+      {isSubmitting ? (
+        <YosemiteLoader
+          variant="fullscreen-translucent"
+          label="Signing you in..."
+          size={120}
+          testId="signin-loader"
+        />
+      ) : null}
       {ErrorTostPopup}
       <div
         className={`
@@ -153,7 +182,13 @@ const SignIn = ({
             </div>
           </div>
           <div className="flex flex-col gap-3 items-center">
-            <Primary text="Sign in" onClick={handleSignIn} href="#" style={{ width: '100%' }} />
+            <Primary
+              text={isSubmitting ? 'Signing in...' : 'Sign in'}
+              onClick={handleSignIn}
+              href="#"
+              isDisabled={isSubmitting}
+              style={{ width: '100%' }}
+            />
             <div className="text-body-4 text-text-primary auth-inline-text">
               {' '}
               Don&apos;t have an account?{' '}

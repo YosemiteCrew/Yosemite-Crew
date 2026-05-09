@@ -23,6 +23,7 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
+import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 
 const Forms = () => {
   const { can } = usePermissions();
@@ -36,6 +37,7 @@ const Forms = () => {
   const [viewPopup, setViewPopup] = useState(false);
   const [editingForm, setEditingForm] = useState<FormsProps | null>(null);
   const [draftForm, setDraftForm] = useState<FormsProps | null>(null);
+  const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
   useLoadSpecialitiesForPrimaryOrg();
   const services = useServicesForPrimaryOrgSpecialities();
   const specialities = useSpecialitiesForPrimaryOrg();
@@ -152,15 +154,21 @@ const Forms = () => {
       setActiveForm(form._id);
     }
   };
+  const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
+    activeView: 'list',
+    listWrapperClassName:
+      'w-full flex flex-col gap-3 h-[calc(100vh-236px)] min-h-[540px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
+    plannerClassName: '',
+  });
 
   return (
-    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <div className="text-text-primary text-heading-1 flex items-center gap-2">
+          <div className="text-text-primary text-heading-2 flex items-center gap-2">
             <span>
               {'Templates'}
-              <span className="text-text-tertiary">{` (${list.length})`}</span>
+              <span className="text-body-2 text-text-tertiary">{` (${list.length})`}</span>
             </span>
             <GlassTooltip
               content="Build and reuse templates, link them to services, and use custom available templates."
@@ -169,29 +177,33 @@ const Forms = () => {
               <button
                 type="button"
                 aria-label="Templates info"
-                className="relative top-[3px] inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
               >
                 <IoInformationCircleOutline size={20} />
               </button>
             </GlassTooltip>
           </div>
         </div>
-        {canEditForms && <Primary href="#" text="Add" onClick={openAddForm} />}
       </div>
 
       <PermissionGate allOf={[PERMISSIONS.FORMS_VIEW_ANY]} fallback={<Fallback />}>
-        <div className="w-full flex flex-col gap-3">
+        <div className={wrapperClassName}>
           <FormsFilters
             list={list}
             setFilteredList={setFilteredList}
             searchQuery={headerSearchQuery}
+            categoryAction={
+              canEditForms ? <Primary href="#" text="Add" onClick={openAddForm} /> : null
+            }
           />
-          <FormsTable
-            filteredList={filteredList}
-            setActiveForm={handleSelectForm}
-            setViewPopup={setViewPopup}
-            loading={loading}
-          />
+          <div ref={plannerSectionRef} className={plannerSectionClassName}>
+            <FormsTable
+              filteredList={filteredList}
+              setActiveForm={handleSelectForm}
+              setViewPopup={setViewPopup}
+              loading={loading}
+            />
+          </div>
         </div>
 
         <AddForm

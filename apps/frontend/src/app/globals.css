@@ -2,6 +2,28 @@
 /* Fonts */
 
 @font-face {
+  font-family: 'Satoshi Variable';
+  src:
+    url('/fonts/satoshi-font/Satoshi-Variable.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-Variable.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-Variable.ttf') format('truetype');
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Satoshi Variable';
+  src:
+    url('/fonts/satoshi-font/Satoshi-VariableItalic.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-VariableItalic.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-VariableItalic.ttf') format('truetype');
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: italic;
+}
+
+@font-face {
   font-family: 'Satoshi';
   src:
     url('/fonts/satoshi-font/Satoshi-Light.woff2') format('woff2'),
@@ -59,6 +81,10 @@
 * {
   box-sizing: border-box;
   scroll-behavior: smooth;
+  font-family: inherit;
+  font-optical-sizing: auto;
+  font-kerning: normal;
+  font-synthesis-weight: none;
 }
 @layer utilities {
   .scrollbar-hidden {
@@ -96,22 +122,28 @@
 @theme {
   --color-neutral-950: #1d1c1b;
   --color-neutral-900: #302f2e;
-  --color-neutral-700: #595958;
-  --color-neutral-600: #747473;
-  --color-neutral-500: #a09f9f;
-  --color-neutral-200: #bfbfbe;
-  --color-neutral-100: #eaeaea;
+  --color-neutral-800: #454341;
+  --color-neutral-700: #5c5956;
+  --color-neutral-600: #8f8984;
+  --color-neutral-500: #a9a39e;
+  --color-neutral-300: #d6d1cd;
+  --color-neutral-200: #e9e6e3;
+  --color-neutral-100: #f5f3f1;
   --color-neutral-0: #ffffff;
 
   /* Brand (blue) */
+  --color-primary-100: #e6f2ff;
+  --color-primary-500: #007cf5;
+  --color-primary-600: #006ae0;
+  --color-primary-700: #0057c2;
   --color-brand-900: #5394ec;
   --color-brand-800: #6aa1eb;
   --color-brand-700: #82afec;
   --color-brand-600: #99bdec;
   --color-brand-500: #b1caec;
   --color-brand-300: #c9dbec;
-  --color-brand-100: #f2f8ff;
-  --color-brand-950: #247aed;
+  --color-brand-100: var(--color-primary-100);
+  --color-brand-950: var(--color-primary-500);
   --color-brand-925: #3b87ec;
 
   /* Success */
@@ -149,6 +181,9 @@
   --color-danger-800: #a6271d;
   --color-danger-900: #811e17;
   --color-danger-950: #621711;
+  --color-semantic-error-100: #fee7e7;
+  --color-semantic-error-500: #ef4444;
+  --color-semantic-error-700: #b91c1c;
 
   --color-text-primary: var(--color-neutral-900);
   --color-text-cta: var(--color-neutral-900);
@@ -158,42 +193,140 @@
   --color-text-tertiary: var(--color-neutral-600);
   --color-text-extra: var(--color-neutral-500);
   --color-surface-card: var(--color-neutral-0);
-  --color-card-border: var(--color-neutral-100);
+  --color-card-border: var(--color-neutral-200);
   --color-card-bg: var(--color-neutral-100);
-  --color-border-card-selected: var(--color-neutral-200);
+  --color-border-card-selected: var(--color-neutral-300);
   --color-state-hover: var(--color-neutral-950);
   --color-state-selected: var(--color-neutral-950);
 
   --color-input-text-placeholder: var(--color-neutral-700);
   --color-input-text-placeholder-active: var(--color-brand-950);
-  --color-input-border-default: var(--color-neutral-100);
+  --color-input-border-default: var(--color-neutral-200);
   --color-input-border-error: var(--color-danger-600);
   --color-input-border-active: var(--color-brand-950);
 
-  --color-card-hover: #f7f7f7;
+  --color-card-hover: var(--color-neutral-100);
   --color-card-warning: #fef3e9;
 
-  --color-black-text: #302f2e;
-  --color-black-bg: #302f2e;
+  --color-black-text: var(--color-neutral-900);
+  --color-black-bg: var(--color-neutral-900);
   --color-black-hover: #1a1a19;
   --color-black-light: #312943;
   --color-black-pure: #000;
-  --color-grey-bg: #747473;
-  --color-grey-text: #747473;
-  --color-grey-border: #a09f9f;
-  --color-grey-light: #eaeaea;
-  --color-grey-noti: #595958;
-  --color-blue-text: #247aed;
-  --color-blue-light: #eaf3ff;
+  --color-grey-bg: var(--color-neutral-600);
+  --color-grey-text: var(--color-neutral-600);
+  --color-grey-border: var(--color-neutral-500);
+  --color-grey-light: var(--color-neutral-200);
+  --color-grey-noti: var(--color-neutral-700);
+  --color-blue-text: var(--color-primary-500);
+  --color-blue-light: var(--color-primary-100);
   --color-blue-sky: #428bec;
-  --color-white-text: #eaeaea;
-  --color-white-bg: #fff;
+  --color-white-text: var(--color-neutral-100);
+  --color-white-bg: var(--color-neutral-0);
   --color-white-pending: #fef3e9;
   --color-pink-border: #37223cb2;
   --color-error: #ee5f54;
+  --color-error-100: #fee7e7;
+  --color-error-500: #ef4444;
+  --color-error-700: #b91c1c;
   --color-delete: #ea3729;
   --color-pending-text: #f68523;
-  --font-satoshi: 'Satoshi', sans-serif;
+  --color-danger-soft: #fee7e7;
+  --color-calendar-line-strong: #c3cedc;
+  --color-calendar-line-soft: #e9edf3;
+  --color-calendar-availability-overlay: rgba(42, 168, 121, 0.12);
+  --color-calendar-preview-overlay: rgba(36, 122, 237, 0.18);
+  --color-calendar-dim-overlay: rgba(0, 0, 0, 0.045);
+  --color-overlay-backdrop: rgba(48, 47, 46, 0.5);
+  --color-chat-surface: #f8fbff;
+  --color-chat-panel: #eff6ff;
+  --color-chat-panel-border: #dbeafe;
+  --color-chat-divider: #e5e7eb;
+  --color-chat-divider-soft: #f3f4f6;
+  --color-chat-surface-soft: #f9fafb;
+  --color-success-bright: #22c55e;
+  --color-success-bright-ring: rgba(34, 197, 94, 0.18);
+  --color-shadow-soft: rgba(15, 23, 42, 0.08);
+  --color-shadow-xs: rgba(17, 24, 39, 0.04);
+  --color-shadow-sm: rgba(0, 0, 0, 0.16);
+  --color-shadow-md: rgba(0, 0, 0, 0.2);
+  --color-muted-999: #999999;
+  --color-muted-400: #c2c2c1;
+  --color-text-hidden: #2b2b2a;
+  --color-toast-error-bg: #f8c1bd;
+  --color-toast-warning-bg: #fcd9bb;
+  --color-toast-success-bg: #b0dccd;
+  --color-select-ink: #312943;
+  --color-select-ink-muted: #31294399;
+  --color-surface-disabled: #f5f5f5;
+  --color-text-subtle: #555555;
+  --color-text-strong: #333333;
+  --color-text-body-dark: #222222;
+  --color-linkedin-blue: #0a66c2;
+  --color-chat-empty-bg: #fdfefe;
+  --color-onboarding-accent-border: #b7c8ff;
+  --color-onboarding-accent-bg: #f8fbff;
+  --color-surface-muted: #f4f4f4;
+  --color-chart-placeholder: #e7e7e7;
+  --color-chart-axis: #666666;
+  --color-chart-warm: #f28a2e;
+  --color-upload-error: #ff3b30;
+  --color-upload-error-soft: #e53e3e;
+  --color-upload-info: #2563eb;
+  --color-upload-success: #10b981;
+  --color-upload-text: #222222;
+
+  --color-badge-blue-bg: var(--color-primary-500);
+  --color-badge-blue-text: #eaf3ff;
+  --color-pill-neutral-bg: var(--status-requested-bg);
+  --color-pill-neutral-text: var(--status-requested-text);
+  --color-pill-neutral-border: var(--status-requested-border);
+  --color-pill-info-bg: var(--status-upcoming-bg);
+  --color-pill-info-text: var(--status-upcoming-text);
+  --color-pill-info-border: var(--status-upcoming-border);
+  --color-pill-accent-bg: var(--status-checked-in-bg);
+  --color-pill-accent-text: var(--status-checked-in-text);
+  --color-pill-accent-border: var(--status-checked-in-border);
+  --color-pill-progress-bg: var(--status-in-progress-bg);
+  --color-pill-progress-text: var(--status-in-progress-text);
+  --color-pill-progress-border: var(--status-in-progress-border);
+  --color-pill-success-bg: var(--status-completed-bg);
+  --color-pill-success-text: var(--status-completed-text);
+  --color-pill-success-border: var(--status-completed-border);
+  --color-pill-warning-bg: var(--status-cancelled-bg);
+  --color-pill-warning-text: var(--status-cancelled-text);
+  --color-pill-warning-border: var(--status-cancelled-border);
+  --font-sans: 'Satoshi Variable', 'Satoshi', sans-serif;
+  --font-satoshi: 'Satoshi Variable', 'Satoshi', sans-serif;
+
+  /* Appointment status tokens (from Figma node 753-1319) */
+  --status-requested-bg: #f5f3f1;
+  --status-requested-text: #5c5956;
+  --status-requested-border: #a9a39e;
+
+  --status-upcoming-bg: #e6f2ff;
+  --status-upcoming-text: #0057c2;
+  --status-upcoming-border: #007cf5;
+
+  --status-checked-in-bg: #eef2ff;
+  --status-checked-in-text: #3730a3;
+  --status-checked-in-border: #6366f1;
+
+  --status-in-progress-bg: #f5f3ff;
+  --status-in-progress-text: #5b21b6;
+  --status-in-progress-border: #8b5cf6;
+
+  --status-completed-bg: #f0fdf4;
+  --status-completed-text: #166534;
+  --status-completed-border: #64c487;
+
+  --status-cancelled-bg: #fff7ed;
+  --status-cancelled-text: #9a3412;
+  --status-cancelled-border: #f97316;
+
+  --status-no-show-bg: #fff7ed;
+  --status-no-show-text: #9a3412;
+  --status-no-show-border: #f97316;
 }
 :root {
   --black-text: var(--color-black-text);
@@ -204,7 +337,7 @@
   --black-grey: var(--color-grey-bg);
   --black-grey-Text: var(--color-grey-text);
   --blue-text: var(--color-blue-text);
-  --light-blue: #e9f2fd;
+  --light-blue: var(--color-primary-100);
   --white-text: #ffffff;
   --whitebg: var(--color-white-bg);
   --greyborder: var(--color-grey-border);
@@ -248,14 +381,24 @@ body {
 }
 body {
   background-color: var(--whitebg) !important;
-  font-family: var(--font-satoshi), sans-serif !important;
+  color: var(--color-text-primary);
+  font-family: var(--font-satoshi) !important;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-rendering: geometricPrecision;
 }
 
 a {
   text-decoration: none !important;
 }
 
-p {
+p,
+button,
+input,
+select,
+textarea {
   font-family: var(--satoshi-font);
 }
 
@@ -309,73 +452,93 @@ input[type='number'] {
 @layer components {
   /* Display text - 48px/3rem - Large headings (Desktop) | 24px Mobile */
   .text-display-1 {
-    @apply font-satoshi text-[3rem] font-medium leading-[3.625rem] tracking-[-0.06rem];
+    @apply font-satoshi text-[3rem] font-medium leading-[3.625rem] tracking-[-0.96px];
   }
 
   /* Display text - 40px/2.5rem - Medium display (Desktop) | 24px Mobile */
   .text-display-2 {
-    @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.05rem];
+    @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.8px];
   }
 
   /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */
   .text-heading-1 {
-    @apply font-satoshi text-[1.75rem] font-medium leading-[2.125rem] tracking-[-0.035rem];
+    @apply font-satoshi text-[1.75rem] font-medium leading-[2.125rem] tracking-[-0.56px];
   }
 
   /* Heading - 22px/1.375rem - Subsection titles | 24px Mobile */
   .text-heading-2 {
-    @apply font-satoshi text-[1.375rem] font-medium leading-[1.75rem] tracking-[-0.0275rem];
+    @apply font-satoshi text-[1.375rem] font-medium leading-[1.75rem] tracking-[-0.44px];
   }
 
   /* Heading - 20px/1.25rem - Section headings | 16px Mobile */
   .text-heading-3 {
-    @apply font-satoshi text-[1.25rem] font-medium leading-[1.5rem];
+    @apply font-satoshi text-[1.25rem] font-medium leading-[1.5rem] tracking-[-0.4px];
   }
 
   /* Body - 24px/1.5rem - Large emphasized body (Mobile heading) */
   .text-body-1 {
-    @apply font-satoshi text-[1.5rem] font-medium leading-[1.875rem] tracking-[-0.03rem];
+    @apply font-satoshi text-[1.5rem] font-medium leading-[1.875rem] tracking-[-0.48px];
   }
 
   /* Body - 20px/1.25rem - Regular subheading text | 16px Mobile */
   .text-body-2 {
-    @apply font-satoshi text-[1.25rem] font-normal leading-[1.75rem] tracking-[-0.025rem];
+    @apply font-satoshi text-[1.25rem] font-normal leading-[1.75rem] tracking-[-0.4px];
   }
 
   /* Body - 18px/1.125rem - Regular body text | 16px Mobile */
   .text-body-3 {
-    @apply font-satoshi text-[1.125rem] font-normal leading-[1.625rem] tracking-[-0.0225rem];
+    @apply font-satoshi text-[1.125rem] font-normal leading-[1.625rem] tracking-[-0.36px];
   }
 
-  /* Body - 18px/1.125rem - Emphasized body (buttons) */
+  /* Body - 16px/1rem - Emphasized body (buttons) */
   .text-body-3-emphasis {
-    @apply font-satoshi text-[1.125rem] font-medium leading-[1.625rem];
+    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem] tracking-[-0.32px];
   }
 
   /* Body - 16px/1rem - Small body text */
   .text-body-4 {
-    @apply font-satoshi text-[1rem] font-normal leading-[1.5rem];
+    @apply font-satoshi text-[1rem] font-normal leading-[1.5rem] tracking-[-0.32px];
   }
 
   /* Body - 16px/1rem - Small emphasized body */
   .text-body-4-emphasis {
-    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem] tracking-[-0.02rem];
+    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem] tracking-[-0.32px];
   }
 
   /* Label - 16px/1rem - Button/link labels */
   .text-label-1 {
-    @apply font-satoshi text-[1rem] font-medium leading-[1rem] tracking-[-0.02rem];
+    @apply font-satoshi text-[1rem] font-medium leading-[1rem] tracking-[-0.32px];
   }
 
   /* Caption - 14px/0.875rem - Small text */
   .text-caption-1 {
-    @apply font-satoshi text-[0.875rem] font-normal leading-[1.25rem] tracking-[-0.0175rem];
+    @apply font-satoshi text-[0.875rem] font-medium leading-[1.25rem] tracking-[-0.28px];
   }
 
   /* Caption - 12px/0.75rem - Smallest text */
   .text-caption-2 {
-    @apply font-satoshi text-[0.75rem] font-normal leading-[1.125rem] tracking-[-0.015rem];
+    @apply font-satoshi text-[0.75rem] font-medium leading-[1.125rem] tracking-[-0.24px];
   }
+}
+
+/* Typography overrides outside @layer — beats Bootstrap's unlayered element resets on button/input.
+   Bootstrap loads after globals.css but @layer styles lose to unlayered styles regardless of
+   specificity. These rules use !important so they win on button elements too. */
+.text-caption-2 {
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  line-height: 1.125rem;
+  letter-spacing: -0.24px;
+}
+
+/* Caption - 10px/0.625rem - Status pills, compact labels. */
+.text-caption-3 {
+  font-family: var(--font-satoshi);
+  font-size: 0.6875rem !important;
+  font-weight: 700 !important;
+  line-height: 1rem;
+  letter-spacing: -0.22px;
+  text-transform: uppercase;
 }
 
 /* Mobile responsive typography - applies to all heading/display classes */
@@ -388,7 +551,7 @@ input[type='number'] {
     font-size: 1.5rem !important;
     font-weight: 500 !important;
     line-height: 1.875rem !important;
-    letter-spacing: -0.03rem;
+    letter-spacing: -0.48px;
   }
 
   .text-heading-3,
@@ -399,13 +562,15 @@ input[type='number'] {
     font-size: 1rem !important;
     font-weight: 400 !important;
     line-height: 1.5rem !important;
+    letter-spacing: -0.32px;
   }
 
   .text-body-3-emphasis {
     font-family: var(--font-satoshi) !important;
-    font-size: 1.125rem !important;
+    font-size: 1rem !important;
     font-weight: 500 !important;
-    line-height: 1.625rem !important;
+    line-height: 1.5rem !important;
+    letter-spacing: -0.32px;
   }
 }
 

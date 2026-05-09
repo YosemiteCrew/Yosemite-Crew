@@ -207,6 +207,8 @@ describe('AddAppointment Component', () => {
     (appointmentService.getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([
       { startTime: '10:00', endTime: '10:30', vetIds: ['lead-1'] },
     ]);
+    Element.prototype.scrollIntoView = jest.fn();
+    HTMLDivElement.prototype.scrollTo = jest.fn();
   });
 
   it('renders base modal and companion section', () => {
@@ -271,6 +273,18 @@ describe('AddAppointment Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Book appointment')).toBeInTheDocument();
     });
+  });
+
+  it('scrolls the modal container instead of the page when advancing steps', async () => {
+    render(<AddAppointment {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('search-companion'));
+
+    await waitFor(() => {
+      expect(HTMLDivElement.prototype.scrollTo).toHaveBeenCalled();
+    });
+
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
   });
 
   it('shows companion validation when submitting without required input', async () => {
@@ -356,5 +370,30 @@ describe('AddAppointment Component', () => {
     await waitFor(() => {
       expect(mockSetShowModal).toHaveBeenCalledWith(false);
     });
+  });
+
+  it('toggles the emergency checkbox when clicking its label text', () => {
+    render(<AddAppointment {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('search-companion'));
+    fireEvent.click(screen.getAllByText('Next')[0]);
+    fireEvent.click(screen.getByTestId('select-Speciality'));
+    fireEvent.click(screen.getByTestId('select-Service'));
+    fireEvent.change(screen.getByTestId('concern-input'), { target: { value: 'Limping' } });
+    fireEvent.click(screen.getAllByText('Next')[1]);
+    fireEvent.click(screen.getByTestId('slot-0'));
+    fireEvent.click(screen.getByTestId('select-Lead'));
+    fireEvent.click(screen.getAllByText('Next')[2]);
+
+    const emergencyLabel = screen.getByText('I confirm this is an emergency.');
+    const emergencyCheckbox = screen.getByLabelText('I confirm this is an emergency.');
+
+    expect(emergencyCheckbox).not.toBeChecked();
+
+    fireEvent.click(emergencyLabel);
+    expect(emergencyCheckbox).toBeChecked();
+
+    fireEvent.click(emergencyLabel);
+    expect(emergencyCheckbox).not.toBeChecked();
   });
 });

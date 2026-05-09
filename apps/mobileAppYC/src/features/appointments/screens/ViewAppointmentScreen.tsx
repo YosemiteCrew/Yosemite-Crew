@@ -96,7 +96,7 @@ import {
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
-const normalizeAvatarUrl = (value: unknown): string | null => {
+export const normalizeAvatarUrl = (value: unknown): string | null => {
   if (typeof value !== 'string') {
     return null;
   }
@@ -111,7 +111,7 @@ const normalizeAvatarUrl = (value: unknown): string | null => {
   return trimmed;
 };
 
-const toImageSource = (value: unknown): {uri: string} | undefined => {
+export const toImageSource = (value: unknown): {uri: string} | undefined => {
   if (!value) {
     return undefined;
   }
@@ -123,7 +123,7 @@ const toImageSource = (value: unknown): {uri: string} | undefined => {
   return uri ? {uri} : undefined;
 };
 
-const getCancellationNote = (
+export const getCancellationNote = (
   isCancelledOrNoShow: boolean,
   isCashPaid: boolean,
 ): string | null => {
@@ -136,7 +136,7 @@ const getCancellationNote = (
   return "This appointment was cancelled. Refunds, if applicable, are processed per the provider organization's policy and card network timelines.";
 };
 
-const resolveEmployeeAvatar = (
+export const resolveEmployeeAvatar = (
   employee: any,
   apt: any,
   displayName?: string | null,
@@ -201,7 +201,7 @@ const useAppointmentInvoicesData = ({
   return {appointmentInvoices, hasMultipleInvoices};
 };
 
-const buildEmployeeDisplay = ({
+export const buildEmployeeDisplay = ({
   employee,
   apt,
   department,
@@ -243,7 +243,7 @@ const buildEmployeeDisplay = ({
     : null;
 };
 
-const formatAppointmentDateTime = (apt: any) => {
+export const formatAppointmentDateTime = (apt: any) => {
   const resolvedTime = apt.time ?? '00:00';
   const formattedTime =
     apt.time?.length === 5 ? `${resolvedTime}:00` : resolvedTime;
@@ -267,6 +267,95 @@ const formatAppointmentDateTime = (apt: any) => {
       : (apt.time ?? '');
   const dateTimeLabel = timeLabel ? `${dateLabel} • ${timeLabel}` : dateLabel;
   return {dateTimeLabel};
+};
+
+export const formatAppointmentFormValue = (
+  field: FormField,
+  value: any,
+): string => {
+  if (value === undefined || value === null) {
+    return '—';
+  }
+  if (field.type === 'date') {
+    const dateObj = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(dateObj.getTime()) ? '—' : dateObj.toLocaleDateString();
+  }
+  if (field.type === 'boolean') {
+    return value ? 'Yes' : 'No';
+  }
+  if (Array.isArray(value)) {
+    return value.map(v => `${v}`).join(', ') || '—';
+  }
+  if (typeof value === 'object') {
+    if ('url' in value && value.url) {
+      return String(value.url);
+    }
+    return JSON.stringify(value);
+  }
+  return `${value}`;
+};
+
+export const getAppointmentFormAction = (
+  entry: AppointmentFormEntry,
+): {label: string; mode: 'view' | 'fill'; allowSign: boolean} => {
+  const isSigned = entry.status === 'signed';
+  if (isSigned) {
+    return {label: 'View form', mode: 'view', allowSign: false};
+  }
+  if (entry.submission && entry.signingRequired) {
+    return {label: 'View & Sign', mode: 'view', allowSign: true};
+  }
+  if (entry.submission) {
+    return {label: 'View form', mode: 'view', allowSign: false};
+  }
+  return {
+    label: entry.signingRequired ? 'Fill & Sign' : 'Fill form',
+    mode: 'fill',
+    allowSign: entry.signingRequired,
+  };
+};
+
+export const getAppointmentFormAnswerRows = (
+  entry: AppointmentFormEntry,
+): Array<{id: string; label: string; value: string}> => {
+  if (!entry.submission) {
+    return [];
+  }
+  const rows: Array<{id: string; label: string; value: string}> = [];
+  const collect = (fields: FormField[]) => {
+    fields.forEach(f => {
+      if (f.type === 'group') {
+        collect(f.fields);
+        return;
+      }
+      rows.push({
+        id: f.id,
+        label: f.label ?? f.id,
+        value: formatAppointmentFormValue(f, entry.submission?.answers?.[f.id]),
+      });
+    });
+  };
+  if (entry.form.schema?.length) {
+    collect(entry.form.schema);
+  }
+  const filtered = rows.filter(r => r.value !== '—' && r.value !== '');
+  if (filtered.length) {
+    return filtered;
+  }
+  const rawAnswers = entry.submission.answers ?? {};
+  const capitalize = (text: string) => {
+    if (!text.length) return text;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  };
+  return Object.entries(rawAnswers)
+    .filter(
+      ([, val]) => val !== undefined && val !== null && `${val}`.trim() !== '',
+    )
+    .map(([key, val]) => ({
+      id: key,
+      label: capitalize(key.replaceAll('_', ' ')),
+      value: `${val}`,
+    }));
 };
 
 const useAppointmentRelations = (
@@ -1105,78 +1194,9 @@ export const ViewAppointmentScreen: React.FC = () => {
     [appointmentId, navigation],
   );
 
-  const formatFormValue = React.useCallback(
-    (field: FormField, value: any): string => {
-      if (value === undefined || value === null) {
-        return '—';
-      }
-      if (field.type === 'date') {
-        const dateObj = value instanceof Date ? value : new Date(value);
-        return Number.isNaN(dateObj.getTime())
-          ? '—'
-          : dateObj.toLocaleDateString();
-      }
-      if (field.type === 'boolean') {
-        return value ? 'Yes' : 'No';
-      }
-      if (Array.isArray(value)) {
-        return value.map(v => `${v}`).join(', ') || '—';
-      }
-      if (typeof value === 'object') {
-        if ('url' in value && value.url) {
-          return String(value.url);
-        }
-        return JSON.stringify(value);
-      }
-      return `${value}`;
-    },
-    [],
-  );
-
   const getAnswerRows = React.useCallback(
-    (entry: AppointmentFormEntry) => {
-      if (!entry.submission) {
-        return [];
-      }
-      const rows: Array<{id: string; label: string; value: string}> = [];
-      const collect = (fields: FormField[]) => {
-        fields.forEach(f => {
-          if (f.type === 'group') {
-            collect(f.fields);
-            return;
-          }
-          rows.push({
-            id: f.id,
-            label: f.label ?? f.id,
-            value: formatFormValue(f, entry.submission?.answers?.[f.id]),
-          });
-        });
-      };
-      if (entry.form.schema?.length) {
-        collect(entry.form.schema);
-      }
-      const filtered = rows.filter(r => r.value !== '—' && r.value !== '');
-      if (filtered.length) {
-        return filtered;
-      }
-      // Fallback: show any answers even if schema was missing
-      const rawAnswers = entry.submission.answers ?? {};
-      const capitalize = (text: string) => {
-        if (!text.length) return text;
-        return text.charAt(0).toUpperCase() + text.slice(1);
-      };
-      return Object.entries(rawAnswers)
-        .filter(
-          ([, val]) =>
-            val !== undefined && val !== null && `${val}`.trim() !== '',
-        )
-        .map(([key, val]) => ({
-          id: key,
-          label: capitalize(key.replaceAll('_', ' ')),
-          value: `${val}`,
-        }));
-    },
-    [formatFormValue],
+    (entry: AppointmentFormEntry) => getAppointmentFormAnswerRows(entry),
+    [],
   );
 
   const renderAnswerSummary = React.useCallback(
@@ -1207,26 +1227,12 @@ export const ViewAppointmentScreen: React.FC = () => {
   const renderFormCard = React.useCallback(
     (entry: AppointmentFormEntry) => {
       const formStatus = getFormStatusDisplay(entry);
-      const isSigned = entry.status === 'signed';
       const showAnswers =
         entry.submission &&
         !entry.signingRequired &&
         entry.status !== 'signing' &&
         entry.status !== 'submitted';
-      let action: {label: string; mode: 'view' | 'fill'; allowSign: boolean};
-      if (isSigned) {
-        action = {label: 'View form', mode: 'view' as const, allowSign: false};
-      } else if (entry.submission && entry.signingRequired) {
-        action = {label: 'View & Sign', mode: 'view' as const, allowSign: true};
-      } else if (entry.submission) {
-        action = {label: 'View form', mode: 'view' as const, allowSign: false};
-      } else {
-        action = {
-          label: entry.signingRequired ? 'Fill & Sign' : 'Fill form',
-          mode: 'fill' as const,
-          allowSign: entry.signingRequired,
-        };
-      }
+      const action = getAppointmentFormAction(entry);
 
       return (
         <View

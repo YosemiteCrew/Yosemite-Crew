@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const MOBILE_CONFIG_URL = 'https://api.yosemitecrew.com/v1/mobile-config/';
+const MOBILE_CONFIG_TIMEOUT_MS = 8000;
 
 export type MobileEnv =
   | 'dev'
@@ -82,7 +83,9 @@ export const isDevelopmentMobileEnv = (env?: MobileEnv | null): boolean => {
 export const fetchMobileConfig = async (): Promise<MobileConfig> => {
   console.log('[MobileConfig] Request', {url: MOBILE_CONFIG_URL});
   try {
-    const response = await axios.get<MobileConfig>(MOBILE_CONFIG_URL);
+    const response = await axios.get<MobileConfig>(MOBILE_CONFIG_URL, {
+      timeout: MOBILE_CONFIG_TIMEOUT_MS,
+    });
     console.log('[MobileConfig] Response', {
       url: MOBILE_CONFIG_URL,
       status: response.status,

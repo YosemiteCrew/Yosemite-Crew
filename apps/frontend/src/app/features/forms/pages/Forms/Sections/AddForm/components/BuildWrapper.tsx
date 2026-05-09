@@ -56,7 +56,7 @@ const BuilderWrapper: React.FC<{
       clone.style.left = '-9999px';
       clone.style.borderRadius = '16px';
       clone.style.overflow = 'hidden';
-      clone.style.background = '#fff';
+      clone.style.background = 'var(--color-neutral-0)';
       clone.style.boxShadow = '0 10px 30px rgba(0,0,0,0.08)';
       document.body.appendChild(clone);
       dragPreviewRef.current = clone;
@@ -99,7 +99,7 @@ const BuilderWrapper: React.FC<{
         <div className="flex items-center gap-2">
           <MdDragIndicator
             size={20}
-            color="#999999"
+            color="var(--color-muted-999)"
             className={`cursor-grab ${draggable ? 'opacity-100' : 'opacity-50'}`}
             data-drag-handle
           />
@@ -117,7 +117,7 @@ const BuilderWrapper: React.FC<{
               className={`${canMoveUp ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
               title="Move up"
             >
-              <IoMdArrowUp size={20} color="#302f2e" />
+              <IoMdArrowUp size={20} color="var(--color-neutral-900)" />
             </button>
           )}
           {onMoveDown && (
@@ -127,11 +127,11 @@ const BuilderWrapper: React.FC<{
               className={`${canMoveDown ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
               title="Move down"
             >
-              <IoMdArrowDown size={20} color="#302f2e" />
+              <IoMdArrowDown size={20} color="var(--color-neutral-900)" />
             </button>
           )}
           <button onClick={onDelete} className="hover:bg-red-50 rounded p-1">
-            <MdDeleteForever size={20} color="#EA3729" />
+            <MdDeleteForever size={20} color="var(--color-danger-600)" />
           </button>
         </div>
       </div>

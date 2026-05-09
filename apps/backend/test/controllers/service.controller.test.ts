@@ -63,6 +63,11 @@ describe("ServiceController", () => {
   let req: any;
   let res: any;
 
+  const makeHealthcareService = (overrides: Record<string, any> = {}) => ({
+    resourceType: "HealthcareService",
+    ...overrides,
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     req = mockRequest();
@@ -71,7 +76,9 @@ describe("ServiceController", () => {
 
   describe("Error Handler & User Resolver logic", () => {
     it("handles ServiceServiceError properly", async () => {
-      req = mockRequest({ body: { name: "Test Service" } });
+      req = mockRequest({
+        body: makeHealthcareService({ name: "Test Service" }),
+      });
       const customError = new ServiceServiceError("Custom Error", 409);
       (ServiceService.create as jest.Mock).mockRejectedValueOnce(customError);
 
@@ -113,7 +120,9 @@ describe("ServiceController", () => {
 
   describe("createService", () => {
     it("returns 201 on success", async () => {
-      req = mockRequest({ body: { name: "Test Service" } });
+      req = mockRequest({
+        body: makeHealthcareService({ name: "Test Service" }),
+      });
       (ServiceService.create as jest.Mock).mockResolvedValueOnce({ id: "1" });
 
       await ServiceController.createService(req, res);
@@ -123,7 +132,7 @@ describe("ServiceController", () => {
     });
 
     it("returns 500 on generic error", async () => {
-      req = mockRequest();
+      req = mockRequest({ body: makeHealthcareService() });
       (ServiceService.create as jest.Mock).mockRejectedValueOnce(
         new Error("Fail"),
       );

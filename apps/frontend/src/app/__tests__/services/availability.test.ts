@@ -40,6 +40,7 @@ jest.mock('@/app/stores/orgStore', () => ({
 describe('Availability Service', () => {
   // Store Mocks
   const mockSetAvailabilitiesForOrg = jest.fn();
+  const mockSetUserAvailabilitiesForOrg = jest.fn();
   const mockStartLoading = jest.fn();
   const mockSetAvailabilities = jest.fn();
   const mockUpsertOverideStore = jest.fn();
@@ -57,6 +58,7 @@ describe('Availability Service', () => {
     // Default Store State
     (useAvailabilityStore.getState as jest.Mock).mockReturnValue({
       setAvailabilitiesForOrg: mockSetAvailabilitiesForOrg,
+      setUserAvailabilitiesForOrg: mockSetUserAvailabilitiesForOrg,
       startLoading: mockStartLoading,
       setAvailabilities: mockSetAvailabilities,
       upsertOverideStore: mockUpsertOverideStore,
@@ -80,7 +82,7 @@ describe('Availability Service', () => {
     const mockFormData = { someField: 'value' } as unknown as ApiAvailability;
 
     it('upserts successfully using orgIdFromQuery', async () => {
-      const mockResponse = { data: { data: ['avail-1'] } };
+      const mockResponse = { data: { data: [{ _id: 'avail-1', userId: 'user-1' }] } };
       (axiosService.postData as jest.Mock).mockResolvedValue(mockResponse);
 
       await upsertAvailability(mockFormData, 'query-org-id');
@@ -89,11 +91,13 @@ describe('Availability Service', () => {
         '/fhir/v1/availability/query-org-id/base',
         mockFormData
       );
-      expect(mockSetAvailabilitiesForOrg).toHaveBeenCalledWith('query-org-id', ['avail-1']);
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('query-org-id', 'user-1', [
+        { _id: 'avail-1', userId: 'user-1' },
+      ]);
     });
 
     it('upserts successfully using primaryOrgId when query id is null', async () => {
-      const mockResponse = { data: { data: ['avail-1'] } };
+      const mockResponse = { data: { data: [{ _id: 'avail-1', userId: 'user-1' }] } };
       (axiosService.postData as jest.Mock).mockResolvedValue(mockResponse);
 
       await upsertAvailability(mockFormData, null);
@@ -102,7 +106,9 @@ describe('Availability Service', () => {
         '/fhir/v1/availability/org-1/base',
         mockFormData
       );
-      expect(mockSetAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', ['avail-1']);
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', 'user-1', [
+        { _id: 'avail-1', userId: 'user-1' },
+      ]);
     });
 
     it('returns early if no org ID is available', async () => {
@@ -111,7 +117,7 @@ describe('Availability Service', () => {
       await upsertAvailability(mockFormData, null);
 
       expect(axiosService.postData).not.toHaveBeenCalled();
-      expect(mockSetAvailabilitiesForOrg).not.toHaveBeenCalled();
+      expect(mockSetUserAvailabilitiesForOrg).not.toHaveBeenCalled();
     });
 
     it('handles nullish response data gracefully', async () => {
@@ -120,7 +126,7 @@ describe('Availability Service', () => {
 
       await upsertAvailability(mockFormData, 'org-1');
 
-      expect(mockSetAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', []);
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', undefined, []);
     });
 
     it('logs error and rethrows on failure', async () => {
@@ -148,6 +154,7 @@ describe('Availability Service', () => {
         '/fhir/v1/availability/org-q/prac-1/base',
         mockFormData
       );
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-q', 'prac-1', ['a1']);
       expect(result).toEqual(['a1']);
     });
 
@@ -160,6 +167,7 @@ describe('Availability Service', () => {
         '/fhir/v1/availability/org-1/prac-1/base',
         mockFormData
       );
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', 'prac-1', ['a2']);
     });
 
     it('returns early if no org ID', async () => {
@@ -205,8 +213,7 @@ describe('Availability Service', () => {
       expect(mockSetAvailabilities).not.toHaveBeenCalled();
     });
 
-    it('fetches and aggregates availability for multiple orgs', async () => {
-      // Mock different responses for different orgs
+    it('fetches and sets availability per org', async () => {
       (axiosService.getData as jest.Mock)
         .mockResolvedValueOnce({ data: { data: ['a1'] } }) // org-1
         .mockResolvedValueOnce({ data: { data: ['a2'] } }); // org-2
@@ -217,22 +224,21 @@ describe('Availability Service', () => {
       expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/availability/org-1/base');
       expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/availability/org-2/base');
 
-      // Order isn't guaranteed by Promise.allSettled but inputs are sequential
-      expect(mockSetAvailabilities).toHaveBeenCalledWith(expect.arrayContaining(['a1', 'a2']));
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', undefined, ['a1']);
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-2', undefined, ['a2']);
     });
 
-    it('handles individual fetch failures (inner try/catch)', async () => {
+    it('handles individual fetch failures gracefully, still sets empty for failed org', async () => {
       (axiosService.getData as jest.Mock)
         .mockResolvedValueOnce({ data: { data: ['a1'] } }) // org-1 succeeds
         .mockRejectedValueOnce(new Error('Fetch failed')); // org-2 fails
 
       await loadAvailability();
 
-      // Should still set availabilities for the successful ones
-      expect(mockSetAvailabilities).toHaveBeenCalledWith(['a1']);
-      // Should log error for the failed one
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', undefined, ['a1']);
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-2', undefined, []);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to fetch profile for orgId: org-2',
+        'Failed to fetch availability for orgId: org-2',
         expect.any(Error)
       );
     });
@@ -240,19 +246,18 @@ describe('Availability Service', () => {
     it('handles nullish data in response', async () => {
       (axiosService.getData as jest.Mock).mockResolvedValue({ data: null });
       await loadAvailability();
-      expect(mockSetAvailabilities).toHaveBeenCalledWith([]);
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', undefined, []);
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-2', undefined, []);
     });
 
-    it('logs error and throws if outer logic fails', async () => {
-      // Simulate error in setAvailabilities (outside the Promise.all logic)
-      const error = new Error('Store error');
-      mockSetAvailabilities.mockImplementation(() => {
-        throw error;
-      });
-      (axiosService.getData as jest.Mock).mockResolvedValue({ data: { data: [] } });
+    it('uses single-org fast path when orgId option is provided', async () => {
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: { data: ['a1'] } });
 
-      await expect(loadAvailability()).rejects.toThrow(error);
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to load orgs:', error);
+      await loadAvailability({ silent: true, orgId: 'org-1' });
+
+      expect(axiosService.getData).toHaveBeenCalledTimes(1);
+      expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/availability/org-1/base');
+      expect(mockSetUserAvailabilitiesForOrg).toHaveBeenCalledWith('org-1', undefined, ['a1']);
     });
   });
 
