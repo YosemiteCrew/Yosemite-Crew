@@ -7,7 +7,6 @@
  */
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {StatusBar, LogBox, Linking} from 'react-native';
-import * as Clarity from '@microsoft/react-native-clarity';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {Provider} from 'react-redux';
@@ -50,9 +49,9 @@ import {
   API_CONFIG,
   AUTH_FEATURE_FLAGS,
   MOBILE_CONFIG_BEHAVIOR,
+  POSTHOG_CONFIG,
   STRIPE_CONFIG,
   UI_FEATURE_FLAGS,
-  CLARITY_CONFIG,
 } from '@/config/variables';
 import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
@@ -65,6 +64,10 @@ import {
   getCurrentAppIdentity,
   shouldShowOptionalPrompt,
 } from '@/features/appUpdate/services/appUpdatePolicy';
+import {
+  initializePostHog,
+  trackPostHogScreen,
+} from '@/shared/services/posthogAnalytics';
 
 Amplify.configure(outputs);
 
@@ -159,14 +162,11 @@ function App(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    const projectId = CLARITY_CONFIG.projectId.trim();
-    if (!projectId) {
-      console.warn('[Clarity] Missing project id; SDK initialization skipped.');
+    if (!POSTHOG_CONFIG.enabled) {
       return;
     }
-    Clarity.initialize(projectId, {
-      logLevel: Clarity.LogLevel.None,
-    });
+
+    initializePostHog();
   }, []);
 
   useEffect(() => {
@@ -374,8 +374,8 @@ function App(): React.JSX.Element {
       return;
     }
     currentRouteNameRef.current = routeName;
-    Clarity.setCurrentScreenName(routeName).catch(error =>
-      console.warn('[Clarity] Failed to track screen on ready', error),
+    trackPostHogScreen(routeName).catch(error =>
+      console.warn('[PostHog] Failed to track screen on ready', error),
     );
   }, [navigationRef]);
 
@@ -385,8 +385,8 @@ function App(): React.JSX.Element {
       return;
     }
     currentRouteNameRef.current = routeName;
-    Clarity.setCurrentScreenName(routeName).catch(error =>
-      console.warn('[Clarity] Failed to track screen change', error),
+    trackPostHogScreen(routeName).catch(error =>
+      console.warn('[PostHog] Failed to track screen change', error),
     );
   }, [navigationRef]);
 

@@ -55,10 +55,15 @@ describe('Configuration Variables', () => {
       expect(config.STRIPE_CONFIG.urlScheme).toBe('yosemitecrew');
       expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(true);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('');
-      expect(config.CLARITY_CONFIG.projectId).toBe('');
-      expect(config.MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl).toBe(
-        true,
-      );
+      expect(config.POSTHOG_CONFIG).toEqual({
+        apiKey: '',
+        captureScreens: true,
+        defaultOptIn: false,
+        enableSessionReplay: false,
+        enabled: false,
+        host: 'https://us.i.posthog.com',
+      });
+      expect(config.MOBILE_CONFIG_BEHAVIOR.useDevApi).toBe(false);
       expect(config.MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow).toBe('off');
     });
 
@@ -113,13 +118,20 @@ describe('Configuration Variables', () => {
       STRIPE_CONFIG: {publishableKey: 'pk_test_override'},
       AUTH_FEATURE_FLAGS: {enableReviewLogin: false},
       DEMO_LOGIN_CONFIG: {email: 'test@example.com'},
-      CLARITY_CONFIG: {projectId: 'clarity-local-project-id'},
+      POSTHOG_CONFIG: {
+        apiKey: 'phc_local_api_key',
+        captureScreens: false,
+        defaultOptIn: true,
+        enableSessionReplay: true,
+        enabled: true,
+        host: 'https://eu.i.posthog.com',
+      },
       MOBILE_CONFIG_BEHAVIOR: {
         skipRemoteFetch: true,
-        forceProductionApiBaseUrl: false,
+        useDevApi: true,
         mockAppUpdateFlow: 'optional',
-        override: {
-          appUpdate: {
+        overrides: {
+          mobileConfig: {
             enabled: true,
           },
         },
@@ -145,14 +157,19 @@ describe('Configuration Variables', () => {
       expect(config.STRIPE_CONFIG.publishableKey).toBe('pk_test_override');
       expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('test@example.com');
-      expect(config.CLARITY_CONFIG.projectId).toBe('clarity-local-project-id');
-      expect(config.MOBILE_CONFIG_BEHAVIOR.forceProductionApiBaseUrl).toBe(
-        false,
-      );
+      expect(config.POSTHOG_CONFIG).toEqual({
+        apiKey: 'phc_local_api_key',
+        captureScreens: false,
+        defaultOptIn: true,
+        enableSessionReplay: true,
+        enabled: true,
+        host: 'https://eu.i.posthog.com',
+      });
+      expect(config.MOBILE_CONFIG_BEHAVIOR.useDevApi).toBe(true);
       expect(config.MOBILE_CONFIG_BEHAVIOR.skipRemoteFetch).toBe(true);
       expect(config.MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow).toBe('optional');
-      expect(config.MOBILE_CONFIG_BEHAVIOR.override).toEqual({
-        appUpdate: {
+      expect(config.MOBILE_CONFIG_BEHAVIOR.overrides).toEqual({
+        mobileConfig: {
           enabled: true,
         },
       });

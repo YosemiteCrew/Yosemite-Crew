@@ -129,8 +129,13 @@ export interface MobileConfigBehavior {
   overrides: RuntimeConfigOverrides;
 }
 
-export interface ClarityConfig {
-  projectId: string;
+export interface PostHogConfig {
+  apiKey: string;
+  captureScreens: boolean;
+  defaultOptIn: boolean;
+  enableSessionReplay: boolean;
+  enabled: boolean;
+  host: string;
 }
 
 type LocalVariablesModule = Partial<{
@@ -144,7 +149,7 @@ type LocalVariablesModule = Partial<{
   DEMO_LOGIN_CONFIG: Partial<DemoLoginConfig>;
   UI_FEATURE_FLAGS: Partial<UiFeatureFlags>;
   MOBILE_CONFIG_BEHAVIOR: Partial<MobileConfigBehavior>;
-  CLARITY_CONFIG: Partial<ClarityConfig>;
+  POSTHOG_CONFIG: Partial<PostHogConfig>;
 }>;
 
 export const resolveApiBaseUrlForAppEnv = (appEnv: AppRuntimeEnv): string =>
@@ -203,8 +208,13 @@ const DEFAULT_MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior = {
   overrides: {},
 };
 
-const DEFAULT_CLARITY_CONFIG: ClarityConfig = {
-  projectId: '',
+const DEFAULT_POSTHOG_CONFIG: PostHogConfig = {
+  apiKey: '',
+  captureScreens: true,
+  defaultOptIn: false,
+  enableSessionReplay: false,
+  enabled: false,
+  host: 'https://us.i.posthog.com',
 };
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {
@@ -311,9 +321,9 @@ export const UI_FEATURE_FLAGS: UiFeatureFlags = {
 export const MOBILE_CONFIG_BEHAVIOR: MobileConfigBehavior =
   mergeMobileConfigBehavior(localVariables.MOBILE_CONFIG_BEHAVIOR);
 
-export const CLARITY_CONFIG: ClarityConfig = {
-  ...DEFAULT_CLARITY_CONFIG,
-  ...localVariables.CLARITY_CONFIG,
+export const POSTHOG_CONFIG: PostHogConfig = {
+  ...DEFAULT_POSTHOG_CONFIG,
+  ...localVariables.POSTHOG_CONFIG,
 };
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';

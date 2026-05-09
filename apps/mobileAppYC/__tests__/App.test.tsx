@@ -13,12 +13,9 @@ jest.mock('@stripe/stripe-react-native', () => ({
   }),
 }));
 
-jest.mock('@microsoft/react-native-clarity', () => ({
-  initialize: jest.fn(),
-  setCurrentScreenName: jest.fn().mockResolvedValue(true),
-  LogLevel: {
-    None: 'None',
-  },
+jest.mock('@/shared/services/posthogAnalytics', () => ({
+  initializePostHog: jest.fn(),
+  trackPostHogScreen: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@/shared/services/firebaseNotifications', () => ({

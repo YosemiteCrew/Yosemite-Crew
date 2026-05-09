@@ -173,7 +173,7 @@ Follow Step 3 above to run `npx ampx sandbox`. It generates a fresh `amplify_out
 
 #### B. JavaScript Variables (`variables.local.ts`)
 
-This file controls which backend environment the app points to and holds optional API keys for third-party services (Stream Chat, Stripe, Google Places). It is gitignored and never committed.
+This file controls which backend environment the app points to and holds optional API keys for third-party services (Stream Chat, Stripe, Google Places, PostHog). It is gitignored and never committed.
 
 ```sh
 cp apps/mobileAppYC/src/config/variables.local.ts apps/mobileAppYC/src/config/variables.local.ts
@@ -189,6 +189,8 @@ const USE_DEV_API = true;
 ```
 
 Set `USE_DEV_API = true` to route all API calls to the development backend. Everything else in the file has sensible defaults and inline comments explaining each option.
+
+PostHog mobile analytics are disabled by default. If you want to enable them for a non-production build, configure `POSTHOG_CONFIG` with a project API key and host, and only switch `enabled` or `defaultOptIn` on after your privacy/consent flow is ready.
 
 > The `variables.ts` file (committed) contains safe defaults and type definitions. Your `variables.local.ts` is layered on top at runtime automatically.
 
