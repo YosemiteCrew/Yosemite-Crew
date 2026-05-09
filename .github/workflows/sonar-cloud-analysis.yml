@@ -160,7 +160,7 @@ jobs:
         run: pnpm test:coverage
 
       - name: Sonar Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v8
         with:
           projectBaseDir: ${{ matrix.dir }}
         env:
