@@ -6,9 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "type-check": "tsc --noEmit",
-    "test": "jest",
+    "test": "node ./scripts/run-jest.mjs",
     "test:unit": "jest",
     "test:watch": "jest --watch",
     "test:ci": "jest --ci",
@@ -28,7 +28,9 @@
     "e2e:ci:playwright": "E2E_WEB_SERVER_COMMAND='pnpm build && next start -p 3001 -H 127.0.0.1' playwright test",
     "e2e:ci": "pnpm run test:a11y && pnpm run e2e:ci:playwright",
     "e2e:headed": "pnpm run test:a11y && playwright test --headed",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "check:bundle-budgets": "node ./scripts/check-bundle-budgets.mjs",
+    "report:build-routes": "node ./scripts/export-build-report.mjs"
   },
   "dependencies": {
     "@calcom/embed-react": "^1.5.3",
@@ -45,6 +47,7 @@
     "libphonenumber-js": "^1.12.31",
     "lodash.isequal": "^4.5.0",
     "next": "15.5.15",
+    "posthog-js": "^1.372.10",
     "react": "^19.1.1",
     "react-datepicker": "^8.7.0",
     "react-dom": "^19.1.1",

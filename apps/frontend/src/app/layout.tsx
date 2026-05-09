@@ -6,7 +6,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import ToastProvider from '@/app/ui/layout/ToastProvider';
 import GlobalFullscreenLoaderOverlay from '@/app/ui/layout/GlobalFullscreenLoaderOverlay';
 import RouteLoaderOverlay from '@/app/ui/layout/RouteLoaderOverlay';
-import ClarityScript from '@/app/ui/layout/ClarityScript';
+import PostHogBootstrap from '@/app/ui/layout/PostHogBootstrap';
+import PostHogUserSync from '@/app/ui/layout/PostHogUserSync';
 import RouteAnnouncer from '@/app/ui/layout/RouteAnnouncer';
 import SkipLink from '@/app/ui/layout/SkipLink';
 
@@ -37,13 +38,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const clarityProjectId = process.env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID?.trim();
+  const postHogProjectToken = process.env.NEXT_PUBLIC_POSTHOG_TOKEN?.trim();
+  const postHogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
+  const hasPostHogConfig = Boolean(postHogProjectToken && postHogHost);
 
   return (
     <html lang="en">
       <body>
         <SkipLink />
-        {clarityProjectId ? <ClarityScript projectId={clarityProjectId} /> : null}
+        {hasPostHogConfig ? (
+          <>
+            <PostHogBootstrap
+              apiHost={postHogHost ?? ''}
+              projectToken={postHogProjectToken ?? ''}
+            />
+            <PostHogUserSync />
+          </>
+        ) : null}
         <Suspense>
           <RouteAnnouncer />
         </Suspense>
