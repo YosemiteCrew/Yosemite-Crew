@@ -1,21 +1,58 @@
 'use client';
 import React from 'react';
+import dynamic from 'next/dynamic';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import DashboardProfile from '@/app/ui/widgets/DashboardProfile/DashboardProfile';
-import VideosCard from '@/app/ui/cards/VideosCard/VideosCard';
-import Explorecard from '@/app/ui/cards/ExploreCard/ExploreCard';
-import AppointmentStat from '@/app/ui/widgets/Stats/AppointmentStat';
-import RevenueStat from '@/app/ui/widgets/Stats/RevenueStat';
-import AppointmentLeadersStat from '@/app/ui/widgets/Stats/AppointmentLeadersStat';
-import RevenueLeadersStat from '@/app/ui/widgets/Stats/RevenueLeadersStat';
-import AnnualInventoryTurnoverStat from '@/app/ui/widgets/Stats/AnnualInventoryTurnoverStat';
-import IndividualProductTurnoverStat from '@/app/ui/widgets/Stats/IndividualProductTurnoverStat';
-import AppointmentTask from '@/app/ui/widgets/Summary/AppointmentTask';
-import Availability from '@/app/ui/widgets/Summary/Availability';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
-import DashboardSteps from '@/app/ui/widgets/DashboardSteps';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
+
+const DashboardStatSkeleton = () => (
+  <div className="min-h-64 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const DashboardCardSkeleton = () => (
+  <div className="min-h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const DashboardSteps = dynamic(() => import('@/app/ui/widgets/DashboardSteps'), {
+  loading: () => <DashboardCardSkeleton />,
+});
+const VideosCard = dynamic(() => import('@/app/ui/cards/VideosCard/VideosCard'), {
+  loading: () => <DashboardCardSkeleton />,
+});
+const Explorecard = dynamic(() => import('@/app/ui/cards/ExploreCard/ExploreCard'), {
+  loading: () => <DashboardCardSkeleton />,
+});
+const AppointmentTask = dynamic(() => import('@/app/ui/widgets/Summary/AppointmentTask'), {
+  loading: () => <DashboardCardSkeleton />,
+});
+const Availability = dynamic(() => import('@/app/ui/widgets/Summary/Availability'), {
+  loading: () => <DashboardCardSkeleton />,
+});
+
+const AppointmentStat = dynamic(() => import('@/app/ui/widgets/Stats/AppointmentStat'), {
+  loading: () => <DashboardStatSkeleton />,
+});
+const RevenueStat = dynamic(() => import('@/app/ui/widgets/Stats/RevenueStat'), {
+  loading: () => <DashboardStatSkeleton />,
+});
+const AppointmentLeadersStat = dynamic(
+  () => import('@/app/ui/widgets/Stats/AppointmentLeadersStat'),
+  { loading: () => <DashboardStatSkeleton /> }
+);
+const RevenueLeadersStat = dynamic(() => import('@/app/ui/widgets/Stats/RevenueLeadersStat'), {
+  loading: () => <DashboardStatSkeleton />,
+});
+const AnnualInventoryTurnoverStat = dynamic(
+  () => import('@/app/ui/widgets/Stats/AnnualInventoryTurnoverStat'),
+  { loading: () => <DashboardStatSkeleton /> }
+);
+const IndividualProductTurnoverStat = dynamic(
+  () => import('@/app/ui/widgets/Stats/IndividualProductTurnoverStat'),
+  { loading: () => <DashboardStatSkeleton /> }
+);
 
 const Dashboard = () => {
   return (
@@ -46,8 +83,8 @@ const Dashboard = () => {
 
 const ProtectedDashboard = () => {
   return (
-    <ProtectedRoute>
-      <OrgGuard>
+    <ProtectedRoute skeleton={<PageSkeleton variant="dashboard" />}>
+      <OrgGuard skeleton={<PageSkeleton variant="dashboard" />}>
         <Dashboard />
       </OrgGuard>
     </ProtectedRoute>

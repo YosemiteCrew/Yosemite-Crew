@@ -1,15 +1,15 @@
 'use client';
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
 import FormsFilters from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
-import AddForm from '@/app/features/forms/pages/Forms/Sections/AddForm';
-import FormInfo from '@/app/features/forms/pages/Forms/Sections/FormInfo';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { loadForms } from '@/app/features/forms/services/formService';
 import { useSearchStore } from '@/app/stores/searchStore';
@@ -24,6 +24,9 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+
+const AddForm = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/AddForm'));
+const FormInfo = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/FormInfo'));
 
 const Forms = () => {
   const { can } = usePermissions();
@@ -233,9 +236,9 @@ const Forms = () => {
 
 const ProtectedForms = () => {
   return (
-    <ProtectedRoute>
-      <OrgGuard>
-        <Suspense>
+    <ProtectedRoute skeleton={<PageSkeleton variant="list" />}>
+      <OrgGuard skeleton={<PageSkeleton variant="list" />}>
+        <Suspense fallback={<PageSkeleton variant="list" />}>
           <Forms />
         </Suspense>
       </OrgGuard>

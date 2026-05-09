@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { getStorageItem } from '@/app/lib/browserStorage';
 import { useAuthStore } from '@/app/stores/authStore';
 
 const isLocalDeveloperFallbackEnabled = () => {
@@ -27,7 +28,7 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
     const isDevPath = pathname?.startsWith('/developers');
 
     const devFlag =
-      isLocalDeveloperFallbackEnabled() && globalThis.sessionStorage?.getItem('devAuth') === 'true';
+      isLocalDeveloperFallbackEnabled() && getStorageItem('session', 'devAuth') === 'true';
 
     const isDevRole = role === 'developer' || devFlag;
 

@@ -1,11 +1,12 @@
-import React from "react";
-import { usePermissions } from "@/app/hooks/usePermissions";
-import type { Permission } from "@/app/lib/permissions";
+import React from 'react';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import type { Permission } from '@/app/lib/permissions';
 
 type PermissionGateProps = {
   anyOf?: Permission[];
   allOf?: Permission[];
   fallback?: React.ReactNode;
+  skeleton?: React.ReactNode;
   orgId?: string | null;
   children: React.ReactNode;
 };
@@ -14,12 +15,13 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   anyOf,
   allOf,
   fallback = null,
+  skeleton = null,
   orgId,
   children,
 }) => {
   const { can, isLoading } = usePermissions(orgId);
 
-  if (isLoading) return <>{fallback}</>;
+  if (isLoading) return <>{skeleton}</>;
 
   const allowed = can({ anyOf, allOf });
 

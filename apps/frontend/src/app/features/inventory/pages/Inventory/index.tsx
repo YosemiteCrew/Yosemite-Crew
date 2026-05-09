@@ -1,14 +1,12 @@
 'use client';
 import React, { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import InventoryFilters from '@/app/ui/filters/InventoryFilters';
 import InventoryTurnoverFilters from '@/app/ui/filters/InventoryTurnoverFilters';
-import InventoryTable from '@/app/ui/tables/InventoryTable';
-import AddInventory from '@/app/features/inventory/components/AddInventory';
-import InventoryTurnoverTable from '@/app/ui/tables/InventoryTurnoverTable';
-import { InventoryInfo } from '@/app/features/inventory/components';
 import {
   CategoryOptionsByBusiness,
   InventoryFiltersState,
@@ -31,6 +29,23 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+
+const InventorySectionSkeleton = () => (
+  <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const InventoryTable = dynamic(() => import('@/app/ui/tables/InventoryTable'), {
+  loading: () => <InventorySectionSkeleton />,
+});
+const InventoryTurnoverTable = dynamic(() => import('@/app/ui/tables/InventoryTurnoverTable'), {
+  loading: () => <InventorySectionSkeleton />,
+});
+const AddInventory = dynamic(() => import('@/app/features/inventory/components/AddInventory'));
+const InventoryInfo = dynamic(() =>
+  import('@/app/features/inventory/components').then((module) => ({
+    default: module.InventoryInfo,
+  }))
+);
 
 type InventoryView = 'inventory' | 'turnover';
 
@@ -82,8 +97,8 @@ const Inventory = () => {
 
   useEffect(() => {
     const org = primaryOrgId ? orgsById[primaryOrgId] : null;
-    if (org?.type && BusinessTypes.includes(org.type as BusinessType)) {
-      setBusinessType(org.type as BusinessType);
+    if (org?.type && BusinessTypes.includes(org.type)) {
+      setBusinessType(org.type);
     } else if (!businessType) {
       setBusinessType('GROOMER');
     }
@@ -382,9 +397,9 @@ const Inventory = () => {
 
 const ProtectedInventory = () => {
   return (
-    <ProtectedRoute>
-      <OrgGuard>
-        <Suspense>
+    <ProtectedRoute skeleton={<PageSkeleton variant="list" />}>
+      <OrgGuard skeleton={<PageSkeleton variant="list" />}>
+        <Suspense fallback={<PageSkeleton variant="list" />}>
           <Inventory />
         </Suspense>
       </OrgGuard>

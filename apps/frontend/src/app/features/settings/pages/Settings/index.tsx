@@ -1,11 +1,37 @@
 'use client';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import React from 'react';
-import DeleteProfile from '@/app/features/settings/pages/Settings/Sections/DeleteProfile';
-import OrgSection from '@/app/features/settings/pages/Settings/Sections/OrgSection';
-import TimezonePreference from '@/app/features/settings/pages/Settings/Sections/TimezonePreference';
-import DefaultOpenScreenPreference from '@/app/features/settings/pages/Settings/Sections/DefaultOpenScreenPreference';
-import CompanionTerminologyPreference from '@/app/features/settings/pages/Settings/Sections/CompanionTerminologyPreference';
+import dynamic from 'next/dynamic';
+
+const SettingsSectionSkeleton = () => (
+  <div className="min-h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const OrgSection = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/OrgSection'),
+  {
+    loading: () => <SettingsSectionSkeleton />,
+  }
+);
+const TimezonePreference = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/TimezonePreference'),
+  { loading: () => <SettingsSectionSkeleton /> }
+);
+const DefaultOpenScreenPreference = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/DefaultOpenScreenPreference'),
+  { loading: () => <SettingsSectionSkeleton /> }
+);
+const CompanionTerminologyPreference = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/CompanionTerminologyPreference'),
+  { loading: () => <SettingsSectionSkeleton /> }
+);
+const DeleteProfile = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/DeleteProfile'),
+  {
+    loading: () => <SettingsSectionSkeleton />,
+  }
+);
 
 const Settings = () => {
   return (
@@ -23,7 +49,7 @@ const Settings = () => {
 
 const ProtectedSettings = () => {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute skeleton={<PageSkeleton variant="settings" />}>
       <Settings />
     </ProtectedRoute>
   );

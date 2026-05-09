@@ -1,7 +1,8 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
+import { getStorageItem, removeStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useAuthStore } from '@/app/stores/authStore';
 
@@ -9,6 +10,11 @@ type ProtectedRouteProps = {
   children: React.ReactNode;
   skeleton?: React.ReactNode;
 };
+
+const AUTH_SESSION_KEY = 'yc_auth_passed';
+const readAuthPassed = (): boolean => getStorageItem('session', AUTH_SESSION_KEY) === '1';
+const writeAuthPassed = () => setStorageItem('session', AUTH_SESSION_KEY, '1');
+const clearAuthPassed = () => removeStorageItem('session', AUTH_SESSION_KEY);
 
 const isLocalGuardBypassEnabled = () => {
   if (process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD !== 'true') return false;
@@ -27,12 +33,20 @@ const ProtectedRoute = ({ children, skeleton = null }: ProtectedRouteProps) => {
   const isAuthed = status === 'authenticated' || status === 'signin-authenticated';
 
   const isAuthGuardDisabled = isLocalGuardBypassEnabled();
-  useFullscreenLoader('auth-guard', !isAuthGuardDisabled && isChecking);
+
+  // Fast-path: if this session has already authenticated, skip skeleton on the
+  // idle→checking transition so navigations between pages feel instant.
+  const [cachedAuthed] = useState(() => isAuthGuardDisabled || readAuthPassed());
+
+  useFullscreenLoader('auth-guard', !isAuthGuardDisabled && isChecking && !cachedAuthed);
 
   useEffect(() => {
     if (isAuthGuardDisabled) return;
     if (isChecking) return;
-    if (!isAuthed) {
+    if (isAuthed) {
+      writeAuthPassed();
+    } else {
+      clearAuthPassed();
       router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
     }
   }, [isAuthGuardDisabled, isChecking, isAuthed, router, pathname]);
@@ -41,10 +55,11 @@ const ProtectedRoute = ({ children, skeleton = null }: ProtectedRouteProps) => {
     return <>{children}</>;
   }
 
-  if (isChecking) {
+  // Show skeleton only when we're checking AND have no cached session proof.
+  if (isChecking && !cachedAuthed) {
     return <>{skeleton}</>;
   }
-  if (!isAuthed) return null;
+  if (!isAuthed && !cachedAuthed) return null;
 
   return <>{children}</>;
 };

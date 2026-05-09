@@ -1,16 +1,11 @@
 'use client';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
-import TasksTable from '@/app/ui/tables/Tasks';
-import AddTask from '@/app/features/tasks/pages/Tasks/Sections/AddTask';
-import TaskInfo from '@/app/features/tasks/pages/Tasks/Sections/TaskInfo';
-import ChangeTaskStatus from '@/app/features/tasks/pages/Tasks/Sections/ChangeStatus';
-import RescheduleTask from '@/app/features/tasks/pages/Tasks/Sections/Reschedule';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
 import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
-import TaskCalendar from '@/app/features/appointments/components/Calendar/TaskCalendar';
-import TaskBoard from '@/app/features/tasks/components/TaskBoard';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { Task, TaskFilters, TaskStatus, TaskStatusFilters } from '@/app/features/tasks/types/task';
@@ -21,6 +16,29 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+
+const TaskPlannerSkeleton = () => (
+  <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const TasksTable = dynamic(() => import('@/app/ui/tables/Tasks'), {
+  loading: () => <TaskPlannerSkeleton />,
+});
+const TaskCalendar = dynamic(
+  () => import('@/app/features/appointments/components/Calendar/TaskCalendar'),
+  { loading: () => <TaskPlannerSkeleton /> }
+);
+const TaskBoard = dynamic(() => import('@/app/features/tasks/components/TaskBoard'), {
+  loading: () => <TaskPlannerSkeleton />,
+});
+const AddTask = dynamic(() => import('@/app/features/tasks/pages/Tasks/Sections/AddTask'));
+const TaskInfo = dynamic(() => import('@/app/features/tasks/pages/Tasks/Sections/TaskInfo'));
+const ChangeTaskStatus = dynamic(
+  () => import('@/app/features/tasks/pages/Tasks/Sections/ChangeStatus')
+);
+const RescheduleTask = dynamic(
+  () => import('@/app/features/tasks/pages/Tasks/Sections/Reschedule')
+);
 
 const Tasks = () => {
   const tasks = useTasksForPrimaryOrg();
@@ -246,9 +264,9 @@ const Tasks = () => {
 
 const ProtectedTasks = () => {
   return (
-    <ProtectedRoute>
-      <OrgGuard>
-        <Suspense>
+    <ProtectedRoute skeleton={<PageSkeleton variant="planner" />}>
+      <OrgGuard skeleton={<PageSkeleton variant="planner" />}>
+        <Suspense fallback={<PageSkeleton variant="planner" />}>
           <Tasks />
         </Suspense>
       </OrgGuard>
