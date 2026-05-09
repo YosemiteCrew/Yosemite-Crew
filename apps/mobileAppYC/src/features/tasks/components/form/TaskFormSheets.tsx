@@ -42,7 +42,7 @@ interface TaskFormSheetsProps extends TaskSheetRefs {
  * Consolidated component that renders all date pickers and bottom sheets
  * Eliminates ~40 lines of duplication between AddTaskScreen and EditTaskScreen
  */
-export const TaskFormSheets: React.FC<TaskFormSheetsProps> = (props) => {
+export const TaskFormSheets: React.FC<TaskFormSheetsProps> = props => {
   const {
     showDatePicker,
     setShowDatePicker,
@@ -89,7 +89,7 @@ export const TaskFormSheets: React.FC<TaskFormSheetsProps> = (props) => {
         updateField={updateField}
         companionType={companionType}
         fileToDelete={fileToDelete}
-        refs={refs as TaskSheetRefs}
+        refs={refs}
         handlers={{
           handleTakePhoto,
           handleChooseFromGallery,

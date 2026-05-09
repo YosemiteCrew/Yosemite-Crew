@@ -13,8 +13,11 @@ export const resolveCurrencyForBusiness = (
   explicitCurrency?: string | null,
 ): CurrencyCode => {
   // If currency is explicitly provided and valid, use it
-  if (explicitCurrency && (explicitCurrency === 'EUR' || explicitCurrency === 'USD')) {
-    return explicitCurrency as CurrencyCode;
+  if (
+    explicitCurrency &&
+    (explicitCurrency === 'EUR' || explicitCurrency === 'USD')
+  ) {
+    return explicitCurrency;
   }
 
   // Check if business is in Europe based on address
@@ -22,34 +25,65 @@ export const resolveCurrencyForBusiness = (
     const address = businessAddress.toLowerCase();
     // List of European country suffixes/patterns commonly found in addresses
     const europeanPatterns = [
-      'uk', 'united kingdom',
-      'ireland', 'ie',
-      'france', 'fr',
-      'germany', 'de',
-      'italy', 'it',
-      'spain', 'es',
-      'netherlands', 'nl',
-      'belgium', 'be',
-      'austria', 'at',
-      'switzerland', 'ch',
-      'sweden', 'se',
-      'norway', 'no',
-      'denmark', 'dk',
-      'finland', 'fi',
-      'poland', 'pl',
-      'portugal', 'pt',
-      'greece', 'gr',
-      'czechia', 'cz',
-      'hungary', 'hu',
-      'romania', 'ro',
-      'bulgaria', 'bg',
-      'slovenia', 'si',
-      'slovakia', 'sk',
-      'baltic', 'estonia', 'latvia', 'lithuania',
-      'luxembourg', 'lu',
-      'malta', 'mt',
-      'cyprus', 'cy',
-      'europe', 'eu', 'european',
+      'uk',
+      'united kingdom',
+      'ireland',
+      'ie',
+      'france',
+      'fr',
+      'germany',
+      'de',
+      'italy',
+      'it',
+      'spain',
+      'es',
+      'netherlands',
+      'nl',
+      'belgium',
+      'be',
+      'austria',
+      'at',
+      'switzerland',
+      'ch',
+      'sweden',
+      'se',
+      'norway',
+      'no',
+      'denmark',
+      'dk',
+      'finland',
+      'fi',
+      'poland',
+      'pl',
+      'portugal',
+      'pt',
+      'greece',
+      'gr',
+      'czechia',
+      'cz',
+      'hungary',
+      'hu',
+      'romania',
+      'ro',
+      'bulgaria',
+      'bg',
+      'slovenia',
+      'si',
+      'slovakia',
+      'sk',
+      'baltic',
+      'estonia',
+      'latvia',
+      'lithuania',
+      'luxembourg',
+      'lu',
+      'malta',
+      'mt',
+      'cyprus',
+      'cy',
+      'europe',
+      'eu',
+      'european',
     ];
 
     // Check if any European pattern matches
@@ -71,7 +105,8 @@ export const normalizeCurrencyCode = (code?: string | null): CurrencyCode => {
 
   const normalized = code.toUpperCase();
   if (normalized === 'EUR' || normalized === 'EURO') return 'EUR';
-  if (normalized === 'USD' || normalized === 'US$' || normalized === 'DOLLAR') return 'USD';
+  if (normalized === 'USD' || normalized === 'US$' || normalized === 'DOLLAR')
+    return 'USD';
 
   // Default to USD for unknown codes
   return 'USD';

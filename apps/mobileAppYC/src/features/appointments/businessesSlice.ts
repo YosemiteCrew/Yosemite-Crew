@@ -1,8 +1,23 @@
-import {createSlice, createAsyncThunk, type PayloadAction} from '@reduxjs/toolkit';
-import type {BusinessesState, VetBusiness, VetService, SlotWindow} from './types';
+import {
+  createSlice,
+  createAsyncThunk,
+  type PayloadAction,
+} from '@reduxjs/toolkit';
+import type {
+  BusinessesState,
+  VetBusiness,
+  VetService,
+  SlotWindow,
+} from './types';
 import {appointmentApi} from './services/appointmentsService';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
-import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
+import {
+  fetchBusinessDetails,
+  fetchGooglePlacesImage,
+} from '@/features/linkedBusinesses';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 const toErrorMessage = (error: unknown, fallback: string) =>
@@ -51,7 +66,10 @@ export const fetchBusinesses = createAsyncThunk<
       accessToken: accessToken ?? undefined,
     });
 
-    let search = {businesses: [] as VetBusiness[], services: [] as VetService[]};
+    let search = {
+      businesses: [] as VetBusiness[],
+      services: [] as VetService[],
+    };
     if (params?.serviceName) {
       search = await appointmentApi.searchBusinessesByService({
         serviceName: params.serviceName,
@@ -86,15 +104,18 @@ export const fetchServiceSlots = createAsyncThunk(
   ) => {
     try {
       const accessToken = await ensureAccessTokenOptional();
-      const {date: resolvedDate, windows} = await appointmentApi.fetchBookableSlots({
-        serviceId,
-        organisationId: businessId,
-        date,
-        accessToken: accessToken ?? undefined,
-      });
+      const {date: resolvedDate, windows} =
+        await appointmentApi.fetchBookableSlots({
+          serviceId,
+          organisationId: businessId,
+          date,
+          accessToken: accessToken ?? undefined,
+        });
       return {businessId, serviceId, date: resolvedDate, windows};
     } catch (error) {
-      return rejectWithValue(toErrorMessage(error, 'Failed to fetch availability'));
+      return rejectWithValue(
+        toErrorMessage(error, 'Failed to fetch availability'),
+      );
     }
   },
 );
@@ -111,12 +132,15 @@ const initialState: BusinessesState = {
 const dedupeById = <T extends {id: string}>(items: T[]): T[] => {
   const map = new Map<string, T>();
   items.forEach(item => {
-    map.set(item.id, {...(map.get(item.id) ?? {} as T), ...item});
+    map.set(item.id, {...(map.get(item.id) ?? ({} as T)), ...item});
   });
   return Array.from(map.values());
 };
 
-const toDateFromTime = (time: string | null | undefined, date: string): Date | null => {
+const toDateFromTime = (
+  time: string | null | undefined,
+  date: string,
+): Date | null => {
   if (!time) return null;
   const [yyyy, mm, dd] = date.split('-').map(Number);
   const [hh, min] = time.split(':').map(Number);
@@ -140,15 +164,25 @@ const toLocalTimeString = (d: Date | null) =>
       })
     : null;
 
-const normalizeSlotsToLocal = (windows: SlotWindow[] | undefined, date: string): SlotWindow[] => {
+const normalizeSlotsToLocal = (
+  windows: SlotWindow[] | undefined,
+  date: string,
+): SlotWindow[] => {
   if (!windows?.length) {
     return [];
   }
   return windows.map(window => {
-    const startDate = toDateFromTime(window.startTime ?? (window as any)?.start, date);
-    const endDate = toDateFromTime(window.endTime ?? (window as any)?.end ?? window.startTime, date);
+    const startDate = toDateFromTime(
+      window.startTime ?? (window as any)?.start,
+      date,
+    );
+    const endDate = toDateFromTime(
+      window.endTime ?? (window as any)?.end ?? window.startTime,
+      date,
+    );
     const startLocal = toLocalTimeString(startDate) ?? window.startTime;
-    const endLocal = toLocalTimeString(endDate) ?? window.endTime ?? window.startTime;
+    const endLocal =
+      toLocalTimeString(endDate) ?? window.endTime ?? window.startTime;
     return {
       ...window,
       startTime: startLocal ?? '',
@@ -189,7 +223,8 @@ const businessesSlice = createSlice({
       })
       .addCase(fetchBusinesses.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) ?? 'Failed to fetch businesses';
+        state.error =
+          (action.payload as string) ?? 'Failed to fetch businesses';
       })
       .addCase(fetchBusinessDetails.fulfilled, (state, action) => {
         const {placeId, photoUrl, phoneNumber, website} = action.payload;
@@ -212,12 +247,7 @@ const businessesSlice = createSlice({
         });
       })
       .addCase(fetchServiceSlots.fulfilled, (state, action) => {
-        const {businessId, serviceId, date, windows} = action.payload as {
-          businessId: string;
-          serviceId: string;
-          date: string;
-          windows: SlotWindow[];
-        };
+        const {businessId, serviceId, date, windows} = action.payload;
         const normalizedWindows = normalizeSlotsToLocal(windows, date);
         const idx = state.availability.findIndex(
           av => av.businessId === businessId && av.serviceId === serviceId,

@@ -102,7 +102,7 @@ export const initializeAuth = createAsyncThunk<
   {force?: boolean} | undefined,
   {state: RootState; dispatch: AppDispatch}
 >('auth/initialize', async (payload, {dispatch, getState}) => {
-  const force = (payload as {force?: boolean} | undefined)?.force ?? false;
+  const force = payload?.force ?? false;
   const state = getState().auth;
 
   console.log('[Auth] initializeAuth called with state:', {

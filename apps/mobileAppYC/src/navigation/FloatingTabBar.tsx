@@ -1,11 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
-import {
-  getFocusedRouteNameFromRoute,
-  type NavigationState,
-  type PartialState,
-} from '@react-navigation/native';
+import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 import {
   Animated,
   Image,
@@ -51,11 +47,16 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {theme} = useTheme();
   const dispatch = useDispatch<AppDispatch>();
   const companions = useSelector((s: RootState) => s.companion.companions);
-  const selectedCompanionIdFromState = useSelector((s: RootState) => s.companion.selectedCompanionId);
+  const selectedCompanionIdFromState = useSelector(
+    (s: RootState) => s.companion.selectedCompanionId,
+  );
   const companionId = selectedCompanionIdFromState ?? companions[0]?.id ?? null;
   const isIOS = Platform.OS === 'ios';
   const useGlass = isIOS && isLiquidGlassSupported;
-  const styles = React.useMemo(() => createStyles(theme, isIOS), [theme, isIOS]);
+  const styles = React.useMemo(
+    () => createStyles(theme, isIOS),
+    [theme, isIOS],
+  );
 
   const refreshTabData = React.useCallback(
     (routeName: string) => {
@@ -91,10 +92,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
       return false;
     }
 
-    const nestedState = focusedRoute.state as
-      | NavigationState
-      | PartialState<NavigationState>
-      | undefined;
+    const nestedState = focusedRoute.state;
     const nestedStateIndex = nestedState?.index ?? 0;
     const nestedRouteName =
       getFocusedRouteNameFromRoute(focusedRoute) ??
@@ -289,10 +287,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             !useGlass && styles.shadowWrapperSolid,
           ]}>
           <BarComponent
-          style={[
-            styles.bar,
-            useGlass ? styles.barGlass : styles.barSolid,
-          ]}
+            style={[styles.bar, useGlass ? styles.barGlass : styles.barSolid]}
             {...(useGlass
               ? {
                   effect: 'clear' as const,
@@ -339,9 +334,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',
-      borderRadius: isIOS
-        ? theme.borderRadius.md
-        : theme.borderRadius.xl,
+      borderRadius: isIOS ? theme.borderRadius.md : theme.borderRadius.xl,
       backgroundColor: 'transparent',
       paddingVertical: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['4'],
@@ -369,9 +362,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
     },
     pillGlass: {
       flex: 1,
-      borderRadius: isIOS
-        ? theme.borderRadius.lg
-        : theme.borderRadius['2xl'],
+      borderRadius: isIOS ? theme.borderRadius.lg : theme.borderRadius['2xl'],
       backgroundColor: 'transparent',
     },
     pillSolid: {

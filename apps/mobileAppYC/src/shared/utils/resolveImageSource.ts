@@ -5,7 +5,9 @@ import {normalizeImageUri} from './imageUri';
 
 const imageSourceCache = new Map<string, ImageSourcePropType>();
 
-export const resolveImageSource = (source?: ImageSourcePropType | number | string): ImageSourcePropType => {
+export const resolveImageSource = (
+  source?: ImageSourcePropType | number | string,
+): ImageSourcePropType => {
   if (typeof source === 'number') {
     return source;
   }
@@ -31,11 +33,11 @@ export const resolveImageSource = (source?: ImageSourcePropType | number | strin
   }
 
   if (Array.isArray(source) && source.length > 0) {
-    return resolveImageSource(source[0] as ImageSourcePropType);
+    return resolveImageSource(source[0]);
   }
 
   if (typeof source === 'object' && 'uri' in source && source.uri) {
-    return source as ImageSourcePropType;
+    return source;
   }
 
   return Images.hospitalIcon;

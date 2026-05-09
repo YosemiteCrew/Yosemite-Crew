@@ -68,13 +68,20 @@ export const BookingSummaryCard: React.FC<Props> = ({
           source={source}
           style={[
             styles.avatar,
-            {width: avatarSize, height: avatarSize, borderRadius: avatarSize / 4},
+            {
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 4,
+            },
           ]}
         />
       ) : null}
       <View style={styles.textColumn}>
         <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={maxTitleLines} ellipsizeMode="tail">
+          <Text
+            style={styles.title}
+            numberOfLines={maxTitleLines}
+            ellipsizeMode="tail">
             {title}
           </Text>
           {badgeText ? (
@@ -84,12 +91,18 @@ export const BookingSummaryCard: React.FC<Props> = ({
           ) : null}
         </View>
         {!!subtitlePrimary && (
-          <Text style={styles.subtitlePrimary} numberOfLines={maxSubtitleLines} ellipsizeMode="tail">
+          <Text
+            style={styles.subtitlePrimary}
+            numberOfLines={maxSubtitleLines}
+            ellipsizeMode="tail">
             {subtitlePrimary}
           </Text>
         )}
         {!!subtitleSecondary && (
-          <Text style={styles.subtitleSecondary} numberOfLines={maxSubtitleLines} ellipsizeMode="tail">
+          <Text
+            style={styles.subtitleSecondary}
+            numberOfLines={maxSubtitleLines}
+            ellipsizeMode="tail">
             {subtitleSecondary}
           </Text>
         )}
@@ -208,10 +221,10 @@ const resolveImageSource = (source?: ImageSourcePropType | number | null) => {
     return {uri: source};
   }
   if (Array.isArray(source) && source.length > 0) {
-    return resolveImageSource(source[0] as ImageSourcePropType);
+    return resolveImageSource(source[0]);
   }
   if (typeof source === 'object' && 'uri' in source && source.uri) {
-    return source as ImageSourcePropType;
+    return source;
   }
   return Images.hospitalIcon;
 };

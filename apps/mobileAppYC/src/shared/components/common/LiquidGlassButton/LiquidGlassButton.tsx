@@ -13,10 +13,7 @@ import {
   View,
   StyleSheet,
 } from 'react-native';
-import {
-  LiquidGlassView,
-  isLiquidGlassSupported,
-} from '@callstack/liquid-glass';
+import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 import {UI_FEATURE_FLAGS} from '@/config/variables';
 
@@ -61,7 +58,11 @@ const isWhiteOrLightColor = (color?: string): boolean => {
   }
 
   const normalized = color.toLowerCase().replaceAll(/\s/g, '');
-  if (WHITE_COLOR_ALIASES.includes(normalized as typeof WHITE_COLOR_ALIASES[number])) {
+  if (
+    WHITE_COLOR_ALIASES.includes(
+      normalized as (typeof WHITE_COLOR_ALIASES)[number],
+    )
+  ) {
     return true;
   }
 
@@ -97,7 +98,10 @@ const isWhiteOrLightColor = (color?: string): boolean => {
   return false;
 };
 
-const buildShadowStyle = (intensity: GlassButtonProps['shadowIntensity'], themeShadows: any) => {
+const buildShadowStyle = (
+  intensity: GlassButtonProps['shadowIntensity'],
+  themeShadows: any,
+) => {
   if (!intensity || intensity === 'none') {
     return themeShadows.none;
   }
@@ -112,9 +116,21 @@ const buildShadowStyle = (intensity: GlassButtonProps['shadowIntensity'], themeS
 };
 
 const SIZE_CONFIG = {
-  small: {paddingHorizontalKey: '3', paddingVerticalKey: '2', fallbackHeight: 36},
-  medium: {paddingHorizontalKey: '4', paddingVerticalKey: '3', fallbackHeight: 44},
-  large: {paddingHorizontalKey: '6', paddingVerticalKey: '4', fallbackHeight: 52},
+  small: {
+    paddingHorizontalKey: '3',
+    paddingVerticalKey: '2',
+    fallbackHeight: 36,
+  },
+  medium: {
+    paddingHorizontalKey: '4',
+    paddingVerticalKey: '3',
+    fallbackHeight: 44,
+  },
+  large: {
+    paddingHorizontalKey: '6',
+    paddingVerticalKey: '4',
+    fallbackHeight: 52,
+  },
 } as const;
 
 const buildSizeStyle = (
@@ -124,14 +140,15 @@ const buildSizeStyle = (
   minHeight: GlassButtonProps['minHeight'],
 ): ViewStyle => {
   const config = SIZE_CONFIG[size];
-  const resolvedMinHeight =
-    (minHeight ?? buttonHeight ?? config.fallbackHeight) as number;
+  const resolvedMinHeight = (minHeight ??
+    buttonHeight ??
+    config.fallbackHeight) as number;
 
   return {
     paddingHorizontal: themeSpacing[config.paddingHorizontalKey],
     paddingVertical: themeSpacing[config.paddingVerticalKey],
     minHeight: resolvedMinHeight,
-  } as ViewStyle;
+  };
 };
 
 const buildFallbackSurfaceStyle = ({
@@ -197,9 +214,8 @@ const buildGlassSurfaceStyle = ({
   const shouldAddBorder = forceBorder;
 
   // For light tint buttons, remove border and force a shadow instead
-  const effectiveShadowIntensity = isLightTint && shadowIntensity === 'light'
-    ? 'medium'
-    : shadowIntensity;
+  const effectiveShadowIntensity =
+    isLightTint && shadowIntensity === 'light' ? 'medium' : shadowIntensity;
 
   // If light tint, no border at all unless forceBorder is explicitly set
   let borderWidth: number;
@@ -263,7 +279,9 @@ const computeTextColor = ({
   }
 
   if (tintColor) {
-    return isWhiteOrLightColor(tintColor) ? themeColors.text : themeColors.white;
+    return isWhiteOrLightColor(tintColor)
+      ? themeColors.text
+      : themeColors.white;
   }
 
   return isDark ? themeColors.white : themeColors.text;
@@ -288,7 +306,9 @@ const computeLoadingColor = ({
   }
 
   if (tintColor) {
-    return isWhiteOrLightColor(tintColor) ? themeColors.text : themeColors.white;
+    return isWhiteOrLightColor(tintColor)
+      ? themeColors.text
+      : themeColors.white;
   }
 
   return isDark ? themeColors.white : themeColors.text;
@@ -353,7 +373,9 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   const forceBorderEnabled = forceBorder || forceGlobalBorder;
   const forcedBorderColor = forceBorderEnabled ? '#EAEAEA' : borderColor;
   const useNativeGlass =
-    Platform.OS === 'ios' && isLiquidGlassSupported && !LOCK_IOS_GLASS_APPEARANCE;
+    Platform.OS === 'ios' &&
+    isLiquidGlassSupported &&
+    !LOCK_IOS_GLASS_APPEARANCE;
   const resolvedColorScheme = React.useMemo(() => {
     if (colorScheme === 'system') {
       return 'light';
@@ -369,7 +391,9 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         ? ANDROID_DARK_GLASS_TINT
         : ANDROID_LIGHT_GLASS_TINT;
     }
-    return resolvedColorScheme === 'dark' ? IOS_DARK_GLASS_TINT : IOS_LIGHT_GLASS_TINT;
+    return resolvedColorScheme === 'dark'
+      ? IOS_DARK_GLASS_TINT
+      : IOS_LIGHT_GLASS_TINT;
   }, [resolvedColorScheme, tintColor]);
   const borderRadiusValue = React.useMemo(
     () =>
@@ -396,7 +420,8 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   );
 
   const sizeStyle = React.useMemo(
-    () => (compact ? {} : buildSizeStyle(size, theme.spacing, height, minHeight)),
+    () =>
+      compact ? {} : buildSizeStyle(size, theme.spacing, height, minHeight),
     [compact, height, minHeight, size, theme.spacing],
   );
 
@@ -470,20 +495,15 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     [disabled, resolvedTintColor, isDark, theme.colors, useNativeGlass],
   );
 
-  const buttonTextStyle = React.useMemo<TextStyle>(
-    () => {
-      const typography =
-        size === 'small'
-          ? theme.typography.buttonSmall
-          : theme.typography.button;
+  const buttonTextStyle = React.useMemo<TextStyle>(() => {
+    const typography =
+      size === 'small' ? theme.typography.buttonSmall : theme.typography.button;
 
-      return {
-        ...typography,
-        color: textColor,
-      };
-    },
-    [size, textColor, theme.typography],
-  );
+    return {
+      ...typography,
+      color: textColor,
+    };
+  }, [size, textColor, theme.typography]);
 
   const loadingColor = React.useMemo(
     () =>
@@ -518,15 +538,16 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
 
   const getButtonContent = () => {
     if (customContent) {
-      return (
-        <View style={customContentWrapperStyle}>
-          {customContent}
-        </View>
-      );
+      return <View style={customContentWrapperStyle}>{customContent}</View>;
     }
 
     return (
-      <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
         {loading && (
           <ActivityIndicator
             size="small"
@@ -534,17 +555,15 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
             style={{marginRight: theme.spacing['2']}}
           />
         )}
-        
+
         {leftIcon && (
           <View style={{marginRight: title ? theme.spacing['2'] : 0}}>
             {leftIcon}
           </View>
         )}
-        
-        {title && (
-          <Text style={[buttonTextStyle, textStyle]}>{title}</Text>
-        )}
-        
+
+        {title && <Text style={[buttonTextStyle, textStyle]}>{title}</Text>}
+
         {rightIcon && (
           <View style={{marginLeft: title ? theme.spacing['2'] : 0}}>
             {rightIcon}

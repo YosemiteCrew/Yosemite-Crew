@@ -58,7 +58,7 @@ export const AddDocumentScreen: React.FC = () => {
 
   const fileOps = useFormFileOperations(
     formData.files,
-    'files' as keyof DocumentFormData,
+    'files',
     handleFormChange,
     clearError,
     formSheets,

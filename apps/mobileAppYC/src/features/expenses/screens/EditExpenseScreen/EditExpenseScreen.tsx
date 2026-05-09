@@ -25,7 +25,10 @@ import {
   type DeleteDocumentBottomSheetRef,
 } from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
+import {
+  useCompanionFormScreen,
+  useFormFileOperations,
+} from '@/shared/hooks/useFormScreen';
 
 type Route = RouteProp<ExpenseStackParamList, 'EditExpense'>;
 
@@ -50,8 +53,14 @@ export const EditExpenseScreen: React.FC = () => {
   );
   const loading = useSelector((state: RootState) => state.expenses.loading);
 
-  const {formData, setFormData, errors, handleChange, handleErrorClear, validate} =
-    useExpenseForm(null);
+  const {
+    formData,
+    setFormData,
+    errors,
+    handleChange,
+    handleErrorClear,
+    validate,
+  } = useExpenseForm(null);
   const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
 
@@ -88,14 +97,17 @@ export const EditExpenseScreen: React.FC = () => {
 
   // Handle Android back button for delete bottom sheet
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isDeleteSheetOpen) {
-        deleteSheetRef.current?.close();
-        setIsDeleteSheetOpen(false);
-        return true;
-      }
-      return false;
-    });
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (isDeleteSheetOpen) {
+          deleteSheetRef.current?.close();
+          setIsDeleteSheetOpen(false);
+          return true;
+        }
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
   }, [isDeleteSheetOpen]);
@@ -180,7 +192,7 @@ export const EditExpenseScreen: React.FC = () => {
 
   const fileOps = useFormFileOperations(
     formData?.attachments ?? [],
-    'attachments' as keyof ExpenseFormData,
+    'attachments',
     handleChangeWithTracking,
     handleErrorClear,
     formSheets,

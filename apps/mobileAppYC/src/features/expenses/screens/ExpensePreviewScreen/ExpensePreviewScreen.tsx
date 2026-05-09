@@ -1,5 +1,12 @@
 import React, {useMemo, useState, useEffect} from 'react';
-import {Image, ScrollView, StyleSheet, Text, View, ActivityIndicator} from 'react-native';
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  ActivityIndicator,
+} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -23,17 +30,26 @@ import {
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
-import type {DocumentFile} from '@/features/documents/types';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
-import {hasInvoice, isExpensePaymentPending} from '@/features/expenses/utils/status';
+import {
+  hasInvoice,
+  isExpensePaymentPending,
+} from '@/features/expenses/utils/status';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {fetchBusinessDetails} from '@/features/linkedBusinesses';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {DetailsCard, type DetailItem, type DetailBadge} from '@/shared/components/common/DetailsCard';
+import {
+  DetailsCard,
+  type DetailItem,
+  type DetailBadge,
+} from '@/shared/components/common/DetailsCard';
 
-type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensePreview'>;
+type Navigation = NativeStackNavigationProp<
+  ExpenseStackParamList,
+  'ExpensePreview'
+>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensePreview'>;
 
 const PaymentActions = ({
@@ -98,7 +114,7 @@ const useExpenseInvoiceDetails = ({
     const fetchInvoiceData = async () => {
       try {
         const result = await dispatch(
-          fetchExpenseInvoice({invoiceId: expense.invoiceId!})
+          fetchExpenseInvoice({invoiceId: expense.invoiceId!}),
         ).unwrap();
         setInvoiceData(result.invoice);
         setOrganisationData(result.organistion || result.organisation || null);
@@ -108,12 +124,16 @@ const useExpenseInvoiceDetails = ({
           try {
             try {
               const latestIntent = await dispatch(
-                fetchExpensePaymentIntentByInvoice({invoiceId: expense.invoiceId!})
+                fetchExpensePaymentIntentByInvoice({
+                  invoiceId: expense.invoiceId!,
+                }),
               ).unwrap();
               setPaymentIntent(latestIntent);
             } catch {
               const intentResult = await dispatch(
-                fetchExpensePaymentIntent({paymentIntentId: result.paymentIntentId})
+                fetchExpensePaymentIntent({
+                  paymentIntentId: result.paymentIntentId,
+                }),
               ).unwrap();
               setPaymentIntent(intentResult);
             }
@@ -167,9 +187,19 @@ const useBusinessPhotoFallback = ({
         }
       })
       .catch(() => {
-        console.debug('[ExpensePreview] Could not fetch places image for placesId:', placesId);
+        console.debug(
+          '[ExpensePreview] Could not fetch places image for placesId:',
+          placesId,
+        );
       });
-  }, [placesId, businessImage, isDummyImage, fallbackPhoto, dispatch, setFallbackPhoto]);
+  }, [
+    placesId,
+    businessImage,
+    isDummyImage,
+    fallbackPhoto,
+    dispatch,
+    setFallbackPhoto,
+  ]);
 };
 
 export const ExpensePreviewScreen: React.FC = () => {
@@ -186,16 +216,14 @@ export const ExpensePreviewScreen: React.FC = () => {
     (state: RootState) => state.auth.user?.currency ?? 'USD',
   );
   const companion = useSelector((state: RootState) =>
-    expense?.companionId ? state.companion.companions.find(c => c.id === expense.companionId) : null,
+    expense?.companionId
+      ? state.companion.companions.find(c => c.id === expense.companionId)
+      : null,
   );
   const currencyCode = expense?.currencyCode ?? userCurrencyCode;
 
-  const {
-    invoiceData,
-    organisationData,
-    paymentIntent,
-    loadingPayment,
-  } = useExpenseInvoiceDetails({expense, dispatch});
+  const {invoiceData, organisationData, paymentIntent, loadingPayment} =
+    useExpenseInvoiceDetails({expense, dispatch});
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
 
   // Always fetch latest expense details (including external) from backend
@@ -228,7 +256,8 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   // Extract organization details from the separated organisationData
   const orgAddress = organisationData?.address;
-  const businessNameFromOrg = organisationData?.name ?? expense?.businessName ?? 'Healthcare Provider';
+  const businessNameFromOrg =
+    organisationData?.name ?? expense?.businessName ?? 'Healthcare Provider';
   const businessAddress = orgAddress?.addressLine ?? 'Address not available';
   const businessCity = orgAddress?.city ?? '';
   const businessState = orgAddress?.state ?? '';
@@ -239,13 +268,19 @@ export const ExpensePreviewScreen: React.FC = () => {
   // Check if the image is a dummy/placeholder URL
   const isDummyImage = isDummyPhoto(businessImage);
 
-  const fullBusinessAddress = [businessAddress, businessCity, businessState, businessPostalCode]
+  const fullBusinessAddress = [
+    businessAddress,
+    businessCity,
+    businessState,
+    businessPostalCode,
+  ]
     .filter(Boolean)
     .join(', ');
 
   // Use organisation image only if it's not a dummy, otherwise use fallback photo
   // If placesId is empty/invalid, the image will be undefined (no fallback available)
-  const resolvedBusinessImage = !isDummyImage && businessImage ? businessImage : fallbackPhoto;
+  const resolvedBusinessImage =
+    !isDummyImage && businessImage ? businessImage : fallbackPhoto;
 
   const businessSummary = {
     name: businessNameFromOrg,
@@ -263,12 +298,16 @@ export const ExpensePreviewScreen: React.FC = () => {
     dispatch,
   });
 
-
   if (!expense) {
     return (
       <LiquidGlassHeaderScreen
         header={
-          <Header title="Expenses" showBackButton onBack={handleBack} glass={false} />
+          <Header
+            title="Expenses"
+            showBackButton
+            onBack={handleBack}
+            glass={false}
+          />
         }
         cardGap={theme.spacing['3']}
         contentPadding={theme.spacing['4']}>
@@ -283,11 +322,15 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   const isInAppExpense = expense.source === 'inApp';
   const isPendingPayment = isExpensePaymentPending(expense);
-  const shouldShowPaymentActions = isInAppExpense && (isPendingPayment || hasInvoice(expense));
+  const shouldShowPaymentActions =
+    isInAppExpense && (isPendingPayment || hasInvoice(expense));
 
   const detailItems: DetailItem[] = [
     {label: 'Title', value: expense.title},
-    {label: 'Provider', value: businessNameFromOrg ?? expense.businessName ?? '—'},
+    {
+      label: 'Provider',
+      value: businessNameFromOrg ?? expense.businessName ?? '—',
+    },
     {
       label: 'Companion',
       value: companion?.name ?? '',
@@ -313,7 +356,11 @@ export const ExpensePreviewScreen: React.FC = () => {
       }),
     },
     {label: 'Amount', value: formattedAmount, bold: true},
-    {label: 'Description', value: expense.description || '', hidden: !expense.description},
+    {
+      label: 'Description',
+      value: expense.description || '',
+      hidden: !expense.description,
+    },
   ];
 
   const badges: DetailBadge[] = [];
@@ -357,10 +404,18 @@ export const ExpensePreviewScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
-            <SummaryCards businessSummary={businessSummary as any} interactive={false} cardStyle={styles.summaryCard} />
+            <SummaryCards
+              businessSummary={businessSummary as any}
+              interactive={false}
+              cardStyle={styles.summaryCard}
+            />
           )}
 
-          <DetailsCard title="Expense Details" items={detailItems} badges={badges} />
+          <DetailsCard
+            title="Expense Details"
+            items={detailItems}
+            badges={badges}
+          />
 
           <PaymentActions
             shouldShow={shouldShowPaymentActions}
@@ -375,12 +430,17 @@ export const ExpensePreviewScreen: React.FC = () => {
 
           <View style={styles.previewContainer}>
             {expense.attachments && expense.attachments.length > 0 ? (
-              <DocumentAttachmentViewer attachments={expense.attachments as DocumentFile[]} />
+              <DocumentAttachmentViewer attachments={expense.attachments} />
             ) : (
               <View style={styles.fallbackCard}>
-                <Image source={Images.documentIcon} style={styles.fallbackIcon} />
+                <Image
+                  source={Images.documentIcon}
+                  style={styles.fallbackIcon}
+                />
                 <Text style={styles.fallbackTitle}>No attachments</Text>
-                <Text style={styles.fallbackText}>There are no files attached to this expense.</Text>
+                <Text style={styles.fallbackText}>
+                  There are no files attached to this expense.
+                </Text>
               </View>
             )}
           </View>

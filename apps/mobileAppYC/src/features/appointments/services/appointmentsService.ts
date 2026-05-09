@@ -75,7 +75,7 @@ const toStatus = (status?: string): AppointmentStatus => {
     case 'RESCHEDULED':
     case 'SCHEDULED':
     case 'PAYMENT_FAILED':
-      return normalized as AppointmentStatus;
+      return normalized;
     case 'ARRIVED':
       return 'CHECKED_IN';
     case 'CANCELLED':

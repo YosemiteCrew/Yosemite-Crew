@@ -20,7 +20,9 @@ export interface ResolvedBusinessSelection extends BusinessSearchResult {
 
 interface UsePlacesBusinessSearchParams {
   onSelectPms: (selection: ResolvedBusinessSelection) => void | Promise<void>;
-  onSelectNonPms: (selection: ResolvedBusinessSelection) => void | Promise<void>;
+  onSelectNonPms: (
+    selection: ResolvedBusinessSelection,
+  ) => void | Promise<void>;
   onError?: (error: unknown) => void;
   minCharacters?: number;
   debounceMs?: number;
@@ -38,9 +40,14 @@ export const usePlacesBusinessSearch = ({
 }: UsePlacesBusinessSearchParams) => {
   const dispatch = useDispatch<AppDispatch>();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<BusinessSearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<BusinessSearchResult[]>(
+    [],
+  );
   const [searching, setSearching] = useState(false);
-  const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSearchQueryRef = useRef('');
 
@@ -128,11 +135,16 @@ export const usePlacesBusinessSearch = ({
 
       if (!hasCoordinates(lat, lng)) {
         try {
-          const coords = await dispatch(fetchPlaceCoordinates(business.id)).unwrap();
+          const coords = await dispatch(
+            fetchPlaceCoordinates(business.id),
+          ).unwrap();
           lat = coords.latitude;
           lng = coords.longitude;
         } catch (coordError) {
-          console.log('[usePlacesBusinessSearch] Failed to fetch coordinates, skipping PMS check:', coordError);
+          console.log(
+            '[usePlacesBusinessSearch] Failed to fetch coordinates, skipping PMS check:',
+            coordError,
+          );
           onError?.(coordError);
           await onSelectNonPms({
             ...business,
@@ -159,13 +171,15 @@ export const usePlacesBusinessSearch = ({
         const selection: ResolvedBusinessSelection = {
           ...business,
           placeId: business.id,
-          lat: lat as number,
-          lng: lng as number,
+          lat,
+          lng,
           organisationId: checkResult.organisationId,
           phone: checkResult.phone || business.phone,
           email: checkResult.website || business.email,
           website: checkResult.website,
-          isPmsOrganisation: Boolean(checkResult.isPmsOrganisation && checkResult.organisationId),
+          isPmsOrganisation: Boolean(
+            checkResult.isPmsOrganisation && checkResult.organisationId,
+          ),
         };
 
         if (selection.isPmsOrganisation) {
@@ -174,13 +188,16 @@ export const usePlacesBusinessSearch = ({
           await onSelectNonPms(selection);
         }
       } catch (error) {
-        console.log('[usePlacesBusinessSearch] Organisation check failed, treating as non-PMS:', error);
+        console.log(
+          '[usePlacesBusinessSearch] Organisation check failed, treating as non-PMS:',
+          error,
+        );
         onError?.(error);
         await onSelectNonPms({
           ...business,
           placeId: business.id,
-          lat: lat as number,
-          lng: lng as number,
+          lat,
+          lng,
           isPmsOrganisation: false,
         });
       }
@@ -199,4 +216,6 @@ export const usePlacesBusinessSearch = ({
   };
 };
 
-export type UsePlacesBusinessSearchReturn = ReturnType<typeof usePlacesBusinessSearch>;
+export type UsePlacesBusinessSearchReturn = ReturnType<
+  typeof usePlacesBusinessSearch
+>;

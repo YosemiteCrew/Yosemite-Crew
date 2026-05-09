@@ -1,12 +1,25 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
-import type {LinkedBusiness, SearchBusinessParams, BusinessSearchResult} from './types';
-import {fetchBusinessesBySearch, fetchBusinessPlaceDetails} from '@/shared/services/maps/googlePlaces';
+import type {
+  LinkedBusiness,
+  SearchBusinessParams,
+  BusinessSearchResult,
+} from './types';
+import {
+  fetchBusinessesBySearch,
+  fetchBusinessPlaceDetails,
+} from '@/shared/services/maps/googlePlaces';
 import linkedBusinessesService from './services/linkedBusinessesService';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 import {Images} from '@/assets/images';
 
 type BusinessCategory = 'hospital' | 'boarder' | 'breeder' | 'groomer';
-type BusinessTypeMap = Record<BusinessCategory, 'HOSPITAL' | 'BOARDER' | 'BREEDER' | 'GROOMER'>;
+type BusinessTypeMap = Record<
+  BusinessCategory,
+  'HOSPITAL' | 'BOARDER' | 'BREEDER' | 'GROOMER'
+>;
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -26,14 +39,20 @@ const ensureAccessToken = async (): Promise<string> => {
 };
 
 // In-memory cache for search results to prevent duplicate API calls
-const searchCache = new Map<string, {results: BusinessSearchResult[]; timestamp: number}>();
+const searchCache = new Map<
+  string,
+  {results: BusinessSearchResult[]; timestamp: number}
+>();
 const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes cache validity
 
 // In-memory cache for business details to prevent duplicate detail fetches
 const detailsCache = new Map<string, {details: any; timestamp: number}>();
 const DETAILS_CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes cache validity
 
-const getCacheKey = (query: string, location?: {latitude: number; longitude: number} | null): string => {
+const getCacheKey = (
+  query: string,
+  location?: {latitude: number; longitude: number} | null,
+): string => {
   if (!location) {
     return `search:${query.toLowerCase()}`;
   }
@@ -71,10 +90,18 @@ export const fetchLinkedBusinesses = createAsyncThunk<
 
       // API returns {links: [...]} or just [{...}]
       // Handle both response formats
-      const organisations = Array.isArray(response) ? response : (response?.links || []);
-      const parentLevelEmail = Array.isArray(response) ? undefined : (response as any)?.email;
-      const parentLevelPhone = Array.isArray(response) ? undefined : (response as any)?.phoneNumber;
-      const parentLevelName = Array.isArray(response) ? undefined : (response as any)?.parentName;
+      const organisations = Array.isArray(response)
+        ? response
+        : response?.links || [];
+      const parentLevelEmail = Array.isArray(response)
+        ? undefined
+        : (response as any)?.email;
+      const parentLevelPhone = Array.isArray(response)
+        ? undefined
+        : (response as any)?.phoneNumber;
+      const parentLevelName = Array.isArray(response)
+        ? undefined
+        : (response as any)?.parentName;
 
       // Transform API response to LinkedBusiness format
       const linkedBusinesses = organisations.map((link: any) => {
@@ -108,17 +135,25 @@ export const fetchLinkedBusinesses = createAsyncThunk<
           category,
           type: link.organisationType,
           address: fullAddress,
-          phone: org.phoneNo || org.phone || (state === 'pending' ? parentLevelPhone : undefined),
-          email: org.email || (state === 'pending' ? parentLevelEmail : undefined),
+          phone:
+            org.phoneNo ||
+            org.phone ||
+            (state === 'pending' ? parentLevelPhone : undefined),
+          email:
+            org.email || (state === 'pending' ? parentLevelEmail : undefined),
           distance: org.distance,
           rating: org.rating,
           photo: org.imageURL || org.photo,
           placeId: org.googlePlacesId,
           state,
-          inviteStatus: inviteStatus as 'pending' | 'accepted' | 'declined',
+          inviteStatus,
           linkId: link._id,
-          parentName: link.linkedByParentId?.name || (state === 'pending' ? parentLevelName : undefined),
-          parentEmail: link.linkedByParentId?.email || (state === 'pending' ? parentLevelEmail : undefined),
+          parentName:
+            link.linkedByParentId?.name ||
+            (state === 'pending' ? parentLevelName : undefined),
+          parentEmail:
+            link.linkedByParentId?.email ||
+            (state === 'pending' ? parentLevelEmail : undefined),
           createdAt: link.createdAt || new Date().toISOString(),
           updatedAt: link.updatedAt || new Date().toISOString(),
         } as LinkedBusiness;
@@ -132,11 +167,22 @@ export const fetchLinkedBusinesses = createAsyncThunk<
         return linkedBusiness;
       });
 
-      console.log('[LinkedBusinesses] Fetched', linkedBusinesses.length, 'linked businesses for companion:', companionId);
+      console.log(
+        '[LinkedBusinesses] Fetched',
+        linkedBusinesses.length,
+        'linked businesses for companion:',
+        companionId,
+      );
       return linkedBusinesses;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch linked businesses';
-      console.error('[LinkedBusinesses] fetchLinkedBusinesses error:', errorMessage);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch linked businesses';
+      console.error(
+        '[LinkedBusinesses] fetchLinkedBusinesses error:',
+        errorMessage,
+      );
       return rejectWithValue(errorMessage);
     }
   },
@@ -151,8 +197,14 @@ export const searchBusinessesByLocation = createAsyncThunk(
       const cacheKey = getCacheKey(params.query, params.location);
       const cachedResult = searchCache.get(cacheKey);
 
-      if (cachedResult && isCacheValid(cachedResult.timestamp, CACHE_DURATION_MS)) {
-        console.log('[BusinessSearch] Using cached results for query:', params.query);
+      if (
+        cachedResult &&
+        isCacheValid(cachedResult.timestamp, CACHE_DURATION_MS)
+      ) {
+        console.log(
+          '[BusinessSearch] Using cached results for query:',
+          params.query,
+        );
         return cachedResult.results;
       }
 
@@ -184,17 +236,24 @@ export const searchBusinessesByLocation = createAsyncThunk(
       // Store in cache
       searchCache.set(cacheKey, {results, timestamp: Date.now()});
 
-      console.log('[BusinessSearch] Fetched', results.length, 'business results using Text Search API');
+      console.log(
+        '[BusinessSearch] Fetched',
+        results.length,
+        'business results using Text Search API',
+      );
       return results;
     } catch (error: any) {
       console.error('[BusinessSearch] Google Places API error:', error);
 
       // Check if it's a quota exceeded error
-      const isQuotaError = error?.message?.includes('RESOURCE_EXHAUSTED') ||
-                          error?.message?.includes('Quota exceeded');
+      const isQuotaError =
+        error?.message?.includes('RESOURCE_EXHAUSTED') ||
+        error?.message?.includes('Quota exceeded');
 
       if (isQuotaError) {
-        console.warn('[BusinessSearch] Google Places quota exceeded, using mock results');
+        console.warn(
+          '[BusinessSearch] Google Places quota exceeded, using mock results',
+        );
       }
 
       // Fallback to empty array if Google Places fails
@@ -205,7 +264,13 @@ export const searchBusinessesByLocation = createAsyncThunk(
 
 // Check if a business is in PMS system and get organization details
 export const checkOrganisation = createAsyncThunk<
-  {isPmsOrganisation: boolean; organisationId?: string; organisation?: any; phone?: string; website?: string},
+  {
+    isPmsOrganisation: boolean;
+    organisationId?: string;
+    organisation?: any;
+    phone?: string;
+    website?: string;
+  },
   {
     placeId: string;
     lat: number;
@@ -214,58 +279,64 @@ export const checkOrganisation = createAsyncThunk<
     addressLine: string;
   },
   {rejectValue: string}
->(
-  'linkedBusinesses/checkOrganisation',
-  async (params, {rejectWithValue}) => {
-    try {
-      const accessToken = await ensureAccessToken();
+>('linkedBusinesses/checkOrganisation', async (params, {rejectWithValue}) => {
+  try {
+    const accessToken = await ensureAccessToken();
 
-      const result = await linkedBusinessesService.checkBusiness(
-        {
-          placeId: params.placeId,
-          lat: params.lat,
-          lng: params.lng,
-          name: params.name,
-          addressLine: params.addressLine,
-        },
-        accessToken,
-      );
+    const result = await linkedBusinessesService.checkBusiness(
+      {
+        placeId: params.placeId,
+        lat: params.lat,
+        lng: params.lng,
+        name: params.name,
+        addressLine: params.addressLine,
+      },
+      accessToken,
+    );
 
-      console.log('[LinkedBusinesses] Organization check result:', result);
+    console.log('[LinkedBusinesses] Organization check result:', result);
 
-      // Extract organisationId from FHIR organisation object if available
-      const organisationId = result.organisation?.id;
+    // Extract organisationId from FHIR organisation object if available
+    const organisationId = result.organisation?.id;
 
-      // Extract phone and website from telecom array
-      let phone: string | undefined;
-      let website: string | undefined;
+    // Extract phone and website from telecom array
+    let phone: string | undefined;
+    let website: string | undefined;
 
-      if (result.organisation?.telecom && Array.isArray(result.organisation.telecom)) {
-        for (const telecom of result.organisation.telecom) {
-          if (telecom.system === 'phone' && telecom.value) {
-            phone = telecom.value;
-          } else if (telecom.system === 'url' && telecom.value) {
-            website = telecom.value;
-          }
+    if (
+      result.organisation?.telecom &&
+      Array.isArray(result.organisation.telecom)
+    ) {
+      for (const telecom of result.organisation.telecom) {
+        if (telecom.system === 'phone' && telecom.value) {
+          phone = telecom.value;
+        } else if (telecom.system === 'url' && telecom.value) {
+          website = telecom.value;
         }
       }
-
-      console.log('[LinkedBusinesses] Extracted phone:', phone, 'website:', website);
-
-      return {
-        isPmsOrganisation: result.isPmsOrganisation,
-        organisationId,
-        organisation: result.organisation,
-        phone,
-        website,
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to check organization';
-      console.error('[LinkedBusinesses] checkOrganisation error:', errorMessage);
-      return rejectWithValue(errorMessage);
     }
-  },
-);
+
+    console.log(
+      '[LinkedBusinesses] Extracted phone:',
+      phone,
+      'website:',
+      website,
+    );
+
+    return {
+      isPmsOrganisation: result.isPmsOrganisation,
+      organisationId,
+      organisation: result.organisation,
+      phone,
+      website,
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to check organization';
+    console.error('[LinkedBusinesses] checkOrganisation error:', errorMessage);
+    return rejectWithValue(errorMessage);
+  }
+});
 
 // Fetch place details to get coordinates (lazy loading on user selection)
 export const fetchPlaceCoordinates = createAsyncThunk<
@@ -289,8 +360,12 @@ export const fetchPlaceCoordinates = createAsyncThunk<
       detailsCache.set(cacheKey, {details: coords, timestamp: Date.now()});
       return coords;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch coordinates';
-      console.error('[LinkedBusinesses] fetchPlaceCoordinates error:', errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch coordinates';
+      console.error(
+        '[LinkedBusinesses] fetchPlaceCoordinates error:',
+        errorMessage,
+      );
       return rejectWithValue(errorMessage);
     }
   },
@@ -303,7 +378,7 @@ export const searchBusinessByQRCode = createAsyncThunk(
     await delay(800);
     // Mock API call to get business details from QR code
     const mockBusinessMap: Record<string, any> = {
-      'PMS_SFAMC_001': {
+      PMS_SFAMC_001: {
         id: 'biz_sfamc',
         name: 'San Francisco Animal Medical Center',
         address: '2343 Fillmore St, San Francisco, CA 94115',
@@ -314,7 +389,7 @@ export const searchBusinessByQRCode = createAsyncThunk(
         distance: 2.5,
         category: 'hospital',
       },
-      'PMS_PAWPET_001': {
+      PMS_PAWPET_001: {
         id: 'biz_pawpet',
         name: 'Paw Pet Health Clinic',
         address: 'SFAM Building 30 square D Road San Francisco',
@@ -325,7 +400,7 @@ export const searchBusinessByQRCode = createAsyncThunk(
         distance: 4.2,
         category: 'hospital',
       },
-      'PMS_TENDERCARE_001': {
+      PMS_TENDERCARE_001: {
         id: 'biz_tender_groom',
         name: 'Tender Loving Care Pet Grooming',
         address: 'San Francisco, CA',
@@ -401,10 +476,14 @@ export const linkBusiness = createAsyncThunk<
         updatedAt: new Date().toISOString(),
       };
 
-      console.log('[LinkedBusinesses] Business linked successfully:', businessId);
+      console.log(
+        '[LinkedBusinesses] Business linked successfully:',
+        businessId,
+      );
       return linkedBusiness;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to link business';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to link business';
       console.error('[LinkedBusinesses] linkBusiness error:', errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -427,44 +506,41 @@ export const addLinkedBusiness = createAsyncThunk<
     photo?: string;
   },
   {rejectValue: string}
->(
-  'linkedBusinesses/add',
-  async (params) => {
-    const typeMap: BusinessTypeMap = {
-      hospital: 'HOSPITAL',
-      boarder: 'BOARDER',
-      breeder: 'BREEDER',
-      groomer: 'GROOMER',
-    };
+>('linkedBusinesses/add', async params => {
+  const typeMap: BusinessTypeMap = {
+    hospital: 'HOSPITAL',
+    boarder: 'BOARDER',
+    breeder: 'BREEDER',
+    groomer: 'GROOMER',
+  };
 
-    const now = new Date().toISOString();
+  const now = new Date().toISOString();
 
-    // Create a local linked business object (not calling backend)
-    // This is used when adding a business directly without PMS check
-    const linkedBusiness: LinkedBusiness = {
-      id: params.businessId,
-      companionId: params.companionId,
-      businessId: params.businessId,
-      businessName: params.businessName,
-      name: params.businessName,
-      category: params.category,
-      type: typeMap[params.category],
-      address: params.address,
-      phone: params.phone,
-      email: params.email,
-      distance: params.distance,
-      rating: params.rating,
-      photo: params.photo,
-      inviteStatus: 'accepted',
-      state: 'active',
-      createdAt: now,
-      updatedAt: now,
-    };
+  // Create a local linked business object (not calling backend)
+  // This is used when adding a business directly without PMS check
+  const linkedBusiness: LinkedBusiness = {
+    id: params.businessId,
+    companionId: params.companionId,
+    businessId: params.businessId,
+    businessName: params.businessName,
+    name: params.businessName,
+    category: params.category,
+    type: typeMap[params.category],
+    address: params.address,
+    phone: params.phone,
+    email: params.email,
+    distance: params.distance,
+    rating: params.rating,
+    photo: params.photo,
+    inviteStatus: 'accepted',
+    state: 'active',
+    createdAt: now,
+    updatedAt: now,
+  };
 
-    console.log('[LinkedBusinesses] Added linked business:', linkedBusiness);
-    return linkedBusiness;
-  },
-);
+  console.log('[LinkedBusinesses] Added linked business:', linkedBusiness);
+  return linkedBusiness;
+});
 
 // Invite a business (non-PMS) to connect with companion
 export const inviteBusiness = createAsyncThunk<
@@ -506,7 +582,8 @@ export const inviteBusiness = createAsyncThunk<
         businessName,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to invite business';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to invite business';
       console.error('[LinkedBusinesses] inviteBusiness error:', errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -529,10 +606,15 @@ export const deleteLinkedBusiness = createAsyncThunk<
       const allLinkedBusinesses = state.linkedBusinesses.linkedBusinesses || [];
 
       console.log('[LinkedBusinesses] Attempting to delete business:', linkId);
-      console.log('[LinkedBusinesses] Current businesses count:', allLinkedBusinesses.length);
+      console.log(
+        '[LinkedBusinesses] Current businesses count:',
+        allLinkedBusinesses.length,
+      );
 
       // Validate that the business exists
-      const businessExists = allLinkedBusinesses.find((b: LinkedBusiness) => b.id === linkId || b.linkId === linkId);
+      const businessExists = allLinkedBusinesses.find(
+        (b: LinkedBusiness) => b.id === linkId || b.linkId === linkId,
+      );
       if (!businessExists) {
         console.warn('[LinkedBusinesses] Business not found:', linkId);
         return rejectWithValue('Business not found');
@@ -541,12 +623,16 @@ export const deleteLinkedBusiness = createAsyncThunk<
       // Use linkId from the business if available, otherwise use the passed ID
       const idToRevoke = businessExists.linkId || businessExists.id;
 
-      await linkedBusinessesService.revokeLinkedBusiness(idToRevoke, accessToken);
+      await linkedBusinessesService.revokeLinkedBusiness(
+        idToRevoke,
+        accessToken,
+      );
 
       console.log('[LinkedBusinesses] Successfully deleted business:', linkId);
       return linkId;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete business';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to delete business';
       console.error('[LinkedBusinesses] Delete error:', errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -568,12 +654,17 @@ export const acceptBusinessInvite = createAsyncThunk<
       const allLinkedBusinesses = state.linkedBusinesses.linkedBusinesses || [];
 
       // Find the business to get companion details
-      const business = allLinkedBusinesses.find((b: LinkedBusiness) => b.linkId === linkId || b.id === linkId);
+      const business = allLinkedBusinesses.find(
+        (b: LinkedBusiness) => b.linkId === linkId || b.id === linkId,
+      );
       if (!business) {
         return rejectWithValue('Business not found');
       }
 
-      const linkedOrg = await linkedBusinessesService.approveLinkInvite(linkId, accessToken);
+      const linkedOrg = await linkedBusinessesService.approveLinkInvite(
+        linkId,
+        accessToken,
+      );
 
       const updatedBusiness: LinkedBusiness = {
         ...business,
@@ -586,8 +677,12 @@ export const acceptBusinessInvite = createAsyncThunk<
       console.log('[LinkedBusinesses] Invite accepted for:', linkId);
       return updatedBusiness;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to accept invite';
-      console.error('[LinkedBusinesses] acceptBusinessInvite error:', errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to accept invite';
+      console.error(
+        '[LinkedBusinesses] acceptBusinessInvite error:',
+        errorMessage,
+      );
       return rejectWithValue(errorMessage);
     }
   },
@@ -608,12 +703,17 @@ export const declineBusinessInvite = createAsyncThunk<
       const allLinkedBusinesses = state.linkedBusinesses.linkedBusinesses || [];
 
       // Find the business
-      const business = allLinkedBusinesses.find((b: LinkedBusiness) => b.linkId === linkId || b.id === linkId);
+      const business = allLinkedBusinesses.find(
+        (b: LinkedBusiness) => b.linkId === linkId || b.id === linkId,
+      );
       if (!business) {
         return rejectWithValue('Business not found');
       }
 
-      const linkedOrg = await linkedBusinessesService.denyLinkInvite(linkId, accessToken);
+      const linkedOrg = await linkedBusinessesService.denyLinkInvite(
+        linkId,
+        accessToken,
+      );
 
       const updatedBusiness: LinkedBusiness = {
         ...business,
@@ -626,8 +726,12 @@ export const declineBusinessInvite = createAsyncThunk<
       console.log('[LinkedBusinesses] Invite declined for:', linkId);
       return updatedBusiness;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to decline invite';
-      console.error('[LinkedBusinesses] declineBusinessInvite error:', errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to decline invite';
+      console.error(
+        '[LinkedBusinesses] declineBusinessInvite error:',
+        errorMessage,
+      );
       return rejectWithValue(errorMessage);
     }
   },
@@ -642,8 +746,14 @@ export const fetchBusinessDetails = createAsyncThunk(
     try {
       // Check cache first
       const cachedDetails = detailsCache.get(placeId);
-      if (cachedDetails && isCacheValid(cachedDetails.timestamp, DETAILS_CACHE_DURATION_MS)) {
-        console.log('[BusinessDetails] Using cached details for placeId:', placeId);
+      if (
+        cachedDetails &&
+        isCacheValid(cachedDetails.timestamp, DETAILS_CACHE_DURATION_MS)
+      ) {
+        console.log(
+          '[BusinessDetails] Using cached details for placeId:',
+          placeId,
+        );
         return cachedDetails.details;
       }
 
@@ -677,34 +787,37 @@ export const fetchGooglePlacesImage = createAsyncThunk<
   {photoUrl: string | null},
   string,
   {rejectValue: string}
->(
-  'linkedBusinesses/fetchGooglePlacesImage',
-  async (googlePlacesId: string) => {
-    try {
-      if (!googlePlacesId) {
-        return {photoUrl: null};
-      }
-
-      const cacheKey = `googleImage:${googlePlacesId}`;
-      const cached = detailsCache.get(cacheKey);
-
-      if (cached && isCacheValid(cached.timestamp, DETAILS_CACHE_DURATION_MS)) {
-        console.log('[GooglePlacesImage] Using cached image for:', googlePlacesId);
-        return cached.details;
-      }
-
-      console.log('[GooglePlacesImage] Fetching image for Google Places ID:', googlePlacesId);
-      const details = await fetchBusinessPlaceDetails(googlePlacesId);
-      const result = {photoUrl: details.photoUrl || null};
-
-      detailsCache.set(cacheKey, {details: result, timestamp: Date.now()});
-
-      console.log('[GooglePlacesImage] Fetched image URL:', result.photoUrl);
-      return result;
-    } catch (error) {
-      console.warn('[GooglePlacesImage] Failed to fetch image:', error);
-      // Graceful degradation - return null instead of failing
+>('linkedBusinesses/fetchGooglePlacesImage', async (googlePlacesId: string) => {
+  try {
+    if (!googlePlacesId) {
       return {photoUrl: null};
     }
-  },
-);
+
+    const cacheKey = `googleImage:${googlePlacesId}`;
+    const cached = detailsCache.get(cacheKey);
+
+    if (cached && isCacheValid(cached.timestamp, DETAILS_CACHE_DURATION_MS)) {
+      console.log(
+        '[GooglePlacesImage] Using cached image for:',
+        googlePlacesId,
+      );
+      return cached.details;
+    }
+
+    console.log(
+      '[GooglePlacesImage] Fetching image for Google Places ID:',
+      googlePlacesId,
+    );
+    const details = await fetchBusinessPlaceDetails(googlePlacesId);
+    const result = {photoUrl: details.photoUrl || null};
+
+    detailsCache.set(cacheKey, {details: result, timestamp: Date.now()});
+
+    console.log('[GooglePlacesImage] Fetched image URL:', result.photoUrl);
+    return result;
+  } catch (error) {
+    console.warn('[GooglePlacesImage] Failed to fetch image:', error);
+    // Graceful degradation - return null instead of failing
+    return {photoUrl: null};
+  }
+});

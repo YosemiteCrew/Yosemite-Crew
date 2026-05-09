@@ -261,7 +261,7 @@ const mergeMobileConfigBehavior = (
   ...overrides,
   overrides: {
     ...DEFAULT_MOBILE_CONFIG_BEHAVIOR.overrides,
-    ...(overrides?.overrides ?? {}),
+    ...overrides?.overrides,
   },
 });
 

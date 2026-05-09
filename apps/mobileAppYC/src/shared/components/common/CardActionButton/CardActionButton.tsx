@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, {useMemo} from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -9,7 +9,7 @@ import {
   TextStyle,
   StyleProp,
 } from 'react-native';
-import { useTheme } from '@/hooks';
+import {useTheme} from '@/hooks';
 
 export type CardActionButtonVariant = 'primary' | 'success' | 'secondary';
 
@@ -36,21 +36,15 @@ export const CardActionButton: React.FC<CardActionButtonProps> = ({
   labelStyle,
   iconStyle,
 }) => {
-  const { theme } = useTheme();
+  const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme, variant), [theme, variant]);
 
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       style={[styles.button, buttonStyle]}
-      onPress={onPress}
-    >
-      {icon && (
-        <Image
-          source={icon}
-          style={[styles.icon, iconStyle]}
-        />
-      )}
+      onPress={onPress}>
+      {icon && <Image source={icon} style={[styles.icon, iconStyle]} />}
       <Text style={[styles.label, labelStyle]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -90,16 +84,18 @@ const createStyles = (theme: any, variant: CardActionButtonVariant) => {
     button: {
       ...baseButton,
       ...variantStyles[variant],
-    } as ViewStyle,
+    },
     icon: {
       width: 20,
       height: 20,
       resizeMode: 'contain' as const,
-      tintColor: variant === 'success' ? theme.colors.white : theme.colors.secondary,
+      tintColor:
+        variant === 'success' ? theme.colors.white : theme.colors.secondary,
     },
     label: {
       ...theme.typography.button,
-      color: variant === 'success' ? theme.colors.white : theme.colors.secondary,
+      color:
+        variant === 'success' ? theme.colors.white : theme.colors.secondary,
     },
   });
 };

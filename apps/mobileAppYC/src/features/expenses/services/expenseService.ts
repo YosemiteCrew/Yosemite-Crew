@@ -3,10 +3,18 @@ import {documentApi} from '@/features/documents/services/documentService';
 import {generateId} from '@/shared/utils/helpers';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
-import type {Expense, ExpenseAttachment, ExpenseSummary} from '@/features/expenses/types';
+import type {
+  Expense,
+  ExpenseAttachment,
+  ExpenseSummary,
+} from '@/features/expenses/types';
 import type {Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 import {mapInvoiceFromResponse} from '@/features/appointments/services/appointmentsService';
-import {resolveCategoryLabel, resolveSubcategoryLabel, resolveVisitTypeLabel} from '@/features/expenses/utils/expenseLabels';
+import {
+  resolveCategoryLabel,
+  resolveSubcategoryLabel,
+  resolveVisitTypeLabel,
+} from '@/features/expenses/utils/expenseLabels';
 
 type ExpenseSourceRaw = 'IN_APP' | 'EXTERNAL';
 
@@ -74,7 +82,7 @@ const normalizeStatus = (raw?: string | null): Expense['status'] => {
     case 'PAYMENT_FAILED':
     case 'NO_PAYMENT':
     case 'AWAITING_PAYMENT':
-      return upper as Expense['status'];
+      return upper;
     default:
       return 'UNPAID';
   }
@@ -92,7 +100,8 @@ const deriveFileName = (key?: string | null, fallback?: string) => {
 const inferMimeFromKey = (key?: string | null, fallback?: string) => {
   const name = key ?? '';
   const lowered = name.toLowerCase();
-  if (lowered.endsWith('.jpg') || lowered.endsWith('.jpeg')) return 'image/jpeg';
+  if (lowered.endsWith('.jpg') || lowered.endsWith('.jpeg'))
+    return 'image/jpeg';
   if (lowered.endsWith('.png')) return 'image/png';
   if (lowered.endsWith('.webp')) return 'image/webp';
   if (lowered.endsWith('.heic')) return 'image/heic';
@@ -119,7 +128,9 @@ const mapAttachmentFromApi = (raw: any, index: number): ExpenseAttachment => {
     raw?.viewUrl ??
     raw?.downloadUrl ??
     null;
-  const resolvedUrl = normalizeImageUri(cdnUrl ?? fallbackUrl ?? raw?.uri ?? '');
+  const resolvedUrl = normalizeImageUri(
+    cdnUrl ?? fallbackUrl ?? raw?.uri ?? '',
+  );
 
   const mimeType =
     raw?.mimetype ??
@@ -131,7 +142,10 @@ const mapAttachmentFromApi = (raw: any, index: number): ExpenseAttachment => {
   return {
     id: (raw?.id ?? raw?._id ?? key) || `attachment-${index}-${generateId()}`,
     key,
-    name: raw?.name ?? raw?.fileName ?? deriveFileName(key, `attachment-${index + 1}`),
+    name:
+      raw?.name ??
+      raw?.fileName ??
+      deriveFileName(key, `attachment-${index + 1}`),
     type: mimeType,
     size: raw?.size ?? raw?.fileSize ?? raw?.contentLength ?? 0,
     uri: resolvedUrl ?? '',
@@ -155,26 +169,45 @@ const toIsoStringSafe = (value: any, fallback?: string) => {
 
 const mapExpenseFromApi = (raw: any, companionIdFallback?: string): Expense => {
   const attachments = Array.isArray(raw?.attachments) ? raw.attachments : [];
-  const mappedAttachments = attachments.map((item: any, idx: number) => mapAttachmentFromApi(item, idx));
+  const mappedAttachments = attachments.map((item: any, idx: number) =>
+    mapAttachmentFromApi(item, idx),
+  );
 
   const companionId =
-    raw?.companionId ?? raw?.companion_id ?? raw?.petId ?? companionIdFallback ?? '';
-  const createdAt = raw?.createdAt ?? raw?.created_at ?? raw?.date ?? new Date().toISOString();
+    raw?.companionId ??
+    raw?.companion_id ??
+    raw?.petId ??
+    companionIdFallback ??
+    '';
+  const createdAt =
+    raw?.createdAt ?? raw?.created_at ?? raw?.date ?? new Date().toISOString();
   const updatedAt = raw?.updatedAt ?? raw?.updated_at ?? createdAt;
   const date = raw?.date ?? createdAt;
   const rawStatus =
-    raw?.status ?? raw?.paymentStatus ?? raw?.state ?? raw?.payment_state ?? raw?.paymentState;
+    raw?.status ??
+    raw?.paymentStatus ??
+    raw?.state ??
+    raw?.payment_state ??
+    raw?.paymentState;
   const source = normalizeSource(raw?.source);
-  const resolvedSource = source === 'external' && (raw?.invoiceId ?? raw?.invoice_id) ? 'inApp' : source;
+  const resolvedSource =
+    source === 'external' && (raw?.invoiceId ?? raw?.invoice_id)
+      ? 'inApp'
+      : source;
 
   return {
     id: raw?.id ?? raw?._id ?? raw?.expenseId ?? generateId(),
     companionId,
     title: raw?.title ?? raw?.expenseName ?? raw?.name ?? 'Expense',
     category: normalizeCategory(raw?.category ?? raw?.categoryId ?? ''),
-    subcategory: normalizeSubcategory(raw?.subcategory ?? raw?.subCategory ?? ''),
+    subcategory: normalizeSubcategory(
+      raw?.subcategory ?? raw?.subCategory ?? '',
+    ),
     visitType: normalizeVisitType(
-      raw?.visitType ?? raw?.visit_type ?? raw?.visitTypeName ?? raw?.visit_type_name,
+      raw?.visitType ??
+        raw?.visit_type ??
+        raw?.visitTypeName ??
+        raw?.visit_type_name,
     ),
     amount: Number(raw?.amount ?? 0),
     currencyCode: raw?.currency ?? raw?.currencyCode ?? 'USD',
@@ -185,8 +218,16 @@ const mapExpenseFromApi = (raw: any, companionIdFallback?: string): Expense => {
     createdAt: toIsoStringSafe(createdAt),
     updatedAt: toIsoStringSafe(updatedAt),
     attachments: mappedAttachments,
-    providerName: raw?.providerName ?? raw?.businessName ?? raw?.organization ?? raw?.organisation,
-    businessName: raw?.businessName ?? raw?.providerName ?? raw?.organization ?? raw?.organisation,
+    providerName:
+      raw?.providerName ??
+      raw?.businessName ??
+      raw?.organization ??
+      raw?.organisation,
+    businessName:
+      raw?.businessName ??
+      raw?.providerName ??
+      raw?.organization ??
+      raw?.organisation,
     description: raw?.description ?? raw?.note ?? '',
     invoiceId: raw?.invoiceId ?? raw?.invoice_id ?? raw?.invoice?.id ?? null,
     appointmentId:
@@ -200,7 +241,10 @@ const mapExpenseFromApi = (raw: any, companionIdFallback?: string): Expense => {
   };
 };
 
-const mapSummaryFromApi = (raw: any, currencyCodeFallback = 'USD'): ExpenseSummary => ({
+const mapSummaryFromApi = (
+  raw: any,
+  currencyCodeFallback = 'USD',
+): ExpenseSummary => ({
   total: Number(raw?.totalExpense ?? raw?.total ?? 0),
   invoiceTotal: Number(raw?.invoiceTotal ?? raw?.inAppTotal ?? 0),
   externalTotal: Number(raw?.externalTotal ?? raw?.external ?? 0),
@@ -277,7 +321,9 @@ const toApiPayload = (input: ExpenseInputPayload) => {
   })();
 
   const categoryLabel = resolveCategoryLabel(category);
-  const subcategoryLabel = subcategory ? resolveSubcategoryLabel(category, subcategory) : '';
+  const subcategoryLabel = subcategory
+    ? resolveSubcategoryLabel(category, subcategory)
+    : '';
   const visitTypeLabel = visitType ? resolveVisitTypeLabel(visitType) : '';
 
   return {
@@ -297,11 +343,14 @@ const toApiPayload = (input: ExpenseInputPayload) => {
 };
 
 const extractPaymentIntentId = (invoicePayload: any): string | null => {
-  const extensions = Array.isArray(invoicePayload?.extension) ? invoicePayload.extension : [];
+  const extensions = Array.isArray(invoicePayload?.extension)
+    ? invoicePayload.extension
+    : [];
   const extIntent =
     extensions.find(
       (ext: any) =>
-        ext?.url === 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id',
+        ext?.url ===
+        'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id',
     )?.valueString ?? null;
   return (
     extIntent ??
@@ -383,7 +432,10 @@ export const expenseApi = {
       headers: withAuthHeaders(accessToken),
     });
     const responsePayload = data?.data ?? data ?? payload;
-    const mergedPayload = {...responsePayload, attachments: uploadedAttachments};
+    const mergedPayload = {
+      ...responsePayload,
+      attachments: uploadedAttachments,
+    };
     return mapExpenseFromApi(mergedPayload, input.companionId);
   },
 
@@ -409,7 +461,11 @@ export const expenseApi = {
       {headers: withAuthHeaders(accessToken)},
     );
     const responsePayload = data?.data ?? data ?? payload;
-    const mergedPayload = {...responsePayload, attachments: uploadedAttachments, id: expenseId};
+    const mergedPayload = {
+      ...responsePayload,
+      attachments: uploadedAttachments,
+      id: expenseId,
+    };
     return mapExpenseFromApi(mergedPayload, input.companionId);
   },
 
@@ -432,7 +488,13 @@ export const expenseApi = {
   }: {
     invoiceId: string;
     accessToken: string;
-  }): Promise<{invoice: Invoice | null; paymentIntent: PaymentIntentInfo | null; paymentIntentId: string | null; organistion?: any; organisation?: any}> {
+  }): Promise<{
+    invoice: Invoice | null;
+    paymentIntent: PaymentIntentInfo | null;
+    paymentIntentId: string | null;
+    organistion?: any;
+    organisation?: any;
+  }> {
     const {data} = await apiClient.get(
       `/fhir/v1/invoice/mobile/${encodeURIComponent(invoiceId)}`,
       {headers: withAuthHeaders(accessToken)},
@@ -452,7 +514,8 @@ export const expenseApi = {
     const organisationData = payload?.organistion ?? payload?.organisation;
 
     const {invoice, paymentIntent} = mapInvoiceFromResponse(invoiceData);
-    const paymentIntentId = paymentIntent?.paymentIntentId ?? extractPaymentIntentId(invoiceData);
+    const paymentIntentId =
+      paymentIntent?.paymentIntentId ?? extractPaymentIntentId(invoiceData);
 
     return {
       invoice,
@@ -497,7 +560,8 @@ export const expenseApi = {
     );
     const payload = data?.paymentIntent ?? data?.data ?? data ?? {};
     return {
-      paymentIntentId: payload.paymentIntentId ?? payload.id ?? payload.invoiceId ?? invoiceId,
+      paymentIntentId:
+        payload.paymentIntentId ?? payload.id ?? payload.invoiceId ?? invoiceId,
       clientSecret: payload.clientSecret ?? payload.client_secret ?? '',
       amount: payload.amount ?? payload.value ?? 0,
       currency: payload.currency ?? payload.currencyCode ?? 'USD',

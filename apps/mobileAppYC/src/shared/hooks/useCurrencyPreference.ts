@@ -20,7 +20,7 @@ export const useCurrencyPreference = () => {
       try {
         const stored = await AsyncStorage.getItem(CURRENCY_STORAGE_KEY);
         if (stored && (stored === 'EUR' || stored === 'USD')) {
-          setCurrency(stored as CurrencyCode);
+          setCurrency(stored);
         }
       } catch (error) {
         console.warn('Failed to load currency preference:', error);

@@ -423,10 +423,7 @@ const appointmentsSlice = createSlice({
       })
       .addCase(fetchAppointmentsForCompanion.fulfilled, (state, action) => {
         state.loading = false;
-        const {companionId, items} = action.payload as {
-          companionId: string;
-          items: Appointment[];
-        };
+        const {companionId, items} = action.payload;
         state.items = state.items.filter(a => a.companionId !== companionId);
         state.items.push(...items);
         state.hydratedCompanions[companionId] = true;
@@ -521,10 +518,7 @@ const appointmentsSlice = createSlice({
         upsertAppointment(state, normalized);
       })
       .addCase(fetchPaymentIntentForAppointment.fulfilled, (state, action) => {
-        const {appointmentId, intent} = action.payload as {
-          appointmentId: string;
-          intent: PaymentIntentInfo;
-        };
+        const {appointmentId, intent} = action.payload;
         const idx = state.items.findIndex(a => a.id === appointmentId);
         if (idx >= 0) {
           state.items[idx] = {

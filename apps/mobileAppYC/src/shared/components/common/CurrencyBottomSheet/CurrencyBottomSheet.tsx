@@ -1,9 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-} from 'react';
+import React, {forwardRef, useImperativeHandle, useMemo, useRef} from 'react';
 import {
   GenericSelectBottomSheet,
   type GenericSelectBottomSheetRef,
@@ -29,21 +24,13 @@ type CurrencyOption = SelectItem & {
   flag: string;
 };
 
-const COUNTRIES: Array<{code: string; flag: string}> = countryList as Array<{
-  code: string;
-  flag: string;
-}>;
+const COUNTRIES: Array<{code: string; flag: string}> = countryList;
 const CURRENCIES: Array<{
   code: string;
   name: string;
   symbol: string;
   countryCode: string;
-}> = currencyList as Array<{
-  code: string;
-  name: string;
-  symbol: string;
-  countryCode: string;
-}>;
+}> = currencyList;
 
 const SPECIAL_FLAGS: Record<string, string> = {
   EU: '🇪🇺',
@@ -59,17 +46,18 @@ const resolveFlag = (countryCode: string) => {
 
 // Map only supported currencies (EUR, USD) to options with their flags
 const mapToOptions = (): CurrencyOption[] =>
-  CURRENCIES.filter(currency => SUPPORTED_CURRENCIES.includes(currency.code as any))
-    .map(currency => {
-      const flag = resolveFlag(currency.countryCode);
-      return {
-        id: currency.code,
-        label: `${flag} ${currency.name} (${currency.symbol})`,
-        code: currency.code,
-        symbol: currency.symbol,
-        flag,
-      };
-    });
+  CURRENCIES.filter(currency =>
+    SUPPORTED_CURRENCIES.includes(currency.code as any),
+  ).map(currency => {
+    const flag = resolveFlag(currency.countryCode);
+    return {
+      id: currency.code,
+      label: `${flag} ${currency.name} (${currency.symbol})`,
+      code: currency.code,
+      symbol: currency.symbol,
+      flag,
+    };
+  });
 
 export const CurrencyBottomSheet = forwardRef<
   CurrencyBottomSheetRef,
@@ -80,7 +68,11 @@ export const CurrencyBottomSheet = forwardRef<
   const currencyOptions = useMemo(() => mapToOptions(), []);
 
   const selectedItem = useMemo(
-    () => currencyOptions.find(option => option.code === selectedCurrency) ?? currencyOptions.find(o => o.code === 'USD') ?? currencyOptions[0] ?? null,
+    () =>
+      currencyOptions.find(option => option.code === selectedCurrency) ??
+      currencyOptions.find(o => o.code === 'USD') ??
+      currencyOptions[0] ??
+      null,
     [currencyOptions, selectedCurrency],
   );
 

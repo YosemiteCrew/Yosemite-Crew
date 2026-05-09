@@ -9,12 +9,18 @@ import {
   type ExpenseFormData,
 } from '@/features/expenses/components';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
-import {useExpenseForm, DEFAULT_FORM} from '@/features/expenses/hooks/useExpenseForm';
+import {
+  useExpenseForm,
+  DEFAULT_FORM,
+} from '@/features/expenses/hooks/useExpenseForm';
 import type {RootState} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {addExternalExpense} from '@/features/expenses';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {useCompanionFormScreen, useFormFileOperations} from '@/shared/hooks/useFormScreen';
+import {
+  useCompanionFormScreen,
+  useFormFileOperations,
+} from '@/shared/hooks/useFormScreen';
 
 export const AddExpenseScreen: React.FC = () => {
   const {
@@ -47,7 +53,7 @@ export const AddExpenseScreen: React.FC = () => {
 
   const fileOps = useFormFileOperations(
     formData?.attachments ?? [],
-    'attachments' as keyof ExpenseFormData,
+    'attachments',
     handleChangeWithTracking,
     handleErrorClear,
     formSheets,
@@ -89,7 +95,14 @@ export const AddExpenseScreen: React.FC = () => {
   return (
     <>
       <LiquidGlassHeaderScreen
-        header={<Header title="Expenses" showBackButton onBack={handleGoBack} glass={false} />}
+        header={
+          <Header
+            title="Expenses"
+            showBackButton
+            onBack={handleGoBack}
+            glass={false}
+          />
+        }
         contentPadding={theme.spacing['3']}
         useSafeAreaView>
         {contentPaddingStyle => (

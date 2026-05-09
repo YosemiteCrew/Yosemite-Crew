@@ -1,5 +1,12 @@
 import React, {useEffect, useMemo, useRef, useCallback, useState} from 'react';
-import {View, Text, TouchableOpacity, FlatList, StyleSheet, Image} from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Image,
+} from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {
@@ -17,19 +24,29 @@ export interface CalendarMonthStripProps {
   markerColor?: string;
 }
 
-export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({selectedDate, onChange, datesWithMarkers, markerColor}) => {
+export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
+  selectedDate,
+  onChange,
+  datesWithMarkers,
+  markerColor,
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dateListRef = useRef<FlatList>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
   const markerSet = useMemo(() => {
     if (!datesWithMarkers) return new Set<string>();
-    return Array.isArray(datesWithMarkers) ? new Set(datesWithMarkers) : datesWithMarkers;
+    return Array.isArray(datesWithMarkers)
+      ? new Set(datesWithMarkers)
+      : datesWithMarkers;
   }, [datesWithMarkers]);
 
   const weekDates = useMemo(() => {
     // Mark selected
-    return getMonthDates(currentMonth, selectedDate).map(d => ({...d, isCurrentMonth: d.date.getMonth() === currentMonth.getMonth()} as DateInfo & {isCurrentMonth: boolean}));
+    return getMonthDates(currentMonth, selectedDate).map(d => ({
+      ...d,
+      isCurrentMonth: d.date.getMonth() === currentMonth.getMonth(),
+    }));
   }, [currentMonth, selectedDate]);
 
   // Keep month in sync when parent changes selectedDate across months
@@ -95,16 +112,41 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({selectedD
     return `${y}-${m}-${dd}`;
   };
 
-  const renderDateItem = ({item}: {item: DateInfo & {isCurrentMonth?: boolean}}) => {
+  const renderDateItem = ({
+    item,
+  }: {
+    item: DateInfo & {isCurrentMonth?: boolean};
+  }) => {
     const showMarker = markerSet.has(iso(item.date));
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        style={[styles.dateItem, item.isSelected && styles.dateItemSelected, item.isToday && styles.dateItemToday, !item.isCurrentMonth && styles.dateItemDisabled]}
+        style={[
+          styles.dateItem,
+          item.isSelected && styles.dateItemSelected,
+          item.isToday && styles.dateItemToday,
+          !item.isCurrentMonth && styles.dateItemDisabled,
+        ]}
         onPress={() => onChange(item.date)}>
-        <Text style={[styles.dateDay, item.isSelected && styles.dateDaySelected]}>{item.dayName}</Text>
-        <Text style={[styles.dateNumber, item.isSelected && styles.dateNumberSelected]}>{item.dayNumber}</Text>
-        {showMarker && <View style={[styles.marker, {backgroundColor: markerColor || theme.colors.primary}]} />}
+        <Text
+          style={[styles.dateDay, item.isSelected && styles.dateDaySelected]}>
+          {item.dayName}
+        </Text>
+        <Text
+          style={[
+            styles.dateNumber,
+            item.isSelected && styles.dateNumberSelected,
+          ]}>
+          {item.dayNumber}
+        </Text>
+        {showMarker && (
+          <View
+            style={[
+              styles.marker,
+              {backgroundColor: markerColor || theme.colors.primary},
+            ]}
+          />
+        )}
       </TouchableOpacity>
     );
   };
@@ -112,11 +154,17 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({selectedD
   return (
     <View style={styles.calendarContainer}>
       <View style={styles.calendarHeader}>
-        <TouchableOpacity onPress={() => setCurrentMonth(getPreviousMonth(currentMonth))} style={styles.navButton} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={() => setCurrentMonth(getPreviousMonth(currentMonth))}
+          style={styles.navButton}
+          activeOpacity={0.7}>
           <Image source={Images.leftArrowIcon} style={styles.arrowIcon} />
         </TouchableOpacity>
         <Text style={styles.monthTitle}>{formatMonthYear(currentMonth)}</Text>
-        <TouchableOpacity onPress={() => setCurrentMonth(getNextMonth(currentMonth))} style={styles.navButton} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={() => setCurrentMonth(getNextMonth(currentMonth))}
+          style={styles.navButton}
+          activeOpacity={0.7}>
           <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
         </TouchableOpacity>
       </View>
@@ -144,8 +192,18 @@ const createStyles = (theme: any) =>
       justifyContent: 'space-between',
     },
     navButton: {padding: theme.spacing['2']},
-    arrowIcon: {width: 24, height: 24, resizeMode: 'contain', tintColor: theme.colors.secondary},
-    monthTitle: {...theme.typography.titleMedium, color: theme.colors.secondary, textAlign: 'center', flex: 1},
+    arrowIcon: {
+      width: 24,
+      height: 24,
+      resizeMode: 'contain',
+      tintColor: theme.colors.secondary,
+    },
+    monthTitle: {
+      ...theme.typography.titleMedium,
+      color: theme.colors.secondary,
+      textAlign: 'center',
+      flex: 1,
+    },
     datesList: {gap: theme.spacing['2']},
     dateItem: {
       alignItems: 'center',
@@ -165,11 +223,26 @@ const createStyles = (theme: any) =>
     },
     dateItemToday: {borderColor: theme.colors.primary, borderWidth: 2},
     dateItemDisabled: {opacity: 0.3, backgroundColor: theme.colors.background},
-    dateDay: {...theme.typography.h6Clash, color: theme.colors.textSecondary, marginBottom: theme.spacing['1'], textAlign: 'center'},
+    dateDay: {
+      ...theme.typography.h6Clash,
+      color: theme.colors.textSecondary,
+      marginBottom: theme.spacing['1'],
+      textAlign: 'center',
+    },
     dateDaySelected: {color: theme.colors.primary, fontWeight: '500'},
-    dateNumber: {...theme.typography.h6Clash, color: theme.colors.textSecondary, textAlign: 'center'},
+    dateNumber: {
+      ...theme.typography.h6Clash,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
     dateNumberSelected: {color: theme.colors.primary, fontWeight: '500'},
-    marker: {position: 'absolute', bottom: 6, width: 6, height: 6, borderRadius: theme.borderRadius.lg},
+    marker: {
+      position: 'absolute',
+      bottom: 6,
+      width: 6,
+      height: 6,
+      borderRadius: theme.borderRadius.lg,
+    },
   });
 
 export default CalendarMonthStrip;
