@@ -78,7 +78,7 @@ const GoogleSearchDropDown = ({
   inlabel,
   value,
   onChange,
-  onBlur,
+  onBlur: _onBlur,
   readonly,
   error,
   setFormData,

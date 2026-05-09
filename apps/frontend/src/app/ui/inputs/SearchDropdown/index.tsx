@@ -125,7 +125,6 @@ const SearchDropdown = ({
       {canSearch && (
         <div
           id={listboxId}
-          role="listbox"
           aria-label={accessibleLabel}
           className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-3 py-2.5"
           onScroll={handleScroll}
@@ -133,8 +132,6 @@ const SearchDropdown = ({
           {filtered.map((option) => (
             <button
               key={option.value}
-              role="option"
-              aria-selected={false}
               onClick={() => onSelectOption(option.value)}
               className={
                 optionClassName ??
@@ -145,13 +142,12 @@ const SearchDropdown = ({
             </button>
           ))}
           {isLoadingMore ? (
-            <div
-              role="status"
+            <output
               aria-live="polite"
               className="text-caption-1 py-2 text-text-secondary w-full text-center"
             >
               Loading more results…
-            </div>
+            </output>
           ) : null}
         </div>
       )}

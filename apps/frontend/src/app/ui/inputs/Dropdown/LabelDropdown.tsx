@@ -108,7 +108,6 @@ const LabelDropdown = ({
       {open && (
         <div
           id={listboxId}
-          role="listbox"
           aria-label={placeholder}
           className="border-input-text-placeholder-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]"
         >
@@ -117,8 +116,7 @@ const LabelDropdown = ({
               <button
                 key={option.value + i}
                 type="button"
-                role="option"
-                aria-selected={selected?.value === option.value}
+                aria-pressed={selected?.value === option.value}
                 className="px-[1.25rem] py-[0.75rem] text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
                 onClick={() => {
                   setSelected(option);

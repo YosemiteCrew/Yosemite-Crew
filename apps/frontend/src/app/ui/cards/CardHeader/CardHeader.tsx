@@ -63,14 +63,12 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
         </button>
         {open && (
           <div
-            role="listbox"
             aria-label={`Filter ${title} by time period`}
             className="bg-white border border-card-border px-2 py-1 w-full absolute top-[120%] left-0 flex flex-col rounded-2xl z-10"
           >
             {options.map((option: string) => (
               <button
-                role="option"
-                aria-selected={option === selectedValue}
+                aria-pressed={option === selectedValue}
                 className="outline-none border-0 bg-white hover:bg-card-hover! rounded-2xl! transition-all duration-300 p-2"
                 key={option}
                 onClick={() => handleSelect(option)}

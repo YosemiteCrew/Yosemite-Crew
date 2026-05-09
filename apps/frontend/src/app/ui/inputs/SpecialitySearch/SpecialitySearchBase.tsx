@@ -118,11 +118,12 @@ const SpecialitySearchBase = <T extends { name: string }>({
         onFocus={() => setOpen(true)}
       />
       {open && (
-        <div className="step-search-dropdown" id={listboxId} role="listbox">
+        <div className="step-search-dropdown" id={listboxId} aria-label="Speciality results">
           {filtered?.length > 0 ? (
             filtered.map((speciality: any) => (
               <button
                 key={speciality.name}
+                type="button"
                 className="step-search-speciality"
                 onClick={() => handleSelectSpeciality(speciality)}
               >

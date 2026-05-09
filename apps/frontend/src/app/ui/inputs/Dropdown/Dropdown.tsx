@@ -145,7 +145,6 @@ const Dropdown = ({
         {open && !disabled && (
           <div
             id={listboxId}
-            role="listbox"
             aria-label={placeholder}
             className={`select-input-dropdown ${dropdownClassName ?? ''}`}
           >
@@ -178,8 +177,7 @@ const Dropdown = ({
               return (
                 <button
                   key={label + 'team-key' + index}
-                  role="option"
-                  aria-selected={isSelected}
+                  aria-pressed={isSelected}
                   className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'}`}
                   onClick={() => {
                     onChange(returnObject ? option : valueToSend);

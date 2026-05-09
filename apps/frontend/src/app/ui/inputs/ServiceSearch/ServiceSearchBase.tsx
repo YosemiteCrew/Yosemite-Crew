@@ -86,11 +86,12 @@ const ServiceSearchBase = ({
         onFocus={() => setOpen(true)}
       />
       {open && (
-        <div className="service-search-dropdown" id={listboxId} role="listbox">
+        <div className="service-search-dropdown" id={listboxId} aria-label="Service results">
           {filtered?.length > 0 ? (
             filtered.map((service: any) => (
               <button
                 key={service}
+                type="button"
                 className="service-search-speciality"
                 onClick={() => handleSelect(service)}
               >

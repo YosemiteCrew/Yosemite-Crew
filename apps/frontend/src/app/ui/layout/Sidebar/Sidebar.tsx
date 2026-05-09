@@ -158,6 +158,7 @@ const Sidebar = () => {
             width={isCollapsed ? 68 : 90}
             height={isCollapsed ? 64 : 83}
             priority
+            style={{ height: 'auto' }}
           />
         </Link>
       </div>

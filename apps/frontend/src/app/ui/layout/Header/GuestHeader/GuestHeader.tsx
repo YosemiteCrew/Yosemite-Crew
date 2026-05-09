@@ -135,7 +135,14 @@ const GuestHeader = () => {
       data-terminology-lock="true"
     >
       <Link href="/" className="yc-guest-logo-link" aria-label="Yosemite Crew home">
-        <Image src={logoUrl} alt="Yosemite Crew" width={112} height={72} priority />
+        <Image
+          src={logoUrl}
+          alt="Yosemite Crew"
+          width={112}
+          height={72}
+          priority
+          style={{ height: 'auto' }}
+        />
       </Link>
 
       <div className="max-w-[800px] flex-1 hidden lg:flex">

@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import './YosemiteLoader.css';
 
 type LoaderVariant = 'inline' | 'fullscreen' | 'fullscreen-translucent';
@@ -26,15 +27,17 @@ const YosemiteLoader: React.FC<YosemiteLoaderProps> = ({
   return (
     <output
       className={`yosemite-loader ${variantClass}`}
-      role="status"
       aria-live="polite"
       aria-label={label ?? 'Loading'}
       data-testid={testId}
     >
-      <span
-        role="img"
-        aria-label="Loading"
+      <Image
+        alt="Loading"
         className="yosemite-loader__image"
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+        width={size}
+        height={size}
+        unoptimized
         style={{ width: size, height: size }}
       />
       {label ? (
