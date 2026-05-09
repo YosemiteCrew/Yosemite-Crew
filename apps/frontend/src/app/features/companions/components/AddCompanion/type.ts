@@ -44,9 +44,9 @@ export const OriginOptions: Option[] = [
   { label: 'Unknown', value: 'unknown' },
 ];
 export const SpeciesOptions: Option[] = [
-  { value: 'dog', label: 'Dog' },
-  { value: 'cat', label: 'Cat' },
-  { value: 'horse', label: 'Horse' },
+  { value: 'dog', label: 'Canine' },
+  { value: 'cat', label: 'Feline' },
+  { value: 'horse', label: 'Equine' },
 ];
 export type Breed = {
   speciesId: number;

@@ -3,7 +3,7 @@ export {
   createOrg,
   updateOrg,
   deleteOrg,
-} from "@/app/features/organization/services/orgService";
+} from '@/app/features/organization/services/orgService';
 export {
   loadTeam,
   sendInvite,
@@ -13,28 +13,30 @@ export {
   getProfileForUserForPrimaryOrg,
   removeMember,
   updateMember,
-} from "@/app/features/organization/services/teamService";
+} from '@/app/features/organization/services/teamService';
 export {
   loadRoomsForOrgPrimaryOrg,
   createRoom,
   updateRoom,
   deleteRoom,
-} from "@/app/features/organization/services/roomService";
+} from '@/app/features/organization/services/roomService';
 export {
   loadSpecialitiesForOrg,
   createSpeciality,
+  createSpecialitiesBulk,
   createService,
+  createServicesBulk,
   createBulkSpecialityServices,
   updateSpeciality,
   updateService,
   deleteSpeciality,
-} from "@/app/features/organization/services/specialityService";
+} from '@/app/features/organization/services/specialityService';
 export {
   loadProfiles,
   createUserProfile,
   updateUserProfile,
   upsertUserProfile,
-} from "@/app/features/organization/services/profileService";
+} from '@/app/features/organization/services/profileService';
 export {
   upsertAvailability,
   upsertTeamAvailability,
@@ -42,9 +44,9 @@ export {
   getOveridesForPrimaryDate,
   createOveride,
   deleteOveride,
-} from "@/app/features/organization/services/availabilityService";
+} from '@/app/features/organization/services/availabilityService';
 export {
   loadServicesForOrg,
   deleteService,
-} from "@/app/features/organization/services/serviceService";
-export * from "@/app/features/organization/types";
+} from '@/app/features/organization/services/serviceService';
+export * from '@/app/features/organization/types';

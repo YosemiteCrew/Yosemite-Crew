@@ -1,12 +1,8 @@
-import { BusinessType } from "@/app/features/organization/types/org";
+import { BusinessType } from '@/app/features/organization/types/org';
 
-export type InventoryStatus = "ACTIVE" | "HIDDEN";
+export type InventoryStatus = 'ACTIVE' | 'HIDDEN';
 
-export type StockHealthStatus =
-  | "HEALTHY"
-  | "LOW_STOCK"
-  | "EXPIRED"
-  | "EXPIRING_SOON";
+export type StockHealthStatus = 'HEALTHY' | 'LOW_STOCK' | 'EXPIRED' | 'EXPIRING_SOON';
 
 export type InventoryBatchApi = {
   batchNumber?: string;
@@ -85,196 +81,185 @@ export type InventoryRequestPayload = {
 };
 
 // Primary Information Values
-export const StatusOptions: string[] = [
-  "Low stock",
-  "Expired",
-  "Hidden",
-  "This week",
-];
+export const StatusOptions: string[] = ['Low stock', 'Expired', 'Hidden', 'This week'];
 export const CategoryOptionsByBusiness: Record<BusinessType, string[]> = {
   HOSPITAL: [
-    "Medicine",
-    "Consumable",
-    "Equipment",
-    "Supplement",
-    "Diagnostic kit",
-    "Vaccine",
-    "Food",
-    "Cleaning supply",
-    "Surgical supply",
-    "Wound care",
-    "IV/Fluid therapy",
-    "Laboratory",
-    "Imaging consumable",
+    'Medicine',
+    'Consumable',
+    'Equipment',
+    'Supplement',
+    'Diagnostic kit',
+    'Vaccine',
+    'Food',
+    'Cleaning supply',
+    'Surgical supply',
+    'Wound care',
+    'IV/Fluid therapy',
+    'Laboratory',
+    'Imaging consumable',
   ],
   GROOMER: [
-    "Accessories",
-    "Shampoo",
-    "Conditioner",
-    "Brush",
-    "Comb",
-    "Clipper",
-    "Blade",
-    "Spray",
-    "Towel",
-    "Cleaning Supply",
-    "Disinfectant",
-    "Perfume",
-    "Ear care",
-    "Paw care",
-    "Nail care",
-    "Dental hygiene",
+    'Accessories',
+    'Shampoo',
+    'Conditioner',
+    'Brush',
+    'Comb',
+    'Clipper',
+    'Blade',
+    'Spray',
+    'Towel',
+    'Cleaning Supply',
+    'Disinfectant',
+    'Perfume',
+    'Ear care',
+    'Paw care',
+    'Nail care',
+    'Dental hygiene',
   ],
   BREEDER: [
-    "Medicine",
-    "Consumable",
-    "Equipment",
-    "Supplement",
-    "Food",
-    "Bedding",
-    "Accessory",
-    "Cleaning supply",
-    "Fertility aid",
-    "Neonatal care",
-    "Vaccination kit",
+    'Medicine',
+    'Consumable',
+    'Equipment',
+    'Supplement',
+    'Food',
+    'Bedding',
+    'Accessory',
+    'Cleaning supply',
+    'Fertility aid',
+    'Neonatal care',
+    'Vaccination kit',
   ],
   BOARDER: [
-    "Bedding",
-    "Pet food",
-    "Toy",
-    "Grooming essentials",
-    "Laundry supplies",
-    "Health & safety",
-    "Maintenance",
-    "Miscellaneous",
-    "Cleaning supply",
-    "Pest control",
-    "Disinfection",
-    "Facility supplies",
+    'Bedding',
+    'Pet food',
+    'Toy',
+    'Grooming essentials',
+    'Laundry supplies',
+    'Health & safety',
+    'Maintenance',
+    'Miscellaneous',
+    'Cleaning supply',
+    'Pest control',
+    'Disinfection',
+    'Facility supplies',
   ],
 };
 export const SubCategoryOptions: string[] = [
-  "Accessories",
-  "Antibiotic",
-  "Anti-inflammatory",
-  "Dewormer",
-  "Painkiller",
-  "Antifungal",
-  "Antiviral",
-  "Bandage",
-  "IV Line",
-  "Syringe",
-  "Vitamin",
-  "Probiotic",
-  "Mineral Mix",
-  "Bandage roll",
-  "Sutures",
-  "Cannula",
-  "Catheter",
-  "Fluid set",
-  "Scalpel",
-  "Mask & gloves",
-  "Disinfectant wipes",
-  "Sterilization pouch",
-  "Ophthalmic",
-  "Otic",
-  "Dermatology",
-  "Pain management",
-  "Dental care",
-  "Nutritional",
-  "Orthopedic support",
+  'Accessories',
+  'Antibiotic',
+  'Anti-inflammatory',
+  'Dewormer',
+  'Painkiller',
+  'Antifungal',
+  'Antiviral',
+  'Bandage',
+  'IV Line',
+  'Syringe',
+  'Vitamin',
+  'Probiotic',
+  'Mineral Mix',
+  'Bandage roll',
+  'Sutures',
+  'Cannula',
+  'Catheter',
+  'Fluid set',
+  'Scalpel',
+  'Mask & gloves',
+  'Disinfectant wipes',
+  'Sterilization pouch',
+  'Ophthalmic',
+  'Otic',
+  'Dermatology',
+  'Pain management',
+  'Dental care',
+  'Nutritional',
+  'Orthopedic support',
 ];
 export const DepartmentOptions: string[] = [
-  "Veterinary",
-  "Grooming",
-  "Breeding",
-  "Boarding",
-  "Surgery",
-  "Pharmacy",
-  "ICU/Ward",
-  "Diagnostics",
+  'Veterinary',
+  'Grooming',
+  'Breeding',
+  'Boarding',
+  'Surgery',
+  'Pharmacy',
+  'ICU/Ward',
+  'Diagnostics',
 ];
 export const IntendedUsageOptions: Record<BusinessType, string[]> = {
   HOSPITAL: [
-    "Outpatient",
-    "Inpatient",
-    "Surgery",
-    "Diagnostics",
-    "Emergency/ICU",
-    "Vaccination drive",
+    'Outpatient',
+    'Inpatient',
+    'Surgery',
+    'Diagnostics',
+    'Emergency/ICU',
+    'Vaccination drive',
   ],
   GROOMER: [
-    "Bathing",
-    "Styling",
-    "Cleaning",
-    "Disinfection",
-    "Finishing",
-    "Flea & tick treatment",
-    "De-shedding",
+    'Bathing',
+    'Styling',
+    'Cleaning',
+    'Disinfection',
+    'Finishing',
+    'Flea & tick treatment',
+    'De-shedding',
   ],
   BOARDER: [
-    "Kennel",
-    "Play area",
-    "Feeding zone",
-    "Reception",
-    "Laundry",
-    "Isolation/Quarantine",
-    "Deep clean",
+    'Kennel',
+    'Play area',
+    'Feeding zone',
+    'Reception',
+    'Laundry',
+    'Isolation/Quarantine',
+    'Deep clean',
   ],
   BREEDER: [
-    "Feeding",
-    "Fertility Care",
-    "Cleaning",
-    "Nursing Support",
-    "Vaccination schedule",
-    "Weaning",
+    'Feeding',
+    'Fertility Care',
+    'Cleaning',
+    'Nursing Support',
+    'Vaccination schedule',
+    'Weaning',
   ],
 };
 
 // Hospital
-export const ItemTypeOptions: string[] = ["Drug", "No-drug"];
-export const PrescriptionRequiredOptions: string[] = ["Yes", "No"];
-export const RegulationTypeOptions: string[] = ["Controlled", "Non-controlled"];
+export const ItemTypeOptions: string[] = ['Drug', 'No-drug'];
+export const PrescriptionRequiredOptions: string[] = ['Yes', 'No'];
+export const RegulationTypeOptions: string[] = ['Controlled', 'Non-controlled'];
 export const StorageConditionOptions: string[] = [
-  "Room temp",
-  "Refrigerated",
-  "Freezer",
-  "Cold chain (2-8°C)",
-  "Frozen (-20°C)",
-  "Deep frozen (-80°C)",
-  "Light protected",
+  'Room temp',
+  'Refrigerated',
+  'Freezer',
+  'Cold chain (2-8°C)',
+  'Frozen (-20°C)',
+  'Deep frozen (-80°C)',
+  'Light protected',
 ];
 // Groomer
-export const CoatTypeOptions: string[] = [
-  "Short",
-  "Long",
-  "Curly",
-  "Double",
-  "Wire",
-];
+export const CoatTypeOptions: string[] = ['Short', 'Long', 'Curly', 'Double', 'Wire'];
 export const FragranceTypeOptions: string[] = [
-  "Floral",
-  "Fruity",
-  "Fresh",
-  "Medicinal",
-  "Unscented",
+  'Floral',
+  'Fruity',
+  'Fresh',
+  'Medicinal',
+  'Unscented',
 ];
-export const AllergenFreeOptions: string[] = ["Yes", "No"];
+export const AllergenFreeOptions: string[] = ['Yes', 'No'];
 export const PetSizeOptions: string[] = [
-  "Small (0 - 10 Ibs)",
-  "Medium (10 - 25 Ibs)",
-  "Large (25 - 45 Ibs)",
-  "Giant (45 Ibs+)",
+  'Small (0 - 10 Ibs)',
+  'Medium (10 - 25 Ibs)',
+  'Large (25 - 45 Ibs)',
+  'Giant (45 Ibs+)',
 ];
 // Breeder
 export const AnimalStageOptions: string[] = [
-  "Puppy",
-  "Adult",
-  "Pregnant",
-  "Nursing",
-  "Stud",
-  "Senior",
-  "Neonate",
+  'Puppy',
+  'Adult',
+  'Pregnant',
+  'Nursing',
+  'Stud',
+  'Senior',
+  'Neonate',
 ];
 
 export type BasicInfoValues = {
@@ -311,127 +296,127 @@ export type BasicInfoValues = {
 
 // Classification Values
 export const FormOptions = [
-  "Tablet",
-  "Capsule",
-  "Ointment",
-  "Powder",
-  "Liquid",
-  "Solution",
-  "Spray",
-  "Wipe",
-  "Treat",
-  "Food pack",
-  "Other"
+  'Tablet',
+  'Capsule',
+  'Ointment',
+  'Powder',
+  'Liquid',
+  'Solution',
+  'Spray',
+  'Wipe',
+  'Treat',
+  'Food pack',
+  'Other',
 ];
 export const UnitOptions = [
-  "tablets",
-  "ml",
-  "gms",
-  "kg",
-  "piece",
-  "pack",
-  "litre",
-  "bag",
-  "roll",
-  "box",
-  "pair",
-  "sheet",
-  "cartridge",
-  "can",
-  "jar",
+  'tablets',
+  'ml',
+  'gms',
+  'kg',
+  'piece',
+  'pack',
+  'litre',
+  'bag',
+  'roll',
+  'box',
+  'pair',
+  'sheet',
+  'cartridge',
+  'can',
+  'jar',
 ];
-export const SpeciesOptions = ["Dog", "Cat", "Horse"];
+export const SpeciesOptions = ['Canine', 'Feline', 'Equine'];
 export const AdminstrationOptions = [
-  "Oral",
-  "Topical",
-  "Injectable",
-  "Rectal",
-  "Ophthalmic",
-  "Inhalation",
-  "Otic",
-  "Sublingual",
-  "Buccal",
-  "Intranasal",
-  "IV",
-  "IM",
-  "SC",
+  'Oral',
+  'Topical',
+  'Injectable',
+  'Rectal',
+  'Ophthalmic',
+  'Inhalation',
+  'Otic',
+  'Sublingual',
+  'Buccal',
+  'Intranasal',
+  'IV',
+  'IM',
+  'SC',
 ];
 // Hospital
 export const TherapeuticOptions = [
-  "Accessories",
-  "Antibiotic",
-  "Analgesic",
-  "Antifungal",
-  "Anthelmintic",
-  "Antiseptic",
-  "Sedative",
-  "NSAID",
-  "Antiparasitic",
-  "Vaccine",
-  "Supplement",
-  "Anesthetic",
-  "Cardiac",
-  "Endocrine",
-  "Gastrointestinal",
-  "Dermatology",
-  "Ophthalmic care",
-  "Otic care",
-  "Fluid therapy",
-  "Orthopedic",
+  'Accessories',
+  'Antibiotic',
+  'Analgesic',
+  'Antifungal',
+  'Anthelmintic',
+  'Antiseptic',
+  'Sedative',
+  'NSAID',
+  'Antiparasitic',
+  'Vaccine',
+  'Supplement',
+  'Anesthetic',
+  'Cardiac',
+  'Endocrine',
+  'Gastrointestinal',
+  'Dermatology',
+  'Ophthalmic care',
+  'Otic care',
+  'Fluid therapy',
+  'Orthopedic',
 ];
 // Groomer
 export const DispenseUnitOptions: string[] = [
-  "Pack",
-  "Vial",
-  "Bottle",
-  "Syringe",
-  "Tub",
-  "Sachet",
-  "Pouch",
-  "Cartridge",
-  "Jar",
+  'Pack',
+  'Vial',
+  'Bottle',
+  'Syringe',
+  'Tub',
+  'Sachet',
+  'Pouch',
+  'Cartridge',
+  'Jar',
 ];
 //Breeder
 export const BreedingUseOptions = [
-  "Nutrition",
-  "Whelping",
-  "Fertility",
-  "Postnatal",
-  "Heat monitoring",
-  "Cleaning",
-  "Supplementation",
-  "Vaccination",
+  'Nutrition',
+  'Whelping',
+  'Fertility',
+  'Postnatal',
+  'Heat monitoring',
+  'Cleaning',
+  'Supplementation',
+  'Vaccination',
 ];
 export const TemperatureConditionOptions: string[] = [
-  "Room Temperature",
-  "Refrigerated",
-  "Controlled Environment",
-  "Cold chain (2-8°C)",
-  "Frozen (-20°C)",
+  'Room Temperature',
+  'Refrigerated',
+  'Controlled Environment',
+  'Cold chain (2-8°C)',
+  'Frozen (-20°C)',
 ];
-export const UsageTypeOptions: string[] = ["Internal", "External", "Topical", "Injectable"];
-export const HeatCycleOptions: string[] = ["Yes", "No"];
+export const UsageTypeOptions: string[] = ['Internal', 'External', 'Topical', 'Injectable'];
+export const HeatCycleOptions: string[] = ['Yes', 'No'];
 // Boarder
-export const IntakeTypeOptions: string[] = ["Consumable", "Non-consumable", "Asset/Equipment"];
-export const FrequencyOptions: string[] = ["Daily", "Weekly", "Occasionally", "Monthly"];
+export const IntakeTypeOptions: string[] = ['Consumable', 'Non-consumable', 'Asset/Equipment'];
+export const FrequencyOptions: string[] = ['Daily', 'Weekly', 'Occasionally', 'Monthly'];
 export const ProductUse: string[] = [
-  "Cleaning",
-  "Feeding",
-  "Bedding",
-  "Play",
-  "Laundry",
-  "Health",
-  "Pest control",
-  "Disinfection",
-  "Enrichment",
+  'Cleaning',
+  'Feeding',
+  'Bedding',
+  'Play',
+  'Laundry',
+  'Health',
+  'Pest control',
+  'Disinfection',
+  'Enrichment',
 ];
 export const SafetyClassificationOptions: string[] = [
-  "Non-hazardous",
-  "Flammable",
-  "Chemical",
-  "Fragile",
-  "Corrosive",
-  "Biohazard",
+  'Non-hazardous',
+  'Flammable',
+  'Chemical',
+  'Fragile',
+  'Corrosive',
+  'Biohazard',
 ];
 
 export type ClassificationValues = {
@@ -479,14 +464,14 @@ export type PricingValues = {
 
 // Vendor Values
 export const VendorOptions = [
-  "Distributor",
-  "Wholesaler",
-  "Manufacturer",
-  "Retailer",
-  "Importer",
-  "Local supplier",
+  'Distributor',
+  'Wholesaler',
+  'Manufacturer',
+  'Retailer',
+  'Importer',
+  'Local supplier',
 ];
-export const PaymentTermsOptions = ["Net 30", "Net 15", "Net 45", "COD", "Advance"];
+export const PaymentTermsOptions = ['Net 30', 'Net 15', 'Net 45', 'COD', 'Advance'];
 
 export type VendorValues = {
   supplierName: string;
@@ -501,17 +486,17 @@ export type VendorValues = {
 
 // Stock Values
 export const StockLocationOptions = [
-  "Pharmacy",
-  "Grooming room",
-  "Surgery",
-  "Boarding storage",
-  "Breeding unit",
-  "Warehouse",
-  "Receiving",
-  "Treatment room",
-  "Isolation ward",
+  'Pharmacy',
+  'Grooming room',
+  'Surgery',
+  'Boarding storage',
+  'Breeding unit',
+  'Warehouse',
+  'Receiving',
+  'Treatment room',
+  'Isolation ward',
 ];
-export const StockTypeOptions = ["Central store", "Pharmacy", "Surgery", "Lab", "Cold storage"];
+export const StockTypeOptions = ['Central store', 'Pharmacy', 'Surgery', 'Lab', 'Cold storage'];
 
 export type StockValues = {
   current: string;
@@ -571,6 +556,7 @@ export interface InventoryItem {
 
 export type InventoryFiltersState = {
   category: string;
+  visibility: 'ALL' | 'ACTIVE' | 'HIDDEN';
   status: string;
   search: string;
 };
@@ -597,5 +583,5 @@ export interface InventoryTurnoverItem {
   totalPurchased?: number;
   turnsPerYear: number;
   daysOnShelf: number;
-  status?: "Excellent" | "Healthy" | "Moderate" | "Low" | "Out of stock";
+  status?: 'Excellent' | 'Healthy' | 'Moderate' | 'Low' | 'Out of stock';
 }

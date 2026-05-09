@@ -46,12 +46,21 @@ jest.mock('@/app/ui/filters/InventoryFilters', () => ({
       </select>
       <select
         data-testid="status-select"
-        value={filters.status}
-        onChange={(e) => onChange({ ...filters, status: e.target.value })}
+        value={filters.visibility ?? 'ALL'}
+        onChange={(e) =>
+          onChange({ ...filters, visibility: e.target.value as 'ALL' | 'ACTIVE' | 'HIDDEN' })
+        }
       >
         <option value="ALL">ALL</option>
         <option value="ACTIVE">ACTIVE</option>
         <option value="HIDDEN">HIDDEN</option>
+      </select>
+      <select
+        data-testid="stock-health-select"
+        value={filters.status ?? 'ALL'}
+        onChange={(e) => onChange({ ...filters, status: e.target.value })}
+      >
+        <option value="ALL">ALL</option>
         <option value="Low Stock">Low Stock</option>
       </select>
     </div>
@@ -249,7 +258,7 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     expect(screen.getByRole('button', { name: 'Inventory info' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Inventory' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stock' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Turnover' })).toBeInTheDocument();
     expect(screen.getByTestId('add-btn')).toBeInTheDocument();
     expect(screen.getByTestId('inventory-filters')).toBeInTheDocument();
@@ -352,9 +361,9 @@ describe('Inventory Page', () => {
 
   it('filters inventory by stock health (Special Status Filter)', async () => {
     render(<ProtectedInventory />);
-    const statusSelect = screen.getByTestId('status-select');
+    const stockHealthSelect = screen.getByTestId('stock-health-select');
 
-    fireEvent.change(statusSelect, { target: { value: 'Low Stock' } });
+    fireEvent.change(stockHealthSelect, { target: { value: 'Low Stock' } });
     await waitFor(() => {
       expect(screen.queryByTestId('item-1')).not.toBeInTheDocument();
       expect(screen.getByTestId('item-2')).toBeInTheDocument();

@@ -98,13 +98,13 @@ const FormsTable = ({
     {
       label: 'Form name',
       key: 'name',
-      width: '20%',
+      width: '200px',
       render: (item: FormsProps) => <div className="appointment-profile-title">{item.name}</div>,
     },
     {
       label: 'Category',
       key: 'category',
-      width: '10%',
+      width: '130px',
       render: (item: FormsProps) => (
         <div className="appointment-profile-title">
           {getFormCategoryDisplayLabel(item.category, effectiveOrgType)}
@@ -114,13 +114,13 @@ const FormsTable = ({
     {
       label: 'Usage',
       key: 'usage',
-      width: '15%',
+      width: '130px',
       render: (item: FormsProps) => <div className="appointment-profile-title">{item.usage}</div>,
     },
     {
       label: 'Updated by',
       key: 'updatedBy',
-      width: '15%',
+      width: '140px',
       render: (item: FormsProps) => (
         <div className="appointment-profile-title">{getUserName(item.updatedBy)}</div>
       ),
@@ -128,7 +128,7 @@ const FormsTable = ({
     {
       label: 'Last updated',
       key: 'lastUpdated',
-      width: '15%',
+      width: '140px',
       render: (item: FormsProps) => (
         <div className="appointment-profile-title">{item.lastUpdated}</div>
       ),
@@ -136,7 +136,7 @@ const FormsTable = ({
     {
       label: 'Status',
       key: 'status',
-      width: '15%',
+      width: '110px',
       render: (item: FormsProps) => (
         <div className="appointment-status" style={getStatusStyle(item.status || '')}>
           {item.status}
@@ -161,7 +161,7 @@ const FormsTable = ({
   ];
 
   return (
-    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+    <div className="table-wrapper forms-scroll-x h-full min-h-0 overflow-hidden">
       <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         {loading ? (
           <div className="w-full py-6 flex items-center justify-center text-grey-noti font-satoshi font-semibold">
@@ -172,12 +172,13 @@ const FormsTable = ({
             data={filteredList}
             columns={columns}
             bordered={false}
+            tableClassName="forms-table-fixed"
             pagination
             pageSize={10}
           />
         )}
       </div>
-      <div className="card-list flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-6 flex-wrap">
         {(() => {
           if (loading) {
             return (

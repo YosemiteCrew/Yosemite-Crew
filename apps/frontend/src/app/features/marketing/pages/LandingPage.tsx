@@ -74,7 +74,7 @@ const NewHeroSection = () => {
       >
         <Image
           src={MEDIA_SOURCES.landing.dog}
-          alt="Dog"
+          alt="Canine"
           width={200}
           height={200}
           style={{ objectFit: 'contain' }}
@@ -90,7 +90,7 @@ const NewHeroSection = () => {
       >
         <Image
           src={MEDIA_SOURCES.landing.horse}
-          alt="Horse"
+          alt="Equine"
           width={250}
           height={250}
           style={{ objectFit: 'contain' }}

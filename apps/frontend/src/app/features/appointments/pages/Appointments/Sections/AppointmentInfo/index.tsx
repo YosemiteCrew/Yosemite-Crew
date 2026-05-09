@@ -68,11 +68,18 @@ import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistory
 
 const COMPANION_IMAGE_TYPES = new Set<ImageType>(['dog', 'cat', 'horse', 'other']);
 
+const SPECIES_DISPLAY_TO_IMAGE_TYPE: Record<string, ImageType> = {
+  canine: 'dog',
+  feline: 'cat',
+  equine: 'horse',
+};
+
 const resolveCompanionImageType = (species?: string | null): ImageType => {
   const normalized = String(species ?? '')
     .trim()
     .toLowerCase();
-  return COMPANION_IMAGE_TYPES.has(normalized as ImageType) ? (normalized as ImageType) : 'other';
+  if (COMPANION_IMAGE_TYPES.has(normalized as ImageType)) return normalized as ImageType;
+  return SPECIES_DISPLAY_TO_IMAGE_TYPE[normalized] ?? 'other';
 };
 
 const ALLOWED_CATEGORIES_BY_ORG: Record<string, string[]> = {

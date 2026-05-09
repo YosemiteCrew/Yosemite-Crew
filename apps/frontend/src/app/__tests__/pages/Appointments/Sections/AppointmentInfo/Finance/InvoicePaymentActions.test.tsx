@@ -103,6 +103,23 @@ describe('InvoicePaymentActions', () => {
     });
   });
 
+  it('dismisses cash confirmation when close icon is clicked', async () => {
+    render(
+      <InvoicePaymentActions
+        invoiceId="inv-1"
+        invoiceStatus="PENDING"
+        activeAppointment={{} as any}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Pay in cash'));
+    await waitFor(() => expect(screen.getByText('Collect cash')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText('Dismiss cash confirmation'));
+    expect(screen.queryByText('Collect cash')).not.toBeInTheDocument();
+    expect(screen.getByText('Pay in cash')).toBeInTheDocument();
+  });
+
   it('hides payment link actions for invoices already set to payment at clinic', () => {
     render(
       <InvoicePaymentActions

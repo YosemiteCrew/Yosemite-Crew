@@ -118,11 +118,14 @@ jest.mock('react-icons/io', () => ({
 
 jest.mock('react-icons/io5', () => ({
   IoChevronForward: () => <span>chevron</span>,
+  IoArrowForward: () => <span>arrow</span>,
   IoEyeOutline: () => <span>view</span>,
   IoCalendarOutline: () => <span>reschedule</span>,
   IoDocumentTextOutline: () => <span>soap</span>,
   IoCardOutline: () => <span>finance</span>,
   IoFlaskOutline: () => <span>lab</span>,
+  IoPerson: () => <span>person</span>,
+  IoTimeOutline: () => <span>time</span>,
 }));
 
 jest.mock('react-icons/md', () => ({
@@ -243,7 +246,7 @@ describe('DayCalendar (Appointments)', () => {
     expect(screen.getByText('Speciality')).toBeInTheDocument();
     expect(screen.getAllByText('Wellness').length).toBeGreaterThan(0);
     expect(screen.getByText('Lead')).toBeInTheDocument();
-    expect(screen.getByText('Dr. Lee')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Dr. Lee')).toBeInTheDocument();
 
     const rescheduleButton = screen.getByTitle(/reschedule/i);
     fireEvent.click(rescheduleButton);

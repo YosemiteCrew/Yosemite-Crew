@@ -81,6 +81,16 @@ const renderFeatureName = (name: string) => {
     );
   }
 
+  if (name === 'QuickBooks integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <span className="font-satoshi text-[28px] font-bold leading-none tracking-[-0.56px] text-[#2ca01c] ml-2">
+          qb
+        </span>
+      </div>
+    );
+  }
+
   return name;
 };
 

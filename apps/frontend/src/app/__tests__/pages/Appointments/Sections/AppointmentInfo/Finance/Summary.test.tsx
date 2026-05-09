@@ -44,6 +44,15 @@ jest.mock('@/app/lib/money', () => ({
 
 jest.mock('@/app/lib/validators', () => ({
   toNumberSafe: (value: any) => Number(value || 0),
+  toTitle: (value: string) => value.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+}));
+
+jest.mock('@/app/ui/tables/InvoiceTable', () => ({
+  getStatusStyle: (status: string) => ({
+    color: status === 'PAID' ? 'green' : 'gray',
+    backgroundColor: status === 'PAID' ? '#e6f4ea' : '#f5f5f5',
+    borderColor: status === 'PAID' ? '#34a853' : '#ccc',
+  }),
 }));
 
 jest.mock(

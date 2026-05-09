@@ -125,13 +125,25 @@ const safeDate = (value?: string | null) => {
 const getResultsContent = (
   entries: MerckEntry[],
   loading: boolean,
+  hasSearched: boolean,
   onOpenInFrame: (entry: MerckEntry, url: string) => void,
   onCopyUrl: (url: string) => void
 ) => {
   if (entries.length === 0) {
-    return loading ? (
-      <div className="text-body-4 text-text-secondary">Searching manuals...</div>
-    ) : null;
+    if (loading) {
+      return <div className="text-body-4 text-text-secondary">Searching manuals...</div>;
+    }
+    if (hasSearched) {
+      return (
+        <div className="flex flex-col items-center gap-2 py-8 text-center">
+          <div className="text-body-3 text-text-secondary">No results found</div>
+          <div className="text-body-4 text-text-tertiary">
+            Try different keywords or switch between Professional and Consumer.
+          </div>
+        </div>
+      );
+    }
+    return null;
   }
 
   return entries.map((entry) => (
@@ -197,7 +209,7 @@ const AudienceToggle = ({
   const isProfessional = value === 'PROV';
   const sliderClass = isProfessional
     ? 'translate-x-0 bg-blue-text border-blue-text'
-    : 'translate-x-full';
+    : 'translate-x-full bg-blue-text border-blue-text';
   const professionalTextClass = isProfessional ? 'text-neutral-0' : 'text-text-secondary';
   const consumerTextClass = isProfessional ? 'text-text-secondary' : 'text-neutral-0';
 
@@ -345,6 +357,7 @@ type ExecuteMerckSearchParams = {
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   setEntries: React.Dispatch<React.SetStateAction<MerckEntry[]>>;
   setRecentSearches: React.Dispatch<React.SetStateAction<string[]>>;
+  setHasSearched?: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const executeMerckSearch = async ({
@@ -359,6 +372,7 @@ const executeMerckSearch = async ({
   setError,
   setEntries,
   setRecentSearches,
+  setHasSearched,
 }: ExecuteMerckSearchParams) => {
   const resolvedQuery = query.trim();
   if (!resolvedQuery) return;
@@ -370,6 +384,7 @@ const executeMerckSearch = async ({
   const cached = resultCacheRef.current.get(cacheKey);
   if (cached) {
     setEntries(cached);
+    setHasSearched?.(true);
     return;
   }
 
@@ -394,6 +409,7 @@ const executeMerckSearch = async ({
     const safe = getSafeMerckResults(response.entries);
     resultCacheRef.current.set(cacheKey, safe);
     setEntries(safe);
+    setHasSearched?.(true);
     saveRecentSearch(organisationId, audience, resolvedQuery);
     setRecentSearches(getRecentSearches(organisationId, audience));
   } catch (e: unknown) {
@@ -606,6 +622,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [entries, setEntries] = useState<MerckEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -652,6 +669,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         setError,
         setEntries,
         setRecentSearches,
+        setHasSearched,
       });
     },
     [audience, language, primaryOrgId, query]
@@ -690,7 +708,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const resultsContainerClassName = getMerckResultsContainerClassName(embedded);
 
   const disabled = getDisabledState(isEnabled);
-  const resultsContent = getResultsContent(entries, loading, onOpenInFrame, onCopyUrl);
+  const resultsContent = getResultsContent(entries, loading, hasSearched, onOpenInFrame, onCopyUrl);
 
   return (
     <div className={containerClassName}>
@@ -737,6 +755,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
                   setError,
                   setEntries,
                   setRecentSearches,
+                  setHasSearched,
                 });
               }
             }}

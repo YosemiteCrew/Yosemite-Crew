@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import InventoryTurnoverFilters from '@/app/ui/filters/InventoryTurnoverFilters';
@@ -35,9 +35,17 @@ describe('<InventoryTurnoverFilters />', () => {
     expect(setFilteredList).toHaveBeenCalled();
     expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual(list);
 
+    // Open the status dropdown then click Excellent from the portal
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Excellent' }));
     expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual([list[0]]);
 
+    // Open again and reset to All
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Excellent' }));
+    });
     fireEvent.click(screen.getByRole('button', { name: 'All' }));
     fireEvent.click(screen.getByRole('button', { name: 'pick-category' }));
     expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual([list[1]]);

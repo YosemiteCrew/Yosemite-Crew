@@ -2,6 +2,28 @@
 /* Fonts */
 
 @font-face {
+  font-family: 'Satoshi Variable';
+  src:
+    url('/fonts/satoshi-font/Satoshi-Variable.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-Variable.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-Variable.ttf') format('truetype');
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Satoshi Variable';
+  src:
+    url('/fonts/satoshi-font/Satoshi-VariableItalic.woff2') format('woff2'),
+    url('/fonts/satoshi-font/Satoshi-VariableItalic.woff') format('woff'),
+    url('/fonts/satoshi-font/Satoshi-VariableItalic.ttf') format('truetype');
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: italic;
+}
+
+@font-face {
   font-family: 'Satoshi';
   src:
     url('/fonts/satoshi-font/Satoshi-Light.woff2') format('woff2'),
@@ -59,6 +81,10 @@
 * {
   box-sizing: border-box;
   scroll-behavior: smooth;
+  font-family: inherit;
+  font-optical-sizing: auto;
+  font-kerning: normal;
+  font-synthesis-weight: none;
 }
 @layer utilities {
   .scrollbar-hidden {
@@ -270,7 +296,8 @@
   --color-pill-warning-bg: var(--status-cancelled-bg);
   --color-pill-warning-text: var(--status-cancelled-text);
   --color-pill-warning-border: var(--status-cancelled-border);
-  --font-satoshi: 'Satoshi', sans-serif;
+  --font-sans: 'Satoshi Variable', 'Satoshi', sans-serif;
+  --font-satoshi: 'Satoshi Variable', 'Satoshi', sans-serif;
 
   /* Appointment status tokens (from Figma node 753-1319) */
   --status-requested-bg: #f5f3f1;
@@ -354,14 +381,24 @@ body {
 }
 body {
   background-color: var(--whitebg) !important;
-  font-family: var(--font-satoshi), sans-serif !important;
+  color: var(--color-text-primary);
+  font-family: var(--font-satoshi) !important;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-rendering: geometricPrecision;
 }
 
 a {
   text-decoration: none !important;
 }
 
-p {
+p,
+button,
+input,
+select,
+textarea {
   font-family: var(--satoshi-font);
 }
 
@@ -415,72 +452,72 @@ input[type='number'] {
 @layer components {
   /* Display text - 48px/3rem - Large headings (Desktop) | 24px Mobile */
   .text-display-1 {
-    @apply font-satoshi text-[3rem] font-medium leading-[3.625rem] tracking-[-0.06rem];
+    @apply font-satoshi text-[3rem] font-medium leading-[3.625rem] tracking-[-0.96px];
   }
 
   /* Display text - 40px/2.5rem - Medium display (Desktop) | 24px Mobile */
   .text-display-2 {
-    @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.05rem];
+    @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.8px];
   }
 
   /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */
   .text-heading-1 {
-    @apply font-satoshi text-[1.75rem] font-medium leading-[2.125rem] tracking-[-0.035rem];
+    @apply font-satoshi text-[1.75rem] font-medium leading-[2.125rem] tracking-[-0.56px];
   }
 
   /* Heading - 22px/1.375rem - Subsection titles | 24px Mobile */
   .text-heading-2 {
-    @apply font-satoshi text-[1.375rem] font-medium leading-[1.75rem] tracking-[-0.0275rem];
+    @apply font-satoshi text-[1.375rem] font-medium leading-[1.75rem] tracking-[-0.44px];
   }
 
   /* Heading - 20px/1.25rem - Section headings | 16px Mobile */
   .text-heading-3 {
-    @apply font-satoshi text-[1.25rem] font-medium leading-[1.5rem];
+    @apply font-satoshi text-[1.25rem] font-medium leading-[1.5rem] tracking-[-0.4px];
   }
 
   /* Body - 24px/1.5rem - Large emphasized body (Mobile heading) */
   .text-body-1 {
-    @apply font-satoshi text-[1.5rem] font-medium leading-[1.875rem] tracking-[-0.03rem];
+    @apply font-satoshi text-[1.5rem] font-medium leading-[1.875rem] tracking-[-0.48px];
   }
 
   /* Body - 20px/1.25rem - Regular subheading text | 16px Mobile */
   .text-body-2 {
-    @apply font-satoshi text-[1.25rem] font-normal leading-[1.75rem] tracking-[-0.025rem];
+    @apply font-satoshi text-[1.25rem] font-normal leading-[1.75rem] tracking-[-0.4px];
   }
 
   /* Body - 18px/1.125rem - Regular body text | 16px Mobile */
   .text-body-3 {
-    @apply font-satoshi text-[1.125rem] font-normal leading-[1.625rem] tracking-[-0.0225rem];
+    @apply font-satoshi text-[1.125rem] font-normal leading-[1.625rem] tracking-[-0.36px];
   }
 
   /* Body - 16px/1rem - Emphasized body (buttons) */
   .text-body-3-emphasis {
-    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem];
+    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem] tracking-[-0.32px];
   }
 
   /* Body - 16px/1rem - Small body text */
   .text-body-4 {
-    @apply font-satoshi text-[1rem] font-normal leading-[1.5rem];
+    @apply font-satoshi text-[1rem] font-normal leading-[1.5rem] tracking-[-0.32px];
   }
 
   /* Body - 16px/1rem - Small emphasized body */
   .text-body-4-emphasis {
-    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem] tracking-[-0.02rem];
+    @apply font-satoshi text-[1rem] font-medium leading-[1.5rem] tracking-[-0.32px];
   }
 
   /* Label - 16px/1rem - Button/link labels */
   .text-label-1 {
-    @apply font-satoshi text-[1rem] font-medium leading-[1rem] tracking-[-0.02rem];
+    @apply font-satoshi text-[1rem] font-medium leading-[1rem] tracking-[-0.32px];
   }
 
   /* Caption - 14px/0.875rem - Small text */
   .text-caption-1 {
-    @apply font-satoshi text-[0.875rem] font-normal leading-[1.25rem] tracking-[-0.0175rem];
+    @apply font-satoshi text-[0.875rem] font-medium leading-[1.25rem] tracking-[-0.28px];
   }
 
   /* Caption - 12px/0.75rem - Smallest text */
   .text-caption-2 {
-    @apply font-satoshi text-[0.75rem] font-normal leading-[1.125rem] tracking-[-0.015rem];
+    @apply font-satoshi text-[0.75rem] font-medium leading-[1.125rem] tracking-[-0.24px];
   }
 }
 
@@ -489,17 +526,19 @@ input[type='number'] {
    specificity. These rules use !important so they win on button elements too. */
 .text-caption-2 {
   font-size: 0.75rem !important;
-  font-weight: 400 !important;
+  font-weight: 500 !important;
   line-height: 1.125rem;
+  letter-spacing: -0.24px;
 }
 
 /* Caption - 10px/0.625rem - Status pills, compact labels. */
 .text-caption-3 {
-  font-family: var(--font-satoshi), sans-serif;
-  font-size: 0.625rem !important;
-  font-weight: 500 !important;
+  font-family: var(--font-satoshi);
+  font-size: 0.6875rem !important;
+  font-weight: 700 !important;
   line-height: 1rem;
-  letter-spacing: -0.0125rem;
+  letter-spacing: -0.22px;
+  text-transform: uppercase;
 }
 
 /* Mobile responsive typography - applies to all heading/display classes */
@@ -512,7 +551,7 @@ input[type='number'] {
     font-size: 1.5rem !important;
     font-weight: 500 !important;
     line-height: 1.875rem !important;
-    letter-spacing: -0.03rem;
+    letter-spacing: -0.48px;
   }
 
   .text-heading-3,
@@ -523,6 +562,7 @@ input[type='number'] {
     font-size: 1rem !important;
     font-weight: 400 !important;
     line-height: 1.5rem !important;
+    letter-spacing: -0.32px;
   }
 
   .text-body-3-emphasis {
@@ -530,6 +570,7 @@ input[type='number'] {
     font-size: 1rem !important;
     font-weight: 500 !important;
     line-height: 1.5rem !important;
+    letter-spacing: -0.32px;
   }
 }
 

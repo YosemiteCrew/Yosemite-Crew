@@ -128,26 +128,24 @@ const Inventory = () => {
 
   useEffect(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
-    const statusFilter = filters.status.toUpperCase();
+    const visibilityFilter = (filters.visibility ?? 'ALL').toUpperCase();
+    const stockHealthFilter = filters.status.toUpperCase();
     const nextFiltered = inventory.filter((item) => {
       const statusKey = (item.status || item.basicInfo.status || '').toUpperCase();
       const stockHealthKey = (item.stockHealth || '').toUpperCase();
-      const isStockHealthFilter =
-        statusFilter !== 'ALL' && statusFilter !== 'ACTIVE' && statusFilter !== 'HIDDEN';
       const categoryMatch =
         filters.category === 'all' ||
         item.basicInfo.category?.toLowerCase() === filters.category.toLowerCase();
-      const statusMatch =
-        statusFilter === 'ALL' ||
-        (isStockHealthFilter ? stockHealthKey === statusFilter : statusKey === statusFilter);
+      const visibilityMatch = visibilityFilter === 'ALL' || statusKey === visibilityFilter;
+      const stockHealthMatch = stockHealthFilter === 'ALL' || stockHealthKey === stockHealthFilter;
       const searchMatch =
         !normalizedSearch ||
         item.basicInfo.name.toLowerCase().includes(normalizedSearch) ||
         item.basicInfo.description?.toLowerCase().includes(normalizedSearch);
-      return categoryMatch && statusMatch && searchMatch;
+      return categoryMatch && visibilityMatch && stockHealthMatch && searchMatch;
     });
     setFilteredInventory(nextFiltered);
-  }, [inventory, filters.category, filters.status, debouncedSearch]);
+  }, [inventory, filters.category, filters.visibility, filters.status, debouncedSearch]);
 
   useEffect(() => {
     setActiveInventory((prev) => {
@@ -300,7 +298,7 @@ const Inventory = () => {
             onChange={(nextShowMineOnly) =>
               setActiveView(nextShowMineOnly ? 'turnover' : 'inventory')
             }
-            allLabel="Inventory"
+            allLabel="Stock"
             mineLabel="Turnover"
           />
         </div>

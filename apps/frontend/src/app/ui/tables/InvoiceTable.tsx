@@ -112,7 +112,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Appointment Info',
       key: 'appointment-id',
-      width: '10%',
+      width: '160px',
       render: (item: Invoice) => {
         const companionName = getCompanionName(item.appointmentId);
         const parentName = getParentName(item.appointmentId);
@@ -127,12 +127,9 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           ownerAndCompanion = parentName;
         }
         return (
-          <div className="appointment-profile truncate">
+          <div className="appointment-profile">
             <div className="appointment-profile-two">
-              <div
-                className="appointment-profile-title truncate whitespace-nowrap max-w-[220px]"
-                title={ownerAndCompanion}
-              >
+              <div className="appointment-profile-title" title={ownerAndCompanion}>
                 {ownerAndCompanion}
               </div>
             </div>
@@ -143,7 +140,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Service',
       key: 'service',
-      width: '15%',
+      width: '180px',
       render: (item: Invoice) => (
         <div className="appointment-profile-title">{getInvoiceItemNames(item.items)}</div>
       ),
@@ -151,7 +148,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Date',
       key: 'date',
-      width: '10%',
+      width: '150px',
       render: (item: Invoice) => {
         const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
         return (
@@ -165,12 +162,11 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="appointment-profile-sub truncate">
+                    <div className="appointment-profile-sub">
                       {formatDateLabel(appointment.appointmentDate)}
                     </div>
-                    <div className="appointment-profile-sub truncate">
-                      {formatTimeLabel(appointment.startTime ?? appointment.appointmentDate)}{' '}
-                      Finance
+                    <div className="appointment-profile-sub">
+                      {formatTimeLabel(appointment.startTime ?? appointment.appointmentDate)}
                     </div>
                   </div>
                   <IoOpenOutline size={15} color="var(--color-neutral-900)" />
@@ -184,7 +180,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Sub-total',
       key: 'sub-total',
-      width: '7.5%',
+      width: '90px',
       render: (item: Invoice) => (
         <div className="appointment-profile-title">{formatMoney(item.subtotal, currency)}</div>
       ),
@@ -192,7 +188,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Discount',
       key: 'discount',
-      width: '7.5%',
+      width: '80px',
       render: (item: Invoice) => (
         <div className="appointment-profile-title">
           {formatMoney(item.discountTotal ?? 0, currency)}
@@ -202,7 +198,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Tax',
       key: 'tax',
-      width: '7.5%',
+      width: '70px',
       render: (item: Invoice) => (
         <div className="appointment-profile-title">{formatMoney(item.taxTotal ?? 0, currency)}</div>
       ),
@@ -210,7 +206,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Total',
       key: 'total',
-      width: '7.5%',
+      width: '80px',
       render: (item: Invoice) => (
         <div className="appointment-profile-title">
           {formatMoney(item.totalAmount ?? 0, currency)}
@@ -220,7 +216,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Status',
       key: 'status',
-      width: '10%',
+      width: '110px',
       render: (item: Invoice) => (
         <div className="appointment-status" style={getStatusStyle(item?.status)}>
           {toTitle(item?.status)}
@@ -230,7 +226,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     {
       label: 'Payment',
       key: 'payment',
-      width: '10%',
+      width: '110px',
       render: (item: Invoice) => (
         <div className="appointment-profile-title">{getInvoicePaymentMethodLabel(item)}</div>
       ),
@@ -253,7 +249,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
   ];
 
   return (
-    <div className="table-wrapper h-full min-h-0 overflow-hidden">
+    <div className="table-wrapper invoice-scroll-x h-full min-h-0 overflow-hidden">
       <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
           data={filteredList}
@@ -261,9 +257,10 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           bordered={false}
           pagination
           pageSize={10}
+          tableClassName="invoice-table-fixed"
         />
       </div>
-      <div className="card-list flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      <div className="card-list flex xl:hidden gap-4 sm:gap-6 flex-wrap">
         {(() => {
           if (filteredList.length === 0) {
             return (

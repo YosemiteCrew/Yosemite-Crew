@@ -221,7 +221,7 @@ const StatusPill = ({ status }: { status?: string }) => {
   const tokens = statusTokens[key];
   return (
     <span
-      className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+      className="shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!"
       style={
         tokens
           ? {
@@ -805,6 +805,13 @@ const IntegrationFilterTabs = ({
   </div>
 );
 
+const INTEGRATION_CARD_CLASS =
+  'rounded-2xl border border-card-border p-4 w-full flex items-stretch gap-4 min-h-[245px]';
+const INTEGRATION_CARD_HEADER_CLASS = 'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2';
+const INTEGRATION_CARD_TITLE_CLASS = 'min-w-0 truncate text-heading-3 text-text-primary pt-1';
+const COMING_SOON_PILL_CLASS =
+  'shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!';
+
 const IdexxIntegrationCard = ({
   s,
   buttonLabel,
@@ -815,7 +822,7 @@ const IdexxIntegrationCard = ({
   if (!s.showIdexxCard) return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[360px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
           <Image
@@ -842,8 +849,8 @@ const IdexxIntegrationCard = ({
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">IDEXX</div>
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX</div>
             <StatusPill status={s.idexxIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
@@ -885,7 +892,7 @@ const MerckIntegrationCard = ({
   if (!s.showMerckCard) return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[360px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
           <Image
@@ -912,8 +919,8 @@ const MerckIntegrationCard = ({
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">MSD Veterinary Manual</div>
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>MSD Veterinary Manual</div>
             <StatusPill status={s.merckIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
@@ -953,7 +960,7 @@ const RadIntegrationCard = ({
   if (activeFilter === 'connected') return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[360px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
           <Image
@@ -968,10 +975,10 @@ const RadIntegrationCard = ({
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">RadAnalyzer</div>
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>RadAnalyzer</div>
             <span
-              className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+              className={COMING_SOON_PILL_CLASS}
               style={{
                 backgroundColor: 'var(--color-pill-neutral-bg)',
                 color: 'var(--color-pill-neutral-text)',
@@ -1004,7 +1011,7 @@ const VetnioIntegrationCard = ({
   if (activeFilter === 'connected') return null;
 
   return (
-    <div className="rounded-2xl border border-card-border p-4 w-full md:flex-1 md:min-w-[360px] xl:max-w-[430px] flex items-stretch gap-4 min-h-[245px]">
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
         <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
           <Image
@@ -1019,10 +1026,10 @@ const VetnioIntegrationCard = ({
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-heading-3 text-text-primary pt-1">Vetnio</div>
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>Vetnio</div>
             <span
-              className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+              className={COMING_SOON_PILL_CLASS}
               style={{
                 backgroundColor: 'var(--color-pill-neutral-bg)',
                 color: 'var(--color-pill-neutral-text)',
@@ -1048,6 +1055,54 @@ const VetnioIntegrationCard = ({
   );
 };
 
+const QuickBooksIntegrationCard = ({
+  activeFilter,
+}: {
+  activeFilter: IntegrationsPageState['activeFilter'];
+}) => {
+  if (activeFilter === 'connected') return null;
+
+  return (
+    <div className={INTEGRATION_CARD_CLASS}>
+      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
+        <div className="h-[72px] w-[72px] rounded-xl border border-card-border bg-white p-1 flex items-center justify-center overflow-hidden">
+          <span className="font-satoshi text-[28px] font-bold leading-none tracking-[-0.56px] text-[#2ca01c]">
+            qb
+          </span>
+        </div>
+        <div className="h-10 w-10" />
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div className="flex flex-col gap-3 pb-3">
+          <div className={INTEGRATION_CARD_HEADER_CLASS}>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>QuickBooks</div>
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
+              Coming soon
+            </span>
+          </div>
+          <div className="text-body-4 text-text-secondary line-clamp-4">
+            Accounting sync for invoices, payments, customers, and financial workflows through
+            QuickBooks Online.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex w-full items-center justify-end">
+            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const IntegrationCards = ({
   s,
   idexxCardButtonLabel,
@@ -1060,11 +1115,12 @@ const IntegrationCards = ({
   if (!s.showIdexxCard && !s.showMerckCard && s.activeFilter === 'connected') return null;
 
   return (
-    <div className="flex flex-wrap gap-4 items-stretch">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
       <IdexxIntegrationCard s={s} buttonLabel={idexxCardButtonLabel} />
       <MerckIntegrationCard s={s} buttonLabel={merckCardButtonLabel} />
       <RadIntegrationCard activeFilter={s.activeFilter} />
       <VetnioIntegrationCard activeFilter={s.activeFilter} />
+      <QuickBooksIntegrationCard activeFilter={s.activeFilter} />
     </div>
   );
 };

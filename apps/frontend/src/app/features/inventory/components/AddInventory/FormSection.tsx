@@ -289,12 +289,12 @@ const FormSection: React.FC<FormSectionProps> = ({
           text="Clear"
           onClick={onClear}
           isDisabled={disableSave}
-          className="h-12! text-lg! tracking-wide!"
+          className="h-12! text-lg! tracking-[-0.36px]!"
         />
         <Primary
           href="#"
           text={saveLabel ?? 'Next'}
-          className="h-12! text-lg! tracking-wide!"
+          className="h-12! text-lg! tracking-[-0.36px]!"
           onClick={onSave}
           isDisabled={disableSave}
         />
