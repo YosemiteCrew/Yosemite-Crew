@@ -4,11 +4,74 @@ import '@testing-library/jest-dom';
 
 import ProtectedTasks from '@/app/features/tasks/pages/Tasks';
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('Calendar/TaskCalendar')) {
+        const MockTaskCalendar = jest.requireMock(
+          '@/app/features/appointments/components/Calendar/TaskCalendar'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockTaskCalendar {...props} />;
+      }
+
+      if (source.includes('TaskBoard')) {
+        const MockTaskBoard = jest.requireMock(
+          '@/app/features/tasks/components/TaskBoard'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockTaskBoard {...props} />;
+      }
+
+      if (source.includes('ui/tables/Tasks')) {
+        const MockTasksTable = jest.requireMock('@/app/ui/tables/Tasks') as React.FC<
+          Record<string, unknown>
+        >;
+        return <MockTasksTable {...props} />;
+      }
+
+      if (source.includes('Sections/AddTask')) {
+        const MockAddTask = jest.requireMock(
+          '@/app/features/tasks/pages/Tasks/Sections/AddTask'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockAddTask {...props} />;
+      }
+
+      if (source.includes('Sections/TaskInfo')) {
+        const MockTaskInfo = jest.requireMock(
+          '@/app/features/tasks/pages/Tasks/Sections/TaskInfo'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockTaskInfo {...props} />;
+      }
+
+      if (source.includes('Sections/ChangeStatus')) {
+        const MockChangeTaskStatus = jest.requireMock(
+          '@/app/features/tasks/pages/Tasks/Sections/ChangeStatus'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockChangeTaskStatus {...props} />;
+      }
+
+      if (source.includes('Sections/Reschedule')) {
+        const MockRescheduleTask = jest.requireMock(
+          '@/app/features/tasks/pages/Tasks/Sections/Reschedule'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockRescheduleTask {...props} />;
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 const useTasksMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const taskCalendarSpy = jest.fn();
 const taskTableSpy = jest.fn();
+const taskBoardSpy = jest.fn();
 
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
@@ -41,6 +104,9 @@ jest.mock('@/app/ui/widgets/TitleCalendar', () => (props: any) => (
     <button type="button" onClick={() => props.setActiveView('calendar')}>
       Calendar
     </button>
+    <button type="button" onClick={() => props.setActiveView('board')}>
+      Board
+    </button>
     <button type="button" onClick={() => props.setActiveView('list')}>
       List
     </button>
@@ -57,6 +123,11 @@ jest.mock('@/app/features/appointments/components/Calendar/TaskCalendar', () => 
 jest.mock('@/app/ui/tables/Tasks', () => (props: any) => {
   taskTableSpy(props);
   return <div data-testid="tasks-table" />;
+});
+
+jest.mock('@/app/features/tasks/components/TaskBoard', () => (props: any) => {
+  taskBoardSpy(props);
+  return <div data-testid="task-board" />;
 });
 
 jest.mock('@/app/features/tasks/pages/Tasks/Sections/AddTask', () => () => (
@@ -101,6 +172,18 @@ describe('Tasks page', () => {
     expect(taskTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [expect.objectContaining({ _id: 't1' })],
+      })
+    );
+  });
+
+  it('renders board view when selected', () => {
+    render(<ProtectedTasks />);
+
+    fireEvent.click(screen.getByText('Board'));
+    expect(screen.getByTestId('task-board')).toBeInTheDocument();
+    expect(taskBoardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tasks: [expect.objectContaining({ _id: 't1' })],
       })
     );
   });

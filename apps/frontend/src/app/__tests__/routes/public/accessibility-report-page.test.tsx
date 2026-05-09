@@ -9,26 +9,38 @@ const postDataMock = jest.fn();
 const isAxiosErrorMock = jest.fn();
 
 jest.mock('@/app/services/axios', () => ({
-  postData: (...args: any[]) => postDataMock(...args),
+  postData: (...args: unknown[]) => postDataMock(...args),
 }));
 
 jest.mock('axios', () => ({
   isAxiosError: (err: unknown) => isAxiosErrorMock(err),
 }));
 
-jest.mock('next/link', () => ({
-  __esModule: true,
-  default: ({ children, href, ...rest }: any) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
-}));
+jest.mock('next/link', () => {
+  return {
+    __esModule: true,
+    default: function MockLink({
+      children,
+      href,
+      ...rest
+    }: React.PropsWithChildren<React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }>) {
+      return (
+        <a href={href} {...rest}>
+          {children}
+        </a>
+      );
+    },
+  };
+});
 
-jest.mock('@/app/ui/widgets/Footer/Footer', () => ({
-  __esModule: true,
-  default: () => <footer data-testid="footer" />,
-}));
+jest.mock('@/app/ui/widgets/Footer/Footer', () => {
+  return {
+    __esModule: true,
+    default: function MockFooter() {
+      return <footer data-testid="footer" />;
+    },
+  };
+});
 
 import AccessibilityReportPage from '@/app/(routes)/(public)/accessibility/report/page';
 

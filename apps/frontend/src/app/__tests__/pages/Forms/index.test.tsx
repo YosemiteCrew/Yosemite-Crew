@@ -12,6 +12,37 @@ import {
   useServicesForPrimaryOrgSpecialities,
 } from '@/app/hooks/useSpecialities';
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('Sections/AddForm')) {
+        const MockAddForm = (
+          jest.requireMock('@/app/features/forms/pages/Forms/Sections/AddForm') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockAddForm {...props} />;
+      }
+
+      if (source.includes('Sections/FormInfo')) {
+        const MockFormInfo = (
+          jest.requireMock('@/app/features/forms/pages/Forms/Sections/FormInfo') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockFormInfo {...props} />;
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 // --- Mocks ---
 
 // 1. Mock Hooks & Services

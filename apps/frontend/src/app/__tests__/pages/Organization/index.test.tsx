@@ -4,6 +4,94 @@ import '@testing-library/jest-dom';
 
 import { Organization } from '@/app/features/organization/pages/Organization';
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('Sections/Profile')) {
+        const MockProfile = (
+          jest.requireMock('@/app/features/organization/pages/Organization/Sections/Profile') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockProfile {...props} />;
+      }
+      if (source.includes('Specialities/Specialities')) {
+        const MockSpecialities = (
+          jest.requireMock(
+            '@/app/features/organization/pages/Organization/Sections/Specialities/Specialities'
+          ) as { default: React.FC<Record<string, unknown>> }
+        ).default;
+        return <MockSpecialities {...props} />;
+      }
+      if (source.includes('Rooms/Rooms')) {
+        const MockRooms = (
+          jest.requireMock(
+            '@/app/features/organization/pages/Organization/Sections/Rooms/Rooms'
+          ) as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockRooms {...props} />;
+      }
+      if (source.includes('Team/Team')) {
+        const MockTeam = (
+          jest.requireMock('@/app/features/organization/pages/Organization/Sections/Team/Team') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockTeam {...props} />;
+      }
+      if (source.includes('Sections/Payment')) {
+        const MockPayment = (
+          jest.requireMock('@/app/features/organization/pages/Organization/Sections/Payment') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockPayment {...props} />;
+      }
+      if (source.includes('Documents/Documents')) {
+        const MockDocuments = (
+          jest.requireMock(
+            '@/app/features/organization/pages/Organization/Sections/Documents/Documents'
+          ) as { default: React.FC<Record<string, unknown>> }
+        ).default;
+        return <MockDocuments {...props} />;
+      }
+      if (source.includes('Sections/DocumentESigning')) {
+        const MockDocumentESigning = (
+          jest.requireMock(
+            '@/app/features/organization/pages/Organization/Sections/DocumentESigning'
+          ) as { default: React.FC<Record<string, unknown>> }
+        ).default;
+        return <MockDocumentESigning {...props} />;
+      }
+      if (source.includes('Sections/LinkedMedicalDevices')) {
+        const MockLinkedMedicalDevices = (
+          jest.requireMock(
+            '@/app/features/organization/pages/Organization/Sections/LinkedMedicalDevices'
+          ) as { default: React.FC<Record<string, unknown>> }
+        ).default;
+        return <MockLinkedMedicalDevices {...props} />;
+      }
+      if (source.includes('Sections/DeleteOrg')) {
+        const MockDeleteOrg = (
+          jest.requireMock('@/app/features/organization/pages/Organization/Sections/DeleteOrg') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockDeleteOrg {...props} />;
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 const usePrimaryOrgMock = jest.fn();
 const useOrgStoreMock = jest.fn();
 const teamMock = jest.fn();
@@ -16,19 +104,47 @@ jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: (selector: any) => useOrgStoreMock(selector),
 }));
 
-jest.mock('@/app/features/organization/pages/Organization/Sections', () => ({
-  Profile: () => <div data-testid="profile" />,
-  Specialities: () => <div data-testid="specialities" />,
-  Rooms: () => <div data-testid="rooms" />,
-  Team: (props: any) => {
+jest.mock('@/app/features/organization/pages/Organization/Sections/Profile', () => ({
+  __esModule: true,
+  default: () => <div data-testid="profile" />,
+}));
+jest.mock(
+  '@/app/features/organization/pages/Organization/Sections/Specialities/Specialities',
+  () => ({
+    __esModule: true,
+    default: () => <div data-testid="specialities" />,
+  })
+);
+jest.mock('@/app/features/organization/pages/Organization/Sections/Rooms/Rooms', () => ({
+  __esModule: true,
+  default: () => <div data-testid="rooms" />,
+}));
+jest.mock('@/app/features/organization/pages/Organization/Sections/Team/Team', () => ({
+  __esModule: true,
+  default: (props: any) => {
     teamMock(props);
     return <div data-testid="team" />;
   },
-  Payment: () => <div data-testid="payment" />,
-  Documents: () => <div data-testid="documents" />,
-  DocumentESigning: () => <div data-testid="document-e-signing" />,
-  LinkedMedicalDevices: () => <div data-testid="linked-medical-devices" />,
-  DeleteOrg: () => <div data-testid="delete-org" />,
+}));
+jest.mock('@/app/features/organization/pages/Organization/Sections/Payment', () => ({
+  __esModule: true,
+  default: () => <div data-testid="payment" />,
+}));
+jest.mock('@/app/features/organization/pages/Organization/Sections/Documents/Documents', () => ({
+  __esModule: true,
+  default: () => <div data-testid="documents" />,
+}));
+jest.mock('@/app/features/organization/pages/Organization/Sections/DocumentESigning', () => ({
+  __esModule: true,
+  default: () => <div data-testid="document-e-signing" />,
+}));
+jest.mock('@/app/features/organization/pages/Organization/Sections/LinkedMedicalDevices', () => ({
+  __esModule: true,
+  default: () => <div data-testid="linked-medical-devices" />,
+}));
+jest.mock('@/app/features/organization/pages/Organization/Sections/DeleteOrg', () => ({
+  __esModule: true,
+  default: () => <div data-testid="delete-org" />,
 }));
 
 describe('Organization page', () => {

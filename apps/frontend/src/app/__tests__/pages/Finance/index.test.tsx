@@ -4,6 +4,33 @@ import '@testing-library/jest-dom';
 
 import ProtectedFinance from '@/app/features/finance/pages/Finance';
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('ui/tables/InvoiceTable')) {
+        const MockInvoiceTable = jest.requireMock('@/app/ui/tables/InvoiceTable') as React.FC<
+          Record<string, unknown>
+        >;
+        return <MockInvoiceTable {...props} />;
+      }
+
+      if (source.includes('Sections/InvoiceInfo')) {
+        const MockInvoiceInfo = jest.requireMock(
+          '@/app/features/finance/pages/Finance/Sections/InvoiceInfo'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockInvoiceInfo {...props} />;
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 const useInvoicesMock = jest.fn();
 const useLoadInvoicesMock = jest.fn();
 const useSearchStoreMock = jest.fn();

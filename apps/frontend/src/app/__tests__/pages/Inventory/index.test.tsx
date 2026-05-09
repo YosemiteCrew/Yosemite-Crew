@@ -7,6 +7,55 @@ import { useInventoryModule } from '@/app/hooks/useInventory';
 
 expect.extend(toHaveNoViolations);
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('ui/tables/InventoryTable')) {
+        const MockInventoryTable = (
+          jest.requireMock('@/app/ui/tables/InventoryTable') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockInventoryTable {...props} />;
+      }
+
+      if (source.includes('ui/tables/InventoryTurnoverTable')) {
+        const MockInventoryTurnoverTable = (
+          jest.requireMock('@/app/ui/tables/InventoryTurnoverTable') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockInventoryTurnoverTable {...props} />;
+      }
+
+      if (source.includes('components/AddInventory')) {
+        const MockAddInventory = (
+          jest.requireMock('@/app/features/inventory/components/AddInventory') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockAddInventory {...props} />;
+      }
+
+      if (source.includes('InventoryInfo') || source.includes('features/inventory/components')) {
+        const MockInventoryInfo = (
+          jest.requireMock('@/app/features/inventory/components') as {
+            InventoryInfo: React.FC<Record<string, unknown>>;
+          }
+        ).InventoryInfo;
+        return <MockInventoryInfo {...props} />;
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 // --- Mocks ---
 
 // Mock Components

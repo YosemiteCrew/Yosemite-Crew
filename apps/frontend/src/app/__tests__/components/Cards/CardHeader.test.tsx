@@ -23,8 +23,7 @@ describe('CardHeader', () => {
     const toggle = screen.getByRole('button', { name: /Filter Explore by time period/i });
     fireEvent.click(toggle);
 
-    // Options are role="option" inside a listbox
-    const newOption = screen.getByRole('option', { name: 'Last month' });
+    const newOption = screen.getByRole('button', { name: 'Last month' });
     fireEvent.click(newOption);
 
     expect(

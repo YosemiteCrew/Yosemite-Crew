@@ -28,7 +28,7 @@ describe('DocSigningPortal', () => {
 
   it('renders iframe with normalized URL after fetch success', async () => {
     (fetchDocumensoRedirectUrl as jest.Mock).mockResolvedValue({
-      redirectUrl: 'https://doc.example.com//portal//home',
+      redirectUrl: 'https://ds.yosemitecrew.com//portal//home',
     });
 
     const { container } = render(<DocSigningPortal />);
@@ -39,13 +39,28 @@ describe('DocSigningPortal', () => {
 
     const iframe = container.querySelector('iframe') as HTMLIFrameElement;
     expect(iframe).toBeInTheDocument();
-    expect(iframe.src).toBe('https://doc.example.com/portal/home');
+    expect(iframe.src).toBe('https://ds.yosemitecrew.com/portal/home');
+    expect(iframe).toHaveAttribute(
+      'sandbox',
+      'allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts'
+    );
+    expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin');
   });
 
   it('shows fallback when portal url is unavailable', async () => {
     (fetchDocumensoRedirectUrl as jest.Mock).mockResolvedValue({ redirectUrl: '' });
 
     render(<DocSigningPortal embedded />);
+
+    expect(await screen.findByText('Portal link not available')).toBeInTheDocument();
+  });
+
+  it('shows fallback when redirect URL points to an untrusted host', async () => {
+    (fetchDocumensoRedirectUrl as jest.Mock).mockResolvedValue({
+      redirectUrl: 'https://evil.example.com/portal/home',
+    });
+
+    render(<DocSigningPortal />);
 
     expect(await screen.findByText('Portal link not available')).toBeInTheDocument();
   });

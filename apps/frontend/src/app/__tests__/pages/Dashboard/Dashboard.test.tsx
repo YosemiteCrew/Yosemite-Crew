@@ -4,6 +4,56 @@ import '@testing-library/jest-dom';
 
 import ProtectedDashboard from '@/app/features/dashboard/pages/Dashboard';
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      const requireMock = (modulePath: string) =>
+        (jest.requireMock(modulePath) as React.FC<Record<string, unknown>>)(props);
+
+      if (source.includes('widgets/DashboardSteps')) {
+        return requireMock('@/app/ui/widgets/DashboardSteps');
+      }
+      if (source.includes('cards/VideosCard/VideosCard')) {
+        return requireMock('@/app/ui/cards/VideosCard/VideosCard');
+      }
+      if (source.includes('cards/ExploreCard/ExploreCard')) {
+        return requireMock('@/app/ui/cards/ExploreCard/ExploreCard');
+      }
+      if (source.includes('widgets/Stats/AppointmentStat')) {
+        return requireMock('@/app/ui/widgets/Stats/AppointmentStat');
+      }
+      if (source.includes('widgets/Stats/RevenueStat')) {
+        return requireMock('@/app/ui/widgets/Stats/RevenueStat');
+      }
+      if (source.includes('widgets/Stats/AppointmentLeadersStat')) {
+        return requireMock('@/app/ui/widgets/Stats/AppointmentLeadersStat');
+      }
+      if (source.includes('widgets/Stats/RevenueLeadersStat')) {
+        return requireMock('@/app/ui/widgets/Stats/RevenueLeadersStat');
+      }
+      if (source.includes('widgets/Stats/AnnualInventoryTurnoverStat')) {
+        return requireMock('@/app/ui/widgets/Stats/AnnualInventoryTurnoverStat');
+      }
+      if (source.includes('widgets/Stats/IndividualProductTurnoverStat')) {
+        return requireMock('@/app/ui/widgets/Stats/IndividualProductTurnoverStat');
+      }
+      if (source.includes('widgets/Summary/AppointmentTask')) {
+        return requireMock('@/app/ui/widgets/Summary/AppointmentTask');
+      }
+      if (source.includes('widgets/Summary/Availability')) {
+        return requireMock('@/app/ui/widgets/Summary/Availability');
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,

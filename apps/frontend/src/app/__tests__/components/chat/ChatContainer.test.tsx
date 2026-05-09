@@ -85,7 +85,7 @@ jest.mock('stream-chat-react', () => {
   return {
     Chat: ({ children }: any) => <div data-testid="stream-chat">{children}</div>,
     Channel: ({ children }: any) => <div data-testid="stream-channel">{children}</div>,
-    ChannelList: ({ filters, channelRenderFilterFn }: any) => {
+    ChannelList: ({ filters: _filters, channelRenderFilterFn }: any) => {
       if (channelRenderFilterFn) {
         (window as any).__testChannelFilter = channelRenderFilterFn;
       }

@@ -4,6 +4,40 @@ import '@testing-library/jest-dom';
 
 import ProtectedAppointments from '@/app/features/appointments/pages/Appointments';
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('ui/tables/Appointments')) {
+        const MockAppointmentsTable = jest.requireMock('@/app/ui/tables/Appointments') as React.FC<
+          Record<string, unknown>
+        >;
+        return <MockAppointmentsTable {...props} />;
+      }
+
+      if (source.includes('components/Calendar/AppointmentCalendar')) {
+        const MockAppointmentCalendar = jest.requireMock(
+          '@/app/features/appointments/components/Calendar/AppointmentCalendar'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockAppointmentCalendar {...props} />;
+      }
+
+      if (source.includes('components/AppointmentBoard')) {
+        const MockAppointmentBoard = jest.requireMock(
+          '@/app/features/appointments/components/AppointmentBoard'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockAppointmentBoard {...props} />;
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 const useAppointmentsMock = jest.fn();
 const useCompanionsForPrimaryOrgMock = jest.fn();
 const useCompanionsParentsForPrimaryOrgMock = jest.fn();

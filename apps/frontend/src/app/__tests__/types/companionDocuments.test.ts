@@ -7,7 +7,6 @@ import {
   type Subcategory,
   type CompanionRecord,
   type Attachment,
-  type VisitType,
   type SignedFile,
 } from '@/app/features/documents/types/companionDocuments';
 

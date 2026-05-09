@@ -9,7 +9,7 @@ import {
   formatCurrency,
   getPrimaryActionLabel,
 } from '@/app/features/companionHistory/utils/historyFormatters';
-import { HistoryEntry, HistoryEntryType } from '@/app/features/companionHistory/types/history';
+import { HistoryEntry } from '@/app/features/companionHistory/types/history';
 
 describe('formatHistoryDateTime', () => {
   it('returns dash for null', () => {

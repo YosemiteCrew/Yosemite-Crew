@@ -23,6 +23,7 @@ describe('PdfPreviewOverlay', () => {
       'src',
       'https://integration.vetconnectplus.com/acknowledgment/1'
     );
+    expect(screen.getByTitle('Preview')).toHaveAttribute('referrerpolicy', 'strict-origin');
   });
 
   it('renders iframe for blob URL', () => {
@@ -39,6 +40,7 @@ describe('PdfPreviewOverlay', () => {
       'src',
       'blob:https://app.yosemitecrew.com/abc'
     );
+    expect(screen.getByTitle('Blob Preview')).toHaveAttribute('referrerpolicy', 'strict-origin');
   });
 
   it('does not render iframe for unsafe URL schemes', () => {

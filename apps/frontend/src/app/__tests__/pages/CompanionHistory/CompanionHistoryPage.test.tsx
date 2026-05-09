@@ -6,6 +6,30 @@ import CompanionHistoryPage from '@/app/features/companionHistory/pages/Companio
 
 expect.extend(toHaveNoViolations);
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('CompanionHistoryTimeline')) {
+        const MockTimeline = (
+          jest.requireMock(
+            '@/app/features/companionHistory/components/CompanionHistoryTimeline'
+          ) as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockTimeline {...props} />;
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 const pushMock = jest.fn();
 const startRouteLoaderMock = jest.fn();
 const searchGetMock = jest.fn();
@@ -71,8 +95,9 @@ jest.mock('@/app/stores/companionStore', () => ({
     useCompanionStoreMock(selector),
 }));
 
-jest.mock('@/app/ui/overlays/Loader', () => ({
-  YosemiteLoader: ({ testId }: any) => <div data-testid={testId}>Loading...</div>,
+jest.mock('@/app/ui/layout/PageSkeleton', () => ({
+  __esModule: true,
+  default: () => <div className="animate-pulse" data-testid="page-skeleton" />,
 }));
 
 describe('CompanionHistoryPage', () => {
@@ -106,15 +131,17 @@ describe('CompanionHistoryPage', () => {
     expect(pushMock).toHaveBeenCalledWith('/companions');
   });
 
-  it('shows loader when companions are still loading', () => {
+  it('shows skeleton when companions are still loading', () => {
     useCompanionStoreMock.mockImplementation((selector: (s: { status: string }) => unknown) =>
       selector({ status: 'loading' })
     );
 
     render(<CompanionHistoryPage />);
 
-    expect(screen.getByTestId('companions-history-loader')).toBeInTheDocument();
+    // Loading state renders PageSkeleton — heading must not appear yet
     expect(screen.queryByText('Companion Overview')).not.toBeInTheDocument();
+    // Skeleton container is present
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('renders timeline and companion summary when companion id is present', () => {

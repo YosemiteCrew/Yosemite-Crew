@@ -7,7 +7,6 @@ import {
   getTaskTemplatesForPrimaryOrg,
 } from '@/app/features/tasks/services/taskService';
 import { buildDateInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
-import { getPreferredTimeValue } from '@/app/lib/date';
 
 jest.mock('@/app/features/tasks/services/taskService', () => ({
   createTask: jest.fn(),

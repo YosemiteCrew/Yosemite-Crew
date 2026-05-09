@@ -40,10 +40,10 @@ describe('Signin Page', () => {
     expect(screen.getByTestId('mock-signin')).toBeInTheDocument();
   });
 
-  it('redirects users in signin-authenticated state away from signin', async () => {
+  it('redirects users in authenticated state away from signin', async () => {
     (useAuthStore as unknown as jest.Mock).mockImplementation(
       (selector: (state: unknown) => unknown) =>
-        selector({ status: 'signin-authenticated', role: 'owner' })
+        selector({ status: 'authenticated', role: 'owner' })
     );
 
     render(<Page />);
@@ -52,5 +52,20 @@ describe('Signin Page', () => {
       expect(resolvePostAuthRedirect).toHaveBeenCalledWith({ fallbackRole: 'owner' });
       expect(mockReplace).toHaveBeenCalledWith('/dashboard');
     });
+  });
+
+  it('does not auto-redirect during signin-authenticated transition', async () => {
+    (useAuthStore as unknown as jest.Mock).mockImplementation(
+      (selector: (state: unknown) => unknown) =>
+        selector({ status: 'signin-authenticated', role: 'owner' })
+    );
+
+    render(<Page />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-signin')).toBeInTheDocument();
+    });
+    expect(resolvePostAuthRedirect).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

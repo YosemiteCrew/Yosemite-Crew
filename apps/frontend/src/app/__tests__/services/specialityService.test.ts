@@ -155,7 +155,7 @@ describe('specialityService', () => {
 
     it('handles malformed response (data not array)', async () => {
       (axiosService.getData as jest.Mock).mockResolvedValue({ data: 'invalid' });
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await loadSpecialitiesForOrg();
     });
@@ -163,7 +163,7 @@ describe('specialityService', () => {
     it('handles missing speciality object in item', async () => {
       const mockPayload = { data: [{ speciality: null }] };
       (axiosService.getData as jest.Mock).mockResolvedValue(mockPayload);
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await loadSpecialitiesForOrg();
     });
@@ -178,7 +178,7 @@ describe('specialityService', () => {
         ],
       };
       (axiosService.getData as jest.Mock).mockResolvedValue(mockPayload);
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await loadSpecialitiesForOrg();
     });

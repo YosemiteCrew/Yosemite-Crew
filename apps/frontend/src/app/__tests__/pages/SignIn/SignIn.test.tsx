@@ -93,6 +93,7 @@ describe('SignIn Page', () => {
   const mockSignIn = jest.fn();
   const mockResendCode = jest.fn();
   const mockRouterPush = jest.fn();
+  const mockRouterReplace = jest.fn();
   const mockShowErrorTost = jest.fn();
 
   beforeEach(() => {
@@ -105,6 +106,7 @@ describe('SignIn Page', () => {
 
     (useRouter as jest.Mock).mockReturnValue({
       push: mockRouterPush,
+      replace: mockRouterReplace,
     });
 
     (useErrorTost as jest.Mock).mockReturnValue({
@@ -212,7 +214,7 @@ describe('SignIn Page', () => {
       redirectPath: undefined,
       isDeveloper: false,
     });
-    expect(mockRouterPush).toHaveBeenCalledWith('/create-org');
+    expect(mockRouterReplace).toHaveBeenCalledWith('/create-org');
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith('devAuth', 'false');
   });
 

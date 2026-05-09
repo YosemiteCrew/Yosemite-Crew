@@ -40,6 +40,7 @@ describe('ProtectedRoute Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.YC_TEST_HOSTNAME = 'localhost';
+    globalThis.window?.sessionStorage?.clear();
 
     // Setup default router behavior
     (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace });

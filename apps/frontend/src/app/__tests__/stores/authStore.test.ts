@@ -287,7 +287,6 @@ describe('authStore', () => {
     });
 
     it('returns null on session error', async () => {
-      const warnSpy = logger.warn as jest.Mock;
       mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
       mockUserInstance.getSession.mockImplementation((cb: any) => cb(new Error('Fail'), null));
 

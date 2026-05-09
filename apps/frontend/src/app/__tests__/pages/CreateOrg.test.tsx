@@ -2,6 +2,52 @@ import React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('Steps/Progress/Progress')) {
+        const MockProgress = (
+          jest.requireMock('@/app/features/onboarding/components/Steps/Progress/Progress') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockProgress {...props} />;
+      }
+      if (source.includes('Steps/CreateOrg/OrgStep')) {
+        const MockOrgStep = (
+          jest.requireMock('@/app/features/onboarding/components/Steps/CreateOrg/OrgStep') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockOrgStep {...props} />;
+      }
+      if (source.includes('Steps/CreateOrg/AddressStep')) {
+        const MockAddressStep = (
+          jest.requireMock('@/app/features/onboarding/components/Steps/CreateOrg/AddressStep') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockAddressStep {...props} />;
+      }
+      if (source.includes('Steps/CreateOrg/SpecialityStep')) {
+        const MockSpecialityStep = (
+          jest.requireMock(
+            '@/app/features/onboarding/components/Steps/CreateOrg/SpecialityStep'
+          ) as { default: React.FC<Record<string, unknown>> }
+        ).default;
+        return <MockSpecialityStep {...props} />;
+      }
+
+      return null;
+    };
+
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 let latestProgressProps: any;
 jest.mock('@/app/features/onboarding/components/Steps/Progress/Progress', () => ({
   __esModule: true,

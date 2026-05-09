@@ -25,7 +25,6 @@ jest.mock('react-icons/io', () => ({
   IoIosCheckmarkCircle: () => <span data-testid="checkmark-icon" />,
 }));
 
-
 describe('Cookies Component', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -36,7 +35,7 @@ describe('Cookies Component', () => {
     render(<Cookies />);
 
     expect(
-      screen.getByText(/Yosemite Crew doesn't use third party cookies/)
+      screen.getByText(/Yosemite Crew uses one consent cookie and optional product analytics/)
     ).toBeInTheDocument();
   });
 
@@ -61,7 +60,9 @@ describe('Cookies Component', () => {
 
     render(<Cookies />);
 
-    const popupText = screen.getByText(/Yosemite Crew doesn't use third party cookies/);
+    const popupText = screen.getByText(
+      /Yosemite Crew uses one consent cookie and optional product analytics/
+    );
     expect(popupText).toBeInTheDocument();
 
     const acceptButton = screen.getByRole('button', { name: /Accept/ });
@@ -82,7 +83,9 @@ describe('Cookies Component', () => {
 
     render(<Cookies />);
 
-    const popupText = screen.getByText(/Yosemite Crew doesn't use third party cookies/);
+    const popupText = screen.getByText(
+      /Yosemite Crew uses one consent cookie and optional product analytics/
+    );
     expect(popupText).toBeInTheDocument();
 
     const declineButton = screen.getByRole('button', { name: /Reject/ });

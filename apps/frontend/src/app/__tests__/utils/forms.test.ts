@@ -264,7 +264,7 @@ describe('Forms Utils', () => {
     } as any;
 
     it('builds payload with correct basic fields', () => {
-      const result = buildFHIRPayload({
+      buildFHIRPayload({
         form: mockUIForm,
         orgId: 'org-1',
         userId: 'user-1',

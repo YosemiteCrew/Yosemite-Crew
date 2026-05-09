@@ -177,4 +177,25 @@ describe('WeekCalendar (Appointments)', () => {
 
     jest.useRealTimers();
   });
+
+  it('precomputes slot events once per visible day and hour', () => {
+    render(
+      <WeekCalendar
+        events={events}
+        handleViewAppointment={handleViewAppointment}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+      />
+    );
+
+    const uniqueDayHourCalls = new Set(
+      mockEventsForDayHour.mock.calls.map(([, day, hour]) => `${day.toISOString()}-${hour}`)
+    );
+
+    expect(mockEventsForDayHour).toHaveBeenCalledTimes(uniqueDayHourCalls.size);
+    expect(uniqueDayHourCalls.size).toBeGreaterThan(0);
+  });
 });

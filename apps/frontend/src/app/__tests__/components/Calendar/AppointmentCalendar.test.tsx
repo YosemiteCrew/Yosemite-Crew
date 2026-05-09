@@ -2,7 +2,9 @@ import React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-import AppointmentCalendar from '@/app/features/appointments/components/Calendar/AppointmentCalendar';
+import AppointmentCalendar, {
+  filterAppointmentsForWeek,
+} from '@/app/features/appointments/components/Calendar/AppointmentCalendar';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
@@ -470,6 +472,32 @@ describe('AppointmentCalendar', () => {
         events: [],
       })
     );
+  });
+
+  it('filters week appointments to only overlapping events', () => {
+    const mockedWeekStart = new Date('2025-01-06T00:00:00Z');
+    const result = filterAppointmentsForWeek(
+      [
+        {
+          ...appointments[0],
+          startTime: new Date('2025-01-06T09:00:00Z'),
+          endTime: new Date('2025-01-06T09:30:00Z'),
+        },
+        {
+          ...appointments[1],
+          id: 'a3',
+          startTime: new Date('2025-02-10T10:00:00Z'),
+          endTime: new Date('2025-02-10T10:30:00Z'),
+        },
+      ] as any,
+      mockedWeekStart
+    );
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: 'a1',
+      }),
+    ]);
   });
 
   it('prefetches drag availability on hover after drag start', async () => {

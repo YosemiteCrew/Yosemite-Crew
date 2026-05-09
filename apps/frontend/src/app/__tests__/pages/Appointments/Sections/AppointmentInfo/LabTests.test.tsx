@@ -456,4 +456,32 @@ describe('LabTests', () => {
     expect(screen.getByRole('button', { name: 'Resume order placement' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Acknowledgment PDF' })).toBeDisabled();
   });
+
+  it('renders IDEXX iframe with strict referrer policy for safe order URLs', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'ord-safe',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'CREATED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: 'safe-1',
+        tests: ['9126'],
+        uiUrl: 'https://integration.vetconnectplus.com/order/123',
+      },
+    ]);
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Order safe-1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resume order placement' }));
+
+    const iframe = await screen.findByTitle('IDEXX order UI');
+    expect(iframe).toHaveAttribute('src', 'https://integration.vetconnectplus.com/order/123');
+    expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin');
+  });
 });

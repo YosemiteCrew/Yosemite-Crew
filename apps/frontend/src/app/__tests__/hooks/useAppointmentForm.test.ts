@@ -43,7 +43,7 @@ jest.mock('@/app/lib/date', () => ({
 
 jest.mock('@/app/lib/timezone', () => ({
   isOnPreferredTimeZoneCalendarDay: jest.fn(() => false),
-  utcClockTimeToPreferredTimeZoneClock: jest.fn((time: string) => ({
+  utcClockTimeToPreferredTimeZoneClock: jest.fn((_time: string) => ({
     minutes: 540,
     dayOffset: 0,
   })),

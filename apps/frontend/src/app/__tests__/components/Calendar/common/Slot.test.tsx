@@ -399,26 +399,29 @@ describe('Slot (Appointments)', () => {
   });
 
   it('has no axe accessibility violations when the appointment popover is open', async () => {
-    render(
-      <Slot
-        slotEvents={[event]}
-        height={120}
-        handleViewAppointment={handleViewAppointment}
-        handleRescheduleAppointment={handleRescheduleAppointment}
-        dayIndex={0}
-        length={1}
-        canEditAppointments
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /Rex/i }));
-    await act(async () => {
-      jest.advanceTimersByTime(200);
-    });
-
     jest.useRealTimers();
 
     try {
+      render(
+        <Slot
+          slotEvents={[event]}
+          height={120}
+          handleViewAppointment={handleViewAppointment}
+          handleRescheduleAppointment={handleRescheduleAppointment}
+          dayIndex={0}
+          length={1}
+          canEditAppointments
+        />
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Rex/i }));
+        await new Promise((resolve) => {
+          globalThis.setTimeout(resolve, 250);
+        });
+      });
+      expect(screen.getByTitle(/reschedule/i)).toBeInTheDocument();
+
       const results = await axe(document.body);
       expect(results).toHaveNoViolations();
     } finally {

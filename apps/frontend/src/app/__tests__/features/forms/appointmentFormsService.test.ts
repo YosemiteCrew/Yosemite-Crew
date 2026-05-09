@@ -2,7 +2,7 @@ import {
   fetchAppointmentForms,
   linkAppointmentForms,
 } from '@/app/features/forms/services/appointmentFormsService';
-import { fromFormRequestDTO, fromFormSubmissionRequestDTO } from '@yosemite-crew/types';
+import { fromFormRequestDTO } from '@yosemite-crew/types';
 
 const postDataMock = jest.fn();
 

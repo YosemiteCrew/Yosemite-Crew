@@ -3,8 +3,25 @@ import { render, screen } from '@testing-library/react';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
-  default: () => {
-    const MockDynamicComponent = () => <div data-testid="route-chat">Chat container</div>;
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+
+    const MockDynamicComponent = () => {
+      if (source.includes('companions/pages/Companions/Companions')) {
+        return <div data-testid="route-companions">Companions page</div>;
+      }
+
+      if (source.includes('features/chat/components/ChatContainer')) {
+        return <div data-testid="route-chat">Chat container</div>;
+      }
+
+      if (source.includes('features/inventory/pages/Inventory')) {
+        return <div data-testid="route-inventory">Inventory page</div>;
+      }
+
+      return <div data-testid="route-dynamic">Dynamic route</div>;
+    };
+
     MockDynamicComponent.displayName = 'MockDynamicComponent';
     return MockDynamicComponent;
   },

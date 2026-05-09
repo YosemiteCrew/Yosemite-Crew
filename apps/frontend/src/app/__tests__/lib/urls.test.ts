@@ -1,4 +1,9 @@
-import { getSafeIdexxIframeUrl, getSafeImageUrl, isHttpsImageUrl } from '@/app/lib/urls';
+import {
+  getSafeDocumensoIframeUrl,
+  getSafeIdexxIframeUrl,
+  getSafeImageUrl,
+  isHttpsImageUrl,
+} from '@/app/lib/urls';
 
 describe('url helpers', () => {
   it('validates https image URLs', () => {
@@ -32,5 +37,16 @@ describe('url helpers', () => {
     expect(
       getSafeIdexxIframeUrl('blob:https://app.yosemitecrew.com/abc', { allowBlob: true })
     ).toBe('blob:https://app.yosemitecrew.com/abc');
+  });
+
+  it('allows only configured Documenso https URLs for iframes', () => {
+    expect(getSafeDocumensoIframeUrl('https://ds.yosemitecrew.com//sign//abc?mode=embedded')).toBe(
+      'https://ds.yosemitecrew.com/sign/abc?mode=embedded'
+    );
+  });
+
+  it('rejects unsafe or untrusted Documenso iframe URLs', () => {
+    expect(getSafeDocumensoIframeUrl('javascript:alert(1)')).toBe('');
+    expect(getSafeDocumensoIframeUrl('https://evil.example.com/sign/abc')).toBe('');
   });
 });

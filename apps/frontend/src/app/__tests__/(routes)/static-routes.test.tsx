@@ -1,89 +1,103 @@
-import React from "react";
-import { render, screen } from "@testing-library/react";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
 
-jest.mock("@/app/features/marketing/pages/AboutUs/AboutUs", () => ({
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<{ default: React.ComponentType }>) => {
+    let Component: React.ComponentType | null = null;
+    loader().then((mod) => {
+      Component = mod.default;
+    });
+    const MockDynamic = (props: Record<string, unknown>) =>
+      Component ? React.createElement(Component, props) : null;
+    MockDynamic.displayName = 'MockDynamic';
+    return MockDynamic;
+  },
+}));
+
+jest.mock('@/app/features/marketing/pages/AboutUs/AboutUs', () => ({
   __esModule: true,
   default: () => <div data-testid="route-about" />,
 }));
 
-jest.mock("@/app/features/marketing/pages/PetOwner/PetOwner", () => ({
+jest.mock('@/app/features/marketing/pages/PetOwner/PetOwner', () => ({
   __esModule: true,
   default: () => <div data-testid="route-application" />,
 }));
 
-jest.mock("@/app/features/marketing/pages/BookDemo/BookDemo", () => ({
+jest.mock('@/app/features/marketing/pages/BookDemo/BookDemo', () => ({
   __esModule: true,
   default: () => <div data-testid="route-book-demo" />,
 }));
 
-jest.mock("@/app/features/marketing/pages/ContactusPage/ContactusPage", () => ({
+jest.mock('@/app/features/marketing/pages/ContactusPage/ContactusPage', () => ({
   __esModule: true,
   default: () => <div data-testid="route-contact" />,
 }));
 
-jest.mock("@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding", () => ({
+jest.mock('@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding', () => ({
   __esModule: true,
   default: () => <div data-testid="route-developers" />,
 }));
 
-jest.mock("@/app/features/organizations/pages/Organizations", () => ({
+jest.mock('@/app/features/organizations/pages/Organizations', () => ({
   __esModule: true,
   default: () => <div data-testid="route-organizations" />,
 }));
 
-jest.mock("@/app/features/onboarding/pages/CreateOrg/CreateOrg", () => ({
+jest.mock('@/app/features/onboarding/pages/CreateOrg/CreateOrg', () => ({
   __esModule: true,
   default: () => <div data-testid="route-create-org" />,
 }));
 
-jest.mock("@/app/features/dashboard/pages/Dashboard", () => ({
+jest.mock('@/app/features/dashboard/pages/Dashboard', () => ({
   __esModule: true,
   default: () => <div data-testid="route-dashboard" />,
 }));
 
-jest.mock("@/app/features/marketing/pages/HomePage/HomePage", () => ({
+jest.mock('@/app/features/marketing/pages/HomePage/HomePage', () => ({
   __esModule: true,
   default: () => <div data-testid="route-pms" />,
 }));
 
-jest.mock("@/app/features/marketing/pages/PricingPage/PricingPage", () => ({
+jest.mock('@/app/features/marketing/pages/PricingPage/PricingPage', () => ({
   __esModule: true,
   default: () => <div data-testid="route-pricing" />,
 }));
 
-jest.mock("@/app/features/legal/pages/PrivacyPolicy", () => ({
+jest.mock('@/app/features/legal/pages/PrivacyPolicy', () => ({
   __esModule: true,
   default: () => <div data-testid="route-privacy-policy" />,
 }));
 
-jest.mock("@/app/features/legal/pages/TermsAndConditions", () => ({
+jest.mock('@/app/features/legal/pages/TermsAndConditions', () => ({
   __esModule: true,
   default: () => <div data-testid="route-terms" />,
 }));
 
-jest.mock("@/app/ui/widgets/Footer/Footer", () => ({
+jest.mock('@/app/ui/widgets/Footer/Footer', () => ({
   __esModule: true,
   default: () => <footer data-testid="route-footer" />,
 }));
 
-jest.mock("@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding", () => ({
+jest.mock('@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding', () => ({
   __esModule: true,
   default: () => <div data-testid="route-team-onboarding" />,
 }));
 
-import AboutRoute, * as AboutModule from "@/app/(routes)/(public)/about/page";
-import ApplicationRoute, * as ApplicationModule from "@/app/(routes)/(public)/application/page";
-import BookDemoRoute, * as BookDemoModule from "@/app/(routes)/(public)/book-demo/page";
-import ContactRoute, * as ContactModule from "@/app/(routes)/(public)/contact/page";
-import DevelopersRoute, * as DevelopersModule from "@/app/(routes)/(public)/developers/page";
-import OrganizationsRoute, * as OrganizationsModule from "@/app/(routes)/(app)/organizations/page";
-import CreateOrgRoute, * as CreateOrgModule from "@/app/(routes)/(app)/create-org/page";
-import DashboardRoute, * as DashboardModule from "@/app/(routes)/(app)/dashboard/page";
-import PmsRoute, * as PmsModule from "@/app/(routes)/(public)/pms/page";
-import PricingRoute, * as PricingModule from "@/app/(routes)/(public)/pricing/page";
-import PrivacyPolicyRoute, * as PrivacyPolicyModule from "@/app/(routes)/(public)/privacy-policy/page";
-import TermsRoute, * as TermsModule from "@/app/(routes)/(public)/terms-and-conditions/page";
-import TeamOnboardingRoute, * as TeamOnboardingModule from "@/app/(routes)/(app)/team-onboarding/page";
+import AboutRoute, * as AboutModule from '@/app/(routes)/(public)/about/page';
+import ApplicationRoute, * as ApplicationModule from '@/app/(routes)/(public)/application/page';
+import BookDemoRoute, * as BookDemoModule from '@/app/(routes)/(public)/book-demo/page';
+import ContactRoute, * as ContactModule from '@/app/(routes)/(public)/contact/page';
+import DevelopersRoute, * as DevelopersModule from '@/app/(routes)/(public)/developers/page';
+import OrganizationsRoute, * as OrganizationsModule from '@/app/(routes)/(app)/organizations/page';
+import CreateOrgRoute, * as CreateOrgModule from '@/app/(routes)/(app)/create-org/page';
+import DashboardRoute, * as DashboardModule from '@/app/(routes)/(app)/dashboard/page';
+import PmsRoute, * as PmsModule from '@/app/(routes)/(public)/pms/page';
+import PricingRoute, * as PricingModule from '@/app/(routes)/(public)/pricing/page';
+import PrivacyPolicyRoute, * as PrivacyPolicyModule from '@/app/(routes)/(public)/privacy-policy/page';
+import TermsRoute, * as TermsModule from '@/app/(routes)/(public)/terms-and-conditions/page';
+import TeamOnboardingRoute, * as TeamOnboardingModule from '@/app/(routes)/(app)/team-onboarding/page';
 
 type RouteCase = {
   name: string;
@@ -94,92 +108,92 @@ type RouteCase = {
 
 const routeCases: RouteCase[] = [
   {
-    name: "AboutUs",
+    name: 'AboutUs',
     RouteComponent: AboutRoute,
     Module: AboutModule,
-    expectedTestIds: ["route-about"],
+    expectedTestIds: ['route-about'],
   },
   {
-    name: "Application",
+    name: 'Application',
     RouteComponent: ApplicationRoute,
     Module: ApplicationModule,
-    expectedTestIds: ["route-application"],
+    expectedTestIds: ['route-application'],
   },
   {
-    name: "Book Demo",
+    name: 'Book Demo',
     RouteComponent: BookDemoRoute,
     Module: BookDemoModule,
-    expectedTestIds: ["route-book-demo"],
+    expectedTestIds: ['route-book-demo'],
   },
   {
-    name: "Contact",
+    name: 'Contact',
     RouteComponent: ContactRoute,
     Module: ContactModule,
-    expectedTestIds: ["route-contact"],
+    expectedTestIds: ['route-contact'],
   },
   {
-    name: "Developers",
+    name: 'Developers',
     RouteComponent: DevelopersRoute,
     Module: DevelopersModule,
-    expectedTestIds: ["route-developers"],
+    expectedTestIds: ['route-developers'],
   },
   {
-    name: "Organizations",
+    name: 'Organizations',
     RouteComponent: OrganizationsRoute,
     Module: OrganizationsModule,
-    expectedTestIds: ["route-organizations"],
+    expectedTestIds: ['route-organizations'],
   },
   {
-    name: "Create Org",
+    name: 'Create Org',
     RouteComponent: CreateOrgRoute,
     Module: CreateOrgModule,
-    expectedTestIds: ["route-create-org"],
+    expectedTestIds: ['route-create-org'],
   },
   {
-    name: "Dashboard",
+    name: 'Dashboard',
     RouteComponent: DashboardRoute,
     Module: DashboardModule,
-    expectedTestIds: ["route-dashboard"],
+    expectedTestIds: ['route-dashboard'],
   },
   {
-    name: "PMS",
+    name: 'PMS',
     RouteComponent: PmsRoute,
     Module: PmsModule,
-    expectedTestIds: ["route-pms"],
+    expectedTestIds: ['route-pms'],
   },
   {
-    name: "Pricing",
+    name: 'Pricing',
     RouteComponent: PricingRoute,
     Module: PricingModule,
-    expectedTestIds: ["route-pricing"],
+    expectedTestIds: ['route-pricing'],
   },
   {
-    name: "Privacy Policy",
+    name: 'Privacy Policy',
     RouteComponent: PrivacyPolicyRoute,
     Module: PrivacyPolicyModule,
-    expectedTestIds: ["route-privacy-policy"],
+    expectedTestIds: ['route-privacy-policy'],
   },
   {
-    name: "Terms and Conditions",
+    name: 'Terms and Conditions',
     RouteComponent: TermsRoute,
     Module: TermsModule,
-    expectedTestIds: ["route-terms", "route-footer"],
+    expectedTestIds: ['route-terms', 'route-footer'],
   },
   {
-    name: "Team Onboarding",
+    name: 'Team Onboarding',
     RouteComponent: TeamOnboardingRoute,
     Module: TeamOnboardingModule,
-    expectedTestIds: ["route-team-onboarding"],
+    expectedTestIds: ['route-team-onboarding'],
   },
 ];
 
-describe("static route wrappers", () => {
-  test.each(routeCases)("page (%s route)", ({ RouteComponent, Module, expectedTestIds }) => {
+describe('static route wrappers', () => {
+  test.each(routeCases)('page (%s route)', ({ RouteComponent, Module, expectedTestIds }) => {
     render(<RouteComponent />);
     for (const testId of expectedTestIds) {
       expect(screen.getByTestId(testId)).toBeInTheDocument();
     }
-    expect(typeof RouteComponent).toBe("function");
-    expect(typeof Module.default).toBe("function");
+    expect(typeof RouteComponent).toBe('function');
+    expect(typeof Module.default).toBe('function');
   });
 });

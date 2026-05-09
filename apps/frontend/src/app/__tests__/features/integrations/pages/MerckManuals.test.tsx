@@ -223,6 +223,7 @@ describe('MerckManuals page', () => {
     fireEvent.click(screen.getByText('Open'));
 
     await waitFor(() => expect(screen.getByTitle('Canine Fever')).toBeInTheDocument());
+    expect(screen.getByTitle('Canine Fever')).toHaveAttribute('referrerpolicy', 'strict-origin');
     fireEvent.click(screen.getByLabelText('Close Merck reader'));
     await waitFor(() => expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument());
   });

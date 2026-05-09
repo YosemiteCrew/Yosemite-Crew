@@ -1,73 +1,61 @@
 /* eslint-disable @next/next/no-img-element */
-import React from "react";
-import { render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-jest.mock("next/image", () => {
-  return ({ alt = "", ...props }: any) => {
+jest.mock('next/image', () => {
+  return ({ alt = '', ...props }: any) => {
     const {
       // strip Next/Image-specific or non-DOM props
-      objectFit,
-      objectPosition,
-      fill,
-      loader,
-      quality,
-      priority,
-      placeholder,
-      blurDataURL,
-      onLoadingComplete,
-      unoptimized,
+      objectFit: _objectFit,
+      objectPosition: _objectPosition,
+      fill: _fill,
+      loader: _loader,
+      quality: _quality,
+      priority: _priority,
+      placeholder: _placeholder,
+      blurDataURL: _blurDataURL,
+      onLoadingComplete: _onLoadingComplete,
+      unoptimized: _unoptimized,
       ...rest
     } = props;
     return <img alt={alt} {...rest} />;
   };
 });
 
-jest.mock("next/link", () => {
+jest.mock('next/link', () => {
   return ({ children, ...props }: any) => <a {...props}>{children}</a>;
 });
 
-jest.mock("@iconify/react/dist/iconify.js", () => ({
+jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: ({ icon }: { icon: string }) => <span data-testid={`icon-${icon}`} />,
 }));
 
-jest.mock("@/app/ui/widgets/Footer/Footer", () => () => (
-  <footer data-testid="footer" />
-));
+jest.mock('@/app/ui/widgets/Footer/Footer', () => () => <footer data-testid="footer" />);
 
-import PetOwner, { PetDownBtn } from "@/app/features/marketing/pages/PetOwner/PetOwner";
+import PetOwner, { PetDownBtn } from '@/app/features/marketing/pages/PetOwner/PetOwner';
 
-describe("PetOwner page", () => {
-  test("renders hero content, toolkit, and footer", () => {
+describe('PetOwner page', () => {
+  test('renders hero content, toolkit, and footer', () => {
     render(<PetOwner />);
 
-    expect(
-      screen.getByText(/Your companion.?s health, in your hands/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Your companion.?s all-in-one toolkit/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Your companion.?s health, in your hands/i)).toBeInTheDocument();
+    expect(screen.getByText(/Your companion.?s all-in-one toolkit/i)).toBeInTheDocument();
     expect(screen.getAllByTestId(/icon-solar:/)).not.toHaveLength(0);
-    expect(screen.getByTestId("footer")).toBeInTheDocument();
+    expect(screen.getByTestId('footer')).toBeInTheDocument();
   });
 });
 
-describe("PetDownBtn", () => {
-  test("shows coming soon pill when not launched", () => {
+describe('PetDownBtn', () => {
+  test('shows coming soon pill when not launched', () => {
     render(<PetDownBtn launched={false} />);
-    expect(screen.getByText("Coming Soon")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /App Store/i })
-    ).not.toBeInTheDocument();
+    expect(screen.getByText('Coming Soon')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /App Store/i })).not.toBeInTheDocument();
   });
 
-  test("renders platform download links when launched", () => {
+  test('renders platform download links when launched', () => {
     render(<PetDownBtn launched />);
-    expect(
-      screen.getByRole("link", { name: /App Store/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Google Play/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /App Store/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Google Play/i })).toBeInTheDocument();
   });
 });
