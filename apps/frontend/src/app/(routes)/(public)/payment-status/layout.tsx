@@ -2,6 +2,10 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Payment Status — Yosemite Crew' };
 
-export default function PaymentStatusLayout({ children }: { children: React.ReactNode }) {
+type PaymentStatusLayoutProps = Readonly<{
+  children: React.ReactNode;
+}>;
+
+export default function PaymentStatusLayout({ children }: PaymentStatusLayoutProps) {
   return <>{children}</>;
 }

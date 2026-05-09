@@ -41,7 +41,7 @@ function validate(form: FormState): FieldErrors {
   if (!form.name.trim()) errs.name = 'Your name is required.';
   if (!form.email.trim()) {
     errs.email = 'Your email address is required.';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@.]+$/.test(form.email)) {
     errs.email = 'Enter a valid email address.';
   }
   if (!form.description.trim()) errs.description = 'Please describe the barrier you encountered.';
@@ -74,7 +74,9 @@ export default function AccessibilityReportPage() {
       }
     };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (
+    e: Parameters<NonNullable<React.ComponentProps<'form'>['onSubmit']>>[0]
+  ) => {
     e.preventDefault();
     const errs = validate(form);
     if (Object.keys(errs).length > 0) {
@@ -127,7 +129,7 @@ export default function AccessibilityReportPage() {
               <a href="mailto:accessibility@yosemitecrew.com" className="text-text-brand underline">
                 accessibility@yosemitecrew.com
               </a>
-              .
+              {'.'}
             </p>
             <Link
               href="/accessibility"
@@ -167,7 +169,7 @@ export default function AccessibilityReportPage() {
         <h1 className="text-heading-1 text-text-primary mb-3">Report an accessibility barrier</h1>
         <p className="text-body-4 text-text-secondary mb-8">
           Use this form to tell us about an accessibility problem you encountered. We aim to respond
-          within 5 business days. Fields marked <span aria-hidden="true">*</span>
+          within 5 business days. Fields marked <span aria-hidden="true">*</span>{' '}
           <span className="sr-only">with an asterisk</span> are required.
         </p>
 

@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   description: 'Tell us about an accessibility problem you encountered on Yosemite Crew.',
 };
 
-export default function ReportLayout({ children }: { children: React.ReactNode }) {
+type ReportLayoutProps = Readonly<{
+  children: React.ReactNode;
+}>;
+
+export default function ReportLayout({ children }: ReportLayoutProps) {
   return <>{children}</>;
 }
