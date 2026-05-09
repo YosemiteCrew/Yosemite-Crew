@@ -2,68 +2,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const generateSmoothStarPath = (
-  cx: number,
-  cy: number,
-  outerRadius: number,
-  innerRadius: number,
-  points: number = 8
-): string => {
-  const totalPoints = points * 2;
-  const angleStep = (Math.PI * 2) / totalPoints;
-
-  const starPoints: { x: number; y: number }[] = [];
-  for (let i = 0; i < totalPoints; i++) {
-    const radius = i % 2 === 0 ? outerRadius : innerRadius;
-    const angle = i * angleStep - Math.PI / 2;
-    starPoints.push({
-      x: cx + radius * Math.cos(angle),
-      y: cy + radius * Math.sin(angle),
-    });
-  }
-
-  const smoothness = 0.5;
-
-  const getControlPoints = (
-    p0: { x: number; y: number },
-    p1: { x: number; y: number },
-    p2: { x: number; y: number }
-  ) => {
-    const d01 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
-    const d12 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-
-    const fa = (smoothness * d01) / (d01 + d12);
-    const fb = (smoothness * d12) / (d01 + d12);
-
-    const cp1x = p1.x - fa * (p2.x - p0.x);
-    const cp1y = p1.y - fa * (p2.y - p0.y);
-    const cp2x = p1.x + fb * (p2.x - p0.x);
-    const cp2y = p1.y + fb * (p2.y - p0.y);
-
-    return { cp1: { x: cp1x, y: cp1y }, cp2: { x: cp2x, y: cp2y } };
-  };
-
-  const controlPoints: { cp1: { x: number; y: number }; cp2: { x: number; y: number } }[] = [];
-  for (let i = 0; i < totalPoints; i++) {
-    const p0 = starPoints[(i - 1 + totalPoints) % totalPoints];
-    const p1 = starPoints[i];
-    const p2 = starPoints[(i + 1) % totalPoints];
-    controlPoints.push(getControlPoints(p0, p1, p2));
-  }
-
-  let path = `M ${starPoints[0].x} ${starPoints[0].y}`;
-
-  for (let i = 0; i < totalPoints; i++) {
-    const nextIdx = (i + 1) % totalPoints;
-    const cp1 = controlPoints[i].cp2;
-    const cp2 = controlPoints[nextIdx].cp1;
-    const end = starPoints[nextIdx];
-
-    path += ` C ${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${end.x} ${end.y}`;
-  }
-
-  return path;
-};
+// Pre-computed path for an 8-point smooth star (cx=500, cy=500, outer=400, inner=340).
+// Hardcoded to avoid SSR/client floating-point divergence (Math.cos/sin differs between
+// Node.js and browser engines, causing hydration mismatches).
+const STAR_PATH =
+  'M 500 100 C 565.0561835020653 99.99999999999999 559.4016888854758 156.59163706481726 630.1123670041305 185.88095894616254 C 700.8230451227853 215.17028082750778 736.8410439621923 171.1556190129543 782.842712474619 217.15728752538104 C 828.8443809870457 263.15895603780774 784.8297191724922 299.17695487721477 814.1190410538375 369.88763299586947 C 843.4083629351827 440.5983111145242 900 434.94381649793473 900 500 C 900 565.0561835020653 843.4083629351827 559.4016888854758 814.1190410538375 630.1123670041305 C 784.8297191724922 700.8230451227853 828.8443809870457 736.8410439621923 782.842712474619 782.842712474619 C 736.8410439621923 828.8443809870457 700.8230451227853 784.8297191724922 630.1123670041305 814.1190410538375 C 559.4016888854758 843.4083629351827 565.0561835020653 900 500 900 C 434.94381649793473 900 440.5983111145242 843.4083629351827 369.88763299586947 814.1190410538375 C 299.17695487721477 784.8297191724922 263.15895603780774 828.8443809870457 217.15728752538104 782.842712474619 C 171.15561901295433 736.8410439621923 215.17028082750784 700.8230451227853 185.8809589461626 630.1123670041306 C 156.59163706481732 559.4016888854759 100.00000000000001 565.0561835020653 100 500.00000000000006 C 99.99999999999999 434.94381649793473 156.59163706481726 440.5983111145242 185.88095894616254 369.88763299586935 C 215.17028082750772 299.1769548772147 171.15561901295425 263.15895603780774 217.15728752538092 217.15728752538104 C 263.1589560378076 171.15561901295433 299.1769548772146 215.1702808275078 369.8876329958693 185.8809589461626 C 440.59831111452417 156.5916370648173 434.9438164979347 100.00000000000001 500 100';
 
 interface RippleProps {
   delay: number;
@@ -71,12 +14,10 @@ interface RippleProps {
   size: number;
   color: string;
   position: 'top-right' | 'bottom-left';
+  gradientId: string;
 }
 
-const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position }) => {
-  const starPath = generateSmoothStarPath(500, 500, 400, 340, 8);
-  const gradientId = React.useId();
-
+const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position, gradientId }) => {
   const positionStyles =
     position === 'top-right' ? { right: '-50%', top: '-50%' } : { left: '-50%', bottom: '-50%' };
 
@@ -95,10 +36,7 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
       <motion.svg
         viewBox="0 0 1000 1000"
         className="star-ripple"
-        style={{
-          width: '100%',
-          height: '100%',
-        }}
+        style={{ width: '100%', height: '100%' }}
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{
           scale: [0.6, 1, 1.4],
@@ -114,24 +52,23 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
         }}
       >
         <defs>
-          <linearGradient id={gradientId} gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="var(--color-badge-blue-bg)" stopOpacity="0.8" />
+          <linearGradient
+            id={gradientId}
+            gradientUnits="userSpaceOnUse"
+            x1="100"
+            y1="100"
+            x2="900"
+            y2="900"
+          >
+            <stop offset="0%" stopColor="#b8ddf5" stopOpacity="0.8" />
             <stop offset="30%" stopColor={color} stopOpacity="0.5" />
             <stop offset="50%" stopColor={color} stopOpacity="0.2" />
             <stop offset="70%" stopColor={color} stopOpacity="0.5" />
-            <stop offset="100%" stopColor="var(--color-badge-blue-bg)" stopOpacity="0.8" />
-            <animateTransform
-              attributeName="gradientTransform"
-              type="rotate"
-              from="0 500 500"
-              to="360 500 500"
-              dur="4s"
-              repeatCount="indefinite"
-            />
+            <stop offset="100%" stopColor="#b8ddf5" stopOpacity="0.8" />
           </linearGradient>
         </defs>
         <path
-          d={starPath}
+          d={STAR_PATH}
           fill="none"
           stroke={`url(#${gradientId})`}
           strokeWidth="3"
@@ -143,26 +80,31 @@ const Ripple: React.FC<RippleProps> = ({ delay, duration, size, color, position 
   );
 };
 
-const RIPPLE_COLORS = ['#7AB4F5', '#5299F1', '#3687EF', 'var(--color-badge-blue-bg)'] as const;
+const RIPPLE_COLORS = ['#7AB4F5', '#5299F1', '#3687EF', '#4a90d9'] as const;
 const RIPPLE_SIZES = [1000, 1200, 1400, 1600] as const;
 const RIPPLE_DELAYS = [0, 2.5, 5, 7.5] as const;
 const DURATION = 10;
 
-const createRipple = (
-  index: number,
-  position: 'top-right' | 'bottom-left'
-): RippleProps & { id: string } => ({
-  id: `${position === 'top-right' ? 'tr' : 'bl'}-${index + 1}`,
-  delay: RIPPLE_DELAYS[index],
-  duration: DURATION,
-  size: RIPPLE_SIZES[index],
-  color: RIPPLE_COLORS[index],
-  position,
-});
-
 const StarRipple: React.FC = () => {
-  const topRightRipples = [0, 1, 2, 3].map((i) => createRipple(i, 'top-right'));
-  const bottomLeftRipples = [0, 1, 2, 3].map((i) => createRipple(i, 'bottom-left'));
+  const topRightRipples = [0, 1, 2, 3].map((i) => ({
+    id: `yc-tr-${i}`,
+    gradientId: `yc-grad-tr-${i}`,
+    delay: RIPPLE_DELAYS[i],
+    duration: DURATION,
+    size: RIPPLE_SIZES[i],
+    color: RIPPLE_COLORS[i],
+    position: 'top-right' as const,
+  }));
+
+  const bottomLeftRipples = [0, 1, 2, 3].map((i) => ({
+    id: `yc-bl-${i}`,
+    gradientId: `yc-grad-bl-${i}`,
+    delay: RIPPLE_DELAYS[i],
+    duration: DURATION,
+    size: RIPPLE_SIZES[i],
+    color: RIPPLE_COLORS[i],
+    position: 'bottom-left' as const,
+  }));
 
   return (
     <div className="star-ripple-container">
