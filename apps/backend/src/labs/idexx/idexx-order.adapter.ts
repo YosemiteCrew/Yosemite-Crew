@@ -262,7 +262,7 @@ const buildOrderPayload = async (input: {
   technician?: string | null;
   notes?: string | null;
   specimenCollectionDate?: string | null;
-}) => {
+}): Promise<Record<string, unknown>> => {
   const { companion, parent } = await loadCompanionAndParent({
     companionId: input.companionId,
     parentId: input.parentId,
@@ -397,7 +397,7 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
 
     const response = await client.createOrder(payload);
     const resp = response as Record<string, unknown>;
-    return buildOrderResult(resp, payload as Record<string, unknown>);
+    return buildOrderResult(resp, payload);
   }
 
   async getOrder(
@@ -447,11 +447,7 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
 
     const response = await client.updateOrder(idexxOrderId, payload);
     const resp = response as Record<string, unknown>;
-    return buildOrderResult(
-      resp,
-      payload as Record<string, unknown>,
-      idexxOrderId,
-    );
+    return buildOrderResult(resp, payload, idexxOrderId);
   }
 
   async cancelOrder(

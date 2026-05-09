@@ -373,13 +373,13 @@ const applySimpleFieldUpdates = (
   }
 
   if (updates.issueDate !== undefined) {
-    if (!updates.issueDate) {
-      doc.issueDate = null;
-    } else {
+    if (updates.issueDate) {
       const parsed = new Date(updates.issueDate);
       if (!Number.isNaN(parsed.getTime())) {
         doc.issueDate = parsed;
       }
+    } else {
+      doc.issueDate = null;
     }
   }
 };
@@ -1067,8 +1067,9 @@ export const DocumentService = {
 
     const doc = await DocumentModel.findById(_id).exec();
 
-    if (!doc || !doc.attachments?.length)
+    if (!doc?.attachments?.length) {
       throw new DocumentServiceError("No attachments found.", 404);
+    }
 
     const urls = await Promise.all(
       doc.attachments.map((att) => generatePresignedDownloadUrl(att.key)),

@@ -4,7 +4,6 @@ import {
   UserProfileService,
   UserProfileServiceError,
   type CreateUserProfilePayload,
-  type UpdateUserProfilePayload,
 } from "../../services/user-profile.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 import { generatePresignedUrl } from "src/middlewares/upload";
@@ -78,7 +77,7 @@ export const UserProfileController = {
       const profile = await UserProfileService.update(
         userId,
         organizationId,
-        req.body as UpdateUserProfilePayload,
+        req.body,
       );
 
       if (!profile) {

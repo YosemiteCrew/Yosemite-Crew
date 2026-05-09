@@ -144,89 +144,54 @@ const syncChatSessionToPostgres = async (doc: ChatSessionDocument) => {
   }
 };
 
+type ChatAvailability =
+  | { allowed: true; reason?: undefined }
+  | { allowed: false; reason: string };
+
+const canUseChatNowCore = (
+  session: {
+    status: string;
+    allowedFrom?: Date | null;
+    allowedUntil?: Date | null;
+  },
+  appointment: { status: string },
+): ChatAvailability => {
+  const now = new Date();
+
+  if (session.status === "CLOSED") {
+    return { allowed: false, reason: "Chat is closed." };
+  }
+
+  if (!CHAT_ALLOWED_APPOINTMENT_STATUSES.has(appointment.status)) {
+    return {
+      allowed: false,
+      reason: "Chat not available for this appointment status.",
+    };
+  }
+
+  if (session.allowedFrom && now < session.allowedFrom) {
+    return {
+      allowed: false,
+      reason: "Chat will be available closer to appointment time.",
+    };
+  }
+
+  if (session.allowedUntil && now > session.allowedUntil) {
+    return {
+      allowed: false,
+      reason: "Chat window has ended.",
+    };
+  }
+
+  return { allowed: true };
+};
+
 const canUseChatNow = (
   session: ChatSessionDocument,
   appointment: AppointmentDocument,
-) => {
-  const now = new Date();
+): ChatAvailability => canUseChatNowCore(session, appointment);
 
-  if (session.status === "CLOSED") {
-    return { allowed: false, reason: "Chat is closed." };
-  }
-
-  if (!CHAT_ALLOWED_APPOINTMENT_STATUSES.has(appointment.status)) {
-    return {
-      allowed: false,
-      reason: "Chat not available for this appointment status.",
-    };
-  }
-
-  if (session.allowedFrom && now < session.allowedFrom) {
-    return {
-      allowed: false,
-      reason: "Chat will be available closer to appointment time.",
-    };
-  }
-
-  if (session.allowedUntil && now > session.allowedUntil) {
-    return {
-      allowed: false,
-      reason: "Chat window has ended.",
-    };
-  }
-
-  return { allowed: true };
-};
-
-const canUseChatNowPrisma = (
-  session: {
-    status: string;
-    allowedFrom: Date | null;
-    allowedUntil: Date | null;
-  },
-  appointment: { status: string; startTime: Date },
-) => {
-  const now = new Date();
-
-  if (session.status === "CLOSED") {
-    return { allowed: false, reason: "Chat is closed." };
-  }
-
-  if (!CHAT_ALLOWED_APPOINTMENT_STATUSES.has(appointment.status)) {
-    return {
-      allowed: false,
-      reason: "Chat not available for this appointment status.",
-    };
-  }
-
-  if (session.allowedFrom && now < session.allowedFrom) {
-    return {
-      allowed: false,
-      reason: "Chat will be available closer to appointment time.",
-    };
-  }
-
-  if (session.allowedUntil && now > session.allowedUntil) {
-    return {
-      allowed: false,
-      reason: "Chat window has ended.",
-    };
-  }
-
-  return { allowed: true };
-};
-
-const assertUserCanAccess = (session: ChatSessionDocument, userId: string) => {
-  if (session.status === "CLOSED") {
-    throw new ChatServiceError("Chat is closed", 403);
-  }
-
-  if (!session.members.includes(userId)) {
-    throw new ChatServiceError("User is not a member of this chat", 403);
-  }
-};
-
-const assertUserCanAccessPrisma = (
+const assertUserCanAccessCore = (
   session: { status: string; members: string[] },
   userId: string,
 ) => {
@@ -239,21 +204,15 @@ const assertUserCanAccessPrisma = (
   }
 };
 
-const assertGroupAdmin = (session: ChatSessionDocument, userId: string) => {
-  if (session.type !== "ORG_GROUP") {
-    throw new ChatServiceError("Not a group chat", 400);
-  }
+const assertUserCanAccess = (session: ChatSessionDocument, userId: string) =>
+  assertUserCanAccessCore(session, userId);
 
-  if (session.createdBy !== userId) {
-    throw new ChatServiceError("Only group owner can perform this action", 403);
-  }
+const assertUserCanAccessPrisma = (
+  session: { status: string; members: string[] },
+  userId: string,
+) => assertUserCanAccessCore(session, userId);
 
-  if (session.status === "CLOSED") {
-    throw new ChatServiceError("Chat is closed", 400);
-  }
-};
-
-const assertGroupAdminPrisma = (
+const assertGroupAdminCore = (
   session: { type: string; createdBy: string | null; status: string },
   userId: string,
 ) => {
@@ -269,6 +228,21 @@ const assertGroupAdminPrisma = (
     throw new ChatServiceError("Chat is closed", 400);
   }
 };
+
+const assertGroupAdmin = (session: ChatSessionDocument, userId: string) =>
+  assertGroupAdminCore(
+    {
+      type: session.type,
+      createdBy: session.createdBy ?? null,
+      status: session.status,
+    },
+    userId,
+  );
+
+const assertGroupAdminPrisma = (
+  session: { type: string; createdBy: string | null; status: string },
+  userId: string,
+): void => assertGroupAdminCore(session, userId);
 export const ChatService = {
   /* ------------------------------ AUTH ----------------------------------- */
 
@@ -609,7 +583,7 @@ export const ChatService = {
           throw new ChatServiceError("Appointment not found", 404);
         }
 
-        const { allowed, reason } = canUseChatNowPrisma(session, appointment);
+        const { allowed, reason } = canUseChatNowCore(session, appointment);
         if (!allowed) {
           throw new ChatServiceError(reason ?? "Chat not available", 403);
         }
@@ -890,10 +864,7 @@ export const ChatService = {
         where: { id: sessionId },
         data: {
           title: updates.title ?? session.title ?? undefined,
-          isPrivate:
-            updates.isPrivate !== undefined
-              ? updates.isPrivate
-              : session.isPrivate,
+          isPrivate: updates.isPrivate ?? session.isPrivate,
         },
       });
 

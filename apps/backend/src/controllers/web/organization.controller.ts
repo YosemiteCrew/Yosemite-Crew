@@ -248,13 +248,19 @@ export const OrganizationController = {
         const query = `${parentAddress.city} ${parentAddress.postalCode}`;
 
         // Geocode city+pincode → lat/lng
-        const geo = (await helpers.getGeoLocation(query)) as {
-          lat: number;
-          lng: number;
-        };
+        const geo = await helpers.getGeoLocation(query);
 
-        lat = geo.lat;
-        lng = geo.lng;
+        const geoRecord =
+          geo && typeof geo === "object"
+            ? (geo as Record<string, unknown>)
+            : {};
+        const nextLat =
+          typeof geoRecord.lat === "number" ? geoRecord.lat : null;
+        const nextLng =
+          typeof geoRecord.lng === "number" ? geoRecord.lng : null;
+
+        lat = nextLat;
+        lng = nextLng;
 
         if (!lat || !lng) {
           return res.status(400).json({

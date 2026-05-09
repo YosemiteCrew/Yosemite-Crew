@@ -118,7 +118,7 @@ export const ChatController = {
           ? body.organisationId
           : undefined;
       const title = typeof body.title === "string" ? body.title : undefined;
-      const memberIds = getStringArray(body.memberIds as string[]);
+      const memberIds = getStringArray(body.memberIds);
       const isPrivate =
         typeof body.isPrivate === "boolean" ? body.isPrivate : undefined;
 

@@ -6,7 +6,6 @@ import {
   LabOrderService,
   LabOrderServiceError,
 } from "src/services/lab-order.service";
-import type { LabOrderStatus } from "src/models/lab-order";
 
 const ListOrdersSearchBodySchema = z.preprocess(
   (value) => {
@@ -121,7 +120,7 @@ export const LabOrderController = {
         appointmentId,
         companionId,
         provider,
-        status: status as LabOrderStatus | undefined,
+        status,
         limit,
       });
 

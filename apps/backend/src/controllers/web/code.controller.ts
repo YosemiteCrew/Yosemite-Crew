@@ -4,7 +4,6 @@ import type { CodeSystem, CodeType } from "src/models/code-entry";
 import logger from "src/utils/logger";
 import {
   ClinicalTermsService,
-  type ClinicalDomain,
   type ClinicalSpecies,
 } from "src/services/clinical-terms.service";
 import { z } from "zod";
@@ -131,7 +130,7 @@ export const CodeController = {
 
       const items = await ClinicalTermsService.suggestTerms({
         q,
-        domain: domain as ClinicalDomain | undefined,
+        domain,
         species,
         limit,
       });
