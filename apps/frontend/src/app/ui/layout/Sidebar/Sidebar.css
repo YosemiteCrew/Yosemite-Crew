@@ -67,9 +67,9 @@
 }
 
 .logo img {
-  width: 112px;
-  height: auto;
-  max-height: 50px;
+  width: auto;
+  height: 50px;
+  max-width: 112px;
   object-fit: contain;
 }
 
@@ -78,8 +78,9 @@
 }
 
 .logo-collapsed img {
-  width: 52px;
-  max-height: 52px;
+  width: auto;
+  height: 52px;
+  max-width: 52px;
 }
 
 .sidebar-routes {

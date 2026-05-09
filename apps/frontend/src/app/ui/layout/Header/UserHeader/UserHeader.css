@@ -47,9 +47,9 @@
 }
 
 .yc-header-logo-link img {
-  width: 104px;
-  height: auto;
-  max-height: 54px;
+  width: auto;
+  height: 52px;
+  max-width: 112px;
   object-fit: contain;
 }
 
@@ -440,9 +440,9 @@
   }
 
   .yc-header-logo-link img {
-    width: 112px;
-    height: auto;
-    max-height: 52px;
+    width: auto;
+    height: 52px;
+    max-width: 112px;
     object-fit: contain;
   }
 
@@ -499,9 +499,9 @@
 }
 
 .yc-guest-logo-link img {
-  width: 112px;
-  height: auto;
-  max-height: 56px;
+  width: auto;
+  height: 56px;
+  max-width: 112px;
   object-fit: contain;
 }
 

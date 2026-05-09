@@ -155,10 +155,10 @@ const Sidebar = () => {
           <Image
             src={MEDIA_SOURCES.logo}
             alt="Yosemite Crew"
-            width={isCollapsed ? 68 : 90}
-            height={isCollapsed ? 64 : 83}
+            width={112}
+            height={72}
             priority
-            style={{ height: 'auto' }}
+            style={{ width: 'auto' }}
           />
         </Link>
       </div>

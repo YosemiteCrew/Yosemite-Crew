@@ -412,11 +412,11 @@ const UserHeader = () => {
           <Image
             src={MEDIA_SOURCES.logo}
             alt="Logo"
-            width={86}
-            height={56}
+            width={112}
+            height={72}
             priority
             fetchPriority="high"
-            style={{ height: 'auto' }}
+            style={{ width: 'auto' }}
           />
         </Link>
       </div>

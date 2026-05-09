@@ -141,7 +141,7 @@ const GuestHeader = () => {
           width={112}
           height={72}
           priority
-          style={{ height: 'auto' }}
+          style={{ width: 'auto' }}
         />
       </Link>
 
