@@ -54,7 +54,7 @@ jobs:
             playwright-${{ runner.os }}-
 
       - name: Install Playwright browsers
-        run: pnpm --filter frontend exec playwright install --with-deps chromium
+        run: pnpm --filter frontend exec playwright install --with-deps chromium firefox
 
       - name: Run jest-axe accessibility batch
         run: pnpm --filter frontend run test:a11y
@@ -123,7 +123,7 @@ jobs:
             playwright-${{ runner.os }}-
 
       - name: Install Playwright browsers
-        run: pnpm --filter frontend exec playwright install --with-deps chromium
+        run: pnpm --filter frontend exec playwright install --with-deps chromium firefox
 
       - name: Run authenticated Playwright flow
         run: pnpm --filter frontend run e2e:ci:auth

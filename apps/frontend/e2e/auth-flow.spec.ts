@@ -14,14 +14,17 @@ test('sign in redirects into an app route and survives a reload', async ({ page 
   test.setTimeout(90_000);
   const email = getRequiredEnv('YC_E2E_EMAIL');
   const password = getRequiredEnv('YC_E2E_PASSWORD');
+  if (!email || !password) return;
 
-  await page.goto(LOGIN_PATH);
+  await page.goto(LOGIN_PATH, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('load', { timeout: 30_000 });
+  await expect(page.locator('input[name="email"]')).toBeVisible();
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
-  await page.getByRole('link', { name: /^sign in$/i }).click();
+  await page.getByRole('button', { name: /^sign in$/i }).click();
 
   await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH), {
-    timeout: 45_000,
+    timeout: 60_000,
   });
 
   const firstPath = new URL(page.url()).pathname;

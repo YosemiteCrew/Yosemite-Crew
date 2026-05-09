@@ -11,7 +11,10 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:3001',
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    ...(process.env.CI ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }] : []),
+  ],
   webServer: {
     command: process.env.E2E_WEB_SERVER_COMMAND ?? 'pnpm exec next dev -p 3001 -H 127.0.0.1',
     port: 3001,

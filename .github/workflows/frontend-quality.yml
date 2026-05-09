@@ -1,0 +1,159 @@
+name: Frontend Quality
+
+on:
+  pull_request:
+    paths:
+      - 'apps/frontend/**'
+      - 'packages/types/**'
+      - 'packages/fhirtypes/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '.github/workflows/dependency-review.yml'
+      - '.github/workflows/frontend-quality.yml'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'apps/frontend/**'
+      - 'packages/types/**'
+      - 'packages/fhirtypes/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '.github/workflows/dependency-review.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: frontend-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-headers:
+    name: Frontend security header regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check frontend security headers
+        run: pnpm --filter frontend run test -- --testPathPattern='config/securityHeaders.test.ts'
+
+  bundle-budgets:
+    name: Frontend bundle budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
+
+      - name: Build frontend
+        run: pnpm --filter frontend run build
+
+      - name: Check bundle budgets
+        working-directory: apps/frontend
+        run: pnpm run check:bundle-budgets
+
+      - name: Export route build report
+        working-directory: apps/frontend
+        run: pnpm run report:build-routes
+
+      - name: Upload route build report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-route-report
+          path: |
+            apps/frontend/artifacts/build-route-report.json
+            apps/frontend/artifacts/build-route-report.md
+
+  lighthouse:
+    name: Frontend Lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
+
+      - name: Build frontend
+        run: pnpm --filter frontend run build
+
+      - name: Start frontend server
+        run: |
+          nohup pnpm --filter frontend run start -- --hostname 127.0.0.1 --port 3001 > /tmp/frontend-lighthouse.log 2>&1 &
+          echo $! > /tmp/frontend-lighthouse.pid
+
+      - name: Wait for frontend server
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3001/pms > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat /tmp/frontend-lighthouse.log
+          exit 1
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: apps/frontend/lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          runs: 1
+
+      - name: Stop frontend server
+        if: always()
+        run: |
+          if [ -f /tmp/frontend-lighthouse.pid ]; then
+            kill "$(cat /tmp/frontend-lighthouse.pid)" || true
+          fi

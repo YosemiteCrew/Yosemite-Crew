@@ -75,6 +75,11 @@ Optional dev flags:
 - `NEXT_PUBLIC_DISABLE_AUTH_GUARD` (localhost only)
 - `NEXT_PUBLIC_ORG_TYPE_OVERRIDE` (UI testing)
 
+Optional analytics keys:
+
+- `NEXT_PUBLIC_POSTHOG_TOKEN`
+- `NEXT_PUBLIC_POSTHOG_HOST`
+
 ### 3) Run the app
 
 ```sh
@@ -155,5 +160,8 @@ Contributions are welcome. Please read `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md
 
 ## 📚 Related Docs
 
-- `Guides/frontend-production-plan.md`
+- `docs/FRONTEND_QUALITY_GUIDE.md`
+- `docs/FRONTEND_ARCHITECTURE.md`
+- `docs/FRONTEND_RELEASE_CHECKLIST.md`
+- `docs/guide/POSTHOG_ANALYTICS_MIGRATION.md`
 - `apps/mobileAppYC/README.md`
