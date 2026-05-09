@@ -29,6 +29,14 @@ html {
 
 body {
   min-height: 100vh;
+  background-color: var(--whitebg) !important;
+  color: var(--color-text-primary);
+  font-family: var(--font-satoshi) !important;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-rendering: geometricPrecision;
 }
 
 * {
@@ -130,6 +138,34 @@ textarea:focus-visible {
   .scrollbar-custom::-webkit-scrollbar-thumb:hover {
     background: var(--color-neutral-500);
     background-clip: padding-box;
+  }
+
+  /* Floating horizontal scrollbar — renders a thin visible scrollbar only on
+     the x-axis. Use on containers that scroll horizontally but hide the native
+     scrollbar (scrollbar-hidden) so mouse users can still see scroll position. */
+  .scrollbar-x-float {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-neutral-300) transparent;
+    overflow-x: auto;
+  }
+
+  .scrollbar-x-float::-webkit-scrollbar {
+    height: 5px;
+    width: 0;
+  }
+
+  .scrollbar-x-float::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 0 8px;
+  }
+
+  .scrollbar-x-float::-webkit-scrollbar-thumb {
+    background: var(--color-neutral-300);
+    border-radius: 999px;
+  }
+
+  .scrollbar-x-float::-webkit-scrollbar-thumb:hover {
+    background: var(--color-neutral-500);
   }
 }
 @theme {
@@ -391,16 +427,6 @@ html,
 body {
   width: 100%;
   height: 100%;
-}
-body {
-  background-color: var(--whitebg) !important;
-  color: var(--color-text-primary);
-  font-family: var(--font-satoshi) !important;
-  font-size: 1rem;
-  font-style: normal;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  text-rendering: geometricPrecision;
 }
 
 a {

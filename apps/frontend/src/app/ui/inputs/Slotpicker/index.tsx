@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GrNext, GrPrevious } from 'react-icons/gr';
+import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
@@ -63,6 +64,7 @@ const Slotpicker = ({
   const selectedDateRef = useRef<HTMLButtonElement | null>(null);
   const [canScrollDatesLeft, setCanScrollDatesLeft] = useState(false);
   const [canScrollDatesRight, setCanScrollDatesRight] = useState(false);
+  const onWheelHorizontal = useWheelToHorizontalScroll();
 
   const isAtTodayMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
 
@@ -191,7 +193,11 @@ const Slotpicker = ({
         >
           <GrPrevious size={16} />
         </button>
-        <div ref={dateStripRef} className="flex gap-2 overflow-x-auto scrollbar-hidden pb-1 flex-1">
+        <div
+          ref={dateStripRef}
+          className="flex gap-2 overflow-x-auto scrollbar-x-float pb-1 flex-1"
+          onWheel={onWheelHorizontal}
+        >
           {days.map((day) => {
             const isCurrent = isSameDay(selectedDate, day);
             const isTodayDay = isSameDay(day, today);
