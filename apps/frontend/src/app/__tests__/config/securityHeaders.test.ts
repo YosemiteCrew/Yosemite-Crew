@@ -1,5 +1,5 @@
 import nextConfig from '../../../../next.config';
-import { buildContentSecurityPolicy } from '@/securityHeaders';
+import { buildContentSecurityPolicy, buildSecurityHeaders } from '@/securityHeaders';
 
 type HeaderEntry = {
   key: string;
@@ -25,7 +25,7 @@ const parseCspDirectives = (csp: string): Map<string, string> =>
   );
 
 describe('security headers', () => {
-  test('applies critical security headers to all routes', async () => {
+  test('applies critical non-HSTS security headers to all routes in local/test mode', async () => {
     const routes = await nextConfig.headers?.();
     expect(routes).toBeDefined();
     expect(routes).toHaveLength(1);
@@ -36,16 +36,22 @@ describe('security headers', () => {
     const headers = routeHeaders?.headers as HeaderEntry[];
     expect(findHeader(headers, 'X-Frame-Options')).toBe('DENY');
     expect(findHeader(headers, 'X-Content-Type-Options')).toBe('nosniff');
-    expect(findHeader(headers, 'Strict-Transport-Security')).toBe(
-      'max-age=31536000; includeSubDomains; preload'
-    );
+    expect(findHeader(headers, 'Strict-Transport-Security')).toBeUndefined();
     expect(findHeader(headers, 'Referrer-Policy')).toBe('strict-origin-when-cross-origin');
     expect(findHeader(headers, 'Permissions-Policy')).toBe(
       'camera=(), microphone=(), geolocation=(self)'
     );
   });
 
-  test('builds a nonce-based content security policy without unsafe inline scripts', () => {
+  test('applies HSTS in production headers', () => {
+    const headers = buildSecurityHeaders(true);
+
+    expect(findHeader(headers, 'Strict-Transport-Security')).toBe(
+      'max-age=31536000; includeSubDomains; preload'
+    );
+  });
+
+  test('builds a local-safe nonce-based content security policy', () => {
     const directives = parseCspDirectives(
       buildContentSecurityPolicy({
         nonce: 'test-nonce',
@@ -58,7 +64,7 @@ describe('security headers', () => {
     expect(directives.get('base-uri')).toBe("'self'");
     expect(directives.get('frame-ancestors')).toBe("'none'");
     expect(directives.get('form-action')).toBe("'self'");
-    expect(directives.get('upgrade-insecure-requests')).toBe('');
+    expect(directives.get('upgrade-insecure-requests')).toBeUndefined();
 
     expect(directives.get('script-src')).toContain("'self'");
     expect(directives.get('script-src')).toContain("'nonce-test-nonce'");
@@ -98,5 +104,6 @@ describe('security headers', () => {
     expect(directives.get('style-src-elem')).not.toContain("'unsafe-inline'");
     expect(directives.get('connect-src')).not.toContain('http:');
     expect(directives.get('connect-src')).not.toContain('ws:');
+    expect(directives.get('upgrade-insecure-requests')).toBe('');
   });
 });

@@ -5,7 +5,9 @@ export type SecurityHeader = {
 
 export const DEFAULT_DOCUMENSO_HOST = 'https://ds.yosemitecrew.com';
 
-export const securityHeaders: SecurityHeader[] = [
+const isProductionRuntime = () => process.env.NODE_ENV === 'production';
+
+export const buildSecurityHeaders = (isProduction = isProductionRuntime()): SecurityHeader[] => [
   {
     key: 'X-Frame-Options',
     value: 'DENY',
@@ -14,10 +16,11 @@ export const securityHeaders: SecurityHeader[] = [
     key: 'X-Content-Type-Options',
     value: 'nosniff',
   },
-  {
-    key: 'Strict-Transport-Security',
-    value: 'max-age=31536000; includeSubDomains; preload',
-  },
+  // HSTS must never be sent on localhost. Safari pins it and blocks all HTTP connections
+  // including hot-reload bundles, causing TLS errors on every subsequent page load.
+  ...(isProduction
+    ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' }]
+    : []),
   {
     key: 'Referrer-Policy',
     value: 'strict-origin-when-cross-origin',
@@ -31,6 +34,8 @@ export const securityHeaders: SecurityHeader[] = [
     value: '1; mode=block',
   },
 ];
+
+export const securityHeaders: SecurityHeader[] = buildSecurityHeaders();
 
 const getNonceSource = (nonce?: string) => (nonce ? `'nonce-${nonce}'` : undefined);
 const POSTHOG_DEFAULT_SCRIPT_HOSTS = [
@@ -129,6 +134,7 @@ export const buildContentSecurityPolicy = ({
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    'upgrade-insecure-requests',
+    // upgrade-insecure-requests breaks localhost in Safari. Only send in production.
+    ...(!isDevelopment ? ['upgrade-insecure-requests'] : []),
   ].join('; ');
 };
