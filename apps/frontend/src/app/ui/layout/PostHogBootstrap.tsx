@@ -3,17 +3,22 @@
 import { useEffect, useRef, useState } from 'react';
 import posthog from 'posthog-js';
 import { getStorageItem } from '@/app/lib/browserStorage';
-import { COOKIE_CONSENT_KEY, sanitizePostHogEvent } from '@/app/lib/posthog';
+import {
+  COOKIE_CONSENT_KEY,
+  POSTHOG_PROPERTY_DENYLIST,
+  POSTHOG_READY_EVENT,
+  sanitizePostHogEvent,
+} from '@/app/lib/posthog';
 
-type Props = {
-  apiHost: string;
-  projectToken: string;
-};
+const getPostHogConfig = () => ({
+  apiHost: process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() ?? '',
+  projectToken: process.env.NEXT_PUBLIC_POSTHOG_TOKEN?.trim() ?? '',
+});
 
 const hasConsent = () => getStorageItem('local', COOKIE_CONSENT_KEY) === 'true';
 
-const PostHogBootstrap = ({ apiHost, projectToken }: Props) => {
-  const [consented, setConsented] = useState(false);
+const PostHogBootstrap = () => {
+  const [consented, setConsented] = useState<boolean | null>(null);
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -30,12 +35,17 @@ const PostHogBootstrap = ({ apiHost, projectToken }: Props) => {
   }, []);
 
   useEffect(() => {
-    if (!initializedRef.current && consented) {
+    if (consented === null) return;
+    const { apiHost, projectToken } = getPostHogConfig();
+    if (!projectToken || !apiHost) return;
+
+    if (!initializedRef.current) {
+      if (!consented) return;
+
+      initializedRef.current = true;
       posthog.init(projectToken, {
         api_host: apiHost,
-        autocapture: {
-          capture_copied_text: false,
-        },
+        autocapture: { capture_copied_text: false },
         before_send: sanitizePostHogEvent,
         capture_pageview: 'history_change',
         defaults: '2026-01-30',
@@ -45,29 +55,31 @@ const PostHogBootstrap = ({ apiHost, projectToken }: Props) => {
         mask_all_text: true,
         opt_out_capturing_by_default: true,
         person_profiles: 'identified_only',
-        property_denylist: ['password', 'token', 'access_token', 'refresh_token'],
+        property_denylist: POSTHOG_PROPERTY_DENYLIST,
         session_recording: {
           blockSelector: '[data-ph-no-capture]',
-          maskInputOptions: {
-            password: true,
-          },
+          maskInputOptions: { password: true },
           maskTextSelector: '[data-ph-mask]',
         },
+        // Use loaded callback so opt_in fires only after init fully completes
+        // (including applying defaults + endpoint routing). Calling opt_in_capturing
+        // synchronously after posthog.init() fires before defaults are applied,
+        // causing the $opt_in event to hit /e/ with no token and return 401.
+        loaded: (ph) => {
+          ph.opt_in_capturing();
+          globalThis.dispatchEvent(new Event(POSTHOG_READY_EVENT));
+        },
       });
-
-      posthog.opt_in_capturing();
-      initializedRef.current = true;
       return;
     }
 
-    if (initializedRef.current) {
-      if (consented) {
-        posthog.opt_in_capturing();
-      } else {
-        posthog.opt_out_capturing();
-      }
+    if (consented) {
+      posthog.opt_in_capturing();
+    } else {
+      posthog.opt_out_capturing();
     }
-  }, [apiHost, consented, projectToken]);
+  }, [consented]);
+
   return null;
 };
 

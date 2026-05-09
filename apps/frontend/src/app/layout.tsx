@@ -10,6 +10,7 @@ import PostHogBootstrap from '@/app/ui/layout/PostHogBootstrap';
 import PostHogUserSync from '@/app/ui/layout/PostHogUserSync';
 import RouteAnnouncer from '@/app/ui/layout/RouteAnnouncer';
 import SkipLink from '@/app/ui/layout/SkipLink';
+import Cookies from '@/app/ui/widgets/Cookies/Cookies';
 
 export const metadata: Metadata = {
   title: 'Yosemite Crew',
@@ -38,23 +39,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const postHogProjectToken = process.env.NEXT_PUBLIC_POSTHOG_TOKEN?.trim();
-  const postHogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
-  const hasPostHogConfig = Boolean(postHogProjectToken && postHogHost);
-
   return (
     <html lang="en">
       <body>
         <SkipLink />
-        {hasPostHogConfig ? (
-          <>
-            <PostHogBootstrap
-              apiHost={postHogHost ?? ''}
-              projectToken={postHogProjectToken ?? ''}
-            />
-            <PostHogUserSync />
-          </>
-        ) : null}
+        <Cookies />
+        <PostHogBootstrap />
+        <PostHogUserSync />
         <Suspense>
           <RouteAnnouncer />
         </Suspense>

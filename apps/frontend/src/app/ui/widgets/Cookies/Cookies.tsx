@@ -1,9 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
 
-import { publicRoutes } from '@/app/lib/const';
 import { getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 import { COOKIE_CONSENT_KEY } from '@/app/lib/posthog';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -11,12 +9,11 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 const Cookies = () => {
   const [showCookiePopup, setShowCookiePopup] = useState(false);
-  const pathname = usePathname();
 
   useEffect(() => {
     const cookieConsentGiven = getStorageItem('local', COOKIE_CONSENT_KEY);
     if (!cookieConsentGiven) {
-      setShowCookiePopup(true); // If not accepted, show popup
+      setShowCookiePopup(true);
     }
   }, []);
 
@@ -36,8 +33,6 @@ const Cookies = () => {
     setShowCookiePopup(false);
     setConsent('false');
   };
-
-  if (!publicRoutes.has(pathname)) return null;
 
   if (!showCookiePopup) return null;
 
