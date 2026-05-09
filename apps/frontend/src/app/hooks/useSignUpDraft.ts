@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
+import {
+  getJsonStorageItem,
+  removeStorageItem,
+  setJsonStorageItem,
+} from '@/app/lib/browserStorage';
 
 const STORAGE_KEY = 'yc_signup_draft';
 const DRAFT_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -11,40 +16,27 @@ type SignUpDraft = {
 };
 
 const readDraft = (): Omit<SignUpDraft, 'expiresAt'> | null => {
-  try {
-    const raw = globalThis.sessionStorage?.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed: SignUpDraft = JSON.parse(raw);
-    if (Date.now() > parsed.expiresAt) {
-      globalThis.sessionStorage?.removeItem(STORAGE_KEY);
-      return null;
-    }
-    return { firstName: parsed.firstName, lastName: parsed.lastName, email: parsed.email };
-  } catch {
+  const parsed = getJsonStorageItem<SignUpDraft>('session', STORAGE_KEY);
+  if (!parsed) return null;
+  if (Date.now() > parsed.expiresAt) {
+    removeStorageItem('session', STORAGE_KEY);
     return null;
   }
+  return { firstName: parsed.firstName, lastName: parsed.lastName, email: parsed.email };
 };
 
 const writeDraft = (firstName: string, lastName: string, email: string) => {
-  try {
-    const draft: SignUpDraft = {
-      firstName,
-      lastName,
-      email,
-      expiresAt: Date.now() + DRAFT_TTL_MS,
-    };
-    globalThis.sessionStorage?.setItem(STORAGE_KEY, JSON.stringify(draft));
-  } catch {
-    // sessionStorage unavailable (e.g. private mode quota exceeded) — silently ignore
-  }
+  const draft: SignUpDraft = {
+    firstName,
+    lastName,
+    email,
+    expiresAt: Date.now() + DRAFT_TTL_MS,
+  };
+  setJsonStorageItem('session', STORAGE_KEY, draft);
 };
 
 const clearDraft = () => {
-  try {
-    globalThis.sessionStorage?.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
+  removeStorageItem('session', STORAGE_KEY);
 };
 
 type UseSignUpDraftOptions = {

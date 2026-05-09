@@ -16,6 +16,7 @@ import { useSpecialityStore } from '@/app/stores/specialityStore';
 import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
 import { useTaskStore } from '@/app/stores/taskStore';
 import { useTeamStore } from '@/app/stores/teamStore';
+import { removeStorageItem } from '@/app/lib/browserStorage';
 
 const ORG_STORE_STORAGE_KEY = 'org-store';
 
@@ -38,14 +39,5 @@ export const clearSessionScopedStores = () => {
   useOrganisationRoomStore.getState().clearRooms();
   useServiceStore.getState().clearServices();
   useSpecialityStore.getState().clearSpecialities();
-
-  if (typeof globalThis === 'undefined') {
-    return;
-  }
-
-  try {
-    globalThis.localStorage?.removeItem(ORG_STORE_STORAGE_KEY);
-  } catch {
-    // Ignore storage cleanup failures.
-  }
+  removeStorageItem('local', ORG_STORE_STORAGE_KEY);
 };

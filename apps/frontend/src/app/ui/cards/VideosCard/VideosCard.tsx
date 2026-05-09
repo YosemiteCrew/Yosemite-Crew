@@ -6,14 +6,14 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import VideoPlayerModal from '@/app/ui/overlays/Modal/VideoPlayerModal';
 import { guidesData } from '@/app/features/guides/data/guidesData';
+import { getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 
 const previewVideos = guidesData.slice(0, 3);
 const STORAGE_KEY = 'yc_dashboard_videos_hidden';
 
 const VideosCard = () => {
   const [open, setOpen] = useState(() => {
-    if (globalThis.window === undefined) return true;
-    return globalThis.localStorage.getItem(STORAGE_KEY) !== 'true';
+    return getStorageItem('local', STORAGE_KEY) !== 'true';
   });
   const [showModal, setShowModal] = useState(false);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -27,9 +27,7 @@ const VideosCard = () => {
 
   const handleClose = () => {
     setOpen(false);
-    if (globalThis.window !== undefined) {
-      globalThis.localStorage.setItem(STORAGE_KEY, 'true');
-    }
+    setStorageItem('local', STORAGE_KEY, 'true');
   };
 
   if (!open) return null;

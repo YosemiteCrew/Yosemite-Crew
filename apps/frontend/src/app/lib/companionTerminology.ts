@@ -1,3 +1,11 @@
+import {
+  getJsonStorageItem,
+  getStorageItem,
+  removeStorageItem,
+  setJsonStorageItem,
+  setStorageItem,
+} from '@/app/lib/browserStorage';
+
 export type CompanionTerminologyOption = 'PET' | 'ANIMAL' | 'COMPANION' | 'PATIENT';
 export type TerminologyOrgType = 'HOSPITAL' | 'BOARDER' | 'BREEDER' | 'GROOMER';
 
@@ -26,8 +34,6 @@ const TERM_FORMS: Record<CompanionTerminologyOption, CompanionTermForms> = {
 const SINGULAR_PATTERN = /\b(pet|animal|companion|patient)\b/gi;
 const PLURAL_PATTERN = /\b(pets|animals|companions|patients)\b/gi;
 
-const hasWindow = () => globalThis.window !== undefined;
-
 const normalizeOrgId = (orgId?: string | null) => String(orgId ?? '').trim();
 const normalizeOrgType = (orgType?: string | null) =>
   String(orgType ?? '')
@@ -53,29 +59,19 @@ const matchCase = (source: string, target: string) => {
 };
 
 const parseStoredMap = (): Record<string, CompanionTerminologyOption> => {
-  if (!hasWindow()) return {};
-  try {
-    const raw = globalThis.window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, string>;
-    const entries = Object.entries(parsed).filter(([, value]) =>
-      ['PET', 'ANIMAL', 'COMPANION', 'PATIENT'].includes(value)
-    );
-    return Object.fromEntries(entries) as Record<string, CompanionTerminologyOption>;
-  } catch {
-    return {};
-  }
+  const parsed = getJsonStorageItem<Record<string, string>>('local', STORAGE_KEY);
+  if (!parsed) return {};
+  const entries = Object.entries(parsed).filter(([, value]) =>
+    ['PET', 'ANIMAL', 'COMPANION', 'PATIENT'].includes(value)
+  );
+  return Object.fromEntries(entries) as Record<string, CompanionTerminologyOption>;
 };
 
 const writeStoredMap = (value: Record<string, CompanionTerminologyOption>) => {
-  if (!hasWindow()) return false;
-  try {
-    globalThis.window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    globalThis.window.dispatchEvent(new CustomEvent('yc:companion-terminology-changed'));
-    return true;
-  } catch {
-    return false;
-  }
+  const saved = setJsonStorageItem('local', STORAGE_KEY, value);
+  if (!saved || !globalThis.window) return false;
+  globalThis.window.dispatchEvent(new CustomEvent('yc:companion-terminology-changed'));
+  return true;
 };
 
 export const getCompanionTerminologyOptions = () => [
@@ -92,10 +88,7 @@ export const getCompanionTerminologyForOrg = (
   const orgTypeDefault = getDefaultCompanionTerminologyForOrgType(orgType);
   const normalizedOrgId = normalizeOrgId(orgId);
   if (!normalizedOrgId) {
-    if (!hasWindow()) return orgTypeDefault;
-    const pending = globalThis.window.localStorage.getItem(
-      TEMP_STORAGE_KEY
-    ) as CompanionTerminologyOption | null;
+    const pending = getStorageItem('local', TEMP_STORAGE_KEY) as CompanionTerminologyOption | null;
     if (pending && TERM_FORMS[pending]) return pending;
     return orgTypeDefault;
   }
@@ -104,32 +97,19 @@ export const getCompanionTerminologyForOrg = (
 };
 
 export const setPendingCompanionTerminology = (option: CompanionTerminologyOption) => {
-  if (!hasWindow()) return false;
-  try {
-    globalThis.window.localStorage.setItem(TEMP_STORAGE_KEY, option);
-    return true;
-  } catch {
-    return false;
-  }
+  return setStorageItem('local', TEMP_STORAGE_KEY, option);
 };
 
 export const bindPendingCompanionTerminologyToOrg = (orgId?: string | null) => {
-  if (!hasWindow()) return false;
   const normalizedOrgId = normalizeOrgId(orgId);
   if (!normalizedOrgId) return false;
-  try {
-    const pending = globalThis.window.localStorage.getItem(
-      TEMP_STORAGE_KEY
-    ) as CompanionTerminologyOption | null;
-    if (!pending || !TERM_FORMS[pending]) return false;
-    const mapping = parseStoredMap();
-    mapping[normalizedOrgId] = pending;
-    const saved = writeStoredMap(mapping);
-    globalThis.window.localStorage.removeItem(TEMP_STORAGE_KEY);
-    return saved;
-  } catch {
-    return false;
-  }
+  const pending = getStorageItem('local', TEMP_STORAGE_KEY) as CompanionTerminologyOption | null;
+  if (!pending || !TERM_FORMS[pending]) return false;
+  const mapping = parseStoredMap();
+  mapping[normalizedOrgId] = pending;
+  const saved = writeStoredMap(mapping);
+  removeStorageItem('local', TEMP_STORAGE_KEY);
+  return saved;
 };
 
 export const setCompanionTerminologyForOrg = (

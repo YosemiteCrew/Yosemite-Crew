@@ -9,6 +9,7 @@ import {
   AuthenticationDetails,
 } from 'amazon-cognito-identity-js';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { removeStorageItem } from '@/app/lib/browserStorage';
 import { logger } from '@/app/lib/logger';
 import { clearSessionScopedStores } from '@/app/lib/resetSessionStores';
 
@@ -313,9 +314,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     return get().checkSession();
   },
   signout: async () => {
-    if (typeof globalThis !== 'undefined') {
-      globalThis.sessionStorage?.removeItem('devAuth');
-    }
+    removeStorageItem('session', 'devAuth');
     const { user } = get();
     const resetState = () => resetAuthState(set);
     resetState();

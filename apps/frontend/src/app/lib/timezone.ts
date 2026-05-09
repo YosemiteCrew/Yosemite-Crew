@@ -1,4 +1,10 @@
 import countries from '@/app/lib/data/countryList';
+import {
+  getJsonStorageItem,
+  getStorageItem,
+  setJsonStorageItem,
+  setStorageItem,
+} from '@/app/lib/browserStorage';
 
 const TIMEZONE_STORAGE_KEY = 'yc_preferred_timezone';
 const TIMEZONE_MANUAL_OVERRIDE_BY_ORG_KEY = 'yc_timezone_manual_override_by_org';
@@ -76,44 +82,30 @@ const COUNTRY_CODE_TO_TIMEZONE: Record<string, string> = {
   TR: 'Europe/Istanbul',
 };
 
-const hasWindow = () => globalThis.window !== undefined;
-
 const parseManualOverrideMap = (): Record<string, boolean> => {
-  if (!hasWindow()) return {};
-  try {
-    const raw = globalThis.window.localStorage.getItem(TIMEZONE_MANUAL_OVERRIDE_BY_ORG_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, Boolean(value)]));
-  } catch {
-    return {};
-  }
+  const parsed = getJsonStorageItem<Record<string, unknown>>(
+    'local',
+    TIMEZONE_MANUAL_OVERRIDE_BY_ORG_KEY
+  );
+  if (!parsed) return {};
+  return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, Boolean(value)]));
 };
 
 const parseSyncModeMap = (): Record<string, TimezoneSyncMode> => {
-  if (!hasWindow()) return {};
-  try {
-    const raw = globalThis.window.localStorage.getItem(TIMEZONE_SYNC_MODE_BY_ORG_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const entries = Object.entries(parsed)
-      .map(([key, value]) => [key, String(value).trim().toLowerCase()] as const)
-      .filter(([, value]) => value === 'device' || value === 'custom')
-      .map(([key, value]) => [key, value as TimezoneSyncMode] as const);
-    return Object.fromEntries(entries);
-  } catch {
-    return {};
-  }
+  const parsed = getJsonStorageItem<Record<string, unknown>>(
+    'local',
+    TIMEZONE_SYNC_MODE_BY_ORG_KEY
+  );
+  if (!parsed) return {};
+  const entries = Object.entries(parsed)
+    .map(([key, value]) => [key, String(value).trim().toLowerCase()] as const)
+    .filter(([, value]) => value === 'device' || value === 'custom')
+    .map(([key, value]) => [key, value as TimezoneSyncMode] as const);
+  return Object.fromEntries(entries);
 };
 
 const writeSyncModeMap = (value: Record<string, TimezoneSyncMode>): boolean => {
-  if (!hasWindow()) return false;
-  try {
-    globalThis.window.localStorage.setItem(TIMEZONE_SYNC_MODE_BY_ORG_KEY, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
+  return setJsonStorageItem('local', TIMEZONE_SYNC_MODE_BY_ORG_KEY, value);
 };
 
 const getCanonicalTimezoneValues = (): string[] => {
@@ -199,38 +191,29 @@ export const setTimezoneSyncModeForOrg = (
 };
 
 export const getPreferredTimeZone = (): string => {
-  if (!hasWindow()) return DEFAULT_TIMEZONE;
-  try {
-    const savedToken = globalThis.window.localStorage.getItem(TIMEZONE_STORAGE_KEY);
-    if (!savedToken) return DEFAULT_TIMEZONE;
-    const token = Number.parseInt(savedToken, 10);
-    if (!Number.isInteger(token)) return DEFAULT_TIMEZONE;
-    const values = getCanonicalTimezoneValues();
-    const resolved = values[token];
-    if (isValidTimeZone(resolved)) return resolved;
-  } catch {
-    // no-op
-  }
+  const savedToken = getStorageItem('local', TIMEZONE_STORAGE_KEY);
+  if (!savedToken) return DEFAULT_TIMEZONE;
+  const token = Number.parseInt(savedToken, 10);
+  if (!Number.isInteger(token)) return DEFAULT_TIMEZONE;
+  const values = getCanonicalTimezoneValues();
+  const resolved = values[token];
+  if (isValidTimeZone(resolved)) return resolved;
   return DEFAULT_TIMEZONE;
 };
 
 export const setPreferredTimeZone = (timeZone: string): boolean => {
-  if (!isValidTimeZone(timeZone) || !hasWindow()) return false;
-  try {
-    const values = getCanonicalTimezoneValues();
-    const token = values.indexOf(timeZone);
-    if (token < 0) return false;
-    // Persist canonical token instead of raw value to avoid clear-text timezone storage.
-    globalThis.window.localStorage.setItem(TIMEZONE_STORAGE_KEY, String(token));
-    globalThis.window.dispatchEvent(
-      new CustomEvent('yc:timezone-changed', {
-        detail: { timeZone },
-      })
-    );
-    return true;
-  } catch {
-    return false;
-  }
+  if (!isValidTimeZone(timeZone)) return false;
+  const values = getCanonicalTimezoneValues();
+  const token = values.indexOf(timeZone);
+  if (token < 0) return false;
+  const saved = setStorageItem('local', TIMEZONE_STORAGE_KEY, String(token));
+  if (!saved || !globalThis.window) return false;
+  globalThis.window.dispatchEvent(
+    new CustomEvent('yc:timezone-changed', {
+      detail: { timeZone },
+    })
+  );
+  return true;
 };
 
 const getGmtOffsetLabel = (timeZone: string): string => {

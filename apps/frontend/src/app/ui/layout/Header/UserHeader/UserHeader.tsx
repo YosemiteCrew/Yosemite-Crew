@@ -23,6 +23,7 @@ import {
 import { FaPaw, FaCaretDown } from 'react-icons/fa6';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSignOut } from '@/app/hooks/useAuth';
+import { removeStorageItem } from '@/app/lib/browserStorage';
 
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrgList, usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
@@ -175,9 +176,7 @@ const UserHeader = () => {
     startRouteLoader();
     try {
       await signOut();
-      if (globalThis.window !== undefined) {
-        globalThis.localStorage.removeItem('yc_dashboard_videos_hidden');
-      }
+      removeStorageItem('local', 'yc_dashboard_videos_hidden');
       router.replace(logoutRedirect);
     } catch (error) {
       console.error('⚠️ Cognito signout error:', error);
@@ -417,6 +416,7 @@ const UserHeader = () => {
             height={56}
             priority
             fetchPriority="high"
+            style={{ height: 'auto' }}
           />
         </Link>
       </div>
@@ -449,6 +449,7 @@ const UserHeader = () => {
                 id={orgMenuId}
                 className="yc-header-dropdown-panel"
                 role="menu"
+                tabIndex={-1}
                 onKeyDown={(event) => {
                   if (event.key === 'Escape') {
                     setSelectOrg(false);
@@ -531,6 +532,7 @@ const UserHeader = () => {
               id={profileMenuId}
               className="yc-header-dropdown-panel yc-profile-panel"
               role="menu"
+              tabIndex={-1}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
                   setSelectProfile(false);

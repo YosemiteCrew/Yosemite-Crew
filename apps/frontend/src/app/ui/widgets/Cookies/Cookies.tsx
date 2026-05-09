@@ -4,6 +4,8 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
 import { publicRoutes } from '@/app/lib/const';
+import { getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
+import { COOKIE_CONSENT_KEY } from '@/app/lib/posthog';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
@@ -12,16 +14,16 @@ const Cookies = () => {
   const pathname = usePathname();
 
   useEffect(() => {
-    const cookieConsentGiven = localStorage.getItem('cookieConsentGiven');
+    const cookieConsentGiven = getStorageItem('local', COOKIE_CONSENT_KEY);
     if (!cookieConsentGiven) {
       setShowCookiePopup(true); // If not accepted, show popup
     }
   }, []);
 
   const setConsent = (value: 'true' | 'false') => {
-    localStorage.setItem('cookieConsentGiven', value);
-    window.dispatchEvent(
-      new StorageEvent('storage', { key: 'cookieConsentGiven', newValue: value })
+    setStorageItem('local', COOKIE_CONSENT_KEY, value);
+    globalThis.dispatchEvent(
+      new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: value })
     );
   };
 
@@ -44,9 +46,12 @@ const Cookies = () => {
       <div className="bg-white rounded-2xl max-w-75 p-3 z-22 border border-card-border">
         <div className="flex flex-col gap-2">
           <div className="text-body-4-emphasis text-text-primary">
-            Yosemite Crew doesn&apos;t use third party cookies Only a single in-house cookie.
+            Yosemite Crew uses one consent cookie and optional product analytics after you opt in.
           </div>
-          <div className="text-caption-1 text-text-primary">No data is sent to a third party.</div>
+          <div className="text-caption-1 text-text-primary">
+            Accepting enables PostHog for privacy-focused analytics, heatmaps, and replay with
+            masking turned on by default.
+          </div>
         </div>
 
         <div className="flex flex-col mt-3 mb-2.5 gap-2">

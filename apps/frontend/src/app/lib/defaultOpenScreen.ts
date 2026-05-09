@@ -3,12 +3,11 @@ import {
   defaultOpenScreenToRoute,
   normalizePmsPreferences,
 } from '@/app/features/settings/utils/pmsPreferences';
+import { getStorageItem, removeStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 
 const DEFAULT_OPEN_SCREEN_STORAGE_KEY = 'yc_default_open_screen';
 
 export type DefaultOpenScreenRoute = '/dashboard' | '/appointments';
-
-const hasWindow = () => globalThis.window !== undefined;
 
 const normalizeRole = (role?: string | null) =>
   String(role ?? '')
@@ -26,34 +25,26 @@ const isValidRoute = (value?: string | null): value is DefaultOpenScreenRoute =>
 };
 
 export const getSavedDefaultOpenScreenRoute = (): DefaultOpenScreenRoute | null => {
-  if (!hasWindow()) return null;
-  try {
-    const saved = globalThis.window.localStorage.getItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY);
-    return isValidRoute(saved) ? saved : null;
-  } catch {
-    return null;
-  }
+  const saved = getStorageItem('local', DEFAULT_OPEN_SCREEN_STORAGE_KEY);
+  return isValidRoute(saved) ? saved : null;
 };
 
 export const setSavedDefaultOpenScreenRoute = (route: DefaultOpenScreenRoute | null): boolean => {
-  if (!hasWindow()) return false;
-  try {
-    if (route == null) {
-      globalThis.window.localStorage.removeItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY);
-    } else if (isValidRoute(route)) {
-      globalThis.window.localStorage.setItem(DEFAULT_OPEN_SCREEN_STORAGE_KEY, route);
-    } else {
-      return false;
-    }
-    globalThis.window.dispatchEvent(
-      new CustomEvent('yc:default-open-screen-changed', {
-        detail: { route },
-      })
-    );
-    return true;
-  } catch {
-    return false;
-  }
+  if (route != null && !isValidRoute(route)) return false;
+
+  const didPersist =
+    route == null
+      ? removeStorageItem('local', DEFAULT_OPEN_SCREEN_STORAGE_KEY)
+      : setStorageItem('local', DEFAULT_OPEN_SCREEN_STORAGE_KEY, route);
+
+  if (!didPersist || !globalThis.window) return false;
+
+  globalThis.window.dispatchEvent(
+    new CustomEvent('yc:default-open-screen-changed', {
+      detail: { route },
+    })
+  );
+  return true;
 };
 
 export const resolveDefaultOpenScreenRoute = (role?: string | null): DefaultOpenScreenRoute => {
