@@ -57,7 +57,8 @@ export const buildContentSecurityPolicy = ({
   nonce?: string;
   documensoHost?: string;
 } = {}) => {
-  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isDevelopment = !isProduction;
   const nonceSource = getNonceSource(nonce);
   const styleNonceSource = isDevelopment ? undefined : nonceSource;
   const postHogHost = getPostHogHost();
@@ -135,6 +136,6 @@ export const buildContentSecurityPolicy = ({
     "frame-ancestors 'none'",
     "form-action 'self'",
     // upgrade-insecure-requests breaks localhost in Safari. Only send in production.
-    ...(!isDevelopment ? ['upgrade-insecure-requests'] : []),
+    ...(isProduction ? ['upgrade-insecure-requests'] : []),
   ].join('; ');
 };

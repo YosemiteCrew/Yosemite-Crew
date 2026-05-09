@@ -5,10 +5,30 @@ import {
   isProductionMobileEnv,
   MobileConfig,
 } from '../../../src/shared/services/mobileConfig';
+import {
+  DEVELOPMENT_API_BASE_URL,
+  ENVIRONMENT_CONFIG,
+  MOBILE_CONFIG_BEHAVIOR,
+  MOBILE_CONFIG_PATH,
+  PRODUCTION_API_BASE_URL,
+} from '../../../src/config/variables';
 
 // Mock axios
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+const expectedMobileConfigUrl = (): string => {
+  if (MOBILE_CONFIG_BEHAVIOR.overrides?.mobileConfigUrl) {
+    return MOBILE_CONFIG_BEHAVIOR.overrides.mobileConfigUrl;
+  }
+
+  const baseUrl =
+    ENVIRONMENT_CONFIG.appEnv === 'production'
+      ? PRODUCTION_API_BASE_URL
+      : DEVELOPMENT_API_BASE_URL;
+
+  return `${baseUrl}${MOBILE_CONFIG_PATH}`;
+};
 
 describe('mobileConfig Service', () => {
   afterEach(() => {
@@ -107,12 +127,9 @@ describe('mobileConfig Service', () => {
       const result = await fetchMobileConfig();
 
       // Verify axios call
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        'https://api.yosemitecrew.com/v1/mobile-config/',
-        {
-          timeout: 8000,
-        },
-      );
+      expect(mockedAxios.get).toHaveBeenCalledWith(expectedMobileConfigUrl(), {
+        timeout: 8000,
+      });
       // Verify result
       expect(result).toEqual(mockConfig);
     });
@@ -129,12 +146,9 @@ describe('mobileConfig Service', () => {
 
       await fetchMobileConfig();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        'https://api.yosemitecrew.com/v1/mobile-config/',
-        {
-          timeout: 8000,
-        },
-      );
+      expect(mockedAxios.get).toHaveBeenCalledWith(expectedMobileConfigUrl(), {
+        timeout: 8000,
+      });
     });
   });
 });
