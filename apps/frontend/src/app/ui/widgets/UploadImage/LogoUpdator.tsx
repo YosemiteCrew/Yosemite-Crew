@@ -7,6 +7,7 @@ import { postData } from '@/app/services/axios';
 import axios from 'axios';
 import { IoCamera } from 'react-icons/io5';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { getSafeImageUrl } from '@/app/lib/urls';
 
 type LogoUpdatorProps = {
   imageUrl: string;
@@ -17,6 +18,20 @@ type LogoUpdatorProps = {
 };
 
 type GetSignedUrlResponse = { uploadUrl: string; s3Key: string };
+
+const getSafePreviewUrl = (src: string | null): string | null => {
+  const value = String(src ?? '').trim();
+  if (!value) return null;
+  if (value.startsWith('blob:')) return value;
+  if (value.startsWith('data:image/')) return value;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
 
 const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorProps) => {
   const [updatePopup, setUpdatePopup] = useState(false);
@@ -67,6 +82,12 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
     const f = e.target.files?.[0];
     if (!f) return;
     setUploadError(null);
+    const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
+    if (!allowedMimeTypes.has(f.type)) {
+      setUploadError('Please choose a valid image file (PNG, JPG, or WEBP).');
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
     const localUrl = URL.createObjectURL(f);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(localUrl);
@@ -98,6 +119,9 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
     }
   };
 
+  const safeImageSrc = getSafeImageUrl(imageUrl, 'business');
+  const safePreviewSrc = getSafePreviewUrl(preview);
+
   return (
     <>
       <div className="flex justify-center h-10 w-10 shrink-0">
@@ -109,7 +133,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
           disabled={disabled}
         >
           <img
-            src={imageUrl}
+            src={safeImageSrc}
             alt="Logo"
             height={40}
             width={40}
@@ -127,7 +151,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
           </div>
           <div className="flex gap-6 sm:gap-10 items-center justify-center w-full px-3">
             <img
-              src={imageUrl}
+              src={safeImageSrc}
               alt="Logo"
               height={100}
               width={100}
@@ -149,12 +173,12 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
                 />
                 <label
                   htmlFor={inputId}
-                  className={`h-25 w-25 relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${preview ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
+                  className={`h-25 w-25 relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${safePreviewSrc ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
                   aria-label="Upload logo"
                 >
-                  {preview ? (
+                  {safePreviewSrc ? (
                     <img
-                      src={preview}
+                      src={safePreviewSrc}
                       alt="New Logo"
                       className="rounded-full object-cover h-25 w-25"
                     />
