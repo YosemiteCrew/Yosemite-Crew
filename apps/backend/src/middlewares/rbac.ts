@@ -23,13 +23,10 @@ export interface OrgRequest extends AuthenticatedRequest {
  * Extract orgId from params, headers, or body.
  */
 function extractOrgId(req: Request): string | null {
-  const body = (req as Request & { body?: unknown }).body as unknown;
+  const body = (req as { body?: unknown }).body;
   const bodyOrgId =
-    typeof body === "object" &&
-    body !== null &&
-    !Array.isArray(body) &&
-    "organisationId" in (body as Record<string, unknown>)
-      ? ((body as Record<string, unknown>).organisationId as unknown)
+    typeof body === "object" && body !== null && !Array.isArray(body)
+      ? (body as Record<string, unknown>).organisationId
       : undefined;
 
   if (Array.isArray(body)) {
@@ -43,7 +40,7 @@ function extractOrgId(req: Request): string | null {
       }
     }
     if (orgIds.size === 1) {
-      return [...orgIds][0]!;
+      return Array.from(orgIds)[0] ?? null;
     }
   }
 

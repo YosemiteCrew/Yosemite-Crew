@@ -116,6 +116,9 @@ const resolveAuditTargetsForInvoice = async (invoice: InvoiceDocument) => {
   };
 };
 
+type InvoiceMetadataPrimitive = string | number | boolean;
+type InvoiceMetadata = Record<string, InvoiceMetadataPrimitive>;
+
 const toDomain = (doc: InvoiceDocument): Invoice => {
   const o = doc.toObject() as InvoiceMongo & {
     _id: Types.ObjectId;
@@ -135,18 +138,19 @@ const toDomain = (doc: InvoiceDocument): Invoice => {
 
   const metadata =
     o.metadata && typeof o.metadata === "object"
-      ? Object.entries(o.metadata).reduce<
-          Record<string, string | number | boolean>
-        >((acc, [key, value]) => {
-          if (
-            typeof value === "string" ||
-            typeof value === "number" ||
-            typeof value === "boolean"
-          ) {
-            acc[key] = value;
-          }
-          return acc;
-        }, {})
+      ? Object.entries(o.metadata).reduce<InvoiceMetadata>(
+          (acc, [key, value]) => {
+            if (
+              typeof value === "string" ||
+              typeof value === "number" ||
+              typeof value === "boolean"
+            ) {
+              acc[key] = value;
+            }
+            return acc;
+          },
+          {},
+        )
       : undefined;
 
   return {
@@ -324,19 +328,19 @@ const buildRefundMetadata = (
 });
 
 const buildMongoCancellationMetadata = (
-  metadata: InvoiceMongo["metadata"] | undefined,
   reason: string,
+  metadata: InvoiceMongo["metadata"] = {},
 ) => ({
-  ...(metadata ?? {}),
+  ...metadata,
   cancellationReason: reason,
 });
 
 const buildMongoRefundMetadata = (
-  metadata: InvoiceMongo["metadata"] | undefined,
   reason: string,
   refund: RefundResult,
+  metadata: InvoiceMongo["metadata"] = {},
 ) => ({
-  ...(metadata ?? {}),
+  ...metadata,
   cancellationReason: reason,
   refundId: refund.refundId,
   amount: refund.amountRefunded,
@@ -436,7 +440,7 @@ const cancelUnpaidInvoiceDoc = async (
   reason: string,
 ) => {
   invoice.status = "CANCELLED";
-  invoice.metadata = buildMongoCancellationMetadata(invoice.metadata, reason);
+  invoice.metadata = buildMongoCancellationMetadata(reason, invoice.metadata);
   await invoice.save();
   await syncInvoiceToPostgres(invoice);
   return invoice;
@@ -458,7 +462,7 @@ const refundPaidInvoiceDoc = async (
   );
 
   invoice.status = "REFUNDED";
-  invoice.metadata = buildMongoRefundMetadata(invoice.metadata, reason, refund);
+  invoice.metadata = buildMongoRefundMetadata(reason, refund, invoice.metadata);
   await invoice.save();
   await syncInvoiceToPostgres(invoice);
 

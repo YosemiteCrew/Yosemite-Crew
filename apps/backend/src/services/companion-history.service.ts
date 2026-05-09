@@ -15,7 +15,6 @@ import {
   fromFHIRInvoice,
   type AppointmentResponseDTO,
 } from "@yosemite-crew/types";
-import type { TaskDocument } from "src/models/task";
 import type { DocumentDto } from "src/services/document.service";
 import type { LabResultMongo } from "src/models/lab-result";
 
@@ -106,14 +105,14 @@ type HistoryCursor = {
   id: string;
 };
 
-const ALL_HISTORY_TYPES: HistoryEntryType[] = [
+const ALL_HISTORY_TYPES = new Set<HistoryEntryType>([
   "APPOINTMENT",
   "TASK",
   "FORM_SUBMISSION",
   "DOCUMENT",
   "LAB_RESULT",
   "INVOICE",
-];
+]);
 
 const DEFAULT_HISTORY_TYPES: HistoryEntryType[] = [
   "APPOINTMENT",
@@ -162,17 +161,17 @@ const parseCursor = (cursor?: string): HistoryCursor | null => {
     const decoded = Buffer.from(cursor, "base64").toString("utf-8");
     const parsed = JSON.parse(decoded) as Partial<HistoryCursor>;
     if (!parsed || typeof parsed !== "object") {
-      throw new Error("Invalid cursor");
+      throw new TypeError("Invalid cursor");
     }
     if (
       typeof parsed.occurredAt !== "string" ||
       typeof parsed.id !== "string"
     ) {
-      throw new Error("Invalid cursor");
+      throw new TypeError("Invalid cursor");
     }
     const parsedDate = new Date(parsed.occurredAt);
     if (Number.isNaN(parsedDate.getTime())) {
-      throw new Error("Invalid cursor");
+      throw new TypeError("Invalid cursor");
     }
     return { occurredAt: parsed.occurredAt, id: parsed.id };
   } catch {
@@ -220,16 +219,23 @@ const resolveAppointmentParticipants = (
   appointment: AppointmentResponseDTO,
 ) => {
   const participants = appointment.participant ?? [];
-  const hasTypeCode = (code: string) =>
-    participants.find((p) =>
-      p.type?.some((t) => t.coding?.some((coding) => coding.code === code)),
-    );
+  const participantHasTypeCode = (
+    participant: NonNullable<AppointmentResponseDTO["participant"]>[number],
+    code: string,
+  ) => {
+    for (const type of participant.type ?? []) {
+      for (const coding of type.coding ?? []) {
+        if (coding.code === code) return true;
+      }
+    }
+    return false;
+  };
+  const findByTypeCode = (code: string) =>
+    participants.find((p) => participantHasTypeCode(p, code));
 
-  const lead = hasTypeCode("PPRF");
-  const room = hasTypeCode("LOC");
-  const support = participants.filter((p) =>
-    p.type?.some((t) => t.coding?.some((coding) => coding.code === "SPRF")),
-  );
+  const lead = findByTypeCode("PPRF");
+  const room = findByTypeCode("LOC");
+  const support = participants.filter((p) => participantHasTypeCode(p, "SPRF"));
 
   return { lead, room, support };
 };
@@ -241,25 +247,41 @@ const resolveAppointmentPaymentStatus = (
     (ext) => ext.url === EXT_APPOINTMENT_PAYMENT_STATUS,
   )?.valueString;
 
-const buildTaskSummary = (task: TaskDocument) => {
-  if (task.medication?.name) {
-    const dose = task.medication.doses?.[0];
-    const parts = [
-      task.medication.name,
-      dose?.dosage,
-      dose?.frequency,
-      dose?.time,
-    ].filter(Boolean);
-    return parts.join(" ");
+type TaskSummaryTask = {
+  medication?: unknown;
+  description?: string | null;
+  additionalNotes?: string | null;
+};
+
+const buildTaskSummary = (task: TaskSummaryTask) => {
+  const medication = task.medication;
+  if (medication && typeof medication === "object") {
+    const medObj = medication as Record<string, unknown>;
+    const name = typeof medObj.name === "string" ? medObj.name : undefined;
+    const doses = Array.isArray(medObj.doses)
+      ? (medObj.doses as Array<Record<string, unknown>>)
+      : [];
+    const dose = doses[0];
+    const dosage =
+      dose && typeof dose.dosage === "string" ? dose.dosage : undefined;
+    const frequency =
+      dose && typeof dose.frequency === "string" ? dose.frequency : undefined;
+    const time = dose && typeof dose.time === "string" ? dose.time : undefined;
+    if (name) {
+      const parts = [name, dosage, frequency, time].filter(Boolean);
+      return parts.join(" ");
+    }
   }
   return task.description ?? task.additionalNotes ?? undefined;
 };
 
 const buildDocumentSummary = (doc: DocumentDto) => {
   const attachmentCount = doc.attachments?.length ?? 0;
-  const attachmentLabel = attachmentCount
-    ? `${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"}`
-    : undefined;
+  let attachmentLabel: string | undefined;
+  if (attachmentCount) {
+    const suffix = attachmentCount === 1 ? "" : "s";
+    attachmentLabel = `${attachmentCount} attachment${suffix}`;
+  }
   const pieces = [doc.issuingBusinessName, attachmentLabel].filter(Boolean);
   return pieces.length ? pieces.join(" • ") : undefined;
 };
@@ -331,7 +353,7 @@ export const CompanionHistoryService = {
     const cursor = parseCursor(params.cursor);
 
     const types = params.types?.length ? params.types : DEFAULT_HISTORY_TYPES;
-    const invalidType = types.find((type) => !ALL_HISTORY_TYPES.includes(type));
+    const invalidType = types.find((type) => !ALL_HISTORY_TYPES.has(type));
     if (invalidType) {
       throw new CompanionHistoryServiceError("Invalid types filter", 400);
     }
@@ -723,7 +745,7 @@ export const CompanionHistoryService = {
       }
     }
 
-    const sorted = entries.sort(compareEntries);
+    const sorted = [...entries].sort(compareEntries);
     const filtered = cursor
       ? sorted.filter((entry) => isAfterCursor(entry, cursor))
       : sorted;

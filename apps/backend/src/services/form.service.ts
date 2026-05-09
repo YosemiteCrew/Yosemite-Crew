@@ -6,7 +6,7 @@ import {
   FormSubmissionModel,
   FormSubmissionDocument,
   IFormVersionDocument,
-} from "../models/form";
+} from "src/models/form";
 
 import {
   Form,
@@ -78,6 +78,33 @@ const ensureObjectId = (id: string | Types.ObjectId, label: string) => {
   if (!Types.ObjectId.isValid(id))
     throw new FormServiceError(`Invalid ${label}`, 400);
   return new Types.ObjectId(id);
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
+const coerceFormFields = (schema: unknown): FormField[] => {
+  if (!Array.isArray(schema)) return [];
+  return schema.filter((value): value is FormField => isPlainObject(value));
+};
+
+const isSigningInfo = (
+  value: unknown,
+): value is NonNullable<FormSubmissionDocument["signing"]> => {
+  if (!isPlainObject(value)) return false;
+  return (
+    typeof value.required === "boolean" &&
+    typeof value.status === "string" &&
+    typeof value.provider === "string"
+  );
+};
+
+const normalizeServiceIdArray = (serviceId: Form["serviceId"]): string[] => {
+  if (Array.isArray(serviceId)) return serviceId;
+  if (typeof serviceId === "string" && serviceId.trim().length > 0) {
+    return [serviceId];
+  }
+  return [];
 };
 
 const ensureNonEmptyString = (value: unknown, label: string) => {
@@ -271,10 +298,23 @@ const fetchTemplateForms = async (
     return forms.map(
       (form) =>
         ({
-          ...form,
           _id: form.id,
-          schema: form.schema as unknown as FormField[],
-        }) as LeanForm,
+          orgId: form.orgId,
+          businessType: form.businessType ?? undefined,
+          name: form.name,
+          category: form.category,
+          description: form.description ?? undefined,
+          visibilityType: normalizeVisibilityType(form.visibilityType),
+          serviceId: form.serviceId,
+          speciesFilter: form.speciesFilter ?? undefined,
+          requiredSigner: form.requiredSigner ?? undefined,
+          status: form.status,
+          schema: coerceFormFields(form.schema),
+          createdBy: form.createdBy,
+          updatedBy: form.updatedBy,
+          createdAt: form.createdAt,
+          updatedAt: form.updatedAt,
+        }) satisfies LeanForm,
     );
   }
 
@@ -291,10 +331,23 @@ const fetchFormsByIds = async (formIds: Set<string>): Promise<LeanForm[]> => {
     return forms.map(
       (form) =>
         ({
-          ...form,
           _id: form.id,
-          schema: form.schema as unknown as FormField[],
-        }) as LeanForm,
+          orgId: form.orgId,
+          businessType: form.businessType ?? undefined,
+          name: form.name,
+          category: form.category,
+          description: form.description ?? undefined,
+          visibilityType: normalizeVisibilityType(form.visibilityType),
+          serviceId: form.serviceId,
+          speciesFilter: form.speciesFilter ?? undefined,
+          requiredSigner: form.requiredSigner ?? undefined,
+          status: form.status,
+          schema: coerceFormFields(form.schema),
+          createdBy: form.createdBy,
+          updatedBy: form.updatedBy,
+          createdAt: form.createdAt,
+          updatedAt: form.updatedAt,
+        }) satisfies LeanForm,
     );
   }
 
@@ -312,29 +365,33 @@ const mergeFormsById = (formsById: LeanForm[], templateForms: LeanForm[]) => {
   return [...formMap.values()];
 };
 
-const loadLatestVersions = async (forms: LeanForm[]) => {
-  if (isReadFromPostgres()) {
-    if (!forms.length) return new Map<string, VersionAgg>();
-    const versions = await prisma.formVersion.findMany({
-      where: { formId: { in: forms.map((f) => f._id.toString()) } },
-      orderBy: [{ formId: "asc" }, { version: "desc" }],
-    });
+const loadLatestVersionsFromPostgres = async (
+  forms: LeanForm[],
+): Promise<Map<string, VersionAgg>> => {
+  if (!forms.length) return new Map<string, VersionAgg>();
+  const versions = await prisma.formVersion.findMany({
+    where: { formId: { in: forms.map((f) => f._id.toString()) } },
+    orderBy: [{ formId: "asc" }, { version: "desc" }],
+  });
 
-    const latest = new Map<string, VersionAgg>();
-    for (const version of versions) {
-      if (!latest.has(version.formId)) {
-        latest.set(version.formId, {
-          _id: version.id,
-          formId: version.formId,
-          version: version.version,
-          schemaSnapshot: version.schemaSnapshot as unknown as FormField[],
-        });
-      }
+  const latest = new Map<string, VersionAgg>();
+  for (const version of versions) {
+    if (!latest.has(version.formId)) {
+      latest.set(version.formId, {
+        _id: version.id,
+        formId: version.formId,
+        version: version.version,
+        schemaSnapshot: coerceFormFields(version.schemaSnapshot),
+      });
     }
-
-    return latest;
   }
 
+  return latest;
+};
+
+const loadLatestVersionsFromMongo = async (
+  forms: LeanForm[],
+): Promise<Map<string, VersionAgg>> => {
   const versions = await FormVersionModel.aggregate<VersionAgg>([
     { $match: { formId: { $in: forms.map((f) => f._id) } } },
     { $sort: { version: -1 } },
@@ -350,6 +407,13 @@ const loadLatestVersions = async (forms: LeanForm[]) => {
   return new Map<string, VersionAgg>(
     versions.map((v) => [normalizeObjectId(v.formId), v]),
   );
+};
+
+const loadLatestVersions = async (forms: LeanForm[]) => {
+  if (isReadFromPostgres()) {
+    return loadLatestVersionsFromPostgres(forms);
+  }
+  return loadLatestVersionsFromMongo(forms);
 };
 
 const loadLatestSubmissions = async (
@@ -373,7 +437,18 @@ const loadLatestSubmissions = async (
           ...submission,
           _id: submission.id,
           formId: submission.formId,
-        } as unknown as SubmissionAgg);
+          parentId: submission.parentId ?? undefined,
+          companionId: submission.companionId ?? undefined,
+          appointmentId: submission.appointmentId ?? undefined,
+          submittedBy: submission.submittedBy ?? undefined,
+          answers:
+            submission.answers && typeof submission.answers === "object"
+              ? (submission.answers as Record<string, unknown>)
+              : {},
+          signing: isSigningInfo(submission.signing)
+            ? submission.signing
+            : undefined,
+        });
       }
     }
 
@@ -453,6 +528,345 @@ const buildQuestionnaireResponse = async (
   );
 };
 
+const resolveSchemaForSubmission = async (
+  submission: FormSubmission,
+  providedSchema?: FormField[],
+) => {
+  if (providedSchema) return providedSchema;
+  if (!submission.formId) return undefined;
+
+  const version = await FormVersionModel.findOne({
+    formId: ensureObjectId(String(submission.formId), "formId"),
+    version: submission.formVersion,
+  })
+    .select("schemaSnapshot")
+    .lean();
+
+  return version?.schemaSnapshot;
+};
+
+const buildDefaultSubmissionSigning = (
+  resolvedSchema?: FormField[],
+): FormSubmissionDocument["signing"] | undefined => {
+  const signingRequired = FormService.hasSignatureField(resolvedSchema);
+  if (!signingRequired) return undefined;
+
+  return {
+    required: true,
+    status: "NOT_STARTED" as const,
+    provider: "DOCUMENSO" as const,
+  };
+};
+
+const pushAppointmentFormIdInPostgres = async (
+  appointmentId: string,
+  formId: string,
+) => {
+  await prisma.appointment.updateMany({
+    where: { id: appointmentId },
+    data: {
+      formIds: {
+        push: formId,
+      },
+    },
+  });
+};
+
+const pushAppointmentFormIdInMongo = async (
+  appointmentId: string,
+  formId: string,
+) => {
+  const appointmentObjectId = ensureObjectId(appointmentId, "appointmentId");
+  await AppointmentModel.updateOne(
+    { _id: appointmentObjectId },
+    { $addToSet: { formIds: formId } },
+  );
+};
+
+const recordFormSubmittedAuditTrailInPostgres = async (params: {
+  companionId: string;
+  parentId?: string;
+  appointmentId?: string;
+  formId: string;
+  submissionId: string;
+}) => {
+  const form = await prisma.form.findUnique({
+    where: { id: params.formId },
+    select: { orgId: true, name: true },
+  });
+
+  if (!form?.orgId) return;
+
+  await AuditTrailService.recordSafely({
+    organisationId: form.orgId,
+    companionId: params.companionId,
+    eventType: "FORM_SUBMITTED",
+    actorType: params.parentId ? "PARENT" : "SYSTEM",
+    actorId: params.parentId ?? null,
+    entityType: "FORM",
+    entityId: params.formId,
+    metadata: {
+      submissionId: params.submissionId,
+      appointmentId: params.appointmentId,
+      formName: form.name,
+    },
+  });
+};
+
+const recordFormSubmittedAuditTrailInMongo = async (params: {
+  companionId: string;
+  parentId?: string;
+  appointmentId?: string;
+  formId: string;
+  submissionId: string;
+}) => {
+  const form = await FormModel.findById(params.formId)
+    .select("orgId name")
+    .lean();
+
+  if (!form?.orgId) return;
+
+  await AuditTrailService.recordSafely({
+    organisationId: form.orgId.toString(),
+    companionId: params.companionId,
+    eventType: "FORM_SUBMITTED",
+    actorType: params.parentId ? "PARENT" : "SYSTEM",
+    actorId: params.parentId ?? null,
+    entityType: "FORM",
+    entityId: params.formId,
+    metadata: {
+      submissionId: params.submissionId,
+      appointmentId: params.appointmentId,
+      formName: form.name,
+    },
+  });
+};
+
+const loadAppointmentForForms = async (appointmentId: string) => {
+  if (isReadFromPostgres()) {
+    return prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: { organisationId: true, companion: true },
+    });
+  }
+
+  return AppointmentModel.findById(appointmentId)
+    .select({ organisationId: 1, companion: 1 })
+    .lean();
+};
+
+const assertSoapAppointmentAccess = (params: {
+  appointment: { organisationId: string; companion?: unknown };
+  requesterOrgId?: string;
+  requesterParentId?: string;
+}) => {
+  if (
+    params.requesterOrgId &&
+    params.appointment.organisationId !== params.requesterOrgId
+  ) {
+    throw new FormServiceError(
+      "Forbidden: appointment does not belong to this organisation",
+      403,
+    );
+  }
+
+  if (params.requesterParentId) {
+    const appointmentParentId = resolveAppointmentParentId(params.appointment);
+    if (
+      !appointmentParentId ||
+      appointmentParentId !== params.requesterParentId
+    ) {
+      throw new FormServiceError("Forbidden", 403);
+    }
+  }
+};
+
+type SoapNoteType =
+  | "Subjective"
+  | "Objective"
+  | "Assessment"
+  | "Plan"
+  | "Discharge";
+
+type SoapNoteEntry = {
+  submissionId: string;
+  formId: string;
+  formVersion: number;
+  submittedBy?: string;
+  submittedAt: Date;
+  answers: Record<string, unknown>;
+};
+
+type SoapNoteGroup = Record<SoapNoteType, SoapNoteEntry[]>;
+
+const SOAP_TYPE_MAP: Record<Form["category"], SoapNoteType | undefined> = {
+  "SOAP-Subjective": "Subjective",
+  "SOAP-Objective": "Objective",
+  "SOAP-Assessment": "Assessment",
+  "SOAP-Plan": "Plan",
+  Discharge: "Discharge",
+};
+
+const initSoapGroup = (): SoapNoteGroup => ({
+  Subjective: [],
+  Objective: [],
+  Assessment: [],
+  Plan: [],
+  Discharge: [],
+});
+
+const loadSoapSubmissions = async (
+  appointmentId: string,
+): Promise<SoapNoteEntry[]> => {
+  if (isReadFromPostgres()) {
+    const rows = await prisma.formSubmission.findMany({
+      where: { appointmentId },
+      orderBy: { submittedAt: "desc" },
+    });
+
+    return rows.map((row) => ({
+      submissionId: row.id,
+      formId: row.formId,
+      formVersion: row.formVersion,
+      submittedBy: row.submittedBy ?? undefined,
+      submittedAt: row.submittedAt,
+      answers: (row.answers ?? {}) as Record<string, unknown>,
+    }));
+  }
+
+  const docs = await FormSubmissionModel.find({ appointmentId })
+    .sort({ submittedAt: -1 })
+    .lean();
+
+  return docs.map((doc) => ({
+    submissionId: doc._id.toString(),
+    formId: normalizeObjectId(doc.formId as unknown as NormalizableObjectId),
+    formVersion: doc.formVersion,
+    submittedBy: doc.submittedBy ?? undefined,
+    submittedAt: doc.submittedAt,
+    answers: (doc.answers ?? {}) as Record<string, unknown>,
+  }));
+};
+
+type SoapFormLookup = {
+  formId: string;
+  category: Form["category"];
+};
+
+const loadSoapFormLookup = async (formIds: string[]) => {
+  if (!formIds.length) return new Map<string, SoapFormLookup>();
+
+  if (isReadFromPostgres()) {
+    const rows = await prisma.form.findMany({
+      where: { id: { in: formIds } },
+      select: { id: true, category: true },
+    });
+
+    return new Map(
+      rows.map((row) => [row.id, { formId: row.id, category: row.category }]),
+    );
+  }
+
+  const docs = await FormModel.find({ _id: { $in: formIds } })
+    .select({ _id: 1, category: 1 })
+    .lean();
+
+  return new Map(
+    docs.map((doc) => [
+      doc._id.toString(),
+      {
+        formId: doc._id.toString(),
+        category: doc.category,
+      },
+    ]),
+  );
+};
+
+const buildSoapNotes = (params: {
+  submissions: SoapNoteEntry[];
+  formLookup: Map<string, SoapFormLookup>;
+  latestOnly?: boolean;
+}) => {
+  const grouped = initSoapGroup();
+
+  for (const submission of params.submissions) {
+    const form = params.formLookup.get(submission.formId);
+    if (!form) continue;
+
+    const soapType = SOAP_TYPE_MAP[form.category];
+    if (!soapType) continue;
+
+    grouped[soapType].push(submission);
+  }
+
+  if (params.latestOnly) {
+    (Object.keys(grouped) as SoapNoteType[]).forEach((key) => {
+      grouped[key] = grouped[key].slice(0, 1);
+    });
+  }
+
+  return grouped;
+};
+
+const loadSubmissionFormIdStringsForAppointment = async (
+  appointmentId: string,
+) => {
+  if (isReadFromPostgres()) {
+    const submissionFormIds = await prisma.formSubmission.findMany({
+      where: { appointmentId },
+      select: { formId: true },
+    });
+    return submissionFormIds.map((entry) => entry.formId);
+  }
+
+  const submissionFormIds = await FormSubmissionModel.distinct("formId", {
+    appointmentId,
+  });
+  return (submissionFormIds as NormalizableObjectId[])
+    .map((id) => normalizeObjectId(id))
+    .filter(Boolean);
+};
+
+const buildAppointmentFormItems = async (params: {
+  forms: LeanForm[];
+  versionMap: Map<string, VersionAgg>;
+  submissionMap: Map<string, SubmissionAgg>;
+  includeQuestionnaire: boolean;
+}) => {
+  const items: {
+    questionnaire?: ReturnType<typeof toFHIRQuestionnaire>;
+    questionnaireResponse?: ReturnType<typeof toFHIRQuestionnaireResponse>;
+    status: "completed" | "pending";
+  }[] = [];
+
+  for (const form of params.forms) {
+    const formId = form._id.toString();
+    const version = params.versionMap.get(formId);
+    if (!version) continue;
+
+    const questionnaire = params.includeQuestionnaire
+      ? toFHIRQuestionnaire({
+          ...form,
+          _id: formId,
+        })
+      : undefined;
+
+    const questionnaireResponse = await buildQuestionnaireResponse(
+      params.submissionMap.get(formId),
+      version,
+      form.orgId,
+    );
+
+    items.push({
+      ...(params.includeQuestionnaire ? { questionnaire } : {}),
+      questionnaireResponse,
+      status: questionnaireResponse ? "completed" : "pending",
+    });
+  }
+
+  return items;
+};
+
 const resolveAppointmentParentId = (
   appointment: { companion?: unknown } | null | undefined,
 ) => {
@@ -484,25 +898,50 @@ const normalizeVisibilityType = (
   value: PrismaFormVisibilityType,
 ): "Internal" | "External" => (value === "Internal" ? "Internal" : "External");
 
+const toPrismaVisibilityType = (
+  value: Form["visibilityType"],
+): PrismaFormVisibilityType => (value === "Internal" ? "Internal" : "External");
+
+const toPrismaOrganizationType = (
+  value: Form["businessType"],
+): PrismaOrganizationType | undefined => {
+  if (!value) return undefined;
+  return (Object.values(PrismaOrganizationType) as string[]).includes(value)
+    ? (value as PrismaOrganizationType)
+    : undefined;
+};
+
+const toPrismaRequiredSigner = (
+  value: Form["requiredSigner"],
+): PrismaFormRequiredSigner | undefined => {
+  if (!value) return undefined;
+  return (Object.values(PrismaFormRequiredSigner) as string[]).includes(value)
+    ? (value as PrismaFormRequiredSigner)
+    : undefined;
+};
+
+const parseFormRequest = (fhir: FormRequestDTO): Form => {
+  const internal: Form = fromFormRequestDTO(fhir);
+  if (
+    FormService.hasSignatureField(internal.schema) &&
+    !internal.requiredSigner
+  ) {
+    throw new FormServiceError("requiredSigner is required", 400);
+  }
+  return internal;
+};
+
 const toPrismaFormData = (doc: Form) => ({
-  id: normalizeObjectId(doc._id as unknown as NormalizableObjectId),
+  id: normalizeObjectId(doc._id),
   orgId: doc.orgId,
-  businessType: (doc.businessType ?? undefined) as
-    | PrismaOrganizationType
-    | undefined,
+  businessType: doc.businessType ?? undefined,
   name: doc.name,
   category: doc.category,
   description: doc.description ?? undefined,
-  visibilityType: doc.visibilityType as PrismaFormVisibilityType,
-  serviceId: Array.isArray(doc.serviceId)
-    ? doc.serviceId
-    : doc.serviceId
-      ? [doc.serviceId]
-      : [],
+  visibilityType: toPrismaVisibilityType(doc.visibilityType),
+  serviceId: normalizeServiceIdArray(doc.serviceId),
   speciesFilter: doc.speciesFilter ?? [],
-  requiredSigner: (doc.requiredSigner ?? undefined) as
-    | PrismaFormRequiredSigner
-    | undefined,
+  requiredSigner: doc.requiredSigner ?? undefined,
   status: doc.status as PrismaFormStatus,
   schema: doc.schema as unknown as Prisma.InputJsonValue,
   createdBy: doc.createdBy,
@@ -540,7 +979,7 @@ const toFormFromPrisma = (form: {
   speciesFilter: form.speciesFilter ?? [],
   requiredSigner: form.requiredSigner ?? undefined,
   status: form.status,
-  schema: form.schema as unknown as FormField[],
+  schema: coerceFormFields(form.schema),
   createdBy: form.createdBy,
   updatedBy: form.updatedBy,
   createdAt: form.createdAt,
@@ -649,13 +1088,7 @@ export const FormService = {
   async create(orgId: string, fhir: FormRequestDTO, userId: string) {
     const oid = ensureObjectId(orgId, "orgId");
 
-    const internal: Form = fromFormRequestDTO(fhir);
-    if (
-      FormService.hasSignatureField(internal.schema) &&
-      !internal.requiredSigner
-    ) {
-      throw new FormServiceError("requiredSigner is required", 400);
-    }
+    const internal = parseFormRequest(fhir);
     internal.orgId = oid.toString();
     internal.createdBy = userId;
     internal.updatedBy = userId;
@@ -665,22 +1098,14 @@ export const FormService = {
       const created = await prisma.form.create({
         data: {
           orgId: internal.orgId,
-          businessType: (internal.businessType ?? undefined) as
-            | PrismaOrganizationType
-            | undefined,
+          businessType: toPrismaOrganizationType(internal.businessType),
           name: internal.name,
           category: internal.category,
           description: internal.description ?? undefined,
-          visibilityType: internal.visibilityType as PrismaFormVisibilityType,
-          serviceId: Array.isArray(internal.serviceId)
-            ? internal.serviceId
-            : internal.serviceId
-              ? [internal.serviceId]
-              : [],
+          visibilityType: toPrismaVisibilityType(internal.visibilityType),
+          serviceId: normalizeServiceIdArray(internal.serviceId),
           speciesFilter: internal.speciesFilter ?? [],
-          requiredSigner: (internal.requiredSigner ?? undefined) as
-            | PrismaFormRequiredSigner
-            | undefined,
+          requiredSigner: toPrismaRequiredSigner(internal.requiredSigner),
           status: "draft",
           schema: internal.schema as unknown as Prisma.InputJsonValue,
           createdBy: userId,
@@ -779,7 +1204,7 @@ export const FormService = {
         speciesFilter: [],
         requiredSigner: form.requiredSigner ?? undefined,
         status: form.status,
-        schema: version.schemaSnapshot as unknown as FormField[],
+        schema: coerceFormFields(version.schemaSnapshot),
         createdBy: "",
         updatedBy: "",
         createdAt: form.createdAt,
@@ -828,10 +1253,12 @@ export const FormService = {
     orgId: string,
   ) {
     const fid = ensureObjectId(formId, "formId");
+    const internal = parseFormRequest(fhir);
+    const fidString = fid.toString();
 
     if (isReadFromPostgres()) {
       const existing = await prisma.form.findUnique({
-        where: { id: fid.toString() },
+        where: { id: fidString },
       });
       if (!existing) throw new FormServiceError("Form not found", 404);
 
@@ -841,40 +1268,24 @@ export const FormService = {
           400,
         );
 
-      const internal: Form = fromFormRequestDTO(fhir);
-      if (
-        FormService.hasSignatureField(internal.schema) &&
-        !internal.requiredSigner
-      ) {
-        throw new FormServiceError("requiredSigner is required", 400);
-      }
-
       const updated = await prisma.form.update({
-        where: { id: fid.toString() },
+        where: { id: fidString },
         data: {
           name: internal.name,
           category: internal.category,
           description: internal.description ?? undefined,
-          visibilityType: internal.visibilityType as PrismaFormVisibilityType,
-          serviceId: Array.isArray(internal.serviceId)
-            ? internal.serviceId
-            : internal.serviceId
-              ? [internal.serviceId]
-              : [],
+          visibilityType: toPrismaVisibilityType(internal.visibilityType),
+          serviceId: normalizeServiceIdArray(internal.serviceId),
           speciesFilter: internal.speciesFilter ?? [],
-          businessType: (internal.businessType ?? undefined) as
-            | PrismaOrganizationType
-            | undefined,
-          requiredSigner: (internal.requiredSigner ?? undefined) as
-            | PrismaFormRequiredSigner
-            | undefined,
+          businessType: toPrismaOrganizationType(internal.businessType),
+          requiredSigner: toPrismaRequiredSigner(internal.requiredSigner),
           schema: internal.schema as unknown as Prisma.InputJsonValue,
           updatedBy: userId,
           status: "draft",
         },
       });
 
-      await syncFormFields(fid.toString(), internal.schema);
+      await syncFormFields(fidString, internal.schema);
 
       const form = toFormFromPrisma(updated);
       const nameMap = await resolveUserNameMap([
@@ -889,14 +1300,6 @@ export const FormService = {
 
     if (existing.orgId !== orgId)
       throw new FormServiceError("Form is not part of your organisation", 400);
-
-    const internal: Form = fromFormRequestDTO(fhir);
-    if (
-      FormService.hasSignatureField(internal.schema) &&
-      !internal.requiredSigner
-    ) {
-      throw new FormServiceError("requiredSigner is required", 400);
-    }
 
     existing.name = internal.name;
     existing.category = internal.category;
@@ -935,9 +1338,7 @@ export const FormService = {
       });
       const nextVersion = lastVersion ? lastVersion.version + 1 : 1;
 
-      const fieldsSnapshot = flattenFields(
-        form.schema as unknown as FormField[],
-      );
+      const fieldsSnapshot = flattenFields(coerceFormFields(form.schema));
 
       await prisma.formVersion.create({
         data: {
@@ -1073,31 +1474,18 @@ export const FormService = {
       schema,
     );
 
-    let resolvedSchema = schema;
-    if (!resolvedSchema && initialSubmission.formId) {
-      const version = await FormVersionModel.findOne({
-        formId: ensureObjectId(initialSubmission.formId, "formId"),
-        version: initialSubmission.formVersion,
-      })
-        .select("schemaSnapshot")
-        .lean();
-      resolvedSchema = version?.schemaSnapshot;
-    }
+    const resolvedSchema = await resolveSchemaForSubmission(
+      initialSubmission,
+      schema,
+    );
 
     const submission: FormSubmission = resolvedSchema
       ? fromFormSubmissionRequestDTO(response, resolvedSchema)
       : initialSubmission;
 
-    const signingRequired = FormService.hasSignatureField(resolvedSchema);
     // Never trust signing metadata from client-submitted FHIR extensions.
     // Signed state and document IDs must be written by server-side signing flows.
-    const signing = signingRequired
-      ? {
-          required: true,
-          status: "NOT_STARTED" as const,
-          provider: "DOCUMENSO" as const,
-        }
-      : undefined;
+    const signing = buildDefaultSubmissionSigning(resolvedSchema);
 
     const formIdString = String(submission.formId);
     if (isReadFromPostgres()) {
@@ -1116,38 +1504,20 @@ export const FormService = {
       });
 
       if (submission.appointmentId) {
-        await prisma.appointment.updateMany({
-          where: { id: submission.appointmentId },
-          data: {
-            formIds: {
-              push: formIdString,
-            },
-          },
-        });
+        await pushAppointmentFormIdInPostgres(
+          submission.appointmentId,
+          formIdString,
+        );
       }
 
       if (submission.companionId) {
-        const form = await prisma.form.findUnique({
-          where: { id: formIdString },
-          select: { orgId: true, name: true },
+        await recordFormSubmittedAuditTrailInPostgres({
+          companionId: submission.companionId,
+          parentId: submission.parentId,
+          appointmentId: submission.appointmentId,
+          formId: formIdString,
+          submissionId: created.id,
         });
-
-        if (form?.orgId) {
-          await AuditTrailService.recordSafely({
-            organisationId: form.orgId,
-            companionId: submission.companionId,
-            eventType: "FORM_SUBMITTED",
-            actorType: submission.parentId ? "PARENT" : "SYSTEM",
-            actorId: submission.parentId ?? null,
-            entityType: "FORM",
-            entityId: formIdString,
-            metadata: {
-              submissionId: created.id,
-              appointmentId: submission.appointmentId,
-              formName: form.name,
-            },
-          });
-        }
       }
 
       return {
@@ -1192,25 +1562,17 @@ export const FormService = {
     }
 
     if (submission.appointmentId) {
-      const appointmentObjectId = ensureObjectId(
+      await pushAppointmentFormIdInMongo(
         submission.appointmentId,
-        "appointmentId",
-      );
-      await AppointmentModel.updateOne(
-        { _id: appointmentObjectId },
-        { $addToSet: { formIds: formIdString } },
+        formIdString,
       );
 
       if (shouldDualWrite) {
         try {
-          await prisma.appointment.updateMany({
-            where: { id: submission.appointmentId },
-            data: {
-              formIds: {
-                push: formIdString,
-              },
-            },
-          });
+          await pushAppointmentFormIdInPostgres(
+            submission.appointmentId,
+            formIdString,
+          );
         } catch (err) {
           handleDualWriteError("Appointment formIds", err);
         }
@@ -1218,29 +1580,19 @@ export const FormService = {
     }
 
     if (submission.companionId) {
-      const form = await FormModel.findById(submission.formId)
-        .select("orgId name")
-        .lean();
-
-      if (form?.orgId) {
-        await AuditTrailService.recordSafely({
-          organisationId: form.orgId.toString(),
-          companionId: submission.companionId,
-          eventType: "FORM_SUBMITTED",
-          actorType: submission.parentId ? "PARENT" : "SYSTEM",
-          actorId: submission.parentId ?? null,
-          entityType: "FORM",
-          entityId: formIdString,
-          metadata: {
-            submissionId: created._id.toString(),
-            appointmentId: submission.appointmentId,
-            formName: form.name,
-          },
-        });
-      }
+      await recordFormSubmittedAuditTrailInMongo({
+        companionId: submission.companionId,
+        parentId: submission.parentId,
+        appointmentId: submission.appointmentId,
+        formId: formIdString,
+        submissionId: created._id.toString(),
+      });
     }
 
-    return created.toObject() as unknown as FormSubmission;
+    return {
+      ...submission,
+      _id: created._id.toString(),
+    };
   },
 
   async getSubmission(submissionId: string) {
@@ -1270,7 +1622,7 @@ export const FormService = {
 
       return toFHIRQuestionnaireResponse(
         normalized,
-        (version?.schemaSnapshot ?? undefined) as unknown as FormField[],
+        coerceFormFields(version?.schemaSnapshot),
       );
     }
 
@@ -1496,42 +1848,27 @@ export const FormService = {
 
   async listFormsForOrganisation(orgId: string) {
     const oid = ensureObjectId(orgId, "orgId");
-    const docs = isReadFromPostgres()
-      ? await prisma.form.findMany({ where: { orgId: oid.toString() } })
-      : await FormModel.find({ orgId: oid }).lean();
+    if (isReadFromPostgres()) {
+      const docs = await prisma.form.findMany({
+        where: { orgId: oid.toString() },
+      });
 
+      const nameMap = await resolveUserNameMap(
+        docs.flatMap((doc) => [doc.createdBy, doc.updatedBy]),
+      );
+
+      return docs.map((doc) =>
+        toFormResponseDTO(applyUserNamesToForm(toFormFromPrisma(doc), nameMap)),
+      );
+    }
+
+    const docs = await FormModel.find({ orgId: oid }).lean();
     const nameMap = await resolveUserNameMap(
       docs.flatMap((doc) => [doc.createdBy, doc.updatedBy]),
     );
 
     return docs.map((doc) =>
-      toFormResponseDTO(
-        applyUserNamesToForm(
-          isReadFromPostgres()
-            ? toFormFromPrisma(
-                doc as unknown as {
-                  id: string;
-                  orgId: string;
-                  businessType: PrismaOrganizationType | null;
-                  name: string;
-                  category: string;
-                  description: string | null;
-                  visibilityType: PrismaFormVisibilityType;
-                  serviceId: string[];
-                  speciesFilter: string[];
-                  requiredSigner: PrismaFormRequiredSigner | null;
-                  status: PrismaFormStatus;
-                  schema: Prisma.JsonValue;
-                  createdBy: string;
-                  updatedBy: string;
-                  createdAt: Date;
-                  updatedAt: Date;
-                },
-              )
-            : (doc as Form),
-          nameMap,
-        ),
-      ),
+      toFormResponseDTO(applyUserNamesToForm(doc, nameMap)),
     );
   },
 
@@ -1543,74 +1880,22 @@ export const FormService = {
       requesterParentId?: string;
     },
   ) {
-    type SubmissionLean = Omit<FormSubmissionDocument, "formId"> & {
-      _id: Types.ObjectId | string;
-      formId: Types.ObjectId | string;
-    };
-
-    type SoapNoteType =
-      | "Subjective"
-      | "Objective"
-      | "Assessment"
-      | "Plan"
-      | "Discharge";
-
-    type SoapNoteEntry = {
-      submissionId: string;
-      formId: string;
-      formVersion: number;
-      submittedBy?: string;
-      submittedAt: Date;
-      answers: Record<string, unknown>;
-    };
-
-    type SoapNoteGroup = Record<SoapNoteType, SoapNoteEntry[]>;
-
-    const SOAP_TYPE_MAP: Record<Form["category"], SoapNoteType | undefined> = {
-      "SOAP-Subjective": "Subjective",
-      "SOAP-Objective": "Objective",
-      "SOAP-Assessment": "Assessment",
-      "SOAP-Plan": "Plan",
-      Discharge: "Discharge",
-    };
-
     const appointmentObjectId = ensureObjectId(
       appointmentId,
       "appointmentId",
     ).toString();
 
-    const appointment = isReadFromPostgres()
-      ? await prisma.appointment.findUnique({
-          where: { id: appointmentObjectId },
-          select: { organisationId: true, companion: true },
-        })
-      : await AppointmentModel.findById(appointmentObjectId)
-          .select({ organisationId: 1, companion: 1 })
-          .lean();
+    const appointment = await loadAppointmentForForms(appointmentObjectId);
 
     if (!appointment) {
       throw new FormServiceError("Appointment not found", 404);
     }
 
-    if (
-      options?.requesterOrgId &&
-      appointment.organisationId !== options.requesterOrgId
-    ) {
-      throw new FormServiceError(
-        "Forbidden: appointment does not belong to this organisation",
-        403,
-      );
-    }
-
-    if (options?.requesterParentId) {
-      const appointmentParentId = resolveAppointmentParentId(appointment);
-      if (
-        !appointmentParentId ||
-        appointmentParentId !== options.requesterParentId
-      ) {
-        throw new FormServiceError("Forbidden", 403);
-      }
-    }
+    assertSoapAppointmentAccess({
+      appointment,
+      requesterOrgId: options?.requesterOrgId,
+      requesterParentId: options?.requesterParentId,
+    });
 
     const orgType = await resolveOrganizationType(appointment.organisationId);
     if (orgType && orgType !== "HOSPITAL") {
@@ -1620,24 +1905,8 @@ export const FormService = {
       };
     }
 
-    const submissions = (isReadFromPostgres()
-      ? await prisma.formSubmission.findMany({
-          where: { appointmentId: appointmentObjectId },
-          orderBy: { submittedAt: "desc" },
-        })
-      : await FormSubmissionModel.find({
-          appointmentId: appointmentObjectId,
-        })
-          .sort({ submittedAt: -1 })
-          .lean()) as unknown as SubmissionLean[];
-
-    const grouped: SoapNoteGroup = {
-      Subjective: [],
-      Objective: [],
-      Assessment: [],
-      Plan: [],
-      Discharge: [],
-    };
+    const submissions = await loadSoapSubmissions(appointmentObjectId);
+    const grouped = initSoapGroup();
 
     if (!submissions.length) {
       return {
@@ -1646,73 +1915,17 @@ export const FormService = {
       };
     }
 
-    // Load forms for soapType lookup
-    const formIds = [
-      ...new Set(submissions.map((s) => normalizeObjectId(s.formId))),
-    ];
-
-    type FormLean = {
-      _id: Types.ObjectId | string;
-      category: Form["category"];
-      schema: Form["schema"];
-    };
-
-    const forms = (isReadFromPostgres()
-      ? await prisma.form.findMany({
-          where: { id: { in: formIds } },
-          select: { id: true, category: true, schema: true },
-        })
-      : await FormModel.find({ _id: { $in: formIds } })
-          .select({ _id: 1, category: 1, schema: 1 })
-          .lean()) as unknown as FormLean[];
-
-    const normalizedForms = isReadFromPostgres()
-      ? (
-          forms as unknown as Array<{
-            id: string;
-            category: Form["category"];
-            schema: Form["schema"];
-          }>
-        ).map(
-          (form) =>
-            ({
-              _id: form.id,
-              category: form.category,
-              schema: form.schema,
-            }) as FormLean,
-        )
-      : forms;
-
-    const formMap = new Map<string, FormLean>(
-      normalizedForms.map((f) => [normalizeObjectId(f._id), f]),
-    );
-
-    for (const sub of submissions) {
-      const form = formMap.get(normalizeObjectId(sub.formId));
-      if (!form) continue;
-
-      const soapType = SOAP_TYPE_MAP[form.category];
-      if (!soapType) continue;
-
-      grouped[soapType].push({
-        submissionId: sub._id.toString(),
-        formId: normalizeObjectId(sub.formId),
-        formVersion: sub.formVersion,
-        submittedBy: sub.submittedBy,
-        submittedAt: sub.submittedAt,
-        answers: sub.answers,
-      });
-    }
-
-    if (options?.latestOnly) {
-      (Object.keys(grouped) as SoapNoteType[]).forEach((key) => {
-        grouped[key] = grouped[key].slice(0, 1);
-      });
-    }
+    const formIds = [...new Set(submissions.map((s) => s.formId))];
+    const formLookup = await loadSoapFormLookup(formIds);
+    const soapNotes = buildSoapNotes({
+      submissions,
+      formLookup,
+      latestOnly: options?.latestOnly,
+    });
 
     return {
       appointmentId: appointmentObjectId,
-      soapNotes: grouped,
+      soapNotes,
     };
   },
 
@@ -1766,7 +1979,7 @@ export const FormService = {
         serviceId: form.serviceId,
         speciesFilter: form.speciesFilter,
         status: form.status,
-        schema: version.schemaSnapshot as unknown as FormField[],
+        schema: coerceFormFields(version.schemaSnapshot),
         createdBy: "",
         updatedBy: "",
         createdAt: form.createdAt,
@@ -1851,7 +2064,7 @@ export const FormService = {
 
       const vm = buildPdfViewModel({
         title: `Form Submission - ${formIdString}`,
-        schema: version.schemaSnapshot as unknown as FormField[],
+        schema: coerceFormFields(version.schemaSnapshot),
         answers: submission.answers as Record<string, unknown>,
         submittedAt: submission.submittedAt,
       });
@@ -1921,21 +2134,8 @@ export const FormService = {
     const orgType = await resolveOrganizationType(appointment.organisationId);
 
     const attachedFormIds = (appointment.formIds ?? []).map(String);
-    let submissionFormIdStrings: string[] = [];
-    if (isReadFromPostgres()) {
-      const submissionFormIds = await prisma.formSubmission.findMany({
-        where: { appointmentId },
-        select: { formId: true },
-      });
-      submissionFormIdStrings = submissionFormIds.map((entry) => entry.formId);
-    } else {
-      const submissionFormIds = await FormSubmissionModel.distinct("formId", {
-        appointmentId,
-      });
-      submissionFormIdStrings = (
-        submissionFormIds as NormalizableObjectId[]
-      ).map((id) => normalizeObjectId(id));
-    }
+    const submissionFormIdStrings =
+      await loadSubmissionFormIdStringsForAppointment(appointmentId);
 
     const formIdsFromAppointment = new Set<string>([
       ...attachedFormIds,
@@ -1960,38 +2160,12 @@ export const FormService = {
 
     // 4️⃣ Build FHIR response
     const includeQuestionnaire = !params.isPMS;
-    const items: {
-      questionnaire?: ReturnType<typeof toFHIRQuestionnaire>;
-      questionnaireResponse?: ReturnType<typeof toFHIRQuestionnaireResponse>;
-      status: "completed" | "pending";
-    }[] = [];
-
-    for (const form of forms) {
-      const formId = form._id.toString();
-      const version = versionMap.get(formId);
-      if (!version) continue;
-
-      // FHIR Questionnaire
-      const questionnaire = includeQuestionnaire
-        ? toFHIRQuestionnaire({
-            ...form,
-            _id: form._id.toString(),
-          })
-        : undefined;
-
-      // Optional FHIR QuestionnaireResponse
-      const questionnaireResponse = await buildQuestionnaireResponse(
-        submissionMap.get(formId),
-        version,
-        form.orgId,
-      );
-
-      items.push({
-        ...(includeQuestionnaire ? { questionnaire } : {}),
-        questionnaireResponse,
-        status: questionnaireResponse ? "completed" : "pending",
-      });
-    }
+    const items = await buildAppointmentFormItems({
+      forms,
+      versionMap,
+      submissionMap,
+      includeQuestionnaire,
+    });
 
     return {
       appointmentId,

@@ -195,26 +195,26 @@ export const ObservationToolDefinitionService = {
         data: {
           name: input.name ?? existing.name,
           description:
-            input.description !== undefined
-              ? (input.description ?? undefined)
-              : (existing.description ?? undefined),
+            input.description === undefined
+              ? (existing.description ?? undefined)
+              : (input.description ?? undefined),
           category: input.category ?? existing.category,
           fields:
-            input.fields !== undefined
-              ? (input.fields.map((f) => ({
+            input.fields === undefined
+              ? (existing.fields as Prisma.InputJsonValue)
+              : (input.fields.map((f) => ({
                   key: f.key,
                   label: f.label,
                   type: f.type,
                   required: f.required ?? false,
                   options: f.options,
                   scoring: f.scoring,
-                })) as unknown as Prisma.InputJsonValue)
-              : (existing.fields as Prisma.InputJsonValue),
+                })) as unknown as Prisma.InputJsonValue),
           scoringRules:
-            input.scoringRules !== undefined
-              ? ((input.scoringRules ??
-                  undefined) as unknown as Prisma.InputJsonValue)
-              : (existing.scoringRules ?? undefined),
+            input.scoringRules === undefined
+              ? (existing.scoringRules ?? undefined)
+              : ((input.scoringRules ??
+                  undefined) as unknown as Prisma.InputJsonValue),
           isActive: input.isActive ?? existing.isActive,
         },
       });

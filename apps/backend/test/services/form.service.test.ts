@@ -1,25 +1,25 @@
 // test/services/form.service.test.ts
 import { Types } from "mongoose";
-import { FormService, FormServiceError } from "../../src/services/form.service";
-import {
-  FormModel,
-  FormFieldModel,
-  FormVersionModel,
-  FormSubmissionModel,
-} from "../../src/models/form";
-import AppointmentModel from "../../src/models/appointment";
-import OrganizationModel from "../../src/models/organization";
-import UserModel from "../../src/models/user";
-import { DocumensoService } from "../../src/services/documenso.service";
-import { AuditTrailService } from "../../src/services/audit-trail.service";
-import { prisma } from "src/config/prisma";
-import {
-  buildPdfViewModel,
-  renderPdf,
-} from "../../src/services/formPDF.service";
+
+// NOTE: All imports that are mocked in this file are required *after* `jest.mock(...)`
+// declarations to ensure the mocked implementations are used.
+let FormService: typeof import("../../src/services/form.service").FormService;
+let FormServiceError: typeof import("../../src/services/form.service").FormServiceError;
+let FormModel: typeof import("src/models/form").FormModel;
+let FormFieldModel: typeof import("src/models/form").FormFieldModel;
+let FormVersionModel: typeof import("src/models/form").FormVersionModel;
+let FormSubmissionModel: typeof import("src/models/form").FormSubmissionModel;
+let AppointmentModel: typeof import("../../src/models/appointment").default;
+let OrganizationModel: typeof import("../../src/models/organization").default;
+let UserModel: typeof import("../../src/models/user").default;
+let DocumensoService: typeof import("../../src/services/documenso.service").DocumensoService;
+let AuditTrailService: typeof import("../../src/services/audit-trail.service").AuditTrailService;
+let prisma: typeof import("src/config/prisma").prisma;
+let buildPdfViewModel: typeof import("../../src/services/formPDF.service").buildPdfViewModel;
+let renderPdf: typeof import("../../src/services/formPDF.service").renderPdf;
 
 // --- MOCK SETUP ---
-jest.mock("../../src/models/form", () => ({
+jest.mock("src/models/form", () => ({
   FormModel: {
     create: jest.fn(),
     findOne: jest.fn(),
@@ -142,16 +142,105 @@ const createChainable = (value: any) => {
   return chain;
 };
 
+const createChainableDoc = (doc: any) => {
+  const chain = Promise.resolve(doc) as any;
+  chain.select = jest.fn().mockReturnValue(chain);
+  chain.sort = jest.fn().mockReturnValue(chain);
+  chain.lean = jest.fn().mockResolvedValue(doc);
+  chain.exec = jest.fn().mockResolvedValue(doc);
+  return chain;
+};
+
 const mockDoc = (data: any) => ({
   ...data,
   save: jest.fn().mockResolvedValue(true),
   toObject: jest.fn().mockReturnValue(data),
 });
 
+beforeAll(() => {
+  ({
+    FormService,
+    FormServiceError,
+  } = require("../../src/services/form.service"));
+  ({
+    FormModel,
+    FormFieldModel,
+    FormVersionModel,
+    FormSubmissionModel,
+  } = require("src/models/form"));
+  AppointmentModel = require("../../src/models/appointment").default;
+  OrganizationModel = require("../../src/models/organization").default;
+  UserModel = require("../../src/models/user").default;
+  ({ DocumensoService } = require("../../src/services/documenso.service"));
+  ({ AuditTrailService } = require("../../src/services/audit-trail.service"));
+  ({ prisma } = require("src/config/prisma"));
+  ({
+    buildPdfViewModel,
+    renderPdf,
+  } = require("../../src/services/formPDF.service"));
+});
+
 describe("FormService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.restoreAllMocks();
+
+    // Clear any queued `mockReturnValueOnce` / `mockResolvedValueOnce` implementations
+    // so tests don't leak behavior into each other.
+    (FormModel.create as jest.Mock).mockReset();
+    (FormModel.findOne as jest.Mock).mockReset();
+    (FormModel.findById as jest.Mock).mockReset();
+    (FormModel.find as jest.Mock).mockReset();
+
+    (FormFieldModel.deleteMany as jest.Mock).mockReset();
+    (FormFieldModel.insertMany as jest.Mock).mockReset();
+    (FormFieldModel.find as jest.Mock).mockReset();
+
+    (FormVersionModel.create as jest.Mock).mockReset();
+    (FormVersionModel.findOne as jest.Mock).mockReset();
+    (FormVersionModel.aggregate as jest.Mock).mockReset();
+
+    (FormSubmissionModel.create as jest.Mock).mockReset();
+    (FormSubmissionModel.findById as jest.Mock).mockReset();
+    (FormSubmissionModel.find as jest.Mock).mockReset();
+    (FormSubmissionModel.distinct as jest.Mock).mockReset();
+    (FormSubmissionModel.aggregate as jest.Mock).mockReset();
+
+    (AppointmentModel.findById as jest.Mock).mockReset();
+    (AppointmentModel.updateOne as jest.Mock).mockReset();
+    (AppointmentModel.find as jest.Mock).mockReset();
+
+    (OrganizationModel.findById as jest.Mock).mockReset();
+    (UserModel.find as jest.Mock).mockReset();
+
+    (DocumensoService.resolveOrganisationApiKey as jest.Mock).mockReset();
+    (DocumensoService.downloadSignedDocument as jest.Mock).mockReset();
+    (AuditTrailService.recordSafely as jest.Mock).mockReset();
+
+    (buildPdfViewModel as jest.Mock).mockReset();
+    (renderPdf as jest.Mock).mockReset();
+
+    (prisma.form.create as jest.Mock).mockReset();
+    (prisma.form.findFirst as jest.Mock).mockReset();
+    (prisma.form.findUnique as jest.Mock).mockReset();
+    (prisma.form.update as jest.Mock).mockReset();
+    (prisma.form.findMany as jest.Mock).mockReset();
+    (prisma.form.upsert as jest.Mock).mockReset();
+
+    (prisma.formField.deleteMany as jest.Mock).mockReset();
+    (prisma.formField.createMany as jest.Mock).mockReset();
+
+    (prisma.formVersion.findFirst as jest.Mock).mockReset();
+    (prisma.formVersion.create as jest.Mock).mockReset();
+
+    (prisma.formSubmission.create as jest.Mock).mockReset();
+    (prisma.formSubmission.findUnique as jest.Mock).mockReset();
+    (prisma.formSubmission.findMany as jest.Mock).mockReset();
+
+    (prisma.appointment.updateMany as jest.Mock).mockReset();
+    (prisma.appointment.findUnique as jest.Mock).mockReset();
+
+    (prisma.organization.findUnique as jest.Mock).mockReset();
+    (prisma.user.findMany as jest.Mock).mockReset();
     process.env.READ_FROM_POSTGRES = "false";
   });
 
@@ -432,7 +521,9 @@ describe("FormService", () => {
 
     it("updates form successfully", async () => {
       const existing = mockDoc({ orgId: "o", createdBy: "u" });
-      (FormModel.findById as jest.Mock).mockResolvedValueOnce(existing);
+      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainableDoc(existing),
+      );
       (UserModel.find as jest.Mock).mockReturnValueOnce(createChainable([]));
 
       await FormService.update(validId, { schema: [] } as any, "u", "o");
@@ -508,7 +599,9 @@ describe("FormService", () => {
 
     it("publish: increments version and saves", async () => {
       const form = mockDoc({ schema: [] });
-      (FormModel.findById as jest.Mock).mockResolvedValueOnce(form);
+      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainableDoc(form),
+      );
       (FormFieldModel.find as jest.Mock).mockReturnValueOnce(
         createChainable([]),
       );
@@ -524,14 +617,18 @@ describe("FormService", () => {
 
     it("unpublish: success", async () => {
       const form = mockDoc({});
-      (FormModel.findById as jest.Mock).mockResolvedValueOnce(form);
+      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainableDoc(form),
+      );
       await FormService.unpublish(validId, "u");
       expect(form.status).toBe("draft");
     });
 
     it("archive: success", async () => {
       const form = mockDoc({});
-      (FormModel.findById as jest.Mock).mockResolvedValueOnce(form);
+      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainableDoc(form),
+      );
       await FormService.archive(validId, "u");
       expect(form.status).toBe("archived");
     });
@@ -1217,7 +1314,7 @@ describe("FormService", () => {
       ).mockResolvedValueOnce("KEY");
       (
         DocumensoService.downloadSignedDocument as jest.Mock
-      ).mockResolvedValueOnce({ downloadUrl: "http://pdf" });
+      ).mockResolvedValueOnce({ downloadUrl: "https://pdf" });
 
       const res = await FormService.getFormsForAppointment({
         appointmentId: validId,
@@ -1230,7 +1327,7 @@ describe("FormService", () => {
       expect(res.items[0].questionnaire).toBeUndefined(); // Because isPMS is true
 
       const anyQR = res.items[0].questionnaireResponse as any;
-      expect(anyQR?.signing?.pdf?.url).toBe("http://pdf"); // Documenso injected
+      expect(anyQR?.signing?.pdf?.url).toBe("https://pdf"); // Documenso injected
       expect(res.items[1].status).toBe("pending"); // No submission found
     });
 

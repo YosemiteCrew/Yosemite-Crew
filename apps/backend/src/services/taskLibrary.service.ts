@@ -384,27 +384,27 @@ export const TaskLibraryService = {
         data: {
           category: input.category ?? existing.category,
           name:
-            input.name !== undefined
-              ? sanitizeTaskName(input.name)
-              : existing.name,
+            input.name === undefined
+              ? existing.name
+              : sanitizeTaskName(input.name),
           defaultDescription:
-            input.defaultDescription !== undefined
-              ? (input.defaultDescription ?? undefined)
-              : (existing.defaultDescription ?? undefined),
+            input.defaultDescription === undefined
+              ? (existing.defaultDescription ?? undefined)
+              : (input.defaultDescription ?? undefined),
           applicableSpecies:
-            input.applicableSpecies !== undefined
-              ? ((input.applicableSpecies ??
-                  []) as unknown as TaskLibrarySpecies[])
-              : existing.applicableSpecies,
+            input.applicableSpecies === undefined
+              ? existing.applicableSpecies
+              : ((input.applicableSpecies ??
+                  []) as unknown as TaskLibrarySpecies[]),
           schema:
-            input.schema !== undefined
-              ? ({
+            input.schema === undefined
+              ? (existing.schema as Prisma.InputJsonValue)
+              : ({
                   medicationFields: input.schema.medicationFields ?? {},
                   requiresObservationTool:
                     input.schema.requiresObservationTool ?? false,
                   recurrence: input.schema.recurrence ?? undefined,
-                } as unknown as Prisma.InputJsonValue)
-              : (existing.schema as Prisma.InputJsonValue),
+                } as unknown as Prisma.InputJsonValue),
           isActive: input.isActive ?? existing.isActive,
         },
       });

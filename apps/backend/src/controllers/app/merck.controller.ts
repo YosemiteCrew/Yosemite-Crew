@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { MerckService } from "src/services/merck.service";
 import {
   handleMerckError,

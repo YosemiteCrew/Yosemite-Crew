@@ -27,8 +27,6 @@ export type MerckSearchParams = MerckSearchBaseParams & {
   organisationId: string;
 };
 
-export type MerckConsumerSearchParams = MerckSearchBaseParams;
-
 export type MerckSearchResponse = {
   meta: {
     requestId: string;
@@ -210,9 +208,7 @@ const stripHtml = (value: string): string => {
   let inTag = false;
   let wroteSpace = false;
 
-  for (let index = 0; index < input.length; index += 1) {
-    const char = input[index];
-
+  for (const char of input) {
     if (inTag) {
       if (char === ">") {
         inTag = false;
@@ -945,7 +941,7 @@ export const MerckService = {
     });
   },
   async searchConsumer(
-    input: MerckConsumerSearchParams,
+    input: MerckSearchBaseParams,
   ): Promise<MerckSearchResponse> {
     return executeSearch(input, {
       enforceIntegration: false,

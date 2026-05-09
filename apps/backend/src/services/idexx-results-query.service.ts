@@ -2,8 +2,7 @@ import { IdexxResultsClient } from "src/integrations/idexx/idexx-results.client"
 import logger from "src/utils/logger";
 
 const getEnv = (key: string): string | null => {
-  const value = process.env[key];
-  return value && value.trim() ? value : null;
+  return process.env[key]?.trim() || null;
 };
 
 const buildClient = () => {

@@ -132,62 +132,75 @@ const resolvePaymentStatusByAppointmentIds = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
   const uniqueIds = Array.from(new Set(appointmentIds.filter(Boolean)));
-  const statusMap = new Map<string, AppointmentPaymentStatus>();
 
   if (uniqueIds.length === 0) {
-    return statusMap;
+    return new Map<string, AppointmentPaymentStatus>();
   }
 
   if (isReadFromPostgres()) {
-    const invoices = await prisma.invoice.findMany({
-      where: {
-        appointmentId: { in: uniqueIds },
-        status: {
-          in: ["PAID", "PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"],
-        },
-      },
-      select: {
-        appointmentId: true,
-        status: true,
-      },
-    });
-
-    const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
-
-    for (const invoice of invoices) {
-      if (!invoice.appointmentId) continue;
-      const entry = tracker.get(invoice.appointmentId) ?? {
-        hasPaid: false,
-        hasUnpaid: false,
-      };
-
-      if (invoice.status === "PAID") {
-        entry.hasPaid = true;
-      } else if (
-        ["PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"].includes(
-          invoice.status,
-        )
-      ) {
-        entry.hasUnpaid = true;
-      }
-
-      tracker.set(invoice.appointmentId, entry);
-    }
-
-    for (const [appointmentId, entry] of tracker) {
-      const paid = entry.hasPaid && !entry.hasUnpaid;
-      statusMap.set(appointmentId, paid ? "PAID" : "UNPAID");
-    }
-
-    return statusMap;
+    return resolvePaymentStatusByAppointmentIdsFromPostgres(uniqueIds);
   }
 
+  return resolvePaymentStatusByAppointmentIdsFromMongo(uniqueIds);
+};
+
+const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
+  appointmentIds: string[],
+): Promise<Map<string, AppointmentPaymentStatus>> => {
+  const statusMap = new Map<string, AppointmentPaymentStatus>();
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      appointmentId: { in: appointmentIds },
+      status: {
+        in: ["PAID", "PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"],
+      },
+    },
+    select: {
+      appointmentId: true,
+      status: true,
+    },
+  });
+
+  const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
+
+  for (const invoice of invoices) {
+    if (!invoice.appointmentId) continue;
+    const entry = tracker.get(invoice.appointmentId) ?? {
+      hasPaid: false,
+      hasUnpaid: false,
+    };
+
+    if (invoice.status === "PAID") {
+      entry.hasPaid = true;
+    } else if (
+      ["PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"].includes(
+        invoice.status,
+      )
+    ) {
+      entry.hasUnpaid = true;
+    }
+
+    tracker.set(invoice.appointmentId, entry);
+  }
+
+  for (const [appointmentId, entry] of tracker) {
+    const paid = entry.hasPaid && !entry.hasUnpaid;
+    statusMap.set(appointmentId, paid ? "PAID" : "UNPAID");
+  }
+
+  return statusMap;
+};
+
+const resolvePaymentStatusByAppointmentIdsFromMongo = async (
+  appointmentIds: string[],
+): Promise<Map<string, AppointmentPaymentStatus>> => {
+  const statusMap = new Map<string, AppointmentPaymentStatus>();
   const results: Array<{
     _id: string;
     hasPaid: number;
     hasUnpaid: number;
   }> = await InvoiceModel.aggregate([
-    { $match: { appointmentId: { $in: uniqueIds } } },
+    { $match: { appointmentId: { $in: appointmentIds } } },
     {
       $group: {
         _id: "$appointmentId",
@@ -268,6 +281,562 @@ const validateAppointmentFromPmsInput = (input: AppointmentRequestInput) => {
       "Service (appointmentType.id) is required.",
       400,
     );
+  }
+};
+
+type ParsedPmsAppointmentUpdate = {
+  startTimeFromDto?: Date;
+  endTimeFromDto?: Date;
+  durationMinutesFromDto?: number;
+  statusProvided: boolean;
+  concernProvided: boolean;
+  nextConcern?: string;
+  startTimeProvided: boolean;
+};
+
+const parsePmsAppointmentUpdate = (
+  dto: AppointmentRequestDTO,
+  extracted: ReturnType<typeof fromAppointmentRequestDTO>,
+): ParsedPmsAppointmentUpdate => {
+  const parseOptionalDate = (value: unknown): Date | undefined => {
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? undefined : value;
+    }
+    if (typeof value === "string" && value.trim().length > 0) {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+    }
+    return undefined;
+  };
+
+  const dtoAny = dto as unknown as Record<string, unknown>;
+  const startTimeFromDto = parseOptionalDate(dtoAny.startTime ?? dtoAny.start);
+  const endTimeFromDto = parseOptionalDate(dtoAny.endTime ?? dtoAny.end);
+
+  let durationMinutesFromDto: number | undefined;
+  if (typeof dtoAny.durationMinutes === "number") {
+    durationMinutesFromDto = dtoAny.durationMinutes;
+  } else if (typeof dtoAny.minutesDuration === "number") {
+    durationMinutesFromDto = dtoAny.minutesDuration;
+  }
+
+  const concernProvided =
+    typeof dtoAny.concern === "string" ||
+    typeof dtoAny.description === "string";
+  const nextConcern = concernProvided
+    ? typeof dtoAny.concern === "string"
+      ? dtoAny.concern
+      : extracted.concern
+    : undefined;
+
+  const statusProvided = typeof dtoAny.status === "string";
+
+  return {
+    startTimeFromDto,
+    endTimeFromDto,
+    durationMinutesFromDto,
+    statusProvided,
+    concernProvided,
+    nextConcern,
+    startTimeProvided: startTimeFromDto != null,
+  };
+};
+
+const resolvePmsAppointmentEventType = (args: {
+  rescheduled: boolean;
+  concernChanged: boolean;
+  emergencyChanged: boolean;
+  nextStatus: AppointmentStatus;
+  previousStatus: LegacyAppointmentStatus;
+}):
+  | "APPOINTMENT_RESCHEDULED"
+  | "APPOINTMENT_CHECKED_IN"
+  | "APPOINTMENT_APPROVED" => {
+  const normalizedPrev = normalizeAppointmentStatus(args.previousStatus);
+  if (args.rescheduled || args.concernChanged || args.emergencyChanged) {
+    return "APPOINTMENT_RESCHEDULED";
+  }
+  if (args.nextStatus === "CHECKED_IN") {
+    return "APPOINTMENT_CHECKED_IN";
+  }
+  if (args.nextStatus === "UPCOMING" && normalizedPrev === "REQUESTED") {
+    return "APPOINTMENT_APPROVED";
+  }
+  return "APPOINTMENT_RESCHEDULED";
+};
+
+const assertPmsUpdatableStatus = (
+  status: LegacyAppointmentStatus,
+  context: string,
+) => {
+  const allowedStatuses: AppointmentStatus[] = [
+    "REQUESTED",
+    "UPCOMING",
+    "CHECKED_IN",
+    "IN_PROGRESS",
+  ];
+  const normalizedStatus = normalizeAppointmentStatus(status);
+  if (!allowedStatuses.includes(normalizedStatus)) {
+    throw new AppointmentServiceError(
+      `Appointment cannot be updated in status ${status} (${context})`,
+      409,
+    );
+  }
+};
+
+type UpdateAppointmentPmsArgs = {
+  appointmentId: string;
+  extracted: AppointmentRequestInput;
+  parsed: ParsedPmsAppointmentUpdate;
+};
+
+type PmsUpdatePlan = {
+  sameVet: boolean;
+  sameSlot: boolean;
+  timesProvided: boolean;
+  nextStartTime: Date;
+  nextEndTime: Date;
+  nextDurationMinutes: number;
+  nextStatus: AppointmentStatus;
+  statusChanged: boolean;
+  shouldUpdateEmergency: boolean;
+  nextIsEmergency: boolean;
+  previousConcern?: string;
+  nextConcernValue?: string;
+  concernChanged: boolean;
+  emergencyChanged: boolean;
+  rescheduled: boolean;
+};
+
+const buildPmsUpdatePlanFromPrisma = (args: {
+  appointment: {
+    status: LegacyAppointmentStatus;
+    lead: unknown;
+    startTime: Date;
+    endTime: Date;
+    durationMinutes: number;
+    concern: unknown;
+    isEmergency: boolean;
+  };
+  extracted: AppointmentRequestInput;
+  parsed: ParsedPmsAppointmentUpdate;
+}): PmsUpdatePlan => {
+  const currentLeadId =
+    typeof args.appointment.lead === "object" && args.appointment.lead
+      ? (args.appointment.lead as { id?: string }).id
+      : undefined;
+  const sameVet = currentLeadId === args.extracted.lead?.id;
+
+  const nextStartTime =
+    args.parsed.startTimeFromDto ?? args.appointment.startTime;
+  const nextEndTime = args.parsed.endTimeFromDto ?? args.appointment.endTime;
+
+  const timesProvided =
+    args.parsed.startTimeFromDto != null || args.parsed.endTimeFromDto != null;
+  const sameSlot = !timesProvided
+    ? true
+    : args.appointment.startTime.getTime() === nextStartTime.getTime() &&
+      args.appointment.endTime.getTime() === nextEndTime.getTime();
+
+  const nextDurationMinutes =
+    args.parsed.durationMinutesFromDto ??
+    args.extracted.durationMinutes ??
+    (args.parsed.startTimeFromDto != null && args.parsed.endTimeFromDto != null
+      ? dayjs(nextEndTime).diff(dayjs(nextStartTime), "minute")
+      : args.appointment.durationMinutes);
+
+  const currentStatus = normalizeAppointmentStatus(args.appointment.status);
+  const nextStatus = normalizeAppointmentStatus(
+    args.parsed.statusProvided
+      ? (args.extracted.status ?? args.appointment.status)
+      : args.appointment.status,
+  );
+  const statusChanged =
+    args.parsed.statusProvided && nextStatus !== currentStatus;
+
+  const shouldUpdateEmergency = typeof args.extracted.isEmergency === "boolean";
+  const nextIsEmergency = shouldUpdateEmergency
+    ? (args.extracted.isEmergency as boolean)
+    : args.appointment.isEmergency;
+
+  const previousConcern =
+    typeof args.appointment.concern === "string"
+      ? args.appointment.concern
+      : undefined;
+  const nextConcernValue = args.parsed.concernProvided
+    ? args.parsed.nextConcern
+    : (previousConcern ?? undefined);
+
+  const rescheduled =
+    timesProvided &&
+    (args.appointment.startTime.getTime() !== nextStartTime.getTime() ||
+      args.appointment.endTime.getTime() !== nextEndTime.getTime());
+  const concernChanged =
+    args.parsed.concernProvided &&
+    nextConcernValue !== (previousConcern ?? undefined);
+  const emergencyChanged =
+    shouldUpdateEmergency && nextIsEmergency !== args.appointment.isEmergency;
+
+  return {
+    sameVet,
+    sameSlot,
+    timesProvided,
+    nextStartTime,
+    nextEndTime,
+    nextDurationMinutes,
+    nextStatus,
+    statusChanged,
+    shouldUpdateEmergency,
+    nextIsEmergency,
+    previousConcern,
+    nextConcernValue,
+    concernChanged,
+    emergencyChanged,
+    rescheduled,
+  };
+};
+
+const updateAppointmentPMSFromPostgresRow = async ({
+  appointmentId,
+  extracted,
+  parsed,
+}: UpdateAppointmentPmsArgs): Promise<AppointmentResponseDTO> => {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+  });
+
+  if (!appointment) {
+    throw new AppointmentServiceError("Appointment not found", 404);
+  }
+
+  assertPmsUpdatableStatus(appointment.status, "updateAppointmentPMS");
+
+  const plan = buildPmsUpdatePlanFromPrisma({ appointment, extracted, parsed });
+  const organisationId = appointment.organisationId;
+
+  await prisma.$transaction(async (tx) => {
+    if (!plan.sameVet || !plan.sameSlot) {
+      await tx.occupancy.deleteMany({
+        where: {
+          organisationId,
+          sourceType: "APPOINTMENT",
+          referenceId: appointment.id,
+        },
+      });
+
+      const overlapping = await tx.occupancy.findFirst({
+        where: {
+          userId: extracted.lead?.id,
+          organisationId,
+          startTime: { lt: plan.nextEndTime },
+          endTime: { gt: plan.nextStartTime },
+        },
+      });
+
+      if (overlapping) {
+        throw new AppointmentServiceError(
+          "Selected vet is not available for this slot",
+          409,
+        );
+      }
+
+      await tx.occupancy.create({
+        data: {
+          userId: extracted.lead?.id ?? "",
+          organisationId,
+          startTime: plan.nextStartTime,
+          endTime: plan.nextEndTime,
+          sourceType: "APPOINTMENT",
+          referenceId: appointment.id,
+        },
+      });
+    }
+
+    if (plan.statusChanged) {
+      assertAppointmentStatusTransition(
+        appointment.status,
+        plan.nextStatus,
+        "updateAppointmentPMS",
+      );
+    }
+
+    await tx.appointment.update({
+      where: { id: appointment.id },
+      data: {
+        status: plan.nextStatus,
+        lead: {
+          id: extracted.lead?.id,
+          name: extracted.lead?.name ?? "Vet",
+        } as unknown as Prisma.InputJsonValue,
+        supportStaff: (extracted.supportStaff ??
+          []) as unknown as Prisma.InputJsonValue,
+        room: extracted.room as unknown as Prisma.InputJsonValue,
+        startTime: plan.nextStartTime,
+        endTime: plan.nextEndTime,
+        appointmentDate: parsed.startTimeProvided
+          ? plan.nextStartTime
+          : appointment.appointmentDate,
+        timeSlot: parsed.startTimeProvided
+          ? dayjs(plan.nextStartTime).format("HH:mm")
+          : appointment.timeSlot,
+        durationMinutes: plan.nextDurationMinutes,
+        concern: plan.nextConcernValue ?? undefined,
+        isEmergency: plan.nextIsEmergency ?? false,
+        updatedAt: new Date(),
+      },
+    });
+  });
+
+  const updated = await prisma.appointment.findUnique({
+    where: { id: appointment.id },
+  });
+  if (!updated) {
+    throw new AppointmentServiceError("Appointment not found", 404);
+  }
+
+  if (
+    plan.rescheduled ||
+    plan.statusChanged ||
+    plan.concernChanged ||
+    plan.emergencyChanged
+  ) {
+    const appointmentDomain = toDomainFromPrisma(appointment);
+    const eventType = resolvePmsAppointmentEventType({
+      rescheduled: plan.rescheduled,
+      concernChanged: plan.concernChanged,
+      emergencyChanged: plan.emergencyChanged,
+      nextStatus: plan.nextStatus,
+      previousStatus: appointment.status,
+    });
+
+    await AuditTrailService.recordSafely({
+      organisationId: updated.organisationId,
+      companionId: appointmentDomain.companion.id,
+      eventType,
+      actorType: "SYSTEM",
+      entityType: "APPOINTMENT",
+      entityId: updated.id,
+      metadata: {
+        source: "PMS",
+        status: plan.nextStatus,
+        previousStatus: appointment.status,
+        startTime: plan.nextStartTime,
+        endTime: plan.nextEndTime,
+        concern: plan.nextConcernValue ?? undefined,
+      },
+    });
+  }
+
+  return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
+};
+
+const updatePmsMongoOccupancyIfNeeded = async (args: {
+  appointment: { _id: Types.ObjectId | string };
+  organisationId: string | Types.ObjectId;
+  leadId?: string;
+  nextStartTime: Date;
+  nextEndTime: Date;
+  session: mongoose.ClientSession;
+  sameVet: boolean;
+  sameSlot: boolean;
+}) => {
+  if (args.sameVet && args.sameSlot) return;
+
+  await OccupancyModel.deleteMany(
+    {
+      organisationId: args.organisationId,
+      sourceType: "APPOINTMENT",
+      referenceId: args.appointment._id.toString(),
+    },
+    { session: args.session },
+  );
+
+  const overlapping = await OccupancyModel.findOne({
+    userId: args.leadId,
+    organisationId: args.organisationId,
+    startTime: { $lt: args.nextEndTime },
+    endTime: { $gt: args.nextStartTime },
+  }).session(args.session);
+
+  if (overlapping) {
+    throw new AppointmentServiceError(
+      "Selected vet is not available for this slot",
+      409,
+    );
+  }
+
+  await OccupancyModel.create(
+    [
+      {
+        userId: args.leadId,
+        organisationId: args.organisationId,
+        startTime: args.nextStartTime,
+        endTime: args.nextEndTime,
+        sourceType: "APPOINTMENT",
+        referenceId: args.appointment._id.toString(),
+      },
+    ],
+    { session: args.session },
+  );
+};
+
+const applyPmsMongoAppointmentUpdate = (args: {
+  appointment: AppointmentDocument;
+  extracted: AppointmentRequestInput;
+  parsed: ParsedPmsAppointmentUpdate;
+  plan: PmsUpdatePlan;
+}) => {
+  if (args.plan.statusChanged) {
+    assertAppointmentStatusTransition(
+      args.appointment.status,
+      args.plan.nextStatus,
+      "updateAppointmentPMS",
+    );
+    args.appointment.status = args.plan.nextStatus;
+  }
+
+  args.appointment.lead = {
+    id: args.extracted.lead!.id,
+    name: args.extracted.lead?.name ?? "Vet",
+  };
+  args.appointment.supportStaff = args.extracted.supportStaff ?? [];
+  args.appointment.room = args.extracted.room ?? undefined;
+  args.appointment.startTime = args.plan.nextStartTime;
+  args.appointment.endTime = args.plan.nextEndTime;
+
+  if (args.parsed.startTimeProvided) {
+    args.appointment.appointmentDate = args.plan.nextStartTime;
+    args.appointment.timeSlot = dayjs(args.plan.nextStartTime).format("HH:mm");
+  }
+  args.appointment.durationMinutes = args.plan.nextDurationMinutes;
+
+  if (args.parsed.concernProvided) {
+    args.appointment.concern = args.plan.nextConcernValue;
+  }
+  if (args.plan.shouldUpdateEmergency) {
+    args.appointment.isEmergency = args.plan.nextIsEmergency;
+  }
+
+  args.appointment.updatedAt = new Date();
+};
+
+const recordPmsMongoAppointmentAuditIfNeeded = async (args: {
+  appointment: AppointmentDocument;
+  plan: PmsUpdatePlan;
+  previousSnapshot: {
+    status: LegacyAppointmentStatus;
+    startTime: Date;
+    endTime: Date;
+    concern?: string;
+  };
+}) => {
+  const shouldAudit =
+    args.plan.rescheduled ||
+    args.plan.statusChanged ||
+    args.plan.concernChanged ||
+    args.plan.emergencyChanged;
+  if (!shouldAudit) return;
+
+  const eventType = resolvePmsAppointmentEventType({
+    rescheduled: args.plan.rescheduled,
+    concernChanged: args.plan.concernChanged,
+    emergencyChanged: args.plan.emergencyChanged,
+    nextStatus: args.plan.nextStatus,
+    previousStatus: args.previousSnapshot.status,
+  });
+
+  await AuditTrailService.recordSafely({
+    organisationId: args.appointment.organisationId,
+    companionId: args.appointment.companion.id,
+    eventType,
+    actorType: "SYSTEM",
+    entityType: "APPOINTMENT",
+    entityId: args.appointment._id.toString(),
+    metadata: {
+      source: "PMS",
+      status: args.appointment.status,
+      previousStatus: args.previousSnapshot.status,
+      startTime: args.appointment.startTime,
+      endTime: args.appointment.endTime,
+      previousStartTime: args.previousSnapshot.startTime,
+      previousEndTime: args.previousSnapshot.endTime,
+      concern: args.appointment.concern ?? undefined,
+      previousConcern: args.previousSnapshot.concern,
+    },
+  });
+};
+
+const updateAppointmentPMSFromMongoDoc = async ({
+  appointmentId,
+  extracted,
+  parsed,
+}: UpdateAppointmentPmsArgs): Promise<AppointmentResponseDTO> => {
+  const appointment = await AppointmentModel.findById(appointmentId);
+
+  if (!appointment) {
+    throw new AppointmentServiceError("Appointment not found", 404);
+  }
+
+  assertPmsUpdatableStatus(appointment.status, "updateAppointmentPMS");
+
+  const plan = buildPmsUpdatePlanFromPrisma({
+    appointment: {
+      status: appointment.status,
+      lead: appointment.lead,
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+      durationMinutes: appointment.durationMinutes,
+      concern: appointment.concern,
+      isEmergency: appointment.isEmergency ?? false,
+    },
+    extracted,
+    parsed,
+  });
+
+  const organisationId = appointment.organisationId;
+
+  const previousSnapshot = {
+    status: appointment.status,
+    startTime: appointment.startTime,
+    endTime: appointment.endTime,
+    concern: plan.previousConcern ?? undefined,
+    isEmergency: appointment.isEmergency ?? false,
+  };
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    await updatePmsMongoOccupancyIfNeeded({
+      appointment,
+      organisationId,
+      leadId: extracted.lead?.id,
+      nextStartTime: plan.nextStartTime,
+      nextEndTime: plan.nextEndTime,
+      session,
+      sameVet: plan.sameVet,
+      sameSlot: plan.sameSlot,
+    });
+
+    applyPmsMongoAppointmentUpdate({ appointment, extracted, parsed, plan });
+
+    await appointment.save({ session });
+    await session.commitTransaction();
+    await session.endSession();
+
+    await syncAppointmentToPostgres(appointment);
+
+    await recordPmsMongoAppointmentAuditIfNeeded({
+      appointment,
+      plan,
+      previousSnapshot,
+    });
+
+    return toAppointmentResponseDTOWithPaymentStatus(appointment);
+  } catch (err) {
+    await session.abortTransaction();
+    await session.endSession();
+    throw err;
   }
 };
 
@@ -900,7 +1469,7 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
     timeSlot: obj.timeSlot,
     durationMinutes: obj.durationMinutes,
     endTime: obj.endTime,
-    status: obj.status as LegacyAppointmentStatus,
+    status: obj.status,
     isEmergency: obj.isEmergency ?? undefined,
     concern: obj.concern ?? undefined,
     createdAt: obj.createdAt ?? obj.startTime,
@@ -912,11 +1481,11 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
 
 const toDomainFromPrisma = (row: {
   id: string;
-  companion: Prisma.JsonValue;
-  lead: Prisma.JsonValue | null;
-  supportStaff: Prisma.JsonValue | null;
-  room: Prisma.JsonValue | null;
-  appointmentType: Prisma.JsonValue | null;
+  companion: unknown;
+  lead: unknown;
+  supportStaff: unknown;
+  room: unknown;
+  appointmentType: unknown;
   organisationId: string;
   appointmentDate: Date;
   startTime: Date;
@@ -928,12 +1497,12 @@ const toDomainFromPrisma = (row: {
   concern: string | null;
   createdAt: Date;
   updatedAt: Date;
-  attachments: Prisma.JsonValue | null;
+  attachments: unknown;
   formIds: string[];
 }): Appointment =>
   buildAppointmentDomain({
     id: row.id,
-    companion: row.companion as unknown as Appointment["companion"],
+    companion: row.companion as Appointment["companion"],
     lead: (row.lead ?? undefined) as Appointment["lead"] | undefined,
     supportStaff: (row.supportStaff ?? []) as Appointment["supportStaff"],
     room: (row.room ?? undefined) as Appointment["room"] | undefined,
@@ -946,7 +1515,7 @@ const toDomainFromPrisma = (row: {
     timeSlot: row.timeSlot,
     durationMinutes: row.durationMinutes,
     endTime: row.endTime,
-    status: row.status as LegacyAppointmentStatus,
+    status: row.status,
     isEmergency: row.isEmergency ?? undefined,
     concern: row.concern ?? undefined,
     createdAt: row.createdAt,
@@ -980,7 +1549,7 @@ const toDomainLean = (
     timeSlot: obj.timeSlot,
     durationMinutes: obj.durationMinutes,
     endTime: obj.endTime,
-    status: obj.status as LegacyAppointmentStatus,
+    status: obj.status,
     isEmergency: obj.isEmergency ?? undefined,
     concern: obj.concern ?? undefined,
     createdAt: obj.createdAt ?? obj.startTime,
@@ -1152,23 +1721,21 @@ const toPrismaAppointmentData = (
 
   return {
     id: obj._id.toString(),
-    companion: obj.companion as unknown as Prisma.InputJsonValue,
-    lead: (obj.lead ?? undefined) as unknown as Prisma.InputJsonValue,
-    supportStaff: (obj.supportStaff ?? []) as unknown as Prisma.InputJsonValue,
-    room: (obj.room ?? undefined) as unknown as Prisma.InputJsonValue,
-    appointmentType: (obj.appointmentType ??
-      undefined) as unknown as Prisma.InputJsonValue,
+    companion: obj.companion,
+    lead: obj.lead ?? undefined,
+    supportStaff: obj.supportStaff ?? [],
+    room: obj.room ?? undefined,
+    appointmentType: obj.appointmentType ?? undefined,
     organisationId: obj.organisationId,
     appointmentDate: obj.appointmentDate,
     startTime: obj.startTime,
     endTime: obj.endTime,
     timeSlot: obj.timeSlot,
     durationMinutes: obj.durationMinutes,
-    status: normalizeAppointmentStatus(obj.status as LegacyAppointmentStatus),
+    status: normalizeAppointmentStatus(obj.status),
     isEmergency: obj.isEmergency ?? false,
     concern: obj.concern ?? undefined,
-    attachments: (obj.attachments ??
-      undefined) as unknown as Prisma.InputJsonValue,
+    attachments: obj.attachments ?? undefined,
     formIds: obj.formIds ?? [],
     expiresAt: obj.expiresAt ?? undefined,
     createdAt: obj.createdAt ?? undefined,
@@ -1264,8 +1831,8 @@ export const AppointmentService = {
         serviceId,
       );
 
-      if (consentForm) {
-        input.formIds?.push(consentForm.id!);
+      if (consentForm?.id) {
+        input.formIds?.push(consentForm.id);
       }
 
       const appointment = buildAppointmentFromInput(input, "REQUESTED");
@@ -1383,8 +1950,8 @@ export const AppointmentService = {
       serviceId,
     );
 
-    if (consentForm) {
-      input.formIds?.push(consentForm.id!);
+    if (consentForm?.id) {
+      input.formIds?.push(consentForm.id);
     }
 
     const appointment = buildAppointmentFromInput(input, "REQUESTED");
@@ -1515,8 +2082,8 @@ export const AppointmentService = {
         serviceId,
       );
 
-      if (consentForm) {
-        input.formIds?.push(consentForm.id!);
+      if (consentForm?.id) {
+        input.formIds?.push(consentForm.id);
       }
 
       const pricing = {
@@ -1552,14 +2119,11 @@ export const AppointmentService = {
 
           const created = await tx.appointment.create({
             data: {
-              companion:
-                appointment.companion as unknown as Prisma.InputJsonValue,
-              lead: appointment.lead as unknown as Prisma.InputJsonValue,
-              supportStaff: (appointment.supportStaff ??
-                []) as unknown as Prisma.InputJsonValue,
-              room: appointment.room as unknown as Prisma.InputJsonValue,
-              appointmentType:
-                appointment.appointmentType as unknown as Prisma.InputJsonValue,
+              companion: appointment.companion,
+              lead: appointment.lead,
+              supportStaff: appointment.supportStaff ?? [],
+              room: appointment.room,
+              appointmentType: appointment.appointmentType,
               organisationId: appointment.organisationId,
               appointmentDate: appointment.appointmentDate,
               startTime: appointment.startTime,
@@ -1569,8 +2133,7 @@ export const AppointmentService = {
               status: appointment.status,
               isEmergency: appointment.isEmergency ?? false,
               concern: appointment.concern ?? undefined,
-              attachments: (appointment.attachments ??
-                undefined) as unknown as Prisma.InputJsonValue,
+              attachments: appointment.attachments ?? undefined,
               formIds: appointment.formIds ?? [],
               expiresAt: undefined,
             },
@@ -1715,8 +2278,8 @@ export const AppointmentService = {
       serviceId,
     );
 
-    if (consentForm) {
-      input.formIds?.push(consentForm.id!);
+    if (consentForm?.id) {
+      input.formIds?.push(consentForm.id);
     }
 
     const pricing = {
@@ -1909,10 +2472,7 @@ export const AppointmentService = {
         );
       }
 
-      assertRequestedAppointment(
-        appointment.status as LegacyAppointmentStatus,
-        "approveRequestedFromPms",
-      );
+      assertRequestedAppointment(appointment.status, "approveRequestedFromPms");
 
       const overlapping = await prisma.occupancy.findFirst({
         where: {
@@ -2013,10 +2573,7 @@ export const AppointmentService = {
       );
     }
 
-    assertRequestedAppointment(
-      appointment.status as LegacyAppointmentStatus,
-      "approveRequestedFromPms",
-    );
+    assertRequestedAppointment(appointment.status, "approveRequestedFromPms");
 
     const organisationId = appointment.organisationId;
 
@@ -2073,7 +2630,7 @@ export const AppointmentService = {
       appointment.room = extracted.room ?? undefined;
 
       assertAppointmentStatusTransition(
-        appointment.status as LegacyAppointmentStatus,
+        appointment.status,
         "UPCOMING",
         "approveRequestedFromPms",
       );
@@ -2142,7 +2699,7 @@ export const AppointmentService = {
       );
 
       assertAppointmentStatusTransition(
-        appointment.status as LegacyAppointmentStatus,
+        appointment.status,
         "CANCELLED",
         "cancelAppointment",
       );
@@ -2217,7 +2774,7 @@ export const AppointmentService = {
 
       // --- 4. Cancel appointment
       assertAppointmentStatusTransition(
-        appointment.status as LegacyAppointmentStatus,
+        appointment.status,
         "CANCELLED",
         "cancelAppointment",
       );
@@ -2287,9 +2844,7 @@ export const AppointmentService = {
         throw new AppointmentServiceError("Not your appointment", 403);
       }
 
-      const normalizedStatus = normalizeAppointmentStatus(
-        appointment.status as LegacyAppointmentStatus,
-      );
+      const normalizedStatus = normalizeAppointmentStatus(appointment.status);
       if (!["REQUESTED", "UPCOMING"].includes(normalizedStatus)) {
         throw new AppointmentServiceError(
           "Only requested or upcoming appointments can be cancelled",
@@ -2297,7 +2852,7 @@ export const AppointmentService = {
         );
       }
       assertAppointmentStatusTransition(
-        appointment.status as LegacyAppointmentStatus,
+        appointment.status,
         "CANCELLED",
         "cancelAppointmentFromParent",
       );
@@ -2360,9 +2915,7 @@ export const AppointmentService = {
     }
 
     // Only these statuses can be cancelled from mobile
-    const normalizedStatus = normalizeAppointmentStatus(
-      appointment.status as LegacyAppointmentStatus,
-    );
+    const normalizedStatus = normalizeAppointmentStatus(appointment.status);
     if (!["REQUESTED", "UPCOMING"].includes(normalizedStatus)) {
       throw new AppointmentServiceError(
         "Only requested or upcoming appointments can be cancelled",
@@ -2370,7 +2923,7 @@ export const AppointmentService = {
       );
     }
     assertAppointmentStatusTransition(
-      appointment.status as LegacyAppointmentStatus,
+      appointment.status,
       "CANCELLED",
       "cancelAppointmentFromParent",
     );
@@ -2381,8 +2934,9 @@ export const AppointmentService = {
       reason ?? "Cancelled",
     );
 
-    if (!result)
+    if (!result) {
       throw new AppointmentServiceError("Not able to cancle appointment", 400);
+    }
 
     // Mark appointment cancelled
     appointment.status = "CANCELLED";
@@ -2425,9 +2979,7 @@ export const AppointmentService = {
         throw new AppointmentServiceError("Appointment not found.", 404);
       }
 
-      const normalizedStatus = normalizeAppointmentStatus(
-        appointment.status as LegacyAppointmentStatus,
-      );
+      const normalizedStatus = normalizeAppointmentStatus(appointment.status);
       if (normalizedStatus !== "REQUESTED") {
         throw new AppointmentServiceError(
           "Only REQUESTED appointments can be rejected.",
@@ -2435,7 +2987,7 @@ export const AppointmentService = {
         );
       }
       assertAppointmentStatusTransition(
-        appointment.status as LegacyAppointmentStatus,
+        appointment.status,
         "CANCELLED",
         "rejectRequestedAppointment",
       );
@@ -2485,9 +3037,7 @@ export const AppointmentService = {
       throw new AppointmentServiceError("Appointment not found.", 404);
     }
 
-    const normalizedStatus = normalizeAppointmentStatus(
-      appointment.status as LegacyAppointmentStatus,
-    );
+    const normalizedStatus = normalizeAppointmentStatus(appointment.status);
     if (normalizedStatus !== "REQUESTED") {
       throw new AppointmentServiceError(
         "Only REQUESTED appointments can be rejected.",
@@ -2495,12 +3045,12 @@ export const AppointmentService = {
       );
     }
     assertAppointmentStatusTransition(
-      appointment.status as LegacyAppointmentStatus,
+      appointment.status,
       "CANCELLED",
       "rejectRequestedAppointment",
     );
 
-    const rejectReason = reason! || "Rejected by organisation";
+    const rejectReason = reason ?? "Rejected by organisation";
 
     await InvoiceService.handleAppointmentCancellation(
       appointmentId,
@@ -2552,39 +3102,7 @@ export const AppointmentService = {
     }
 
     const extracted = fromAppointmentRequestDTO(dto);
-
-    const parseOptionalDate = (value: unknown): Date | undefined => {
-      if (value instanceof Date) {
-        return Number.isNaN(value.getTime()) ? undefined : value;
-      }
-      if (typeof value === "string" && value.trim().length > 0) {
-        const parsed = new Date(value);
-        return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-      }
-      return undefined;
-    };
-
-    const dtoAny = dto as unknown as Record<string, unknown>;
-    const startTimeFromDto = parseOptionalDate(
-      dtoAny.startTime ?? dtoAny.start,
-    );
-    const endTimeFromDto = parseOptionalDate(dtoAny.endTime ?? dtoAny.end);
-
-    const durationMinutesFromDto =
-      typeof dtoAny.durationMinutes === "number"
-        ? dtoAny.durationMinutes
-        : typeof dtoAny.minutesDuration === "number"
-          ? dtoAny.minutesDuration
-          : undefined;
-
-    const concernProvided =
-      typeof dtoAny.concern === "string" ||
-      typeof dtoAny.description === "string";
-    const nextConcern = concernProvided
-      ? typeof dtoAny.concern === "string"
-        ? dtoAny.concern
-        : extracted.concern
-      : undefined;
+    const parsed = parsePmsAppointmentUpdate(dto, extracted);
 
     if (extracted.status === "CANCELLED") {
       return this.cancelAppointment(appointmentId, extracted.concern);
@@ -2598,399 +3116,18 @@ export const AppointmentService = {
     }
 
     if (isReadFromPostgres()) {
-      const appointment = await prisma.appointment.findUnique({
-        where: { id: appointmentId },
+      return updateAppointmentPMSFromPostgresRow({
+        appointmentId,
+        extracted,
+        parsed,
       });
-
-      if (!appointment) {
-        throw new AppointmentServiceError("Appointment not found", 404);
-      }
-
-      const allowedStatuses: AppointmentStatus[] = [
-        "REQUESTED",
-        "UPCOMING",
-        "CHECKED_IN",
-        "IN_PROGRESS",
-      ];
-      const normalizedStatus = normalizeAppointmentStatus(
-        appointment.status as LegacyAppointmentStatus,
-      );
-      if (!allowedStatuses.includes(normalizedStatus)) {
-        throw new AppointmentServiceError(
-          `Appointment cannot be updated in status ${appointment.status}`,
-          409,
-        );
-      }
-
-      const currentLeadId =
-        typeof appointment.lead === "object" && appointment.lead
-          ? (appointment.lead as { id?: string }).id
-          : undefined;
-      const sameVet = currentLeadId === extracted.lead?.id;
-      const nextStartTime = startTimeFromDto ?? appointment.startTime;
-      const nextEndTime = endTimeFromDto ?? appointment.endTime;
-      const timesProvided = startTimeFromDto != null || endTimeFromDto != null;
-      const sameSlot = !timesProvided
-        ? true
-        : appointment.startTime.getTime() === nextStartTime.getTime() &&
-          appointment.endTime.getTime() === nextEndTime.getTime();
-
-      const nextDurationMinutes =
-        durationMinutesFromDto ??
-        extracted.durationMinutes ??
-        (startTimeFromDto != null && endTimeFromDto != null
-          ? dayjs(nextEndTime).diff(dayjs(nextStartTime), "minute")
-          : appointment.durationMinutes);
-
-      const statusProvided = typeof dtoAny.status === "string";
-      const nextStatus = statusProvided
-        ? (extracted.status ?? appointment.status)
-        : appointment.status;
-
-      const shouldUpdateEmergency = typeof extracted.isEmergency === "boolean";
-      const nextIsEmergency = shouldUpdateEmergency
-        ? extracted.isEmergency
-        : appointment.isEmergency;
-
-      const previousConcern =
-        typeof appointment.concern === "string"
-          ? appointment.concern
-          : undefined;
-      const nextConcernValue = concernProvided
-        ? nextConcern
-        : (previousConcern ?? undefined);
-
-      const rescheduled =
-        timesProvided &&
-        (appointment.startTime.getTime() !== nextStartTime.getTime() ||
-          appointment.endTime.getTime() !== nextEndTime.getTime());
-      const statusChanged = statusProvided && nextStatus !== appointment.status;
-      const concernChanged =
-        concernProvided && nextConcernValue !== (previousConcern ?? undefined);
-      const emergencyChanged =
-        shouldUpdateEmergency && nextIsEmergency !== appointment.isEmergency;
-
-      await prisma.$transaction(async (tx) => {
-        if (!sameVet || !sameSlot) {
-          await tx.occupancy.deleteMany({
-            where: {
-              organisationId: appointment.organisationId,
-              sourceType: "APPOINTMENT",
-              referenceId: appointment.id,
-            },
-          });
-
-          const overlapping = await tx.occupancy.findFirst({
-            where: {
-              userId: extracted.lead?.id,
-              organisationId: appointment.organisationId,
-              startTime: { lt: nextEndTime },
-              endTime: { gt: nextStartTime },
-            },
-          });
-
-          if (overlapping) {
-            throw new AppointmentServiceError(
-              "Selected vet is not available for this slot",
-              409,
-            );
-          }
-
-          await tx.occupancy.create({
-            data: {
-              userId: extracted.lead?.id ?? "",
-              organisationId: appointment.organisationId,
-              startTime: nextStartTime,
-              endTime: nextEndTime,
-              sourceType: "APPOINTMENT",
-              referenceId: appointment.id,
-            },
-          });
-        }
-
-        if (statusChanged) {
-          assertAppointmentStatusTransition(
-            appointment.status as LegacyAppointmentStatus,
-            nextStatus,
-            "updateAppointmentPMS",
-          );
-        }
-
-        await tx.appointment.update({
-          where: { id: appointment.id },
-          data: {
-            status: nextStatus,
-            lead: {
-              id: extracted.lead?.id,
-              name: extracted.lead?.name ?? "Vet",
-            } as unknown as Prisma.InputJsonValue,
-            supportStaff: (extracted.supportStaff ??
-              []) as unknown as Prisma.InputJsonValue,
-            room: extracted.room as unknown as Prisma.InputJsonValue,
-            startTime: nextStartTime,
-            endTime: nextEndTime,
-            appointmentDate:
-              startTimeFromDto != null
-                ? nextStartTime
-                : appointment.appointmentDate,
-            timeSlot:
-              startTimeFromDto != null
-                ? dayjs(nextStartTime).format("HH:mm")
-                : appointment.timeSlot,
-            durationMinutes: nextDurationMinutes,
-            concern: nextConcernValue ?? undefined,
-            isEmergency: nextIsEmergency ?? false,
-            updatedAt: new Date(),
-          },
-        });
-      });
-
-      const updated = await prisma.appointment.findUnique({
-        where: { id: appointment.id },
-      });
-      if (!updated) {
-        throw new AppointmentServiceError("Appointment not found", 404);
-      }
-
-      if (rescheduled || statusChanged || concernChanged || emergencyChanged) {
-        const appointmentDomain = toDomainFromPrisma(appointment);
-        const normalizedPrev = normalizeAppointmentStatus(
-          appointment.status as LegacyAppointmentStatus,
-        );
-        const eventType =
-          rescheduled || concernChanged || emergencyChanged
-            ? "APPOINTMENT_RESCHEDULED"
-            : nextStatus === "CHECKED_IN"
-              ? "APPOINTMENT_CHECKED_IN"
-              : nextStatus === "UPCOMING" && normalizedPrev === "REQUESTED"
-                ? "APPOINTMENT_APPROVED"
-                : "APPOINTMENT_RESCHEDULED";
-
-        await AuditTrailService.recordSafely({
-          organisationId: updated.organisationId,
-          companionId: appointmentDomain.companion.id,
-          eventType,
-          actorType: "SYSTEM",
-          entityType: "APPOINTMENT",
-          entityId: updated.id,
-          metadata: {
-            source: "PMS",
-            status: nextStatus,
-            previousStatus: appointment.status,
-            startTime: nextStartTime,
-            endTime: nextEndTime,
-            concern: nextConcernValue ?? undefined,
-          },
-        });
-      }
-
-      return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
     }
 
-    const appointment = await AppointmentModel.findById(appointmentId);
-
-    if (!appointment) {
-      throw new AppointmentServiceError("Appointment not found", 404);
-    }
-
-    const allowedStatuses: AppointmentStatus[] = [
-      "REQUESTED",
-      "UPCOMING",
-      "CHECKED_IN",
-      "IN_PROGRESS",
-    ];
-    const normalizedStatus = normalizeAppointmentStatus(
-      appointment.status as LegacyAppointmentStatus,
-    );
-    if (!allowedStatuses.includes(normalizedStatus)) {
-      throw new AppointmentServiceError(
-        `Appointment cannot be updated in status ${appointment.status}`,
-        409,
-      );
-    }
-
-    const organisationId = appointment.organisationId;
-
-    const sameVet = appointment.lead?.id === extracted.lead?.id;
-    const nextStartTime = startTimeFromDto ?? appointment.startTime;
-    const nextEndTime = endTimeFromDto ?? appointment.endTime;
-    const timesProvided = startTimeFromDto != null || endTimeFromDto != null;
-    const sameSlot = !timesProvided
-      ? true
-      : appointment.startTime.getTime() === nextStartTime.getTime() &&
-        appointment.endTime.getTime() === nextEndTime.getTime();
-
-    const nextDurationMinutes =
-      durationMinutesFromDto ??
-      extracted.durationMinutes ??
-      (startTimeFromDto != null && endTimeFromDto != null
-        ? dayjs(nextEndTime).diff(dayjs(nextStartTime), "minute")
-        : appointment.durationMinutes);
-
-    const statusProvided = typeof dtoAny.status === "string";
-    const nextStatus = statusProvided ? extracted.status : appointment.status;
-
-    const shouldUpdateEmergency = typeof extracted.isEmergency === "boolean";
-    const nextIsEmergency = shouldUpdateEmergency
-      ? extracted.isEmergency
-      : appointment.isEmergency;
-
-    const previousConcern =
-      typeof appointment.concern === "string" ? appointment.concern : undefined;
-    const nextConcernValue = concernProvided
-      ? nextConcern
-      : (previousConcern ?? undefined);
-
-    const rescheduled =
-      timesProvided &&
-      (appointment.startTime.getTime() !== nextStartTime.getTime() ||
-        appointment.endTime.getTime() !== nextEndTime.getTime());
-    const statusChanged = statusProvided && nextStatus !== appointment.status;
-    const concernChanged =
-      concernProvided && nextConcernValue !== (previousConcern ?? undefined);
-    const emergencyChanged =
-      shouldUpdateEmergency && nextIsEmergency !== appointment.isEmergency;
-
-    const previousSnapshot = {
-      status: appointment.status,
-      startTime: appointment.startTime,
-      endTime: appointment.endTime,
-      concern: previousConcern ?? undefined,
-      isEmergency: appointment.isEmergency,
-    };
-
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      /**
-       * 🔁 ONLY touch occupancy if something actually changed
-       */
-      if (!sameVet || !sameSlot) {
-        // Remove old occupancy (if exists)
-        await OccupancyModel.deleteMany(
-          {
-            organisationId,
-            sourceType: "APPOINTMENT",
-            referenceId: appointment._id.toString(),
-          },
-          { session },
-        );
-
-        // Check availability for new vet + slot
-        const overlapping = await OccupancyModel.findOne({
-          userId: extracted.lead?.id,
-          organisationId,
-          startTime: { $lt: nextEndTime },
-          endTime: { $gt: nextStartTime },
-        }).session(session);
-
-        if (overlapping) {
-          throw new AppointmentServiceError(
-            "Selected vet is not available for this slot",
-            409,
-          );
-        }
-
-        // Create new occupancy
-        await OccupancyModel.create(
-          [
-            {
-              userId: extracted.lead?.id,
-              organisationId,
-              startTime: nextStartTime,
-              endTime: nextEndTime,
-              sourceType: "APPOINTMENT",
-              referenceId: appointment._id.toString(),
-            },
-          ],
-          { session },
-        );
-      }
-
-      // Apply PMS updates
-      if (statusChanged) {
-        assertAppointmentStatusTransition(
-          appointment.status as LegacyAppointmentStatus,
-          nextStatus,
-          "updateAppointmentPMS",
-        );
-        appointment.status = nextStatus;
-      }
-
-      appointment.lead = {
-        id: extracted.lead?.id,
-        name: extracted.lead?.name ?? "Vet",
-      };
-
-      appointment.supportStaff = extracted.supportStaff ?? [];
-      appointment.room = extracted.room ?? undefined;
-      appointment.startTime = nextStartTime;
-      appointment.endTime = nextEndTime;
-      appointment.appointmentDate =
-        startTimeFromDto != null ? nextStartTime : appointment.appointmentDate;
-      appointment.timeSlot =
-        startTimeFromDto != null
-          ? dayjs(nextStartTime).format("HH:mm")
-          : appointment.timeSlot;
-      appointment.durationMinutes = nextDurationMinutes;
-
-      if (concernProvided) {
-        appointment.concern = nextConcernValue;
-      }
-
-      if (shouldUpdateEmergency) {
-        appointment.isEmergency = nextIsEmergency;
-      }
-      appointment.updatedAt = new Date();
-
-      await appointment.save({ session });
-
-      await session.commitTransaction();
-      await session.endSession();
-
-      await syncAppointmentToPostgres(appointment);
-
-      if (rescheduled || statusChanged || concernChanged || emergencyChanged) {
-        const normalizedPrev = normalizeAppointmentStatus(
-          previousSnapshot.status as LegacyAppointmentStatus,
-        );
-        const eventType =
-          rescheduled || concernChanged || emergencyChanged
-            ? "APPOINTMENT_RESCHEDULED"
-            : nextStatus === "CHECKED_IN"
-              ? "APPOINTMENT_CHECKED_IN"
-              : nextStatus === "UPCOMING" && normalizedPrev === "REQUESTED"
-                ? "APPOINTMENT_APPROVED"
-                : "APPOINTMENT_RESCHEDULED";
-
-        await AuditTrailService.recordSafely({
-          organisationId: appointment.organisationId,
-          companionId: appointment.companion.id,
-          eventType,
-          actorType: "SYSTEM",
-          entityType: "APPOINTMENT",
-          entityId: appointment._id.toString(),
-          metadata: {
-            source: "PMS",
-            status: appointment.status,
-            previousStatus: previousSnapshot.status,
-            startTime: appointment.startTime,
-            endTime: appointment.endTime,
-            previousStartTime: previousSnapshot.startTime,
-            previousEndTime: previousSnapshot.endTime,
-            concern: appointment.concern ?? undefined,
-            previousConcern: previousSnapshot.concern,
-          },
-        });
-      }
-
-      return toAppointmentResponseDTOWithPaymentStatus(appointment);
-    } catch (err) {
-      await session.abortTransaction();
-      await session.endSession();
-      throw err;
-    }
+    return updateAppointmentPMSFromMongoDoc({
+      appointmentId,
+      extracted,
+      parsed,
+    });
   },
 
   async attachFormsToAppointment(
@@ -3186,7 +3323,7 @@ export const AppointmentService = {
       }
 
       assertAppointmentStatusTransition(
-        appointment.status as LegacyAppointmentStatus,
+        appointment.status,
         "CHECKED_IN",
         "checkInAppointmentParent",
       );
@@ -3231,14 +3368,13 @@ export const AppointmentService = {
     }
 
     assertAppointmentStatusTransition(
-      appointment.status as LegacyAppointmentStatus,
+      appointment.status,
       "CHECKED_IN",
       "checkInAppointmentParent",
     );
     appointment.status = "CHECKED_IN";
     appointment.updatedAt = new Date();
     await appointment.save();
-    await syncAppointmentToPostgres(appointment);
     await syncAppointmentToPostgres(appointment);
 
     await AuditTrailService.recordSafely({
@@ -3274,7 +3410,7 @@ export const AppointmentService = {
       }
 
       assertAppointmentStatusTransition(
-        appointment.status as LegacyAppointmentStatus,
+        appointment.status,
         "CHECKED_IN",
         "checkInAppointment",
       );
@@ -3313,7 +3449,7 @@ export const AppointmentService = {
     }
 
     assertAppointmentStatusTransition(
-      appointment.status as LegacyAppointmentStatus,
+      appointment.status,
       "CHECKED_IN",
       "checkInAppointment",
     );
@@ -3385,9 +3521,7 @@ export const AppointmentService = {
         );
       }
 
-      const normalizedStatus = normalizeAppointmentStatus(
-        existing.status as LegacyAppointmentStatus,
-      );
+      const normalizedStatus = normalizeAppointmentStatus(existing.status);
       if (
         normalizedStatus === "COMPLETED" ||
         normalizedStatus === "CANCELLED"
@@ -3405,7 +3539,7 @@ export const AppointmentService = {
 
       if (normalizedStatus === "UPCOMING") {
         assertAppointmentStatusTransition(
-          existing.status as LegacyAppointmentStatus,
+          existing.status,
           "REQUESTED",
           "rescheduleFromParent",
         );
@@ -3442,18 +3576,10 @@ export const AppointmentService = {
               ? changes.isEmergency
               : existing.isEmergency,
           status: newStatus,
-          lead:
-            leadValue === null
-              ? Prisma.DbNull
-              : (leadValue as Prisma.InputJsonValue | undefined),
+          lead: leadValue === null ? Prisma.DbNull : leadValue,
           supportStaff:
-            supportStaffValue === null
-              ? Prisma.DbNull
-              : (supportStaffValue as Prisma.InputJsonValue | undefined),
-          room:
-            roomValue === null
-              ? Prisma.DbNull
-              : (roomValue as Prisma.InputJsonValue | undefined),
+            supportStaffValue === null ? Prisma.DbNull : supportStaffValue,
+          room: roomValue === null ? Prisma.DbNull : roomValue,
           updatedAt: new Date(),
         },
       });
@@ -3500,9 +3626,7 @@ export const AppointmentService = {
       }
 
       // 2. Status checks
-      const normalizedStatus = normalizeAppointmentStatus(
-        existing.status as LegacyAppointmentStatus,
-      );
+      const normalizedStatus = normalizeAppointmentStatus(existing.status);
       if (
         normalizedStatus === "COMPLETED" ||
         normalizedStatus === "CANCELLED"
@@ -3519,7 +3643,7 @@ export const AppointmentService = {
       // move it back to REQUESTED and clear vet/staff/room.
       if (normalizedStatus === "UPCOMING") {
         assertAppointmentStatusTransition(
-          existing.status as LegacyAppointmentStatus,
+          existing.status,
           "REQUESTED",
           "rescheduleFromParent",
         );
