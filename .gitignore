@@ -1,6 +1,7 @@
 .DS_Store
 node_modules
 .turbo
+.playwright-mcp
 *.log
 .next
 dist
