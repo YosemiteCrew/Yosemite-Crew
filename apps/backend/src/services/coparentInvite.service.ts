@@ -420,10 +420,10 @@ export const CoParentInviteService = {
     // 4. Create CO_PARENT link (as ACTIVE)
     await ParentCompanionService.linkParent({
       parentId: parentMongoId,
-      companionId: new Types.ObjectId(invite.companion.id),
+      companionId: new Types.ObjectId(String(invite.companion.id)),
       role: "CO_PARENT",
       status: "ACTIVE",
-      invitedByParentId: new Types.ObjectId(invite.invitedBy.id),
+      invitedByParentId: new Types.ObjectId(String(invite.invitedBy.id)),
       permissionsOverride: undefined,
     });
 

@@ -403,7 +403,7 @@ export const ObservationToolSubmissionService = {
         where: { id: input.toolId },
       });
 
-      if (!tool || !tool.isActive) {
+      if (!tool?.isActive) {
         throw new ObservationToolSubmissionServiceError(
           "Observation tool not found or inactive",
           404,
@@ -491,7 +491,7 @@ export const ObservationToolSubmissionService = {
       input.toolId,
     ).exec();
 
-    if (!tool || !tool.isActive) {
+    if (!tool?.isActive) {
       throw new ObservationToolSubmissionServiceError(
         "Observation tool not found or inactive",
         404,
@@ -784,7 +784,7 @@ export const ObservationToolSubmissionService = {
         where: { id: task.observationToolId },
       });
 
-      if (!tool || !tool.isActive) {
+      if (!tool?.isActive) {
         throw new ObservationToolSubmissionServiceError(
           "Observation tool not found or inactive",
           404,
@@ -845,7 +845,7 @@ export const ObservationToolSubmissionService = {
       task.observationToolId,
     ).lean();
 
-    if (!tool || !tool.isActive) {
+    if (!tool?.isActive) {
       throw new ObservationToolSubmissionServiceError(
         "Observation tool not found or inactive",
         404,

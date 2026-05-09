@@ -320,7 +320,10 @@ export const LabOrderService = {
       }
       const trimmedQuery = params.query.trim();
       if (trimmedQuery) {
-        const escaped = trimmedQuery.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escaped = trimmedQuery.replaceAll(
+          /[.*+?^${}()|[\]\\]/g,
+          String.raw`\\$&`,
+        );
         filter.$or = [
           { code: new RegExp(escaped, "i") },
           { display: new RegExp(escaped, "i") },
@@ -337,6 +340,9 @@ export const LabOrderService = {
       typeof params.page === "number" && params.page > 0 ? params.page : 1;
     const skip = (page - 1) * limit;
 
+    const queryText = params.query?.trim();
+    const hasCodes = (params.codes?.length ?? 0) > 0;
+
     const [total, items] = isReadFromPostgres()
       ? await Promise.all([
           prisma.codeEntry.count({
@@ -344,21 +350,19 @@ export const LabOrderService = {
               system: "IDEXX",
               type: "TEST",
               active: true,
-              ...(params.codes && params.codes.length > 0
-                ? { code: { in: params.codes } }
-                : {}),
-              ...(params.query && params.query.trim()
+              ...(hasCodes ? { code: { in: params.codes } } : {}),
+              ...(queryText
                 ? {
                     OR: [
                       {
                         code: {
-                          contains: params.query.trim(),
+                          contains: queryText,
                           mode: "insensitive",
                         },
                       },
                       {
                         display: {
-                          contains: params.query.trim(),
+                          contains: queryText,
                           mode: "insensitive",
                         },
                       },
@@ -372,21 +376,19 @@ export const LabOrderService = {
               system: "IDEXX",
               type: "TEST",
               active: true,
-              ...(params.codes && params.codes.length > 0
-                ? { code: { in: params.codes } }
-                : {}),
-              ...(params.query && params.query.trim()
+              ...(hasCodes ? { code: { in: params.codes } } : {}),
+              ...(queryText
                 ? {
                     OR: [
                       {
                         code: {
-                          contains: params.query.trim(),
+                          contains: queryText,
                           mode: "insensitive",
                         },
                       },
                       {
                         display: {
-                          contains: params.query.trim(),
+                          contains: queryText,
                           mode: "insensitive",
                         },
                       },

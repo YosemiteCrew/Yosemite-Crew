@@ -55,8 +55,7 @@ const slugify = (value: string) => {
   let output = "";
   let wroteSeparator = false;
 
-  for (let index = 0; index < input.length; index += 1) {
-    const char = input[index];
+  for (const char of input) {
     const isLetter = char >= "a" && char <= "z";
     const isDigit = char >= "0" && char <= "9";
 

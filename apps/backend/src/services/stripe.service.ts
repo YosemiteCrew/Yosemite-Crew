@@ -696,7 +696,8 @@ export const StripeService = {
         where: { orgId },
       });
 
-      if (!billingRow || billingRow.plan !== "business")
+      if (!billingRow) return { updated: false, reason: "not_business" };
+      if (billingRow.plan !== "business")
         return { updated: false, reason: "not_business" };
       const subscriptionItemId = billingRow.stripeSubscriptionItemId;
       if (!subscriptionItemId)

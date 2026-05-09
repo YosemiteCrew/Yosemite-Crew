@@ -7,10 +7,14 @@ import { assertSafeString } from "src/utils/sanitize";
 import ParentCompanionModel from "src/models/parent-companion";
 import CompanionModel from "../models/companion";
 import { ParentModel } from "src/models/parent";
-import { toFHIR as toFHIRCompanion } from "./companion.service";
-import { toFHIR as toFHIRParent } from "./parent.service";
-import { toFHIRFromPrisma as toFHIRCompanionFromPrisma } from "./companion.service";
-import { toFHIRFromPrisma as toFHIRParentFromPrisma } from "./parent.service";
+import {
+  toFHIR as toFHIRCompanion,
+  toFHIRFromPrisma as toFHIRCompanionFromPrisma,
+} from "./companion.service";
+import {
+  toFHIR as toFHIRParent,
+  toFHIRFromPrisma as toFHIRParentFromPrisma,
+} from "./parent.service";
 import { AuditTrailService } from "./audit-trail.service";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";

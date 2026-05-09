@@ -528,7 +528,7 @@ export const ParentCompanionService = {
         },
         select: { companionId: true },
       });
-      return links.map((link) => new Types.ObjectId(link.companionId));
+      return links.map((link) => new Types.ObjectId(String(link.companionId)));
     }
     const documents = await ParentCompanionModel.find(
       { parentId, status: { $in: ["ACTIVE", "PENDING"] } },

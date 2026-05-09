@@ -229,33 +229,33 @@ export const TaskTemplateService = {
           category: input.category ?? existing.category,
           name: input.name ?? existing.name,
           description:
-            input.description !== undefined
-              ? (input.description ?? undefined)
-              : (existing.description ?? undefined),
+            input.description === undefined
+              ? (existing.description ?? undefined)
+              : (input.description ?? undefined),
           defaultRole:
-            input.defaultRole !== undefined
-              ? ((input.defaultRole === "EMPLOYEE"
+            input.defaultRole === undefined
+              ? existing.defaultRole
+              : ((input.defaultRole === "EMPLOYEE"
                   ? "EMPLOYEE_TASK"
-                  : "PARENT_TASK") as TaskTemplateRole)
-              : existing.defaultRole,
+                  : "PARENT_TASK") as TaskTemplateRole),
           defaultMedication:
-            input.defaultMedication !== undefined
-              ? ((input.defaultMedication ??
-                  undefined) as unknown as Prisma.InputJsonValue)
-              : (existing.defaultMedication ?? undefined),
+            input.defaultMedication === undefined
+              ? (existing.defaultMedication ?? undefined)
+              : ((input.defaultMedication ??
+                  undefined) as unknown as Prisma.InputJsonValue),
           defaultObservationToolId:
-            input.defaultObservationToolId !== undefined
-              ? (input.defaultObservationToolId ?? undefined)
-              : (existing.defaultObservationToolId ?? undefined),
+            input.defaultObservationToolId === undefined
+              ? (existing.defaultObservationToolId ?? undefined)
+              : (input.defaultObservationToolId ?? undefined),
           defaultRecurrence:
-            input.defaultRecurrence !== undefined
-              ? ((input.defaultRecurrence ??
-                  undefined) as unknown as Prisma.InputJsonValue)
-              : (existing.defaultRecurrence ?? undefined),
+            input.defaultRecurrence === undefined
+              ? (existing.defaultRecurrence ?? undefined)
+              : ((input.defaultRecurrence ??
+                  undefined) as unknown as Prisma.InputJsonValue),
           defaultReminderOffsetMinutes:
-            input.defaultReminderOffsetMinutes !== undefined
-              ? (input.defaultReminderOffsetMinutes ?? undefined)
-              : (existing.defaultReminderOffsetMinutes ?? undefined),
+            input.defaultReminderOffsetMinutes === undefined
+              ? (existing.defaultReminderOffsetMinutes ?? undefined)
+              : (input.defaultReminderOffsetMinutes ?? undefined),
           isActive: input.isActive ?? existing.isActive,
         },
       });

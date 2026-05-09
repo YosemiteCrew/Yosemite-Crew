@@ -7,15 +7,14 @@ import type {
 import { IdexxClient } from "./idexx.client";
 
 const ensureNonEmpty = (value: string | undefined, field: string) => {
-  if (!value || !value.trim()) {
+  if (!value?.trim()) {
     return { ok: false as const, reason: `${field} is required.` };
   }
   return { ok: true as const };
 };
 
 const getEnv = (key: string): string | null => {
-  const value = process.env[key];
-  return value && value.trim() ? value : null;
+  return process.env[key]?.trim() || null;
 };
 
 const isIdexxCredentials = (

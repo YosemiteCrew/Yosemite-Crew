@@ -19,6 +19,11 @@ export class AdverseEventServiceError extends Error {
   }
 }
 
+const toInputJsonObject = (value: unknown): Prisma.InputJsonObject => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as unknown as Prisma.InputJsonObject;
+};
+
 const toDomain = (doc: AdverseEventReportDocument): AdverseEventReport => ({
   id: doc._id.toString(),
   organisationId: doc.organisationId,
@@ -82,18 +87,25 @@ export const AdverseEventService = {
         data: {
           organisationId: input.organisationId ?? undefined,
           appointmentId: input.appointmentId ?? undefined,
-          reporter: input.reporter as unknown as Prisma.InputJsonValue,
-          companion: input.companion as unknown as Prisma.InputJsonValue,
-          product: input.product as unknown as Prisma.InputJsonValue,
-          destinations: input.destinations as unknown as Prisma.InputJsonValue,
+          reporter: toInputJsonObject(input.reporter),
+          companion: toInputJsonObject(input.companion),
+          product: toInputJsonObject(input.product),
+          destinations: toInputJsonObject(input.destinations),
           consent: {
             agreedToContact: input.consent?.agreedToContact ?? false,
             agreedToTermsAt: input.consent?.agreedToTermsAt ?? new Date(),
-          } as unknown as Prisma.InputJsonValue,
+          },
           status: "SUBMITTED",
         },
       });
-      return toDomainFromPrisma(doc);
+      return toDomainFromPrisma({
+        ...doc,
+        reporter: doc.reporter,
+        companion: doc.companion,
+        product: doc.product,
+        destinations: doc.destinations,
+        consent: doc.consent,
+      });
     }
 
     const doc = await AdverseEventReportModel.create({
@@ -117,15 +129,14 @@ export const AdverseEventService = {
             id: doc._id.toString(),
             organisationId: input.organisationId ?? undefined,
             appointmentId: input.appointmentId ?? undefined,
-            reporter: input.reporter as unknown as Prisma.InputJsonValue,
-            companion: input.companion as unknown as Prisma.InputJsonValue,
-            product: input.product as unknown as Prisma.InputJsonValue,
-            destinations:
-              input.destinations as unknown as Prisma.InputJsonValue,
+            reporter: toInputJsonObject(input.reporter),
+            companion: toInputJsonObject(input.companion),
+            product: toInputJsonObject(input.product),
+            destinations: toInputJsonObject(input.destinations),
             consent: {
               agreedToContact: input.consent?.agreedToContact ?? false,
               agreedToTermsAt: input.consent?.agreedToTermsAt ?? new Date(),
-            } as unknown as Prisma.InputJsonValue,
+            },
             status: "SUBMITTED",
             createdAt: doc.createdAt ?? undefined,
             updatedAt: doc.updatedAt ?? undefined,
@@ -142,7 +153,16 @@ export const AdverseEventService = {
   async getById(id: string): Promise<AdverseEventReport | null> {
     if (isReadFromPostgres()) {
       const row = await prisma.adverseEventReport.findUnique({ where: { id } });
-      return row ? toDomainFromPrisma(row) : null;
+      return row
+        ? toDomainFromPrisma({
+            ...row,
+            reporter: row.reporter,
+            companion: row.companion,
+            product: row.product,
+            destinations: row.destinations,
+            consent: row.consent,
+          })
+        : null;
     }
     const doc = await AdverseEventReportModel.findById(id);
     return doc ? toDomain(doc) : null;
@@ -155,7 +175,9 @@ export const AdverseEventService = {
     const query: FilterQuery<AdverseEventReportDocument> = {
       organisationId: orgId,
     };
-    if (options?.status) query.status = options.status;
+    if (options?.status) {
+      query.status = options.status;
+    }
 
     if (isReadFromPostgres()) {
       const rows = await prisma.adverseEventReport.findMany({
@@ -165,7 +187,16 @@ export const AdverseEventService = {
         },
         orderBy: { createdAt: "desc" },
       });
-      return rows.map(toDomainFromPrisma);
+      return rows.map((row) =>
+        toDomainFromPrisma({
+          ...row,
+          reporter: row.reporter,
+          companion: row.companion,
+          product: row.product,
+          destinations: row.destinations,
+          consent: row.consent,
+        }),
+      );
     }
 
     const docs = await AdverseEventReportModel.find(query)
@@ -180,7 +211,14 @@ export const AdverseEventService = {
         where: { id },
         data: { status },
       });
-      return toDomainFromPrisma(row);
+      return toDomainFromPrisma({
+        ...row,
+        reporter: row.reporter,
+        companion: row.companion,
+        product: row.product,
+        destinations: row.destinations,
+        consent: row.consent,
+      });
     }
 
     const doc = await AdverseEventReportModel.findById(id);

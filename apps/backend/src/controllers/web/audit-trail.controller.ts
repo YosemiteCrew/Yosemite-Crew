@@ -13,35 +13,35 @@ const parseListQuery = (payload: Record<string, unknown> | undefined) => {
   const eventTypesRaw = payload?.eventTypes;
   const entityTypesRaw = payload?.entityTypes;
 
-  const limit =
-    typeof limitRaw === "number"
-      ? Math.floor(limitRaw)
-      : typeof limitRaw === "string"
-        ? Number.parseInt(limitRaw, 10)
-        : undefined;
+  let limit: number | undefined;
+  if (typeof limitRaw === "number") {
+    limit = Math.floor(limitRaw);
+  } else if (typeof limitRaw === "string") {
+    limit = Number.parseInt(limitRaw, 10);
+  }
 
-  const before =
-    typeof beforeRaw === "string" && beforeRaw.trim().length > 0
-      ? new Date(beforeRaw)
-      : beforeRaw instanceof Date
-        ? beforeRaw
-        : undefined;
+  let before: Date | undefined;
+  if (typeof beforeRaw === "string" && beforeRaw.trim().length > 0) {
+    before = new Date(beforeRaw);
+  } else if (beforeRaw instanceof Date) {
+    before = beforeRaw;
+  }
   const safeBefore =
     before && !Number.isNaN(before.getTime()) ? before : undefined;
 
-  const eventTypes =
-    typeof eventTypesRaw === "string" && eventTypesRaw.trim().length > 0
-      ? (eventTypesRaw.split(",") as AuditEventType[])
-      : Array.isArray(eventTypesRaw)
-        ? (eventTypesRaw as AuditEventType[])
-        : undefined;
+  let eventTypes: AuditEventType[] | undefined;
+  if (typeof eventTypesRaw === "string" && eventTypesRaw.trim().length > 0) {
+    eventTypes = eventTypesRaw.split(",") as AuditEventType[];
+  } else if (Array.isArray(eventTypesRaw)) {
+    eventTypes = eventTypesRaw as AuditEventType[];
+  }
 
-  const entityTypes =
-    typeof entityTypesRaw === "string" && entityTypesRaw.trim().length > 0
-      ? (entityTypesRaw.split(",") as AuditEntityType[])
-      : Array.isArray(entityTypesRaw)
-        ? (entityTypesRaw as AuditEntityType[])
-        : undefined;
+  let entityTypes: AuditEntityType[] | undefined;
+  if (typeof entityTypesRaw === "string" && entityTypesRaw.trim().length > 0) {
+    entityTypes = entityTypesRaw.split(",") as AuditEntityType[];
+  } else if (Array.isArray(entityTypesRaw)) {
+    entityTypes = entityTypesRaw as AuditEntityType[];
+  }
 
   return { limit, before: safeBefore, eventTypes, entityTypes };
 };
