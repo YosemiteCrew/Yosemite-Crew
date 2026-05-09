@@ -4,6 +4,7 @@ type PostHogEvent = {
 };
 
 export const COOKIE_CONSENT_KEY = 'cookieConsentGiven';
+export const POSTHOG_READY_EVENT = 'yc:posthog-ready';
 
 const REDACTED_VALUE = '[REDACTED]';
 const SENSITIVE_PROPERTY_NAMES = new Set([
@@ -13,8 +14,10 @@ const SENSITIVE_PROPERTY_NAMES = new Set([
   'id_token',
   'password',
   'refresh_token',
-  'token',
+  // 'token' is intentionally excluded because PostHog uses properties['token'] as the
+  // project API key (a public value). Redacting it strips the auth header and returns 401.
 ]);
+export const POSTHOG_PROPERTY_DENYLIST = [...SENSITIVE_PROPERTY_NAMES];
 
 const sanitizeUrl = (value: unknown) => {
   if (typeof value !== 'string' || value.length === 0) {

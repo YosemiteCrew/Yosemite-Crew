@@ -1,4 +1,4 @@
-import { sanitizePostHogEvent } from '@/app/lib/posthog';
+import { POSTHOG_PROPERTY_DENYLIST, sanitizePostHogEvent } from '@/app/lib/posthog';
 
 describe('sanitizePostHogEvent', () => {
   it('redacts sensitive top-level properties', () => {
@@ -6,12 +6,28 @@ describe('sanitizePostHogEvent', () => {
       event: '$autocapture',
       properties: {
         password: 'secret',
-        token: 'abc',
+        access_token: 'bearer-xyz',
       },
     } as any);
 
     expect(event?.properties?.password).toBe('[REDACTED]');
-    expect(event?.properties?.token).toBe('[REDACTED]');
+    expect(event?.properties?.access_token).toBe('[REDACTED]');
+  });
+
+  it('does not redact the posthog token property (it is the public project API key)', () => {
+    const event = sanitizePostHogEvent({
+      event: '$pageview',
+      properties: {
+        token: 'phc_test',
+      },
+    } as any);
+
+    expect(event?.properties?.token).toBe('phc_test');
+  });
+
+  it('keeps the PostHog token property out of the SDK denylist', () => {
+    expect(POSTHOG_PROPERTY_DENYLIST).toEqual(expect.arrayContaining(['password', 'access_token']));
+    expect(POSTHOG_PROPERTY_DENYLIST).not.toContain('token');
   });
 
   it('strips query strings and fragments from tracked URLs', () => {
