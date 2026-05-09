@@ -213,8 +213,7 @@ const TaskSlot = ({
 
   return (
     <>
-      <div
-        role="region"
+      <section
         aria-label={taskSlotLabel}
         className={`relative bg-white border-l border-grey-light ${
           resolvedDayIndex === length ? 'border-r' : ''
@@ -223,8 +222,8 @@ const TaskSlot = ({
         onDragOver={(event) => {
           if (!draggedTaskId) return;
           event.preventDefault();
-          autoScrollCalendarHorizontally(event.clientX, event.currentTarget as HTMLDivElement);
-          autoScrollCalendarVertically(event.clientY, event.currentTarget as HTMLDivElement);
+          autoScrollCalendarHorizontally(event.clientX, event.currentTarget);
+          autoScrollCalendarVertically(event.clientY, event.currentTarget);
           onDragHoverTarget?.(dropDate, dropAssigneeId);
           const minute = getMinuteFromPointer(event.clientY, event.currentTarget as HTMLDivElement);
           setDropPreviewMinute(getNearestAvailableMinute(minute));
@@ -415,7 +414,7 @@ const TaskSlot = ({
             </div>
           );
         })}
-      </div>
+      </section>
 
       {activeTask && activePopoverKey && typeof document !== 'undefined'
         ? createPortal(

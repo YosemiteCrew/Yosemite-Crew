@@ -78,6 +78,11 @@ type DayCalendarProps = {
 const getCompanionDisplayName = (appointment: Appointment) =>
   formatCompanionNameWithOwnerLastName(appointment.companion?.name, appointment.companion?.parent);
 
+const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
+  const concernSuffix = appointment.concern ? `. ${appointment.concern}` : '';
+  return `All-day appointment for ${getCompanionDisplayName(appointment)}${concernSuffix}`;
+};
+
 const MARKER_CLICK_DELAY_MS = 180;
 
 type ContextMenuState = {
@@ -481,7 +486,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                   aria-haspopup="dialog"
                   aria-expanded={activePopoverKey === itemKey}
                   aria-controls={appointmentPopoverId}
-                  aria-label={`All-day appointment for ${getCompanionDisplayName(ev)}${ev.concern ? `. ${ev.concern}` : ''}`}
+                  aria-label={getAllDayAppointmentAriaLabel(ev)}
                   onClick={(event) => handleMarkerClick(event, itemKey)}
                   onDoubleClick={() => handleMarkerDoubleClick(ev)}
                   onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
@@ -522,8 +527,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
         onWheel={onWheelBoundary}
         data-calendar-scroll="true"
       >
-        <div
-          role="region"
+        <section
           tabIndex={onCreateAppointmentAt && !draggedAppointmentId ? 0 : -1}
           aria-label={timelineLabel}
           aria-describedby={
@@ -764,7 +768,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
               );
             })}
           </div>
-        </div>
+        </section>
         <div style={{ height: zoomMode === 'out' ? 72 : 12 }} />
       </div>
       {isMounted &&

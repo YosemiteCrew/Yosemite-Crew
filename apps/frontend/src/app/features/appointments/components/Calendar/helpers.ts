@@ -248,10 +248,7 @@ export function getFirstRelevantTimedEventStart(
 }
 
 export function prefersReducedMotion() {
-  if (
-    typeof globalThis.window === 'undefined' ||
-    typeof globalThis.window.matchMedia !== 'function'
-  ) {
+  if (globalThis.window?.matchMedia === undefined) {
     return false;
   }
   return globalThis.window.matchMedia('(prefers-reduced-motion: reduce)').matches;

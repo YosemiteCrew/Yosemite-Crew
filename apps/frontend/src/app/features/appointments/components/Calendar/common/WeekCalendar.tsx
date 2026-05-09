@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
+import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import {
   eventsForDayHour,
   getWeekDays,
@@ -41,7 +42,17 @@ import {
   useCalendarWeekNavigation,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
+
 const HOUR_ROW_TOP_OFFSET_PX = 0;
+
+const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
+  const concernSuffix = appointment.concern ? `. ${appointment.concern}` : '';
+  return `All-day appointment for ${formatCompanionNameWithOwnerLastName(
+    appointment.companion.name,
+    appointment.companion.parent
+  )}${concernSuffix}`;
+};
+
 type WeekCalendarProps = {
   events: Appointment[];
   zoomMode?: CalendarZoomMode;
@@ -83,7 +94,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   setWeekStart,
   setCurrentDate,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
+  handleChangeStatusAppointment: _handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   canEditAppointments,
   draggedAppointmentId,
@@ -104,6 +115,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
+  const onWheelHorizontal = useWheelToHorizontalScroll();
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
@@ -139,7 +151,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     }
     return { allDayByDay: byDay, timedEvents: timed };
   }, [events, days]);
-
   const visibleHourRange = useMemo(() => {
     const minutes: number[] = [];
     days.forEach((day) => {
@@ -159,6 +170,18 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   }, [days, getVisibleAvailabilityIntervals, timedEvents, zoomMode]);
 
   const visibleHours = useMemo(() => getVisibleHours(visibleHourRange), [visibleHourRange]);
+  const timedEventsByDayHour = useMemo(() => {
+    const entries = new Map<string, Appointment[]>();
+
+    days.forEach((day) => {
+      visibleHours.forEach((hour) => {
+        const key = `${day.toISOString()}-${hour}`;
+        entries.set(key, eventsForDayHour(timedEvents, day, hour));
+      });
+    });
+
+    return entries;
+  }, [days, timedEvents, visibleHours]);
   const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
   const { handlePrevWeek, handleNextWeek } = useCalendarWeekNavigation(
     setWeekStart,
@@ -223,7 +246,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       topPx = Math.max(0, currentNowPosition.topPx);
     } else {
       const focusStart = getFirstRelevantTimedEventStart(
-        currentTimedEvents as never,
+        currentTimedEvents,
         rangeStart,
         effectiveRangeEnd
       );
@@ -255,15 +278,15 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <div
-        className="w-full flex-1 overflow-x-auto relative rounded-2xl"
+      <section
+        className="w-full flex-1 overflow-x-auto relative rounded-2xl scrollbar-x-float"
         data-calendar-scroll="true"
-        role="region"
         aria-label={weekTimelineLabel}
+        onWheel={onWheelHorizontal}
       >
         <div className="min-w-max h-full flex flex-col">
           <div className="z-30 bg-white">
-            <div className="grid border-b border-grey-light py-3 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
+            <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
               <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
               </div>
@@ -316,10 +339,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               key={`${ev.companion.name}-${ev.startTime.toISOString()}`}
                               type="button"
                               onClick={() => handleViewAppointment(ev)}
-                              aria-label={`All-day appointment for ${formatCompanionNameWithOwnerLastName(
-                                ev.companion.name,
-                                ev.companion.parent
-                              )}${ev.concern ? `. ${ev.concern}` : ''}`}
+                              aria-label={getAllDayAppointmentAriaLabel(ev)}
                               className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
                               style={{
                                 ...({
@@ -374,7 +394,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                   />
                   <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
-                      const slotEvents = eventsForDayHour(timedEvents, day, hour);
+                      const slotEvents =
+                        timedEventsByDayHour.get(`${day.toISOString()}-${hour}`) ?? [];
                       const hourStart = hour * 60;
                       const hourEnd = hourStart + 60;
                       return (
@@ -462,7 +483,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                   {nowTimeLabel}
                                 </div>
                               )}
-                              <div className="absolute left-[-5px] w-3 h-3 rounded-full bg-red-500 translate-y-[-50%]" />
+                              <div className="absolute -left-1.25 w-3 h-3 rounded-full bg-red-500 -translate-y-1/2" />
                               <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
                             </div>
                           )}
@@ -476,7 +497,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

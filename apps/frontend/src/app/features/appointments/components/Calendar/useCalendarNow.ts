@@ -44,12 +44,12 @@ export const useCalendarNow = (): Date => {
     };
 
     document.addEventListener('visibilitychange', onVisibilityChange);
-    globalThis.addEventListener('yc:timezone-changed', onTimezoneChange as EventListener);
+    globalThis.addEventListener('yc:timezone-changed', onTimezoneChange);
 
     return () => {
       clearTimers();
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      globalThis.removeEventListener('yc:timezone-changed', onTimezoneChange as EventListener);
+      globalThis.removeEventListener('yc:timezone-changed', onTimezoneChange);
     };
   }, []);
 

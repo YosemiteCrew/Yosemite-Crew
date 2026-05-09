@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
+import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -85,6 +86,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const HOUR_ROW_TOP_OFFSET_PX = 8;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
+  const onWheelHorizontal = useWheelToHorizontalScroll();
   const teamColumnsStyle = useMemo(
     () => getCalendarColumnGridStyle(team.length, zoomMode === 'out' ? 108 : 170),
     [team.length, zoomMode]
@@ -170,8 +172,9 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   return (
     <div className="h-full flex flex-col">
       <div
-        className="w-full flex-1 overflow-x-auto overflow-y-hidden relative"
+        className="w-full flex-1 overflow-x-auto overflow-y-hidden relative scrollbar-x-float"
         data-calendar-scroll="true"
+        onWheel={onWheelHorizontal}
       >
         <div className="min-w-max h-full flex flex-col">
           <CalendarDayHeader

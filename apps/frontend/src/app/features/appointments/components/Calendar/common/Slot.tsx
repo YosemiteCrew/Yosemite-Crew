@@ -84,7 +84,6 @@ const SlotComponent: React.FC<SlotProps> = ({
   const { notify } = useNotify();
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const {
@@ -97,10 +96,6 @@ const SlotComponent: React.FC<SlotProps> = ({
     registerAnchorEl,
   } = usePopoverManager({ closeOnHoverLeave: false });
   const appointmentPopoverId = useId();
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!draggedAppointmentId) return;
@@ -387,19 +382,19 @@ const SlotComponent: React.FC<SlotProps> = ({
         }
       )}`
     : 'Appointments slot';
+  const canPortal = typeof document !== 'undefined';
 
   return (
     <>
-      <div
-        role="region"
+      <section
         aria-label={slotRegionLabel}
         className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && 'border-r'}`}
         style={{ height: `${height}px` }}
         onDragOver={(event) => {
           if (!draggedAppointmentId) return;
           event.preventDefault();
-          autoScrollCalendarHorizontally(event.clientX, event.currentTarget as HTMLDivElement);
-          autoScrollCalendarVertically(event.clientY, event.currentTarget as HTMLDivElement);
+          autoScrollCalendarHorizontally(event.clientX, event.currentTarget);
+          autoScrollCalendarVertically(event.clientY, event.currentTarget);
           if (dropDate) {
             onDragHoverTarget?.(dropDate, dropPractitionerId);
           }
@@ -735,8 +730,8 @@ const SlotComponent: React.FC<SlotProps> = ({
             )}
           </div>
         )}
-      </div>
-      {isMounted &&
+      </section>
+      {canPortal &&
         !draggedAppointmentId &&
         activeEvent &&
         activeRect &&
@@ -756,7 +751,7 @@ const SlotComponent: React.FC<SlotProps> = ({
           />,
           document.body
         )}
-      {isMounted &&
+      {canPortal &&
         contextMenu &&
         contextMenuStyle &&
         createPortal(

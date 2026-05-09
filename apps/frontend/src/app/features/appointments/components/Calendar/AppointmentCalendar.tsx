@@ -73,6 +73,19 @@ type DragContext = {
   durationMinutes: number;
 };
 
+export const filterAppointmentsForWeek = (appointments: Appointment[], weekStart: Date) => {
+  const weekDays = getWeekDays(weekStart);
+  const weekRangeStart = weekDays[0];
+  const weekRangeEnd = new Date(weekDays.at(-1) ?? weekRangeStart);
+  weekRangeEnd.setDate(weekRangeEnd.getDate() + 1);
+
+  return appointments.filter((event) => {
+    const eventStart = new Date(event.startTime);
+    const eventEnd = new Date(event.endTime);
+    return eventEnd > weekRangeStart && eventStart < weekRangeEnd;
+  });
+};
+
 const getErrorMessageFromCandidate = (
   candidate: { response?: { data?: unknown } } | { data?: unknown } | { message?: string },
   fallback: string
@@ -741,6 +754,10 @@ const AppointmentCalendar = ({
       ),
     [myAppointments, currentDate]
   );
+  const weekEvents = useMemo(
+    () => filterAppointmentsForWeek(myAppointments, weekStart),
+    [myAppointments, weekStart]
+  );
 
   return (
     <div className="h-full min-h-0 border border-grey-light rounded-2xl overflow-hidden w-full flex flex-col">
@@ -832,7 +849,7 @@ const AppointmentCalendar = ({
       )}
       {activeCalendar === 'week' && (
         <WeekCalendar
-          events={myAppointments}
+          events={weekEvents}
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}

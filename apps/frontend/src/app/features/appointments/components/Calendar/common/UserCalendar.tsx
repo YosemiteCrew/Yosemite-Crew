@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import {
   computeUnavailableSegments,
   appointentsForUser,
@@ -79,7 +80,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   zoomMode = 'in',
   handleViewAppointment,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
+  handleChangeStatusAppointment: _handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   setCurrentDate,
   canEditAppointments,
@@ -107,6 +108,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const height = getHourRowHeightPx(zoomMode);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const onWheelHorizontal = useWheelToHorizontalScroll();
   const teamColumnsStyle = useMemo(
     () => getCalendarColumnGridStyle(team.length, zoomMode === 'out' ? 108 : 170),
     [team.length, zoomMode]
@@ -205,11 +207,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     if (currentNowPosition) {
       topPx = Math.max(0, currentNowPosition.topPx);
     } else {
-      const focusStart = getFirstRelevantTimedEventStart(
-        currentEvents as never,
-        rangeStart,
-        rangeEnd
-      );
+      const focusStart = getFirstRelevantTimedEventStart(currentEvents, rangeStart, rangeEnd);
       const focusMinutes = focusStart
         ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
         : DEFAULT_CALENDAR_FOCUS_MINUTES;
@@ -222,8 +220,9 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   return (
     <div className="h-full flex flex-col">
       <div
-        className="w-full flex-1 overflow-x-auto overflow-y-hidden relative rounded-b-2xl"
+        className="w-full flex-1 overflow-x-auto overflow-y-hidden relative rounded-b-2xl scrollbar-x-float"
         data-calendar-scroll="true"
+        onWheel={onWheelHorizontal}
       >
         <div className="min-w-max h-full flex flex-col">
           <CalendarDayHeader

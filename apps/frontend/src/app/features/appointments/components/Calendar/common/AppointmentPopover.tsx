@@ -14,7 +14,6 @@ import {
   isRequestedLikeStatus,
   toStatusLabel,
 } from '@/app/lib/appointments';
-import { IoWarning } from 'react-icons/io5';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
@@ -33,6 +32,7 @@ import { Appointment, Invoice } from '@yosemite-crew/types';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 import {
+  IoWarning,
   IoCalendarOutline,
   IoDocumentTextOutline,
   IoCardOutline,
@@ -445,7 +445,15 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
           </>
         )}
         {!isRequestedLikeStatus(appointment.status) && (
-          <div className="scrollbar-hidden flex w-48 shrink-0 items-center gap-2 overflow-x-auto pr-1">
+          <div
+            className="scrollbar-hidden flex w-48 shrink-0 items-center gap-2 overflow-x-auto pr-1"
+            onWheel={(e) => {
+              if (e.deltaY !== 0) {
+                e.preventDefault();
+                e.currentTarget.scrollLeft += e.deltaY;
+              }
+            }}
+          >
             <GlassTooltip content="Overview" side="top">
               <button
                 type="button"
