@@ -1,8 +1,9 @@
 'use client';
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
-import AppointmentsTable from '@/app/ui/tables/Appointments';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 const AddAppointment = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/AddAppointment')
 );
@@ -10,8 +11,6 @@ const AppoitmentInfo = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo')
 );
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
-import AppointmentCalendar from '@/app/features/appointments/components/Calendar/AppointmentCalendar';
-import AppointmentBoard from '@/app/features/appointments/components/AppointmentBoard';
 import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
@@ -21,7 +20,6 @@ import {
 } from '@/app/hooks/useCompanion';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { Appointment } from '@yosemite-crew/types';
 const Reschedule = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/Reschedule')
@@ -48,7 +46,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
-import { normalizeAppointmentStatus, type LegacyAppointmentStatus } from '@/app/lib/appointments';
+import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
@@ -58,22 +56,25 @@ import {
   normalizePmsPreferences,
 } from '@/app/features/settings/utils/pmsPreferences';
 
-const AppointmentsSkeleton = () => (
-  <div className="flex flex-col gap-3 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-4! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-4! lg:pb-3! animate-pulse">
-    <div className="flex items-center justify-between">
-      <div className="flex flex-col gap-1.5">
-        <div className="h-7 w-44 rounded-xl bg-card-hover" />
-        <div className="h-4 w-80 rounded-xl bg-card-hover" />
-      </div>
-      <div className="h-9 w-32 rounded-2xl bg-card-hover" />
-    </div>
-    <div className="h-[calc(100vh-160px)] min-h-125 rounded-2xl bg-card-hover" />
-  </div>
+const AppointmentsSkeleton = () => <PageSkeleton variant="planner" />;
+
+const PlannerViewSkeleton = () => (
+  <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const AppointmentsTable = dynamic(() => import('@/app/ui/tables/Appointments'), {
+  loading: () => <PlannerViewSkeleton />,
+});
+const AppointmentCalendar = dynamic(
+  () => import('@/app/features/appointments/components/Calendar/AppointmentCalendar'),
+  { loading: () => <PlannerViewSkeleton /> }
+);
+const AppointmentBoard = dynamic(
+  () => import('@/app/features/appointments/components/AppointmentBoard'),
+  { loading: () => <PlannerViewSkeleton /> }
 );
 
 const Appointments = () => {
-  const appointmentStoreStatus = useAppointmentStore((s) => s.status);
-  const isLoading = appointmentStoreStatus === 'idle' || appointmentStoreStatus === 'loading';
   const rawAppointments = useAppointmentsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -191,6 +192,14 @@ const Appointments = () => {
   );
 
   const [activeCalendar, setActiveCalendar] = useState('team');
+  const handleActiveCalendarChange: React.Dispatch<React.SetStateAction<string>> = (
+    nextCalendar
+  ) => {
+    startTransition(() => {
+      setActiveCalendar(nextCalendar);
+    });
+  };
+
   const [activeView, setActiveView] = useState<string>(resolveDefaultAppointmentsView);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
@@ -209,9 +218,11 @@ const Appointments = () => {
   }, [profile, primaryOrgType]);
 
   useEffect(() => {
-    if (activeCalendar === 'week') {
-      setWeekStart(startOfDay(currentDate));
-    }
+    if (activeCalendar !== 'week') return;
+    const nextWeekStart = startOfDay(currentDate);
+    setWeekStart((previous) =>
+      previous.getTime() === nextWeekStart.getTime() ? previous : nextWeekStart
+    );
   }, [currentDate, activeCalendar]);
 
   useEffect(() => {
@@ -323,9 +334,7 @@ const Appointments = () => {
     const statusWanted = activeStatus.toLowerCase();
 
     return appointments.filter((item) => {
-      const status = normalizeAppointmentStatus(
-        item.status as LegacyAppointmentStatus
-      )?.toLowerCase();
+      const status = normalizeAppointmentStatus(item.status)?.toLowerCase();
       const filter = item.isEmergency && 'emergencies';
 
       const matchesStatus =
@@ -354,8 +363,6 @@ const Appointments = () => {
     setAddPopup(true);
   };
 
-  if (isLoading) return <AppointmentsSkeleton />;
-
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
     plannerContent = (
@@ -369,7 +376,7 @@ const Appointments = () => {
         setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
         setChangeRoomPopup={setChangeRoomPopup}
         activeCalendar={activeCalendar}
-        setActiveCalendar={setActiveCalendar}
+        setActiveCalendar={handleActiveCalendarChange}
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
         weekStart={weekStart}

@@ -1103,11 +1103,7 @@ const AppoitmentInfo = ({
   }, [activeLabel, activeSubLabel]);
 
   const companionImageSrc = getSafeImageUrl(
-    getAppointmentCompanionPhotoUrl(
-      activeAppointment?.companion as
-        | (Appointment['companion'] & { photoUrl?: string | null })
-        | undefined
-    ),
+    getAppointmentCompanionPhotoUrl(activeAppointment?.companion),
     resolveCompanionImageType(activeAppointment?.companion?.species)
   );
 

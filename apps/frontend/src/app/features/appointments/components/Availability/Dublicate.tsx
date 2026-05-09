@@ -73,7 +73,7 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
       />
       {open && (
         <div className="max-h-[200px] z-10 w-[120px] overflow-y-scroll scrollbar-hidden flex flex-col bg-white rounded-2xl border border-card-border absolute left-0 top-[120%] py-1 px-1">
-          {copyTargets.map((d, i) => (
+          {copyTargets.map((d) => (
             <button
               key={d.name}
               className="border-none outline-none bg-white text-left px-2 py-2 flex items-center gap-1"

@@ -335,7 +335,7 @@ export const convertFromGetApi = (apiData: ApiDayAvailability[]): AvailabilitySt
       return acc;
     }, {} as AvailabilityState);
   }
-  const result: AvailabilityState = {} as AvailabilityState;
+  const result: AvailabilityState = {};
   const localByDay = new Map<string, Interval[]>();
 
   for (const entry of apiData) {

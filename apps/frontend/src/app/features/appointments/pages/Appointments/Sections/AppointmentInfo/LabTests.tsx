@@ -45,7 +45,7 @@ const getOrderResultProgressFromResults = (allResults: LabResult[], orderId: str
     allResults
       .filter((result) => getResultOrderId(result) === String(orderId).trim())
       .map((result) => {
-        const raw = result.rawPayload as { status?: string; statusDetail?: string } | undefined;
+        const raw = result.rawPayload;
         return normalizeResultProgress(
           result.statusDetail ?? result.status ?? raw?.statusDetail ?? raw?.status
         );
@@ -1500,6 +1500,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
                   className="flex-1 w-full border-0"
                   loading="lazy"
                   allowFullScreen
+                  referrerPolicy="strict-origin"
                   style={{ pointerEvents: 'auto' }}
                 />
               </div>

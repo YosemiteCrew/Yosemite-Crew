@@ -501,11 +501,11 @@ const AppointmentInfo = ({
         const matchingSlot =
           slots.find((slot) => slot.startTime === currentStart && slot.endTime === currentEnd) ??
           (currentStart && currentEnd
-            ? ({
+            ? {
                 startTime: currentStart,
                 endTime: currentEnd,
                 vetIds: activeAppointment.lead?.id ? [activeAppointment.lead.id] : [],
-              } as Slot)
+              }
             : null);
         setSelectedSlot(matchingSlot);
       } catch (error) {

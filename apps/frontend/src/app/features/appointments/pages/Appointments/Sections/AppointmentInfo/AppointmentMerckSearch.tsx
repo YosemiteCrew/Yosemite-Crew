@@ -474,6 +474,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
                     title={readerTitle}
                     className="flex-1 w-full h-full border-0"
                     loading="lazy"
+                    referrerPolicy="strict-origin"
                     onLoad={() => setReaderLoading(false)}
                   />
                 </div>

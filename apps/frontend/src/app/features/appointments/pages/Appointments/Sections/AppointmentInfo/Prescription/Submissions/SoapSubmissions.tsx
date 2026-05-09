@@ -1,13 +1,15 @@
-import React from "react";
-import Accordion from "@/app/ui/primitives/Accordion/Accordion";
-import { FormDataProps } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo";
-import { useFormsStore } from "@/app/stores/formsStore";
-import { findFieldLabel, humanizeKey } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/labelUtils";
-import SignatureActions from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions";
-import { hasSignatureField } from "@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils";
+import React from 'react';
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import { FormDataProps } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo';
+import { useFormsStore } from '@/app/stores/formsStore';
+import {
+  findFieldLabel,
+  humanizeKey,
+} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/labelUtils';
+import SignatureActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions';
+import { hasSignatureField } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/signatureUtils';
 
-const SOAP_KEYS = ["assessment", "objective", "subjective", "discharge", "plan"] as const;
-type SoapKey = (typeof SOAP_KEYS)[number];
+type SoapKey = 'assessment' | 'objective' | 'subjective' | 'discharge' | 'plan';
 
 type SoapSubmissionsProps<K extends SoapKey> = {
   formData: FormDataProps;
@@ -27,7 +29,7 @@ const SoapSubmissions = <K extends SoapKey>({
 
   const toStringPairs = (answers: Record<string, any>) =>
     Object.entries(answers ?? {}).filter(
-      ([k, v]) => typeof k === "string" && typeof v === "string",
+      ([k, v]) => typeof k === 'string' && typeof v === 'string'
     ) as Array<[string, string]>;
 
   const resolveLabel = (formId: string | undefined, key: string) => {
@@ -37,14 +39,12 @@ const SoapSubmissions = <K extends SoapKey>({
 
   const updateSubmission = (
     submissionId: string,
-    updates: Partial<FormDataProps[SoapKey][number]>,
+    updates: Partial<FormDataProps[SoapKey][number]>
   ) => {
     setFormData((prev) => ({
       ...prev,
       [formDataKey]: (prev[formDataKey] ?? []).map((s) =>
-        s._id === submissionId || s.submissionId === submissionId
-          ? { ...s, ...updates }
-          : s,
+        s._id === submissionId || s.submissionId === submissionId ? { ...s, ...updates } : s
       ),
     }));
   };
@@ -66,17 +66,16 @@ const SoapSubmissions = <K extends SoapKey>({
           const form = sub.formId ? formsById[sub.formId] : undefined;
           const schema = form?.schema;
           const requiredSigner = form?.requiredSigner;
-          const isClientSigner = requiredSigner === "CLIENT";
-          const allowVetSigning = requiredSigner === "VET";
+          const isClientSigner = requiredSigner === 'CLIENT';
+          const allowVetSigning = requiredSigner === 'VET';
           const hasSignature = hasSignatureField(schema as any);
           const hasSigningData = Boolean(
-            sub.signing?.status || sub.signing?.documentId || sub.signing?.pdf?.url,
+            sub.signing?.status || sub.signing?.documentId || sub.signing?.pdf?.url
           );
           const requiresVetSignature = allowVetSigning && (hasSignature || hasSigningData);
           const showActions = requiresVetSignature;
           const parentSigned =
-            isClientSigner &&
-            (sub.signing?.status === "SIGNED" || Boolean(sub.signing?.pdf?.url));
+            isClientSigner && (sub.signing?.status === 'SIGNED' || Boolean(sub.signing?.pdf?.url));
           const showParentStatus = isClientSigner;
           if (!hasContent && !showActions && !showParentStatus) return null;
 
@@ -106,8 +105,8 @@ const SoapSubmissions = <K extends SoapKey>({
               {showParentStatus ? (
                 <div className="text-xs text-text-secondary">
                   {parentSigned
-                    ? "Signed by pet parent."
-                    : "Sent to pet parent. It will update when they sign the document."}
+                    ? 'Signed by pet parent.'
+                    : 'Sent to pet parent. It will update when they sign the document.'}
                 </div>
               ) : null}
             </div>
