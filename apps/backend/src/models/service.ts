@@ -15,7 +15,7 @@ export interface ServiceMongo {
   updatedAt?: Date;
 }
 
-const ServiceSchema = new Schema<ServiceMongo>(
+const ServiceSchema = new Schema(
   {
     organisationId: {
       type: Schema.Types.ObjectId,

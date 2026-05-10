@@ -21,27 +21,26 @@ export interface WeeklyAvailabilityOverrideMongo extends Document {
   updatedAt?: Date;
 }
 
-const WeeklyAvailabilityOverrideSchema =
-  new Schema<WeeklyAvailabilityOverrideMongo>(
-    {
-      userId: { type: String, required: true },
-      organisationId: { type: String, required: true },
-      weekStartDate: { type: Date, required: true },
-      overrides: [
-        {
-          dayOfWeek: String,
-          slots: [
-            {
-              startTime: String,
-              endTime: String,
-              isAvailable: Boolean,
-            },
-          ],
-        },
-      ],
-    },
-    { timestamps: true },
-  );
+const WeeklyAvailabilityOverrideSchema = new Schema(
+  {
+    userId: { type: String, required: true },
+    organisationId: { type: String, required: true },
+    weekStartDate: { type: Date, required: true },
+    overrides: [
+      {
+        dayOfWeek: String,
+        slots: [
+          {
+            startTime: String,
+            endTime: String,
+            isAvailable: Boolean,
+          },
+        ],
+      },
+    ],
+  },
+  { timestamps: true },
+);
 
 WeeklyAvailabilityOverrideSchema.index(
   { userId: 1, organisationId: 1, weekStartDate: 1 },

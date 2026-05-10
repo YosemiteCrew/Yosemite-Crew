@@ -261,19 +261,23 @@ const sendTaskAssignmentEmail = async (task: TaskAssignmentEmailTask) => {
   if (!task.assignedTo) return;
   logger.info("Sending task assigned email");
   try {
-    const [assignee, assigner, companion] = await Promise.all([
-      UserModel.findOne(
-        { userId: task.assignedTo },
-        { email: 1, firstName: 1, lastName: 1 },
-      ).lean(),
-      UserModel.findOne(
-        { userId: task.assignedBy ?? task.createdBy },
-        { firstName: 1, lastName: 1 },
-      ).lean(),
-      task.companionId
-        ? CompanionModel.findById(task.companionId).select("name").lean()
-        : Promise.resolve(null),
-    ]);
+    const assignee = (await UserModel.findOne(
+      { userId: task.assignedTo },
+      { email: 1, firstName: 1, lastName: 1 },
+    ).lean()) as {
+      email?: string;
+      firstName?: string;
+      lastName?: string;
+    } | null;
+    const assigner = (await UserModel.findOne(
+      { userId: task.assignedBy ?? task.createdBy },
+      { firstName: 1, lastName: 1 },
+    ).lean()) as { firstName?: string; lastName?: string } | null;
+    const companion = task.companionId
+      ? ((await CompanionModel.findById(task.companionId)
+          .select("name")
+          .lean()) as { name?: string } | null)
+      : null;
 
     if (!assignee?.email) return;
 

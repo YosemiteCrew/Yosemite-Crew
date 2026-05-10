@@ -48,7 +48,7 @@ export interface ChatSessionMongo {
   updatedAt?: Date;
 }
 
-const ChatParticipantSchema = new Schema<ChatParticipant>(
+const ChatParticipantSchema = new Schema(
   {
     userId: { type: String, required: true, trim: true },
     role: {
@@ -60,7 +60,7 @@ const ChatParticipantSchema = new Schema<ChatParticipant>(
   { _id: false },
 );
 
-const ChatSessionSchema = new Schema<ChatSessionMongo>(
+const ChatSessionSchema = new Schema(
   {
     type: {
       type: String,

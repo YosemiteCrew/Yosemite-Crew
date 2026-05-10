@@ -12,7 +12,7 @@ export interface CoParentInviteMongo {
   consumed?: boolean; // to prevent re-use
 }
 
-const CoParentInviteSchema = new Schema<CoParentInviteMongo>(
+const CoParentInviteSchema = new Schema(
   {
     email: { type: String, required: true, index: true },
     inviteeName: { type: String },

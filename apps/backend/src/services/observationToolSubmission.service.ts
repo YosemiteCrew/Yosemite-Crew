@@ -687,13 +687,13 @@ export const ObservationToolSubmissionService = {
       if (filter.companionId) {
         await ensureCompanionInOrganisation(filter.companionId, organisationId);
       } else {
-        const scopedCompanions = await CompanionOrganisationModel.find({
+        const scopedCompanions = (await CompanionOrganisationModel.find({
           organisationId,
           status: "ACTIVE",
         })
           .setOptions({ sanitizeFilter: true })
           .select({ companionId: 1 })
-          .lean();
+          .lean()) as unknown as Array<{ companionId: Types.ObjectId }>;
 
         q.companionId = {
           $in: scopedCompanions.map((item) => item.companionId.toString()),
@@ -968,13 +968,19 @@ export const ObservationToolSubmissionService = {
     }
 
     // find OT tasks under the appointment
-    const tasks = await TaskModel.find({
+    const tasks = (await TaskModel.find({
       appointmentId: safeAppointmentId,
       observationToolId: { $exists: true, $ne: null },
     })
       .setOptions({ sanitizeFilter: true })
       .select("_id companionId status dueAt observationToolId")
-      .lean();
+      .lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      companionId?: string | null;
+      status?: string;
+      dueAt?: Date;
+      observationToolId?: Types.ObjectId | string | null;
+    }>;
 
     if (!tasks.length) return [];
 

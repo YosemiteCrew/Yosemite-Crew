@@ -121,13 +121,17 @@ const sendPermissionsUpdatedEmail = async (params: {
     const userId =
       extractReferenceId(params.practitionerReference) ??
       params.practitionerReference;
-    const [user, organisationName] = await Promise.all([
-      UserModel.findOne(
-        { userId },
-        { email: 1, firstName: 1, lastName: 1 },
-      ).lean(),
-      resolveOrganisationName(params.organizationReference),
-    ]);
+    const user = (await UserModel.findOne(
+      { userId },
+      { email: 1, firstName: 1, lastName: 1 },
+    ).lean()) as {
+      email?: string;
+      firstName?: string;
+      lastName?: string;
+    } | null;
+    const organisationName = await resolveOrganisationName(
+      params.organizationReference,
+    );
 
     if (!user?.email || !organisationName) return;
 
@@ -404,9 +408,20 @@ const isFreePlan = async (orgId: Types.ObjectId) => {
   return !billing || billing.plan === "free";
 };
 
-const markFreeLimitReachedAt = async (
-  usage: Awaited<ReturnType<typeof ensureOrgUsageCounters>>,
-) => {
+type OrgUsageCountersDoc = {
+  _id: Types.ObjectId;
+  orgId: Types.ObjectId;
+  freeLimitReachedAt?: Date | null;
+  usersActiveCount?: number | null;
+  usersBillableCount?: number | null;
+  appointmentsUsed?: number | null;
+  toolsUsed?: number | null;
+  freeAppointmentsLimit?: number | null;
+  freeToolsLimit?: number | null;
+  freeUsersLimit?: number | null;
+};
+
+const markFreeLimitReachedAt = async (usage: OrgUsageCountersDoc | null) => {
   if (
     !usage ||
     usage.freeLimitReachedAt ||

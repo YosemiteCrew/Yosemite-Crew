@@ -23,7 +23,7 @@ export interface AccountWithdrawalMongo {
   processedByUserId?: string | null; // admin who handled it
 }
 
-const AccountWithdrawalSchema = new Schema<AccountWithdrawalMongo>(
+const AccountWithdrawalSchema = new Schema(
   {
     userId: { type: String },
     fullName: { type: String, required: true },

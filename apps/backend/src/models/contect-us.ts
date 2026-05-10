@@ -43,7 +43,7 @@ export interface ContactAttachment {
   sizeBytes?: number;
 }
 
-const AttachmentSchema = new Schema<ContactAttachment>(
+const AttachmentSchema = new Schema(
   {
     id: String,
     url: { type: String, required: true },
@@ -69,7 +69,7 @@ export interface DsraDetails {
   declarationAcceptedAt?: Date;
 }
 
-const DsraSchema = new Schema<DsraDetails>(
+const DsraSchema = new Schema(
   {
     requesterType: {
       type: String,
@@ -140,7 +140,7 @@ export interface ContactRequestMongo {
   updatedAt?: Date;
 }
 
-const ContactRequestSchema = new Schema<ContactRequestMongo>(
+const ContactRequestSchema = new Schema(
   {
     type: {
       type: String,

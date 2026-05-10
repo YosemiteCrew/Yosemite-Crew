@@ -17,7 +17,7 @@ export interface ParentCompanionMongo {
   acceptedAt?: Date;
 }
 
-const PermissionsSchema = new Schema<ParentCompanionPermissions>(
+const PermissionsSchema = new Schema(
   {
     assignAsPrimaryParent: { type: Boolean, default: false },
     emergencyBasedPermissions: { type: Boolean, default: false },
@@ -31,7 +31,7 @@ const PermissionsSchema = new Schema<ParentCompanionPermissions>(
   { _id: false },
 );
 
-const ParentCompanionSchema = new Schema<ParentCompanionMongo>(
+const ParentCompanionSchema = new Schema(
   {
     parentId: {
       type: Schema.Types.ObjectId,

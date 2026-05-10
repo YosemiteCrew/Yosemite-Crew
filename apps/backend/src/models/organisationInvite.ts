@@ -39,10 +39,7 @@ export interface OrganisationInviteModel extends Model<OrganisationInviteMongo> 
   generateToken(byteLength?: number): string;
 }
 
-const OrganisationInviteSchema = new Schema<
-  OrganisationInviteMongo,
-  OrganisationInviteModel
->(
+const OrganisationInviteSchema = new Schema(
   {
     organisationId: { type: String, required: true, index: true },
     invitedByUserId: { type: String, required: true },
@@ -98,7 +95,8 @@ OrganisationInviteSchema.statics.generateToken = function generateToken(
 
 OrganisationInviteSchema.statics.createOrReplaceInvite =
   async function createOrReplaceInvite(input: CreateOrganisationInviteInput) {
-    const token = this.generateToken();
+    const self = this as unknown as OrganisationInviteModel;
+    const token = self.generateToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
     const normalizedEmail = input.inviteeEmail.trim().toLowerCase();
 
@@ -113,7 +111,7 @@ OrganisationInviteSchema.statics.createOrReplaceInvite =
     const updatePayload: UpdateQuery<OrganisationInviteMongo> = {
       $set: updateFields,
     };
-    const invite = await this.findOneAndUpdate(
+    const invite = await self.findOneAndUpdate(
       { organisationId: input.organisationId, inviteeEmail: normalizedEmail },
       updatePayload,
       {
@@ -131,7 +129,8 @@ OrganisationInviteSchema.statics.findValidInviteByToken =
     token: string,
     referenceDate: Date = new Date(),
   ) {
-    return this.findOne({
+    const self = this as unknown as OrganisationInviteModel;
+    return self.findOne({
       token,
       status: "PENDING",
       expiresAt: { $gt: referenceDate },
@@ -140,7 +139,8 @@ OrganisationInviteSchema.statics.findValidInviteByToken =
 
 OrganisationInviteSchema.statics.expireStaleInvites =
   async function expireStaleInvites(referenceDate: Date = new Date()) {
-    const result = await this.updateMany(
+    const self = this as unknown as OrganisationInviteModel;
+    const result = await self.updateMany(
       {
         status: "PENDING",
         expiresAt: { $lte: referenceDate },

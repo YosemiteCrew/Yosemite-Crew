@@ -734,9 +734,16 @@ const loadSoapSubmissions = async (
     }));
   }
 
-  const docs = await FormSubmissionModel.find({ appointmentId })
+  const docs = (await FormSubmissionModel.find({ appointmentId })
     .sort({ submittedAt: -1 })
-    .lean();
+    .lean()) as unknown as Array<{
+    _id: Types.ObjectId;
+    formId: unknown;
+    formVersion: number;
+    submittedBy?: string | null;
+    submittedAt: Date;
+    answers?: unknown;
+  }>;
 
   return docs.map((doc) => ({
     submissionId: doc._id.toString(),
@@ -767,9 +774,12 @@ const loadSoapFormLookup = async (formIds: string[]) => {
     );
   }
 
-  const docs = await FormModel.find({ _id: { $in: formIds } })
+  const docs = (await FormModel.find({ _id: { $in: formIds } })
     .select({ _id: 1, category: 1 })
-    .lean();
+    .lean()) as unknown as Array<{
+    _id: Types.ObjectId;
+    category: Form["category"];
+  }>;
 
   return new Map(
     docs.map((doc) => [
@@ -1750,9 +1760,19 @@ export const FormService = {
         });
     }
 
-    const submissions = await FormSubmissionModel.find({ companionId })
+    const submissions = (await FormSubmissionModel.find({ companionId })
       .sort({ submittedAt: -1 })
-      .lean();
+      .lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      formId: NormalizableObjectId;
+      formVersion: number;
+      appointmentId?: string | null;
+      companionId?: string | null;
+      submittedBy?: string | null;
+      submittedAt: Date;
+      answers?: unknown;
+      signing?: FormSubmissionDocument["signing"] | null;
+    }>;
 
     if (!submissions.length) return [];
 
@@ -1772,18 +1792,24 @@ export const FormService = {
       ),
     ];
 
-    const [forms, appointments] = await Promise.all([
-      formIds.length
-        ? FormModel.find({ _id: { $in: formIds } })
-            .select({ name: 1, category: 1, orgId: 1 })
-            .lean()
-        : Promise.resolve([]),
-      appointmentIds.length
-        ? AppointmentModel.find({ _id: { $in: appointmentIds } })
-            .select({ organisationId: 1 })
-            .lean()
-        : Promise.resolve([]),
-    ]);
+    const forms = formIds.length
+      ? ((await FormModel.find({ _id: { $in: formIds } })
+          .select({ name: 1, category: 1, orgId: 1 })
+          .lean()) as unknown as Array<{
+          _id: Types.ObjectId;
+          name?: string;
+          category?: Form["category"];
+          orgId?: Types.ObjectId | string;
+        }>)
+      : [];
+    const appointments = appointmentIds.length
+      ? ((await AppointmentModel.find({ _id: { $in: appointmentIds } })
+          .select({ organisationId: 1 })
+          .lean()) as unknown as Array<{
+          _id: Types.ObjectId;
+          organisationId: string;
+        }>)
+      : [];
 
     const formMap = new Map(
       forms.map((form) => [normalizeObjectId(form._id), form]),
@@ -1819,7 +1845,9 @@ export const FormService = {
           submittedBy: submission.submittedBy ?? undefined,
           submittedAt: submission.submittedAt,
           answers: (submission.answers ?? {}) as Record<string, unknown>,
-          signing: submission.signing ?? undefined,
+          signing:
+            (submission.signing as unknown as FormSubmissionDocument["signing"]) ??
+            undefined,
           formName: form?.name ?? null,
           formCategory: form?.category ?? null,
         };
@@ -1862,13 +1890,20 @@ export const FormService = {
       );
     }
 
-    const docs = await FormModel.find({ orgId: oid }).lean();
+    const docs = (await FormModel.find({
+      orgId: oid,
+    }).lean()) as unknown as LeanForm[];
     const nameMap = await resolveUserNameMap(
       docs.flatMap((doc) => [doc.createdBy, doc.updatedBy]),
     );
 
     return docs.map((doc) =>
-      toFormResponseDTO(applyUserNamesToForm(doc, nameMap)),
+      toFormResponseDTO(
+        applyUserNamesToForm(
+          { ...doc, _id: normalizeObjectId(doc._id) } as Form,
+          nameMap,
+        ),
+      ),
     );
   },
 

@@ -53,7 +53,7 @@ export type UserProfileMongo = Omit<
   professionalDetails?: UserProfileProfessionalDetailsMongo;
 };
 
-const AddressSchema = new Schema<UserProfileAddressMongo>(
+const AddressSchema = new Schema(
   {
     addressLine: { type: String, trim: true },
     country: { type: String, trim: true },
@@ -66,7 +66,7 @@ const AddressSchema = new Schema<UserProfileAddressMongo>(
   { _id: false },
 );
 
-const PersonalDetailsSchema = new Schema<UserProfilePersonalDetailsMongo>(
+const PersonalDetailsSchema = new Schema(
   {
     gender: { type: String, enum: ["MALE", "FEMALE", "OTHER"], trim: true },
     dateOfBirth: { type: Date },
@@ -100,7 +100,7 @@ const PersonalDetailsSchema = new Schema<UserProfilePersonalDetailsMongo>(
   { _id: false },
 );
 
-const UserDocumentSchema = new Schema<UserProfileDocumentMongo>(
+const UserDocumentSchema = new Schema(
   {
     type: {
       type: String,
@@ -114,21 +114,20 @@ const UserDocumentSchema = new Schema<UserProfileDocumentMongo>(
   { _id: false },
 );
 
-const ProfessionalDetailsSchema =
-  new Schema<UserProfileProfessionalDetailsMongo>(
-    {
-      medicalLicenseNumber: { type: String, trim: true },
-      yearsOfExperience: { type: Number },
-      specialization: { type: String, trim: true },
-      qualification: { type: String, trim: true },
-      biography: { type: String, trim: true },
-      linkedin: { type: String, trim: true },
-      documents: { type: [UserDocumentSchema], default: undefined },
-    },
-    { _id: false },
-  );
+const ProfessionalDetailsSchema = new Schema(
+  {
+    medicalLicenseNumber: { type: String, trim: true },
+    yearsOfExperience: { type: Number },
+    specialization: { type: String, trim: true },
+    qualification: { type: String, trim: true },
+    biography: { type: String, trim: true },
+    linkedin: { type: String, trim: true },
+    documents: { type: [UserDocumentSchema], default: undefined },
+  },
+  { _id: false },
+);
 
-const UserProfileSchema = new Schema<UserProfileMongo>(
+const UserProfileSchema = new Schema(
   {
     userId: { type: String, required: true, trim: true },
     organizationId: { type: String, required: true, trim: true },

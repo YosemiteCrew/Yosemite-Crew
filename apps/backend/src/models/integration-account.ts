@@ -21,7 +21,7 @@ export interface IntegrationAccountMongo {
   updatedAt?: Date;
 }
 
-const IntegrationAccountSchema = new Schema<IntegrationAccountMongo>(
+const IntegrationAccountSchema = new Schema(
   {
     organisationId: { type: String, required: true, index: true },
     provider: {

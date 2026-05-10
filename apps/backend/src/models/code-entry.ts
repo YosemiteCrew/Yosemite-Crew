@@ -21,7 +21,7 @@ export interface CodeEntryMongo {
   updatedAt?: Date;
 }
 
-const CodeEntrySchema = new Schema<CodeEntryMongo>(
+const CodeEntrySchema = new Schema(
   {
     system: { type: String, required: true, index: true },
     code: { type: String, required: true },

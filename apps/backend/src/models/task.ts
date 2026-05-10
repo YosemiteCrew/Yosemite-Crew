@@ -124,7 +124,7 @@ const AttachmentSchema = new Schema(
   { _id: false },
 );
 
-const TaskSchema = new Schema<TaskMongo>(
+const TaskSchema = new Schema(
   {
     organisationId: String,
     appointmentId: String,
@@ -174,7 +174,7 @@ const TaskSchema = new Schema<TaskMongo>(
     },
     completedAt: Date,
     completedBy: String,
-  },
+  } as any,
   { timestamps: true },
 );
 

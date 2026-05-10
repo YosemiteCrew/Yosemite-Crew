@@ -12,7 +12,7 @@ export interface ReminderJobMongo {
   jobKey?: string; // used by BullMQ or cron scheduler
 }
 
-const ReminderJobSchema = new Schema<ReminderJobMongo>(
+const ReminderJobSchema = new Schema(
   {
     taskId: { type: String, required: true, index: true },
     userId: { type: String, required: true },

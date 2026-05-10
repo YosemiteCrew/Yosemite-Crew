@@ -123,7 +123,7 @@ const InsuranceSchema = new Schema(
   { _id: false },
 );
 
-const CompanionSchema = new Schema<CompanionMongo>(
+const CompanionSchema = new Schema(
   {
     name: { type: String, required: true },
     type: { type: String, required: true },
