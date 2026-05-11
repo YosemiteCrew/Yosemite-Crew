@@ -534,7 +534,7 @@ importers:
         version: 2.6.4(@aws-amplify/core@6.16.3)(@types/react@19.2.11)(aws-amplify@6.16.0)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0)
       '@bottom-tabs/react-navigation':
         specifier: ^1.1.0
-        version: 1.1.0(@react-navigation/native@7.1.28)(react-native-bottom-tabs@1.1.0)(react-native@0.81.4)(react@19.1.0)
+        version: 1.1.0(@react-navigation/native@7.1.28)(react-native-bottom-tabs@1.2.0)(react-native@0.81.4)(react@19.1.0)
       '@callstack/liquid-glass':
         specifier: ^0.7.0
         version: 0.7.0(react-native@0.81.4)(react@19.1.0)
@@ -668,8 +668,8 @@ importers:
         specifier: ^6.3.11
         version: 6.3.12(react-native@0.81.4)(react@19.1.0)
       react-native-bottom-tabs:
-        specifier: ^1.1.0
-        version: 1.1.0(react-native@0.81.4)(react@19.1.0)
+        specifier: ^1.2.0
+        version: 1.2.0(react-native@0.81.4)(react@19.1.0)
       react-native-calendar-events:
         specifier: ^2.2.0
         version: 2.2.0(react-native@0.81.4)
@@ -8142,7 +8142,7 @@ packages:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
 
-  /@bottom-tabs/react-navigation@1.1.0(@react-navigation/native@7.1.28)(react-native-bottom-tabs@1.1.0)(react-native@0.81.4)(react@19.1.0):
+  /@bottom-tabs/react-navigation@1.1.0(@react-navigation/native@7.1.28)(react-native-bottom-tabs@1.2.0)(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-+4YppCodABcSNIgJiq95QUQ+3ClVBG+rLG3WmYI0+/nbxqKbCz6luFBep4KFOj98Iplj1JY2Ki6ix8CcOZVQ/Q==}
     peerDependencies:
       '@react-navigation/native': '>=7'
@@ -8154,7 +8154,7 @@ packages:
       color: 5.0.3
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.29.0)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-      react-native-bottom-tabs: 1.1.0(react-native@0.81.4)(react@19.1.0)
+      react-native-bottom-tabs: 1.2.0(react-native@0.81.4)(react@19.1.0)
     dev: false
 
   /@braintree/sanitize-url@6.0.4:
@@ -31667,8 +31667,8 @@ packages:
       - supports-color
     dev: false
 
-  /react-native-bottom-tabs@1.1.0(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-Uu1gvM3i1Hb4DjVvR/38J1QVQEs0RkPc7K6yon99HgvRWWOyLs7kjPDhUswtb8ije4pKW712skIXWJ0lgKzbyQ==}
+  /react-native-bottom-tabs@1.2.0(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-ScVPko86ts+m6JMNtI24MCSYJCOZc1aZkn9qwS9ly3o0ubajRWDpCzgRJfRFysi08bKrcqAXKVCHZNHvNb2PTA==}
     peerDependencies:
       react: '*'
       react-native: '*'
