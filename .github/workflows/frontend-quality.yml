@@ -52,8 +52,8 @@ jobs:
       - name: Check frontend security headers
         run: pnpm --filter frontend run test -- --testPathPattern='config/securityHeaders.test.ts'
 
-  bundle-budgets:
-    name: Frontend bundle budgets
+  build-quality:
+    name: Frontend build, bundle budgets, Lighthouse
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -96,35 +96,6 @@ jobs:
           path: |
             apps/frontend/artifacts/build-route-report.json
             apps/frontend/artifacts/build-route-report.md
-
-  lighthouse:
-    name: Frontend Lighthouse
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build shared packages
-        run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
-
-      - name: Build frontend
-        run: pnpm --filter frontend run build
 
       - name: Start frontend server
         run: |

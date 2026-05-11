@@ -45,6 +45,9 @@ jobs:
       - name: Build packages
         run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
 
+      - name: Build frontend
+        run: pnpm --filter frontend run build
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -56,14 +59,10 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter frontend exec playwright install --with-deps chromium firefox
 
-      - name: Run jest-axe accessibility batch
-        run: pnpm --filter frontend run test:a11y
-
-      - name: Run public smoke flow
-        run: pnpm --filter frontend run e2e:ci:smoke
-
-      - name: Run Playwright accessibility flow
-        run: pnpm --filter frontend run e2e:ci:a11y
+      - name: Run public smoke and accessibility flows
+        env:
+          E2E_WEB_SERVER_COMMAND: pnpm exec next start -p 3001 -H 127.0.0.1
+        run: pnpm --filter frontend exec playwright test e2e/smoke.spec.ts e2e/a11y.spec.ts
 
       - name: Upload Playwright HTML report
         if: always()
@@ -114,6 +113,9 @@ jobs:
       - name: Build packages
         run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
 
+      - name: Build frontend
+        run: pnpm --filter frontend run build
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -126,7 +128,9 @@ jobs:
         run: pnpm --filter frontend exec playwright install --with-deps chromium firefox
 
       - name: Run authenticated Playwright flow
-        run: pnpm --filter frontend run e2e:ci:auth
+        env:
+          E2E_WEB_SERVER_COMMAND: pnpm exec next start -p 3001 -H 127.0.0.1
+        run: pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts
 
       - name: Upload Playwright HTML report
         if: always()

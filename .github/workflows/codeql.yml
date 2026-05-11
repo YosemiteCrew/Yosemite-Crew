@@ -9,13 +9,13 @@
 # the `language` matrix defined below to confirm you have the correct set of
 # supported CodeQL languages.
 #
-name: "CodeQL Advanced"
+name: 'CodeQL Advanced'
 
 on:
   push:
   pull_request:
   schedule:
-    - cron: "21 10 * * 5"
+    - cron: '21 10 * * 5'
 
 jobs:
   analyze:
@@ -47,8 +47,6 @@ jobs:
           #   build-mode: manual
           - language: javascript-typescript
             build-mode: none
-          - language: ruby
-            build-mode: none
           # - language: swift
           #   build-mode: manual
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
@@ -76,7 +74,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
+          cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       # - name: Install CocoaPods 1.14.3
@@ -121,4 +119,4 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{matrix.language}}"
+          category: '/language:${{matrix.language}}'
