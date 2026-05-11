@@ -111,26 +111,24 @@ const buildCensusPayload = async (input: {
       "organisationId",
     );
 
-    const [companionOrgLink, parentCompanionLink] = await Promise.all([
-      CompanionOrganisationModel.findOne({
-        organisationId: { $eq: safeOrganisationIdString },
-        companionId: { $eq: safeCompanionIdString },
-        status: { $in: ["ACTIVE", "PENDING"] },
-      })
-        .setOptions({ sanitizeFilter: true })
-        .select({ _id: 1 })
-        .lean()
-        .exec(),
-      ParentCompanionModel.findOne({
-        parentId: { $eq: safeParentIdString },
-        companionId: { $eq: safeCompanionIdString },
-        status: { $in: ["ACTIVE", "PENDING"] },
-      })
-        .setOptions({ sanitizeFilter: true })
-        .select({ _id: 1 })
-        .lean()
-        .exec(),
-    ]);
+    const companionOrgLink = (await CompanionOrganisationModel.findOne({
+      organisationId: { $eq: safeOrganisationIdString },
+      companionId: { $eq: safeCompanionIdString },
+      status: { $in: ["ACTIVE", "PENDING"] },
+    })
+      .setOptions({ sanitizeFilter: true })
+      .select({ _id: 1 })
+      .lean()
+      .exec()) as unknown as { _id: unknown } | null;
+    const parentCompanionLink = (await ParentCompanionModel.findOne({
+      parentId: { $eq: safeParentIdString },
+      companionId: { $eq: safeCompanionIdString },
+      status: { $in: ["ACTIVE", "PENDING"] },
+    })
+      .setOptions({ sanitizeFilter: true })
+      .select({ _id: 1 })
+      .lean()
+      .exec()) as unknown as { _id: unknown } | null;
 
     if (!companionOrgLink) {
       throw new LabOrderServiceError("Companion not found.", 404);

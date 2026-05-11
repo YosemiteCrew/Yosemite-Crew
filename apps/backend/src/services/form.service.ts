@@ -120,10 +120,15 @@ type NormalizableObjectId =
   | { toHexString(): string }
   | { toString(): string };
 
-const normalizeObjectId = (id: NormalizableObjectId): string => {
+const normalizeObjectId = (
+  id: NormalizableObjectId | null | undefined,
+): string => {
+  if (!id) {
+    throw new FormServiceError("Invalid ObjectId", 400);
+  }
   if (typeof id === "string") return id;
   if (id instanceof Types.ObjectId) return id.toHexString();
-  if ("toHexString" in id) {
+  if (typeof id === "object" && "toHexString" in id) {
     const hex = id.toHexString?.();
     if (typeof hex === "string") return hex;
   }
@@ -738,7 +743,7 @@ const loadSoapSubmissions = async (
     .sort({ submittedAt: -1 })
     .lean()) as unknown as Array<{
     _id: Types.ObjectId;
-    formId: unknown;
+    formId: NormalizableObjectId | null | undefined;
     formVersion: number;
     submittedBy?: string | null;
     submittedAt: Date;
@@ -747,7 +752,7 @@ const loadSoapSubmissions = async (
 
   return docs.map((doc) => ({
     submissionId: doc._id.toString(),
-    formId: normalizeObjectId(doc.formId as unknown as NormalizableObjectId),
+    formId: normalizeObjectId(doc.formId),
     formVersion: doc.formVersion,
     submittedBy: doc.submittedBy ?? undefined,
     submittedAt: doc.submittedAt,

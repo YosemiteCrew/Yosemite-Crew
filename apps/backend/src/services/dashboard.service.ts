@@ -978,15 +978,13 @@ export const DashboardService = {
 
     // 2) Approximate average inventory value:
     //    - using average of current onHand across items
-    const items = await InventoryItemModel.find<InventoryItemLean>({
-      organisationId,
-    })
+    const items = (await InventoryItemModel.find({ organisationId })
       .lean()
-      .exec();
-    const totalOnHand = items.reduce(
-      (sum, item) => sum + (item.onHand ?? 0),
-      0,
-    );
+      .exec()) as unknown as InventoryItemLean[];
+    let totalOnHand = 0;
+    for (const item of items) {
+      totalOnHand += item.onHand ?? 0;
+    }
     const avgOnHand = totalOnHand || 1; // avoid division by zero
 
     const turnsPerYear = totalConsumed / avgOnHand;

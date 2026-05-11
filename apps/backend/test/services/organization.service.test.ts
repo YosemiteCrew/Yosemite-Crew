@@ -150,17 +150,17 @@ describe("OrganizationService", () => {
     jest.clearAllMocks();
 
     // Reset mock queues to prevent mock leakage across tests (prevents false positives/negatives)
-    [
-      OrganizationModel.findOne,
-      OrganizationModel.findOneAndUpdate,
-      OrganizationModel.find,
-      OrganizationModel.create,
-      OrganizationModel.findOneAndDelete,
-      SpecialityModel.find,
-      ServiceModel.find,
-      UserProfileModel.findOne,
-      UserProfileModel.create,
-    ].forEach((mockFn) => (mockFn as jest.Mock).mockReset());
+    const mocks: any[] = [];
+    mocks.push(OrganizationModel.findOne as any);
+    mocks.push(OrganizationModel.findOneAndUpdate as any);
+    mocks.push(OrganizationModel.find as any);
+    mocks.push(OrganizationModel.create as any);
+    mocks.push(OrganizationModel.findOneAndDelete as any);
+    mocks.push(SpecialityModel.find as any);
+    mocks.push(ServiceModel.find as any);
+    mocks.push(UserProfileModel.findOne as any);
+    mocks.push(UserProfileModel.create as any);
+    mocks.forEach((mockFn) => (mockFn as jest.Mock).mockReset());
 
     (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockImplementation(() =>
       generateDTO(),

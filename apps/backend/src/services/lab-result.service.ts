@@ -78,12 +78,12 @@ export const LabResultService = {
       if (!Types.ObjectId.isValid(params.companionId)) {
         throw new LabResultServiceError("Invalid companionId", 400);
       }
-      const orders = await LabOrderModel.find(
+      const orders = (await LabOrderModel.find(
         { companionId: params.companionId },
         { idexxOrderId: 1 },
       )
         .setOptions({ sanitizeFilter: true })
-        .lean();
+        .lean()) as unknown as Array<{ idexxOrderId?: string | null }>;
       const orderIds = orders
         .map((o) => o.idexxOrderId)
         .filter(Boolean) as string[];

@@ -50,8 +50,11 @@ const countPostgres = async (prismaName: string) => {
 
 const sampleMongoIds = async (modelName: string, limit: number) => {
   const model = mongoose.model(modelName);
-  const docs = await model.find({}, { _id: 1 }).limit(limit).lean();
-  return docs.map((d) => String((d as { _id: unknown })._id));
+  const docs = (await model
+    .find({}, { _id: 1 })
+    .limit(limit)
+    .lean()) as unknown as Array<{ _id: unknown }>;
+  return docs.map((d) => String(d._id));
 };
 
 const samplePostgresMatch = async (prismaName: string, ids: string[]) => {
