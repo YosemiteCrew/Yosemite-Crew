@@ -99,7 +99,7 @@ jobs:
 
       - name: Start frontend server
         run: |
-          nohup pnpm --filter frontend run start -- --hostname 127.0.0.1 --port 3001 > /tmp/frontend-lighthouse.log 2>&1 &
+          nohup pnpm --filter frontend exec next start -H 127.0.0.1 -p 3001 > /tmp/frontend-lighthouse.log 2>&1 &
           echo $! > /tmp/frontend-lighthouse.pid
 
       - name: Wait for frontend server
