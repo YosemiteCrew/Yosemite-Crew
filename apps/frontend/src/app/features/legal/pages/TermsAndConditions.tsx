@@ -36,6 +36,7 @@ const TermsAndConditions = () => {
               </h1>
             </div>
           </div>
+          <h2 className="sr-only">License and subscription terms details</h2>
 
           {/* 2 */}
           <div className="definitions">
@@ -386,9 +387,12 @@ const TermsAndConditions = () => {
                     Location (e.g., proximity to the Pet Owner’s search location);{' '}
                   </li>
                   <li>Service hours</li>
-                  <li> User ratings</li> Business Name (e.g., alphabetical order or match with
-                  search terms). These parameters are considered to ensure relevant, (where
-                  applicable) localized, and easily identifiable results for Pet Owners.
+                  <li>User ratings</li>
+                  <li>
+                    Business Name (e.g., alphabetical order or match with search terms). These
+                    parameters are considered to ensure relevant, (where applicable) localized, and
+                    easily identifiable results for Pet Owners.
+                  </li>
                   <li>
                     Pet Owners have at the moment the following filters to modify their search for
                     services:

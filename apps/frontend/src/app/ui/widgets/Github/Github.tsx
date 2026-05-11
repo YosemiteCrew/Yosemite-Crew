@@ -95,7 +95,8 @@ const Github = () => {
   if (!isOpen) return null;
 
   return (
-    <div
+    <aside
+      aria-label="GitHub repository"
       className={`${publicRoutes.has(pathname) ? 'flex!' : 'hidden!'} fixed left-0 bottom-[30px] z-9999 flex items-center justify-center w-full pointer-events-none`}
     >
       <div className="px-6 py-[12px] flex items-center justify-center gap-2 bg-text-primary pointer-events-auto rounded-2xl">
@@ -103,6 +104,7 @@ const Github = () => {
         <a
           href="https://github.com/YosemiteCrew/Yosemite-Crew"
           target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 rounded-2xl cursor-pointer bg-white px-2"
         >
           <div className="flex items-center gap-1">
@@ -110,7 +112,7 @@ const Github = () => {
             <div className="text-caption-1 text-text-primary">Stars</div>
           </div>
           <div className="h-[15px] w-px bg-text-tertiary"></div>
-          <div className="text-caption-1 text-text-brand">
+          <div className="text-caption-1 text-text-primary">
             {error ?? (stars === null ? '…' : formatStars(stars))}
           </div>
         </a>
@@ -123,7 +125,7 @@ const Github = () => {
           <IoCloseSharp color="var(--color-neutral-0)" size={18} />
         </button>
       </div>
-    </div>
+    </aside>
   );
 };
 

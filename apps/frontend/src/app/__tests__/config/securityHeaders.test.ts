@@ -84,6 +84,21 @@ describe('security headers', () => {
     expect(directives.get('frame-src')).toContain('https://sign.example.com');
   });
 
+  test('builds a static-compatible content security policy for public pages', () => {
+    const directives = parseCspDirectives(
+      buildContentSecurityPolicy({
+        allowInlineScripts: true,
+        documensoHost: 'https://sign.example.com',
+      })
+    );
+
+    expect(directives.get('script-src')).toContain("'self'");
+    expect(directives.get('script-src')).toContain("'unsafe-inline'");
+    expect(directives.get('script-src')).not.toContain("'nonce-");
+    expect(directives.get('style-src')).toContain("'unsafe-inline'");
+    expect(directives.get('style-src-elem')).toContain("'unsafe-inline'");
+  });
+
   test('omits dev-only CSP relaxations in production', () => {
     const originalNodeEnv = process.env.NODE_ENV;
     (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
@@ -98,12 +113,30 @@ describe('security headers', () => {
     (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
 
     expect(directives.get('script-src')).not.toContain("'unsafe-eval'");
-    expect(directives.get('style-src')).toContain("'nonce-test-nonce'");
-    expect(directives.get('style-src-elem')).toContain("'nonce-test-nonce'");
-    expect(directives.get('style-src')).not.toContain("'unsafe-inline'");
-    expect(directives.get('style-src-elem')).not.toContain("'unsafe-inline'");
+    expect(directives.get('style-src')).not.toContain("'nonce-test-nonce'");
+    expect(directives.get('style-src-elem')).not.toContain("'nonce-test-nonce'");
+    expect(directives.get('style-src')).toContain("'unsafe-inline'");
+    expect(directives.get('style-src-elem')).toContain("'unsafe-inline'");
     expect(directives.get('connect-src')).not.toContain('http:');
     expect(directives.get('connect-src')).not.toContain('ws:');
     expect(directives.get('upgrade-insecure-requests')).toBe('');
+  });
+
+  test('keeps public static CSP compatible in production', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+
+    const directives = parseCspDirectives(
+      buildContentSecurityPolicy({
+        allowInlineScripts: true,
+        documensoHost: 'https://sign.example.com',
+      })
+    );
+
+    (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
+
+    expect(directives.get('script-src')).toContain("'unsafe-inline'");
+    expect(directives.get('script-src')).not.toContain("'unsafe-eval'");
+    expect(directives.get('script-src')).not.toContain("'nonce-");
   });
 });

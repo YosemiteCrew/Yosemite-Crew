@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
             <div className="privacyHead">
               <div className="privacyhead">
                 {/* <Link href=""><Icon icon="solar:round-arrow-left-bold" width="24" height="24" color='var(--color-neutral-900)'/></Link> */}
-                <h2>Privacy Policy</h2>
+                <h1>Privacy Policy</h1>
                 {/* <h6></h6> */}
               </div>
               <p>
@@ -28,8 +28,9 @@ const PrivacyPolicy = () => {
                 we collect it, how we use it, and how long we store it.
               </p>
             </div>
+            <h2 className="sr-only">Privacy policy details</h2>
             <div className="PolicyItems">
-              <h4>Trademark Notice</h4>
+              <h3>Trademark Notice</h3>
               <p>
                 This repository may reference or include integrations, plugins, names, logos, or
                 trademarks of third-party companies (including but not limited to IDEXX, MSD
@@ -42,7 +43,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>1. Controller and Data Protection Officer</h4>
+              <h3>1. Controller and Data Protection Officer</h3>
               <p>
                 The Controller is: <br /> DuneXploration UG{' '}
                 <span className="warningtext">(haftungsbeschränkt)</span> <br /> Am Finther Weg 7{' '}
@@ -56,7 +57,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>2. Our Role Regarding Your Personal Data</h4>
+              <h3>2. Our Role Regarding Your Personal Data</h3>
               <p>
                 Under the General Data Protection Regulation (GDPR), the controller determines the
                 purposes and means of processing personal data. A processor processes personal data
@@ -93,7 +94,7 @@ const PrivacyPolicy = () => {
 
             <div className="PolicyNumbdetail">
               <div className="PolicyItems">
-                <h4>3. Processing Activities in Applications</h4>
+                <h3>3. Processing Activities in Applications</h3>
                 <p>
                   When you use our application, we process personal data. You are not legally
                   required to provide this data, but without it, many features may not be available.
@@ -106,7 +107,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>3.1 Web Application</h4>
+                <h3>3.1 Web Application</h3>
                 <p>
                   <span className="warningtext">
                     Our web application is offered to business owners and web developers
@@ -114,7 +115,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>3.1.1 Server Provision and Hosting</h4>
+                <h3>3.1.1 Server Provision and Hosting</h3>
                 <p>
                   <strong>Purpose:</strong> The web application can be self-hosted or hosted in the
                   cloud. If you choose our cloud, we collect and temporarily store certain data to
@@ -147,7 +148,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>3.1.2. Signing up and setting up a profile</h4>
+                <h3>3.1.2. Signing up and setting up a profile</h3>
                 <p>
                   <strong>Purpose:</strong> To register and onboard veterinary businesses, create
                   accounts, and establish secure access for managing their practice&lsquo;s
@@ -190,7 +191,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>3.1.3. General Use of the Application</h4>
+                <h3>3.1.3. General Use of the Application</h3>
                 <p>
                   <strong>Purpose:</strong> To allow businesses to use the application and all its
                   core functions (such as creating appointments, adding prescriptions, generating
@@ -229,7 +230,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>3.1.4. Contacting Clients und Communications</h4>
+                <h3>3.1.4. Contacting Clients und Communications</h3>
                 <p>
                   <strong>Purpose:</strong> The application allows communication with clients and
                   within teams. This can include sending messages, images and videos related to the
@@ -268,7 +269,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>3.1.5. Payment</h4>
+                <h3>3.1.5. Payment</h3>
                 <p>
                   Business owners and developers can implement their preferred payment options and
                   payment services directly in the web application. The payment is directly
@@ -278,11 +279,11 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2. Mobile Application </h4>
+                <h3>3.2. Mobile Application </h3>
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.1. Server Provision and Hosting</h4>
+                <h3>3.2.1. Server Provision and Hosting</h3>
                 <p>
                   <strong>Purpose:</strong> The application is hosted on servers to be made
                   technically available for users. For this purpose, we collect and temporarily
@@ -312,7 +313,7 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.2. Signing up and setting up a profile </h4>
+                <h3>3.2.2. Signing up and setting up a profile </h3>
                 <p>
                   <strong>Purpose:</strong> To onboard new users (pet owners, breeders, groomers,
                   and vet doctors) to the mobile application, enabling account creation,
@@ -356,7 +357,7 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.3. General Use of the Application</h4>
+                <h3>3.2.3. General Use of the Application</h3>
                 <p>
                   <strong>Purpose:</strong> To allow users to use the application and all its core
                   functions (such as creating pet profiles, managing daily care tasks, recording
@@ -396,7 +397,7 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.4. Booking Appointments</h4>
+                <h3>3.2.4. Booking Appointments</h3>
                 <p>
                   <strong>Purpose:</strong> To enable pet owners to book appointments with
                   veterinarians through the Yosemite Crew mobile application.
@@ -434,7 +435,7 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.5. Contacting Veterinarians und Communications</h4>
+                <h3>3.2.5. Contacting Veterinarians und Communications</h3>
                 <p>
                   <strong>Purpose:</strong> To enable meaningful communication between pet owners
                   and veterinary professionals the user can contact veterinarians directly through
@@ -475,7 +476,7 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.6. Review and Ratings</h4>
+                <h3>3.2.6. Review and Ratings</h3>
                 <p>
                   <strong>Purpose:</strong> Users can provide feedback on services received from pet
                   service providers to help other users to make their decision and enhance user
@@ -515,7 +516,7 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.7. Payment</h4>
+                <h3>3.2.7. Payment</h3>
                 <p>
                   Users can pay assessment fees directly or receive invoices for treatments via the
                   app. When payment is made through the app, the transaction is directly performed
@@ -525,7 +526,7 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.8. Pet Medical Records and Health Features</h4>
+                <h3>3.2.8. Pet Medical Records and Health Features</h3>
                 <p>
                   <strong>Purpose:</strong> To enable users to record, track and share their
                   pet&apos;s medical and health information, such as medical conditions,
@@ -565,7 +566,7 @@ const PrivacyPolicy = () => {
               </div>
 
               <div className="PolicyItems">
-                <h4>3.2.9. Contacting Us</h4>
+                <h3>3.2.9. Contacting Us</h3>
                 <p>
                   <strong>Purpose:</strong> Users can contact us through the application by sending
                   us a message. Users can submit a general enquiry, feature request or a data
@@ -605,7 +606,7 @@ const PrivacyPolicy = () => {
 
             <div className="PolicyNumbdetail">
               <div className="PolicyItems">
-                <h4> 4. Presence on social media</h4>
+                <h3> 4. Presence on social media</h3>
                 <p>
                   We have profiles on social networks. Our social media accounts complement our PMS
                   and offer you the opportunity to interact with us. As soon as you access our
@@ -621,7 +622,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>4.1. LinkedIn</h4>
+                <h3>4.1. LinkedIn</h3>
                 <p>
                   Our website can be accessed at:{' '}
                   <Link href="https://de.linkedin.com/company/yosemitecrew">
@@ -642,7 +643,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>4.2. Tik-Tok</h4>
+                <h3>4.2. Tik-Tok</h3>
                 <p>
                   Our website can be accessed at:{' '}
                   <Link href="https://www.tiktok.com/@yosemitecrew">
@@ -663,7 +664,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>4.3. Instagram</h4>
+                <h3>4.3. Instagram</h3>
                 <p>
                   Our website can be accessed at:{' '}
                   <Link href="https://www.instagram.com/yosemite_crew">
@@ -684,7 +685,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>4.4. X.com</h4>
+                <h3>4.4. X.com</h3>
                 <p>
                   Our website can be accessed at:{' '}
                   <Link href="https://x.com/yosemitecrew"> https://x.com/yosemitecrew</Link>{' '}
@@ -699,7 +700,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>4.5. Discord</h4>
+                <h3>4.5. Discord</h3>
                 <p>
                   Our website can be accessed at:{' '}
                   <Link href="https://discord.gg/YVzMa9j7BK">
@@ -717,7 +718,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>4.6. GitHub</h4>
+                <h3>4.6. GitHub</h3>
                 <p>
                   Our website can be accessed at:{' '}
                   <Link href="https://github.com/YosemiteCrew/Yosemite-Crew">
@@ -738,7 +739,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>4.7. Joint responsibility</h4>
+                <h3>4.7. Joint responsibility</h3>
                 <p>
                   <strong>Purposes: </strong> We process personal data as our own controller when
                   you send us inquiries via social media profiles. We process this data to respond
@@ -824,7 +825,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>5. General information on recipients</h4>
+              <h3>5. General information on recipients</h3>
               <p>
                 When we process your data, it may be necessary to transfer or disclose your data to
                 other recipients. In the sections on processing above, we name the specific
@@ -875,7 +876,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>6. General information on storage duration</h4>
+              <h3>6. General information on storage duration</h3>
               <p>
                 We generally process your personal data for the storage period described above.
                 However, data is often processed for more than one purpose, meaning that we may
@@ -886,7 +887,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>7. Automated decision-making and obligation to provide data</h4>
+              <h3>7. Automated decision-making and obligation to provide data</h3>
               <p>
                 We do not use automated decision-making that has a legal effect on you or
                 significantly affects you in a similar way.
@@ -901,9 +902,9 @@ const PrivacyPolicy = () => {
 
             <div className="PolicyNumbdetail">
               <div className="PolicyItems">
-                <h4>
+                <h3>
                   8. What rights do you have with regard to the personal data you provide to us?
-                </h4>
+                </h3>
                 <p>
                   You have the following rights, provided that the legal requirements are met. To
                   exercise these rights, you can contact using the following address:{' '}
@@ -911,7 +912,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>Art. 15 GDPR – Right of access by the data subject:</h4>
+                <h3>Art. 15 GDPR – Right of access by the data subject:</h3>
                 <p>
                   You have the right to obtain confirmation from us as to whether personal data
                   concerning you are being processed and, if so, which data are being processed and
@@ -919,7 +920,7 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>Art. 16 GDPR – Right to rectification:</h4>
+                <h3>Art. 16 GDPR – Right to rectification:</h3>
                 <p>
                   You have the right to request that we immediately correct any inaccurate personal
                   data concerning you. Taking into account the purposes of the processing, you also
@@ -928,9 +929,9 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>
+                <h3>
                   <span className="warningtext">Art. 17 GDPR – Right to erasure:</span>
-                </h4>
+                </h3>
                 <p>
                   <span className="warningtext">
                     You have the right to request that we erase personal data concerning you without
@@ -939,11 +940,11 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>Art. 18 GDPR – Right to restriction of processing:</h4>
+                <h3>Art. 18 GDPR – Right to restriction of processing:</h3>
                 <p>You have the right to request that we restrict processing.</p>
               </div>
               <div className="PolicyItems">
-                <h4>Art. 20 GDPR – Right to data portability:</h4>
+                <h3>Art. 20 GDPR – Right to data portability:</h3>
                 <p>
                   In the event of processing based on consent or for the performance of a contract,
                   you have the right to receive the personal data concerning you that you have
@@ -953,10 +954,10 @@ const PrivacyPolicy = () => {
                 </p>
               </div>
               <div className="PolicyItems">
-                <h4>
+                <h3>
                   Art. 77 GDPR in conjunction with § 19 BDSG – Right to lodge a complaint with a
                   supervisory authority:
-                </h4>
+                </h3>
                 <p>
                   You have the right to lodge a complaint with a supervisory authority, in
                   particular in the Member State of your habitual residence, place of work or place
@@ -967,7 +968,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>9. In particular, right to object and withdrawal of consent</h4>
+              <h3>9. In particular, right to object and withdrawal of consent</h3>
               <p>
                 You have the right to object at any time, on grounds relating to your particular
                 situation, to the processing of personal data concerning you which is necessary for
@@ -996,7 +997,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>10. Obligation to provide data</h4>
+              <h3>10. Obligation to provide data</h3>
               <p>
                 You are not contractually or legally obliged to provide us with personal data.
                 However, without the data you provide, we are unable to offer you our services.
@@ -1004,7 +1005,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>11. If you have any comments or questions </h4>
+              <h3>11. If you have any comments or questions </h3>
               <p>
                 We take all reasonable precautions to protect and secure your data. We welcome your
                 questions and comments regarding data protection. If you have any questions
@@ -1016,7 +1017,7 @@ const PrivacyPolicy = () => {
             </div>
 
             <div className="PolicyItems">
-              <h4>Updated: March 2026</h4>
+              <h3>Updated: March 2026</h3>
             </div>
           </div>
 

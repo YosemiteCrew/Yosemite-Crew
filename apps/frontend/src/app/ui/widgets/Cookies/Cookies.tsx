@@ -37,7 +37,7 @@ const Cookies = () => {
   if (!showCookiePopup) return null;
 
   return (
-    <div className="fixed left-20 bottom-32.5 z-9999">
+    <aside aria-label="Cookie consent" className="fixed left-20 bottom-32.5 z-9999">
       <div className="bg-white rounded-2xl max-w-75 p-3 z-22 border border-card-border">
         <div className="flex flex-col gap-2">
           <div className="text-body-4-emphasis text-text-primary">
@@ -73,7 +73,7 @@ const Cookies = () => {
           height={205}
         />
       </div>
-    </div>
+    </aside>
   );
 };
 

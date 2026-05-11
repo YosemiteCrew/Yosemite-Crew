@@ -184,6 +184,8 @@
   flex-direction: column;
 }
 .appointment-profile-title {
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--font-satoshi);
   color: var(--color-neutral-900);
   font-size: 16px;
@@ -191,6 +193,9 @@
   font-weight: 400;
   line-height: 120%;
   letter-spacing: -0.32px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 .appointment-profile-sub {
   font-family: var(--font-satoshi);

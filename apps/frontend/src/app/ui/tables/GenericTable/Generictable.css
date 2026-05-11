@@ -28,6 +28,10 @@
   position: relative;
   z-index: 0;
 }
+.td-inner {
+  min-width: 0;
+  max-width: 100%;
+}
 .TableDiv thead tr th {
   padding-top: 16px;
   padding-bottom: 10px;

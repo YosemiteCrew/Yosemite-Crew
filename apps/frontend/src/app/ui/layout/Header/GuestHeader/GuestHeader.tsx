@@ -152,7 +152,7 @@ const GuestHeader = () => {
               <Link
                 href={item.href ? item.href : '#'}
                 aria-current={item.href === pathname ? 'page' : undefined}
-                className={`${item.href === pathname ? 'text-text-primary!' : 'text-text-tertiary!'} inline-block text-body-4 hover:text-text-brand! transition-colors duration-200 ease-out`}
+                className={`${item.href === pathname ? 'text-text-primary!' : 'text-text-secondary!'} inline-block text-body-4 hover:text-text-brand! transition-colors duration-200 ease-out`}
               >
                 {item.label}
               </Link>

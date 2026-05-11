@@ -53,14 +53,15 @@ const getPostHogHost = () => process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
 export const buildContentSecurityPolicy = ({
   nonce,
   documensoHost = DEFAULT_DOCUMENSO_HOST,
+  allowInlineScripts = false,
 }: {
   nonce?: string;
   documensoHost?: string;
+  allowInlineScripts?: boolean;
 } = {}) => {
   const isProduction = process.env.NODE_ENV === 'production';
   const isDevelopment = !isProduction;
   const nonceSource = getNonceSource(nonce);
-  const styleNonceSource = isDevelopment ? undefined : nonceSource;
   const postHogHost = getPostHogHost();
   const postHogScriptHosts = [...POSTHOG_DEFAULT_SCRIPT_HOSTS, postHogHost].filter(Boolean);
   const postHogConnectHosts = [...POSTHOG_DEFAULT_CONNECT_HOSTS, postHogHost].filter(Boolean);
@@ -70,6 +71,7 @@ export const buildContentSecurityPolicy = ({
     [
       "script-src 'self'",
       nonceSource,
+      allowInlineScripts ? "'unsafe-inline'" : undefined,
       isDevelopment ? "'unsafe-eval'" : undefined,
       'https://js.stripe.com',
       'https://cal.com',
@@ -78,20 +80,10 @@ export const buildContentSecurityPolicy = ({
     ]
       .filter(Boolean)
       .join(' '),
-    [
-      "style-src 'self'",
-      styleNonceSource,
-      isDevelopment ? "'unsafe-inline'" : undefined,
-      'https://fonts.googleapis.com',
-    ]
+    ["style-src 'self'", "'unsafe-inline'", 'https://fonts.googleapis.com']
       .filter(Boolean)
       .join(' '),
-    [
-      "style-src-elem 'self'",
-      styleNonceSource,
-      isDevelopment ? "'unsafe-inline'" : undefined,
-      'https://fonts.googleapis.com',
-    ]
+    ["style-src-elem 'self'", "'unsafe-inline'", 'https://fonts.googleapis.com']
       .filter(Boolean)
       .join(' '),
     "style-src-attr 'unsafe-inline'",

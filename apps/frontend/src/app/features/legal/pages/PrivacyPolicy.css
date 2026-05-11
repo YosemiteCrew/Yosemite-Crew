@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: center;
 }
-.PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead h2 {
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead h1 {
   font-family: var(--font-satoshi);
   font-weight: 500;
   font-size: 40px;
@@ -45,7 +45,7 @@
   flex-direction: column;
   gap: 30px;
 }
-.PrivacyPolicySec .PrivacyPolicyData .PolicyItems h4 {
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems h3 {
   font-family: var(--satoshi-font);
   font-weight: 700;
   font-size: 18px;

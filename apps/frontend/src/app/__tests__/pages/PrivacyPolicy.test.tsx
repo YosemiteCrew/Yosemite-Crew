@@ -30,7 +30,7 @@ describe('<PrivacyPolicy /> – legal content sections', () => {
   beforeEach(() => render(<PrivacyPolicy />));
 
   it('renders main privacy heading', () => {
-    expect(screen.getByRole('heading', { name: /Privacy Policy/i, level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Privacy Policy/i, level: 1 })).toBeInTheDocument();
   });
 
   it('shows controller identity', () => {
