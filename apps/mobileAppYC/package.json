@@ -39,7 +39,7 @@
     "@react-native-google-signin/google-signin": "^15.0.0",
     "@react-native-masked-view/masked-view": "^0.3.2",
     "@react-native/codegen": "0.81.4",
-    "@react-native/gradle-plugin": "0.81.4",
+    "@react-native/gradle-plugin": "0.85.3",
     "@react-native/new-app-screen": "0.81.4",
     "@react-navigation/bottom-tabs": "^7.4.7",
     "@react-navigation/drawer": "^7.5.8",

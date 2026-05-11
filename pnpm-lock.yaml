@@ -596,8 +596,8 @@ importers:
         specifier: 0.81.4
         version: 0.81.4(@babel/core@7.29.0)
       '@react-native/gradle-plugin':
-        specifier: 0.81.4
-        version: 0.81.4
+        specifier: 0.85.3
+        version: 0.85.3
       '@react-native/new-app-screen':
         specifier: 0.81.4
         version: 0.81.4(@types/react@19.2.11)(react-native@0.81.4)(react@19.1.0)
@@ -14682,6 +14682,11 @@ packages:
     resolution: {integrity: sha512-T7fPcQvDDCSusZFVSg6H1oVDKb/NnVYLnsqkcHsAF2C2KGXyo3J7slH/tJAwNfj/7EOA2OgcWxfC1frgn9TQvw==}
     engines: {node: '>= 20.19.4'}
 
+  /@react-native/gradle-plugin@0.85.3:
+    resolution: {integrity: sha512-39dY2j50Q1pntejzwt3XL7vwXtrj8jcIfHq6E+gyu3jzYxZJVvMkMutQ39vSg6zinIQOX36oQDhidXUbCXzgoA==}
+    engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
+    dev: false
+
   /@react-native/js-polyfills@0.81.4:
     resolution: {integrity: sha512-sr42FaypKXJHMVHhgSbu2f/ZJfrLzgaoQ+HdpRvKEiEh2mhFf6XzZwecyLBvWqf2pMPZa+CpPfNPiejXjKEy8w==}
     engines: {node: '>= 20.19.4'}
@@ -14789,7 +14794,7 @@ packages:
       nanoid: 3.3.11
       query-string: 7.1.3
       react: 19.1.0
-      react-is: 19.2.5
+      react-is: 19.2.6
       use-latest-callback: 0.2.6(react@19.1.0)
       use-sync-external-store: 1.6.0(react@19.1.0)
     dev: false
@@ -31564,8 +31569,8 @@ packages:
     resolution: {integrity: sha512-W+EWGn2v0ApPKgKKCy/7s7WHXkboGcsrXE+2joLyVxkbyVQfO3MUEaUQDHoSmb8TFFrSKYa9mw64WZHNHSDzYA==}
     dev: true
 
-  /react-is@19.2.5:
-    resolution: {integrity: sha512-Dn0t8IQhCmeIT3wu+Apm1/YVsJXsGWi6k4sPdnBIdqMVtHtv0IGi6dcpNpNkNac0zB2uUAqNX3MHzN8c+z2rwQ==}
+  /react-is@19.2.6:
+    resolution: {integrity: sha512-XjBR15BhXuylgWGuslhDKqlSayuqvqBX91BP8pauG8kd1zY8kotkNWbXksTCNRarse4kuGbe2kIY05ARtwNIvw==}
     dev: false
 
   /react-json-view-lite@2.5.0(react@18.3.1):
