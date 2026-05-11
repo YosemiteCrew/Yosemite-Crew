@@ -14,12 +14,12 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.2",
-    "@types/multer": "^1.4.12",
-    "@types/node": "^22.15.21",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.6.2",
     "@yosemite-crew/fhirtypes": "workspace:^",
     "express": "4.21.2",
     "mongoose": "8.22.1",
     "multer": "2.1.1",
-    "typescript": "5.0.4"
+    "typescript": "6.0.3"
   }
 }
