@@ -59,7 +59,7 @@
     "react": "19.1.0",
     "react-hook-form": "^7.63.0",
     "react-i18next": "^15.4.1",
-    "react-native": "0.81.4",
+    "react-native": "0.85.3",
     "react-native-asset": "^2.1.1",
     "react-native-blob-util": "^0.23.2",
     "react-native-bootsplash": "^6.3.11",
