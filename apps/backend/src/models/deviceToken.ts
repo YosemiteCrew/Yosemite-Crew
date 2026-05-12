@@ -9,7 +9,7 @@ export interface DeviceTokenMongo {
   updatedAt?: Date;
 }
 
-const DeviceTokenSchema = new Schema<DeviceTokenMongo>(
+const DeviceTokenSchema = new Schema(
   {
     userId: { type: String, required: true, index: true },
     deviceToken: { type: String, required: true, unique: true },

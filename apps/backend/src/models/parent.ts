@@ -44,7 +44,7 @@ export interface ParentMongo {
   updatedAt?: Date;
 }
 
-const ParentSchema = new Schema<ParentMongo>(
+const ParentSchema = new Schema(
   {
     firstName: { type: String, required: true },
     lastName: { type: String },

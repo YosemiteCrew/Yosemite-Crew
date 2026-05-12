@@ -687,13 +687,13 @@ export const ObservationToolSubmissionService = {
       if (filter.companionId) {
         await ensureCompanionInOrganisation(filter.companionId, organisationId);
       } else {
-        const scopedCompanions = await CompanionOrganisationModel.find({
+        const scopedCompanions = (await CompanionOrganisationModel.find({
           organisationId,
           status: "ACTIVE",
         })
           .setOptions({ sanitizeFilter: true })
           .select({ companionId: 1 })
-          .lean();
+          .lean()) as unknown as Array<{ companionId: Types.ObjectId }>;
 
         q.companionId = {
           $in: scopedCompanions.map((item) => item.companionId.toString()),
@@ -968,13 +968,19 @@ export const ObservationToolSubmissionService = {
     }
 
     // find OT tasks under the appointment
-    const tasks = await TaskModel.find({
+    const tasks = (await TaskModel.find({
       appointmentId: safeAppointmentId,
       observationToolId: { $exists: true, $ne: null },
     })
       .setOptions({ sanitizeFilter: true })
       .select("_id companionId status dueAt observationToolId")
-      .lean();
+      .lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      companionId?: string | null;
+      status?: string;
+      dueAt?: Date;
+      observationToolId?: Types.ObjectId | string | null;
+    }>;
 
     if (!tasks.length) return [];
 
@@ -983,23 +989,41 @@ export const ObservationToolSubmissionService = {
       new Set(tasks.map((t) => String(t.observationToolId))),
     );
 
-    const [tools, submissions] = await Promise.all([
-      ObservationToolDefinitionModel.find({ _id: { $in: toolIds } })
-        .select("_id name category isActive")
-        .lean(),
-      ObservationToolSubmissionModel.find({ taskId: { $in: taskIds } })
-        .select("_id taskId toolId score summary createdAt")
-        .lean(),
-    ]);
+    const tools = (await ObservationToolDefinitionModel.find({
+      _id: { $in: toolIds },
+    })
+      .select("_id name category isActive")
+      .lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      name: string;
+      category: string;
+      isActive?: boolean;
+    }>;
+    const submissions = (await ObservationToolSubmissionModel.find({
+      taskId: { $in: taskIds },
+    })
+      .select(
+        "_id taskId toolId score summary createdAt evaluationAppointmentId",
+      )
+      .lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      taskId?: string | Types.ObjectId | null;
+      toolId?: string | Types.ObjectId | null;
+      score?: number | null;
+      summary?: string | null;
+      createdAt?: Date;
+      evaluationAppointmentId?: string | null;
+    }>;
 
     const toolById = new Map(tools.map((t) => [t._id.toString(), t]));
     const submissionByTaskId = new Map(
       submissions.map((s) => [String(s.taskId), s]),
     );
 
-    return tasks.flatMap<AppointmentTaskPreview>((t) => {
+    return tasks.flatMap((t): AppointmentTaskPreview[] => {
       const tool = toolById.get(String(t.observationToolId));
       if (!tool) return [];
+      if (!t.dueAt) return [];
       const submission = submissionByTaskId.get(t._id.toString());
 
       return [
@@ -1013,9 +1037,10 @@ export const ObservationToolSubmissionService = {
           toolCategory: tool.category,
           submissionId: submission?._id?.toString(),
           submittedAt: submission?.createdAt,
-          score: submission?.score,
-          summary: submission?.summary,
-          evaluationAppointmentId: submission?.evaluationAppointmentId,
+          score: submission?.score ?? undefined,
+          summary: submission?.summary ?? undefined,
+          evaluationAppointmentId:
+            submission?.evaluationAppointmentId ?? undefined,
         },
       ];
     });

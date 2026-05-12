@@ -9,7 +9,7 @@ export interface OccupancyMongo extends Document {
   referenceId?: string;
 }
 
-const OccupancySchema = new Schema<OccupancyMongo>(
+const OccupancySchema = new Schema(
   {
     userId: { type: String, required: true },
     organisationId: { type: String, required: true },

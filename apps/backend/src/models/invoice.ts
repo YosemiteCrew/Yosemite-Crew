@@ -73,7 +73,7 @@ export interface InvoiceMongo {
   updatedAt: Date;
 }
 
-const InvoiceSchema = new Schema<InvoiceMongo>(
+const InvoiceSchema = new Schema(
   {
     parentId: { type: String },
     companionId: { type: String },

@@ -12,7 +12,7 @@ export interface CodeSyncStateMongo {
   updatedAt?: Date;
 }
 
-const CodeSyncStateSchema = new Schema<CodeSyncStateMongo>(
+const CodeSyncStateSchema = new Schema(
   {
     system: { type: String, required: true, index: true },
     kind: { type: String, required: true, index: true },

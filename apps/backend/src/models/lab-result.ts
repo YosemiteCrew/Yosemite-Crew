@@ -33,7 +33,7 @@ export interface LabResultMongo {
   updatedAt?: Date;
 }
 
-const LabResultSchema = new Schema<LabResultMongo>(
+const LabResultSchema = new Schema(
   {
     organisationId: { type: String, default: null, index: true },
     provider: { type: String, required: true, index: true },

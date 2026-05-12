@@ -3,7 +3,7 @@ import { model, Schema } from "mongoose";
 
 // Schema for Form
 
-const FormSchema = new Schema<Form>(
+const FormSchema = new Schema(
   {
     orgId: { type: String, required: true },
 
@@ -85,7 +85,7 @@ export interface FormFieldDocument {
   meta?: Record<string, unknown>;
 }
 
-const FormFieldSchema = new Schema<FormFieldDocument>(
+const FormFieldSchema = new Schema(
   {
     formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
 
@@ -132,7 +132,7 @@ export interface IFormVersionDocument {
   publishedAt: Date;
 }
 
-const FormVersionSchema = new Schema<IFormVersionDocument>(
+const FormVersionSchema = new Schema(
   {
     formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
     version: { type: Number, required: true },
@@ -196,7 +196,7 @@ export interface FormSubmissionDocument {
   signing?: SigningInfo;
 }
 
-const FormSubmissionSchema = new Schema<FormSubmissionDocument>(
+const FormSubmissionSchema = new Schema(
   {
     formId: { type: Schema.Types.ObjectId, ref: "Form", required: true },
     formVersion: { type: Number, required: true },

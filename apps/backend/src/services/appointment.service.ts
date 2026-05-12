@@ -1052,9 +1052,20 @@ const isFreePlan = async (orgId: Types.ObjectId | string) => {
   return !billing || billing.plan === "free";
 };
 
-const markFreeLimitReachedAt = async (
-  usage: Awaited<ReturnType<typeof ensureOrgUsageCounters>>,
-) => {
+type OrgUsageCountersDoc = {
+  _id?: Types.ObjectId;
+  orgId: Types.ObjectId | string;
+  freeLimitReachedAt?: Date | null;
+  usersActiveCount?: number | null;
+  usersBillableCount?: number | null;
+  appointmentsUsed?: number | null;
+  toolsUsed?: number | null;
+  freeAppointmentsLimit?: number | null;
+  freeToolsLimit?: number | null;
+  freeUsersLimit?: number | null;
+};
+
+const markFreeLimitReachedAt = async (usage: OrgUsageCountersDoc | null) => {
   if (
     !usage ||
     usage.freeLimitReachedAt ||
@@ -3245,12 +3256,12 @@ export const AppointmentService = {
       ensureObjectId(id, "formId"),
     );
 
-    const forms = await FormModel.find({
+    const forms = (await FormModel.find({
       _id: { $in: formObjectIds },
       orgId: appointment.organisationId,
     })
       .select("_id")
-      .lean();
+      .lean()) as unknown as Array<{ _id: Types.ObjectId }>;
 
     const foundIds = new Set(forms.map((f) => f._id.toString()));
     const missing = uniqueFormIds.filter((id) => !foundIds.has(id));
@@ -3788,7 +3799,7 @@ export const AppointmentService = {
     ].filter(Boolean);
 
     // 3. Fetch organisations in one query
-    const organisations = await OrganizationModel.find(
+    const organisations = (await OrganizationModel.find(
       { _id: { $in: orgIds } },
       {
         name: 1,
@@ -3799,7 +3810,16 @@ export const AppointmentService = {
         appointmentCheckInBufferMinutes: 1,
         appointmentCheckInRadiusMeters: 1,
       },
-    ).lean();
+    ).lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      name?: string;
+      imageURL?: string;
+      address?: unknown;
+      phoneNo?: string;
+      googlePlacesId?: string;
+      appointmentCheckInBufferMinutes?: number;
+      appointmentCheckInRadiusMeters?: number;
+    }>;
 
     // Convert array → map for O(1) lookup
     const orgMap = new Map(

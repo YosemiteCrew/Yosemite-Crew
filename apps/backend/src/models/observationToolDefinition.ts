@@ -37,7 +37,7 @@ export interface ObservationToolDefinitionMongo {
   updatedAt?: Date;
 }
 
-const OTFieldSchema = new Schema<OTField>(
+const OTFieldSchema = new Schema(
   {
     key: { type: String, required: true },
     label: { type: String, required: true },
@@ -56,24 +56,23 @@ const OTFieldSchema = new Schema<OTField>(
   { _id: false },
 );
 
-const ObservationToolDefinitionSchema =
-  new Schema<ObservationToolDefinitionMongo>(
-    {
-      name: { type: String, required: true },
-      description: String,
-      category: { type: String, required: true },
+const ObservationToolDefinitionSchema = new Schema(
+  {
+    name: { type: String, required: true },
+    description: String,
+    category: { type: String, required: true },
 
-      fields: { type: [OTFieldSchema], required: true },
+    fields: { type: [OTFieldSchema], required: true },
 
-      scoringRules: {
-        sumFields: [String],
-        customFormula: String,
-      },
-
-      isActive: { type: Boolean, default: true },
+    scoringRules: {
+      sumFields: [String],
+      customFormula: String,
     },
-    { timestamps: true },
-  );
+
+    isActive: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+);
 
 export type ObservationToolDefinitionDocument =
   HydratedDocument<ObservationToolDefinitionMongo>;
@@ -103,24 +102,23 @@ export interface ObservationToolSubmissionMongo {
   updatedAt?: Date;
 }
 
-const ObservationToolSubmissionSchema =
-  new Schema<ObservationToolSubmissionMongo>(
-    {
-      toolId: { type: String, required: true },
-      taskId: String,
+const ObservationToolSubmissionSchema = new Schema(
+  {
+    toolId: { type: String, required: true },
+    taskId: String,
 
-      companionId: { type: String, required: true },
-      filledBy: { type: String, required: true },
+    companionId: { type: String, required: true },
+    filledBy: { type: String, required: true },
 
-      answers: { type: Schema.Types.Mixed, required: true },
+    answers: { type: Schema.Types.Mixed, required: true },
 
-      score: Number,
-      summary: String,
+    score: Number,
+    summary: String,
 
-      evaluationAppointmentId: String,
-    },
-    { timestamps: true },
-  );
+    evaluationAppointmentId: String,
+  },
+  { timestamps: true },
+);
 
 export type ObservationToolSubmissionDocument =
   HydratedDocument<ObservationToolSubmissionMongo>;

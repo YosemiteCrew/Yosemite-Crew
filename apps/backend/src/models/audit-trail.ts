@@ -54,7 +54,7 @@ export interface AuditTrailMongo {
   updatedAt?: Date;
 }
 
-const AuditTrailSchema = new Schema<AuditTrailMongo>(
+const AuditTrailSchema = new Schema(
   {
     organisationId: { type: String, required: true, index: true },
     companionId: { type: String, required: true, index: true },

@@ -199,7 +199,7 @@ const getParentAccessibleCompanionIds = async (
     return links.map((link) => ensureObjectId(link.companionId, "companionId"));
   }
 
-  const links = await ParentCompanionModel.find(
+  const links = (await ParentCompanionModel.find(
     {
       parentId: _parentId,
       status: { $in: ["ACTIVE", "PENDING"] },
@@ -208,7 +208,7 @@ const getParentAccessibleCompanionIds = async (
     { sanitizeFilter: true },
   )
     .lean()
-    .exec();
+    .exec()) as unknown as Array<{ companionId: Types.ObjectId | string }>;
 
   return links.map((link) => ensureObjectId(link.companionId, "companionId"));
 };
@@ -232,7 +232,7 @@ const getOrganisationAccessibleCompanionIds = async (
 
   const safeOrganisationId = ensureObjectId(organisationId, "organisationId");
 
-  const links = await CompanionOrganisationModel.find(
+  const links = (await CompanionOrganisationModel.find(
     {
       organisationId: safeOrganisationId,
       status: { $in: ["ACTIVE", "PENDING"] },
@@ -241,7 +241,7 @@ const getOrganisationAccessibleCompanionIds = async (
     { sanitizeFilter: true },
   )
     .lean()
-    .exec();
+    .exec()) as unknown as Array<{ companionId: Types.ObjectId | string }>;
 
   return links.map((link) => ensureObjectId(link.companionId, "companionId"));
 };

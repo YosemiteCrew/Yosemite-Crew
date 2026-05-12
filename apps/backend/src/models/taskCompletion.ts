@@ -12,7 +12,7 @@ interface TaskCompletionMongo {
   createdAt?: Date;
 }
 
-const TaskCompletionSchema = new Schema<TaskCompletionMongo>(
+const TaskCompletionSchema = new Schema(
   {
     taskId: { type: String, required: true, index: true },
     companionId: { type: String, required: true },

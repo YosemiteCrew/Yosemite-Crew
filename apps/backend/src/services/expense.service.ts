@@ -181,9 +181,19 @@ export const ExpenseService = {
       return combined;
     }
 
-    const external = await ExternalExpenseModel.find({ companionId })
+    const external = (await ExternalExpenseModel.find({ companionId })
       .sort({ date: -1 })
-      .lean();
+      .lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      date: Date;
+      amount: number;
+      expenseName: string;
+      notes?: string | null;
+      category: string;
+      subcategory?: string | null;
+      currency: string;
+      businessName?: string | null;
+    }>;
 
     const externalMapped: UnifiedExpense[] = external.map((exp) => ({
       source: "EXTERNAL",
@@ -198,12 +208,21 @@ export const ExpenseService = {
       businessName: exp.businessName ?? undefined,
     }));
 
-    const invoices = await InvoiceModel.find({
+    const invoices = (await InvoiceModel.find({
       companionId,
       status: { $in: ["PAID", "AWAITING_PAYMENT"] },
     })
       .sort({ createdAt: -1 })
-      .lean();
+      .lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      organisationId: string;
+      createdAt: Date;
+      totalAmount: number;
+      appointmentId?: string | null;
+      items?: Array<{ name: string }>;
+      status: string;
+      currency: string;
+    }>;
 
     const invoiceMapped: UnifiedExpense[] = await Promise.all(
       invoices.map(async (inv) => {
@@ -213,7 +232,7 @@ export const ExpenseService = {
           source: "IN_APP",
           date: inv.createdAt,
           amount: inv.totalAmount,
-          appointmentId: inv.appointmentId,
+          appointmentId: inv.appointmentId ?? undefined,
           title: "Invoice",
           description: inv.items?.map((i) => i.name).join(", "),
           status: inv.status,
@@ -292,7 +311,16 @@ export const ExpenseService = {
       return external;
     }
 
-    const invoice = await InvoiceModel.findById(expenseId).lean();
+    const invoice = (await InvoiceModel.findById(expenseId).lean()) as {
+      _id: Types.ObjectId;
+      organisationId: string;
+      createdAt: Date;
+      totalAmount: number;
+      items?: Array<{ name: string }>;
+      status?: string;
+      currency: string;
+      appointmentId?: string | null;
+    } | null;
     if (invoice) {
       const org = await OrganizationModel.findById(invoice.organisationId)
         .select("name")
@@ -316,7 +344,7 @@ export const ExpenseService = {
         invoiceId: invoice._id.toString(),
         currency: invoice.currency,
         businessName,
-        appointmentId: invoice.appointmentId,
+        appointmentId: invoice.appointmentId ?? undefined,
       };
 
       return mapped;

@@ -24,7 +24,7 @@ export interface BaseAvailabilityMongo {
   updatedAt?: Date;
 }
 
-const AvailabilitySlotSchema = new Schema<AvailabilitySlotMongo>(
+const AvailabilitySlotSchema = new Schema(
   {
     startTime: { type: String, required: true, trim: true },
     endTime: { type: String, required: true, trim: true },
@@ -33,7 +33,7 @@ const AvailabilitySlotSchema = new Schema<AvailabilitySlotMongo>(
   { _id: false },
 );
 
-const BaseAvailabilitySchema = new Schema<BaseAvailabilityMongo>(
+const BaseAvailabilitySchema = new Schema(
   {
     userId: { type: String, required: true, trim: true, index: true },
     organisationId: { type: String, required: true },

@@ -533,13 +533,13 @@ export const CompanionService = {
     }
 
     // 2️⃣ Get companion IDs already linked to this organisation
-    const linkedCompanions = await CompanionOrganisationModel.find(
+    const linkedCompanions = (await CompanionOrganisationModel.find(
       {
         organisationId: organisationDocId,
         companionId: { $in: parentCompanionIds },
       },
       { companionId: 1 },
-    ).lean();
+    ).lean()) as unknown as Array<{ companionId: Types.ObjectId }>;
 
     const linkedCompanionIdSet = new Set(
       linkedCompanions.map((c) => c.companionId.toString()),

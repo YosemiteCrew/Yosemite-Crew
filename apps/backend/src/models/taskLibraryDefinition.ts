@@ -80,7 +80,7 @@ const LibraryInnerSchema = new Schema(
   { _id: false },
 );
 
-const LibrarySchema = new Schema<TaskLibraryDefinitionMongo>(
+const LibrarySchema = new Schema(
   {
     source: { type: String, enum: ["YC_LIBRARY"], required: true },
 

@@ -466,7 +466,9 @@ describe("AvailabilityController", () => {
       (req as any).userId = "u1";
       req.params = { orgId: "o1" };
       req.query = { startDate: "2023-01-01", endDate: "2023-01-31" };
-      mockedAvailabilityService.getOccupancy.mockResolvedValue([]);
+      (mockedAvailabilityService.getOccupancy as any).mockResolvedValue(
+        [] as any,
+      );
 
       await AvailabilityController.getOccupancy(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(200);

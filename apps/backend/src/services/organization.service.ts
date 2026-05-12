@@ -808,10 +808,8 @@ export const OrganizationService = {
       document = await OrganizationModel.create(persistable);
       created = true;
 
-      const [billingDoc, usageDoc] = await Promise.all([
-        OrgBilling.create({ orgId: document._id }),
-        OrgUsageCounters.create({ orgId: document._id }),
-      ]);
+      const billingDoc = await OrgBilling.create({ orgId: document._id });
+      const usageDoc = await OrgUsageCounters.create({ orgId: document._id });
 
       if (shouldDualWrite) {
         try {

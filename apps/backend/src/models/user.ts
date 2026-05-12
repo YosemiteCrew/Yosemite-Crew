@@ -8,7 +8,7 @@ export interface UserMongo {
   lastName: string;
 }
 
-const UserSchema = new Schema<UserMongo>(
+const UserSchema = new Schema(
   {
     userId: { type: String, required: true, unique: true, trim: true },
     email: {

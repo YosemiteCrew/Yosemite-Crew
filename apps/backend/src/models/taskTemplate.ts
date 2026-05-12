@@ -57,7 +57,7 @@ const RecurrenceSchema = new Schema(
   { _id: false },
 );
 
-const TaskTemplateSchema = new Schema<TaskTemplateMongo>(
+const TaskTemplateSchema = new Schema(
   {
     source: { type: String, enum: ["ORG_TEMPLATE"], required: true },
     organisationId: { type: String, required: true },
