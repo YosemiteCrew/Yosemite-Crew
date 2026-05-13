@@ -229,7 +229,14 @@ const buildInvoiceItemsFromTests = async (
         active: true,
       }).lean();
 
-  const entryByCode = new Map(entries.map((entry) => [entry.code, entry]));
+  const normalizedEntries = entries as unknown as Array<{
+    code: string;
+    display?: string | null;
+    meta?: unknown;
+  }>;
+  const entryByCode = new Map(
+    normalizedEntries.map((entry) => [entry.code, entry]),
+  );
 
   return testCodes.map((code) => {
     const entry = entryByCode.get(code);
@@ -343,83 +350,74 @@ export const LabOrderService = {
     const queryText = params.query?.trim();
     const hasCodes = (params.codes?.length ?? 0) > 0;
 
-    const [total, items] = isReadFromPostgres()
-      ? await Promise.all([
-          prisma.codeEntry.count({
-            where: {
-              system: "IDEXX",
-              type: "TEST",
-              active: true,
-              ...(hasCodes ? { code: { in: params.codes } } : {}),
-              ...(queryText
-                ? {
-                    OR: [
-                      {
-                        code: {
-                          contains: queryText,
-                          mode: "insensitive",
-                        },
-                      },
-                      {
-                        display: {
-                          contains: queryText,
-                          mode: "insensitive",
-                        },
-                      },
-                    ],
-                  }
-                : {}),
-            },
-          }),
-          prisma.codeEntry.findMany({
-            where: {
-              system: "IDEXX",
-              type: "TEST",
-              active: true,
-              ...(hasCodes ? { code: { in: params.codes } } : {}),
-              ...(queryText
-                ? {
-                    OR: [
-                      {
-                        code: {
-                          contains: queryText,
-                          mode: "insensitive",
-                        },
-                      },
-                      {
-                        display: {
-                          contains: queryText,
-                          mode: "insensitive",
-                        },
-                      },
-                    ],
-                  }
-                : {}),
-            },
-            orderBy: { display: "asc" },
-            skip,
-            take: limit,
-            select: {
-              system: true,
-              code: true,
-              display: true,
-              type: true,
-              meta: true,
-            },
-          }),
-        ])
-      : await Promise.all([
-          CodeEntryModel.countDocuments(filter).setOptions({
-            sanitizeFilter: true,
-          }),
-          CodeEntryModel.find(filter)
-            .sort({ display: 1 })
-            .skip(skip)
-            .limit(limit)
-            .setOptions({ sanitizeFilter: true })
-            .select({ system: 1, code: 1, display: 1, type: 1, meta: 1 })
-            .lean(),
-        ]);
+    let total: number;
+    let items: Array<{
+      system: string;
+      code: string;
+      display: string;
+      type: string;
+      meta?: unknown;
+    }>;
+
+    if (isReadFromPostgres()) {
+      const [count, found] = await Promise.all([
+        prisma.codeEntry.count({
+          where: {
+            system: "IDEXX",
+            type: "TEST",
+            active: true,
+            ...(hasCodes ? { code: { in: params.codes } } : {}),
+            ...(queryText
+              ? {
+                  OR: [
+                    { code: { contains: queryText, mode: "insensitive" } },
+                    { display: { contains: queryText, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+          },
+        }),
+        prisma.codeEntry.findMany({
+          where: {
+            system: "IDEXX",
+            type: "TEST",
+            active: true,
+            ...(hasCodes ? { code: { in: params.codes } } : {}),
+            ...(queryText
+              ? {
+                  OR: [
+                    { code: { contains: queryText, mode: "insensitive" } },
+                    { display: { contains: queryText, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+          },
+          orderBy: { display: "asc" },
+          skip,
+          take: limit,
+          select: {
+            system: true,
+            code: true,
+            display: true,
+            type: true,
+            meta: true,
+          },
+        }),
+      ]);
+      total = count;
+      items = found;
+    } else {
+      total = await CodeEntryModel.countDocuments(filter).setOptions({
+        sanitizeFilter: true,
+      });
+      items = (await CodeEntryModel.find(filter)
+        .sort({ display: 1 })
+        .skip(skip)
+        .limit(limit)
+        .setOptions({ sanitizeFilter: true })
+        .select({ system: 1, code: 1, display: 1, type: 1, meta: 1 })
+        .lean()) as unknown as typeof items;
+    }
 
     return { total, page, limit, tests: items };
   },

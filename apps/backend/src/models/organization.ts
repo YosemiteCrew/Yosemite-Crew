@@ -1,5 +1,10 @@
 import { Schema, model, HydratedDocument } from "mongoose";
-import type { ToFHIROrganizationOptions } from "@yosemite-crew/types";
+
+export interface OrganizationTypeCoding {
+  system: string;
+  code: string;
+  display?: string;
+}
 
 const GeoPointSchema = new Schema(
   {
@@ -61,7 +66,7 @@ export interface OrganizationMongo {
   };
   isVerified?: boolean;
   isActive?: boolean;
-  typeCoding?: ToFHIROrganizationOptions["typeCoding"];
+  typeCoding?: OrganizationTypeCoding;
   healthAndSafetyCertNo?: string;
   animalWelfareComplianceCertNo?: string;
   fireAndEmergencyCertNo?: string;
@@ -73,7 +78,7 @@ export interface OrganizationMongo {
   appointmentCheckInRadiusMeters?: number;
 }
 
-const OrganizationSchema = new Schema<OrganizationMongo>(
+const OrganizationSchema = new Schema(
   {
     fhirId: { type: String },
     name: { type: String, required: true },

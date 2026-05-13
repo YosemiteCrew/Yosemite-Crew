@@ -55,10 +55,12 @@ describe("IntegrationService", () => {
     ]);
 
     const spy = jest
-      .spyOn(IntegrationService, "ensureMerckAccount")
+      .spyOn(IntegrationService as any, "ensureMerckAccount")
       .mockResolvedValue({ provider: "MERCK_MANUALS" } as any);
 
-    const list = await IntegrationService.listForOrganisation("org-1");
+    const list = (await IntegrationService.listForOrganisation(
+      "org-1",
+    )) as any[];
 
     expect(spy).toHaveBeenCalled();
     expect(list.map((item) => item.provider)).toEqual([

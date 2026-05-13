@@ -11,7 +11,9 @@ import {
   ServiceRequestDTO,
   Service,
 } from "@yosemite-crew/types";
-import OrganizationModel from "src/models/organization";
+import OrganizationModel, {
+  type OrganizationMongo,
+} from "src/models/organization";
 import escapeStringRegexp from "escape-string-regexp";
 import SpecialityModel from "src/models/speciality";
 import { AvailabilitySlotMongo } from "src/models/base-availability";
@@ -896,9 +898,9 @@ export const ServiceService = {
     const searchRegex = new RegExp(safe);
 
     // 1. Find matching services
-    const services = await ServiceModel.find({
+    const services = (await ServiceModel.find({
       name: searchRegex,
-    }).lean();
+    }).lean()) as Array<{ organisationId: Types.ObjectId }>;
 
     if (!services.length) return [];
 
@@ -908,12 +910,12 @@ export const ServiceService = {
     ];
 
     // 3. Fetch organisations
-    const organisations = await OrganizationModel.find({
+    const organisations = (await OrganizationModel.find({
       _id: { $in: orgIds },
       //isActive: true,
     })
       .lean()
-      .exec();
+      .exec()) as Array<OrganizationMongo & { _id: Types.ObjectId }>;
 
     return organisations.map((org) => ({
       id: org._id.toString(),
@@ -1172,9 +1174,9 @@ export const ServiceService = {
     const searchRegex = new RegExp(safe, "i");
 
     // 1. Find services matching the name
-    const matchedServices = await ServiceModel.find({
+    const matchedServices = (await ServiceModel.find({
       name: searchRegex,
-    }).lean();
+    }).lean()) as Array<{ organisationId: Types.ObjectId }>;
     if (!matchedServices.length) return [];
 
     // 2. Extract unique organization IDs
@@ -1191,7 +1193,7 @@ export const ServiceService = {
     }
 
     // 4. Fetch only nearby organisations
-    const organisations = await OrganizationModel.find({
+    const organisations = (await OrganizationModel.find({
       _id: { $in: orgIds },
       "address.location": {
         $near: {
@@ -1202,27 +1204,37 @@ export const ServiceService = {
           $maxDistance: radius,
         },
       },
-    }).lean();
+    }).lean()) as Array<OrganizationMongo & { _id: Types.ObjectId }>;
 
     // 5. Fetch specialities + all services for these organisations
-    const allSpecialities = await SpecialityModel.find(
+    const allSpecialities = (await SpecialityModel.find(
       { organisationId: { $in: orgIds } },
       { _id: 1, name: 1, organisationId: 1 },
-    ).lean();
+    ).lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      name: string;
+      organisationId: string;
+    }>;
 
-    const allServicesForOrgs = await ServiceModel.find(
+    const allServicesForOrgs = (await ServiceModel.find(
       { organisationId: { $in: orgIds } },
       { _id: 1, name: 1, cost: 1, specialityId: 1, organisationId: 1 },
-    ).lean();
+    ).lean()) as unknown as Array<{
+      _id: Types.ObjectId;
+      name: string;
+      cost?: number;
+      specialityId?: Types.ObjectId | string | null;
+      organisationId: string;
+    }>;
 
     // 6. Group specialities + services for each org
     return organisations.map((org) => {
       const orgSpecialities = allSpecialities.filter(
-        (s) => s.organisationId.toString() === org._id.toString(),
+        (s) => s.organisationId === org._id.toString(),
       );
 
       const orgServices = allServicesForOrgs.filter(
-        (s) => s.organisationId.toString() === org._id.toString(),
+        (s) => s.organisationId === org._id.toString(),
       );
 
       const specialitiesWithServices = orgSpecialities.map((spec) => {

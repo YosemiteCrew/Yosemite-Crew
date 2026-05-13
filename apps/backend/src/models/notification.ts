@@ -18,7 +18,7 @@ export interface NotificationMongo {
   updatedAt: Date;
 }
 
-const NotificationSchema = new Schema<NotificationMongo>(
+const NotificationSchema = new Schema(
   {
     userId: { type: String, required: true, index: true },
     title: { type: String, required: true },

@@ -41,7 +41,7 @@ export interface LabOrderMongo {
   updatedAt?: Date;
 }
 
-const LabOrderSchema = new Schema<LabOrderMongo>(
+const LabOrderSchema = new Schema(
   {
     organisationId: { type: String, required: true, index: true },
     provider: { type: String, required: true, index: true },

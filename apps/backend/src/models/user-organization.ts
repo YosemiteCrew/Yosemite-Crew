@@ -12,7 +12,7 @@ export interface UserOrganizationMongo {
   effectivePermissions?: string[];
 }
 
-const UserOrganizationSchema = new Schema<UserOrganizationMongo>(
+const UserOrganizationSchema = new Schema(
   {
     fhirId: { type: String },
     practitionerReference: { type: String, required: true },

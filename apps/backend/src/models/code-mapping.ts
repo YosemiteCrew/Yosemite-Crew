@@ -13,7 +13,7 @@ export interface CodeMappingMongo {
   updatedAt?: Date;
 }
 
-const CodeMappingSchema = new Schema<CodeMappingMongo>(
+const CodeMappingSchema = new Schema(
   {
     sourceSystem: { type: String, required: true, index: true },
     sourceCode: { type: String, required: true },

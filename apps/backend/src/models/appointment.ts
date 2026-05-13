@@ -59,7 +59,7 @@ export interface AppointmentMongo {
   expiresAt?: Date;
 }
 
-const AppointmentSchema = new Schema<AppointmentMongo>(
+const AppointmentSchema = new Schema(
   {
     companion: {
       id: { type: String, required: true },

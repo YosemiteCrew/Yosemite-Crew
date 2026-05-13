@@ -102,7 +102,7 @@ export interface AdverseEventReportMongo {
   updatedAt?: Date;
 }
 
-const AdverseEventReportSchema = new Schema<AdverseEventReportMongo>(
+const AdverseEventReportSchema = new Schema(
   {
     organisationId: { type: String, index: true },
     appointmentId: { type: String },

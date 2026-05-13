@@ -9,7 +9,7 @@ export interface LabResultSyncStateMongo {
   updatedAt?: Date;
 }
 
-const LabResultSyncStateSchema = new Schema<LabResultSyncStateMongo>(
+const LabResultSyncStateSchema = new Schema(
   {
     provider: { type: String, required: true, unique: true },
     lastBatchId: { type: String, default: null },

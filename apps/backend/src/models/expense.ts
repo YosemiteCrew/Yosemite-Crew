@@ -29,7 +29,7 @@ export interface ExternalExpenseMongo {
   updatedAt?: Date;
 }
 
-const AttachmentSchema = new Schema<ExternalExpenseAttachment>(
+const AttachmentSchema = new Schema(
   {
     key: { type: String, required: true },
     mimeType: { type: String },
@@ -38,7 +38,7 @@ const AttachmentSchema = new Schema<ExternalExpenseAttachment>(
   { _id: false },
 );
 
-const ExternalExpenseSchema = new Schema<ExternalExpenseMongo>(
+const ExternalExpenseSchema = new Schema(
   {
     companionId: { type: String, required: true, index: true },
     parentId: { type: String, required: true, index: true },

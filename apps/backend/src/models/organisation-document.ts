@@ -32,7 +32,7 @@ export interface OrganizationDocumentMongo {
 export type OrganizationDocumentDocument =
   HydratedDocument<OrganizationDocumentMongo>;
 
-const OrganisationDocumentSchema = new Schema<OrganizationDocumentMongo>(
+const OrganisationDocumentSchema = new Schema(
   {
     organisationId: {
       type: String,

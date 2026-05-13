@@ -903,7 +903,21 @@ describe("FormService", () => {
 
     it("listFormsForOrganisation: works", async () => {
       (FormModel.find as jest.Mock).mockReturnValueOnce(
-        createChainable([{ createdBy: "u" }]),
+        createChainable([
+          {
+            _id: new Types.ObjectId(validId),
+            orgId: validId,
+            name: "Form",
+            category: "Cat",
+            visibilityType: "Internal",
+            status: "draft",
+            schema: [],
+            createdBy: "u",
+            updatedBy: "u",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ]),
       );
       (UserModel.find as jest.Mock).mockReturnValueOnce(createChainable([]));
       await FormService.listFormsForOrganisation(validId);

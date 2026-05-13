@@ -16,7 +16,7 @@ export interface CompanionOrganisationMongo {
   rejectedAt?: Date | null;
 }
 
-const CompanionOrganisationSchema = new Schema<CompanionOrganisationMongo>(
+const CompanionOrganisationSchema = new Schema(
   {
     companionId: {
       type: Schema.Types.ObjectId,

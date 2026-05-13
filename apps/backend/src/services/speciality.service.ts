@@ -70,18 +70,20 @@ const sendSpecialityHeadAssignmentEmail = async (params: {
   if (!params.headUserId) return;
 
   try {
-    const [user, organisationName] = await Promise.all([
-      isReadFromPostgres()
-        ? prisma.user.findFirst({
-            where: { userId: params.headUserId },
-            select: { email: true, firstName: true, lastName: true },
-          })
-        : UserModel.findOne(
-            { userId: params.headUserId },
-            { email: 1, firstName: 1, lastName: 1 },
-          ).lean(),
-      getOrganisationName(params.organisationId),
-    ]);
+    const user = isReadFromPostgres()
+      ? await prisma.user.findFirst({
+          where: { userId: params.headUserId },
+          select: { email: true, firstName: true, lastName: true },
+        })
+      : ((await UserModel.findOne(
+          { userId: params.headUserId },
+          { email: 1, firstName: 1, lastName: 1 },
+        ).lean()) as {
+          email?: string;
+          firstName?: string;
+          lastName?: string;
+        } | null);
+    const organisationName = await getOrganisationName(params.organisationId);
 
     if (!user?.email) return;
 

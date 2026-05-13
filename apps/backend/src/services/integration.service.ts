@@ -178,14 +178,15 @@ export const IntegrationService = {
 
     await created.save();
     await syncIntegrationAccountToPostgres(created);
-    const fresh = await IntegrationAccountModel.findOne({
+    const fresh = (await IntegrationAccountModel.findOne({
       organisationId: safeOrganisationId,
       provider: "MERCK_MANUALS",
     })
       .setOptions({ sanitizeFilter: true })
       .select({ credentials: 0 })
-      .lean();
-    return fresh ?? created.toJSON();
+      .lean()) as unknown as Record<string, unknown> | null;
+    const createdJson = created.toJSON() as unknown as Record<string, unknown>;
+    return fresh ?? createdJson;
   },
 
   async listForOrganisation(organisationId: string) {

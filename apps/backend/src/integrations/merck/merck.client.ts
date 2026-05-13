@@ -37,7 +37,13 @@ export class MerckHealthlinkClient {
     });
     const data: unknown = response.data;
     const text = typeof data === "string" ? data : JSON.stringify(data ?? "");
-    const contentType = String(response.headers?.["content-type"] ?? "").trim();
+    const contentTypeHeader: unknown = response.headers?.["content-type"];
+    const contentType =
+      typeof contentTypeHeader === "string"
+        ? contentTypeHeader.trim()
+        : Array.isArray(contentTypeHeader)
+          ? contentTypeHeader.join("; ").trim()
+          : "";
     const finalUrl =
       (response.request as { res?: { responseUrl?: string } })?.res
         ?.responseUrl ?? null;

@@ -310,11 +310,16 @@ export const ClinicalTermsService = {
         ];
       }
 
-      const rows = await CodeEntryModel.find(filter)
+      const rows = (await CodeEntryModel.find(filter)
         .sort({ display: 1 })
         .limit(fetchLimit)
         .setOptions({ sanitizeFilter: true })
-        .lean();
+        .lean()) as unknown as Array<{
+        code: string;
+        display: string;
+        synonyms?: unknown;
+        meta?: unknown;
+      }>;
 
       candidates = rows.map((row) => toSuggestion(row));
     }

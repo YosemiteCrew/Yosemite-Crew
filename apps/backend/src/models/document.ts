@@ -28,7 +28,7 @@ export interface DocumentMongo {
 
 export type DocumentDocument = HydratedDocument<DocumentMongo>;
 
-const AttachmentSchema = new Schema<DocumentAttachment>(
+const AttachmentSchema = new Schema(
   {
     key: { type: String, required: true },
     mimeType: { type: String, required: true },
@@ -37,7 +37,7 @@ const AttachmentSchema = new Schema<DocumentAttachment>(
   { _id: false },
 );
 
-const DocumentSchema = new Schema<DocumentMongo>(
+const DocumentSchema = new Schema(
   {
     companionId: {
       type: Schema.Types.ObjectId,

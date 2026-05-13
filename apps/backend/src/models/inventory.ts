@@ -41,7 +41,7 @@ export interface InventoryItemMongo {
   updatedAt?: Date;
 }
 
-const InventoryItemSchema = new Schema<InventoryItemMongo>(
+const InventoryItemSchema = new Schema(
   {
     organisationId: { type: String, required: true },
 
@@ -113,7 +113,7 @@ export interface InventoryBatchMongo {
   updatedAt?: Date;
 }
 
-const InventoryBatchSchema = new Schema<InventoryBatchMongo>(
+const InventoryBatchSchema = new Schema(
   {
     itemId: { type: String, required: true, index: true },
     organisationId: { type: String, required: true, index: true },
@@ -164,7 +164,7 @@ export interface InventoryVendorMongo {
   updatedAt?: Date;
 }
 
-const VendorSchema = new Schema<InventoryVendorMongo>(
+const VendorSchema = new Schema(
   {
     organisationId: { type: String, required: true },
     name: { type: String, required: true },
@@ -207,7 +207,7 @@ export interface InventoryMetaFieldMongo {
   updatedAt?: Date;
 }
 
-const MetaFieldSchema = new Schema<InventoryMetaFieldMongo>(
+const MetaFieldSchema = new Schema(
   {
     businessType: { type: String, required: true },
     fieldKey: { type: String, required: true },
@@ -239,7 +239,7 @@ export interface StockMovementMongo {
   createdAt: Date;
 }
 
-const StockMovementSchema = new Schema<StockMovementMongo>(
+const StockMovementSchema = new Schema(
   {
     itemId: String,
     batchId: String,

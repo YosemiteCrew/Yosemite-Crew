@@ -59,7 +59,7 @@ describe("LabOrderController", () => {
         status: "SUBMITTED",
         limit: "25",
       };
-      mockedLabOrderService.listOrders.mockResolvedValue([]);
+      (mockedLabOrderService.listOrders as any).mockResolvedValue([] as any);
 
       await LabOrderController.listOrders(req as Request, res);
 
@@ -81,7 +81,7 @@ describe("LabOrderController", () => {
       req.query = {
         appointmentId: "67f001122334455667788992",
       };
-      mockedLabOrderService.listOrders.mockResolvedValue([]);
+      (mockedLabOrderService.listOrders as any).mockResolvedValue([] as any);
 
       await LabOrderController.listOrders(req as Request, res);
 
@@ -123,7 +123,7 @@ describe("LabOrderController", () => {
         status: "SUBMITTED",
         limit: 25,
       };
-      mockedLabOrderService.listOrders.mockResolvedValue([]);
+      (mockedLabOrderService.listOrders as any).mockResolvedValue([] as any);
 
       await LabOrderController.searchOrders(req as Request, res);
 

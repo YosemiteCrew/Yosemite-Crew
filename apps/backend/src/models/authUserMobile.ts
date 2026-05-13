@@ -9,7 +9,7 @@ export interface AuthUserMobile {
   updatedAt?: Date;
 }
 
-const AuthUserMobileSchema = new Schema<AuthUserMobile>({
+const AuthUserMobileSchema = new Schema({
   authProvider: {
     type: String,
     enum: ["cognito", "firebase"],
