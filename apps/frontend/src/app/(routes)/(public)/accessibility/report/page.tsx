@@ -4,6 +4,10 @@ import React, { useId, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
 import { postData } from '@/app/services/axios';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import Footer from '@/app/ui/widgets/Footer/Footer';
 
 type FieldErrors = {
@@ -54,11 +58,6 @@ export default function AccessibilityReportPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const nameId = useId();
-  const emailId = useId();
-  const pageUrlId = useId();
-  const severityId = useId();
-  const descriptionId = useId();
   const errorSummaryId = useId();
 
   const set =
@@ -201,128 +200,64 @@ export default function AccessibilityReportPage() {
           aria-describedby={hasErrors ? errorSummaryId : undefined}
         >
           <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-1">
-              <label htmlFor={nameId} className="text-body-4-emphasis text-text-primary">
-                Your name <span aria-hidden="true">*</span>
-              </label>
-              <input
-                id={nameId}
-                type="text"
-                autoComplete="name"
-                value={form.name}
-                onChange={set('name')}
-                aria-required="true"
-                aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? `${nameId}-error` : undefined}
-                className={`rounded-xl border px-4 py-3 text-body-4 text-text-primary bg-white outline-none focus-visible:ring-2 focus-visible:ring-text-primary ${errors.name ? 'border-error-border' : 'border-card-border'}`}
-              />
-              {errors.name && (
-                <p id={`${nameId}-error`} role="alert" className="text-[12px] text-text-error">
-                  {errors.name}
-                </p>
-              )}
-            </div>
+            <FormInput
+              intype="text"
+              inname="name"
+              inlabel="Your name *"
+              value={form.name}
+              onChange={set('name')}
+              error={errors.name}
+            />
+
+            <FormInput
+              intype="email"
+              inname="email"
+              inlabel="Email address *"
+              value={form.email}
+              onChange={set('email')}
+              error={errors.email}
+            />
+
+            <FormInput
+              intype="url"
+              inname="pageUrl"
+              inlabel="Page or URL where you encountered the barrier"
+              value={form.pageUrl}
+              onChange={set('pageUrl')}
+            />
+
+            <LabelDropdown
+              placeholder="How severe is the impact?"
+              options={SEVERITY_OPTIONS}
+              defaultOption={form.severity}
+              searchable={false}
+              onSelect={(option) => {
+                setForm((prev) => ({ ...prev, severity: option.value }));
+              }}
+            />
 
             <div className="flex flex-col gap-1">
-              <label htmlFor={emailId} className="text-body-4-emphasis text-text-primary">
-                Email address <span aria-hidden="true">*</span>
-              </label>
-              <input
-                id={emailId}
-                type="email"
-                autoComplete="email"
-                value={form.email}
-                onChange={set('email')}
-                aria-required="true"
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? `${emailId}-error` : undefined}
-                className={`rounded-xl border px-4 py-3 text-body-4 text-text-primary bg-white outline-none focus-visible:ring-2 focus-visible:ring-text-primary ${errors.email ? 'border-error-border' : 'border-card-border'}`}
-              />
-              {errors.email && (
-                <p id={`${emailId}-error`} role="alert" className="text-[12px] text-text-error">
-                  {errors.email}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor={pageUrlId} className="text-body-4-emphasis text-text-primary">
-                Page or URL where you encountered the barrier
-              </label>
-              <input
-                id={pageUrlId}
-                type="url"
-                autoComplete="url"
-                value={form.pageUrl}
-                onChange={set('pageUrl')}
-                placeholder="https://app.yosemitecrew.com/..."
-                className="rounded-xl border border-card-border px-4 py-3 text-body-4 text-text-primary bg-white outline-none focus-visible:ring-2 focus-visible:ring-text-primary"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor={severityId} className="text-body-4-emphasis text-text-primary">
-                How severe is the impact?
-              </label>
-              <select
-                id={severityId}
-                value={form.severity}
-                onChange={set('severity')}
-                className="rounded-xl border border-card-border px-4 py-3 text-body-4 text-text-primary bg-white outline-none focus-visible:ring-2 focus-visible:ring-text-primary"
-              >
-                {SEVERITY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor={descriptionId} className="text-body-4-emphasis text-text-primary">
-                Describe the barrier <span aria-hidden="true">*</span>
-              </label>
-              <p
-                id={`${descriptionId}-hint`}
-                className="text-body-4 text-text-secondary text-[12px]"
-              >
+              <p className="mb-2 text-body-4 text-text-secondary text-[12px]">
                 Include what you were trying to do, what went wrong, and which assistive technology
                 or browser you use if relevant.
               </p>
-              <textarea
-                id={descriptionId}
-                rows={5}
+              <FormDesc
+                intype="text"
+                inname="description"
+                inlabel="Describe the barrier *"
                 value={form.description}
                 onChange={set('description')}
-                aria-required="true"
-                aria-invalid={!!errors.description}
-                aria-describedby={[
-                  `${descriptionId}-hint`,
-                  errors.description ? `${descriptionId}-error` : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                className={`rounded-xl border px-4 py-3 text-body-4 text-text-primary bg-white outline-none focus-visible:ring-2 focus-visible:ring-text-primary resize-y min-h-30 ${errors.description ? 'border-error-border' : 'border-card-border'}`}
+                error={errors.description}
+                className="min-h-30 resize-y"
               />
-              {errors.description && (
-                <p
-                  id={`${descriptionId}-error`}
-                  role="alert"
-                  className="text-[12px] text-text-error"
-                >
-                  {errors.description}
-                </p>
-              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              <button
+              <Primary
                 type="submit"
-                disabled={submitting}
-                className="rounded-2xl bg-black-bg px-8 py-3 text-body-4-emphasis text-white-text hover:bg-black-hover disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                {submitting ? 'Submitting…' : 'Submit report'}
-              </button>
+                text={submitting ? 'Submitting...' : 'Submit report'}
+                isDisabled={submitting}
+              />
               <Link
                 href="/accessibility"
                 className="text-body-4 text-text-secondary underline focus-visible:outline-2 focus-visible:outline-offset-2"

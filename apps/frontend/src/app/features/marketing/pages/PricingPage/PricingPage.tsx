@@ -91,6 +91,21 @@ const renderFeatureName = (name: string) => {
     );
   }
 
+  if (name === 'Laika integration') {
+    return (
+      <div className="pricingFeatureWithBrand">
+        <Image
+          src={MEDIA_SOURCES.futureAssets.laikaLogoUrl}
+          alt="Laika"
+          width={116}
+          height={34}
+          className="pricingFeatureBrandLogo ml-2"
+          unoptimized
+        />
+      </div>
+    );
+  }
+
   return name;
 };
 

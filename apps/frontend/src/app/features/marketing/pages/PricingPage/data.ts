@@ -113,6 +113,7 @@ export const TableData = [
       row('RadAnalyzer integration', 'Coming soon', 'Coming soon'),
       row('Vetnio integration', 'Coming soon', 'Coming soon'),
       row('QuickBooks integration', 'Coming soon', 'Coming soon'),
+      row('Laika integration', 'Coming soon', 'Coming soon'),
     ],
   },
   {
