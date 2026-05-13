@@ -92,6 +92,10 @@
   flex-direction: column;
   padding: 8px;
 }
+.select-input-dropdown-portal {
+  position: absolute;
+  top: auto;
+}
 .select-input-dropdown-item {
   cursor: pointer;
   padding: 14px 8px;

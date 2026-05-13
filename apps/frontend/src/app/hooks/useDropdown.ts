@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export type DropdownOption = {
   value: string;
@@ -13,24 +13,23 @@ type UseDropdownOptions = {
 export const useDropdown = (options: UseDropdownOptions = {}) => {
   const { searchable = true, onClose } = options;
   const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as HTMLElement;
+      const inPortalDropdown = target.closest('[data-portal-dropdown]');
+      if (dropdownRef.current && !dropdownRef.current.contains(target) && !inPortalDropdown) {
         setOpen(false);
-        setSearchQuery("");
+        setSearchQuery('');
         onClose?.();
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [onClose]);
 
@@ -42,7 +41,7 @@ export const useDropdown = (options: UseDropdownOptions = {}) => {
 
   const closeDropdown = useCallback(() => {
     setOpen(false);
-    setSearchQuery("");
+    setSearchQuery('');
   }, []);
 
   const openDropdown = useCallback(() => {
@@ -51,7 +50,7 @@ export const useDropdown = (options: UseDropdownOptions = {}) => {
 
   const toggleDropdown = useCallback(() => {
     setOpen((prev) => {
-      if (prev) setSearchQuery("");
+      if (prev) setSearchQuery('');
       return !prev;
     });
   }, []);
@@ -69,15 +68,10 @@ export const useDropdown = (options: UseDropdownOptions = {}) => {
   };
 };
 
-export const useFilteredOptions = <T extends DropdownOption>(
-  options: T[],
-  searchQuery: string,
-) => {
+export const useFilteredOptions = <T extends DropdownOption>(options: T[], searchQuery: string) => {
   return useMemo(() => {
     if (!searchQuery.trim()) return options;
     const query = searchQuery.toLowerCase();
-    return options.filter((option) =>
-      option.label.toLowerCase().includes(query),
-    );
+    return options.filter((option) => option.label.toLowerCase().includes(query));
   }, [options, searchQuery]);
 };

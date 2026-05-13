@@ -1,4 +1,13 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { FaSortDown } from 'react-icons/fa';
 import { IoSearch } from 'react-icons/io5';
 import classNames from 'classnames';
@@ -22,7 +31,11 @@ type DropdownProps = {
   search?: boolean;
   disabled?: boolean;
   returnObject?: boolean;
+  portal?: boolean;
 };
+
+const DROPDOWN_MAX_HEIGHT = 200;
+const DROPDOWN_MIN_HEIGHT = 72;
 
 const Dropdown = ({
   placeholder,
@@ -36,8 +49,10 @@ const Dropdown = ({
   search = false,
   disabled = false,
   returnObject = false,
+  portal = true,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
+  const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
   const errorId = useId();
@@ -88,13 +103,60 @@ const Dropdown = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      const inPortalDropdown = target.closest('[data-portal-dropdown]');
+      if (dropdownRef.current && !dropdownRef.current.contains(target) && !inPortalDropdown) {
         setOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const shouldPortal = portal && typeof document !== 'undefined';
+
+  const computePortalStyle = useCallback(() => {
+    const rect = dropdownRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const viewportHeight = globalThis.window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const panelMaxHeight = Math.min(
+      DROPDOWN_MAX_HEIGHT,
+      Math.max(DROPDOWN_MIN_HEIGHT, spaceBelow - 8)
+    );
+    setPortalStyle({
+      position: 'absolute',
+      left: rect.left + globalThis.window.scrollX,
+      width: rect.width,
+      top: rect.bottom + globalThis.window.scrollY - 1,
+      maxHeight: panelMaxHeight,
+      zIndex: 5000,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open || !portal) {
+      setPortalStyle(null);
+      return;
+    }
+    computePortalStyle();
+  }, [computePortalStyle, open, portal]);
+
+  useEffect(() => {
+    if (!open || !portal) return;
+    const handleOuterScroll = (event: Event) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest('[data-portal-dropdown]')) return;
+      setOpen(false);
+      setQuery('');
+    };
+    globalThis.window.addEventListener('resize', computePortalStyle);
+    globalThis.window.addEventListener('scroll', handleOuterScroll, true);
+    return () => {
+      globalThis.window.removeEventListener('resize', computePortalStyle);
+      globalThis.window.removeEventListener('scroll', handleOuterScroll, true);
+    };
+  }, [computePortalStyle, open, portal]);
 
   // Close on Escape key
   useEffect(() => {
@@ -108,6 +170,59 @@ const Dropdown = ({
 
   const isActive = open || !!value;
   const selected = list.find((opt: any) => opt.value === value);
+
+  const panel = (
+    <div
+      id={listboxId}
+      aria-label={placeholder}
+      data-portal-dropdown
+      className={`select-input-dropdown ${shouldPortal ? 'select-input-dropdown-portal' : ''} ${dropdownClassName ?? ''}`}
+      style={shouldPortal ? (portalStyle ?? undefined) : undefined}
+    >
+      {search && (
+        <div className="h-12! rounded-2xl border! border-input-border-default! px-4! py-2! flex items-center justify-center">
+          <label htmlFor={searchInputId} className="sr-only">
+            Search {placeholder}
+          </label>
+          <input
+            id={searchInputId}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="border-0 text-[16px]! w-full px-2 focus-visible:outline-none"
+            placeholder={`Search ${placeholder}`}
+            autoComplete="off"
+          />
+          <IoSearch
+            size={22}
+            color="var(--color-neutral-200)"
+            className="cursor-pointer"
+            aria-hidden="true"
+          />
+        </div>
+      )}
+      {filteredList.map((option: any, index: number) => {
+        const label: string = option.label ?? option.value ?? '';
+        const valueToSend: string = option.value ?? option.label ?? '';
+        const isSelected = valueToSend === value;
+        return (
+          <button
+            key={label + 'team-key' + index}
+            type="button"
+            aria-pressed={isSelected}
+            className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'}`}
+            onClick={() => {
+              onChange(returnObject ? option : valueToSend);
+              setOpen(false);
+              setQuery('');
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="select-wrapper">
@@ -142,55 +257,8 @@ const Dropdown = ({
           {placeholder}
         </label>
 
-        {open && !disabled && (
-          <div
-            id={listboxId}
-            aria-label={placeholder}
-            className={`select-input-dropdown ${dropdownClassName ?? ''}`}
-          >
-            {search && (
-              <div className="h-12! rounded-2xl border! border-input-border-default! px-4! py-2! flex items-center justify-center">
-                <label htmlFor={searchInputId} className="sr-only">
-                  Search {placeholder}
-                </label>
-                <input
-                  id={searchInputId}
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="border-0 text-[16px]! w-full px-2 focus-visible:outline-none"
-                  placeholder={`Search ${placeholder}`}
-                  autoComplete="off"
-                />
-                <IoSearch
-                  size={22}
-                  color="var(--color-neutral-200)"
-                  className="cursor-pointer"
-                  aria-hidden="true"
-                />
-              </div>
-            )}
-            {filteredList.map((option: any, index: number) => {
-              const label: string = option.label ?? option.value ?? '';
-              const valueToSend: string = option.value ?? option.label ?? '';
-              const isSelected = valueToSend === value;
-              return (
-                <button
-                  key={label + 'team-key' + index}
-                  aria-pressed={isSelected}
-                  className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'}`}
-                  onClick={() => {
-                    onChange(returnObject ? option : valueToSend);
-                    setOpen(false);
-                    setQuery('');
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {open && !disabled && shouldPortal && portalStyle && createPortal(panel, document.body)}
+        {open && !disabled && !shouldPortal && panel}
       </div>
 
       {error && (
