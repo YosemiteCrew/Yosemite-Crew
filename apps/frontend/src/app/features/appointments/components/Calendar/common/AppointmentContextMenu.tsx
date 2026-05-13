@@ -26,6 +26,7 @@ type AppointmentContextMenuProps = {
   menuRef: React.RefObject<HTMLDivElement | null>;
   menuStyle: React.CSSProperties;
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
+  handleDetailAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
   onClose: () => void;
 };
@@ -40,8 +41,8 @@ type MenuAction = {
 
 type MenuSubmenu = 'status' | 'room' | null;
 
-const MENU_ESTIMATED_WIDTH = 188;
-const SUBMENU_ESTIMATED_WIDTH = 176;
+const MENU_ESTIMATED_WIDTH = 220;
+const SUBMENU_ESTIMATED_WIDTH = 200;
 const VIEWPORT_MARGIN = 12;
 const SUBMENU_HORIZONTAL_GAP = 10;
 const SUBMENU_ROW_OFFSET = 4;
@@ -54,7 +55,7 @@ type SubmenuPosition = {
 
 const getMenuItemClassName = (destructive = false, active = false) =>
   [
-    'flex w-full items-center justify-between gap-1 rounded-[12px] px-1.5 py-[2px] text-left font-satoshi text-[16px] font-normal leading-[1rem] tracking-[-0.32px] transition-colors',
+    'flex w-full items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 text-left font-satoshi text-[16px] font-normal leading-5 tracking-[-0.32px] transition-colors',
     destructive ? 'text-text-error hover:bg-danger-100/72' : 'text-text-primary hover:bg-white/50',
     active ? 'bg-white/58' : 'bg-transparent',
   ].join(' ');
@@ -80,6 +81,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
   menuRef,
   menuStyle,
   handleViewAppointment,
+  handleDetailAppointment,
   handleRescheduleAppointment,
   onClose,
 }) => {
@@ -166,7 +168,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
       key: 'open-clinical-notes',
       label: clinicalNotesLabel,
       onSelect: () => {
-        handleViewAppointment(appointment, clinicalNotesIntent);
+        handleDetailAppointment(appointment, clinicalNotesIntent);
         onClose();
       },
     },
@@ -174,7 +176,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
       key: 'open-finance-summary',
       label: 'Finance summary',
       onSelect: () => {
-        handleViewAppointment(appointment, { label: 'finance', subLabel: 'summary' });
+        handleDetailAppointment(appointment, { label: 'finance', subLabel: 'summary' });
         onClose();
       },
     },
@@ -182,7 +184,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
       key: 'open-lab-tests',
       label: 'Lab tests',
       onSelect: () => {
-        handleViewAppointment(appointment, { label: 'labs', subLabel: 'idexx-labs' });
+        handleDetailAppointment(appointment, { label: 'labs', subLabel: 'idexx-labs' });
         onClose();
       },
     },
