@@ -448,7 +448,7 @@ input[type='checkbox'] {
   -webkit-appearance: none;
   appearance: none;
   border-radius: 5px;
-  border: 1px solid var(--blue-text) !important;
+  border: 1px solid var(--color-neutral-900) !important;
   background-color: transparent;
   cursor: pointer;
   position: relative;
@@ -456,7 +456,7 @@ input[type='checkbox'] {
   font-family: var(--satoshi-font);
 }
 input[type='checkbox']:checked {
-  background-color: var(--blue-text);
+  background-color: var(--color-neutral-900);
 }
 input[type='checkbox']:checked::after {
   content: '';
@@ -558,6 +558,67 @@ input[type='number'] {
   .text-caption-2 {
     @apply font-satoshi text-[0.75rem] font-medium leading-[1.125rem] tracking-[-0.24px];
   }
+
+  .text-yc-12-b-neutral {
+    color: var(--color-neutral-900);
+    font-family: var(--font-satoshi);
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
+  .text-yc-12-m-neutral {
+    color: var(--color-neutral-900);
+    font-family: var(--font-satoshi);
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
+  .text-yc-16-r-neutral {
+    color: var(--color-neutral-900);
+    font-family: var(--font-satoshi);
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
+  .text-yc-16-b-primary {
+    color: var(--color-primary-600);
+    font-family: var(--font-satoshi);
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
+  .text-yc-16-m-white {
+    color: var(--color-neutral-0);
+    font-family: var(--font-satoshi);
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
+  .text-yc-20-b-neutral {
+    color: var(--color-neutral-900);
+    font-family: var(--font-satoshi);
+    font-size: 20px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 120%;
+    text-align: center;
+  }
 }
 
 /* Typography overrides outside @layer — beats Bootstrap's unlayered element resets on button/input.
@@ -637,11 +698,74 @@ input[type='number'] {
   @apply rounded-2xl;
 }
 
+.yc-primary-button {
+  --yc-button-x: 50%;
+  --yc-button-y: 50%;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 86%, white);
+  background: var(--color-text-primary);
+  box-shadow: none !important;
+  transition:
+    background-color 200ms ease-out,
+    border-color 200ms ease-out,
+    box-shadow 200ms ease-out;
+}
+
+.yc-primary-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle 84px at var(--yc-button-x) var(--yc-button-y),
+    rgba(136, 206, 255, 0.34) 0%,
+    rgba(92, 184, 255, 0.2) 36%,
+    rgba(0, 150, 255, 0) 78%
+  );
+  filter: blur(2px);
+  transition:
+    background 160ms ease,
+    opacity 160ms ease;
+}
+
+.yc-primary-button:hover::before,
+.yc-primary-button:focus-visible::before {
+  opacity: 1;
+}
+
+.yc-primary-button:active::before {
+  background: radial-gradient(
+    circle 72px at var(--yc-button-x) var(--yc-button-y),
+    rgba(0, 118, 214, 0.38) 0%,
+    rgba(0, 96, 184, 0.22) 36%,
+    rgba(0, 77, 153, 0) 78%
+  );
+}
+
+.yc-primary-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-text-primary) 35%, white);
+  outline-offset: 2px;
+}
+
+.yc-primary-button > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* ── YC Datepicker / Timepicker design-system overrides ── */
 
 /* Outer shell */
 .yc-datepicker-popper {
-  z-index: 1200;
+  z-index: 5000;
+}
+
+#yc-datepicker-portal {
+  position: relative;
+  z-index: 5000;
 }
 
 .yc-datepicker-calendar {
