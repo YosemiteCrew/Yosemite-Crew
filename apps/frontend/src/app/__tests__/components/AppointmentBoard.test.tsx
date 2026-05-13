@@ -120,6 +120,7 @@ describe('AppointmentBoard', () => {
   const setCurrentDate = jest.fn();
   const setActiveAppointment = jest.fn();
   const setViewPopup = jest.fn();
+  const setDetailPopup = jest.fn();
 
   const baseAppointment = {
     organisationId: 'org-1',
@@ -159,6 +160,7 @@ describe('AppointmentBoard', () => {
         canEditAppointments
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
+        setDetailPopup={setDetailPopup}
       />
     );
 
@@ -178,6 +180,7 @@ describe('AppointmentBoard', () => {
         canEditAppointments
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
+        setDetailPopup={setDetailPopup}
       />
     );
 
@@ -188,7 +191,7 @@ describe('AppointmentBoard', () => {
     expect(setActiveAppointment).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-completed' })
     );
-    expect(setViewPopup).toHaveBeenCalledWith(true);
+    expect(setDetailPopup).toHaveBeenCalledWith(true);
   });
 
   it('does not render a full-card click target when the card is draggable', () => {

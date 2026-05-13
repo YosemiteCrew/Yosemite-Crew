@@ -28,13 +28,13 @@ describe('Faq Component', () => {
       id: 'collapseFour',
       title: 'Is your system integrated with an AI scribe?',
       content:
-        'Currently, our system does not include AI scribe integration. However, in our next launch, AI scribe integration will be introduced. Along with this, we’ll also be adding features like prescription alerts and PMS plugins—so stay tuned!',
+        'Currently, our system does not include AI scribe integration. However, in our next launch, AI scribe integration will be introduced. Along with this, we’ll also be adding features like prescription alerts and PMS plugins.',
     },
     {
       id: 'collapseFive',
       title: 'What are observational tools?',
       content:
-        'Observational tools are structured methods for assessing animal welfare, pain, or stress based on observable indicators such as facial expressions, posture, or behavioural changes rather than invasive or physiological measures.',
+        'Observational tools are structured methods for assessing animal welfare, pain, or stress based on observable indicators such as facial expressions, posture, or behavioural changes rather than invasive or physiological measures.',
     },
   ];
 
@@ -54,10 +54,9 @@ describe('Faq Component', () => {
     render(<Faq />);
 
     for (const item of items) {
-      const content = document.getElementById(item.id);
-      expect(content).not.toHaveClass('show');
       const button = screen.getByRole('button', { name: item.title });
       expect(button).toHaveAttribute('aria-expanded', 'false');
+      expect(document.getElementById(item.id)).not.toBeInTheDocument();
     }
   });
 
@@ -68,15 +67,15 @@ describe('Faq Component', () => {
     const firstItemButton = screen.getByRole('button', {
       name: items[0].title,
     });
-    const firstItemContent = document.getElementById(items[0].id);
 
     expect(firstItemButton).toHaveAttribute('aria-expanded', 'false');
-    expect(firstItemContent).not.toHaveClass('show');
+    expect(document.getElementById(items[0].id)).not.toBeInTheDocument();
 
     await user.click(firstItemButton);
 
     expect(firstItemButton).toHaveAttribute('aria-expanded', 'true');
-    expect(firstItemContent).toHaveClass('show');
+    expect(document.getElementById(items[0].id)).toBeInTheDocument();
+    expect(screen.getByText(items[0].content)).toBeVisible();
   });
 
   it('should collapse an open accordion item when its button is clicked again', async () => {
@@ -86,15 +85,14 @@ describe('Faq Component', () => {
     const firstItemButton = screen.getByRole('button', {
       name: items[0].title,
     });
-    const firstItemContent = document.getElementById(items[0].id);
 
     await user.click(firstItemButton);
     expect(firstItemButton).toHaveAttribute('aria-expanded', 'true');
-    expect(firstItemContent).toHaveClass('show');
+    expect(document.getElementById(items[0].id)).toBeInTheDocument();
 
     await user.click(firstItemButton);
     expect(firstItemButton).toHaveAttribute('aria-expanded', 'false');
-    expect(firstItemContent).not.toHaveClass('show');
+    expect(document.getElementById(items[0].id)).not.toBeInTheDocument();
   });
 
   it('should collapse the previously open item when a new one is clicked', async () => {
@@ -107,20 +105,18 @@ describe('Faq Component', () => {
     const secondItemButton = screen.getByRole('button', {
       name: items[1].title,
     });
-    const firstItemContent = document.getElementById(items[0].id);
-    const secondItemContent = document.getElementById(items[1].id);
 
     await user.click(firstItemButton);
     expect(firstItemButton).toHaveAttribute('aria-expanded', 'true');
-    expect(firstItemContent).toHaveClass('show');
+    expect(document.getElementById(items[0].id)).toBeInTheDocument();
     expect(secondItemButton).toHaveAttribute('aria-expanded', 'false');
-    expect(secondItemContent).not.toHaveClass('show');
+    expect(document.getElementById(items[1].id)).not.toBeInTheDocument();
 
     await user.click(secondItemButton);
 
     expect(firstItemButton).toHaveAttribute('aria-expanded', 'false');
-    expect(firstItemContent).not.toHaveClass('show');
+    expect(document.getElementById(items[0].id)).not.toBeInTheDocument();
     expect(secondItemButton).toHaveAttribute('aria-expanded', 'true');
-    expect(secondItemContent).toHaveClass('show');
+    expect(document.getElementById(items[1].id)).toBeInTheDocument();
   });
 });

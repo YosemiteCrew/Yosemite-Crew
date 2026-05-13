@@ -7,8 +7,9 @@ import Timepicker from '@/app/ui/inputs/Timepicker';
 
 jest.mock('react-datepicker', () => ({
   __esModule: true,
-  default: ({ customInput, onChange }: any) => (
+  default: ({ customInput, onChange, portalId }: any) => (
     <div>
+      <span data-testid="timepicker-portal-id">{portalId ?? 'none'}</span>
       {React.cloneElement(customInput)}
       <button type="button" onClick={() => onChange(new Date(2000, 0, 1, 9, 45))}>
         pick-time
@@ -34,6 +35,12 @@ describe('Timepicker', () => {
     render(<Timepicker value="" onChange={jest.fn()} label="Due time" />);
 
     expect(screen.getByLabelText('Due time')).toBeInTheDocument();
+  });
+
+  it('uses the shared portal to avoid modal clipping', () => {
+    render(<Timepicker value="" onChange={jest.fn()} label="Due time" />);
+
+    expect(screen.getByTestId('timepicker-portal-id')).toHaveTextContent('yc-datepicker-portal');
   });
 
   it('has no axe accessibility violations', async () => {

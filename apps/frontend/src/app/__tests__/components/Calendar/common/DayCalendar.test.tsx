@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import DayCalendar from '@/app/features/appointments/components/Calendar/common/DayCalendar';
+import { useCompanionStore } from '@/app/stores/companionStore';
 
 jest.useFakeTimers();
 
@@ -135,6 +136,7 @@ jest.mock('react-icons/md', () => ({
 
 describe('DayCalendar (Appointments)', () => {
   const handleViewAppointment = jest.fn();
+  const handleDetailAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
   const setCurrentDate = jest.fn();
   const originalConsoleError = console.error;
@@ -160,8 +162,12 @@ describe('DayCalendar (Appointments)', () => {
     endTime: new Date('2025-01-06T10:00:00Z'),
     appointmentType: { id: 'service-1', name: 'Grooming', speciality: { name: 'Wellness' } },
     companion: {
+      id: 'companion-timed',
       name: 'Rex',
       species: 'dog',
+      breed: 'Labrador',
+      dateOfBirth: new Date('2020-01-01T00:00:00Z'),
+      gender: 'male',
       parent: { name: 'Alex' },
     },
     concern: 'Grooming',
@@ -170,6 +176,22 @@ describe('DayCalendar (Appointments)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    useCompanionStore.getState().clearCompanions();
+    useCompanionStore.getState().setCompanions([
+      {
+        id: 'companion-timed',
+        name: 'Rex',
+        type: 'dog',
+        species: 'dog',
+        breed: 'Labrador',
+        currentWeight: 42,
+        dateOfBirth: new Date('2020-01-01T00:00:00Z'),
+        gender: 'male',
+        parentId: 'parent-1',
+        organisationId: 'org-1',
+        isInsured: false,
+      } as any,
+    ]);
     mockIsAllDayForDate.mockImplementation((event: any) => event.id === 'all-day');
     mockLayoutDayEvents.mockReturnValue([
       {
@@ -194,6 +216,7 @@ describe('DayCalendar (Appointments)', () => {
         events={[allDayEvent, timedEvent]}
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments={false}
@@ -222,6 +245,7 @@ describe('DayCalendar (Appointments)', () => {
         events={[]}
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments={false}
@@ -254,6 +278,7 @@ describe('DayCalendar (Appointments)', () => {
         events={[timedEvent]}
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments
@@ -270,6 +295,17 @@ describe('DayCalendar (Appointments)', () => {
     expect(screen.getAllByText('Grooming').length).toBeGreaterThan(0);
     expect(screen.getByText('Speciality')).toBeInTheDocument();
     expect(screen.getAllByText('Wellness').length).toBeGreaterThan(0);
+    const companionMetadata = screen.getByText(
+      (content) =>
+        content.includes('Labrador') &&
+        content.includes('Canine') &&
+        content.includes('Male') &&
+        content.includes('42 lbs')
+    );
+    const metadataText = companionMetadata.textContent ?? '';
+    expect(metadataText.indexOf('Labrador')).toBeLessThan(metadataText.indexOf('Canine'));
+    expect(metadataText.indexOf('Canine')).toBeLessThan(metadataText.indexOf('Male'));
+    expect(metadataText.indexOf('Male')).toBeLessThan(metadataText.indexOf('42 lbs'));
     expect(screen.getByText('Lead')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Dr. Lee')).toBeInTheDocument();
 
@@ -290,6 +326,7 @@ describe('DayCalendar (Appointments)', () => {
         events={[timedEvent]}
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments
@@ -298,7 +335,7 @@ describe('DayCalendar (Appointments)', () => {
 
     fireEvent.doubleClick(screen.getByRole('button', { name: /Rex/i }));
 
-    expect(handleViewAppointment).toHaveBeenCalledWith(expect.objectContaining({ id: 'timed' }));
+    expect(handleDetailAppointment).toHaveBeenCalledWith(expect.objectContaining({ id: 'timed' }));
   });
 
   it('opens the custom context menu on right click', () => {
@@ -307,6 +344,7 @@ describe('DayCalendar (Appointments)', () => {
         events={[timedEvent]}
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments
@@ -325,6 +363,7 @@ describe('DayCalendar (Appointments)', () => {
         events={[]}
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments={false}

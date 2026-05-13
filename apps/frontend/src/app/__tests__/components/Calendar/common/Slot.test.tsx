@@ -77,6 +77,7 @@ expect.extend(toHaveNoViolations);
 
 describe('Slot (Appointments)', () => {
   const handleViewAppointment = jest.fn();
+  const handleDetailAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
   const originalConsoleError = console.error;
 
@@ -109,6 +110,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={0}
@@ -136,6 +138,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[event]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={1}
@@ -166,6 +169,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[event]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={1}
@@ -175,7 +179,7 @@ describe('Slot (Appointments)', () => {
 
     fireEvent.doubleClick(screen.getByRole('button', { name: /Rex/i }));
 
-    expect(handleViewAppointment).toHaveBeenCalledWith(event);
+    expect(handleDetailAppointment).toHaveBeenCalledWith(event);
   });
 
   it('shows only the service label for overlapping compact markers', () => {
@@ -193,6 +197,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[event, overlappingEvent]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={1}
@@ -216,11 +221,12 @@ describe('Slot (Appointments)', () => {
         slotEvents={[]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={0}
         canEditAppointments
-        dropDate={new Date('2026-03-16T00:00:00.000Z')}
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
         dropHour={9}
         onCreateAppointmentAt={onCreateAppointmentAt}
       />
@@ -239,6 +245,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={0}
@@ -246,7 +253,7 @@ describe('Slot (Appointments)', () => {
         draggedAppointmentId="appt-1"
         draggedAppointmentLabel="Buddy"
         onAppointmentDropAt={onAppointmentDropAt}
-        dropDate={new Date('2026-03-16T00:00:00.000Z')}
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
         dropHour={9}
         dropAvailabilityIntervals={[{ startMinute: 540, endMinute: 599 }]}
       />
@@ -268,6 +275,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={0}
@@ -275,7 +283,7 @@ describe('Slot (Appointments)', () => {
         draggedAppointmentId="appt-1"
         draggedAppointmentLabel="Buddy"
         onAppointmentDropAt={onAppointmentDropAt}
-        dropDate={new Date('2026-03-16T00:00:00.000Z')}
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
         dropHour={9}
         dropAvailabilityIntervals={[{ startMinute: 540, endMinute: 599 }]}
       />
@@ -296,11 +304,12 @@ describe('Slot (Appointments)', () => {
         slotEvents={[]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={0}
         canEditAppointments
-        dropDate={new Date('2026-03-16T00:00:00.000Z')}
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
         dropHour={9}
         onCreateAppointmentAt={onCreateAppointmentAt}
       />
@@ -316,6 +325,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[event]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={1}
@@ -351,6 +361,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[requestedEvent]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={1}
@@ -385,6 +396,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[event]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={1}
@@ -435,6 +447,7 @@ describe('Slot (Appointments)', () => {
         slotEvents={[event]}
         height={120}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
         dayIndex={0}
         length={1}

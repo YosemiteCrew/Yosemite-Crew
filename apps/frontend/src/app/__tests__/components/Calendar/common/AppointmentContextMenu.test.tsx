@@ -77,6 +77,7 @@ describe('AppointmentContextMenu', () => {
         menuRef={{ current: null }}
         menuStyle={{ top: 20, left: 20, width: 280 }}
         handleViewAppointment={jest.fn()}
+        handleDetailAppointment={jest.fn()}
         handleRescheduleAppointment={jest.fn()}
         onClose={jest.fn()}
       />
@@ -97,6 +98,7 @@ describe('AppointmentContextMenu', () => {
         menuRef={{ current: null }}
         menuStyle={{ top: 20, left: 20, width: 280 }}
         handleViewAppointment={jest.fn()}
+        handleDetailAppointment={jest.fn()}
         handleRescheduleAppointment={jest.fn()}
         onClose={jest.fn()}
       />
@@ -125,6 +127,7 @@ describe('AppointmentContextMenu', () => {
         menuRef={{ current: null }}
         menuStyle={{ top: 20, left: 20, width: 280 }}
         handleViewAppointment={jest.fn()}
+        handleDetailAppointment={jest.fn()}
         handleRescheduleAppointment={jest.fn()}
         onClose={jest.fn()}
       />
@@ -161,6 +164,7 @@ describe('AppointmentContextMenu', () => {
         menuRef={{ current: null }}
         menuStyle={{ top: 20, left: 260, width: 220 }}
         handleViewAppointment={jest.fn()}
+        handleDetailAppointment={jest.fn()}
         handleRescheduleAppointment={jest.fn()}
         onClose={jest.fn()}
       />

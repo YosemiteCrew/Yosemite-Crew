@@ -106,4 +106,15 @@ describe('PricingPage', () => {
 
     expect(screen.getByTestId('Enter email-error')).toHaveTextContent('Enter a valid email');
   });
+
+  test('shows all current integrations in the pricing table', () => {
+    render(<PricingPage />);
+
+    expect(screen.getByAltText('IDEXX')).toBeInTheDocument();
+    expect(screen.getByAltText('MSD Veterinary Manual')).toBeInTheDocument();
+    expect(screen.getByAltText('RadAnalyzer')).toBeInTheDocument();
+    expect(screen.getByAltText('Vetnio')).toBeInTheDocument();
+    expect(screen.getByText('qb')).toBeInTheDocument();
+    expect(screen.getByAltText('Laika')).toBeInTheDocument();
+  });
 });

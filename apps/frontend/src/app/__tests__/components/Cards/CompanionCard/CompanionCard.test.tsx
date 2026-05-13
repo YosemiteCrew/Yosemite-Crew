@@ -79,7 +79,7 @@ describe('CompanionCard', () => {
     );
 
     expect(screen.getByText('Buddy')).toBeInTheDocument();
-    expect(screen.getByText('Labrador / Dog')).toBeInTheDocument();
+    expect(screen.getByText('Labrador / Canine')).toBeInTheDocument();
     expect(screen.getByText('Parent / Co-parent:')).toBeInTheDocument();
     expect(screen.getByText('Sam')).toBeInTheDocument();
     expect(screen.getByText('Gender / Age:')).toBeInTheDocument();

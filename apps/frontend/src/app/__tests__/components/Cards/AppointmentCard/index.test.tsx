@@ -34,6 +34,7 @@ jest.mock('@/app/lib/appointments', () => ({
 
 describe('AppointmentCard', () => {
   const handleViewAppointment = jest.fn();
+  const handleDetailAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
   const getSoapViewIntent: jest.MockedFunction<
     (appointment: Appointment) => AppointmentViewIntent
@@ -66,6 +67,7 @@ describe('AppointmentCard', () => {
       <AppointmentCard
         appointment={appointment}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
@@ -96,6 +98,7 @@ describe('AppointmentCard', () => {
       <AppointmentCard
         appointment={appointment}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
@@ -114,6 +117,7 @@ describe('AppointmentCard', () => {
       <AppointmentCard
         appointment={{ ...appointment, status: 'NO_PAYMENT' }}
         handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
         getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments

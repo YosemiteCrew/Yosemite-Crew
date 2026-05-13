@@ -30,7 +30,7 @@ describe('LabelDropdown', () => {
       />
     );
 
-    expect(screen.getByText('Species')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Species/i })).toBeInTheDocument();
     expect(screen.getByText('Required')).toBeInTheDocument();
     expect(screen.getByTestId('icon-warning')).toBeInTheDocument();
   });
@@ -39,8 +39,8 @@ describe('LabelDropdown', () => {
     const onSelect = jest.fn();
     render(<LabelDropdown placeholder="Species" options={options} onSelect={onSelect} />);
 
-    // Click on the placeholder text to open the dropdown
-    fireEvent.click(screen.getByText('Species'));
+    // Click the trigger button to open the dropdown
+    fireEvent.click(screen.getByRole('button', { name: /Species/i }));
     fireEvent.click(screen.getByText('Feline'));
 
     expect(onSelect).toHaveBeenCalledWith({ label: 'Feline', value: 'cat' });

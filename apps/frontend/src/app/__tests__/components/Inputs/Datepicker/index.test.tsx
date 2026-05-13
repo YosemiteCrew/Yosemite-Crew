@@ -8,8 +8,9 @@ import Datepicker from '@/app/ui/inputs/Datepicker';
 jest.mock('react-datepicker', () => {
   return {
     __esModule: true,
-    default: ({ customInput, selected, onChange }: any) => (
+    default: ({ customInput, selected, onChange, portalId }: any) => (
       <div>
+        <span data-testid="datepicker-portal-id">{portalId ?? 'none'}</span>
         {React.cloneElement(customInput, {
           value: selected ? 'Jan 15, 2025' : '',
         })}
@@ -51,6 +52,19 @@ describe('Datepicker (index)', () => {
     );
 
     expect(screen.getByLabelText('Toggle calendar')).toBeInTheDocument();
+  });
+
+  it('uses the shared portal by default to avoid modal clipping', () => {
+    render(
+      <Datepicker
+        currentDate={null}
+        setCurrentDate={jest.fn()}
+        placeholder="Select date"
+        type="input"
+      />
+    );
+
+    expect(screen.getByTestId('datepicker-portal-id')).toHaveTextContent('yc-datepicker-portal');
   });
 
   it('wires validation helper text to the trigger', () => {

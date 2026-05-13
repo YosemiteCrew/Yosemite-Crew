@@ -181,6 +181,20 @@ jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom', 
   <div data-testid="change-room" />
 ));
 
+jest.mock(
+  '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal',
+  () => () => <div data-testid="add-appointment-central-modal" />
+);
+
+jest.mock(
+  '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal',
+  () => () => <div data-testid="view-appointment-overview-modal" />
+);
+
+jest.mock('@/app/lib/featureFlags', () => ({
+  isAppointmentRevampEnabled: () => false,
+}));
+
 describe('Appointments page', () => {
   const renderAppointments = async () => {
     await act(async () => {

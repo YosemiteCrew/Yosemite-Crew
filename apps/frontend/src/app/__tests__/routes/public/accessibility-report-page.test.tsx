@@ -132,6 +132,8 @@ describe('AccessibilityReportPage', () => {
     fireEvent.change(screen.getByLabelText(/Page or URL/i), {
       target: { value: 'https://app.example.com/appointments' },
     });
+    fireEvent.click(screen.getByRole('button', { name: /How severe is the impact/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Very difficult to use' }));
     fireEvent.change(screen.getByLabelText(/Describe the barrier/i), {
       target: { value: 'Cannot tab to the submit button.' },
     });
@@ -155,6 +157,7 @@ describe('AccessibilityReportPage', () => {
 
     const callArgs = postDataMock.mock.calls[0][1];
     expect(callArgs.message).toContain('https://app.example.com/appointments');
+    expect(callArgs.message).toContain('Severity: Very difficult to use');
     expect(callArgs.message).toContain('Cannot tab to the submit button.');
   });
 
@@ -207,6 +210,30 @@ describe('AccessibilityReportPage', () => {
     });
   });
 
+  it('falls back to axios error message when response message is unavailable', async () => {
+    const axiosErr = {
+      message: 'Service unavailable',
+      response: { data: {} },
+    };
+    postDataMock.mockRejectedValue(axiosErr);
+    isAxiosErrorMock.mockReturnValue(true);
+
+    render(<AccessibilityReportPage />);
+
+    fireEvent.change(screen.getByLabelText(/Your name/i), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText(/Email address/i), {
+      target: { value: 'ada@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/Describe the barrier/i), {
+      target: { value: 'Issue.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Service unavailable')).toBeInTheDocument();
+    });
+  });
+
   it('success page has no axe violations', async () => {
     postDataMock.mockResolvedValue({});
 
@@ -226,11 +253,16 @@ describe('AccessibilityReportPage', () => {
     expect(results).toHaveNoViolations();
   });
 
-  it('severity select includes all four options', () => {
+  it('severity dropdown includes all four options', () => {
     render(<AccessibilityReportPage />);
-    const select = screen.getByLabelText(/How severe/i) as HTMLSelectElement;
-    const optionValues = Array.from(select.options).map((o) => o.value);
-    expect(optionValues).toEqual(['blocker', 'major', 'minor', 'unknown']);
+    fireEvent.click(screen.getByRole('button', { name: /How severe is the impact/i }));
+
+    expect(
+      screen.getByRole('button', { name: 'Cannot use the feature at all' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Very difficult to use' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Inconvenient but workable' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Not sure' })).toBeInTheDocument();
   });
 
   it('breadcrumb links back to accessibility statement', () => {

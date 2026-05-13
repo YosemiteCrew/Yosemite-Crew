@@ -42,6 +42,11 @@ jest.mock('@/app/lib/date', () => ({
 }));
 
 jest.mock('@/app/lib/timezone', () => ({
+  buildDateInPreferredTimeZone: jest.fn((date: Date, minuteOfDay: number) => {
+    const d = new Date(date);
+    d.setHours(Math.floor(minuteOfDay / 60), minuteOfDay % 60, 0, 0);
+    return d;
+  }),
   isOnPreferredTimeZoneCalendarDay: jest.fn(() => false),
   utcClockTimeToPreferredTimeZoneClock: jest.fn((_time: string) => ({
     minutes: 540,
@@ -439,6 +444,26 @@ describe('useAppointmentForm', () => {
 
     expect(result.current.selectedDate.toDateString()).toBe(prefillDate.toDateString());
     expect(result.current.selectedSlot).toBeNull();
+  });
+
+  it('initialPrefill with leadId prefills lead immediately from teams', async () => {
+    const { useTeamForPrimaryOrg } = jest.requireMock('@/app/hooks/useTeam');
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Smith', practionerId: 'vet-1' },
+      { _id: 'team-2', name: 'Dr Jones', practionerId: 'vet-2' },
+    ]);
+
+    const prefillDate = new Date('2026-04-01');
+    const prefill = { date: prefillDate, minuteOfDay: 600, leadId: 'vet-1' };
+    const { result } = renderHook(() => useAppointmentForm({ initialPrefill: prefill }));
+
+    // Lead should be prefilled immediately — no service selection required.
+    expect(result.current.formData.lead?.id).toBe('vet-1');
+    expect(result.current.formData.lead?.name).toBe('Dr Smith');
+    expect(result.current.selectedDate.toDateString()).toBe(prefillDate.toDateString());
+
+    // Reset mock to default
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
   });
 
   it('calendarSlotFlow filters speciality and service options by selected slot + lead', async () => {
