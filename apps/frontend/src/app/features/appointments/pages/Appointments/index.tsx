@@ -4,11 +4,19 @@ import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 const AddAppointment = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/AddAppointment')
 );
+const AddAppointmentCentralModal = React.lazy(
+  () => import('@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal')
+);
 const AppoitmentInfo = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo')
+);
+const ViewAppointmentOverviewModal = React.lazy(
+  () =>
+    import('@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal')
 );
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
 import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -74,6 +82,14 @@ const AppointmentBoard = dynamic(
   { loading: () => <PlannerViewSkeleton /> }
 );
 
+// Preload all three view chunks immediately so switching views is instant.
+const preloadDynamic = (c: unknown) => (c as { preload?: () => void }).preload?.();
+preloadDynamic(AppointmentsTable);
+preloadDynamic(AppointmentCalendar);
+preloadDynamic(AppointmentBoard);
+
+const revampEnabled = isAppointmentRevampEnabled();
+
 const Appointments = () => {
   const rawAppointments = useAppointmentsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
@@ -92,6 +108,9 @@ const Appointments = () => {
           parentLastName,
           parentFullName,
           parentId: item.parent.id,
+          gender: item.companion.gender,
+          dateOfBirth: item.companion.dateOfBirth,
+          isneutered: item.companion.isneutered,
         },
       ] as const;
     });
@@ -123,6 +142,9 @@ const Appointments = () => {
           companion: {
             ...appointment.companion,
             photoUrl: companionMeta.photoUrl,
+            gender: companionMeta.gender,
+            dateOfBirth: companionMeta.dateOfBirth,
+            isneutered: companionMeta.isneutered,
             parent: {
               ...existingParent,
               id: companionMeta.parentId || existingParent.id || '',
@@ -171,6 +193,7 @@ const Appointments = () => {
     useState<AppointmentDraftPrefill | null>(null);
   const [viewPopup, setViewPopup] = useState(false);
   const [viewIntent, setViewIntent] = useState<AppointmentViewIntent | null>(null);
+  const [detailPopup, setDetailPopup] = useState(false);
   const [reschedulePopup, setReschedulePopup] = useState(false);
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
   const [changeStatusPreferredStatus, setChangeStatusPreferredStatus] =
@@ -201,6 +224,11 @@ const Appointments = () => {
   };
 
   const [activeView, setActiveView] = useState<string>(resolveDefaultAppointmentsView);
+  const handleActiveViewChange: React.Dispatch<React.SetStateAction<string>> = (next) => {
+    startTransition(() => {
+      setActiveView(next);
+    });
+  };
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(startOfDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({
@@ -226,11 +254,11 @@ const Appointments = () => {
   }, [currentDate, activeCalendar]);
 
   useEffect(() => {
-    if (!viewPopup) {
+    if (!viewPopup && !detailPopup) {
       setViewIntent(null);
       handledDeepLinkRef.current = null;
     }
-  }, [viewPopup]);
+  }, [viewPopup, detailPopup]);
 
   useEffect(() => {
     if (!changeStatusPopup) {
@@ -312,7 +340,8 @@ const Appointments = () => {
 
     setActiveAppointment(target);
     setViewIntent(initialIntent);
-    setViewPopup(true);
+    if (revampEnabled) setDetailPopup(true);
+    else setViewPopup(true);
     handledDeepLinkRef.current = deepLinkKey;
   }, [appointments, searchParams]);
 
@@ -371,6 +400,7 @@ const Appointments = () => {
         allAppointments={appointments}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
+        setDetailPopup={setDetailPopup}
         setViewIntent={setViewIntent}
         setChangeStatusPopup={setChangeStatusPopup}
         setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
@@ -406,6 +436,7 @@ const Appointments = () => {
         canEditAppointments={canEditAppointments}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
+        setDetailPopup={setDetailPopup}
         setViewIntent={setViewIntent}
         setChangeStatusPopup={setChangeStatusPopup}
         setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
@@ -424,6 +455,7 @@ const Appointments = () => {
           filteredList={filteredList}
           setActiveAppointment={setActiveAppointment}
           setViewPopup={setViewPopup}
+          setDetailPopup={setDetailPopup}
           setViewIntent={setViewIntent}
           setReschedulePopup={setReschedulePopup}
           setChangeStatusPopup={setChangeStatusPopup}
@@ -444,7 +476,7 @@ const Appointments = () => {
           setAddPopup={setAddPopup}
           count={appointments.length}
           activeView={activeView}
-          setActiveView={setActiveView}
+          setActiveView={handleActiveViewChange}
           showAdd={false}
         />
 
@@ -469,24 +501,49 @@ const Appointments = () => {
           </div>
 
           <React.Suspense fallback={null}>
-            <AddAppointment
-              showModal={addPopup}
-              setShowModal={setAddPopup}
-              setActiveFilter={setActiveFilter}
-              setActiveStatus={setActiveStatus}
-              prefill={addAppointmentPrefill}
-              onPrefillConsumed={() => setAddAppointmentPrefill(null)}
-            />
-            {activeAppointment && (
-              <AppoitmentInfo
+            {revampEnabled ? (
+              <AddAppointmentCentralModal
+                showModal={addPopup}
+                setShowModal={setAddPopup}
+                setActiveFilter={setActiveFilter}
+                setActiveStatus={setActiveStatus}
+                prefill={addAppointmentPrefill}
+                onPrefillConsumed={() => setAddAppointmentPrefill(null)}
+              />
+            ) : (
+              <AddAppointment
+                showModal={addPopup}
+                setShowModal={setAddPopup}
+                setActiveFilter={setActiveFilter}
+                setActiveStatus={setActiveStatus}
+                prefill={addAppointmentPrefill}
+                onPrefillConsumed={() => setAddAppointmentPrefill(null)}
+              />
+            )}
+            {activeAppointment && revampEnabled && (
+              <ViewAppointmentOverviewModal
                 showModal={viewPopup}
                 setShowModal={setViewPopup}
+                activeAppointment={activeAppointment}
+                onOpenDetails={(appointment, intent) => {
+                  setActiveAppointment(appointment);
+                  setViewIntent(intent ?? null);
+                  setViewPopup(false);
+                  setDetailPopup(true);
+                }}
+              />
+            )}
+            {activeAppointment && (
+              <AppoitmentInfo
+                showModal={revampEnabled ? detailPopup : viewPopup}
+                setShowModal={revampEnabled ? setDetailPopup : setViewPopup}
                 activeAppointment={activeAppointment}
                 initialViewIntent={viewIntent}
                 canEditAppointments={canEditActiveAppointment}
                 onReschedule={(appointment) => {
                   setActiveAppointment(appointment);
-                  setViewPopup(false);
+                  if (revampEnabled) setDetailPopup(false);
+                  else setViewPopup(false);
                   setReschedulePopup(true);
                 }}
               />

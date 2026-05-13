@@ -5,7 +5,6 @@ import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Appointment } from '@yosemite-crew/types';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
@@ -30,32 +29,7 @@ type AddAppointmentProps = {
   onPrefillConsumed?: () => void;
 };
 
-export const EMPTY_APPOINTMENT: Appointment = {
-  id: undefined,
-  companion: {
-    id: '',
-    name: '',
-    species: '',
-    breed: '',
-    parent: {
-      id: '',
-      name: '',
-    },
-  },
-  lead: undefined,
-  supportStaff: [],
-  room: undefined,
-  appointmentType: undefined,
-  organisationId: '',
-  appointmentDate: new Date(),
-  startTime: new Date(),
-  endTime: new Date(),
-  timeSlot: '',
-  durationMinutes: 0,
-  status: 'REQUESTED',
-  isEmergency: false,
-  concern: '',
-};
+export { EMPTY_APPOINTMENT } from '@/app/features/appointments/constants/emptyAppointment';
 
 const getSubmitErrorTargetStep = ({
   errors,
@@ -183,7 +157,7 @@ const AddAppointment = ({
       onPrefillConsumed?.();
     },
     initialPrefill: showModal ? prefill : null,
-    calendarSlotFlow: isCalendarSlotFlow,
+    calendarSlotFlow: false,
   });
 
   const companionSatisfied = Boolean(formData.companion.id);
@@ -545,7 +519,7 @@ const AddAppointment = ({
                         text={terminologyText('Add companion')}
                         href="#"
                         onClick={() => setShowAddCompanionModal(true)}
-                        className="w-auto min-w-[160px]"
+                        className="w-auto min-w-40"
                       />
                     </div>
                   )}
@@ -716,7 +690,7 @@ const AddAppointment = ({
                   text={isLoading ? 'Booking appointment...' : 'Book appointment'}
                   onClick={onSubmit}
                   isDisabled={isLoading}
-                  className="w-auto min-w-[170px]"
+                  className="w-auto min-w-42.5"
                 />
               </div>
             </div>
