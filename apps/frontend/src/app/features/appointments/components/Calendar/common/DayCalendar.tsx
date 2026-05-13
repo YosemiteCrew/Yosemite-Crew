@@ -49,6 +49,7 @@ type DayCalendarProps = {
   date: Date;
   zoomMode?: CalendarZoomMode;
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
+  handleDetailAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeRoomAppointment?: (appointment: Appointment) => void;
@@ -96,6 +97,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   date,
   zoomMode = 'in',
   handleViewAppointment,
+  handleDetailAppointment,
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   canEditAppointments,
@@ -390,6 +392,15 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
     if (!onCreateAppointmentAt || draggedAppointmentId) return;
     const minute = getMinuteFromTimelinePointer(clientY, container);
     const snapped = Math.round(minute / 5) * 5;
+    const slotTime = new Date(date);
+    slotTime.setHours(Math.floor(snapped / 60), snapped % 60, 0, 0);
+    if (slotTime < new Date()) {
+      notify('warning', {
+        title: 'Past time slot',
+        text: "You can't book appointments in the past. Please select a future time.",
+      });
+      return;
+    }
     const isUnavailable = unavailableSegments.some(
       (seg) => snapped >= seg.startMinute && snapped < seg.endMinute
     );
@@ -433,7 +444,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
     clearPendingMarkerClick();
     setContextMenu(null);
     setActivePopoverKey(null);
-    handleViewAppointment(appointment);
+    handleDetailAppointment(appointment);
   };
 
   const handleMarkerContextMenu = (
@@ -463,7 +474,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light">
+      <div className="flex items-center justify-between px-2 py-2 border-b border-grey-light shrink-0">
         <Back onClick={handlePrevDay} />
         <div className="flex items-center gap-2 text-center">
           <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
@@ -474,7 +485,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
         <Next onClick={handleNextDay} />
       </div>
       {allDayEvents.length > 0 && (
-        <div className="px-2 py-2 border-b border-grey-light bg-slate-50">
+        <div className="px-2 py-2 border-b border-grey-light bg-slate-50 shrink-0">
           <div className="text-xs font-satoshi text-grey-text mb-1">All-day</div>
           <div className="flex flex-wrap gap-2">
             {allDayEvents.map((ev, idx) => {
@@ -784,6 +795,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
             popoverDialogRef={popoverDialogRef}
             popoverStyle={popoverStyle}
             handleViewAppointment={handleViewAppointment}
+            handleDetailAppointment={handleDetailAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
             handleChangeRoomAppointment={handleChangeRoomAppointment}
             onClose={() => setActivePopoverKey(null)}
@@ -801,6 +813,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
             menuRef={contextMenuRef}
             menuStyle={contextMenuStyle}
             handleViewAppointment={handleViewAppointment}
+            handleDetailAppointment={handleDetailAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
             onClose={() => setContextMenu(null)}
           />,

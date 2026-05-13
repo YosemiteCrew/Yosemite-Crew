@@ -44,6 +44,7 @@ type AppointmentCalendarProps = {
   allAppointments: Appointment[];
   setActiveAppointment?: (inventory: Appointment) => void;
   setViewPopup?: (open: boolean) => void;
+  setDetailPopup?: (open: boolean) => void;
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setChangeStatusPopup?: (open: boolean) => void;
   setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<AppointmentStatus | null>>;
@@ -117,6 +118,7 @@ const AppointmentCalendar = ({
   allAppointments,
   setActiveAppointment,
   setViewPopup,
+  setDetailPopup,
   setViewIntent,
   setChangeStatusPopup,
   setChangeStatusPreferredStatus,
@@ -672,6 +674,12 @@ const AppointmentCalendar = ({
     setViewPopup?.(true);
   };
 
+  const handleDetailAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
+    setActiveAppointment?.(appointment);
+    setViewIntent?.(intent ?? null);
+    setDetailPopup?.(true);
+  };
+
   const handleRescheduleAppointment = (appointment: Appointment) => {
     if (!allowCalendarDrag(appointment.status)) {
       notify('warning', {
@@ -789,6 +797,7 @@ const AppointmentCalendar = ({
           date={currentDate}
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
+          handleDetailAppointment={handleDetailAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
@@ -852,6 +861,7 @@ const AppointmentCalendar = ({
           events={weekEvents}
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
+          handleDetailAppointment={handleDetailAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
@@ -920,6 +930,7 @@ const AppointmentCalendar = ({
           zoomMode={zoomMode}
           forceFullDayInZoomIn
           handleViewAppointment={handleViewAppointment}
+          handleDetailAppointment={handleDetailAppointment}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}

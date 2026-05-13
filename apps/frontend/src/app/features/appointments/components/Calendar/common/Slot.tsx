@@ -23,6 +23,7 @@ type SlotProps = {
   slotEvents: Appointment[];
   height: number;
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
+  handleDetailAppointment?: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
   handleChangeRoomAppointment?: (appt: Appointment) => void;
   dayIndex: number;
@@ -58,6 +59,7 @@ const SlotComponent: React.FC<SlotProps> = ({
   slotEvents,
   height,
   handleViewAppointment,
+  handleDetailAppointment,
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   dayIndex,
@@ -339,7 +341,7 @@ const SlotComponent: React.FC<SlotProps> = ({
     clearPendingMarkerClick();
     setContextMenu(null);
     setActivePopoverKey(null);
-    handleViewAppointment(appointment);
+    (handleDetailAppointment ?? handleViewAppointment)(appointment);
   };
 
   const handleMarkerContextMenu = (
@@ -354,6 +356,31 @@ const SlotComponent: React.FC<SlotProps> = ({
       x: event.clientX,
       y: event.clientY,
     });
+  };
+
+  const tryCreateAppointmentAt = (minute: number) => {
+    if (!dropDate || !onCreateAppointmentAt) return;
+    const snapped = Math.round(minute / 5) * 5;
+    const slotTime = new Date(dropDate);
+    slotTime.setHours(Math.floor(snapped / 60), snapped % 60, 0, 0);
+    if (slotTime < new Date()) {
+      notify('warning', {
+        title: 'Past time slot',
+        text: "You can't book appointments in the past. Please select a future time.",
+      });
+      return;
+    }
+    const isUnavailable = unavailableSegments.some(
+      (seg) => snapped >= seg.startMinute && snapped < seg.endMinute
+    );
+    if (isUnavailable) {
+      notify('warning', {
+        title: 'Slot unavailable',
+        text: 'This time is outside available hours. Please select a different slot.',
+      });
+      return;
+    }
+    onCreateAppointmentAt(dropDate, snapped, dropPractitionerId);
   };
 
   const createAppointmentLabel = dropDate
@@ -431,35 +458,11 @@ const SlotComponent: React.FC<SlotProps> = ({
             className="absolute inset-0 z-[1] rounded-none!"
             onClick={(event) => {
               const parent = event.currentTarget.parentElement as HTMLDivElement;
-              const minute = getMinuteFromSlotPointer(event.clientY, parent);
-              const snapped = Math.round(minute / 5) * 5;
-              const isUnavailable = unavailableSegments.some(
-                (seg) => snapped >= seg.startMinute && snapped < seg.endMinute
-              );
-              if (isUnavailable) {
-                notify('warning', {
-                  title: 'Slot unavailable',
-                  text: 'This time is outside available hours. Please select a different slot.',
-                });
-                return;
-              }
-              onCreateAppointmentAt(dropDate, snapped, dropPractitionerId);
+              tryCreateAppointmentAt(getMinuteFromSlotPointer(event.clientY, parent));
             }}
             onDoubleClick={(event) => {
               const parent = event.currentTarget.parentElement as HTMLDivElement;
-              const minute = getMinuteFromSlotPointer(event.clientY, parent);
-              const snapped = Math.round(minute / 5) * 5;
-              const isUnavailable = unavailableSegments.some(
-                (seg) => snapped >= seg.startMinute && snapped < seg.endMinute
-              );
-              if (isUnavailable) {
-                notify('warning', {
-                  title: 'Slot unavailable',
-                  text: 'This time is outside available hours. Please select a different slot.',
-                });
-                return;
-              }
-              onCreateAppointmentAt(dropDate, snapped, dropPractitionerId);
+              tryCreateAppointmentAt(getMinuteFromSlotPointer(event.clientY, parent));
             }}
           />
         ) : null}
@@ -744,6 +747,7 @@ const SlotComponent: React.FC<SlotProps> = ({
             popoverDialogRef={popoverDialogRef}
             popoverStyle={popoverStyle}
             handleViewAppointment={handleViewAppointment}
+            handleDetailAppointment={handleDetailAppointment ?? handleViewAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
             handleChangeRoomAppointment={handleChangeRoomAppointment}
             onClose={() => setActivePopoverKey(null)}
@@ -761,6 +765,7 @@ const SlotComponent: React.FC<SlotProps> = ({
             menuRef={contextMenuRef}
             menuStyle={contextMenuStyle}
             handleViewAppointment={handleViewAppointment}
+            handleDetailAppointment={handleDetailAppointment ?? handleViewAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
             onClose={() => setContextMenu(null)}
           />,

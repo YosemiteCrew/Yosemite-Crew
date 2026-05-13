@@ -46,6 +46,7 @@ type UserCalendarProps = {
   date: Date;
   zoomMode?: CalendarZoomMode;
   handleViewAppointment: any;
+  handleDetailAppointment?: any;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
   handleChangeStatusAppointment?: any;
@@ -79,6 +80,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   date,
   zoomMode = 'in',
   handleViewAppointment,
+  handleDetailAppointment,
   handleRescheduleAppointment,
   handleChangeStatusAppointment: _handleChangeStatusAppointment,
   handleChangeRoomAppointment,
@@ -298,6 +300,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                             zoomMode={zoomMode}
                             dayIndex={index}
                             handleViewAppointment={handleViewAppointment}
+                            handleDetailAppointment={handleDetailAppointment}
                             handleRescheduleAppointment={handleRescheduleAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
                             length={team.length - 1}

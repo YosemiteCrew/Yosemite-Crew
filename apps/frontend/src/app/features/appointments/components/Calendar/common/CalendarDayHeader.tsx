@@ -70,7 +70,7 @@ const CalendarDayHeader = ({
   onPrevDay,
   onNextDay,
 }: CalendarDayHeaderProps) => (
-  <div className="min-w-max bg-white">
+  <div className="min-w-max bg-white shrink-0">
     <CalendarDayNav
       weekday={weekday}
       dateNumber={dateNumber}

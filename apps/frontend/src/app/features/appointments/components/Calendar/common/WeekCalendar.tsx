@@ -57,6 +57,7 @@ type WeekCalendarProps = {
   events: Appointment[];
   zoomMode?: CalendarZoomMode;
   handleViewAppointment: any;
+  handleDetailAppointment?: any;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
@@ -90,6 +91,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   events,
   zoomMode = 'in',
   handleViewAppointment,
+  handleDetailAppointment,
   weekStart,
   setWeekStart,
   setCurrentDate,
@@ -285,7 +287,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         onWheel={onWheelHorizontal}
       >
         <div className="min-w-max h-full flex flex-col">
-          <div className="z-30 bg-white">
+          <div className="z-30 bg-white shrink-0">
             <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
               <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
@@ -430,6 +432,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             zoomMode={zoomMode}
                             dayIndex={dayIndex}
                             handleViewAppointment={handleViewAppointment}
+                            handleDetailAppointment={handleDetailAppointment}
                             handleRescheduleAppointment={handleRescheduleAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
                             canEditAppointments={canEditAppointments}
