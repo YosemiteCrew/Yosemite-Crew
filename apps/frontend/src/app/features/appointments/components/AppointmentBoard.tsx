@@ -130,6 +130,7 @@ type AppointmentBoardProps = {
   canEditAppointments: boolean;
   setActiveAppointment?: (appointment: Appointment) => void;
   setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setDetailPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<AppointmentStatus | null>>;
@@ -148,6 +149,7 @@ const AppointmentBoardComponent = ({
   canEditAppointments,
   setActiveAppointment,
   setViewPopup,
+  setDetailPopup,
   setViewIntent,
   setChangeStatusPopup,
   setChangeStatusPreferredStatus,
@@ -237,13 +239,19 @@ const AppointmentBoardComponent = ({
   const openAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
     setViewIntent?.(null);
+    setDetailPopup?.(true);
+  };
+
+  const openAppointmentOverview = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setViewIntent?.(null);
     setViewPopup?.(true);
   };
 
   const openAppointmentWithIntent = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     setActiveAppointment?.(appointment);
     setViewIntent?.(intent ?? null);
-    setViewPopup?.(true);
+    setDetailPopup?.(true);
   };
 
   const openAppointmentHistory = (appointment: Appointment) => {
@@ -660,7 +668,7 @@ const AppointmentBoardComponent = ({
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
-                                  openAppointmentWithIntent(appointment);
+                                  openAppointmentOverview(appointment);
                                 }}
                               >
                                 <IoEyeOutline size={16} color="var(--color-neutral-900)" />

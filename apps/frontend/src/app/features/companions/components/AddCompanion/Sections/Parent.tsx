@@ -278,6 +278,7 @@ const Parent = forwardRef<ParentSectionRef, ParentProps>(
                     defaultOption={selectedCountryCode.value}
                     options={CountryDialCodeOptions}
                     error={formDataErrors.countryCode}
+                    portal
                   />
                 </div>
                 <div className="col-span-7">

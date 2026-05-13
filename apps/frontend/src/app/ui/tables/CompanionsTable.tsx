@@ -23,6 +23,13 @@ import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 
 import './DataTable.css';
 
+const SPECIES_LABEL: Record<string, string> = {
+  dog: 'Canine',
+  cat: 'Feline',
+  horse: 'Equine',
+  other: 'Other',
+};
+
 type Column<T> = {
   label: string;
   key: keyof T | string;
@@ -210,7 +217,7 @@ const CompanionsTable = ({
               <div className="appointment-profile-sub mr-1">
                 {formatDisplayValue(item.companion.breed)}
               </div>
-              <div className="appointment-profile-sub">{`/ ${toTitleCase(item.companion.type)}`}</div>
+              <div className="appointment-profile-sub">{`/ ${SPECIES_LABEL[item.companion.type?.toLowerCase()] ?? toTitleCase(item.companion.type)}`}</div>
             </div>
           </div>
         </div>

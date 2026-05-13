@@ -11,6 +11,19 @@ import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
+const SPECIES_LABEL: Record<string, string> = {
+  dog: 'Canine',
+  cat: 'Feline',
+  horse: 'Equine',
+  other: 'Other',
+};
+
+const GENDER_LABEL: Record<string, string> = {
+  male: 'Male',
+  female: 'Female',
+  unknown: 'Unknown',
+};
+
 type CompanionCardProps = {
   companion: CompanionParent;
   handleViewCompanion: (companion: CompanionParent) => void;
@@ -51,7 +64,10 @@ const CompanionCard = ({
             {formatCompanionNameWithOwnerLastName(companion.companion.name, companion.parent)}
           </div>
           <div className="text-caption-1 text-text-primary">
-            {companion.companion.breed + ' / ' + companion.companion.type}
+            {companion.companion.breed +
+              ' / ' +
+              (SPECIES_LABEL[companion.companion.type?.toLowerCase()] ??
+                toTitleCase(companion.companion.type))}
           </div>
         </div>
       </div>
@@ -62,7 +78,10 @@ const CompanionCard = ({
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Gender / Age:</div>
         <div className="text-caption-1 text-text-primary">
-          {companion.companion.gender + ' - ' + getAgeInYears(companion.companion.dateOfBirth)}
+          {(GENDER_LABEL[companion.companion.gender?.toLowerCase()] ??
+            toTitleCase(companion.companion.gender)) +
+            ' - ' +
+            getAgeInYears(companion.companion.dateOfBirth)}
         </div>
       </div>
       <div className="flex gap-1">

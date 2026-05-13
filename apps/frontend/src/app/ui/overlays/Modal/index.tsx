@@ -15,7 +15,13 @@ const Modal = ({ children, showModal, setShowModal, onClose, canClose }: ModalPr
     setShowModal={setShowModal}
     onClose={onClose}
     canClose={canClose}
-    ignoreOutsideClick={(target) => Boolean(target?.closest("[data-signing-overlay='true']"))}
+    ignoreOutsideClick={(target) =>
+      Boolean(
+        target?.closest(
+          "[data-signing-overlay='true'], [data-portal-dropdown], .react-datepicker, .react-datepicker-popper, .yc-datepicker-calendar, .yc-datepicker-popper"
+        )
+      )
+    }
     overlayClassName={`fixed backdrop-blur-[2px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${
       showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
     }`}

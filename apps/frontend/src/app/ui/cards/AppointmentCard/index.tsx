@@ -24,6 +24,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 type AppointmentCardProps = {
   appointment: Appointment;
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
+  handleDetailAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   getSoapViewIntent: (appointment: Appointment) => AppointmentViewIntent;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeStatusAppointment?: (appointment: Appointment) => void;
@@ -34,6 +35,7 @@ type AppointmentCardProps = {
 const AppointmentCard = ({
   appointment,
   handleViewAppointment,
+  handleDetailAppointment,
   getSoapViewIntent,
   handleRescheduleAppointment,
   handleChangeStatusAppointment,
@@ -118,7 +120,7 @@ const AppointmentCard = ({
             <GlassTooltip content={clinicalNotesLabel} side="bottom">
               <button
                 onClick={() =>
-                  handleViewAppointment(
+                  handleDetailAppointment(
                     appointment,
                     orgType === 'HOSPITAL' ? getSoapViewIntent(appointment) : clinicalNotesIntent
                   )
@@ -132,7 +134,7 @@ const AppointmentCard = ({
             <GlassTooltip content="Finance summary" side="bottom">
               <button
                 onClick={() =>
-                  handleViewAppointment(appointment, {
+                  handleDetailAppointment(appointment, {
                     label: 'finance',
                     subLabel: 'summary',
                   })
@@ -146,7 +148,7 @@ const AppointmentCard = ({
             <GlassTooltip content="Lab tests" side="bottom">
               <button
                 onClick={() =>
-                  handleViewAppointment(appointment, {
+                  handleDetailAppointment(appointment, {
                     label: 'labs',
                     subLabel: 'idexx-labs',
                   })

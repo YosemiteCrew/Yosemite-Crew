@@ -101,6 +101,7 @@ const Timepicker = ({
         popperPlacement="bottom-start"
         calendarClassName="yc-datepicker-calendar"
         popperClassName="yc-datepicker-popper"
+        portalId="yc-datepicker-portal"
         wrapperClassName="w-full"
         customInput={
           <TimeInputButton

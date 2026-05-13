@@ -1,7 +1,7 @@
 import React, { forwardRef, useId } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import { IoIosWarning } from 'react-icons/io';
-import { IoCalendarClear } from 'react-icons/io5';
+import { IoCalendarOutline } from 'react-icons/io5';
 
 const INPUT_DATE_FORMAT = 'MMM d, yyyy';
 
@@ -12,11 +12,15 @@ type DatepickerProps = {
     | React.Dispatch<React.SetStateAction<Date>>;
   minYear?: number;
   maxYear?: number;
+  /** Earliest selectable date. Overrides minYear when provided. */
+  minDate?: Date;
   type?: string;
   className?: string;
   containerClassName?: string;
   placeholder: string;
   error?: string;
+  /** Render the calendar popper via a body portal (prevents clipping inside overflow:hidden containers). */
+  portal?: boolean;
 };
 
 type DateInputButtonProps = {
@@ -34,7 +38,7 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
     { value, onClick, isIconOnly, inputId, placeholder, className, errorId },
     ref
   ) {
-    const accessibleLabel = placeholder || 'Date of birth';
+    const accessibleLabel = placeholder || 'Date';
 
     if (isIconOnly) {
       return (
@@ -46,7 +50,7 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
           aria-label="Toggle calendar"
           aria-describedby={errorId}
         >
-          <IoCalendarClear size={20} color="var(--color-neutral-900)" aria-hidden="true" />
+          <IoCalendarOutline size={20} color="var(--color-primary-500)" aria-hidden="true" />
         </button>
       );
     }
@@ -56,7 +60,8 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
         ref={ref}
         type="button"
         onClick={onClick}
-        className={`peer relative flex min-h-12 w-full items-center rounded-2xl! border bg-transparent px-6 py-2.5 text-left text-body-4 text-text-primary outline-none transition-colors ${className ?? ''}`}
+        className={`peer relative flex min-h-12 w-full items-center rounded-2xl! border bg-transparent px-5 py-2.5 text-left text-text-primary outline-none transition-colors ${className ?? ''}`}
+        style={{ fontSize: 16 }}
         aria-label={
           value
             ? `${accessibleLabel}: ${value}, toggle calendar`
@@ -68,16 +73,17 @@ const DateInputButton = forwardRef<HTMLButtonElement, DateInputButtonProps>(
       >
         <span>{value || ''}</span>
         <span
-          className={`pointer-events-none absolute left-6 text-body-4 transition-all duration-200 ${
+          className={`pointer-events-none absolute left-5 font-satoshi transition-all duration-150 ${
             value
-              ? '-top-[11px] translate-y-0 bg-(--whitebg) px-1 text-sm! text-input-text-placeholder-active'
+              ? 'top-0 -translate-y-1/2 bg-(--whitebg) px-1 text-neutral-900'
               : 'top-1/2 -translate-y-1/2 text-input-text-placeholder'
           }`}
+          style={{ fontSize: value ? 12 : 16 }}
         >
           {accessibleLabel}
         </span>
-        <span className="absolute right-6 top-1/2 -translate-y-1/2">
-          <IoCalendarClear size={20} color="var(--color-neutral-900)" aria-hidden="true" />
+        <span className="absolute right-5 top-1/2 -translate-y-1/2">
+          <IoCalendarOutline size={18} color="var(--color-primary-500)" aria-hidden="true" />
         </span>
       </button>
     );
@@ -89,16 +95,18 @@ const Datepicker = ({
   setCurrentDate,
   minYear = 1970,
   maxYear = 2100,
+  minDate: minDateProp,
   type = 'icon',
   className,
   containerClassName,
   placeholder,
   error,
+  portal = true,
 }: DatepickerProps) => {
   const inputId = useId();
   const errorId = error ? `${inputId}-error` : undefined;
   const updateDate = setCurrentDate as React.Dispatch<React.SetStateAction<Date | null>>;
-  const minDate = new Date(minYear, 0, 1);
+  const minDate = minDateProp ?? new Date(minYear, 0, 1);
   const maxDate = new Date(maxYear, 11, 31);
   const isInput = type === 'input';
 
@@ -123,6 +131,7 @@ const Datepicker = ({
         showPopperArrow={false}
         calendarClassName="yc-datepicker-calendar"
         popperClassName="yc-datepicker-popper"
+        portalId={portal ? 'yc-datepicker-portal' : undefined}
         wrapperClassName={isInput ? 'w-full' : ''}
         customInput={
           <DateInputButton

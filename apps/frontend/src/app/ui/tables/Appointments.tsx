@@ -61,6 +61,7 @@ type AppointmentTableProps = {
   filteredList: Appointment[];
   setActiveAppointment?: (appointment: Appointment) => void;
   setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
+  setDetailPopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setViewIntent?: (intent: AppointmentViewIntent | null) => void;
   setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -74,6 +75,7 @@ const AppointmentsComponent = ({
   filteredList,
   setActiveAppointment,
   setViewPopup,
+  setDetailPopup,
   setViewIntent,
   setReschedulePopup,
   setChangeStatusPopup,
@@ -117,6 +119,12 @@ const AppointmentsComponent = ({
     setActiveAppointment?.(appointment);
     setViewIntent?.(intent ?? null);
     setViewPopup?.(true);
+  };
+
+  const handleDetailAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
+    setActiveAppointment?.(appointment);
+    setViewIntent?.(intent ?? null);
+    setDetailPopup?.(true);
   };
 
   const handleViewAppointmentHistory = (appointment: Appointment) => {
@@ -422,7 +430,7 @@ const AppointmentsComponent = ({
                 className="table-action-tooltip"
               >
                 <button
-                  onClick={() => handleViewAppointment(item, getSoapViewIntent(item))}
+                  onClick={() => handleDetailAppointment(item, getSoapViewIntent(item))}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] h-10 w-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title={clinicalNotesLabel}
                 >
@@ -436,7 +444,7 @@ const AppointmentsComponent = ({
               >
                 <button
                   onClick={() =>
-                    handleViewAppointment(item, {
+                    handleDetailAppointment(item, {
                       label: 'finance',
                       subLabel: 'summary',
                     })
@@ -449,7 +457,7 @@ const AppointmentsComponent = ({
               <GlassTooltip content="Lab tests" side="bottom" className="table-action-tooltip">
                 <button
                   onClick={() =>
-                    handleViewAppointment(item, {
+                    handleDetailAppointment(item, {
                       label: 'labs',
                       subLabel: 'idexx-labs',
                     })
@@ -492,6 +500,7 @@ const AppointmentsComponent = ({
               key={'key-appointment' + i}
               appointment={item}
               handleViewAppointment={handleViewAppointment}
+              handleDetailAppointment={handleDetailAppointment}
               getSoapViewIntent={getSoapViewIntent}
               handleRescheduleAppointment={handleRescheduleAppointment}
               handleChangeStatusAppointment={handleChangeStatusAppointment}

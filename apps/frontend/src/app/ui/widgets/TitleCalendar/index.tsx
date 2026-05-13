@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { MdOutlineCalendarMonth, MdTableRows, MdViewKanban } from 'react-icons/md';
 import { IoInformationCircleOutline } from 'react-icons/io5';
@@ -56,8 +56,14 @@ const TitleCalendar = ({
   actionBeforeAdd,
   viewOptions = ['calendar', 'board', 'list'],
 }: TitleCalendarProps) => {
+  // Local state drives pill visuals instantly on click, independent of parent re-render.
+  const [displayView, setDisplayView] = useState(activeView);
+  useEffect(() => {
+    setDisplayView(activeView);
+  }, [activeView]);
+
   const n = viewOptions.length;
-  const activeIndex = viewOptions.indexOf(activeView as 'calendar' | 'board' | 'list');
+  const activeIndex = viewOptions.indexOf(displayView as 'calendar' | 'board' | 'list');
   const safeIndex = activeIndex === -1 ? 0 : activeIndex;
   const activeConfig = VIEW_OPTION_CONFIG[viewOptions[safeIndex]];
   const containerW = SEGMENT_WIDTH[n] ?? 'w-[300px]';
@@ -107,15 +113,20 @@ const TitleCalendar = ({
           />
           {viewOptions.map((option) => {
             const { Icon, label, activeText } = VIEW_OPTION_CONFIG[option];
-            const isActive = activeView === option;
+            const isActive = displayView === option;
             return (
               <button
                 key={option}
                 type="button"
-                onClick={() => setActiveView(option)}
+                onClick={() => {
+                  setDisplayView(option);
+                  setActiveView(option);
+                }}
                 aria-pressed={isActive}
-                className={`relative z-10 flex items-center justify-center gap-1.5 text-body-4 transition-colors duration-200 ${segW} ${
-                  isActive ? activeText : 'text-text-secondary hover:text-text-primary'
+                className={`relative z-10 flex items-center justify-center gap-1.5 text-body-4 transition-colors ${segW} ${
+                  isActive
+                    ? `${activeText} duration-150 delay-150`
+                    : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
                 }`}
               >
                 <Icon size={15} aria-hidden="true" className="shrink-0" />
