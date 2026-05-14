@@ -492,9 +492,8 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
       hasStoreUrl: Boolean(prompt?.storeUrl),
     });
     if (!prompt) return;
-    if (prompt.kind === 'required') {
-      return;
-    }
+
+    // For mock-optional, the sheet opens via initialIndex — no ref call needed.
     if (
       prompt.kind === 'optional' &&
       MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow === 'optional'
@@ -505,8 +504,10 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
     let cancelled = false;
     let retries = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const maxRetries = 8;
-    const retryIntervalMs = 80;
+    // Required updates need more retries — iOS gesture handler may not be ready
+    // immediately after the component mounts with initialIndex={0}.
+    const maxRetries = prompt.kind === 'required' ? 20 : 8;
+    const retryIntervalMs = prompt.kind === 'required' ? 100 : 80;
 
     const tryOpenSheet = () => {
       if (cancelled) return;

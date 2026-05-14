@@ -92,24 +92,16 @@ export const ConfirmActionBottomSheet = forwardRef<
     const {theme} = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
     const bottomSheetRef = useRef<BottomSheetRef>(null);
-    // Initialize based on initialIndex - only visible if initialIndex is NOT -1
-    const [isSheetVisible, setIsSheetVisible] = useState(initialIndex !== -1);
     const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
     // Listen to keyboard events to adjust snap points
     useEffect(() => {
-      const keyboardDidShow = Keyboard.addListener(
-        'keyboardDidShow',
-        () => {
-          setIsKeyboardVisible(true);
-        }
-      );
-      const keyboardDidHide = Keyboard.addListener(
-        'keyboardDidHide',
-        () => {
-          setIsKeyboardVisible(false);
-        }
-      );
+      const keyboardDidShow = Keyboard.addListener('keyboardDidShow', () => {
+        setIsKeyboardVisible(true);
+      });
+      const keyboardDidHide = Keyboard.addListener('keyboardDidHide', () => {
+        setIsKeyboardVisible(false);
+      });
 
       return () => {
         keyboardDidShow.remove();
@@ -132,20 +124,20 @@ export const ConfirmActionBottomSheet = forwardRef<
       return snapPoints;
     }, [isKeyboardVisible, snapPoints]);
 
-    useImperativeHandle(ref, () => ({
-      open: () => {
-        setIsSheetVisible(true);
-        // Snap to the last (highest) snap point for proper keyboard animation
-        // When keyboard is closed, we want the highest snap point in the array
-        const targetIndex = Math.max(0, snapPoints.length - 1);
-        bottomSheetRef.current?.snapToIndex(targetIndex);
-      },
-      close: () => {
-        Keyboard.dismiss();
-        setIsSheetVisible(false);
-        bottomSheetRef.current?.close();
-      },
-    }), [snapPoints]);
+    useImperativeHandle(
+      ref,
+      () => ({
+        open: () => {
+          const targetIndex = Math.max(0, snapPoints.length - 1);
+          bottomSheetRef.current?.snapToIndex(targetIndex);
+        },
+        close: () => {
+          Keyboard.dismiss();
+          bottomSheetRef.current?.close();
+        },
+      }),
+      [snapPoints],
+    );
 
     const handleClose = () => {
       Keyboard.dismiss();
@@ -174,7 +166,10 @@ export const ConfirmActionBottomSheet = forwardRef<
         const result = config.onPress();
         if (result instanceof Promise) {
           result.catch(error => {
-            console.warn('[ConfirmActionBottomSheet] Button action rejected', error);
+            console.warn(
+              '[ConfirmActionBottomSheet] Button action rejected',
+              error,
+            );
           });
         }
       };
@@ -204,7 +199,6 @@ export const ConfirmActionBottomSheet = forwardRef<
         initialIndex={initialIndex}
         zIndex={zIndex ?? 100}
         onChange={index => {
-          setIsSheetVisible(index !== -1);
           if (index === -1) {
             Keyboard.dismiss();
             setIsKeyboardVisible(false);
@@ -212,7 +206,7 @@ export const ConfirmActionBottomSheet = forwardRef<
           onSheetChange?.(index);
         }}
         enablePanDownToClose={enablePanDown}
-        enableBackdrop={isSheetVisible}
+        enableBackdrop
         enableHandlePanningGesture={enableHandlePanning}
         enableContentPanningGesture={false}
         backdropOpacity={0.5}
@@ -229,37 +223,37 @@ export const ConfirmActionBottomSheet = forwardRef<
         contentType="view">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={[styles.container, containerStyle]}>
-          <BottomSheetHeader
-            title={title}
-            onClose={handleClose}
-            theme={theme}
-            showCloseButton={showCloseButton}
-          />
-          {message ? (
-            <Text
-              style={[
-                styles.message,
-                {textAlign: messageAlign},
-                messageStyle,
-              ]}>
-              {message}
-            </Text>
-          ) : null}
+            <BottomSheetHeader
+              title={title}
+              onClose={handleClose}
+              theme={theme}
+              showCloseButton={showCloseButton}
+            />
+            {message ? (
+              <Text
+                style={[
+                  styles.message,
+                  {textAlign: messageAlign},
+                  messageStyle,
+                ]}>
+                {message}
+              </Text>
+            ) : null}
 
-          {children}
+            {children}
 
-          <View style={[styles.buttonRow, buttonContainerStyle]}>
-            {secondaryButton
-              ? renderButton(secondaryButton, {
-                  tintColor: theme.colors.surface,
-                  textColor: theme.colors.secondary,
-                })
-              : null}
-            {renderButton(primaryButton, {
-              tintColor: theme.colors.secondary,
-              textColor: theme.colors.white,
-            })}
-          </View>
+            <View style={[styles.buttonRow, buttonContainerStyle]}>
+              {secondaryButton
+                ? renderButton(secondaryButton, {
+                    tintColor: theme.colors.surface,
+                    textColor: theme.colors.secondary,
+                  })
+                : null}
+              {renderButton(primaryButton, {
+                tintColor: theme.colors.secondary,
+                textColor: theme.colors.white,
+              })}
+            </View>
           </View>
         </TouchableWithoutFeedback>
       </CustomBottomSheet>
@@ -286,7 +280,7 @@ const createStyles = (theme: any) =>
     },
     message: {
       ...theme.typography.titleMedium,
-            paddingBottom: theme.spacing['5'],
+      paddingBottom: theme.spacing['5'],
       color: theme.colors.secondary,
     },
     buttonRow: {
