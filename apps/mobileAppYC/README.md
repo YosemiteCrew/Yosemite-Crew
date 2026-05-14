@@ -57,6 +57,99 @@ This guide will walk you through setting up the mobile app on your local machine
 
 ---
 
+### Reference Development Environment
+
+The mobile app is known to build on the following local setup. Contributors do not need the exact same machine, but matching the major tooling versions below is the safest starting point when debugging native iOS or Android build failures.
+
+#### macOS / shell
+
+| Tool   | Version / value                 |
+| ------ | ------------------------------- |
+| macOS  | `26.4.1`                        |
+| CPU    | Apple Silicon `arm64`, Apple M4 |
+| Memory | `16 GB`                         |
+| Shell  | `zsh 5.9` at `/bin/zsh`         |
+
+#### JavaScript / package tooling
+
+| Tool                        | Version / value                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------- |
+| Node.js                     | `24.7.0`                                                                            |
+| Node path                   | `/opt/homebrew/bin/node`                                                            |
+| npm                         | `11.5.1` at `/opt/homebrew/bin/npm`                                                 |
+| pnpm                        | `8.15.6`                                                                            |
+| Yarn                        | Not installed / not used                                                            |
+| nvm                         | `0.40.3` installed; active React Native CLI shell uses the Homebrew Node path above |
+| React                       | `19.1.0`                                                                            |
+| React Native                | `0.81.4`                                                                            |
+| React Native CLI            | `@react-native-community/cli 20.0.0`                                                |
+| Global React Native package | Not installed                                                                       |
+
+Use `pnpm` for this repository. Prefer `pnpm exec react-native ...` over `npx react-native ...` when matching the repo-local CLI exactly.
+
+#### iOS tooling
+
+| Tool                 | Version / value                                                              |
+| -------------------- | ---------------------------------------------------------------------------- |
+| Xcode                | `26.0`                                                                       |
+| Xcode build          | `17A324`                                                                     |
+| xcodebuild path      | `/usr/bin/xcodebuild`                                                        |
+| iOS SDK              | `26.0`                                                                       |
+| Other Apple SDKs     | DriverKit `25.0`, macOS `26.0`, tvOS `26.0`, visionOS `26.0`, watchOS `26.0` |
+| CocoaPods            | `1.16.2`                                                                     |
+| CocoaPods path       | `/Users/harshitwandhare/.rbenv/shims/pod`                                    |
+| Ruby                 | `3.3.9` at `/Users/harshitwandhare/.rbenv/shims/ruby`                        |
+| RubyGems             | `3.5.22`                                                                     |
+| Bundler              | `2.5.22`                                                                     |
+| Relevant gems        | `cocoapods 1.16.2`, `xcodeproj 1.27.0`, `activesupport 7.2.2.2`              |
+| iOS Hermes           | Enabled                                                                      |
+| iOS New Architecture | Enabled                                                                      |
+
+If an iOS build works on this setup but fails on a newer Xcode, first compare `xcodebuild -version` and the installed iOS SDK. For example, `Xcode 26.5` with `iOS SDK 26.5` may surface newer native compiler warnings than `Xcode 26.0`.
+
+#### Android tooling
+
+| Tool                     | Version / value                              |
+| ------------------------ | -------------------------------------------- | ----------------------- |
+| Java                     | `17.0.16`                                    |
+| JRE/JDK                  | OpenJDK Zulu `17.0.16+8-LTS`                 |
+| javac path               | `/usr/bin/javac`                             |
+| Android Studio           | `2025.1 AI-251.26094.121.2512.13930704`      |
+| Android SDK path         | `/Users/harshitwandhare/Library/Android/sdk` |
+| Android SDK API levels   | `35`, `36`                                   |
+| Android SDK Build Tools  | `35.0.0`                                     |
+| Android emulator         | `36.1.9.0`                                   |
+| adb                      | `1.0.41`, platform-tools `36.0.0-13206524`   |
+| Android system image     | `android-35                                  | Google Play ARM 64 v8a` |
+| Android NDK              | Not installed                                |
+| Android Hermes           | Enabled                                      |
+| Android New Architecture | Enabled                                      |
+| Gradle wrapper           | `8.14.3`                                     |
+
+#### Other native tooling
+
+| Tool     | Version / value                                 |
+| -------- | ----------------------------------------------- |
+| Watchman | `2025.09.01.00` at `/opt/homebrew/bin/watchman` |
+
+To compare a contributor machine against this setup, run:
+
+```sh
+pnpm exec react-native info
+node -v
+pnpm -v
+ruby -v
+gem -v
+bundle -v
+pod --version
+xcodebuild -version
+java -version
+javac -version
+watchman --version
+```
+
+---
+
 ### Step 1: Configure Your AWS Credentials
 
 Before you begin, the AWS Amplify CLI needs credentials to deploy resources to your AWS account.
