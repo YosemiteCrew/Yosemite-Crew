@@ -144,7 +144,7 @@ Several config files are gitignored because they contain keys. We provide exampl
 
 Copy and tick off each item before trying to build:
 
-- [ ] **A. Amplify / Cognito** — `amplify_outputs.json`
+- [ ] **A. Amplify / Cognito** — `devamplify_outputs.json` (+ `prodamplify_outputs.json` if testing prod auth)
 - [ ] **B. JS variables** — `variables.local.ts`
 - [ ] **C. Android: Firebase** — `google-services.json`
 - [ ] **D. Android: Native keys** — `strings.xml` + `gradle.properties` + `local.properties`
@@ -153,21 +153,28 @@ Copy and tick off each item before trying to build:
 
 ---
 
-#### A. Amplify / Cognito (`amplify_outputs.json`)
+#### A. Amplify / Cognito (`devamplify_outputs.json` / `prodamplify_outputs.json`)
 
-The app uses AWS Amplify for authentication. Without this file the app will not boot.
+The app uses AWS Amplify for authentication. It automatically selects the correct Cognito pool at startup based on `USE_DEV_API` in `variables.local.ts` — **no manual file swapping needed**.
 
-**Option 1 — Use the shared contributor pool (no AWS account needed, recommended for UI work):**
+- `USE_DEV_API = true` → loads `devamplify_outputs.json` → authenticates against the **dev Cognito pool** → hits `devapi.yosemitecrew.com`
+- `USE_DEV_API = false` → loads `prodamplify_outputs.json` → authenticates against the **prod Cognito pool** → hits `api.yosemitecrew.com`
+
+Both files are gitignored and must be created locally. The Cognito pool and API must always match — mixing them causes 401s on every request.
+
+**Option 1 — Use the shared contributor dev pool (no AWS account needed, recommended for UI work):**
 
 ```sh
-cp apps/mobileAppYC/amplify_outputs.example.json apps/mobileAppYC/amplify_outputs.json
+cp apps/mobileAppYC/amplify_outputs.example.json apps/mobileAppYC/devamplify_outputs.json
 ```
 
-This connects you to a shared development Cognito pool. Log in with any email address via OTP, or use the review-login bypass (`test@yosemitecrew.com`) when running against the dev API.
+This connects you to the shared development Cognito pool (`eu-central-1_2jEniI2eQ`). Log in with any email address via OTP, or use the review-login bypass (`test@yosemitecrew.com`) when `enableReviewLogin` is active on the dev API. This is a shared dev environment — do not store sensitive data in it.
+
+> You only need `prodamplify_outputs.json` if you are explicitly testing production auth flows. For normal development, `devamplify_outputs.json` + `USE_DEV_API = true` is all you need.
 
 **Option 2 — Spin up your own isolated sandbox (requires AWS account):**
 
-Follow Step 3 above to run `npx ampx sandbox`. It generates a fresh `amplify_outputs.json` pointing to your own Cognito pool. No further changes needed.
+Follow Step 3 above to run `npx ampx sandbox`. Copy the generated `amplify_outputs.json` to `devamplify_outputs.json`. No further changes needed.
 
 ---
 
@@ -175,20 +182,20 @@ Follow Step 3 above to run `npx ampx sandbox`. It generates a fresh `amplify_out
 
 This file controls which backend environment the app points to and holds optional API keys for third-party services (Stream Chat, Stripe, Google Places, PostHog). It is gitignored and never committed.
 
-```sh
-cp apps/mobileAppYC/src/config/variables.local.ts apps/mobileAppYC/src/config/variables.local.ts
-# (the file already exists as a fully-commented template — open it and read the top section)
-```
-
-The only required change for development is the **master environment switch** at the top of the file:
+The file already exists in the repo as a fully-commented template — open it and read the top section. The only required change for development is the **master environment switch** at the top:
 
 ```ts
-// true  → dev backend  (https://devapi.yosemitecrew.com)
-// false → production backend  ← default
+// true  → dev Cognito pool + devapi.yosemitecrew.com
+// false → prod Cognito pool + api.yosemitecrew.com
 const USE_DEV_API = true;
 ```
 
-Set `USE_DEV_API = true` to route all API calls to the development backend. Everything else in the file has sensible defaults and inline comments explaining each option.
+Setting `USE_DEV_API = true` does two things automatically:
+
+1. Routes all API calls to `devapi.yosemitecrew.com`
+2. Loads `devamplify_outputs.json` so the Cognito pool matches the backend
+
+Everything else in the file has sensible defaults and inline comments explaining each option.
 
 PostHog mobile analytics are disabled by default. If you want to enable them for a non-production build, configure `POSTHOG_CONFIG` with a project API key and host, and only switch `enabled` or `defaultOptIn` on after your privacy/consent flow is ready.
 

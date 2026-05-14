@@ -4,6 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
+import {Amplify} from 'aws-amplify';
 
 jest.mock('@stripe/stripe-react-native', () => ({
   StripeProvider: ({children}: {children: React.ReactNode}) => <>{children}</>,
@@ -51,6 +52,11 @@ jest.mock('../src/navigation', () => ({
   AppNavigator: () => null,
 }));
 
+// Spy must be set up before App module is required (module-level Amplify.configure call)
+const mockAmplifyConfigure = jest
+  .spyOn(Amplify, 'configure')
+  .mockImplementation(() => {});
+
 const App = require('../App').default;
 
 const originalDocument = (globalThis as any).document;
@@ -67,10 +73,32 @@ afterAll(() => {
   } else {
     delete (globalThis as any).document;
   }
+  mockAmplifyConfigure.mockRestore();
 });
 
 test('renders correctly', async () => {
   await ReactTestRenderer.act(() => {
     ReactTestRenderer.create(<App />);
   });
+});
+
+test('configures Amplify with an auth pool on startup', () => {
+  expect(mockAmplifyConfigure).toHaveBeenCalledTimes(1);
+  const configArg = mockAmplifyConfigure.mock.calls[0][0] as any;
+  expect(configArg).toHaveProperty('auth.user_pool_id');
+  expect(configArg).toHaveProperty('auth.user_pool_client_id');
+  expect(configArg).toHaveProperty('auth.identity_pool_id');
+});
+
+test('selects dev pool when useDevApi is true', () => {
+  const devOutputs = require('../devamplify_outputs.json');
+  const prodOutputs = require('../prodamplify_outputs.json');
+  const {MOBILE_CONFIG_BEHAVIOR} = require('@/config/variables');
+  const configArg = mockAmplifyConfigure.mock.calls[0][0];
+
+  if (MOBILE_CONFIG_BEHAVIOR.useDevApi) {
+    expect(configArg).toEqual(devOutputs);
+  } else {
+    expect(configArg).toEqual(prodOutputs);
+  }
 });

@@ -18,6 +18,16 @@ declare module '*/amplify_outputs.json' {
   export default outputs;
 }
 
+declare module '*/devamplify_outputs.json' {
+  const outputs: AmplifyOutputs;
+  export default outputs;
+}
+
+declare module '*/prodamplify_outputs.json' {
+  const outputs: AmplifyOutputs;
+  export default outputs;
+}
+
 declare module '*.json' {
   const value: any;
   export default value;
