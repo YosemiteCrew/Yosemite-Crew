@@ -250,20 +250,21 @@ Copy and tick off each item before trying to build:
 
 The app uses AWS Amplify for authentication. It automatically selects the correct Cognito pool at startup based on `USE_DEV_API` in `variables.local.ts` — **no manual file swapping needed**.
 
-- `USE_DEV_API = true` → loads `devamplify_outputs.json` → authenticates against the **dev Cognito pool** → hits `devapi.yosemitecrew.com`
-- `USE_DEV_API = false` → loads `prodamplify_outputs.json` → authenticates against the **prod Cognito pool** → hits `api.yosemitecrew.com`
+- `USE_DEV_API = true` → configures Amplify with `devamplify_outputs.json` → authenticates against the **dev Cognito pool** → hits `devapi.yosemitecrew.com`
+- `USE_DEV_API = false` → configures Amplify with `prodamplify_outputs.json` → authenticates against the **prod Cognito pool** → hits `api.yosemitecrew.com`
 
-Both files are gitignored and must be created locally. The Cognito pool and API must always match — mixing them causes 401s on every request.
+Both files are gitignored and must be created locally. The app imports both files during JS bundling, so both must exist and contain valid JSON even if you only use the dev API. The Cognito pool and API must always match — mixing them causes 401s on every request.
 
 **Option 1 — Use the shared contributor dev pool (no AWS account needed, recommended for UI work):**
 
 ```sh
 cp apps/mobileAppYC/amplify_outputs.example.json apps/mobileAppYC/devamplify_outputs.json
+cp apps/mobileAppYC/amplify_outputs.example.json apps/mobileAppYC/prodamplify_outputs.json
 ```
 
 This connects you to the shared development Cognito pool (`eu-central-1_2jEniI2eQ`). Log in with any email address via OTP, or use the review-login bypass (`test@yosemitecrew.com`) when `enableReviewLogin` is active on the dev API. This is a shared dev environment — do not store sensitive data in it.
 
-> You only need `prodamplify_outputs.json` if you are explicitly testing production auth flows. For normal development, `devamplify_outputs.json` + `USE_DEV_API = true` is all you need.
+> For normal development, keep `USE_DEV_API = true`. The `prodamplify_outputs.json` file can be the same stub as `devamplify_outputs.json`; it just needs to be present and valid so Metro/Hermes can compile the bundle.
 
 **Option 2 — Spin up your own isolated sandbox (requires AWS account):**
 
