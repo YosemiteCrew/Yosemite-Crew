@@ -316,6 +316,8 @@ The stub file has the correct structure. Firebase init will log a warning on sta
 
 #### D. Android: Native Keys (`strings.xml` + `gradle.properties` + `local.properties`)
 
+These files are local machine/project configuration and are intentionally gitignored. Keep them out of commits; use the example files below as the source of truth.
+
 1. **API keys** (Facebook, Google Maps):
 
    ```sh
@@ -365,6 +367,8 @@ Then add this stub file to the Xcode project the same way. Push notifications wi
 ---
 
 #### F. iOS: Native Keys (`Info.plist` + `.xcode.env.local`)
+
+`AppDelegate.swift` is application source code and must stay tracked. Do not place API keys or service tokens in `AppDelegate.swift`; put iOS native keys in the gitignored `Info.plist` or `GoogleService-Info.plist` files created below.
 
 1. **Info.plist** — contains Facebook SDK keys, Google Sign-In reverse client ID, and permission usage strings:
 

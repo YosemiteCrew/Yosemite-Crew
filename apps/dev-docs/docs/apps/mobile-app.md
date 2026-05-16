@@ -136,6 +136,8 @@ To run the app, you need to provide your own credentials for various services. W
 
 #### B. Android Native Configuration
 
+These native config files are local-only and gitignored. Do not commit copied files or real keys; commit only the example/template files.
+
 1.  **Firebase**: Download your `google-services.json` file from Firebase and place it in the `android/app/` directory.
 2.  **Gradle Properties**: Copy the sample Gradle properties file:
     ```sh
@@ -149,7 +151,9 @@ To run the app, you need to provide your own credentials for various services. W
 
 #### C. iOS Native Configuration
 
-1.  **Firebase**: Download your `GoogleService-Info.plist` file from Firebase. Place it in `apps/mobileAppYC/ios/mobileAppYC/` and **add it to the project using Xcode**.
+`AppDelegate.swift` is tracked source code. Do not put API keys or service tokens there; use the gitignored native config files below.
+
+1.  **Firebase**: Download your `GoogleService-Info.plist` file from Firebase. Place it in `apps/mobileAppYC/ios/` and **add it to the project using Xcode**.
 2.  **Other Keys**: Copy the sample `Info.plist` file:
     ```sh
     cp apps/mobileAppYC/config-templates/ios/Info.plist.example apps/mobileAppYC/ios/mobileAppYC/Info.plist

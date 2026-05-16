@@ -21,6 +21,8 @@ DerivedData
 *.ipa
 *.xcuserstate
 **/.xcode.env.local
+ios/GoogleService-Info.plist
+ios/mobileAppYC/Info.plist
 
 # Android/IntelliJ
 #
@@ -28,6 +30,10 @@ build/
 .idea
 .gradle
 local.properties
+android/app/google-services.json
+android/app/src/main/res/values/strings.xml
+android/gradle.properties
+android/local.properties
 *.iml
 *.hprof
 .cxx/
