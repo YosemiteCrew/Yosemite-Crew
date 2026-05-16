@@ -63,7 +63,7 @@ const AppUpdateBottomSheet = forwardRef<
       title={title}
       message={message}
       snapPoints={['40%']}
-      initialIndex={prompt.kind === 'required' || initialOpen ? 0 : -1}
+      initialIndex={initialOpen ? 0 : -1}
       enablePanDown={prompt.kind !== 'required'}
       enableHandlePanning={prompt.kind !== 'required'}
       showCloseButton={prompt.kind !== 'required'}

@@ -59,21 +59,20 @@ jest.mock(
 
 jest.mock('@gorhom/bottom-sheet', () => {
   const {View} = require('react-native');
+  const {forwardRef, useImperativeHandle, createElement} = require('react');
 
-  const BottomSheet = React.forwardRef(
-    ({children, ...props}: any, ref: any) => {
-      React.useImperativeHandle(ref, () => ({
-        snapToIndex: jest.fn(),
-        snapToPosition: jest.fn(),
-        expand: jest.fn(),
-        collapse: jest.fn(),
-        close: jest.fn(),
-      }));
-      return React.createElement(View, props, children);
-    },
-  );
+  const BottomSheet = forwardRef(({children, ...props}: any, ref: any) => {
+    useImperativeHandle(ref, () => ({
+      snapToIndex: jest.fn(),
+      snapToPosition: jest.fn(),
+      expand: jest.fn(),
+      collapse: jest.fn(),
+      close: jest.fn(),
+    }));
+    return createElement(View, props, children);
+  });
 
-  const BottomSheetFlatList = React.forwardRef(
+  const BottomSheetFlatList = forwardRef(
     (
       {
         data,
@@ -86,7 +85,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
       ref: any,
     ) => {
       const items: any[] = data ?? [];
-      return React.createElement(
+      return createElement(
         View,
         {...props, ref},
         ListHeaderComponent ?? null,
@@ -103,13 +102,13 @@ jest.mock('@gorhom/bottom-sheet', () => {
     __esModule: true,
     default: BottomSheet,
     BottomSheetView: ({children, ...props}: any) =>
-      React.createElement(View, props, children),
+      createElement(View, props, children),
     BottomSheetScrollView: ({children, ...props}: any) =>
-      React.createElement(View, props, children),
+      createElement(View, props, children),
     BottomSheetFlatList,
     BottomSheetBackdrop: ({children, ...props}: any) =>
-      React.createElement(View, props, children),
-    BottomSheetHandle: ({...props}: any) => React.createElement(View, props),
+      createElement(View, props, children),
+    BottomSheetHandle: ({...props}: any) => createElement(View, props),
   };
 });
 

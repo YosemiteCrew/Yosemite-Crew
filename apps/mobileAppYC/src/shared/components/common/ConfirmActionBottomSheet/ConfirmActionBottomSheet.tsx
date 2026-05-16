@@ -93,7 +93,6 @@ export const ConfirmActionBottomSheet = forwardRef<
     const styles = useMemo(() => createStyles(theme), [theme]);
     const bottomSheetRef = useRef<BottomSheetRef>(null);
     const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-    const [showBackdrop, setShowBackdrop] = useState(initialIndex >= 0);
 
     // Listen to keyboard events to adjust snap points
     useEffect(() => {
@@ -129,12 +128,10 @@ export const ConfirmActionBottomSheet = forwardRef<
       ref,
       () => ({
         open: () => {
-          setShowBackdrop(true);
           const targetIndex = Math.max(0, snapPoints.length - 1);
           bottomSheetRef.current?.snapToIndex(targetIndex);
         },
         close: () => {
-          setShowBackdrop(false);
           Keyboard.dismiss();
           bottomSheetRef.current?.close();
         },
@@ -203,14 +200,13 @@ export const ConfirmActionBottomSheet = forwardRef<
         zIndex={zIndex ?? 100}
         onChange={index => {
           if (index === -1) {
-            setShowBackdrop(false);
             Keyboard.dismiss();
             setIsKeyboardVisible(false);
           }
           onSheetChange?.(index);
         }}
         enablePanDownToClose={enablePanDown}
-        enableBackdrop={showBackdrop}
+        enableBackdrop={true}
         enableHandlePanningGesture={enableHandlePanning}
         enableContentPanningGesture={false}
         backdropOpacity={0.5}

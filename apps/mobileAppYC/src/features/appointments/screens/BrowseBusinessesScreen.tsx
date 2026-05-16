@@ -1,468 +1,334 @@
-import React from 'react';
-import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
-import BrowseBusinessesScreen from '@/features/appointments/screens/BrowseBusinessesScreen';
-import * as reactRedux from 'react-redux';
-import {useNavigation, useRoute} from '@react-navigation/native';
-import {fetchBusinesses} from '@/features/appointments/businessesSlice';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {Alert, StyleSheet, View} from 'react-native';
+import {useDispatch, useSelector} from 'react-redux';
+import {
+  NavigationProp,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
+import type {RouteProp} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {Region} from 'react-native-maps';
+
+import type {AppDispatch, RootState} from '@/app/store';
+import {useTheme} from '@/hooks';
+import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {
+  fetchBusinesses,
+  upsertBusiness,
+} from '@/features/appointments/businessesSlice';
+import {
+  selectCompanions,
+  selectSelectedCompanionId,
+} from '@/features/companion';
 import {
   fetchBusinessDetails,
   fetchGooglePlacesImage,
 } from '@/features/linkedBusinesses';
-import {useClinicMapDiscovery} from '@/features/appointments/hooks/useClinicMapDiscovery';
+import {
+  usePlacesBusinessSearch,
+  type ResolvedBusinessSelection,
+} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
+import {mapSelectionToVetBusiness} from '@/features/linkedBusinesses/utils/mapSelectionToVetBusiness';
+import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
+import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
+import type {AppointmentStackParamList, TabParamList} from '@/navigation/types';
+import type {VetBusiness} from '../types';
 
-// --- Mocks ---
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: jest.fn(),
-  useRoute: jest.fn(),
-}));
+import {MapDiscoveryView} from '../components/MapDiscovery';
+import {useLocationPermission} from '../hooks/useLocationPermission';
+import {useClinicMapDiscovery} from '../hooks/useClinicMapDiscovery';
 
-jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
-}));
+type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
-jest.mock('@/shared/components/common', () => ({
-  SafeArea: ({children}: any) => <>{children}</>,
-}));
+type Fallbacks = Record<
+  string,
+  {photo?: string | null; phone?: string; website?: string}
+>;
 
-jest.mock('@/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack}: any) => (
-    <mock-header title={title} onBack={onBack} testID="header" />
-  ),
-}));
+const MIN_SEARCH_INTERVAL_MS = 1000;
 
-jest.mock('@/shared/components/common/SearchBar/SearchBar', () => ({
-  SearchBar: ({value, onChangeText, onSubmitEditing, onIconPress}: any) => (
-    <mock-searchbar
-      value={value}
-      onChangeText={onChangeText}
-      onSubmitEditing={onSubmitEditing}
-      onIconPress={onIconPress}
-      testID="searchBar"
-    />
-  ),
-}));
+const buildDropdownTop = (theme: any): number => theme.spacing['30'];
 
-jest.mock(
-  '@/features/appointments/components/BusinessCard/BusinessCard',
-  () => ({
-    __esModule: true,
-    default: ({name, onBook}: any) => (
-      <mock-business-card
-        name={name}
-        onPress={onBook}
-        testID={`card-${name}`}
-      />
-    ),
-  }),
-);
+const needsPhotoFetch = (biz: VetBusiness): boolean =>
+  Boolean((!biz.photo || isDummyPhoto(biz.photo)) && biz.googlePlacesId);
 
-jest.mock('@gorhom/bottom-sheet', () => {
-  const {View} = require('react-native');
+const needsContactFetch = (biz: VetBusiness): boolean =>
+  Boolean((!biz.phone || !biz.website) && biz.googlePlacesId);
 
-  const BottomSheet = React.forwardRef(
-    ({children, ...props}: any, ref: any) => {
-      React.useImperativeHandle(ref, () => ({
-        snapToIndex: jest.fn(),
-        snapToPosition: jest.fn(),
-        expand: jest.fn(),
-        collapse: jest.fn(),
-        close: jest.fn(),
-      }));
-      return React.createElement(View, props, children);
+const resolveTargetCompanionId = (
+  selectedId: string | null,
+  companions: any[],
+): string | null =>
+  selectedId ??
+  companions[0]?.id ??
+  (companions[0] as any)?._id ??
+  (companions[0] as any)?.identifier?.[0]?.value ??
+  null;
+
+export const BrowseBusinessesScreen: React.FC = () => {
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const dispatch = useDispatch<AppDispatch>();
+  const navigation = useNavigation<Nav>();
+  const route =
+    useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
+  const {distanceUnit} = usePreferences();
+  const {
+    userLocation,
+    userCoords,
+    hasPermission,
+    isLoading: locationLoading,
+  } = useLocationPermission();
+  const initialQuery = route.params?.serviceName ?? '';
+  const lastSearchRef = useRef<number>(0);
+  const lastTermRef = useRef<string>('');
+  const companions = useSelector(selectCompanions);
+  const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const targetCompanionId = useMemo(
+    () => resolveTargetCompanionId(selectedCompanionId, companions),
+    [companions, selectedCompanionId],
+  );
+  const selectedCompanion = useMemo(
+    () =>
+      targetCompanionId
+        ? (companions.find(c => c.id === targetCompanionId) ?? null)
+        : (companions[0] ?? null),
+    [companions, targetCompanionId],
+  );
+  const [fallbacks, setFallbacks] = useState<Fallbacks>({});
+  const requestedDetailsRef = useRef<Set<string>>(new Set());
+  const requestBusinessDetails = useCallback(
+    async (biz: VetBusiness) => {
+      const placeId = biz.googlePlacesId;
+      if (!placeId || requestedDetailsRef.current.has(placeId)) return;
+      requestedDetailsRef.current.add(placeId);
+
+      try {
+        const result = await dispatch(fetchBusinessDetails(placeId)).unwrap();
+        setFallbacks(prev => ({
+          ...prev,
+          [biz.id]: {
+            photo: result.photoUrl ?? prev[biz.id]?.photo ?? null,
+            phone: result.phoneNumber ?? prev[biz.id]?.phone,
+            website: result.website ?? prev[biz.id]?.website,
+          },
+        }));
+        return;
+      } catch {}
+
+      try {
+        const img = await dispatch(fetchGooglePlacesImage(placeId)).unwrap();
+        if (img.photoUrl) {
+          setFallbacks(prev => ({
+            ...prev,
+            [biz.id]: {...prev[biz.id], photo: img.photoUrl},
+          }));
+        }
+      } catch {}
     },
+    [dispatch],
+  );
+  const ensureCompanion = useCallback(() => {
+    if (targetCompanionId && selectedCompanion) return true;
+    Alert.alert('Add a companion', 'Add a companion to notify a business.');
+    return false;
+  }, [selectedCompanion, targetCompanionId]);
+
+  const handlePmsSelection = useCallback(
+    async (selection: ResolvedBusinessSelection) => {
+      const payload = mapSelectionToVetBusiness(selection);
+      dispatch(upsertBusiness(payload));
+      navigation.navigate('BusinessDetails', {
+        businessId: payload.id,
+        returnTo: {tab: 'Appointments', screen: 'BrowseBusinesses'},
+      });
+    },
+    [dispatch, navigation],
   );
 
-  const BottomSheetFlatList = React.forwardRef(
-    (
-      {
-        data,
-        renderItem,
-        keyExtractor: _keyExtractor,
-        ListHeaderComponent,
-        ListEmptyComponent,
-        ...props
-      }: any,
-      ref: any,
-    ) => {
-      const items: any[] = data ?? [];
-      return React.createElement(
-        View,
-        {...props, ref},
-        ListHeaderComponent ?? null,
-        items.length === 0
-          ? (ListEmptyComponent ?? null)
-          : items.map((item: any, index: number) =>
-              renderItem ? renderItem({item, index}) : null,
-            ),
+  const handleNonPmsSelection = useCallback(
+    async (selection: ResolvedBusinessSelection) => {
+      if (!ensureCompanion() || !targetCompanionId || !selectedCompanion)
+        return;
+      navigation
+        .getParent<NavigationProp<TabParamList>>()
+        ?.navigate('HomeStack', {
+          screen: 'LinkedBusinesses',
+          params: {
+            screen: 'BusinessAdd',
+            params: {
+              companionId: targetCompanionId,
+              companionName: selectedCompanion.name,
+              companionBreed: selectedCompanion.breed?.breedName,
+              companionImage: selectedCompanion.profileImage ?? undefined,
+              category: 'hospital',
+              businessId: selection.placeId,
+              businessName: selection.name,
+              businessAddress: selection.address,
+              phone: selection.phone,
+              email: selection.email,
+              photo: selection.photo,
+              isPMSRecord: false,
+              rating: selection.rating,
+              distance: selection.distance,
+              placeId: selection.placeId,
+              returnTo: {tab: 'Appointments', screen: 'BrowseBusinesses'},
+            },
+          },
+        });
+    },
+    [ensureCompanion, navigation, selectedCompanion, targetCompanionId],
+  );
+
+  const handleSearchError = useCallback((error: unknown) => {
+    console.log('[BrowseBusinesses] Places search error', error);
+  }, []);
+
+  const placesSearch = usePlacesBusinessSearch({
+    onSelectPms: handlePmsSelection,
+    onSelectNonPms: handleNonPmsSelection,
+    onError: handleSearchError,
+  });
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    searching,
+    handleSearchChange,
+    handleSelectBusiness,
+    clearResults,
+  } = placesSearch;
+  const performSearch = useCallback(
+    (term?: string) => {
+      const trimmed = (term ?? searchQuery).trim();
+      const now = Date.now();
+      if (
+        trimmed === lastTermRef.current &&
+        now - lastSearchRef.current < MIN_SEARCH_INTERVAL_MS
+      ) {
+        return;
+      }
+      lastTermRef.current = trimmed;
+      lastSearchRef.current = now;
+      dispatch(
+        fetchBusinesses(
+          trimmed
+            ? {serviceName: trimmed, lat: userCoords.lat, lng: userCoords.lng}
+            : {lat: userCoords.lat, lng: userCoords.lng},
+        ),
       );
     },
+    [dispatch, searchQuery, userCoords],
+  );
+  const {
+    visibleClinics,
+    selectedClinicId,
+    mapRegion,
+    category,
+    openNow,
+    setSelectedClinicId,
+    setMapRegion,
+    setCategory,
+    setOpenNow,
+    enrichWithDistance,
+  } = useClinicMapDiscovery(searchQuery);
+
+  const enrichedClinics = useMemo(
+    () => enrichWithDistance(userCoords),
+    [enrichWithDistance, userCoords],
+  );
+  const hasInitialSearched = useRef(false);
+
+  useEffect(() => {
+    setSearchQuery(initialQuery);
+  }, [initialQuery, setSearchQuery]);
+
+  useEffect(() => {
+    if (locationLoading || hasInitialSearched.current) return;
+    hasInitialSearched.current = true;
+    performSearch(initialQuery);
+  }, [locationLoading, initialQuery, performSearch]);
+
+  const reduxBusinesses = useSelector(
+    (state: RootState) => state.businesses?.businesses ?? [],
+  );
+  useEffect(() => {
+    reduxBusinesses.forEach(biz => {
+      if (needsPhotoFetch(biz) || needsContactFetch(biz)) {
+        requestBusinessDetails(biz);
+      }
+    });
+  }, [reduxBusinesses, requestBusinessDetails]);
+
+  const handleUnifiedSearchChange = useCallback(
+    (text: string) => {
+      setSearchQuery(text);
+      handleSearchChange(text);
+    },
+    [setSearchQuery, handleSearchChange],
   );
 
-  return {
-    __esModule: true,
-    default: BottomSheet,
-    BottomSheetView: ({children, ...props}: any) =>
-      React.createElement(View, props, children),
-    BottomSheetScrollView: ({children, ...props}: any) =>
-      React.createElement(View, props, children),
-    BottomSheetFlatList,
-    BottomSheetBackdrop: ({children, ...props}: any) =>
-      React.createElement(View, props, children),
-    BottomSheetHandle: ({...props}: any) => React.createElement(View, props),
-  };
-});
+  const handleSearchSubmit = useCallback(() => {
+    performSearch(searchQuery);
+    handleSearchChange(searchQuery);
+  }, [performSearch, searchQuery, handleSearchChange]);
 
-// Mock the hook that controls which clinics are visible on the map/list
-jest.mock('@/features/appointments/hooks/useClinicMapDiscovery', () => ({
-  useClinicMapDiscovery: jest.fn(),
-}));
+  const handleRegionChange = useCallback(
+    (region: Region) => setMapRegion(region),
+    [setMapRegion],
+  );
 
-// Mock Actions
-jest.mock('@/features/appointments/businessesSlice', () => ({
-  fetchBusinesses: jest.fn(),
-}));
+  const showSearchResults =
+    searchQuery.length >= 2 && searchResults.length > 0 && !searching;
 
-jest.mock('@/features/linkedBusinesses', () => ({
-  fetchBusinessDetails: jest.fn(),
-  fetchGooglePlacesImage: jest.fn(),
-}));
+  const dropdownTop = buildDropdownTop(theme) + theme.spacing['2'];
 
-jest.mock('@/features/appointments/utils/photoUtils', () => ({
-  isDummyPhoto: jest.fn().mockImplementation(photo => photo === 'dummy'),
-}));
+  const searchResultsOverlay = showSearchResults ? (
+    <BusinessSearchDropdown
+      visible
+      top={dropdownTop}
+      items={searchResults}
+      onSelect={handleSelectBusiness}
+      onDismiss={clearResults}
+    />
+  ) : null;
 
-const makeDiscoveryMock = (overrides: any = {}) => ({
-  visibleClinics: [],
-  selectedClinicId: null,
-  mapRegion: null,
-  category: undefined,
-  openNow: false,
-  setSelectedClinicId: jest.fn(),
-  setMapRegion: jest.fn(),
-  setCategory: jest.fn(),
-  setOpenNow: jest.fn(),
-  enrichWithDistance: jest.fn().mockReturnValue([]),
-  ...overrides,
-});
-
-const baseState = {
-  companion: {companions: [], selectedCompanionId: null},
-  businesses: {businesses: []},
+  return (
+    <View style={styles.root}>
+      <MapDiscoveryView
+        clinics={enrichedClinics.filter(c =>
+          visibleClinics.some(v => v.id === c.id),
+        )}
+        selectedClinicId={selectedClinicId}
+        userLocation={userLocation}
+        hasLocationPermission={hasPermission}
+        searchQuery={searchQuery}
+        category={category}
+        openNow={openNow}
+        mapRegion={mapRegion}
+        fallbacks={fallbacks}
+        distanceUnit={distanceUnit}
+        navigation={navigation}
+        onRegionChange={handleRegionChange}
+        onSelectClinic={setSelectedClinicId}
+        onSearchChange={handleUnifiedSearchChange}
+        onSearchSubmit={handleSearchSubmit}
+        onCategoryChange={setCategory}
+        onOpenNowChange={setOpenNow}
+        onBack={() => navigation.goBack()}
+        searchResultsOverlay={searchResultsOverlay}
+      />
+    </View>
+  );
 };
 
-describe('BrowseBusinessesScreen', () => {
-  const dispatchMock = jest.fn();
-  const navigateMock = jest.fn();
-  const goBackMock = jest.fn();
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (useNavigation as jest.Mock).mockReturnValue({
-      navigate: navigateMock,
-      goBack: goBackMock,
-    });
-    jest.spyOn(reactRedux, 'useDispatch').mockReturnValue(dispatchMock);
-    dispatchMock.mockReturnValue({unwrap: jest.fn().mockResolvedValue({})});
-
-    jest
-      .spyOn(reactRedux, 'useSelector')
-      .mockImplementation(cb => cb(baseState));
-
-    (useClinicMapDiscovery as jest.Mock).mockReturnValue(makeDiscoveryMock());
-
-    (useRoute as jest.Mock).mockReturnValue({params: {}});
-
-    jest.useFakeTimers();
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it('renders initial layout with categories and search bar', () => {
-    const {getByTestId, getAllByText} = render(<BrowseBusinessesScreen />);
-
-    expect(getByTestId('header')).toBeTruthy();
-    expect(getByTestId('searchBar')).toBeTruthy();
-
-    expect(getAllByText('All')).toBeTruthy();
-    expect(getAllByText('Hospital').length).toBeGreaterThan(0);
-  });
-
-  it('performs initial search if serviceName param is present', async () => {
-    (useRoute as jest.Mock).mockReturnValue({
-      params: {serviceName: 'grooming'},
-    });
-
-    render(<BrowseBusinessesScreen />);
-
-    await waitFor(() => {
-      expect(dispatchMock).toHaveBeenCalledWith(
-        fetchBusinesses({serviceName: 'grooming'}),
-      );
-    });
-  });
-
-  it('updates search query and performs search on submit', () => {
-    const {getByTestId} = render(<BrowseBusinessesScreen />);
-
-    // Clear initial mount call
-    dispatchMock.mockClear();
-
-    const searchBar = getByTestId('searchBar');
-
-    fireEvent(searchBar, 'changeText', 'vet');
-    fireEvent(searchBar, 'submitEditing');
-
-    expect(dispatchMock).toHaveBeenCalledWith(
-      fetchBusinesses({serviceName: 'vet'}),
-    );
-  });
-
-  it('performs search on icon press', () => {
-    const {getByTestId} = render(<BrowseBusinessesScreen />);
-
-    // Clear initial mount call
-    dispatchMock.mockClear();
-
-    const searchBar = getByTestId('searchBar');
-
-    fireEvent(searchBar, 'changeText', 'vet');
-    fireEvent(searchBar, 'iconPress');
-
-    expect(dispatchMock).toHaveBeenCalledWith(
-      fetchBusinesses({serviceName: 'vet'}),
-    );
-  });
-
-  it('debounces search calls (skips duplicate within interval)', () => {
-    let now = 1000;
-    jest.spyOn(Date, 'now').mockImplementation(() => now);
-
-    const {getByTestId} = render(<BrowseBusinessesScreen />);
-
-    // Clear the initial mount dispatch (performSearch(''))
-    dispatchMock.mockClear();
-
-    const searchBar = getByTestId('searchBar');
-
-    // 1. First user search
-    fireEvent(searchBar, 'changeText', 'vet');
-    fireEvent(searchBar, 'submitEditing');
-
-    // Should trigger search because 'vet' != '' (last term)
-    expect(dispatchMock).toHaveBeenCalledTimes(1);
-
-    // 2. Advance time slightly (500ms), still within 1000ms threshold
-    now += 500;
-
-    // 3. Second user search with SAME term
-    fireEvent(searchBar, 'submitEditing');
-
-    // Should NOT trigger search because term is same ('vet' == 'vet') AND time diff (500) < 1000
-    expect(dispatchMock).toHaveBeenCalledTimes(1); // Still 1
-
-    jest.restoreAllMocks();
-  });
-
-  // --- Category Filtering & Rendering ---
-
-  it('renders empty state when no businesses found', () => {
-    const {getByText} = render(<BrowseBusinessesScreen />);
-    expect(getByText('No clinics in this area')).toBeTruthy();
-  });
-
-  it('renders businesses when clinics are provided', () => {
-    const mockData = [
-      {id: 'b1', name: 'Vet 1', category: 'hospital'},
-      {id: 'b2', name: 'Groomer 1', category: 'groomer'},
-      {id: 'b3', name: 'Groomer 2', category: 'groomer'},
-    ];
-    (useClinicMapDiscovery as jest.Mock).mockReturnValue(
-      makeDiscoveryMock({
-        visibleClinics: mockData,
-        enrichWithDistance: jest.fn().mockReturnValue(mockData),
-      }),
-    );
-
-    const {getByTestId} = render(<BrowseBusinessesScreen />);
-
-    expect(getByTestId('card-Vet 1')).toBeTruthy();
-    expect(getByTestId('card-Groomer 1')).toBeTruthy();
-    expect(getByTestId('card-Groomer 2')).toBeTruthy();
-  });
-
-  it('pressing a category filter pill updates the selected category', () => {
-    const mockSetCategory = jest.fn();
-    (useClinicMapDiscovery as jest.Mock).mockReturnValue(
-      makeDiscoveryMock({setCategory: mockSetCategory}),
-    );
-
-    const {getAllByText} = render(<BrowseBusinessesScreen />);
-
-    fireEvent.press(getAllByText('Groomer')[0]);
-    expect(mockSetCategory).toHaveBeenCalledWith('groomer');
-  });
-
-  it('filters businesses when a specific category is selected', () => {
-    const mockSetCategory = jest.fn();
-    (useClinicMapDiscovery as jest.Mock).mockReturnValue(
-      makeDiscoveryMock({setCategory: mockSetCategory}),
-    );
-
-    const {getAllByText} = render(<BrowseBusinessesScreen />);
-
-    const hospitalPills = getAllByText('Hospital');
-    fireEvent.press(hospitalPills[0]);
-
-    expect(mockSetCategory).toHaveBeenCalledWith('hospital');
-  });
-
-  // --- Business Card Logic & Interaction ---
-
-  it('navigates to BusinessDetails on card press', () => {
-    const mockData = [{id: 'b1', name: 'Vet 1', category: 'hospital'}];
-    (useClinicMapDiscovery as jest.Mock).mockReturnValue(
-      makeDiscoveryMock({
-        visibleClinics: mockData,
-        enrichWithDistance: jest.fn().mockReturnValue(mockData),
-      }),
-    );
-
-    const {getByTestId} = render(<BrowseBusinessesScreen />);
-
-    fireEvent(getByTestId('card-Vet 1'), 'press');
-    expect(navigateMock).toHaveBeenCalledWith(
-      'BusinessDetails',
-      expect.objectContaining({businessId: 'b1'}),
-    );
-  });
-
-  it('resolves correct description text based on priority', () => {
-    const biz1 = {id: '1', name: 'N1', category: 'hospital', address: 'Addr'};
-    const biz2 = {
-      id: '2',
-      name: 'N2',
-      category: 'hospital',
-      description: 'Desc',
-    };
-    const biz3 = {
-      id: '3',
-      name: 'N3',
-      category: 'hospital',
-      specialties: ['S1', 'S2'],
-    };
-    const biz4 = {id: '4', name: 'N4', category: 'hospital'};
-    const mockData = [biz1, biz2, biz3, biz4];
-
-    (useClinicMapDiscovery as jest.Mock).mockReturnValue(
-      makeDiscoveryMock({
-        visibleClinics: mockData,
-        enrichWithDistance: jest.fn().mockReturnValue(mockData),
-      }),
-    );
-
-    render(<BrowseBusinessesScreen />);
-  });
-
-  // --- Data Fetching / Side Effects ---
-
-  it('requests details for businesses with googlePlacesId and missing info', async () => {
-    const mockData = [
-      {id: 'b1', googlePlacesId: 'gp1', photo: null},
-      {
-        id: 'b2',
-        googlePlacesId: 'gp2',
-        website: null,
-        phone: null,
-        photo: 'valid',
-      },
-      {id: 'b3', googlePlacesId: 'gp3', photo: 'dummy'},
-      {id: 'b4', googlePlacesId: null},
-    ];
-
-    jest
-      .spyOn(reactRedux, 'useSelector')
-      .mockImplementation(cb =>
-        cb({...baseState, businesses: {businesses: mockData}}),
-      );
-
-    dispatchMock.mockImplementation((_action: any) => {
-      return {
-        unwrap: jest.fn().mockResolvedValue({
-          photoUrl: 'new_url',
-          phoneNumber: '123',
-          website: 'site.com',
-        }),
-      };
-    });
-
-    render(<BrowseBusinessesScreen />);
-
-    await waitFor(() => {
-      expect(fetchBusinessDetails).toHaveBeenCalledWith('gp1');
-      expect(fetchBusinessDetails).toHaveBeenCalledWith('gp2');
-      expect(fetchBusinessDetails).toHaveBeenCalledWith('gp3');
-    });
-  });
-
-  it('falls back to fetching image if details fetch fails', async () => {
-    const mockData = [{id: 'b1', googlePlacesId: 'gp1', photo: null}];
-
-    jest
-      .spyOn(reactRedux, 'useSelector')
-      .mockImplementation(cb =>
-        cb({...baseState, businesses: {businesses: mockData}}),
-      );
-
-    const unwrapMock = jest
-      .fn()
-      .mockRejectedValueOnce(new Error('Detail fail'))
-      .mockResolvedValueOnce({photoUrl: 'fallback_img'});
-
-    dispatchMock.mockReturnValue({unwrap: unwrapMock});
-
-    render(<BrowseBusinessesScreen />);
-
-    await waitFor(() => {
-      expect(fetchBusinessDetails).toHaveBeenCalledWith('gp1');
-      expect(fetchGooglePlacesImage).toHaveBeenCalledWith('gp1');
-    });
-  });
-
-  it('swallows error if image fetch also fails', async () => {
-    const mockData = [{id: 'b1', googlePlacesId: 'gp1', photo: null}];
-
-    jest
-      .spyOn(reactRedux, 'useSelector')
-      .mockImplementation(cb =>
-        cb({...baseState, businesses: {businesses: mockData}}),
-      );
-
-    const unwrapMock = jest.fn().mockRejectedValue(new Error('All fail'));
-    dispatchMock.mockReturnValue({unwrap: unwrapMock});
-
-    render(<BrowseBusinessesScreen />);
-
-    await waitFor(() => {
-      expect(fetchGooglePlacesImage).toHaveBeenCalled();
-    });
-  });
-
-  it('formats distance and rating text correctly', () => {
-    const bizMi = {id: '1', category: 'hospital', distanceMi: 5.5, rating: 4.8};
-    const bizMeters = {id: '2', category: 'hospital', distanceMeters: 3218};
-    const bizNone = {id: '3', category: 'hospital'};
-    const mockData = [bizMi, bizMeters, bizNone];
-
-    (useClinicMapDiscovery as jest.Mock).mockReturnValue(
-      makeDiscoveryMock({
-        visibleClinics: mockData,
-        enrichWithDistance: jest.fn().mockReturnValue(mockData),
-      }),
-    );
-
-    render(<BrowseBusinessesScreen />);
-  });
-});
+export default BrowseBusinessesScreen;

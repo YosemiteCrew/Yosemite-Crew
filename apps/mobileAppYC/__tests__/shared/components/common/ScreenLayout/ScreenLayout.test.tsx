@@ -1,5 +1,5 @@
 import React from 'react';
-import {render} from '@testing-library/react-native';
+import {render, act} from '@testing-library/react-native';
 import {Text, View} from 'react-native';
 import {ScreenLayout} from '@/shared/components/common/ScreenLayout/ScreenLayout';
 import {mockTheme} from '../../../../setup/mockTheme';
@@ -93,7 +93,7 @@ describe('ScreenLayout', () => {
 
   describe('render prop pattern', () => {
     it('should support render prop for children', () => {
-      const renderFn = jest.fn((contentPaddingStyle) => (
+      const renderFn = jest.fn(contentPaddingStyle => (
         <Text style={contentPaddingStyle}>Render Prop Content</Text>
       ));
 
@@ -164,10 +164,12 @@ describe('ScreenLayout', () => {
       );
     });
 
-    it('should use theme background color by default', () => {
+    it('should use theme background color by default', async () => {
       const {UNSAFE_root} = renderScreenLayout({
         children: <Text>Test</Text>,
       });
+
+      await act(async () => {});
 
       const safeAreaView = UNSAFE_root.children[0];
       expect(safeAreaView.props.style).toContainEqual(
@@ -177,7 +179,6 @@ describe('ScreenLayout', () => {
   });
 
   describe('scroll view props', () => {
-
     it('should configure scroll view appropriately', () => {
       const TestComponent = () => {
         return (
@@ -250,9 +251,7 @@ describe('ScreenLayout', () => {
 
       // Re-render to apply state change
       rerender(
-        <ScreenLayout
-          header={<Text>Header</Text>}
-          showLiquidHeader={true}>
+        <ScreenLayout header={<Text>Header</Text>} showLiquidHeader={true}>
           <Text>Content</Text>
         </ScreenLayout>,
       );
@@ -317,7 +316,8 @@ describe('ScreenLayout', () => {
 
   describe('cardGap prop', () => {
     it('should pass cardGap to createLiquidGlassHeaderStyles', () => {
-      const mockCreateStyles = require('@/shared/utils/screenStyles').createLiquidGlassHeaderStyles;
+      const mockCreateStyles =
+        require('@/shared/utils/screenStyles').createLiquidGlassHeaderStyles;
       mockCreateStyles.mockClear();
 
       renderScreenLayout({
@@ -331,7 +331,8 @@ describe('ScreenLayout', () => {
     });
 
     it('should use default cardGap when not provided', () => {
-      const mockCreateStyles = require('@/shared/utils/screenStyles').createLiquidGlassHeaderStyles;
+      const mockCreateStyles =
+        require('@/shared/utils/screenStyles').createLiquidGlassHeaderStyles;
       mockCreateStyles.mockClear();
 
       renderScreenLayout({
@@ -340,13 +341,15 @@ describe('ScreenLayout', () => {
         showLiquidHeader: true,
       });
 
-      expect(mockCreateStyles).toHaveBeenCalledWith(mockTheme, {cardGap: undefined});
+      expect(mockCreateStyles).toHaveBeenCalledWith(mockTheme, {
+        cardGap: undefined,
+      });
     });
   });
 
   describe('complex scenarios', () => {
     it('should handle render prop with header', () => {
-      const renderFn = jest.fn((style) => (
+      const renderFn = jest.fn(style => (
         <Text style={style}>Custom Content</Text>
       ));
 
