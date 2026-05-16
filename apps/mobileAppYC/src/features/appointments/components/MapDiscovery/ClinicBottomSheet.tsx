@@ -6,6 +6,7 @@ import React, {
   useRef,
 } from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {useTranslation} from 'react-i18next';
 import BottomSheet, {
   BottomSheetFlatList,
   type BottomSheetFlatListMethods,
@@ -64,6 +65,7 @@ const ClinicBottomSheet = forwardRef<
     {clinics, selectedId, navigation, fallbacks, distanceUnit, filterHeader},
     ref,
   ) => {
+    const {t} = useTranslation();
     const {theme} = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
     const bottomSheetRef = useRef<BottomSheet>(null);
@@ -129,13 +131,15 @@ const ClinicBottomSheet = forwardRef<
     const emptyComponent = useMemo(
       () => (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No clinics in this area</Text>
+          <Text style={styles.emptyTitle}>
+            {t('mapDiscovery.emptyClinicsTitle')}
+          </Text>
           <Text style={styles.emptySubtitle}>
-            Pan the map or search to discover nearby providers.
+            {t('mapDiscovery.emptyClinicsSubtitle')}
           </Text>
         </View>
       ),
-      [styles],
+      [styles, t],
     );
 
     return (
