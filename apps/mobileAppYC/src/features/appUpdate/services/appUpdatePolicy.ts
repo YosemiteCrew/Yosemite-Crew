@@ -175,7 +175,8 @@ export const evaluateAppUpdatePrompt = (
   }
 
   const storeUrl = resolveStoreUrl(appUpdate, bundleId);
-  const kind: AppUpdatePrompt['kind'] = mustUpdate ? 'required' : 'optional';
+  const kind: AppUpdatePrompt['kind'] =
+    mustUpdate && storeUrl !== null ? 'required' : 'optional';
 
   return {
     kind,
