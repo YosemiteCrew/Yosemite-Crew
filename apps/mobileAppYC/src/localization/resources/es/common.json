@@ -131,5 +131,21 @@
   "payments": {
     "cashCancellationNoticeTitle": "Importante",
     "cashCancellationNoticeBody": "Esta cita fue pagada en efectivo y ha sido cancelada. Si se necesita un reembolso, debe gestionarse directamente con el proveedor del servicio."
+  },
+  "mapDiscovery": {
+    "title": "Encontrar una clínica",
+    "searchPlaceholder": "Buscar clínicas, especialidades…",
+    "openNow": "Abierto ahora",
+    "filterAll": "Todos",
+    "filterHospital": "Hospital",
+    "filterGroomer": "Peluquería",
+    "filterBreeder": "Criador",
+    "filterBoarder": "Pensión",
+    "emptyClinicsTitle": "No hay clínicas en esta área",
+    "emptyClinicsSubtitle": "Mueve el mapa o busca para descubrir proveedores cercanos.",
+    "locationPermissionTitle": "Acceso a ubicación",
+    "locationPermissionMessage": "Permite que Yosemite Crew muestre clínicas cerca de ti.",
+    "locationPermissionAllow": "Permitir",
+    "locationPermissionDeny": "Denegar"
   }
 }
