@@ -1,6 +1,7 @@
 import {useState, useEffect} from 'react';
 import {Platform, PermissionsAndroid} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
+import i18n from '@/localization';
 
 export interface UserLocation {
   latitude: number;
@@ -31,10 +32,10 @@ const requestAndroidPermission = async (): Promise<boolean> => {
   const result = await PermissionsAndroid.request(
     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
     {
-      title: 'Location Access',
-      message: 'Allow Yosemite Crew to show clinics near you.',
-      buttonPositive: 'Allow',
-      buttonNegative: 'Deny',
+      title: i18n.t('mapDiscovery.locationPermissionTitle'),
+      message: i18n.t('mapDiscovery.locationPermissionMessage'),
+      buttonPositive: i18n.t('mapDiscovery.locationPermissionAllow'),
+      buttonNegative: i18n.t('mapDiscovery.locationPermissionDeny'),
     },
   );
   return result === PermissionsAndroid.RESULTS.GRANTED;

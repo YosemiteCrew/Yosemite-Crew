@@ -1,5 +1,6 @@
 import React, {useCallback, useMemo, useRef} from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {useTranslation} from 'react-i18next';
 import MapView, {Marker, PROVIDER_GOOGLE, type Region} from 'react-native-maps';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -11,10 +12,7 @@ import {clusterClinics} from '../../utils/clusterClinics';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
-import {
-  FilterPills,
-  type FilterOption,
-} from '@/shared/components/common/FilterPills';
+import {FilterPills} from '@/shared/components/common/FilterPills';
 import ClinicMapPin from './ClinicMapPin';
 import ClusterMapPin from './ClusterMapPin';
 import ClinicBottomSheet, {
@@ -23,14 +21,6 @@ import ClinicBottomSheet, {
 
 const INITIAL_LAT_DELTA = 0.0922;
 const INITIAL_LNG_DELTA = 0.0421;
-
-const CATEGORIES: FilterOption<BusinessCategory | undefined>[] = [
-  {label: 'All', id: undefined},
-  {label: 'Hospital', id: 'hospital'},
-  {label: 'Groomer', id: 'groomer'},
-  {label: 'Breeder', id: 'breeder'},
-  {label: 'Boarder', id: 'boarder'},
-];
 
 export interface MapDiscoveryViewProps {
   clinics: VetBusiness[];
@@ -87,9 +77,21 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
   onBack,
   searchResultsOverlay,
 }) => {
+  const {t} = useTranslation();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+
+  const categories = useMemo(
+    () => [
+      {label: t('mapDiscovery.filterAll'), id: undefined},
+      {label: t('mapDiscovery.filterHospital'), id: 'hospital' as const},
+      {label: t('mapDiscovery.filterGroomer'), id: 'groomer' as const},
+      {label: t('mapDiscovery.filterBreeder'), id: 'breeder' as const},
+      {label: t('mapDiscovery.filterBoarder'), id: 'boarder' as const},
+    ],
+    [t],
+  );
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<ClinicBottomSheetRef>(null);
 
@@ -132,17 +134,25 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
           onPress={() => onOpenNowChange(!openNow)}>
           <Text
             style={[styles.openNowText, openNow && styles.openNowTextActive]}>
-            Open Now
+            {t('mapDiscovery.openNow')}
           </Text>
         </TouchableOpacity>
         <FilterPills<BusinessCategory | undefined>
-          options={CATEGORIES}
+          options={categories}
           selected={category}
           onSelect={onCategoryChange}
         />
       </View>
     ),
-    [openNow, onOpenNowChange, category, onCategoryChange, styles],
+    [
+      openNow,
+      onOpenNowChange,
+      category,
+      onCategoryChange,
+      styles,
+      categories,
+      t,
+    ],
   );
 
   const topBarStyle = useMemo(
@@ -193,13 +203,13 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
       <View style={topBarStyle} pointerEvents="box-none">
         <View style={styles.headerCard} pointerEvents="auto">
           <Header
-            title="Find a Clinic"
+            title={t('mapDiscovery.title')}
             showBackButton
             onBack={onBack}
             glass={false}
           />
           <SearchBar
-            placeholder="Search clinics, specialties…"
+            placeholder={t('mapDiscovery.searchPlaceholder')}
             mode="input"
             value={searchQuery}
             onChangeText={onSearchChange}
