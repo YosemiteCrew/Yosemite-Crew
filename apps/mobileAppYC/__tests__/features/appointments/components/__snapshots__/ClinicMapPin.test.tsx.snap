@@ -1,0 +1,183 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ClinicMapPin snapshot matches for selected state 1`] = `
+<View
+  style={
+    [
+      {
+        "alignItems": "center",
+      },
+      {
+        "transform": [
+          {
+            "scale": 1.18,
+          },
+        ],
+        "zIndex": 10,
+      },
+    ]
+  }
+>
+  <View
+    style={
+      [
+        {
+          "alignItems": "center",
+          "borderColor": "rgba(255, 255, 255, 0.35)",
+          "borderRadius": 10,
+          "borderWidth": 1.5,
+          "elevation": 5,
+          "minWidth": 72,
+          "paddingHorizontal": 8,
+          "paddingVertical": 5,
+          "shadowColor": "#000",
+          "shadowOffset": {
+            "height": 2,
+            "width": 0,
+          },
+          "shadowOpacity": 0.22,
+          "shadowRadius": 4,
+        },
+        {
+          "backgroundColor": "#247AED",
+        },
+        {
+          "borderColor": "#FFFFFF",
+          "borderWidth": 2,
+          "elevation": 9,
+          "shadowOpacity": 0.4,
+        },
+      ]
+    }
+  >
+    <Text
+      numberOfLines={1}
+      style={
+        {
+          "color": "#FFFFFF",
+          "fontSize": 10,
+          "fontWeight": "700",
+          "letterSpacing": -0.2,
+        }
+      }
+    >
+      Pacific Anima…
+    </Text>
+    <Text
+      style={
+        {
+          "color": "rgba(255, 255, 255, 0.9)",
+          "fontSize": 9,
+          "fontWeight": "500",
+          "marginTop": 1,
+        }
+      }
+    >
+      4.8
+    </Text>
+  </View>
+  <View
+    style={
+      [
+        {
+          "borderLeftColor": "transparent",
+          "borderLeftWidth": 5,
+          "borderRightColor": "transparent",
+          "borderRightWidth": 5,
+          "borderTopWidth": 7,
+          "height": 0,
+          "width": 0,
+        },
+        {
+          "borderTopColor": "#247AED",
+        },
+      ]
+    }
+  />
+</View>
+`;
+
+exports[`ClinicMapPin snapshot matches for unselected state 1`] = `
+<View
+  style={
+    [
+      {
+        "alignItems": "center",
+      },
+      false,
+    ]
+  }
+>
+  <View
+    style={
+      [
+        {
+          "alignItems": "center",
+          "borderColor": "rgba(255, 255, 255, 0.35)",
+          "borderRadius": 10,
+          "borderWidth": 1.5,
+          "elevation": 5,
+          "minWidth": 72,
+          "paddingHorizontal": 8,
+          "paddingVertical": 5,
+          "shadowColor": "#000",
+          "shadowOffset": {
+            "height": 2,
+            "width": 0,
+          },
+          "shadowOpacity": 0.22,
+          "shadowRadius": 4,
+        },
+        {
+          "backgroundColor": "#247AED",
+        },
+        false,
+      ]
+    }
+  >
+    <Text
+      numberOfLines={1}
+      style={
+        {
+          "color": "#FFFFFF",
+          "fontSize": 10,
+          "fontWeight": "700",
+          "letterSpacing": -0.2,
+        }
+      }
+    >
+      Pacific Anima…
+    </Text>
+    <Text
+      style={
+        {
+          "color": "rgba(255, 255, 255, 0.9)",
+          "fontSize": 9,
+          "fontWeight": "500",
+          "marginTop": 1,
+        }
+      }
+    >
+      4.8
+    </Text>
+  </View>
+  <View
+    style={
+      [
+        {
+          "borderLeftColor": "transparent",
+          "borderLeftWidth": 5,
+          "borderRightColor": "transparent",
+          "borderRightWidth": 5,
+          "borderTopWidth": 7,
+          "height": 0,
+          "width": 0,
+        },
+        {
+          "borderTopColor": "#247AED",
+        },
+      ]
+    }
+  />
+</View>
+`;
