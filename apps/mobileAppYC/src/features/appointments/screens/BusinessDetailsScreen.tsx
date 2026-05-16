@@ -1,11 +1,11 @@
-import React, {useMemo, useCallback} from 'react';
+import React, {useMemo} from 'react';
 import {
+  Alert,
   ScrollView,
   View,
   StyleSheet,
   Text,
   Platform,
-  Alert,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -32,32 +32,14 @@ import {
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {MOCK_CLINICS} from '@/features/appointments/mocks/clinicMocks';
 import {convertDistance} from '@/shared/utils/measurementSystem';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {TabParamList} from '@/navigation/types';
-import {selectSelectedCompanion} from '@/features/companion/selectors';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
-const COMPANION_TO_SPECIES: Record<string, string> = {
-  dog: 'canine',
-  cat: 'feline',
-  horse: 'equine',
-};
-
-const SPECIES_LABELS: Record<string, string> = {
-  canine: 'dogs',
-  feline: 'cats',
-  equine: 'horses',
-};
-
-const inferServiceSpecies = (serviceName: string): string | null => {
-  const n = serviceName.toLowerCase();
-  if (n.includes('canine') || n.includes('dog')) return 'canine';
-  if (n.includes('feline') || n.includes('cat')) return 'feline';
-  if (n.includes('equine') || n.includes('horse')) return 'equine';
-  return null;
-};
+const MOCK_CLINIC_MAP = new Map(MOCK_CLINICS.map(c => [c.id, c]));
 
 export const BusinessDetailsScreen: React.FC = () => {
   const {theme} = useTheme();
@@ -71,9 +53,10 @@ export const BusinessDetailsScreen: React.FC = () => {
   const returnTo = route.params?.returnTo as
     | {tab?: keyof TabParamList; screen?: string}
     | undefined;
-  const business = useSelector((s: RootState) =>
+  const reduxBusiness = useSelector((s: RootState) =>
     s.businesses.businesses.find(b => b.id === businessId),
   );
+  const business = reduxBusiness ?? MOCK_CLINIC_MAP.get(businessId);
   const servicesSelector = React.useMemo(
     () => createSelectServicesForBusiness(),
     [],
@@ -84,11 +67,22 @@ export const BusinessDetailsScreen: React.FC = () => {
   const totalServices = useSelector(
     (state: RootState) => state.businesses.services.length,
   );
-  const selectedCompanion = useSelector(selectSelectedCompanion);
+  const selectedCompanion = useSelector((state: any) => {
+    const companionState = state.companion;
+    if (!companionState?.selectedCompanionId) return null;
+    return (
+      companionState.companions?.find(
+        (c: any) => c.id === companionState.selectedCompanionId,
+      ) ?? null
+    );
+  });
   const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!business || totalServices === 0) {
+    if (!business) {
+      dispatch(fetchBusinesses());
+    }
+    if (totalServices === 0) {
       dispatch(fetchBusinesses());
     }
   }, [business, dispatch, totalServices]);
@@ -127,43 +121,41 @@ export const BusinessDetailsScreen: React.FC = () => {
     }));
   }, [services]);
 
-  const handleSelectService = useCallback(
-    (serviceId: string, specialtyName: string) => {
-      const service = services.find(s => s.id === serviceId);
-      const serviceSpecies = service ? inferServiceSpecies(service.name) : null;
-      const companionCategory = selectedCompanion?.category ?? null;
-      const companionSpecies = companionCategory
-        ? (COMPANION_TO_SPECIES[companionCategory] ?? null)
-        : null;
-
-      if (
-        serviceSpecies &&
-        companionSpecies &&
-        serviceSpecies !== companionSpecies
-      ) {
-        const serviceAnimal = SPECIES_LABELS[serviceSpecies] ?? serviceSpecies;
-        const companionAnimal =
-          SPECIES_LABELS[companionSpecies] ?? companionSpecies;
-        Alert.alert(
-          'Species Mismatch',
-          `This service is for ${serviceAnimal}, but your selected companion is a ${companionAnimal}. Please switch to a compatible companion before booking.`,
-          [{text: 'OK'}],
-        );
-        return;
+  const handleSelectService = (serviceId: string, specialtyName: string) => {
+    if (selectedCompanion) {
+      const specialtyToSpecies: Record<string, string> = {
+        Feline: 'feline',
+        Canine: 'canine',
+      };
+      const speciesLabel: Record<string, string> = {
+        feline: 'cats',
+        canine: 'dogs',
+      };
+      const serviceSpecies = specialtyToSpecies[specialtyName];
+      if (serviceSpecies) {
+        const raw = (selectedCompanion.category as string)?.toLowerCase() ?? '';
+        const companionSpecies =
+          raw === 'cat' ? 'feline' : raw === 'dog' ? 'canine' : raw;
+        if (companionSpecies !== serviceSpecies) {
+          Alert.alert(
+            'Species Mismatch',
+            `This service is for ${speciesLabel[serviceSpecies] ?? serviceSpecies}.`,
+            [{text: 'OK'}],
+          );
+          return;
+        }
       }
+    }
 
-      navigation.navigate('BookingForm', {
-        businessId,
-        serviceId,
-        serviceName: service?.name,
-        serviceSpecialty: specialtyName ?? undefined,
-        serviceSpecialtyId: service?.specialityId ?? undefined,
-      });
-    },
-    [services, selectedCompanion, navigation, businessId],
-  );
-
-  // Convert distance based on user preference
+    const service = services.find(s => s.id === serviceId);
+    navigation.navigate('BookingForm', {
+      businessId,
+      serviceId,
+      serviceName: service?.name,
+      serviceSpecialty: specialtyName ?? undefined,
+      serviceSpecialtyId: service?.specialityId ?? undefined,
+    });
+  };
   const displayDistance = useMemo(() => {
     const distanceMi = paramDistanceMi ?? business?.distanceMi;
     if (!distanceMi) return undefined;
@@ -207,7 +199,6 @@ export const BusinessDetailsScreen: React.FC = () => {
           style={styles.scrollView}
           contentContainerStyle={[styles.container, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
-          {/* Business Card */}
           <VetBusinessCard
             name={business?.name || ''}
             openHours={business?.openHours}
@@ -236,14 +227,9 @@ export const BusinessDetailsScreen: React.FC = () => {
               <Text style={styles.emptyServicesTitle}>
                 Services coming soon
               </Text>
-              <Text style={styles.emptyServicesTitle}>
-                Services coming soon
-              </Text>
               <Text style={styles.emptyServicesSubtitle}>
                 This business has not published individual services yet. Please
-                contact them directly for availability. This business has not
-                published individual services yet. Please contact them directly
-                for availability.
+                contact them directly for availability.
               </Text>
             </LiquidGlassCard>
           )}
@@ -273,46 +259,6 @@ export const BusinessDetailsScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    scrollView: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    container: {
-      paddingHorizontal: theme.spacing['5'],
-      paddingTop: theme.spacing['6'],
-      paddingBottom: theme.spacing['24'],
-      gap: theme.spacing['6'],
-    },
-    footer: {
-      marginTop: theme.spacing['2'],
-      marginBottom: theme.spacing['4'],
-    },
-    buttonText: {
-      ...theme.typography.cta,
-      color: theme.colors.white,
-    },
-    emptyServicesCard: {
-      backgroundColor: theme.colors.cardBackground,
-      gap: theme.spacing['2'],
-    },
-    emptyServicesCardFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: Platform.OS === 'android' ? 1 : 0,
-      borderColor: theme.colors.borderMuted,
-      ...theme.shadows.base,
-      shadowColor: theme.colors.neutralShadow,
-    },
-    emptyServicesTitle: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-    },
-    emptyServicesSubtitle: {
-      ...theme.typography.body12,
-      color: theme.colors.textSecondary,
-    },
-  });
 const createStyles = (theme: any) =>
   StyleSheet.create({
     scrollView: {
