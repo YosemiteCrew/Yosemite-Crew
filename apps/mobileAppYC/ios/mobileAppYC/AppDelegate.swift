@@ -20,8 +20,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
 
-    // ✅ Google Maps (must be called before React Native initialises)
-    GMSServices.provideAPIKey("REMOVED_GCP_KEY")
+    if let apiKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String {
+      GMSServices.provideAPIKey(apiKey)
+    }
 
     // ✅ Firebase
     FirebaseApp.configure()
