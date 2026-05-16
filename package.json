@@ -13,7 +13,8 @@
     "verify": "pnpm run lint && pnpm run type-check && pnpm run test && pnpm run build",
     "lint-staged": "lint-staged",
     "commitlint": "commitlint --edit",
-    "check:secrets": "secretlint \"**/*\" --maskSecrets"
+    "check:secrets": "secretlint \"**/*\" --maskSecrets",
+    "check:staged-secrets": "node scripts/check-staged-secrets.js"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

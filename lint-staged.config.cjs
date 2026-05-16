@@ -88,7 +88,6 @@ module.exports = {
   '**/*.{json,md,css,scss,html,yml,yaml}': (files) => [
     `prettier --write ${files.map(quote).join(' ')}`,
   ],
-  '**/*.{js,jsx,ts,tsx,mjs,cjs,json,md,yml,yaml,env,txt,sh}': (files) => [
-    `secretlint --maskSecrets ${files.map(quote).join(' ')}`,
-  ],
+  '**/*.{js,jsx,ts,tsx,mjs,cjs,json,md,yml,yaml,env,txt,sh,swift,plist,properties,gradle,kt,kts,java,xml}':
+    (files) => [`secretlint --maskSecrets ${files.map(quote).join(' ')}`],
 };
