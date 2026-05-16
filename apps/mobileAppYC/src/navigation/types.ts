@@ -103,6 +103,7 @@ export type AppointmentStackParamList = {
     | undefined;
   BusinessDetails: {
     businessId: string;
+    distanceMi?: number;
     returnTo?: {tab: keyof TabParamList; screen?: string};
   };
   BookingForm: {
