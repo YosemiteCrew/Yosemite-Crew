@@ -6,11 +6,18 @@ const normalizeStatus = (status?: string | null): string =>
     .toUpperCase()
     .replaceAll(/\s+/g, '_');
 
+const isCancelledOrRejected = (normalizedStatus: string): boolean =>
+  normalizedStatus === 'CANCELLED' ||
+  normalizedStatus === 'REJECTED' ||
+  normalizedStatus === 'DECLINED' ||
+  normalizedStatus === 'NO_SHOW';
+
 export const isAppointmentPaymentPending = (
   status?: string | null,
   paymentStatus?: string | null,
 ): boolean => {
   const normalizedStatus = normalizeStatus(status);
+  if (isCancelledOrRejected(normalizedStatus)) return false;
   const normalizedPaymentStatus = normalizeStatus(paymentStatus);
   return (
     normalizedPaymentStatus === 'UNPAID' ||
@@ -26,6 +33,7 @@ export const isAppointmentPaymentFailed = (
   paymentStatus?: string | null,
 ): boolean => {
   const normalizedStatus = normalizeStatus(status);
+  if (isCancelledOrRejected(normalizedStatus)) return false;
   const normalizedPaymentStatus = normalizeStatus(paymentStatus);
   return (
     normalizedStatus === 'PAYMENT_FAILED' ||
@@ -40,11 +48,7 @@ export const isTerminalAppointmentStatus = (
   status?: string | null,
 ): boolean => {
   const normalized = normalizeStatus(status);
-  return (
-    normalized === 'COMPLETED' ||
-    normalized === 'CANCELLED' ||
-    normalized === 'NO_SHOW'
-  );
+  return isCancelledOrRejected(normalized) || normalized === 'COMPLETED';
 };
 
 export const isActionableUpcomingStatus = (status?: string | null): boolean => {
@@ -170,6 +174,8 @@ export const getAppointmentStatusBadgePalette = (
         backgroundColor: theme.colors.warningSurface,
       };
     case 'CANCELLED':
+    case 'REJECTED':
+    case 'DECLINED':
     case 'NO_SHOW':
       return {
         text: label,

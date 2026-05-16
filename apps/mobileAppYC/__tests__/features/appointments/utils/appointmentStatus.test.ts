@@ -55,6 +55,26 @@ describe('isAppointmentPaymentPending', () => {
   it('normalizes whitespace and case', () => {
     expect(isAppointmentPaymentPending(null, '  unpaid  ')).toBe(true);
   });
+
+  it('returns false when appointment is CANCELLED even if paymentStatus is AWAITING_PAYMENT', () => {
+    expect(isAppointmentPaymentPending('CANCELLED', 'AWAITING_PAYMENT')).toBe(
+      false,
+    );
+    expect(isAppointmentPaymentPending('CANCELLED', 'UNPAID')).toBe(false);
+  });
+
+  it('returns false when appointment is REJECTED or DECLINED', () => {
+    expect(isAppointmentPaymentPending('REJECTED', 'AWAITING_PAYMENT')).toBe(
+      false,
+    );
+    expect(isAppointmentPaymentPending('DECLINED', 'AWAITING_PAYMENT')).toBe(
+      false,
+    );
+  });
+
+  it('returns false when appointment is NO_SHOW with pending payment', () => {
+    expect(isAppointmentPaymentPending('NO_SHOW', 'UNPAID')).toBe(false);
+  });
 });
 
 describe('isAppointmentPaymentFailed', () => {
@@ -85,15 +105,32 @@ describe('isAppointmentPaymentFailed', () => {
   it('handles null/undefined inputs', () => {
     expect(isAppointmentPaymentFailed(null, null)).toBe(false);
   });
+
+  it('returns false when appointment is CANCELLED even if paymentStatus is PAYMENT_FAILED', () => {
+    expect(isAppointmentPaymentFailed('CANCELLED', 'PAYMENT_FAILED')).toBe(
+      false,
+    );
+    expect(isAppointmentPaymentFailed('CANCELLED', 'FAILED')).toBe(false);
+  });
+
+  it('returns false when appointment is REJECTED or DECLINED', () => {
+    expect(isAppointmentPaymentFailed('REJECTED', 'PAYMENT_FAILED')).toBe(
+      false,
+    );
+    expect(isAppointmentPaymentFailed('DECLINED', 'FAILED')).toBe(false);
+  });
 });
 
 describe('isTerminalAppointmentStatus', () => {
-  it.each([['COMPLETED'], ['CANCELLED'], ['NO_SHOW']])(
-    'returns true for %s',
-    status => {
-      expect(isTerminalAppointmentStatus(status)).toBe(true);
-    },
-  );
+  it.each([
+    ['COMPLETED'],
+    ['CANCELLED'],
+    ['NO_SHOW'],
+    ['REJECTED'],
+    ['DECLINED'],
+  ])('returns true for %s', status => {
+    expect(isTerminalAppointmentStatus(status)).toBe(true);
+  });
 
   it('returns false for non-terminal status', () => {
     expect(isTerminalAppointmentStatus('UPCOMING')).toBe(false);
@@ -260,6 +297,37 @@ describe('getAppointmentStatusBadgePalette', () => {
     const result = getAppointmentStatusBadgePalette(
       mockTheme,
       'CANCELLED',
+      null,
+    );
+    expect(result.textColor).toBe('#error');
+    expect(result.backgroundColor).toBe('#errorSurface');
+  });
+
+  it('returns Cancelled badge (not Payment pending) when CANCELLED with AWAITING_PAYMENT', () => {
+    const result = getAppointmentStatusBadgePalette(
+      mockTheme,
+      'CANCELLED',
+      'AWAITING_PAYMENT',
+    );
+    expect(result.text).toBe('Cancelled');
+    expect(result.textColor).toBe('#error');
+    expect(result.backgroundColor).toBe('#errorSurface');
+  });
+
+  it('returns Cancelled badge (not Payment failed) when CANCELLED with PAYMENT_FAILED paymentStatus', () => {
+    const result = getAppointmentStatusBadgePalette(
+      mockTheme,
+      'CANCELLED',
+      'PAYMENT_FAILED',
+    );
+    expect(result.text).toBe('Cancelled');
+    expect(result.textColor).toBe('#error');
+  });
+
+  it('returns error palette for REJECTED', () => {
+    const result = getAppointmentStatusBadgePalette(
+      mockTheme,
+      'REJECTED',
       null,
     );
     expect(result.textColor).toBe('#error');

@@ -1,27 +1,56 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {Alert, ScrollView, View, Text, StyleSheet, ViewStyle} from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  ViewStyle,
+} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {FilterPills, type FilterOption} from '@/shared/components/common/FilterPills';
+import {
+  FilterPills,
+  type FilterOption,
+} from '@/shared/components/common/FilterPills';
 import {useTheme} from '@/hooks';
 import type {AppDispatch, RootState} from '@/app/store';
-import {fetchBusinesses, upsertBusiness} from '@/features/appointments/businessesSlice';
+import {
+  fetchBusinesses,
+  upsertBusiness,
+} from '@/features/appointments/businessesSlice';
 import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
-import type {BusinessCategory, VetBusiness} from '@/features/appointments/types';
-import {NavigationProp, useNavigation, useRoute} from '@react-navigation/native';
+import type {
+  BusinessCategory,
+  VetBusiness,
+} from '@/features/appointments/types';
+import {
+  NavigationProp,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
-import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {
+  fetchBusinessDetails,
+  fetchGooglePlacesImage,
+} from '@/features/linkedBusinesses';
 import type {RouteProp} from '@react-navigation/native';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {usePlacesBusinessSearch, type ResolvedBusinessSelection} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
-import {selectCompanions, selectSelectedCompanionId} from '@/features/companion';
+import {
+  usePlacesBusinessSearch,
+  type ResolvedBusinessSelection,
+} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
+import {
+  selectCompanions,
+  selectSelectedCompanionId,
+} from '@/features/companion';
 import {TabParamList} from '@/navigation/types';
 import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
 import {mapSelectionToVetBusiness} from '@/features/linkedBusinesses/utils/mapSelectionToVetBusiness';
@@ -31,17 +60,23 @@ const CATEGORIES: FilterOption<BusinessCategory | undefined>[] = [
   {label: 'Hospital', id: 'hospital'},
   {label: 'Groomer', id: 'groomer'},
   {label: 'Breeder', id: 'breeder'},
-  {label: 'Boarder', id: 'boarder'}
+  {label: 'Boarder', id: 'boarder'},
 ];
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
-const getDistanceText = (business: VetBusiness, distanceUnit: 'km' | 'mi'): string | undefined => {
+const getDistanceText = (
+  business: VetBusiness,
+  distanceUnit: 'km' | 'mi',
+): string | undefined => {
   let distanceMi: number | undefined;
 
   if (business.distanceMi !== null && business.distanceMi !== undefined) {
     distanceMi = business.distanceMi;
-  } else if (business.distanceMeters !== null && business.distanceMeters !== undefined) {
+  } else if (
+    business.distanceMeters !== null &&
+    business.distanceMeters !== undefined
+  ) {
     distanceMi = business.distanceMeters / 1609.344;
   } else {
     return undefined;
@@ -90,7 +125,9 @@ const BusinessCardRenderer: React.FC<BusinessCardProps> = ({
     ratingText={getRatingText(business)}
     photo={business.photo ?? undefined}
     fallbackPhoto={fallbackPhoto ?? undefined}
-    onBook={() => navigation.navigate('BusinessDetails', {businessId: business.id})}
+    onBook={() =>
+      navigation.navigate('BusinessDetails', {businessId: business.id})
+    }
     compact={compact}
     style={cardStyle}
   />
@@ -159,7 +196,15 @@ interface AllCategoriesViewProps {
   distanceUnit: 'km' | 'mi';
 }
 
-const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, businesses, resolveDescription, navigation, styles, fallbacks, distanceUnit}) => (
+const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({
+  allCategories,
+  businesses,
+  resolveDescription,
+  navigation,
+  styles,
+  fallbacks,
+  distanceUnit,
+}) => (
   <>
     {allCategories.map(cat => {
       const items = businesses.filter(x => x.category === cat);
@@ -167,13 +212,19 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
       return (
         <View key={cat} style={styles.sectionWrapper}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeader}>{CATEGORIES.find(c => c.id === cat)?.label}</Text>
+            <Text style={styles.sectionHeader}>
+              {CATEGORIES.find(c => c.id === cat)?.label}
+            </Text>
             <View style={styles.sectionHeaderRight}>
               <Text style={styles.sectionCount}>{items.length} Near You</Text>
               {items.length > 1 && (
                 <View style={styles.viewMoreShadowWrapper}>
                   <LiquidGlassButton
-                    onPress={() => navigation.navigate('BusinessesList', {category: cat as BusinessCategory})}
+                    onPress={() =>
+                      navigation.navigate('BusinessesList', {
+                        category: cat as BusinessCategory,
+                      })
+                    }
                     size="small"
                     compact
                     glassEffect="clear"
@@ -198,7 +249,10 @@ const AllCategoriesView: React.FC<AllCategoriesViewProps> = ({allCategories, bus
               />
             </View>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}>
               {items.map(b => (
                 <BusinessCardRenderer
                   key={b.id}
@@ -224,15 +278,20 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
-  const route = useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
+  const route =
+    useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
   const {distanceUnit} = usePreferences();
-  const [fallbacks, setFallbacks] = useState<Record<string, {photo?: string | null; phone?: string; website?: string}>>({});
+  const [fallbacks, setFallbacks] = useState<
+    Record<string, {photo?: string | null; phone?: string; website?: string}>
+  >({});
   const requestedDetailsRef = React.useRef<Set<string>>(new Set());
   const lastSearchRef = React.useRef<number>(0);
   const lastTermRef = React.useRef<string>('');
   const MIN_SEARCH_INTERVAL_MS = 1000;
 
-  const [category, setCategory] = useState<BusinessCategory | undefined>(undefined);
+  const [category, setCategory] = useState<BusinessCategory | undefined>(
+    undefined,
+  );
   const initialQuery = route.params?.serviceName ?? '';
   const [query, setQuery] = useState(initialQuery);
   const companions = useSelector(selectCompanions);
@@ -245,15 +304,23 @@ export const BrowseBusinessesScreen: React.FC = () => {
     return selectedCompanionId ?? fallback ?? null;
   }, [companions, selectedCompanionId]);
   const selectedCompanion = useMemo(
-    () => (targetCompanionId ? companions.find(c => c.id === targetCompanionId) ?? null : companions[0] ?? null),
+    () =>
+      targetCompanionId
+        ? (companions.find(c => c.id === targetCompanionId) ?? null)
+        : (companions[0] ?? null),
     [companions, targetCompanionId],
   );
   const [headerHeight, setHeaderHeight] = useState(0);
   const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
   const rootRef = React.useRef<View | null>(null);
   const searchBarRef = useRef<View | null>(null);
-  const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
-  const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
+  const selectBusinessesByCategory = useMemo(
+    () => createSelectBusinessesByCategory(),
+    [],
+  );
+  const businesses = useSelector((state: RootState) =>
+    selectBusinessesByCategory(state, category),
+  );
   const filteredBusinesses = useMemo(
     () => businesses.filter(b => (category ? b.category === category : true)),
     [businesses, category],
@@ -287,7 +354,11 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   const handleNonPmsSelection = React.useCallback(
     async (selection: ResolvedBusinessSelection) => {
-      if (!ensureCompanionForSearch() || !targetCompanionId || !selectedCompanion) {
+      if (
+        !ensureCompanionForSearch() ||
+        !targetCompanionId ||
+        !selectedCompanion
+      ) {
         return;
       }
 
@@ -318,7 +389,12 @@ export const BrowseBusinessesScreen: React.FC = () => {
           },
         });
     },
-    [ensureCompanionForSearch, navigation, selectedCompanion, targetCompanionId],
+    [
+      ensureCompanionForSearch,
+      navigation,
+      selectedCompanion,
+      targetCompanionId,
+    ],
   );
 
   const placesSearch = usePlacesBusinessSearch({
@@ -336,18 +412,24 @@ export const BrowseBusinessesScreen: React.FC = () => {
     clearResults,
   } = placesSearch;
 
+  const queryRef = React.useRef(query);
+  queryRef.current = query;
+
   const performSearch = React.useCallback(
     (term?: string) => {
-      const trimmed = (term ?? query).trim();
+      const trimmed = (term ?? queryRef.current).trim();
       const now = Date.now();
-      if (trimmed === lastTermRef.current && now - lastSearchRef.current < MIN_SEARCH_INTERVAL_MS) {
+      if (
+        trimmed === lastTermRef.current &&
+        now - lastSearchRef.current < MIN_SEARCH_INTERVAL_MS
+      ) {
         return;
       }
       lastTermRef.current = trimmed;
       lastSearchRef.current = now;
       dispatch(fetchBusinesses(trimmed ? {serviceName: trimmed} : undefined));
     },
-    [dispatch, query],
+    [dispatch],
   );
 
   useEffect(() => {
@@ -371,7 +453,9 @@ export const BrowseBusinessesScreen: React.FC = () => {
       }
       requestedDetailsRef.current.add(googlePlacesId);
       try {
-        const result = await dispatch(fetchBusinessDetails(googlePlacesId)).unwrap();
+        const result = await dispatch(
+          fetchBusinessDetails(googlePlacesId),
+        ).unwrap();
         setFallbacks(prev => ({
           ...prev,
           [biz.id]: {
@@ -385,7 +469,9 @@ export const BrowseBusinessesScreen: React.FC = () => {
         // Ignore and try photo-only fallback below
       }
       try {
-        const img = await dispatch(fetchGooglePlacesImage(googlePlacesId)).unwrap();
+        const img = await dispatch(
+          fetchGooglePlacesImage(googlePlacesId),
+        ).unwrap();
         if (img.photoUrl) {
           setFallbacks(prev => ({
             ...prev,
@@ -401,7 +487,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   useEffect(() => {
     businesses.forEach(biz => {
-      const needsPhoto = (!biz.photo || isDummyPhoto(biz.photo)) && biz.googlePlacesId;
+      const needsPhoto =
+        (!biz.photo || isDummyPhoto(biz.photo)) && biz.googlePlacesId;
       const needsContact = (!biz.phone || !biz.website) && biz.googlePlacesId;
       if ((needsPhoto || needsContact) && biz.googlePlacesId) {
         requestBusinessDetails(biz);
@@ -409,7 +496,13 @@ export const BrowseBusinessesScreen: React.FC = () => {
     });
   }, [businesses, dispatch, requestBusinessDetails]);
 
-  const allCategories = ['hospital','groomer','breeder','pet_center','boarder'] as const;
+  const allCategories = [
+    'hospital',
+    'groomer',
+    'breeder',
+    'pet_center',
+    'boarder',
+  ] as const;
 
   const resolveDescription = React.useCallback((biz: VetBusiness) => {
     if (biz.address && biz.address.trim().length > 0) {
@@ -427,7 +520,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const showSearchResults =
     searchQuery.length >= 2 && searchResults.length > 0 && !searching;
   const dropdownBaseTop = searchBarBottom ?? 0;
-  const dropdownTop = (dropdownBaseTop || theme.spacing['30']) + theme.spacing['2'];
+  const dropdownTop =
+    (dropdownBaseTop || theme.spacing['30']) + theme.spacing['2'];
 
   const updateSearchBarBottom = React.useCallback(() => {
     if (!rootRef.current || !searchBarRef.current) {
@@ -517,9 +611,12 @@ export const BrowseBusinessesScreen: React.FC = () => {
                 if (filteredBusinesses.length === 0) {
                   return (
                     <View style={styles.emptyState}>
-                      <Text style={styles.emptyStateTitle}>No businesses found</Text>
+                      <Text style={styles.emptyStateTitle}>
+                        No businesses found
+                      </Text>
                       <Text style={styles.emptyStateSubtitle}>
-                        Try adjusting your filters or search to find nearby providers.
+                        Try adjusting your filters or search to find nearby
+                        providers.
                       </Text>
                     </View>
                   );
@@ -558,103 +655,104 @@ export const BrowseBusinessesScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  screenContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  container: {
-    paddingHorizontal: theme.spacing['6'],
-    paddingBottom: theme.spacing['24'],
-    gap: theme.spacing['4'],
-  },
-  headerContent: {
-    gap: theme.spacing['4'],
-    paddingHorizontal: theme.spacing['1'],
-  },
-  resultsWrapper: {
-    gap: theme.spacing['4'],
-    marginTop: theme.spacing['2'],
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing['1'],
-  },
-  sectionHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing['2'],
-  },
-  sectionHeader: {
-    ...theme.typography.sectionHeading,
-    color: theme.colors.text,
-  },
-  sectionCount: {
-    ...theme.typography.body12,
-    color: theme.colors.text,
-  },
-  viewMore: {
-    ...theme.typography.labelXxsBold,
-    color: theme.colors.primary,
-  },
-  viewMoreButton: {
-    alignSelf: 'flex-start',
-    flexGrow: 0,
-    flexShrink: 0,
-    paddingHorizontal: theme.spacing['3'],
-    paddingVertical: theme.spacing['1'],
-    minHeight: theme.spacing['7'],
-    minWidth: 0,
-    borderWidth: 0,
-    borderColor: 'transparent',
-    ...theme.shadows.sm,
-    shadowColor: theme.colors.neutralShadow,
-  },
-  searchBar: {
-    marginBottom: theme.spacing['2'],
-    marginInline: theme.spacing['6'],
-  },
-  viewMoreShadowWrapper: {
-    borderRadius: theme.borderRadius.full,
-    ...theme.shadows.sm,
-  },
-  sectionWrapper: {
-    gap: theme.spacing['3'],
-  },
-  singleCardWrapper: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  horizontalList: {
-    gap: theme.spacing['3'],
-    paddingRight: theme.spacing['4'],
-    paddingVertical: theme.spacing['2.5'],
-  },
-  horizontalCard: {
-    width: 280,
-  },
-  emptyState: {
-    padding: 16,
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.cardBackground,
-    gap: 6,
-  },
-  emptyStateTitle: {
-    ...theme.typography.titleMedium,
-    color: theme.colors.secondary,
-  },
-  emptyStateSubtitle: {
-    ...theme.typography.bodySmallTight,
-    color: theme.colors.textSecondary,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    screenContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollView: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    container: {
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['4'],
+    },
+    headerContent: {
+      gap: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['1'],
+    },
+    resultsWrapper: {
+      gap: theme.spacing['4'],
+      marginTop: theme.spacing['2'],
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing['1'],
+    },
+    sectionHeaderRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['2'],
+    },
+    sectionHeader: {
+      ...theme.typography.sectionHeading,
+      color: theme.colors.text,
+    },
+    sectionCount: {
+      ...theme.typography.body12,
+      color: theme.colors.text,
+    },
+    viewMore: {
+      ...theme.typography.labelXxsBold,
+      color: theme.colors.primary,
+    },
+    viewMoreButton: {
+      alignSelf: 'flex-start',
+      flexGrow: 0,
+      flexShrink: 0,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['1'],
+      minHeight: theme.spacing['7'],
+      minWidth: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.neutralShadow,
+    },
+    searchBar: {
+      marginBottom: theme.spacing['2'],
+      marginInline: theme.spacing['6'],
+    },
+    viewMoreShadowWrapper: {
+      borderRadius: theme.borderRadius.full,
+      ...theme.shadows.sm,
+    },
+    sectionWrapper: {
+      gap: theme.spacing['3'],
+    },
+    singleCardWrapper: {
+      alignItems: 'center',
+      width: '100%',
+    },
+    horizontalList: {
+      gap: theme.spacing['3'],
+      paddingRight: theme.spacing['4'],
+      paddingVertical: theme.spacing['2.5'],
+    },
+    horizontalCard: {
+      width: 280,
+    },
+    emptyState: {
+      padding: 16,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.cardBackground,
+      gap: 6,
+    },
+    emptyStateTitle: {
+      ...theme.typography.titleMedium,
+      color: theme.colors.secondary,
+    },
+    emptyStateSubtitle: {
+      ...theme.typography.bodySmallTight,
+      color: theme.colors.textSecondary,
+    },
+  });
 
 export default BrowseBusinessesScreen;

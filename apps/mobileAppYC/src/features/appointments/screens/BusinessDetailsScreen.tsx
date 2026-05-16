@@ -1,5 +1,12 @@
-import React, {useMemo} from 'react';
-import {ScrollView, View, StyleSheet, Text, Platform} from 'react-native';
+import React, {useMemo, useCallback} from 'react';
+import {
+  ScrollView,
+  View,
+  StyleSheet,
+  Text,
+  Platform,
+  Alert,
+} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -10,19 +17,47 @@ import {Images} from '@/assets/images';
 import VetBusinessCard from '@/features/appointments/components/VetBusinessCard/VetBusinessCard';
 import {createSelectServicesForBusiness} from '@/features/appointments/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
-import {useRoute, useNavigation, NavigationProp} from '@react-navigation/native';
+import {
+  useRoute,
+  useNavigation,
+  NavigationProp,
+} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
-import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {
+  fetchBusinessDetails,
+  fetchGooglePlacesImage,
+} from '@/features/linkedBusinesses';
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {TabParamList} from '@/navigation/types';
+import {selectSelectedCompanion} from '@/features/companion/selectors';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
+
+const COMPANION_TO_SPECIES: Record<string, string> = {
+  dog: 'canine',
+  cat: 'feline',
+  horse: 'equine',
+};
+
+const SPECIES_LABELS: Record<string, string> = {
+  canine: 'dogs',
+  feline: 'cats',
+  equine: 'horses',
+};
+
+const inferServiceSpecies = (serviceName: string): string | null => {
+  const n = serviceName.toLowerCase();
+  if (n.includes('canine') || n.includes('dog')) return 'canine';
+  if (n.includes('feline') || n.includes('cat')) return 'feline';
+  if (n.includes('equine') || n.includes('horse')) return 'equine';
+  return null;
+};
 
 export const BusinessDetailsScreen: React.FC = () => {
   const {theme} = useTheme();
@@ -32,18 +67,27 @@ export const BusinessDetailsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {distanceUnit} = usePreferences();
   const businessId = route.params?.businessId as string;
-  const returnTo = route.params?.returnTo as {tab?: keyof TabParamList; screen?: string} | undefined;
-  const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === businessId));
-  const servicesSelector = React.useMemo(() => createSelectServicesForBusiness(), []);
-  const services = useSelector((state: RootState) => servicesSelector(state, businessId));
-  const totalServices = useSelector((state: RootState) => state.businesses.services.length);
+  const returnTo = route.params?.returnTo as
+    | {tab?: keyof TabParamList; screen?: string}
+    | undefined;
+  const business = useSelector((s: RootState) =>
+    s.businesses.businesses.find(b => b.id === businessId),
+  );
+  const servicesSelector = React.useMemo(
+    () => createSelectServicesForBusiness(),
+    [],
+  );
+  const services = useSelector((state: RootState) =>
+    servicesSelector(state, businessId),
+  );
+  const totalServices = useSelector(
+    (state: RootState) => state.businesses.services.length,
+  );
+  const selectedCompanion = useSelector(selectSelectedCompanion);
   const [fallbackPhoto, setFallbackPhoto] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!business) {
-      dispatch(fetchBusinesses({serviceName: undefined}));
-    }
-    if (totalServices === 0) {
+    if (!business || totalServices === 0) {
       dispatch(fetchBusinesses());
     }
   }, [business, dispatch, totalServices]);
@@ -84,16 +128,41 @@ export const BusinessDetailsScreen: React.FC = () => {
     }));
   }, [services]);
 
-  const handleSelectService = (serviceId: string, specialtyName: string) => {
-    const service = services.find(s => s.id === serviceId);
-    navigation.navigate('BookingForm', {
-      businessId,
-      serviceId,
-      serviceName: service?.name,
-      serviceSpecialty: specialtyName ?? undefined,
-      serviceSpecialtyId: service?.specialityId ?? undefined,
-    });
-  };
+  const handleSelectService = useCallback(
+    (serviceId: string, specialtyName: string) => {
+      const service = services.find(s => s.id === serviceId);
+      const serviceSpecies = service ? inferServiceSpecies(service.name) : null;
+      const companionCategory = selectedCompanion?.category ?? null;
+      const companionSpecies = companionCategory
+        ? (COMPANION_TO_SPECIES[companionCategory] ?? null)
+        : null;
+
+      if (
+        serviceSpecies &&
+        companionSpecies &&
+        serviceSpecies !== companionSpecies
+      ) {
+        const serviceAnimal = SPECIES_LABELS[serviceSpecies] ?? serviceSpecies;
+        const companionAnimal =
+          SPECIES_LABELS[companionSpecies] ?? companionSpecies;
+        Alert.alert(
+          'Species Mismatch',
+          `This service is for ${serviceAnimal}, but your selected companion is a ${companionAnimal}. Please switch to a compatible companion before booking.`,
+          [{text: 'OK'}],
+        );
+        return;
+      }
+
+      navigation.navigate('BookingForm', {
+        businessId,
+        serviceId,
+        serviceName: service?.name,
+        serviceSpecialty: specialtyName ?? undefined,
+        serviceSpecialtyId: service?.specialityId ?? undefined,
+      });
+    },
+    [services, selectedCompanion, navigation, businessId],
+  );
 
   // Convert distance based on user preference
   const displayDistance = useMemo(() => {
@@ -138,8 +207,7 @@ export const BusinessDetailsScreen: React.FC = () => {
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={[styles.container, contentPaddingStyle]}
-          showsVerticalScrollIndicator={false}
-        >
+          showsVerticalScrollIndicator={false}>
           {/* Business Card */}
           <VetBusinessCard
             name={business?.name || ''}
@@ -168,9 +236,12 @@ export const BusinessDetailsScreen: React.FC = () => {
               shadow="sm"
               style={styles.emptyServicesCard}
               fallbackStyle={styles.emptyServicesCardFallback}>
-              <Text style={styles.emptyServicesTitle}>Services coming soon</Text>
+              <Text style={styles.emptyServicesTitle}>
+                Services coming soon
+              </Text>
               <Text style={styles.emptyServicesSubtitle}>
-                This business has not published individual services yet. Please contact them directly for availability.
+                This business has not published individual services yet. Please
+                contact them directly for availability.
               </Text>
             </LiquidGlassCard>
           )}
@@ -202,44 +273,45 @@ export const BusinessDetailsScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  scrollView: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  container: {
-    paddingHorizontal: theme.spacing['5'],
-    paddingTop: theme.spacing['6'],
-    paddingBottom: theme.spacing['24'],
-    gap: theme.spacing['6'],
-  },
-  footer: {
-    marginTop: theme.spacing['2'],
-    marginBottom: theme.spacing['4'],
-  },
-  buttonText: {
-    ...theme.typography.cta,
-    color: theme.colors.white,
-  },
-  emptyServicesCard: {
-    backgroundColor: theme.colors.cardBackground,
-    gap: theme.spacing['2'],
-  },
-  emptyServicesCardFallback: {
-    backgroundColor: theme.colors.cardBackground,
-    borderWidth: Platform.OS === 'android' ? 1 : 0,
-    borderColor: theme.colors.borderMuted,
-    ...theme.shadows.base,
-    shadowColor: theme.colors.neutralShadow,
-  },
-  emptyServicesTitle: {
-    ...theme.typography.titleSmall,
-    color: theme.colors.secondary,
-  },
-  emptyServicesSubtitle: {
-    ...theme.typography.body12,
-    color: theme.colors.textSecondary,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    scrollView: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    container: {
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['6'],
+    },
+    footer: {
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['4'],
+    },
+    buttonText: {
+      ...theme.typography.cta,
+      color: theme.colors.white,
+    },
+    emptyServicesCard: {
+      backgroundColor: theme.colors.cardBackground,
+      gap: theme.spacing['2'],
+    },
+    emptyServicesCardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
+    },
+    emptyServicesTitle: {
+      ...theme.typography.titleSmall,
+      color: theme.colors.secondary,
+    },
+    emptyServicesSubtitle: {
+      ...theme.typography.body12,
+      color: theme.colors.textSecondary,
+    },
+  });
 
 export default BusinessDetailsScreen;

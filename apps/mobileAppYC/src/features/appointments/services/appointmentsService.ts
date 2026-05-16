@@ -845,6 +845,19 @@ const mapInvoiceFromApi = (
     factor: pc?.factor ?? pc?.Factor ?? null,
   }));
 
+  const resolvedSubtotal = subtotalFromTotals ?? subtotal;
+  const resolvedDiscountPercent: number | null = (() => {
+    if (raw.discountPercent != null) return raw.discountPercent;
+    if (raw.discountTotal != null && resolvedSubtotal > 0) {
+      return (raw.discountTotal / resolvedSubtotal) * 100;
+    }
+    const itemDiscount = Array.isArray(raw.items)
+      ? (raw.items.find((it: any) => it?.discountPercent != null)
+          ?.discountPercent ?? null)
+      : null;
+    return itemDiscount;
+  })();
+
   const invoice: Invoice = {
     id:
       invoiceFromConverter?.id ??
@@ -859,8 +872,8 @@ const mapInvoiceFromApi = (
       raw.appointmentId ??
       '',
     items: normalizedItems,
-    subtotal: subtotalFromTotals ?? subtotal,
-    discountPercent: raw.discountPercent ?? null,
+    subtotal: resolvedSubtotal,
+    discountPercent: resolvedDiscountPercent,
     taxPercent: raw.taxPercent ?? null,
     total: grandTotalFromTotals ?? total,
     totalPriceComponent: normalizedPriceComponents,
@@ -1113,13 +1126,16 @@ export const appointmentApi = {
     page = 1,
     accessToken,
   }: {
-    lat: number;
-    lng: number;
+    lat?: number;
+    lng?: number;
     page?: number;
     accessToken?: string;
   }): Promise<{businesses: VetBusiness[]; services: VetService[]; meta?: any}> {
+    const qs = new URLSearchParams({page: String(page)});
+    if (lat != null) qs.set('lat', String(lat));
+    if (lng != null) qs.set('lng', String(lng));
     const url = buildUrl(
-      `/fhir/v1/organization/getNearby?lat=${lat}&lng=${lng}&page=${page}`,
+      `/fhir/v1/organization/mobile/getNearby?${qs.toString()}`,
     );
     const config = accessToken
       ? {headers: withAuthHeaders(accessToken)}
@@ -1142,14 +1158,17 @@ export const appointmentApi = {
     accessToken,
   }: {
     serviceName: string;
-    lat: number;
-    lng: number;
+    lat?: number;
+    lng?: number;
     accessToken?: string;
   }): Promise<{businesses: VetBusiness[]; services: VetService[]}> {
+    const qs = new URLSearchParams({
+      serviceName: encodeURIComponent(serviceName),
+    });
+    if (lat != null) qs.set('lat', String(lat));
+    if (lng != null) qs.set('lng', String(lng));
     const url = buildUrl(
-      `/fhir/v1/service/organisation/search?serviceName=${encodeURIComponent(
-        serviceName,
-      )}&lat=${lat}&lng=${lng}`,
+      `/fhir/v1/service/organisation/search?${qs.toString()}`,
     );
     const config = accessToken
       ? {headers: withAuthHeaders(accessToken)}

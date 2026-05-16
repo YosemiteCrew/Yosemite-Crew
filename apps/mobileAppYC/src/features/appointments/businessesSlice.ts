@@ -14,6 +14,7 @@ import {
   getFreshStoredTokens,
   isTokenExpired,
 } from '@/features/auth/sessionManager';
+import LocationService from '@/shared/services/LocationService';
 import {
   fetchBusinessDetails,
   fetchGooglePlacesImage,
@@ -39,13 +40,6 @@ const ensureAccessTokenOptional = async (): Promise<string | null> => {
   }
 };
 
-const DEFAULT_NEARBY = {lat: 23, lng: 34.909, page: 1};
-const DEFAULT_SEARCH = {
-  serviceName: '',
-  lat: 39.7834,
-  lng: -89.625,
-};
-
 type FetchBusinessesArgs = {
   lat?: number;
   lng?: number;
@@ -59,10 +53,24 @@ export const fetchBusinesses = createAsyncThunk<
 >('businesses/fetch', async (params, {rejectWithValue}) => {
   try {
     const accessToken = await ensureAccessTokenOptional();
+
+    // Resolve lat/lng: caller-supplied → live GPS → omit (backend geocodes from saved address)
+    let resolvedLat = params?.lat;
+    let resolvedLng = params?.lng;
+    if (resolvedLat == null || resolvedLng == null) {
+      try {
+        const coords = await LocationService.getCurrentPosition();
+        resolvedLat = coords.latitude;
+        resolvedLng = coords.longitude;
+      } catch {
+        // Permission denied or GPS unavailable — let backend fall back to saved address
+      }
+    }
+
     const nearby = await appointmentApi.fetchNearbyBusinesses({
-      lat: params?.lat ?? DEFAULT_NEARBY.lat,
-      lng: params?.lng ?? DEFAULT_NEARBY.lng,
-      page: params?.page ?? DEFAULT_NEARBY.page,
+      lat: resolvedLat,
+      lng: resolvedLng,
+      page: params?.page,
       accessToken: accessToken ?? undefined,
     });
 
@@ -73,8 +81,8 @@ export const fetchBusinesses = createAsyncThunk<
     if (params?.serviceName) {
       search = await appointmentApi.searchBusinessesByService({
         serviceName: params.serviceName,
-        lat: params.lat ?? DEFAULT_SEARCH.lat,
-        lng: params.lng ?? DEFAULT_SEARCH.lng,
+        lat: resolvedLat,
+        lng: resolvedLng,
         accessToken: accessToken ?? undefined,
       });
     }
