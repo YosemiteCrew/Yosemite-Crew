@@ -67,6 +67,7 @@ export const BusinessDetailsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {distanceUnit} = usePreferences();
   const businessId = route.params?.businessId as string;
+  const paramDistanceMi = route.params?.distanceMi as number | undefined;
   const returnTo = route.params?.returnTo as
     | {tab?: keyof TabParamList; screen?: string}
     | undefined;
@@ -111,8 +112,6 @@ export const BusinessDetailsScreen: React.FC = () => {
         });
     }
   }, [business?.googlePlacesId, business?.photo, dispatch]);
-
-  // Group services by specialty for accordion
   const specialties = useMemo(() => {
     const groups: Record<string, typeof services> = {};
     for (const svc of services) {
@@ -166,21 +165,21 @@ export const BusinessDetailsScreen: React.FC = () => {
 
   // Convert distance based on user preference
   const displayDistance = useMemo(() => {
-    if (!business?.distanceMi) return undefined;
+    const distanceMi = paramDistanceMi ?? business?.distanceMi;
+    if (!distanceMi) return undefined;
 
     if (distanceUnit === 'km') {
-      const distanceKm = convertDistance(business.distanceMi, 'mi', 'km');
+      const distanceKm = convertDistance(distanceMi, 'mi', 'km');
       return `${distanceKm.toFixed(1)}km`;
     }
 
-    return `${business.distanceMi.toFixed(1)}mi`;
-  }, [business?.distanceMi, distanceUnit]);
+    return `${distanceMi.toFixed(1)}mi`;
+  }, [paramDistanceMi, business?.distanceMi, distanceUnit]);
 
   const handleBack = () => {
     if (returnTo?.tab) {
       const tabNav = navigation.getParent<NavigationProp<TabParamList>>();
       if (tabNav) {
-        // Type-safe navigation by explicitly handling each tab case
         const params = returnTo.screen ? {screen: returnTo.screen} : undefined;
         tabNav.navigate(returnTo.tab as any, params as any);
       }
@@ -220,8 +219,6 @@ export const BusinessDetailsScreen: React.FC = () => {
             fallbackPhoto={fallbackPhoto ?? undefined}
             cta=""
           />
-
-          {/* Specialties Accordion */}
           {specialties.length ? (
             <SpecialtyAccordion
               title="Specialties"
@@ -239,14 +236,17 @@ export const BusinessDetailsScreen: React.FC = () => {
               <Text style={styles.emptyServicesTitle}>
                 Services coming soon
               </Text>
+              <Text style={styles.emptyServicesTitle}>
+                Services coming soon
+              </Text>
               <Text style={styles.emptyServicesSubtitle}>
                 This business has not published individual services yet. Please
-                contact them directly for availability.
+                contact them directly for availability. This business has not
+                published individual services yet. Please contact them directly
+                for availability.
               </Text>
             </LiquidGlassCard>
           )}
-
-          {/* Get Directions Button */}
           <View style={styles.footer}>
             <LiquidGlassButton
               title="Get Directions"
@@ -273,6 +273,46 @@ export const BusinessDetailsScreen: React.FC = () => {
   );
 };
 
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    scrollView: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    container: {
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['6'],
+    },
+    footer: {
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['4'],
+    },
+    buttonText: {
+      ...theme.typography.cta,
+      color: theme.colors.white,
+    },
+    emptyServicesCard: {
+      backgroundColor: theme.colors.cardBackground,
+      gap: theme.spacing['2'],
+    },
+    emptyServicesCardFallback: {
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.base,
+      shadowColor: theme.colors.neutralShadow,
+    },
+    emptyServicesTitle: {
+      ...theme.typography.titleSmall,
+      color: theme.colors.secondary,
+    },
+    emptyServicesSubtitle: {
+      ...theme.typography.body12,
+      color: theme.colors.textSecondary,
+    },
+  });
 const createStyles = (theme: any) =>
   StyleSheet.create({
     scrollView: {
