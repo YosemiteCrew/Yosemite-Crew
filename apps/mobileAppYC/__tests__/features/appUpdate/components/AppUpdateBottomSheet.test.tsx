@@ -105,7 +105,7 @@ describe('AppUpdateBottomSheet', () => {
     render(<AppUpdateBottomSheet prompt={requiredPrompt} />);
 
     const props = mockConfirmActionBottomSheet.mock.calls[0][0];
-    expect(props.initialIndex).toBe(0);
+    expect(props.initialIndex).toBe(-1);
     expect(props.enablePanDown).toBe(false);
     expect(props.enableHandlePanning).toBe(false);
     expect(props.showCloseButton).toBe(false);

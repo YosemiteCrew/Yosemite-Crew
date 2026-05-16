@@ -133,14 +133,20 @@ type DsarFormErrors = Partial<
 >;
 
 type ComplaintFormErrors = Partial<
-  Record<'submitterId' | 'description' | 'referenceLink' | 'confirmations', string>
+  Record<
+    'submitterId' | 'description' | 'referenceLink' | 'confirmations',
+    string
+  >
 >;
 
-type SubmissionState = Record<'general' | 'feature' | 'dsar' | 'complaint', boolean>;
+type SubmissionState = Record<
+  'general' | 'feature' | 'dsar' | 'complaint',
+  boolean
+>;
 
 const SUBMITTER_TYPE_MAP: Record<string, string> = {
   self: 'SELF',
-  agent: 'AGENT',
+  agent: 'AUTHORIZED_AGENT',
 };
 
 const DSAR_LAW_BASIS_MAP: Record<string, string> = {
@@ -169,10 +175,10 @@ const DSAR_REQUEST_RIGHTS_MAP: Record<string, string> = {
 };
 
 const mapSubmitterType = (id: string | null): string =>
-  id ? SUBMITTER_TYPE_MAP[id] ?? id.toString().toUpperCase() : '';
+  id ? (SUBMITTER_TYPE_MAP[id] ?? id.toString().toUpperCase()) : '';
 
 const mapLawBasis = (id: string | null): string =>
-  id ? DSAR_LAW_BASIS_MAP[id] ?? id.toString().toUpperCase() : '';
+  id ? (DSAR_LAW_BASIS_MAP[id] ?? id.toString().toUpperCase()) : '';
 
 const mapRequestRights = (id: string | null): string[] =>
   id ? [DSAR_REQUEST_RIGHTS_MAP[id] ?? id.toString().toUpperCase()] : [];
@@ -213,7 +219,9 @@ const SelectionList: React.FC<{
             onPress={() => onSelect(option.id)}
             activeOpacity={0.8}>
             <Text
-              style={isSelected ? styles.optionTextSelected : styles.optionText}>
+              style={
+                isSelected ? styles.optionTextSelected : styles.optionText
+              }>
               {option.label}
             </Text>
           </TouchableOpacity>
@@ -266,8 +274,11 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
     complaint: false,
   });
 
-  const {forms: simpleForms, updateForm: updateSimpleForm, resetForm: resetSimpleForm} =
-    useSimpleFormState();
+  const {
+    forms: simpleForms,
+    updateForm: updateSimpleForm,
+    resetForm: resetSimpleForm,
+  } = useSimpleFormState();
 
   const [simpleErrors, setSimpleErrors] = React.useState<SimpleFormErrors>({
     general: {},
@@ -574,9 +585,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           ? error.message
           : 'Failed to submit your request. Please try again.';
       if (complaintAttachments.length) {
-        setAttachmentError(
-          error instanceof Error ? error.message : undefined,
-        );
+        setAttachmentError(error instanceof Error ? error.message : undefined);
       }
       Alert.alert('Unable to submit', message);
       return false;
@@ -1027,7 +1036,9 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           values={complaintForm.confirmations}
           styles={styles}
           error={complaintErrors.confirmations}
-          onToggle={checkboxId => handleToggleConfirmation('complaint', checkboxId)}
+          onToggle={checkboxId =>
+            handleToggleConfirmation('complaint', checkboxId)
+          }
         />
         <LiquidGlassButton
           title="Submit"
@@ -1085,7 +1096,10 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView
               style={styles.flex}
-              contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+              contentContainerStyle={[
+                styles.contentContainer,
+                contentPaddingStyle,
+              ]}
               showsVerticalScrollIndicator={false}>
               <View style={styles.heroCard}>
                 <Image source={Images.contactHero} style={styles.heroImage} />
@@ -1095,7 +1109,10 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
               </View>
 
               <PillSelector
-                options={CONTACT_TABS.map(tab => ({id: tab.id, label: tab.label}))}
+                options={CONTACT_TABS.map(tab => ({
+                  id: tab.id,
+                  label: tab.label,
+                }))}
                 selectedId={activeTab}
                 onSelect={id => setActiveTab(id as ContactTabId)}
                 containerStyle={styles.pillContainer}
@@ -1108,50 +1125,50 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         )}
       </LiquidGlassHeaderScreen>
 
-    <DataSubjectLawBottomSheet
-      ref={lawSheetRef}
-      selectedLawId={dsarForm.lawId}
-      onSelect={item => {
-        const nextLawId = item?.id ?? null;
-        setDsarForm(prev => ({
-          ...prev,
-          lawId: nextLawId,
-          otherLawNotes: nextLawId === 'other' ? prev.otherLawNotes : '',
-        }));
-        setDsarErrors(prev => {
-          const next = {...prev};
-          if (next.lawId) {
-            delete next.lawId;
-          }
-          if (nextLawId !== 'other' && next.otherLawNotes) {
-            delete next.otherLawNotes;
-          }
-          return next;
-        });
-      }}
-    />
-    <UploadDocumentBottomSheet
-      ref={uploadSheetRef}
-      onTakePhoto={() => {
-        handleTakePhoto();
-      }}
-      onChooseGallery={() => {
-        handleChooseFromGallery();
-      }}
-      onUploadDrive={() => {
-        handleUploadFromDrive();
-      }}
-    />
+      <DataSubjectLawBottomSheet
+        ref={lawSheetRef}
+        selectedLawId={dsarForm.lawId}
+        onSelect={item => {
+          const nextLawId = item?.id ?? null;
+          setDsarForm(prev => ({
+            ...prev,
+            lawId: nextLawId,
+            otherLawNotes: nextLawId === 'other' ? prev.otherLawNotes : '',
+          }));
+          setDsarErrors(prev => {
+            const next = {...prev};
+            if (next.lawId) {
+              delete next.lawId;
+            }
+            if (nextLawId !== 'other' && next.otherLawNotes) {
+              delete next.otherLawNotes;
+            }
+            return next;
+          });
+        }}
+      />
+      <UploadDocumentBottomSheet
+        ref={uploadSheetRef}
+        onTakePhoto={() => {
+          handleTakePhoto();
+        }}
+        onChooseGallery={() => {
+          handleChooseFromGallery();
+        }}
+        onUploadDrive={() => {
+          handleUploadFromDrive();
+        }}
+      />
 
-    <DeleteDocumentBottomSheet
-      ref={deleteSheetRef}
-      documentTitle={
-        fileToDelete
-          ? complaintAttachments.find(f => f.id === fileToDelete)?.name
-          : 'this file'
-      }
-      onDelete={confirmDeleteFile}
-    />
+      <DeleteDocumentBottomSheet
+        ref={deleteSheetRef}
+        documentTitle={
+          fileToDelete
+            ? complaintAttachments.find(f => f.id === fileToDelete)?.name
+            : 'this file'
+        }
+        onDelete={confirmDeleteFile}
+      />
     </>
   );
 };

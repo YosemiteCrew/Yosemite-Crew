@@ -260,8 +260,14 @@ describe('ConfirmActionBottomSheet', () => {
         initialIndex={0}
       />,
     );
+    // Backdrop is always enabled; visibility is controlled by backdropAppearsOnIndex/backdropDisappearsOnIndex
     expect(mockBottomSheet).toHaveBeenCalledWith(
-      expect.objectContaining({enableBackdrop: true}),
+      expect.objectContaining({
+        enableBackdrop: true,
+        initialIndex: 0,
+        backdropAppearsOnIndex: 0,
+        backdropDisappearsOnIndex: -1,
+      }),
     );
   });
 
@@ -272,12 +278,18 @@ describe('ConfirmActionBottomSheet', () => {
         primaryButton={primaryButtonConfig}
       />,
     );
+    // Backdrop always enabled; sheet starts closed via initialIndex=-1
     expect(mockBottomSheet).toHaveBeenCalledWith(
-      expect.objectContaining({enableBackdrop: false}),
+      expect.objectContaining({
+        enableBackdrop: true,
+        initialIndex: -1,
+        backdropAppearsOnIndex: 0,
+        backdropDisappearsOnIndex: -1,
+      }),
     );
   });
 
-  it('calls ref.open(), snaps to index, and shows backdrop', () => {
+  it('calls ref.open(), snaps to index 0', () => {
     const ref = React.createRef<ConfirmActionBottomSheetRef>();
     render(
       <ConfirmActionBottomSheet
@@ -287,21 +299,14 @@ describe('ConfirmActionBottomSheet', () => {
       />,
     );
 
-    expect(mockBottomSheet).toHaveBeenLastCalledWith(
-      expect.objectContaining({enableBackdrop: false}),
-    );
-
     act(() => {
       ref.current?.open();
     });
 
     expect(mockSnapToIndex).toHaveBeenCalledWith(0);
-    expect(mockBottomSheet).toHaveBeenLastCalledWith(
-      expect.objectContaining({enableBackdrop: true}),
-    );
   });
 
-  it('calls ref.close(), calls sheet close, and hides backdrop', () => {
+  it('calls ref.close(), calls sheet close', () => {
     const ref = React.createRef<ConfirmActionBottomSheetRef>();
     render(
       <ConfirmActionBottomSheet
@@ -312,18 +317,11 @@ describe('ConfirmActionBottomSheet', () => {
       />,
     );
 
-    expect(mockBottomSheet).toHaveBeenLastCalledWith(
-      expect.objectContaining({enableBackdrop: true}),
-    );
-
     act(() => {
       ref.current?.close();
     });
 
     expect(mockClose).toHaveBeenCalledTimes(1);
-    expect(mockBottomSheet).toHaveBeenLastCalledWith(
-      expect.objectContaining({enableBackdrop: false}),
-    );
   });
 
   it('updates state and calls onSheetChange when sheet callback fires', () => {
@@ -337,18 +335,11 @@ describe('ConfirmActionBottomSheet', () => {
       />,
     );
 
-    expect(mockBottomSheet).toHaveBeenLastCalledWith(
-      expect.objectContaining({enableBackdrop: true}),
-    );
-
     act(() => {
       mockSheetOnChange(-1);
     });
 
     expect(mockOnSheetChange).toHaveBeenCalledWith(-1);
-    expect(mockBottomSheet).toHaveBeenLastCalledWith(
-      expect.objectContaining({enableBackdrop: false}),
-    );
   });
 
   it('handles async button press rejection and warns', async () => {

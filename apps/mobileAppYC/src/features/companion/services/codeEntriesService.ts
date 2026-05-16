@@ -1,7 +1,7 @@
 import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
 
 const CODE_SYSTEM = 'YOSEMITECODE';
-const CODES_ENDPOINT = '/v1/codes/entries';
+const CODES_ENDPOINT = '/v1/codes/mobile/entries';
 
 export interface SpeciesCodeEntry {
   code: string;

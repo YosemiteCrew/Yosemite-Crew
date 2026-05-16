@@ -265,6 +265,7 @@ describe('apiClient', () => {
         method: 'get',
         url: '/test',
         status: 200,
+        data: {id: 1},
       });
       expect(result).toBe(mockResponse);
     });

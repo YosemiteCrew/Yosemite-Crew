@@ -337,10 +337,10 @@ export const CompanionOverviewScreen: React.FC<
         );
         if (!mounted) return;
 
-        const mapped = entries.map(entry => ({
+        const mapped = entries.map((entry, index) => ({
           speciesId: 0,
           speciesName: speciesQuery,
-          breedId: -1,
+          breedId: index,
           breedName: entry.display ?? entry.code,
           speciesCode: entry.meta?.speciesCode,
           breedCode: entry.code,

@@ -144,7 +144,7 @@ describe('appUpdatePolicy', () => {
     expect(prompt?.storeUrl).toBe('market://details?id=com.yc.bundle');
   });
 
-  it('downgrades forced update to optional when iOS store URL cannot be resolved', () => {
+  it('keeps required kind even when iOS store URL cannot be resolved', () => {
     (Platform as {OS: string}).OS = 'ios';
 
     const prompt = evaluateAppUpdatePrompt(
@@ -161,7 +161,7 @@ describe('appUpdatePolicy', () => {
       'com.yc.bundle',
     );
 
-    expect(prompt?.kind).toBe('optional');
+    expect(prompt?.kind).toBe('required');
     expect(prompt?.storeUrl).toBeNull();
   });
 

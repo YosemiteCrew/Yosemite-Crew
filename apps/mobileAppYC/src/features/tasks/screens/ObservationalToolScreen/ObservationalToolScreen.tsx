@@ -1108,9 +1108,11 @@ export const ObservationalToolScreen: React.FC = () => {
         </View>
       </LiquidGlassCard>
 
-      <View style={styles.providersHeader}>
-        <Text style={styles.providersTitle}>Evaluation offered by</Text>
-      </View>
+      {providerEntries.length > 0 && (
+        <View style={styles.providersHeader}>
+          <Text style={styles.providersTitle}>Evaluation offered by</Text>
+        </View>
+      )}
 
       {renderProvidersSection()}
 
@@ -1361,8 +1363,8 @@ const createStyles = (theme: any) =>
       // Spacing handled by container gap
     },
     emptyStateImage: {
-      width: theme.spacing['50'],
-      height: theme.spacing['60'],
+      width: theme.spacing['40'],
+      height: theme.spacing['40'],
       resizeMode: 'contain',
     },
     emptyStateTitle: {

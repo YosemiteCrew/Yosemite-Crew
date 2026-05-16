@@ -65,6 +65,7 @@ client.interceptors.response.use(
         method: response.config?.method,
         url: buildAbsoluteUrl(response.config ?? {}),
         status: response.status,
+        data: response.data,
       });
     }
     return response;

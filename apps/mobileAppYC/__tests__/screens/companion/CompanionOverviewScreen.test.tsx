@@ -1094,7 +1094,7 @@ describe('CompanionOverviewScreen', () => {
         {
           speciesId: 0,
           speciesName: 'feline',
-          breedId: -1,
+          breedId: 0,
           breedName: 'Siamese',
           speciesCode: 'feline',
           breedCode: 'siamese',
