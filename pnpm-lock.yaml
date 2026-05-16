@@ -704,6 +704,9 @@ importers:
       react-native-localize:
         specifier: ^3.5.2
         version: 3.6.1(react-native@0.81.4)(react@19.1.0)
+      react-native-maps:
+        specifier: ^1.21.0
+        version: 1.27.2(react-native@0.81.4)(react@19.1.0)
       react-native-nitro-modules:
         specifier: ^0.31.5
         version: 0.31.10(react-native@0.81.4)(react@19.1.0)
@@ -17828,6 +17831,10 @@ packages:
       '@types/express-serve-static-core': 5.1.1
       '@types/serve-static': 2.2.0
 
+  /@types/geojson@7946.0.16:
+    resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
+    dev: false
+
   /@types/graceful-fs@4.1.9:
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
     dependencies:
@@ -31969,6 +31976,22 @@ packages:
       react-native-macos:
         optional: true
     dependencies:
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.29.0)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
+    dev: false
+
+  /react-native-maps@1.27.2(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-VKr+xZ2RZGHHJlY6KhlafvGSmK0dq/tUu5uhfJ7K9rwN5pUdubdugzMKGDU/16lXmQSg7xbClKhRctj3Pm5F5g==}
+    engines: {node: '>= 20.19.4'}
+    peerDependencies:
+      react: '>= 18.3.1'
+      react-native: '>= 0.76.0'
+      react-native-web: '>= 0.11'
+    peerDependenciesMeta:
+      react-native-web:
+        optional: true
+    dependencies:
+      '@types/geojson': 7946.0.16
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.29.0)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
     dev: false

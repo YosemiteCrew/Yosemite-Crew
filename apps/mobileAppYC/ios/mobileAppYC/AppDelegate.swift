@@ -7,6 +7,7 @@ import FirebaseMessaging
 import RNBootSplash
 import FBSDKCoreKit   // ✅ Facebook SDK
 import UserNotifications
+import GoogleMaps
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
@@ -18,6 +19,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+
+    // ✅ Google Maps (must be called before React Native initialises)
+    GMSServices.provideAPIKey("REMOVED_GCP_KEY")
 
     // ✅ Firebase
     FirebaseApp.configure()
