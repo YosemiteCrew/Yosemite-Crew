@@ -61,6 +61,7 @@
     "react-i18next": "^15.4.1",
     "react-native": "0.81.4",
     "react-native-asset": "^2.1.1",
+    "react-native-maps": "^1.21.0",
     "react-native-blob-util": "^0.23.2",
     "react-native-bootsplash": "^6.3.11",
     "react-native-bottom-tabs": "^1.1.0",

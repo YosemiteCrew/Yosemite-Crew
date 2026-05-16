@@ -3,6 +3,12 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: 'com.google.gms.google-services'
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader -> localProperties.load(reader) }
+}
+
 // Avoid duplicate androidsvg artifacts (jar + aar) pulled by SVG-capable deps
 configurations.all {
     exclude group: "com.caverock", module: "androidsvg"
@@ -115,6 +121,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 8
         versionName "1.0.6"
+        manifestPlaceholders = [
+            MAPS_API_KEY: localProperties['MAPS_API_KEY'] ?: System.getenv('MAPS_API_KEY') ?: ''
+        ]
     }
     signingConfigs {
         debug {

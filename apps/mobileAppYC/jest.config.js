@@ -58,6 +58,7 @@ module.exports = {
     '^react-native-pdf$': '<rootDir>/__mocks__/react-native-pdf.js',
     '^react-native-calendar-events$':
       '<rootDir>/__mocks__/react-native-calendar-events.js',
+    '^react-native-maps$': '<rootDir>/__mocks__/react-native-maps.js',
   },
   testPathIgnorePatterns: [
     '/node_modules/',

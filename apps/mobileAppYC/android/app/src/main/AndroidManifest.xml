@@ -50,6 +50,11 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true">
 
+        <!-- Google Maps API Key (value injected from local.properties via manifestPlaceholders) -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <!-- Facebook SDK App ID & Client Token -->
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"
