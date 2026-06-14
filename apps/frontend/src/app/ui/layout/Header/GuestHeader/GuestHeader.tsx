@@ -19,12 +19,12 @@ interface NavItem {
 
 const publicNavItems: NavItem[] = [
   { label: 'Home', href: '/' },
-  { label: 'Pet Businesses', href: '/pms' },
-  { label: 'Pet Parents', href: '/application' },
+  { label: 'Pet Businesses', href: '/pet-businesses' }, //older route - /pms
+  { label: 'Pet Parents', href: '/pet-parents' }, //older route - /applications
   { label: 'Developers', href: '/developers' },
   { label: 'Pricing', href: '/pricing' },
-  { label: 'Contact us', href: '/contact' },
-  { label: 'About us', href: '/about' },
+  { label: 'Contact us', href: '/contact-us' },
+  { label: 'About us', href: '/about-us' },
 ];
 
 const GuestHeader = () => {

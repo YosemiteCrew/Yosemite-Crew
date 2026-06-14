@@ -3,7 +3,7 @@
     "collect": {
       "numberOfRuns": 1,
       "url": [
-        "http://127.0.0.1:3001/pms",
+        "http://127.0.0.1:3001/pet-businesses",
         "http://127.0.0.1:3001/privacy-policy",
         "http://127.0.0.1:3001/terms-and-conditions"
       ],

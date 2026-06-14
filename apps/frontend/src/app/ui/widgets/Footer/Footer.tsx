@@ -67,7 +67,7 @@ const footerLinks = [
   {
     title: 'Company',
     links: [
-      { label: 'About us', href: '/about' },
+      { label: 'About us', href: '/about-us' },
       { label: 'Terms and conditions', href: '/terms-and-conditions' },
       { label: 'Privacy policy', href: '/privacy-policy' },
       { label: 'Accessibility', href: '/accessibility' },

@@ -85,15 +85,15 @@ jest.mock('@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding', () =>
   default: () => <div data-testid="route-team-onboarding" />,
 }));
 
-import AboutRoute, * as AboutModule from '@/app/(routes)/(public)/about/page';
-import ApplicationRoute, * as ApplicationModule from '@/app/(routes)/(public)/application/page';
+import AboutRoute, * as AboutModule from '@/app/(routes)/(public)/about-us/page';
+import ApplicationRoute, * as ApplicationModule from '@/app/(routes)/(public)/pet-parents/page';
 import BookDemoRoute, * as BookDemoModule from '@/app/(routes)/(public)/book-demo/page';
-import ContactRoute, * as ContactModule from '@/app/(routes)/(public)/contact/page';
+import ContactRoute, * as ContactModule from '@/app/(routes)/(public)/contact-us/page';
 import DevelopersRoute, * as DevelopersModule from '@/app/(routes)/(public)/developers/page';
 import OrganizationsRoute, * as OrganizationsModule from '@/app/(routes)/(app)/organizations/page';
 import CreateOrgRoute, * as CreateOrgModule from '@/app/(routes)/(app)/create-org/page';
 import DashboardRoute, * as DashboardModule from '@/app/(routes)/(app)/dashboard/page';
-import PmsRoute, * as PmsModule from '@/app/(routes)/(public)/pms/page';
+import PmsRoute, * as PmsModule from '@/app/(routes)/(public)/pet-businesses/page';
 import PricingRoute, * as PricingModule from '@/app/(routes)/(public)/pricing/page';
 import PrivacyPolicyRoute, * as PrivacyPolicyModule from '@/app/(routes)/(public)/privacy-policy/page';
 import TermsRoute, * as TermsModule from '@/app/(routes)/(public)/terms-and-conditions/page';

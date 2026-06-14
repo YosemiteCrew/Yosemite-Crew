@@ -38,7 +38,7 @@ const DeveloperPortalHome = () => {
                 templates designed for the animal health ecosystem.
               </p>
               <div className="dev-hero-actions">
-                <Secondary text="Contact support" href="/contact" />
+                <Secondary text="Contact support" href="/contact-us" />
               </div>
             </div>
             <div className="dev-hero-card">
@@ -69,7 +69,7 @@ const DeveloperPortalHome = () => {
                 <span className="dev-card-pill secondary text-caption-2">Resources</span>
               </div>
               <div className="dev-links">
-                <Link href="/contact" className="text-body-4-emphasis text-text-primary">
+                <Link href="/contact-us" className="text-body-4-emphasis text-text-primary">
                   Partner with Yosemite Crew
                 </Link>
                 <Link href="/privacy-policy" className="text-body-4-emphasis text-text-primary">
