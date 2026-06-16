@@ -1,18 +1,5 @@
-import { Types } from "mongoose";
-import TaskLibraryDefinitionModel, {
-  TaskLibraryDefinitionDocument,
-  TaskKind,
-  Species,
-} from "../models/taskLibraryDefinition";
+import { Prisma, TaskLibrarySpecies } from "@prisma/client";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
-import {
-  Prisma,
-  TaskKind as PrismaTaskKind,
-  TaskLibrarySpecies,
-  TaskSource as PrismaTaskSource,
-} from "@prisma/client";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 export class TaskLibraryServiceError extends Error {
   constructor(
@@ -23,6 +10,18 @@ export class TaskLibraryServiceError extends Error {
     this.name = "TaskLibraryServiceError";
   }
 }
+
+export type TaskKind =
+  | "MEDICATION"
+  | "OBSERVATION_TOOL"
+  | "HYGIENE"
+  | "DIET"
+  | "CUSTOM";
+
+export type Species = "dog" | "cat" | "horse";
+
+export type TaskLibraryDefinitionDocument =
+  Prisma.TaskLibraryDefinitionGetPayload<Record<string, never>>;
 
 const TASK_KINDS = new Set<TaskKind>([
   "MEDICATION",
@@ -63,63 +62,12 @@ const sanitizeTaskName = (value: unknown, field = "name"): string => {
   return trimmed;
 };
 
-const ensureObjectId = (value: unknown, field: string): string => {
-  if (typeof value !== "string" || !value.trim()) {
+const ensureId = (value: string, field: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) {
     throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
   }
-  if (!isReadFromPostgres() && !Types.ObjectId.isValid(value)) {
-    throw new TaskLibraryServiceError(`Invalid ${field}`, 400);
-  }
-  return value;
-};
-
-const toPrismaTaskLibraryDefinitionData = (
-  doc: TaskLibraryDefinitionDocument,
-) => {
-  const obj = doc.toObject() as {
-    _id: { toString(): string };
-    source: string;
-    kind: string;
-    category: string;
-    name: string;
-    defaultDescription?: string;
-    schema: unknown;
-    applicableSpecies?: string[];
-    isActive?: boolean;
-    createdAt?: Date;
-    updatedAt?: Date;
-  };
-
-  return {
-    id: obj._id.toString(),
-    source: obj.source as PrismaTaskSource,
-    kind: obj.kind as PrismaTaskKind,
-    category: obj.category,
-    name: obj.name,
-    defaultDescription: obj.defaultDescription ?? undefined,
-    schema: obj.schema as Prisma.InputJsonValue,
-    applicableSpecies: (obj.applicableSpecies ??
-      []) as unknown as TaskLibrarySpecies[],
-    isActive: obj.isActive ?? true,
-    createdAt: obj.createdAt ?? undefined,
-    updatedAt: obj.updatedAt ?? undefined,
-  };
-};
-
-const syncTaskLibraryDefinitionToPostgres = async (
-  doc: TaskLibraryDefinitionDocument,
-) => {
-  if (!shouldDualWrite) return;
-  try {
-    const data = toPrismaTaskLibraryDefinitionData(doc);
-    await prisma.taskLibraryDefinition.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
-  } catch (err) {
-    handleDualWriteError("TaskLibraryDefinition", err);
-  }
+  return trimmed;
 };
 
 export interface CreateTaskLibraryDefinitionInput {
@@ -187,6 +135,8 @@ const validateSchemaByKind = (
   }
 };
 
+const toJsonInput = (value: unknown) => value as Prisma.InputJsonValue;
+
 export const TaskLibraryService = {
   async create(
     input: CreateTaskLibraryDefinitionInput,
@@ -207,11 +157,13 @@ export const TaskLibraryService = {
 
     const safeName = sanitizeTaskName(input.name);
 
-    const existing = await TaskLibraryDefinitionModel.findOne({
-      source: "YC_LIBRARY",
-      name: safeName,
-      kind,
-    }).lean();
+    const existing = await prisma.taskLibraryDefinition.findFirst({
+      where: {
+        source: "YC_LIBRARY",
+        name: safeName,
+        kind,
+      },
+    });
 
     if (existing) {
       throw new TaskLibraryServiceError(
@@ -220,92 +172,50 @@ export const TaskLibraryService = {
       );
     }
 
-    if (isReadFromPostgres()) {
-      const doc = await prisma.taskLibraryDefinition.create({
-        data: {
-          source: "YC_LIBRARY",
-          kind: kind as PrismaTaskKind,
-          category: input.category,
-          name: safeName,
-          defaultDescription: input.defaultDescription ?? undefined,
-          applicableSpecies: (input.applicableSpecies ??
-            []) as unknown as TaskLibrarySpecies[],
-          schema: {
-            medicationFields: input.schema.medicationFields ?? {},
-            requiresObservationTool:
-              input.schema.requiresObservationTool ?? false,
-            recurrence: input.schema.recurrence,
-          } as unknown as Prisma.InputJsonValue,
-          isActive: true,
-        },
-      });
-      return doc as unknown as TaskLibraryDefinitionDocument;
-    }
-
-    const doc = await TaskLibraryDefinitionModel.create({
-      source: "YC_LIBRARY",
-      kind,
-      category: input.category,
-      name: safeName,
-      defaultDescription: input.defaultDescription,
-      applicableSpecies: input.applicableSpecies,
-      schema: {
-        medicationFields: input.schema.medicationFields ?? {},
-        requiresObservationTool: input.schema.requiresObservationTool ?? false,
-        recurrence: input.schema.recurrence,
+    const doc = await prisma.taskLibraryDefinition.create({
+      data: {
+        source: "YC_LIBRARY",
+        kind,
+        category: input.category,
+        name: safeName,
+        defaultDescription: input.defaultDescription ?? undefined,
+        applicableSpecies: (input.applicableSpecies ??
+          []) as unknown as TaskLibrarySpecies[],
+        schema: toJsonInput({
+          medicationFields: input.schema.medicationFields ?? {},
+          requiresObservationTool:
+            input.schema.requiresObservationTool ?? false,
+          recurrence: input.schema.recurrence,
+        }),
+        isActive: true,
       },
-      isActive: true,
     });
-    await syncTaskLibraryDefinitionToPostgres(doc);
+
     return doc;
   },
 
   async listActive(kind?: TaskKind): Promise<TaskLibraryDefinitionDocument[]> {
-    const filter: Record<string, unknown> = { isActive: true };
-    if (kind) {
-      const safeKind = sanitizeTaskKind(kind);
-      if (!safeKind) {
-        throw new TaskLibraryServiceError("Invalid kind", 400);
-      }
-      filter.kind = safeKind;
+    const safeKind = kind ? sanitizeTaskKind(kind) : undefined;
+    if (kind && !safeKind) {
+      throw new TaskLibraryServiceError("Invalid kind", 400);
     }
 
-    if (isReadFromPostgres()) {
-      const where: { isActive: boolean; kind?: PrismaTaskKind } = {
+    const docs = await prisma.taskLibraryDefinition.findMany({
+      where: {
         isActive: true,
-      };
-      if (kind) {
-        const safeKind = sanitizeTaskKind(kind);
-        if (!safeKind) {
-          throw new TaskLibraryServiceError("Invalid kind", 400);
-        }
-        where.kind = safeKind as PrismaTaskKind;
-      }
-      const docs = await prisma.taskLibraryDefinition.findMany({
-        where,
-        orderBy: [{ category: "asc" }, { name: "asc" }],
-      });
-      return docs as unknown as TaskLibraryDefinitionDocument[];
-    }
+        kind: safeKind,
+      },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+    });
 
-    return TaskLibraryDefinitionModel.find(filter)
-      .sort({ category: 1, name: 1 })
-      .exec();
+    return docs;
   },
 
   async getById(id: string): Promise<TaskLibraryDefinitionDocument> {
-    const safeId = ensureObjectId(id, "id");
-    if (isReadFromPostgres()) {
-      const doc = await prisma.taskLibraryDefinition.findFirst({
-        where: { id: safeId },
-      });
-      if (!doc) {
-        throw new TaskLibraryServiceError("Library task not found", 404);
-      }
-      return doc as unknown as TaskLibraryDefinitionDocument;
-    }
-
-    const doc = await TaskLibraryDefinitionModel.findById(safeId).exec();
+    const safeId = ensureId(id, "id");
+    const doc = await prisma.taskLibraryDefinition.findFirst({
+      where: { id: safeId },
+    });
     if (!doc) {
       throw new TaskLibraryServiceError("Library task not found", 404);
     }
@@ -321,129 +231,68 @@ export const TaskLibraryService = {
       throw new TaskLibraryServiceError("Invalid species", 400);
     }
 
-    const filter: Record<string, unknown> = {
-      isActive: true,
-      $or: [
-        { applicableSpecies: species }, // species-specific
-        { applicableSpecies: { $exists: false } }, // universal tasks
-      ],
-    };
-
-    if (params.kind) {
-      const safeKind = sanitizeTaskKind(params.kind);
-      if (!safeKind) {
-        throw new TaskLibraryServiceError("Invalid kind", 400);
-      }
-      filter.kind = safeKind;
+    const safeKind = params.kind ? sanitizeTaskKind(params.kind) : undefined;
+    if (params.kind && !safeKind) {
+      throw new TaskLibraryServiceError("Invalid kind", 400);
     }
 
-    if (isReadFromPostgres()) {
-      const where: Prisma.TaskLibraryDefinitionWhereInput = {
+    const docs = await prisma.taskLibraryDefinition.findMany({
+      where: {
         isActive: true,
         OR: [
           { applicableSpecies: { has: species as TaskLibrarySpecies } },
           { applicableSpecies: { isEmpty: true } },
         ],
-      };
+        kind: safeKind,
+      },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+    });
 
-      if (params.kind) {
-        const safeKind = sanitizeTaskKind(params.kind);
-        if (!safeKind) {
-          throw new TaskLibraryServiceError("Invalid kind", 400);
-        }
-        where.kind = safeKind as PrismaTaskKind;
-      }
-
-      const docs = await prisma.taskLibraryDefinition.findMany({
-        where,
-        orderBy: [{ category: "asc" }, { name: "asc" }],
-      });
-      return docs as unknown as TaskLibraryDefinitionDocument[];
-    }
-
-    return TaskLibraryDefinitionModel.find(filter)
-      .sort({ category: 1, name: 1 })
-      .exec();
+    return docs;
   },
 
   async update(
     id: string,
     input: UpdateTaskLibraryDefinitionInput,
   ): Promise<TaskLibraryDefinitionDocument> {
-    const safeId = ensureObjectId(id, "id");
-    if (isReadFromPostgres()) {
-      const existing = await prisma.taskLibraryDefinition.findFirst({
-        where: { id: safeId },
-      });
-      if (!existing) {
-        throw new TaskLibraryServiceError("Library task not found", 404);
-      }
-
-      const updated = await prisma.taskLibraryDefinition.update({
-        where: { id: safeId },
-        data: {
-          category: input.category ?? existing.category,
-          name:
-            input.name === undefined
-              ? existing.name
-              : sanitizeTaskName(input.name),
-          defaultDescription:
-            input.defaultDescription === undefined
-              ? (existing.defaultDescription ?? undefined)
-              : (input.defaultDescription ?? undefined),
-          applicableSpecies:
-            input.applicableSpecies === undefined
-              ? existing.applicableSpecies
-              : ((input.applicableSpecies ??
-                  []) as unknown as TaskLibrarySpecies[]),
-          schema:
-            input.schema === undefined
-              ? (existing.schema as Prisma.InputJsonValue)
-              : ({
-                  medicationFields: input.schema.medicationFields ?? {},
-                  requiresObservationTool:
-                    input.schema.requiresObservationTool ?? false,
-                  recurrence: input.schema.recurrence ?? undefined,
-                } as unknown as Prisma.InputJsonValue),
-          isActive: input.isActive ?? existing.isActive,
-        },
-      });
-
-      return updated as unknown as TaskLibraryDefinitionDocument;
-    }
-
-    const doc = await TaskLibraryDefinitionModel.findById(safeId).exec();
-    if (!doc) {
+    const safeId = ensureId(id, "id");
+    const existing = await prisma.taskLibraryDefinition.findFirst({
+      where: { id: safeId },
+    });
+    if (!existing) {
       throw new TaskLibraryServiceError("Library task not found", 404);
     }
 
-    if (input.category !== undefined) doc.category = input.category;
-    if (input.name !== undefined) doc.name = sanitizeTaskName(input.name);
-    if (input.defaultDescription !== undefined) {
-      doc.defaultDescription = input.defaultDescription;
-    }
+    const updated = await prisma.taskLibraryDefinition.update({
+      where: { id: safeId },
+      data: {
+        category: input.category ?? existing.category,
+        name:
+          input.name === undefined
+            ? existing.name
+            : sanitizeTaskName(input.name),
+        defaultDescription:
+          input.defaultDescription === undefined
+            ? (existing.defaultDescription ?? undefined)
+            : (input.defaultDescription ?? undefined),
+        applicableSpecies:
+          input.applicableSpecies === undefined
+            ? (existing.applicableSpecies ?? undefined)
+            : ((input.applicableSpecies ??
+                []) as unknown as TaskLibrarySpecies[]),
+        schema:
+          input.schema === undefined
+            ? (existing.schema as Prisma.InputJsonValue)
+            : toJsonInput({
+                medicationFields: input.schema.medicationFields ?? {},
+                requiresObservationTool:
+                  input.schema.requiresObservationTool ?? false,
+                recurrence: input.schema.recurrence ?? undefined,
+              }),
+        isActive: input.isActive ?? existing.isActive,
+      },
+    });
 
-    if (input.applicableSpecies !== undefined) {
-      doc.applicableSpecies = input.applicableSpecies ?? undefined;
-    }
-
-    if (input.schema !== undefined) {
-      const nextSchema = {
-        medicationFields: input.schema.medicationFields ?? {},
-        requiresObservationTool: input.schema.requiresObservationTool ?? false,
-        recurrence: input.schema.recurrence ?? undefined,
-      };
-
-      doc.set("schema", nextSchema);
-      doc.markModified("schema");
-    }
-
-    if (input.isActive !== undefined) {
-      doc.isActive = input.isActive;
-    }
-
-    await doc.save();
-    await syncTaskLibraryDefinitionToPostgres(doc);
-    return doc;
+    return updated;
   },
 };

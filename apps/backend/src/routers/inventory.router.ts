@@ -61,6 +61,14 @@ router.post(
   InventoryController.activeItem,
 );
 
+router.patch(
+  "/items/:itemId/status",
+  authorizeCognito,
+  withInventoryItemOrgPermissions(),
+  requirePermission("inventory:edit:any"),
+  InventoryController.toggleItemStatus,
+);
+
 // List items
 router.get(
   "/organisation/:organisationId/items",
@@ -68,6 +76,13 @@ router.get(
   withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryController.listItems,
+);
+
+router.get(
+  "/categories",
+  authorizeCognito,
+  requirePermission("inventory:view:any"),
+  InventoryController.getCategories,
 );
 
 // Inventory turnover

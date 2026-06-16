@@ -10,6 +10,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum ContactType {
@@ -1181,6 +1182,85 @@ enum FormStatus {
   archived
 }
 
+enum TemplateKind {
+  FORM
+  SOAP_NOTE
+  VITAL_RECORD
+  PRESCRIPTION
+  DISCHARGE_SUMMARY
+  TASK_TEMPLATE
+  CARE_PATHWAY
+}
+
+enum RenderedDocumentStatus {
+  DRAFT
+  SIGNED
+}
+
+enum RenderedDocumentSourceKind {
+  TEMPLATE_INSTANCE
+  CLINICAL_ARTIFACT
+  FORM_SUBMISSION
+}
+
+enum DocumentSignatureSignerType {
+  PMS_USER
+  PARENT
+  SYSTEM
+}
+
+enum TemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TemplateOwnershipType {
+  YC_LIBRARY
+  ORG_TEMPLATE
+  USER_TEMPLATE
+}
+
+enum TemplateScope {
+  ORGANISATION
+  SPECIALITY
+  SERVICE
+  APPOINTMENT_KIND
+  INPATIENT
+  OUTPATIENT
+}
+
+enum TemplateInstanceStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  SIGNED
+  VOID
+}
+
+enum TaskScheduleStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum ClinicalArtifactKind {
+  SOAP_NOTE
+  PRESCRIPTION
+  DISCHARGE_SUMMARY
+  VITAL_RECORD
+}
+
+enum ClinicalArtifactStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  SIGNED
+  VOID
+}
+
 enum ServiceType {
   CONSULTATION
   OBSERVATION_TOOL
@@ -1264,6 +1344,7 @@ enum AuditEntityType {
   INVOICE
   DOCUMENT
   FORM
+  TASK
 }
 
 enum AuditEventType {
@@ -1292,6 +1373,9 @@ enum AuditEventType {
   DOCUMENT_DELETED
   FORM_ATTACHED
   FORM_SUBMITTED
+  TASK_CREATED
+  TASK_REASSIGNED
+  TASK_STATUS_CHANGED
 }
 
 enum WithdrawalStatus {
@@ -1313,6 +1397,11 @@ enum InventoryItemStatus {
   ACTIVE
   HIDDEN
   DELETED
+}
+
+enum InventoryItemType {
+  MEDICAL
+  NON_MEDICAL
 }
 
 enum DayOfWeek {
@@ -1474,6 +1563,247 @@ model FormSubmission {
   @@index([submittedAt])
 }
 
+model Template {
+  id                 String               @id @default(uuid())
+  organisationId     String?
+  ownerUserId        String?
+  ownership          TemplateOwnershipType @default(ORG_TEMPLATE)
+  kind               TemplateKind
+  name               String
+  description        String?
+  status             TemplateStatus       @default(DRAFT)
+  scope              TemplateScope        @default(ORGANISATION)
+  rules              Json?
+  latestVersion      Int                  @default(1)
+  publishedVersion   Int?
+  createdBy          String
+  updatedBy          String
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  versions           TemplateVersion[]
+  instances          TemplateInstance[]
+  catalogLinks       TemplateCatalogLink[]
+
+  @@index([organisationId, ownership, kind, status])
+  @@index([organisationId, scope])
+  @@index([ownerUserId])
+  @@index([ownership, kind, status])
+}
+
+model TemplateVersion {
+  id                    String   @id @default(uuid())
+  templateId            String
+  version               Int
+  schemaSnapshot        Json
+  renderConfigSnapshot   Json?
+  validationSnapshot    Json?
+  publishedAt           DateTime?
+  createdBy             String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  template              Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  clinicalArtifacts     ClinicalArtifact[]
+
+  @@unique([templateId, version])
+  @@index([templateId])
+  @@index([publishedAt])
+}
+
+model TemplateCatalogLink {
+  id             String   @id @default(uuid())
+  templateId     String
+  catalogItemId  String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  template       Template   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  catalogItem    ProductItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, catalogItemId])
+  @@index([templateId])
+  @@index([catalogItemId])
+}
+
+model TemplateInstance {
+  id              String                @id @default(uuid())
+  templateId      String
+  templateVersion Int
+  organisationId  String
+  appointmentId   String?
+  caseId          String?
+  encounterId     String?
+  status          TemplateInstanceStatus @default(DRAFT)
+  data            Json
+  authorId        String?
+  signedBy        String?
+  signedAt        DateTime?
+  generatedPdfUrl String?
+  generatedPdf    Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  template        Template              @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  taskSchedule    TaskSchedule?
+  renderedDocuments RenderedDocument[]
+
+  @@index([templateId])
+  @@index([organisationId, appointmentId])
+  @@index([organisationId, encounterId])
+  @@index([organisationId, caseId])
+  @@index([status])
+}
+
+model RenderedDocument {
+  id                String                    @id @default(uuid())
+  organisationId    String
+  sourceKind        RenderedDocumentSourceKind
+  sourceId          String
+  templateInstanceId String?                  @unique
+  clinicalArtifactId String?                  @unique
+  templateId        String?
+  templateVersion   Int?
+  templateVersionId String?
+  kind              TemplateKind
+  version           Int                       @default(1)
+  title             String
+  mimeType          String                    @default("application/pdf")
+  status            RenderedDocumentStatus    @default(DRAFT)
+  signable          Boolean                   @default(true)
+  pdfUrl            String?
+  pdf               Json?
+  signing           Json?
+  signedBy          String?
+  signedAt          DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  templateInstance  TemplateInstance?         @relation(fields: [templateInstanceId], references: [id], onDelete: SetNull)
+  clinicalArtifact  ClinicalArtifact?         @relation(fields: [clinicalArtifactId], references: [id], onDelete: SetNull)
+  signature        DocumentSignature?
+
+  @@index([organisationId, kind, status])
+  @@index([sourceKind, sourceId])
+  @@index([templateId, templateVersion])
+  @@index([templateVersionId])
+}
+
+model DocumentSignature {
+  id                 String                   @id @default(uuid())
+  renderedDocumentId String                   @unique
+  signerId          String
+  signerType        DocumentSignatureSignerType
+  signatureText     String?
+  signedAt          DateTime                  @default(now())
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  renderedDocument  RenderedDocument          @relation(fields: [renderedDocumentId], references: [id], onDelete: Cascade)
+
+  @@index([renderedDocumentId])
+  @@index([signerId])
+}
+
+model ClinicalArtifact {
+  id              String                  @id @default(uuid())
+  organisationId  String
+  appointmentId   String?
+  caseId          String?
+  encounterId     String?
+  kind            ClinicalArtifactKind
+  status          ClinicalArtifactStatus  @default(DRAFT)
+  templateId      String?
+  templateVersion Int?
+  templateVersionId String?
+  authorId        String?
+  signedBy        String?
+  signedAt        DateTime?
+  summary         String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  soapNote        SoapNote?
+  prescription    Prescription?
+  dischargeSummary DischargeSummary?
+  vitalRecord     VitalRecord?
+  templateVersionRecord TemplateVersion?   @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
+  renderedDocuments RenderedDocument[]
+
+  @@index([organisationId, kind, status])
+  @@index([organisationId, appointmentId])
+  @@index([organisationId, encounterId])
+  @@index([organisationId, caseId])
+  @@index([templateId, templateVersion])
+  @@index([templateVersionId])
+}
+
+model SoapNote {
+  id              String           @id @default(uuid())
+  artifactId      String           @unique
+  subjective      Json?
+  objective       Json?
+  assessment      Json?
+  plan            Json?
+  diagnoses       Json?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+}
+
+model Prescription {
+  id              String           @id @default(uuid())
+  artifactId      String           @unique
+  medications     Json?
+  instructions    Json?
+  notes           Json?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+}
+
+model DischargeSummary {
+  id              String           @id @default(uuid())
+  artifactId      String           @unique
+  summary         Json?
+  diagnoses       Json?
+  medications     Json?
+  followUp        Json?
+  instructions    Json?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+}
+
+model VitalRecord {
+  id              String           @id @default(uuid())
+  artifactId      String           @unique
+  measuredAt      DateTime
+  recordedBy      String?
+  vitals          Json
+  notes           Json?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+  @@index([measuredAt])
+}
+
 model Service {
   id                String      @id @default(uuid())
   organisationId    String
@@ -1510,6 +1840,7 @@ model ProductItem {
   bookable        ProductBookable?
   package         ProductPackage?
   packageItems    ProductPackageItem[] @relation("ProductPackageComponent")
+  templateLinks   TemplateCatalogLink[]
 
   @@index([organisationId])
   @@index([organisationId, kind, isActive])
@@ -1584,6 +1915,7 @@ model Task {
   createdBy         String
   assignedBy        String?
   assignedTo        String
+  assignedGroupId   String?
   audience          TaskAudience
   source            TaskSource
   libraryTaskId     String?
@@ -1608,9 +1940,43 @@ model Task {
   updatedAt         DateTime     @updatedAt
 
   @@index([assignedTo, dueAt])
+  @@index([assignedGroupId, dueAt])
   @@index([companionId, dueAt])
   @@index([organisationId, dueAt])
   @@index([dueAt])
+}
+
+model TaskSchedule {
+  id                String            @id @default(uuid())
+  templateInstanceId String            @unique
+  templateId        String
+  templateVersion   Int
+  templateKind      TemplateKind
+  organisationId    String
+  appointmentId     String?
+  caseId            String?
+  encounterId      String?
+  companionId       String?
+  createdBy         String
+  activatedBy       String?
+  activatedAt       DateTime?
+  completedAt       DateTime?
+  lastMaterializedAt DateTime?
+  status            TaskScheduleStatus @default(DRAFT)
+  scheduleInput     Json?
+  materializedSeeds Json?
+  generatedTaskIds  Json?
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  templateInstance  TemplateInstance   @relation(fields: [templateInstanceId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId, status])
+  @@index([templateId, templateVersion])
+  @@index([appointmentId])
+  @@index([encounterId])
+  @@index([companionId])
 }
 
 model TaskCompletion {
@@ -1724,31 +2090,50 @@ model AccountWithdrawal {
 }
 
 model InventoryItem {
-  id             String               @id @default(uuid())
-  organisationId String
-  businessType   InventoryBusinessType
-  name           String
-  sku            String?
-  category       String
-  subCategory    String?
-  description    String?
-  imageUrl       String?
-  attributes     Json                @default("{}")
-  onHand         Int                 @default(0)
-  allocated      Int                 @default(0)
-  reorderLevel   Int?
-  unitCost       Float?
-  sellingPrice   Float?
-  currency       String?
-  vendorId       String?
-  status         InventoryItemStatus @default(ACTIVE)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  id                        String               @id @default(uuid())
+  organisationId            String
+  businessType              InventoryBusinessType
+  itemType                  InventoryItemType     @default(NON_MEDICAL)
+  name                      String
+  sku                       String?
+  category                  String
+  subCategory               String?
+  description               String?
+  imageUrl                  String?
+  attachments               Json?
+  attributes                Json                 @default("{}")
+  genericName               String?
+  strength                  String?
+  dosageForm                String?
+  routeOfAdministration     String?
+  drugClass                 String?
+  prescriptionRequired      Boolean              @default(false)
+  controlledItem            Boolean              @default(false)
+  storageInstructions       String?
+  expiryTrackingRequired    Boolean              @default(false)
+  unitOfMeasure             String?
+  packageQuantity           Int?
+  storageLocation           String?
+  onHand                    Int                  @default(0)
+  allocated                 Int                  @default(0)
+  minimumStock              Int?
+  emergencyStockLevel       Int?
+  reorderLevel              Int?
+  unitCost                  Float?
+  sellingPrice              Float?
+  taxRate                   Float?
+  currency                  String?
+  vendorId                  String?
+  status                    InventoryItemStatus   @default(ACTIVE)
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
 
+  @@unique([organisationId, sku])
   @@index([organisationId, name])
-  @@index([category, subCategory])
-  @@index([businessType])
-  @@index([status])
+  @@index([organisationId, category, subCategory])
+  @@index([organisationId, businessType])
+  @@index([organisationId, status])
+  @@index([organisationId, vendorId])
 }
 
 model InventoryBatch {
@@ -1779,6 +2164,10 @@ model InventoryVendor {
   brand             String?
   vendorType        String?
   licenseNumber     String?
+  vendorItemCode    String?
+  purchasePrice     Float?
+  lastPurchaseDate  DateTime?
+  notes             String?
   paymentTerms      String?
   deliveryFrequency String?
   leadTimeDays      Int?
@@ -1787,6 +2176,36 @@ model InventoryVendor {
   updatedAt         DateTime @updatedAt
 
   @@index([organisationId, name])
+  @@index([organisationId, vendorItemCode])
+}
+
+model InventoryCategory {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  name          String
+  isMedical     Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subcategories  InventorySubcategory[]
+}
+
+model InventorySubcategory {
+  id            String   @id @default(uuid())
+  categoryId    String
+  code          String
+  name          String
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category      InventoryCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, code])
+  @@index([categoryId])
+  @@index([code])
 }
 
 model InventoryMetaField {
@@ -1813,6 +2232,55 @@ model InventoryStockMovement {
 
   @@index([itemId])
   @@index([batchId])
+}
+
+enum InventoryConsumptionSourceType {
+  PRESCRIPTION
+  PACKAGE
+  PROCEDURE
+}
+
+enum InventoryConsumptionAction {
+  CONSUME
+  RESERVE
+  RELEASE
+}
+
+model InventoryConsumptionRule {
+  id                 String                        @id @default(uuid())
+  organisationId     String
+  sourceType         InventoryConsumptionSourceType
+  sourceKey          String
+  inventoryItemId    String
+  quantityMultiplier Float                         @default(1)
+  notes              String?
+  active             Boolean                       @default(true)
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+
+  @@unique([organisationId, sourceType, sourceKey, inventoryItemId])
+  @@index([organisationId, sourceType, sourceKey])
+  @@index([organisationId, inventoryItemId])
+}
+
+model InventoryConsumptionEvent {
+  id              String                        @id @default(uuid())
+  organisationId  String
+  sourceType      InventoryConsumptionSourceType
+  sourceId        String
+  sourceLineKey   String?
+  action          InventoryConsumptionAction     @default(CONSUME)
+  idempotencyKey  String                         @unique
+  inventoryItemId String
+  quantity        Int
+  status          String                         @default("APPLIED")
+  metadata        Json?
+  occurredAt      DateTime                       @default(now())
+  createdAt       DateTime                       @default(now())
+  updatedAt       DateTime                       @updatedAt
+
+  @@index([organisationId, sourceType, sourceId])
+  @@index([organisationId, inventoryItemId])
 }
 
 model BaseAvailability {

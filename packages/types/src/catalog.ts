@@ -1,4 +1,5 @@
 import type { Bundle, Extension, HealthcareService } from '@yosemite-crew/fhir';
+import type { TemplateKind } from './template';
 
 export const PRODUCT_KINDS = [
   'CONSULTATION',
@@ -65,6 +66,12 @@ export type ProductBookable = {
   updatedAt?: Date;
 };
 
+export type CatalogTemplateBinding = {
+  templateKind: TemplateKind;
+  templateId?: string | null;
+  templateVersion?: number | null;
+};
+
 export type ProductPackageItem = {
   id: string;
   packageId: string;
@@ -123,6 +130,8 @@ export type ResolvedCatalogSelection = {
   additionalDiscountAmount: number;
   finalAmount: number;
   breakdownItemCount?: number | null;
+  templateKinds: TemplateKind[];
+  templateBindings: CatalogTemplateBinding[];
   billingItems: ResolvedCatalogItem[];
   includedItems: ResolvedCatalogItem[];
 };

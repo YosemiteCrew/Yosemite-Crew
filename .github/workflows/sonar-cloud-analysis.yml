@@ -23,6 +23,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
       mobile: ${{ steps.filter.outputs.mobile }}
+      desktop: ${{ steps.filter.outputs.desktop }}
       has_changes: ${{ steps.matrix.outputs.has_changes }}
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
@@ -37,21 +38,28 @@ jobs:
             frontend:
               - 'apps/frontend/**'
               - 'packages/types/**'
-              - 'packages/fhirtypes/**'
+              - 'packages/fhir/**'
               - 'pnpm-lock.yaml'
               - 'package.json'
               - 'turbo.json'
             backend:
               - 'apps/backend/**'
               - 'packages/types/**'
-              - 'packages/fhirtypes/**'
+              - 'packages/fhir/**'
               - 'pnpm-lock.yaml'
               - 'package.json'
               - 'turbo.json'
             mobile:
               - 'apps/mobileAppYC/**'
               - 'packages/types/**'
-              - 'packages/fhirtypes/**'
+              - 'packages/fhir/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'turbo.json'
+            desktop:
+              - 'apps/desktop/**'
+              - 'packages/types/**'
+              - 'packages/fhir/**'
               - 'pnpm-lock.yaml'
               - 'package.json'
               - 'turbo.json'
@@ -64,10 +72,12 @@ jobs:
           apps=()
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             apps+=(frontend backend mobile)
+            [[ -d apps/desktop ]] && apps+=(desktop)
           else
             [[ "${{ steps.filter.outputs.frontend }}" == "true" ]] && apps+=(frontend)
             [[ "${{ steps.filter.outputs.backend }}" == "true" ]] && apps+=(backend)
             [[ "${{ steps.filter.outputs.mobile }}" == "true" ]] && apps+=(mobile)
+            [[ "${{ steps.filter.outputs.desktop }}" == "true" ]] && apps+=(desktop)
           fi
 
           if [[ ${#apps[@]} -eq 0 ]]; then
@@ -91,6 +101,10 @@ jobs:
               mobile)
                 dir="apps/mobileAppYC"
                 token="SONAR_TOKEN_MOBILE"
+                ;;
+              desktop)
+                dir="apps/desktop"
+                token="SONAR_TOKEN_DESKTOP"
                 ;;
               *)
                 echo "Unknown app: $app" >&2
@@ -153,7 +167,7 @@ jobs:
       - name: Generate Prisma Client (backend)
         if: matrix.app == 'backend'
         working-directory: ${{ matrix.dir }}
-        run: pnpm prisma generate
+        run: pnpm prisma:generate
 
       - name: Run tests with coverage
         working-directory: ${{ matrix.dir }}

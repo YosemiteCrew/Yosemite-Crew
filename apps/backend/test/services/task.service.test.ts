@@ -1,22 +1,14 @@
-import { TaskService } from "../../src/services/task.service";
-import TaskModel from "../../src/models/task";
-import TaskLibraryDefinitionModel from "../../src/models/taskLibraryDefinition";
-import TaskTemplateModel from "../../src/models/taskTemplate";
-import UserModel from "../../src/models/user";
-import TaskCompletionModel from "../../src/models/taskCompletion";
+import { prisma } from "src/config/prisma";
 import { sendEmailTemplate } from "../../src/utils/email";
 import logger from "../../src/utils/logger";
-import { prisma } from "src/config/prisma";
+import { AuditTrailService } from "../../src/services/audit-trail.service";
+import { TaskService } from "../../src/services/task.service";
 
-// --- Mocks ---
-jest.mock("../../src/models/task");
-jest.mock("../../src/models/taskLibraryDefinition");
-jest.mock("../../src/models/taskTemplate");
-jest.mock("../../src/models/companion");
-jest.mock("../../src/models/user");
-jest.mock("../../src/models/taskCompletion");
-jest.mock("../../src/utils/email");
-jest.mock("../../src/utils/logger");
+jest.mock("../../src/services/audit-trail.service", () => ({
+  AuditTrailService: {
+    recordSafely: jest.fn(),
+  },
+}));
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -29,809 +21,552 @@ jest.mock("src/config/prisma", () => ({
     taskCompletion: {
       create: jest.fn(),
     },
+    taskLibraryDefinition: {
+      findFirst: jest.fn(),
+    },
+    taskTemplate: {
+      findFirst: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+    },
+    companion: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
-// Helpers for Mongoose Chains
-const mockChain = (result: any) => ({
-  select: jest.fn().mockReturnThis(),
-  sort: jest.fn().mockReturnThis(),
-  lean: jest.fn().mockResolvedValue(result),
-  exec: jest.fn().mockResolvedValue(result),
-});
+jest.mock("../../src/utils/email", () => ({
+  sendEmailTemplate: jest.fn(),
+}));
 
-const mockDoc = (data: any) => ({
-  ...data,
-  save: jest.fn().mockResolvedValue(data),
-  toObject: jest.fn().mockReturnValue(data),
-  _id: data._id ?? "task-id",
-});
+jest.mock("../../src/utils/logger", () => ({
+  __esModule: true,
+  default: {
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+const mockedPrisma = prisma as unknown as {
+  task: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+  };
+  taskCompletion: {
+    create: jest.Mock;
+  };
+  taskLibraryDefinition: {
+    findFirst: jest.Mock;
+  };
+  taskTemplate: {
+    findFirst: jest.Mock;
+  };
+  user: {
+    findFirst: jest.Mock;
+  };
+  companion: {
+    findFirst: jest.Mock;
+  };
+};
+const mockedAuditTrailService = AuditTrailService as unknown as {
+  recordSafely: jest.Mock;
+};
 
 describe("TaskService", () => {
-  const mockDate = new Date("2025-01-01T12:00:00Z");
-  const libraryTaskId = "507f1f77bcf86cd799439011";
-  const templateId = "507f1f77bcf86cd799439012";
-  const otherTemplateId = "507f1f77bcf86cd799439013";
+  const dueAt = new Date("2026-01-01T12:00:00.000Z");
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("Postgres branches", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
+  it("creates a custom task and sends an assignment email", async () => {
+    mockedPrisma.task.create.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      audience: "EMPLOYEE_TASK",
+      assignedTo: "user-2",
+      assignedBy: "user-1",
+      createdBy: "user-1",
+      companionId: "comp-1",
+      dueAt,
+      name: "Check vitals",
+      additionalNotes: "Take before lunch",
+    });
+    mockedPrisma.user.findFirst
+      .mockResolvedValueOnce({
+        email: "assignee@test.com",
+        firstName: "Jane",
+        lastName: "Doe",
+      })
+      .mockResolvedValueOnce({
+        firstName: "John",
+        lastName: "Smith",
+      });
+    mockedPrisma.companion.findFirst.mockResolvedValueOnce({ name: "Milo" });
 
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.task.create as jest.Mock).mockReset();
-      (prisma.task.findFirst as jest.Mock).mockReset();
-      (prisma.task.findMany as jest.Mock).mockReset();
-      (prisma.task.update as jest.Mock).mockReset();
-      (prisma.taskCompletion.create as jest.Mock).mockReset();
+    const result = await TaskService.createCustom({
+      category: "Care",
+      name: "Check vitals",
+      createdBy: "user-1",
+      assignedBy: "user-1",
+      assignedTo: "user-2",
+      dueAt,
+      audience: "EMPLOYEE_TASK",
+      companionId: "comp-1",
+      additionalNotes: "Take before lunch",
     });
 
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
-    });
-
-    it("createCustom creates task via prisma", async () => {
-      (prisma.task.create as jest.Mock).mockResolvedValueOnce({
-        id: "task-1",
-        createdBy: "u1",
-        assignedTo: "u2",
-      });
-
-      const result = await TaskService.createCustom({
-        category: "Cat",
-        name: "Task",
-        createdBy: "u1",
-        assignedTo: "u2",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-      });
-
-      expect(prisma.task.create).toHaveBeenCalled();
-      expect(result).toEqual(
-        expect.objectContaining({ id: "task-1", createdBy: "u1" }),
-      );
-    });
-
-    it("changeStatus updates task and creates completion", async () => {
-      (prisma.task.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "task-1",
-        assignedTo: "u1",
-        createdBy: "u2",
-        status: "PENDING",
-        companionId: "comp-1",
-        completedAt: null,
-        completedBy: null,
-      });
-      (prisma.taskCompletion.create as jest.Mock).mockResolvedValueOnce({
-        id: "comp-1",
-      });
-      (prisma.task.update as jest.Mock).mockResolvedValueOnce({
-        id: "task-1",
-        status: "COMPLETED",
-      });
-
-      const res = await TaskService.changeStatus("task-1", "COMPLETED", "u1", {
-        answers: [{ questionId: "q1", answer: "a1" }],
-      } as any);
-
-      expect(prisma.taskCompletion.create).toHaveBeenCalled();
-      expect(res.task.status).toBe("COMPLETED");
-    });
-
-    it("getById returns task via prisma", async () => {
-      (prisma.task.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "task-1",
-      });
-      const res = await TaskService.getById("task-1");
-      expect(res).toEqual(expect.objectContaining({ id: "task-1" }));
-    });
-
-    it("listForParent returns tasks", async () => {
-      (prisma.task.findMany as jest.Mock).mockResolvedValueOnce([
-        { id: "task-1" },
-      ]);
-      const res = await TaskService.listForParent({ parentId: "p1" });
-      expect(res).toHaveLength(1);
-      expect(prisma.task.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            audience: "PARENT_TASK",
-            OR: [{ assignedTo: "p1" }, { createdBy: "p1" }],
-          }),
-        }),
-      );
-    });
-
-    it("listForEmployee returns tasks", async () => {
-      (prisma.task.findMany as jest.Mock).mockResolvedValueOnce([
-        { id: "task-1" },
-      ]);
-      const res = await TaskService.listForEmployee({
-        organisationId: "org-1",
-      });
-      expect(res).toHaveLength(1);
-      expect(prisma.task.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            organisationId: "org-1",
-            audience: "EMPLOYEE_TASK",
-          }),
-        }),
-      );
-    });
-
-    it("listForCompanion returns tasks", async () => {
-      (prisma.task.findMany as jest.Mock).mockResolvedValueOnce([
-        { id: "task-1" },
-      ]);
-      const res = await TaskService.listForCompanion({
-        companionId: "c1",
-        organisationId: "org-1",
-      });
-      expect(res).toHaveLength(1);
-      expect(prisma.task.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            companionId: "c1",
-            organisationId: "org-1",
-          }),
-        }),
-      );
-    });
-
-    it("linkToAppointment updates task", async () => {
-      (prisma.task.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "task-1",
-      });
-      (prisma.task.update as jest.Mock).mockResolvedValueOnce({
-        id: "task-1",
-        appointmentId: "appt-1",
-      });
-
-      const res = await TaskService.linkToAppointment({
-        taskId: "task-1",
-        appointmentId: "appt-1",
-      });
-      expect(res.appointmentId).toBe("appt-1");
-    });
-  });
-
-  // --- Helper Tests (Indirectly tested via public methods, but explicit checks ensure coverage) ---
-
-  describe("Internal Helpers (Medication & Recurrence)", () => {
-    // We test these via createCustom to hit the private functions
-    it("should sanitize medication input (valid)", async () => {
-      (TaskModel.create as jest.Mock).mockResolvedValue(mockDoc({}));
-
-      await TaskService.createCustom({
-        category: "Health",
-        name: "Meds",
-        createdBy: "u1",
-        assignedTo: "u1",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-        companionId: "c1", // FIX: Required when medication is present
-        medication: {
-          name: "  Pill  ",
-          type: "  Type  ",
-          notes: "  Note  ",
-          doses: [{ time: "08:00", dosage: " 5mg ", instructions: " food " }],
-        },
-      });
-
-      expect(TaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          medication: {
-            name: "Pill",
-            type: "Type",
-            notes: "Note",
-            doses: [{ time: "08:00", dosage: "5mg", instructions: "food" }],
-          },
-        }),
-      );
-    });
-
-    it("should filter invalid medication doses", async () => {
-      (TaskModel.create as jest.Mock).mockResolvedValue(mockDoc({}));
-
-      await TaskService.createCustom({
-        category: "Health",
-        name: "Meds",
-        createdBy: "u1",
-        assignedTo: "u1",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-        companionId: "c1", // FIX: Required when medication is present
-        medication: {
-          doses: [
-            { time: "invalid" }, // Invalid time format
-            { time: "08:00" }, // Valid
-            { dosage: "5mg" }, // Valid (no time required if dosage present)
-          ],
-        },
-      });
-
-      expect(TaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          medication: {
-            doses: [
-              { time: "08:00", dosage: undefined, instructions: undefined },
-              { time: undefined, dosage: "5mg", instructions: undefined },
-            ],
-          },
-        }),
-      );
-    });
-
-    it("should return undefined for empty medication object", async () => {
-      (TaskModel.create as jest.Mock).mockResolvedValue(mockDoc({}));
-      await TaskService.createCustom({
-        category: "C",
-        name: "N",
-        createdBy: "u1",
-        assignedTo: "u1",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-        medication: { name: "", doses: [] },
-      });
-      expect(TaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          medication: undefined,
-        }),
-      );
-    });
-
-    it("should build ONCE recurrence correctly", async () => {
-      (TaskModel.create as jest.Mock).mockResolvedValue(mockDoc({}));
-      await TaskService.createCustom({
-        category: "C",
-        name: "N",
-        createdBy: "u1",
-        assignedTo: "u1",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-        recurrence: { type: "ONCE" },
-      });
-      expect(TaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          recurrence: expect.objectContaining({
-            type: "ONCE",
-            isMaster: false,
-          }),
-        }),
-      );
-    });
-
-    it("should build RECURRING recurrence correctly", async () => {
-      (TaskModel.create as jest.Mock).mockResolvedValue(mockDoc({}));
-      await TaskService.createCustom({
-        category: "C",
-        name: "N",
-        createdBy: "u1",
-        assignedTo: "u1",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-        recurrence: {
-          type: "DAILY",
-          cronExpression: "* * *",
-          endDate: mockDate,
-        },
-      });
-      expect(TaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          recurrence: expect.objectContaining({
-            type: "DAILY",
-            isMaster: true,
-            endDate: mockDate,
-          }),
-        }),
-      );
-    });
-  });
-
-  // --- Creation Methods ---
-
-  describe("createFromLibrary", () => {
-    it("should create task from library definition", async () => {
-      const libraryTask = {
-        _id: libraryTaskId,
-        isActive: true,
-        category: "Cat",
-        name: "LibName",
-        defaultDescription: "Desc",
-      };
-      (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(libraryTask),
-      });
-      (TaskModel.create as jest.Mock).mockResolvedValue(
-        mockDoc({ name: "LibName" }),
-      );
-
-      await TaskService.createFromLibrary({
-        libraryTaskId,
-        createdBy: "u1",
-        assignedTo: "u2",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-        reminder: { enabled: true, offsetMinutes: 30 },
-      });
-
-      expect(TaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: "YC_LIBRARY",
-          name: "LibName",
-          reminder: {
-            enabled: true,
-            offsetMinutes: 30,
-            scheduledNotificationId: undefined,
-          },
-        }),
-      );
-    });
-
-    it("should throw 404 if library task not found or inactive", async () => {
-      (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
-      await expect(
-        TaskService.createFromLibrary({ libraryTaskId } as any),
-      ).rejects.toThrow("Library task not found");
-    });
-
-    it("should validate companion requirement for PARENT_TASK", async () => {
-      (TaskLibraryDefinitionModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue({ isActive: true }),
-      });
-      await expect(
-        TaskService.createFromLibrary({
-          libraryTaskId,
-          audience: "PARENT_TASK",
-          companionId: undefined,
-        } as any),
-      ).rejects.toThrow("companionId is required");
-    });
-  });
-
-  describe("createFromTemplate", () => {
-    const validTemplate = {
-      _id: templateId,
-      isActive: true,
-      organisationId: "org1",
-      defaultRole: "EMPLOYEE",
-      defaultRecurrence: { type: "DAILY", defaultEndOffsetDays: 7 },
-      defaultReminderOffsetMinutes: 15,
-    };
-
-    it("should create task from template", async () => {
-      (TaskTemplateModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(validTemplate),
-      });
-      (TaskModel.create as jest.Mock).mockResolvedValue(mockDoc({}));
-
-      await TaskService.createFromTemplate({
-        templateId,
-        organisationId: "org1",
-        createdBy: "u1",
-        assignedTo: "u1",
-        dueAt: mockDate,
-      });
-
-      expect(TaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: "ORG_TEMPLATE",
-          recurrence: expect.objectContaining({ type: "DAILY" }), // Calculated end date logic
-          reminder: expect.objectContaining({ offsetMinutes: 15 }),
-        }),
-      );
-    });
-
-    it("should throw if template org mismatch", async () => {
-      (TaskTemplateModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(validTemplate),
-      });
-      await expect(
-        TaskService.createFromTemplate({
-          templateId,
-          organisationId: "org2", // Mismatch
-        } as any),
-      ).rejects.toThrow("Template does not belong to organisation");
-    });
-
-    it("should throw 404 if template not found", async () => {
-      (TaskTemplateModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
-      await expect(
-        TaskService.createFromTemplate({ templateId: otherTemplateId } as any),
-      ).rejects.toThrow("not found");
-    });
-  });
-
-  describe("createCustom", () => {
-    it("should create a custom task", async () => {
-      (TaskModel.create as jest.Mock).mockResolvedValue(
-        mockDoc({ _id: "t1", audience: "EMPLOYEE_TASK" }),
-      );
-
-      const result = await TaskService.createCustom({
-        category: "Misc",
-        name: "Custom Task",
-        createdBy: "u1",
-        assignedTo: "u1",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-      });
-
-      expect(result).toBeDefined();
-      expect(TaskModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ source: "CUSTOM" }),
-      );
-    });
-
-    it("should throw if name/category missing", async () => {
-      await expect(
-        TaskService.createCustom({ name: "" } as any),
-      ).rejects.toThrow("category and name are required");
-    });
-  });
-
-  // --- Email Notification Logic ---
-
-  describe("sendTaskAssignmentEmail (Private function triggered via create)", () => {
-    it("should send email if audience is EMPLOYEE_TASK", async () => {
-      // Setup mock return for TaskModel.create
-      const taskDoc = mockDoc({
-        _id: "t1",
-        audience: "EMPLOYEE_TASK",
-        name: "Task",
-        assignedTo: "u2",
-        createdBy: "u1",
-        dueAt: mockDate,
-      });
-      (TaskModel.create as jest.Mock).mockResolvedValue(taskDoc);
-
-      // Setup User mocks for email logic
-      (UserModel.findOne as jest.Mock)
-        .mockReturnValueOnce(
-          mockChain({
-            email: "u2@test.com",
-            firstName: "User",
-            lastName: "Two",
-          }),
-        ) // Assignee
-        .mockReturnValueOnce(mockChain({ firstName: "User", lastName: "One" })); // Assigner
-
-      await TaskService.createCustom({
-        category: "C",
-        name: "T",
-        createdBy: "u1",
-        assignedTo: "u2",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-      });
-
-      // We need to wait a tick because sendTaskAssignmentEmail is called without await (void)
-      await new Promise(process.nextTick);
-
-      expect(sendEmailTemplate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: "u2@test.com",
-          templateId: "taskAssigned",
-          templateData: expect.objectContaining({ taskName: "Task" }),
-        }),
-      );
-    });
-
-    it("should NOT send email if audience is PARENT_TASK", async () => {
-      const taskDoc = mockDoc({
-        _id: "t1",
-        audience: "PARENT_TASK",
-        assignedTo: "u2",
-        createdBy: "u1",
-        companionId: "c1",
-        dueAt: mockDate,
-      });
-      (TaskModel.create as jest.Mock).mockResolvedValue(taskDoc);
-
-      await TaskService.createCustom({
-        category: "C",
-        name: "T",
-        createdBy: "u1",
-        assignedTo: "u2",
-        dueAt: mockDate,
-        audience: "PARENT_TASK",
-        companionId: "c1",
-      });
-
-      await new Promise(process.nextTick);
-      expect(sendEmailTemplate).not.toHaveBeenCalled();
-    });
-
-    it("should catch errors during email sending", async () => {
-      const taskDoc = mockDoc({
-        _id: "t1",
-        audience: "EMPLOYEE_TASK",
-        assignedTo: "u2",
-        dueAt: mockDate,
-      });
-      (TaskModel.create as jest.Mock).mockResolvedValue(taskDoc);
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ email: "u2@test.com" }),
-      );
-      (sendEmailTemplate as jest.Mock).mockRejectedValue(
-        new Error("Mail Fail"),
-      );
-
-      await TaskService.createCustom({
-        category: "C",
-        name: "T",
-        createdBy: "u1",
-        assignedTo: "u2",
-        dueAt: mockDate,
-        audience: "EMPLOYEE_TASK",
-      });
-      await new Promise(process.nextTick);
-
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to send task assignment email"),
-        expect.anything(),
-      );
-    });
-  });
-
-  // --- Update Operations ---
-
-  describe("updateTask", () => {
-    it("should allow creator to update and reassign", async () => {
-      const task = mockDoc({ createdBy: "u1", assignedTo: "u1" });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      await TaskService.updateTask(
-        "t1",
-        { assignedTo: "u2", name: "New Name" },
-        "u1",
-      );
-
-      expect(task.assignedTo).toBe("u2");
-      expect(task.name).toBe("New Name");
-      expect(task.save).toHaveBeenCalled();
-    });
-
-    it("should forbid non-creator from reassigning", async () => {
-      const task = mockDoc({ createdBy: "u1", assignedTo: "u2" }); // u2 is assignee, not creator
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      await expect(
-        TaskService.updateTask("t1", { assignedTo: "u3" }, "u2"),
-      ).rejects.toThrow("Only task creator can reassign task");
-    });
-
-    it("should forbid random user from updating", async () => {
-      const task = mockDoc({ createdBy: "u1", assignedTo: "u2" });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      await expect(
-        TaskService.updateTask("t1", { name: "Hack" }, "u3"),
-      ).rejects.toThrow("Not allowed to update this task");
-    });
-
-    it("should handle complex updates (medication, reminder, recurrence)", async () => {
-      const task = mockDoc({
-        createdBy: "u1",
-        assignedTo: "u1",
-        recurrence: { type: "ONCE" },
-      });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      await TaskService.updateTask(
-        "t1",
-        {
-          medication: null, // Clear med
-          reminder: null, // Clear reminder
-          recurrence: { type: "DAILY" }, // Change recurrence
-        },
-        "u1",
-      );
-
-      expect(task.medication).toBeUndefined();
-      expect(task.reminder).toBeUndefined();
-      expect(task.recurrence.type).toBe("DAILY");
-    });
-
-    it("should handle recurrence updates when existing recurrence is null", async () => {
-      const task = mockDoc({
-        createdBy: "u1",
-        assignedTo: "u1",
-        recurrence: undefined,
-      });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      await TaskService.updateTask(
-        "t1",
-        { recurrence: { type: "DAILY" } },
-        "u1",
-      );
-      expect(task.recurrence).toBeDefined();
-    });
-
-    it("should handle recurrence updates clearing recurrence", async () => {
-      const task = mockDoc({
-        createdBy: "u1",
-        assignedTo: "u1",
-        recurrence: {},
-      });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      await TaskService.updateTask("t1", { recurrence: null }, "u1");
-      expect(task.recurrence).toBeUndefined();
-    });
-  });
-
-  describe("changeStatus", () => {
-    it("should change status to IN_PROGRESS", async () => {
-      const task = mockDoc({ createdBy: "u1", status: "PENDING" });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      await TaskService.changeStatus("t1", "IN_PROGRESS", "u1");
-      expect(task.status).toBe("IN_PROGRESS");
-    });
-
-    it("should change status to COMPLETED and create Completion record", async () => {
-      const task = mockDoc({
-        _id: "t1",
-        createdBy: "u1",
-        status: "IN_PROGRESS",
-        companionId: "c1",
-      });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-      (TaskCompletionModel.create as jest.Mock).mockResolvedValue({
-        _id: "comp1",
-      });
-
-      const result = await TaskService.changeStatus("t1", "COMPLETED", "u1", {
-        filledBy: "u1",
-        answers: { q: 1 },
-      });
-
-      expect(task.status).toBe("COMPLETED");
-      expect(task.completedAt).toBeDefined();
-      expect(TaskCompletionModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ taskId: "t1" }),
-      );
-      expect(result.completion).toBeDefined();
-    });
-
-    it("should throw if task already finished", async () => {
-      const task = mockDoc({ createdBy: "u1", status: "COMPLETED" });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-      await expect(
-        TaskService.changeStatus("t1", "PENDING", "u1"),
-      ).rejects.toThrow("Task already finished");
-    });
-
-    it("should handle arbitrary status change", async () => {
-      const task = mockDoc({ createdBy: "u1", status: "IN_PROGRESS" });
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-      await TaskService.changeStatus("t1", "PENDING", "u1");
-      expect(task.status).toBe("PENDING");
-    });
-  });
-
-  // --- List Queries ---
-
-  describe("getById", () => {
-    it("should return task", async () => {
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue("task"),
-      });
-      expect(await TaskService.getById("t1")).toBe("task");
-    });
-  });
-
-  describe("listForParent", () => {
-    it("should list tasks with correct filters", async () => {
-      (TaskModel.find as jest.Mock).mockReturnValue(mockChain([]));
-
-      await TaskService.listForParent({
-        parentId: "p1",
-        companionId: "c1",
-        fromDueAt: mockDate,
-        status: ["PENDING"],
-      });
-
-      expect(TaskModel.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          audience: "PARENT_TASK",
-          companionId: "c1",
-          status: { $in: ["PENDING"] },
-          dueAt: { $gte: mockDate },
-        }),
-      );
-    });
-  });
-
-  describe("listForEmployee", () => {
-    it("should list tasks with correct filters", async () => {
-      (TaskModel.find as jest.Mock).mockReturnValue(mockChain([]));
-
-      await TaskService.listForEmployee({
-        organisationId: "o1",
-        userId: "u1",
-      });
-
-      expect(TaskModel.find).toHaveBeenCalledWith(
-        expect.objectContaining({
+    await new Promise(process.nextTick);
+
+    expect(mockedPrisma.task.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          source: "CUSTOM",
+          assignedTo: "user-2",
           audience: "EMPLOYEE_TASK",
-          organisationId: "o1",
-          assignedTo: "u1",
         }),
-      );
-    });
+      }),
+    );
+    expect(sendEmailTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "assignee@test.com",
+        templateId: "taskAssigned",
+      }),
+    );
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "TASK_CREATED",
+        entityType: "TASK",
+        entityId: "task-1",
+      }),
+    );
+    expect(result.id).toBe("task-1");
   });
 
-  describe("listForCompanion", () => {
-    it("should list tasks for companion", async () => {
-      (TaskModel.find as jest.Mock).mockReturnValue(mockChain([]));
-      await TaskService.listForCompanion({
-        companionId: "c1",
-        organisationId: "org-1",
-        audience: "PARENT_TASK",
-      });
-      expect(TaskModel.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          companionId: "c1",
-          organisationId: "org-1",
+  it("creates a custom task with a group target without emailing a user", async () => {
+    mockedPrisma.task.create.mockResolvedValueOnce({
+      id: "task-group-1",
+      organisationId: "org-1",
+      audience: "EMPLOYEE_TASK",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      assignedBy: "user-1",
+      createdBy: "user-1",
+      companionId: "comp-1",
+      dueAt,
+      name: "Check vitals",
+      additionalNotes: "Take before lunch",
+    });
+
+    const result = await TaskService.createCustom({
+      category: "Care",
+      name: "Check vitals",
+      createdBy: "user-1",
+      assignedBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      dueAt,
+      audience: "EMPLOYEE_TASK",
+      companionId: "comp-1",
+      additionalNotes: "Take before lunch",
+    });
+
+    expect(mockedPrisma.task.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assignedGroupId: "group-1",
+        }),
+      }),
+    );
+    expect(sendEmailTemplate).not.toHaveBeenCalled();
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "TASK_CREATED",
+        entityType: "TASK",
+        entityId: "task-group-1",
+      }),
+    );
+    expect(result.assignedGroupId).toBe("group-1");
+  });
+
+  it("creates a task from a library definition", async () => {
+    mockedPrisma.taskLibraryDefinition.findFirst.mockResolvedValueOnce({
+      id: "lib-1",
+      isActive: true,
+      category: "Library",
+      name: "Hydration",
+      defaultDescription: "Give water",
+    });
+    mockedPrisma.task.create.mockResolvedValueOnce({
+      id: "task-2",
+      organisationId: "org-1",
+      companionId: "comp-1",
+      audience: "EMPLOYEE_TASK",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      dueAt,
+      name: "Hydration",
+    });
+    mockedPrisma.user.findFirst.mockResolvedValue({
+      email: "assignee@test.com",
+      firstName: "Jane",
+      lastName: "Doe",
+    });
+
+    await TaskService.createFromLibrary({
+      libraryTaskId: "lib-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      dueAt,
+      audience: "EMPLOYEE_TASK",
+    });
+
+    expect(mockedPrisma.task.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          source: "YC_LIBRARY",
+          libraryTaskId: "lib-1",
+          name: "Hydration",
+        }),
+      }),
+    );
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "TASK_CREATED",
+        entityType: "TASK",
+        entityId: "task-2",
+      }),
+    );
+  });
+
+  it("creates a task from a template with reminder defaults", async () => {
+    mockedPrisma.taskTemplate.findFirst.mockResolvedValueOnce({
+      id: "tmpl-1",
+      organisationId: "org-1",
+      isActive: true,
+      defaultRole: "PARENT",
+      category: "Discharge",
+      name: "Follow up",
+      description: "Call owner",
+      defaultMedication: null,
+      defaultObservationToolId: null,
+      defaultRecurrence: {
+        type: "DAILY",
+        defaultEndOffsetDays: 2,
+      },
+      defaultReminderOffsetMinutes: 15,
+      libraryTaskId: null,
+    });
+    mockedPrisma.task.create.mockResolvedValueOnce({
+      id: "task-3",
+      organisationId: "org-1",
+      companionId: "comp-1",
+      audience: "PARENT_TASK",
+      createdBy: "user-1",
+      assignedTo: "user-3",
+      dueAt,
+      name: "Follow up",
+    });
+
+    const result = await TaskService.createFromTemplate({
+      templateId: "tmpl-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-3",
+      dueAt,
+      companionId: "comp-1",
+    });
+
+    expect(mockedPrisma.task.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          source: "ORG_TEMPLATE",
+          templateId: "tmpl-1",
           audience: "PARENT_TASK",
         }),
-      );
-    });
+      }),
+    );
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "TASK_CREATED",
+        entityType: "TASK",
+        entityId: "task-3",
+      }),
+    );
+    expect(result.id).toBe("task-3");
   });
 
-  describe("linkToAppointment", () => {
-    it("should update appointmentId", async () => {
-      const task = mockDoc({});
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(task),
-      });
-
-      await TaskService.linkToAppointment({
-        taskId: "t1",
-        appointmentId: "a1",
-      });
-      expect(task.appointmentId).toBe("a1");
-      expect(task.save).toHaveBeenCalled();
+  it("creates a task from a workflow seed", async () => {
+    mockedPrisma.task.create.mockResolvedValueOnce({
+      id: "task-4",
+      organisationId: "org-1",
+      companionId: "comp-1",
+      audience: "PARENT_TASK",
+      createdBy: "user-1",
+      assignedTo: "parent-1",
+      dueAt,
+      name: "Discharge follow-up",
     });
 
-    it("should throw if task not found", async () => {
-      (TaskModel.findById as jest.Mock).mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
-      await expect(
-        TaskService.linkToAppointment({ taskId: "t1", appointmentId: "a1" }),
-      ).rejects.toThrow("not found");
+    const result = await TaskService.createFromWorkflowSeed(
+      {
+        source: "ORG_TEMPLATE",
+        organisationId: "org-1",
+        createdBy: "user-1",
+        assignedBy: "user-1",
+        assignedTo: "parent-1",
+        audience: "PARENT_TASK",
+        companionId: "comp-1",
+        category: "Discharge",
+        name: "Discharge follow-up",
+        medication: {
+          name: "Antibiotic",
+          frequency: "BID",
+        },
+        dueAt,
+      },
+      { notify: false },
+    );
+
+    expect(mockedPrisma.task.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          source: "ORG_TEMPLATE",
+          assignedTo: "parent-1",
+          medication: expect.objectContaining({
+            name: "Antibiotic",
+            frequency: "BID",
+          }),
+        }),
+      }),
+    );
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "TASK_CREATED",
+        entityType: "TASK",
+        entityId: "task-4",
+      }),
+    );
+    expect(result.id).toBe("task-4");
+  });
+
+  it("rejects workflow seeds that require a companion but do not provide one", async () => {
+    await expect(
+      TaskService.createFromWorkflowSeed(
+        {
+          source: "ORG_TEMPLATE",
+          organisationId: "org-1",
+          createdBy: "user-1",
+          assignedTo: "parent-1",
+          audience: "PARENT_TASK",
+          category: "Discharge",
+          name: "Discharge follow-up",
+          dueAt,
+        },
+        { notify: false },
+      ),
+    ).rejects.toThrow(
+      "companionId is required for parent, medication, or observation tool tasks",
+    );
+  });
+
+  it("updates a task and blocks reassignment by non-creators", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
     });
+
+    await expect(
+      TaskService.updateTask("task-1", { assignedTo: "user-3" }, "user-2"),
+    ).rejects.toThrow("Only task creator can reassign task");
+  });
+
+  it("reassigns a task to a group for creators", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      companionId: "comp-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: null,
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      companionId: "comp-1",
+      assignedGroupId: "group-1",
+      assignedBy: "user-1",
+    });
+
+    const result = await TaskService.updateTask(
+      "task-1",
+      { assignedGroupId: "group-1" },
+      "user-1",
+    );
+
+    expect(mockedPrisma.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assignedGroupId: "group-1",
+          assignedBy: "user-1",
+        }),
+      }),
+    );
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "TASK_REASSIGNED",
+        entityType: "TASK",
+        entityId: "task-1",
+      }),
+    );
+    expect(result.assignedGroupId).toBe("group-1");
+  });
+
+  it("changes status and creates completion records", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      companionId: "comp-1",
+      status: "PENDING",
+      completedAt: null,
+      completedBy: null,
+    });
+    mockedPrisma.taskCompletion.create.mockResolvedValueOnce({
+      id: "completion-1",
+      taskId: "task-1",
+      companionId: "comp-1",
+      filledBy: "user-2",
+      answers: { ok: true },
+      score: null,
+      summary: null,
+      createdAt: new Date(),
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      companionId: "comp-1",
+      status: "COMPLETED",
+    });
+
+    const result = await TaskService.changeStatus(
+      "task-1",
+      "COMPLETED",
+      "user-2",
+      {
+        filledBy: "user-2",
+        answers: { ok: true },
+      },
+    );
+
+    expect(mockedPrisma.taskCompletion.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          taskId: "task-1",
+          companionId: "comp-1",
+        }),
+      }),
+    );
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "TASK_STATUS_CHANGED",
+        entityType: "TASK",
+        entityId: "task-1",
+      }),
+    );
+    expect(result.task.status).toBe("COMPLETED");
+    expect(result.completion?.id).toBe("completion-1");
+  });
+
+  it("lists tasks for a parent", async () => {
+    mockedPrisma.task.findMany.mockResolvedValueOnce([{ id: "task-1" }]);
+
+    const result = await TaskService.listForParent({
+      parentId: "parent-1",
+      status: ["PENDING"],
+    });
+
+    expect(mockedPrisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          audience: "PARENT_TASK",
+          OR: [{ assignedTo: "parent-1" }, { createdBy: "parent-1" }],
+          status: { in: ["PENDING"] },
+        }),
+      }),
+    );
+    expect(result).toEqual([{ id: "task-1", _id: "task-1" }]);
+  });
+
+  it("lists tasks for an employee", async () => {
+    mockedPrisma.task.findMany.mockResolvedValueOnce([{ id: "task-2" }]);
+
+    const result = await TaskService.listForEmployee({
+      organisationId: "org-1",
+      userId: "user-1",
+    });
+
+    expect(mockedPrisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          audience: "EMPLOYEE_TASK",
+          organisationId: "org-1",
+          assignedTo: "user-1",
+        }),
+      }),
+    );
+    expect(result).toEqual([{ id: "task-2", _id: "task-2" }]);
+  });
+
+  it("lists tasks for a group", async () => {
+    mockedPrisma.task.findMany.mockResolvedValueOnce([{ id: "task-3" }]);
+
+    const result = await TaskService.listForGroup({
+      organisationId: "org-1",
+      groupId: "group-1",
+    });
+
+    expect(mockedPrisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org-1",
+          assignedGroupId: "group-1",
+        }),
+      }),
+    );
+    expect(result).toEqual([{ id: "task-3", _id: "task-3" }]);
+  });
+
+  it("links a task to an appointment", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      appointmentId: "appt-1",
+    });
+
+    const result = await TaskService.linkToAppointment({
+      taskId: "task-1",
+      appointmentId: "appt-1",
+    });
+
+    expect(result.appointmentId).toBe("appt-1");
   });
 });

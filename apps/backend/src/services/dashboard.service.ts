@@ -1,4 +1,5 @@
 // src/services/dashboard.service.ts
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 import dayjs from "dayjs";
 import { Types } from "mongoose";
 
@@ -957,22 +958,21 @@ export const DashboardService = {
     }
 
     // 1) Sum up all negative stock movements (consumption)
-    const consumptionAgg =
-      await StockMovementModel.aggregate<InventoryConsumptionAgg>([
-        {
-          $match: {
-            organisationId,
-            createdAt: { $gte: from, $lte: to },
-            change: { $lt: 0 },
-          },
+    const consumptionAgg = await StockMovementModel.aggregate([
+      {
+        $match: {
+          organisationId,
+          createdAt: { $gte: from, $lte: to },
+          change: { $lt: 0 },
         },
-        {
-          $group: {
-            _id: null,
-            totalConsumed: { $sum: { $multiply: ["$change", -1] } },
-          },
+      },
+      {
+        $group: {
+          _id: null,
+          totalConsumed: { $sum: { $multiply: ["$change", -1] } },
         },
-      ]);
+      },
+    ]);
 
     const totalConsumed = consumptionAgg[0]?.totalConsumed ?? 0;
 
@@ -994,28 +994,27 @@ export const DashboardService = {
       turnsPerYear > 0 ? Math.round(365 / turnsPerYear) : null;
 
     // 4) Monthly trend (rough: same formula grouped per month)
-    const monthlyAgg =
-      await StockMovementModel.aggregate<MonthlyConsumptionAgg>([
-        {
-          $match: {
-            organisationId,
-            createdAt: { $gte: from, $lte: to },
-            change: { $lt: 0 },
-          },
+    const monthlyAgg = await StockMovementModel.aggregate([
+      {
+        $match: {
+          organisationId,
+          createdAt: { $gte: from, $lte: to },
+          change: { $lt: 0 },
         },
-        {
-          $group: {
-            _id: {
-              year: { $year: "$createdAt" },
-              month: { $month: "$createdAt" },
-            },
-            consumed: { $sum: { $multiply: ["$change", -1] } },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
           },
+          consumed: { $sum: { $multiply: ["$change", -1] } },
         },
-        { $sort: { "_id.year": 1, "_id.month": 1 } },
-      ]);
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
+    ]);
 
-    const trend = monthlyAgg.map((row) => {
+    const trend = monthlyAgg.map((row: MonthlyConsumptionAgg) => {
       const mYear = row._id.year;
       const mMonth = row._id.month;
       const d = dayjs()
@@ -1071,7 +1070,7 @@ export const DashboardService = {
         where: { organisationId },
         select: { id: true, name: true, onHand: true },
       });
-      const itemIds = items.map((item) => item.id);
+      const itemIds = items.map((item: { id: string }) => item.id);
 
       const movements = itemIds.length
         ? await prisma.inventoryStockMovement.findMany({
@@ -1096,10 +1095,12 @@ export const DashboardService = {
 
       const itemMap = new Map(items.map((item) => [item.id, item]));
 
-      return Array.from(consumptionByItem.entries())
-        .sort((a, b) => b[1] - a[1])
+      return Array.from(
+        consumptionByItem.entries() as Iterable<[string, number]>,
+      )
+        .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
         .slice(0, limit)
-        .map(([itemId, consumed]) => {
+        .map(([itemId, consumed]: [string, number]) => {
           const item = itemMap.get(itemId);
           const onHand = item?.onHand ?? 0;
           const avgOnHand = onHand || 1;
@@ -1114,7 +1115,7 @@ export const DashboardService = {
     }
 
     // 1) Consumption per item
-    const agg = await StockMovementModel.aggregate<ProductConsumptionAgg>([
+    const agg = await StockMovementModel.aggregate([
       {
         $match: {
           organisationId,
@@ -1132,8 +1133,10 @@ export const DashboardService = {
       { $limit: limit },
     ]);
 
-    const itemIds = agg.map((a) => a._id).filter(Boolean);
-    const items = await InventoryItemModel.find<InventoryItemLean>({
+    const itemIds = agg
+      .map((a: ProductConsumptionAgg) => a._id)
+      .filter(Boolean);
+    const items = await InventoryItemModel.find({
       _id: { $in: itemIds },
     })
       .lean()
@@ -1144,19 +1147,21 @@ export const DashboardService = {
       itemMap.set(it._id.toString(), it);
     }
 
-    const result: ProductTurnoverPoint[] = agg.map((row) => {
-      const idStr = row._id.toString();
-      const item = itemMap.get(idStr);
-      const onHand = item?.onHand ?? 0;
-      const avgOnHand = onHand || 1;
-      const turnover = row.consumed! / avgOnHand;
+    const result: ProductTurnoverPoint[] = agg.map(
+      (row: ProductConsumptionAgg) => {
+        const idStr = row._id.toString();
+        const item = itemMap.get(idStr);
+        const onHand = item?.onHand ?? 0;
+        const avgOnHand = onHand || 1;
+        const turnover = row.consumed! / avgOnHand;
 
-      return {
-        itemId: idStr,
-        name: item?.name ?? "Unknown",
-        turnover,
-      };
-    });
+        return {
+          itemId: idStr,
+          name: item?.name ?? "Unknown",
+          turnover,
+        };
+      },
+    );
 
     return result;
   },

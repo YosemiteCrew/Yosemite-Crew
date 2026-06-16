@@ -462,14 +462,7 @@ export const CompanionHistoryService = {
         tasks
           .filter((task) => task.organisationId === organisationId)
           .forEach((task) => {
-            const taskIdValue =
-              (task as { _id?: Types.ObjectId })._id ??
-              (task as { id?: string }).id ??
-              "";
-            const taskId =
-              typeof taskIdValue === "string"
-                ? taskIdValue
-                : taskIdValue.toString();
+            const taskId = task.id;
             const occurredAt =
               task.completedAt?.toISOString() ??
               task.dueAt?.toISOString() ??

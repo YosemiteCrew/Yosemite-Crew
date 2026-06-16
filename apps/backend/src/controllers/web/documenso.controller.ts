@@ -13,6 +13,7 @@ import {
   DocumensoExternalRole,
   DocumensoService,
 } from "src/services/documenso.service";
+import { completePersistedRenderedDocumentSigning } from "src/services/rendered-document.service";
 import { OrganizationService } from "src/services/organization.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 import logger from "src/utils/logger";
@@ -111,6 +112,27 @@ export const DocumensoWebhookController = {
 
           case "DOCUMENT_DELETED":
             await handleDocumentDeleted(submission);
+            break;
+        }
+      }
+
+      const renderedDocument = await prisma.renderedDocument.findFirst({
+        where: {
+          signing: {
+            path: ["documentId"],
+            equals: String(documentId),
+          } as Prisma.JsonFilter,
+        },
+      });
+
+      if (renderedDocument) {
+        switch (eventType) {
+          case "DOCUMENT_COMPLETED":
+            await handleRenderedDocumentCompletedPrisma(renderedDocument.id);
+            break;
+
+          case "DOCUMENT_DELETED":
+            await handleRenderedDocumentDeletedPrisma(renderedDocument.id);
             break;
         }
       }
@@ -483,6 +505,34 @@ async function handleDocumentDeletedPrisma(submission: {
 
   await prisma.formSubmission.update({
     where: { id: submission.id },
+    data: { signing: signing as unknown as Prisma.InputJsonValue },
+  });
+}
+
+async function handleRenderedDocumentCompletedPrisma(
+  renderedDocumentId: string,
+) {
+  await completePersistedRenderedDocumentSigning(renderedDocumentId);
+}
+
+async function handleRenderedDocumentDeletedPrisma(renderedDocumentId: string) {
+  const renderedDocument = await prisma.renderedDocument.findUnique({
+    where: { id: renderedDocumentId },
+    select: { signing: true },
+  });
+
+  const signing = renderedDocument?.signing as {
+    status?: string;
+  } | null;
+
+  if (!signing || signing.status === "SIGNED") {
+    return;
+  }
+
+  signing.status = "NOT_STARTED";
+
+  await prisma.renderedDocument.update({
+    where: { id: renderedDocumentId },
     data: { signing: signing as unknown as Prisma.InputJsonValue },
   });
 }

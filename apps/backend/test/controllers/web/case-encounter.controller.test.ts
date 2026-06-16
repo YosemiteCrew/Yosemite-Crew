@@ -31,6 +31,7 @@ jest.mock("../../../src/services/case-encounter.service", () => {
       listActiveInpatientEncounters: jest.fn(),
       startEncounter: jest.fn(),
       markEncounterReadyForDischarge: jest.fn(),
+      markEncounterNotReadyForDischarge: jest.fn(),
       getEncounterById: jest.fn(),
       listEncounters: jest.fn(),
     },
@@ -375,6 +376,27 @@ describe("CaseEncounterController", () => {
     expect(mockedService.markEncounterReadyForDischarge).toHaveBeenCalledWith(
       "enc_1",
     );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("undoes ready for discharge", async () => {
+    req.params = { id: "enc_1" };
+    req.body = { resourceType: "Parameters" };
+    mockedService.markEncounterNotReadyForDischarge.mockResolvedValue({
+      id: "enc_1",
+      caseId: "case_1",
+      organisationId: "org_1",
+      companionId: "comp_1",
+      status: "in-progress",
+      encounterClass: "IMP",
+      appointmentKind: "INPATIENT",
+    } as never);
+
+    await EncounterController.undoReadyForDischarge(req as any, res as any);
+
+    expect(
+      mockedService.markEncounterNotReadyForDischarge,
+    ).toHaveBeenCalledWith("enc_1");
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

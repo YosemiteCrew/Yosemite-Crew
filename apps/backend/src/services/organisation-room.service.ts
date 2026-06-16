@@ -13,7 +13,7 @@ import {
 export type OrganisationRoomInput = {
   organisationId: string;
   name: string;
-  code: string;
+  code?: string;
   description?: string | null;
   type: RoomType;
   occupancyStatus?: RoomOccupancyStatus;
@@ -191,6 +191,29 @@ const normalizeOptionalString = (value: unknown) => {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const normalizeOptionalCode = (value: unknown) => {
+  const normalized = normalizeOptionalString(value);
+
+  if (normalized && normalized.includes("$")) {
+    throw new RoomValidationError("Invalid character in code.");
+  }
+
+  return normalized;
+};
+
+const slugifyRoomCode = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+
+const buildGeneratedRoomCode = (name: string) => {
+  const slug = slugifyRoomCode(name);
+  return slug.length > 0 ? slug : "room";
 };
 
 const normalizeSpeciesConstraints = (value: unknown): string[] => {
@@ -398,23 +421,80 @@ const assertRoomCodeIsUnique = async (
   }
 };
 
+const isRoomCodeAvailable = async (
+  organisationId: string,
+  code: string,
+  excludeId?: string,
+) => {
+  const room = await getOrganisationRoomDelegate().findFirst({
+    where: {
+      organisationId,
+      code,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { id: true },
+  });
+
+  return !room;
+};
+
+const resolveRoomCode = async (args: {
+  organisationId: string;
+  name: string;
+  code?: unknown;
+  excludeId?: string;
+}) => {
+  const explicitCode = normalizeOptionalCode(args.code);
+
+  if (explicitCode) {
+    await assertRoomCodeIsUnique(
+      args.organisationId,
+      explicitCode,
+      args.excludeId,
+    );
+    return explicitCode;
+  }
+
+  const baseCode = buildGeneratedRoomCode(args.name);
+
+  for (let suffix = 0; suffix < 1000; suffix += 1) {
+    const candidate = suffix === 0 ? baseCode : `${baseCode}-${suffix + 1}`;
+    if (
+      await isRoomCodeAvailable(args.organisationId, candidate, args.excludeId)
+    ) {
+      return candidate;
+    }
+  }
+
+  throw new OrganisationRoomServiceError(
+    "Unable to generate a unique room code.",
+    409,
+  );
+};
+
 type BuiltRoomInput = {
   room: Omit<RoomRow, "id" | "createdAt" | "updatedAt">;
   assignedSpecialiteis: RoomReferenceMapping[];
   assignedStaffs: RoomReferenceMapping[];
 };
 
-const buildRoomInput = (
+const buildRoomInput = async (
   input: Partial<OrganisationRoomInput>,
-): BuiltRoomInput => {
+  excludeId?: string,
+): Promise<BuiltRoomInput> => {
   try {
     const organisationId = requireNonEmptyString(
       input.organisationId,
       "organisationId",
     );
     const name = requireNonEmptyString(input.name, "name");
-    const code = requireNonEmptyString(input.code, "code");
     const type = normalizeRoomType(input.type);
+    const code = await resolveRoomCode({
+      organisationId,
+      name,
+      code: input.code,
+      excludeId,
+    });
 
     return {
       room: {
@@ -778,11 +858,7 @@ export const OrganisationRoomService = {
   async create(
     input: Partial<OrganisationRoomInput>,
   ): Promise<OrganisationRoomRecord> {
-    const roomInput = buildRoomInput(input);
-    await assertRoomCodeIsUnique(
-      roomInput.room.organisationId,
-      roomInput.room.code,
-    );
+    const roomInput = await buildRoomInput(input);
 
     const created = await getOrganisationRoomDelegate().create({
       data: roomInput.room,
@@ -815,60 +891,55 @@ export const OrganisationRoomService = {
     }
 
     const currentLinks = await loadRoomReferenceMaps(existing.organisationId);
-    const next = buildRoomInput({
-      organisationId: existing.organisationId,
-      name: input.name ?? existing.name,
-      code: input.code ?? existing.code,
-      description:
-        input.description === undefined
-          ? existing.description
-          : input.description,
-      type: input.type ?? existing.type,
-      occupancyStatus:
-        input.occupancyStatus === undefined
-          ? existing.occupancyStatus
-          : input.occupancyStatus,
-      assignedSpecialiteis:
-        input.assignedSpecialiteis === undefined
-          ? (currentLinks.specialitiesByRoom.get(existing.id) ?? [])
-          : input.assignedSpecialiteis,
-      assignedStaffs:
-        input.assignedStaffs === undefined
-          ? (currentLinks.staffByRoom.get(existing.id) ?? [])
-          : input.assignedStaffs,
-      availableNow:
-        input.availableNow === undefined
-          ? existing.availableNow
-          : input.availableNow,
-      availabilityMode:
-        input.availabilityMode === undefined
-          ? existing.availabilityMode
-          : input.availabilityMode,
-      availabilityDays:
-        input.availabilityDays === undefined
-          ? existing.availabilityDays
-          : input.availabilityDays,
-      availabilityStartTime:
-        input.availabilityStartTime === undefined
-          ? existing.availabilityStartTime
-          : input.availabilityStartTime,
-      availabilityEndTime:
-        input.availabilityEndTime === undefined
-          ? existing.availabilityEndTime
-          : input.availabilityEndTime,
-      capabilities:
-        input.capabilities === undefined
-          ? existing.capabilities
-          : input.capabilities,
-    });
-
-    if (next.room.code !== existing.code) {
-      await assertRoomCodeIsUnique(
-        existing.organisationId,
-        next.room.code,
-        existing.id,
-      );
-    }
+    const next = await buildRoomInput(
+      {
+        organisationId: existing.organisationId,
+        name: input.name ?? existing.name,
+        code: input.code,
+        description:
+          input.description === undefined
+            ? existing.description
+            : input.description,
+        type: input.type ?? existing.type,
+        occupancyStatus:
+          input.occupancyStatus === undefined
+            ? existing.occupancyStatus
+            : input.occupancyStatus,
+        assignedSpecialiteis:
+          input.assignedSpecialiteis === undefined
+            ? (currentLinks.specialitiesByRoom.get(existing.id) ?? [])
+            : input.assignedSpecialiteis,
+        assignedStaffs:
+          input.assignedStaffs === undefined
+            ? (currentLinks.staffByRoom.get(existing.id) ?? [])
+            : input.assignedStaffs,
+        availableNow:
+          input.availableNow === undefined
+            ? existing.availableNow
+            : input.availableNow,
+        availabilityMode:
+          input.availabilityMode === undefined
+            ? existing.availabilityMode
+            : input.availabilityMode,
+        availabilityDays:
+          input.availabilityDays === undefined
+            ? existing.availabilityDays
+            : input.availabilityDays,
+        availabilityStartTime:
+          input.availabilityStartTime === undefined
+            ? existing.availabilityStartTime
+            : input.availabilityStartTime,
+        availabilityEndTime:
+          input.availabilityEndTime === undefined
+            ? existing.availabilityEndTime
+            : input.availabilityEndTime,
+        capabilities:
+          input.capabilities === undefined
+            ? existing.capabilities
+            : input.capabilities,
+      },
+      existing.id,
+    );
 
     const updated = await getOrganisationRoomDelegate().update({
       where: { id: roomId },

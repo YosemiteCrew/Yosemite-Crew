@@ -17,6 +17,7 @@
     "prisma:generate": "pnpm --filter @yosemite-crew/database run prisma:generate",
     "prisma:migrate": "pnpm --filter @yosemite-crew/database run prisma:migrate",
     "terms:import": "tsx src/scripts/import-clinical-terms.ts",
+    "seed:inventory-catalog": "tsx src/scripts/seed-inventory-catalog.ts",
     "migrate:all": "tsx src/scripts/migrate-all.ts",
     "parity:check": "tsx src/scripts/parity-check.ts"
   },

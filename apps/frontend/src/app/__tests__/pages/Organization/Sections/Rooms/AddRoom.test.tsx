@@ -1,14 +1,14 @@
-import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import AddRoom from "@/app/features/organization/pages/Organization/Sections/Rooms/AddRoom";
+import React from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import AddRoom from '@/app/features/organization/pages/Organization/Sections/Rooms/AddRoom';
 
-jest.mock("@/app/ui/overlays/Modal", () => ({
+jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
-jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
+jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div>
@@ -18,7 +18,7 @@ jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
+jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <label>
@@ -29,21 +29,21 @@ jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
+jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
   default: ({ placeholder, onSelect }: any) => (
-    <button type="button" onClick={() => onSelect({ value: "CONSULTATION" })}>
+    <button type="button" onClick={() => onSelect({ value: 'CONSULTATION' })}>
       {placeholder}
     </button>
   ),
 }));
 
-jest.mock("@/app/ui/inputs/MultiSelectDropdown", () => ({
+jest.mock('@/app/ui/inputs/MultiSelectDropdown', () => ({
   __esModule: true,
   default: () => <div>MultiSelect</div>,
 }));
 
-jest.mock("@/app/ui/primitives/Buttons", () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -51,7 +51,7 @@ jest.mock("@/app/ui/primitives/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Icons/Close", () => ({
+jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -60,47 +60,53 @@ jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@/app/hooks/useTeam", () => ({
+jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: () => [],
 }));
 
-jest.mock("@/app/hooks/useSpecialities", () => ({
+jest.mock('@/app/hooks/useSpecialities', () => ({
   useSpecialitiesForPrimaryOrg: () => [],
 }));
 
-jest.mock("@/app/features/organization/services/roomService", () => ({
+jest.mock('@/app/features/organization/services/roomService', () => ({
   createRoom: jest.fn(),
 }));
 
-const roomService = jest.requireMock("@/app/features/organization/services/roomService");
+const roomService = jest.requireMock('@/app/features/organization/services/roomService');
 
-describe("AddRoom", () => {
+describe('AddRoom', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("shows validation errors", () => {
+  it('shows validation errors', () => {
     render(<AddRoom showModal setShowModal={jest.fn()} />);
 
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByText('Save'));
 
-    expect(screen.getByText("Name is required")).toBeInTheDocument();
+    expect(screen.getByText('Name is required')).toBeInTheDocument();
   });
 
-  it("creates a room", async () => {
+  it('creates a room', async () => {
     roomService.createRoom.mockResolvedValue({});
     const setShowModal = jest.fn();
 
     render(<AddRoom showModal setShowModal={setShowModal} />);
 
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: "Room A" },
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Room A' },
     });
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalled();
     });
+    expect(roomService.createRoom).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Room A',
+        code: '',
+      })
+    );
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 });

@@ -37,6 +37,9 @@ jest.mock("../../src/config/prisma", () => ({
       createMany: jest.fn(),
       findFirst: jest.fn(),
     },
+    templateCatalogLink: {
+      findMany: jest.fn(),
+    },
     speciality: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -72,6 +75,7 @@ describe("CatalogService", () => {
     (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.invoice.count as jest.Mock).mockResolvedValue(0);
     (prisma.productPackageItem.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.templateCatalogLink.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.productItem.findFirst as jest.Mock).mockImplementation(
       (args?: { where?: { code?: string; id?: string } }) => {
         if (args?.where?.code) {
@@ -84,33 +88,42 @@ describe("CatalogService", () => {
   });
 
   it("resolves a direct bookable product into one billing item", () => {
-    const resolved = resolveCatalogSelectionFromRecord({
-      id: "prod_consult",
-      version: 1,
-      organisationId: "org_1",
-      name: "General Consultation",
-      description: null,
-      code: null,
-      kind: "CONSULTATION",
-      specialityId: null,
-      legacyServiceId: "svc_consult",
-      isActive: true,
-      prices: [
+    const resolved = resolveCatalogSelectionFromRecord(
+      {
+        id: "prod_consult",
+        version: 1,
+        organisationId: "org_1",
+        name: "General Consultation",
+        description: null,
+        code: null,
+        kind: "CONSULTATION",
+        specialityId: null,
+        legacyServiceId: "svc_consult",
+        isActive: true,
+        prices: [
+          {
+            unitPrice: 80,
+            currency: "USD",
+            defaultDiscountPercent: 5,
+            maxDiscountPercent: 10,
+            isDefault: true,
+          },
+        ],
+        bookable: {
+          durationMinutes: 30,
+          supportsOutpatient: true,
+          supportsInpatient: false,
+        },
+        package: null,
+      },
+      [
         {
-          unitPrice: 80,
-          currency: "USD",
-          defaultDiscountPercent: 5,
-          maxDiscountPercent: 10,
-          isDefault: true,
+          templateKind: "SOAP_NOTE",
+          templateId: "tmpl_soap",
+          templateVersion: 3,
         },
       ],
-      bookable: {
-        durationMinutes: 30,
-        supportsOutpatient: true,
-        supportsInpatient: false,
-      },
-      package: null,
-    });
+    );
 
     expect(resolved).toEqual(
       expect.objectContaining({
@@ -127,6 +140,14 @@ describe("CatalogService", () => {
         additionalDiscountAmount: 0,
         finalAmount: 76,
         breakdownItemCount: 1,
+        templateKinds: ["SOAP_NOTE"],
+        templateBindings: [
+          {
+            templateKind: "SOAP_NOTE",
+            templateId: "tmpl_soap",
+            templateVersion: 3,
+          },
+        ],
       }),
     );
     expect(resolved.billingItems).toEqual([
@@ -239,6 +260,11 @@ describe("CatalogService", () => {
     });
 
     expect(resolved.appointmentKinds).toEqual(["OUTPATIENT", "INPATIENT"]);
+    expect(resolved.templateKinds).toEqual([
+      "CARE_PATHWAY",
+      "SOAP_NOTE",
+      "DISCHARGE_SUMMARY",
+    ]);
     expect(resolved).toEqual(
       expect.objectContaining({
         name: "Dental Bundle",

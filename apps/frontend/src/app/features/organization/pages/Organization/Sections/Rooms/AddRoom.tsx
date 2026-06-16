@@ -16,7 +16,6 @@ import type { RoomReferenceMapping } from '@yosemite-crew/types';
 
 type RoomDraft = {
   name: string;
-  code: string;
   type: OrganisationRoom['type'];
   assignedSpecialiteis: string[];
   assignedStaffs: string[];
@@ -29,7 +28,6 @@ type AddRoomProps = {
 
 const INITIAL_FORM_DATA: RoomDraft = {
   name: '',
-  code: '',
   type: 'CONSULTATION',
   assignedSpecialiteis: [],
   assignedStaffs: [],
@@ -84,8 +82,6 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
       })
       .filter((entry): entry is RoomReferenceMapping => Boolean(entry));
 
-  const buildCode = (name: string) => name.trim().replace(/\s+/g, '-').toUpperCase();
-
   const handleSave = async () => {
     const errors: { name?: string } = {};
     if (!formData.name) errors.name = 'Name is required';
@@ -98,7 +94,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
         id: '',
         organisationId: '',
         name: formData.name,
-        code: formData.code || buildCode(formData.name),
+        code: '',
         type: formData.type,
         assignedSpecialiteis: toReferenceMappings(formData.assignedSpecialiteis, specialitiesById),
         assignedStaffs: toReferenceMappings(formData.assignedStaffs, teamsById),

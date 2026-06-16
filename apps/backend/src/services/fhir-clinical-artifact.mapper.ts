@@ -1,0 +1,16 @@
+export {
+  clinicalArtifactFhirMapper,
+  type ClinicalArtifactKind,
+  type ClinicalArtifactStatus,
+  type ClinicalArtifactBaseInput,
+  type SoapNoteInput,
+  type SoapNoteRecord,
+  type PrescriptionInput,
+  type PrescriptionRecord,
+  type DischargeSummaryInput,
+  type DischargeSummaryRecord,
+  type VitalRecordInput,
+  type VitalRecordRecord,
+  type ClinicalArtifactRecordLike,
+  type ClinicalArtifactFhirInputDefaults,
+} from "@yosemite-crew/types";

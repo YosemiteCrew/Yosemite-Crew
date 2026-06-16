@@ -164,6 +164,73 @@ describe("OrganisationRoomService", () => {
     expect(result.assignedSpecialiteis[0]?.name).toBe("Cardiology");
   });
 
+  it("generates a unique room code from the room name when code is blank", async () => {
+    mockedPrisma.organisationRoom.findFirst
+      .mockResolvedValueOnce({ id: "room_existing" })
+      .mockResolvedValueOnce(null);
+    mockedPrisma.organisationRoom.create.mockResolvedValueOnce({
+      ...baseRoom,
+      code: "inpatient-ward-a-2",
+    });
+
+    const result = await OrganisationRoomService.create({
+      organisationId: "org_1",
+      name: "Inpatient Ward A",
+      code: "   ",
+      type: "INPATIENT",
+    });
+
+    expect(mockedPrisma.organisationRoom.findFirst).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: {
+          organisationId: "org_1",
+          code: "inpatient-ward-a",
+        },
+      }),
+    );
+    expect(mockedPrisma.organisationRoom.findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          organisationId: "org_1",
+          code: "inpatient-ward-a-2",
+        },
+      }),
+    );
+    expect(mockedPrisma.organisationRoom.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          code: "inpatient-ward-a-2",
+        }),
+      }),
+    );
+    expect(result.code).toBe("inpatient-ward-a-2");
+  });
+
+  it("falls back to room when the generated slug would be empty", async () => {
+    mockedPrisma.organisationRoom.create.mockResolvedValueOnce({
+      ...baseRoom,
+      code: "room",
+    });
+
+    const result = await OrganisationRoomService.create({
+      organisationId: "org_1",
+      name: "!!!",
+      code: "",
+      type: "CONSULTATION",
+    });
+
+    expect(mockedPrisma.organisationRoom.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          code: "room",
+        }),
+      }),
+    );
+    expect(result.code).toBe("room");
+  });
+
   it("rejects duplicate room codes within the same organisation", async () => {
     mockedPrisma.organisationRoom.findFirst.mockResolvedValueOnce({
       id: "room_existing",
@@ -180,6 +247,54 @@ describe("OrganisationRoomService", () => {
       message: "Room code must be unique within the organisation.",
       statusCode: 409,
     } satisfies Partial<OrganisationRoomServiceError>);
+  });
+
+  it("rejects room codes with invalid characters", async () => {
+    await expect(
+      OrganisationRoomService.create({
+        organisationId: "org_1",
+        name: "Exam Room",
+        code: "BAD$CODE",
+        type: "EXAM_ROOM",
+      }),
+    ).rejects.toMatchObject({
+      message: "Invalid character in code.",
+      statusCode: 400,
+    });
+  });
+
+  it("generates a room code during updates when the code is blank", async () => {
+    mockedPrisma.organisationRoom.findUnique.mockResolvedValueOnce({
+      ...baseRoom,
+      code: "room-a",
+    });
+    mockedPrisma.organisationRoom.update.mockResolvedValueOnce({
+      ...baseRoom,
+      code: "room-a",
+    });
+
+    const result = await OrganisationRoomService.update("room_1", {
+      name: "Room A",
+      code: "",
+    });
+
+    expect(mockedPrisma.organisationRoom.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organisationId: "org_1",
+          code: "room-a",
+          id: { not: "room_1" },
+        },
+      }),
+    );
+    expect(mockedPrisma.organisationRoom.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          code: "room-a",
+        }),
+      }),
+    );
+    expect(result.code).toBe("room-a");
   });
 
   it("lists rooms with computed occupancy summary", async () => {

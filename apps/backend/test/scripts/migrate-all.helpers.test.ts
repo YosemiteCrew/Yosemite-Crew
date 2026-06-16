@@ -1,4 +1,7 @@
-import { getMissingCompanionForeignKeyReason } from "../../src/scripts/migrate-all.helpers";
+import {
+  deriveOrganisationRoomCode,
+  getMissingCompanionForeignKeyReason,
+} from "../../src/scripts/migrate-all.helpers";
 
 describe("getMissingCompanionForeignKeyReason", () => {
   const knownIds = new Set(["companion-1", "companion-2"]);
@@ -44,5 +47,29 @@ describe("getMissingCompanionForeignKeyReason", () => {
         knownIds,
       ),
     ).toBe("unknown companionId missing-id");
+  });
+
+  it("derives a room code from explicit and legacy fields", () => {
+    expect(
+      deriveOrganisationRoomCode({
+        data: { code: "  IP-01  ", name: "Exam Room 1", id: "abc123" },
+      }),
+    ).toBe("IP-01");
+
+    expect(
+      deriveOrganisationRoomCode({
+        data: { fhirId: "LEGACY-ROOM-1", name: "Exam Room 1", id: "abc123" },
+      }),
+    ).toBe("LEGACY-ROOM-1");
+
+    expect(
+      deriveOrganisationRoomCode({
+        data: { name: "Exam Room 1", id: "abc123def456" },
+      }),
+    ).toBe("exam-room-1-abc123");
+  });
+
+  it("returns null when a room code cannot be derived", () => {
+    expect(deriveOrganisationRoomCode({ data: {} })).toBeNull();
   });
 });

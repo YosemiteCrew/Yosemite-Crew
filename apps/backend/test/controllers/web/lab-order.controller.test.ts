@@ -14,8 +14,12 @@ jest.mock("../../../src/services/lab-order.service", () => {
   return {
     ...actual,
     LabOrderService: {
-      ...actual.LabOrderService,
+      cancelOrder: jest.fn(),
+      createOrder: jest.fn(),
+      getOrder: jest.fn(),
       listOrders: jest.fn(),
+      listProviderTests: jest.fn(),
+      updateOrder: jest.fn(),
     },
   };
 });
@@ -149,6 +153,144 @@ describe("LabOrderController", () => {
         message: "Invalid request body.",
       });
       expect(mockedLabOrderService.listOrders).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("listProviderTests", () => {
+    it("passes parsed filters to the service", async () => {
+      req.body = {
+        query: "chem",
+        limit: 10,
+        page: 2,
+        codes: ["A", "B"],
+      };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [{ code: "A" }],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        {
+          query: "chem",
+          limit: 10,
+          page: 2,
+          codes: ["A", "B"],
+        },
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+  });
+
+  describe("createIdexxOrder", () => {
+    it("creates an order with normalized defaults", async () => {
+      req.body = {
+        companionId: "comp-1",
+        appointmentId: "appt-1",
+        tests: ["T1"],
+        notes: "urgent",
+      };
+      (mockedLabOrderService.createOrder as any).mockResolvedValue({
+        idexxOrderId: "id-1",
+      });
+
+      await LabOrderController.createIdexxOrder(req as Request, res);
+
+      expect(mockedLabOrderService.createOrder).toHaveBeenCalledWith("idexx", {
+        organisationId: "org-1",
+        companionId: "comp-1",
+        appointmentId: "appt-1",
+        createdByUserId: undefined,
+        tests: ["T1"],
+        modality: undefined,
+        ivls: undefined,
+        veterinarian: null,
+        technician: null,
+        notes: "urgent",
+        specimenCollectionDate: null,
+      });
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+  });
+
+  describe("getOrder", () => {
+    it("returns the order by id", async () => {
+      req.params = {
+        ...req.params,
+        idexxOrderId: "id-1",
+      };
+      (mockedLabOrderService.getOrder as any).mockResolvedValue({
+        idexxOrderId: "id-1",
+      });
+
+      await LabOrderController.getOrder(req as Request, res);
+
+      expect(mockedLabOrderService.getOrder).toHaveBeenCalledWith(
+        "idexx",
+        "org-1",
+        "id-1",
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+  });
+
+  describe("updateOrder", () => {
+    it("updates the order with normalized payload", async () => {
+      req.params = {
+        ...req.params,
+        idexxOrderId: "id-1",
+      };
+      req.body = {
+        tests: ["T1", "T2"],
+        modality: "REFERENCE_LAB",
+        ivls: [{ serialNumber: "S1" }],
+        veterinarian: "vet-1",
+        notes: "follow up",
+      };
+      (mockedLabOrderService.updateOrder as any).mockResolvedValue({
+        idexxOrderId: "id-1",
+      });
+
+      await LabOrderController.updateOrder(req as Request, res);
+
+      expect(mockedLabOrderService.updateOrder).toHaveBeenCalledWith(
+        "idexx",
+        "org-1",
+        "id-1",
+        {
+          tests: ["T1", "T2"],
+          modality: "REFERENCE_LAB",
+          ivls: [{ serialNumber: "S1" }],
+          veterinarian: "vet-1",
+          technician: null,
+          notes: "follow up",
+          specimenCollectionDate: null,
+        },
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+  });
+
+  describe("cancelOrder", () => {
+    it("cancels the order by id", async () => {
+      req.params = {
+        ...req.params,
+        idexxOrderId: "id-1",
+      };
+      (mockedLabOrderService.cancelOrder as any).mockResolvedValue({
+        idexxOrderId: "id-1",
+        status: "CANCELLED",
+      });
+
+      await LabOrderController.cancelOrder(req as Request, res);
+
+      expect(mockedLabOrderService.cancelOrder).toHaveBeenCalledWith(
+        "idexx",
+        "org-1",
+        "id-1",
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
     });
   });
 });

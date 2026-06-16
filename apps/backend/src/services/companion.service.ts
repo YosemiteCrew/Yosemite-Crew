@@ -335,8 +335,17 @@ const createDefaultTasks = async (input: {
       // 2️⃣ Build recurrence from library definition
       let recurrence: CreateFromLibraryInput["recurrence"] | undefined;
 
-      const libRecurrence = lib.schema.recurrence?.default;
-      if (libRecurrence) {
+      const schema = lib.schema as {
+        recurrence?: {
+          default?: {
+            type?: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+            cronExpression?: string;
+            endAfterDays?: number;
+          };
+        };
+      } | null;
+      const libRecurrence = schema?.recurrence?.default;
+      if (libRecurrence?.type) {
         recurrence = {
           type: libRecurrence.type,
           cronExpression: libRecurrence.cronExpression,
@@ -356,7 +365,7 @@ const createDefaultTasks = async (input: {
         createdBy: input.parentId,
         assignedTo: input.parentId,
         audience: "PARENT_TASK",
-        libraryTaskId: lib._id.toString(),
+        libraryTaskId: lib.id,
         dueAt: now,
         recurrence,
       });

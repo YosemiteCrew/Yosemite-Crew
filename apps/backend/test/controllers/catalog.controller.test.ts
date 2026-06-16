@@ -260,6 +260,8 @@ describe("CatalogController", () => {
       additionalDiscountAmount: 0,
       finalAmount: 100,
       breakdownItemCount: 1,
+      templateKinds: ["SOAP_NOTE"],
+      templateBindings: [],
       billingItems: [
         {
           productItemId: "pkg_1",

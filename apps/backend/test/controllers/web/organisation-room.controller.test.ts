@@ -58,18 +58,13 @@ describe("OrganisationRoomController", () => {
           },
         ],
       },
-      extension: [
-        {
-          url: "https://yosemitecrew.com/fhir/StructureDefinition/organisation-room-code",
-          valueString: "IP-01",
-        },
-      ],
+      extension: [],
     };
     mockedService.create.mockResolvedValue({
       id: "room_1",
       organisationId: "org_1",
       name: "Inpatient Ward A",
-      code: "IP-01",
+      code: "inpatient-ward-a",
       type: "INPATIENT",
       assignedSpecialiteis: [],
       assignedStaffs: [],
@@ -87,7 +82,7 @@ describe("OrganisationRoomController", () => {
       expect.objectContaining({
         organisationId: "org_1",
         name: "Inpatient Ward A",
-        code: "IP-01",
+        code: "",
       }),
     );
     expect(res.status).toHaveBeenCalledWith(201);

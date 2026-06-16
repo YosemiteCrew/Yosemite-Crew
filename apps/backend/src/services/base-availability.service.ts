@@ -289,7 +289,7 @@ const syncBaseAvailabilityToPostgres = async (
         .map((entry) => ({
           userId,
           organisationId: entry.organisationId as string,
-          dayOfWeek: entry.dayOfWeek as DayOfWeek,
+          dayOfWeek: entry.dayOfWeek,
           slots: entry.slots as unknown as Prisma.InputJsonValue,
         }));
 
@@ -422,7 +422,7 @@ export const BaseAvailabilityService = {
         data: availability.map((entry) => ({
           userId,
           organisationId: entry.organisationId as string,
-          dayOfWeek: entry.dayOfWeek as DayOfWeek,
+          dayOfWeek: entry.dayOfWeek,
           slots: entry.slots as unknown as Prisma.InputJsonValue,
         })),
       });
@@ -473,7 +473,7 @@ export const BaseAvailabilityService = {
         data: availability.map((entry) => ({
           userId: identifier,
           organisationId: entry.organisationId as string,
-          dayOfWeek: entry.dayOfWeek as DayOfWeek,
+          dayOfWeek: entry.dayOfWeek,
           slots: entry.slots as unknown as Prisma.InputJsonValue,
         })),
       });

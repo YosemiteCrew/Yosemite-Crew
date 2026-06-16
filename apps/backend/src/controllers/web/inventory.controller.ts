@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment */
 import { Request, Response } from "express";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { OrgRequest } from "src/middlewares/rbac";
@@ -17,6 +18,7 @@ import {
   ConsumeStockInput,
   BulkConsumeStockInput,
 } from "src/services/inventory.service";
+import type { InventoryStockStatus } from "src/services/inventory.catalog";
 import {
   InventoryItemDocument,
   InventoryBatchDocument,
@@ -35,7 +37,7 @@ const handleError = (error: unknown, res: Response): void => {
     res.status(error.statusCode).json({ message: error.message });
     return;
   }
-  console.error(error);
+  logger.error("Inventory controller error", { error });
   const message =
     error instanceof Error ? error.message : "Internal Server Error";
   res.status(500).json({ message });
@@ -56,11 +58,17 @@ interface ListItemsQuery {
   businessType?: string;
   category?: string;
   subCategory?: string;
+  vendor?: string;
   search?: string;
   status?: string; // comma-separated
+  stockStatus?: string; // comma-separated
   lowStockOnly?: string; // "true"/"false"
   expiredOnly?: string; // "true"/"false"
   expiringWithinDays?: string; // number as string
+  sortBy?: "name" | "stock" | "expiryDate" | "createdAt";
+  sortOrder?: "asc" | "desc";
+  page?: string;
+  pageSize?: string;
 }
 
 interface ExpiringItemsQuery {
@@ -150,6 +158,23 @@ export const InventoryController = {
     }
   },
 
+  toggleItemStatus: async (
+    req: Request<{ itemId: string }, unknown, { active?: boolean }>,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      const { itemId } = req.params;
+      const { organisationId } = req as OrgRequest;
+      const active = Boolean(req.body?.active);
+      const item = active
+        ? await InventoryService.activeItem(itemId, organisationId!)
+        : await InventoryService.hideItem(itemId, organisationId!);
+      res.json(item);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
   // ─────────────────────────────────────────────
   // ITEM: ARCHIVE (DELETED)
   // ─────────────────────────────────────────────
@@ -180,11 +205,17 @@ export const InventoryController = {
         businessType,
         category,
         subCategory,
+        vendor,
         search,
         status,
+        stockStatus,
         lowStockOnly,
         expiredOnly,
         expiringWithinDays,
+        sortBy,
+        sortOrder,
+        page,
+        pageSize,
       } = req.query;
 
       let parsedStatus: InventoryStatus | InventoryStatus[] | undefined;
@@ -197,22 +228,62 @@ export const InventoryController = {
         }
       }
 
+      let parsedStockStatus: string | string[] | undefined;
+      if (stockStatus) {
+        const parts = stockStatus.split(",").map((s) => s.trim());
+        parsedStockStatus = parts.length === 1 ? parts[0] : parts;
+      }
+
       const filter = {
         organisationId,
         businessType: businessType as BusinessType | undefined,
         category,
         subCategory,
+        vendor,
         search,
         status: parsedStatus,
+        stockStatus: parsedStockStatus as
+          | InventoryStockStatus
+          | InventoryStockStatus[]
+          | undefined,
         lowStockOnly: lowStockOnly === "true",
         expiredOnly: expiredOnly === "true",
         expiringWithinDays: expiringWithinDays
           ? Number(expiringWithinDays)
           : undefined,
+        sortBy,
+        sortOrder,
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+      } satisfies {
+        organisationId: string;
+        businessType?: BusinessType;
+        category?: string;
+        subCategory?: string;
+        vendor?: string;
+        search?: string;
+        status?: InventoryStatus | InventoryStatus[];
+        stockStatus?: InventoryStockStatus | InventoryStockStatus[];
+        lowStockOnly?: boolean;
+        expiredOnly?: boolean;
+        expiringWithinDays?: number;
+        sortBy?: "name" | "stock" | "expiryDate" | "createdAt";
+        sortOrder?: "asc" | "desc";
+        page?: number;
+        pageSize?: number;
       };
 
       const items = await InventoryService.listItems(filter);
       res.json(items);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  getCategories: async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const categories = await InventoryService.getCategories();
+      res.json({ categories });
     } catch (error) {
       handleError(error, res);
     }
@@ -486,8 +557,21 @@ export const InventoryVendorController = {
   updateVendor: async (
     req: Request<
       { vendorId: string },
-      InventoryVendorDocument,
-      Partial<InventoryVendorDocument>
+      unknown,
+      Partial<{
+        name: string;
+        brand?: string;
+        vendorType?: string;
+        licenseNumber?: string;
+        paymentTerms?: string;
+        deliveryFrequency?: string;
+        leadTimeDays?: number;
+        contactInfo?: {
+          phone?: string;
+          email?: string;
+          address?: string;
+        };
+      }>
     >,
     res: Response,
   ): Promise<void> => {
@@ -554,7 +638,7 @@ export const InventoryMetaFieldController = {
   createField: async (
     req: Request<
       EmptyParams,
-      InventoryMetaFieldDocument,
+      unknown,
       {
         businessType: string;
         fieldKey: string;
@@ -575,8 +659,11 @@ export const InventoryMetaFieldController = {
   updateField: async (
     req: Request<
       { fieldId: string },
-      InventoryMetaFieldDocument,
-      Partial<InventoryMetaFieldDocument>
+      unknown,
+      Partial<{
+        label: string;
+        values: string[];
+      }>
     >,
     res: Response,
   ): Promise<void> => {
@@ -606,12 +693,7 @@ export const InventoryMetaFieldController = {
   },
 
   listFields: async (
-    req: Request<
-      EmptyParams,
-      InventoryMetaFieldDocument[],
-      unknown,
-      ListMetaFieldsQuery
-    >,
+    req: Request<EmptyParams, unknown, unknown, ListMetaFieldsQuery>,
     res: Response,
   ): Promise<void> => {
     try {

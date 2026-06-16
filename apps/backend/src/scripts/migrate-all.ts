@@ -3,7 +3,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import mongoose from "mongoose";
 import { PrismaClient } from "@prisma/client";
-import { getMissingCompanionForeignKeyReason } from "./migrate-all.helpers";
+import {
+  deriveOrganisationRoomCode,
+  getMissingCompanionForeignKeyReason,
+} from "./migrate-all.helpers";
 
 dotenv.config();
 
@@ -286,6 +289,20 @@ const migrateModel = async (
         skippedMissingForm += 1;
         continue;
       }
+    }
+
+    if (prismaName === "OrganisationRoom" && typeof data.code !== "string") {
+      const derivedCode = deriveOrganisationRoomCode({
+        data: { ...obj, ...data },
+      });
+      if (!derivedCode) {
+        skipped += 1;
+        console.warn(
+          `Skipping ${mongooseName} ${String(data.id ?? obj._id ?? "")} because a room code could not be derived.`,
+        );
+        continue;
+      }
+      data.code = derivedCode;
     }
 
     const missingCompanionFkReason = getMissingCompanionForeignKeyReason(

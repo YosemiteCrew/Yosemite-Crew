@@ -264,6 +264,18 @@ const assertEncounterIsOpen = (encounter: EncounterRow, operation: string) => {
   }
 };
 
+const assertEncounterIsOnLeave = (
+  encounter: EncounterRow,
+  operation: string,
+) => {
+  if (encounter.status !== "onleave") {
+    throw new CaseEncounterServiceError(
+      `Cannot ${operation} unless the encounter is ready for discharge.`,
+      409,
+    );
+  }
+};
+
 const assertPeriod = (start?: Date, end?: Date) => {
   if (start && Number.isNaN(start.getTime())) {
     throw new CaseEncounterServiceError("Invalid encounter periodStart.", 400);
@@ -1201,6 +1213,35 @@ export const CaseEncounterService = {
         where: { id },
         data: {
           status: "onleave",
+        },
+      })) as EncounterRow;
+    });
+
+    return (
+      await attachEncounterAppointmentIds([toEncounterDomain(updatedEncounter)])
+    )[0];
+  },
+
+  async markEncounterNotReadyForDischarge(
+    encounterId: string,
+  ): Promise<EncounterDomain> {
+    const id = requireString(encounterId, "encounterId");
+
+    const updatedEncounter = await prisma.$transaction(async (tx) => {
+      const encounter = (await tx.encounter.findUnique({
+        where: { id },
+      })) as EncounterRow | null;
+
+      if (!encounter) {
+        throw new CaseEncounterServiceError("Encounter not found.", 404);
+      }
+
+      assertEncounterIsOnLeave(encounter, "undo ready for discharge");
+
+      return (await tx.encounter.update({
+        where: { id },
+        data: {
+          status: "in-progress",
         },
       })) as EncounterRow;
     });

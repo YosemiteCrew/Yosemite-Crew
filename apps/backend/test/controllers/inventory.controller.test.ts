@@ -43,6 +43,7 @@ jest.mock("../../src/services/inventory.service", () => {
       consumeStock: jest.fn(),
       bulkConsumeStock: jest.fn(),
       getInventoryTurnoverByItem: jest.fn(),
+      getCategories: jest.fn(),
     },
     InventoryAdjustmentService: { adjustStock: jest.fn() },
     InventoryAllocationService: {
@@ -237,6 +238,34 @@ describe("Inventory Controllers", () => {
         );
         await InventoryController.activeItem(req as any, res);
         expect(res.status).toHaveBeenCalledWith(500);
+      });
+    });
+
+    describe("toggleItemStatus", () => {
+      it("activates an item when active is true", async () => {
+        req = mockRequest({
+          params: { itemId: "1" },
+          organisationId: "org1",
+          body: { active: true },
+        } as any);
+        (InventoryService.activeItem as jest.Mock).mockResolvedValueOnce({
+          id: "1",
+        });
+        await InventoryController.toggleItemStatus(req as any, res);
+        expect(InventoryService.activeItem).toHaveBeenCalledWith("1", "org1");
+      });
+
+      it("hides an item when active is false", async () => {
+        req = mockRequest({
+          params: { itemId: "1" },
+          organisationId: "org1",
+          body: { active: false },
+        } as any);
+        (InventoryService.hideItem as jest.Mock).mockResolvedValueOnce({
+          id: "1",
+        });
+        await InventoryController.toggleItemStatus(req as any, res);
+        expect(InventoryService.hideItem).toHaveBeenCalledWith("1", "org1");
       });
     });
 
@@ -558,6 +587,19 @@ describe("Inventory Controllers", () => {
         await InventoryController.getInventoryTurnOver(req, res);
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({ message: "Turnover err" });
+      });
+    });
+
+    describe("getCategories", () => {
+      it("returns catalog categories", async () => {
+        req = mockRequest();
+        (InventoryService.getCategories as jest.Mock).mockResolvedValueOnce([
+          { name: "Medicine" },
+        ]);
+        await InventoryController.getCategories(req as any, res);
+        expect(res.json).toHaveBeenCalledWith({
+          categories: [{ name: "Medicine" }],
+        });
       });
     });
   });

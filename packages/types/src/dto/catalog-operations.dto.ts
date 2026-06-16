@@ -130,6 +130,10 @@ export const toCatalogResolveOperationResponseDTO = (
     ...(result.breakdownItemCount != null
       ? [{ name: 'breakdownItemCount', valueInteger: result.breakdownItemCount }]
       : []),
+    ...result.templateKinds.map((kind) => ({
+      name: 'templateKind',
+      valueString: kind,
+    })),
     ...result.appointmentKinds.map((kind) => ({
       name: 'appointmentKind',
       valueString: kind,

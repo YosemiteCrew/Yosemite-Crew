@@ -1,7 +1,10 @@
 import { FormField } from "@yosemite-crew/types";
 import fs from "node:fs";
-import path from "node:path";
 import { chromium } from "playwright";
+import {
+  resolveDocumentPdfTemplate,
+  type DocumentPdfTemplateKind,
+} from "src/services/document-pdf-template-registry.service";
 
 export interface PdfField {
   label: string;
@@ -13,10 +16,25 @@ export interface PdfSection {
   fields: PdfField[];
 }
 
+export interface PdfBranding {
+  organizationName: string;
+  addressLines: string[];
+  logoUrl?: string | null;
+  phoneNo?: string | null;
+  website?: string | null;
+}
+
 export interface PdfViewModel {
   title: string;
   submittedAt: string;
   sections: PdfSection[];
+}
+
+export type PdfTemplateKind = DocumentPdfTemplateKind;
+
+export interface PdfRenderOptions {
+  templateKind?: PdfTemplateKind;
+  branding?: PdfBranding | null;
 }
 
 const stringifyValue = (value: unknown): string => {
@@ -52,6 +70,45 @@ const stringifyValue = (value: unknown): string => {
   }
 
   return "";
+};
+
+const escapeHtml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const renderBranding = (branding?: PdfBranding | null): string => {
+  if (!branding) {
+    return "";
+  }
+
+  const addressLines = branding.addressLines
+    .filter((line) => line.trim().length > 0)
+    .map((line) => `<div class="brand-address-line">${escapeHtml(line)}</div>`)
+    .join("");
+
+  const logo = branding.logoUrl
+    ? `<img class="brand-logo" src="${escapeHtml(branding.logoUrl)}" alt="${escapeHtml(branding.organizationName)} logo" />`
+    : "";
+
+  const contactLines = [branding.phoneNo, branding.website]
+    .filter((line): line is string => Boolean(line && line.trim()))
+    .map((line) => `<div class="brand-contact-line">${escapeHtml(line)}</div>`)
+    .join("");
+
+  return `
+    <div class="brand">
+      ${logo ? `<div class="brand-logo-wrap">${logo}</div>` : ""}
+      <div class="brand-copy">
+        <div class="brand-name">${escapeHtml(branding.organizationName)}</div>
+        ${addressLines ? `<div class="brand-address">${addressLines}</div>` : ""}
+        ${contactLines ? `<div class="brand-contact">${contactLines}</div>` : ""}
+      </div>
+    </div>
+  `;
 };
 
 const formatValue = (value: unknown, field?: FormField): string => {
@@ -138,19 +195,17 @@ export function buildPdfViewModel({
   };
 }
 
-const templatePath = path.join(process.cwd(), "src/utils/formPDFTemplate.html");
-
 function renderSections(vm: PdfViewModel): string {
   return vm.sections
     .map(
       (section) => `
-        <h2>${section.title}</h2>
+        <h2>${escapeHtml(section.title)}</h2>
         ${section.fields
           .map(
             (f) => `
               <div class="field">
-                <span class="label">${f.label}:</span>
-                <span class="value">${f.value}</span>
+                <span class="label">${escapeHtml(f.label)}:</span>
+                <span class="value">${escapeHtml(f.value).replaceAll("\n", "<br />")}</span>
               </div>
             `,
           )
@@ -160,21 +215,39 @@ function renderSections(vm: PdfViewModel): string {
     .join("");
 }
 
-function applyTemplate(vm: PdfViewModel): string {
-  let html = fs.readFileSync(templatePath, "utf8");
+function applyTemplate(
+  vm: PdfViewModel,
+  templateHtml: string,
+  templateLabel: string,
+  options?: PdfRenderOptions,
+): string {
+  let html = templateHtml;
 
-  html = html.replaceAll("{{title}}", vm.title);
-  html = html.replace("{{submittedAt}}", vm.submittedAt);
-  html = html.replace("{{sections}}", renderSections(vm));
+  html = html.replaceAll("{{title}}", escapeHtml(vm.title));
+  html = html.replaceAll("{{submittedAt}}", escapeHtml(vm.submittedAt));
+  html = html.replaceAll("{{templateLabel}}", escapeHtml(templateLabel));
+  html = html.replaceAll("{{brandSection}}", renderBranding(options?.branding));
+  html = html.replaceAll("{{sections}}", renderSections(vm));
 
   return html;
 }
 
-export async function renderPdf(vm: PdfViewModel): Promise<Buffer> {
+export async function renderPdf(
+  vm: PdfViewModel,
+  options?: PdfRenderOptions,
+): Promise<Buffer> {
+  const templateKind = options?.templateKind ?? "FORM";
+  const template = resolveDocumentPdfTemplate(templateKind);
+  const templateHtml = fs.readFileSync(template.path, "utf8");
   const browser = await chromium.launch();
   const page = await browser.newPage();
 
-  await page.setContent(applyTemplate(vm), { waitUntil: "load" });
+  await page.setContent(
+    applyTemplate(vm, templateHtml, template.label, options),
+    {
+      waitUntil: "load",
+    },
+  );
 
   const pdf = await page.pdf({
     format: "A4",
@@ -197,5 +270,7 @@ export async function generateFormSubmissionPdf({
   answers: Record<string, unknown>;
   submittedAt: Date;
 }): Promise<Buffer> {
-  return renderPdf(buildPdfViewModel({ title, schema, answers, submittedAt }));
+  return renderPdf(buildPdfViewModel({ title, schema, answers, submittedAt }), {
+    templateKind: "FORM",
+  });
 }

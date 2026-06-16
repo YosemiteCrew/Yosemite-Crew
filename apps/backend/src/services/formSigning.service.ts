@@ -1,11 +1,6 @@
-import {
-  FormModel,
-  FormSubmissionModel,
-  FormVersionModel,
-} from "src/models/form";
+import { FormModel, FormSubmissionModel } from "src/models/form";
 import { type FormSubmissionDocument } from "src/models/form";
 import { DocumensoService } from "./documenso.service";
-import { generateFormSubmissionPdf } from "./formPDF.service";
 import { ParentModel } from "src/models/parent";
 import UserModel from "src/models/user";
 import logger from "src/utils/logger";
@@ -14,12 +9,28 @@ import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma } from "@prisma/client";
 import { type HydratedDocument, Types } from "mongoose";
 import { isReadFromPostgres } from "src/config/read-switch";
-import type { FormField } from "@yosemite-crew/types";
+import {
+  createRenderedDocumentRecord,
+  signPersistedRenderedDocument,
+} from "src/services/rendered-document.service";
 
 type FormSubmissionDoc = HydratedDocument<FormSubmissionDocument> & {
   _id: Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
+};
+
+type PrismaFormSubmissionRecord = {
+  id: string;
+  formId: string;
+  formVersion: number;
+  appointmentId: string | null;
+  companionId: string | null;
+  parentId: string | null;
+  submittedBy: string | null;
+  answers: Prisma.JsonValue;
+  submittedAt: Date;
+  signing: Prisma.JsonValue | null;
 };
 
 const hasToHexString = (
@@ -41,6 +52,15 @@ export class FormSigningService {
     if (hasToHexString(value)) {
       const id = value.toHexString();
       return id.length > 0 ? id : undefined;
+    }
+
+    if (
+      value &&
+      typeof value === "object" &&
+      typeof (value as { toString?: unknown }).toString === "function"
+    ) {
+      const id = (value as { toString: () => string }).toString();
+      return id.length > 0 && id !== "[object Object]" ? id : undefined;
     }
 
     return undefined;
@@ -76,7 +96,9 @@ export class FormSigningService {
     return submission;
   }
 
-  private static async loadSubmissionOrThrowPrisma(submissionId: string) {
+  private static async loadSubmissionOrThrowPrisma(
+    submissionId: string,
+  ): Promise<PrismaFormSubmissionRecord> {
     const submission = await prisma.formSubmission.findUnique({
       where: { id: submissionId },
     });
@@ -102,31 +124,10 @@ export class FormSigningService {
     return form;
   }
 
-  private static async loadVersionOrThrow(formId: string, version: number) {
-    const formVersion = await FormVersionModel.findOne({
-      formId,
-      version,
-    }).lean();
-    if (!formVersion) {
-      throw new Error("Form version not found");
+  private static ensureSigningCanStart(status?: string) {
+    if (status === "IN_PROGRESS") {
+      throw new Error("Submission signing is already in progress");
     }
-    return formVersion;
-  }
-
-  private static async loadVersionOrThrowPrisma(
-    formId: string,
-    version: number,
-  ) {
-    const formVersion = await prisma.formVersion.findUnique({
-      where: { formId_version: { formId, version } },
-    });
-    if (!formVersion) {
-      throw new Error("Form version not found");
-    }
-    return formVersion;
-  }
-
-  private static ensureNotAlreadySigned(status?: string) {
     if (status === "SIGNED") {
       throw new Error("Submission already signed");
     }
@@ -147,21 +148,6 @@ export class FormSigningService {
     if (!requiresParent && isParent) {
       throw new Error("Form requires vet signature");
     }
-  }
-
-  private static async resolveDocumensoKeyOrThrow(orgId: string) {
-    const apiKey = isReadFromPostgres()
-      ? ((
-          await prisma.organization.findUnique({
-            where: { id: orgId },
-            select: { documensoApiKey: true },
-          })
-        )?.documensoApiKey ?? null)
-      : await DocumensoService.resolveOrganisationApiKey(orgId);
-    if (!apiKey) {
-      throw new Error("Documenso API key not configured for organisation");
-    }
-    return apiKey;
   }
 
   private static async resolveSignerInfo({
@@ -205,6 +191,51 @@ export class FormSigningService {
     };
   }
 
+  private static async createAndStartRenderedDocumentSigning({
+    formId,
+    formName,
+    formOrgId,
+    formVersion,
+    sourceId,
+    signerEmail,
+    signerName,
+    signerId,
+    signerType,
+  }: {
+    formId: string;
+    formName: string;
+    formOrgId: string;
+    formVersion: number;
+    sourceId: string;
+    signerEmail: string;
+    signerName: string;
+    signerId: string;
+    signerType: "PARENT" | "PMS_USER";
+  }) {
+    const renderedDocument = await createRenderedDocumentRecord({
+      title: formName,
+      source: {
+        sourceKind: "FORM_SUBMISSION",
+        sourceId,
+        organisationId: formOrgId,
+        templateKind: "FORM",
+        templateId: formId,
+        templateVersion: formVersion,
+      },
+    });
+
+    const signedRenderedDocument = await signPersistedRenderedDocument({
+      renderedDocumentId: renderedDocument.id,
+      organisationId: formOrgId,
+      signerId,
+      signerType,
+      signerEmail,
+      signerName,
+    });
+
+    return { renderedDocument, signedRenderedDocument };
+  }
+
   private static ensureParentOwnsSubmission(
     submissionParentId: unknown,
     initiatedBy?: string,
@@ -236,31 +267,16 @@ export class FormSigningService {
         );
       }
 
-      FormSigningService.ensureNotAlreadySigned(
+      FormSigningService.ensureSigningCanStart(
         FormSigningService.extractSigningStatus(submission.signing),
       );
 
       const formId = submission.formId;
-      const version = await FormSigningService.loadVersionOrThrowPrisma(
-        formId,
-        submission.formVersion,
-      );
-
       const form = await FormSigningService.loadFormOrThrowPrisma(formId);
       FormSigningService.ensureRequiredSignerMatches(
         form.requiredSigner ?? undefined,
         isParent,
       );
-
-      const documensoApiKey =
-        await FormSigningService.resolveDocumensoKeyOrThrow(form.orgId);
-
-      const pdf = await generateFormSubmissionPdf({
-        title: form.name,
-        schema: version.schemaSnapshot as unknown as FormField[],
-        answers: submission.answers as unknown as Record<string, unknown>,
-        submittedAt: submission.submittedAt,
-      });
 
       const { signerEmail, signerName, signerRole } =
         await FormSigningService.resolveSignerInfo({
@@ -269,26 +285,32 @@ export class FormSigningService {
           submittedBy: submission.submittedBy ?? undefined,
         });
 
+      const sourceId =
+        FormSigningService.normalizeId(submission.id) ??
+        FormSigningService.normalizeId((submission as { _id?: unknown })._id);
+      if (!sourceId) {
+        throw new Error("Unable to determine submission id");
+      }
+
       if (!signerEmail) {
         logger.error("Signer email is missing");
         throw new Error("Signer email is required for signing");
       }
 
-      const doc = await DocumensoService.createDocument({
-        pdf,
-        signerEmail,
-        signerName: signerName,
-        apiKey: documensoApiKey,
-      });
-
-      if (!doc || typeof doc.id !== "number") {
-        throw new Error("Unable to create Documenso document");
-      }
-
-      await DocumensoService.distributeDocument({
-        documentId: doc.id,
-        apiKey: documensoApiKey,
-      });
+      const { renderedDocument, signedRenderedDocument } =
+        await FormSigningService.createAndStartRenderedDocumentSigning({
+          formId,
+          formName: form.name,
+          formOrgId: form.orgId,
+          formVersion: submission.formVersion,
+          sourceId,
+          signerEmail,
+          signerName,
+          signerId: isParent
+            ? (initiatedBy ?? "")
+            : (submission.submittedBy ?? ""),
+          signerType: isParent ? "PARENT" : "PMS_USER",
+        });
 
       await prisma.formSubmission.update({
         where: { id: submission.id },
@@ -297,7 +319,13 @@ export class FormSigningService {
             required: true,
             status: "IN_PROGRESS",
             provider: "DOCUMENSO",
-            documentId: doc.id.toString(),
+            documentId:
+              (
+                signedRenderedDocument.signing as
+                  | { documentId?: string }
+                  | null
+                  | undefined
+              )?.documentId ?? renderedDocument.id,
             signer: {
               email: signerEmail,
               role: signerRole,
@@ -307,8 +335,20 @@ export class FormSigningService {
       });
 
       return {
-        documentId: doc.id,
-        signingUrl: `${process.env.DOCUMENSO_URL}/sign/${doc.recipients[0].token}`,
+        documentId:
+          (
+            signedRenderedDocument.signing as
+              | { documentId?: string }
+              | null
+              | undefined
+          )?.documentId ?? renderedDocument.id,
+        signingUrl:
+          (
+            signedRenderedDocument.signing as
+              | { signingUrl?: string }
+              | null
+              | undefined
+          )?.signingUrl ?? null,
       };
     }
 
@@ -324,7 +364,7 @@ export class FormSigningService {
     }
 
     // 2️⃣ Validate state
-    FormSigningService.ensureNotAlreadySigned(submission.signing?.status);
+    FormSigningService.ensureSigningCanStart(submission.signing?.status);
 
     // 3️⃣ Load immutable form version
     const formId = (() => {
@@ -336,28 +376,11 @@ export class FormSigningService {
       throw new Error("Invalid formId");
     })();
 
-    const version = await FormSigningService.loadVersionOrThrow(
-      formId,
-      submission.formVersion,
-    );
-
     const form = await FormSigningService.loadFormOrThrow(formId);
     FormSigningService.ensureRequiredSignerMatches(
       form.requiredSigner,
       isParent,
     );
-
-    const documensoApiKey = await FormSigningService.resolveDocumensoKeyOrThrow(
-      form.orgId,
-    );
-
-    // 4️⃣ Generate PDF ONCE
-    const pdf = await generateFormSubmissionPdf({
-      title: form.name,
-      schema: version.schemaSnapshot,
-      answers: submission.answers,
-      submittedAt: submission.submittedAt,
-    });
 
     const { signerEmail, signerName, signerRole } =
       await FormSigningService.resolveSignerInfo({
@@ -366,34 +389,45 @@ export class FormSigningService {
         submittedBy: submission.submittedBy,
       });
 
+    const sourceId =
+      FormSigningService.normalizeId(submission.id) ??
+      FormSigningService.normalizeId((submission as { _id?: unknown })._id);
+    if (!sourceId) {
+      throw new Error("Unable to determine submission id");
+    }
+
     if (!signerEmail) {
       logger.error("Signer email is missing");
       throw new Error("Signer email is required for signing");
     }
 
-    // 6️⃣ Create Documenso document
-    const doc = await DocumensoService.createDocument({
-      pdf,
-      signerEmail,
-      signerName: signerName,
-      apiKey: documensoApiKey,
-    });
-
-    if (!doc || typeof doc.id !== "number") {
-      throw new Error("Unable to create Documenso document");
-    }
-
-    await DocumensoService.distributeDocument({
-      documentId: doc.id,
-      apiKey: documensoApiKey,
-    });
+    const { renderedDocument, signedRenderedDocument } =
+      await FormSigningService.createAndStartRenderedDocumentSigning({
+        formId,
+        formName: form.name,
+        formOrgId: form.orgId,
+        formVersion: submission.formVersion,
+        sourceId,
+        signerEmail,
+        signerName,
+        signerId: isParent
+          ? (initiatedBy ?? "")
+          : (submission.submittedBy ?? ""),
+        signerType: isParent ? "PARENT" : "PMS_USER",
+      });
 
     // 7️⃣ Persist signing state
     submission.signing = {
       required: true,
       status: "IN_PROGRESS",
       provider: "DOCUMENSO",
-      documentId: doc.id.toString(),
+      documentId:
+        (
+          signedRenderedDocument.signing as
+            | { documentId?: string }
+            | null
+            | undefined
+        )?.documentId ?? renderedDocument.id,
       signer: {
         email: signerEmail,
         role: signerRole,
@@ -416,8 +450,20 @@ export class FormSigningService {
       }
     }
     return {
-      documentId: doc.id,
-      signingUrl: `${process.env.DOCUMENSO_URL}/sign/${doc.recipients[0].token}`,
+      documentId:
+        (
+          signedRenderedDocument.signing as
+            | { documentId?: string }
+            | null
+            | undefined
+        )?.documentId ?? renderedDocument.id,
+      signingUrl:
+        (
+          signedRenderedDocument.signing as
+            | { signingUrl?: string }
+            | null
+            | undefined
+        )?.signingUrl ?? null,
     };
   }
 

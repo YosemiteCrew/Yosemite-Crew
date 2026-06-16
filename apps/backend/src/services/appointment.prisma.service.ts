@@ -6,8 +6,10 @@ import {
   AppointmentPaymentStatus,
   AppointmentRequestDTO,
   AppointmentResponseDTO,
+  type CatalogTemplateBinding,
   fromAppointmentRequestDTO,
   toAppointmentResponseDTO,
+  type TemplateKind,
 } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
@@ -62,6 +64,9 @@ type RescheduleChanges = {
 type CatalogSelection = Awaited<
   ReturnType<typeof CatalogService.resolveSelection>
 >;
+type AppointmentTemplateDefault = NonNullable<
+  AppointmentDomain["templateDefaults"]
+>[number];
 type TransactionClient = Prisma.TransactionClient;
 type AdmissionUpsertDelegate = {
   upsert(args: {
@@ -85,6 +90,16 @@ type EncounterLinkRow = {
   caseId: string;
   organisationId: string;
   companionId: string;
+};
+type TemplateRow = {
+  id: string;
+  kind: TemplateKind;
+  organisationId: string | null;
+  ownership: "YC_LIBRARY" | "ORG_TEMPLATE" | "USER_TEMPLATE";
+  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  latestVersion: number;
+  publishedVersion: number | null;
+  updatedAt: Date;
 };
 
 type AppointmentListFilters = {
@@ -230,6 +245,122 @@ const assertSelectionSupportsAppointmentKind = (
       400,
     );
   }
+};
+
+const buildTemplateDefault = (
+  template: TemplateRow,
+  source: AppointmentTemplateDefault["source"],
+  templateVersion?: number,
+): AppointmentTemplateDefault => ({
+  templateKind: template.kind,
+  templateId: template.id,
+  templateVersion:
+    templateVersion ?? template.publishedVersion ?? template.latestVersion,
+  source,
+});
+
+const resolveTemplateDefaultsForSelection = async (args: {
+  tx: TransactionClient;
+  organisationId: string;
+  selection: CatalogSelection;
+}): Promise<AppointmentTemplateDefault[]> => {
+  const defaults: AppointmentTemplateDefault[] = [];
+  const bindings: CatalogTemplateBinding[] = args.selection.templateBindings
+    ?.length
+    ? args.selection.templateBindings
+    : args.selection.templateKinds.map((templateKind) => ({ templateKind }));
+
+  for (const binding of bindings) {
+    if (binding.templateId) {
+      const resolvedTemplate = (await args.tx.template.findFirst({
+        where: {
+          id: binding.templateId,
+          kind: binding.templateKind,
+        },
+      })) as TemplateRow | null;
+
+      if (!resolvedTemplate) {
+        throw new AppointmentPrismaServiceError(
+          `Bound template ${binding.templateId} was not found.`,
+          404,
+        );
+      }
+
+      defaults.push(
+        buildTemplateDefault(
+          resolvedTemplate,
+          "CATALOG_BINDING",
+          binding.templateVersion ?? undefined,
+        ),
+      );
+      continue;
+    }
+
+    const organisationTemplate =
+      ((await args.tx.template.findFirst({
+        where: {
+          organisationId: args.organisationId,
+          kind: binding.templateKind,
+          status: "PUBLISHED",
+        },
+        orderBy: [{ updatedAt: "desc" }],
+      })) as TemplateRow | null) ??
+      ((await args.tx.template.findFirst({
+        where: {
+          organisationId: args.organisationId,
+          kind: binding.templateKind,
+        },
+        orderBy: [{ updatedAt: "desc" }],
+      })) as TemplateRow | null);
+
+    const libraryTemplate = organisationTemplate
+      ? null
+      : (((await args.tx.template.findFirst({
+          where: {
+            ownership: "YC_LIBRARY",
+            kind: binding.templateKind,
+            status: "PUBLISHED",
+          },
+          orderBy: [{ updatedAt: "desc" }],
+        })) as TemplateRow | null) ??
+        ((await args.tx.template.findFirst({
+          where: {
+            ownership: "YC_LIBRARY",
+            kind: binding.templateKind,
+          },
+          orderBy: [{ updatedAt: "desc" }],
+        })) as TemplateRow | null));
+
+    const resolvedTemplate = organisationTemplate ?? libraryTemplate;
+    if (!resolvedTemplate) {
+      continue;
+    }
+
+    defaults.push(
+      buildTemplateDefault(
+        resolvedTemplate,
+        resolvedTemplate.ownership === "YC_LIBRARY"
+          ? "LIBRARY_DEFAULT"
+          : "ORGANISATION_DEFAULT",
+      ),
+    );
+  }
+
+  return defaults;
+};
+
+const attachTemplateDefaults = (
+  appointmentType: AppointmentDomain["appointmentType"] | undefined,
+  templateDefaults: AppointmentTemplateDefault[],
+) => {
+  if (!appointmentType) {
+    return appointmentType;
+  }
+
+  return {
+    ...appointmentType,
+    templateDefaults,
+  };
 };
 
 const getCompanionId = (
@@ -601,34 +732,47 @@ const resolvePaymentStatusMap = async (
 const toDomain = (
   row: AppointmentRow,
   paymentStatus?: AppointmentPaymentStatus,
-): AppointmentDomain => ({
-  id: row.id,
-  caseId: row.caseId ?? undefined,
-  encounterId: row.encounterId ?? undefined,
-  companion: row.companion as AppointmentDomain["companion"],
-  lead: (row.lead as AppointmentDomain["lead"]) ?? undefined,
-  supportStaff:
-    (row.supportStaff as AppointmentDomain["supportStaff"]) ?? undefined,
-  room: (row.room as AppointmentDomain["room"]) ?? undefined,
-  appointmentType:
-    (row.appointmentType as AppointmentDomain["appointmentType"]) ?? undefined,
-  appointmentKind: normalizeAppointmentKind(row.appointmentKind),
-  organisationId: row.organisationId,
-  appointmentDate: new Date(row.appointmentDate),
-  startTime: new Date(row.startTime),
-  timeSlot: row.timeSlot,
-  durationMinutes: row.durationMinutes,
-  endTime: new Date(row.endTime),
-  status: row.status,
-  paymentStatus,
-  isEmergency: row.isEmergency,
-  concern: row.concern ?? undefined,
-  createdAt: new Date(row.createdAt),
-  updatedAt: new Date(row.updatedAt),
-  attachments:
-    (row.attachments as AppointmentDomain["attachments"]) ?? undefined,
-  formIds: row.formIds ?? [],
-});
+): AppointmentDomain => {
+  const appointmentTypeWithTemplates = row.appointmentType as
+    | (AppointmentDomain["appointmentType"] & {
+        templateDefaults?: AppointmentTemplateDefault[];
+      })
+    | null;
+  const templateDefaults =
+    appointmentTypeWithTemplates?.templateDefaults?.filter(Boolean) ?? [];
+
+  return {
+    id: row.id,
+    caseId: row.caseId ?? undefined,
+    encounterId: row.encounterId ?? undefined,
+    companion: row.companion as AppointmentDomain["companion"],
+    lead: (row.lead as AppointmentDomain["lead"]) ?? undefined,
+    supportStaff:
+      (row.supportStaff as AppointmentDomain["supportStaff"]) ?? undefined,
+    room: (row.room as AppointmentDomain["room"]) ?? undefined,
+    appointmentType:
+      (row.appointmentType as AppointmentDomain["appointmentType"]) ??
+      undefined,
+    appointmentKind: normalizeAppointmentKind(row.appointmentKind),
+    organisationId: row.organisationId,
+    appointmentDate: new Date(row.appointmentDate),
+    startTime: new Date(row.startTime),
+    timeSlot: row.timeSlot,
+    durationMinutes: row.durationMinutes,
+    endTime: new Date(row.endTime),
+    status: row.status,
+    paymentStatus,
+    isEmergency: row.isEmergency,
+    concern: row.concern ?? undefined,
+    createdAt: new Date(row.createdAt),
+    updatedAt: new Date(row.updatedAt),
+    attachments:
+      (row.attachments as AppointmentDomain["attachments"]) ?? undefined,
+    formIds: row.formIds ?? [],
+    templateDefaults:
+      templateDefaults.length > 0 ? templateDefaults : undefined,
+  };
+};
 
 const toResponse = async (
   row: AppointmentRow,
@@ -696,14 +840,24 @@ const createAppointment = async (
       companionId,
     });
 
+    const templateDefaults = await resolveTemplateDefaultsForSelection({
+      tx,
+      organisationId: input.organisationId,
+      selection,
+    });
+    const appointmentType = attachTemplateDefaults(
+      input.appointmentType,
+      templateDefaults,
+    );
+
     const appointment = await tx.appointment.create({
       data: {
         companion: toJsonValue(input.companion),
         lead: input.lead ? toJsonValue(input.lead) : Prisma.JsonNull,
         supportStaff: input.supportStaff ? toJsonValue(input.supportStaff) : [],
         room: input.room ? toJsonValue(input.room) : Prisma.JsonNull,
-        appointmentType: input.appointmentType
-          ? toJsonValue(input.appointmentType)
+        appointmentType: appointmentType
+          ? toJsonValue(appointmentType)
           : Prisma.JsonNull,
         appointmentKind,
         organisationId: input.organisationId,
@@ -1140,6 +1294,17 @@ export const AppointmentPrismaService = {
         companionId,
       });
 
+      const templateDefaults = await resolveTemplateDefaultsForSelection({
+        tx,
+        organisationId: row.organisationId,
+        selection,
+      });
+      const appointmentType = attachTemplateDefaults(
+        input.appointmentType ??
+          (row.appointmentType as AppointmentDomain["appointmentType"]),
+        templateDefaults,
+      );
+
       if (patch.status === "UPCOMING") {
         await upsertAppointmentOccupancy({
           tx,
@@ -1163,6 +1328,9 @@ export const AppointmentPrismaService = {
         where: { id: appointmentId },
         data: {
           ...patch,
+          appointmentType: appointmentType
+            ? toJsonValue(appointmentType)
+            : toNullableJsonValue(row.appointmentType),
           caseId: resolvedCaseId ?? null,
           encounterId: encounterId ?? null,
           productItemId: selection.productItemId,

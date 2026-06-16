@@ -765,6 +765,46 @@ describe("CaseEncounterService", () => {
     expect(result.status).toBe("onleave");
   });
 
+  it("reverts ready for discharge back to in-progress", async () => {
+    mockedPrisma.encounter.findUnique.mockResolvedValue({
+      ...baseEncounterRow,
+      status: "onleave",
+    } as never);
+    mockedPrisma.encounter.update.mockResolvedValue({
+      ...baseEncounterRow,
+      status: "in-progress",
+    } as never);
+    mockedPrisma.appointment.findMany.mockResolvedValue([
+      { id: "appt_1", encounterId: "enc_1" },
+    ] as never);
+
+    const result =
+      await CaseEncounterService.markEncounterNotReadyForDischarge("enc_1");
+
+    expect(mockedPrisma.encounter.update).toHaveBeenCalledWith({
+      where: { id: "enc_1" },
+      data: {
+        status: "in-progress",
+      },
+    });
+    expect(result.status).toBe("in-progress");
+  });
+
+  it("rejects undo ready for discharge when encounter is not onleave", async () => {
+    mockedPrisma.encounter.findUnique.mockResolvedValue({
+      ...baseEncounterRow,
+      status: "in-progress",
+    } as never);
+
+    await expect(
+      CaseEncounterService.markEncounterNotReadyForDischarge("enc_1"),
+    ).rejects.toMatchObject({
+      message:
+        "Cannot undo ready for discharge unless the encounter is ready for discharge.",
+      statusCode: 409,
+    } satisfies Partial<CaseEncounterServiceError>);
+  });
+
   it("lists active inpatient encounters for an organisation", async () => {
     mockedPrisma.admission.findMany.mockResolvedValueOnce([
       {

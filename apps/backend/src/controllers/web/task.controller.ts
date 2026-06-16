@@ -24,8 +24,7 @@ import {
   TaskTemplateService,
   UpdateTaskTemplateInput,
 } from "src/services/taskTemplate.service";
-import { TaskKind } from "src/models/taskLibraryDefinition";
-import { TaskStatus } from "src/models/task";
+import { TaskKind, TaskStatus } from "@prisma/client";
 
 type CreateCustomTaskRequestBody = Omit<
   CreateCustomTaskInput,

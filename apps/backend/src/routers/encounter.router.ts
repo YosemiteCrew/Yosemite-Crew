@@ -69,6 +69,14 @@ router.post(
   EncounterController.readyForDischarge,
 );
 
+router.post(
+  "/:id/$undo-ready-for-discharge",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  EncounterController.undoReadyForDischarge,
+);
+
 router.get(
   "/$active-inpatients",
   authorizeCognito,

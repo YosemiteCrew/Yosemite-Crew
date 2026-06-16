@@ -46,6 +46,9 @@ jest.mock("../../src/config/prisma", () => ({
     admission: {
       upsert: jest.fn(),
     },
+    template: {
+      findFirst: jest.fn(),
+    },
     occupancy: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -148,6 +151,8 @@ describe("AppointmentPrismaService", () => {
       productItemId: "product_1",
       isBookable: true,
       appointmentKinds: ["OUTPATIENT", "INPATIENT"],
+      templateKinds: ["SOAP_NOTE"],
+      templateBindings: [],
     }));
     mockedPrisma.$transaction.mockImplementation(async (callback: any) =>
       callback(mockedPrisma),
@@ -156,6 +161,7 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.occupancy.create.mockResolvedValue({} as any);
     mockedPrisma.occupancy.deleteMany.mockResolvedValue({ count: 1 } as any);
     mockedPrisma.admission.upsert.mockResolvedValue({} as any);
+    mockedPrisma.template.findFirst.mockResolvedValue(null);
   });
 
   it("creates a requested appointment with product validation", async () => {
@@ -164,8 +170,32 @@ describe("AppointmentPrismaService", () => {
       organisationId: "org_1",
       companionId: "comp_1",
     } as any);
+    mockedPrisma.template.findFirst.mockResolvedValue({
+      id: "tmpl_soap",
+      kind: "SOAP_NOTE",
+      organisationId: "org_1",
+      ownership: "ORG_TEMPLATE",
+      status: "PUBLISHED",
+      latestVersion: 4,
+      publishedVersion: 4,
+      updatedAt: new Date("2026-06-10T09:50:00.000Z"),
+    } as any);
     mockedPrisma.appointment.create.mockResolvedValue(
-      makeRow({ status: "REQUESTED", caseId: "case_1" }),
+      makeRow({
+        status: "REQUESTED",
+        caseId: "case_1",
+        appointmentType: {
+          ...baseDomain.appointmentType,
+          templateDefaults: [
+            {
+              templateKind: "SOAP_NOTE",
+              templateId: "tmpl_soap",
+              templateVersion: 4,
+              source: "ORGANISATION_DEFAULT",
+            },
+          ],
+        },
+      }),
     );
     mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
@@ -181,11 +211,102 @@ describe("AppointmentPrismaService", () => {
           organisationId: "org_1",
           caseId: "case_1",
           productItemId: "product_1",
+          appointmentType: expect.objectContaining({
+            templateDefaults: [
+              expect.objectContaining({
+                templateKind: "SOAP_NOTE",
+                templateId: "tmpl_soap",
+                templateVersion: 4,
+                source: "ORGANISATION_DEFAULT",
+              }),
+            ],
+          }),
         }),
       }),
     );
     expect((result as any).paymentStatus).toBe("UNPAID");
     expect(result.id).toBe("appt_1");
+    expect((result as any).templateDefaults).toEqual([
+      expect.objectContaining({
+        templateKind: "SOAP_NOTE",
+        templateId: "tmpl_soap",
+        templateVersion: 4,
+        source: "ORGANISATION_DEFAULT",
+      }),
+    ]);
+  });
+
+  it("prefers explicit catalog template bindings over catalog kind defaults", async () => {
+    mockedResolveSelection.mockImplementation(
+      async () =>
+        ({
+          productItemId: "product_1",
+          isBookable: true,
+          appointmentKinds: ["OUTPATIENT", "INPATIENT"],
+          templateKinds: ["SOAP_NOTE"],
+          templateBindings: [
+            {
+              templateKind: "SOAP_NOTE",
+              templateId: "tmpl_bound",
+              templateVersion: 8,
+            },
+          ],
+        }) as any,
+    );
+    mockedPrisma.case.findUnique.mockResolvedValue({
+      id: "case_1",
+      organisationId: "org_1",
+      companionId: "comp_1",
+    } as any);
+    mockedPrisma.template.findFirst.mockResolvedValue({
+      id: "tmpl_bound",
+      kind: "SOAP_NOTE",
+      organisationId: "org_1",
+      ownership: "ORG_TEMPLATE",
+      status: "PUBLISHED",
+      latestVersion: 9,
+      publishedVersion: 9,
+      updatedAt: new Date("2026-06-10T09:50:00.000Z"),
+    } as any);
+    mockedPrisma.appointment.create.mockResolvedValue(
+      makeRow({
+        status: "REQUESTED",
+        caseId: "case_1",
+        appointmentType: {
+          ...baseDomain.appointmentType,
+          templateDefaults: [
+            {
+              templateKind: "SOAP_NOTE",
+              templateId: "tmpl_bound",
+              templateVersion: 8,
+              source: "CATALOG_BINDING",
+            },
+          ],
+        },
+      }),
+    );
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+    const result = await AppointmentPrismaService.createRequestedFromMobile({
+      resourceType: "Appointment",
+    } as any);
+
+    expect(mockedPrisma.template.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "tmpl_bound",
+          kind: "SOAP_NOTE",
+        }),
+      }),
+    );
+    expect((result as any).templateDefaults).toEqual([
+      expect.objectContaining({
+        templateKind: "SOAP_NOTE",
+        templateId: "tmpl_bound",
+        templateVersion: 8,
+        source: "CATALOG_BINDING",
+      }),
+    ]);
   });
 
   it("auto-creates a case for inpatient appointments when frontend does not send one", async () => {

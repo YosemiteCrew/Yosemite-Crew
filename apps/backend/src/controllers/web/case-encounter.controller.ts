@@ -376,6 +376,27 @@ export const EncounterController = {
     }
   },
 
+  undoReadyForDischarge: async (
+    req: Request<{ id: string }>,
+    res: Response,
+  ) => {
+    try {
+      lifecycleOperationSchema.parse(req.body ?? {});
+      const updated =
+        await CaseEncounterService.markEncounterNotReadyForDischarge(
+          req.params.id,
+        );
+
+      return res.status(200).json(toEncounterResponseDTO(updated));
+    } catch (error) {
+      return handleError(
+        res,
+        error,
+        "Failed to undo encounter ready for discharge.",
+      );
+    }
+  },
+
   listActiveInpatients: async (req: Request, res: Response) => {
     try {
       const query = activeInpatientListQuerySchema.parse(req.query);

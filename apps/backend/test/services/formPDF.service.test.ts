@@ -36,7 +36,7 @@ describe("FormPDFService", () => {
     // Default mock implementation for fs.readFileSync
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (fs.readFileSync as any).mockReturnValue(
-      "<html>{{title}} {{submittedAt}} {{sections}}</html>",
+      "<html>{{brandSection}}{{title}} {{submittedAt}} {{sections}} {{templateLabel}}</html>",
     );
 
     // Default mock implementation for playwright
@@ -333,7 +333,10 @@ describe("FormPDFService", () => {
 
       expect(chromium.launch).toHaveBeenCalled();
       expect(mockBrowser.newPage).toHaveBeenCalled();
-      expect(fs.readFileSync).toHaveBeenCalled();
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        expect.stringContaining("pdf-templates/form.html"),
+        "utf8",
+      );
 
       // Verify template replacement happened (implicitly by setContent call)
       expect(mockPage.setContent).toHaveBeenCalledWith(
@@ -351,6 +354,36 @@ describe("FormPDFService", () => {
       });
       expect(mockBrowser.close).toHaveBeenCalled();
       expect(result).toBeInstanceOf(Buffer);
+    });
+
+    it("should inject branding and use the requested template kind", async () => {
+      await renderPdf(mockVm, {
+        templateKind: "SOAP_NOTE",
+        branding: {
+          organizationName: "MediCare Hospital",
+          addressLines: ["123 Clinic Road", "Mumbai, MH 400001"],
+          logoUrl: "https://cdn.example/logo.png",
+          phoneNo: "+91 99999 00000",
+          website: "https://medicare.example",
+        },
+      });
+
+      expect(fs.readFileSync).toHaveBeenCalledWith(
+        expect.stringContaining("pdf-templates/soap-note.html"),
+        "utf8",
+      );
+      expect(mockPage.setContent).toHaveBeenCalledWith(
+        expect.stringContaining("MediCare Hospital"),
+        { waitUntil: "load" },
+      );
+      expect(mockPage.setContent).toHaveBeenCalledWith(
+        expect.stringContaining("Clinic Road"),
+        { waitUntil: "load" },
+      );
+      expect(mockPage.setContent).toHaveBeenCalledWith(
+        expect.stringContaining("SOAP note"),
+        { waitUntil: "load" },
+      );
     });
   });
 

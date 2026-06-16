@@ -7,6 +7,7 @@ import type {
 import dayjs from 'dayjs';
 import { SPECIES_SYSTEM_URL } from './companion';
 import type { AppointmentKind } from './catalog';
+import type { TemplateKind } from './template';
 
 export type AppointmentStatus =
   | 'REQUESTED'
@@ -18,6 +19,13 @@ export type AppointmentStatus =
   | 'NO_SHOW';
 
 export type AppointmentPaymentStatus = 'PAID' | 'UNPAID';
+
+export type AppointmentTemplateDefault = {
+  templateKind: TemplateKind;
+  templateId: string | undefined;
+  templateVersion: number | undefined;
+  source: 'CATALOG_BINDING' | 'CATALOG_KIND' | 'ORGANISATION_DEFAULT' | 'LIBRARY_DEFAULT';
+};
 
 export type Appointment = {
   id?: string;
@@ -74,6 +82,7 @@ export type Appointment = {
     contentType?: string;
   }[];
   formIds?: string[]; // IDs of any forms associated with the appointment
+  templateDefaults?: AppointmentTemplateDefault[];
 };
 
 const BREED_SYSTEM_URL = 'http://hl7.org/fhir/animal-breed';
@@ -90,6 +99,13 @@ const EXT_APPOINTMENT_CASE_ID =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-case-id';
 const EXT_APPOINTMENT_ENCOUNTER_ID =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-encounter-id';
+const EXT_APPOINTMENT_TEMPLATE_DEFAULTS =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-template-defaults';
+
+const EXT_TEMPLATE_DEFAULT_KIND = 'templateKind';
+const EXT_TEMPLATE_DEFAULT_ID = 'templateId';
+const EXT_TEMPLATE_DEFAULT_VERSION = 'templateVersion';
+const EXT_TEMPLATE_DEFAULT_SOURCE = 'source';
 
 export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
   const participants: AppointmentParticipant[] = [];
@@ -297,6 +313,40 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
     });
   }
 
+  if (appointment.templateDefaults?.length) {
+    appointment.templateDefaults.forEach((templateDefault) => {
+      extension.push({
+        url: EXT_APPOINTMENT_TEMPLATE_DEFAULTS,
+        extension: [
+          {
+            url: EXT_TEMPLATE_DEFAULT_KIND,
+            valueString: templateDefault.templateKind,
+          },
+          ...(templateDefault.templateId
+            ? [
+                {
+                  url: EXT_TEMPLATE_DEFAULT_ID,
+                  valueString: templateDefault.templateId,
+                } as Extension,
+              ]
+            : []),
+          ...(templateDefault.templateVersion != null
+            ? [
+                {
+                  url: EXT_TEMPLATE_DEFAULT_VERSION,
+                  valueInteger: templateDefault.templateVersion,
+                } as Extension,
+              ]
+            : []),
+          {
+            url: EXT_TEMPLATE_DEFAULT_SOURCE,
+            valueString: templateDefault.source,
+          },
+        ],
+      });
+    });
+  }
+
   const fhirAppointment: FHIRAppointment = {
     resourceType: 'Appointment',
     id: appointment.id,
@@ -386,6 +436,34 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     (ext) => ext.url === EXT_APPOINTMENT_ENCOUNTER_ID
   )?.valueString;
 
+  const templateDefaults =
+    FHIRappointment.extension
+      ?.filter((ext) => ext.url === EXT_APPOINTMENT_TEMPLATE_DEFAULTS)
+      .map((ext) => {
+        const templateKind = ext.extension?.find((item) => item.url === EXT_TEMPLATE_DEFAULT_KIND)
+          ?.valueString as TemplateKind | undefined;
+        const templateId = ext.extension?.find(
+          (item) => item.url === EXT_TEMPLATE_DEFAULT_ID
+        )?.valueString;
+        const templateVersion = ext.extension?.find(
+          (item) => item.url === EXT_TEMPLATE_DEFAULT_VERSION
+        )?.valueInteger;
+        const source = ext.extension?.find((item) => item.url === EXT_TEMPLATE_DEFAULT_SOURCE)
+          ?.valueString as AppointmentTemplateDefault['source'] | undefined;
+
+        if (!templateKind || !source) {
+          return null;
+        }
+
+        return {
+          templateKind,
+          templateId,
+          templateVersion,
+          source,
+        };
+      })
+      .filter((value): value is AppointmentTemplateDefault => value !== null) || [];
+
   // Construct internal Appointment object
   const leadId = leadParticipant?.actor?.reference?.split('/')[1] ?? '';
   const hasLead =
@@ -447,6 +525,7 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     isEmergency: emergencyExtension?.valueBoolean,
     attachments,
     formIds,
+    templateDefaults,
   };
 
   return appointment;
