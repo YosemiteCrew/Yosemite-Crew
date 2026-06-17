@@ -187,7 +187,7 @@ jobs:
       - name: Wait for frontend server
         run: |
           for attempt in {1..60}; do
-            if curl --fail --silent --show-error http://127.0.0.1:3001/pms > /dev/null; then
+            if curl --fail --silent --show-error http://127.0.0.1:3001/pet-businesses > /dev/null; then
               exit 0
             fi
             sleep 2
