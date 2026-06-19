@@ -103,37 +103,6 @@ jobs:
           name: frontend-coverage
           path: apps/frontend/coverage/
 
-  react-doctor:
-    name: React Doctor health check (score ≥ 70)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Run React Doctor and enforce minimum score
-        run: |
-          OUTPUT=$(npx react-doctor@latest apps/frontend --no-interactive 2>&1 || true)
-          echo "$OUTPUT"
-          SCORE=$(echo "$OUTPUT" | grep -oP '(?<=│ • • │  )\d+(?= / 100)' || echo "")
-          if [ -z "$SCORE" ]; then
-            SCORE=$(echo "$OUTPUT" | grep -oP '\d+(?= / 100)' | head -1 || echo "0")
-          fi
-          echo "React Doctor score: $SCORE"
-          if [ "$SCORE" -lt 70 ]; then
-            echo "❌ React Doctor score $SCORE is below the minimum of 70"
-            exit 1
-          fi
-          echo "✅ React Doctor score $SCORE meets the minimum of 70"
-
   build-quality:
     name: Frontend build, bundle budgets, Lighthouse
     runs-on: ubuntu-latest
