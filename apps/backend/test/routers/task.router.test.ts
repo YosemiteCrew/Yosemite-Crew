@@ -101,7 +101,7 @@ describe("task.router", () => {
       "/pms/organisation/:organisationId",
       "get",
     );
-    const companionListRoute = findRoute("/pms/companion/:companionId", "get");
+    const companionListRoute = findRoute("/pms/companion/:patientId", "get");
     const getTaskRoute = findRoute("/pms/:taskId", "get");
     const updateTaskRoute = findRoute("/pms/:taskId", "patch");
     const changeStatusRoute = findRoute("/pms/:taskId/status", "post");

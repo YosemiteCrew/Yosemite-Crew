@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, jest, it } from "@jest/globals";
 import { Request, Response } from "express";
 import { AppointmentController } from "../../../src/controllers/web/appointment.prisma.controller";
 import { AppointmentPrismaService } from "../../../src/services/appointment.prisma.service";
+import { InvoiceService } from "../../../src/services/invoice.service";
 import { AuthUserMobileService } from "../../../src/services/authUserMobile.service";
 import { generatePresignedUrl } from "../../../src/middlewares/upload";
 import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/services/appointment.prisma.service");
+jest.mock("../../../src/services/invoice.service");
 jest.mock("../../../src/services/authUserMobile.service");
 jest.mock("../../../src/middlewares/upload");
 jest.mock("../../../src/utils/logger", () => ({
@@ -16,6 +18,7 @@ jest.mock("../../../src/utils/logger", () => ({
 }));
 
 const mockedService = jest.mocked(AppointmentPrismaService);
+const mockedInvoiceService = jest.mocked(InvoiceService);
 const mockedAuth = jest.mocked(AuthUserMobileService);
 const mockedUpload = jest.mocked(generatePresignedUrl);
 const mockedLogger = jest.mocked(logger);
@@ -109,7 +112,7 @@ describe("AppointmentPrismaController", () => {
 
   it("creates document upload urls", async () => {
     (req as any).userId = "user_1";
-    req.body = { companionId: "comp_1", mimeType: "image/png" };
+    req.body = { patientId: "comp_1", mimeType: "image/png" };
     mockedUpload.mockResolvedValue({
       url: "https://upload-url",
       key: "appointments/comp_1/file",
@@ -200,6 +203,26 @@ describe("AppointmentPrismaController", () => {
     );
   });
 
+  it("marks appointments ready for billing from PMS", async () => {
+    req.params = { appointmentId: "appt_1" };
+    mockedInvoiceService.markAppointmentReadyForBilling.mockResolvedValue(
+      null as any,
+    );
+
+    await AppointmentController.markReadyForBillingForPMS(
+      req as any,
+      res as any,
+    );
+
+    expect(
+      mockedInvoiceService.markAppointmentReadyForBilling,
+    ).toHaveBeenCalledWith("appt_1");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Appointment marked ready for billing",
+    });
+  });
+
   it("attaches forms, cancels, and fetches appointments", async () => {
     req.params = { appointmentId: "appt_1" };
     req.body = { formIds: ["form_1", "form_2"] };
@@ -237,11 +260,11 @@ describe("AppointmentPrismaController", () => {
     await AppointmentController.cancelFromPMS(req as any, res as any);
     await AppointmentController.getById(req as any, res as any);
     await AppointmentController.listByCompanion(
-      { params: { companionId: "comp_1" } } as any,
+      { params: { patientId: "comp_1" } } as any,
       res as any,
     );
     await AppointmentController.listByCompanionForOrganisation(
-      { params: { companionId: "comp_1", organisationId: "org_1" } } as any,
+      { params: { patientId: "comp_1", organisationId: "org_1" } } as any,
       res as any,
     );
     await AppointmentController.listByParent(req as any, res as any);
@@ -295,7 +318,7 @@ describe("AppointmentPrismaController", () => {
     expect(res.status).toHaveBeenCalledWith(400);
 
     await AppointmentController.getDocumentUplaodURL(
-      { body: { companionId: "comp_1" }, userId: "user_1" } as any,
+      { body: { patientId: "comp_1" }, userId: "user_1" } as any,
       res as any,
     );
     expect(res.status).toHaveBeenCalledWith(400);

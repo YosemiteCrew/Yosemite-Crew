@@ -43,7 +43,7 @@ type YosemiteChannelData = ChannelData & {
   name?: string;
   appointmentId?: string;
   organisationId?: string;
-  companionId?: string;
+  patientId?: string;
   parentId?: string;
   vetId?: string | null;
   status?: "active" | "ended";
@@ -88,7 +88,7 @@ const toPrismaChatSessionData = (doc: ChatSessionDocument) => {
     appointmentId?: string;
     channelId: string;
     organisationId: string;
-    companionId?: string;
+    patientId?: string;
     parentId?: string;
     vetId?: string | null;
     supportStaffIds?: string[];
@@ -111,7 +111,7 @@ const toPrismaChatSessionData = (doc: ChatSessionDocument) => {
     appointmentId: obj.appointmentId ?? undefined,
     channelId: obj.channelId,
     organisationId: obj.organisationId,
-    companionId: obj.companionId ?? undefined,
+    patientId: obj.patientId ?? undefined,
     parentId: obj.parentId ?? undefined,
     vetId: obj.vetId ?? undefined,
     supportStaffIds: obj.supportStaffIds ?? [],
@@ -283,7 +283,7 @@ export const ChatService = {
         return existing as unknown as ChatSessionDocument;
       }
 
-      const companion = appointment.companion as {
+      const companion = appointment.patient as {
         id: string;
         parent?: { id: string; name?: string };
       };
@@ -309,7 +309,7 @@ export const ChatService = {
       }
 
       const orgId = appointment.organisationId;
-      const companionId = companion?.id ?? undefined;
+      const patientId = companion?.id ?? undefined;
 
       const members = [parentId];
       if (vetId) members.push(vetId);
@@ -330,7 +330,7 @@ export const ChatService = {
         name: `Appointment Chat`,
         appointmentId,
         organisationId: orgId,
-        companionId,
+        patientId,
         parentId,
         vetId,
         status: "active",
@@ -345,7 +345,7 @@ export const ChatService = {
           appointmentId,
           channelId,
           organisationId: orgId,
-          companionId: companionId ?? undefined,
+          patientId: patientId ?? undefined,
           parentId,
           vetId: vetId ?? undefined,
           members,
@@ -366,11 +366,11 @@ export const ChatService = {
     let session = await ChatSessionModel.findOne({ appointmentId });
     if (session) return session;
 
-    const parentId = appointment.companion.parent.id;
+    const parentId = appointment.patient.parent.id;
     //Upsert parent user in Stream
     await streamServer.upsertUser({
       id: parentId,
-      name: appointment.companion.parent.name || "Pet Owner",
+      name: appointment.patient.parent.name || "Pet Owner",
       role: "user",
     });
 
@@ -383,7 +383,7 @@ export const ChatService = {
     });
 
     const orgId = appointment.organisationId;
-    const companionId = appointment.companion.id;
+    const patientId = appointment.patient.id;
 
     const members = [parentId];
     if (vetId) members.push(vetId);
@@ -397,10 +397,10 @@ export const ChatService = {
     const channelId = `appointment-${appointmentId}`;
 
     const data: YosemiteChannelData = {
-      name: `Chat with ${appointment.companion.name || "Companion"}`,
+      name: `Chat with ${appointment.patient.name || "Companion"}`,
       appointmentId,
       organisationId: orgId,
-      companionId,
+      patientId,
       parentId,
       vetId,
       status: "active",
@@ -423,7 +423,7 @@ export const ChatService = {
       appointmentId,
       channelId,
       organisationId: orgId,
-      companionId,
+      patientId,
       parentId,
       vetId,
       members,

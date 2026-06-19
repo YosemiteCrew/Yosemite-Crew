@@ -14,7 +14,7 @@ router.get(
 );
 
 router.get(
-  "/companion/:companionId",
+  "/companion/:patientId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission(["tasks:view:any", "tasks:view:own"]),

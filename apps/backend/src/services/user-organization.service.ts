@@ -1,11 +1,6 @@
 import { Types } from "mongoose";
-import UserOrganizationModel, {
-  type UserOrganizationDocument,
-  type UserOrganizationMongo,
-} from "../models/user-organization";
-import OrganizationModel, {
-  type OrganizationMongo,
-} from "../models/organization";
+import type { UserOrganizationMongo } from "../models/user-organization";
+import type { OrganizationMongo } from "../models/organization";
 import {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
@@ -14,20 +9,12 @@ import {
   type UserOrganization,
 } from "@yosemite-crew/types";
 import { ROLE_PERMISSIONS, RoleCode } from "src/models/role-permission";
-import UserProfileModel from "src/models/user-profile";
-import SpecialityModel from "src/models/speciality";
 import { AvailabilityService } from "./availability.service";
-import UserModel from "src/models/user";
-import { OccupancyModel } from "src/models/occupancy";
-import { OrgBilling } from "src/models/organization.billing";
-import { OrgUsageCounters } from "src/models/organisation.usage.counter";
 import { StripeService } from "./stripe.service";
 import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
-import { isReadFromPostgres } from "src/config/read-switch";
 import type { UserOrganization as PrismaUserOrganization } from "@prisma/client";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
@@ -56,58 +43,21 @@ const DEFAULT_PMS_URL =
 const extractReferenceId = (value: string) => value.split("/").pop()?.trim();
 
 const buildDisplayName = (
-  user?: { firstName?: string; lastName?: string } | null,
+  user?: { firstName?: string | null; lastName?: string | null } | null,
 ) => {
   if (!user) return undefined;
   const parts = [user.firstName, user.lastName].filter(Boolean);
   return parts.length ? parts.join(" ") : undefined;
 };
 
-const toPrismaUserOrganizationData = (doc: UserOrganizationDocument) => {
-  const obj = doc.toObject() as UserOrganizationMongo & {
-    _id: { toString(): string };
-    createdAt?: Date;
-    updatedAt?: Date;
-  };
-
-  return {
-    id: obj._id.toString(),
-    fhirId: obj.fhirId ?? undefined,
-    practitionerReference: obj.practitionerReference,
-    organizationReference: obj.organizationReference,
-    roleCode: obj.roleCode,
-    roleDisplay: obj.roleDisplay ?? undefined,
-    active: obj.active ?? true,
-    extraPermissions: obj.extraPermissions ?? [],
-    revokedPermissions: obj.revokedPermissions ?? [],
-    effectivePermissions: obj.effectivePermissions ?? [],
-    createdAt: obj.createdAt ?? undefined,
-    updatedAt: obj.updatedAt ?? undefined,
-  };
-};
-
-const syncUserOrganizationToPostgres = async (
-  doc: UserOrganizationDocument,
-) => {
-  if (!shouldDualWrite) return;
-  try {
-    const data = toPrismaUserOrganizationData(doc);
-    await prisma.userOrganization.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
-  } catch (err) {
-    handleDualWriteError("UserOrganization", err);
-  }
-};
-
 const resolveOrganisationName = async (reference: string) => {
   const orgId = extractOrganizationIdentifier(reference);
-  const orgQuery = buildOrganizationLookupQuery(orgId);
-  const organisation = await OrganizationModel.findOne(orgQuery)
-    .select("name")
-    .lean();
+  const organisation = await prisma.organization.findFirst({
+    where: {
+      OR: [{ id: orgId }, { fhirId: orgId }],
+    },
+    select: { name: true },
+  });
   return organisation?.name;
 };
 
@@ -121,14 +71,10 @@ const sendPermissionsUpdatedEmail = async (params: {
     const userId =
       extractReferenceId(params.practitionerReference) ??
       params.practitionerReference;
-    const user = (await UserModel.findOne(
-      { userId },
-      { email: 1, firstName: 1, lastName: 1 },
-    ).lean()) as {
-      email?: string;
-      firstName?: string;
-      lastName?: string;
-    } | null;
+    const user = await prisma.user.findFirst({
+      where: { userId },
+      select: { email: true, firstName: true, lastName: true },
+    });
     const organisationName = await resolveOrganisationName(
       params.organizationReference,
     );
@@ -358,59 +304,27 @@ const extractOrganizationIdentifier = (reference: string): string => {
   return lastSegment;
 };
 
-const ensureOrgUsageCounters = async (orgId: Types.ObjectId) => {
-  const doc = await OrgUsageCounters.findOneAndUpdate(
-    { orgId },
-    { $setOnInsert: { orgId } },
-    { new: true, upsert: true, setDefaultsOnInsert: true },
-  );
-
-  if (doc && shouldDualWrite) {
-    try {
-      await prisma.organizationUsageCounter.upsert({
-        where: { orgId: orgId.toString() },
-        create: {
-          id: doc._id.toString(),
-          orgId: orgId.toString(),
-          appointmentsUsed: doc.appointmentsUsed ?? 0,
-          toolsUsed: doc.toolsUsed ?? 0,
-          usersActiveCount: doc.usersActiveCount ?? 0,
-          usersBillableCount: doc.usersBillableCount ?? 0,
-          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
-          freeToolsLimit: doc.freeToolsLimit ?? 200,
-          freeUsersLimit: doc.freeUsersLimit ?? 10,
-          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
-          createdAt: doc.createdAt ?? undefined,
-          updatedAt: doc.updatedAt ?? undefined,
-        },
-        update: {
-          appointmentsUsed: doc.appointmentsUsed ?? 0,
-          toolsUsed: doc.toolsUsed ?? 0,
-          usersActiveCount: doc.usersActiveCount ?? 0,
-          usersBillableCount: doc.usersBillableCount ?? 0,
-          freeAppointmentsLimit: doc.freeAppointmentsLimit ?? 120,
-          freeToolsLimit: doc.freeToolsLimit ?? 200,
-          freeUsersLimit: doc.freeUsersLimit ?? 10,
-          freeLimitReachedAt: doc.freeLimitReachedAt ?? undefined,
-          updatedAt: doc.updatedAt ?? undefined,
-        },
-      });
-    } catch (err) {
-      handleDualWriteError("OrganizationUsageCounter ensure", err);
-    }
-  }
-
-  return doc;
+const ensureOrgUsageCounters = async (orgId: string) => {
+  return prisma.organizationUsageCounter.upsert({
+    where: { orgId },
+    create: {
+      orgId,
+    },
+    update: {},
+  });
 };
 
-const isFreePlan = async (orgId: Types.ObjectId) => {
-  const billing = await OrgBilling.findOne({ orgId }).select("plan").lean();
+const isFreePlan = async (orgId: string) => {
+  const billing = await prisma.organizationBilling.findFirst({
+    where: { orgId },
+    select: { plan: true },
+  });
   return !billing || billing.plan === "free";
 };
 
 type OrgUsageCountersDoc = {
-  _id: Types.ObjectId;
-  orgId: Types.ObjectId;
+  id: string;
+  orgId: string;
   freeLimitReachedAt?: Date | null;
   usersActiveCount?: number | null;
   usersBillableCount?: number | null;
@@ -432,135 +346,75 @@ const markFreeLimitReachedAt = async (usage: OrgUsageCountersDoc | null) => {
     return false;
   }
 
-  const updated = await OrgUsageCounters.updateOne(
-    { _id: usage._id, freeLimitReachedAt: null },
-    { $set: { freeLimitReachedAt: new Date() } },
-  );
+  const updated = await prisma.organizationUsageCounter.updateMany({
+    where: { id: usage.id, freeLimitReachedAt: null },
+    data: { freeLimitReachedAt: new Date() },
+  });
 
-  if (shouldDualWrite && updated.modifiedCount > 0) {
-    try {
-      await prisma.organizationUsageCounter.updateMany({
-        where: { orgId: usage.orgId.toString() },
-        data: { freeLimitReachedAt: new Date() },
-      });
-    } catch (err) {
-      handleDualWriteError("OrganizationUsageCounter freeLimitReachedAt", err);
-    }
-  }
-
-  return updated.modifiedCount > 0;
+  return updated.count > 0;
 };
 
 const resolveOrganisationObjectId = async (
   reference: string,
-): Promise<Types.ObjectId> => {
-  const orgQuery = buildOrganizationLookupQuery(reference);
-  const organisation = await OrganizationModel.findOne(orgQuery)
-    .select("_id")
-    .setOptions({ sanitizeFilter: true });
+): Promise<string> => {
+  const identifier = extractOrganizationIdentifier(reference);
+  const organisation = await prisma.organization.findFirst({
+    where: {
+      OR: [{ id: identifier }, { fhirId: identifier }],
+    },
+    select: { id: true },
+  });
 
   if (!organisation) {
     throw new UserOrganizationServiceError("Organization not found.", 404);
   }
 
-  return organisation._id;
+  return organisation.id;
 };
 
-const reserveMemberSlot = async (orgId: Types.ObjectId) => {
+const reserveMemberSlot = async (orgId: string) => {
   await ensureOrgUsageCounters(orgId);
 
   if (await isFreePlan(orgId)) {
-    const updated = await OrgUsageCounters.findOneAndUpdate(
-      {
-        orgId,
-        $expr: { $lt: ["$usersActiveCount", "$freeUsersLimit"] },
-      },
-      { $inc: { usersActiveCount: 1 } },
-      { new: true },
-    );
+    const current = await prisma.organizationUsageCounter.findUnique({
+      where: { orgId },
+    });
 
-    if (!updated) {
+    if (
+      !current ||
+      (current.usersActiveCount ?? 0) >= (current.freeUsersLimit ?? 0)
+    ) {
       throw new UserOrganizationServiceError(
         "Free plan member limit reached.",
         403,
       );
     }
 
-    const didReachLimit = await markFreeLimitReachedAt(updated);
-    if (didReachLimit) {
-      void sendFreePlanLimitReachedEmail({ orgId, usage: updated });
-    }
+    const updated = await prisma.organizationUsageCounter.update({
+      where: { orgId },
+      data: { usersActiveCount: { increment: 1 } },
+    });
 
-    if (shouldDualWrite) {
-      try {
-        await prisma.organizationUsageCounter.updateMany({
-          where: { orgId: orgId.toString() },
-          data: { usersActiveCount: updated.usersActiveCount ?? 0 },
-        });
-      } catch (err) {
-        handleDualWriteError("OrganizationUsageCounter reserve", err);
-      }
+    const updatedUsage = updated as unknown as OrgUsageCountersDoc;
+    const didReachLimit = await markFreeLimitReachedAt(updatedUsage);
+    if (didReachLimit) {
+      void sendFreePlanLimitReachedEmail({ orgId, usage: updatedUsage });
     }
     return true;
   }
 
-  await OrgUsageCounters.findOneAndUpdate(
-    { orgId },
-    { $inc: { usersActiveCount: 1 } },
-    { new: true },
-  );
-
-  if (shouldDualWrite) {
-    try {
-      await prisma.organizationUsageCounter.updateMany({
-        where: { orgId: orgId.toString() },
-        data: { usersActiveCount: { increment: 1 } },
-      });
-    } catch (err) {
-      handleDualWriteError("OrganizationUsageCounter reserve", err);
-    }
-  }
+  await prisma.organizationUsageCounter.update({
+    where: { orgId },
+    data: { usersActiveCount: { increment: 1 } },
+  });
   return true;
 };
 
-const releaseMemberSlot = async (orgId: Types.ObjectId) => {
-  await OrgUsageCounters.updateOne(
-    { orgId },
-    { $inc: { usersActiveCount: -1 } },
-  );
-
-  if (shouldDualWrite) {
-    try {
-      await prisma.organizationUsageCounter.updateMany({
-        where: { orgId: orgId.toString() },
-        data: { usersActiveCount: { decrement: 1 } },
-      });
-    } catch (err) {
-      handleDualWriteError("OrganizationUsageCounter release", err);
-    }
-  }
-};
-
-const buildOrganizationLookupQuery = (reference: string) => {
-  const identifier = extractOrganizationIdentifier(reference);
-  const queries: Array<Record<string, string>> = [];
-
-  if (Types.ObjectId.isValid(identifier)) {
-    queries.push({ _id: identifier });
-  }
-
-  if (/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
-    queries.push({ fhirId: identifier });
-  }
-
-  if (!queries.length) {
-    throw new UserOrganizationServiceError(
-      "Invalid organization reference format.",
-      400,
-    );
-  }
-
-  return queries.length === 1 ? queries[0] : { $or: queries };
+const releaseMemberSlot = async (orgId: string) => {
+  await prisma.organizationUsageCounter.update({
+    where: { orgId },
+    data: { usersActiveCount: { decrement: 1 } },
+  });
 };
 
 const sanitizeUserOrganizationAttributes = (
@@ -601,33 +455,6 @@ const sanitizeUserOrganizationAttributes = (
     extraPermissions,
     revokedPermissions,
     effectivePermissions,
-  };
-};
-
-const buildUserOrganizationDomain = (
-  document: UserOrganizationDocument,
-): UserOrganization => {
-  const { _id, ...rest } = document.toObject({
-    virtuals: false,
-  }) as UserOrganizationMongo & {
-    _id: Types.ObjectId;
-  };
-
-  return {
-    _id,
-    fhirId: rest.fhirId,
-    practitionerReference: rest.practitionerReference,
-    organizationReference: rest.organizationReference,
-    roleCode: rest.roleCode,
-    roleDisplay: rest.roleDisplay,
-    active: rest.active,
-    extraPermissions: rest.extraPermissions ?? [],
-    revokedPermissions: rest.revokedPermissions ?? [],
-    effectivePermissions: computeEffectivePermissions(
-      rest.roleCode as RoleCode,
-      rest.extraPermissions,
-      rest.revokedPermissions,
-    ),
   };
 };
 
@@ -792,19 +619,6 @@ const resolveIdQuery = (
   return null;
 };
 
-const resolveStrictIdQuery = (
-  id: unknown,
-  context: string,
-): { _id?: string; fhirId?: string } => {
-  const query = resolveIdQuery(id);
-
-  if (!query) {
-    throw new UserOrganizationServiceError(`Invalid ${context} format.`, 400);
-  }
-
-  return query;
-};
-
 type ReferenceLookup = Partial<
   Record<"practitionerReference" | "organizationReference", string>
 >;
@@ -849,21 +663,26 @@ const buildReferenceLookups = (id: unknown): ReferenceLookup[] => {
   return lookups;
 };
 
-const syncSeatsIfBusiness = async (orgId: Types.ObjectId) => {
-  const billing = await OrgBilling.findOne({ orgId }).select("plan").lean();
+const syncSeatsIfBusiness = async (orgId: string) => {
+  const billing = await prisma.organizationBilling.findFirst({
+    where: { orgId },
+    select: { plan: true },
+  });
 
   if (billing?.plan === "business") {
-    await StripeService.syncSubscriptionSeats(orgId.toString());
+    await StripeService.syncSubscriptionSeats(orgId);
   }
 };
 
 const findExistingUserOrganization = async (id?: string | null) => {
   if (!id) return null;
-  return UserOrganizationModel.findOne(resolveStrictIdQuery(id, "identifier"));
+  return prisma.userOrganization.findFirst({
+    where: { OR: [{ id }, { fhirId: id }] },
+  });
 };
 
 const handleExistingSeatTransition = async (
-  document: UserOrganizationDocument,
+  document: PrismaUserOrganizationLite,
   willBeActive: boolean,
 ) => {
   const wasActive = document.active ?? false;
@@ -901,10 +720,12 @@ const reserveSeatForNewMapping = async (
 const createUserOrganizationWithRollback = async (
   persistable: UserOrganizationMongo,
   seatDelta: -1 | 0 | 1,
-  orgObjectId: Types.ObjectId | null,
+  orgObjectId: string | null,
 ) => {
   try {
-    const document = await UserOrganizationModel.create(persistable);
+    const document = await prisma.userOrganization.create({
+      data: persistable,
+    });
     return { document, created: true };
   } catch (err) {
     if (seatDelta === 1 && orgObjectId) {
@@ -923,7 +744,7 @@ export const UserOrganizationService = {
     let document = await findExistingUserOrganization(id);
     let created = false;
 
-    let orgObjectId: Types.ObjectId | null = null;
+    let orgObjectId: string | null = null;
     let seatDelta: -1 | 0 | 1 = 0;
     const willBeActive = persistable.active !== false;
 
@@ -934,11 +755,10 @@ export const UserOrganizationService = {
         willBeActive,
       ));
 
-      document = await UserOrganizationModel.findOneAndUpdate(
-        { _id: document._id },
-        { $set: persistable },
-        { new: true, sanitizeFilter: true },
-      );
+      document = await prisma.userOrganization.update({
+        where: { id: document.id },
+        data: persistable,
+      });
     } else {
       ({ orgObjectId, seatDelta } = await reserveSeatForNewMapping(
         persistable,
@@ -962,11 +782,9 @@ export const UserOrganizationService = {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
-    await syncUserOrganizationToPostgres(document);
-
     return {
       response: toUserOrganizationResponseDTO(
-        buildUserOrganizationDomain(document),
+        buildUserOrganizationDomainFromPrisma(document),
       ),
       created,
     };
@@ -976,7 +794,7 @@ export const UserOrganizationService = {
     const { persistable } = createPersistableFromFHIR(payload);
     validateRoleCode(persistable.roleCode);
 
-    let orgObjectId: Types.ObjectId | null = null;
+    let orgObjectId: string | null = null;
 
     if (persistable.active !== false) {
       orgObjectId = await resolveOrganisationObjectId(
@@ -985,21 +803,17 @@ export const UserOrganizationService = {
       await reserveMemberSlot(orgObjectId);
     }
 
-    let document: UserOrganizationDocument;
-    try {
-      document = await UserOrganizationModel.create(persistable);
-    } catch (err) {
-      if (orgObjectId) await releaseMemberSlot(orgObjectId);
-      throw err;
-    }
+    const document = await prisma.userOrganization.create({
+      data: persistable,
+    });
 
     if (orgObjectId) {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
-    await syncUserOrganizationToPostgres(document);
-
-    return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));
+    return toUserOrganizationResponseDTO(
+      buildUserOrganizationDomainFromPrisma(document),
+    );
   },
 
   async getById(
@@ -1007,94 +821,35 @@ export const UserOrganizationService = {
   ): Promise<
     UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null
   > {
-    if (isReadFromPostgres()) {
-      const idQuery = resolveIdQuery(id);
-      if (idQuery) {
-        const mapping = await prisma.userOrganization.findFirst({
-          where: idQuery._id ? { id: idQuery._id } : { fhirId: idQuery.fhirId },
-        });
-
-        if (mapping) {
-          return toUserOrganizationResponseDTO(
-            buildUserOrganizationDomainFromPrisma(mapping),
-          );
-        }
-      }
-
-      const referenceQueries = buildReferenceLookups(id);
-      if (referenceQueries.length) {
-        const mappings = await prisma.userOrganization.findMany({
-          where: { OR: referenceQueries },
-        });
-
-        if (!mappings.length) {
-          return null;
-        }
-
-        if (mappings.length === 1) {
-          return toUserOrganizationResponseDTO(
-            buildUserOrganizationDomainFromPrisma(mappings[0]),
-          );
-        }
-
-        return mappings.map((mapping) =>
-          toUserOrganizationResponseDTO(
-            buildUserOrganizationDomainFromPrisma(mapping),
-          ),
-        );
-      }
-
-      return null;
-    }
-
-    let document: UserOrganizationDocument | null = null;
     const idQuery = resolveIdQuery(id);
-
     if (idQuery) {
-      document = await UserOrganizationModel.findOne(idQuery, null, {
-        sanitizeFilter: true,
+      const mapping = await prisma.userOrganization.findFirst({
+        where: idQuery._id ? { id: idQuery._id } : { fhirId: idQuery.fhirId },
       });
-    }
 
-    if (!document) {
-      const referenceQueries = buildReferenceLookups(id);
-
-      if (referenceQueries.length) {
-        const documents = await UserOrganizationModel.find({
-          $or: referenceQueries,
-        }).setOptions({
-          sanitizeFilter: true,
-        });
-
-        if (!documents.length) {
-          return null;
-        }
-
-        if (documents.length === 1) {
-          const mapping = buildUserOrganizationDomain(documents[0]);
-          return toUserOrganizationResponseDTO(mapping);
-        }
-
-        const mappings = documents.map((doc) =>
-          buildUserOrganizationDomain(doc),
-        );
-        return mappings.map((mapping) =>
-          toUserOrganizationResponseDTO(mapping),
+      if (mapping) {
+        return toUserOrganizationResponseDTO(
+          buildUserOrganizationDomainFromPrisma(mapping),
         );
       }
     }
 
-    if (!document) {
-      return null;
-    }
+    const referenceQueries = buildReferenceLookups(id);
+    if (referenceQueries.length) {
+      const mappings = await prisma.userOrganization.findMany({
+        where: { OR: referenceQueries },
+      });
 
-    const mapping = buildUserOrganizationDomain(document);
-    return toUserOrganizationResponseDTO(mapping);
-  },
+      if (!mappings.length) {
+        return null;
+      }
 
-  async listAll() {
-    if (isReadFromPostgres()) {
-      const mappings = await prisma.userOrganization.findMany();
+      if (mappings.length === 1) {
+        return toUserOrganizationResponseDTO(
+          buildUserOrganizationDomainFromPrisma(mappings[0]),
+        );
+      }
+
       return mappings.map((mapping) =>
         toUserOrganizationResponseDTO(
           buildUserOrganizationDomainFromPrisma(mapping),
@@ -1102,48 +857,52 @@ export const UserOrganizationService = {
       );
     }
 
-    const documents = await UserOrganizationModel.find();
-    const mappings = documents.map((document) =>
-      buildUserOrganizationDomain(document),
-    );
+    return null;
+  },
 
-    return mappings.map((mapping) => toUserOrganizationResponseDTO(mapping));
+  async listAll() {
+    const mappings = await prisma.userOrganization.findMany();
+    return mappings.map((mapping) =>
+      toUserOrganizationResponseDTO(
+        buildUserOrganizationDomainFromPrisma(mapping),
+      ),
+    );
   },
 
   async deleteById(id: string) {
-    const doc = await UserOrganizationModel.findOneAndDelete(
-      resolveStrictIdQuery(id, "identifier"),
-      { sanitizeFilter: true },
-    );
+    const identifier = ensureSafeIdentifier(id);
+    if (!identifier) {
+      return false;
+    }
 
-    if (doc?.active !== false) {
-      const orgObjectId = await resolveOrganisationObjectId(
-        doc!.organizationReference,
+    const existing = await prisma.userOrganization.findFirst({
+      where: { OR: [{ id: identifier }, { fhirId: identifier }] },
+    });
+    if (!existing) {
+      return false;
+    }
+
+    if (existing.active !== false) {
+      const orgId = await resolveOrganisationObjectId(
+        existing.organizationReference,
       );
-      await releaseMemberSlot(orgObjectId);
-      await syncSeatsIfBusiness(orgObjectId);
+      await releaseMemberSlot(orgId);
+      await syncSeatsIfBusiness(orgId);
     }
 
-    if (doc && shouldDualWrite) {
-      try {
-        await prisma.userOrganization.deleteMany({
-          where: { id: doc._id.toString() },
-        });
-      } catch (err) {
-        handleDualWriteError("UserOrganization delete", err);
-      }
-    }
-
-    return Boolean(doc);
+    await prisma.userOrganization.delete({ where: { id: existing.id } });
+    return true;
   },
 
   async update(id: string, payload: UserOrganizationFHIRPayload) {
     const { persistable } = createPersistableFromFHIR(payload);
     validateRoleCode(persistable.roleCode);
 
-    const existing = await UserOrganizationModel.findOne(
-      resolveStrictIdQuery(id, "identifier"),
-    );
+    const existing = await prisma.userOrganization.findFirst({
+      where: {
+        OR: [{ id }, { fhirId: id }],
+      },
+    });
 
     if (!existing) return null;
 
@@ -1168,11 +927,10 @@ export const UserOrganizationService = {
       await releaseMemberSlot(orgObjectId);
     }
 
-    const document = await UserOrganizationModel.findOneAndUpdate(
-      { _id: existing._id },
-      { $set: persistable },
-      { new: true, sanitizeFilter: true },
-    );
+    const document = await prisma.userOrganization.update({
+      where: { id: existing.id },
+      data: persistable,
+    });
 
     if (!document) return null;
 
@@ -1193,133 +951,58 @@ export const UserOrganizationService = {
         practitionerReference: document.practitionerReference,
         organizationReference: document.organizationReference,
         roleCode: document.roleCode,
-        roleDisplay: document.roleDisplay,
+        roleDisplay: document.roleDisplay ?? undefined,
       });
     }
 
-    await syncUserOrganizationToPostgres(document);
-
-    return toUserOrganizationResponseDTO(buildUserOrganizationDomain(document));
+    return toUserOrganizationResponseDTO(
+      buildUserOrganizationDomainFromPrisma(document),
+    );
   },
 
   async createUserOrganizationMapping(userOrganisation: UserOrganization) {
     const persistable = pruneUndefined(
       sanitizeUserOrganizationAttributes(userOrganisation),
     );
-    let orgObjectId: Types.ObjectId | null = null;
-    let reservedMemberSlot = false;
-
+    let orgObjectId: string | null = null;
     if (persistable.active !== false) {
       orgObjectId = await resolveOrganisationObjectId(
         persistable.organizationReference,
       );
       await reserveMemberSlot(orgObjectId);
       await syncSeatsIfBusiness(orgObjectId);
-      reservedMemberSlot = true;
     }
 
-    let document: UserOrganizationDocument;
-    try {
-      document = await UserOrganizationModel.create(persistable);
-    } catch (error) {
-      if (reservedMemberSlot && orgObjectId) {
-        await releaseMemberSlot(orgObjectId);
-      }
-      throw error;
-    }
+    const document = await prisma.userOrganization.create({
+      data: persistable,
+    });
+
     if (!document) {
       throw new UserOrganizationServiceError(
         "Unable to create user-organization mapping.",
         500,
       );
     }
-
-    await syncUserOrganizationToPostgres(document);
   },
 
   async deleteAllByOrganizationId(organisationId: string) {
     const orgId = requireSafeString(organisationId, "Organization Identifier");
 
-    await UserOrganizationModel.deleteMany({
-      organizationReference: orgId,
-    }).exec();
-
-    if (shouldDualWrite) {
-      try {
-        await prisma.userOrganization.deleteMany({
-          where: { organizationReference: orgId },
-        });
-      } catch (err) {
-        handleDualWriteError("UserOrganization deleteAllByOrganizationId", err);
-      }
-    }
+    await prisma.userOrganization.deleteMany({
+      where: { organizationReference: orgId },
+    });
   },
 
   async listByUserId(id: string) {
     const userId = requireSafeString(id, "User Id");
     const practitionerReferences = [userId, `Practitioner/${userId}`];
 
-    if (isReadFromPostgres()) {
-      const mappings = await prisma.userOrganization.findMany({
-        where: {
-          practitionerReference: {
-            in: practitionerReferences,
-          },
+    const mappings = await prisma.userOrganization.findMany({
+      where: {
+        practitionerReference: {
+          in: practitionerReferences,
         },
-      });
-
-      if (!mappings.length) {
-        return [];
-      }
-
-      const results = [];
-
-      for (const mapping of mappings) {
-        const organizationId = extractOrganizationIdentifier(
-          mapping.organizationReference,
-        );
-
-        const organization = await prisma.organization.findFirst({
-          where: {
-            OR: [{ id: organizationId }, { fhirId: organizationId }],
-          },
-          include: { address: true },
-        });
-
-        const mappingDomain = buildUserOrganizationDomainFromPrisma(mapping);
-        const effectivePermissions = mappingDomain.effectivePermissions ?? [];
-        const canViewBilling =
-          effectivePermissions.includes("billing:view:any") ||
-          effectivePermissions.includes("billing:edit:any") ||
-          effectivePermissions.includes("billing:edit:limited");
-
-        const orgIdForBilling = organization?.id ?? organizationId;
-        const [orgBilling, orgUsage] = canViewBilling
-          ? await Promise.all([
-              prisma.organizationBilling.findFirst({
-                where: { orgId: orgIdForBilling },
-              }),
-              prisma.organizationUsageCounter.findFirst({
-                where: { orgId: orgIdForBilling },
-              }),
-            ])
-          : [null, null];
-
-        results.push({
-          mapping: toUserOrganizationResponseDTO(mappingDomain),
-          organization: organization
-            ? mapOrganizationFromPrisma(organization)
-            : null,
-          orgBilling: orgBilling ? { ...orgBilling, _id: orgBilling.id } : null,
-          orgUsage: orgUsage ? { ...orgUsage, _id: orgUsage.id } : null,
-        });
-      }
-
-      return results;
-    }
-
-    const mappings = await UserOrganizationModel.find({
-      practitionerReference: { $in: practitionerReferences },
+      },
     });
 
     if (!mappings.length) {
@@ -1329,20 +1012,17 @@ export const UserOrganizationService = {
     const results = [];
 
     for (const mapping of mappings) {
-      const orgRef = mapping.organizationReference;
+      const organizationId = extractOrganizationIdentifier(
+        mapping.organizationReference,
+      );
+      const organization = await prisma.organization.findFirst({
+        where: {
+          OR: [{ id: organizationId }, { fhirId: organizationId }],
+        },
+        include: { address: true },
+      });
 
-      // Extract the ID portion from FHIR reference
-      const organizationId = extractOrganizationIdentifier(orgRef);
-
-      // Build query using your existing helper
-      const orgQuery = buildOrganizationLookupQuery(organizationId);
-
-      // Lookup organization
-      const organizationDoc = await OrganizationModel.findOne(orgQuery);
-
-      const organization = organizationDoc?.toObject?.() ?? null; // convert mongoose doc to object
-
-      const mappingDomain = buildUserOrganizationDomain(mapping);
+      const mappingDomain = buildUserOrganizationDomainFromPrisma(mapping);
       const effectivePermissions = mappingDomain.effectivePermissions ?? [];
       const canViewBilling =
         effectivePermissions.includes("billing:view:any") ||
@@ -1350,29 +1030,23 @@ export const UserOrganizationService = {
         effectivePermissions.includes("billing:edit:limited");
 
       const orgBilling = canViewBilling
-        ? await OrgBilling.findOne({
-            orgId: organization?._id,
+        ? await prisma.organizationBilling.findFirst({
+            where: { orgId: organization?.id ?? organizationId },
           })
         : null;
 
       const orgUsage = canViewBilling
-        ? await OrgUsageCounters.findOne({
-            orgId: organization?._id,
+        ? await prisma.organizationUsageCounter.findFirst({
+            where: { orgId: organization?.id ?? organizationId },
           })
         : null;
       results.push({
         mapping: toUserOrganizationResponseDTO(mappingDomain),
         organization: organization
-          ? {
-              ...organization,
-              appointmentCheckInBufferMinutes:
-                organization.appointmentCheckInBufferMinutes ?? 5,
-              appointmentCheckInRadiusMeters:
-                organization.appointmentCheckInRadiusMeters ?? 200,
-            }
+          ? mapOrganizationFromPrisma(organization)
           : null,
-        orgBilling: orgBilling,
-        orgUsage: orgUsage,
+        orgBilling: orgBilling ? { ...orgBilling, _id: orgBilling.id } : null,
+        orgUsage: orgUsage ? { ...orgUsage, _id: orgUsage.id } : null,
       });
     }
     return results;
@@ -1380,110 +1054,25 @@ export const UserOrganizationService = {
 
   async listByOrganisationId(id: string) {
     const organisationId = requireSafeString(id, "User Id");
-
-    if (isReadFromPostgres()) {
-      const mappings = await prisma.userOrganization.findMany({
-        where: {
-          organizationReference: {
-            in: [organisationId, `Organization/${organisationId}`],
-          },
+    const mappings = await prisma.userOrganization.findMany({
+      where: {
+        organizationReference: {
+          in: [organisationId, `Organization/${organisationId}`],
         },
-        select: {
-          id: true,
-          fhirId: true,
-          practitionerReference: true,
-          organizationReference: true,
-          roleCode: true,
-          roleDisplay: true,
-          active: true,
-          extraPermissions: true,
-          revokedPermissions: true,
-          effectivePermissions: true,
-        },
-      });
-
-      if (!mappings.length) {
-        return [];
-      }
-
-      const results = [];
-      for (const mapping of mappings) {
-        const userRef = mapping.practitionerReference;
-        const userId =
-          extractReferenceId(userRef) ?? mapping.practitionerReference;
-
-        const [user, userProfile, speciality, currentStatus, weeklyHours] =
-          await Promise.all([
-            prisma.user.findFirst({ where: { userId } }),
-            prisma.userProfile.findFirst({ where: { userId } }),
-            prisma.speciality.findMany({
-              where: {
-                organisationId,
-                OR: [
-                  { memberUserIds: { has: userRef } },
-                  { headUserId: userRef },
-                ],
-              },
-            }),
-            AvailabilityService.getCurrentStatus(organisationId, userId),
-            AvailabilityService.getWeeklyWorkingHours(
-              organisationId,
-              userId,
-              new Date(),
-            ),
-          ]);
-
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const count = await prisma.occupancy.count({
-          where: {
-            organisationId,
-            sourceType: "APPOINTMENT",
-            startTime: { gte: startOfDay, lte: endOfDay },
-          },
-        });
-
-        let name = "";
-        if (user?.firstName) name += user.firstName;
-        if (user?.lastName) name += ` ${user.lastName}`;
-
-        const personalDetails = userProfile?.personalDetails as
-          | { profilePictureUrl?: string }
-          | undefined;
-
-        const result = {
-          userOrganisation: toUserOrganizationResponseDTO(
-            buildUserOrganizationDomainFromPrisma(mapping),
-          ),
-          name,
-          profileUrl: personalDetails?.profilePictureUrl,
-          speciality,
-          currentStatus,
-          weeklyHours,
-          count,
-        };
-
-        results.push(result);
-      }
-
-      return results;
-    }
-
-    const mappings = await UserOrganizationModel.find(
-      {
-        organizationReference: organisationId,
       },
-      {
-        practitionerReference: 1,
-        organizationReference: 1,
-        roleCode: 1,
-        effectivePermissions: 1,
+      select: {
+        id: true,
+        fhirId: true,
+        practitionerReference: true,
+        organizationReference: true,
+        roleCode: true,
+        roleDisplay: true,
+        active: true,
+        extraPermissions: true,
+        revokedPermissions: true,
+        effectivePermissions: true,
       },
-    );
+    });
 
     if (!mappings.length) {
       return [];
@@ -1492,48 +1081,52 @@ export const UserOrganizationService = {
     const results = [];
     for (const mapping of mappings) {
       const userRef = mapping.practitionerReference;
-      const user = await UserModel.findOne({ userId: userRef });
-      const userProfile = await UserProfileModel.findOne({
-        userId: userRef,
-      });
-
-      const speciality = await SpecialityModel.find({
-        organisationId,
-        $or: [
-          { memberUserIds: userRef }, // matches any element in the array
-          { headUserId: userRef },
-        ],
-      });
-
-      const currentStatus = await AvailabilityService.getCurrentStatus(
-        organisationId,
-        userRef,
-      );
-      const weeklyHours = await AvailabilityService.getWeeklyWorkingHours(
-        organisationId,
-        userRef,
-        new Date(),
-      );
+      const userId =
+        extractReferenceId(userRef) ?? mapping.practitionerReference;
+      const [user, userProfile, speciality, currentStatus, weeklyHours] =
+        await Promise.all([
+          prisma.user.findFirst({ where: { userId } }),
+          prisma.userProfile.findFirst({ where: { userId } }),
+          prisma.speciality.findMany({
+            where: {
+              organisationId,
+              OR: [
+                { memberUserIds: { has: userRef } },
+                { headUserId: userRef },
+              ],
+            },
+          }),
+          AvailabilityService.getCurrentStatus(organisationId, userId),
+          AvailabilityService.getWeeklyWorkingHours(
+            organisationId,
+            userId,
+            new Date(),
+          ),
+        ]);
 
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
-
       const endOfDay = new Date();
       endOfDay.setHours(23, 59, 59, 999);
-
-      const count = await OccupancyModel.countDocuments({
-        organisationId, // required
-        sourceType: "APPOINTMENT", // filter appointment only
-        startTime: { $gte: startOfDay, $lte: endOfDay },
+      const count = await prisma.occupancy.count({
+        where: {
+          organisationId,
+          sourceType: "APPOINTMENT",
+          startTime: { gte: startOfDay, lte: endOfDay },
+        },
       });
 
       let name: string = "";
       if (user?.firstName) name += user.firstName;
       if (user?.lastName) name += " " + user.lastName;
       const result = {
-        userOrganisation: toUserOrganizationResponseDTO(mapping),
+        userOrganisation: toUserOrganizationResponseDTO(
+          buildUserOrganizationDomainFromPrisma(mapping),
+        ),
         name,
-        profileUrl: userProfile?.personalDetails?.profilePictureUrl,
+        profileUrl: (
+          userProfile?.personalDetails as { profilePictureUrl?: string } | null
+        )?.profilePictureUrl,
         speciality: speciality,
         currentStatus,
         weeklyHours,
@@ -1547,19 +1140,20 @@ export const UserOrganizationService = {
   },
 
   async recomputeAllEffectivePermissions() {
-    const cursor = UserOrganizationModel.find({})
-      .select({
-        roleCode: 1,
-        extraPermissions: 1,
-        revokedPermissions: 1,
-        effectivePermissions: 1,
-      })
-      .cursor();
+    const documents = await prisma.userOrganization.findMany({
+      select: {
+        id: true,
+        roleCode: true,
+        extraPermissions: true,
+        revokedPermissions: true,
+        effectivePermissions: true,
+      },
+    });
 
     let scannedCount = 0;
     let updatedCount = 0;
 
-    for await (const doc of cursor) {
+    for (const doc of documents) {
       scannedCount += 1;
       const computed = computeEffectivePermissions(
         doc.roleCode as RoleCode,
@@ -1571,10 +1165,10 @@ export const UserOrganizationService = {
         current.length === computed.length &&
         computed.every((perm) => current.includes(perm));
       if (!same) {
-        await UserOrganizationModel.updateOne(
-          { _id: doc._id },
-          { $set: { effectivePermissions: computed } },
-        );
+        await prisma.userOrganization.update({
+          where: { id: doc.id },
+          data: { effectivePermissions: computed },
+        });
         updatedCount += 1;
       }
     }

@@ -2,6 +2,14 @@ import type { Extension, RelatedPerson } from '@yosemite-crew/fhir';
 import { Address, toFHIRAddress } from './address.model';
 import { fromAddressRequestDTO } from './dto/address.dto';
 
+export interface AlertSummary {
+  title: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+}
+
+export const PARENT_ALERTS_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/parent-alerts';
+
 export interface Parent {
   id?: string;
   firstName: string;
@@ -15,6 +23,7 @@ export interface Parent {
   linkedUserId?: string | null;
   createdFrom: 'pms' | 'mobile' | 'invited';
   profileImageUrl?: string;
+  alerts?: AlertSummary[];
   isProfileComplete?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -80,6 +89,25 @@ export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
     });
   }
 
+  if (parent.alerts?.length) {
+    extensions.push({
+      url: PARENT_ALERTS_EXTENSION_URL,
+      extension: parent.alerts.map((alert) => ({
+        url: 'alert',
+        extension: [
+          {
+            url: 'title',
+            valueString: alert.title,
+          },
+          {
+            url: 'severity',
+            valueString: alert.severity,
+          },
+        ],
+      })),
+    });
+  }
+
   const birthDate = parent.birthDate ? parent.birthDate.toISOString().split('T')[0] : undefined;
 
   return {
@@ -115,6 +143,7 @@ export function fromFHIRRelatedPerson(resource: RelatedPerson): Parent {
 
   let isProfileComplete: boolean | undefined = undefined;
   let timezone: string | undefined = undefined;
+  const alerts: AlertSummary[] = [];
 
   rp.extension?.forEach((ext) => {
     if (
@@ -125,6 +154,24 @@ export function fromFHIRRelatedPerson(resource: RelatedPerson): Parent {
     }
     if (ext.url === PARENT_TIMEZONE_EXTENSION_URL && typeof ext.valueString === 'string') {
       timezone = ext.valueString;
+    }
+  });
+
+  const alertExtension = rp.extension?.find((ext) => ext.url === PARENT_ALERTS_EXTENSION_URL);
+  alertExtension?.extension?.forEach((item) => {
+    if (item.url !== 'alert') {
+      return;
+    }
+    const title = item.extension?.find((ext) => ext.url === 'title')?.valueString;
+    const severity = item.extension?.find((ext) => ext.url === 'severity')?.valueString;
+    if (
+      title &&
+      (severity === 'critical' ||
+        severity === 'high' ||
+        severity === 'medium' ||
+        severity === 'low')
+    ) {
+      alerts.push({ title, severity });
     }
   });
 
@@ -140,6 +187,7 @@ export function fromFHIRRelatedPerson(resource: RelatedPerson): Parent {
     address,
     profileImageUrl,
     timezone,
+    alerts: alerts.length ? alerts : undefined,
     createdFrom: 'pms',
   };
 

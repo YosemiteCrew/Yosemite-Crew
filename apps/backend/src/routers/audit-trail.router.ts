@@ -6,7 +6,7 @@ import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 const router = Router();
 
 router.get(
-  "/companion/:companionId",
+  "/companion/:patientId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("audit:view:any"),

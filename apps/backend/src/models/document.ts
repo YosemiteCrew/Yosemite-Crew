@@ -7,7 +7,7 @@ export interface DocumentAttachment {
 }
 
 export interface DocumentMongo {
-  companionId: Types.ObjectId;
+  patientId: Types.ObjectId;
   appointmentId?: Types.ObjectId | null;
   //calssifications
   category: string;
@@ -39,7 +39,7 @@ const AttachmentSchema = new Schema(
 
 const DocumentSchema = new Schema(
   {
-    companionId: {
+    patientId: {
       type: Schema.Types.ObjectId,
       ref: "Companion",
       required: true,
@@ -98,8 +98,8 @@ const DocumentSchema = new Schema(
   },
 );
 
-DocumentSchema.index({ companionId: 1, category: 1 });
-DocumentSchema.index({ companionId: 1, pmsVisible: 1 });
+DocumentSchema.index({ patientId: 1, category: 1 });
+DocumentSchema.index({ patientId: 1, pmsVisible: 1 });
 DocumentSchema.index({ appointmentId: 1 });
 
 export default model<DocumentMongo>("Document", DocumentSchema);

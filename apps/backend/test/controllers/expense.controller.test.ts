@@ -43,12 +43,12 @@ describe("ExpenseController", () => {
     it("returns expense summary", async () => {
       const res = mockResponse();
       mockedService.getTotalExpenseForCompanion.mockResolvedValueOnce({
-        companionId: "c1",
+        patientId: "c1",
         totalExpense: 10,
       });
 
       await ExpenseController.getExpenseSummary(
-        { params: { companionId: "c1" } } as any,
+        { params: { patientId: "c1" } } as any,
         res as any,
       );
 
@@ -57,7 +57,7 @@ describe("ExpenseController", () => {
       );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
-        companionId: "c1",
+        patientId: "c1",
         totalExpense: 10,
       });
     });
@@ -69,7 +69,7 @@ describe("ExpenseController", () => {
       );
 
       await ExpenseController.getExpenseSummary(
-        { params: { companionId: "c1" } } as any,
+        { params: { patientId: "c1" } } as any,
         res as any,
       );
 
@@ -180,7 +180,7 @@ describe("ExpenseController", () => {
       ]);
 
       await ExpenseController.getExpensesByCompanion(
-        { params: { companionId: "c1" } } as any,
+        { params: { patientId: "c1" } } as any,
         res as any,
       );
 
@@ -196,7 +196,7 @@ describe("ExpenseController", () => {
       );
 
       await ExpenseController.getExpensesByCompanion(
-        { params: { companionId: "c1" } } as any,
+        { params: { patientId: "c1" } } as any,
         res as any,
       );
 

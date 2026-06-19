@@ -2,16 +2,17 @@ import { Request, Response } from "express";
 import {
   ExpenseService,
   ExternalExpenseServiceError,
+  type ExternalExpenseInput,
+  type ExternalExpenseUpdateInput,
 } from "../../services/expense.service";
-import type { ExternalExpenseMongo } from "src/models/expense";
 import logger from "src/utils/logger";
 
 export const ExpenseController = {
   getExpenseSummary: async (req: Request, res: Response) => {
     try {
-      const { companionId } = req.params;
+      const { patientId } = req.params;
       const summary =
-        await ExpenseService.getTotalExpenseForCompanion(companionId);
+        await ExpenseService.getTotalExpenseForCompanion(patientId);
       res.status(200).json(summary);
     } catch (error) {
       if (error instanceof ExternalExpenseServiceError)
@@ -24,10 +25,7 @@ export const ExpenseController = {
 
   createExpense: async (req: Request, res: Response) => {
     try {
-      const expenseData = req.body as Omit<
-        ExternalExpenseMongo,
-        "createdAt" | "updatedAt"
-      >;
+      const expenseData = req.body as ExternalExpenseInput;
       const newExpense = await ExpenseService.createExpense(expenseData);
       res.status(201).json(newExpense);
     } catch (error) {
@@ -42,7 +40,7 @@ export const ExpenseController = {
   updateExpense: async (req: Request, res: Response) => {
     try {
       const { expenseId } = req.params;
-      const updateData = req.body as Partial<ExternalExpenseMongo>;
+      const updateData = req.body as ExternalExpenseUpdateInput;
       const updatedExpense = await ExpenseService.updateExpense(
         expenseId,
         updateData,
@@ -73,8 +71,8 @@ export const ExpenseController = {
 
   getExpensesByCompanion: async (req: Request, res: Response) => {
     try {
-      const { companionId } = req.params;
-      const expenses = await ExpenseService.getExpensesByCompanion(companionId);
+      const { patientId } = req.params;
+      const expenses = await ExpenseService.getExpensesByCompanion(patientId);
       res.status(200).json(expenses);
     } catch (error) {
       if (error instanceof ExternalExpenseServiceError)

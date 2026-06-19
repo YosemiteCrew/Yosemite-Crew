@@ -19,6 +19,8 @@ export class LabOrderServiceError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
+    public readonly code?: string,
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "LabOrderServiceError";
@@ -112,18 +114,18 @@ const ensureObjectIdLike = (value: IdLike, field: string): Types.ObjectId => {
   return new Types.ObjectId(value);
 };
 
-const resolvePrimaryParentId = async (companionId: IdLike) => {
-  const safeCompanionId = ensureObjectIdLike(companionId, "companionId");
+const resolvePrimaryParentId = async (patientId: IdLike) => {
+  const safeCompanionId = ensureObjectIdLike(patientId, "patientId");
   const parentLink = isReadFromPostgres()
-    ? await prisma.parentCompanion.findFirst({
+    ? await prisma.parentPatient.findFirst({
         where: {
-          companionId: safeCompanionId.toString(),
+          patientId: safeCompanionId.toString(),
           role: "PRIMARY",
           status: "ACTIVE",
         },
       })
     : await ParentCompanionModel.findOne({
-        companionId: safeCompanionId,
+        patientId: safeCompanionId,
         role: "PRIMARY",
         status: "ACTIVE",
       })
@@ -149,7 +151,7 @@ const syncLabOrderToPostgres = async (doc: LabOrderDocument) => {
         id: doc._id.toString(),
         organisationId: doc.organisationId,
         provider: doc.provider,
-        companionId: doc.companionId.toString(),
+        patientId: doc.patientId.toString(),
         parentId: doc.parentId.toString(),
         appointmentId: doc.appointmentId?.toString() ?? null,
         createdByUserId: doc.createdByUserId ?? null,
@@ -423,7 +425,7 @@ export const LabOrderService = {
   },
   async createOrder(providerInput: string, input: LabOrderCreateInput) {
     ensureNonEmpty(input.organisationId, "organisationId");
-    ensureNonEmpty(input.companionId, "companionId");
+    ensureNonEmpty(input.patientId, "patientId");
     ensureTestsProvided(input.tests);
 
     const provider = normalizeLabProvider(providerInput);
@@ -434,14 +436,14 @@ export const LabOrderService = {
     const adapter = getLabOrderAdapter(provider);
     if (isReadFromPostgres()) {
       const parentId =
-        input.parentId ?? (await resolvePrimaryParentId(input.companionId));
+        input.parentId ?? (await resolvePrimaryParentId(input.patientId));
       const appointmentId = input.appointmentId ?? null;
 
       const labOrder = await prisma.labOrder.create({
         data: {
           organisationId: input.organisationId,
           provider,
-          companionId: input.companionId,
+          patientId: input.patientId,
           parentId: toIdString(parentId),
           appointmentId,
           createdByUserId: input.createdByUserId ?? null,
@@ -529,12 +531,12 @@ export const LabOrderService = {
       }
     }
 
-    const companionId = new Types.ObjectId(input.companionId);
+    const patientId = new Types.ObjectId(input.patientId);
     const resolvedParentId = input.parentId
       ? new Types.ObjectId(input.parentId)
       : null;
     const parentId =
-      resolvedParentId ?? (await resolvePrimaryParentId(companionId));
+      resolvedParentId ?? (await resolvePrimaryParentId(patientId));
     const appointmentId =
       input.appointmentId && Types.ObjectId.isValid(input.appointmentId)
         ? new Types.ObjectId(input.appointmentId)
@@ -547,7 +549,7 @@ export const LabOrderService = {
     const labOrderDoc = await LabOrderModel.create({
       organisationId: input.organisationId,
       provider,
-      companionId,
+      patientId,
       parentId,
       appointmentId,
       createdByUserId: input.createdByUserId ?? null,
@@ -637,7 +639,7 @@ export const LabOrderService = {
 
       const result = await adapter.getOrder(idexxOrderId, {
         organisationId: safeOrganisationId,
-        companionId: existing.companionId,
+        patientId: existing.patientId,
         parentId: existing.parentId,
         tests,
         modality: existing.modality ?? undefined,
@@ -673,7 +675,7 @@ export const LabOrderService = {
 
     const result = await adapter.getOrder(idexxOrderId, {
       organisationId: safeOrganisationId,
-      companionId: existing.companionId.toString(),
+      patientId: existing.patientId.toString(),
       parentId: existing.parentId.toString(),
       tests,
       modality: existing.modality ?? undefined,
@@ -735,7 +737,7 @@ export const LabOrderService = {
     const adapter = getLabOrderAdapter(provider);
     const result = await adapter.updateOrder(idexxOrderId, {
       organisationId: safeOrganisationId,
-      companionId: existing.companionId.toString(),
+      patientId: existing.patientId.toString(),
       parentId: existing.parentId.toString(),
       tests: input.tests ?? existing.tests,
       modality: input.modality ?? existing.modality ?? undefined,
@@ -800,7 +802,7 @@ export const LabOrderService = {
     const adapter = getLabOrderAdapter(provider);
     const result = await adapter.cancelOrder(idexxOrderId, {
       organisationId: safeOrganisationId,
-      companionId: existing.companionId.toString(),
+      patientId: existing.patientId.toString(),
       parentId: existing.parentId.toString(),
       tests: existing.tests,
       modality: existing.modality ?? undefined,
@@ -831,7 +833,7 @@ export const LabOrderService = {
   async listOrders(params: {
     organisationId: string;
     appointmentId?: string;
-    companionId?: string;
+    patientId?: string;
     provider?: string;
     status?: LabOrderStatus;
     limit?: number;
@@ -839,7 +841,7 @@ export const LabOrderService = {
     const {
       organisationId,
       appointmentId,
-      companionId,
+      patientId,
       provider,
       status,
       limit,
@@ -854,8 +856,8 @@ export const LabOrderService = {
       "appointmentId",
     );
     const safeCompanionId = ensureOptionalObjectIdString(
-      companionId,
-      "companionId",
+      patientId,
+      "patientId",
     );
     const safeProvider = ensureOptionalString(provider, "provider");
     const safeStatus = ensureOptionalStatus(status);
@@ -871,7 +873,7 @@ export const LabOrderService = {
       filter.appointmentId = new Types.ObjectId(safeAppointmentId);
     }
     if (safeCompanionId) {
-      filter.companionId = new Types.ObjectId(safeCompanionId);
+      filter.patientId = new Types.ObjectId(safeCompanionId);
     }
     if (safeProvider) {
       const normalized = normalizeLabProvider(safeProvider);
@@ -887,7 +889,7 @@ export const LabOrderService = {
         organisationId: safeOrganisationId,
       };
       if (safeAppointmentId) where.appointmentId = safeAppointmentId;
-      if (safeCompanionId) where.companionId = safeCompanionId;
+      if (safeCompanionId) where.patientId = safeCompanionId;
       if (safeProvider) {
         const normalized = normalizeLabProvider(safeProvider);
         if (!normalized) {

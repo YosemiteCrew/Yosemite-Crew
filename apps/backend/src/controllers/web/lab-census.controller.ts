@@ -55,7 +55,17 @@ const handleIdexxError = (
       .json({ message: axiosError.message, details: axiosError.details });
   }
   if (error instanceof LabOrderServiceError) {
-    return res.status(error.statusCode).json({ message: error.message });
+    return res.status(error.statusCode).json({
+      message: error.message,
+      ...(error.code || error.details
+        ? {
+            error: {
+              ...(error.code ? { code: error.code } : {}),
+              ...(error.details ? { details: error.details } : {}),
+            },
+          }
+        : {}),
+    });
   }
   logger.error(logMessage, error);
   return res.status(500).json({ message: responseMessage });
@@ -208,7 +218,7 @@ export const LabCensusController = {
 
     try {
       const body = req.body as {
-        companionId?: string;
+        patientId?: string;
         parentId?: string;
         veterinarian?: string;
         ivls?: Array<{ serialNumber: string }>;
@@ -218,7 +228,7 @@ export const LabCensusController = {
         base.provider,
         base.organisationId,
         {
-          companionId: body.companionId ?? "",
+          patientId: body.patientId ?? "",
           parentId: body.parentId ?? undefined,
           veterinarian: body.veterinarian ?? null,
           ivls: body.ivls,

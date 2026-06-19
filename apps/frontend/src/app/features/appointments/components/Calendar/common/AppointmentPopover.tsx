@@ -180,17 +180,16 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
 }) => {
   const router = useRouter();
   const orgsById = useOrgStore((s) => s.orgsById);
-  const storeCompanion = useCompanionStore((s) => s.getCompanionById(appointment.companion.id));
+  const companion = appointment.companion ?? appointment.patient;
+  const storeCompanion = useCompanionStore((s) => s.getCompanionById(companion.id));
   const companionDetails = {
     ...storeCompanion,
-    ...appointment.companion,
+    ...companion,
     currentWeight:
-      (appointment.companion as CompanionWeightSource).currentWeight ??
-      storeCompanion?.currentWeight,
+      (companion as CompanionWeightSource).currentWeight ?? storeCompanion?.currentWeight,
     physicalAttribute:
-      (appointment.companion as CompanionWeightSource).physicalAttribute ??
-      storeCompanion?.physicalAttribute,
-  } as CompanionWeightSource & typeof appointment.companion;
+      (companion as CompanionWeightSource).physicalAttribute ?? storeCompanion?.physicalAttribute,
+  } as CompanionWeightSource & typeof companion;
   const payment = getAppointmentPaymentDisplay(appointment, invoicesByAppointmentId);
   const companionDisplayName = getCompanionDisplayName(appointment);
   const orgType =
@@ -326,8 +325,8 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
         <div className="min-w-0 flex items-center gap-3">
           <Image
             src={getSafeImageUrl(
-              getAppointmentCompanionPhotoUrl(appointment.companion),
-              appointment.companion.species.toLowerCase() as ImageType
+              getAppointmentCompanionPhotoUrl(companion),
+              companion.species.toLowerCase() as ImageType
             )}
             height={48}
             width={48}
@@ -344,7 +343,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 router.push(
                   buildAppointmentCompanionHistoryHref(
                     appointment.id,
-                    appointment.companion?.id,
+                    companion.id,
                     '/appointments'
                   )
                 );
@@ -444,10 +443,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
         <PopoverDetail label="Service" value={appointment.appointmentType?.name || '-'} />
         <PopoverDetail label="Date" value={formatAppointmentDate(appointment)} />
         <PopoverDetail label="Room" value={appointment.room?.name || '-'} />
-        <PopoverDetail
-          label="Client Name"
-          value={getOwnerFirstName(appointment.companion.parent) || '-'}
-        />
+        <PopoverDetail label="Client Name" value={getOwnerFirstName(companion.parent) || '-'} />
         <PopoverDetail label="Reason" value={appointment.concern || '-'} scrollValue />
         <PopoverDetail label={paymentTitle} value={paymentValue} emphasized />
       </div>

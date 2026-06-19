@@ -130,7 +130,7 @@ export interface ContactRequestMongo {
 
   // domain context
   organisationId?: string;
-  companionId?: string;
+  patientId?: string;
   parentId?: string;
 
   // DSAR-specific
@@ -174,7 +174,7 @@ const ContactRequestSchema = new Schema(
     email: { type: String },
 
     organisationId: { type: String, index: true },
-    companionId: { type: String, index: true },
+    patientId: { type: String, index: true },
     parentId: { type: String, index: true },
 
     dsarDetails: { type: DsraSchema, required: false },

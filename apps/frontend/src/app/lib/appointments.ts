@@ -1,3 +1,4 @@
+import { Appointment } from '@yosemite-crew/types';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 
 export type LegacyAppointmentStatus = AppointmentStatus | 'NO_PAYMENT';
@@ -140,8 +141,22 @@ type CompanionWithPhotoLike = {
   [key: string]: unknown;
 };
 
+type AppointmentCompanionLike = {
+  id: string;
+  name: string;
+  species: string;
+  breed?: string;
+  parent: {
+    id: string;
+    name: string;
+  };
+};
+
 export const getAppointmentCompanionPhotoUrl = (companion?: CompanionWithPhotoLike): string => {
   const value = companion?.photoUrl;
   if (typeof value !== 'string') return '';
   return value.trim();
 };
+
+export const getAppointmentCompanion = (appointment: Appointment): AppointmentCompanionLike =>
+  appointment.companion ?? appointment.patient;

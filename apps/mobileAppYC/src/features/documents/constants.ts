@@ -1,5 +1,6 @@
 import {Images} from '@/assets/images';
 import type {DocumentCategory} from '@/features/documents/types';
+import {SUBCATEGORY_IDS as S} from '@/features/documents/subcategoryIds';
 
 export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
@@ -9,14 +10,14 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     isSynced: false,
     fileCount: 0,
     subcategories: [
-      {id: 'passport', label: 'Passport', fileCount: 0},
+      {id: S.PASSPORT, label: 'Passport', fileCount: 0},
       {
-        id: 'certificates',
+        id: S.CERTIFICATES,
         label:
           'Certificates (incl. pedigree, microchip, awards, breeder papers)',
         fileCount: 0,
       },
-      {id: 'insurance', label: 'Insurance', fileCount: 0},
+      {id: S.INSURANCE, label: 'Insurance', fileCount: 0},
     ],
   },
   {
@@ -26,18 +27,15 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     isSynced: true,
     fileCount: 0,
     subcategories: [
-      {id: 'hospital-visits', label: 'Hospital visits', fileCount: 0},
-      {
-        id: 'prescriptions-treatments',
-        label: 'Prescriptions & treatments',
-        fileCount: 0,
-      },
-      {
-        id: 'vaccination-parasite',
-        label: 'Vaccination & parasite prevention',
-        fileCount: 0,
-      },
-      {id: 'lab-tests', label: 'Lab tests', fileCount: 0},
+      {id: S.SURGERY_PROCEDURE, label: 'Surgery/ Procedure', fileCount: 0},
+      {id: S.PRESCRIPTION, label: 'Prescription', fileCount: 0},
+      {id: S.VACCINATION, label: 'Vaccination', fileCount: 0},
+      {id: S.DISCHARGE_SUMMARY, label: 'Discharge summary', fileCount: 0},
+      {id: S.LAB_TEST, label: 'Lab test', fileCount: 0},
+      {id: S.IMAGING_DIAGNOSTIC, label: 'Imaging/ Diagnostic', fileCount: 0},
+      {id: S.PARASITE_PREVENTION, label: 'Parasite prevention', fileCount: 0},
+      {id: S.MEDICAL_CONDITION, label: 'Medical condition', fileCount: 0},
+      {id: S.OTHER, label: 'Other', fileCount: 0},
     ],
   },
   {
@@ -47,14 +45,18 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     isSynced: true,
     fileCount: 0,
     subcategories: [
-      {id: 'grooming-visits', label: 'Grooming visits', fileCount: 0},
-      {id: 'boarding-records', label: 'Boarding records', fileCount: 0},
+      {id: S.BATHING, label: 'Bathing', fileCount: 0},
+      {id: S.NAIL_TRIM, label: 'Nail trim', fileCount: 0},
+      {id: S.GROOMING, label: 'Grooming', fileCount: 0},
+      {id: S.EAR_CLEANING, label: 'Ear cleaning', fileCount: 0},
+      {id: S.DENTAL_CLEANING, label: 'Dental cleaning', fileCount: 0},
+      {id: S.SKIN_CARE, label: 'Skin care', fileCount: 0},
       {
-        id: 'training-behaviour',
-        label: 'Training & behavior reports',
+        id: S.ANAL_GLAND_EXPRESSION,
+        label: 'Anal gland expression',
         fileCount: 0,
       },
-      {id: 'breeder-interactions', label: 'Breeder interactions', fileCount: 0},
+      {id: S.OTHER, label: 'Other', fileCount: 0},
     ],
   },
   {
@@ -64,7 +66,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     isSynced: false,
     fileCount: 0,
     subcategories: [
-      {id: 'nutrition-plans', label: 'Nutrition plans', fileCount: 0},
+      {id: S.NUTRITION_PLANS, label: 'Nutrition plans', fileCount: 0},
     ],
   },
   {
@@ -93,19 +95,27 @@ export const VISIT_TYPES = [
 ];
 
 export const SUBCATEGORY_ICONS: Record<string, any> = {
-  passport: Images.passportIcon,
-  certificates: Images.certificateIcon,
-  insurance: Images.insuranceIcon,
-  'hospital-visits': Images.hospitalIcon,
-  'prescriptions-treatments': Images.prescriptionIcon,
-  'vaccination-parasite': Images.vaccinationIcon,
-  'lab-tests': Images.labTestIcon,
-  'grooming-visits': Images.groomingIcon,
-  'boarding-records': Images.boardingIcon,
-  'training-behaviour': Images.trainingIcon,
-  'breeder-interactions': Images.breederIcon,
-  'nutrition-plans': Images.nutritionIcon,
-  'weight-logs': Images.othersIcon,
+  [S.PASSPORT]: Images.passportIcon,
+  [S.CERTIFICATES]: Images.certificateIcon,
+  [S.INSURANCE]: Images.insuranceIcon,
+  [S.SURGERY_PROCEDURE]: Images.hospitalIcon,
+  [S.PRESCRIPTION]: Images.prescriptionIcon,
+  [S.VACCINATION]: Images.vaccinationIcon,
+  [S.DISCHARGE_SUMMARY]: Images.documentIcon,
+  [S.LAB_TEST]: Images.labTestIcon,
+  [S.IMAGING_DIAGNOSTIC]: Images.labTestIcon,
+  [S.PARASITE_PREVENTION]: Images.vaccinationIcon,
+  [S.MEDICAL_CONDITION]: Images.prescriptionIcon,
+  [S.OTHER]: Images.othersIcon,
+  [S.BATHING]: Images.groomingIcon,
+  [S.NAIL_TRIM]: Images.groomingIcon,
+  [S.GROOMING]: Images.groomingIcon,
+  [S.EAR_CLEANING]: Images.groomingIcon,
+  [S.DENTAL_CLEANING]: Images.groomingIcon,
+  [S.SKIN_CARE]: Images.groomingIcon,
+  [S.ANAL_GLAND_EXPRESSION]: Images.groomingIcon,
+  [S.NUTRITION_PLANS]: Images.nutritionIcon,
+  [S.WEIGHT_LOGS]: Images.othersIcon,
 };
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB

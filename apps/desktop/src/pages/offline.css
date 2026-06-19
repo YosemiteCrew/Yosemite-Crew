@@ -1,0 +1,138 @@
+:root {
+  --brand-925: var(--color-brand-925);
+  --brand-900: var(--color-brand-900);
+  --ink: var(--text-primary);
+  --muted: var(--text-tertiary);
+  --card: var(--surface-card);
+  --hair: var(--border-subtle);
+}
+body {
+  color: var(--ink);
+  background:
+    radial-gradient(1100px 560px at 50% -10%, rgba(59, 135, 236, 0.16), transparent 60%),
+    linear-gradient(180deg, var(--surface-card) 0%, var(--surface-page) 100%);
+  -webkit-user-select: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+/* Frameless window: a draggable title-bar strip across the empty top edge
+         so the window can be moved (there is no native title bar to grab). */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  /* no-drag: in tab mode this page can stay mounted as the window's base
+           layer behind the tab-bar WebContentsView, and a drag region here is
+           promoted to a window-level native drag rect that swallows clicks on the
+           tab-bar controls stacked above it. */
+  -webkit-app-region: no-drag;
+  z-index: 10;
+}
+.card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--card);
+  border: 1px solid var(--hair);
+  border-radius: 20px;
+  padding: 36px 32px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(29, 28, 27, 0.1);
+  animation: rise 0.45s ease-out both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.logo {
+  width: 66px;
+  height: 66px;
+  border-radius: 16px;
+  object-fit: contain;
+  margin-bottom: 14px;
+}
+h1 {
+  font-size: 21px;
+  font-weight: 680;
+  margin-bottom: 8px;
+}
+p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 22px;
+}
+button {
+  font: inherit;
+  font-weight: 620;
+  font-size: 14px;
+  border-radius: 11px;
+  padding: 11px 20px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    background 0.15s,
+    transform 0.05s;
+}
+button:active {
+  transform: translateY(1px);
+}
+.primary {
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+}
+.primary:hover {
+  filter: brightness(1.08);
+}
+.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--hair);
+}
+.ghost:hover {
+  background: var(--hair);
+}
+.countdown {
+  margin-top: 18px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.countdown b {
+  color: var(--brand-925);
+  font-variant-numeric: tabular-nums;
+}
+.detail {
+  margin-top: 14px;
+  font-size: 11.5px;
+  color: var(--muted);
+  word-break: break-word;
+  opacity: 0.85;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    background:
+      radial-gradient(1100px 560px at 50% -10%, rgba(59, 135, 236, 0.26), transparent 60%),
+      linear-gradient(180deg, var(--surface-card) 0%, var(--surface-page) 100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+}

@@ -1,7 +1,7 @@
 import { Schema, model, Types, HydratedDocument } from "mongoose";
 
 export interface CompanionOrganisationMongo {
-  companionId: Types.ObjectId;
+  patientId: Types.ObjectId;
   organisationId?: Types.ObjectId | null;
   linkedByParentId?: Types.ObjectId | null;
   linkedByPmsUserId?: string | null;
@@ -18,7 +18,7 @@ export interface CompanionOrganisationMongo {
 
 const CompanionOrganisationSchema = new Schema(
   {
-    companionId: {
+    patientId: {
       type: Schema.Types.ObjectId,
       ref: "Companion",
       required: true,
@@ -74,7 +74,7 @@ const CompanionOrganisationSchema = new Schema(
  * (PMS OR external that later becomes PMS)
  */
 CompanionOrganisationSchema.index(
-  { companionId: 1, organisationId: 1, organisationType: 1 },
+  { patientId: 1, organisationId: 1, organisationType: 1 },
   {
     unique: true,
     partialFilterExpression: { status: "ACTIVE" },
@@ -85,7 +85,7 @@ export type CompanionOrganisationDocument =
   HydratedDocument<CompanionOrganisationMongo>;
 
 const CompanionOrganisationModel = model<CompanionOrganisationMongo>(
-  "CompanionOrganisation",
+  "PatientOrganisation",
   CompanionOrganisationSchema,
 );
 

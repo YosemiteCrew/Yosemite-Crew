@@ -5,11 +5,8 @@ import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
-router.get(
-  "/questionnaire/library",
-  authorizeCognito,
-  requirePermission(["forms:view:any"]),
-  (req, res) => TemplateFhirController.listQuestionnaires(req, res),
+router.get("/questionnaire/library", authorizeCognito, (req, res) =>
+  TemplateFhirController.listQuestionnaires(req, res),
 );
 
 router.get(
@@ -92,11 +89,8 @@ router.post(
   (req, res) => TemplateFhirController.submitQuestionnaireInstance(req, res),
 );
 
-router.get(
-  "/plan-definition/library",
-  authorizeCognito,
-  requirePermission(["tasks:view:any"]),
-  (req, res) => TemplateFhirController.listPlanDefinitions(req, res),
+router.get("/plan-definition/library", authorizeCognito, (req, res) =>
+  TemplateFhirController.listPlanDefinitions(req, res),
 );
 
 router.get(

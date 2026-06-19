@@ -1,5 +1,8 @@
 import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
-import {ensureAccessContext, toErrorMessage} from '@/shared/utils/serviceHelpers';
+import {
+  ensureAccessContext,
+  toErrorMessage,
+} from '@/shared/utils/serviceHelpers';
 import type {User} from '@/features/auth';
 import type {Companion} from '@/features/companion';
 import {documentApi} from '@/features/documents/services/documentService';
@@ -16,7 +19,9 @@ const formatDate = (date: Date) => date.toISOString().split('T')[0];
 const resolveFileUrl = (file?: DocumentFile | null) =>
   file?.downloadUrl ?? file?.viewUrl ?? file?.s3Url ?? null;
 
-const mapAdministrationRoute = (method: AdverseEventProductInfo['administrationMethod']): string => {
+const mapAdministrationRoute = (
+  method: AdverseEventProductInfo['administrationMethod'],
+): string => {
   if (!method) {
     return '';
   }
@@ -64,7 +69,8 @@ const mapCompanion = (companion: Companion) => ({
   dateOfBirth: companion.dateOfBirth ?? '',
   gender: capitalize(companion.gender),
   currentWeight:
-    typeof companion.currentWeight === 'number' && Number.isFinite(companion.currentWeight)
+    typeof companion.currentWeight === 'number' &&
+    Number.isFinite(companion.currentWeight)
       ? `${companion.currentWeight} kg`
       : '',
   color: companion.color ?? '',
@@ -103,7 +109,9 @@ const uploadPrimaryProductImage = async ({
 
   const [primary, ...rest] = files;
   if (primary.status && primary.status !== 'ready') {
-    throw new Error('Product image is still preparing. Please wait a moment and try again.');
+    throw new Error(
+      'Product image is still preparing. Please wait a moment and try again.',
+    );
   }
   const existingUrl = resolveFileUrl(primary);
   if (existingUrl) {
@@ -156,6 +164,7 @@ export const adverseEventService = {
       organisationId: params.organisationId,
       reporter: mapReporter(params.reporter, params.reporterType),
       companion: mapCompanion(params.companion),
+      patient: mapCompanion(params.companion),
       product: {
         productName: params.product.productName.trim(),
         brandName: params.product.brandName.trim(),

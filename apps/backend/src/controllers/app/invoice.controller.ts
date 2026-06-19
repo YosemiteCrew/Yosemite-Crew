@@ -15,6 +15,16 @@ type UpdatePaymentCollectionMethodBody = {
   paymentCollectionMethod?: unknown;
 };
 
+type IssueCreditNoteBody = {
+  amount?: unknown;
+  reason?: unknown;
+  metadata?: unknown;
+};
+
+type VoidCreditNoteBody = {
+  reason?: unknown;
+};
+
 const isInvoiceItem = (item: unknown): item is InvoiceItem => {
   if (!item || typeof item !== "object") return false;
   const candidate = item as Partial<InvoiceItem>;
@@ -41,6 +51,27 @@ const isInvoiceItem = (item: unknown): item is InvoiceItem => {
 const isInvoiceItemArray = (items: unknown): items is InvoiceItem[] =>
   Array.isArray(items) && items.every(isInvoiceItem);
 
+const isCreditNoteMetadata = (
+  metadata: unknown,
+): metadata is Record<string, string | number | boolean> => {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return false;
+  }
+
+  return Object.values(metadata).every(
+    (value) =>
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean",
+  );
+};
+
+const toFinanceEnvelope = <T>(data: T) => ({
+  data,
+  meta: null,
+  error: null,
+});
+
 export const InvoiceController = {
   async listInvoicesForAppointment(this: void, req: Request, res: Response) {
     try {
@@ -50,7 +81,7 @@ export const InvoiceController = {
         appointmentId,
         organisationId,
       );
-      return res.status(200).json(invoices);
+      return res.status(200).json(toFinanceEnvelope(invoices));
     } catch (err) {
       logger.error("Error fetching appointment invoices", err);
       return res.status(500).json({ message: "Internal server error" });
@@ -63,7 +94,7 @@ export const InvoiceController = {
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
-      return res.status(200).json(invoice);
+      return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
       logger.error("Error fetching invoice by ID", err);
       return res.status(500).json({ message: "Internal server error" });
@@ -80,7 +111,7 @@ export const InvoiceController = {
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
-      return res.status(200).json(invoice);
+      return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
       logger.error("Error fetching invoice by Payment Intent ID", err);
       return res.status(500).json({ message: "Internal server error" });
@@ -99,7 +130,7 @@ export const InvoiceController = {
 
       const result =
         await InvoiceService.createCheckoutSessionAndEmailParent(invoiceId);
-      return res.status(200).json(result);
+      return res.status(200).json(toFinanceEnvelope(result));
     } catch (err) {
       logger.error("Error creating invoice checkout session", err);
 
@@ -134,7 +165,7 @@ export const InvoiceController = {
         organisationId,
       );
 
-      return res.status(200).json(invoice);
+      return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
       logger.error("Error adding charges to appointment", err);
 
@@ -156,7 +187,7 @@ export const InvoiceController = {
         return res.status(400).json({ message: "Organisation Id is reqired." });
 
       const invoices = await InvoiceService.listForOrganisation(organisationId);
-      return res.status(200).json(invoices);
+      return res.status(200).json(toFinanceEnvelope(invoices));
     } catch (err) {
       logger.error("Error fetching appointment invoices", err);
       return res.status(500).json({ message: "Internal server error" });
@@ -176,7 +207,7 @@ export const InvoiceController = {
 
       const invoice =
         await InvoiceService.bootstrapForAppointment(appointmentId);
-      return res.status(200).json(invoice);
+      return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
       logger.error("Error bootstrapping appointment invoice", err);
 
@@ -212,7 +243,7 @@ export const InvoiceController = {
         return res.status(409).json({ message: "Invoice already paid." });
       }
 
-      return res.status(200).json(invoice);
+      return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
       logger.error("Error marking invoice paid", err);
 
@@ -261,9 +292,114 @@ export const InvoiceController = {
         paymentCollectionMethod,
       );
 
-      return res.status(200).json(invoice);
+      return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
       logger.error("Error updating payment collection method", err);
+
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async issueCreditNote(
+    this: void,
+    req: Request<{ invoiceId: string }, unknown, IssueCreditNoteBody>,
+    res: Response,
+  ) {
+    try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const amount = req.body.amount;
+      if (
+        typeof amount !== "number" ||
+        !Number.isFinite(amount) ||
+        amount <= 0
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Credit note amount is required" });
+      }
+
+      const reason =
+        typeof req.body.reason === "string" ? req.body.reason : undefined;
+      const metadata = isCreditNoteMetadata(req.body.metadata)
+        ? req.body.metadata
+        : undefined;
+
+      const creditNote = await InvoiceService.issueCreditNote(invoiceId, {
+        amount,
+        reason,
+        metadata,
+      });
+
+      return res.status(201).json(toFinanceEnvelope(creditNote));
+    } catch (err) {
+      logger.error("Error issuing credit note", err);
+
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async voidCreditNote(
+    this: void,
+    req: Request<
+      { invoiceId: string; creditNoteId: string },
+      unknown,
+      VoidCreditNoteBody
+    >,
+    res: Response,
+  ) {
+    try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
+      const invoiceId = req.params.invoiceId;
+      const creditNoteId = req.params.creditNoteId;
+
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      if (!creditNoteId) {
+        return res.status(400).json({ message: "Credit note Id is required" });
+      }
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const reason =
+        typeof req.body.reason === "string" ? req.body.reason : undefined;
+      const creditNote = await InvoiceService.voidCreditNote(
+        invoiceId,
+        creditNoteId,
+        reason,
+      );
+
+      return res.status(200).json(toFinanceEnvelope(creditNote));
+    } catch (err) {
+      logger.error("Error voiding credit note", err);
 
       const statusCode =
         err instanceof InvoiceServiceError ? err.statusCode : 500;

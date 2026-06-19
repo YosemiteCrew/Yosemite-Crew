@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>Yosemite Crew — Tab bar</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="tabbar.css" />
+    <style>
+      #tab-search-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.18);
+        display: none;
+        z-index: 9999;
+      }
+      #tab-search-overlay.open {
+        display: block;
+      }
+      .ts-panel {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        width: 460px;
+        max-height: calc(100vh - 24px);
+        background: var(--surface-card);
+        border: 1px solid var(--border-card);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        font-family: var(--font-satoshi);
+      }
+      .ts-search {
+        padding: 10px;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .ts-search input {
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        padding: 9px 12px;
+        color: var(--text-primary);
+        background: var(--surface-page);
+        border: 1px solid var(--border-card);
+        border-radius: var(--radius-sm);
+        outline: none;
+      }
+      .ts-search input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(0, 124, 245, 0.18);
+      }
+      .ts-list {
+        overflow-y: auto;
+        padding: 6px;
+      }
+      .ts-section {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-tertiary);
+        padding: 10px 10px 4px;
+      }
+      .ts-item {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+      }
+      /* Translucent accent so the row + its text stay legible in light AND dark. */
+      .ts-item:hover {
+        background: rgba(0, 124, 245, 0.14);
+      }
+      .ts-item.sel {
+        background: rgba(0, 124, 245, 0.22);
+      }
+      .ts-item:hover .lbl,
+      .ts-item.sel .lbl {
+        color: var(--text-primary);
+      }
+      .ts-item .ic {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 16px;
+        opacity: 0.85;
+      }
+      .ts-item .lbl {
+        flex: 1;
+        font-size: 13.5px;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ts-item .x {
+        opacity: 0.55;
+        font-size: 15px;
+        padding: 0 4px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        color: var(--text-tertiary);
+      }
+      .ts-item .x:hover {
+        opacity: 1;
+      }
+      .ts-item .hint {
+        font-size: 11px;
+        color: var(--text-tertiary);
+      }
+      .ts-empty {
+        padding: 18px;
+        text-align: center;
+        color: var(--text-tertiary);
+        font-size: 13px;
+      }
+
+      /* ── Cheatsheet overlay ── */
+      #cheatsheet-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.18);
+        display: none;
+        z-index: 9998;
+      }
+      #cheatsheet-overlay[style*='block'] {
+        display: block;
+      }
+      .cs-panel {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 520px;
+        max-height: 80vh;
+        background: var(--surface-card);
+        border: 1px solid var(--border-card);
+        border-radius: var(--radius-md);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        font-family: var(--font-satoshi);
+      }
+      .cs-header {
+        font-size: 15px;
+        font-weight: 700;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+      }
+      .cs-body {
+        padding: 10px 18px 18px;
+        overflow-y: auto;
+      }
+      .cs-group {
+        margin-top: 14px;
+      }
+      .cs-group:first-child {
+        margin-top: 0;
+      }
+      .cs-group-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-tertiary);
+        margin-bottom: 6px;
+      }
+      .cs-row {
+        display: flex;
+        align-items: center;
+        padding: 5px 0;
+        font-size: 13px;
+      }
+      .cs-key {
+        display: inline-block;
+        min-width: 80px;
+        padding: 2px 8px;
+        background: var(--surface-page);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-weight: 600;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: var(--text-primary);
+        text-align: center;
+        margin-right: 14px;
+      }
+      .cs-desc {
+        color: var(--text-secondary);
+      }
+
+      /* ── Sync status badge ── */
+      #sync-badge {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin: 0 6px;
+        transition: background 0.3s;
+      }
+      #sync-badge.synced {
+        background: var(--color-success-bright);
+      }
+      #sync-badge.syncing {
+        background: var(--color-warning-600);
+        animation: sync-pulse 1.2s ease-in-out infinite;
+      }
+      #sync-badge.pending {
+        background: var(--color-warning-600);
+      }
+      #sync-badge.offline {
+        background: var(--color-danger-600);
+      }
+      #sync-badge.error {
+        background: var(--color-danger-600);
+      }
+      #sync-badge.not-ready {
+        background: var(--color-neutral-500);
+      }
+      #sync-badge.blocked {
+        background: var(--color-neutral-500);
+      }
+      @keyframes sync-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="tabbar" role="tablist" aria-label="Tabs">
+      <div id="tab-strip" class="tab-strip"></div>
+      <div class="drag-spacer" aria-hidden="true"></div>
+      <div class="tabbar-trailing">
+        <button
+          id="search-tabs-btn"
+          class="tab-action-btn"
+          aria-label="Search tabs"
+          title="Search tabs (Shift+Cmd+Y)"
+        >
+          ⌕
+        </button>
+        <button
+          id="new-tab-btn"
+          class="tab-action-btn"
+          aria-label="New tab"
+          title="New tab (Cmd+T)"
+        >
+          +
+        </button>
+        <div id="sync-badge" class="not-ready" title="Sync status"></div>
+      </div>
+    </div>
+
+    <div id="context-menu" class="context-menu" style="display: none"></div>
+
+    <div id="tab-preview" class="tab-preview" style="display: none">
+      <img id="tab-preview-img" alt="" />
+    </div>
+
+    <div id="tab-search-overlay">
+      <div class="ts-panel" role="dialog" aria-label="Search tabs">
+        <div class="ts-search">
+          <input
+            id="ts-input"
+            type="text"
+            placeholder="Search tabs…"
+            spellcheck="false"
+            aria-label="Search tabs"
+          />
+        </div>
+        <div id="ts-list" class="ts-list"></div>
+      </div>
+    </div>
+
+    <div id="cheatsheet-overlay" style="display: none">
+      <div class="cs-panel" role="dialog" aria-label="Keyboard shortcuts">
+        <div class="cs-header">Keyboard Shortcuts</div>
+        <div class="cs-body">
+          <div class="cs-group">
+            <div class="cs-group-title">Tabs</div>
+            <div class="cs-row">
+              <span class="cs-key">⌘T</span><span class="cs-desc">New tab</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘W</span><span class="cs-desc">Close tab</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘⇧T</span><span class="cs-desc">Reopen closed tab</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘⇧Y</span><span class="cs-desc">Search tabs</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘1-9</span><span class="cs-desc">Jump to tab</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘⇧E</span><span class="cs-desc">Toggle vertical tabs</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘⇧\</span><span class="cs-desc">Split view</span>
+            </div>
+          </div>
+          <div class="cs-group">
+            <div class="cs-group-title">Navigation</div>
+            <div class="cs-row">
+              <span class="cs-key">⌘⇧H</span><span class="cs-desc">Home</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘⇧B</span><span class="cs-desc">Open in browser</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘K</span><span class="cs-desc">Command palette</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘F</span><span class="cs-desc">Find in page</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘G</span><span class="cs-desc">Find next</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘⇧G</span><span class="cs-desc">Find previous</span>
+            </div>
+          </div>
+          <div class="cs-group">
+            <div class="cs-group-title">Window</div>
+            <div class="cs-row">
+              <span class="cs-key">⌘P</span><span class="cs-desc">Print</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘,</span><span class="cs-desc">Preferences</span>
+            </div>
+            <div class="cs-row">
+              <span class="cs-key">⌘/</span><span class="cs-desc">Keyboard shortcuts</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const tabStrip = document.getElementById('tab-strip');
+      const newTabBtn = document.getElementById('new-tab-btn');
+      const contextMenu = document.getElementById('context-menu');
+      const yc = globalThis.ycDesktop;
+
+      const state = { tabs: [], activeId: null, closedStack: [] };
+      let dragSrcId = null;
+      let dragDropped = false;
+
+      // Leave room for the macOS traffic-light buttons so tabs don't sit under them.
+      if (navigator.userAgent.includes('Macintosh')) {
+        document.getElementById('tabbar').style.paddingLeft = '78px';
+      }
+
+      const send = (method, ...args) => {
+        if (yc && typeof yc[method] === 'function') return yc[method](...args);
+        return Promise.resolve(null);
+      };
+
+      // Manual window drag. The tab bar lives in a child WebContentsView where
+      // `-webkit-app-region: drag` is all-or-nothing (it would make the tabs and
+      // controls undraggable-but-unclickable), so the empty filler streams pointer
+      // deltas to the main process to move the frameless window itself.
+      const dragSpacer = document.querySelector('.drag-spacer');
+      if (dragSpacer && yc && typeof yc.windowDragBy === 'function') {
+        let dragging = false;
+        let lastX = 0;
+        let lastY = 0;
+        dragSpacer.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
+          dragging = true;
+          lastX = e.screenX;
+          lastY = e.screenY;
+          dragSpacer.setPointerCapture(e.pointerId);
+        });
+        dragSpacer.addEventListener('pointermove', (e) => {
+          if (!dragging) return;
+          const dx = e.screenX - lastX;
+          const dy = e.screenY - lastY;
+          lastX = e.screenX;
+          lastY = e.screenY;
+          if (dx || dy) yc.windowDragBy(dx, dy);
+        });
+        const endDrag = (e) => {
+          if (!dragging) return;
+          dragging = false;
+          try {
+            dragSpacer.releasePointerCapture(e.pointerId);
+          } catch {
+            /* pointer already released */
+          }
+        };
+        dragSpacer.addEventListener('pointerup', endDrag);
+        dragSpacer.addEventListener('pointercancel', endDrag);
+      }
+
+      const hideContextMenu = () => {
+        contextMenu.style.display = 'none';
+      };
+
+      const showContextMenu = (x, y, tabId) => {
+        const tab = state.tabs.find((t) => t.id === tabId);
+        if (!tab) return;
+        contextMenu.innerHTML = '';
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top = y + 'px';
+
+        const items = [
+          { label: 'Duplicate', action: () => send('duplicateTab', tabId) },
+          tab.pinned
+            ? { label: 'Unpin tab', action: () => send('pinTab', tabId, false) }
+            : { label: 'Pin tab', action: () => send('pinTab', tabId, true) },
+          { type: 'separator' },
+          { label: 'Close tab', action: () => send('closeTab', tabId) },
+          {
+            label: 'Close others',
+            action: () => {
+              state.tabs.forEach((t) => {
+                if (t.id !== tabId) send('closeTab', t.id);
+              });
+            },
+          },
+          {
+            label: 'Close tabs to the right',
+            action: () => {
+              const idx = state.tabs.findIndex((t) => t.id === tabId);
+              state.tabs.slice(idx + 1).forEach((t) => send('closeTab', t.id));
+            },
+          },
+          { type: 'separator' },
+          { label: 'Reopen closed tab', action: () => send('reopenClosedTab') },
+        ];
+
+        items.forEach((item) => {
+          if (item.type === 'separator') {
+            const sep = document.createElement('div');
+            sep.className = 'context-menu-separator';
+            contextMenu.appendChild(sep);
+          } else {
+            const el = document.createElement('div');
+            el.className = 'context-menu-item';
+            el.textContent = item.label;
+            el.addEventListener('click', () => {
+              hideContextMenu();
+              item.action();
+            });
+            contextMenu.appendChild(el);
+          }
+        });
+      };
+
+      document.addEventListener('click', hideContextMenu);
+
+      const wireTabDrag = (div, tab) => {
+        div.addEventListener('dragstart', (e) => {
+          dragSrcId = tab.id;
+          dragDropped = false;
+          e.dataTransfer.effectAllowed = 'move';
+          div.classList.add('tab--dragging');
+        });
+
+        div.addEventListener('dragend', () => {
+          if (dragSrcId && !dragDropped) {
+            send('detachTab', dragSrcId);
+          }
+          dragSrcId = null;
+          document
+            .querySelectorAll('.tab--drag-over')
+            .forEach((el) => el.classList.remove('tab--drag-over'));
+          document
+            .querySelectorAll('.tab--dragging')
+            .forEach((el) => el.classList.remove('tab--dragging'));
+        });
+
+        div.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        });
+
+        div.addEventListener('dragenter', (e) => {
+          e.preventDefault();
+          if (dragSrcId !== tab.id) div.classList.add('tab--drag-over');
+        });
+
+        div.addEventListener('dragleave', () => {
+          div.classList.remove('tab--drag-over');
+        });
+
+        div.addEventListener('drop', (e) => {
+          e.preventDefault();
+          div.classList.remove('tab--drag-over');
+          if (dragSrcId && dragSrcId !== tab.id) {
+            dragDropped = true;
+            const toIndex = state.tabs.findIndex((t) => t.id === tab.id);
+            send('moveTab', dragSrcId, toIndex);
+          }
+        });
+      };
+
+      const buildTabInner = (tab) => {
+        const inner = document.createElement('div');
+        inner.className = 'tab-inner';
+
+        if (tab.loading) {
+          const spinner = document.createElement('span');
+          spinner.className = 'tab-spinner';
+          inner.appendChild(spinner);
+        } else if (tab.favicon) {
+          const img = document.createElement('img');
+          img.className = 'tab-favicon';
+          img.src = tab.favicon;
+          img.alt = '';
+          img.onerror = () => {
+            img.style.display = 'none';
+          };
+          inner.appendChild(img);
+        }
+
+        const label = document.createElement('span');
+        label.className = 'tab-label';
+        label.textContent = tab.title;
+        inner.appendChild(label);
+
+        if (tab.error || tab.offline) {
+          const badge = document.createElement('span');
+          badge.className = 'tab-badge ' + (tab.error ? 'tab-badge--error' : 'tab-badge--offline');
+          badge.textContent = tab.error ? '!' : '\u26A0';
+          inner.appendChild(badge);
+        }
+
+        if (tab.audible) {
+          const audio = document.createElement('span');
+          audio.className = 'tab-audio' + (tab.muted ? ' tab-audio--muted' : '');
+          audio.textContent = tab.muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
+          audio.title = tab.muted ? 'Unmute tab' : 'Mute tab';
+          audio.addEventListener('click', (e) => {
+            e.stopPropagation();
+            send('toggleTabMute', tab.id);
+          });
+          inner.appendChild(audio);
+        }
+
+        return inner;
+      };
+
+      const wireTabHoverPreview = (div, tab) => {
+        let previewTimer = null;
+        div.addEventListener('mouseenter', () => {
+          if (previewTimer) clearTimeout(previewTimer);
+          previewTimer = setTimeout(async () => {
+            const preview = document.getElementById('tab-preview');
+            const img = document.getElementById('tab-preview-img');
+            const result = await send('getTabPreview', tab.id);
+            if (result && result.ok && result.dataUrl) {
+              img.src = result.dataUrl;
+              const rect = div.getBoundingClientRect();
+              preview.style.left = Math.max(0, rect.left + (rect.width - 320) / 2) + 'px';
+              preview.style.top = rect.bottom + 4 + 'px';
+              preview.style.display = 'block';
+            }
+          }, 600);
+        });
+        div.addEventListener('mouseleave', () => {
+          if (previewTimer) clearTimeout(previewTimer);
+          document.getElementById('tab-preview').style.display = 'none';
+        });
+      };
+
+      const renderTab = (tab) => {
+        const div = document.createElement('div');
+        div.className =
+          'tab' +
+          (tab.id === state.activeId ? ' tab--active' : '') +
+          (tab.pinned ? ' tab--pinned' : '');
+        div.setAttribute('role', 'tab');
+        div.setAttribute('aria-selected', String(tab.id === state.activeId));
+        div.dataset.tabId = tab.id;
+        div.setAttribute('draggable', 'true');
+        div.title = tab.title;
+
+        wireTabDrag(div, tab);
+
+        div.appendChild(buildTabInner(tab));
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'tab-close-btn';
+        closeBtn.setAttribute('aria-label', 'Close tab');
+        closeBtn.textContent = '\u00D7';
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          send('closeTab', tab.id);
+        });
+        if (!tab.pinned) div.appendChild(closeBtn);
+
+        div.addEventListener('click', () => send('activateTab', tab.id));
+        div.addEventListener('dblclick', () => send('closeTab', tab.id));
+
+        div.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showContextMenu(e.clientX, e.clientY, tab.id);
+        });
+
+        wireTabHoverPreview(div, tab);
+
+        return div;
+      };
+
+      const render = (newState) => {
+        state.tabs = newState.tabs || [];
+        state.activeId = newState.activeId;
+        state.closedStack = newState.closedStack || [];
+        if (newState.orientation) {
+          document.getElementById('tabbar').dataset.orientation = newState.orientation;
+        }
+        tabStrip.innerHTML = '';
+        for (const tab of state.tabs) {
+          tabStrip.appendChild(renderTab(tab));
+        }
+        if (searchOpen) renderSearch();
+      };
+
+      const updateSyncBadge = async () => {
+        try {
+          const res = await send('getSyncStatus');
+          if (!res || !res.status) return;
+          const badge = document.getElementById('sync-badge');
+          if (!badge) return;
+          const s = res.status.state || 'not-ready';
+          badge.className = s;
+          const labels = {
+            synced: 'Synced',
+            syncing: 'Syncing…',
+            pending: 'Pending changes',
+            offline: 'Offline',
+            error: 'Sync error',
+            'not-ready': 'Initializing',
+            blocked: 'Waiting for endpoint',
+          };
+          badge.title = labels[s] || s;
+        } catch {
+          /* ignore sync poll errors */
+        }
+      };
+
+      const poll = async () => {
+        try {
+          const result = await send('getTabs');
+          if (result && typeof result === 'object' && 'ok' in result) {
+            render(result);
+          }
+        } catch {
+          /* ignore polling errors */
+        }
+        updateSyncBadge();
+      };
+
+      newTabBtn.addEventListener('click', () => send('newTab'));
+
+      const cycleActiveTab = (backward) => {
+        if (state.tabs.length <= 1) return;
+        const idx = state.tabs.findIndex((t) => t.id === state.activeId);
+        const next = backward
+          ? (idx - 1 + state.tabs.length) % state.tabs.length
+          : (idx + 1) % state.tabs.length;
+        send('activateTab', state.tabs[next].id);
+      };
+
+      const activateByNumber = (key) => {
+        const idx = Number.parseInt(key, 10) - 1;
+        if (idx < state.tabs.length) send('activateTab', state.tabs[idx].id);
+      };
+
+      document.addEventListener('keydown', (e) => {
+        // All tab shortcuts require the platform modifier; bail early otherwise so
+        // each branch below stays flat (keeps cognitive complexity low).
+        if (!(e.metaKey || e.ctrlKey)) return;
+        const key = e.key;
+        if (key === 't' && !e.shiftKey) {
+          e.preventDefault();
+          send('newTab');
+        } else if (key === 't' && e.shiftKey) {
+          e.preventDefault();
+          send('reopenClosedTab');
+        } else if (key === 'w') {
+          e.preventDefault();
+          if (state.activeId) send('closeTab', state.activeId);
+        } else if (key === 'Tab') {
+          e.preventDefault();
+          cycleActiveTab(e.shiftKey);
+        } else if (key >= '1' && key <= '9') {
+          e.preventDefault();
+          activateByNumber(key);
+        }
+      });
+
+      // ── Figma-style tab search panel ──
+      const overlay = document.getElementById('tab-search-overlay');
+      const tsInput = document.getElementById('ts-input');
+      const tsList = document.getElementById('ts-list');
+      let searchOpen = false;
+      let tsSel = 0;
+      let tsRows = []; // flattened selectable rows: { kind:'open'|'closed', tab }
+
+      const matches = (q, text) => !q || (text || '').toLowerCase().includes(q.toLowerCase());
+
+      const renderSearch = () => {
+        const q = tsInput.value.trim();
+        const open = state.tabs.filter((t) => matches(q, t.title) || matches(q, t.url));
+        const closed = (state.closedStack || []).filter(
+          (t) => matches(q, t.title) || matches(q, t.url)
+        );
+        tsRows = [];
+        let html = '';
+        if (open.length) {
+          html += '<div class="ts-section">Tabs in this window</div>';
+          open.forEach((t) => {
+            const i = tsRows.length;
+            tsRows.push({ kind: 'open', tab: t });
+            html +=
+              '<div class="ts-item" data-i="' +
+              i +
+              '">' +
+              '<span class="ic">' +
+              (t.id === state.activeId ? '●' : '○') +
+              '</span>' +
+              '<span class="lbl"></span><button class="x" data-close="' +
+              t.id +
+              '" aria-label="Close">×</button></div>';
+          });
+        }
+        if (closed.length) {
+          html += '<div class="ts-section">Recently closed tabs</div>';
+          closed.forEach((t) => {
+            const i = tsRows.length;
+            tsRows.push({ kind: 'closed', tab: t });
+            html +=
+              '<div class="ts-item" data-i="' +
+              i +
+              '"><span class="ic">↺</span><span class="lbl"></span></div>';
+          });
+        }
+        if (!tsRows.length) html = '<div class="ts-empty">No matching tabs</div>';
+        tsList.innerHTML = html;
+        // set labels via textContent (avoid HTML injection from titles/urls)
+        const items = tsList.querySelectorAll('.ts-item');
+        items.forEach((el) => {
+          const i = Number.parseInt(el.dataset.i, 10);
+          const row = tsRows[i];
+          el.querySelector('.lbl').textContent = row.tab.title || row.tab.url || 'Untitled';
+          el.addEventListener('mousemove', () => setSel(i));
+          el.addEventListener('click', (e) => {
+            if (e.target.classList.contains('x')) return;
+            activateRow(i);
+          });
+          const x = el.querySelector('.x');
+          if (x)
+            x.addEventListener('click', (e) => {
+              e.stopPropagation();
+              send('closeTab', x.dataset.close);
+            });
+        });
+        if (tsSel >= tsRows.length) tsSel = Math.max(0, tsRows.length - 1);
+        paintSel();
+      };
+
+      const paintSel = () => {
+        tsList.querySelectorAll('.ts-item').forEach((el) => {
+          el.classList.toggle('sel', Number.parseInt(el.dataset.i, 10) === tsSel);
+        });
+      };
+      const setSel = (i) => {
+        tsSel = i;
+        paintSel();
+      };
+
+      const activateRow = (i) => {
+        const row = tsRows[i];
+        if (!row) return;
+        if (row.kind === 'open') send('activateTab', row.tab.id);
+        else send('newTab', row.tab.url);
+        closeSearch();
+      };
+
+      const openSearch = () => {
+        searchOpen = true;
+        tsSel = 0;
+        tsInput.value = '';
+        overlay.classList.add('open');
+        send('tabSearch', true); // expand the chrome view to full height
+        renderSearch();
+        setTimeout(() => tsInput.focus(), 0);
+      };
+      const closeSearch = () => {
+        searchOpen = false;
+        overlay.classList.remove('open');
+        send('tabSearch', false); // collapse back to the strip
+      };
+      globalThis.__ycOpenTabSearch = openSearch;
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeSearch();
+      });
+      tsInput.addEventListener('input', () => {
+        tsSel = 0;
+        renderSearch();
+      });
+      tsInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSel(Math.min(tsRows.length - 1, tsSel + 1));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSel(Math.max(0, tsSel - 1));
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          activateRow(tsSel);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closeSearch();
+        }
+      });
+      document.getElementById('search-tabs-btn').addEventListener('click', openSearch);
+
+      // ── Cheatsheet ──
+      const csOverlay = document.getElementById('cheatsheet-overlay');
+      const openCheatsheet = () => {
+        csOverlay.style.display = 'block';
+        send('tabSearch', true);
+      };
+      const closeCheatsheet = () => {
+        csOverlay.style.display = 'none';
+        send('tabSearch', false);
+      };
+      globalThis.__ycOpenCheatsheet = openCheatsheet;
+      csOverlay.addEventListener('click', (e) => {
+        if (e.target === csOverlay) closeCheatsheet();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+          e.preventDefault();
+          searchOpen ? closeSearch() : openSearch();
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === '/' && !e.shiftKey) {
+          e.preventDefault();
+          if (csOverlay.style.display === 'block') {
+            closeCheatsheet();
+          } else {
+            if (searchOpen) closeSearch();
+            openCheatsheet();
+          }
+        }
+      });
+
+      poll();
+      setInterval(poll, 1000);
+    </script>
+  </body>
+</html>

@@ -491,7 +491,7 @@ describe("AppointmentController", () => {
 
   describe("listByCompanion", () => {
     it("should success (200)", async () => {
-      req.params = { companionId: "c1" };
+      req.params = { patientId: "c1" };
       mockedAppointmentService.getAppointmentsForCompanion.mockResolvedValue(
         [],
       );
@@ -685,7 +685,7 @@ describe("AppointmentController", () => {
     });
 
     it("should success (200)", async () => {
-      req.body = { companionId: "c1", mimeType: "image/png" };
+      req.body = { patientId: "c1", mimeType: "image/png" };
       mockedUpload.generatePresignedUrl.mockResolvedValue({
         url: "http://s3",
         key: "k",
@@ -700,7 +700,7 @@ describe("AppointmentController", () => {
     });
 
     it("should handle error", async () => {
-      req.body = { companionId: "c1", mimeType: "image/png" };
+      req.body = { patientId: "c1", mimeType: "image/png" };
       mockedUpload.generatePresignedUrl.mockRejectedValue(new Error("Fail"));
 
       await AppointmentController.getDocumentUplaodURL(

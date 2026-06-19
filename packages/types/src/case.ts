@@ -16,7 +16,8 @@ export type CaseStatus = (typeof CASE_STATUSES)[number];
 export type Case = {
   id?: string;
   organisationId: string;
-  companionId: string;
+  patientId?: string;
+  companionId?: string;
   parentId?: string;
   status: CaseStatus;
   appointmentKind: AppointmentKind;
@@ -69,7 +70,7 @@ export const toFHIRCase = (value: Case): EpisodeOfCare => {
     id: value.id,
     status: value.status,
     patient: {
-      reference: `Patient/${value.companionId}`,
+      reference: `Patient/${value.patientId ?? value.companionId ?? ''}`,
     },
     managingOrganization: {
       reference: `Organization/${value.organisationId}`,
@@ -85,6 +86,7 @@ export const fromFHIRCase = (resource: EpisodeOfCare): Case => {
   return {
     id: resource.id,
     organisationId: organisationReference.replace(/^Organization\//, ''),
+    patientId: patientReference.replace(/^Patient\//, ''),
     companionId: patientReference.replace(/^Patient\//, ''),
     parentId: getStringExtension(resource.extension, EXT_CASE_PARENT_ID),
     status: (resource.status ?? 'planned') as CaseStatus,

@@ -44,7 +44,7 @@ type LaunchTaskWorkflowOptions = {
 };
 
 type AppointmentContext = {
-  companionId?: string;
+  patientId?: string;
   parentId?: string;
   leadId?: string;
   supportStaffIds: string[];
@@ -111,7 +111,7 @@ const loadAppointmentContext = async (
     ? await client.appointment.findFirst({
         where: { id: templateInstance.appointmentId },
         select: {
-          companion: true,
+          patient: true,
           lead: true,
           supportStaff: true,
           startTime: true,
@@ -136,8 +136,8 @@ const loadAppointmentContext = async (
   const admissionAt = admission?.admittedAt ?? anchorAt;
 
   return {
-    companionId: getAppointmentCompanionId(appointment?.companion),
-    parentId: getAppointmentParentId(appointment?.companion),
+    patientId: getAppointmentCompanionId(appointment?.patient),
+    parentId: getAppointmentParentId(appointment?.patient),
     leadId: getAppointmentLeadId(appointment?.lead),
     supportStaffIds: getSupportStaffIds(appointment?.supportStaff),
     anchorAt,
@@ -244,7 +244,7 @@ const launchWorkflowInstance = async (
       createdBy,
       assignedBy: createdBy,
       appointmentId: instance.appointmentId ?? undefined,
-      companionId: context.companionId,
+      patientId: context.patientId,
       templateId: instance.templateId,
       source,
       anchorAt: context.anchorAt,
@@ -273,7 +273,7 @@ const launchWorkflowInstance = async (
           appointmentId: instance.appointmentId ?? undefined,
           caseId: instance.caseId ?? undefined,
           encounterId: instance.encounterId ?? undefined,
-          companionId: context.companionId,
+          patientId: context.patientId,
           createdBy,
           activatedBy: submittedBy ?? createdBy,
           activatedAt: shouldDefer ? deferUntil : now,
@@ -304,7 +304,7 @@ const launchWorkflowInstance = async (
           appointmentId: instance.appointmentId ?? undefined,
           caseId: instance.caseId ?? undefined,
           encounterId: instance.encounterId ?? undefined,
-          companionId: context.companionId,
+          patientId: context.patientId,
           createdBy,
           activatedBy: submittedBy ?? createdBy,
           activatedAt: shouldDefer ? deferUntil : now,
@@ -402,6 +402,32 @@ const loadScheduleByInstanceId = async (
 };
 
 export const TaskWorkflowService = {
+  async listSchedulesForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<TaskScheduleLike[]> {
+    const trimmedOrganisationId = organisationId.trim();
+    const trimmedEncounterId = encounterId.trim();
+
+    if (!trimmedOrganisationId) {
+      throw new TaskWorkflowServiceError("Invalid organisationId", 400);
+    }
+
+    if (!trimmedEncounterId) {
+      throw new TaskWorkflowServiceError("Invalid encounterId", 400);
+    }
+
+    const schedules = await prisma.taskSchedule.findMany({
+      where: {
+        organisationId: trimmedOrganisationId,
+        encounterId: trimmedEncounterId,
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    return schedules.map(toTaskScheduleLike);
+  },
+
   async launchFromTemplateInstance(
     instanceId: string,
     organisationId?: string,

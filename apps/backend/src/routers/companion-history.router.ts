@@ -6,7 +6,7 @@ import { CompanionHistoryController } from "src/controllers/web/companion-histor
 const router = Router();
 
 router.get(
-  "/pms/organisation/:organisationId/companion/:companionId",
+  "/pms/organisation/:organisationId/companion/:patientId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("companions:view:any"),

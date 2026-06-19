@@ -7,7 +7,7 @@ type StoredTaskWorkflowSeed = {
   templateId?: string;
   organisationId: string;
   appointmentId?: string;
-  companionId?: string;
+  patientId?: string;
   createdBy: string;
   assignedBy?: string;
   assignedTo: string;
@@ -100,8 +100,7 @@ const parseSeed = (value: unknown): StoredTaskWorkflowSeed => {
     organisationId: seed.organisationId,
     appointmentId:
       typeof seed.appointmentId === "string" ? seed.appointmentId : undefined,
-    companionId:
-      typeof seed.companionId === "string" ? seed.companionId : undefined,
+    patientId: typeof seed.patientId === "string" ? seed.patientId : undefined,
     createdBy: seed.createdBy,
     assignedBy:
       typeof seed.assignedBy === "string" ? seed.assignedBy : undefined,

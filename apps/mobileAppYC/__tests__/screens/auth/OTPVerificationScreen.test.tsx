@@ -390,7 +390,7 @@ describe('OTPVerificationScreen', () => {
       fireEvent.changeText(otpInput, '1234');
       try {
         await Promise.resolve();
-      } catch (e) {}
+      } catch (_error) {}
     });
 
     const expectedErrorLabel =
@@ -413,7 +413,7 @@ describe('OTPVerificationScreen', () => {
       fireEvent.changeText(otpInput, '1234');
       try {
         await Promise.resolve();
-      } catch (e) {}
+      } catch (_error) {}
     });
 
     const expectedErrorLabel = 'Error: Network failed';
@@ -475,7 +475,7 @@ describe('OTPVerificationScreen', () => {
       fireEvent.press(resendButton);
       try {
         await Promise.resolve();
-      } catch (e) {}
+      } catch (_error) {}
     });
 
     const expectedErrorLabel = 'Error: Resend limit exceeded';

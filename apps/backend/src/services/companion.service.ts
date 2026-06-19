@@ -1,9 +1,3 @@
-import { Types } from "mongoose";
-import CompanionModel, {
-  type CompanionDocument,
-  type CompanionMongo,
-} from "../models/companion";
-
 import {
   fromCompanionRequestDTO,
   toCompanionResponseDTO,
@@ -15,15 +9,13 @@ import {
   type SourceType,
 } from "@yosemite-crew/types";
 import {
-  Prisma,
-  CompanionType as PrismaCompanionType,
   Gender as PrismaGender,
-  SourceType as PrismaSourceType,
+  PatientType as PrismaPatientType,
+  Prisma,
   RecordStatus as PrismaRecordStatus,
+  SourceType as PrismaSourceType,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-
 import {
   ParentCompanionService,
   ParentCompanionServiceError,
@@ -31,11 +23,9 @@ import {
 import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import escapeStringRegexp from "escape-string-regexp";
-import CompanionOrganisationModel from "src/models/companion-organisation";
 import logger from "src/utils/logger";
 import { TaskLibraryService } from "./taskLibrary.service";
 import { CreateFromLibraryInput, TaskService } from "./task.service";
-import CodeEntryModel from "src/models/code-entry";
 
 export class CompanionServiceError extends Error {
   constructor(
@@ -47,152 +37,13 @@ export class CompanionServiceError extends Error {
   }
 }
 
-/**
- * FHIR DTO → persistable Mongo object
- */
-const toPersistable = (payload: CompanionRequestDTO): CompanionMongo => {
-  const companion = fromCompanionRequestDTO(payload);
-
-  return {
-    name: companion.name,
-    type: companion.type,
-    breed: companion.breed ?? "",
-    speciesCode: companion.speciesCode,
-    breedCode: companion.breedCode,
-    dateOfBirth: companion.dateOfBirth,
-    gender: companion.gender,
-    photoUrl: companion.photoUrl,
-    currentWeight: companion.currentWeight,
-    colour: companion.colour,
-    allergy: companion.allergy,
-    bloodGroup: companion.bloodGroup,
-    isNeutered: companion.isneutered,
-    ageWhenNeutered: companion.ageWhenNeutered,
-    microchipNumber: companion.microchipNumber,
-    passportNumber: companion.passportNumber,
-    isInsured: companion.isInsured ?? false,
-    insurance: companion.insurance ?? null,
-    countryOfOrigin: companion.countryOfOrigin,
-    source: companion.source,
-    status: companion.status,
-    physicalAttribute: companion.physicalAttribute,
-    breedingInfo: companion.breedingInfo,
-    medicalRecords: companion.medicalRecords,
-    // isProfileComplete is set in service logic below
-  };
-};
-
-const shouldDualWriteCompanions = process.env.DUAL_WRITE_ENABLED === "true";
-
-const toPrismaCompanionData = (doc: CompanionDocument) => {
-  const plain = doc.toObject() as CompanionMongo & {
-    _id: Types.ObjectId;
-    createdAt?: Date;
-    updatedAt?: Date;
-  };
-
-  return {
-    id: plain._id.toString(),
-    name: plain.name,
-    type: plain.type as PrismaCompanionType,
-    breed: plain.breed ?? "",
-    speciesCode: plain.speciesCode ?? undefined,
-    breedCode: plain.breedCode ?? undefined,
-    dateOfBirth: plain.dateOfBirth,
-    gender: plain.gender as PrismaGender,
-    photoUrl: plain.photoUrl ?? undefined,
-    currentWeight: plain.currentWeight ?? undefined,
-    colour: plain.colour ?? undefined,
-    allergy: plain.allergy ?? undefined,
-    bloodGroup: plain.bloodGroup ?? undefined,
-    isNeutered: plain.isNeutered ?? undefined,
-    ageWhenNeutered: plain.ageWhenNeutered ?? undefined,
-    microchipNumber: plain.microchipNumber ?? undefined,
-    passportNumber: plain.passportNumber ?? undefined,
-    isInsured: plain.isInsured ?? false,
-    insurance: (plain.insurance ??
-      undefined) as unknown as Prisma.InputJsonValue,
-    countryOfOrigin: plain.countryOfOrigin ?? undefined,
-    source: plain.source as PrismaSourceType,
-    status: plain.status as PrismaRecordStatus,
-    physicalAttribute: (plain.physicalAttribute ??
-      undefined) as unknown as Prisma.InputJsonValue,
-    breedingInfo: (plain.breedingInfo ??
-      undefined) as unknown as Prisma.InputJsonValue,
-    medicalRecords: (plain.medicalRecords ??
-      undefined) as unknown as Prisma.InputJsonValue,
-    isProfileComplete: plain.isProfileComplete ?? false,
-    createdAt: plain.createdAt ?? undefined,
-    updatedAt: plain.updatedAt ?? undefined,
-  };
-};
-
-const syncCompanionToPostgres = async (doc: CompanionDocument) => {
-  if (!shouldDualWriteCompanions) return;
-  try {
-    const data = toPrismaCompanionData(doc);
-    await prisma.companion.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
-  } catch (err) {
-    logger.error(`Companion dual-write failed: ${String(err)}`);
-    if (process.env.DUAL_WRITE_STRICT === "true") {
-      throw err;
-    }
-  }
-};
-
-/**
- * Mongo → Companion → FHIR DTO
- */
-export const toFHIR = (doc: CompanionDocument) => {
-  const plain = doc.toObject() as CompanionMongo & {
-    _id: Types.ObjectId;
-    createdAt?: Date;
-    updatedAt?: Date;
-  };
-
-  const companion: Companion = {
-    id: plain._id.toString(),
-    name: plain.name,
-    type: plain.type as CompanionType,
-    breed: plain.breed ?? "",
-    speciesCode: plain.speciesCode,
-    breedCode: plain.breedCode,
-    dateOfBirth: plain.dateOfBirth,
-    gender: plain.gender as Gender,
-    photoUrl: plain.photoUrl,
-    currentWeight: plain.currentWeight,
-    colour: plain.colour,
-    allergy: plain.allergy,
-    bloodGroup: plain.bloodGroup,
-    isneutered: plain.isNeutered,
-    ageWhenNeutered: plain.ageWhenNeutered,
-    microchipNumber: plain.microchipNumber,
-    passportNumber: plain.passportNumber,
-    isInsured: plain.isInsured ?? false,
-    insurance: plain.insurance ?? undefined,
-    countryOfOrigin: plain.countryOfOrigin,
-    source: plain.source as SourceType | undefined,
-    status: plain.status as RecordStatus | undefined,
-    physicalAttribute: plain.physicalAttribute,
-    breedingInfo: plain.breedingInfo,
-    medicalRecords: plain.medicalRecords,
-    isProfileComplete: plain.isProfileComplete,
-    createdAt: plain.createdAt!,
-    updatedAt: plain.updatedAt!,
-  };
-
-  return toCompanionResponseDTO(companion);
-};
-
-export const toFHIRFromPrisma = (doc: {
+type CompanionRecord = {
   id: string;
   name: string;
-  type: PrismaCompanionType;
+  type: PrismaPatientType;
   breed: string;
+  speciesCode: string | null;
+  breedCode: string | null;
   dateOfBirth: Date;
   gender: PrismaGender;
   photoUrl: string | null;
@@ -212,78 +63,130 @@ export const toFHIRFromPrisma = (doc: {
   physicalAttribute: Prisma.JsonValue | null;
   breedingInfo: Prisma.JsonValue | null;
   medicalRecords: Prisma.JsonValue | null;
+  alerts?: Prisma.JsonValue | null;
   isProfileComplete: boolean;
   createdAt: Date;
   updatedAt: Date;
-}) => {
-  const companion: Companion = {
-    id: doc.id,
-    name: doc.name,
-    type: doc.type as CompanionType,
-    breed: doc.breed ?? "",
-    dateOfBirth: doc.dateOfBirth,
-    gender: doc.gender as Gender,
-    photoUrl: doc.photoUrl ?? undefined,
-    currentWeight: doc.currentWeight ?? undefined,
-    colour: doc.colour ?? undefined,
-    allergy: doc.allergy ?? undefined,
-    bloodGroup: doc.bloodGroup ?? undefined,
-    isneutered: doc.isNeutered ?? undefined,
-    ageWhenNeutered: doc.ageWhenNeutered ?? undefined,
-    microchipNumber: doc.microchipNumber ?? undefined,
-    passportNumber: doc.passportNumber ?? undefined,
-    isInsured: doc.isInsured ?? false,
-    insurance: doc.insurance as unknown as Companion["insurance"],
-    countryOfOrigin: doc.countryOfOrigin ?? undefined,
-    source: doc.source as SourceType | undefined,
-    status: doc.status as RecordStatus | undefined,
-    physicalAttribute:
-      doc.physicalAttribute as unknown as Companion["physicalAttribute"],
-    breedingInfo: doc.breedingInfo as unknown as Companion["breedingInfo"],
-    medicalRecords:
-      doc.medicalRecords as unknown as Companion["medicalRecords"],
-    isProfileComplete: doc.isProfileComplete ?? false,
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
-  };
-
-  return toCompanionResponseDTO(companion);
 };
 
-/**
- * Required fields for profile completion
- */
-const REQUIRED_PROFILE_FIELDS: (keyof CompanionMongo)[] = [
+type CompanionToFHIRSource = {
+  toObject?: () => CompanionToFHIRSource;
+  id?: string;
+  _id?: { toString(): string };
+  name?: string;
+  type?: string;
+  breed?: string;
+  speciesCode?: string | null;
+  breedCode?: string | null;
+  dateOfBirth?: Date;
+  gender?: string;
+  photoUrl?: string | null;
+  currentWeight?: number | null;
+  colour?: string | null;
+  allergy?: string | null;
+  bloodGroup?: string | null;
+  isNeutered?: boolean | null;
+  ageWhenNeutered?: string | null;
+  microchipNumber?: string | null;
+  passportNumber?: string | null;
+  isInsured?: boolean;
+  insurance?: unknown;
+  countryOfOrigin?: string | null;
+  source?: string | null;
+  status?: string | null;
+  physicalAttribute?: unknown;
+  breedingInfo?: unknown;
+  medicalRecords?: unknown;
+  alerts?: unknown;
+  isProfileComplete?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+type CompanionCreateContext = {
+  authUserId?: string;
+  parentId?: string;
+  organisationId?: string;
+};
+
+type CompanionPersistable = Omit<
+  Companion,
+  | "insurance"
+  | "physicalAttribute"
+  | "breedingInfo"
+  | "medicalRecords"
+  | "alerts"
+> & {
+  insurance?: Prisma.JsonValue | null;
+  physicalAttribute?: Prisma.JsonValue | null;
+  breedingInfo?: Prisma.JsonValue | null;
+  medicalRecords?: Prisma.JsonValue | null;
+  alerts?: Prisma.JsonValue | null;
+  isProfileComplete?: boolean;
+};
+
+const toPersistable = (payload: CompanionRequestDTO): CompanionPersistable => {
+  const companion = fromCompanionRequestDTO(payload);
+
+  return {
+    name: companion.name,
+    type: companion.type,
+    breed: companion.breed ?? "",
+    speciesCode: companion.speciesCode,
+    breedCode: companion.breedCode,
+    dateOfBirth: companion.dateOfBirth,
+    gender: companion.gender,
+    photoUrl: companion.photoUrl,
+    currentWeight: companion.currentWeight,
+    colour: companion.colour,
+    allergy: companion.allergy,
+    bloodGroup: companion.bloodGroup,
+    isneutered: companion.isneutered,
+    ageWhenNeutered: companion.ageWhenNeutered,
+    microchipNumber: companion.microchipNumber,
+    passportNumber: companion.passportNumber,
+    isInsured: companion.isInsured ?? false,
+    insurance: (companion.insurance ??
+      null) as unknown as Prisma.JsonValue | null,
+    countryOfOrigin: companion.countryOfOrigin,
+    source: companion.source,
+    status: companion.status,
+    physicalAttribute:
+      companion.physicalAttribute as unknown as Prisma.JsonValue | null,
+    breedingInfo: companion.breedingInfo as unknown as Prisma.JsonValue | null,
+    medicalRecords:
+      companion.medicalRecords as unknown as Prisma.JsonValue | null,
+    alerts: companion.alerts as unknown as Prisma.JsonValue | null,
+  } as CompanionPersistable;
+};
+
+const REQUIRED_PROFILE_FIELDS = [
   "name",
   "type",
   "breed",
   "dateOfBirth",
   "gender",
   "status",
-];
+] as const;
 
-/**
- * Backend-only logic for determining if profile is complete
- */
 const computeIsProfileComplete = (
-  companion: Partial<CompanionMongo>,
-): boolean => {
-  return REQUIRED_PROFILE_FIELDS.every((field) => {
+  companion: Partial<Record<(typeof REQUIRED_PROFILE_FIELDS)[number], unknown>>,
+): boolean =>
+  REQUIRED_PROFILE_FIELDS.every((field) => {
     const value = companion[field];
     return value !== undefined && value !== null && value !== "";
   });
-};
 
 const ensureCodeExists = async (code: string, type: "SPECIES" | "BREED") => {
-  const entry = await CodeEntryModel.findOne(
-    {
+  const entry = await prisma.codeEntry.findFirst({
+    where: {
       system: "YOSEMITECODE",
       code,
       type,
       active: true,
     },
-    { _id: 1 },
-  ).lean();
+    select: { id: true },
+  });
 
   if (!entry) {
     logger.warn(`Invalid ${type} code provided: ${code}`);
@@ -291,7 +194,9 @@ const ensureCodeExists = async (code: string, type: "SPECIES" | "BREED") => {
   }
 };
 
-const validateCompanionCodes = async (companion: Partial<CompanionMongo>) => {
+const validateCompanionCodes = async (
+  companion: Partial<CompanionPersistable>,
+) => {
   if (companion.speciesCode) {
     await ensureCodeExists(companion.speciesCode, "SPECIES");
   }
@@ -300,25 +205,82 @@ const validateCompanionCodes = async (companion: Partial<CompanionMongo>) => {
   }
 };
 
-const resolveParentMongoId = (parent: {
-  _id?: Types.ObjectId;
-  id?: string;
-}): Types.ObjectId => {
-  if (parent._id) return parent._id;
-  if (parent.id && Types.ObjectId.isValid(parent.id)) {
-    return new Types.ObjectId(parent.id);
-  }
-  throw new CompanionServiceError("Parent identifier is invalid.", 400);
-};
+const mapCompanion = (doc: CompanionRecord): Companion => ({
+  id: doc.id,
+  name: doc.name,
+  type: doc.type as CompanionType,
+  breed: doc.breed ?? "",
+  speciesCode: doc.speciesCode ?? undefined,
+  breedCode: doc.breedCode ?? undefined,
+  dateOfBirth: doc.dateOfBirth,
+  gender: doc.gender as Gender,
+  photoUrl: doc.photoUrl ?? undefined,
+  currentWeight: doc.currentWeight ?? undefined,
+  colour: doc.colour ?? undefined,
+  allergy: doc.allergy ?? undefined,
+  bloodGroup: doc.bloodGroup ?? undefined,
+  isneutered: doc.isNeutered ?? undefined,
+  ageWhenNeutered: doc.ageWhenNeutered ?? undefined,
+  microchipNumber: doc.microchipNumber ?? undefined,
+  passportNumber: doc.passportNumber ?? undefined,
+  isInsured: doc.isInsured ?? false,
+  insurance: doc.insurance as unknown as Companion["insurance"],
+  countryOfOrigin: doc.countryOfOrigin ?? undefined,
+  source: doc.source as SourceType | undefined,
+  status: doc.status as RecordStatus | undefined,
+  physicalAttribute:
+    doc.physicalAttribute as unknown as Companion["physicalAttribute"],
+  breedingInfo: doc.breedingInfo as unknown as Companion["breedingInfo"],
+  medicalRecords: doc.medicalRecords as unknown as Companion["medicalRecords"],
+  alerts: Array.isArray(doc.alerts)
+    ? (doc.alerts as unknown as Companion["alerts"])
+    : undefined,
+  isProfileComplete: doc.isProfileComplete,
+  createdAt: doc.createdAt,
+  updatedAt: doc.updatedAt,
+});
 
-type CompanionCreateContext = {
-  authUserId?: string;
-  parentMongoId?: Types.ObjectId;
-};
+export const toFHIR = (doc: CompanionToFHIRSource) =>
+  toCompanionResponseDTO(
+    mapCompanion({
+      id: String(doc.id ?? doc._id?.toString() ?? ""),
+      name: doc.name ?? "",
+      type: (doc.type ?? "other") as PrismaPatientType,
+      breed: doc.breed ?? "",
+      speciesCode: doc.speciesCode ?? null,
+      breedCode: doc.breedCode ?? null,
+      dateOfBirth: doc.dateOfBirth ?? new Date(),
+      gender: (doc.gender ?? "unknown") as PrismaGender,
+      photoUrl: doc.photoUrl ?? null,
+      currentWeight: doc.currentWeight ?? null,
+      colour: doc.colour ?? null,
+      allergy: doc.allergy ?? null,
+      bloodGroup: doc.bloodGroup ?? null,
+      isNeutered: doc.isNeutered ?? null,
+      ageWhenNeutered: doc.ageWhenNeutered ?? null,
+      microchipNumber: doc.microchipNumber ?? null,
+      passportNumber: doc.passportNumber ?? null,
+      isInsured: Boolean(doc.isInsured),
+      insurance: doc.insurance ?? null,
+      countryOfOrigin: doc.countryOfOrigin ?? null,
+      source: (doc.source ?? null) as PrismaSourceType | null,
+      status: (doc.status ?? null) as PrismaRecordStatus | null,
+      physicalAttribute: doc.physicalAttribute ?? null,
+      breedingInfo: doc.breedingInfo ?? null,
+      medicalRecords: doc.medicalRecords ?? null,
+      alerts: doc.alerts ?? null,
+      isProfileComplete: Boolean(doc.isProfileComplete),
+      createdAt: doc.createdAt ?? new Date(),
+      updatedAt: doc.updatedAt ?? new Date(),
+    }),
+  );
+
+export const toFHIRFromPrisma = (doc: CompanionRecord) =>
+  toCompanionResponseDTO(mapCompanion(doc));
 
 const createDefaultTasks = async (input: {
   organisationId?: string;
-  companionId: string;
+  patientId: string;
   parentId: string;
   species: string;
 }) => {
@@ -332,7 +294,6 @@ const createDefaultTasks = async (input: {
     const now = new Date();
 
     for (const lib of libraryTasks) {
-      // 2️⃣ Build recurrence from library definition
       let recurrence: CreateFromLibraryInput["recurrence"] | undefined;
 
       const schema = lib.schema as {
@@ -358,10 +319,9 @@ const createDefaultTasks = async (input: {
         };
       }
 
-      // 3️⃣ Create task using EXISTING METHOD
       await TaskService.createFromLibrary({
         organisationId: input.organisationId,
-        companionId: input.companionId,
+        patientId: input.patientId,
         createdBy: input.parentId,
         assignedTo: input.parentId,
         audience: "PARENT_TASK",
@@ -388,213 +348,187 @@ export const CompanionService = {
       );
     }
 
-    let parentMongoId: Types.ObjectId | null = null;
+    let parentId = context.parentId ?? null;
 
-    // Mobile flow → use linkedUserId to get parent
     if (context.authUserId) {
       const parent = await ParentService.findByLinkedUserId(context.authUserId);
-
       if (!parent) {
         throw new CompanionServiceError(
           "Parent record not found for authenticated user.",
           403,
         );
       }
-      parentMongoId = resolveParentMongoId(parent);
+      parentId = parent.id ?? null;
     }
 
-    // PMS flow → provided directly by PMS backend
-    if (!parentMongoId && context.parentMongoId) {
-      parentMongoId = context.parentMongoId;
-    }
-
-    // If still missing → invalid request
-    if (!parentMongoId) {
+    if (!parentId) {
       throw new CompanionServiceError(
         "Unable to determine parent for companion creation.",
         400,
       );
     }
+
     const persistable = toPersistable(payload);
     await validateCompanionCodes(persistable);
     persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
-    let document: CompanionDocument | null = null;
+    const created = await prisma.patient.create({
+      data: {
+        name: persistable.name,
+        type: persistable.type as PrismaPatientType,
+        breed: persistable.breed ?? "",
+        speciesCode: persistable.speciesCode ?? undefined,
+        breedCode: persistable.breedCode ?? undefined,
+        dateOfBirth: persistable.dateOfBirth,
+        gender: persistable.gender as PrismaGender,
+        photoUrl: persistable.photoUrl ?? undefined,
+        currentWeight: persistable.currentWeight ?? undefined,
+        colour: persistable.colour ?? undefined,
+        allergy: persistable.allergy ?? undefined,
+        bloodGroup: persistable.bloodGroup ?? undefined,
+        isNeutered: persistable.isneutered ?? undefined,
+        ageWhenNeutered: persistable.ageWhenNeutered ?? undefined,
+        microchipNumber: persistable.microchipNumber ?? undefined,
+        passportNumber: persistable.passportNumber ?? undefined,
+        isInsured: persistable.isInsured ?? false,
+        insurance: persistable.insurance
+          ? (persistable.insurance as unknown as Prisma.InputJsonValue)
+          : undefined,
+        countryOfOrigin: persistable.countryOfOrigin ?? undefined,
+        source: persistable.source as PrismaSourceType,
+        status: persistable.status as PrismaRecordStatus,
+        physicalAttribute: persistable.physicalAttribute
+          ? (persistable.physicalAttribute as unknown as Prisma.InputJsonValue)
+          : undefined,
+        breedingInfo: persistable.breedingInfo
+          ? (persistable.breedingInfo as unknown as Prisma.InputJsonValue)
+          : undefined,
+        medicalRecords: persistable.medicalRecords
+          ? (persistable.medicalRecords as unknown as Prisma.InputJsonValue)
+          : undefined,
+        alerts: persistable.alerts
+          ? (persistable.alerts as unknown as Prisma.InputJsonValue)
+          : undefined,
+        isProfileComplete: persistable.isProfileComplete ?? false,
+      },
+    });
 
     try {
-      document = await CompanionModel.create(persistable);
-
       await ParentCompanionService.linkParent({
-        parentId: parentMongoId,
-        companionId: document._id,
+        parentId,
+        patientId: created.id,
         role: "PRIMARY",
       });
-
-      if (persistable.photoUrl) {
-        const finalKey = buildS3Key(
-          "companion",
-          document._id.toString(),
-          "image/jpg",
-        );
-        const profileUrl = await moveFile(persistable.photoUrl, finalKey);
-        document.photoUrl = profileUrl;
-        await document.save();
-      }
-      await syncCompanionToPostgres(document);
-      // Create default tasks based on companion type
-      void createDefaultTasks({
-        organisationId: context.parentMongoId?.toString(),
-        companionId: document._id.toString(),
-        parentId: parentMongoId.toString(),
-        species: persistable.type,
-      });
-
-      return { response: toFHIR(document) };
     } catch (error) {
-      // rollback if linking fails
-      if (document) {
-        await CompanionModel.deleteOne({ _id: document._id });
-      }
-
+      await prisma.patient.deleteMany({ where: { id: created.id } });
       if (error instanceof ParentCompanionServiceError) {
         throw new CompanionServiceError(error.message, error.statusCode);
       }
-
       throw error;
     }
+
+    let updated = created;
+    if (persistable.photoUrl) {
+      try {
+        const finalKey = buildS3Key("companion", created.id, "image/jpg");
+        const profileUrl = await moveFile(persistable.photoUrl, finalKey);
+        updated = await prisma.patient.update({
+          where: { id: created.id },
+          data: { photoUrl: profileUrl },
+        });
+      } catch (error) {
+        logger.warn("Invalid key has been sent", error);
+      }
+    }
+
+    void createDefaultTasks({
+      organisationId: context.organisationId,
+      patientId: created.id,
+      parentId,
+      species: persistable.type,
+    });
+
+    return { response: toFHIRFromPrisma(updated as CompanionRecord) };
   },
 
   async listByParent(parentId: string) {
-    if (isReadFromPostgres()) {
-      const links = await prisma.parentCompanion.findMany({
-        where: { parentId, status: { in: ["ACTIVE", "PENDING"] } },
-        select: { companionId: true },
-      });
-      const ids = links.map((link) => link.companionId);
-      if (!ids.length) return { responses: [] };
-      const docs = await prisma.companion.findMany({
-        where: { id: { in: ids } },
-      });
-      return { responses: docs.map(toFHIRFromPrisma) };
+    if (!parentId || typeof parentId !== "string") {
+      throw new CompanionServiceError("Invalid Parent Document Id", 400);
     }
 
-    if (!Types.ObjectId.isValid(parentId))
-      throw new CompanionServiceError("Invalid Parent Document Id", 400);
-
-    const parentDocId = new Types.ObjectId(parentId);
-
     const companionIds =
-      await ParentCompanionService.getActiveCompanionIdsForParent(parentDocId);
+      await ParentCompanionService.getActiveCompanionIdsForParent(parentId);
 
     if (!companionIds.length) return { responses: [] };
 
-    const documents = await CompanionModel.find({ _id: { $in: companionIds } });
+    const documents = await prisma.patient.findMany({
+      where: { id: { in: companionIds } },
+    });
 
-    return { responses: documents.map(toFHIR) };
+    return {
+      responses: documents.map((doc) =>
+        toFHIRFromPrisma(doc as CompanionRecord),
+      ),
+    };
   },
 
   async listByParentNotInOrganisation(
     parentId: string,
     organisationId: string,
   ) {
-    if (isReadFromPostgres()) {
-      const parentLinks = await prisma.parentCompanion.findMany({
-        where: { parentId, status: { in: ["ACTIVE", "PENDING"] } },
-        select: { companionId: true },
-      });
-      const companionIds = parentLinks.map((link) => link.companionId);
-      if (!companionIds.length) return { responses: [] };
-
-      const linked = await prisma.companionOrganisation.findMany({
-        where: {
-          organisationId,
-          companionId: { in: companionIds },
-        },
-        select: { companionId: true },
-      });
-      const linkedIds = new Set(linked.map((entry) => entry.companionId));
-      const unlinkedIds = companionIds.filter((id) => !linkedIds.has(id));
-      if (!unlinkedIds.length) return { responses: [] };
-
-      const documents = await prisma.companion.findMany({
-        where: { id: { in: unlinkedIds } },
-      });
-      return { responses: documents.map(toFHIRFromPrisma) };
-    }
-
-    if (!Types.ObjectId.isValid(parentId)) {
+    if (!parentId || typeof parentId !== "string") {
       throw new CompanionServiceError("Invalid Parent Document Id", 400);
     }
 
-    if (!Types.ObjectId.isValid(organisationId)) {
+    if (!organisationId || typeof organisationId !== "string") {
       throw new CompanionServiceError("Invalid Organisation Document Id", 400);
     }
 
-    const parentDocId = new Types.ObjectId(parentId);
-    const organisationDocId = new Types.ObjectId(organisationId);
-
-    // 1️⃣ Get all active companions for parent
     const parentCompanionIds =
-      await ParentCompanionService.getActiveCompanionIdsForParent(parentDocId);
+      await ParentCompanionService.getActiveCompanionIdsForParent(parentId);
 
     if (!parentCompanionIds.length) {
       return { responses: [] };
     }
 
-    // 2️⃣ Get companion IDs already linked to this organisation
-    const linkedCompanions = (await CompanionOrganisationModel.find(
-      {
-        organisationId: organisationDocId,
-        companionId: { $in: parentCompanionIds },
+    const linkedCompanions = await prisma.patientOrganisation.findMany({
+      where: {
+        organisationId,
+        patientId: { in: parentCompanionIds },
       },
-      { companionId: 1 },
-    ).lean()) as unknown as Array<{ companionId: Types.ObjectId }>;
+      select: { patientId: true },
+    });
 
     const linkedCompanionIdSet = new Set(
-      linkedCompanions.map((c) => c.companionId.toString()),
+      linkedCompanions.map((entry) => entry.patientId),
     );
 
-    // 3️⃣ Filter out linked companions
     const unlinkedCompanionIds = parentCompanionIds.filter(
-      (id) => !linkedCompanionIdSet.has(id.toString()),
+      (id) => !linkedCompanionIdSet.has(id),
     );
 
     if (!unlinkedCompanionIds.length) {
       return { responses: [] };
     }
 
-    // 4️⃣ Fetch companion documents
-    if (isReadFromPostgres()) {
-      const ids = unlinkedCompanionIds.map((id) => id.toString());
-      const documents = await prisma.companion.findMany({
-        where: { id: { in: ids } },
-      });
-      return { responses: documents.map(toFHIRFromPrisma) };
-    }
-
-    const documents = await CompanionModel.find({
-      _id: { $in: unlinkedCompanionIds },
+    const documents = await prisma.patient.findMany({
+      where: { id: { in: unlinkedCompanionIds } },
     });
 
-    return { responses: documents.map(toFHIR) };
+    return {
+      responses: documents.map((doc) =>
+        toFHIRFromPrisma(doc as CompanionRecord),
+      ),
+    };
   },
 
   async getById(id: string) {
-    if (isReadFromPostgres()) {
-      const doc = await prisma.companion.findUnique({ where: { id } });
-      if (!doc) return null;
-      return { response: toFHIRFromPrisma(doc) };
-    }
+    if (!id || typeof id !== "string") return null;
 
-    if (!Types.ObjectId.isValid(id)) return null;
+    const doc = await prisma.patient.findUnique({ where: { id } });
+    if (!doc) return null;
 
-    const document = await CompanionModel.findById(id);
-
-    if (!document) return null;
-
-    await syncCompanionToPostgres(document);
-
-    return { response: toFHIR(document) };
+    return { response: toFHIRFromPrisma(doc as CompanionRecord) };
   },
 
   async getByName(name: string) {
@@ -602,92 +536,74 @@ export const CompanionService = {
       throw new CompanionServiceError("Name is required for searching.", 400);
     }
 
-    const safe = escapeStringRegexp(name.trim());
-    const searchRegex = new RegExp(safe);
-
-    if (isReadFromPostgres()) {
-      const documents = await prisma.companion.findMany({
-        where: { name: { contains: name.trim(), mode: "insensitive" } },
-      });
-      return { responses: documents.map(toFHIRFromPrisma) };
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new CompanionServiceError("Name is required for searching.", 400);
     }
 
-    const documents = await CompanionModel.find({
-      name: searchRegex,
+    const safe = escapeStringRegexp(trimmed);
+    const documents = await prisma.patient.findMany({
+      where: { name: { contains: safe, mode: "insensitive" } },
     });
 
-    return { responses: documents.map(toFHIR) };
+    return {
+      responses: documents.map((doc) =>
+        toFHIRFromPrisma(doc as CompanionRecord),
+      ),
+    };
   },
 
-  /**
-   * UPDATE companion (partial FHIR update)
-   */
   async update(id: string, payload: CompanionRequestDTO) {
     const persistable = toPersistable(payload);
     await validateCompanionCodes(persistable);
-
-    // Backend-only recomputation
     persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
-    if (isReadFromPostgres()) {
-      const doc = await prisma.companion.update({
-        where: { id },
-        data: {
-          name: persistable.name,
-          type: persistable.type as PrismaCompanionType,
-          breed: persistable.breed ?? "",
-          speciesCode: persistable.speciesCode ?? undefined,
-          breedCode: persistable.breedCode ?? undefined,
-          dateOfBirth: persistable.dateOfBirth,
-          gender: persistable.gender as PrismaGender,
-          photoUrl: persistable.photoUrl ?? undefined,
-          currentWeight: persistable.currentWeight ?? undefined,
-          colour: persistable.colour ?? undefined,
-          allergy: persistable.allergy ?? undefined,
-          bloodGroup: persistable.bloodGroup ?? undefined,
-          isNeutered: persistable.isNeutered ?? undefined,
-          ageWhenNeutered: persistable.ageWhenNeutered ?? undefined,
-          microchipNumber: persistable.microchipNumber ?? undefined,
-          passportNumber: persistable.passportNumber ?? undefined,
-          isInsured: persistable.isInsured ?? false,
-          insurance: (persistable.insurance ??
-            undefined) as unknown as Prisma.InputJsonValue,
-          countryOfOrigin: persistable.countryOfOrigin ?? undefined,
-          source: persistable.source as PrismaSourceType,
-          status: persistable.status as PrismaRecordStatus,
-          physicalAttribute: (persistable.physicalAttribute ??
-            undefined) as unknown as Prisma.InputJsonValue,
-          breedingInfo: (persistable.breedingInfo ??
-            undefined) as unknown as Prisma.InputJsonValue,
-          medicalRecords: (persistable.medicalRecords ??
-            undefined) as unknown as Prisma.InputJsonValue,
-          isProfileComplete: persistable.isProfileComplete ?? false,
-        },
-      });
+    const doc = await prisma.patient.update({
+      where: { id },
+      data: {
+        name: persistable.name,
+        type: persistable.type as PrismaPatientType,
+        breed: persistable.breed ?? "",
+        speciesCode: persistable.speciesCode ?? undefined,
+        breedCode: persistable.breedCode ?? undefined,
+        dateOfBirth: persistable.dateOfBirth,
+        gender: persistable.gender as PrismaGender,
+        photoUrl: persistable.photoUrl ?? undefined,
+        currentWeight: persistable.currentWeight ?? undefined,
+        colour: persistable.colour ?? undefined,
+        allergy: persistable.allergy ?? undefined,
+        bloodGroup: persistable.bloodGroup ?? undefined,
+        isNeutered: persistable.isneutered ?? undefined,
+        ageWhenNeutered: persistable.ageWhenNeutered ?? undefined,
+        microchipNumber: persistable.microchipNumber ?? undefined,
+        passportNumber: persistable.passportNumber ?? undefined,
+        isInsured: persistable.isInsured ?? false,
+        insurance: persistable.insurance
+          ? (persistable.insurance as unknown as Prisma.InputJsonValue)
+          : undefined,
+        countryOfOrigin: persistable.countryOfOrigin ?? undefined,
+        source: persistable.source as PrismaSourceType,
+        status: persistable.status as PrismaRecordStatus,
+        physicalAttribute: persistable.physicalAttribute
+          ? (persistable.physicalAttribute as unknown as Prisma.InputJsonValue)
+          : undefined,
+        breedingInfo: persistable.breedingInfo
+          ? (persistable.breedingInfo as unknown as Prisma.InputJsonValue)
+          : undefined,
+        medicalRecords: persistable.medicalRecords
+          ? (persistable.medicalRecords as unknown as Prisma.InputJsonValue)
+          : undefined,
+        alerts: persistable.alerts
+          ? (persistable.alerts as unknown as Prisma.InputJsonValue)
+          : undefined,
+        isProfileComplete: persistable.isProfileComplete ?? false,
+      },
+    });
 
-      return { response: toFHIRFromPrisma(doc) };
-    }
-
-    if (!Types.ObjectId.isValid(id)) return null;
-
-    const document = await CompanionModel.findByIdAndUpdate(
-      id,
-      { $set: persistable },
-      { new: true, sanitizeFilter: true },
-    );
-
-    if (!document) return null;
-
-    await syncCompanionToPostgres(document);
-
-    return { response: toFHIR(document) };
+    return { response: toFHIRFromPrisma(doc as CompanionRecord) };
   },
 
-  /**
-   * DELETE companion
-   */
   async delete(id: string, context?: CompanionCreateContext) {
-    // MUST come from mobile → require authUserId
     if (!context?.authUserId) {
       throw new CompanionServiceError(
         "Authenticated user is required to delete a companion.",
@@ -695,83 +611,16 @@ export const CompanionService = {
       );
     }
 
-    // Resolve parent from authUserId
     const parent = await ParentService.findByLinkedUserId(context.authUserId);
-    if (!parent) {
+    if (!parent?.id) {
       throw new CompanionServiceError(
         "Parent record not found for authenticated user.",
         403,
       );
     }
 
-    if (isReadFromPostgres()) {
-      const parentId =
-        "id" in parent && typeof parent.id === "string" ? parent.id : undefined;
-      if (!parentId) {
-        throw new CompanionServiceError("Parent identifier is invalid.", 400);
-      }
-      const link = await prisma.parentCompanion.findFirst({
-        where: {
-          parentId,
-          companionId: id,
-          role: "PRIMARY",
-          status: "ACTIVE",
-        },
-        select: { id: true },
-      });
-      if (!link) {
-        throw new CompanionServiceError(
-          "You are not authorized to modify this companion.",
-          403,
-        );
-      }
-
-      await prisma.parentCompanion.deleteMany({
-        where: { companionId: id },
-      });
-      await prisma.companion.deleteMany({ where: { id } });
-      return;
-    }
-
-    if (!Types.ObjectId.isValid(id)) {
-      throw new CompanionServiceError("Invalid companion identifier.", 400);
-    }
-
-    const parentMongoId = resolveParentMongoId(parent);
-
-    try {
-      const document = await CompanionModel.findById(id);
-      if (!document) {
-        throw new CompanionServiceError("Companion not found.", 404);
-      }
-
-      // Ensure parent has permission
-      await ParentCompanionService.ensurePrimaryOwnership(
-        parentMongoId,
-        document._id,
-      );
-
-      // Remove links
-      await ParentCompanionService.deleteLinksForCompanion(document._id);
-
-      // Remove resource
-      await CompanionModel.deleteOne({ _id: document._id });
-
-      if (shouldDualWriteCompanions) {
-        try {
-          await prisma.companion.deleteMany({ where: { id } });
-        } catch (err) {
-          logger.error(`Companion dual-write delete failed: ${String(err)}`);
-          if (process.env.DUAL_WRITE_STRICT === "true") {
-            throw err;
-          }
-        }
-      }
-    } catch (error) {
-      if (error instanceof ParentCompanionServiceError) {
-        throw new CompanionServiceError(error.message, error.statusCode);
-      }
-      throw error;
-    }
+    await ParentCompanionService.ensurePrimaryOwnership(parent.id, id);
+    await ParentCompanionService.deleteLinksForCompanion(id);
+    await prisma.patient.deleteMany({ where: { id } });
   },
 };

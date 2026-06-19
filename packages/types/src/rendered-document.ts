@@ -3,12 +3,13 @@ import type { TemplateKind } from './template';
 
 export type RenderedDocumentKind =
   | 'FORM'
+  | 'CONSENT'
   | 'SOAP_NOTE'
   | 'PRESCRIPTION'
   | 'DISCHARGE_SUMMARY'
   | 'VITAL_RECORD'
-  | 'TASK_TEMPLATE'
-  | 'CARE_PATHWAY';
+  | 'TASK_ASSIGNMENT'
+  | 'INPATIENT_SCHEDULE';
 
 export type RenderedDocumentSourceKind =
   | 'TEMPLATE_INSTANCE'
@@ -111,6 +112,7 @@ export type PersistRenderedDocumentSignatureInput = SignRenderedDocumentInput & 
 
 const SIGNABLE_RENDERED_DOCUMENT_KINDS = new Set<RenderedDocumentKind>([
   'FORM',
+  'CONSENT',
   'SOAP_NOTE',
   'PRESCRIPTION',
   'DISCHARGE_SUMMARY',
@@ -136,6 +138,8 @@ const toRenderedDocumentKind = (
   switch (kind) {
     case 'FORM':
       return 'FORM';
+    case 'CONSENT':
+      return 'CONSENT';
     case 'SOAP_NOTE':
       return 'SOAP_NOTE';
     case 'PRESCRIPTION':
@@ -144,10 +148,10 @@ const toRenderedDocumentKind = (
       return 'DISCHARGE_SUMMARY';
     case 'VITAL_RECORD':
       return 'VITAL_RECORD';
-    case 'TASK_TEMPLATE':
-      return 'TASK_TEMPLATE';
-    case 'CARE_PATHWAY':
-      return 'CARE_PATHWAY';
+    case 'TASK_ASSIGNMENT':
+      return 'TASK_ASSIGNMENT';
+    case 'INPATIENT_SCHEDULE':
+      return 'INPATIENT_SCHEDULE';
     default:
       throw new Error('Unsupported rendered document kind');
   }

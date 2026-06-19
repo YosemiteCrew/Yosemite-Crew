@@ -33,7 +33,7 @@ enum ContactStatus {
   CLOSED
 }
 
-enum CompanionType {
+enum PatientType {
   dog
   cat
   horse
@@ -68,23 +68,23 @@ enum OrganisationType {
   GROOMER
 }
 
-enum CompanionOrganisationRole {
+enum PatientOrganisationRole {
   ORGANISATION
 }
 
-enum CompanionOrganisationStatus {
+enum PatientOrganisationStatus {
   ACTIVE
   PENDING
   REVOKED
   INVITED
 }
 
-enum ParentCompanionRole {
+enum ParentPatientRole {
   PRIMARY
   CO_PARENT
 }
 
-enum ParentCompanionStatus {
+enum ParentPatientStatus {
   ACTIVE
   PENDING
   REVOKED
@@ -220,7 +220,7 @@ model ContactRequest {
   userId           String?
   email            String?
   organisationId   String?
-  companionId      String?
+  patientId      String?
   parentId         String?
   dsarDetails      Json?
   complaintContext Json?
@@ -234,7 +234,7 @@ model ContactRequest {
   @@index([status])
   @@index([userId])
   @@index([organisationId])
-  @@index([companionId])
+  @@index([patientId])
   @@index([parentId])
 }
 
@@ -308,7 +308,7 @@ model LabOrder {
   id                     String           @id @default(uuid())
   organisationId         String
   provider               String
-  companionId            String
+  patientId            String
   parentId               String
   appointmentId          String?
   createdByUserId        String?
@@ -378,10 +378,10 @@ model LabResultSyncState {
   updatedAt    DateTime @updatedAt
 }
 
-model Companion {
+model Patient {
   id               String        @id @default(uuid())
   name             String
-  type             CompanionType
+  type             PatientType
   breed            String
   speciesCode      String?
   breedCode        String?
@@ -404,13 +404,15 @@ model Companion {
   physicalAttribute Json?
   breedingInfo     Json?
   medicalRecords   Json?
+  alerts           Json?
   isProfileComplete Boolean      @default(false)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
   documents         Document[]
-  organisations     CompanionOrganisation[]
-  parentLinks       ParentCompanion[]
+  formAssignments   FormAssignment[]
+  organisations     PatientOrganisation[]
+  parentLinks       ParentPatient[]
 
   @@index([type])
   @@index([status])
@@ -418,7 +420,7 @@ model Companion {
 
 model Document {
   id                 String               @id @default(uuid())
-  companionId        String
+  patientId        String
   appointmentId      String?
   category           String
   subcategory        String?
@@ -433,12 +435,12 @@ model Document {
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 
-  companion          Companion            @relation(fields: [companionId], references: [id])
+  patient          Patient            @relation(fields: [patientId], references: [id])
   attachments        DocumentAttachment[]
 
-  @@index([companionId])
-  @@index([companionId, category])
-  @@index([companionId, pmsVisible])
+  @@index([patientId])
+  @@index([patientId, category])
+  @@index([patientId, pmsVisible])
   @@index([appointmentId])
 }
 
@@ -454,15 +456,15 @@ model DocumentAttachment {
   @@index([documentId])
 }
 
-model CompanionOrganisation {
+model PatientOrganisation {
   id                    String                     @id @default(uuid())
-  companionId           String
+  patientId           String
   organisationId        String?
   linkedByParentId      String?
   linkedByPmsUserId     String?
   organisationType      OrganisationType
-  role                  CompanionOrganisationRole  @default(ORGANISATION)
-  status                CompanionOrganisationStatus @default(ACTIVE)
+  role                  PatientOrganisationRole  @default(ORGANISATION)
+  status                PatientOrganisationStatus @default(ACTIVE)
   invitedViaEmail       String?
   organisationName      String?
   organisationPlacesId  String?
@@ -472,36 +474,36 @@ model CompanionOrganisation {
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
 
-  companion             Companion                  @relation(fields: [companionId], references: [id])
+  patient             Patient                  @relation(fields: [patientId], references: [id])
 
-  @@index([companionId])
+  @@index([patientId])
   @@index([organisationId])
   // Partial unique index for ACTIVE rows is maintained via SQL migration because
   // Prisma schema cannot express `WHERE status = 'ACTIVE'`.
 }
 
-model ParentCompanion {
+model ParentPatient {
   id                String               @id @default(uuid())
   parentId          String
-  companionId       String
-  role              ParentCompanionRole
-  status            ParentCompanionStatus @default(ACTIVE)
+  patientId       String
+  role              ParentPatientRole
+  status            ParentPatientStatus @default(ACTIVE)
   permissions       Json
   invitedByParentId String?
   acceptedAt        DateTime?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 
-  companion         Companion            @relation(fields: [companionId], references: [id])
+  patient         Patient            @relation(fields: [patientId], references: [id])
 
-  @@unique([parentId, companionId])
+  @@unique([parentId, patientId])
   @@index([parentId])
-  @@index([companionId])
+  @@index([patientId])
 }
 
 model Appointment {
   id                String            @id @default(uuid())
-  companion         Json
+  patient         Json
   lead              Json?
   supportStaff      Json?
   room              Json?
@@ -528,6 +530,7 @@ model Appointment {
 
   caseRecord        Case?             @relation("CaseAppointments", fields: [caseId], references: [id], onDelete: SetNull)
   encounter         Encounter?        @relation("EncounterAppointments", fields: [encounterId], references: [id], onDelete: SetNull)
+  formAssignments   FormAssignment[]
 
   @@index([organisationId, appointmentDate])
   @@index([organisationId])
@@ -542,7 +545,7 @@ model Appointment {
 model Case {
   id              String          @id @default(uuid())
   organisationId  String
-  companionId     String
+  patientId     String
   parentId        String?
   status          String
   appointmentKind AppointmentKind @default(OUTPATIENT)
@@ -556,7 +559,7 @@ model Case {
 
   @@index([organisationId, status])
   @@index([organisationId, appointmentKind])
-  @@index([companionId])
+  @@index([patientId])
   @@index([parentId])
 }
 
@@ -564,7 +567,7 @@ model Encounter {
   id              String          @id @default(uuid())
   caseId          String
   organisationId  String
-  companionId     String
+  patientId     String
   parentId        String?
   status          String
   encounterClass  String
@@ -584,14 +587,14 @@ model Encounter {
   @@index([caseId])
   @@index([organisationId, status])
   @@index([organisationId, appointmentKind])
-  @@index([companionId])
+  @@index([patientId])
   @@index([parentId])
 }
 
 model Admission {
   encounterId       String   @id
   organisationId    String
-  companionId       String
+  patientId       String
   unitId            String?
   expectedStayDays  Int?
   admittedAt        DateTime
@@ -605,7 +608,7 @@ model Admission {
 
   @@index([organisationId, admittedAt])
   @@index([organisationId, dischargedAt])
-  @@index([companionId])
+  @@index([patientId])
 }
 
 model ChatSession {
@@ -614,7 +617,7 @@ model ChatSession {
   appointmentId   String?
   channelId       String
   organisationId  String
-  companionId     String?
+  patientId     String?
   parentId        String?
   vetId           String?
   supportStaffIds String[]
@@ -653,6 +656,7 @@ model Parent {
   linkedUserId     String?
   createdFrom      ParentCreatedFrom
   address          ParentAddress?
+  alerts           Json?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -683,8 +687,9 @@ model Organization {
   dunsNumber                  String?
   imageUrl                    String?
   type                        OrganizationType
-  petNamePreference           PetNamePreference? @default(COMPANION)
+  petNamePreference           PetNamePreference? @default(PATIENT)
   phoneNo                     String
+  email                       String?
   website                     String?
   documensoTeamId             String?
   documensoApiKey             String?
@@ -937,6 +942,100 @@ model OrganizationBilling {
   @@map("OrgBilling")
 }
 
+model SubscriptionEntitlement {
+  id            String   @id @default(uuid())
+  orgId         String
+  code          String
+  name          String?
+  value         Json?
+  source        String   @default("MANUAL")
+  status        String   @default("ACTIVE")
+  grantedAt     DateTime @default(now())
+  expiresAt     DateTime?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([orgId, code])
+  @@index([orgId, status])
+  @@map("OrgSubscriptionEntitlements")
+}
+
+model FinanceProviderLink {
+  id                     String   @id @default(uuid())
+  orgId                  String
+  provider               String
+  externalCustomerId     String?
+  externalSubscriptionId String?
+  externalSubscriptionItemId String?
+  externalPriceId        String?
+  externalProductId      String?
+  metadata               Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@unique([orgId, provider])
+  @@index([externalSubscriptionId])
+  @@index([externalCustomerId])
+  @@map("OrgSubscriptionProviderLinks")
+}
+
+model UsageEvent {
+  id                String   @id @default(uuid())
+  orgId             String
+  usageKey          String
+  quantity          Int      @default(1)
+  billableQuantity  Int      @default(1)
+  source            String
+  referenceType     String?
+  referenceId       String?
+  metadata          Json?
+  occurredAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([orgId, usageKey, occurredAt])
+  @@index([orgId, referenceType, referenceId])
+  @@map("OrgUsageEvents")
+}
+
+model UsageSnapshot {
+  id               String   @id @default(uuid())
+  orgId            String
+  snapshotType     String   @default("snapshot")
+  snapshotAt       DateTime @default(now())
+  seatsActive      Int      @default(0)
+  seatsBillable    Int      @default(0)
+  appointmentsUsed Int      @default(0)
+  toolsUsed        Int      @default(0)
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([orgId, snapshotAt])
+  @@map("OrgUsageSnapshots")
+}
+
+model FinanceEvent {
+  id            String   @id @default(uuid())
+  organisationId String?
+  eventType     String
+  entityType    String
+  entityId      String
+  payload       Json
+  occurredAt    DateTime @default(now())
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([organisationId])
+  @@index([eventType])
+  @@index([entityType, entityId])
+  @@index([occurredAt])
+  @@index([processedAt])
+  @@map("FinanceEvents")
+}
+
 model OrganizationDocument {
   id              String                @id @default(uuid())
   organisationId  String
@@ -1165,6 +1264,73 @@ enum PaymentCollectionMethod {
   PAYMENT_AT_CLINIC
 }
 
+enum InvoiceVisitBillingStage {
+  DRAFT
+  READY_FOR_BILLING
+  SETTLED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MANUAL
+}
+
+enum PaymentAttemptStatus {
+  REQUIRES_ACTION
+  REQUIRES_PAYMENT_METHOD
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum CreditNoteStatus {
+  DRAFT
+  ISSUED
+  VOIDED
+}
+
+enum BillingCollectionMode {
+  PREPAY_AT_BOOKING
+  PAY_AT_VISIT_END
+  STAGED_DURING_VISIT
+  DEPOSIT_THEN_SETTLE
+  MANUAL_OFFLINE
+}
+
+enum SettlementChannel {
+  STRIPE
+  CASH
+  BANK_TRANSFER
+  CARD_PRESENT
+  DEPOSIT
+  OTHER
+}
+
+enum TaxProvider {
+  STRIPE
+}
+
+enum TaxBehavior {
+  INCLUSIVE
+  EXCLUSIVE
+}
+
 enum FormVisibilityType {
   Internal
   External
@@ -1180,6 +1346,16 @@ enum FormStatus {
   draft
   published
   archived
+}
+
+enum FormAssignmentStatus {
+  DRAFT
+  SENT
+  VIEWED
+  SUBMITTED
+  SIGNED
+  EXPIRED
+  CANCELLED
 }
 
 enum TemplateKind {
@@ -1219,6 +1395,11 @@ enum TemplateOwnershipType {
   YC_LIBRARY
   ORG_TEMPLATE
   USER_TEMPLATE
+}
+
+enum WorkspaceDocumentPacketStatus {
+  DRAFT
+  FINAL
 }
 
 enum TemplateScope {
@@ -1339,7 +1520,7 @@ enum AuditActorType {
 }
 
 enum AuditEntityType {
-  COMPANION_ORGANISATION
+  PATIENT_ORGANISATION
   APPOINTMENT
   INVOICE
   DOCUMENT
@@ -1348,14 +1529,14 @@ enum AuditEntityType {
 }
 
 enum AuditEventType {
-  COMPANION_ORG_LINK_CREATED
-  COMPANION_ORG_LINK_REQUESTED
-  COMPANION_ORG_LINK_APPROVED
-  COMPANION_ORG_LINK_REJECTED
-  COMPANION_ORG_LINK_REVOKED
-  COMPANION_ORG_INVITE_ACCEPTED
-  COMPANION_ORG_INVITE_REJECTED
-  COMPANION_ORG_LINK_AUTO
+  PATIENT_ORG_LINK_CREATED
+  PATIENT_ORG_LINK_REQUESTED
+  PATIENT_ORG_LINK_APPROVED
+  PATIENT_ORG_LINK_REJECTED
+  PATIENT_ORG_LINK_REVOKED
+  PATIENT_ORG_INVITE_ACCEPTED
+  PATIENT_ORG_INVITE_REJECTED
+  PATIENT_ORG_LINK_AUTO
   APPOINTMENT_REQUESTED
   APPOINTMENT_CREATED
   APPOINTMENT_APPROVED
@@ -1440,7 +1621,7 @@ model CoParentInvite {
   id               String   @id @default(uuid())
   email            String
   inviteeName      String?
-  companionId      String
+  patientId      String
   invitedByParentId String
   inviteToken      String   @unique
   expiresAt        DateTime
@@ -1454,7 +1635,7 @@ model CoParentInvite {
 }
 model ExternalExpense {
   id            String   @id @default(uuid())
-  companionId   String
+  patientId   String
   parentId      String
   category      String
   subcategory   String?
@@ -1469,7 +1650,7 @@ model ExternalExpense {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([companionId])
+  @@index([patientId])
   @@index([parentId])
 }
 
@@ -1544,7 +1725,7 @@ model FormSubmission {
   formId        String
   formVersion   Int
   appointmentId String?
-  companionId   String?
+  patientId   String?
   parentId      String?
   submittedBy   String?
   answers       Json
@@ -1558,9 +1739,45 @@ model FormSubmission {
   @@index([formId])
   @@index([formId, formVersion])
   @@index([appointmentId])
-  @@index([companionId])
+  @@index([patientId])
   @@index([parentId])
   @@index([submittedAt])
+}
+
+model FormAssignment {
+  id              String               @id @default(uuid())
+  organisationId  String
+  templateId      String
+  templateVersion Int
+  appointmentId   String?
+  encounterId     String?
+  companionId     String?
+  signerUserId    String?
+  signerName      String?
+  signerEmail     String?
+  signerRole      String?
+  mobileVisible   Boolean              @default(true)
+  signingRequired Boolean              @default(true)
+  status          FormAssignmentStatus @default(SENT)
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  submittedAt     DateTime?
+  signedAt        DateTime?
+  expiredAt       DateTime?
+  cancelledAt     DateTime?
+  createdBy       String
+  updatedBy       String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  template        Template             @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  appointment     Appointment?         @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  companion       Patient?             @relation(fields: [companionId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, appointmentId])
+  @@index([organisationId, companionId])
+  @@index([organisationId, status])
+  @@index([templateId, templateVersion])
 }
 
 model Template {
@@ -1583,6 +1800,7 @@ model Template {
 
   versions           TemplateVersion[]
   instances          TemplateInstance[]
+  formAssignments   FormAssignment[]
   catalogLinks       TemplateCatalogLink[]
 
   @@index([organisationId, ownership, kind, status])
@@ -1687,6 +1905,51 @@ model RenderedDocument {
   @@index([sourceKind, sourceId])
   @@index([templateId, templateVersion])
   @@index([templateVersionId])
+}
+
+model WorkspaceDocumentPacket {
+  id             String                     @id @default(uuid())
+  organisationId String
+  appointmentId  String?
+  encounterId    String
+  companionId    String?
+  status         WorkspaceDocumentPacketStatus @default(DRAFT)
+  documents      Json
+  signedBy       String?
+  signedByName   String?
+  signedAt       DateTime?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  @@index([organisationId])
+  @@index([organisationId, encounterId])
+  @@index([organisationId, appointmentId])
+  @@index([organisationId, companionId])
+}
+
+model WorkspaceTreatmentItem {
+  id                 String   @id @default(uuid())
+  organisationId     String
+  appointmentId      String?
+  encounterId        String
+  productId          String
+  productVersion     Int?
+  productSnapshot    Json
+  servicePackageKind String
+  quantity           Int      @default(1)
+  priceSnapshot      Json
+  billingStatus      String   @default("UNBILLED")
+  invoiceRowId       String?
+  lockState          Json?
+  prescriptionId     String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([organisationId, encounterId])
+  @@index([organisationId, appointmentId])
+  @@index([organisationId, billingStatus])
+  @@index([invoiceRowId])
+  @@index([prescriptionId])
 }
 
 model DocumentSignature {
@@ -1911,7 +2174,7 @@ model Task {
   id                String       @id @default(uuid())
   organisationId    String?
   appointmentId     String?
-  companionId       String?
+  patientId       String?
   createdBy         String
   assignedBy        String?
   assignedTo        String
@@ -1921,6 +2184,7 @@ model Task {
   libraryTaskId     String?
   templateId        String?
   category          String
+  subcategory       String?
   name              String
   description       String?
   additionalNotes   String?
@@ -1941,7 +2205,7 @@ model Task {
 
   @@index([assignedTo, dueAt])
   @@index([assignedGroupId, dueAt])
-  @@index([companionId, dueAt])
+  @@index([patientId, dueAt])
   @@index([organisationId, dueAt])
   @@index([dueAt])
 }
@@ -1956,7 +2220,7 @@ model TaskSchedule {
   appointmentId     String?
   caseId            String?
   encounterId      String?
-  companionId       String?
+  patientId       String?
   createdBy         String
   activatedBy       String?
   activatedAt       DateTime?
@@ -1976,13 +2240,13 @@ model TaskSchedule {
   @@index([templateId, templateVersion])
   @@index([appointmentId])
   @@index([encounterId])
-  @@index([companionId])
+  @@index([patientId])
 }
 
 model TaskCompletion {
   id          String   @id @default(uuid())
   taskId      String
-  companionId String
+  patientId String
   filledBy    String
   answers     Json
   score       Float?
@@ -1990,7 +2254,7 @@ model TaskCompletion {
   createdAt   DateTime @default(now())
 
   @@index([taskId])
-  @@index([companionId])
+  @@index([patientId])
 }
 
 model TaskTemplate {
@@ -2050,7 +2314,7 @@ model ReminderJob {
 model AuditTrail {
   id             String         @id @default(uuid())
   organisationId String
-  companionId    String
+  patientId    String
   eventType      AuditEventType
   actorType      AuditActorType?
   actorId        String?
@@ -2063,10 +2327,10 @@ model AuditTrail {
   updatedAt      DateTime       @updatedAt
 
   @@index([organisationId])
-  @@index([companionId])
+  @@index([patientId])
   @@index([eventType])
   @@index([occurredAt])
-  @@index([organisationId, companionId, occurredAt])
+  @@index([organisationId, patientId, occurredAt])
   @@index([organisationId, occurredAt])
 }
 
@@ -2324,7 +2588,7 @@ model ObservationToolSubmission {
   id                      String   @id @default(uuid())
   toolId                  String
   taskId                  String?
-  companionId             String
+  patientId             String
   filledBy                String
   answers                 Json
   score                   Float?
@@ -2335,7 +2599,7 @@ model ObservationToolSubmission {
 
   @@index([toolId])
   @@index([taskId])
-  @@index([companionId])
+  @@index([patientId])
 }
 
 model Occupancy {
@@ -2371,7 +2635,7 @@ model AdverseEventReport {
   organisationId String?
   appointmentId  String?
   reporter       Json
-  companion      Json
+  patient      Json
   product        Json
   destinations   Json
   consent        Json
@@ -2433,36 +2697,161 @@ model Notification {
 model Invoice {
   id                       String                   @id @default(uuid())
   parentId                 String?
-  companionId              String?
+  patientId              String?
   organisationId           String?
   appointmentId            String?
   items                    Json
   subtotal                 Float
   discountTotal            Float                    @default(0)
+  invoiceDiscountType      String?
+  invoiceDiscountValue     Float?
+  invoiceDiscountTotal     Float                    @default(0)
   taxTotal                 Float                    @default(0)
   taxPercent               Float                    @default(0)
+  taxProvider              TaxProvider?
   totalAmount              Float
   currency                 String
   paymentCollectionMethod  PaymentCollectionMethod  @default(PAYMENT_INTENT)
-  stripePaymentIntentId    String?
-  stripePaymentLinkId      String?
-  stripeInvoiceId          String?
-  stripeCustomerId         String?
-  stripeChargeId           String?
-  stripeReceiptUrl         String?
-  stripeCheckoutSessionId  String?
-  stripeCheckoutUrl        String?
+  billingCollectionMode    BillingCollectionMode    @default(PREPAY_AT_BOOKING)
+  visitBillingStage        InvoiceVisitBillingStage  @default(DRAFT)
+  depositTargetAmount      Float                    @default(0)
+  depositCollectedAmount   Float                    @default(0)
   status                   InvoiceStatus            @default(PENDING)
   metadata                 Json?
   paidAt                   DateTime?
+  finalizedAt              DateTime?
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
+
+  taxSnapshot              InvoiceTaxSnapshot?
+  paymentAttempts          PaymentAttempt[]
+  payments                 Payment[]
+  creditNotes              CreditNote[]
 
   @@index([parentId])
   @@index([organisationId])
   @@index([appointmentId])
-  @@index([stripePaymentIntentId])
   @@index([status])
-  @@index([stripeCheckoutSessionId])
   @@index([paymentCollectionMethod])
+  @@index([billingCollectionMode])
+  @@index([visitBillingStage])
+  @@index([taxProvider])
+}
+
+model InvoiceTaxSnapshot {
+  id                  String       @id @default(uuid())
+  invoiceId           String       @unique
+  provider            TaxProvider
+  providerReferenceId String?
+  jurisdictionCountry String?
+  jurisdictionState   String?
+  taxBehavior         TaxBehavior?
+  taxableSubtotal     Float        @default(0)
+  taxAmount           Float        @default(0)
+  taxBreakdown        Json?
+  rawProviderPayload  Json?
+  calculatedAt        DateTime     @default(now())
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  invoice             Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model PaymentAttempt {
+  id                      String               @id @default(uuid())
+  invoiceId               String
+  provider                PaymentProvider
+  settlementChannel       SettlementChannel?
+  providerPaymentIntentId String?
+  providerCheckoutSessionId String?
+  providerPaymentLinkId   String?
+  status                  PaymentAttemptStatus @default(REQUIRES_PAYMENT_METHOD)
+  amountRequested         Float                @default(0)
+  amountCaptured          Float                @default(0)
+  amountApplied           Float                @default(0)
+  currency                String
+  failureCode             String?
+  failureMessage          String?
+  collectionMode          BillingCollectionMode?
+  isOffline               Boolean              @default(false)
+  isPartial               Boolean              @default(false)
+  rawProviderPayload      Json?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+
+  invoice                 Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  payment                 Payment?
+
+  @@index([invoiceId])
+  @@index([provider])
+  @@index([providerPaymentIntentId])
+  @@index([providerCheckoutSessionId])
+  @@index([providerPaymentLinkId])
+  @@index([status])
+}
+
+model Payment {
+  id                    String          @id @default(uuid())
+  invoiceId             String
+  paymentAttemptId      String?         @unique
+  provider              PaymentProvider
+  settlementChannel     SettlementChannel?
+  collectionMode        BillingCollectionMode?
+  providerPaymentId     String?
+  amount                Float
+  currency              String
+  status                PaymentStatus   @default(PENDING)
+  paidAt                DateTime?
+  receiptUrl            String?
+  rawProviderPayload    Json?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  invoice               Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentAttempt        PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id])
+  refunds               Refund[]
+
+  @@index([invoiceId])
+  @@index([paymentAttemptId])
+  @@index([provider])
+  @@index([providerPaymentId])
+  @@index([status])
+}
+
+model Refund {
+  id                    String         @id @default(uuid())
+  paymentId             String
+  provider              PaymentProvider
+  providerRefundId      String?
+  amount                Float
+  currency              String
+  status                RefundStatus   @default(PENDING)
+  reason                String?
+  rawProviderPayload    Json?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  payment               Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([provider])
+  @@index([providerRefundId])
+  @@index([status])
+}
+
+model CreditNote {
+  id               String           @id @default(uuid())
+  invoiceId        String
+  creditNoteNumber String           @unique
+  reason           String?
+  amount           Float
+  status           CreditNoteStatus @default(DRAFT)
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  invoice          Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([status])
 }

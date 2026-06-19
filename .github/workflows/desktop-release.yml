@@ -1,0 +1,105 @@
+name: Desktop Release
+
+# Builds and code-signs the desktop app. Two ways to run:
+#   • Push a tag `desktop-v*`  → builds, signs, and PUBLISHES a GitHub Release.
+#       1) bump "version" in apps/desktop/package.json
+#       2) git tag desktop-v<version> && git push origin desktop-v<version>
+#   • Run manually (Actions → "Desktop Release" → Run workflow / workflow_dispatch)
+#       → builds + signs, then uploads the signed installers as workflow ARTIFACTS
+#         (NO Release). Use this to collect signed mac/Windows builds for a
+#         coordinated joint release (alongside mobile + PIMS) later.
+#
+# Windows is signed via Azure Artifact Signing (formerly Trusted Signing).
+#   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
+#   (the `yc-signing-ci` app registration, holding the
+#    "Trusted Signing Certificate Profile Signer" role on the yc-signing account)
+#
+# macOS is signed with a Developer ID Application cert and notarized via notarytool.
+#   CSC_LINK (base64 of the Developer ID .p12), CSC_KEY_PASSWORD,
+#   APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+#
+# All values are GitHub Actions secrets (Settings → Secrets and variables → Actions);
+# none are committed. Builds succeed unsigned locally when these are unset.
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build & sign (Azure Artifact Signing); publish only on a tag
+        working-directory: apps/desktop
+        run: pnpm run desktop:dist:win -- --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload signed Windows artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-signed
+          path: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.blockmap
+            apps/desktop/dist/latest.yml
+          if-no-files-found: warn
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build, sign (Developer ID) & notarize; publish only on a tag
+        working-directory: apps/desktop
+        run: pnpm run desktop:dist:mac -- --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload signed macOS artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos-signed
+          path: |
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.zip
+            apps/desktop/dist/*.blockmap
+            apps/desktop/dist/latest-mac.yml
+          if-no-files-found: warn

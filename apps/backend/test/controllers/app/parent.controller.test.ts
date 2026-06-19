@@ -81,13 +81,13 @@ describe("ParentController", () => {
     status = 400,
     msg = "Error",
   ) => {
-    mockedParentService[method].mockRejectedValue(
-      new ParentServiceError(msg, status),
+    (mockedParentService as any)[method].mockRejectedValue(
+      new ParentServiceError(msg, status) as any,
     );
   };
 
   const mockGenericError = (method: keyof typeof ParentService) => {
-    mockedParentService[method].mockRejectedValue(new Error("Boom"));
+    (mockedParentService as any)[method].mockRejectedValue(new Error("Boom"));
   };
 
   // ----------------------------------------------------------------------

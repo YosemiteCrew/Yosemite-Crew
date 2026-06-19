@@ -1,0 +1,21 @@
+ignore:
+  - 'build/**'
+  - 'coverage/**'
+  - 'dist/**'
+  - 'node_modules/**'
+  - 'resources/**'
+tsconfig: './tsconfig.json'
+entry_points:
+  - 'src/main.ts'
+  - 'src/preload.ts'
+  - 'scripts/apply-fuses.js'
+  - 'scripts/notarize.js'
+rules:
+  cyclic_dependency: high
+  god_module: medium
+  dead_code: medium
+  dead_symbols: medium
+  cognitive_complexity: medium
+  cyclomatic_complexity: medium
+  large_file: low
+  side_effect_import: low

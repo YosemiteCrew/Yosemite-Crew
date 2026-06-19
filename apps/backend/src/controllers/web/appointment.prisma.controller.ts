@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { AppointmentRequestDTO } from "@yosemite-crew/types";
 import { AppointmentPrismaService } from "src/services/appointment.prisma.service";
+import { InvoiceService } from "src/services/invoice.service";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { generatePresignedUrl } from "src/middlewares/upload";
@@ -16,7 +17,7 @@ type RescheduleRequestBody = {
 
 type CancelBody = { reason?: string };
 
-type UploadUrlBody = { companionId?: string; mimeType?: string };
+type UploadUrlBody = { patientId?: string; mimeType?: string };
 type AttachFormsBody = { formIds?: string[] };
 
 type ErrorWithStatus = Error & { statusCode?: number };
@@ -214,6 +215,27 @@ export const AppointmentController = {
     }
   },
 
+  markReadyForBillingForPMS: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      await InvoiceService.markAppointmentReadyForBilling(
+        req.params.appointmentId,
+      );
+      return res
+        .status(200)
+        .json({ message: "Appointment marked ready for billing" });
+    } catch (err: unknown) {
+      logger.error("Appointment billing readiness error", err);
+      return sendAppointmentError(
+        res,
+        err,
+        "Failed to mark appointment ready for billing",
+      );
+    }
+  },
+
   updateFromPms: async (
     req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
     res: Response,
@@ -306,12 +328,12 @@ export const AppointmentController = {
   },
 
   listByCompanion: async (
-    req: Request<{ companionId: string }>,
+    req: Request<{ patientId: string }>,
     res: Response,
   ) => {
     try {
       const data = await AppointmentPrismaService.getAppointmentsForCompanion(
-        req.params.companionId,
+        req.params.patientId,
       );
       return res.status(200).json({ data });
     } catch (err: unknown) {
@@ -321,13 +343,13 @@ export const AppointmentController = {
   },
 
   listByCompanionForOrganisation: async (
-    req: Request<{ organisationId: string; companionId: string }>,
+    req: Request<{ organisationId: string; patientId: string }>,
     res: Response,
   ) => {
     try {
       const data =
         await AppointmentPrismaService.getAppointmentsForCompanionByOrganisation(
-          req.params.companionId,
+          req.params.patientId,
           req.params.organisationId,
         );
       return res.status(200).json({ data });
@@ -411,21 +433,21 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
-      const { companionId, mimeType } = req.body;
+      const { patientId, mimeType } = req.body;
       const authUserId = resolveUserIdFromRequest(req);
       if (!authUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      if (!companionId || !mimeType) {
+      if (!patientId || !mimeType) {
         return res
           .status(400)
-          .json({ message: "companionId and mimeType are required" });
+          .json({ message: "patientId and mimeType are required" });
       }
 
       const upload = await generatePresignedUrl(
         mimeType,
         "custom",
-        `appointments/${companionId}`,
+        `appointments/${patientId}`,
       );
 
       return res.status(200).json({ data: upload });

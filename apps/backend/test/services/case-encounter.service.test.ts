@@ -54,7 +54,7 @@ const mockedPrisma = prisma as any;
 const baseCaseRow = {
   id: "case_1",
   organisationId: "org_1",
-  companionId: "comp_1",
+  patientId: "comp_1",
   parentId: "parent_1",
   status: "active",
   appointmentKind: "INPATIENT" as const,
@@ -68,7 +68,7 @@ const baseEncounterRow = {
   id: "enc_1",
   caseId: "case_1",
   organisationId: "org_1",
-  companionId: "comp_1",
+  patientId: "comp_1",
   parentId: "parent_1",
   status: "planned",
   encounterClass: "IMP",
@@ -101,7 +101,7 @@ describe("CaseEncounterService", () => {
 
     const result = await CaseEncounterService.createCase({
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
       parentId: "parent_1",
       status: "active",
       appointmentKind: "INPATIENT",
@@ -112,12 +112,42 @@ describe("CaseEncounterService", () => {
     expect(mockedPrisma.case.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         status: "active",
         appointmentKind: "INPATIENT",
       }),
     });
     expect(result.id).toBe("case_1");
+  });
+
+  it("rejects invalid case and encounter status values", async () => {
+    await expect(
+      CaseEncounterService.createCase({
+        organisationId: "org_1",
+        patientId: "comp_1",
+        parentId: "parent_1",
+        status: "bogus" as never,
+        appointmentKind: "INPATIENT",
+      } as never),
+    ).rejects.toMatchObject({
+      message: "Invalid case status.",
+      statusCode: 400,
+    } satisfies Partial<CaseEncounterServiceError>);
+
+    mockedPrisma.case.findUnique.mockResolvedValue(baseCaseRow as never);
+    await expect(
+      CaseEncounterService.createEncounter({
+        caseId: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        status: "planned",
+        encounterClass: "bogus" as never,
+        appointmentKind: "INPATIENT",
+      } as never),
+    ).rejects.toMatchObject({
+      message: "Invalid encounter class.",
+      statusCode: 400,
+    } satisfies Partial<CaseEncounterServiceError>);
   });
 
   it("creates an encounter and links the appointment", async () => {
@@ -127,7 +157,7 @@ describe("CaseEncounterService", () => {
       caseId: null,
       encounterId: null,
       organisationId: "org_1",
-      companion: { id: "comp_1" },
+      patient: { id: "comp_1" },
     } as never);
     mockedPrisma.encounter.create.mockResolvedValue(baseEncounterRow as never);
     mockedPrisma.appointment.update.mockResolvedValue({
@@ -138,7 +168,7 @@ describe("CaseEncounterService", () => {
       caseId: "case_1",
       appointmentId: "appt_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
       parentId: "parent_1",
       status: "planned",
       encounterClass: "IMP",
@@ -167,7 +197,7 @@ describe("CaseEncounterService", () => {
       caseId: null,
       encounterId: null,
       organisationId: "org_1",
-      companion: { id: "comp_2" },
+      patient: { id: "comp_2" },
     } as never);
 
     await expect(
@@ -175,7 +205,7 @@ describe("CaseEncounterService", () => {
         caseId: "case_1",
         appointmentId: "appt_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         status: "planned",
         encounterClass: "IMP",
         appointmentKind: "INPATIENT",
@@ -195,14 +225,14 @@ describe("CaseEncounterService", () => {
       caseId: "case_1",
       encounterId: "enc_1",
       organisationId: "org_1",
-      companion: { id: "comp_1" },
+      patient: { id: "comp_1" },
     } as never);
     mockedPrisma.appointment.findUnique.mockResolvedValue({
       id: "appt_new",
       caseId: "case_1",
       encounterId: null,
       organisationId: "org_1",
-      companion: { id: "comp_1" },
+      patient: { id: "comp_1" },
     } as never);
     mockedPrisma.encounter.update.mockResolvedValue({
       ...baseEncounterRow,
@@ -243,7 +273,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         bedUnitId: null,
         expectedStayDays: null,
         admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -279,6 +309,18 @@ describe("CaseEncounterService", () => {
     expect(results[1]?.appointmentId).toBe("appt_2");
   });
 
+  it("returns an empty list without loading appointments when no encounters exist", async () => {
+    mockedPrisma.encounter.findMany.mockResolvedValue([] as never);
+
+    const results = await CaseEncounterService.listEncounters({
+      organisationId: "org_1",
+    });
+
+    expect(results).toEqual([]);
+    expect(mockedPrisma.appointment.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.admission.findMany).not.toHaveBeenCalled();
+  });
+
   it("discharges an inpatient encounter and closes admission", async () => {
     mockedPrisma.encounter.findUnique.mockResolvedValue(
       baseEncounterRow as never,
@@ -286,7 +328,7 @@ describe("CaseEncounterService", () => {
     mockedPrisma.admission.findUnique.mockResolvedValue({
       encounterId: "enc_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
       bedUnitId: null,
       expectedStayDays: null,
       admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -324,7 +366,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         bedUnitId: null,
         expectedStayDays: null,
         admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -364,6 +406,20 @@ describe("CaseEncounterService", () => {
     );
   });
 
+  it("rejects closing a finished encounter when marking ready for discharge", async () => {
+    mockedPrisma.encounter.findUnique.mockResolvedValue({
+      ...baseEncounterRow,
+      status: "finished",
+    } as never);
+
+    await expect(
+      CaseEncounterService.markEncounterReadyForDischarge("enc_1"),
+    ).rejects.toMatchObject({
+      message: "Cannot mark ready for discharge a closed encounter.",
+      statusCode: 409,
+    } satisfies Partial<CaseEncounterServiceError>);
+  });
+
   it("assigns a unit to an active admission", async () => {
     mockedPrisma.encounter.findUnique.mockResolvedValue(
       baseEncounterRow as never,
@@ -371,7 +427,7 @@ describe("CaseEncounterService", () => {
     mockedPrisma.admission.findUnique.mockResolvedValue({
       encounterId: "enc_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
       unitId: null,
       expectedStayDays: null,
       admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -410,7 +466,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         unitId: "unit_1",
         expectedStayDays: null,
         admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -453,7 +509,7 @@ describe("CaseEncounterService", () => {
     mockedPrisma.admission.findUnique.mockResolvedValue({
       encounterId: "enc_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
       unitId: null,
       expectedStayDays: null,
       admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -497,7 +553,7 @@ describe("CaseEncounterService", () => {
     mockedPrisma.admission.findUnique.mockResolvedValue({
       encounterId: "enc_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
       unitId: null,
       expectedStayDays: null,
       admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -554,7 +610,7 @@ describe("CaseEncounterService", () => {
     mockedPrisma.admission.findUnique.mockResolvedValue({
       encounterId: "enc_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
       unitId: null,
       expectedStayDays: null,
       admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -648,7 +704,7 @@ describe("CaseEncounterService", () => {
     mockedPrisma.admission.findUnique.mockResolvedValue({
       encounterId: "enc_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
       unitId: "unit_1",
       expectedStayDays: null,
       admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -703,7 +759,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         unitId: "unit_1",
         expectedStayDays: null,
         admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -743,7 +799,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         unitId: "unit_1",
         expectedStayDays: null,
         admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -810,7 +866,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         unitId: "unit_1",
         expectedStayDays: null,
         admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -821,7 +877,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_2",
         organisationId: "org_1",
-        companionId: "comp_2",
+        patientId: "comp_2",
         unitId: "unit_2",
         expectedStayDays: 3,
         admittedAt: new Date("2026-06-11T11:00:00.000Z"),
@@ -852,7 +908,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         unitId: "unit_1",
         expectedStayDays: null,
         admittedAt: new Date("2026-06-11T10:30:00.000Z"),
@@ -863,7 +919,7 @@ describe("CaseEncounterService", () => {
       {
         encounterId: "enc_2",
         organisationId: "org_1",
-        companionId: "comp_2",
+        patientId: "comp_2",
         unitId: "unit_2",
         expectedStayDays: 3,
         admittedAt: new Date("2026-06-11T11:00:00.000Z"),

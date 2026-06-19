@@ -49,7 +49,7 @@ const findRoute = (path: string, method: string) => {
 describe("task.fhir.router", () => {
   it("exposes task collection and detail routes", () => {
     expect(findRoute("/organisation/:organisationId", "get")).toBeDefined();
-    expect(findRoute("/companion/:companionId", "get")).toBeDefined();
+    expect(findRoute("/companion/:patientId", "get")).toBeDefined();
     expect(
       findRoute("/organisation/:organisationId/:taskId", "patch"),
     ).toBeDefined();

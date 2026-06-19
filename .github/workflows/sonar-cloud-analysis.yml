@@ -145,15 +145,25 @@ jobs:
         with:
           fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
       - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
+
+      - name: Cache Jest transform cache
+        uses: actions/cache@v4
+        with:
+          path: apps/backend/.jest-cache
+          key: jest-backend-${{ runner.os }}-${{ hashFiles('apps/backend/jest.config.cjs', 'apps/backend/package.json', 'pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            jest-backend-${{ runner.os }}-${{ hashFiles('apps/backend/jest.config.cjs', 'apps/backend/package.json', 'pnpm-lock.yaml') }}-
+            jest-backend-${{ runner.os }}-
 
       - uses: actions/cache@v4
         with:
@@ -171,7 +181,7 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: ${{ matrix.dir }}
-        run: pnpm test:coverage
+        run: pnpm run test --coverage --ci --maxWorkers=2 --cacheDirectory=.jest-cache
 
       - name: Sonar Scan
         uses: SonarSource/sonarqube-scan-action@v6

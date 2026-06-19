@@ -8,6 +8,7 @@ jest.mock("src/config/prisma", () => ({
       findUnique: jest.fn(),
     },
     taskSchedule: {
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -32,6 +33,7 @@ const mockedPrisma = prisma as unknown as {
     findUnique: jest.Mock;
   };
   taskSchedule: {
+    findMany: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
   };
@@ -156,6 +158,59 @@ describe("TaskWorkflowService", () => {
     expect(result.taskIds).toEqual(["task-1"]);
   });
 
+  it("lists encounter schedules for the workspace endpoint", async () => {
+    mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
+      {
+        id: "schedule-1",
+        templateInstanceId: "instance-1",
+        templateId: "template-1",
+        templateVersion: 3,
+        templateKind: "CARE_PATHWAY",
+        organisationId: "org-1",
+        createdBy: "creator-1",
+        status: "ACTIVE",
+        generatedTaskIds: ["task-1"],
+        materializedSeeds: [{ id: "seed-1" }],
+      },
+    ]);
+
+    const schedules = await TaskWorkflowService.listSchedulesForEncounter(
+      "org-1",
+      "enc-1",
+    );
+
+    expect(mockedPrisma.taskSchedule.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organisationId: "org-1",
+          encounterId: "enc-1",
+        },
+      }),
+    );
+    expect(schedules).toEqual([
+      expect.objectContaining({
+        id: "schedule-1",
+        _id: "schedule-1",
+      }),
+    ]);
+  });
+
+  it("rejects blank identifiers when listing encounter schedules", async () => {
+    await expect(
+      TaskWorkflowService.listSchedulesForEncounter(" ", "enc-1"),
+    ).rejects.toMatchObject({
+      message: "Invalid organisationId",
+      statusCode: 400,
+    });
+
+    await expect(
+      TaskWorkflowService.listSchedulesForEncounter("org-1", " "),
+    ).rejects.toMatchObject({
+      message: "Invalid encounterId",
+      statusCode: 400,
+    });
+  });
+
   it("uses an explicit assignee role when materializing a task template", async () => {
     mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
       id: "instance-1",
@@ -202,7 +257,7 @@ describe("TaskWorkflowService", () => {
       taskSchedule: null,
     });
     mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
-      companion: { parent: { id: "parent-1" } },
+      patient: { parent: { id: "parent-1" } },
       lead: { id: "lead-1" },
       supportStaff: [{ id: "staff-1" }],
       startTime: new Date("2026-01-01T08:00:00.000Z"),
@@ -634,7 +689,7 @@ describe("TaskWorkflowService", () => {
       materializedSeeds: [{ id: "seed-delayed" }],
     });
 
-    const deferredUntil = new Date("2026-06-15T10:00:00.000Z");
+    const deferredUntil = new Date(Date.now() + 60 * 60 * 1000);
     const result = await TaskWorkflowService.launchFromTemplateInstance(
       "instance-6",
       "org-1",

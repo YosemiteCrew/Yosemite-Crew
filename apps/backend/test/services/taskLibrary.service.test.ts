@@ -69,6 +69,68 @@ describe("TaskLibraryService", () => {
     ).rejects.toBeInstanceOf(TaskLibraryServiceError);
   });
 
+  it("rejects invalid task definition inputs and schema rules", async () => {
+    await expect(
+      TaskLibraryService.create({
+        kind: "CUSTOM",
+        category: "Care",
+        name: "Hydration.",
+        schema: {},
+      } as never),
+    ).rejects.toMatchObject({
+      message: "name contains invalid characters",
+      statusCode: 400,
+    } satisfies Partial<TaskLibraryServiceError>);
+
+    await expect(
+      TaskLibraryService.create({
+        kind: "INVALID" as never,
+        category: "Care",
+        name: "Hydration",
+        schema: {},
+      } as never),
+    ).rejects.toMatchObject({
+      message: "Invalid kind",
+      statusCode: 400,
+    } satisfies Partial<TaskLibraryServiceError>);
+
+    await expect(
+      TaskLibraryService.create({
+        kind: "MEDICATION",
+        category: "Care",
+        name: "Medication",
+        schema: {},
+      } as never),
+    ).rejects.toMatchObject({
+      message: "medicationFields required for MEDICATION task",
+      statusCode: 400,
+    } satisfies Partial<TaskLibraryServiceError>);
+
+    await expect(
+      TaskLibraryService.create({
+        kind: "OBSERVATION_TOOL",
+        category: "Care",
+        name: "Observation",
+        schema: { requiresObservationTool: false },
+      } as never),
+    ).rejects.toMatchObject({
+      message: "requiresObservationTool must be true for OBSERVATION_TOOL task",
+      statusCode: 400,
+    } satisfies Partial<TaskLibraryServiceError>);
+
+    await expect(
+      TaskLibraryService.create({
+        kind: "CUSTOM",
+        category: "Care",
+        name: "Recurring",
+        schema: { recurrence: { default: { type: "CUSTOM" } } },
+      } as never),
+    ).rejects.toMatchObject({
+      message: "cronExpression required for CUSTOM recurrence",
+      statusCode: 400,
+    } satisfies Partial<TaskLibraryServiceError>);
+  });
+
   it("lists active definitions", async () => {
     mockedPrisma.taskLibraryDefinition.findMany.mockResolvedValueOnce([
       { id: "lib-1" },
@@ -87,6 +149,30 @@ describe("TaskLibraryService", () => {
     expect(result).toEqual([{ id: "lib-1" }]);
   });
 
+  it("rejects invalid list and lookup filters", async () => {
+    await expect(
+      TaskLibraryService.listActive("INVALID" as never),
+    ).rejects.toMatchObject({
+      message: "Invalid kind",
+      statusCode: 400,
+    } satisfies Partial<TaskLibraryServiceError>);
+
+    await expect(TaskLibraryService.getById("   ")).rejects.toMatchObject({
+      message: "Invalid id",
+      statusCode: 400,
+    } satisfies Partial<TaskLibraryServiceError>);
+
+    await expect(
+      TaskLibraryService.listForSpecies({
+        species: "dog",
+        kind: "INVALID" as never,
+      }),
+    ).rejects.toMatchObject({
+      message: "Invalid kind",
+      statusCode: 400,
+    } satisfies Partial<TaskLibraryServiceError>);
+  });
+
   it("gets a library definition by id", async () => {
     mockedPrisma.taskLibraryDefinition.findFirst.mockResolvedValueOnce({
       id: "lib-1",
@@ -95,6 +181,28 @@ describe("TaskLibraryService", () => {
     await expect(TaskLibraryService.getById("lib-1")).resolves.toEqual({
       id: "lib-1",
     });
+  });
+
+  it("throws when a library definition is missing on lookup or update", async () => {
+    mockedPrisma.taskLibraryDefinition.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      TaskLibraryService.getById("lib-missing"),
+    ).rejects.toMatchObject({
+      message: "Library task not found",
+      statusCode: 404,
+    } satisfies Partial<TaskLibraryServiceError>);
+
+    mockedPrisma.taskLibraryDefinition.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      TaskLibraryService.update("lib-missing", {
+        name: "New",
+      }),
+    ).rejects.toMatchObject({
+      message: "Library task not found",
+      statusCode: 404,
+    } satisfies Partial<TaskLibraryServiceError>);
   });
 
   it("updates a library definition", async () => {

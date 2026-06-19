@@ -175,6 +175,7 @@ const mapExpenseFromApi = (raw: any, companionIdFallback?: string): Expense => {
 
   const companionId =
     raw?.companionId ??
+    raw?.patientId ??
     raw?.companion_id ??
     raw?.petId ??
     companionIdFallback ??
@@ -328,6 +329,7 @@ const toApiPayload = (input: ExpenseInputPayload) => {
 
   return {
     companionId,
+    patientId: companionId,
     parentId: parentId ?? '',
     category: categoryLabel ?? category,
     subcategory: subcategoryLabel ?? subcategory ?? '',

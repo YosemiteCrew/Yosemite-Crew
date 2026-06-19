@@ -1,0 +1,169 @@
+{
+  "name": "@yosemite-crew/desktop",
+  "version": "0.1.0-beta.1",
+  "private": true,
+  "description": "Desktop shell for Yosemite Crew PIMS — Windows, macOS, Linux.",
+  "author": "Yosemite Crew",
+  "type": "commonjs",
+  "main": "build/main.js",
+  "scripts": {
+    "clean:build": "node scripts/clean.js build",
+    "clean:dist": "node scripts/clean.js dist",
+    "build": "pnpm run clean:build && tsc && node scripts/copy-static.js",
+    "desktop:dev": "pnpm run build && electron .",
+    "desktop:pack": "pnpm run build && pnpm run clean:dist && electron-builder --dir",
+    "desktop:dist": "pnpm run build && pnpm run clean:dist && electron-builder --mac --win --linux",
+    "desktop:dist:mac": "pnpm run build && pnpm run clean:dist && electron-builder --mac",
+    "desktop:dist:win": "pnpm run build && pnpm run clean:dist && electron-builder --win",
+    "desktop:dist:linux": "pnpm run build && pnpm run clean:dist && electron-builder --linux",
+    "desktop:publish": "pnpm run build && pnpm run clean:dist && electron-builder --mac --win --linux --publish always",
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "desktop:notices": "node scripts/generate-notices.js",
+    "security:pressure": "pnpm run build && node scripts/security-pressure.js",
+    "archlint": "npx -y @archlinter/cli scan --config .archlint.yaml"
+  },
+  "dependencies": {
+    "archiver": "7.0.1",
+    "electron-updater": "^6.8.9",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@electron/fuses": "^2.1.2",
+    "@electron/notarize": "^3.1.1",
+    "@eslint/js": "^9.21.0",
+    "@playwright/test": "^1.55.0",
+    "@types/archiver": "^6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.3",
+    "@types/sql.js": "^1.4.11",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "globals": "^17.6.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^6.0.3"
+  },
+  "build": {
+    "appId": "com.yosemitecrew.pims",
+    "productName": "Yosemite Crew PIMS",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/sql.js/dist/*.wasm"
+    ],
+    "afterPack": "scripts/apply-fuses.js",
+    "afterSign": "scripts/notarize.js",
+    "protocols": [
+      {
+        "name": "Yosemite Crew PIMS",
+        "schemes": [
+          "yosemitecrew"
+        ]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "YosemiteCrew",
+        "repo": "Yosemite-Crew"
+      }
+    ],
+    "directories": {
+      "buildResources": "resources",
+      "output": "dist"
+    },
+    "files": [
+      {
+        "from": "build",
+        "to": "build",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "resources",
+        "to": "resources",
+        "filter": [
+          "icon.png",
+          "logo-beta.svg"
+        ]
+      },
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "resources/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist",
+      "extendInfo": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSAllowsLocalNetworking": true
+        }
+      },
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "resources/icon.ico",
+      "azureSignOptions": {
+        "publisherName": "DuneXploration UG (haftungsbeschränkt)",
+        "endpoint": "https://swn.codesigning.azure.net/",
+        "codeSigningAccountName": "yc-signing",
+        "certificateProfileName": "yc-public-trust"
+      },
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-win-${arch}-setup.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Yosemite Crew PIMS"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-win-${arch}-portable.${ext}"
+    },
+    "linux": {
+      "icon": "resources/icon.png",
+      "category": "Office",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}

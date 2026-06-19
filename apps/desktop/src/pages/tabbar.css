@@ -1,0 +1,321 @@
+@import url('tokens.css');
+
+/* ── Tab bar (chrome strip) ── */
+#tabbar {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  background: var(--surface-page);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 4px;
+  gap: 2px;
+  user-select: none;
+}
+
+/* ── Vertical tab sidebar ── */
+#tabbar[data-orientation='vertical'] {
+  flex-direction: column;
+  height: 100%;
+  width: 240px;
+  border-bottom: none;
+  border-right: 1px solid var(--border-subtle);
+  padding: 8px 4px;
+  overflow-y: auto;
+}
+#tabbar[data-orientation='vertical'] .tab-strip {
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+#tabbar[data-orientation='vertical'] .tab {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+}
+#tabbar[data-orientation='vertical'] .tab--pinned {
+  max-width: none;
+  min-width: 0;
+}
+#tabbar[data-orientation='vertical'] .tabbar-trailing {
+  padding-left: 0;
+  padding-top: 4px;
+  justify-content: center;
+}
+
+.tab-strip {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  align-items: stretch;
+  padding: 4px 0;
+  -webkit-app-region: no-drag;
+}
+
+/* Empty filler that pushes the trailing controls to the right. It is NOT a
+   drag region: in a child WebContentsView a single draggable element makes the
+   WHOLE view draggable (per-element no-drag carve-outs are ignored), which would
+   swallow clicks on the tabs and the search/new-tab/close controls. Window
+   dragging is instead driven manually from JS (pointer events → move-window-by).
+   */
+.drag-spacer {
+  flex: 1 1 0;
+  align-self: stretch;
+  -webkit-app-region: no-drag;
+  cursor: default;
+}
+#tabbar[data-orientation='vertical'] .drag-spacer {
+  display: none;
+}
+
+.tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Individual tab ── */
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-satoshi);
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  flex-shrink: 0;
+  max-width: 180px;
+  min-width: 48px;
+  position: relative;
+}
+
+.tab:hover {
+  background: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.tab--active {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+.tab--pinned {
+  min-width: 32px;
+  max-width: 48px;
+}
+
+.tab--dragging {
+  opacity: 0.4;
+}
+
+.tab-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tab-favicon {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.tab-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: tab-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes tab-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tab-badge {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tab-badge--error {
+  background: var(--color-danger-600);
+  color: white;
+}
+
+.tab-badge--offline {
+  background: var(--accent);
+  color: white;
+}
+
+/* ── Audio indicator ── */
+.tab-audio {
+  width: 14px;
+  height: 14px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.12s ease;
+}
+.tab-audio:hover {
+  opacity: 1;
+}
+
+/* ── Close button ── */
+.tab-close-btn {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
+  flex-shrink: 0;
+}
+
+.tab:hover .tab-close-btn,
+.tab--active .tab-close-btn {
+  opacity: 1;
+}
+
+.tab-close-btn:hover {
+  background: var(--color-danger-600);
+  color: white;
+}
+
+.tab--pinned .tab-close-btn {
+  display: none;
+}
+
+/* ── Trailing buttons ── */
+.tabbar-trailing {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.tab-action-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-family: var(--font-satoshi);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease;
+}
+
+.tab-action-btn:hover {
+  background: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+/* ── Hover preview (thumbnail tooltip) ── */
+.tab-preview {
+  position: fixed;
+  z-index: 10000;
+  width: 320px;
+  height: 200px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  background: var(--surface-card);
+  pointer-events: none;
+}
+.tab-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Drag over state ── */
+.tab--drag-over {
+  border-left: 2px solid var(--accent);
+}
+
+/* ── Context menu ── */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  min-width: 160px;
+  font-family: var(--font-satoshi);
+  font-size: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.context-menu-item {
+  padding: 6px 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.context-menu-item:hover {
+  background: var(--border-subtle);
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0;
+}

@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "rootDir": "src",
+    "outDir": "build",
+    "lib": ["ES2021", "DOM"],
+    "types": ["node", "jest"],
+    "strict": true,
+    "esModuleInterop": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "build", "tests"]
+}

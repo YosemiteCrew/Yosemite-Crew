@@ -30,7 +30,7 @@ export type CreateContactRequestInput = {
   userId?: string;
   email?: string;
   organisationId?: string;
-  companionId?: string;
+  patientId?: string;
   parentId?: string;
   dsarDetails?: DsraDetails;
   attachments?: ContactAttachment[];
@@ -98,7 +98,7 @@ export const ContactService = {
           userId: input.userId ?? undefined,
           email: input.email ?? undefined,
           organisationId: input.organisationId ?? undefined,
-          companionId: input.companionId ?? undefined,
+          patientId: input.patientId ?? undefined,
           parentId: input.parentId ?? undefined,
           dsarDetails,
           complaintContext: undefined,
@@ -129,7 +129,7 @@ export const ContactService = {
             userId: input.userId,
             email: input.email,
             organisationId: input.organisationId,
-            companionId: input.companionId,
+            patientId: input.patientId,
             parentId: input.parentId,
             dsarDetails,
             complaintContext: undefined,

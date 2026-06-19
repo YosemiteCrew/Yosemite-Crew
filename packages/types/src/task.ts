@@ -3,6 +3,45 @@ import type { Bundle, CodeableConcept, Extension, Reference, Task } from '@yosem
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type TaskAudience = 'EMPLOYEE_TASK' | 'PARENT_TASK';
 export type TaskSource = 'YC_LIBRARY' | 'ORG_TEMPLATE' | 'CUSTOM';
+export type TaskKind = 'MEDICATION' | 'OBSERVATION_TOOL' | 'HYGIENE' | 'DIET' | 'CUSTOM';
+export type TaskCategory =
+  | 'MEDICATION'
+  | 'CARE'
+  | 'DIET'
+  | 'PROCEDURE'
+  | 'DIAGNOSTIC'
+  | 'COMMUNICATION'
+  | 'BILLING'
+  | 'RECORD'
+  | 'ADMIN'
+  | 'CUSTOM';
+
+export const TASK_KIND_TAXONOMY: readonly TaskKind[] = [
+  'MEDICATION',
+  'OBSERVATION_TOOL',
+  'HYGIENE',
+  'DIET',
+  'CUSTOM',
+] as const;
+
+export const TASK_CATEGORY_TAXONOMY: readonly TaskCategory[] = [
+  'MEDICATION',
+  'CARE',
+  'DIET',
+  'PROCEDURE',
+  'DIAGNOSTIC',
+  'COMMUNICATION',
+  'BILLING',
+  'RECORD',
+  'ADMIN',
+  'CUSTOM',
+] as const;
+
+export const isTaskCategory = (value: string): value is TaskCategory =>
+  TASK_CATEGORY_TAXONOMY.includes(value as TaskCategory);
+
+export const isTaskKind = (value: string): value is TaskKind =>
+  TASK_KIND_TAXONOMY.includes(value as TaskKind);
 
 export interface MedicationDoseInput {
   time?: string;
@@ -22,7 +61,8 @@ export interface TaskLike {
   id: string;
   organisationId: string | null;
   appointmentId: string | null;
-  companionId: string | null;
+  patientId: string | null;
+  companionId?: string | null;
   createdBy: string;
   assignedBy: string | null;
   assignedTo: string;
@@ -32,6 +72,7 @@ export interface TaskLike {
   libraryTaskId: string | null;
   templateId: string | null;
   category: string;
+  subcategory: string | null;
   name: string;
   description: string | null;
   additionalNotes: string | null;
@@ -54,6 +95,7 @@ export interface TaskLike {
 export interface CreateCustomTaskInput {
   organisationId: string;
   appointmentId?: string;
+  patientId?: string;
   companionId?: string;
   createdBy: string;
   assignedBy?: string;
@@ -64,6 +106,7 @@ export interface CreateCustomTaskInput {
   libraryTaskId?: string;
   templateId?: string;
   category: string;
+  subcategory?: string;
   name: string;
   description?: string;
   additionalNotes?: string;
@@ -111,6 +154,28 @@ export interface TaskUpdateInput {
     endDate?: Date | null;
     cronExpression?: string | null;
   } | null;
+}
+
+export interface TaskListFilters {
+  organisationId?: string;
+  appointmentId?: string;
+  encounterId?: string;
+  episodeOfCareId?: string;
+  admissionId?: string;
+  companionId?: string;
+  clientId?: string;
+  templateInstanceId?: string;
+  scheduleId?: string;
+  audience?: TaskAudience;
+  assignedTo?: string;
+  assignedRole?: TaskAudience;
+  status?: TaskStatus[];
+  category?: TaskCategory;
+  subcategory?: string;
+  kind?: TaskKind;
+  dueFrom?: Date;
+  dueTo?: Date;
+  includeCompleted?: boolean;
 }
 
 const TASK_AUDIENCE_EXTENSION_URL =
@@ -265,10 +330,12 @@ const taskExtensions = (task: TaskLike): Extension[] => {
     });
   }
 
-  if (task.companionId) {
+  const patientId = task.patientId ?? task.companionId;
+
+  if (patientId) {
     extensions.push({
       url: TASK_COMPANION_EXTENSION_URL,
-      valueString: task.companionId,
+      valueString: patientId,
     });
   }
 
@@ -338,31 +405,35 @@ const taskExtensions = (task: TaskLike): Extension[] => {
   return extensions;
 };
 
-const taskToFhir = (task: TaskLike): Task => ({
-  resourceType: 'Task',
-  id: task.id,
-  status: statusToFhir(task.status),
-  intent: 'order',
-  description: task.description ?? task.name,
-  focus: task.templateId ? { reference: `PlanDefinition/${task.templateId}` } : undefined,
-  for: task.companionId ? { reference: `Patient/${task.companionId}` } : undefined,
-  owner: { reference: `Practitioner/${task.assignedTo}` },
-  authoredOn: task.createdAt.toISOString(),
-  lastModified: task.updatedAt.toISOString(),
-  executionPeriod: { start: task.dueAt.toISOString() },
-  basedOn: task.appointmentId ? [{ reference: `Appointment/${task.appointmentId}` }] : undefined,
-  code: {
-    coding: [
-      {
-        system: 'https://yosemitecrew.com/fhir/CodeSystem/task-category',
-        code: task.category,
-        display: task.category,
-      },
-    ],
-    text: task.category,
-  },
-  extension: taskExtensions(task),
-});
+const taskToFhir = (task: TaskLike): Task => {
+  const patientId = task.patientId ?? task.companionId;
+
+  return {
+    resourceType: 'Task',
+    id: task.id,
+    status: statusToFhir(task.status),
+    intent: 'order',
+    description: task.description ?? task.name,
+    focus: task.templateId ? { reference: `PlanDefinition/${task.templateId}` } : undefined,
+    for: patientId ? { reference: `Patient/${patientId}` } : undefined,
+    owner: { reference: `Practitioner/${task.assignedTo}` },
+    authoredOn: task.createdAt.toISOString(),
+    lastModified: task.updatedAt.toISOString(),
+    executionPeriod: { start: task.dueAt.toISOString() },
+    basedOn: task.appointmentId ? [{ reference: `Appointment/${task.appointmentId}` }] : undefined,
+    code: {
+      coding: [
+        {
+          system: 'https://yosemitecrew.com/fhir/CodeSystem/task-category',
+          code: task.category,
+          display: task.category,
+        },
+      ],
+      text: task.category,
+    },
+    extension: taskExtensions(task),
+  };
+};
 
 const taskFromFhir = (
   task: Task,
@@ -389,6 +460,7 @@ const taskFromFhir = (
       defaults?.organisationId ??
       '',
     appointmentId: getStringExtension(extensions, TASK_APPOINTMENT_EXTENSION_URL) ?? undefined,
+    patientId: getStringExtension(extensions, TASK_COMPANION_EXTENSION_URL) ?? undefined,
     companionId: getStringExtension(extensions, TASK_COMPANION_EXTENSION_URL) ?? undefined,
     createdBy:
       getStringExtension(extensions, TASK_CREATED_BY_EXTENSION_URL) ?? defaults?.createdBy ?? '',

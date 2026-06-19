@@ -1,0 +1,142 @@
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 500px at 50% -10%, rgba(0, 124, 245, 0.08), transparent 60%),
+    var(--surface-page);
+}
+/* Frameless window: a draggable title-bar strip across the empty top edge
+   so the window can be moved (there is no native title bar to grab). */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  /* no-drag: in tab mode this page can stay mounted as the window's base
+     layer behind the tab-bar WebContentsView, and a drag region here is
+     promoted to a window-level native drag rect that swallows clicks on the
+     tab-bar controls stacked above it. */
+  -webkit-app-region: no-drag;
+  z-index: 10;
+}
+.wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  animation: rise 0.5s var(--ease-spring) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 28px 28px 22px;
+  text-align: center;
+}
+.badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  object-fit: contain;
+  margin-bottom: 14px;
+}
+h1 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
+}
+.version {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-brand);
+  margin-top: 2px;
+}
+.divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 16px 0;
+}
+.notes {
+  text-align: left;
+  max-height: 320px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.notes ul {
+  list-style: none;
+  padding: 0;
+}
+.notes li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.notes li:last-child {
+  border-bottom: none;
+}
+.notes li::before {
+  content: '•  ';
+  color: var(--text-brand);
+  font-weight: 600;
+}
+.cta {
+  margin-top: 18px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--btn-fg);
+  background: var(--btn-bg);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 11px 28px;
+  cursor: pointer;
+  box-shadow: var(--shadow-cta);
+  transition:
+    transform 0.08s var(--ease-spring),
+    filter 0.15s;
+}
+.cta:hover {
+  filter: brightness(1.08);
+}
+.cta:active {
+  transform: translateY(1px) scale(0.99);
+}
+.cta:focus-visible {
+  outline: 3px solid var(--btn-bg);
+  outline-offset: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    background:
+      radial-gradient(900px 500px at 50% -10%, rgba(0, 124, 245, 0.14), transparent 60%),
+      var(--surface-page);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wrap {
+    animation: none;
+  }
+  .cta {
+    transition: none;
+  }
+}

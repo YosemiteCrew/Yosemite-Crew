@@ -313,6 +313,7 @@ export const BookingFormScreen: React.FC = () => {
           companionId: selectedCompanionId!,
           businessId,
           serviceId: resolvedServiceId,
+          productItemId: selectedService?.productItemId ?? null,
           serviceName: selectedServiceName!,
           specialityId:
             selectedService?.specialityId ?? serviceSpecialtyId ?? null,

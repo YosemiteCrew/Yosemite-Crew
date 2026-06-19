@@ -4,7 +4,6 @@ import type {Region} from 'react-native-maps';
 import type {RootState} from '@/app/store';
 import type {BusinessCategory, VetBusiness} from '../types';
 import type {UserCoords} from './useLocationPermission';
-import {MOCK_CLINICS} from '../mocks/clinicMocks';
 import {useMapRegionFilter} from './useMapRegionFilter';
 import {calculateDistanceKm, kmToMi} from '../utils/distanceCalc';
 
@@ -21,15 +20,6 @@ export interface ClinicMapDiscoveryState {
   enrichWithDistance: (userCoords: UserCoords) => VetBusiness[];
   pinAndSelectClinic: (business: VetBusiness) => void;
 }
-
-const mergeAndDeduplicate = (
-  redux: VetBusiness[],
-  mocks: VetBusiness[],
-): VetBusiness[] => {
-  const knownIds = new Set(redux.map(b => b.id));
-  const uniqueMocks = mocks.filter(m => !knownIds.has(m.id));
-  return [...redux, ...uniqueMocks];
-};
 
 const enrichClinicWithDistance = (
   clinic: VetBusiness,
@@ -61,10 +51,7 @@ export const useClinicMapDiscovery = (
   );
   const [openNow, setOpenNow] = useState(false);
 
-  const allClinics = useMemo(
-    () => mergeAndDeduplicate(reduxBusinesses, MOCK_CLINICS),
-    [reduxBusinesses],
-  );
+  const allClinics = useMemo(() => reduxBusinesses, [reduxBusinesses]);
 
   useEffect(() => {
     if (!initialSelectedId || !selectionToken) return;

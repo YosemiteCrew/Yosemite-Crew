@@ -1,0 +1,37 @@
+# Build output
+build/
+dist/
+
+# Jest coverage (incl. custom coverage output dirs — these embed absolute local
+# paths and must never reach the public repo)
+coverage/
+coverage-*/
+
+# Playwright test results
+test-results/
+
+# Analysis / history files
+.Rhistory
+
+# Internal agent working docs — not for the public repo
+FEATURES.md
+FIXES-FOR-OPENCODE.md
+OPENCODE-TASKS.md
+docs/POLISH-BACKLOG.md
+docs/desktop-feature-plan.md
+
+# Local-only Sonar pipeline runner (carries an analysis token — never commit)
+sonar-local.sh
+
+# Local Sonar issue fetch — token file and fetched output (never commit)
+.sonar-token
+sonar-issues.json
+
+# Local dev launchers (contain machine-specific absolute paths) and their logs
+*.command
+.setup.log
+.setup-done
+.pack-done
+.pack-fail
+.dist-done
+.archlint.log

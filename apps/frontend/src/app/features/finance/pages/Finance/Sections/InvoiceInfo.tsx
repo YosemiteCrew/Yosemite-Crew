@@ -13,6 +13,7 @@ import { toTitle } from '@/app/lib/validators';
 import { Invoice } from '@yosemite-crew/types';
 import React, { useId, useMemo, useState } from 'react';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+import { getAppointmentCompanion } from '@/app/lib/appointments';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
@@ -73,10 +74,10 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     if (appointment) {
       return {
         pet: formatCompanionNameWithOwnerLastName(
-          appointment.companion.name,
-          appointment.companion.parent
+          getAppointmentCompanion(appointment).name,
+          getAppointmentCompanion(appointment).parent
         ),
-        parent: getOwnerFirstName(appointment.companion.parent) || '-',
+        parent: getOwnerFirstName(getAppointmentCompanion(appointment).parent) || '-',
         service: appointment.appointmentType?.name,
       };
     }

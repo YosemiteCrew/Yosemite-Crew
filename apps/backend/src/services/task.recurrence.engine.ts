@@ -85,7 +85,7 @@ const cloneFromMasterPrisma = (
     id: string;
     organisationId: string | null;
     appointmentId: string | null;
-    companionId: string | null;
+    patientId: string | null;
     createdBy: string;
     assignedBy: string | null;
     assignedTo: string;
@@ -109,7 +109,7 @@ const cloneFromMasterPrisma = (
 ) => ({
   organisationId: master.organisationId ?? undefined,
   appointmentId: master.appointmentId ?? undefined,
-  companionId: master.companionId ?? undefined,
+  patientId: master.patientId ?? undefined,
   createdBy: master.createdBy,
   assignedBy: master.assignedBy ?? undefined,
   assignedTo: master.assignedTo,

@@ -188,7 +188,7 @@ export interface FormSubmissionDocument {
   formId: Schema.Types.ObjectId; // Reference to Form
   formVersion: number;
   appointmentId?: string;
-  companionId?: string;
+  patientId?: string;
   parentId?: string;
   submittedBy?: string;
   answers: Record<string, unknown>;
@@ -202,7 +202,7 @@ const FormSubmissionSchema = new Schema(
     formVersion: { type: Number, required: true },
 
     appointmentId: String,
-    companionId: String,
+    patientId: String,
     parentId: String,
     submittedBy: String,
 
@@ -251,7 +251,7 @@ const FormSubmissionSchema = new Schema(
 FormSubmissionSchema.index({ formId: 1 });
 FormSubmissionSchema.index({ formId: 1, formVersion: 1 });
 FormSubmissionSchema.index({ appointmentId: 1 });
-FormSubmissionSchema.index({ companionId: 1 });
+FormSubmissionSchema.index({ patientId: 1 });
 FormSubmissionSchema.index({ parentId: 1 });
 FormSubmissionSchema.index({ submittedAt: -1 });
 FormSubmissionSchema.index({ "signing.documentId": 1 });

@@ -17,14 +17,14 @@ describe("CompanionHistoryController", () => {
   let statusMock: jest.Mock;
 
   const organisationId = "aaaaaaaaaaaaaaaaaaaaaaaa";
-  const companionId = "bbbbbbbbbbbbbbbbbbbbbbbb";
+  const patientId = "bbbbbbbbbbbbbbbbbbbbbbbb";
 
   beforeEach(() => {
     jsonMock = jest.fn();
     statusMock = jest.fn().mockReturnValue({ json: jsonMock });
 
     req = {
-      params: { organisationId, companionId },
+      params: { organisationId, patientId },
       query: {},
     };
 
@@ -80,7 +80,7 @@ describe("CompanionHistoryController", () => {
     expect(mockedCompanionHistoryService.listForCompanion).toHaveBeenCalledWith(
       {
         organisationId,
-        companionId,
+        patientId,
         limit: undefined,
         cursor: undefined,
         types: [

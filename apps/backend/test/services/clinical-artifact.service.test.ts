@@ -471,6 +471,8 @@ describe("ClinicalArtifactService", () => {
   });
 
   it("reconciles inventory when a signed prescription is revised", async () => {
+    mockedPrisma.clinicalArtifact.update.mockReset();
+    mockedPrisma.prescription.update.mockReset();
     const originalMedications = [
       { inventoryItemId: "item-1", quantity: 2, sourceLineKey: "line-1" },
     ];
@@ -537,6 +539,7 @@ describe("ClinicalArtifactService", () => {
     await ClinicalArtifactService.updatePrescription(
       "prescription-2",
       {
+        status: "IN_PROGRESS",
         medications: revisedMedications,
         metadata: { source: "revision" },
       },
@@ -734,6 +737,8 @@ describe("ClinicalArtifactService", () => {
   });
 
   it("updates a SOAP note and the shared artifact", async () => {
+    mockedPrisma.clinicalArtifact.update.mockReset();
+    mockedPrisma.soapNote.update.mockReset();
     mockedPrisma.soapNote.findUnique.mockResolvedValueOnce({
       id: soapNoteId,
       artifactId,
@@ -822,6 +827,292 @@ describe("ClinicalArtifactService", () => {
     expect(result.soapNote.subjective).toEqual({
       chiefComplaint: "Updated subjective",
     });
+  });
+
+  it("rejects direct edits to final SOAP notes", async () => {
+    mockedPrisma.soapNote.findUnique.mockResolvedValueOnce({
+      id: soapNoteId,
+      artifactId,
+      subjective: { chiefComplaint: "Subjective" },
+      objective: { findings: "Objective" },
+      assessment: { diagnosis: "Assessment" },
+      plan: { instructions: "Plan" },
+      diagnoses: [],
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: {
+        id: artifactId,
+        organisationId,
+        appointmentId: null,
+        caseId: null,
+        encounterId: null,
+        kind: "SOAP_NOTE",
+        status: "COMPLETED",
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: null,
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+
+    await expect(
+      ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { summary: "edited while final" },
+        organisationId,
+      ),
+    ).rejects.toThrow("Artifact is final. Reopen or amend it before editing.");
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+  });
+
+  it("finalizes and reopens SOAP notes through explicit lifecycle helpers", async () => {
+    mockedPrisma.clinicalArtifact.update.mockReset();
+    mockedPrisma.soapNote.update.mockReset();
+    mockedPrisma.soapNote.findUnique.mockResolvedValue({
+      id: soapNoteId,
+      artifactId,
+      subjective: { chiefComplaint: "Subjective" },
+      objective: { findings: "Objective" },
+      assessment: { diagnosis: "Assessment" },
+      plan: { instructions: "Plan" },
+      diagnoses: [],
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: {
+        id: artifactId,
+        organisationId,
+        appointmentId: null,
+        caseId: null,
+        encounterId: null,
+        kind: "SOAP_NOTE",
+        status: "IN_PROGRESS",
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: null,
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      id: artifactId,
+      organisationId,
+      kind: "SOAP_NOTE",
+      status: "COMPLETED",
+      appointmentId: null,
+      caseId: null,
+      encounterId: null,
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: null,
+      signedBy: null,
+      signedAt: null,
+      summary: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockedPrisma.soapNote.update.mockResolvedValueOnce({
+      id: soapNoteId,
+      artifactId,
+      subjective: { chiefComplaint: "Subjective" },
+      objective: { findings: "Objective" },
+      assessment: { diagnosis: "Assessment" },
+      plan: { instructions: "Plan" },
+      diagnoses: [],
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    await ClinicalArtifactService.finalizeSoapNote(soapNoteId, organisationId);
+
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+
+    mockedPrisma.soapNote.findUnique.mockResolvedValueOnce({
+      id: soapNoteId,
+      artifactId,
+      subjective: { chiefComplaint: "Subjective" },
+      objective: { findings: "Objective" },
+      assessment: { diagnosis: "Assessment" },
+      plan: { instructions: "Plan" },
+      diagnoses: [],
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: {
+        id: artifactId,
+        organisationId,
+        appointmentId: null,
+        caseId: null,
+        encounterId: null,
+        kind: "SOAP_NOTE",
+        status: "COMPLETED",
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: null,
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      id: artifactId,
+      organisationId,
+      kind: "SOAP_NOTE",
+      status: "IN_PROGRESS",
+      appointmentId: null,
+      caseId: null,
+      encounterId: null,
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: null,
+      signedBy: null,
+      signedAt: null,
+      summary: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+    });
+    mockedPrisma.soapNote.update.mockResolvedValueOnce({
+      id: soapNoteId,
+      artifactId,
+      subjective: { chiefComplaint: "Subjective" },
+      objective: { findings: "Objective" },
+      assessment: { diagnosis: "Assessment" },
+      plan: { instructions: "Plan" },
+      diagnoses: [],
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+    });
+
+    await ClinicalArtifactService.reopenSoapNote(soapNoteId, organisationId);
+
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "IN_PROGRESS" }),
+      }),
+    );
+  });
+
+  it("amends a discharge summary into a fresh draft record", async () => {
+    mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce({
+      id: "discharge-1",
+      artifactId,
+      summary: { text: "Recovered" },
+      diagnoses: [{ code: "A1" }],
+      medications: [],
+      followUp: { afterDays: 7 },
+      instructions: { text: "Rest" },
+      metadata: { source: "template" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: {
+        id: artifactId,
+        organisationId,
+        appointmentId: "appt-1",
+        caseId: null,
+        encounterId: "enc-1",
+        kind: "DISCHARGE_SUMMARY",
+        status: "COMPLETED",
+        templateId: "tmpl-3",
+        templateVersion: 5,
+        templateVersionId: "tmpl-ver-3",
+        authorId: "author-1",
+        signedBy: null,
+        signedAt: null,
+        summary: "Discharge summary",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+    mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce({
+      id: "artifact-amend-1",
+      organisationId,
+      kind: "DISCHARGE_SUMMARY",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      templateId: "tmpl-3",
+      templateVersion: 5,
+      templateVersionId: "tmpl-ver-3",
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Discharge summary",
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockedPrisma.dischargeSummary.create.mockResolvedValueOnce({
+      id: "discharge-amend-1",
+      artifactId: "artifact-amend-1",
+      summary: { text: "Recovered" },
+      diagnoses: [{ code: "A1" }],
+      medications: [],
+      followUp: { afterDays: 7 },
+      instructions: { text: "Rest" },
+      metadata: { source: "template" },
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockedPrisma.renderedDocument.create.mockResolvedValueOnce({
+      id: "doc-amend-1",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: "artifact-amend-1",
+      templateInstanceId: null,
+      clinicalArtifactId: "artifact-amend-1",
+      templateId: "tmpl-3",
+      templateVersion: 5,
+      templateVersionId: "tmpl-ver-3",
+      kind: "DISCHARGE_SUMMARY",
+      version: 1,
+      title: "Discharge summary",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: null,
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+      signature: null,
+    });
+
+    const amended = await ClinicalArtifactService.amendDischargeSummary(
+      "discharge-1",
+      organisationId,
+    );
+
+    expect(amended.artifact.status).toBe("DRAFT");
+    expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "DRAFT",
+          templateId: "tmpl-3",
+        }),
+      }),
+    );
   });
 
   it("rejects updates for the wrong organisation", async () => {

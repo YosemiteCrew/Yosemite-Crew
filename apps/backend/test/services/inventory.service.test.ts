@@ -237,6 +237,23 @@ describe("Inventory service", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("rejects invalid inventory filters and honors empty status lists", async () => {
+    await expect(
+      InventoryService.listItems({
+        organisationId: "org-1",
+        status: "BROKEN" as never,
+      } as never),
+    ).rejects.toBeInstanceOf(InventoryServiceError);
+
+    const emptyResult = await InventoryService.listItems({
+      organisationId: "org-1",
+      status: [],
+    } as never);
+
+    expect(emptyResult).toEqual([]);
+    expect(prisma.inventoryItem.findMany).not.toHaveBeenCalled();
+  });
+
   it("returns categories from the seed catalog when the database is empty", async () => {
     const categories = await InventoryService.getCategories();
     expect(categories).toEqual([]);
@@ -531,5 +548,57 @@ describe("Inventory service", () => {
 
     const expiring = await InventoryAlertService.getExpiringItems("org-1", 7);
     expect(expiring).toHaveLength(1);
+  });
+
+  it("rejects invalid create input and missing stock records", async () => {
+    await expect(
+      InventoryService.createItem({
+        name: "Bandage",
+        category: "Consumables",
+        businessType: "HOSPITAL",
+      } as never),
+    ).rejects.toThrow("organisationId is required");
+
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    await expect(
+      InventoryAdjustmentService.adjustStock({
+        itemId: "item-missing",
+        newOnHand: 10,
+        reason: "MANUAL_ADJUSTMENT",
+      }),
+    ).rejects.toThrow("Item not found");
+  });
+
+  it("rejects stock allocations that exceed unallocated inventory", async () => {
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "item-1",
+      onHand: 5,
+      allocated: 5,
+    });
+
+    await expect(
+      InventoryAllocationService.allocateStock({
+        itemId: "item-1",
+        quantity: 1,
+        referenceId: "ref-1",
+      }),
+    ).rejects.toThrow("Not enough unallocated stock");
+  });
+
+  it("rejects invalid vendor and meta-field inputs", async () => {
+    await expect(
+      InventoryVendorService.createVendor({
+        name: "Vendor",
+      } as never),
+    ).rejects.toThrow("organisationId required");
+
+    await expect(
+      InventoryMetaFieldService.createField({
+        businessType: "INVALID",
+        fieldKey: "key",
+        label: "Label",
+        values: [],
+      }),
+    ).rejects.toThrow("Invalid businessType");
   });
 });

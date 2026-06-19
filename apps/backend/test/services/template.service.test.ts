@@ -426,6 +426,220 @@ describe("TemplateService", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("resolves a linked user template before organisation defaults", async () => {
+    const versionId = "ver-1";
+    mockedPrisma.template.findMany.mockResolvedValueOnce([
+      {
+        id: "user-template-1",
+        ownership: "USER_TEMPLATE",
+        organisationId,
+        ownerUserId: "user-1",
+        kind: "SOAP_NOTE",
+        name: "User SOAP",
+        description: null,
+        status: "PUBLISHED",
+        scope: "SERVICE",
+        rules: {
+          appliesTo: {
+            serviceIds: ["svc-1"],
+          },
+        },
+        latestVersion: 1,
+        publishedVersion: 1,
+        createdBy: "user-1",
+        updatedBy: "user-1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        versions: [
+          {
+            id: versionId,
+            version: 1,
+            schemaSnapshot: {
+              sections: [],
+            },
+            renderConfigSnapshot: { layout: "single-column" },
+            validationSnapshot: { allowEmptyPlan: false },
+            publishedAt: new Date(),
+            createdBy: "user-1",
+          },
+        ],
+        catalogLinks: [],
+      },
+    ]);
+    mockedPrisma.templateVersion.findUnique.mockResolvedValueOnce({
+      id: versionId,
+      templateId: "user-template-1",
+      version: 1,
+      schemaSnapshot: { sections: [] },
+      renderConfigSnapshot: { layout: "single-column" },
+      validationSnapshot: { allowEmptyPlan: false },
+      publishedAt: new Date(),
+      createdBy: "user-1",
+    });
+
+    const result = await TemplateService.resolve({
+      organisationId,
+      kind: "SOAP_NOTE",
+      serviceId: "svc-1",
+      ownerUserId: "user-1",
+    });
+
+    expect(mockedPrisma.template.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId,
+          ownerUserId: "user-1",
+          ownership: "USER_TEMPLATE",
+          kind: "SOAP_NOTE",
+        }),
+      }),
+    );
+    expect(mockedPrisma.templateVersion.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          templateId_version: {
+            templateId: "user-template-1",
+            version: 1,
+          },
+        },
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        templateId: "user-template-1",
+        templateVersion: 1,
+        templateVersionId: versionId,
+        source: "USER",
+        ownerUserId: "user-1",
+        kind: "SOAP_NOTE",
+        reason: "Matched user template linked to service/species/mode.",
+      }),
+    );
+  });
+
+  it("falls back to the organisation default template and reports not found when no match exists", async () => {
+    mockedPrisma.template.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "org-default-1",
+          ownership: "ORG_TEMPLATE",
+          organisationId,
+          ownerUserId: null,
+          kind: "SOAP_NOTE",
+          name: "Org default SOAP",
+          description: null,
+          status: "PUBLISHED",
+          scope: "ORGANISATION",
+          rules: {
+            appliesTo: {
+              defaultForKind: true,
+            },
+          },
+          latestVersion: 1,
+          publishedVersion: 1,
+          createdBy: "creator-1",
+          updatedBy: "creator-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          versions: [
+            {
+              id: "org-default-version-1",
+              version: 1,
+              schemaSnapshot: {
+                sections: [],
+              },
+              renderConfigSnapshot: {},
+              validationSnapshot: {},
+              publishedAt: new Date(),
+              createdBy: "creator-1",
+            },
+          ],
+          catalogLinks: [],
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "org-default-1",
+          ownership: "ORG_TEMPLATE",
+          organisationId,
+          ownerUserId: null,
+          kind: "SOAP_NOTE",
+          name: "Org default SOAP",
+          description: null,
+          status: "PUBLISHED",
+          scope: "ORGANISATION",
+          rules: {
+            appliesTo: {
+              defaultForKind: true,
+            },
+          },
+          latestVersion: 1,
+          publishedVersion: 1,
+          createdBy: "creator-1",
+          updatedBy: "creator-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          versions: [
+            {
+              id: "org-default-version-1",
+              version: 1,
+              schemaSnapshot: {
+                sections: [],
+              },
+              renderConfigSnapshot: {},
+              validationSnapshot: {},
+              publishedAt: new Date(),
+              createdBy: "creator-1",
+            },
+          ],
+          catalogLinks: [],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    mockedPrisma.templateVersion.findUnique.mockResolvedValueOnce({
+      id: "org-default-version-1",
+      templateId: "org-default-1",
+      version: 1,
+      schemaSnapshot: { sections: [] },
+      renderConfigSnapshot: {},
+      validationSnapshot: {},
+      publishedAt: new Date(),
+      createdBy: "creator-1",
+    });
+
+    await expect(
+      TemplateService.resolve({
+        organisationId,
+        kind: "SOAP_NOTE",
+        ownerUserId: "user-1",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        templateId: "org-default-1",
+        source: "ORGANISATION",
+        reason: "Matched organisation default template for kind (default).",
+      }),
+    );
+  });
+
+  it("throws when no resolver candidate is available", async () => {
+    mockedPrisma.template.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await expect(
+      TemplateService.resolve({
+        organisationId,
+        kind: "SOAP_NOTE",
+        ownerUserId: "user-1",
+      }),
+    ).rejects.toThrow("Template not found");
+  });
+
   it("creates a new version when updating a published template", async () => {
     mockedPrisma.template.findUnique
       .mockResolvedValueOnce({

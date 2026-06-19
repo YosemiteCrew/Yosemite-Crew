@@ -449,7 +449,7 @@ describe("AppointmentController", () => {
 
   describe("listByCompanion", () => {
     it("returns 200 on success", async () => {
-      req = mockRequest({ params: { companionId: "123" } });
+      req = mockRequest({ params: { patientId: "123" } });
       (
         AppointmentService.getAppointmentsForCompanion as jest.Mock
       ).mockResolvedValue(["data"]);
@@ -459,7 +459,7 @@ describe("AppointmentController", () => {
     });
 
     it("handles errors", async () => {
-      req = mockRequest({ params: { companionId: "123" } });
+      req = mockRequest({ params: { patientId: "123" } });
       (
         AppointmentService.getAppointmentsForCompanion as jest.Mock
       ).mockRejectedValue(new Error("Fail"));
@@ -588,21 +588,21 @@ describe("AppointmentController", () => {
   });
 
   describe("getDocumentUplaodURL", () => {
-    it("returns 400 if companionId missing", async () => {
+    it("returns 400 if patientId missing", async () => {
       req = mockRequest({ body: { mimeType: "image/png" } });
       await AppointmentController.getDocumentUplaodURL(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("returns 400 if mimeType missing", async () => {
-      req = mockRequest({ body: { companionId: "comp-1" } });
+      req = mockRequest({ body: { patientId: "comp-1" } });
       await AppointmentController.getDocumentUplaodURL(req as any, res as any);
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("returns 200 and url/key on success", async () => {
       req = mockRequest({
-        body: { companionId: "comp-1", mimeType: "image/png" },
+        body: { patientId: "comp-1", mimeType: "image/png" },
       });
       (generatePresignedUrl as jest.Mock).mockResolvedValue({
         url: "mock-url",
@@ -625,7 +625,7 @@ describe("AppointmentController", () => {
 
     it("returns 500 on error", async () => {
       req = mockRequest({
-        body: { companionId: "comp-1", mimeType: "image/png" },
+        body: { patientId: "comp-1", mimeType: "image/png" },
       });
       (generatePresignedUrl as jest.Mock).mockRejectedValue(
         new Error("S3 Fail"),

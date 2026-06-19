@@ -11,7 +11,11 @@ import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { OrgRequest } from "src/middlewares/rbac";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
-type UploadUrlBody = { companionId?: string; mimeType?: string };
+type MobileUploadUrlBody = {
+  patientId?: string;
+  companionId?: string;
+  mimeType?: string;
+};
 
 type DocumentRequestBody = {
   title?: string;
@@ -55,22 +59,25 @@ const getFirstQueryValue = (value: unknown): string | undefined => {
 export const DocumentController = {
   // Generate Pre-signed URL for document upload
   getUploadUrl: async (
-    req: Request<unknown, unknown, UploadUrlBody>,
+    req: Request<unknown, unknown, MobileUploadUrlBody>,
     res: Response,
   ) => {
     try {
-      const { companionId, mimeType } = req.body;
+      const { patientId, companionId, mimeType } = req.body;
+      const resolvedPatientId = patientId ?? companionId;
 
-      if (!companionId || !mimeType) {
+      if (!resolvedPatientId || !mimeType) {
         return res
           .status(400)
-          .json({ message: "companionId and mimeType are required." });
+          .json({
+            message: "patientId/companionId and mimeType are required.",
+          });
       }
 
       const { url, key } = await generatePresignedUrl(
         mimeType,
         "companion",
-        companionId,
+        resolvedPatientId,
       );
 
       return res.status(200).json({ url, key });
@@ -84,14 +91,14 @@ export const DocumentController = {
 
   // Create Document for Companion
   createDocument: async (
-    req: Request<{ companionId?: string }, unknown, DocumentRequestBody>,
+    req: Request<{ patientId?: string }, unknown, DocumentRequestBody>,
     res: Response,
   ) => {
     try {
       const authUserId = resolveUserIdFromRequest(req);
-      const companionId = req.params.companionId;
+      const patientId = req.params.patientId;
 
-      if (!companionId) {
+      if (!patientId) {
         return res.status(400).json({ message: "Companion ID is required." });
       }
 
@@ -110,7 +117,7 @@ export const DocumentController = {
 
       const created = await DocumentService.create(
         {
-          companionId,
+          patientId,
           title: body.title!,
           category: body.category!,
           subcategory: body.subcategory,
@@ -136,20 +143,20 @@ export const DocumentController = {
   },
 
   createDocumentPms: async (
-    req: Request<{ companionId?: string }, unknown, DocumentRequestBody>,
+    req: Request<{ patientId?: string }, unknown, DocumentRequestBody>,
     res: Response,
   ) => {
     try {
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
       const pmsUserId = resolveUserIdFromRequest(req);
-      const { companionId } = req.params;
+      const { patientId } = req.params;
 
       if (!pmsUserId) {
         return res.status(401).json({ message: "PMS user not authenticated." });
       }
 
-      if (!companionId) {
+      if (!patientId) {
         return res.status(400).json({ message: "Companion ID is required." });
       }
 
@@ -160,7 +167,7 @@ export const DocumentController = {
       const body = req.body;
       const created = await DocumentService.create(
         {
-          companionId,
+          patientId,
           title: body.title!,
           category: body.category!,
           subcategory: body.subcategory,
@@ -187,17 +194,12 @@ export const DocumentController = {
   },
 
   listDocumentsForParent: async (
-    req: Request<
-      { companionId?: string },
-      unknown,
-      unknown,
-      ListDocumentsQuery
-    >,
+    req: Request<{ patientId?: string }, unknown, unknown, ListDocumentsQuery>,
     res: Response,
   ) => {
     try {
       const authUserId = resolveUserIdFromRequest(req);
-      const { companionId } = req.params;
+      const { patientId } = req.params;
       const category = req.query.category;
       const subcategory = req.query.subcategory;
 
@@ -205,7 +207,7 @@ export const DocumentController = {
         return res.status(401).json({ message: "User not authenticated." });
       }
 
-      if (!companionId) {
+      if (!patientId) {
         return res.status(400).json({ message: "Companion ID is required." });
       }
 
@@ -217,7 +219,7 @@ export const DocumentController = {
       }
 
       const docs = await DocumentService.listForParent({
-        companionId,
+        patientId,
         parentId: authUserMobile.parentId,
         category,
         subcategory,
@@ -328,7 +330,7 @@ export const DocumentController = {
   },
 
   listForPms: async (
-    req: Request<{ companionId?: string }, unknown, unknown, ListPmsQuery>,
+    req: Request<{ patientId?: string }, unknown, unknown, ListPmsQuery>,
     res: Response,
   ) => {
     try {
@@ -341,11 +343,11 @@ export const DocumentController = {
           .json({ message: "Not authenticated as PMS user." });
       }
 
-      const { companionId } = req.params;
+      const { patientId } = req.params;
       const { category, subcategory, appointmentId } =
         (req.body as Record<string, unknown>) ?? {};
 
-      if (!companionId) {
+      if (!patientId) {
         return res.status(400).json({ message: "Companion ID is required." });
       }
 
@@ -354,7 +356,7 @@ export const DocumentController = {
       }
 
       const docs = await DocumentService.listForPms({
-        companionId,
+        patientId,
         organisationId,
         category: getFirstQueryValue(category),
         subcategory: getFirstQueryValue(subcategory),
@@ -564,14 +566,14 @@ export const DocumentController = {
   searchDocument: async (req: Request, res: Response) => {
     try {
       const authUserId = resolveUserIdFromRequest(req);
-      const { companionId } = req.params;
+      const { patientId } = req.params;
       const title = req.query.title;
 
       if (!authUserId) {
         return res.status(401).json({ message: "User not authenticated." });
       }
 
-      if (!companionId) {
+      if (!patientId) {
         return res.status(400).json({ message: "Document ID is required." });
       }
 
@@ -587,7 +589,7 @@ export const DocumentController = {
       }
 
       const results = await DocumentService.searchByTitleForParent({
-        companionId: companionId,
+        patientId: patientId,
         parentId: authUserMobile.parentId,
         title: title,
       });
@@ -600,5 +602,9 @@ export const DocumentController = {
       logger.error("Failed to search documents (parent)", error);
       return res.status(500).json({ message: "Unable to search documents." });
     }
+  },
+
+  searchDocumentMobile: async (req: Request, res: Response) => {
+    return DocumentController.searchDocument(req, res);
   },
 };

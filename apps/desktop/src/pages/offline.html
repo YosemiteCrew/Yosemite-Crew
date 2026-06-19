@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src file:; font-src file:; style-src file:; script-src file:;"
+    />
+    <title>Connection lost — Yosemite Crew PIMS</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="offline.css" />
+  </head>
+  <body>
+    <div class="card">
+      <img class="logo" src="../../resources/logo-beta.svg" alt="Yosemite Crew" />
+      <h1>You're offline</h1>
+      <p>
+        We can't reach the Yosemite Crew workspace right now. Check your internet connection. Your
+        session is saved and you won't need to sign in again.
+      </p>
+      <div class="row">
+        <button class="primary" id="retry" type="button">Try again</button>
+        <button class="ghost" id="browser" type="button">Open in browser</button>
+      </div>
+      <div class="countdown" id="countdown">Retrying automatically in <b id="secs">20</b>s</div>
+      <div class="detail" id="detail"></div>
+    </div>
+    <script src="offline.js"></script>
+  </body>
+</html>

@@ -1,0 +1,4 @@
+ALTER TABLE "Invoice"
+ADD COLUMN "invoiceDiscountType" TEXT,
+ADD COLUMN "invoiceDiscountValue" DOUBLE PRECISION,
+ADD COLUMN "invoiceDiscountTotal" DOUBLE PRECISION NOT NULL DEFAULT 0;

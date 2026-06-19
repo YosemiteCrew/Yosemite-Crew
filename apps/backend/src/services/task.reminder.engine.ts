@@ -54,8 +54,8 @@ export const TaskReminderEngine = {
 
         const humanTime = dueAtLocal.format("MMM D, h:mm A");
 
-        const companion = await prisma.companion.findFirst({
-          where: { id: task.companionId ?? undefined },
+        const companion = await prisma.patient.findFirst({
+          where: { id: task.patientId ?? undefined },
           select: { name: true },
         });
         if (!companion) {

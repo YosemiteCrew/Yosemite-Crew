@@ -318,7 +318,7 @@ describe("Catalog FHIR DTOs", () => {
       additionalDiscountAmount: 0,
       finalAmount: 1200,
       breakdownItemCount: 1,
-      templateKinds: ["SOAP_NOTE", "CARE_PATHWAY"],
+      templateKinds: ["SOAP_NOTE", "INPATIENT_SCHEDULE"],
       templateBindings: [],
       billingItems: [
         {
@@ -356,7 +356,7 @@ describe("Catalog FHIR DTOs", () => {
       response.parameter
         ?.filter((item) => item.name === "templateKind")
         .map((item) => item.valueString),
-    ).toEqual(["SOAP_NOTE", "CARE_PATHWAY"]);
+    ).toEqual(["SOAP_NOTE", "INPATIENT_SCHEDULE"]);
   });
 
   it("parses and serializes search-components Parameters contracts", () => {

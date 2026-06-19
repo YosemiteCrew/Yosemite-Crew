@@ -21,7 +21,8 @@ export type Encounter = {
   caseId: string;
   appointmentId?: string;
   organisationId: string;
-  companionId: string;
+  patientId?: string;
+  companionId?: string;
   parentId?: string;
   status: EncounterStatus;
   encounterClass: EncounterClass;
@@ -104,7 +105,7 @@ export const toFHIREncounter = (value: Encounter): FHIREncounter => {
     status: value.status,
     class: toEncounterClassCoding(value.encounterClass),
     subject: {
-      reference: `Patient/${value.companionId}`,
+      reference: `Patient/${value.patientId ?? value.companionId ?? ''}`,
     },
     episodeOfCare: [
       {
@@ -153,6 +154,7 @@ export const fromFHIREncounter = (resource: FHIREncounter): Encounter => {
       ? appointmentReference.replace(/^Appointment\//, '')
       : undefined,
     organisationId: organisationReference.replace(/^Organization\//, ''),
+    patientId: patientReference.replace(/^Patient\//, ''),
     companionId: patientReference.replace(/^Patient\//, ''),
     parentId: getStringExtension(resource.extension, EXT_ENCOUNTER_PARENT_ID),
     status: (resource.status ?? 'planned') as EncounterStatus,

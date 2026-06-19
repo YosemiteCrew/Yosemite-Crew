@@ -36,7 +36,10 @@ jobs:
             mobile
             dev-docs
             types
-            fhirtypes
+            fhir
+            database
+            lib
+            auth
             repo
             ci
             docs

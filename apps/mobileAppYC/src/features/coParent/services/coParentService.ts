@@ -59,6 +59,7 @@ export const coParentApi = {
       inviteeName,
       email,
       companionId,
+      patientId: companionId,
     };
 
     if (phoneNumber) {
@@ -73,8 +74,15 @@ export const coParentApi = {
     return data;
   },
 
-  async listPendingInvites({accessToken}: {accessToken: string}): Promise<PendingCoParentInvite[]> {
-    const {data} = await apiClient.get('/v1/coparent-invite/pending', buildAuthConfig(accessToken));
+  async listPendingInvites({
+    accessToken,
+  }: {
+    accessToken: string;
+  }): Promise<PendingCoParentInvite[]> {
+    const {data} = await apiClient.get(
+      '/v1/coparent-invite/pending',
+      buildAuthConfig(accessToken),
+    );
     return (data?.pendingInvites ?? data ?? []) as PendingCoParentInvite[];
   },
 
@@ -126,7 +134,11 @@ export const coParentApi = {
     return data;
   },
 
-  async promoteToPrimary({companionId, coParentId, accessToken}: PromoteCoParentParams) {
+  async promoteToPrimary({
+    companionId,
+    coParentId,
+    accessToken,
+  }: PromoteCoParentParams) {
     await apiClient.post(
       `/v1/parent-companion/${companionId}/${coParentId}/promote`,
       {},

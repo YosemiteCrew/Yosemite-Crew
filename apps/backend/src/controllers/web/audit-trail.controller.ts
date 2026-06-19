@@ -48,27 +48,27 @@ const parseListQuery = (payload: Record<string, unknown> | undefined) => {
 
 export const AuditTrailController = {
   listForCompanion: async (
-    req: Request<{ companionId: string }>,
+    req: Request<{ patientId: string }>,
     res: Response,
   ) => {
     try {
       if (req.method === "GET") {
         return res.status(405).json({
-          message: "Use POST with companionId in request body.",
+          message: "Use POST with patientId in request body.",
         });
       }
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const body = req.body as { companionId?: string } | undefined;
-      const companionId =
-        typeof body?.companionId === "string" ? body.companionId.trim() : "";
+      const body = req.body as { patientId?: string } | undefined;
+      const patientId =
+        typeof body?.patientId === "string" ? body.patientId.trim() : "";
 
       if (!organisationId) {
         return res.status(400).json({ message: "organisationId is required" });
       }
 
-      if (!companionId) {
-        return res.status(400).json({ message: "companionId is required" });
+      if (!patientId) {
+        return res.status(400).json({ message: "patientId is required" });
       }
 
       const { limit, before, eventTypes, entityTypes } = parseListQuery(
@@ -77,7 +77,7 @@ export const AuditTrailController = {
 
       const results = await AuditTrailService.listForOrganisation({
         organisationId,
-        companionId,
+        patientId,
         limit,
         before,
         eventTypes,

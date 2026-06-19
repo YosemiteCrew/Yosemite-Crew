@@ -1,0 +1,132 @@
+:root {
+  --brand-925: var(--color-brand-925);
+  --brand-900: var(--color-brand-900);
+  --ink: var(--text-primary);
+  --muted: var(--text-tertiary);
+}
+body {
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(59, 135, 236, 0.18), transparent 60%),
+    linear-gradient(180deg, var(--surface-card) 0%, var(--surface-page) 100%);
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+}
+/* NOTE: deliberately NO `-webkit-app-region: drag` strip here. In tab mode
+   this page stays mounted as the window's base layer behind the tab-bar and
+   content WebContentsViews. A drag region declared here is promoted to a
+   window-level native drag rect that swallows ALL mouse input over the
+   tab-bar view stacked on top of it, making its controls unclickable.
+   Window dragging in tab mode is handled by the tab bar's own drag-spacer
+   (pointer events -> windowDragBy). */
+.wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  animation: rise 0.5s ease-out both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.badge {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  display: grid;
+  place-items: center;
+}
+.badge::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    var(--brand-925),
+    var(--brand-900),
+    var(--color-brand-600),
+    var(--brand-925)
+  );
+  animation: spin 2.4s linear infinite;
+  filter: blur(2px);
+  opacity: 0.55;
+}
+.badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--surface-card);
+}
+.logo {
+  position: relative;
+  z-index: 1;
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  object-fit: contain;
+  box-shadow: 0 10px 30px rgba(59, 135, 236, 0.25);
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.title {
+  font-size: 19px;
+  font-weight: 680;
+  letter-spacing: 0.2px;
+}
+.track {
+  width: 220px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(59, 135, 236, 0.15);
+  overflow: hidden;
+}
+.bar {
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-925), var(--brand-900));
+  animation: slide 1.3s ease-in-out infinite;
+}
+@keyframes slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+.tip {
+  font-size: 13px;
+  color: var(--muted);
+  min-height: 18px;
+  transition: opacity 0.4s;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(59, 135, 236, 0.28), transparent 60%),
+      linear-gradient(180deg, var(--surface-card) 0%, var(--surface-page) 100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge::before,
+  .bar,
+  .wrap {
+    animation: none;
+  }
+}

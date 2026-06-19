@@ -146,6 +146,12 @@ describe('Appointment Service', () => {
     const now = new Date();
     return {
       id: 'appt-1',
+      patient: {
+        id: 'comp-1',
+        name: 'Mochi',
+        species: 'Dog',
+        parent: { id: 'parent-1', name: 'Alex' },
+      },
       companion: {
         id: 'comp-1',
         name: 'Mochi',

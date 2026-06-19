@@ -48,8 +48,8 @@ const HOUR_ROW_TOP_OFFSET_PX = 0;
 const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
   const concernSuffix = appointment.concern ? `. ${appointment.concern}` : '';
   return `All-day appointment for ${formatCompanionNameWithOwnerLastName(
-    appointment.companion.name,
-    appointment.companion.parent
+    (appointment.companion ?? appointment.patient).name,
+    (appointment.companion ?? appointment.patient).parent
   )}${concernSuffix}`;
 };
 
@@ -337,7 +337,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                         <div key={day.toISOString()} className="flex flex-col gap-1 pr-2">
                           {dayAllEvents.map((ev) => (
                             <button
-                              key={`${ev.companion.name}-${ev.startTime.toISOString()}`}
+                              key={`${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}`}
                               type="button"
                               onClick={() => handleViewAppointment(ev)}
                               aria-label={getAllDayAppointmentAriaLabel(ev)}
@@ -351,8 +351,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             >
                               <div className="font-medium truncate">
                                 {formatCompanionNameWithOwnerLastName(
-                                  ev.companion.name,
-                                  ev.companion.parent
+                                  (ev.companion ?? ev.patient).name,
+                                  (ev.companion ?? ev.patient).parent
                                 )}{' '}
                                 • {ev.concern || ''}
                               </div>

@@ -10,6 +10,8 @@ jest.mock("src/services/invoice.service", () => ({
     getByAppointmentId: jest.fn(),
     getById: jest.fn(),
     getByPaymentIntentId: jest.fn(),
+    listForOrganisation: jest.fn(),
+    createCheckoutSessionAndEmailParent: jest.fn(),
   },
 }));
 
@@ -60,7 +62,11 @@ describe("InvoiceController", () => {
         undefined,
       );
       expect(responseStatus).toHaveBeenCalledWith(200);
-      expect(responseJson).toHaveBeenCalledWith(mockInvoices);
+      expect(responseJson).toHaveBeenCalledWith({
+        data: mockInvoices,
+        meta: null,
+        error: null,
+      });
     });
 
     it("should catch errors, log them, and return 500", async () => {
@@ -97,7 +103,11 @@ describe("InvoiceController", () => {
 
       expect(InvoiceService.getById).toHaveBeenCalledWith("inv_123");
       expect(responseStatus).toHaveBeenCalledWith(200);
-      expect(responseJson).toHaveBeenCalledWith(mockInvoice);
+      expect(responseJson).toHaveBeenCalledWith({
+        data: mockInvoice,
+        meta: null,
+        error: null,
+      });
     });
 
     it("should return 404 if the invoice is not found", async () => {
@@ -140,7 +150,7 @@ describe("InvoiceController", () => {
   describe("getInvoiceByPaymentIntentId", () => {
     it("should return 200 and the invoice if found", async () => {
       mockRequest.params = { paymentIntentId: "pi_123" };
-      const mockInvoice = { id: "inv_123", stripePaymentIntentId: "pi_123" };
+      const mockInvoice = { id: "inv_123" };
       (InvoiceService.getByPaymentIntentId as jest.Mock).mockResolvedValue(
         mockInvoice,
       );
@@ -155,7 +165,11 @@ describe("InvoiceController", () => {
         undefined,
       );
       expect(responseStatus).toHaveBeenCalledWith(200);
-      expect(responseJson).toHaveBeenCalledWith(mockInvoice);
+      expect(responseJson).toHaveBeenCalledWith({
+        data: mockInvoice,
+        meta: null,
+        error: null,
+      });
     });
 
     it("should return 404 if the invoice is not found", async () => {
@@ -198,6 +212,56 @@ describe("InvoiceController", () => {
       expect(responseStatus).toHaveBeenCalledWith(500);
       expect(responseJson).toHaveBeenCalledWith({
         message: "Internal server error",
+      });
+    });
+  });
+
+  describe("listInvoicesForOrganisation", () => {
+    it("should return 200 and a wrapped list of invoices", async () => {
+      mockRequest.params = { organisationId: "org_123" };
+      const mockInvoices = [{ id: "inv_1" }];
+      (InvoiceService.listForOrganisation as jest.Mock).mockResolvedValue(
+        mockInvoices,
+      );
+
+      await InvoiceController.listInvoicesForOrganisation(
+        mockRequest as Request,
+        mockResponse as Response,
+      );
+
+      expect(InvoiceService.listForOrganisation).toHaveBeenCalledWith(
+        "org_123",
+      );
+      expect(responseStatus).toHaveBeenCalledWith(200);
+      expect(responseJson).toHaveBeenCalledWith({
+        data: mockInvoices,
+        meta: null,
+        error: null,
+      });
+    });
+  });
+
+  describe("createCheckoutSessionForInvoice", () => {
+    it("should return 200 and a wrapped checkout session result", async () => {
+      mockRequest.params = { invoiceId: "inv_123" };
+      const mockResult = { checkoutUrl: "https://checkout" };
+      (
+        InvoiceService.createCheckoutSessionAndEmailParent as jest.Mock
+      ).mockResolvedValue(mockResult);
+
+      await InvoiceController.createCheckoutSessionForInvoice(
+        mockRequest as Request,
+        mockResponse as Response,
+      );
+
+      expect(
+        InvoiceService.createCheckoutSessionAndEmailParent,
+      ).toHaveBeenCalledWith("inv_123");
+      expect(responseStatus).toHaveBeenCalledWith(200);
+      expect(responseJson).toHaveBeenCalledWith({
+        data: mockResult,
+        meta: null,
+        error: null,
       });
     });
   });

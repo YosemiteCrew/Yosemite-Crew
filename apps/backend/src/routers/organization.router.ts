@@ -4,6 +4,7 @@ import { SpecialityController } from "src/controllers/web/speciality.controller"
 import { OrganisationInviteController } from "../controllers/web/organisation-invite.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+import { CatalogController } from "src/controllers/web/catalog.controller";
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get("/getNearby", OrganizationController.getNearbyPaginated);
 router.get(
   "/mobile/getNearby",
   authorizeCognitoMobile,
-  OrganizationController.getNearbyPaginated,
+  CatalogController.getCatalogNearbyOrganisations,
 );
 
 router.post(

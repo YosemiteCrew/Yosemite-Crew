@@ -15,7 +15,7 @@ export type LabOrderModality = "IN_HOUSE" | "REFERENCE_LAB";
 export interface LabOrderMongo {
   organisationId: string;
   provider: string;
-  companionId: Types.ObjectId;
+  patientId: Types.ObjectId;
   parentId: Types.ObjectId;
   appointmentId?: Types.ObjectId | null;
   createdByUserId?: string | null;
@@ -45,7 +45,7 @@ const LabOrderSchema = new Schema(
   {
     organisationId: { type: String, required: true, index: true },
     provider: { type: String, required: true, index: true },
-    companionId: { type: Schema.Types.ObjectId, required: true, index: true },
+    patientId: { type: Schema.Types.ObjectId, required: true, index: true },
     parentId: { type: Schema.Types.ObjectId, required: true, index: true },
     appointmentId: { type: Schema.Types.ObjectId, default: null, index: true },
     createdByUserId: { type: String, default: null },

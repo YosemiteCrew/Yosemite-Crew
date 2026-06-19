@@ -28,7 +28,7 @@ router.post(
 );
 
 router.get(
-  "/mobile/companion/:companionId",
+  "/mobile/companion/:patientId",
   authorizeCognitoMobile,
   AppointmentController.listByCompanion,
 );
@@ -81,7 +81,7 @@ router.get(
 
 // List appointments for a companion within an organisation
 router.get(
-  "/pms/organisation/:organisationId/companion/:companionId",
+  "/pms/organisation/:organisationId/companion/:patientId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
@@ -122,6 +122,15 @@ router.patch(
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.checkInAppointmentForPMS,
+);
+
+// Mark appointment ready for billing
+router.patch(
+  "/pms/:organisationId/:appointmentId/ready-for-billing",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.markReadyForBillingForPMS,
 );
 
 // Update appointment

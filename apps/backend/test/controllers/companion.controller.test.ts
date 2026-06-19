@@ -203,22 +203,24 @@ describe("CompanionController", () => {
       await CompanionController.createCompanionPMS(req, res);
 
       expect(CompanionService.create).toHaveBeenCalledWith(validFHIR, {
-        parentMongoId: expect.any(Types.ObjectId),
+        parentId: validObjectId,
+        organisationId: undefined,
       });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "c1" });
       expect(CompanionOrganisationService.linkByPmsUser).not.toHaveBeenCalled();
     });
 
-    it("should return 400 if orgId is invalid", async () => {
+    it("should return 404 if orgId is invalid", async () => {
       req.body = { payload: validFHIR, parentId: validObjectId };
       req.params = { orgId: "invalid-org" };
+      req.userId = "auth_user_123";
       (CompanionService.create as jest.Mock).mockResolvedValue({
         response: { id: "c1" },
       });
 
       await CompanionController.createCompanionPMS(req, res);
-      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.status).toHaveBeenCalledWith(404);
     });
 
     it("should return 401 if orgId is present but user is unauthenticated", async () => {
@@ -236,6 +238,7 @@ describe("CompanionController", () => {
     it("should return 404 if organisation is not found", async () => {
       req.body = { payload: validFHIR, parentId: validObjectId };
       req.params = { orgId: validObjectId };
+      req.userId = "auth_user_123";
       (CompanionService.create as jest.Mock).mockResolvedValue({
         response: { id: "c1" },
       });
@@ -248,6 +251,7 @@ describe("CompanionController", () => {
     it("should successfully link to org and return 201", async () => {
       req.body = { payload: validFHIR, parentId: validObjectId };
       req.params = { orgId: validObjectId };
+      req.userId = "auth_user_123";
       (CompanionService.create as jest.Mock).mockResolvedValue({
         response: { id: "c1" },
       });
@@ -261,7 +265,7 @@ describe("CompanionController", () => {
         pmsUserId: "auth_user_123",
         organisationId: validObjectId,
         organisationType: "HOSPITAL",
-        companionId: "c1",
+        patientId: "c1",
       });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "c1" });

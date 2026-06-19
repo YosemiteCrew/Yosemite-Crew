@@ -70,7 +70,9 @@ export interface ApproveDenyRequest {
   linkId: string;
 }
 
-type LinkedBusinessesApiResponse = LinkedOrganisation[] | {links: LinkedOrganisation[]};
+type LinkedBusinessesApiResponse =
+  | LinkedOrganisation[]
+  | {links: LinkedOrganisation[]};
 
 const linkedBusinessesService = {
   /**
@@ -92,7 +94,10 @@ const linkedBusinessesService = {
       // API returns {links: [...]} wrapper
       return response.data;
     } catch (error) {
-      console.error('[LinkedBusinesses] Failed to fetch linked businesses:', error);
+      console.error(
+        '[LinkedBusinesses] Failed to fetch linked businesses:',
+        error,
+      );
       throw error;
     }
   },
@@ -141,6 +146,7 @@ const linkedBusinessesService = {
         `${BASE_URL}/companion-organisation/link`,
         {
           companionId: linkRequest.companionId,
+          patientId: linkRequest.companionId,
           organisationId: linkRequest.organisationId,
           organisationType: linkRequest.organisationType,
         },
@@ -168,6 +174,7 @@ const linkedBusinessesService = {
         `${BASE_URL}/companion-organisation/invite`,
         {
           companionId: inviteRequest.companionId,
+          patientId: inviteRequest.companionId,
           email: inviteRequest.email,
           organisationType: inviteRequest.organisationType,
           name: inviteRequest.name,

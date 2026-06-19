@@ -12,7 +12,6 @@ import CompanionOrganisationModel from "../../src/models/companion-organisation"
 import { prisma } from "../../src/config/prisma";
 import { isReadFromPostgres } from "../../src/config/read-switch";
 import logger from "../../src/utils/logger";
-import { fromFHIRInvoice } from "@yosemite-crew/types";
 
 jest.mock("../../src/services/appointment.service");
 jest.mock("../../src/services/task.service");
@@ -29,12 +28,8 @@ jest.mock("../../src/config/read-switch", () => ({
 }));
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
-    companionOrganisation: { findFirst: jest.fn() },
+    patientOrganisation: { findFirst: jest.fn(), findMany: jest.fn() },
   },
-}));
-jest.mock("@yosemite-crew/types", () => ({
-  ...jest.requireActual("@yosemite-crew/types"),
-  fromFHIRInvoice: jest.fn(),
 }));
 
 const mockLean = (result: any) => ({
@@ -56,7 +51,7 @@ describe("CompanionHistoryService", () => {
     (CompanionOrganisationModel.findOne as jest.Mock).mockReturnValue(
       mockLean({ _id: "link-1" }),
     );
-    (prisma.companionOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
       id: "pg-link",
     });
 
@@ -67,7 +62,6 @@ describe("CompanionHistoryService", () => {
     (LabResultService.list as jest.Mock).mockResolvedValue([]);
     (LabOrderService.listOrders as jest.Mock).mockResolvedValue([]);
     (InvoiceService.listForCompanion as jest.Mock).mockResolvedValue([]);
-    (fromFHIRInvoice as jest.Mock).mockImplementation((value) => value);
   });
 
   it("merges entries, sorts by occurredAt desc, and paginates with cursor", async () => {
@@ -125,7 +119,7 @@ describe("CompanionHistoryService", () => {
 
     const firstPage = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       limit: 2,
     });
 
@@ -136,7 +130,7 @@ describe("CompanionHistoryService", () => {
 
     const secondPage = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       limit: 2,
       cursor: firstPage.nextCursor ?? undefined,
     });
@@ -178,7 +172,7 @@ describe("CompanionHistoryService", () => {
 
     const result = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: ["TASK"],
     });
 
@@ -190,14 +184,14 @@ describe("CompanionHistoryService", () => {
     await expect(
       CompanionHistoryService.listForCompanion({
         organisationId: "bad.$",
-        companionId,
+        patientId: companionId,
       }),
     ).rejects.toThrow("Invalid organisationId");
 
     await expect(
       CompanionHistoryService.listForCompanion({
         organisationId,
-        companionId,
+        patientId: companionId,
         limit: 0,
       }),
     ).rejects.toThrow("Invalid limit");
@@ -205,7 +199,7 @@ describe("CompanionHistoryService", () => {
     await expect(
       CompanionHistoryService.listForCompanion({
         organisationId,
-        companionId,
+        patientId: companionId,
         cursor: "not-base64",
       }),
     ).rejects.toThrow("Invalid cursor");
@@ -215,7 +209,7 @@ describe("CompanionHistoryService", () => {
     await expect(
       CompanionHistoryService.listForCompanion({
         organisationId,
-        companionId,
+        patientId: companionId,
         types: ["BAD" as any],
       }),
     ).rejects.toThrow("Invalid types filter");
@@ -229,7 +223,7 @@ describe("CompanionHistoryService", () => {
     await expect(
       CompanionHistoryService.listForCompanion({
         organisationId,
-        companionId,
+        patientId: companionId,
       }),
     ).rejects.toThrow("Companion not found");
   });
@@ -242,24 +236,24 @@ describe("CompanionHistoryService", () => {
     await expect(
       CompanionHistoryService.listForCompanion({
         organisationId,
-        companionId,
+        patientId: companionId,
       }),
     ).rejects.toThrow("Companion not found");
   });
 
   it("uses postgres visibility when read switch is enabled", async () => {
     (isReadFromPostgres as jest.Mock).mockReturnValue(true);
-    (prisma.companionOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
       id: "pg-link",
     });
 
     await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: [],
     });
 
-    expect(prisma.companionOrganisation.findFirst).toHaveBeenCalled();
+    expect(prisma.patientOrganisation.findFirst).toHaveBeenCalled();
     expect(CompanionOrganisationModel.findOne).not.toHaveBeenCalled();
   });
 
@@ -284,7 +278,7 @@ describe("CompanionHistoryService", () => {
 
     const result = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: ["TASK"],
     });
 
@@ -327,7 +321,7 @@ describe("CompanionHistoryService", () => {
 
     const result = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: ["APPOINTMENT"],
     });
 
@@ -366,7 +360,7 @@ describe("CompanionHistoryService", () => {
 
     const result = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: ["DOCUMENT"],
     });
 
@@ -389,7 +383,7 @@ describe("CompanionHistoryService", () => {
 
     const result = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: ["FORM_SUBMISSION"],
     });
 
@@ -418,7 +412,7 @@ describe("CompanionHistoryService", () => {
 
     const result = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: ["LAB_RESULT"],
     });
 
@@ -431,32 +425,29 @@ describe("CompanionHistoryService", () => {
     expect(result.entries[0].link.appointmentId).toBe("apt-1");
   });
 
-  it("builds invoice entries from FHIR invoices", async () => {
+  it("builds invoice entries from Postgres invoices", async () => {
     (InvoiceService.listForCompanion as jest.Mock).mockResolvedValue([
-      { id: "inv-1" },
-      { id: "inv-2" },
-    ]);
-    (fromFHIRInvoice as jest.Mock)
-      .mockReturnValueOnce({
+      {
         id: "inv-1",
         organisationId,
         status: "PAID",
         totalAmount: 100,
         currency: "USD",
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
-      })
-      .mockReturnValueOnce({
+      },
+      {
         id: "inv-2",
         organisationId: "other",
         status: "PAID",
         totalAmount: 50,
         currency: "USD",
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
-      });
+      },
+    ]);
 
     const result = await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: ["INVOICE"],
     });
 
@@ -471,13 +462,13 @@ describe("CompanionHistoryService", () => {
 
     await CompanionHistoryService.listForCompanion({
       organisationId,
-      companionId,
+      patientId: companionId,
       types: ["APPOINTMENT"],
     });
 
     expect(logger.warn).toHaveBeenCalledWith(
       "Companion history appointments failed",
-      expect.objectContaining({ organisationId, companionId }),
+      expect.objectContaining({ organisationId, patientId: companionId }),
     );
   });
 });

@@ -18,6 +18,9 @@ jest.mock("../../src/config/prisma", () => ({
       findUnique: jest.fn(),
       findFirst: jest.fn(),
     },
+    paymentAttempt: {
+      findFirst: jest.fn(),
+    },
     task: {
       findUnique: jest.fn(),
     },
@@ -281,8 +284,8 @@ describe("rbac middleware", () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       organisationId: "org_inv",
     } as never);
-    (prisma.invoice.findFirst as jest.Mock).mockResolvedValue({
-      organisationId: "org_pi",
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue({
+      invoice: { organisationId: "org_pi" },
     } as never);
     (prisma.task.findUnique as jest.Mock).mockResolvedValue({
       organisationId: "org_task",

@@ -50,7 +50,10 @@ type SlotProps = {
 const MARKER_CLICK_DELAY_MS = 180;
 
 const getCompanionDisplayName = (appointment: Appointment) =>
-  formatCompanionNameWithOwnerLastName(appointment.companion?.name, appointment.companion?.parent);
+  formatCompanionNameWithOwnerLastName(
+    (appointment.companion ?? appointment.patient).name,
+    (appointment.companion ?? appointment.patient).parent
+  );
 
 const setCustomDragGhost = (
   event: React.DragEvent<HTMLButtonElement>,
@@ -58,8 +61,8 @@ const setCustomDragGhost = (
 ) => {
   const ghost = document.createElement('img');
   ghost.src = getSafeImageUrl(
-    getAppointmentCompanionPhotoUrl(appointment.companion),
-    appointment.companion.species.toLowerCase() as ImageType
+    getAppointmentCompanionPhotoUrl(appointment.companion ?? appointment.patient),
+    (appointment.companion ?? appointment.patient).species.toLowerCase() as ImageType
   );
   ghost.width = 24;
   ghost.height = 24;
@@ -200,7 +203,9 @@ const SlotComponent: React.FC<SlotProps> = ({
   const activeEvent = useMemo(
     () =>
       sortedSlotEvents.find(
-        (ev, i) => `${ev.companion.name}-${ev.startTime.toISOString()}-${i}` === activePopoverKey
+        (ev, i) =>
+          `${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}-${i}` ===
+          activePopoverKey
       ) ?? null,
     [sortedSlotEvents, activePopoverKey]
   );
@@ -500,7 +505,7 @@ const SlotComponent: React.FC<SlotProps> = ({
             {(() => {
               let cursorMinute = 0;
               return sortedSlotEvents.map((ev, i) => {
-                const itemKey = `${ev.companion.name}-${ev.startTime.toISOString()}-${i}`;
+                const itemKey = `${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}-${i}`;
                 const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
                 const rawDurationMinutes = Math.max(
                   5,
@@ -590,7 +595,7 @@ const SlotComponent: React.FC<SlotProps> = ({
                 laneIndex,
                 laneCount,
               }) => {
-                const itemKey = `${ev.companion.name}-${ev.startTime.toISOString()}-${originalIndex}`;
+                const itemKey = `${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}-${originalIndex}`;
                 const statusStyle = getStatusStyle(ev.status);
                 const serviceName = ev.appointmentType?.name?.trim() ?? '';
                 const concern = ev.concern?.trim() ?? '';
@@ -712,7 +717,7 @@ const SlotComponent: React.FC<SlotProps> = ({
                           <Image
                             src={getSafeImageUrl(
                               getAppointmentCompanionPhotoUrl(ev.companion),
-                              ev.companion.species.toLowerCase() as ImageType
+                              (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
                             )}
                             height={imgSize}
                             width={imgSize}

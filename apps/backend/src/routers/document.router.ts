@@ -15,14 +15,20 @@ router.post(
   DocumentController.getUploadUrl,
 );
 
+router.get(
+  "/mobile/search/:patientId",
+  authorizeCognitoMobile,
+  DocumentController.searchDocumentMobile,
+);
+
 router.post(
-  "/mobile/:companionId",
+  "/mobile/:patientId",
   authorizeCognitoMobile,
   DocumentController.createDocument,
 );
 
 router.get(
-  "/mobile/:companionId",
+  "/mobile/:patientId",
   authorizeCognitoMobile,
   DocumentController.listDocumentsForParent,
 );
@@ -58,7 +64,7 @@ router.delete(
 );
 
 router.get(
-  "/search/:companionId",
+  "/search/:patientId",
   authorizeCognitoMobile,
   DocumentController.searchDocument,
 );
@@ -78,7 +84,7 @@ router.post(
 
 // Create document (PMS)
 router.post(
-  "/pms/:companionId",
+  "/pms/:patientId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
@@ -87,7 +93,7 @@ router.post(
 
 // List documents for companion (PMS)
 router.get(
-  "/pms/:companionId",
+  "/pms/:patientId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("document:view:any"),

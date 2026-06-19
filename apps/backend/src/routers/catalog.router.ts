@@ -57,6 +57,30 @@ router.get(
 );
 
 router.get(
+  "/organisations/:organisationId/services/nearby",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:view:any"),
+  CatalogController.getCatalogNearbyOrganisations,
+);
+
+router.post(
+  "/organisations/:organisationId/bookable-slots",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:view:any"),
+  CatalogController.getCatalogBookableSlots,
+);
+
+router.post(
+  "/organisations/:organisationId/bookable-slots/calendar-prefill",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:view:any"),
+  CatalogController.getCatalogCalendarPrefill,
+);
+
+router.get(
   "/organisations/:organisationId/specialities",
   authorizeCognito,
   withOrgPermissions(),

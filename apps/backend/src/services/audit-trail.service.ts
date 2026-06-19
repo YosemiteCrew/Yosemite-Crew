@@ -24,7 +24,7 @@ export class AuditTrailServiceError extends Error {
 
 export type AuditTrailRecordInput = {
   organisationId: string;
-  companionId: string;
+  patientId: string;
   eventType: AuditEventType;
   actorType?: AuditActorType;
   actorId?: string | null;
@@ -33,6 +33,23 @@ export type AuditTrailRecordInput = {
   entityId?: string | null;
   metadata?: Record<string, unknown>;
   occurredAt?: Date;
+};
+
+const toPrismaAuditEntityType = (
+  value: AuditEntityType | undefined,
+): AuditEntityType | undefined => {
+  if (value === "PATIENT_ORGANISATION") return "PATIENT_ORGANISATION";
+  return value;
+};
+
+const toPrismaAuditEventType = (
+  value: AuditEventType | undefined,
+): AuditEventType | undefined => {
+  if (!value) return value;
+  if (value.startsWith("COMPANION_ORG_")) {
+    return value.replace("COMPANION_ORG_", "PATIENT_ORG_") as AuditEventType;
+  }
+  return value;
 };
 
 const ensureSafeString = (value: unknown, fieldName: string): string => {
@@ -47,7 +64,7 @@ const ensureSafeString = (value: unknown, fieldName: string): string => {
 
 const buildQueryFilters = (params: {
   organisationId: string;
-  companionId?: string;
+  patientId?: string;
   eventTypes?: AuditEventType[];
   entityTypes?: AuditEntityType[];
   before?: Date;
@@ -56,8 +73,8 @@ const buildQueryFilters = (params: {
     organisationId: ensureSafeString(params.organisationId, "organisationId"),
   };
 
-  if (params.companionId) {
-    filters.companionId = ensureSafeString(params.companionId, "companionId");
+  if (params.patientId) {
+    filters.patientId = ensureSafeString(params.patientId, "patientId");
   }
 
   if (params.eventTypes?.length) {
@@ -143,7 +160,10 @@ export const AuditTrailService = {
       input.organisationId,
       "organisationId",
     );
-    const companionId = ensureSafeString(input.companionId, "companionId");
+    const patientId = ensureSafeString(input.patientId, "patientId");
+    const eventType =
+      toPrismaAuditEventType(input.eventType) ?? input.eventType;
+    const entityType = toPrismaAuditEntityType(input.entityType);
     const actorName =
       input.actorName ??
       (await resolveActorName({
@@ -155,12 +175,12 @@ export const AuditTrailService = {
       const doc = await prisma.auditTrail.create({
         data: {
           organisationId,
-          companionId,
-          eventType: input.eventType,
+          patientId,
+          eventType,
           actorType: input.actorType ?? undefined,
           actorId: input.actorId ?? undefined,
           actorName: actorName ?? undefined,
-          entityType: input.entityType ?? undefined,
+          entityType,
           entityId: input.entityId ?? undefined,
           metadata: (input.metadata ??
             undefined) as unknown as Prisma.InputJsonValue,
@@ -172,7 +192,7 @@ export const AuditTrailService = {
 
     const doc = await AuditTrailModel.create({
       organisationId,
-      companionId,
+      patientId,
       eventType: input.eventType,
       actorType: input.actorType ?? null,
       actorId: input.actorId ?? null,
@@ -189,12 +209,12 @@ export const AuditTrailService = {
           data: {
             id: doc._id.toString(),
             organisationId,
-            companionId,
-            eventType: input.eventType,
+            patientId,
+            eventType,
             actorType: input.actorType ?? undefined,
             actorId: input.actorId ?? undefined,
             actorName: actorName ?? undefined,
-            entityType: input.entityType ?? undefined,
+            entityType,
             entityId: input.entityId ?? undefined,
             metadata: (input.metadata ??
               undefined) as unknown as Prisma.InputJsonValue,
@@ -221,7 +241,7 @@ export const AuditTrailService = {
 
   async listForOrganisation(params: {
     organisationId: string;
-    companionId?: string;
+    patientId?: string;
     eventTypes?: AuditEventType[];
     entityTypes?: AuditEntityType[];
     limit?: number;
@@ -230,7 +250,7 @@ export const AuditTrailService = {
     const limit = Math.min(Math.max(params.limit ?? 50, 1), 200);
     const filters = buildQueryFilters({
       organisationId: params.organisationId,
-      companionId: params.companionId,
+      patientId: params.patientId,
       eventTypes: params.eventTypes,
       entityTypes: params.entityTypes,
       before: params.before,
@@ -240,12 +260,19 @@ export const AuditTrailService = {
       const where: Prisma.AuditTrailWhereInput = {
         organisationId: filters.organisationId as string,
       };
-      if (filters.companionId)
-        where.companionId = filters.companionId as string;
-      if (filters.eventType)
-        where.eventType = { in: filters.eventType as AuditEventType[] };
-      if (filters.entityType)
-        where.entityType = { in: filters.entityType as AuditEntityType[] };
+      if (filters.patientId) where.patientId = filters.patientId as string;
+      if (params.eventTypes?.length)
+        where.eventType = {
+          in: params.eventTypes.map(
+            (value) => toPrismaAuditEventType(value) ?? value,
+          ),
+        };
+      if (params.entityTypes?.length)
+        where.entityType = {
+          in: params.entityTypes.map(
+            (value) => toPrismaAuditEntityType(value) ?? value,
+          ),
+        };
       if (filters.occurredAt) {
         where.occurredAt = { lt: (filters.occurredAt as { $lt: Date }).$lt };
       }

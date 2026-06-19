@@ -68,6 +68,40 @@ describe("RoomUnitGroupService", () => {
     expect(result.unitCount).toBe(2);
   });
 
+  it("creates a room unit group without optional lists", async () => {
+    mockedPrisma.roomUnitGroup.create.mockResolvedValue({
+      id: "group_2",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Isolation ward",
+      size: null,
+      unitCount: 1,
+      speciesConstraints: [],
+      capabilities: [],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await RoomUnitGroupService.create({
+      id: "group_2",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Isolation ward",
+      unitCount: 1,
+    });
+
+    expect(mockedPrisma.roomUnitGroup.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          size: null,
+          capabilities: [],
+        }),
+      }),
+    );
+    expect(result.capabilities).toEqual([]);
+  });
+
   it("rejects unit groups with unsupported room types", async () => {
     mockedPrisma.organisationRoom.findUnique.mockResolvedValueOnce({
       id: "room_1",
@@ -132,6 +166,53 @@ describe("RoomUnitGroupService", () => {
       },
       orderBy: [{ roomId: "asc" }, { name: "asc" }],
     });
+  });
+
+  it("keeps the existing unit count when an invalid update value is supplied", async () => {
+    mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockedPrisma.roomUnitGroup.update.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await RoomUnitGroupService.update("group_1", {
+      unitCount: 2.5,
+    });
+
+    expect(mockedPrisma.roomUnitGroup.update).toHaveBeenCalledWith({
+      where: { id: "group_1" },
+      data: {
+        roomId: "room_1",
+        name: undefined,
+        size: undefined,
+        unitCount: 2,
+        speciesConstraints: undefined,
+        capabilities: undefined,
+        isActive: undefined,
+      },
+    });
+    expect(result.unitCount).toBe(2);
   });
 
   it("deletes a room unit group within the same organisation", async () => {

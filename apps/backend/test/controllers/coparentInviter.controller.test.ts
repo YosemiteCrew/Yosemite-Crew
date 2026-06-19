@@ -111,7 +111,7 @@ describe("CoParentInviteController", () => {
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        message: "Email and companionId and InviteeName are required.",
+        message: "Email and patientId and InviteeName are required.",
       });
       expect(mockedCoParentInviteService.sendInvite).not.toHaveBeenCalled();
     });
@@ -122,7 +122,7 @@ describe("CoParentInviteController", () => {
         userId: "user-1",
         body: {
           email: "test@example.com",
-          companionId: "cmp-1",
+          patientId: "cmp-1",
           inviteeName: "Alex",
         },
       } as any;
@@ -139,7 +139,7 @@ describe("CoParentInviteController", () => {
       );
       expect(mockedCoParentInviteService.sendInvite).toHaveBeenCalledWith({
         email: "test@example.com",
-        companionId: "cmp-1",
+        patientId: "cmp-1",
         invitedByParentId: "parent-1",
         inviteeName: "Alex",
       });
@@ -155,7 +155,7 @@ describe("CoParentInviteController", () => {
         userId: "auth-user-id",
         body: {
           email: "test@example.com",
-          companionId: "cmp-1",
+          patientId: "cmp-1",
           inviteeName: "Alex",
         },
       } as any;
@@ -181,7 +181,7 @@ describe("CoParentInviteController", () => {
         userId: "user-1",
         body: {
           email: "test@example.com",
-          companionId: "cmp-1",
+          patientId: "cmp-1",
           inviteeName: "Alex",
         },
       } as any;
@@ -205,7 +205,7 @@ describe("CoParentInviteController", () => {
         userId: "user-1",
         body: {
           email: "test@example.com",
-          companionId: "cmp-1",
+          patientId: "cmp-1",
           inviteeName: "Alex",
         },
       } as any;

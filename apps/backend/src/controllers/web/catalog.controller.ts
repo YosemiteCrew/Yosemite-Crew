@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc.js";
 import logger from "src/utils/logger";
 import {
   CatalogService,
@@ -16,6 +18,8 @@ import {
   toCatalogResponseDTO,
   toCatalogSearchOperationResponseDTO,
 } from "@yosemite-crew/types";
+
+dayjs.extend(utc);
 
 const productKindSchema = z.enum([
   "CONSULTATION",
@@ -186,6 +190,43 @@ const itemSearchQuerySchema = z.object({
     .optional(),
   page: z.coerce.number().int().positive().optional(),
   pageSize: z.coerce.number().int().positive().optional(),
+});
+
+const catalogNearbySearchQuerySchema = z.object({
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
+  radius: z.coerce.number().positive().optional(),
+});
+
+const catalogBookableSlotsSchema = z.object({
+  productItemId: z.string().trim().min(1).optional(),
+  serviceId: z.string().trim().min(1).optional(),
+  date: z
+    .string()
+    .trim()
+    .refine(
+      (value) => dayjs.utc(value, "YYYY-MM-DD", true).isValid(),
+      "Invalid date format (use YYYY-MM-DD)",
+    ),
+});
+
+const catalogCalendarPrefillSchema = z.object({
+  organisationId: z.string().trim().min(1),
+  date: z
+    .string()
+    .trim()
+    .refine(
+      (value) => dayjs.utc(value, "YYYY-MM-DD", true).isValid(),
+      "Invalid date format (use YYYY-MM-DD)",
+    ),
+  minuteOfDay: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60 - 1),
+  leadId: z.string().trim().min(1).optional(),
+  productItemIds: z.array(z.string().trim().min(1)).min(1).optional(),
+  serviceIds: z.array(z.string().trim().min(1)).min(1).optional(),
 });
 
 const handleError = (res: Response, error: unknown, defaultMessage: string) => {
@@ -1091,6 +1132,112 @@ export const CatalogController = {
       return res.status(200).json(result);
     } catch (error) {
       return handleError(res, error, "Unable to fetch archived catalog items.");
+    }
+  },
+
+  getCatalogNearbyOrganisations: async (
+    req: Request<{ organisationId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const parsed = catalogNearbySearchQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Invalid catalog nearby search query.",
+          errors: parsed.error.flatten(),
+        });
+      }
+
+      const result =
+        await CatalogService.listOrganisationsProvidingServiceNearby(
+          parsed.data.lat,
+          parsed.data.lng,
+          parsed.data.radius ?? 5000,
+        );
+
+      return res.status(200).json(result);
+    } catch (error) {
+      return handleError(
+        res,
+        error,
+        "Unable to fetch nearby catalog organisations.",
+      );
+    }
+  },
+
+  getCatalogBookableSlots: async (
+    req: Request<{ organisationId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const parsed = catalogBookableSlotsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Invalid catalog bookable slots payload.",
+          errors: parsed.error.flatten(),
+        });
+      }
+
+      const productItemId = parsed.data.productItemId ?? parsed.data.serviceId;
+      if (!productItemId) {
+        return res.status(400).json({
+          message: "productItemId is required.",
+        });
+      }
+
+      const result = await CatalogService.getBookableSlotsService(
+        productItemId,
+        req.params.organisationId,
+        dayjs.utc(parsed.data.date, "YYYY-MM-DD", true).toDate(),
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      return handleError(res, error, "Unable to fetch catalog bookable slots.");
+    }
+  },
+
+  getCatalogCalendarPrefill: async (
+    req: Request<{ organisationId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const parsed = catalogCalendarPrefillSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Invalid catalog calendar prefill payload.",
+          errors: parsed.error.flatten(),
+        });
+      }
+
+      const serviceIds = parsed.data.productItemIds ?? parsed.data.serviceIds;
+      if (!serviceIds?.length) {
+        return res.status(400).json({
+          message: "productItemIds is required.",
+        });
+      }
+
+      const matches = await CatalogService.getCalendarPrefillMatches({
+        organisationId: parsed.data.organisationId,
+        date: dayjs.utc(parsed.data.date, "YYYY-MM-DD", true).toDate(),
+        minuteOfDay: parsed.data.minuteOfDay,
+        leadId: parsed.data.leadId,
+        serviceIds,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: { matches },
+      });
+    } catch (error) {
+      return handleError(
+        res,
+        error,
+        "Unable to fetch catalog calendar prefill.",
+      );
     }
   },
 };

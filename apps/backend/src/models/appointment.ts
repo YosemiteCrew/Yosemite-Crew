@@ -18,6 +18,7 @@ export interface AppointmentMongo {
     breed?: string;
     parent: { id: string; name: string };
   };
+  patient: AppointmentMongo["companion"];
 
   lead?: { id: string; name: string; profileUrl?: string };
 
@@ -143,6 +144,13 @@ const AppointmentSchema = new Schema(
 
 // Indices
 AppointmentSchema.index({ organisationId: 1, appointmentDate: 1 });
+AppointmentSchema.virtual("patient").get(function (this: AppointmentMongo) {
+  return this.companion;
+});
+
+AppointmentSchema.set("toObject", { virtuals: true });
+AppointmentSchema.set("toJSON", { virtuals: true });
+
 AppointmentSchema.index({ "companion.id": 1, appointmentDate: -1 });
 AppointmentSchema.index({ "supportStaff.id": 1 });
 AppointmentSchema.index({ status: 1 });

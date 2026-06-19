@@ -12,7 +12,7 @@ export const normalizeLabProvider = (
 
 export type LabOrderCreateInput = {
   organisationId: string;
-  companionId: string;
+  patientId: string;
   parentId?: string;
   appointmentId?: string;
   createdByUserId?: string;
@@ -26,7 +26,7 @@ export type LabOrderCreateInput = {
 };
 
 export type LabOrderUpdateInput = Partial<
-  Omit<LabOrderCreateInput, "organisationId" | "companionId">
+  Omit<LabOrderCreateInput, "organisationId" | "patientId">
 > & {
   tests?: string[];
 };

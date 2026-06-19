@@ -5,6 +5,7 @@ const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const TemplateController = {
+  resolve: jest.fn(),
   list: jest.fn(),
   listLibrary: jest.fn(),
   listOrganisationTemplates: jest.fn(),
@@ -55,6 +56,10 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("template.router", () => {
+  it("exposes the template resolver route", () => {
+    expect(findRoute("/pms/resolve", "get")).toBeDefined();
+  });
+
   it("exposes the explicit ownership listing routes", () => {
     expect(findRoute("/pms/templates/library", "get")).toBeDefined();
     expect(
@@ -66,6 +71,7 @@ describe("template.router", () => {
   });
 
   it("protects library and organisation routes with the expected middleware", () => {
+    const resolveRoute = findRoute("/pms/resolve", "get");
     const libraryRoute = findRoute("/pms/templates/library", "get");
     const organisationRoute = findRoute(
       "/pms/templates/organisation/:organisationId",
@@ -76,8 +82,17 @@ describe("template.router", () => {
       "get",
     );
 
+    expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
+      requirePermission.mock.results[0].value,
+    );
     expect(libraryRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
+    );
+    expect(libraryRoute?.stack.map((layer) => layer.handle)).not.toContain(
+      requirePermission.mock.results[0].value,
     );
     expect(organisationRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,

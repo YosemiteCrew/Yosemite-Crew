@@ -5,7 +5,6 @@ import {
   CompanionServiceError,
 } from "../../services/companion.service";
 import type { CompanionRequestDTO } from "@yosemite-crew/types";
-import { Types } from "mongoose";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { CompanionOrganisationService } from "src/services/companion-organisation.service";
 import OrganizationModel from "src/models/organization";
@@ -109,7 +108,7 @@ export const CompanionController = {
       const { parentId } = (req.body ?? {}) as { parentId?: string };
       const orgId = (req.params as { orgId?: string } | undefined)?.orgId;
 
-      if (!parentId || !Types.ObjectId.isValid(parentId)) {
+      if (!parentId || typeof parentId !== "string" || !parentId.trim()) {
         return res.status(400).json({
           message:
             "Valid parentId is required to create companion through PMS.",
@@ -117,12 +116,13 @@ export const CompanionController = {
       }
 
       const { response } = await CompanionService.create(payload, {
-        parentMongoId: new Types.ObjectId(parentId),
+        parentId: parentId.trim(),
+        organisationId: orgId?.trim(),
       });
 
       // Establish link between PMS and Companion
       if (orgId) {
-        if (!isReadFromPostgres() && !Types.ObjectId.isValid(orgId)) {
+        if (!orgId.trim()) {
           return res.status(400).json({
             message: "Valid organisationId is required to create companion.",
           });
@@ -137,8 +137,8 @@ export const CompanionController = {
         }
 
         const organisation = isReadFromPostgres()
-          ? await prisma.organization.findFirst({ where: { id: orgId } })
-          : await OrganizationModel.findById(orgId);
+          ? await prisma.organization.findFirst({ where: { id: orgId.trim() } })
+          : await OrganizationModel.findById(orgId.trim());
         if (!organisation) {
           return res
             .status(404)
@@ -147,9 +147,9 @@ export const CompanionController = {
 
         await CompanionOrganisationService.linkByPmsUser({
           pmsUserId: authUser,
-          organisationId: orgId,
+          organisationId: orgId.trim(),
           organisationType: organisation.type,
-          companionId: response.id!,
+          patientId: response.id!,
         });
       }
 

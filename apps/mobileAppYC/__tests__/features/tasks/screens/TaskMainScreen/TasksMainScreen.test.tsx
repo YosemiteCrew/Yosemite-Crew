@@ -333,7 +333,7 @@ describe('TasksMainScreen', () => {
       try {
         const result = callback(mockState);
         if (result !== undefined) return result;
-      } catch (e) {
+      } catch (_error) {
         // If callback throws or doesn't work with state, it might be a factory-created selector
         // In that case, just call it without arguments (the factory already has the params)
         if (typeof callback === 'function') {

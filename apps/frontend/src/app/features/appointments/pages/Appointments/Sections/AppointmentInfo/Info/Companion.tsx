@@ -4,6 +4,7 @@ import { useParentStore } from '@/app/stores/parentStore';
 import { Appointment } from '@yosemite-crew/types';
 import React, { useMemo } from 'react';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import { getAppointmentCompanion } from '@/app/lib/appointments';
 
 type CompanionProps = {
   activeAppointment: Appointment;
@@ -33,11 +34,12 @@ const ParentFields = [
 
 const Companion = ({ activeAppointment }: CompanionProps) => {
   const terminologyText = useCompanionTerminologyText();
-  const companionId = activeAppointment.companion.id;
-  const parentId = activeAppointment.companion.parent.id;
+  const appointmentCompanion = getAppointmentCompanion(activeAppointment);
+  const companionId = appointmentCompanion.id;
+  const parentId = appointmentCompanion.parent.id;
   const companion = useCompanionStore((state) => state.getCompanionById(companionId));
   const parent = useParentStore((state) => state.getParentById(parentId));
-  const appointmentParent = activeAppointment.companion.parent as Partial<{
+  const appointmentParent = appointmentCompanion.parent as Partial<{
     firstName: string;
     lastName: string;
     email: string;

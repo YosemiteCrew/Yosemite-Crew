@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, jest, it } from "@jest/globals";
 import { AppointmentPrismaService } from "../../src/services/appointment.prisma.service";
 import { prisma } from "../../src/config/prisma";
+import { InvoiceService } from "../../src/services/invoice.service";
 
 jest.mock("@yosemite-crew/types", () => ({
   ...(jest.requireActual("@yosemite-crew/types") as unknown as Record<
@@ -23,6 +24,14 @@ jest.mock("../../src/services/catalog.service", () => ({
   },
   CatalogService: {
     resolveSelection: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/invoice.service", () => ({
+  __esModule: true,
+  InvoiceService: {
+    markAppointmentReadyForBilling: jest.fn(),
+    setInvoiceDepositTarget: jest.fn(),
   },
 }));
 
@@ -56,6 +65,8 @@ jest.mock("../../src/config/prisma", () => ({
     },
     invoice: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));
@@ -74,11 +85,25 @@ const mockedCatalog = jest.requireMock(
 };
 const mockedResolveSelection = mockedCatalog.CatalogService
   .resolveSelection as unknown as jest.Mock;
+const mockedInvoiceService = InvoiceService as unknown as {
+  markAppointmentReadyForBilling: jest.Mock;
+  setInvoiceDepositTarget: jest.Mock;
+};
 
 const baseDomain = {
   caseId: "case_1",
   encounterId: undefined,
   companion: {
+    id: "comp_1",
+    name: "Buddy",
+    species: "Dog",
+    breed: "Labrador",
+    parent: {
+      id: "parent_1",
+      name: "Parent One",
+    },
+  },
+  patient: {
     id: "comp_1",
     name: "Buddy",
     species: "Dog",
@@ -117,6 +142,7 @@ const baseDomain = {
 const makeRow = (overrides: Record<string, unknown> = {}): any => ({
   id: "appt_1",
   companion: baseDomain.companion,
+  patient: baseDomain.patient,
   lead: baseDomain.lead,
   supportStaff: baseDomain.supportStaff,
   room: baseDomain.room,
@@ -168,7 +194,7 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.case.findUnique.mockResolvedValue({
       id: "case_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
     } as any);
     mockedPrisma.template.findFirst.mockResolvedValue({
       id: "tmpl_soap",
@@ -256,7 +282,7 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.case.findUnique.mockResolvedValue({
       id: "case_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
     } as any);
     mockedPrisma.template.findFirst.mockResolvedValue({
       id: "tmpl_bound",
@@ -328,7 +354,7 @@ describe("AppointmentPrismaService", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           organisationId: "org_1",
-          companionId: "comp_1",
+          patientId: "comp_1",
           appointmentKind: "INPATIENT",
           status: "active",
         }),
@@ -348,7 +374,7 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.case.findUnique.mockResolvedValue({
       id: "case_1",
       organisationId: "org_1",
-      companionId: "comp_1",
+      patientId: "comp_1",
     } as any);
     mockedPrisma.appointment.create.mockResolvedValue(
       makeRow({ status: "UPCOMING", caseId: "case_1" }),
@@ -431,6 +457,10 @@ describe("AppointmentPrismaService", () => {
           ...baseDomain.companion,
           parent: { id: "other_parent", name: "Other" },
         },
+        patient: {
+          ...baseDomain.patient,
+          parent: { id: "other_parent", name: "Other" },
+        },
       }),
     );
 
@@ -468,7 +498,7 @@ describe("AppointmentPrismaService", () => {
         data: expect.objectContaining({
           caseId: "case_1",
           organisationId: "org_1",
-          companionId: "comp_1",
+          patientId: "comp_1",
           status: "arrived",
           encounterClass: "IMP",
         }),
@@ -497,11 +527,48 @@ describe("AppointmentPrismaService", () => {
       create: {
         encounterId: "enc_1",
         organisationId: "org_1",
-        companionId: "comp_1",
+        patientId: "comp_1",
         admittedAt: baseDomain.startTime,
       },
     });
     expect((result as any).encounterId).toBe("enc_1");
+  });
+
+  it("marks visit billing ready when appointment completes", async () => {
+    mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+      ...baseDomain,
+      status: "COMPLETED",
+    } as any);
+    mockedPrisma.appointment.findUnique.mockResolvedValue(
+      makeRow({
+        status: "IN_PROGRESS",
+        caseId: "case_1",
+        encounterId: "enc_1",
+      }),
+    );
+    mockedPrisma.appointment.update.mockResolvedValue(
+      makeRow({ status: "COMPLETED", caseId: "case_1", encounterId: "enc_1" }),
+    );
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
+    mockedPrisma.case.findUnique.mockResolvedValue({
+      id: "case_1",
+      organisationId: "org_1",
+      patientId: "comp_1",
+    } as any);
+    mockedPrisma.encounter.findUnique.mockResolvedValue({
+      id: "enc_1",
+      caseId: "case_1",
+      organisationId: "org_1",
+      patientId: "comp_1",
+    } as any);
+
+    await AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+      resourceType: "Appointment",
+    } as any);
+
+    expect(
+      mockedInvoiceService.markAppointmentReadyForBilling,
+    ).toHaveBeenCalledWith("appt_1");
   });
 
   it("lists appointments for organisation with filters", async () => {

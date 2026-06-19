@@ -10,22 +10,22 @@ router.get(
   ParentCompanionController.getLinksForParent,
 );
 router.get(
-  "/companion/:companionId",
+  "/companion/:patientId",
   authorizeCognitoMobile,
   ParentCompanionController.getLinksForCompanion,
 );
 router.patch(
-  "/:companionId/:targetParentId/permissions",
+  "/:patientId/:targetParentId/permissions",
   authorizeCognitoMobile,
   ParentCompanionController.updatePermissions,
 );
 router.post(
-  "/:companionId/:targetParentId/promote",
+  "/:patientId/:targetParentId/promote",
   authorizeCognitoMobile,
   ParentCompanionController.promoteToPrimary,
 );
 router.delete(
-  "/:companionId/:coParentId",
+  "/:patientId/:coParentId",
   authorizeCognitoMobile,
   ParentCompanionController.removeCoParent,
 );

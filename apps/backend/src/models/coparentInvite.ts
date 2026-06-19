@@ -3,7 +3,7 @@ import { Schema, model, Types, HydratedDocument } from "mongoose";
 export interface CoParentInviteMongo {
   email: string; // email of invited co-parent
   inviteeName: string; // name of invited co-parent
-  companionId: Types.ObjectId; // which pet the invite is for
+  patientId: Types.ObjectId; // which pet the invite is for
   invitedByParentId: Types.ObjectId; // primary parent
   inviteToken: string; // random token
   expiresAt: Date; // expiry timestamp
@@ -16,7 +16,7 @@ const CoParentInviteSchema = new Schema(
   {
     email: { type: String, required: true, index: true },
     inviteeName: { type: String },
-    companionId: {
+    patientId: {
       type: Schema.Types.ObjectId,
       ref: "Companion",
       required: true,

@@ -8,7 +8,7 @@ export type TaskWorkflowSeed = {
   templateId?: string;
   organisationId: string;
   appointmentId?: string;
-  companionId?: string;
+  patientId?: string;
   createdBy: string;
   assignedBy?: string;
   assignedTo: string;
@@ -122,7 +122,7 @@ export type TaskWorkflowContext = {
   createdBy: string;
   assignedBy?: string;
   appointmentId?: string;
-  companionId?: string;
+  patientId?: string;
   templateId?: string;
   source?: "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
   timezone?: string;
@@ -598,7 +598,7 @@ const buildCarePathwaySeed = (
     templateId: context.templateId,
     organisationId: context.organisationId,
     appointmentId: context.appointmentId,
-    companionId: context.companionId,
+    patientId: context.patientId,
     createdBy: context.createdBy,
     assignedBy: context.assignedBy,
     assignedTo: context.resolveAssignee(
@@ -639,7 +639,7 @@ export const materializeTaskTemplateSeed = (
   templateId: context.templateId,
   organisationId: context.organisationId,
   appointmentId: context.appointmentId,
-  companionId: context.companionId,
+  patientId: context.patientId,
   createdBy: context.createdBy,
   assignedBy: context.assignedBy,
   assignedTo: context.resolveAssignee(
@@ -692,7 +692,7 @@ export const materializeCarePathwaySeeds = (
       templateId: context.templateId,
       organisationId: context.organisationId,
       appointmentId: context.appointmentId,
-      companionId: context.companionId,
+      patientId: context.patientId,
       createdBy: context.createdBy,
       assignedBy: context.assignedBy,
       assignedTo: context.resolveAssignee("EMPLOYEE_TASK", "EMPLOYEE_TASK", {

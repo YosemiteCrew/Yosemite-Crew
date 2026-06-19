@@ -71,7 +71,7 @@ describe("fhir-template.mapper", () => {
   it("renders workflow templates as FHIR PlanDefinition resources", () => {
     const planTemplate = {
       ...template,
-      kind: "CARE_PATHWAY",
+      kind: "INPATIENT_SCHEDULE",
       name: "Inpatient Pathway",
     } as TemplateLike;
 
@@ -80,7 +80,7 @@ describe("fhir-template.mapper", () => {
 
     expect(planDefinition.resourceType).toBe("PlanDefinition");
     expect(planDefinition.id).toBe("template-1");
-    expect(planDefinition.type?.coding?.[0]?.code).toBe("CARE_PATHWAY");
+    expect(planDefinition.type?.coding?.[0]?.code).toBe("INPATIENT_SCHEDULE");
     expect(planDefinition.action?.[0]?.id).toBe("subjective");
   });
 

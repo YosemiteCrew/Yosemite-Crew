@@ -6,6 +6,14 @@ export interface InsuranceDetails {
   policyNumber?: string;
 }
 
+export interface AlertSummary {
+  title: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+}
+
+export const COMPANION_ALERTS_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/companion-alerts';
+
 export type CompanionType = 'dog' | 'cat' | 'horse' | 'other';
 export type Gender = 'male' | 'female' | 'unknown';
 export type SourceType =
@@ -85,6 +93,7 @@ export interface Companion {
     uploadedAt: Date;
   }>;
 
+  alerts?: AlertSummary[];
   isProfileComplete?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -426,6 +435,25 @@ const buildExtensions = (companion: Companion): Extension[] => {
     });
   }
 
+  if (companion.alerts?.length) {
+    extensions.push({
+      url: COMPANION_ALERTS_EXTENSION_URL,
+      extension: companion.alerts.map((alert) => ({
+        url: 'alert',
+        extension: [
+          {
+            url: 'title',
+            valueString: alert.title,
+          },
+          {
+            url: 'severity',
+            valueString: alert.severity,
+          },
+        ],
+      })),
+    });
+  }
+
   return extensions;
 };
 
@@ -705,6 +733,43 @@ const parsePhoto = (photos?: Patient['photo']): Companion['photoUrl'] | undefine
 
 const parseUpdatedAt = (dto: Patient): Date | undefined => parseDate(dto.meta?.lastUpdated);
 
+const parseAlerts = (extensions: Extension[] | undefined): Companion['alerts'] => {
+  const extension = filterExtensions(extensions, COMPANION_ALERTS_EXTENSION_URL)[0];
+  const nested = extension?.extension;
+
+  if (!nested?.length) {
+    return undefined;
+  }
+
+  const alerts = nested
+    .map((item) => {
+      if (item.url !== 'alert') {
+        return undefined;
+      }
+
+      const title = item.extension?.find((ext) => ext.url === 'title')?.valueString;
+      const severity = item.extension?.find((ext) => ext.url === 'severity')?.valueString;
+
+      if (
+        !title ||
+        (severity !== 'critical' &&
+          severity !== 'high' &&
+          severity !== 'medium' &&
+          severity !== 'low')
+      ) {
+        return undefined;
+      }
+
+      return {
+        title,
+        severity,
+      } as AlertSummary;
+    })
+    .filter((alert): alert is AlertSummary => Boolean(alert));
+
+  return alerts.length ? alerts : undefined;
+};
+
 const parseInsuranceExtension = (
   extensions: Extension[] | undefined
 ): { isInsured: boolean; insurance?: InsuranceDetails } => {
@@ -809,6 +874,7 @@ export const fromFHIRCompanion = (dto: Patient): Companion => {
     physicalAttribute: parsePhysicalAttribute(extensions),
     breedingInfo: parseBreedingInfo(extensions),
     medicalRecords: parseMedicalRecords(extensions),
+    alerts: parseAlerts(extensions),
     status: parseStatus(dto.active),
     updatedAt: parseUpdatedAt(dto),
   };

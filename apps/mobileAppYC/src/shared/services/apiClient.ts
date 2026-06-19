@@ -78,6 +78,7 @@ client.interceptors.response.use(
           url: buildAbsoluteUrl(error.config ?? {}),
           status: error.response.status,
           message: error.message,
+          data: error.response.data,
         });
       } else {
         console.log('[API] Error', {

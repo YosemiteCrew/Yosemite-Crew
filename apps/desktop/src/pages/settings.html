@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src file:; font-src file:; style-src file:; script-src file:;"
+    />
+    <title>Preferences — Yosemite Crew PIMS</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Preferences</h1>
+
+      <div class="group">
+        <div class="group-title">Appearance</div>
+        <div class="row">
+          <div>
+            <div class="row-label">Theme</div>
+            <div class="row-hint">Syncs with system or stay fixed</div>
+          </div>
+          <select id="theme" aria-label="Theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-label">Font scale</div>
+            <div class="row-hint">Adjust text size for this device</div>
+          </div>
+          <div class="font-row">
+            <input
+              type="range"
+              id="fontScale"
+              min="50"
+              max="200"
+              value="100"
+              step="5"
+              aria-label="Font size"
+            />
+            <span class="font-label" id="fontScaleLabel">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Updates</div>
+        <div class="row">
+          <div>
+            <div class="row-label">Update channel</div>
+            <div class="row-hint">Beta may include unfinished features</div>
+          </div>
+          <select id="updateChannel" aria-label="Update channel">
+            <option value="latest">Stable</option>
+            <option value="beta">Beta</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Sync</div>
+        <div class="row">
+          <div>
+            <div class="row-label">Status</div>
+            <div class="row-hint" id="syncStatusText">Checking...</div>
+          </div>
+          <button id="syncNow" type="button">Sync now</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Security</div>
+        <div class="row">
+          <div>
+            <div class="row-label">Idle auto-lock</div>
+            <div class="row-hint">Lock after inactivity</div>
+          </div>
+          <select id="idleLockMinutes" aria-label="Auto-lock after inactivity">
+            <option value="0">Off</option>
+            <option value="5">5 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">1 hour</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Notifications</div>
+        <div class="row">
+          <div>
+            <div class="row-label">Desktop notifications</div>
+            <div class="row-hint">Show system notifications for appointments and messages</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notificationsEnabled" aria-label="Enable notifications" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-label">Do not disturb</div>
+            <div class="row-hint">Suppress notifications during these hours</div>
+          </div>
+          <div class="dnd-row">
+            <input
+              type="text"
+              id="dndStart"
+              placeholder="22:00"
+              aria-label="Do not disturb start time"
+              class="dnd-input"
+            />
+            <span class="dnd-sep">to</span>
+            <input
+              type="text"
+              id="dndEnd"
+              placeholder="07:00"
+              aria-label="Do not disturb end time"
+              class="dnd-input"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Privacy</div>
+        <div class="row">
+          <div>
+            <div class="row-label">Telemetry</div>
+            <div class="row-hint">Anonymous usage data to improve the app</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="telemetryOptIn" aria-label="Share anonymous telemetry" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-label">Local data</div>
+            <div class="row-hint">Clear cache, vault, recents, sync queue and session storage</div>
+          </div>
+          <button id="clearLocalData" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Telehealth</div>
+        <div class="row">
+          <div>
+            <div class="row-label">Provider</div>
+            <div class="row-hint">
+              Video visits use GetStream call sessions from PIMS appointments
+            </div>
+          </div>
+          <select id="telehealthProvider" aria-label="Telehealth provider">
+            <option value="getstream">GetStream</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">System</div>
+        <div class="row">
+          <div>
+            <div class="row-label">Open at login</div>
+            <div class="row-hint">Launch automatically when you sign in</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="openAtLogin" aria-label="Open at login" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="status" id="status">Saved</div>
+      <div class="note">Some changes may require restarting the app to take full effect.</div>
+    </div>
+
+    <script src="settings.js"></script>
+  </body>
+</html>

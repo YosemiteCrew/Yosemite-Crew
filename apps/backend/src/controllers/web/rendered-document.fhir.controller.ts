@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import UserModel from "src/models/user";
 import {
   getPersistedRenderedDocument,
@@ -10,36 +9,20 @@ import {
   type RenderedDocumentSigning,
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
-import logger from "src/utils/logger";
+import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const signRenderedDocumentSchema = z.object({
   signatureText: z.string().trim().min(1).optional(),
   signedAt: z.coerce.date().optional(),
 });
 
-const handleError = (error: unknown, res: Response) => {
-  if (error instanceof RenderedDocumentServiceError) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
-
-  if (error instanceof z.ZodError) {
-    return res.status(400).json({
-      message: "Invalid rendered document payload.",
-      issues: error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
-  }
-
-  logger.error("Unexpected rendered document error", error);
-  return res.status(500).json({ message: "Internal Server Error" });
-};
-
-const resolveUserId = (req: Request) => {
-  const typed = req as AuthenticatedRequest;
-  return typeof typed.userId === "string" ? typed.userId : "";
-};
+const handleError = createFhirErrorHandler({
+  isServiceError: (error): error is RenderedDocumentServiceError =>
+    error instanceof RenderedDocumentServiceError,
+  invalidPayloadMessage: "Invalid rendered document payload.",
+  logMessage: "Unexpected rendered document error",
+});
 
 const resolveSignerProfile = async (userId: string) => {
   if (isReadFromPostgres()) {
@@ -101,7 +84,7 @@ export const RenderedDocumentFhirController = {
   async signRenderedDocument(req: Request, res: Response) {
     try {
       const body = signRenderedDocumentSchema.parse(req.body);
-      const userId = resolveUserId(req);
+      const userId = resolveUserIdFromRequest(req) ?? "";
 
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated." });

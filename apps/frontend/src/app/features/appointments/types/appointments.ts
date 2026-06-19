@@ -1,6 +1,10 @@
 import { filter, status, StatusOption } from '@/app/features/companions/pages/Companions/types';
 import type { Appointment } from '@yosemite-crew/types';
 
+export type AppointmentWithCompanion = Appointment & {
+  companion: NonNullable<Appointment['companion']>;
+};
+
 export type AppointmentStatus = Appointment['status'];
 
 const opt = (value: string, label: string) => ({ value, label });

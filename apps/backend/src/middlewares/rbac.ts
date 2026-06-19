@@ -24,9 +24,15 @@ export interface OrgRequest extends AuthenticatedRequest {
  */
 function extractOrgId(req: Request): string | null {
   const body = (req as { body?: unknown }).body;
+  const query = (req as { query?: unknown }).query;
   const bodyOrgId =
     typeof body === "object" && body !== null && !Array.isArray(body)
       ? (body as Record<string, unknown>).organisationId
+      : undefined;
+  const queryOrgId =
+    typeof query === "object" && query !== null && !Array.isArray(query)
+      ? ((query as Record<string, unknown>).organisationId ??
+        (query as Record<string, unknown>).organizationId)
       : undefined;
 
   if (Array.isArray(body)) {
@@ -49,6 +55,7 @@ function extractOrgId(req: Request): string | null {
     req.params.organisationId ||
     req.params.organizationId ||
     (req.headers["x-org-id"] as string) ||
+    (typeof queryOrgId === "string" ? queryOrgId : null) ||
     (typeof bodyOrgId === "string" ? bodyOrgId : null) ||
     null
   );
@@ -188,6 +195,29 @@ export function withInvoiceOrgPermissions() {
   };
 }
 
+export function withPaymentOrgPermissions() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const paymentId = req.params.paymentId;
+    if (!paymentId) {
+      return res.status(400).json({ message: "Missing paymentId" });
+    }
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: { invoice: { select: { organisationId: true } } },
+    });
+
+    const organisationId = payment?.invoice?.organisationId ?? null;
+    if (!organisationId) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    req.params.organisationId = organisationId.toString();
+
+    return withOrgPermissions()(req, res, next);
+  };
+}
+
 export function withPaymentIntentOrgPermissions() {
   return async (req: Request, res: Response, next: NextFunction) => {
     const paymentIntentId = req.params.paymentIntentId;
@@ -195,17 +225,16 @@ export function withPaymentIntentOrgPermissions() {
       return res.status(400).json({ message: "Missing paymentIntentId" });
     }
 
-    const invoice = isReadFromPostgres()
-      ? await prisma.invoice.findFirst({
-          where: { stripePaymentIntentId: paymentIntentId },
+    const invoice = await prisma.paymentAttempt.findFirst({
+      where: { providerPaymentIntentId: paymentIntentId },
+      select: {
+        invoice: {
           select: { organisationId: true },
-        })
-      : await InvoiceModel.findOne(
-          { stripePaymentIntentId: paymentIntentId },
-          { organisationId: 1 },
-        ).lean();
+        },
+      },
+    });
 
-    const organisationId = invoice?.organisationId ?? null;
+    const organisationId = invoice?.invoice?.organisationId ?? null;
     if (!organisationId) {
       return res.status(404).json({ message: "Invoice not found" });
     }

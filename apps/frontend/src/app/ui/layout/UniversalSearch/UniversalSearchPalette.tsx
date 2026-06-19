@@ -14,6 +14,7 @@ import { useSearchStore } from '@/app/stores/searchStore';
 import { useUniversalSearchStore } from '@/app/stores/universalSearchStore';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+import { getAppointmentCompanion } from '@/app/lib/appointments';
 
 type SearchModule =
   | 'appointments'
@@ -76,15 +77,15 @@ const buildSearchItems = (
     const appointmentId = String(appointment.id ?? '').trim();
     if (!appointmentId) return;
     const companionDisplayName = formatCompanionNameWithOwnerLastName(
-      appointment.companion.name,
-      appointment.companion.parent
+      getAppointmentCompanion(appointment).name,
+      getAppointmentCompanion(appointment).parent
     );
     moduleItems.push({
       id: `appointments:${appointmentId}`,
       module: 'appointments',
       title: companionDisplayName || 'Appointment',
       subtitle: `${appointment.status} • ${appointment.concern || 'No concern'} • ${appointmentId}`,
-      keywords: `${companionDisplayName} ${getOwnerFirstName(appointment.companion.parent)} ${appointment.status || ''} ${appointment.concern || ''} ${appointmentId}`,
+      keywords: `${companionDisplayName} ${getOwnerFirstName(getAppointmentCompanion(appointment).parent)} ${appointment.status || ''} ${appointment.concern || ''} ${appointmentId}`,
       href: `/appointments?appointmentId=${encodeURIComponent(appointmentId)}&open=details`,
     });
   });

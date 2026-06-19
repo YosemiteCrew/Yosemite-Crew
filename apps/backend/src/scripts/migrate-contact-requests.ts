@@ -18,7 +18,7 @@ const mapContact = (doc: typeof ContactRequestModel.prototype) => {
     userId: obj.userId ?? undefined,
     email: obj.email ?? undefined,
     organisationId: obj.organisationId ?? undefined,
-    companionId: obj.companionId ?? undefined,
+    patientId: obj.patientId ?? undefined,
     parentId: obj.parentId ?? undefined,
     dsarDetails: obj.dsarDetails ?? undefined,
     complaintContext: obj.complaintContext ?? undefined,

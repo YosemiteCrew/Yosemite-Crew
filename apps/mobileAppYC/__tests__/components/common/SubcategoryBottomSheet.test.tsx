@@ -98,8 +98,8 @@ describe('SubcategoryBottomSheet', () => {
       />,
     );
 
-    expect(getByTestId('item-hospital-visits')).toBeTruthy();
-    expect(getByTestId('item-lab-tests')).toBeTruthy();
+    expect(getByTestId('item-surgery-procedure')).toBeTruthy();
+    expect(getByTestId('item-lab-test')).toBeTruthy();
   });
 
   it('renders correctly with complex category names ("hygiene-maintenance")', () => {
@@ -116,7 +116,7 @@ describe('SubcategoryBottomSheet', () => {
     const title = getByTestId('sheet-title').props.children;
     expect(title).toMatch(/Hygiene maintenance/i);
 
-    expect(getByTestId('item-grooming-visits')).toBeTruthy();
+    expect(getByTestId('item-grooming')).toBeTruthy();
   });
 
   it('renders empty list for unknown or null category', () => {

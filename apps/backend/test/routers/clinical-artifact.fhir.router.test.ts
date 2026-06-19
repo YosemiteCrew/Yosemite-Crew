@@ -11,21 +11,33 @@ const ClinicalArtifactFhirController = {
   createSoapNote: jest.fn(),
   getSoapNote: jest.fn(),
   updateSoapNote: jest.fn(),
+  finalizeSoapNote: jest.fn(),
+  reopenSoapNote: jest.fn(),
+  amendSoapNote: jest.fn(),
   listPrescriptionsForAppointment: jest.fn(),
   listPrescriptionsForEncounter: jest.fn(),
   createPrescription: jest.fn(),
   getPrescription: jest.fn(),
   updatePrescription: jest.fn(),
+  finalizePrescription: jest.fn(),
+  reopenPrescription: jest.fn(),
+  amendPrescription: jest.fn(),
   listDischargeSummariesForAppointment: jest.fn(),
   listDischargeSummariesForEncounter: jest.fn(),
   createDischargeSummary: jest.fn(),
   getDischargeSummary: jest.fn(),
   updateDischargeSummary: jest.fn(),
+  finalizeDischargeSummary: jest.fn(),
+  reopenDischargeSummary: jest.fn(),
+  amendDischargeSummary: jest.fn(),
   listVitalRecordsForAppointment: jest.fn(),
   listVitalRecordsForEncounter: jest.fn(),
   createVitalRecord: jest.fn(),
   getVitalRecord: jest.fn(),
   updateVitalRecord: jest.fn(),
+  finalizeVitalRecord: jest.fn(),
+  reopenVitalRecord: jest.fn(),
+  amendVitalRecord: jest.fn(),
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
@@ -88,6 +100,24 @@ describe("clinical-artifact.fhir.router", () => {
     ).toBeDefined();
     expect(
       findRoute(
+        "/organisation/:organisationId/soap-note/:soapNoteId/$finalize",
+        "post",
+      ),
+    ).toBeDefined();
+    expect(
+      findRoute(
+        "/organisation/:organisationId/soap-note/:soapNoteId/$reopen",
+        "post",
+      ),
+    ).toBeDefined();
+    expect(
+      findRoute(
+        "/organisation/:organisationId/soap-note/:soapNoteId/$amend",
+        "post",
+      ),
+    ).toBeDefined();
+    expect(
+      findRoute(
         "/organisation/:organisationId/appointment/:appointmentId/vital-records",
         "post",
       ),
@@ -112,13 +142,31 @@ describe("clinical-artifact.fhir.router", () => {
     ).toBeDefined();
     expect(
       findRoute(
+        "/organisation/:organisationId/prescription/:prescriptionId/$finalize",
+        "post",
+      ),
+    ).toBeDefined();
+    expect(
+      findRoute(
         "/organisation/:organisationId/discharge-summary/:dischargeSummaryId",
         "post",
       ),
     ).toBeDefined();
     expect(
       findRoute(
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId/$amend",
+        "post",
+      ),
+    ).toBeDefined();
+    expect(
+      findRoute(
         "/organisation/:organisationId/vital-record/:vitalRecordId",
+        "post",
+      ),
+    ).toBeDefined();
+    expect(
+      findRoute(
+        "/organisation/:organisationId/vital-record/:vitalRecordId/$reopen",
         "post",
       ),
     ).toBeDefined();

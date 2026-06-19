@@ -180,16 +180,21 @@ const AppointmentsComponent = ({
       width: '56px',
       render: (item: Appointment) => (
         <div className="appointment-profile size-10">
-          <Image
-            src={getSafeImageUrl(
-              getAppointmentCompanionPhotoUrl(item.companion),
-              item.companion.species as ImageType
-            )}
-            alt=""
-            height={40}
-            width={40}
-            className="size-10 rounded-full object-cover"
-          />
+          {(() => {
+            const companion = item.companion ?? item.patient;
+            return (
+              <Image
+                src={getSafeImageUrl(
+                  getAppointmentCompanionPhotoUrl(companion),
+                  companion.species as ImageType
+                )}
+                alt=""
+                height={40}
+                width={40}
+                className="size-10 rounded-full object-cover"
+              />
+            );
+          })()}
         </div>
       ),
     },

@@ -5,6 +5,14 @@ import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
+router.get(
+  "/organisation/:organisationId/encounter/:encounterId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["tasks:view:any", "tasks:view:own"]),
+  (req, res) => TaskScheduleFhirController.listEncounterSchedules(req, res),
+);
+
 router.post(
   "/organisation/:organisationId/template-instance/:instanceId/$apply",
   authorizeCognito,

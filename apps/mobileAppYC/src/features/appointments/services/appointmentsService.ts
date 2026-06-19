@@ -1014,6 +1014,7 @@ const mapBusinessFromApi = (
         services.push({
           id:
             svc?._id ?? svc?.id ?? `${id}-${specId}-${svc?.name ?? 'service'}`,
+          productItemId: svc?.productItemId ?? null,
           businessId: id,
           specialty: specName ?? '',
           specialityId: specId ?? null,
@@ -1142,7 +1143,8 @@ export const appointmentApi = {
       ? {headers: withAuthHeaders(accessToken)}
       : undefined;
     const {data} = await apiClient.get(url, config);
-    const items = Array.isArray(data?.data) ? data.data : [];
+    const dataArray = Array.isArray(data?.data) ? data.data : data;
+    const items = Array.isArray(dataArray) ? dataArray : [];
     const mapped: Array<{business: VetBusiness; services: VetService[]}> =
       items.map(mapBusinessFromApi);
     return {
@@ -1222,7 +1224,7 @@ export const appointmentApi = {
     invoice: Invoice | null;
     paymentIntent: PaymentIntentInfo | null;
   }> {
-    const url = buildUrl('/fhir/v1/appointment/mobile/?createPayment=true', {
+    const url = buildUrl('/fhir/v1/appointment/mobile', {
       usePms: true,
     });
     const {data} = await apiClient.post(url, payload, {
@@ -1421,11 +1423,10 @@ export const appointmentApi = {
       headers: withAuthHeaders(accessToken),
     });
     const payload = data?.data ?? data ?? {};
-    const base = payload?.hasRated ?? payload ?? {};
     return {
-      isRated: Boolean(base.isRated),
-      rating: base.rating ?? null,
-      review: base.review ?? null,
+      isRated: Boolean(payload?.hasRated ?? payload?.isRated),
+      rating: payload?.rating ?? payload?.hasRated?.rating ?? null,
+      review: payload?.review ?? payload?.hasRated?.review ?? null,
     };
   },
 };

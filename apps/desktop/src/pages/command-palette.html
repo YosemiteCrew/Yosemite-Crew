@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; font-src file:; style-src file:; script-src file:;"
+    />
+    <title>Command Palette</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="command-palette.css" />
+  </head>
+  <body>
+    <input
+      id="search"
+      type="text"
+      placeholder="Search commands…"
+      aria-label="Search commands"
+      autofocus
+      spellcheck="false"
+    />
+    <div id="results"></div>
+
+    <script src="command-palette.js"></script>
+  </body>
+</html>

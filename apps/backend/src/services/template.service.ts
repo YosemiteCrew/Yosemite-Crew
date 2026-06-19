@@ -6,6 +6,14 @@ import {
   TemplateScope,
   TemplateStatus,
 } from "@prisma/client";
+import type {
+  TemplateAppliesTo,
+  TemplateContractKind,
+  TemplateResolveInput,
+  TemplateResolveResponse,
+  TemplateSource,
+} from "@yosemite-crew/types";
+import { normalizeTemplateKind } from "@yosemite-crew/types";
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
 import { validateClinicalTemplateBlueprint } from "src/services/clinical-template-blueprints";
@@ -87,12 +95,29 @@ export const templateSchemaSnapshotSchema = z.object({
 
 export const templateConfigSchema = z.record(z.unknown()).default({});
 
+const templateContractKindSchema = z.enum([
+  "SOAP_NOTE",
+  "VITAL_RECORD",
+  "DISCHARGE_SUMMARY",
+  "PRESCRIPTION",
+  "FORM",
+  "CONSENT",
+  "INPATIENT_SCHEDULE",
+  "TASK_ASSIGNMENT",
+]);
+
+const templateStorageKindSchema = z.nativeEnum(TemplateKind);
+const templateKindSchema = z.union([
+  templateStorageKindSchema,
+  templateContractKindSchema,
+]);
+
 export const createTemplateSchema = z
   .object({
     organisationId: z.string().trim().min(1).optional(),
     ownerUserId: z.string().trim().min(1).optional(),
     ownership: z.nativeEnum(TemplateOwnershipType).default("ORG_TEMPLATE"),
-    kind: z.nativeEnum(TemplateKind),
+    kind: templateKindSchema,
     name: z.string().trim().min(1),
     description: z.string().trim().min(1).optional(),
     scope: z.nativeEnum(TemplateScope).default("ORGANISATION"),
@@ -186,6 +211,19 @@ export const updateTemplateCatalogLinksSchema = z.object({
   catalogItemIds: z.array(z.string().trim().min(1)).default([]),
 });
 
+export const resolveTemplateSchema = z.object({
+  organisationId: z.string().trim().min(1),
+  kind: templateContractKindSchema,
+  appointmentId: z.string().trim().min(1).optional(),
+  encounterId: z.string().trim().min(1).optional(),
+  companionId: z.string().trim().min(1).optional(),
+  species: z.string().trim().min(1).optional(),
+  serviceId: z.string().trim().min(1).optional(),
+  packageId: z.string().trim().min(1).optional(),
+  mode: z.enum(["OUTPATIENT", "INPATIENT"]).optional(),
+  ownerUserId: z.string().trim().min(1).optional(),
+});
+
 type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
 type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>;
 type CreateTemplateInstanceInput = z.infer<typeof createTemplateInstanceSchema>;
@@ -193,6 +231,7 @@ type UpdateTemplateInstanceInput = z.infer<typeof updateTemplateInstanceSchema>;
 type UpdateTemplateCatalogLinksInput = z.infer<
   typeof updateTemplateCatalogLinksSchema
 >;
+type ResolveTemplateInput = z.infer<typeof resolveTemplateSchema>;
 
 const ensureId = (value: string, field: string) => {
   const trimmed = value.trim();
@@ -282,13 +321,250 @@ const templateInclude = {
 };
 
 const withCatalogItemIds = <
-  T extends { catalogLinks?: Array<{ catalogItemId: string }> },
+  T extends {
+    catalogLinks?: Array<{ catalogItemId: string }>;
+    ownership: TemplateOwnershipType;
+    rules: unknown;
+    kind: TemplateKind;
+  },
 >(
   template: T,
 ) => ({
   ...template,
+  kind: normalizeTemplateKind(template.kind),
   catalogItemIds:
     template.catalogLinks?.map((link) => link.catalogItemId) ?? [],
+  source: templateSourceFromOwnership(template.ownership),
+  appliesTo: extractTemplateAppliesTo(template.rules),
+});
+
+const templateSourceFromOwnership = (
+  ownership: TemplateOwnershipType,
+): TemplateSource => {
+  switch (ownership) {
+    case "YC_LIBRARY":
+      return "YC_LIBRARY";
+    case "USER_TEMPLATE":
+      return "USER";
+    case "ORG_TEMPLATE":
+    default:
+      return "ORGANISATION";
+  }
+};
+
+const toStorageTemplateKind = (kind: TemplateContractKind | TemplateKind) => {
+  switch (kind) {
+    case "TASK_ASSIGNMENT":
+      return "TASK_TEMPLATE" as TemplateKind;
+    case "INPATIENT_SCHEDULE":
+      return "CARE_PATHWAY" as TemplateKind;
+    case "CONSENT":
+      return "FORM" as TemplateKind;
+    default:
+      return kind as TemplateKind;
+  }
+};
+
+const normalizeResolverText = (value: unknown) =>
+  typeof value === "string" ? value.trim().toLowerCase() : undefined;
+
+const normalizeResolverArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value
+    .map((entry) => normalizeResolverText(entry))
+    .filter((entry): entry is string => Boolean(entry));
+
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : undefined;
+};
+
+const extractTemplateAppliesTo = (rules: unknown): TemplateAppliesTo | null => {
+  if (!rules || typeof rules !== "object" || Array.isArray(rules)) {
+    return null;
+  }
+
+  const root = rules as Record<string, unknown>;
+  const raw =
+    root.appliesTo &&
+    typeof root.appliesTo === "object" &&
+    !Array.isArray(root.appliesTo)
+      ? (root.appliesTo as Record<string, unknown>)
+      : root;
+
+  const serviceIds = normalizeResolverArray(raw.serviceIds);
+  const packageIds = normalizeResolverArray(raw.packageIds);
+  const species = normalizeResolverArray(raw.species);
+  const encounterModes = normalizeResolverArray(raw.encounterModes) as
+    | Array<"OUTPATIENT" | "INPATIENT">
+    | undefined;
+  const organisationTypes = normalizeResolverArray(raw.organisationTypes);
+  const specialityIds = normalizeResolverArray(raw.specialityIds);
+  const defaultForKind =
+    typeof raw.defaultForKind === "boolean" ? raw.defaultForKind : undefined;
+
+  if (
+    !serviceIds &&
+    !packageIds &&
+    !species &&
+    !encounterModes &&
+    !organisationTypes &&
+    !specialityIds &&
+    defaultForKind === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    serviceIds,
+    packageIds,
+    species,
+    encounterModes,
+    organisationTypes,
+    specialityIds,
+    defaultForKind,
+  };
+};
+
+const extractLegacyCatalogItemIds = (template: {
+  catalogItemIds?: string[];
+  appliesTo?: TemplateAppliesTo | null;
+}) => {
+  const legacyIds = template.catalogItemIds?.filter(Boolean) ?? [];
+  if (legacyIds.length > 0) {
+    return legacyIds;
+  }
+
+  const serviceIds = template.appliesTo?.serviceIds ?? [];
+  const packageIds = template.appliesTo?.packageIds ?? [];
+  return Array.from(new Set([...serviceIds, ...packageIds]));
+};
+
+const applyTemplateMetadata = <
+  T extends { ownership: TemplateOwnershipType; rules: unknown } & {
+    catalogItemIds?: string[];
+  },
+>(
+  template: T,
+) => ({
+  ...template,
+  source: templateSourceFromOwnership(template.ownership),
+  appliesTo:
+    extractTemplateAppliesTo(template.rules) ??
+    (extractLegacyCatalogItemIds(template).length > 0
+      ? {
+          serviceIds: extractLegacyCatalogItemIds(template),
+        }
+      : null),
+});
+
+const normalizeResolverMode = (value?: string) =>
+  value === "INPATIENT" || value === "OUTPATIENT" ? value : undefined;
+
+const normalizeResolverKind = (kind: TemplateContractKind): TemplateKind[] => {
+  switch (kind) {
+    case "CONSENT":
+      return ["FORM"];
+    case "TASK_ASSIGNMENT":
+      return ["TASK_TEMPLATE"];
+    case "INPATIENT_SCHEDULE":
+      return ["CARE_PATHWAY"];
+    default:
+      return [kind];
+  }
+};
+
+const templateMatchesResolverInput = (
+  template: {
+    ownership: TemplateOwnershipType;
+    ownerUserId: string | null;
+    rules: unknown;
+    catalogItemIds?: string[];
+  } & { appliesTo?: TemplateAppliesTo | null },
+  input: TemplateResolveInput,
+) => {
+  const appliesTo =
+    template.appliesTo ?? extractTemplateAppliesTo(template.rules);
+  const catalogItemIds = extractLegacyCatalogItemIds(template);
+  const queryServiceId = normalizeResolverText(input.serviceId);
+  const queryPackageId = normalizeResolverText(input.packageId);
+  const querySpecies = normalizeResolverText(input.species);
+  const queryMode = normalizeResolverMode(input.mode);
+
+  const serviceMatches =
+    queryServiceId !== undefined &&
+    ((appliesTo?.serviceIds ?? []).some(
+      (serviceId) => normalizeResolverText(serviceId) === queryServiceId,
+    ) ||
+      catalogItemIds.some(
+        (catalogItemId) =>
+          normalizeResolverText(catalogItemId) === queryServiceId,
+      ));
+
+  const packageMatches =
+    queryPackageId !== undefined &&
+    ((appliesTo?.packageIds ?? []).some(
+      (packageId) => normalizeResolverText(packageId) === queryPackageId,
+    ) ||
+      catalogItemIds.some(
+        (catalogItemId) =>
+          normalizeResolverText(catalogItemId) === queryPackageId,
+      ));
+
+  const speciesMatches =
+    querySpecies !== undefined &&
+    (appliesTo?.species ?? []).some(
+      (species) => normalizeResolverText(species) === querySpecies,
+    );
+
+  const modeMatches =
+    queryMode !== undefined &&
+    (appliesTo?.encounterModes ?? []).some(
+      (mode) =>
+        normalizeResolverText(mode) === normalizeResolverText(queryMode),
+    );
+
+  const linked =
+    serviceMatches || packageMatches || speciesMatches || modeMatches;
+  const defaultForKind = Boolean(appliesTo?.defaultForKind);
+
+  return {
+    linked,
+    defaultForKind,
+    appliesTo,
+  };
+};
+
+const toResolveResponse = (
+  template: NonNullable<Awaited<ReturnType<typeof prisma.template.findFirst>>>,
+  version: {
+    id: string;
+    version: number;
+    schemaSnapshot: unknown;
+    renderConfigSnapshot: unknown;
+    validationSnapshot: unknown;
+  },
+  input: TemplateResolveInput,
+  reason: string,
+): TemplateResolveResponse => ({
+  templateId: template.id,
+  templateVersion: version.version,
+  templateVersionId: version.id,
+  source: templateSourceFromOwnership(template.ownership),
+  ownerUserId: template.ownerUserId ?? null,
+  kind: input.kind,
+  name: template.name,
+  schemaSnapshot:
+    (version.schemaSnapshot as TemplateResolveResponse["schemaSnapshot"]) ?? {
+      sections: [],
+    },
+  renderConfigSnapshot:
+    (version.renderConfigSnapshot as Record<string, unknown> | null) ?? null,
+  validationSnapshot:
+    (version.validationSnapshot as Record<string, unknown> | null) ?? null,
+  appliesTo: applyTemplateMetadata(template).appliesTo,
+  reason,
 });
 
 const assertTemplateOrganisation = (
@@ -388,11 +664,51 @@ const validateTemplateSchemaForKind = (
   }
 };
 
+const resolveTemplateVersion = async (template: {
+  id: string;
+  latestVersion: number;
+  publishedVersion: number | null;
+}) => {
+  const versionNumber = template.publishedVersion ?? template.latestVersion;
+  const version = await loadTemplateVersionOrThrow(template.id, versionNumber);
+  return version;
+};
+
+const resolveCandidateReason = (
+  bucket:
+    | "USER_LINKED"
+    | "ORG_LINKED"
+    | "USER_DEFAULT"
+    | "ORG_DEFAULT"
+    | "YC_DEFAULT",
+  matched: ReturnType<typeof templateMatchesResolverInput>,
+) => {
+  const linkReason = matched.linked ? "linked" : "default";
+  switch (bucket) {
+    case "USER_LINKED":
+      return matched.appliesTo?.defaultForKind
+        ? "Matched user template default for kind."
+        : "Matched user template linked to service/species/mode.";
+    case "ORG_LINKED":
+      return matched.appliesTo?.defaultForKind
+        ? "Matched organisation template default for kind."
+        : "Matched organisation template linked to service/species/mode.";
+    case "USER_DEFAULT":
+      return `Matched user default template for kind (${linkReason}).`;
+    case "ORG_DEFAULT":
+      return `Matched organisation default template for kind (${linkReason}).`;
+    case "YC_DEFAULT":
+    default:
+      return `Matched YC library default template for kind (${linkReason}).`;
+  }
+};
+
 export const TemplateService = {
   async create(input: CreateTemplateInput) {
     const parsed = createTemplateSchema.parse(input);
     const updatedBy = parsed.updatedBy ?? parsed.createdBy;
-    validateTemplateSchemaForKind(parsed.kind, parsed.schemaSnapshot);
+    const storageKind = toStorageTemplateKind(parsed.kind);
+    validateTemplateSchemaForKind(storageKind, parsed.schemaSnapshot);
     const organisationId =
       parsed.ownership === "YC_LIBRARY" ? undefined : parsed.organisationId;
     const ownerUserId =
@@ -404,7 +720,7 @@ export const TemplateService = {
           organisationId,
           ownerUserId,
           ownership: parsed.ownership,
-          kind: parsed.kind,
+          kind: storageKind,
           name: parsed.name,
           description: parsed.description ?? undefined,
           status: "DRAFT",
@@ -689,7 +1005,7 @@ export const TemplateService = {
   async listForOrganisation(
     organisationId: string,
     filters?: {
-      kind?: TemplateKind;
+      kind?: TemplateKind | TemplateContractKind;
       status?: TemplateStatus;
       scope?: TemplateScope;
     },
@@ -698,7 +1014,7 @@ export const TemplateService = {
       where: {
         organisationId: ensureId(organisationId, "organisationId"),
         ownership: "ORG_TEMPLATE",
-        kind: filters?.kind,
+        kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
       },
@@ -710,14 +1026,14 @@ export const TemplateService = {
   },
 
   async listLibrary(filters?: {
-    kind?: TemplateKind;
+    kind?: TemplateKind | TemplateContractKind;
     status?: TemplateStatus;
     scope?: TemplateScope;
   }) {
     const items = await prisma.template.findMany({
       where: {
         ownership: "YC_LIBRARY",
-        kind: filters?.kind,
+        kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
       },
@@ -732,7 +1048,7 @@ export const TemplateService = {
     organisationId: string,
     ownerUserId: string,
     filters?: {
-      kind?: TemplateKind;
+      kind?: TemplateKind | TemplateContractKind;
       status?: TemplateStatus;
       scope?: TemplateScope;
     },
@@ -742,7 +1058,7 @@ export const TemplateService = {
         organisationId: ensureId(organisationId, "organisationId"),
         ownerUserId: ensureId(ownerUserId, "ownerUserId"),
         ownership: "USER_TEMPLATE",
-        kind: filters?.kind,
+        kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
       },
@@ -766,6 +1082,96 @@ export const TemplateService = {
     assertTemplateOrganisation(template, organisationId);
 
     return withCatalogItemIds(template);
+  },
+
+  async resolve(input: ResolveTemplateInput) {
+    const parsed = resolveTemplateSchema.parse(input);
+    const prismaKinds = normalizeResolverKind(parsed.kind);
+    const filters = {
+      kind: prismaKinds[0],
+      status: undefined as TemplateStatus | undefined,
+      scope: undefined as TemplateScope | undefined,
+    };
+
+    const resolveFirstMatch = async (
+      templates: Awaited<ReturnType<typeof TemplateService.listLibrary>>,
+      bucket:
+        | "USER_LINKED"
+        | "ORG_LINKED"
+        | "USER_DEFAULT"
+        | "ORG_DEFAULT"
+        | "YC_DEFAULT",
+      requireLinked: boolean,
+    ) => {
+      for (const template of templates) {
+        const matched = templateMatchesResolverInput(template, parsed);
+        if (requireLinked ? matched.linked : matched.defaultForKind) {
+          const version = await resolveTemplateVersion(template);
+          return toResolveResponse(
+            template as NonNullable<
+              Awaited<ReturnType<typeof prisma.template.findFirst>>
+            >,
+            version,
+            parsed,
+            resolveCandidateReason(bucket, matched),
+          );
+        }
+      }
+
+      return null;
+    };
+
+    if (parsed.ownerUserId) {
+      const userTemplates = await TemplateService.listForUser(
+        parsed.organisationId,
+        parsed.ownerUserId,
+        filters,
+      );
+      const userLinked = await resolveFirstMatch(
+        userTemplates,
+        "USER_LINKED",
+        true,
+      );
+      if (userLinked) return userLinked;
+    }
+
+    const orgTemplates = await TemplateService.listForOrganisation(
+      parsed.organisationId,
+      filters,
+    );
+    const orgLinked = await resolveFirstMatch(orgTemplates, "ORG_LINKED", true);
+    if (orgLinked) return orgLinked;
+
+    if (parsed.ownerUserId) {
+      const userTemplates = await TemplateService.listForUser(
+        parsed.organisationId,
+        parsed.ownerUserId,
+        filters,
+      );
+      const userDefault = await resolveFirstMatch(
+        userTemplates,
+        "USER_DEFAULT",
+        false,
+      );
+      if (userDefault) return userDefault;
+    }
+
+    const orgDefault = await resolveFirstMatch(
+      orgTemplates,
+      "ORG_DEFAULT",
+      false,
+    );
+    if (orgDefault) return orgDefault;
+
+    const libraryTemplates = await TemplateService.listLibrary(filters);
+    const libraryDefault = await resolveFirstMatch(
+      libraryTemplates,
+      "YC_DEFAULT",
+      false,
+    );
+    if (libraryDefault) return libraryDefault;
+
+    throw new TemplateServiceError("Template not found", 404);
   },
 
   async createInstance(
@@ -900,16 +1306,19 @@ export const TemplateService = {
         | undefined;
 
       if (DOCUMENT_BACKED_TEMPLATE_KINDS.has(instance.template.kind)) {
+        const normalizedTemplateKind = normalizeTemplateKind(
+          instance.template.kind,
+        );
         const renderedDocumentInput: PersistRenderedDocumentInput = {
           title:
-            instance.template.kind === "FORM"
+            normalizedTemplateKind === "FORM"
               ? "Form submission"
-              : instance.template.kind.split("_").join(" "),
+              : normalizedTemplateKind.split("_").join(" "),
           source: {
             sourceKind: "TEMPLATE_INSTANCE",
             sourceId: instance.id,
             organisationId: instance.organisationId,
-            templateKind: instance.template.kind,
+            templateKind: normalizedTemplateKind,
             templateId: instance.templateId,
             templateVersion: instance.templateVersion,
           },

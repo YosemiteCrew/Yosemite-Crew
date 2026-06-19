@@ -38,6 +38,7 @@ const ensureAccessToken = async (): Promise<string> => {
 type BookAppointmentInput = {
   businessId: string;
   serviceId: string;
+  productItemId?: string | null;
   serviceName: string;
   specialityId?: string | null;
   specialityName?: string | null;
@@ -152,6 +153,19 @@ export const createAppointment = createAsyncThunk<
     const parentReferenceId = parentId ?? user?.id ?? null;
     const sharedAppointment: SharedAppointmentModel = {
       organisationId: payload.businessId,
+      patient: {
+        id: payload.companionId,
+        name: companion?.name ?? '',
+        species: companion?.category
+          ? companion.category.charAt(0).toUpperCase() +
+            companion.category.slice(1)
+          : '',
+        breed: companion?.breed?.breedName,
+        parent: {
+          id: parentReferenceId ?? '',
+          name: parentName,
+        },
+      },
       companion: {
         id: payload.companionId,
         name: companion?.name ?? '',
@@ -172,7 +186,7 @@ export const createAppointment = createAsyncThunk<
           }
         : undefined,
       appointmentType: {
-        id: payload.serviceId,
+        id: payload.productItemId ?? payload.serviceId,
         name: payload.serviceName,
         speciality: {
           id: payload.specialityId ?? payload.specialityName ?? '',

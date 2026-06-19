@@ -47,14 +47,14 @@ export const useAddressAutocomplete = ({
   const [error, setError] = useState<string | null>(null);
 
   const skipNextLookupRef = useRef(false);
-  const lastSignatureRef = useRef<string>('');
+  const lastCacheKeyRef = useRef<string>('');
 
   const trimmedQuery = query.trim();
   const isBelowMinLength = trimmedQuery.length < minQueryLength;
   const locationSignature = location
     ? `${location.latitude?.toFixed(4) ?? ''},${location.longitude?.toFixed(4) ?? ''}`
     : 'none';
-  const fetchSignature = isBelowMinLength
+  const fetchCacheKey = isBelowMinLength
     ? ''
     : `${trimmedQuery.toLowerCase()}::${locationSignature}`;
 
@@ -62,23 +62,23 @@ export const useAddressAutocomplete = ({
   const [prevIsBelowMin, setPrevIsBelowMin] = useState(isBelowMinLength);
   // Inline adjustment 2: when a new valid signature appears, immediately set isFetching = true.
   // Initialized to '' so the first above-min query always triggers.
-  const [prevFetchSignature, setPrevFetchSignature] = useState('');
+  const [prevFetchCacheKey, setPrevFetchCacheKey] = useState('');
 
   if (isBelowMinLength !== prevIsBelowMin) {
     setPrevIsBelowMin(isBelowMinLength);
     if (isBelowMinLength) {
       setIsFetching(false);
-      lastSignatureRef.current = '';
-      setPrevFetchSignature('');
+      lastCacheKeyRef.current = '';
+      setPrevFetchCacheKey('');
     }
   }
 
-  if (!isBelowMinLength && fetchSignature !== prevFetchSignature) {
-    setPrevFetchSignature(fetchSignature);
+  if (!isBelowMinLength && fetchCacheKey !== prevFetchCacheKey) {
+    setPrevFetchCacheKey(fetchCacheKey);
     if (!skipNextLookupRef.current) {
       setIsFetching(true);
     }
-    // When suppressLookup is active: update prevFetchSignature to track the new query
+    // When suppressLookup is active: update prevFetchCacheKey to track the new query
     // without changing isFetching — the loading state stays as-is.
   }
 
@@ -108,7 +108,7 @@ export const useAddressAutocomplete = ({
 
     const effectTrimmedQuery = query.trim();
     if (effectTrimmedQuery.length < minQueryLength) {
-      lastSignatureRef.current = '';
+      lastCacheKeyRef.current = '';
       return;
     }
 
@@ -117,11 +117,11 @@ export const useAddressAutocomplete = ({
       : 'none';
     const signature = `${effectTrimmedQuery.toLowerCase()}::${effectLocationSig}`;
 
-    if (signature === lastSignatureRef.current) {
+    if (signature === lastCacheKeyRef.current) {
       return;
     }
 
-    lastSignatureRef.current = signature;
+    lastCacheKeyRef.current = signature;
 
     let isActive = true;
 
@@ -164,7 +164,7 @@ export const useAddressAutocomplete = ({
   const selectSuggestion = useCallback(
     async (suggestion: PlaceSuggestion): Promise<PlaceDetails | null> => {
       skipNextLookupRef.current = true;
-      lastSignatureRef.current = '';
+      lastCacheKeyRef.current = '';
       setIsFetching(true);
       try {
         const details = await fetchPlaceDetails(suggestion.placeId);

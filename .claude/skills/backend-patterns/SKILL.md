@@ -1,3 +1,8 @@
+---
+name: backend-patterns
+description: Use when working in apps/backend — new endpoints, controllers, services, models, queues/workers, or integrations. Covers the Router to Controller to Service to Model architecture, Zod validation, Prisma/PostgreSQL data access, Winston logging, BullMQ jobs, and FHIR/IDEXX/Merck integrations.
+---
+
 # Backend Patterns — Yosemite Crew
 
 ## Description
@@ -15,7 +20,7 @@ apps/backend/src/
   routers/        ← Express route definitions (thin — just register handlers)
   controllers/    ← Request/response handling, input validation
   services/       ← Business logic (no req/res objects here)
-  models/         ← Mongoose schemas + Prisma models
+  models/         ← Prisma models (PostgreSQL); legacy Mongoose only, no new usage
   queues/         ← BullMQ job definitions
   workers/        ← BullMQ worker processors
   integrations/   ← External services (IDEXX, Merck, Stripe, Firebase, AWS)
@@ -47,9 +52,9 @@ const data = CreateAppointmentSchema.parse(req.body);
 
 ## Database
 
-- **Mongoose** for document operations (primary).
-- **Prisma** for migrations and schema management.
-- Never write raw MongoDB queries in controllers — always through models/services.
+- **PostgreSQL via Prisma** is the database for all new code; Prisma owns schema + migrations (see `@yosemite-crew/database`).
+- **No new Mongoose/MongoDB.** Legacy Mongoose models may still exist, but do not add new models or queries — this matches `apps/backend/AGENTS.md`.
+- Never access data directly from controllers — always go through services/models.
 
 ---
 
@@ -73,7 +78,7 @@ await emailQueue.add('send-reminder', { appointmentId });
 
 ## Healthcare Integrations
 
-- FHIR types from `@yosemite-crew/fhirtypes` — use these, never invent custom health data shapes.
+- FHIR types from `@yosemite-crew/fhir` — use these, never invent custom health data shapes.
 - IDEXX and Merck integrations live in `src/integrations/` — extend there, never inline.
 
 ---
@@ -83,7 +88,7 @@ await emailQueue.add('send-reminder', { appointmentId });
 Use **Winston** for all logging. Never use `console.log` in production code.
 
 ```ts
-import logger from '@/lib/logger';
+import logger from 'src/utils/logger';
 logger.info('Appointment created', { appointmentId });
 logger.error('Payment failed', { error, userId });
 ```

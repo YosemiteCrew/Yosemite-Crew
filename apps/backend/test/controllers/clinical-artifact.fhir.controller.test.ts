@@ -19,21 +19,33 @@ jest.mock("../../src/services/clinical-artifact.service", () => {
       getSoapNote: jest.fn(),
       listSoapNotesForAppointment: jest.fn(),
       listSoapNotesForEncounter: jest.fn(),
+      finalizeSoapNote: jest.fn(),
+      reopenSoapNote: jest.fn(),
+      amendSoapNote: jest.fn(),
       createPrescription: jest.fn(),
       updatePrescription: jest.fn(),
       getPrescription: jest.fn(),
       listPrescriptionsForAppointment: jest.fn(),
       listPrescriptionsForEncounter: jest.fn(),
+      finalizePrescription: jest.fn(),
+      reopenPrescription: jest.fn(),
+      amendPrescription: jest.fn(),
       createDischargeSummary: jest.fn(),
       updateDischargeSummary: jest.fn(),
       getDischargeSummary: jest.fn(),
       listDischargeSummariesForAppointment: jest.fn(),
       listDischargeSummariesForEncounter: jest.fn(),
+      finalizeDischargeSummary: jest.fn(),
+      reopenDischargeSummary: jest.fn(),
+      amendDischargeSummary: jest.fn(),
       createVitalRecord: jest.fn(),
       updateVitalRecord: jest.fn(),
       getVitalRecord: jest.fn(),
       listVitalRecordsForAppointment: jest.fn(),
       listVitalRecordsForEncounter: jest.fn(),
+      finalizeVitalRecord: jest.fn(),
+      reopenVitalRecord: jest.fn(),
+      amendVitalRecord: jest.fn(),
     },
     ClinicalArtifactServiceError: actual.ClinicalArtifactServiceError,
   };
@@ -332,6 +344,72 @@ describe("ClinicalArtifactFhirController", () => {
 
     expect(mockedService.createVitalRecord).toHaveBeenCalled();
     expect(mockedMapper.vitalRecordToObservation).toHaveBeenCalledTimes(3);
+  });
+
+  it("handles clinical artifact lifecycle operations", async () => {
+    mockedMapper.soapNoteToComposition.mockReturnValue({
+      resourceType: "Composition",
+    } as never);
+    mockedMapper.prescriptionToMedicationRequest.mockReturnValue({
+      resourceType: "MedicationRequest",
+    } as never);
+    mockedMapper.dischargeSummaryToComposition.mockReturnValue({
+      resourceType: "Composition",
+    } as never);
+    mockedMapper.vitalRecordToObservation.mockReturnValue({
+      resourceType: "Observation",
+    } as never);
+
+    mockedService.finalizeSoapNote.mockResolvedValueOnce({
+      artifact: { id: "artifact-1" },
+      soapNote: { id: "soap-1" },
+    } as never);
+    mockedService.reopenPrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-2" },
+      prescription: { id: "rx-1" },
+    } as never);
+    mockedService.amendDischargeSummary.mockResolvedValueOnce({
+      artifact: { id: "artifact-3" },
+      dischargeSummary: { id: "ds-1" },
+    } as never);
+    mockedService.finalizeVitalRecord.mockResolvedValueOnce({
+      artifact: { id: "artifact-4" },
+      vitalRecord: { id: "vital-1" },
+    } as never);
+
+    await ClinicalArtifactFhirController.finalizeSoapNote(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.reopenPrescription(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.amendDischargeSummary(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.finalizeVitalRecord(
+      req as Request,
+      res as Response,
+    );
+
+    expect(mockedService.finalizeSoapNote).toHaveBeenCalledWith(
+      "soap-1",
+      "org-1",
+    );
+    expect(mockedService.reopenPrescription).toHaveBeenCalledWith(
+      "rx-1",
+      "org-1",
+    );
+    expect(mockedService.amendDischargeSummary).toHaveBeenCalledWith(
+      "ds-1",
+      "org-1",
+    );
+    expect(mockedService.finalizeVitalRecord).toHaveBeenCalledWith(
+      "vital-1",
+      "org-1",
+    );
   });
 
   it("returns validation and service errors", async () => {

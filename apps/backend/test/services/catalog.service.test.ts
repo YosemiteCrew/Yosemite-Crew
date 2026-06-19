@@ -1,8 +1,26 @@
 import {
   CatalogService,
   CatalogServiceError,
+  assertBookableConfig,
+  assertPackageItems,
+  assertPriceConfig,
+  buildPackageGraph,
+  ensureCodeUniqueness,
+  ensurePackageItemsValid,
+  ensureSpecialityDeletionAllowed,
+  ensureSpecialityExists,
+  ensureSpecialityNameUnique,
+  generateProductCode,
+  getPackageDepth,
+  mapSpecialitySummaries,
+  packageContainsTarget,
   resolveCatalogSelectionFromRecord,
+  requireSafeString,
+  optionalSafeString,
+  sanitizePackageItems,
+  sanitizeTeamMemberIds,
 } from "../../src/services/catalog.service";
+import { AvailabilityService } from "../../src/services/availability.service";
 import { prisma } from "../../src/config/prisma";
 
 jest.mock("../../src/config/prisma", () => ({
@@ -58,12 +76,24 @@ jest.mock("../../src/config/prisma", () => ({
     inventoryItem: {
       findMany: jest.fn(),
     },
+    userProfile: {
+      findFirst: jest.fn(),
+    },
+    organization: {
+      findMany: jest.fn(),
+    },
+  },
+}));
+
+jest.mock("../../src/services/availability.service", () => ({
+  AvailabilityService: {
+    getBookableSlotsForDate: jest.fn(),
   },
 }));
 
 describe("CatalogService", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     (prisma.$transaction as jest.Mock).mockImplementation(
       async (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
     );
@@ -74,8 +104,14 @@ describe("CatalogService", () => {
     (prisma.appointment.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.invoice.count as jest.Mock).mockResolvedValue(0);
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.productPackageItem.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.templateCatalogLink.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.userProfile.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.organization.findMany as jest.Mock).mockResolvedValue([]);
+    (
+      AvailabilityService.getBookableSlotsForDate as jest.Mock
+    ).mockResolvedValue({ windows: [] });
     (prisma.productItem.findFirst as jest.Mock).mockImplementation(
       (args?: { where?: { code?: string; id?: string } }) => {
         if (args?.where?.code) {
@@ -261,7 +297,7 @@ describe("CatalogService", () => {
 
     expect(resolved.appointmentKinds).toEqual(["OUTPATIENT", "INPATIENT"]);
     expect(resolved.templateKinds).toEqual([
-      "CARE_PATHWAY",
+      "INPATIENT_SCHEDULE",
       "SOAP_NOTE",
       "DISCHARGE_SUMMARY",
     ]);
@@ -540,6 +576,598 @@ describe("CatalogService", () => {
     );
   });
 
+  it("covers low-level string and config validation helpers", async () => {
+    expect(() => requireSafeString(42, "name")).toThrow(
+      new CatalogServiceError("name is required.", 400),
+    );
+    expect(() => requireSafeString("  ", "name")).toThrow(
+      new CatalogServiceError("name is required.", 400),
+    );
+    expect(() => requireSafeString("bad$input", "name")).toThrow(
+      new CatalogServiceError("Invalid name.", 400),
+    );
+
+    expect(optionalSafeString(null)).toBeNull();
+    expect(optionalSafeString("  text  ")).toBe("text");
+    expect(() => optionalSafeString(42)).toThrow(
+      new CatalogServiceError("Invalid string value.", 400),
+    );
+
+    expect(() =>
+      assertPackageItems("CONSULTATION", [
+        { childProductItemId: "child", quantity: 1, pricingMode: "INCLUDED" },
+      ]),
+    ).toThrow(
+      new CatalogServiceError(
+        "Only products with kind PACKAGE can define package items.",
+        400,
+      ),
+    );
+    expect(() => assertPackageItems("PACKAGE", null)).toThrow(
+      new CatalogServiceError(
+        "Package products must include packageItems.",
+        400,
+      ),
+    );
+
+    expect(() =>
+      assertBookableConfig({
+        durationMinutes: 0,
+        supportsOutpatient: false,
+        supportsInpatient: false,
+      }),
+    ).toThrow(
+      new CatalogServiceError(
+        "Bookable durationMinutes must be a positive integer.",
+        400,
+      ),
+    );
+    expect(() =>
+      assertBookableConfig({
+        durationMinutes: 15,
+        supportsOutpatient: false,
+        supportsInpatient: false,
+      }),
+    ).toThrow(
+      new CatalogServiceError(
+        "Bookable products must support at least one appointment kind.",
+        400,
+      ),
+    );
+
+    expect(() => assertPriceConfig({ unitPrice: -1 } as any)).toThrow(
+      new CatalogServiceError("Price unitPrice cannot be negative.", 400),
+    );
+    expect(() =>
+      assertPriceConfig({
+        unitPrice: 10,
+        defaultDiscountPercent: 101,
+      } as any),
+    ).toThrow(
+      new CatalogServiceError(
+        "defaultDiscountPercent must be between 0 and 100.",
+        400,
+      ),
+    );
+    expect(() =>
+      assertPriceConfig({
+        unitPrice: 10,
+        maxDiscountPercent: 101,
+      } as any),
+    ).toThrow(
+      new CatalogServiceError(
+        "maxDiscountPercent must be between 0 and 100.",
+        400,
+      ),
+    );
+    expect(() =>
+      assertPriceConfig({
+        unitPrice: 10,
+        defaultDiscountPercent: 20,
+        maxDiscountPercent: 10,
+      } as any),
+    ).toThrow(
+      new CatalogServiceError(
+        "defaultDiscountPercent cannot exceed maxDiscountPercent.",
+        400,
+      ),
+    );
+
+    expect(() =>
+      sanitizePackageItems([
+        {
+          childProductItemId: "child",
+          quantity: 0,
+          pricingMode: "INCLUDED",
+        },
+      ]),
+    ).toThrow(
+      new CatalogServiceError(
+        "packageItems[0].quantity must be a positive integer.",
+        400,
+      ),
+    );
+    expect(() =>
+      sanitizePackageItems([
+        {
+          childProductItemId: "child",
+          quantity: 1,
+          pricingMode: "OVERRIDE_PRICE",
+          overridePrice: null,
+        },
+      ]),
+    ).toThrow(
+      new CatalogServiceError(
+        "packageItems[0].overridePrice is required for OVERRIDE_PRICE.",
+        400,
+      ),
+    );
+    expect(() =>
+      sanitizePackageItems([
+        {
+          childProductItemId: "child",
+          quantity: 1,
+          pricingMode: "INCLUDED",
+          discountPercent: 101,
+        },
+      ]),
+    ).toThrow(
+      new CatalogServiceError(
+        "packageItems[0].discountPercent must be between 0 and 100.",
+        400,
+      ),
+    );
+
+    expect(() => sanitizeTeamMemberIds("bad" as any)).toThrow(
+      new CatalogServiceError("teamMemberIds must be an array.", 400),
+    );
+  });
+
+  it("covers package graph and dependency helpers", async () => {
+    (prisma.productItem.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          id: "pkg_1",
+          package: {
+            items: [{ childProductItemId: "pkg_2" }],
+          },
+        },
+        {
+          id: "pkg_2",
+          package: {
+            items: [{ childProductItemId: "pkg_1" }],
+          },
+        },
+      ])
+      .mockResolvedValueOnce([
+        { code: "CS-0003" },
+        { code: "CS-0007" },
+        { code: "CS-ABCD" },
+      ]);
+    (prisma.productPackageItem.findFirst as jest.Mock).mockResolvedValue({
+      id: "ppi_1",
+      packageId: "pkg_1",
+    });
+    (prisma.appointment.count as jest.Mock).mockResolvedValueOnce(2);
+    (prisma.appointment.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "appt_1" },
+    ]);
+    (prisma.invoice.count as jest.Mock).mockResolvedValueOnce(1);
+
+    const graph = await buildPackageGraph("org_1");
+    expect(graph.get("pkg_1")).toEqual(["pkg_2"]);
+    expect(getPackageDepth(graph, "pkg_1")).toBeGreaterThan(1);
+    expect(packageContainsTarget(graph, "pkg_1", "pkg_missing")).toBe(false);
+    expect(packageContainsTarget(graph, "pkg_1", "pkg_2")).toBe(true);
+
+    await expect(generateProductCode("org_1", "CONSULTATION")).resolves.toBe(
+      "CS-0008",
+    );
+
+    (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    await expect(
+      ensureSpecialityExists("org_1", "spec_missing"),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      code: "NOT_FOUND",
+    });
+
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "dup_1",
+    });
+    await expect(
+      ensureCodeUniqueness({
+        organisationId: "org_1",
+        code: "CS-0007",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: "DUPLICATE_CATALOG_CODE",
+    });
+
+    await expect(
+      ensurePackageItemsValid({
+        organisationId: "org_1",
+        packageItems: [],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: "VALIDATION_ERROR",
+    });
+
+    await expect(
+      ensureSpecialityDeletionAllowed("spec_1", "org_1"),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: "SPECIALITY_HAS_DEPENDENCIES",
+    });
+  });
+
+  it("covers speciality summary and package item validation branches", async () => {
+    const summaries = mapSpecialitySummaries({
+      specialities: [
+        {
+          id: "spec_2",
+          organisationId: "org_1",
+          name: "Cardiology",
+          headUserId: "user_2",
+          headName: "Dr. Heart",
+          headProfilePicUrl: null,
+          memberUserIds: ["user_3"],
+          isActive: true,
+          createdAt: new Date("2026-01-01T00:00:00Z"),
+          updatedAt: new Date("2026-01-01T00:00:00Z"),
+        },
+      ],
+      products: [
+        {
+          specialityId: "spec_2",
+          isActive: true,
+          kind: "CONSULTATION",
+          name: "Heart check",
+          code: "CS-1",
+          description: "Cardiology consult",
+        },
+      ],
+      search: "heart",
+    });
+    expect(summaries).toEqual([
+      expect.objectContaining({
+        id: "spec_2",
+        activeServiceCount: 1,
+        teamMemberIds: ["user_3", "user_2"],
+      }),
+    ]);
+
+    (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    await expect(
+      ensureSpecialityNameUnique({
+        organisationId: "org_1",
+        name: "Cardiology",
+      }),
+    ).resolves.toBeUndefined();
+
+    (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "spec_2",
+    });
+    await expect(
+      ensureSpecialityNameUnique({
+        organisationId: "org_1",
+        name: "Cardiology",
+        excludeId: "spec_1",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: "DUPLICATE_SPECIALITY_NAME",
+    });
+
+    (prisma.productItem.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "child_1",
+          isActive: false,
+          prices: [],
+          package: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "child_1",
+          isActive: true,
+          prices: [],
+          package: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "child_1",
+          isActive: true,
+          prices: [{ maxDiscountPercent: 5 }],
+          package: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "pkg_1",
+          isActive: true,
+          prices: [],
+          package: { items: [{ childProductItemId: "child_1" }] },
+        },
+        {
+          id: "child_1",
+          isActive: true,
+          prices: [],
+          package: { items: [{ childProductItemId: "pkg_1" }] },
+        },
+      ]);
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "child_1",
+        isActive: true,
+        prices: [{ maxDiscountPercent: 5 }],
+        package: null,
+      },
+    ]);
+
+    await expect(
+      ensurePackageItemsValid({
+        organisationId: "org_1",
+        packageItems: [],
+      }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+
+    await expect(
+      ensurePackageItemsValid({
+        organisationId: "org_1",
+        packageItems: [
+          {
+            childProductItemId: "missing_child",
+            quantity: 1,
+            pricingMode: "INCLUDED",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "PACKAGE_CHILD_UNAVAILABLE" });
+
+    await expect(
+      ensurePackageItemsValid({
+        organisationId: "org_1",
+        currentProductId: "pkg_1",
+        packageItems: [
+          {
+            childProductItemId: "child_1",
+            quantity: 1,
+            pricingMode: "INCLUDED",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      code: "PACKAGE_CHILD_UNAVAILABLE",
+      details: { childProductItemId: "child_1" },
+    });
+
+    await expect(
+      ensurePackageItemsValid({
+        organisationId: "org_1",
+        currentProductId: "child_1",
+        packageItems: [
+          {
+            childProductItemId: "child_1",
+            quantity: 1,
+            pricingMode: "INCLUDED",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "PACKAGE_HAS_CYCLE" });
+
+    await expect(
+      ensurePackageItemsValid({
+        organisationId: "org_1",
+        currentProductId: "pkg_1",
+        packageItems: [
+          {
+            childProductItemId: "child_1",
+            quantity: 1,
+            pricingMode: "INCLUDED",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "PACKAGE_HAS_CYCLE" });
+
+    await expect(
+      ensurePackageItemsValid({
+        organisationId: "org_1",
+        packageItems: [
+          {
+            childProductItemId: "child_1",
+            quantity: 1,
+            pricingMode: "INHERITED_PRICE",
+            discountPercent: 10,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "PACKAGE_ITEM_DISCOUNT_TOO_HIGH" });
+  });
+
+  it("rejects inactive selections and package records with missing config", () => {
+    expect(() =>
+      resolveCatalogSelectionFromRecord({
+        id: "prod_inactive",
+        version: 1,
+        organisationId: "org_1",
+        name: "Inactive Consult",
+        description: null,
+        code: null,
+        kind: "CONSULTATION",
+        specialityId: null,
+        legacyServiceId: null,
+        isActive: false,
+        prices: [],
+        bookable: null,
+        package: null,
+      }),
+    ).toThrow(new CatalogServiceError("Selected product is inactive.", 400));
+
+    expect(() =>
+      resolveCatalogSelectionFromRecord({
+        id: "pkg_missing",
+        version: 1,
+        organisationId: "org_1",
+        name: "Missing Package",
+        description: null,
+        code: null,
+        kind: "PACKAGE",
+        specialityId: null,
+        legacyServiceId: null,
+        isActive: true,
+        prices: [],
+        bookable: null,
+        package: null,
+      }),
+    ).toThrow(
+      new CatalogServiceError(
+        "Package product is missing package configuration.",
+        500,
+      ),
+    );
+  });
+
+  it("covers medication and package child validation branches", () => {
+    const medication = resolveCatalogSelectionFromRecord({
+      id: "med_1",
+      version: 1,
+      organisationId: "org_1",
+      name: "Antibiotic",
+      description: null,
+      code: "MD-1",
+      kind: "MEDICATION",
+      specialityId: null,
+      legacyServiceId: null,
+      isActive: true,
+      prices: [
+        {
+          unitPrice: 25,
+          currency: "USD",
+          defaultDiscountPercent: 0,
+          maxDiscountPercent: 5,
+          isDefault: true,
+        },
+      ],
+      bookable: null,
+      package: null,
+    });
+
+    expect(medication.templateKinds).toEqual(["PRESCRIPTION"]);
+
+    expect(() =>
+      resolveCatalogSelectionFromRecord({
+        id: "pkg_inactive_child",
+        version: 1,
+        organisationId: "org_1",
+        name: "Broken Package",
+        description: null,
+        code: null,
+        kind: "PACKAGE",
+        specialityId: null,
+        legacyServiceId: null,
+        isActive: true,
+        prices: [
+          {
+            unitPrice: 100,
+            currency: "USD",
+            defaultDiscountPercent: 0,
+            maxDiscountPercent: 10,
+            isDefault: true,
+          },
+        ],
+        bookable: null,
+        package: {
+          leadCount: 1,
+          supportCount: 0,
+          additionalDiscountPercent: 0,
+          items: [
+            {
+              id: "pkg_item_1",
+              childProductItemId: "prod_child",
+              quantity: 1,
+              pricingMode: "INCLUDED",
+              overridePrice: null,
+              discountPercent: null,
+              sortOrder: 0,
+              isOptional: false,
+              childProductItem: {
+                id: "prod_child",
+                name: "Child",
+                code: null,
+                kind: "CONSULTATION",
+                isActive: false,
+                prices: [
+                  {
+                    unitPrice: 40,
+                    currency: "USD",
+                    defaultDiscountPercent: null,
+                    maxDiscountPercent: 10,
+                    isDefault: true,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    ).toThrow(
+      new CatalogServiceError("Package component Child is inactive.", 400),
+    );
+
+    expect(() =>
+      resolveCatalogSelectionFromRecord({
+        id: "pkg_inherited_missing_price",
+        version: 1,
+        organisationId: "org_1",
+        name: "Broken Package 2",
+        description: null,
+        code: null,
+        kind: "PACKAGE",
+        specialityId: null,
+        legacyServiceId: null,
+        isActive: true,
+        prices: [],
+        bookable: null,
+        package: {
+          leadCount: 1,
+          supportCount: 0,
+          additionalDiscountPercent: 0,
+          items: [
+            {
+              id: "pkg_item_2",
+              childProductItemId: "prod_child_2",
+              quantity: 1,
+              pricingMode: "INHERITED_PRICE",
+              overridePrice: null,
+              discountPercent: null,
+              sortOrder: 0,
+              isOptional: false,
+              childProductItem: {
+                id: "prod_child_2",
+                name: "Child Two",
+                code: null,
+                kind: "CONSULTATION",
+                isActive: true,
+                prices: [],
+              },
+            },
+          ],
+        },
+      }),
+    ).toThrow(
+      new CatalogServiceError(
+        "Package component Child Two is missing default price.",
+        500,
+      ),
+    );
+  });
+
   it("loads a product from prisma when resolving by id", async () => {
     (prisma.productItem.findFirst as jest.Mock).mockResolvedValue({
       id: "prod_consult",
@@ -595,7 +1223,7 @@ describe("CatalogService", () => {
           name: "Exam",
           description: null,
           code: "CS-0002",
-          kind: "CONSULTATION",
+          kind: "DIAGNOSTIC",
           specialityId: "spec_1",
           legacyServiceId: null,
           isActive: true,
@@ -642,7 +1270,7 @@ describe("CatalogService", () => {
               id: "prod_exam",
               version: 1,
               name: "Exam",
-              kind: "CONSULTATION",
+              kind: "DIAGNOSTIC",
               isActive: true,
               prices: [],
             },
@@ -681,6 +1309,305 @@ describe("CatalogService", () => {
     expect(created.packageItems).toHaveLength(1);
   });
 
+  it("generates a product code and skips optional pricing fields when omitted", async () => {
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+      { code: "CS-0003" },
+    ]);
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.productItem.create as jest.Mock).mockResolvedValue({
+      id: "prod_followup",
+      version: 1,
+      organisationId: "org_1",
+      name: "Follow-up",
+      description: null,
+      code: "CS-0004",
+      kind: "CONSULTATION",
+      specialityId: "spec_1",
+      legacyServiceId: null,
+      isActive: false,
+      prices: [],
+      bookable: null,
+      package: null,
+    });
+
+    const created = await CatalogService.createProduct({
+      organisationId: "org_1",
+      name: "Follow-up",
+      kind: "CONSULTATION",
+      specialityId: "spec_1",
+      isActive: false,
+    });
+
+    expect(prisma.productItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          code: "CS-0004",
+          isActive: false,
+          prices: undefined,
+          bookable: undefined,
+          package: undefined,
+        }),
+      }),
+    );
+    expect(created.code).toBe("CS-0004");
+  });
+
+  it("rejects invalid createProduct payloads before persisting", async () => {
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Invalid bookable",
+        kind: "CONSULTATION",
+        bookable: {
+          durationMinutes: 0,
+          supportsOutpatient: false,
+          supportsInpatient: false,
+        },
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Bookable durationMinutes must be a positive integer.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Invalid package",
+        kind: "PACKAGE",
+        packageItems: [
+          {
+            childProductItemId: "child_1",
+            quantity: 1,
+            pricingMode: "OVERRIDE_PRICE",
+            overridePrice: null,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "packageItems[0].overridePrice is required for OVERRIDE_PRICE.",
+    });
+  });
+
+  it("covers catalogue validation branches for strings, prices, team members, and speciality lookups", async () => {
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "",
+        kind: "CONSULTATION",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "name is required.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Bad$Name",
+        kind: "CONSULTATION",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Invalid name.",
+    });
+
+    (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Valid name",
+        kind: "CONSULTATION",
+        specialityId: "spec_1",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Speciality not found for the organisation.",
+      code: "NOT_FOUND",
+    });
+
+    await expect(
+      CatalogService.createSpeciality({
+        organisationId: "org_1",
+        name: "Cardiology",
+        headUserId: 123 as any,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Invalid string value.",
+    });
+
+    await expect(
+      CatalogService.createSpeciality({
+        organisationId: "org_1",
+        name: "Cardiology",
+        teamMemberIds: "bad" as any,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "teamMemberIds must be an array.",
+    });
+  });
+
+  it("covers pricing, package, and scheduling error branches", async () => {
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Bad price",
+        kind: "CONSULTATION",
+        price: {
+          unitPrice: -1,
+        } as any,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Price unitPrice cannot be negative.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Bad discount",
+        kind: "CONSULTATION",
+        price: {
+          unitPrice: 10,
+          defaultDiscountPercent: 101,
+        } as any,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "defaultDiscountPercent must be between 0 and 100.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Bad discount 2",
+        kind: "CONSULTATION",
+        price: {
+          unitPrice: 10,
+          maxDiscountPercent: 101,
+        } as any,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "maxDiscountPercent must be between 0 and 100.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Bad discount 3",
+        kind: "CONSULTATION",
+        price: {
+          unitPrice: 10,
+          defaultDiscountPercent: 20,
+          maxDiscountPercent: 10,
+        } as any,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "defaultDiscountPercent cannot exceed maxDiscountPercent.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Package without items",
+        kind: "PACKAGE",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Package products must include packageItems.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Consult with package items",
+        kind: "CONSULTATION",
+        packageItems: [
+          {
+            childProductItemId: "child_1",
+            quantity: 1,
+            pricingMode: "INCLUDED",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Only products with kind PACKAGE can define package items.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Broken package item",
+        kind: "PACKAGE",
+        packageItems: [
+          {
+            childProductItemId: "child_1",
+            quantity: 0,
+            pricingMode: "INCLUDED",
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "packageItems[0].quantity must be a positive integer.",
+    });
+
+    await expect(
+      CatalogService.createProduct({
+        organisationId: "org_1",
+        name: "Broken package item 2",
+        kind: "PACKAGE",
+        packageItems: [
+          {
+            childProductItemId: "child_1",
+            quantity: 1,
+            pricingMode: "INCLUDED",
+            discountPercent: 101,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "packageItems[0].discountPercent must be between 0 and 100.",
+    });
+
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([]);
+    await expect(
+      CatalogService.getBookableSlotsService(
+        "prod_missing",
+        "org_1",
+        new Date("2026-01-01T00:00:00Z"),
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Product not found.",
+    });
+
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "prod_not_bookable",
+        organisationId: "org_1",
+        specialityId: "spec_1",
+        bookable: null,
+      },
+    ]);
+    await expect(
+      CatalogService.getBookableSlotsService(
+        "prod_not_bookable",
+        "org_1",
+        new Date("2026-01-01T00:00:00Z"),
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Product is not bookable.",
+    });
+  });
+
   it("lists active products for an organisation", async () => {
     (prisma.productItem.findMany as jest.Mock).mockResolvedValue([
       {
@@ -712,6 +1639,56 @@ describe("CatalogService", () => {
       }),
     );
     expect(results).toHaveLength(1);
+  });
+
+  it("applies speciality, kind, activity, and search filters when listing products", async () => {
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: "prod_1",
+        organisationId: "org_1",
+        name: "Cardio Consult",
+        description: "Heart check",
+        code: "CS-1001",
+        kind: "CONSULTATION",
+        specialityId: "spec_1",
+        legacyServiceId: null,
+        isActive: false,
+        prices: [],
+        bookable: null,
+        package: null,
+      },
+    ]);
+
+    const results = await CatalogService.listProducts({
+      organisationId: "org_1",
+      specialityId: "spec_1",
+      kinds: ["CONSULTATION", "PACKAGE"],
+      active: false,
+      search: "cardio",
+    });
+
+    expect(prisma.productItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org_1",
+          specialityId: "spec_1",
+          kind: { in: ["CONSULTATION", "PACKAGE"] },
+          isActive: false,
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              name: expect.objectContaining({ contains: "cardio" }),
+            }),
+          ]),
+        }),
+      }),
+    );
+    expect(results[0]).toEqual(
+      expect.objectContaining({
+        id: "prod_1",
+        isActive: false,
+        code: "CS-1001",
+      }),
+    );
   });
 
   it("updates nested pricing and bookable settings", async () => {
@@ -779,6 +1756,67 @@ describe("CatalogService", () => {
     expect(prisma.productPrice.update).toHaveBeenCalled();
     expect(prisma.productBookable.upsert).toHaveBeenCalled();
     expect(updated.name).toBe("Updated Consult");
+  });
+
+  it("removes pricing, bookable, and package records when a package becomes a consultation", async () => {
+    (prisma.productItem.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pkg_1",
+      version: 3,
+      organisationId: "org_1",
+      name: "Bundle",
+      description: null,
+      code: "PK-1",
+      kind: "PACKAGE",
+      specialityId: "spec_1",
+      legacyServiceId: null,
+      isActive: true,
+      prices: [{ id: "price_1", isDefault: true }],
+      bookable: { id: "book_1" },
+      package: { items: [{ id: "pkg_item_1" }] },
+    });
+    (prisma.productPrice.findFirst as jest.Mock).mockResolvedValue({
+      id: "price_1",
+    });
+    (prisma.productItem.update as jest.Mock).mockResolvedValue({});
+    (prisma.productPrice.delete as jest.Mock).mockResolvedValue({});
+    (prisma.productBookable.deleteMany as jest.Mock).mockResolvedValue({});
+    (prisma.productPackage.findUnique as jest.Mock).mockResolvedValue({
+      id: "package_1",
+    });
+    (prisma.productPackage.delete as jest.Mock).mockResolvedValue({});
+    (prisma.productItem.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pkg_1",
+      organisationId: "org_1",
+      name: "Converted Bundle",
+      description: null,
+      code: "PK-1",
+      kind: "CONSULTATION",
+      specialityId: "spec_1",
+      legacyServiceId: null,
+      isActive: true,
+      prices: [],
+      bookable: null,
+      package: null,
+    });
+
+    const updated = await CatalogService.updateProduct("pkg_1", {
+      kind: "CONSULTATION",
+      price: null,
+      bookable: null,
+      packageItems: [],
+      expectedVersion: 3,
+    });
+
+    expect(prisma.productPrice.delete).toHaveBeenCalledWith({
+      where: { id: "price_1" },
+    });
+    expect(prisma.productBookable.deleteMany).toHaveBeenCalledWith({
+      where: { productItemId: "pkg_1" },
+    });
+    expect(prisma.productPackage.delete).toHaveBeenCalledWith({
+      where: { id: "package_1" },
+    });
+    expect(updated.kind).toBe("CONSULTATION");
   });
 
   it("rejects stale updates when the expected version is outdated", async () => {
@@ -946,6 +1984,64 @@ describe("CatalogService", () => {
         }),
       ],
     });
+  });
+
+  it("returns only packages when the speciality catalog tab is packages", async () => {
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: "prod_consult",
+        version: 1,
+        organisationId: "org_1",
+        name: "General Consultation",
+        description: null,
+        code: "CS-1",
+        kind: "CONSULTATION",
+        specialityId: "spec_1",
+        legacyServiceId: null,
+        isActive: true,
+        prices: [
+          {
+            unitPrice: 100,
+            currency: "USD",
+            defaultDiscountPercent: 0,
+            maxDiscountPercent: 10,
+            isDefault: true,
+          },
+        ],
+        bookable: null,
+        package: null,
+      },
+      {
+        id: "pkg_bundle",
+        version: 1,
+        organisationId: "org_1",
+        name: "Cardio Bundle",
+        description: null,
+        code: "PK-1",
+        kind: "PACKAGE",
+        specialityId: "spec_1",
+        legacyServiceId: null,
+        isActive: true,
+        prices: [],
+        bookable: null,
+        package: {
+          leadCount: 1,
+          supportCount: 0,
+          additionalDiscountPercent: 0,
+          items: [],
+        },
+      },
+    ]);
+
+    const result = await CatalogService.getSpecialityCatalog({
+      organisationId: "org_1",
+      specialityId: "spec_1",
+      tab: "packages",
+      includeInactive: true,
+    });
+
+    expect(result.services).toEqual([]);
+    expect(result.packages).toHaveLength(1);
   });
 
   it("returns package detail with breakdown rows", async () => {
@@ -1339,6 +2435,324 @@ describe("CatalogService", () => {
     );
   });
 
+  it("resolves lab products and package cycles while skipping inventory lookups when not requested", async () => {
+    (prisma.productItem.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          id: "pkg_parent",
+          version: 1,
+          organisationId: "org_1",
+          name: "Parent bundle",
+          description: "Parent",
+          code: "PK-1",
+          kind: "PACKAGE",
+          specialityId: "spec_1",
+          legacyServiceId: null,
+          isActive: true,
+          prices: [
+            {
+              unitPrice: 120,
+              currency: "USD",
+              defaultDiscountPercent: 0,
+              maxDiscountPercent: 20,
+              isDefault: true,
+            },
+          ],
+          bookable: null,
+          package: {
+            leadCount: 1,
+            supportCount: 0,
+            additionalDiscountPercent: 0,
+            items: [],
+          },
+        },
+        {
+          id: "pkg_child",
+          version: 1,
+          organisationId: "org_1",
+          name: "Child bundle",
+          description: "Child",
+          code: "PK-2",
+          kind: "PACKAGE",
+          specialityId: "spec_1",
+          legacyServiceId: null,
+          isActive: true,
+          prices: [
+            {
+              unitPrice: 95,
+              currency: "USD",
+              defaultDiscountPercent: 0,
+              maxDiscountPercent: 20,
+              isDefault: true,
+            },
+          ],
+          bookable: null,
+          package: {
+            leadCount: 1,
+            supportCount: 0,
+            additionalDiscountPercent: 0,
+            items: [],
+          },
+        },
+        {
+          id: "lab_1",
+          version: 1,
+          organisationId: "org_1",
+          name: "CBC Panel",
+          description: "Lab work",
+          code: "LB-1",
+          kind: "LAB_TEST",
+          specialityId: "spec_1",
+          legacyServiceId: null,
+          isActive: true,
+          prices: [
+            {
+              unitPrice: 45,
+              currency: "USD",
+              defaultDiscountPercent: 0,
+              maxDiscountPercent: 0,
+              isDefault: true,
+            },
+          ],
+          bookable: null,
+          package: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "pkg_parent",
+          package: { items: [{ childProductItemId: "pkg_child" }] },
+        },
+        {
+          id: "pkg_child",
+          package: { items: [{ childProductItemId: "pkg_parent" }] },
+        },
+      ]);
+
+    const result = await CatalogService.searchItems({
+      organisationId: "org_1",
+      q: "bundle",
+      kinds: ["LAB", "PACKAGE"],
+      includeArchived: false,
+      excludePackageId: "pkg_parent",
+      includeNestedBreakdown: true,
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(prisma.inventoryItem.findMany).not.toHaveBeenCalled();
+    expect(prisma.productItem.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org_1",
+          kind: { in: ["LAB_TEST", "DIAGNOSTIC", "PACKAGE"] },
+        }),
+      }),
+    );
+    expect(result.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "pkg_parent",
+          blockReason: "Current package cannot include itself.",
+          canBeAddedToPackage: false,
+          nestedBreakdown: [],
+        }),
+        expect.objectContaining({
+          id: "pkg_child",
+          blockReason: "Adding this package would create a cycle.",
+          canBeAddedToPackage: false,
+        }),
+        expect.objectContaining({
+          id: "lab_1",
+          source: "CATALOG",
+          kind: "LAB_TEST",
+        }),
+      ]),
+    );
+  });
+
+  it("prefers nearby organisations and filters out those without services", async () => {
+    (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "org_near",
+        name: "Near Org",
+        isVerified: true,
+        isActive: true,
+        address: { latitude: 12.97, longitude: 77.59 },
+      },
+      {
+        id: "org_empty",
+        name: "Empty Org",
+        isVerified: true,
+        isActive: true,
+        address: { latitude: 12.9701, longitude: 77.5901 },
+      },
+      {
+        id: "org_missing",
+        name: "No Address",
+        isVerified: true,
+        isActive: true,
+        address: null,
+      },
+    ]);
+    (prisma.speciality.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: "spec_1",
+        name: "Cardiology",
+        organisationId: "org_near",
+      },
+    ]);
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: "prod_1",
+        name: "Consult",
+        kind: "CONSULTATION",
+        specialityId: "spec_1",
+        organisationId: "org_near",
+        prices: [{ unitPrice: 150 }],
+      },
+    ]);
+
+    const result = await CatalogService.listOrganisationsProvidingServiceNearby(
+      12.97,
+      77.59,
+      1000,
+    );
+
+    expect(prisma.organization.findMany).toHaveBeenCalledTimes(1);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        id: "org_near",
+        specialities: [
+          expect.objectContaining({
+            id: "spec_1",
+            services: [
+              expect.objectContaining({
+                id: "prod_1",
+                kind: "CONSULTATION",
+                cost: 150,
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("falls back to all organisations when nearby search finds nothing", async () => {
+    (prisma.organization.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          id: "org_far",
+          name: "Far Org",
+          isVerified: true,
+          isActive: true,
+          address: { latitude: 0, longitude: 0 },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "org_fallback",
+          name: "Fallback Org",
+          isVerified: true,
+          isActive: true,
+          address: { latitude: 1, longitude: 1 },
+        },
+      ]);
+    (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "spec_1",
+        name: "General",
+        organisationId: "org_fallback",
+      },
+    ]);
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "prod_1",
+        name: "Checkup",
+        kind: "CONSULTATION",
+        specialityId: "spec_1",
+        organisationId: "org_fallback",
+        prices: [{ unitPrice: 75 }],
+      },
+    ]);
+
+    const result = await CatalogService.listOrganisationsProvidingServiceNearby(
+      12.97,
+      77.59,
+      50,
+    );
+
+    expect(prisma.organization.findMany).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        id: "org_fallback",
+      }),
+    );
+  });
+
+  it("falls back to all organisations when coordinates are omitted", async () => {
+    (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "org_1",
+        name: "Org",
+        imageUrl: null,
+        phoneNo: "12345",
+        type: "CLINIC",
+        appointmentCheckInBufferMinutes: null,
+        appointmentCheckInRadiusMeters: null,
+        address: {
+          addressLine: "1 Main St",
+          country: "US",
+          city: "Austin",
+          state: "TX",
+          postalCode: "73301",
+          latitude: 40,
+          longitude: -74,
+        },
+      },
+    ]);
+    (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "spec_1", name: "General", organisationId: "org_1" },
+    ]);
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "prod_1",
+        name: "Checkup",
+        kind: "CONSULTATION",
+        specialityId: "spec_1",
+        organisationId: "org_1",
+        prices: [{ unitPrice: 50 }],
+      },
+    ]);
+
+    const result =
+      await CatalogService.listOrganisationsProvidingServiceNearby();
+
+    expect(prisma.organization.findMany).toHaveBeenCalledTimes(1);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        id: "org_1",
+        specialities: [
+          expect.objectContaining({
+            id: "spec_1",
+            services: [
+              expect.objectContaining({
+                id: "prod_1",
+                kind: "CONSULTATION",
+                cost: 50,
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+  });
+
   it("archives and restores products through updateProduct", async () => {
     const updateSpy = jest
       .spyOn(CatalogService, "updateProduct")
@@ -1346,19 +2760,8 @@ describe("CatalogService", () => {
     jest.spyOn(CatalogService, "getProductById").mockResolvedValue({
       id: "pkg_1",
       version: 2,
-      kind: "PACKAGE",
+      kind: "CONSULTATION",
       organisationId: "org_1",
-      packageItems: [
-        {
-          childProductItemId: "prod_1",
-          quantity: 1,
-          pricingMode: "INHERITED_PRICE",
-          overridePrice: null,
-          discountPercent: null,
-          sortOrder: 0,
-          isOptional: false,
-        },
-      ],
     } as never);
     (prisma.productItem.findMany as jest.Mock).mockResolvedValue([
       {
@@ -1504,6 +2907,258 @@ describe("CatalogService", () => {
     expect(prisma.invoice.count).not.toHaveBeenCalled();
     expect(prisma.speciality.delete).toHaveBeenCalledWith({
       where: { id: "spec_1" },
+    });
+  });
+
+  describe("catalog scheduling helpers", () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("returns merged bookable windows for a catalog item", async () => {
+      jest.useFakeTimers({ advanceTimers: false });
+      jest.setSystemTime(new Date("2026-01-01T12:00:00Z"));
+
+      (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "prod_1",
+          organisationId: "org_1",
+          specialityId: "spec_1",
+          bookable: {
+            durationMinutes: 60,
+          },
+        },
+      ]);
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+        memberUserIds: ["vet1", "vet2"],
+      });
+      (AvailabilityService.getBookableSlotsForDate as jest.Mock)
+        .mockResolvedValueOnce({
+          windows: [
+            { startTime: "10:00", endTime: "11:00", isAvailable: true },
+            { startTime: "14:00", endTime: "15:00", isAvailable: true },
+          ],
+        })
+        .mockResolvedValueOnce({
+          windows: [
+            { startTime: "14:00", endTime: "15:00", isAvailable: true },
+            { startTime: "18:00", endTime: "19:00", isAvailable: true },
+          ],
+        });
+
+      const result = await CatalogService.getBookableSlotsService(
+        "prod_1",
+        "org_1",
+        new Date("2026-01-01T00:00:00Z"),
+      );
+
+      expect(result.windows).toHaveLength(2);
+      expect(result.windows[0]).toEqual(
+        expect.objectContaining({
+          startTime: "14:00",
+          endTime: "15:00",
+          vetIds: ["vet1", "vet2"],
+        }),
+      );
+      expect(result.windows[1]).toEqual(
+        expect.objectContaining({
+          startTime: "18:00",
+          endTime: "19:00",
+          vetIds: ["vet2"],
+        }),
+      );
+    });
+
+    it("returns calendar prefill matches for a catalog item", async () => {
+      (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "prod_1",
+          organisationId: "org_1",
+          specialityId: "spec_1",
+          bookable: {
+            durationMinutes: 15,
+          },
+        },
+      ]);
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+        memberUserIds: ["vet-1"],
+      });
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce({
+        personalDetails: { timezone: "UTC" },
+      });
+      (AvailabilityService.getBookableSlotsForDate as jest.Mock)
+        .mockResolvedValueOnce({ windows: [] })
+        .mockResolvedValueOnce({
+          windows: [
+            { startTime: "00:05", endTime: "00:20", isAvailable: true },
+          ],
+        })
+        .mockResolvedValueOnce({ windows: [] });
+
+      const matches = await CatalogService.getCalendarPrefillMatches({
+        organisationId: "org_1",
+        date: new Date("2026-04-01T00:00:00.000Z"),
+        minuteOfDay: 5,
+        serviceIds: ["prod_1"],
+      });
+
+      expect(matches).toEqual([
+        {
+          serviceId: "prod_1",
+          slot: {
+            startTime: "00:05",
+            endTime: "00:20",
+            vetIds: ["vet-1"],
+          },
+          meta: {
+            localStartMinute: 5,
+            localEndMinute: 20,
+          },
+        },
+      ]);
+      expect(prisma.userProfile.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organizationId: "org_1" },
+          select: { personalDetails: true },
+        }),
+      );
+    });
+
+    it("returns no calendar prefill matches when serviceIds are blank", async () => {
+      const matches = await CatalogService.getCalendarPrefillMatches({
+        organisationId: "org_1",
+        date: new Date("2026-04-01T00:00:00.000Z"),
+        minuteOfDay: 5,
+        serviceIds: [],
+      });
+
+      expect(matches).toEqual([]);
+      expect(
+        AvailabilityService.getBookableSlotsForDate,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("falls back to all organisations when no nearby organisations are found", async () => {
+      (prisma.organization.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: "org_1",
+            name: "Org",
+            imageUrl: null,
+            phoneNo: "12345",
+            type: "CLINIC",
+            appointmentCheckInBufferMinutes: null,
+            appointmentCheckInRadiusMeters: null,
+            address: {
+              addressLine: "1 Main St",
+              country: "US",
+              city: "Austin",
+              state: "TX",
+              postalCode: "73301",
+              latitude: 40,
+              longitude: -74,
+            },
+          },
+        ]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "spec_1", name: "General", organisationId: "org_1" },
+      ]);
+      (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "prod_1",
+          name: "Checkup",
+          kind: "CONSULTATION",
+          specialityId: "spec_1",
+          organisationId: "org_1",
+          prices: [{ unitPrice: 50 }],
+        },
+      ]);
+
+      const result =
+        await CatalogService.listOrganisationsProvidingServiceNearby(40, -74);
+
+      expect(prisma.organization.findMany).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          id: "org_1",
+          name: "Org",
+          specialities: [
+            expect.objectContaining({
+              id: "spec_1",
+              services: [
+                expect.objectContaining({
+                  id: "prod_1",
+                  name: "Checkup",
+                  kind: "CONSULTATION",
+                  cost: 50,
+                }),
+              ],
+            }),
+          ],
+        }),
+      );
+    });
+
+    it("lists nearby organisations with their active services", async () => {
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "org_1",
+          name: "Org",
+          imageUrl: null,
+          phoneNo: "12345",
+          type: "CLINIC",
+          appointmentCheckInBufferMinutes: null,
+          appointmentCheckInRadiusMeters: null,
+          address: {
+            addressLine: "1 Main St",
+            country: "US",
+            city: "Austin",
+            state: "TX",
+            postalCode: "73301",
+            latitude: 40,
+            longitude: -74,
+          },
+        },
+      ]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "spec_1", name: "General", organisationId: "org_1" },
+      ]);
+      (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "prod_1",
+          name: "Checkup",
+          kind: "PACKAGE",
+          specialityId: "spec_1",
+          organisationId: "org_1",
+          prices: [{ unitPrice: 50 }],
+        },
+      ]);
+
+      const result =
+        await CatalogService.listOrganisationsProvidingServiceNearby(40, -74);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          id: "org_1",
+          name: "Org",
+          specialities: [
+            expect.objectContaining({
+              id: "spec_1",
+              services: [
+                expect.objectContaining({
+                  id: "prod_1",
+                  name: "Checkup",
+                  kind: "PACKAGE",
+                  cost: 50,
+                }),
+              ],
+            }),
+          ],
+        }),
+      );
     });
   });
 });

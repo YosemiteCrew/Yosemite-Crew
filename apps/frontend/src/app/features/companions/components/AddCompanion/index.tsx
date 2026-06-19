@@ -6,8 +6,9 @@ import Modal from '@/app/ui/overlays/Modal';
 import {
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
+  CompanionFormData,
 } from '@/app/features/companions/components/AddCompanion/type';
-import { StoredCompanion, StoredParent } from '@/app/features/companions/pages/Companions/types';
+import { StoredParent } from '@/app/features/companions/pages/Companions/types';
 import Close from '@/app/ui/primitives/Icons/Close';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
@@ -42,7 +43,7 @@ const AddCompanion = ({
   const parentSectionRef = useRef<ParentSectionRef | null>(null);
   const [parentFormData, setParentFormData] = useState<StoredParent>(EMPTY_STORED_PARENT);
   const [companionFormData, setCompanionFormData] =
-    useState<StoredCompanion>(EMPTY_STORED_COMPANION);
+    useState<CompanionFormData>(EMPTY_STORED_COMPANION);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });

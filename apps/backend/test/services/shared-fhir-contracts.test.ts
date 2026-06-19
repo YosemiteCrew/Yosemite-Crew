@@ -420,7 +420,7 @@ describe("shared fhir contracts", () => {
       templateInstanceId: "instance-1",
       templateId: "template-1",
       templateVersion: 3,
-      templateKind: "CARE_PATHWAY",
+      templateKind: "INPATIENT_SCHEDULE",
       organisationId: "org-1",
       createdBy: "creator-1",
       activatedBy: "actor-1",

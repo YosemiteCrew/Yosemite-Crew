@@ -5,6 +5,7 @@ import type {Document, DocumentFile} from '@/features/documents/types';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
+import {SUBCATEGORY_IDS as S} from '@/features/documents/subcategoryIds';
 
 const CATEGORY_ALIASES: Record<string, string> = {
   hygiene: 'hygiene-maintenance',
@@ -21,18 +22,25 @@ const CATEGORY_API_MAP: Record<string, string> = {
 };
 
 const SUBCATEGORY_API_MAP: Record<string, string> = {
-  passport: 'PASSPORT',
-  certificates: 'CERTIFICATES',
-  insurance: 'INSURANCE',
-  'hospital-visits': 'HOSPITAL_VISITS',
-  'prescriptions-treatments': 'PRESCRIPTIONS_AND_TREATMENTS',
-  'vaccination-parasite': 'VACCINATION_AND_PARASITE_PREVENTION',
-  'lab-tests': 'LAB_TESTS',
-  'grooming-visits': 'GROOMER_VISIT',
-  'boarding-records': 'BOARDER_VISIT',
-  'training-behaviour': 'TRAINING_AND_BEHAVIOUR_REPORTS',
-  'breeder-interactions': 'BREEDER_VISIT',
-  'nutrition-plans': 'NUTRITION_PLANS',
+  [S.PASSPORT]: 'PASSPORT',
+  [S.CERTIFICATES]: 'CERTIFICATES',
+  [S.INSURANCE]: 'INSURANCE',
+  [S.SURGERY_PROCEDURE]: 'SURGERY_OR_PROCEDURE',
+  [S.PRESCRIPTION]: 'PRESCRIPTION',
+  [S.VACCINATION]: 'VACCINATION',
+  [S.DISCHARGE_SUMMARY]: 'DISCHARGE_SUMMARY',
+  [S.LAB_TEST]: 'LAB_TEST',
+  [S.IMAGING_DIAGNOSTIC]: 'IMAGING_OR_DIAGNOSTIC',
+  [S.PARASITE_PREVENTION]: 'PARASITE_PREVENTION',
+  [S.MEDICAL_CONDITION]: 'MEDICAL_CONDITION',
+  [S.BATHING]: 'BATHING',
+  [S.NAIL_TRIM]: 'NAIL_TRIM',
+  [S.GROOMING]: 'GROOMING',
+  [S.EAR_CLEANING]: 'EAR_CLEANING',
+  [S.DENTAL_CLEANING]: 'DENTAL_CLEANING',
+  [S.SKIN_CARE]: 'SKIN_CARE',
+  [S.ANAL_GLAND_EXPRESSION]: 'ANAL_GLAND_EXPRESSION',
+  [S.NUTRITION_PLANS]: 'NUTRITION_PLANS',
 };
 
 const normalizeKey = (value?: string | null): string => {

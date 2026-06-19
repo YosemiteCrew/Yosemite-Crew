@@ -242,7 +242,7 @@ describe('TabNavigator', () => {
 
           try {
             return selector(state);
-          } catch (error) {
+          } catch (_error) {
             return null;
           }
         },

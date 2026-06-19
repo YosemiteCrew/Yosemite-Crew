@@ -88,7 +88,11 @@ jest.mock(
   () => {
     const {View, Text, TouchableOpacity} = require('react-native');
     return {
-      SpecialtyAccordion: ({specialties, onSelectService}: any) => (
+      SpecialtyAccordion: ({
+        specialties,
+        onSelectService,
+        onSelectPackage,
+      }: any) => (
         <View testID="specialty-accordion">
           {specialties.map((grp: any) => (
             <View key={grp.name}>
@@ -99,6 +103,14 @@ jest.mock(
                   testID={`service-${svc.id}`}
                   onPress={() => onSelectService(svc.id, grp.name)}>
                   <Text>{svc.name}</Text>
+                </TouchableOpacity>
+              ))}
+              {(grp.packages ?? []).map((pkg: any) => (
+                <TouchableOpacity
+                  key={pkg.id}
+                  testID={`package-${pkg.id}`}
+                  onPress={() => onSelectPackage(pkg.id, pkg.name)}>
+                  <Text>{pkg.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>

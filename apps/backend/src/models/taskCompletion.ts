@@ -2,7 +2,7 @@ import { Schema, model, HydratedDocument } from "mongoose";
 
 interface TaskCompletionMongo {
   taskId: string;
-  companionId: string;
+  patientId: string;
   filledBy: string;
 
   answers: Record<string, unknown>;
@@ -15,7 +15,7 @@ interface TaskCompletionMongo {
 const TaskCompletionSchema = new Schema(
   {
     taskId: { type: String, required: true, index: true },
-    companionId: { type: String, required: true },
+    patientId: { type: String, required: true },
     filledBy: { type: String, required: true },
 
     answers: { type: Schema.Types.Mixed, required: true },

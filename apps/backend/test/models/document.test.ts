@@ -9,7 +9,7 @@ describe("Document Model", () => {
   describe("Schema Validation", () => {
     it("should be valid if all required fields are present", () => {
       const doc = new DocumentModel({
-        companionId: new Types.ObjectId(),
+        patientId: new Types.ObjectId(),
         category: "Medical",
         title: "Vaccination Report",
         attachments: [
@@ -28,7 +28,7 @@ describe("Document Model", () => {
 
       const err = doc.validateSync();
       expect(err).toBeDefined();
-      expect(err?.errors["companionId"]).toBeDefined();
+      expect(err?.errors["patientId"]).toBeDefined();
       expect(err?.errors["category"]).toBeDefined();
       expect(err?.errors["title"]).toBeDefined();
       expect(err?.errors["attachments"]).toBeDefined();
@@ -36,7 +36,7 @@ describe("Document Model", () => {
 
     it('should validate "attachments" must be a non-empty array', () => {
       const docEmpty = new DocumentModel({
-        companionId: new Types.ObjectId(),
+        patientId: new Types.ObjectId(),
         category: "Medical",
         title: "Test",
         attachments: [], // Empty array
@@ -48,7 +48,7 @@ describe("Document Model", () => {
 
     it("should validate attachment structure inside array", () => {
       const docInvalidAttachment = new DocumentModel({
-        companionId: new Types.ObjectId(),
+        patientId: new Types.ObjectId(),
         category: "Medical",
         title: "Test",
         attachments: [{ key: "only-key" }], // Missing mimeType
@@ -65,7 +65,7 @@ describe("Document Model", () => {
   describe("Default Values", () => {
     it("should set default values for optional fields", () => {
       const doc = new DocumentModel({
-        companionId: new Types.ObjectId(),
+        patientId: new Types.ObjectId(),
         category: "Lab",
         title: "Blood Test",
         attachments: [{ key: "k", mimeType: "t" }],
@@ -90,20 +90,20 @@ describe("Document Model", () => {
     it("should cast compatible types (e.g. string to ObjectId)", () => {
       const idString = new Types.ObjectId().toString();
       const doc = new DocumentModel({
-        companionId: idString, // String passed instead of ObjectId
+        patientId: idString, // String passed instead of ObjectId
         category: "Cat",
         title: "Title",
         attachments: [{ key: "k", mimeType: "m" }],
       });
 
-      expect(doc.companionId).toBeInstanceOf(Types.ObjectId);
-      expect(doc.companionId.toString()).toBe(idString);
+      expect(doc.patientId).toBeInstanceOf(Types.ObjectId);
+      expect(doc.patientId.toString()).toBe(idString);
     });
 
     it("should handle dates correctly", () => {
       const dateStr = "2023-01-01";
       const doc = new DocumentModel({
-        companionId: new Types.ObjectId(),
+        patientId: new Types.ObjectId(),
         category: "Cat",
         title: "Title",
         attachments: [{ key: "k", mimeType: "m" }],
@@ -124,19 +124,19 @@ describe("Document Model", () => {
       const indexes = DocumentModel.schema.indexes();
 
       // We expect specific compound and single field indexes based on the schema definition:
-      // 1. { companionId: 1, category: 1 }
-      // 2. { companionId: 1, pmsVisible: 1 }
+      // 1. { patientId: 1, category: 1 }
+      // 2. { patientId: 1, pmsVisible: 1 }
       // 3. { appointmentId: 1 }
       // + default timestamps usually add createdAt/updatedAt if configured (depends on plugin, but base schema has explicit ones above)
 
       const hasCategoryIndex = indexes.some((idx) => {
         const keys = idx[0];
-        return keys["companionId"] === 1 && keys["category"] === 1;
+        return keys["patientId"] === 1 && keys["category"] === 1;
       });
 
       const hasPmsVisibleIndex = indexes.some((idx) => {
         const keys = idx[0];
-        return keys["companionId"] === 1 && keys["pmsVisible"] === 1;
+        return keys["patientId"] === 1 && keys["pmsVisible"] === 1;
       });
 
       const hasAppointmentIndex = indexes.some((idx) => {

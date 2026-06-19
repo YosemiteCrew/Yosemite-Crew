@@ -97,7 +97,7 @@ describe("CompanionOrganisationController", () => {
         AuthUserMobileService.getByProviderUserId as jest.Mock
       ).mockResolvedValue({ parentId: "pid" });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       };
@@ -115,7 +115,7 @@ describe("CompanionOrganisationController", () => {
         AuthUserMobileService.getByProviderUserId as jest.Mock
       ).mockResolvedValue({ parentId: "pid" });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       };
@@ -159,7 +159,7 @@ describe("CompanionOrganisationController", () => {
         AuthUserMobileService.getByProviderUserId as jest.Mock
       ).mockResolvedValue({ parentId: "pid" });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "INVALID_TYPE",
       };
@@ -173,7 +173,7 @@ describe("CompanionOrganisationController", () => {
         AuthUserMobileService.getByProviderUserId as jest.Mock
       ).mockResolvedValue({ parentId: "pid" });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       };
@@ -195,7 +195,7 @@ describe("CompanionOrganisationController", () => {
         AuthUserMobileService.getByProviderUserId as jest.Mock
       ).mockResolvedValue({ parentId: "pid" });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       };
@@ -215,7 +215,7 @@ describe("CompanionOrganisationController", () => {
         AuthUserMobileService.getByProviderUserId as jest.Mock
       ).mockResolvedValue({ parentId: "pid" });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       };
@@ -237,13 +237,13 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should return 400 if params are missing", async () => {
-      req.params = { companionId: "c1" }; // missing orgId
+      req.params = { patientId: "c1" }; // missing orgId
       await CompanionOrganisationController.linkByPmsUser(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("should return 404 if org not found or invalid type", async () => {
-      req.params = { companionId: "c1", organisationId: "o1" };
+      req.params = { patientId: "c1", organisationId: "o1" };
       (OrganizationModel.findById as jest.Mock).mockResolvedValue(null);
       await CompanionOrganisationController.linkByPmsUser(req, res);
       expect(res.status).toHaveBeenCalledWith(404);
@@ -257,7 +257,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should successfully link by PMS user", async () => {
-      req.params = { companionId: "c1", organisationId: "o1" };
+      req.params = { patientId: "c1", organisationId: "o1" };
       (OrganizationModel.findById as jest.Mock).mockResolvedValue({
         type: "BREEDER",
       });
@@ -268,7 +268,7 @@ describe("CompanionOrganisationController", () => {
       await CompanionOrganisationController.linkByPmsUser(req, res);
       expect(CompanionOrganisationService.linkByPmsUser).toHaveBeenCalledWith({
         pmsUserId: "auth_user_123",
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "BREEDER",
       });
@@ -276,7 +276,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should handle errors", async () => {
-      req.params = { companionId: "c1", organisationId: "o1" };
+      req.params = { patientId: "c1", organisationId: "o1" };
       (OrganizationModel.findById as jest.Mock).mockResolvedValue({
         type: "BREEDER",
       });
@@ -361,7 +361,7 @@ describe("CompanionOrganisationController", () => {
       });
 
       // Missing all optional fields
-      req.body = { companionId: "c1", organisationType: "HOSPITAL" };
+      req.body = { patientId: "c1", organisationType: "HOSPITAL" };
       await CompanionOrganisationController.sendInvite(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
 
@@ -376,7 +376,7 @@ describe("CompanionOrganisationController", () => {
         _id: validObjectId,
       });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationType: "HOSPITAL",
         email: " test@test.com ",
       };
@@ -392,7 +392,7 @@ describe("CompanionOrganisationController", () => {
         _id: validObjectId,
       });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationType: "HOSPITAL",
         name: " OrgName ",
       };
@@ -408,7 +408,7 @@ describe("CompanionOrganisationController", () => {
         _id: validObjectId,
       });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationType: "HOSPITAL",
         placesId: " place123 ",
       };
@@ -424,7 +424,7 @@ describe("CompanionOrganisationController", () => {
         _id: validObjectId,
       });
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationType: "HOSPITAL",
         email: "e",
       };
@@ -572,7 +572,7 @@ describe("CompanionOrganisationController", () => {
 
   describe("getLinksForCompanion", () => {
     it("should fetch links successfully", async () => {
-      req.params.companionId = "c1";
+      req.params.patientId = "c1";
       (
         CompanionOrganisationService.getLinksForCompanion as jest.Mock
       ).mockResolvedValue([]);
@@ -609,7 +609,7 @@ describe("CompanionOrganisationController", () => {
   });
 
   describe("getLinksForCompanionByOrganisationType", () => {
-    it("should return 400 if companionId missing", async () => {
+    it("should return 400 if patientId missing", async () => {
       req.query.type = "HOSPITAL";
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
         req,
@@ -619,7 +619,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should return 400 if type is invalid", async () => {
-      req.params.companionId = "c1";
+      req.params.patientId = "c1";
       req.query.type = "INVALID";
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
         req,
@@ -629,7 +629,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should fetch links successfully", async () => {
-      req.params.companionId = "c1";
+      req.params.patientId = "c1";
       req.query.type = "HOSPITAL";
       (
         CompanionOrganisationService.getLinksForCompanionByOrganisationTye as jest.Mock
@@ -646,7 +646,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should handle errors", async () => {
-      req.params.companionId = "c1";
+      req.params.patientId = "c1";
       req.query.type = "HOSPITAL";
 
       (

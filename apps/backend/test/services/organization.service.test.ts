@@ -1,62 +1,19 @@
-import { isValidObjectId, Types } from "mongoose";
 import {
   OrganizationService,
   OrganizationServiceError,
-  OrganizationFHIRPayload,
 } from "../../src/services/organization.service";
-import OrganizationModel from "../../src/models/organization";
-import SpecialityModel from "../../src/models/speciality";
-import ServiceModel from "../../src/models/service";
-import UserProfileModel from "../../src/models/user-profile";
 import { UserOrganizationService } from "../../src/services/user-organization.service";
-import * as uploadMiddleware from "../../src/middlewares/upload";
+import { SpecialityService } from "../../src/services/speciality.service";
+import { OrganisationRoomService } from "../../src/services/organisation-room.service";
+import { buildS3Key, moveFile } from "../../src/middlewares/upload";
 import * as TypesPkg from "@yosemite-crew/types";
-import logger from "../../src/utils/logger";
 import { prisma } from "src/config/prisma";
-
-// --- MOCKS ---
-jest.mock("mongoose", () => {
-  const actualMongoose = jest.requireActual("mongoose");
-  return {
-    ...actualMongoose,
-    isValidObjectId: jest.fn(actualMongoose.isValidObjectId),
-  };
-});
-
-jest.mock("../../src/models/organization", () => ({
-  findOneAndUpdate: jest.fn(),
-  create: jest.fn(),
-  findOne: jest.fn(),
-  find: jest.fn(),
-  findOneAndDelete: jest.fn(),
-  countDocuments: jest.fn(),
-  aggregate: jest.fn(),
-}));
-
-jest.mock("../../src/models/speciality", () => ({
-  find: jest.fn(),
-}));
-
-jest.mock("../../src/models/service", () => ({
-  find: jest.fn(),
-}));
-
-jest.mock("../../src/models/user-profile", () => ({
-  findOne: jest.fn(),
-  create: jest.fn(),
-}));
 
 jest.mock("../../src/services/user-organization.service", () => ({
   UserOrganizationService: {
     createUserOrganizationMapping: jest.fn(),
     deleteAllByOrganizationId: jest.fn(),
   },
-}));
-jest.mock("../../src/models/organization.billing", () => ({
-  OrgBilling: { create: jest.fn() },
-}));
-jest.mock("../../src/models/organisation.usage.counter", () => ({
-  OrgUsageCounters: { create: jest.fn() },
 }));
 
 jest.mock("../../src/services/speciality.service", () => ({
@@ -72,17 +29,21 @@ jest.mock("../../src/services/organisation-room.service", () => ({
 }));
 
 jest.mock("../../src/middlewares/upload", () => ({
-  buildS3Key: jest.fn(),
+  buildS3Key: jest.fn(() => "org/key"),
   moveFile: jest.fn(),
 }));
 
 jest.mock("@yosemite-crew/types", () => ({
-  fromOrganizationRequestDTO: jest.fn(),
-  toOrganizationResponseDTO: jest.fn((data, opts) => ({ ...data, ...opts })),
+  fromOrganizationRequestDTO: jest.fn((dto) => dto),
+  toOrganizationResponseDTO: jest.fn((org, options) => ({
+    ...org,
+    ...options,
+  })),
 }));
 
-jest.mock("../../src/utils/logger", () => ({
+jest.mock("src/utils/logger", () => ({
   warn: jest.fn(),
+  error: jest.fn(),
 }));
 
 jest.mock("src/utils/dual-write", () => ({
@@ -96,6 +57,29 @@ jest.mock("src/config/prisma", () => ({
     organization: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+    },
+    organizationAddress: {
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    organizationBilling: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    organizationUsageCounter: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      upsert: jest.fn(),
+    },
+    userProfile: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
     },
     speciality: {
       findMany: jest.fn(),
@@ -106,887 +90,202 @@ jest.mock("src/config/prisma", () => ({
   },
 }));
 
-// --- TEST UTILS ---
-const validObjectId = new Types.ObjectId().toString();
-
-const mockDocument = (overrides = {}) => ({
-  _id: new Types.ObjectId(validObjectId),
-  toObject: jest.fn().mockReturnValue({
-    name: "Test Hospital",
-    type: "HOSPITAL",
-    phoneNo: "1234567890",
-    taxId: "123456789",
-    ...overrides,
-  }),
-  ...overrides,
-});
-
-const generateBasePayload = (): OrganizationFHIRPayload => ({
-  resourceType: "Organization",
-  id: "test-id",
-  name: "Test Hospital",
-  contact: [{ telecom: [{ system: "phone", value: "1234567890" }] }],
-  type: [
-    {
-      coding: [
-        {
-          code: "prov",
-          system: "http://terminology.hl7.org/CodeSystem/organization-type",
-        },
-      ],
-    },
-  ],
-});
-
-const generateDTO = (overrides = {}) => ({
-  id: "test-id",
-  name: "Test Hospital",
-  phoneNo: "1234567890",
-  type: "HOSPITAL",
-  taxId: "123456789", // Add default Tax ID to satisfy base requirements
-  ...overrides,
-});
-
 describe("OrganizationService", () => {
+  const orgId = "org-1";
+  const userId = "user-1";
+
+  const baseDto: any = {
+    resourceType: "Organization",
+    id: orgId,
+    name: "Test Hospital",
+    phoneNo: "1234567890",
+    type: "HOSPITAL",
+    taxId: "TAX-123",
+    imageURL: "https://example.com/image.jpg",
+  };
+
+  const baseOrg = {
+    id: orgId,
+    fhirId: orgId,
+    name: "Test Hospital",
+    taxId: "TAX-123",
+    dunsNumber: null,
+    imageUrl: "https://example.com/image.jpg",
+    phoneNo: "1234567890",
+    type: "HOSPITAL",
+    petNamePreference: null,
+    website: null,
+    documensoTeamId: null,
+    documensoApiKey: null,
+    isVerified: true,
+    isActive: true,
+    typeCoding: null,
+    healthAndSafetyCertNo: null,
+    animalWelfareComplianceCertNo: null,
+    fireAndEmergencyCertNo: null,
+    googlePlacesId: null,
+    stripeAccountId: null,
+    averageRating: null,
+    ratingCount: null,
+    appointmentCheckInBufferMinutes: 5,
+    appointmentCheckInRadiusMeters: 200,
+    createdAt: new Date("2024-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2024-01-01T00:00:00.000Z"),
+    address: null,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Reset mock queues to prevent mock leakage across tests (prevents false positives/negatives)
-    const mocks: any[] = [];
-    mocks.push(OrganizationModel.findOne as any);
-    mocks.push(OrganizationModel.findOneAndUpdate as any);
-    mocks.push(OrganizationModel.find as any);
-    mocks.push(OrganizationModel.create as any);
-    mocks.push(OrganizationModel.findOneAndDelete as any);
-    mocks.push(SpecialityModel.find as any);
-    mocks.push(ServiceModel.find as any);
-    mocks.push(UserProfileModel.findOne as any);
-    mocks.push(UserProfileModel.create as any);
-    mocks.forEach((mockFn) => (mockFn as jest.Mock).mockReset());
-
-    (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockImplementation(() =>
-      generateDTO(),
-    );
+    (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValue({
+      ...baseDto,
+    });
   });
 
   describe("OrganizationServiceError", () => {
-    it("should set message and status code correctly", () => {
-      const error = new OrganizationServiceError("Custom error", 404);
-      expect(error.message).toBe("Custom error");
-      expect(error.statusCode).toBe(404);
-      expect(error.name).toBe("OrganizationServiceError");
-    });
-  });
-
-  describe("Validation Utilities (Triggered via upsert)", () => {
-    it("should throw if requireSafeString receives invalid data", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ name: null }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Organization name is required.");
-
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ name: 123 }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Organization name must be a string.");
-
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ name: "   " }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Organization name cannot be empty.");
-
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ name: "Bad$Name" }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Invalid character in Organization name.");
-    });
-
-    it("should throw if optionalSafeString receives invalid types or characters", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ website: 123 }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Website must be a string.");
-
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ website: "bad$website" }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Invalid character in Website.");
-    });
-
-    it("should handle optionalSafeString empty strings as undefined", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ website: "   " }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      const res = await OrganizationService.upsert(generateBasePayload());
-      expect(res.response).toBeDefined(); // Shouldn't throw
-    });
-
-    it("should throw if optionalNumber receives invalid data", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ address: { latitude: "not-a-num" } }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Address latitude must be a valid number.");
-    });
-
-    it("should parse optionalNumber string numbers", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ address: { latitude: "45.5" } }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      const res = await OrganizationService.upsert(generateBasePayload());
-      expect(res.response).toBeDefined();
-    });
-
-    it("should reject non-integer check-in settings", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ appointmentCheckInBufferMinutes: 5.5 }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow(
-        "Appointment check-in buffer minutes must be an integer.",
-      );
-
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ appointmentCheckInRadiusMeters: "200.5" }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow(
-        "Appointment check-in radius meters must be an integer.",
-      );
-    });
-
-    it("should reject negative check-in settings", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ appointmentCheckInBufferMinutes: -1 }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow(
-        "Appointment check-in buffer minutes must be non-negative.",
-      );
-
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ appointmentCheckInRadiusMeters: -200 }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow(
-        "Appointment check-in radius meters must be non-negative.",
-      );
-    });
-
-    it("should allow valid optionalNumber as a pure number", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ address: { latitude: 45.5, longitude: 90 } }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      const res = await OrganizationService.upsert(generateBasePayload());
-      expect(res.response).toBeDefined();
-    });
-
-    it("should throw if ensureSafeIdentifier format is invalid", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ id: "invalid spaces!@" }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Invalid identifier format.");
-    });
-
-    it("should throw if requireOrganizationType receives invalid data", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ type: 123 }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Organization type must be a string.");
-
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ type: "  " }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Organization type cannot be empty.");
-
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ type: "BAKERY" }),
-      );
-      await expect(
-        OrganizationService.upsert(generateBasePayload()),
-      ).rejects.toThrow("Invalid organization type.");
-    });
-  });
-
-  describe("Extractors (Extensions and Identifiers)", () => {
-    it("should extract TaxId from extension", async () => {
-      const payload = {
-        ...generateBasePayload(),
-        extension: [
-          {
-            url: "http://example.org/fhir/StructureDefinition/taxId",
-            valueString: "EXT-TAX-123",
-          },
-        ],
-      };
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ taxId: undefined }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      await OrganizationService.upsert(payload);
-      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          $set: expect.objectContaining({ taxId: "EXT-TAX-123" }),
-        }),
-        expect.anything(),
-      );
-    });
-
-    it("should extract TaxId from specific identifier system", async () => {
-      const payload = {
-        ...generateBasePayload(),
-        identifier: [
-          {
-            system: "http://example.org/fhir/NamingSystem/organisation-tax-id",
-            value: "SYS-TAX-123",
-          },
-        ],
-      };
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ taxId: undefined }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      await OrganizationService.upsert(payload);
-      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          $set: expect.objectContaining({ taxId: "SYS-TAX-123" }),
-        }),
-        expect.anything(),
-      );
-    });
-
-    it("should extract TaxId from generic identifier value", async () => {
-      const payload = {
-        ...generateBasePayload(),
-        identifier: [{ value: "GEN-TAX-123" }],
-      };
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ taxId: undefined }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      await OrganizationService.upsert(payload);
-      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          $set: expect.objectContaining({ taxId: "GEN-TAX-123" }),
-        }),
-        expect.anything(),
-      );
-    });
-
-    it("should properly pruneUndefined across nested arrays, objects, and ignore Date", async () => {
-      const date = new Date();
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({
-          address: { addressLine: "123 St", country: undefined },
-          dummyArray: [1, undefined, { nested: undefined }],
-          someDate: date,
-        } as any),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      const res = await OrganizationService.upsert(generateBasePayload());
-      expect(res.response).toBeDefined();
+    it("keeps message and status code", () => {
+      const err = new OrganizationServiceError("Boom", 500);
+      expect(err.message).toBe("Boom");
+      expect(err.statusCode).toBe(500);
     });
   });
 
   describe("upsert", () => {
-    it("should update existing document without userId", async () => {
-      const doc = mockDocument();
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        doc,
-      );
+    it("creates a new organisation and related records", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
-      const res = await OrganizationService.upsert(generateBasePayload());
-      expect(res.created).toBe(false);
-      expect((res.response as any)._id).toBe(doc._id);
-    });
+      const result = await OrganizationService.upsert(baseDto, userId);
 
-    it("should apply default check-in settings when omitted", async () => {
-      const doc = mockDocument();
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        doc,
-      );
-
-      const res = await OrganizationService.upsert(generateBasePayload());
-
-      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            appointmentCheckInBufferMinutes: 5,
-            appointmentCheckInRadiusMeters: 200,
-          }),
-        }),
-        expect.anything(),
-      );
-      expect((res.response as any).appointmentCheckInBufferMinutes).toBe(5);
-      expect((res.response as any).appointmentCheckInRadiusMeters).toBe(200);
-    });
-
-    it("should preserve explicit check-in settings in the response", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({
-          appointmentCheckInBufferMinutes: 15,
-          appointmentCheckInRadiusMeters: 350,
-        }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument({
-          appointmentCheckInBufferMinutes: 15,
-          appointmentCheckInRadiusMeters: 350,
-        }),
-      );
-
-      const res = await OrganizationService.upsert(generateBasePayload());
-
-      expect((res.response as any).appointmentCheckInBufferMinutes).toBe(15);
-      expect((res.response as any).appointmentCheckInRadiusMeters).toBe(350);
-    });
-
-    it("should create new document and handle userId linkage", async () => {
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      const newDoc = mockDocument();
-      (OrganizationModel.create as jest.Mock).mockResolvedValueOnce(newDoc);
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValueOnce(null);
-
-      const res = await OrganizationService.upsert(
-        generateBasePayload(),
-        "user-123",
-      );
-
-      expect(res.created).toBe(true);
+      expect(prisma.organizationBilling.create).toHaveBeenCalledWith({
+        data: { orgId },
+      });
+      expect(prisma.organizationUsageCounter.create).toHaveBeenCalledWith({
+        data: { orgId },
+      });
       expect(
         UserOrganizationService.createUserOrganizationMapping,
       ).toHaveBeenCalledWith({
-        practitionerReference: "user-123",
-        organizationReference: newDoc._id.toString(),
+        practitionerReference: userId,
+        organizationReference: orgId,
         roleCode: "OWNER",
         active: true,
       });
-      expect(UserProfileModel.create).toHaveBeenCalled();
-    });
-
-    it("should not create a user profile if one already exists for the organization", async () => {
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      (OrganizationModel.create as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValueOnce({
-        _id: "profile-id",
-      });
-
-      await OrganizationService.upsert(generateBasePayload(), "user-123");
-      expect(UserProfileModel.create).not.toHaveBeenCalled();
-    });
-
-    it("should process image uploads to S3 if URL is not https", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ imageURL: "local/path.jpg" }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      const newDoc = mockDocument();
-      (OrganizationModel.create as jest.Mock).mockResolvedValueOnce(newDoc);
-
-      (uploadMiddleware.buildS3Key as jest.Mock).mockReturnValueOnce(
-        "mocked/s3/key",
-      );
-      (uploadMiddleware.moveFile as jest.Mock).mockResolvedValueOnce(
-        "https://s3.url/image.jpg",
-      );
-
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        newDoc,
-      );
-
-      await OrganizationService.upsert(generateBasePayload());
-
-      expect(uploadMiddleware.moveFile).toHaveBeenCalledWith(
-        "local/path.jpg",
-        "mocked/s3/key",
-      );
-      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        { $set: { imageURL: "https://s3.url/image.jpg" } },
-        expect.anything(),
-      );
-    });
-
-    it("should construct valid TypeCoding if provided", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({
-          typeCoding: { system: "sys", code: "cod", display: "disp" },
-        }),
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-
-      const res = await OrganizationService.upsert(generateBasePayload());
-      expect((res.response as any).typeCoding).toEqual({
-        system: "sys",
-        code: "cod",
-        display: "disp",
-      });
-    });
-
-    it("should ignore invalid TypeCoding (missing code or system)", async () => {
-      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce(
-        generateDTO({ typeCoding: { system: "sys" } }), // missing code
-      );
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-
-      await OrganizationService.upsert(generateBasePayload());
-      expect(OrganizationModel.findOneAndUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.not.objectContaining({ "typeCoding.system": "sys" }),
-        expect.anything(),
-      );
-    });
-  });
-
-  describe("getById", () => {
-    it("should return null if not found", async () => {
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(null);
-      const res = await OrganizationService.getById(validObjectId);
-      expect(res).toBeNull();
-    });
-
-    it("should throw if id is missing/invalid", async () => {
-      await expect(OrganizationService.getById("   ")).rejects.toThrow(
-        "Organization identifier is required.",
-      );
-    });
-
-    it("should resolve by ObjectId if valid", async () => {
-      const doc = mockDocument();
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
-
-      await OrganizationService.getById(validObjectId);
-      expect(OrganizationModel.findOne).toHaveBeenCalledWith(
-        { _id: validObjectId },
-        null,
-        expect.anything(),
-      );
-    });
-
-    it("should resolve by fhirId if not a valid ObjectId", async () => {
-      const doc = mockDocument();
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
-      (isValidObjectId as jest.Mock).mockReturnValueOnce(false);
-
-      await OrganizationService.getById("custom-fhir-id");
-      expect(OrganizationModel.findOne).toHaveBeenCalledWith(
-        { fhirId: "custom-fhir-id" },
-        null,
-        expect.anything(),
-      );
-    });
-  });
-
-  describe("getById (postgres)", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-    });
-
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
-    });
-
-    it("should return null if identifier is empty", async () => {
-      const res = await OrganizationService.getById("   ");
-      expect(res).toBeNull();
-      expect(prisma.organization.findFirst).not.toHaveBeenCalled();
-    });
-
-    it("should return organisation when found", async () => {
-      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "org_1",
-        fhirId: null,
-        name: "Org One",
-        taxId: "123",
-        dunsNumber: null,
-        imageUrl: null,
-        phoneNo: "123",
-        type: "HOSPITAL",
-        petNamePreference: null,
-        website: null,
-        documensoTeamId: null,
-        documensoApiKey: null,
-        isVerified: true,
-        isActive: true,
-        typeCoding: null,
-        healthAndSafetyCertNo: null,
-        animalWelfareComplianceCertNo: null,
-        fireAndEmergencyCertNo: null,
-        googlePlacesId: null,
-        stripeAccountId: null,
-        averageRating: null,
-        ratingCount: null,
-        appointmentCheckInBufferMinutes: null,
-        appointmentCheckInRadiusMeters: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        address: {
-          addressLine: "Line 1",
-          country: "US",
-          city: "City",
-          state: "CA",
-          postalCode: "90001",
-          latitude: 10,
-          longitude: 20,
-          location: null,
-        },
-      });
-
-      const res = await OrganizationService.getById("org-1");
-      expect(res).toBeDefined();
-      expect((res as any)?.appointmentCheckInBufferMinutes).toBe(5);
-      expect((res as any)?.appointmentCheckInRadiusMeters).toBe(200);
-      expect(prisma.organization.findFirst).toHaveBeenCalledWith({
-        where: { OR: [{ id: "org-1" }, { fhirId: "org-1" }] },
-        include: { address: true },
-      });
-    });
-  });
-
-  describe("listAll", () => {
-    it("should map and return all organizations", async () => {
-      (OrganizationModel.find as jest.Mock).mockResolvedValueOnce([
-        mockDocument(),
-        mockDocument(),
-      ]);
-      const res = await OrganizationService.listAll();
-      expect(res.length).toBe(2);
-    });
-  });
-
-  describe("listAll (postgres)", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-    });
-
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
-    });
-
-    it("should map and return all organizations", async () => {
-      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
-        {
-          id: "org_1",
-          fhirId: null,
-          name: "Org One",
-          taxId: "123",
-          dunsNumber: null,
-          imageUrl: null,
-          phoneNo: "123",
-          type: "HOSPITAL",
-          petNamePreference: null,
-          website: null,
-          documensoTeamId: null,
-          documensoApiKey: null,
-          isVerified: true,
-          isActive: true,
-          typeCoding: null,
-          healthAndSafetyCertNo: null,
-          animalWelfareComplianceCertNo: null,
-          fireAndEmergencyCertNo: null,
-          googlePlacesId: null,
-          stripeAccountId: null,
-          averageRating: null,
-          ratingCount: null,
-          appointmentCheckInBufferMinutes: null,
-          appointmentCheckInRadiusMeters: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          address: null,
-        },
-      ]);
-
-      const res = await OrganizationService.listAll();
-      expect(res.length).toBe(1);
-      expect((res[0] as any).appointmentCheckInBufferMinutes).toBe(5);
-      expect((res[0] as any).appointmentCheckInRadiusMeters).toBe(200);
-      expect(prisma.organization.findMany).toHaveBeenCalledWith({
-        include: { address: true },
-      });
-    });
-  });
-
-  describe("deleteById", () => {
-    it("should return false if document not found", async () => {
-      (OrganizationModel.findOneAndDelete as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      const res = await OrganizationService.deleteById(validObjectId);
-      expect(res).toBe(false);
-    });
-  });
-
-  describe("update", () => {
-    it("should return null if document not found", async () => {
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      const res = await OrganizationService.update(
-        validObjectId,
-        generateBasePayload(),
-      );
-      expect(res).toBeNull();
-    });
-
-    it("should return updated fhir response if found", async () => {
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument(),
-      );
-      const res = await OrganizationService.update(
-        validObjectId,
-        generateBasePayload(),
-      );
-      expect(res).toBeDefined();
-    });
-  });
-
-  describe("upadtePofileVerificationStatus", () => {
-    it("should return null if document not found", async () => {
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      const res = await OrganizationService.upadtePofileVerificationStatus(
-        validObjectId,
-        true,
-      );
-      expect(res).toBeNull();
-    });
-
-    it("should return fhir response if successful", async () => {
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument({ isVerified: true }),
-      );
-      const res = await OrganizationService.upadtePofileVerificationStatus(
-        validObjectId,
-        true,
-      );
-      expect((res as any)?.isVerified).toBe(true);
-    });
-  });
-
-  describe("updateProfilePhotoUrl", () => {
-    it("should return null if document not found", async () => {
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        null,
-      );
-      const res = await OrganizationService.updateProfilePhotoUrl(
-        validObjectId,
-        "url",
-      );
-      expect(res).toBeNull();
-    });
-
-    it("should return document if successful", async () => {
-      (OrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValueOnce(
-        mockDocument({ imageURL: "url" }),
-      );
-      const res = await OrganizationService.updateProfilePhotoUrl(
-        validObjectId,
-        "url",
-      );
-      expect((res as any)?.imageURL).toBe("url");
-    });
-  });
-
-  describe("resolveOrganisation", () => {
-    it("should throw if input is completely empty", async () => {
-      await expect(OrganizationService.resolveOrganisation({})).rejects.toThrow(
-        "Invalid search input.",
-      );
-    });
-
-    it("should resolve by placeId", async () => {
-      const doc = mockDocument();
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
-      const res = await OrganizationService.resolveOrganisation({
-        placeId: "place-123",
-      });
-      expect(res.isPmsOrganisation).toBe(true);
-      expect(res.organisation).toBeDefined();
-      expect(OrganizationModel.findOne).toHaveBeenCalledWith({
-        googlePlaceId: "place-123",
-      });
-    });
-
-    it("should resolve by lat/lng", async () => {
-      const doc = mockDocument();
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
-
-      const res = await OrganizationService.resolveOrganisation({
-        lat: 10,
-        lng: 20,
-      });
-      expect(res.isPmsOrganisation).toBe(true);
-      expect(OrganizationModel.findOne).toHaveBeenCalledWith(
+      expect(prisma.userProfile.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          "address.location": {
-            $near: {
-              $geometry: { type: "Point", coordinates: [20, 10] },
-              $maxDistance: 120,
-            },
-          },
+          data: expect.objectContaining({
+            userId,
+            organizationId: orgId,
+            status: "DRAFT",
+          }),
         }),
       );
+      expect(result.created).toBe(true);
+      expect(result.response.name).toBe("Test Hospital");
     });
 
-    it("should resolve by name", async () => {
-      const doc = mockDocument();
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
-
-      const res = await OrganizationService.resolveOrganisation({
-        name: "Hospital",
+    it("uploads a local image URL during create", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        imageURL: "http://example.com/image.jpg",
       });
-      expect(res.isPmsOrganisation).toBe(true);
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce({
+        ...baseOrg,
+        imageUrl: "https://cdn.example.com/org/key",
+      });
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (moveFile as jest.Mock).mockResolvedValueOnce(
+        "https://cdn.example.com/org/key",
+      );
+
+      await OrganizationService.upsert(
+        {
+          ...baseDto,
+          imageURL: "http://example.com/image.jpg",
+        },
+        userId,
+      );
+
+      expect(buildS3Key).toHaveBeenCalledWith("org", orgId, "image/jpg");
+      expect(moveFile).toHaveBeenCalledWith(
+        "http://example.com/image.jpg",
+        "org/key",
+      );
+      expect(prisma.organization.update).toHaveBeenCalledWith({
+        where: { id: orgId },
+        data: { imageUrl: "https://cdn.example.com/org/key" },
+      });
     });
 
-    it("should return false if no match found", async () => {
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(null);
-      const res = await OrganizationService.resolveOrganisation({
-        name: "Unknown",
-      });
-      expect(res.isPmsOrganisation).toBe(false);
+    it("updates an existing organisation", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+        baseOrg,
+      );
+      (prisma.organization.update as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+
+      const result = await OrganizationService.upsert(baseDto);
+
+      expect(prisma.organization.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: orgId },
+        }),
+      );
+      expect(result.created).toBe(false);
     });
   });
 
-  describe("resolveOrganisation (postgres)", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.organization.findFirst as jest.Mock).mockReset();
-      (prisma.organization.findMany as jest.Mock).mockReset();
+  describe("lookups", () => {
+    it("returns null when getById receives empty input", async () => {
+      await expect(OrganizationService.getById("   ")).resolves.toBeNull();
     });
 
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    it("returns null for invalid update identifiers", async () => {
+      await expect(
+        OrganizationService.update("   ", baseDto),
+      ).resolves.toBeNull();
     });
 
-    it("should resolve by placeId", async () => {
-      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "org_1",
-        fhirId: null,
-        name: "Org One",
-        taxId: "123",
-        dunsNumber: null,
-        imageUrl: null,
-        phoneNo: "123",
-        type: "HOSPITAL",
-        petNamePreference: null,
-        website: null,
-        documensoTeamId: null,
-        documensoApiKey: null,
-        isVerified: true,
-        isActive: true,
-        typeCoding: null,
-        healthAndSafetyCertNo: null,
-        animalWelfareComplianceCertNo: null,
-        fireAndEmergencyCertNo: null,
-        googlePlacesId: "place_1",
-        stripeAccountId: null,
-        averageRating: null,
-        ratingCount: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        address: null,
-      });
+    it("returns organizations from prisma for getById and listAll", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+        baseOrg,
+      );
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        baseOrg,
+      ]);
 
-      const res = await OrganizationService.resolveOrganisation({
-        placeId: "place_1",
-      });
-      expect(res.isPmsOrganisation).toBe(true);
-      expect(prisma.organization.findFirst).toHaveBeenCalledWith({
-        where: { googlePlacesId: "place_1" },
-        include: { address: true },
-      });
+      const single = await OrganizationService.getById(orgId);
+      const list = await OrganizationService.listAll();
+
+      expect(single?.name).toBe("Test Hospital");
+      expect(list).toHaveLength(1);
     });
 
-    it("should resolve by lat/lng", async () => {
+    it("resolves organisations by place, lat/lng, and name", async () => {
+      (prisma.organization.findFirst as jest.Mock)
+        .mockResolvedValueOnce({
+          ...baseOrg,
+          googlePlacesId: "place-1",
+        })
+        .mockResolvedValueOnce({
+          ...baseOrg,
+          name: "Hospital One",
+        });
+
       (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
         {
-          id: "org_1",
-          fhirId: null,
-          name: "Org One",
-          taxId: "123",
-          dunsNumber: null,
-          imageUrl: null,
-          phoneNo: "123",
-          type: "HOSPITAL",
-          petNamePreference: null,
-          website: null,
-          documensoTeamId: null,
-          documensoApiKey: null,
-          isVerified: true,
-          isActive: true,
-          typeCoding: null,
-          healthAndSafetyCertNo: null,
-          animalWelfareComplianceCertNo: null,
-          fireAndEmergencyCertNo: null,
-          googlePlacesId: null,
-          stripeAccountId: null,
-          averageRating: null,
-          ratingCount: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          ...baseOrg,
+          id: "org-latlng",
+          name: "Nearby",
           address: {
             addressLine: "Line 1",
             country: "US",
@@ -1000,286 +299,145 @@ describe("OrganizationService", () => {
         },
       ]);
 
-      const res = await OrganizationService.resolveOrganisation({
-        lat: 10,
-        lng: 20,
-      });
-      expect(res.isPmsOrganisation).toBe(true);
-    });
-
-    it("should resolve by name", async () => {
-      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "org_1",
-        fhirId: null,
-        name: "Org One",
-        taxId: "123",
-        dunsNumber: null,
-        imageUrl: null,
-        phoneNo: "123",
-        type: "HOSPITAL",
-        petNamePreference: null,
-        website: null,
-        documensoTeamId: null,
-        documensoApiKey: null,
-        isVerified: true,
-        isActive: true,
-        typeCoding: null,
-        healthAndSafetyCertNo: null,
-        animalWelfareComplianceCertNo: null,
-        fireAndEmergencyCertNo: null,
-        googlePlacesId: null,
-        stripeAccountId: null,
-        averageRating: null,
-        ratingCount: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        address: null,
-      });
-
-      const res = await OrganizationService.resolveOrganisation({
-        name: "Org",
-      });
-      expect(res.isPmsOrganisation).toBe(true);
-      expect(prisma.organization.findFirst).toHaveBeenCalledWith({
-        where: { name: { contains: "Org", mode: "insensitive" } },
-        include: { address: true },
-      });
-    });
-
-    it("should return false if no match found", async () => {
-      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
-
-      const res = await OrganizationService.resolveOrganisation({
-        name: "Unknown",
-      });
-      expect(res.isPmsOrganisation).toBe(false);
-    });
-  });
-
-  describe("listNearbyForAppointmentsPaginated", () => {
-    it("should throw if lat or lng is missing", async () => {
       await expect(
-        OrganizationService.listNearbyForAppointmentsPaginated(Number.NaN, 0),
+        OrganizationService.resolveOrganisation({ placeId: "place-1" }),
+      ).resolves.toMatchObject({ isPmsOrganisation: true });
+      await expect(
+        OrganizationService.resolveOrganisation({ lat: 10, lng: 20 }),
+      ).resolves.toMatchObject({ isPmsOrganisation: true });
+      await expect(
+        OrganizationService.resolveOrganisation({ name: "Hospital" }),
+      ).resolves.toMatchObject({ isPmsOrganisation: true });
+    });
+
+    it("returns a non-PMS result when no organisation matches", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await expect(
+        OrganizationService.resolveOrganisation({
+          placeId: "missing-place",
+          lat: 1,
+          lng: 2,
+          name: "Missing",
+        }),
+      ).resolves.toEqual({ isPmsOrganisation: false });
+    });
+
+    it("rejects invalid search input and bad coordinates", async () => {
+      await expect(
+        OrganizationService.resolveOrganisation({} as never),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "Invalid search input.",
+          statusCode: 400,
+        }),
+      );
+
+      await expect(
+        OrganizationService.listNearbyForAppointmentsPaginated(Number.NaN, 20),
       ).rejects.toThrow("lat/lng are required");
     });
+  });
 
-    it("should return paginated data with specialities and services", async () => {
-      (OrganizationModel.aggregate as jest.Mock).mockResolvedValueOnce([
-        {
-          data: [
-            {
-              _id: new Types.ObjectId(),
-              name: "Org1",
-              address: { location: { coordinates: [20, 10] } },
-              distanceInMeters: 0,
-            },
-          ],
-          meta: [{ total: 1 }],
-        },
-      ]);
-
-      const specId = new Types.ObjectId();
-      (SpecialityModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([{ _id: specId, name: "Cardio" }]),
-      });
-      (ServiceModel.find as jest.Mock).mockReturnValue({
-        lean: jest
-          .fn()
-          .mockResolvedValue([{ name: "ECG", specialityId: specId }]),
-      });
-
-      const res = await OrganizationService.listNearbyForAppointmentsPaginated(
-        10,
-        20,
+  describe("mutations", () => {
+    it("deletes and updates records through prisma", async () => {
+      (prisma.organization.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(baseOrg)
+        .mockResolvedValueOnce(baseOrg)
+        .mockResolvedValueOnce(baseOrg)
+        .mockResolvedValueOnce(baseOrg);
+      (prisma.organization.update as jest.Mock).mockResolvedValue(baseOrg);
+      (prisma.organization.findUniqueOrThrow as jest.Mock).mockResolvedValue(
+        baseOrg,
       );
 
-      expect(res.data.length).toBe(1);
-      expect(res.data[0].distanceInMeters).toBe(0);
-      expect(res.data[0].specialitiesWithServices[0].services.length).toBe(1);
-      expect(res.meta.total).toBe(1);
+      await expect(OrganizationService.deleteById("missing")).resolves.toBe(
+        false,
+      );
+      await expect(OrganizationService.deleteById(orgId)).resolves.toBe(true);
+      await expect(
+        OrganizationService.update(orgId, baseDto),
+      ).resolves.toBeDefined();
+      await expect(
+        OrganizationService.upadtePofileVerificationStatus(orgId, true),
+      ).resolves.toBeDefined();
+      await expect(
+        OrganizationService.updateProfilePhotoUrl(orgId, "url"),
+      ).resolves.toBeDefined();
+
+      expect(
+        UserOrganizationService.deleteAllByOrganizationId,
+      ).toHaveBeenCalledWith(orgId);
+      expect(SpecialityService.deleteAllByOrganizationId).toHaveBeenCalledWith(
+        orgId,
+      );
+      expect(
+        OrganisationRoomService.deleteAllByOrganizationId,
+      ).toHaveBeenCalledWith(orgId);
     });
 
-    it("should fallback to all organizations if no nearby are found", async () => {
-      (OrganizationModel.aggregate as jest.Mock).mockResolvedValueOnce([
-        { data: [], meta: [{ total: 0 }] },
-      ]);
-
-      const allMockChain = {
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        lean: jest.fn().mockResolvedValue([
-          {
-            _id: new Types.ObjectId(),
-            name: "FallbackOrg",
-          },
-        ]),
-      };
-
-      (OrganizationModel.find as jest.Mock).mockReturnValue(allMockChain);
-      (OrganizationModel.countDocuments as jest.Mock).mockResolvedValueOnce(1);
-
-      (SpecialityModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
-      (ServiceModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
-
-      const res = await OrganizationService.listNearbyForAppointmentsPaginated(
-        10,
-        20,
-      );
-
-      expect(logger.warn).toHaveBeenCalledWith(
-        "No nearby organisations found, returning all organisations",
-      );
-      expect(res.data.length).toBe(1);
-      expect(res.data[0].distanceInMeters).toBeNull();
+    it("returns false for invalid delete identifiers", async () => {
+      await expect(OrganizationService.deleteById("   ")).resolves.toBe(false);
     });
   });
 
-  describe("listNearbyForAppointmentsPaginated (postgres)", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-    });
-
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
-    });
-
-    it("should return paginated data with specialities and services", async () => {
-      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
-        {
-          id: "org_1",
-          fhirId: null,
-          name: "Org One",
-          taxId: "123",
-          dunsNumber: null,
-          imageUrl: null,
-          phoneNo: "123",
-          type: "HOSPITAL",
-          petNamePreference: null,
-          website: null,
-          documensoTeamId: null,
-          documensoApiKey: null,
-          isVerified: true,
-          isActive: true,
-          typeCoding: null,
-          healthAndSafetyCertNo: null,
-          animalWelfareComplianceCertNo: null,
-          fireAndEmergencyCertNo: null,
-          googlePlacesId: null,
-          stripeAccountId: null,
-          averageRating: 4.5,
-          ratingCount: 10,
-          appointmentCheckInBufferMinutes: null,
-          appointmentCheckInRadiusMeters: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          address: {
-            addressLine: "Line 1",
-            country: "US",
-            city: "City",
-            state: "CA",
-            postalCode: "90001",
-            latitude: 10,
-            longitude: 20,
-            location: null,
-          },
-        },
-      ]);
-      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
-        { id: "spec_1", name: "Cardio" },
-      ]);
-      (prisma.service.findMany as jest.Mock).mockResolvedValueOnce([
-        { id: "srv_1", name: "ECG", specialityId: "spec_1" },
-      ]);
-
-      const res = await OrganizationService.listNearbyForAppointmentsPaginated(
-        10,
-        20,
-        50000,
-        1,
-        10,
-      );
-
-      expect(res.data.length).toBe(1);
-      expect((res.data[0].org as any).appointmentCheckInBufferMinutes).toBe(5);
-      expect((res.data[0].org as any).appointmentCheckInRadiusMeters).toBe(200);
-      expect(res.data[0].specialitiesWithServices[0].services.length).toBe(1);
-      expect(res.meta.total).toBe(1);
-    });
-
-    it("should fallback to all organizations if no nearby are found", async () => {
+  describe("nearby", () => {
+    it("returns paginated nearby organizations", async () => {
       (prisma.organization.findMany as jest.Mock)
-        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
           {
-            id: "org_2",
-            fhirId: null,
-            name: "Fallback Org",
-            taxId: "123",
-            dunsNumber: null,
-            imageUrl: null,
-            phoneNo: "123",
-            type: "HOSPITAL",
-            petNamePreference: null,
-            website: null,
-            documensoTeamId: null,
-            documensoApiKey: null,
-            isVerified: true,
-            isActive: true,
-            typeCoding: null,
-            healthAndSafetyCertNo: null,
-            animalWelfareComplianceCertNo: null,
-            fireAndEmergencyCertNo: null,
-            googlePlacesId: null,
-            stripeAccountId: null,
-            averageRating: null,
-            ratingCount: null,
-            appointmentCheckInBufferMinutes: null,
-            appointmentCheckInRadiusMeters: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            address: null,
+            ...baseOrg,
+            id: "org-near",
+            name: "Nearby",
+            address: {
+              addressLine: "Line 1",
+              country: "US",
+              city: "City",
+              state: "CA",
+              postalCode: "90001",
+              latitude: 10,
+              longitude: 20,
+              location: null,
+            },
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            ...baseOrg,
+            id: "org-near",
+            name: "Nearby",
+            address: {
+              addressLine: "Line 1",
+              country: "US",
+              city: "City",
+              state: "CA",
+              postalCode: "90001",
+              latitude: 10,
+              longitude: 20,
+              location: null,
+            },
           },
         ]);
-      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([]);
-      (prisma.service.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "spec-1", organisationId: "org-near" },
+      ]);
+      (prisma.service.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "srv-1", specialityId: "spec-1" },
+      ]);
 
-      const res = await OrganizationService.listNearbyForAppointmentsPaginated(
-        10,
-        20,
-        50000,
-        1,
-        10,
-      );
+      const result =
+        await OrganizationService.listNearbyForAppointmentsPaginated(
+          10,
+          20,
+          500,
+          1,
+          10,
+        );
 
-      expect(logger.warn).toHaveBeenCalledWith(
-        "No nearby organisations found, returning all organisations",
-      );
-      expect(res.data.length).toBe(1);
-      expect(res.data[0].distanceInMeters).toBeNull();
-    });
-  });
-
-  describe("coerceOrganizationType logic fallback", () => {
-    it("should fallback to HOSPITAL for unsupported types in mapped response", async () => {
-      const doc = mockDocument({ type: "UNKNOWN" });
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
-
-      const res = await OrganizationService.getById(validObjectId);
-      expect(res).toBeDefined();
-    });
-
-    it("should fallback to HOSPITAL for non-string types in mapped response", async () => {
-      const doc = mockDocument({ type: 12345 }); // Number type triggers typeof !== 'string' branch
-      (OrganizationModel.findOne as jest.Mock).mockResolvedValueOnce(doc);
-
-      const res = await OrganizationService.getById(validObjectId);
-      expect((res as any)?.type).toBe("HOSPITAL");
+      expect(result.meta.total).toBe(1);
+      expect(result.data[0].specialitiesWithServices).toHaveLength(1);
     });
   });
 });

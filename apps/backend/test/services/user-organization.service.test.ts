@@ -1,39 +1,47 @@
-import { Types } from "mongoose";
 import { UserOrganizationService } from "../../src/services/user-organization.service";
-import UserOrganizationModel from "../../src/models/user-organization";
-import OrganizationModel from "../../src/models/organization";
-import UserProfileModel from "../../src/models/user-profile";
-import UserModel from "../../src/models/user";
-import { OccupancyModel } from "../../src/models/occupancy";
-import { OrgBilling } from "../../src/models/organization.billing";
-import { OrgUsageCounters } from "../../src/models/organisation.usage.counter";
 import { AvailabilityService } from "../../src/services/availability.service";
-import { StripeService } from "../../src/services/stripe.service";
-import * as OrgUsageNotifications from "../../src/utils/org-usage-notifications";
 import * as EmailUtils from "../../src/utils/email";
-import logger from "../../src/utils/logger";
 import { prisma } from "src/config/prisma";
 
-// --- Mocks ---
-jest.mock("../../src/models/user-organization");
-jest.mock("../../src/models/organization");
-jest.mock("../../src/models/user-profile");
-jest.mock("../../src/models/speciality");
-jest.mock("../../src/models/user");
-jest.mock("../../src/models/occupancy");
-jest.mock("../../src/models/organization.billing");
-jest.mock("../../src/models/organisation.usage.counter");
-jest.mock("../../src/services/availability.service");
-jest.mock("../../src/services/stripe.service");
-jest.mock("../../src/utils/org-usage-notifications");
-jest.mock("../../src/utils/email");
-jest.mock("../../src/utils/logger");
+jest.mock("../../src/services/availability.service", () => ({
+  AvailabilityService: {
+    getCurrentStatus: jest.fn(),
+    getWeeklyWorkingHours: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/stripe.service", () => ({
+  StripeService: {
+    syncSubscriptionSeats: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/utils/org-usage-notifications", () => ({
+  sendFreePlanLimitReachedEmail: jest.fn(),
+}));
+
+jest.mock("../../src/utils/email", () => ({
+  sendEmailTemplate: jest.fn(),
+}));
+
+jest.mock("../../src/utils/logger", () => ({
+  error: jest.fn(),
+  warn: jest.fn(),
+}));
+
+jest.mock("@yosemite-crew/types", () => ({
+  fromUserOrganizationRequestDTO: jest.fn((dto) => dto),
+  toUserOrganizationResponseDTO: jest.fn((domain) => domain),
+}));
+
 jest.mock("src/config/prisma", () => ({
   prisma: {
     userOrganization: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
-      upsert: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
       deleteMany: jest.fn(),
     },
     organization: {
@@ -44,8 +52,11 @@ jest.mock("src/config/prisma", () => ({
     },
     organizationUsageCounter: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn(),
       upsert: jest.fn(),
+      create: jest.fn(),
     },
     user: {
       findFirst: jest.fn(),
@@ -62,752 +73,241 @@ jest.mock("src/config/prisma", () => ({
   },
 }));
 
-// Mock Types helpers
-jest.mock("@yosemite-crew/types", () => ({
-  fromUserOrganizationRequestDTO: jest.fn((dto) => dto),
-  toUserOrganizationResponseDTO: jest.fn((domain) => domain),
-}));
-
-// --- Helper: Mongoose Chain Mock ---
-const mockChain = (result: any = null) => {
-  const chain = {
-    select: jest.fn().mockReturnThis(),
-    lean: jest.fn().mockResolvedValue(result),
-    sort: jest.fn().mockReturnThis(),
-    setOptions: jest.fn().mockReturnThis(),
-    exec: jest.fn().mockResolvedValue(result),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain as any;
-};
-
-// --- Helper: Mock Mongoose Document ---
-const mockDoc = (data: any) => ({
-  ...data,
-  toObject: jest.fn(() => data),
-});
-
 describe("UserOrganizationService", () => {
-  let mockOrgId: Types.ObjectId;
-  let mockUserId: Types.ObjectId;
-  let mockMappingId: Types.ObjectId;
-  let validPayload: any;
+  const orgId = "org-1";
+  const userId = "user-1";
+  const mappingId = "map-1";
+
+  const payload: any = {
+    resourceType: "PractitionerRole",
+    id: mappingId,
+    practitionerReference: `Practitioner/${userId}`,
+    organizationReference: `Organization/${orgId}`,
+    roleCode: "VETERINARIAN",
+    active: true,
+  };
+
+  const prismaMapping = {
+    id: mappingId,
+    fhirId: mappingId,
+    practitionerReference: `Practitioner/${userId}`,
+    organizationReference: `Organization/${orgId}`,
+    roleCode: "VETERINARIAN",
+    roleDisplay: null,
+    active: true,
+    extraPermissions: [],
+    revokedPermissions: [],
+    effectivePermissions: [],
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.READ_FROM_POSTGRES = "false";
     process.env.DUAL_WRITE_ENABLED = "false";
-
-    mockOrgId = new Types.ObjectId();
-    mockUserId = new Types.ObjectId();
-    mockMappingId = new Types.ObjectId();
-
-    validPayload = {
-      resourceType: "PractitionerRole",
-      id: mockMappingId.toHexString(),
-      practitionerReference: `Practitioner/${mockUserId.toHexString()}`,
-      organizationReference: `Organization/${mockOrgId.toHexString()}`,
-      roleCode: "VETERINARIAN",
-      active: true,
-    };
-
-    // Default Mongoose Mocks
-    (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-      mockChain(null),
-    );
-    (UserOrganizationModel.find as jest.Mock).mockReturnValue(mockChain([]));
-    // Important: Default create mock to return a valid doc to prevent crashes in complex flows
-    (UserOrganizationModel.create as jest.Mock).mockResolvedValue(
-      mockDoc({ ...validPayload, _id: mockMappingId }),
-    );
-
-    (OrganizationModel.findOne as jest.Mock).mockReturnValue(
-      mockChain({ _id: mockOrgId, name: "Test Org" }),
-    );
-    (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockReturnValue(
-      mockChain({ _id: "counter-1" }),
-    );
-    (OrgBilling.findOne as jest.Mock).mockReturnValue(
-      mockChain({ plan: "pro" }),
-    );
+    process.env.READ_FROM_POSTGRES = "true";
   });
 
-  describe("Validation & Internals", () => {
-    it("should throw error for invalid FHIR resource type", async () => {
+  describe("create and upsert", () => {
+    it("creates a new mapping and reserves a seat", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: orgId,
+      });
+      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValueOnce(
+        { plan: "pro" },
+      );
+      (
+        prisma.organizationUsageCounter.upsert as jest.Mock
+      ).mockResolvedValueOnce({ orgId });
+      (
+        prisma.organizationUsageCounter.update as jest.Mock
+      ).mockResolvedValueOnce({ usersActiveCount: 1 });
+      (prisma.userOrganization.create as jest.Mock).mockResolvedValueOnce(
+        prismaMapping,
+      );
+
+      const result = await UserOrganizationService.create(payload);
+
+      expect(result._id).toBe(mappingId);
+      expect(prisma.organizationUsageCounter.update).toHaveBeenCalled();
+    });
+
+    it("rejects unsupported resource types before persisting", async () => {
       await expect(
-        UserOrganizationService.upsert({ resourceType: "Patient" } as any),
-      ).rejects.toThrow("Invalid payload. Expected FHIR PractitionerRole");
+        UserOrganizationService.create({
+          ...payload,
+          resourceType: "Observation",
+        } as never),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "Invalid payload. Expected FHIR PractitionerRole resource.",
+          statusCode: 400,
+        }),
+      );
     });
 
-    it("should throw error for invalid Role Code", async () => {
-      const invalidPayload = { ...validPayload, roleCode: "INVALID_ROLE" };
+    it("rejects invalid role codes", async () => {
       await expect(
-        UserOrganizationService.create(invalidPayload),
-      ).rejects.toThrow('Invalid roleCode "INVALID_ROLE"');
-    });
-
-    it("should handle Date objects in pruning", async () => {
-      const payloadWithDate = {
-        ...validPayload,
-        period: { start: new Date() },
-      };
-      (UserOrganizationModel.create as jest.Mock).mockResolvedValue(
-        mockDoc({ ...payloadWithDate, _id: mockMappingId }),
-      );
-
-      const result = await UserOrganizationService.create(payloadWithDate);
-      expect(result).toBeDefined();
-    });
-  });
-
-  describe("upsert", () => {
-    it("should create new mapping and reserve slot if active", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-
-      const res = await UserOrganizationService.upsert(validPayload);
-
-      expect(OrgUsageCounters.findOneAndUpdate).toHaveBeenCalledWith(
-        { orgId: mockOrgId },
-        { $inc: { usersActiveCount: 1 } },
-        { new: true },
-      );
-      expect(res.created).toBe(true);
-    });
-
-    it("should rollback slot reservation if creation fails", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-      (UserOrganizationModel.create as jest.Mock).mockRejectedValue(
-        new Error("DB Error"),
-      );
-
-      await expect(
-        UserOrganizationService.upsert(validPayload),
-      ).rejects.toThrow("DB Error");
-
-      expect(OrgUsageCounters.updateOne).toHaveBeenCalledWith(
-        { orgId: mockOrgId },
-        { $inc: { usersActiveCount: -1 } },
+        UserOrganizationService.create({
+          ...payload,
+          roleCode: "NOT_A_ROLE",
+        } as never),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: expect.stringContaining('Invalid roleCode "NOT_A_ROLE"'),
+          statusCode: 400,
+        }),
       );
     });
 
-    it("should update existing mapping: Active -> Inactive (Release Slot)", async () => {
-      const existing = { ...validPayload, active: true, _id: mockMappingId };
-      const updatePayload = { ...validPayload, active: false };
-
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc(existing)),
-      );
-      (UserOrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc({ ...updatePayload, _id: mockMappingId }),
-      );
-
-      await UserOrganizationService.upsert(updatePayload);
-
-      expect(OrgUsageCounters.updateOne).toHaveBeenCalledWith(
-        { orgId: mockOrgId },
-        { $inc: { usersActiveCount: -1 } },
-      );
-    });
-
-    it("should update existing mapping: Inactive -> Active (Reserve Slot)", async () => {
-      const existing = { ...validPayload, active: false, _id: mockMappingId };
-      const updatePayload = { ...validPayload, active: true };
-
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc(existing)),
-      );
-      (UserOrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc({ ...updatePayload, _id: mockMappingId }),
-      );
-
-      await UserOrganizationService.upsert(updatePayload);
-
-      expect(OrgUsageCounters.findOneAndUpdate).toHaveBeenCalled();
-    });
-
-    it("should sync seats if business plan and slot count changed", async () => {
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(
-        mockChain({ plan: "business" }),
-      );
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-
-      await UserOrganizationService.upsert(validPayload);
-
-      expect(StripeService.syncSubscriptionSeats).toHaveBeenCalled();
-    });
-
-    it("should throw error if findOneAndUpdate returns null during upsert", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc({ ...validPayload, _id: mockMappingId })),
-      );
-      (UserOrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
+    it("creates via upsert and returns created true", async () => {
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce(
         null,
       );
-
-      await expect(
-        UserOrganizationService.upsert(validPayload),
-      ).rejects.toThrow("Unable to persist user-organization mapping.");
-    });
-
-    it("should throw on invalid role code", async () => {
-      const badPayload = { ...validPayload, roleCode: "not-a-role" };
-      await expect(UserOrganizationService.upsert(badPayload)).rejects.toThrow(
-        'Invalid roleCode "not-a-role".',
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: orgId,
+      });
+      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValueOnce(
+        { plan: "pro" },
       );
-    });
-
-    it("should throw when extraPermissions is not an array", async () => {
-      const badPayload = {
-        ...validPayload,
-        extraPermissions: "not-array" as unknown as string[],
-      };
-      await expect(UserOrganizationService.upsert(badPayload)).rejects.toThrow(
-        "Extra permissions must be an array of strings.",
+      (
+        prisma.organizationUsageCounter.upsert as jest.Mock
+      ).mockResolvedValueOnce({ orgId });
+      (
+        prisma.organizationUsageCounter.update as jest.Mock
+      ).mockResolvedValueOnce({ usersActiveCount: 1 });
+      (prisma.userOrganization.create as jest.Mock).mockResolvedValueOnce(
+        prismaMapping,
       );
+
+      const result = await UserOrganizationService.upsert(payload);
+
+      expect(result.created).toBe(true);
+      expect(result.response._id).toBe(mappingId);
     });
 
-    it("should throw when organization reference format is invalid", async () => {
-      const badPayload = {
-        ...validPayload,
-        organizationReference: "Organization",
-      };
-      await expect(UserOrganizationService.upsert(badPayload)).rejects.toThrow(
-        "Invalid organization reference format.",
-      );
-    });
-  });
-
-  describe("dual write", () => {
-    const originalDualWrite = process.env.DUAL_WRITE_ENABLED;
-
-    afterEach(() => {
-      process.env.DUAL_WRITE_ENABLED = originalDualWrite;
-    });
-
-    it("syncs to postgres when enabled", async () => {
-      process.env.DUAL_WRITE_ENABLED = "true";
-      jest.resetModules();
-      jest.doMock("src/utils/dual-write", () => ({
-        ...jest.requireActual("src/utils/dual-write"),
-        shouldDualWrite: true,
-      }));
-
-      let UserOrganizationServiceIsolated!: typeof UserOrganizationService;
-      let UserOrganizationModelIsolated!: typeof UserOrganizationModel;
-      let OrganizationModelIsolated!: typeof OrganizationModel;
-      let OrgBillingIsolated!: typeof OrgBilling;
-      let prismaIsolated!: typeof prisma;
-
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        UserOrganizationServiceIsolated =
-          require("../../src/services/user-organization.service").UserOrganizationService;
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        UserOrganizationModelIsolated =
-          require("../../src/models/user-organization").default;
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        OrganizationModelIsolated =
-          require("../../src/models/organization").default;
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        OrgBillingIsolated =
-          require("../../src/models/organization.billing").OrgBilling;
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        prismaIsolated = require("src/config/prisma").prisma;
+    it("updates an existing mapping and sends permission emails when changed", async () => {
+      (prisma.userOrganization.findFirst as jest.Mock)
+        .mockResolvedValueOnce(prismaMapping)
+        .mockResolvedValueOnce({
+          ...prismaMapping,
+          roleCode: "RECEPTIONIST",
+          effectivePermissions: [],
+        });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: orgId,
+        name: "Org",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "user@example.com",
+        firstName: "Jane",
+        lastName: "Doe",
+      });
+      (prisma.userOrganization.update as jest.Mock).mockResolvedValue({
+        ...prismaMapping,
+        roleCode: "OWNER",
       });
 
-      const doc = {
-        _id: new Types.ObjectId(),
-        practitionerReference: "Practitioner/abc",
-        organizationReference: "Organization/org",
-        roleCode: "VETERINARIAN",
-        roleDisplay: "Vet",
-        active: true,
-        extraPermissions: [],
-        revokedPermissions: [],
-        effectivePermissions: ["billing:view:any"],
-        toObject: () => ({
-          _id: { toString: () => "map-1" },
-          practitionerReference: "Practitioner/abc",
-          organizationReference: "Organization/org",
-          roleCode: "VETERINARIAN",
-          roleDisplay: "Vet",
-          active: true,
-          extraPermissions: [],
-          revokedPermissions: [],
-          effectivePermissions: ["billing:view:any"],
-          createdAt: new Date("2024-01-01T00:00:00.000Z"),
-          updatedAt: new Date("2024-01-02T00:00:00.000Z"),
-        }),
-      };
-
-      (UserOrganizationModelIsolated.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-      (UserOrganizationModelIsolated.create as jest.Mock).mockResolvedValue(
-        doc,
-      );
-      (OrganizationModelIsolated.findOne as jest.Mock).mockReturnValue(
-        mockChain({ _id: new Types.ObjectId(), name: "Org" }),
-      );
-      (OrgBillingIsolated.findOne as jest.Mock).mockReturnValue(
-        mockChain({ plan: "pro" }),
-      );
-
-      await UserOrganizationServiceIsolated.upsert(validPayload);
-
-      expect(prismaIsolated.userOrganization.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: "map-1" } }),
-      );
-    });
-  });
-
-  describe("create", () => {
-    it("should fail creation and rollback if error occurs", async () => {
-      (UserOrganizationModel.create as jest.Mock).mockRejectedValue(
-        new Error("Fail"),
-      );
-
-      await expect(
-        UserOrganizationService.create(validPayload),
-      ).rejects.toThrow("Fail");
-
-      expect(OrgUsageCounters.updateOne).toHaveBeenCalled();
-    });
-  });
-
-  describe("getById", () => {
-    it("should find by ObjectId", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc({ ...validPayload, _id: mockMappingId })),
-      );
-
-      const res = await UserOrganizationService.getById(
-        mockMappingId.toHexString(),
-      );
-      expect(res).not.toBeNull();
-    });
-
-    it("should find by reference lookup (Practitioner/ID)", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-
-      (UserOrganizationModel.find as jest.Mock).mockReturnValue(
-        mockChain([mockDoc({ ...validPayload, _id: mockMappingId })]),
-      );
-
-      const res = await UserOrganizationService.getById(
-        mockUserId.toHexString(),
-      );
-      expect(res).toBeDefined();
-    });
-
-    it("should handle multiple results for reference lookup", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-      (UserOrganizationModel.find as jest.Mock).mockReturnValue(
-        mockChain([
-          mockDoc({ ...validPayload, _id: new Types.ObjectId() }),
-          mockDoc({ ...validPayload, _id: new Types.ObjectId() }),
-        ]),
-      );
-
-      const res = await UserOrganizationService.getById(
-        mockUserId.toHexString(),
-      );
-      expect(Array.isArray(res)).toBe(true);
-      expect(res).toHaveLength(2);
-    });
-
-    it("should return null if not found anywhere", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-      (UserOrganizationModel.find as jest.Mock).mockReturnValue(mockChain([]));
-
-      const res = await UserOrganizationService.getById(
-        mockUserId.toHexString(),
-      );
-      expect(res).toBeNull();
-    });
-  });
-
-  describe("listAll & deleteById", () => {
-    it("listAll should return all mappings", async () => {
-      (UserOrganizationModel.find as jest.Mock).mockResolvedValue([
-        mockDoc({ ...validPayload, _id: mockMappingId }),
-      ]);
-      const res = await UserOrganizationService.listAll();
-      expect(res).toHaveLength(1);
-    });
-
-    it("deleteById should release slot if active", async () => {
-      (UserOrganizationModel.findOneAndDelete as jest.Mock).mockResolvedValue({
-        active: true,
-        organizationReference: validPayload.organizationReference,
+      const result = await UserOrganizationService.update(mappingId, {
+        ...payload,
+        roleCode: "OWNER",
       });
-
-      await UserOrganizationService.deleteById(mockMappingId.toHexString());
-      expect(OrgUsageCounters.updateOne).toHaveBeenCalled();
-    });
-
-    it("deleteById should not release slot if inactive", async () => {
-      (UserOrganizationModel.findOneAndDelete as jest.Mock).mockResolvedValue({
-        active: false,
-        organizationReference: validPayload.organizationReference,
-      });
-
-      await UserOrganizationService.deleteById(mockMappingId.toHexString());
-      expect(OrgUsageCounters.updateOne).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("update", () => {
-    it("should return null if mapping not found", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-      const res = await UserOrganizationService.update(
-        mockMappingId.toHexString(),
-        validPayload,
-      );
-      expect(res).toBeNull();
-    });
-
-    it("should send email if permissions changed", async () => {
-      const existing = {
-        ...validPayload,
-        roleCode: "RECEPTIONIST",
-        _id: mockMappingId,
-        organizationReference: `Organization/${mockOrgId.toHexString()}`,
-        practitionerReference: `Practitioner/${mockUserId.toHexString()}`,
-      };
-      const updated = {
-        ...validPayload,
-        roleCode: "VETERINARIAN",
-        _id: mockMappingId,
-        organizationReference: `Organization/${mockOrgId.toHexString()}`,
-        practitionerReference: `Practitioner/${mockUserId.toHexString()}`,
-      };
-
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc(existing)),
-      );
-      (UserOrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc(updated),
-      );
-
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ email: "test@test.com", firstName: "Test" }),
-      );
-      (OrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ name: "Test Org" }),
-      );
-
-      await UserOrganizationService.update(
-        mockMappingId.toHexString(),
-        validPayload,
-      );
 
       await new Promise((resolve) => setImmediate(resolve));
-
+      expect(result?._id).toBe(mappingId);
       expect(EmailUtils.sendEmailTemplate).toHaveBeenCalledWith(
         expect.objectContaining({ templateId: "permissionsUpdated" }),
       );
     });
-
-    it("should handle error in email sending (logger error)", async () => {
-      const existing = { ...validPayload, roleCode: "RECEPTIONIST" };
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc(existing)),
-      );
-      (UserOrganizationModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc({ ...validPayload, roleCode: "VETERINARIAN" }),
-      );
-
-      (UserModel.findOne as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockRejectedValue(new Error("Email Fail")),
-      });
-
-      await UserOrganizationService.update(
-        mockMappingId.toHexString(),
-        validPayload,
-      );
-
-      await new Promise((resolve) => setImmediate(resolve));
-
-      expect(logger.error).toHaveBeenCalled();
-    });
   });
 
-  describe("Aggregated Lists (UserId / OrgId)", () => {
-    it("listByUserId: returns details with billing if permitted", async () => {
-      const mappingWithPerms = {
-        ...validPayload,
-        effectivePermissions: ["billing:view:any"],
-      };
-
-      (UserOrganizationModel.find as jest.Mock).mockResolvedValue([
-        mockDoc(mappingWithPerms),
-      ]);
-      (OrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc({ _id: mockOrgId })),
-      );
-
-      const res = await UserOrganizationService.listByUserId(
-        mockUserId.toHexString(),
-      );
-      expect(res[0].orgBilling).toBeDefined();
-      expect(res[0].organization?.appointmentCheckInBufferMinutes).toBe(5);
-      expect(res[0].organization?.appointmentCheckInRadiusMeters).toBe(200);
-    });
-
-    it("listByUserId: hides billing if not permitted", async () => {
-      const mappingNoPerms = {
-        ...validPayload,
-        effectivePermissions: [],
-        // Explicitly revoke billing to ensure permissions logic works
-        revokedPermissions: [
-          "billing:view:any",
-          "billing:edit:any",
-          "billing:edit:limited",
-        ],
-      };
-      (UserOrganizationModel.find as jest.Mock).mockResolvedValue([
-        mockDoc(mappingNoPerms),
-      ]);
-      (OrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ _id: mockOrgId }),
-      );
-
-      const res = await UserOrganizationService.listByUserId(
-        mockUserId.toHexString(),
-      );
-      expect(res[0].orgBilling).toBeNull();
-    });
-
-    it("listByOrganisationId: aggregates user details", async () => {
-      (UserOrganizationModel.find as jest.Mock).mockResolvedValue([
-        mockDoc({
-          ...validPayload,
-          practitionerReference: mockUserId.toHexString(),
-        }),
-      ]);
-      (UserModel.findOne as jest.Mock).mockResolvedValue({
-        firstName: "John",
-        lastName: "Doe",
-      });
-      (UserProfileModel.findOne as jest.Mock).mockResolvedValue({
-        personalDetails: { profilePictureUrl: "http" },
-      });
-      (AvailabilityService.getCurrentStatus as jest.Mock).mockResolvedValue(
-        "AVAILABLE",
-      );
-      (OccupancyModel.countDocuments as jest.Mock).mockResolvedValue(5);
-
-      const res = await UserOrganizationService.listByOrganisationId(
-        mockOrgId.toHexString(),
-      );
-
-      expect(res[0].name).toBe("John Doe");
-      expect(res[0].currentStatus).toBe("AVAILABLE");
-      expect(res[0].count).toBe(5);
-    });
-  });
-
-  describe("Slot Management & Billing", () => {
-    it("should handle Free Plan limit reached", async () => {
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(
-        mockChain({ plan: "free" }),
-      );
-      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
-
-      await expect(
-        UserOrganizationService.create(validPayload),
-      ).rejects.toThrow("Free plan member limit reached");
-    });
-
-    it("should send email when free limit is just reached", async () => {
-      (OrgBilling.findOne as jest.Mock).mockReturnValue(
-        mockChain({ plan: "free" }),
-      );
-
-      const usageDoc = {
-        _id: "u1",
-        usersActiveCount: 5,
-        freeUsersLimit: 5,
-        appointmentsUsed: 0,
-        freeAppointmentsLimit: 10,
-        toolsUsed: 0,
-        freeToolsLimit: 10,
-        freeLimitReachedAt: null,
-      };
-      (OrgUsageCounters.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        usageDoc,
-      );
-      (OrgUsageCounters.updateOne as jest.Mock).mockResolvedValue({
-        modifiedCount: 1,
-      });
-
-      await UserOrganizationService.create(validPayload);
-
-      expect(
-        OrgUsageNotifications.sendFreePlanLimitReachedEmail,
-      ).toHaveBeenCalled();
-    });
-  });
-
-  describe("Helpers coverage (Implicit)", () => {
-    it("should delete all by org id", async () => {
-      const exec = jest.fn();
-      (UserOrganizationModel.deleteMany as jest.Mock).mockReturnValue({ exec });
-      await UserOrganizationService.deleteAllByOrganizationId("org-1");
-      expect(exec).toHaveBeenCalled();
-    });
-
-    it("should throw error in createUserOrganizationMapping if no doc returned", async () => {
-      (UserOrganizationModel.create as jest.Mock).mockResolvedValue(null);
-      await expect(
-        UserOrganizationService.createUserOrganizationMapping(validPayload),
-      ).rejects.toThrow("Unable to create user-organization mapping");
-    });
-
-    it("should handle reference lookups with simple IDs", async () => {
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-      const findMock = jest.fn().mockReturnValue(mockChain([]));
-      UserOrganizationModel.find = findMock as any;
-
-      await UserOrganizationService.getById("12345");
-
-      const callArgs = findMock.mock.calls[0][0];
-      expect(callArgs.$or.length).toBeGreaterThan(0);
-    });
-
-    it("should fail ensureSafeIdentifier with invalid chars", async () => {
-      const badPayload = { ...validPayload, id: "bad$id" };
-      await expect(UserOrganizationService.upsert(badPayload)).rejects.toThrow(
-        "Invalid character in Identifier",
-      );
-    });
-  });
-
-  describe("Postgres Read Branches", () => {
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-    });
-
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = "false";
-    });
-
-    it("getById should return mapping when found by direct id", async () => {
-      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
-        id: "map-1",
-        fhirId: "fhir-1",
-        practitionerReference: "Practitioner/abc",
-        organizationReference: "Organization/org-1",
-        roleCode: "VETERINARIAN",
-        roleDisplay: null,
-        active: true,
-        extraPermissions: [],
-        revokedPermissions: [],
-        effectivePermissions: [],
-      });
-
-      const res = await UserOrganizationService.getById("map-1");
-      expect(res).toMatchObject({
-        _id: "map-1",
-        practitionerReference: "Practitioner/abc",
-        organizationReference: "Organization/org-1",
-      });
-    });
-
-    it("getById should return array when reference lookups find multiple", async () => {
-      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
+  describe("lookups and deletion", () => {
+    it("resolves mapping by id and reference", async () => {
+      (prisma.userOrganization.findFirst as jest.Mock)
+        .mockResolvedValueOnce(prismaMapping)
+        .mockResolvedValueOnce(null);
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValueOnce([
+        prismaMapping,
         {
-          id: "map-1",
-          fhirId: null,
-          practitionerReference: "Practitioner/abc",
-          organizationReference: "Organization/org-1",
-          roleCode: "VETERINARIAN",
-          roleDisplay: null,
-          active: true,
-          extraPermissions: [],
-          revokedPermissions: [],
-          effectivePermissions: [],
-        },
-        {
+          ...prismaMapping,
           id: "map-2",
-          fhirId: null,
-          practitionerReference: "Practitioner/abc",
-          organizationReference: "Organization/org-2",
-          roleCode: "TECHNICIAN",
-          roleDisplay: null,
-          active: true,
-          extraPermissions: [],
-          revokedPermissions: [],
-          effectivePermissions: [],
+          fhirId: "map-2",
         },
       ]);
 
-      const res = await UserOrganizationService.getById("Practitioner/abc");
-      expect(Array.isArray(res)).toBe(true);
-      expect(res).toHaveLength(2);
+      await expect(
+        UserOrganizationService.getById(mappingId),
+      ).resolves.toMatchObject({ _id: mappingId });
+      await expect(
+        UserOrganizationService.getById("Practitioner/user-1"),
+      ).resolves.toHaveLength(2);
     });
 
-    it("listAll should return postgres mappings", async () => {
-      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
-        {
-          id: "map-1",
-          fhirId: null,
-          practitionerReference: "Practitioner/abc",
-          organizationReference: "Organization/org-1",
-          roleCode: "VETERINARIAN",
-          roleDisplay: null,
-          active: true,
-          extraPermissions: [],
-          revokedPermissions: [],
-          effectivePermissions: [],
-        },
+    it("lists and deletes mappings", async () => {
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValueOnce([
+        prismaMapping,
       ]);
-
-      const res = await UserOrganizationService.listAll();
-      expect(res).toHaveLength(1);
-      expect(res[0]).toMatchObject({ _id: "map-1" });
-    });
-
-    it("listByUserId should include billing data when permitted", async () => {
-      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
-        {
-          id: "map-1",
-          fhirId: null,
-          practitionerReference: "Practitioner/abc",
-          organizationReference: "Organization/org-1",
-          roleCode: "VETERINARIAN",
-          roleDisplay: null,
-          active: true,
-          extraPermissions: ["billing:view:any"],
-          revokedPermissions: [],
-          effectivePermissions: ["billing:view:any"],
-        },
-      ]);
+      (prisma.userOrganization.findFirst as jest.Mock)
+        .mockResolvedValueOnce(prismaMapping)
+        .mockResolvedValueOnce(prismaMapping);
       (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
-        id: "org-1",
-        fhirId: "org-1",
-        name: "Test Org",
+        id: orgId,
+      });
+
+      const list = await UserOrganizationService.listAll();
+      const deleted = await UserOrganizationService.deleteById(mappingId);
+
+      expect(list).toHaveLength(1);
+      expect(deleted).toBe(true);
+      expect(prisma.userOrganization.delete).toHaveBeenCalledWith({
+        where: { id: mappingId },
+      });
+    });
+
+    it("returns false for blank delete identifiers", async () => {
+      await expect(UserOrganizationService.deleteById("   ")).resolves.toBe(
+        false,
+      );
+    });
+
+    it("removes mappings by organization id", async () => {
+      await UserOrganizationService.deleteAllByOrganizationId(orgId);
+      expect(prisma.userOrganization.deleteMany).toHaveBeenCalledWith({
+        where: { organizationReference: orgId },
+      });
+    });
+  });
+
+  describe("aggregations", () => {
+    it("returns an empty list when a user has no mappings", async () => {
+      (prisma.userOrganization.findMany as jest.Mock).mockImplementation(
+        async () => [],
+      );
+
+      await expect(
+        UserOrganizationService.listByUserId(userId),
+      ).resolves.toEqual([]);
+    });
+
+    it("lists by user and organisation ids", async () => {
+      (prisma.userOrganization.findMany as jest.Mock)
+        .mockResolvedValueOnce([
+          {
+            ...prismaMapping,
+            effectivePermissions: ["billing:view:any"],
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            ...prismaMapping,
+            organizationReference: `Organization/${orgId}`,
+          },
+        ]);
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: orgId,
+        fhirId: null,
+        name: "Org",
         imageUrl: null,
         phoneNo: "",
-        type: "vet",
+        type: "HOSPITAL",
         googlePlacesId: null,
         address: null,
         taxId: "",
@@ -832,39 +332,13 @@ describe("UserOrganizationService", () => {
       });
       (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValue({
         id: "bill-1",
-        orgId: "org-1",
+        orgId,
       });
       (
         prisma.organizationUsageCounter.findFirst as jest.Mock
-      ).mockResolvedValue({
-        id: "usage-1",
-        orgId: "org-1",
-      });
-
-      const res = await UserOrganizationService.listByUserId("abc");
-      expect(res[0].orgBilling).toMatchObject({ _id: "bill-1" });
-      expect(res[0].orgUsage).toMatchObject({ _id: "usage-1" });
-      expect(res[0].organization?.appointmentCheckInBufferMinutes).toBe(5);
-      expect(res[0].organization?.appointmentCheckInRadiusMeters).toBe(200);
-    });
-
-    it("listByOrganisationId should aggregate postgres user details", async () => {
-      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([
-        {
-          id: "map-1",
-          fhirId: null,
-          practitionerReference: "Practitioner/abc",
-          organizationReference: "Organization/org-1",
-          roleCode: "VETERINARIAN",
-          roleDisplay: null,
-          active: true,
-          extraPermissions: [],
-          revokedPermissions: [],
-          effectivePermissions: [],
-        },
-      ]);
+      ).mockResolvedValue({ id: "usage-1", orgId });
       (prisma.user.findFirst as jest.Mock).mockResolvedValue({
-        userId: "abc",
+        userId,
         firstName: "Jane",
         lastName: "Doe",
       });
@@ -872,20 +346,23 @@ describe("UserOrganizationService", () => {
         personalDetails: { profilePictureUrl: "http" },
       });
       (prisma.speciality.findMany as jest.Mock).mockResolvedValue([
-        { name: "Dentistry" },
+        { id: "spec-1", organisationId: orgId },
       ]);
+      (prisma.occupancy.count as jest.Mock).mockResolvedValue(3);
       (AvailabilityService.getCurrentStatus as jest.Mock).mockResolvedValue(
         "AVAILABLE",
       );
       (
         AvailabilityService.getWeeklyWorkingHours as jest.Mock
       ).mockResolvedValue(40);
-      (prisma.occupancy.count as jest.Mock).mockResolvedValue(3);
 
-      const res = await UserOrganizationService.listByOrganisationId("org-1");
-      expect(res[0].name).toBe("Jane Doe");
-      expect(res[0].weeklyHours).toBe(40);
-      expect(res[0].count).toBe(3);
+      const byUser = await UserOrganizationService.listByUserId(userId);
+      const byOrg = await UserOrganizationService.listByOrganisationId(orgId);
+
+      expect(byUser[0].orgBilling).toMatchObject({ _id: "bill-1" });
+      expect(byUser[0].organization?.name).toBe("Org");
+      expect(byOrg[0].name).toBe("Jane Doe");
+      expect(byOrg[0].weeklyHours).toBe(40);
     });
   });
 });

@@ -18,6 +18,7 @@ export type {
 
 export { toFHIRUserOrganization, fromFHIRUserOrganization } from './userOrganization';
 export { toFHIRRelatedPerson } from './parent';
+export type { AlertSummary as ParentAlertSummary } from './parent';
 export {
   toFHIROrganisation,
   fromFHIROrganisation,
@@ -65,6 +66,7 @@ export type { ParentRequestDTO, ParentResponseDTO } from './dto/parent.dto';
 export { fromParentRequestDTO, toParentResponseDTO } from './dto/parent.dto';
 export type { CompanionRequestDTO, CompanionResponseDTO } from './dto/companion.dto';
 export { fromCompanionRequestDTO, toCompanionResponseDTO } from './dto/companion.dto';
+export type { AlertSummary as CompanionAlertSummary } from './companion';
 export type { Companion, CompanionType, Gender, SourceType, RecordStatus } from './companion';
 export { toFHIRCompanion, fromFHIRCompanion } from './companion';
 export type {
@@ -86,6 +88,7 @@ export {
 export type { UserOrganization, ToFHIRUserOrganizationOptions } from './userOrganization';
 export type { Speciality } from './speciality';
 export { toFHIRSpeciality, fromFHIRSpeciality, toFHIRSpecialityBundle } from './speciality';
+export type { ScopedSearchItem, ScopedSearchResponse, ScopedSearchScope } from './scoped-search';
 
 export type { AdminDepartmentItem, AdminFHIRHealthcareService } from './models/admin-department';
 export type {
@@ -133,6 +136,15 @@ export type { Service } from './service';
 export type { Case, CaseStatus } from './case';
 export { fromFHIRCase, toFHIRCase } from './case';
 export type { Admission } from './admission';
+export type {
+  InventoryItemSearchResult,
+  MedicationSearchResult,
+  PrescriptionInventoryAction,
+  PrescriptionInventoryActionResponse,
+  PrescriptionInventoryBatchLike,
+  PrescriptionInventoryEventReceipt,
+  PrescriptionLineItem,
+} from './prescription';
 export type { Encounter, EncounterClass, EncounterStatus } from './encounter';
 export { fromFHIREncounter, toFHIREncounter } from './encounter';
 export type { RoomUnit } from './roomUnit';
@@ -258,7 +270,14 @@ export {
   fromRoomUnitRequestDTO,
   toRoomUnitResponseDTO,
 } from './dto/room-unit.dto';
-export type { Invoice, InvoiceItem, InvoiceStatus, PaymentCollectionMethod } from './invoice';
+export type {
+  CreditNote,
+  CreditNoteStatus,
+  Invoice,
+  InvoiceItem,
+  InvoiceStatus,
+  PaymentCollectionMethod,
+} from './invoice';
 export type { Appointment, AppointmentPaymentStatus } from './appointment';
 export { toFHIRInvoice, fromFHIRInvoice } from './invoice';
 export { toFHIRAppointment, fromFHIRAppointment } from './appointment';
@@ -282,14 +301,23 @@ export {
   templateMapper,
   type TemplateLike,
   type TemplateInstanceLike,
+  type TemplateResolveInput,
+  type TemplateResolveResponse,
   type TemplateStatus,
   type TemplateScope,
   type TemplateOwnershipType,
+  type TemplateSource,
+  type TemplateContractKind,
+  type TemplateLegacyKind,
+  type TemplateStorageKind,
   type TemplateKind,
+  normalizeTemplateKind,
+  toLegacyTemplateKind,
   type TemplateFieldType,
   type TemplateFieldDefinition,
   type TemplateFieldOption,
   type TemplateFieldSource,
+  type TemplateAppliesTo,
   type TemplateSchemaSnapshot,
   type TemplateSection,
   type TemplateUpsertInput,
@@ -297,15 +325,40 @@ export {
 } from './template';
 export {
   taskFhirMapper,
+  TASK_CATEGORY_TAXONOMY,
+  TASK_KIND_TAXONOMY,
+  isTaskCategory,
+  isTaskKind,
   type TaskLike,
   type TaskStatus,
   type TaskAudience,
+  type TaskCategory,
+  type TaskKind,
   type TaskSource,
   type MedicationDoseInput,
   type MedicationInput,
   type CreateCustomTaskInput,
   type TaskUpdateInput,
+  type TaskListFilters,
 } from './task';
+export type {
+  WorkspaceBootstrapResponse,
+  WorkspaceBootstrapAggregate,
+  WorkspaceBootstrapInput,
+  WorkspaceDiagnosticQueueItem,
+  WorkspaceDocumentRow,
+  WorkspaceDocumentPacketRow,
+  WorkspaceDocumentPacketStatus,
+  WorkspaceLabSummary,
+  WorkspaceLockState,
+  WorkspacePermissionSnapshot,
+  WorkspacePrimaryAction,
+  WorkspaceFormRow,
+  WorkspaceSummaryItem,
+  WorkspaceTreatmentItem,
+  WorkspaceTreatmentItemCreateInput,
+  WorkspaceTreatmentItemUpdateInput,
+} from './workspace';
 export {
   clinicalArtifactFhirMapper,
   type ClinicalArtifactKind,
@@ -374,7 +427,14 @@ export {
   fromFHIRQuestionnaireResponse,
 } from './form';
 export type {
+  FormAssignmentLike,
+  FormAssignmentStatus,
+  FormSignerIdentity,
+  FormAssignmentCreateInput,
+} from './form-assignment';
+export type {
   AdverseEventReporterType,
+  AdverseEventPatientInfo,
   AdverseEventCompanionInfo,
   AdverseEventConsent,
   AdverseEventDestinations,

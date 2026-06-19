@@ -138,6 +138,7 @@ export interface FormSubmission {
   formId: string;
   formVersion: number;
   appointmentId?: string;
+  patientId?: string;
   companionId?: string;
   parentId?: string;
   submittedBy?: string;
@@ -637,10 +638,10 @@ export const toFHIRQuestionnaireResponse = (
       valueString: submission.appointmentId,
     });
 
-  if (submission.companionId)
+  if (submission.patientId ?? submission.companionId)
     extensions.push({
       url: FORM_RESPONSE_COMPANION_URL,
-      valueString: submission.companionId,
+      valueString: submission.patientId ?? submission.companionId,
     });
 
   if (submission.parentId)
@@ -865,6 +866,8 @@ export const fromFHIRQuestionnaireResponse = (
     formId: parseQuestionnaireId(response.questionnaire),
     formVersion: versionExtension ?? versionFromRef ?? 1,
     appointmentId: response.extension?.find((ext) => ext.url === FORM_RESPONSE_APPOINTMENT_URL)
+      ?.valueString,
+    patientId: response.extension?.find((ext) => ext.url === FORM_RESPONSE_COMPANION_URL)
       ?.valueString,
     companionId: response.extension?.find((ext) => ext.url === FORM_RESPONSE_COMPANION_URL)
       ?.valueString,

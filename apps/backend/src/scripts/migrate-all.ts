@@ -256,7 +256,7 @@ const migrateModel = async (
     prismaName === "CompanionOrganisation" ||
     prismaName === "ParentCompanion"
   ) {
-    const companions = await prisma.companion.findMany({
+    const companions = await prisma.patient.findMany({
       select: { id: true },
     });
     existingCompanionIds = new Set(companions.map((companion) => companion.id));

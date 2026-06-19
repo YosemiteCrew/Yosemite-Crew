@@ -1,7 +1,7 @@
 export type AuditActorType = 'PMS_USER' | 'PARENT' | 'SYSTEM';
 
 export type AuditEntityType =
-  | 'COMPANION_ORGANISATION'
+  | 'PATIENT_ORGANISATION'
   | 'APPOINTMENT'
   | 'INVOICE'
   | 'DOCUMENT'
@@ -9,14 +9,14 @@ export type AuditEntityType =
   | 'TASK';
 
 export type AuditEventType =
-  | 'COMPANION_ORG_LINK_CREATED'
-  | 'COMPANION_ORG_LINK_REQUESTED'
-  | 'COMPANION_ORG_LINK_APPROVED'
-  | 'COMPANION_ORG_LINK_REJECTED'
-  | 'COMPANION_ORG_LINK_REVOKED'
-  | 'COMPANION_ORG_INVITE_ACCEPTED'
-  | 'COMPANION_ORG_INVITE_REJECTED'
-  | 'COMPANION_ORG_LINK_AUTO'
+  | 'PATIENT_ORG_LINK_CREATED'
+  | 'PATIENT_ORG_LINK_REQUESTED'
+  | 'PATIENT_ORG_LINK_APPROVED'
+  | 'PATIENT_ORG_LINK_REJECTED'
+  | 'PATIENT_ORG_LINK_REVOKED'
+  | 'PATIENT_ORG_INVITE_ACCEPTED'
+  | 'PATIENT_ORG_INVITE_REJECTED'
+  | 'PATIENT_ORG_LINK_AUTO'
   | 'APPOINTMENT_REQUESTED'
   | 'APPOINTMENT_CREATED'
   | 'APPOINTMENT_APPROVED'
@@ -41,7 +41,8 @@ export type AuditEventType =
 export interface AuditTrailEntry {
   id: string;
   organisationId: string;
-  companionId: string;
+  patientId?: string;
+  companionId?: string;
   eventType: AuditEventType;
   actorType?: AuditActorType;
   actorId?: string | null;

@@ -1,5 +1,6 @@
 import { Appointment } from '@yosemite-crew/types';
 import { Slot } from '@/app/features/appointments/types/appointments';
+import { getAppointmentCompanion } from '@/app/lib/appointments';
 
 export type AppointmentCentralFieldKey =
   | 'patient'
@@ -38,7 +39,7 @@ export const hasUnsavedCentralChanges = (
   selectedSlot: Slot | null
 ): boolean =>
   Boolean(
-    formData.companion.id ||
+    getAppointmentCompanion(formData).id ||
     formData.appointmentType?.speciality?.id ||
     formData.appointmentType?.id ||
     formData.concern?.trim() ||

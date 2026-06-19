@@ -25,7 +25,7 @@ type PrismaFormSubmissionRecord = {
   formId: string;
   formVersion: number;
   appointmentId: string | null;
-  companionId: string | null;
+  patientId: string | null;
   parentId: string | null;
   submittedBy: string | null;
   answers: Prisma.JsonValue;

@@ -2,6 +2,16 @@ import { Appointment } from '@yosemite-crew/types';
 
 export const EMPTY_APPOINTMENT: Appointment = {
   id: undefined,
+  patient: {
+    id: '',
+    name: '',
+    species: '',
+    breed: '',
+    parent: {
+      id: '',
+      name: '',
+    },
+  },
   companion: {
     id: '',
     name: '',

@@ -458,6 +458,8 @@ describe('appointmentsSlice', () => {
         }),
       );
 
+      expect(shared.patient).toEqual(shared.companion);
+
       expect(shared.lead).toEqual({
         id: 'emp-1',
         name: 'Dr. Override',

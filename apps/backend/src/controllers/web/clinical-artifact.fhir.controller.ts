@@ -5,13 +5,13 @@ import {
   Observation,
 } from "@yosemite-crew/fhir";
 import { z } from "zod";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import {
   ClinicalArtifactService,
   ClinicalArtifactServiceError,
 } from "src/services/clinical-artifact.service";
 import { clinicalArtifactFhirMapper } from "src/services/fhir-clinical-artifact.mapper";
-import logger from "src/utils/logger";
+import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const compositionSchema = z
   .object({ resourceType: z.literal("Composition") })
@@ -23,29 +23,12 @@ const observationSchema = z
   .object({ resourceType: z.literal("Observation") })
   .passthrough();
 
-const handleError = (error: unknown, res: Response) => {
-  if (error instanceof ClinicalArtifactServiceError) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
-
-  if (error instanceof z.ZodError) {
-    return res.status(400).json({
-      message: "Invalid FHIR payload.",
-      issues: error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
-  }
-
-  logger.error("Unexpected FHIR clinical artifact error", error);
-  return res.status(500).json({ message: "Internal Server Error" });
-};
-
-const resolveUserId = (req: Request) => {
-  const typed = req as AuthenticatedRequest;
-  return typeof typed.userId === "string" ? typed.userId : "";
-};
+const handleError = createFhirErrorHandler({
+  isServiceError: (error): error is ClinicalArtifactServiceError =>
+    error instanceof ClinicalArtifactServiceError,
+  invalidPayloadMessage: "Invalid FHIR payload.",
+  logMessage: "Unexpected FHIR clinical artifact error",
+});
 
 const readContext = (resource: Record<string, unknown>, userId: string) => ({
   organisationId:
@@ -121,7 +104,7 @@ export const ClinicalArtifactFhirController = {
       const body = compositionSchema.parse(req.body) as unknown as Composition;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       const record = await ClinicalArtifactService.createSoapNote(
         clinicalArtifactFhirMapper.compositionToSoapNoteInput(body, {
@@ -156,7 +139,7 @@ export const ClinicalArtifactFhirController = {
       const body = compositionSchema.parse(req.body) as unknown as Composition;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       const record = await ClinicalArtifactService.updateSoapNote(
         req.params.soapNoteId,
@@ -211,7 +194,7 @@ export const ClinicalArtifactFhirController = {
       ) as unknown as MedicationRequest;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       const record = await ClinicalArtifactService.createPrescription(
         clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(body, {
@@ -252,7 +235,7 @@ export const ClinicalArtifactFhirController = {
       ) as unknown as MedicationRequest;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       const record = await ClinicalArtifactService.updatePrescription(
         req.params.prescriptionId,
@@ -307,7 +290,7 @@ export const ClinicalArtifactFhirController = {
       const body = compositionSchema.parse(req.body) as unknown as Composition;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       const record = await ClinicalArtifactService.createDischargeSummary(
         clinicalArtifactFhirMapper.compositionToDischargeSummaryInput(body, {
@@ -342,7 +325,7 @@ export const ClinicalArtifactFhirController = {
       const body = compositionSchema.parse(req.body) as unknown as Composition;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       const record = await ClinicalArtifactService.updateDischargeSummary(
         req.params.dischargeSummaryId,
@@ -395,7 +378,7 @@ export const ClinicalArtifactFhirController = {
       const body = observationSchema.parse(req.body) as unknown as Observation;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       const record = await ClinicalArtifactService.createVitalRecord(
         clinicalArtifactFhirMapper.observationToVitalRecordInput(body, {
@@ -430,7 +413,7 @@ export const ClinicalArtifactFhirController = {
       const body = observationSchema.parse(req.body) as unknown as Observation;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       const record = await ClinicalArtifactService.updateVitalRecord(
         req.params.vitalRecordId,
@@ -442,6 +425,180 @@ export const ClinicalArtifactFhirController = {
       );
       return res
         .status(200)
+        .json(clinicalArtifactFhirMapper.vitalRecordToObservation(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async finalizeSoapNote(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.finalizeSoapNote(
+        req.params.soapNoteId,
+        req.params.organisationId,
+      );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async reopenSoapNote(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.reopenSoapNote(
+        req.params.soapNoteId,
+        req.params.organisationId,
+      );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async amendSoapNote(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.amendSoapNote(
+        req.params.soapNoteId,
+        req.params.organisationId,
+      );
+      return res
+        .status(201)
+        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async finalizePrescription(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.finalizePrescription(
+        req.params.prescriptionId,
+        req.params.organisationId,
+      );
+      return res
+        .status(200)
+        .json(
+          clinicalArtifactFhirMapper.prescriptionToMedicationRequest(record),
+        );
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async reopenPrescription(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.reopenPrescription(
+        req.params.prescriptionId,
+        req.params.organisationId,
+      );
+      return res
+        .status(200)
+        .json(
+          clinicalArtifactFhirMapper.prescriptionToMedicationRequest(record),
+        );
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async amendPrescription(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.amendPrescription(
+        req.params.prescriptionId,
+        req.params.organisationId,
+      );
+      return res
+        .status(201)
+        .json(
+          clinicalArtifactFhirMapper.prescriptionToMedicationRequest(record),
+        );
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async finalizeDischargeSummary(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.finalizeDischargeSummary(
+        req.params.dischargeSummaryId,
+        req.params.organisationId,
+      );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.dischargeSummaryToComposition(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async reopenDischargeSummary(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.reopenDischargeSummary(
+        req.params.dischargeSummaryId,
+        req.params.organisationId,
+      );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.dischargeSummaryToComposition(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async amendDischargeSummary(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.amendDischargeSummary(
+        req.params.dischargeSummaryId,
+        req.params.organisationId,
+      );
+      return res
+        .status(201)
+        .json(clinicalArtifactFhirMapper.dischargeSummaryToComposition(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async finalizeVitalRecord(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.finalizeVitalRecord(
+        req.params.vitalRecordId,
+        req.params.organisationId,
+      );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.vitalRecordToObservation(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async reopenVitalRecord(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.reopenVitalRecord(
+        req.params.vitalRecordId,
+        req.params.organisationId,
+      );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.vitalRecordToObservation(record));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async amendVitalRecord(req: Request, res: Response) {
+    try {
+      const record = await ClinicalArtifactService.amendVitalRecord(
+        req.params.vitalRecordId,
+        req.params.organisationId,
+      );
+      return res
+        .status(201)
         .json(clinicalArtifactFhirMapper.vitalRecordToObservation(record));
     } catch (error) {
       return handleError(error, res);

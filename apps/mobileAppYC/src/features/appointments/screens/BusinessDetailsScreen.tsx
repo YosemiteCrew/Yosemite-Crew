@@ -32,14 +32,11 @@ import {
 import {openMapsToAddress, openMapsToPlaceId} from '@/shared/utils/openMaps';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
-import {MOCK_CLINICS} from '@/features/appointments/mocks/clinicMocks';
 import {convertDistance} from '@/shared/utils/measurementSystem';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {TabParamList} from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
-
-const MOCK_CLINIC_MAP = new Map(MOCK_CLINICS.map(c => [c.id, c]));
 
 const resolveCompanionSpecies = (raw: string): string => {
   if (raw === 'cat') return 'feline';
@@ -62,7 +59,7 @@ export const BusinessDetailsScreen: React.FC = () => {
   const reduxBusiness = useSelector((s: RootState) =>
     s.businesses.businesses.find(b => b.id === businessId),
   );
-  const business = reduxBusiness ?? MOCK_CLINIC_MAP.get(businessId);
+  const business = reduxBusiness;
   const servicesSelector = React.useMemo(
     () => createSelectServicesForBusiness(),
     [],
@@ -112,6 +109,7 @@ export const BusinessDetailsScreen: React.FC = () => {
         });
     }
   }, [business?.googlePlacesId, business?.photo, dispatch]);
+
   const specialties = useMemo(() => {
     const groups: Record<string, typeof services> = {};
     for (const svc of services) {
@@ -119,13 +117,21 @@ export const BusinessDetailsScreen: React.FC = () => {
       if (!groups[key]) groups[key] = [];
       groups[key].push(svc);
     }
-
-    return Object.entries(groups).map(([name, emps]) => ({
+    return Object.entries(groups).map(([name, svcs]) => ({
       name,
-      serviceCount: emps.length,
-      services: emps,
+      serviceCount: svcs.length,
+      services: svcs,
+      packages: [],
     }));
   }, [services]);
+
+  const handleSelectPackage = (packageId: string, packageName: string) => {
+    navigation.navigate('BookingForm', {
+      businessId,
+      serviceId: packageId,
+      serviceName: packageName,
+    });
+  };
 
   const handleSelectService = (serviceId: string, specialtyName: string) => {
     if (selectedCompanion) {
@@ -215,12 +221,13 @@ export const BusinessDetailsScreen: React.FC = () => {
             fallbackPhoto={fallbackPhoto ?? undefined}
             cta=""
           />
-          {specialties.length ? (
+          {services.length ? (
             <SpecialtyAccordion
               title="Specialties"
               icon={Images.specialityIcon}
               specialties={specialties}
               onSelectService={handleSelectService}
+              onSelectPackage={handleSelectPackage}
             />
           ) : (
             <LiquidGlassCard

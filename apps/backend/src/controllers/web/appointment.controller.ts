@@ -16,7 +16,7 @@ type RescheduleRequestBody = {
 
 type CancelBody = { reason?: string };
 
-type UploadUrlBody = { companionId?: string; mimeType?: string };
+type UploadUrlBody = { patientId?: string; mimeType?: string };
 type AttachFormsBody = { formIds?: string[] };
 
 type ErrorWithStatus = Error & { statusCode?: number };
@@ -411,14 +411,14 @@ export const AppointmentController = {
   },
 
   listByCompanion: async (
-    req: Request<{ companionId: string }>,
+    req: Request<{ patientId: string }>,
     res: Response,
   ) => {
     try {
-      const { companionId } = req.params;
+      const { patientId } = req.params;
 
       const data =
-        await AppointmentService.getAppointmentsForCompanion(companionId);
+        await AppointmentService.getAppointmentsForCompanion(patientId);
 
       return res.status(200).json({ data });
     } catch (err: unknown) {
@@ -432,15 +432,15 @@ export const AppointmentController = {
   },
 
   listByCompanionForOrganisation: async (
-    req: Request<{ organisationId: string; companionId: string }>,
+    req: Request<{ organisationId: string; patientId: string }>,
     res: Response,
   ) => {
     try {
-      const { organisationId, companionId } = req.params;
+      const { organisationId, patientId } = req.params;
 
       const data =
         await AppointmentService.getAppointmentsForCompanionByOrganisation(
-          companionId,
+          patientId,
           organisationId,
         );
 
@@ -541,18 +541,18 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
-      const { companionId, mimeType } = req.body;
+      const { patientId, mimeType } = req.body;
 
-      if (!companionId || !mimeType) {
+      if (!patientId || !mimeType) {
         return res
           .status(400)
-          .json({ message: "companionId and mimeType are required." });
+          .json({ message: "patientId and mimeType are required." });
       }
 
       const { url, key } = await generatePresignedUrl(
         mimeType,
         "companion",
-        companionId,
+        patientId,
       );
 
       return res.status(200).json({ url, key });

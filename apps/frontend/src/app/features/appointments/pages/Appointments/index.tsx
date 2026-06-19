@@ -368,13 +368,14 @@ const Appointments = () => {
     return appointments.filter((item) => {
       const status = normalizeAppointmentStatus(item.status)?.toLowerCase();
       const filter = item.isEmergency && 'emergencies';
+      const companion = item.companion ?? item.patient;
 
       const matchesStatus =
         activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const companionDisplayName = formatCompanionNameWithOwnerLastName(
-        item.companion.name,
-        item.companion.parent,
+        companion.name,
+        companion.parent,
         ''
       ).toLowerCase();
       const matchesQuery = !q || companionDisplayName.includes(q);

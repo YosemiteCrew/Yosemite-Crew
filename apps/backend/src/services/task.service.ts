@@ -2,8 +2,10 @@ import {
   Prisma,
   TaskAudience as PrismaTaskAudience,
   TaskSource as PrismaTaskSource,
+  TaskKind as PrismaTaskKind,
   TaskStatus as PrismaTaskStatus,
 } from "@prisma/client";
+import { isTaskCategory } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { TaskWorkflowSeed } from "./task-workflow-materializer";
@@ -56,8 +58,6 @@ const TASK_STATUSES = new Set<TaskStatus>([
   "CANCELLED",
 ]);
 
-const TASK_AUDIENCES = new Set<TaskAudience>(["EMPLOYEE_TASK", "PARENT_TASK"]);
-
 type TaskRow = Prisma.TaskGetPayload<Record<string, never>>;
 type TaskCompletionRow = Prisma.TaskCompletionGetPayload<Record<string, never>>;
 
@@ -100,10 +100,25 @@ const sanitizeStatusList = (value: unknown): TaskStatus[] | undefined => {
   return filtered.length ? filtered : undefined;
 };
 
-const sanitizeAudience = (value: unknown): TaskAudience | undefined =>
-  typeof value === "string" && TASK_AUDIENCES.has(value as TaskAudience)
-    ? (value as TaskAudience)
-    : undefined;
+const sanitizeTaskCategory = (value: unknown): string | undefined =>
+  typeof value === "string" && isTaskCategory(value) ? value : undefined;
+
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter((item) => item.length > 0)
+    : [];
+
+const intersectStringLists = (
+  left: string[] | undefined,
+  right: string[] | undefined,
+) => {
+  if (!left) return right;
+  if (!right) return left;
+  const rightSet = new Set(right);
+  return left.filter((value) => rightSet.has(value));
+};
 
 const buildDisplayName = (
   user?: { firstName?: string | null; lastName?: string | null } | null,
@@ -119,7 +134,7 @@ type TaskAssignmentEmailTask = {
   assignedGroupId?: string | null;
   assignedBy?: string | null;
   createdBy: string;
-  companionId?: string | null;
+  patientId?: string | null;
   dueAt: Date;
   name: string;
   additionalNotes?: string | null;
@@ -140,9 +155,9 @@ const sendTaskAssignmentEmail = async (task: TaskAssignmentEmailTask) => {
         where: { userId: task.assignedBy ?? task.createdBy },
         select: { firstName: true, lastName: true },
       }),
-      task.companionId
-        ? prisma.companion.findFirst({
-            where: { id: task.companionId },
+      task.patientId
+        ? prisma.patient.findFirst({
+            where: { id: task.patientId },
             select: { name: true },
           })
         : Promise.resolve(null),
@@ -174,19 +189,19 @@ const sendTaskAssignmentEmail = async (task: TaskAssignmentEmailTask) => {
 
 const recordTaskAudit = async (params: {
   organisationId?: string | null;
-  companionId?: string | null;
+  patientId?: string | null;
   eventType: "TASK_CREATED" | "TASK_REASSIGNED" | "TASK_STATUS_CHANGED";
   actorId?: string | null;
   entityId: string;
   metadata?: Record<string, unknown>;
 }) => {
-  if (!params.organisationId || !params.companionId) {
+  if (!params.organisationId || !params.patientId) {
     return;
   }
 
   await AuditTrailService.recordSafely({
     organisationId: params.organisationId,
-    companionId: params.companionId,
+    patientId: params.patientId,
     actorType: params.actorId ? "PMS_USER" : "SYSTEM",
     actorId: params.actorId ?? undefined,
     eventType: params.eventType,
@@ -254,7 +269,7 @@ const sanitizeMedication = (input?: MedicationInput | null) => {
 
 const assertCompanionRequirement = (input: {
   audience: TaskAudience;
-  companionId?: string;
+  patientId?: string;
   medication?: MedicationInput;
   observationToolId?: string;
 }) => {
@@ -263,9 +278,9 @@ const assertCompanionRequirement = (input: {
     !!input.observationToolId ||
     !!sanitizeMedication(input.medication);
 
-  if (requiresCompanion && !input.companionId) {
+  if (requiresCompanion && !input.patientId) {
     throw new TaskServiceError(
-      "companionId is required for parent, medication, or observation tool tasks",
+      "patientId is required for parent, medication, or observation tool tasks",
       400,
     );
   }
@@ -361,7 +376,7 @@ const buildReminder = (
 const buildCreateTaskData = (input: {
   organisationId?: string;
   appointmentId?: string;
-  companionId?: string;
+  patientId?: string;
   createdBy: string;
   assignedBy?: string;
   assignedTo: string;
@@ -371,6 +386,7 @@ const buildCreateTaskData = (input: {
   libraryTaskId?: string;
   templateId?: string;
   category: string;
+  subcategory?: string;
   name: string;
   description?: string;
   additionalNotes?: string;
@@ -395,7 +411,7 @@ const buildCreateTaskData = (input: {
 }) => ({
   organisationId: input.organisationId ?? undefined,
   appointmentId: input.appointmentId ?? undefined,
-  companionId: input.companionId ?? undefined,
+  patientId: input.patientId ?? undefined,
   createdBy: input.createdBy,
   assignedBy: input.assignedBy ?? input.createdBy,
   assignedTo: input.assignedTo,
@@ -405,6 +421,7 @@ const buildCreateTaskData = (input: {
   libraryTaskId: input.libraryTaskId ?? undefined,
   templateId: input.templateId ?? undefined,
   category: input.category,
+  subcategory: input.subcategory ?? undefined,
   name: input.name,
   description: input.description ?? undefined,
   additionalNotes: input.additionalNotes ?? undefined,
@@ -439,6 +456,7 @@ const updateTaskRow = async (
     name?: string;
     description?: string;
     additionalNotes?: string;
+    subcategory?: string;
     dueAt?: Date;
     timezone?: string | null;
     assignedTo?: string;
@@ -477,6 +495,10 @@ const updateTaskRow = async (
         updates.additionalNotes === undefined
           ? (task.additionalNotes ?? undefined)
           : (updates.additionalNotes ?? undefined),
+      subcategory:
+        updates.subcategory === undefined
+          ? (task.subcategory ?? undefined)
+          : (updates.subcategory ?? undefined),
       dueAt: updates.dueAt ?? task.dueAt,
       timezone:
         updates.timezone === undefined
@@ -513,10 +535,325 @@ const updateTaskRow = async (
     },
   });
 
+const resolveAppointmentTaskIds = async (params: {
+  organisationId?: string;
+  appointmentId?: string;
+  encounterId?: string;
+  episodeOfCareId?: string;
+  admissionId?: string;
+}): Promise<string[] | undefined> => {
+  const appointmentFilters = [
+    params.appointmentId,
+    params.encounterId,
+    params.episodeOfCareId,
+    params.admissionId,
+  ].some(Boolean);
+
+  if (!appointmentFilters) {
+    return undefined;
+  }
+
+  let appointmentIds: string[] | undefined = params.appointmentId
+    ? [params.appointmentId]
+    : undefined;
+
+  if (params.encounterId) {
+    const encounterAppointments = await prisma.appointment.findMany({
+      where: {
+        ...(params.organisationId
+          ? { organisationId: params.organisationId }
+          : {}),
+        encounterId: params.encounterId,
+      },
+      select: { id: true },
+    });
+    appointmentIds = intersectStringLists(
+      appointmentIds,
+      encounterAppointments.map((appointment) => appointment.id),
+    );
+  }
+
+  if (params.episodeOfCareId) {
+    const episodeAppointments = await prisma.appointment.findMany({
+      where: {
+        ...(params.organisationId
+          ? { organisationId: params.organisationId }
+          : {}),
+        caseId: params.episodeOfCareId,
+      },
+      select: { id: true },
+    });
+    appointmentIds = intersectStringLists(
+      appointmentIds,
+      episodeAppointments.map((appointment) => appointment.id),
+    );
+  }
+
+  if (params.admissionId) {
+    const admissionAppointments = await prisma.appointment.findMany({
+      where: {
+        ...(params.organisationId
+          ? { organisationId: params.organisationId }
+          : {}),
+        encounterId: params.admissionId,
+      },
+      select: { id: true },
+    });
+    appointmentIds = intersectStringLists(
+      appointmentIds,
+      admissionAppointments.map((appointment) => appointment.id),
+    );
+  }
+
+  return appointmentIds;
+};
+
+const resolveScheduleTaskIds = async (params: {
+  organisationId?: string;
+  templateInstanceId?: string;
+  scheduleId?: string;
+}): Promise<string[] | undefined> => {
+  const scheduleFilters = [params.templateInstanceId, params.scheduleId].some(
+    Boolean,
+  );
+
+  if (!scheduleFilters) {
+    return undefined;
+  }
+
+  const schedules = await prisma.taskSchedule.findMany({
+    where: {
+      ...(params.organisationId
+        ? { organisationId: params.organisationId }
+        : {}),
+      ...(params.templateInstanceId
+        ? { templateInstanceId: params.templateInstanceId }
+        : {}),
+      ...(params.scheduleId ? { id: params.scheduleId } : {}),
+    },
+    select: { generatedTaskIds: true },
+  });
+
+  if (!schedules.length) {
+    return [];
+  }
+
+  let taskIds: string[] | undefined;
+  for (const schedule of schedules) {
+    taskIds = intersectStringLists(
+      taskIds,
+      asStringArray(schedule.generatedTaskIds),
+    );
+  }
+
+  return taskIds ?? [];
+};
+
+const resolveKindTaskMatch = async (params: {
+  organisationId?: string;
+  kind?: PrismaTaskKind;
+}): Promise<Prisma.TaskWhereInput | undefined> => {
+  if (!params.kind) {
+    return undefined;
+  }
+
+  if (params.kind === "CUSTOM") {
+    return { source: "CUSTOM" };
+  }
+
+  const [templateMatches, libraryMatches] = await Promise.all([
+    params.organisationId
+      ? prisma.taskTemplate.findMany({
+          where: {
+            organisationId: params.organisationId,
+            kind: params.kind,
+          },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    prisma.taskLibraryDefinition.findMany({
+      where: { kind: params.kind },
+      select: { id: true },
+    }),
+  ]);
+
+  const conditions: Prisma.TaskWhereInput[] = [];
+
+  if (templateMatches.length) {
+    conditions.push({
+      templateId: { in: templateMatches.map((template) => template.id) },
+    });
+  }
+
+  if (libraryMatches.length) {
+    conditions.push({
+      libraryTaskId: { in: libraryMatches.map((library) => library.id) },
+    });
+  }
+
+  if (!conditions.length) {
+    return { id: { in: [] } };
+  }
+
+  if (conditions.length === 1) {
+    return conditions[0];
+  }
+
+  return { OR: conditions };
+};
+
+const buildTaskListWhere = async (params: {
+  organisationId?: string;
+  audience?: TaskAudience;
+  assignedTo?: string;
+  patientId?: string;
+  companionId?: string;
+  clientId?: string;
+  appointmentId?: string;
+  encounterId?: string;
+  episodeOfCareId?: string;
+  admissionId?: string;
+  templateInstanceId?: string;
+  scheduleId?: string;
+  status?: TaskStatus[];
+  category?: string;
+  subcategory?: string;
+  kind?: PrismaTaskKind;
+  dueFrom?: Date;
+  dueTo?: Date;
+  includeCompleted?: boolean;
+}): Promise<Prisma.TaskWhereInput> => {
+  const baseWhere: Prisma.TaskWhereInput = {};
+
+  const organisationId = asNonEmptyString(params.organisationId);
+  if (organisationId) {
+    baseWhere.organisationId = organisationId;
+  }
+
+  if (params.audience) {
+    baseWhere.audience = params.audience;
+  }
+
+  const assignedTo = asNonEmptyString(params.assignedTo);
+  if (assignedTo) {
+    baseWhere.assignedTo = assignedTo;
+  }
+
+  const patientIds = [
+    asNonEmptyString(params.patientId),
+    asNonEmptyString(params.companionId),
+    asNonEmptyString(params.clientId),
+  ].filter((value): value is string => Boolean(value));
+  if (patientIds.length) {
+    const uniquePatientIds = [...new Set(patientIds)];
+    if (uniquePatientIds.length > 1) {
+      return { id: { in: [] } };
+    }
+    baseWhere.patientId = uniquePatientIds[0];
+  }
+
+  const category = sanitizeTaskCategory(params.category);
+  if (category) {
+    baseWhere.category = category;
+  }
+
+  const subcategory = asNonEmptyString(params.subcategory);
+  if (subcategory) {
+    baseWhere.subcategory = subcategory;
+  }
+
+  const status = sanitizeStatusList(params.status);
+  if (status) {
+    baseWhere.status = { in: status };
+  } else if (!params.includeCompleted) {
+    baseWhere.status = { not: "COMPLETED" };
+  }
+
+  const fromDueAt = isValidDate(params.dueFrom) ? params.dueFrom : undefined;
+  const toDueAt = isValidDate(params.dueTo) ? params.dueTo : undefined;
+  if (fromDueAt || toDueAt) {
+    baseWhere.dueAt = {};
+    if (fromDueAt) baseWhere.dueAt.gte = fromDueAt;
+    if (toDueAt) baseWhere.dueAt.lte = toDueAt;
+  }
+
+  const conditions: Prisma.TaskWhereInput[] = [];
+
+  const appointmentIds = await resolveAppointmentTaskIds({
+    organisationId,
+    appointmentId: params.appointmentId,
+    encounterId: params.encounterId,
+    episodeOfCareId: params.episodeOfCareId,
+    admissionId: params.admissionId,
+  });
+
+  if (appointmentIds) {
+    if (!appointmentIds.length) {
+      return { id: { in: [] } };
+    }
+    conditions.push({ appointmentId: { in: appointmentIds } });
+  }
+
+  const scheduleTaskIds = await resolveScheduleTaskIds({
+    organisationId,
+    templateInstanceId: params.templateInstanceId,
+    scheduleId: params.scheduleId,
+  });
+
+  if (scheduleTaskIds) {
+    if (!scheduleTaskIds.length) {
+      return { id: { in: [] } };
+    }
+    conditions.push({ id: { in: scheduleTaskIds } });
+  }
+
+  const kindWhere = await resolveKindTaskMatch({
+    organisationId,
+    kind: params.kind,
+  });
+
+  if (kindWhere) {
+    const kindIdFilter =
+      "id" in kindWhere &&
+      kindWhere.id &&
+      typeof kindWhere.id === "object" &&
+      !Array.isArray(kindWhere.id) &&
+      "in" in kindWhere.id &&
+      Array.isArray((kindWhere.id as { in?: unknown[] }).in)
+        ? (kindWhere.id as { in: unknown[] }).in
+        : undefined;
+    if (kindIdFilter && kindIdFilter.length === 0) {
+      return kindWhere;
+    }
+    conditions.push(kindWhere);
+  }
+
+  const baseKeys = Object.keys(baseWhere);
+  if (!baseKeys.length && !conditions.length) {
+    return {};
+  }
+
+  if (!conditions.length) {
+    return baseWhere;
+  }
+
+  const rootConditions: Prisma.TaskWhereInput[] = [];
+  if (baseKeys.length) {
+    rootConditions.push(baseWhere);
+  }
+  rootConditions.push(...conditions);
+
+  if (rootConditions.length === 1) {
+    return rootConditions[0];
+  }
+
+  return { AND: rootConditions };
+};
+
 export interface BaseTaskCreateInput {
   organisationId?: string;
   appointmentId?: string;
-  companionId?: string;
+  patientId?: string;
   createdBy: string;
   assignedBy?: string;
   assignedTo: string;
@@ -545,6 +882,7 @@ export interface CreateFromLibraryInput extends BaseTaskCreateInput {
   audience: TaskAudience;
   libraryTaskId: string;
   categoryOverride?: string;
+  subcategoryOverride?: string;
   nameOverride?: string;
   descriptionOverride?: string;
 }
@@ -552,6 +890,7 @@ export interface CreateFromLibraryInput extends BaseTaskCreateInput {
 export interface CreateFromTemplateInput extends BaseTaskCreateInput {
   templateId: string;
   categoryOverride?: string;
+  subcategoryOverride?: string;
   nameOverride?: string;
   descriptionOverride?: string;
   audienceOverride?: TaskAudience;
@@ -560,6 +899,7 @@ export interface CreateFromTemplateInput extends BaseTaskCreateInput {
 export interface CreateCustomTaskInput extends BaseTaskCreateInput {
   audience: TaskAudience;
   category: string;
+  subcategory?: string;
   name: string;
   description?: string;
   additionalNotes?: string;
@@ -569,6 +909,7 @@ export interface TaskUpdateInput {
   name?: string;
   description?: string;
   additionalNotes?: string;
+  subcategory?: string;
   dueAt?: Date;
   timezone?: string | null;
   assignedTo?: string;
@@ -610,7 +951,7 @@ export const TaskService = {
 
     assertCompanionRequirement({
       audience: input.audience,
-      companionId: input.companionId,
+      patientId: input.patientId,
       medication: input.medication,
       observationToolId: input.observationToolId,
     });
@@ -619,7 +960,7 @@ export const TaskService = {
       data: buildCreateTaskData({
         organisationId: input.organisationId,
         appointmentId: input.appointmentId,
-        companionId: input.companionId,
+        patientId: input.patientId,
         createdBy: input.createdBy,
         assignedBy: input.assignedBy,
         assignedTo: input.assignedTo,
@@ -628,6 +969,7 @@ export const TaskService = {
         source: "YC_LIBRARY",
         libraryTaskId: input.libraryTaskId,
         category: input.categoryOverride ?? library.category,
+        subcategory: input.subcategoryOverride,
         name: input.nameOverride ?? library.name,
         description:
           input.descriptionOverride ?? library.defaultDescription ?? undefined,
@@ -645,7 +987,7 @@ export const TaskService = {
     const mapped = toTaskLike(doc);
     await recordTaskAudit({
       organisationId: mapped.organisationId,
-      companionId: mapped.companionId,
+      patientId: mapped.patientId,
       actorId: mapped.createdBy,
       eventType: "TASK_CREATED",
       entityId: mapped.id,
@@ -687,7 +1029,7 @@ export const TaskService = {
 
     assertCompanionRequirement({
       audience,
-      companionId: input.companionId,
+      patientId: input.patientId,
       medication: input.medication ?? templateMedication,
       observationToolId:
         input.observationToolId ??
@@ -739,7 +1081,7 @@ export const TaskService = {
       data: buildCreateTaskData({
         organisationId: input.organisationId,
         appointmentId: input.appointmentId,
-        companionId: input.companionId,
+        patientId: input.patientId,
         createdBy: input.createdBy,
         assignedBy: input.assignedBy,
         assignedTo: input.assignedTo,
@@ -749,6 +1091,7 @@ export const TaskService = {
         libraryTaskId: template.libraryTaskId ?? undefined,
         templateId: template.id,
         category: input.categoryOverride ?? template.category,
+        subcategory: input.subcategoryOverride,
         name: input.nameOverride ?? template.name,
         description:
           input.descriptionOverride ?? template.description ?? undefined,
@@ -769,7 +1112,7 @@ export const TaskService = {
     const mapped = toTaskLike(doc);
     await recordTaskAudit({
       organisationId: mapped.organisationId,
-      companionId: mapped.companionId,
+      patientId: mapped.patientId,
       actorId: mapped.createdBy,
       eventType: "TASK_CREATED",
       entityId: mapped.id,
@@ -792,7 +1135,7 @@ export const TaskService = {
 
     assertCompanionRequirement({
       audience: input.audience,
-      companionId: input.companionId,
+      patientId: input.patientId,
       medication: input.medication,
       observationToolId: input.observationToolId,
     });
@@ -801,7 +1144,7 @@ export const TaskService = {
       data: buildCreateTaskData({
         organisationId: input.organisationId,
         appointmentId: input.appointmentId,
-        companionId: input.companionId,
+        patientId: input.patientId,
         createdBy: input.createdBy,
         assignedBy: input.assignedBy,
         assignedTo: input.assignedTo,
@@ -809,6 +1152,7 @@ export const TaskService = {
         audience: input.audience,
         source: "CUSTOM",
         category: input.category,
+        subcategory: input.subcategory,
         name: input.name,
         description: input.description,
         additionalNotes: input.additionalNotes,
@@ -826,7 +1170,7 @@ export const TaskService = {
     const mapped = toTaskLike(doc);
     await recordTaskAudit({
       organisationId: mapped.organisationId,
-      companionId: mapped.companionId,
+      patientId: mapped.patientId,
       actorId: mapped.createdBy,
       eventType: "TASK_CREATED",
       entityId: mapped.id,
@@ -848,7 +1192,7 @@ export const TaskService = {
   ): Promise<TaskLike> {
     assertCompanionRequirement({
       audience: input.audience,
-      companionId: input.companionId,
+      patientId: input.patientId,
       medication: input.medication,
       observationToolId: input.observationToolId,
     });
@@ -856,7 +1200,7 @@ export const TaskService = {
     const mapped = await createTaskRow(options?.client ?? prisma, {
       organisationId: input.organisationId,
       appointmentId: input.appointmentId,
-      companionId: input.companionId,
+      patientId: input.patientId,
       createdBy: input.createdBy,
       assignedBy: input.assignedBy,
       assignedTo: input.assignedTo,
@@ -890,7 +1234,7 @@ export const TaskService = {
 
     await recordTaskAudit({
       organisationId: mapped.organisationId,
-      companionId: mapped.companionId,
+      patientId: mapped.patientId,
       actorId: mapped.createdBy,
       eventType: "TASK_CREATED",
       entityId: mapped.id,
@@ -961,7 +1305,7 @@ export const TaskService = {
     ) {
       await recordTaskAudit({
         organisationId: mapped.organisationId,
-        companionId: mapped.companionId,
+        patientId: mapped.patientId,
         actorId,
         eventType: "TASK_REASSIGNED",
         entityId: mapped.id,
@@ -1016,7 +1360,7 @@ export const TaskService = {
     let completionDoc: TaskCompletionLike | undefined;
 
     if (newStatus === "COMPLETED" && completion?.answers) {
-      if (!task.companionId) {
+      if (!task.patientId) {
         throw new TaskServiceError(
           "Companion is required for completion.",
           400,
@@ -1025,7 +1369,7 @@ export const TaskService = {
       const created = await prisma.taskCompletion.create({
         data: {
           taskId: task.id,
-          companionId: task.companionId,
+          patientId: task.patientId,
           filledBy: completion.filledBy ?? actorId,
           answers: completion.answers as unknown as Prisma.InputJsonValue,
           score: completion.score ?? undefined,
@@ -1051,7 +1395,7 @@ export const TaskService = {
 
     await recordTaskAudit({
       organisationId: updated.organisationId,
-      companionId: updated.companionId,
+      patientId: updated.patientId,
       actorId,
       eventType: "TASK_STATUS_CHANGED",
       entityId: updated.id,
@@ -1074,7 +1418,7 @@ export const TaskService = {
 
   async listForParent(params: {
     parentId: string;
-    companionId?: string;
+    patientId?: string;
     fromDueAt?: Date;
     toDueAt?: Date;
     status?: TaskStatus[];
@@ -1089,8 +1433,8 @@ export const TaskService = {
       OR: [{ assignedTo: parentId }, { createdBy: parentId }],
     };
 
-    const companionId = asNonEmptyString(params.companionId);
-    if (companionId) where.companionId = companionId;
+    const patientId = asNonEmptyString(params.patientId);
+    if (patientId) where.patientId = patientId;
 
     const status = sanitizeStatusList(params.status);
     if (status) where.status = { in: status };
@@ -1115,39 +1459,52 @@ export const TaskService = {
   async listForEmployee(params: {
     organisationId: string;
     userId?: string;
+    patientId?: string;
     companionId?: string;
-    fromDueAt?: Date;
-    toDueAt?: Date;
+    clientId?: string;
+    appointmentId?: string;
+    encounterId?: string;
+    episodeOfCareId?: string;
+    admissionId?: string;
+    templateInstanceId?: string;
+    scheduleId?: string;
+    audience?: TaskAudience;
+    assignedTo?: string;
+    assignedRole?: TaskAudience;
     status?: TaskStatus[];
+    category?: string;
+    subcategory?: string;
+    kind?: PrismaTaskKind;
+    dueFrom?: Date;
+    dueTo?: Date;
+    includeCompleted?: boolean;
   }): Promise<TaskLike[]> {
     const organisationId = asNonEmptyString(params.organisationId);
     if (!organisationId) {
       throw new TaskServiceError("Invalid organisationId");
     }
 
-    const where: Prisma.TaskWhereInput = {
-      audience: "EMPLOYEE_TASK",
+    const where = await buildTaskListWhere({
       organisationId,
-    };
-
-    const userId = asNonEmptyString(params.userId);
-    if (userId) where.assignedTo = userId;
-
-    const companionId = asNonEmptyString(params.companionId);
-    if (companionId) where.companionId = companionId;
-
-    const status = sanitizeStatusList(params.status);
-    if (status) where.status = { in: status };
-
-    const fromDueAt = isValidDate(params.fromDueAt)
-      ? params.fromDueAt
-      : undefined;
-    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
-    if (fromDueAt || toDueAt) {
-      where.dueAt = {};
-      if (fromDueAt) where.dueAt.gte = fromDueAt;
-      if (toDueAt) where.dueAt.lte = toDueAt;
-    }
+      audience: params.audience ?? params.assignedRole ?? "EMPLOYEE_TASK",
+      assignedTo: params.assignedTo ?? params.userId,
+      patientId: params.patientId,
+      companionId: params.companionId,
+      clientId: params.clientId,
+      appointmentId: params.appointmentId,
+      encounterId: params.encounterId,
+      episodeOfCareId: params.episodeOfCareId,
+      admissionId: params.admissionId,
+      templateInstanceId: params.templateInstanceId,
+      scheduleId: params.scheduleId,
+      status: params.status,
+      category: params.category,
+      subcategory: params.subcategory,
+      kind: params.kind,
+      dueFrom: params.dueFrom,
+      dueTo: params.dueTo,
+      includeCompleted: params.includeCompleted,
+    });
 
     const tasks = await prisma.task.findMany({
       where,
@@ -1159,7 +1516,7 @@ export const TaskService = {
   async listForGroup(params: {
     organisationId: string;
     groupId: string;
-    companionId?: string;
+    patientId?: string;
     fromDueAt?: Date;
     toDueAt?: Date;
     status?: TaskStatus[];
@@ -1179,8 +1536,8 @@ export const TaskService = {
       assignedGroupId: groupId,
     };
 
-    const companionId = asNonEmptyString(params.companionId);
-    if (companionId) where.companionId = companionId;
+    const patientId = asNonEmptyString(params.patientId);
+    if (patientId) where.patientId = patientId;
 
     const status = sanitizeStatusList(params.status);
     if (status) where.status = { in: status };
@@ -1203,40 +1560,54 @@ export const TaskService = {
   },
 
   async listForCompanion(params: {
-    companionId: string;
+    patientId: string;
     organisationId?: string;
     audience?: TaskAudience;
-    fromDueAt?: Date;
-    toDueAt?: Date;
+    companionId?: string;
+    clientId?: string;
+    assignedTo?: string;
+    assignedRole?: TaskAudience;
+    appointmentId?: string;
+    encounterId?: string;
+    episodeOfCareId?: string;
+    admissionId?: string;
+    templateInstanceId?: string;
+    scheduleId?: string;
     status?: TaskStatus[];
+    category?: string;
+    subcategory?: string;
+    kind?: PrismaTaskKind;
+    dueFrom?: Date;
+    dueTo?: Date;
+    includeCompleted?: boolean;
   }): Promise<TaskLike[]> {
-    const companionId = asNonEmptyString(params.companionId);
-    if (!companionId) {
-      throw new TaskServiceError("Invalid companionId");
+    const patientId = asNonEmptyString(params.patientId);
+    if (!patientId) {
+      throw new TaskServiceError("Invalid patientId");
     }
-
-    const where: Prisma.TaskWhereInput = {
-      companionId,
-    };
 
     const organisationId = asNonEmptyString(params.organisationId);
-    if (organisationId) where.organisationId = organisationId;
-
-    const audience = sanitizeAudience(params.audience);
-    if (audience) where.audience = audience;
-
-    const status = sanitizeStatusList(params.status);
-    if (status) where.status = { in: status };
-
-    const fromDueAt = isValidDate(params.fromDueAt)
-      ? params.fromDueAt
-      : undefined;
-    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
-    if (fromDueAt || toDueAt) {
-      where.dueAt = {};
-      if (fromDueAt) where.dueAt.gte = fromDueAt;
-      if (toDueAt) where.dueAt.lte = toDueAt;
-    }
+    const where = await buildTaskListWhere({
+      organisationId,
+      patientId,
+      companionId: params.companionId,
+      clientId: params.clientId,
+      audience: params.audience ?? params.assignedRole,
+      assignedTo: params.assignedTo,
+      appointmentId: params.appointmentId,
+      encounterId: params.encounterId,
+      episodeOfCareId: params.episodeOfCareId,
+      admissionId: params.admissionId,
+      templateInstanceId: params.templateInstanceId,
+      scheduleId: params.scheduleId,
+      status: params.status,
+      category: params.category,
+      subcategory: params.subcategory,
+      kind: params.kind,
+      dueFrom: params.dueFrom,
+      dueTo: params.dueTo,
+      includeCompleted: params.includeCompleted,
+    });
 
     const tasks = await prisma.task.findMany({
       where,

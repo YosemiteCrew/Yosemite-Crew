@@ -12,7 +12,8 @@ export interface AuthUserRecord {
 }
 
 export interface AuthUserParent {
-  _id: string;
+  id?: string;
+  _id?: string;
   firstName?: string;
   lastName?: string;
   birthDate?: string;
@@ -48,7 +49,8 @@ const deriveCompletionFromParent = (parent: AuthUserParent): boolean => {
 const normalizeParentSummary = (
   parent?: AuthUserParent | null,
 ): ParentProfileSummary | undefined => {
-  if (!parent?._id) {
+  const parentId = parent?.id ?? parent?._id;
+  if (!parentId || !parent) {
     return undefined;
   }
 
@@ -56,7 +58,7 @@ const normalizeParentSummary = (
   const isComplete = Boolean(parent.isProfileComplete) || derivedComplete;
 
   return {
-    id: parent._id,
+    id: parentId,
     firstName: parent.firstName,
     lastName: parent.lastName,
     birthDate: parent.birthDate,
@@ -98,9 +100,16 @@ export const syncAuthUser = async ({
     timestamp: new Date().toISOString(),
   });
 
-  const response = await apiClient.post<AuthUserSignupResponse>(AUTH_USER_ENDPOINT, undefined, {
-    headers: withAuthHeaders(authToken, idToken ? {'X-ID-TOKEN': idToken} : undefined),
-  });
+  const response = await apiClient.post<AuthUserSignupResponse>(
+    AUTH_USER_ENDPOINT,
+    undefined,
+    {
+      headers: withAuthHeaders(
+        authToken,
+        idToken ? {'X-ID-TOKEN': idToken} : undefined,
+      ),
+    },
+  );
 
   console.log('[AuthUserService] Sync response', {
     endpoint: AUTH_USER_ENDPOINT,

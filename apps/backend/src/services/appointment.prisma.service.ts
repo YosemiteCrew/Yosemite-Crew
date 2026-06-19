@@ -8,17 +8,20 @@ import {
   AppointmentResponseDTO,
   type CatalogTemplateBinding,
   fromAppointmentRequestDTO,
+  normalizeTemplateKind,
+  toLegacyTemplateKind,
   toAppointmentResponseDTO,
   type TemplateKind,
 } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
+import { InvoiceService } from "./invoice.service";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
 type AppointmentRow = {
   id: string;
-  companion: Prisma.JsonValue;
+  patient: Prisma.JsonValue;
   lead: Prisma.JsonValue | null;
   supportStaff: Prisma.JsonValue | null;
   room: Prisma.JsonValue | null;
@@ -75,7 +78,7 @@ type AdmissionUpsertDelegate = {
     create: {
       encounterId: string;
       organisationId: string;
-      companionId: string;
+      patientId: string;
       admittedAt: Date;
     };
   }): Promise<unknown>;
@@ -83,13 +86,13 @@ type AdmissionUpsertDelegate = {
 type CaseRow = {
   id: string;
   organisationId: string;
-  companionId: string;
+  patientId: string;
 };
 type EncounterLinkRow = {
   id: string;
   caseId: string;
   organisationId: string;
-  companionId: string;
+  patientId: string;
 };
 type TemplateRow = {
   id: string;
@@ -104,7 +107,7 @@ type TemplateRow = {
 
 type AppointmentListFilters = {
   organisationId?: string;
-  companionId?: string;
+  patientId?: string;
   parentId?: string;
   leadId?: string;
   status?: AppointmentStatus[];
@@ -252,7 +255,7 @@ const buildTemplateDefault = (
   source: AppointmentTemplateDefault["source"],
   templateVersion?: number,
 ): AppointmentTemplateDefault => ({
-  templateKind: template.kind,
+  templateKind: normalizeTemplateKind(template.kind),
   templateId: template.id,
   templateVersion:
     templateVersion ?? template.publishedVersion ?? template.latestVersion,
@@ -275,7 +278,7 @@ const resolveTemplateDefaultsForSelection = async (args: {
       const resolvedTemplate = (await args.tx.template.findFirst({
         where: {
           id: binding.templateId,
-          kind: binding.templateKind,
+          kind: toLegacyTemplateKind(binding.templateKind),
         },
       })) as TemplateRow | null;
 
@@ -300,7 +303,7 @@ const resolveTemplateDefaultsForSelection = async (args: {
       ((await args.tx.template.findFirst({
         where: {
           organisationId: args.organisationId,
-          kind: binding.templateKind,
+          kind: toLegacyTemplateKind(binding.templateKind),
           status: "PUBLISHED",
         },
         orderBy: [{ updatedAt: "desc" }],
@@ -308,7 +311,7 @@ const resolveTemplateDefaultsForSelection = async (args: {
       ((await args.tx.template.findFirst({
         where: {
           organisationId: args.organisationId,
-          kind: binding.templateKind,
+          kind: toLegacyTemplateKind(binding.templateKind),
         },
         orderBy: [{ updatedAt: "desc" }],
       })) as TemplateRow | null);
@@ -318,7 +321,7 @@ const resolveTemplateDefaultsForSelection = async (args: {
       : (((await args.tx.template.findFirst({
           where: {
             ownership: "YC_LIBRARY",
-            kind: binding.templateKind,
+            kind: toLegacyTemplateKind(binding.templateKind),
             status: "PUBLISHED",
           },
           orderBy: [{ updatedAt: "desc" }],
@@ -326,7 +329,7 @@ const resolveTemplateDefaultsForSelection = async (args: {
         ((await args.tx.template.findFirst({
           where: {
             ownership: "YC_LIBRARY",
-            kind: binding.templateKind,
+            kind: toLegacyTemplateKind(binding.templateKind),
           },
           orderBy: [{ updatedAt: "desc" }],
         })) as TemplateRow | null));
@@ -363,23 +366,22 @@ const attachTemplateDefaults = (
   };
 };
 
-const getCompanionId = (
-  companion: AppointmentDomain["companion"] | Prisma.JsonValue,
-): string => ((companion as { id?: string } | null)?.id ?? "").trim();
+const getPatientId = (
+  patient: AppointmentDomain["patient"] | Prisma.JsonValue,
+): string => ((patient as { id?: string } | null)?.id ?? "").trim();
 
-const getParentIdFromCompanion = (
-  companion: AppointmentDomain["companion"] | Prisma.JsonValue,
+const getParentIdFromPatient = (
+  patient: AppointmentDomain["patient"] | Prisma.JsonValue,
 ): string | undefined =>
-  (
-    (companion as { parent?: { id?: string } } | null)?.parent?.id ?? ""
-  ).trim() || undefined;
+  ((patient as { parent?: { id?: string } } | null)?.parent?.id ?? "").trim() ||
+  undefined;
 
 const resolveCaseContext = async (args: {
   tx: TransactionClient;
   appointmentKind: AppointmentKind;
   caseId?: string;
   organisationId: string;
-  companionId: string;
+  patientId: string;
   parentId?: string;
   concern?: string;
 }): Promise<string | undefined> => {
@@ -401,7 +403,7 @@ const resolveCaseContext = async (args: {
       );
     }
 
-    if (caseRow.companionId !== args.companionId) {
+    if (caseRow.patientId !== args.patientId) {
       throw new AppointmentPrismaServiceError(
         "Appointment case companion mismatch.",
         409,
@@ -418,7 +420,7 @@ const resolveCaseContext = async (args: {
   const created = await args.tx.case.create({
     data: {
       organisationId: args.organisationId,
-      companionId: args.companionId,
+      patientId: args.patientId,
       parentId: normalizeOptionalString(args.parentId) ?? null,
       status: "active",
       appointmentKind: args.appointmentKind,
@@ -436,7 +438,7 @@ const assertEncounterMatchesAppointmentContext = async (args: {
   encounterId?: string;
   caseId?: string;
   organisationId: string;
-  companionId: string;
+  patientId: string;
 }) => {
   const encounterId = normalizeOptionalString(args.encounterId);
   if (!encounterId) {
@@ -465,7 +467,7 @@ const assertEncounterMatchesAppointmentContext = async (args: {
     );
   }
 
-  if (encounter.companionId !== args.companionId) {
+  if (encounter.patientId !== args.patientId) {
     throw new AppointmentPrismaServiceError(
       "Appointment encounter companion mismatch.",
       409,
@@ -482,15 +484,15 @@ const ensureEncounterOnCheckIn = async (args: {
     return args.current.encounterId;
   }
 
-  const companionId = getCompanionId(args.current.companion);
+  const patientId = getPatientId(args.current.patient);
   const caseId =
     normalizeOptionalString(args.current.caseId) ??
     (await resolveCaseContext({
       tx: args.tx,
       appointmentKind: normalizeAppointmentKind(args.current.appointmentKind),
       organisationId: args.current.organisationId,
-      companionId,
-      parentId: getParentIdFromCompanion(args.current.companion),
+      patientId,
+      parentId: getParentIdFromPatient(args.current.patient),
       concern: args.current.concern ?? undefined,
     }));
 
@@ -505,8 +507,8 @@ const ensureEncounterOnCheckIn = async (args: {
     data: {
       caseId,
       organisationId: args.current.organisationId,
-      companionId,
-      parentId: getParentIdFromCompanion(args.current.companion) ?? null,
+      patientId,
+      parentId: getParentIdFromPatient(args.current.patient) ?? null,
       status: "arrived",
       encounterClass:
         normalizeAppointmentKind(args.current.appointmentKind) === "INPATIENT"
@@ -542,7 +544,7 @@ const ensureEncounterOnCheckIn = async (args: {
       create: {
         encounterId: createdEncounter.id,
         organisationId: args.current.organisationId,
-        companionId,
+        patientId,
         admittedAt: args.current.startTime,
       },
     });
@@ -646,18 +648,18 @@ const buildWhereFromFilters = (
     };
   }
 
-  if (filters.companionId) {
+  if (filters.patientId) {
     and.push({
-      companion: {
+      patient: {
         path: ["id"],
-        equals: filters.companionId,
+        equals: filters.patientId,
       } as never,
     });
   }
 
   if (filters.parentId) {
     and.push({
-      companion: {
+      patient: {
         path: ["parent", "id"],
         equals: filters.parentId,
       } as never,
@@ -745,7 +747,8 @@ const toDomain = (
     id: row.id,
     caseId: row.caseId ?? undefined,
     encounterId: row.encounterId ?? undefined,
-    companion: row.companion as AppointmentDomain["companion"],
+    patient: row.patient as AppointmentDomain["patient"],
+    companion: row.patient as AppointmentDomain["patient"],
     lead: (row.lead as AppointmentDomain["lead"]) ?? undefined,
     supportStaff:
       (row.supportStaff as AppointmentDomain["supportStaff"]) ?? undefined,
@@ -821,14 +824,14 @@ const createAppointment = async (
   assertSelectionSupportsAppointmentKind(selection, appointmentKind);
 
   const created = await prisma.$transaction(async (tx) => {
-    const companionId = getCompanionId(input.companion);
+    const patientId = getPatientId(input.patient);
     const resolvedCaseId = await resolveCaseContext({
       tx,
       appointmentKind,
       caseId,
       organisationId: input.organisationId,
-      companionId,
-      parentId: input.companion.parent?.id,
+      patientId,
+      parentId: input.patient.parent?.id,
       concern: input.concern,
     });
 
@@ -837,7 +840,7 @@ const createAppointment = async (
       encounterId,
       caseId: resolvedCaseId,
       organisationId: input.organisationId,
-      companionId,
+      patientId,
     });
 
     const templateDefaults = await resolveTemplateDefaultsForSelection({
@@ -852,7 +855,7 @@ const createAppointment = async (
 
     const appointment = await tx.appointment.create({
       data: {
-        companion: toJsonValue(input.companion),
+        patient: toJsonValue(input.patient),
         lead: input.lead ? toJsonValue(input.lead) : Prisma.JsonNull,
         supportStaff: input.supportStaff ? toJsonValue(input.supportStaff) : [],
         room: input.room ? toJsonValue(input.room) : Prisma.JsonNull,
@@ -913,7 +916,7 @@ const applyDtoPatch = (
       input.encounterId === undefined
         ? normalizeOptionalString(current.encounterId)
         : (normalizeOptionalString(input.encounterId) ?? null),
-    companion: toJsonValue(input.companion),
+    patient: toJsonValue(input.patient),
     lead:
       input.lead === undefined
         ? toNullableJsonValue(current.lead)
@@ -995,14 +998,14 @@ export const AppointmentPrismaService = {
 
     const patch = applyDtoPatch(row, dto, "UPCOMING");
     const updated = await prisma.$transaction(async (tx) => {
-      const companionId = getCompanionId(input.companion);
+      const patientId = getPatientId(input.patient);
       const resolvedCaseId = await resolveCaseContext({
         tx,
         appointmentKind: patch.appointmentKind,
         caseId: patch.caseId ?? undefined,
         organisationId: row.organisationId,
-        companionId,
-        parentId: input.companion.parent?.id,
+        patientId,
+        parentId: input.patient.parent?.id,
         concern: input.concern,
       });
 
@@ -1011,7 +1014,7 @@ export const AppointmentPrismaService = {
         encounterId: patch.encounterId ?? undefined,
         caseId: resolvedCaseId,
         organisationId: row.organisationId,
-        companionId,
+        patientId,
       });
 
       await upsertAppointmentOccupancy({
@@ -1077,7 +1080,7 @@ export const AppointmentPrismaService = {
       current as AppointmentRow | null,
       "Appointment not found",
     );
-    const ownerId = (row.companion as { parent?: { id?: string } }).parent?.id;
+    const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
     if (ownerId !== parentId) {
       throw new AppointmentPrismaServiceError(
         "You are not allowed to modify this appointment.",
@@ -1142,6 +1145,8 @@ export const AppointmentPrismaService = {
       });
     });
 
+    await InvoiceService.markAppointmentReadyForBilling(appointmentId);
+
     return toResponse(updated as AppointmentRow);
   },
 
@@ -1164,7 +1169,7 @@ export const AppointmentPrismaService = {
       current as AppointmentRow | null,
       "Appointment not found",
     );
-    const ownerId = (row.companion as { parent?: { id?: string } }).parent?.id;
+    const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
     if (ownerId !== parentId) {
       throw new AppointmentPrismaServiceError(
         "You are not allowed to modify this appointment.",
@@ -1273,16 +1278,16 @@ export const AppointmentPrismaService = {
       organisationId: row.organisationId,
     });
     assertSelectionSupportsAppointmentKind(selection, appointmentKind);
-    const patch = applyDtoPatch(row, dto, row.status);
+    const patch = applyDtoPatch(row, dto, input.status ?? row.status);
     const updated = await prisma.$transaction(async (tx) => {
-      const companionId = getCompanionId(input.companion);
+      const patientId = getPatientId(input.patient);
       const resolvedCaseId = await resolveCaseContext({
         tx,
         appointmentKind,
         caseId,
         organisationId: row.organisationId,
-        companionId,
-        parentId: input.companion.parent?.id,
+        patientId,
+        parentId: input.patient.parent?.id,
         concern: input.concern,
       });
 
@@ -1291,7 +1296,7 @@ export const AppointmentPrismaService = {
         encounterId,
         caseId: resolvedCaseId,
         organisationId: row.organisationId,
-        companionId,
+        patientId,
       });
 
       const templateDefaults = await resolveTemplateDefaultsForSelection({
@@ -1339,6 +1344,10 @@ export const AppointmentPrismaService = {
       });
     });
 
+    if (patch.status === "COMPLETED") {
+      await InvoiceService.markAppointmentReadyForBilling(appointmentId);
+    }
+
     return toResponse(updated as AppointmentRow);
   },
 
@@ -1362,7 +1371,7 @@ export const AppointmentPrismaService = {
       current as AppointmentRow | null,
       "Appointment not found",
     );
-    const ownerId = (row.companion as { parent?: { id?: string } }).parent?.id;
+    const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
     if (ownerId !== parentId) {
       throw new AppointmentPrismaServiceError(
         "You are not allowed to modify this appointment.",
@@ -1446,15 +1455,15 @@ export const AppointmentPrismaService = {
   },
 
   async getAppointmentsForCompanion(
-    companionId: string,
+    patientId: string,
   ): Promise<AppointmentResponseDTO[]> {
-    if (!companionId) {
-      throw new AppointmentPrismaServiceError("companionId is required", 400);
+    if (!patientId) {
+      throw new AppointmentPrismaServiceError("patientId is required", 400);
     }
 
     const rows = (await prisma.appointment.findMany({
       where: {
-        companion: { path: ["id"], equals: companionId } as never,
+        patient: { path: ["id"], equals: patientId } as never,
       },
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];
@@ -1463,11 +1472,11 @@ export const AppointmentPrismaService = {
   },
 
   async getAppointmentsForCompanionByOrganisation(
-    companionId: string,
+    patientId: string,
     organisationId: string,
   ): Promise<AppointmentResponseDTO[]> {
-    if (!companionId) {
-      throw new AppointmentPrismaServiceError("companionId is required", 400);
+    if (!patientId) {
+      throw new AppointmentPrismaServiceError("patientId is required", 400);
     }
     if (!organisationId) {
       throw new AppointmentPrismaServiceError(
@@ -1479,7 +1488,7 @@ export const AppointmentPrismaService = {
     const rows = (await prisma.appointment.findMany({
       where: {
         organisationId,
-        companion: { path: ["id"], equals: companionId } as never,
+        patient: { path: ["id"], equals: patientId } as never,
       },
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];
@@ -1496,7 +1505,7 @@ export const AppointmentPrismaService = {
 
     const rows = (await prisma.appointment.findMany({
       where: {
-        companion: { path: ["parent", "id"], equals: parentId } as never,
+        patient: { path: ["parent", "id"], equals: parentId } as never,
       },
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];

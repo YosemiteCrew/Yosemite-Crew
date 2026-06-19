@@ -43,7 +43,7 @@ jest.mock("src/config/prisma", () => ({
     appointment: {
       findFirst: jest.fn(),
     },
-    companionOrganisation: {
+    patientOrganisation: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
@@ -101,7 +101,7 @@ describe("ObservationToolSubmissionService", () => {
   describe("createSubmission", () => {
     const validBaseInput = {
       toolId,
-      companionId,
+      patientId: companionId,
       filledBy: userId,
       answers: { q1: "yes" },
     };
@@ -115,12 +115,12 @@ describe("ObservationToolSubmissionService", () => {
       await expect(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ObservationToolSubmissionService.createSubmission({ toolId } as any),
-      ).rejects.toThrow("companionId is required");
+      ).rejects.toThrow("patientId is required");
 
       await expect(
         ObservationToolSubmissionService.createSubmission({
           toolId,
-          companionId,
+          patientId: companionId,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).rejects.toThrow("filledBy is required");
@@ -128,7 +128,7 @@ describe("ObservationToolSubmissionService", () => {
       await expect(
         ObservationToolSubmissionService.createSubmission({
           toolId,
-          companionId,
+          patientId: companionId,
           filledBy: userId,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
@@ -194,18 +194,18 @@ describe("ObservationToolSubmissionService", () => {
       // Case 4: Mismatched companion
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (TaskModel.findById as any).mockReturnValue(
-        mockChain({ assignedTo: userId, companionId: "other-companion" }),
+        mockChain({ assignedTo: userId, patientId: "other-companion" }),
       );
       await expect(
         ObservationToolSubmissionService.createSubmission(inputWithTask),
-      ).rejects.toThrow("companionId does not match task");
+      ).rejects.toThrow("patientId does not match task");
 
       // Case 5: Mismatched toolId
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (TaskModel.findById as any).mockReturnValue(
         mockChain({
           assignedTo: userId,
-          companionId: companionId,
+          patientId: companionId,
           observationToolId: "other-tool",
         }),
       );
@@ -237,7 +237,7 @@ describe("ObservationToolSubmissionService", () => {
       // Mock valid task
       const taskMock = {
         assignedTo: userId,
-        companionId: companionId,
+        patientId: companionId,
         observationToolId: toolId,
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -336,19 +336,19 @@ describe("ObservationToolSubmissionService", () => {
       (prismaMock.task.findFirst as any).mockResolvedValueOnce({
         id: taskId,
         assignedTo: userId,
-        companionId: "other",
+        patientId: "other",
       });
       await expect(
         ObservationToolSubmissionService.createSubmission({
           ...validBaseInput,
           taskId,
         }),
-      ).rejects.toThrow("companionId does not match task");
+      ).rejects.toThrow("patientId does not match task");
 
       (prismaMock.task.findFirst as any).mockResolvedValueOnce({
         id: taskId,
         assignedTo: userId,
-        companionId,
+        patientId: companionId,
         observationToolId: "other-tool",
       });
       await expect(
@@ -377,7 +377,7 @@ describe("ObservationToolSubmissionService", () => {
       (prismaMock.task.findFirst as any).mockResolvedValue({
         id: taskId,
         assignedTo: userId,
-        companionId,
+        patientId: companionId,
         observationToolId: toolId,
       });
       (prismaMock.observationToolSubmission.create as any).mockResolvedValue({
@@ -417,13 +417,13 @@ describe("ObservationToolSubmissionService", () => {
       (ObservationToolSubmissionModel.create as any).mockResolvedValue({
         _id: submissionId,
         toolId,
-        companionId,
+        patientId: companionId,
         filledBy: userId,
         answers: { q1: "yes" },
         toObject: jest.fn().mockReturnValue({
           _id: { toString: () => submissionId },
           toolId,
-          companionId,
+          patientId: companionId,
           filledBy: userId,
           answers: { q1: "yes" },
         }),
@@ -477,7 +477,7 @@ describe("ObservationToolSubmissionService", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockDoc: any = {
         _id: submissionId,
-        companionId,
+        patientId: companionId,
         save: (jest.fn() as any).mockResolvedValue(true),
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -498,7 +498,7 @@ describe("ObservationToolSubmissionService", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockDoc: any = {
         _id: submissionId,
-        companionId,
+        patientId: companionId,
         save: (jest.fn() as any).mockResolvedValue(true),
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -592,9 +592,9 @@ describe("ObservationToolSubmissionService", () => {
     it("uses prisma when READ_FROM_POSTGRES is true", async () => {
       process.env.READ_FROM_POSTGRES = "true";
       (prismaMock.observationToolSubmission.findFirst as any)
-        .mockResolvedValueOnce({ id: submissionId, companionId })
+        .mockResolvedValueOnce({ id: submissionId, patientId: companionId })
         .mockResolvedValueOnce(null);
-      (prismaMock.companionOrganisation.findFirst as any).mockResolvedValue({
+      (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
         id: "co1",
       });
       (prismaMock.appointment.findFirst as any).mockResolvedValue({
@@ -635,7 +635,7 @@ describe("ObservationToolSubmissionService", () => {
     it("getById enforces organisation scoping", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.findById as any).mockReturnValue(
-        mockChain({ _id: submissionId, companionId }),
+        mockChain({ _id: submissionId, patientId: companionId }),
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (CompanionOrganisationModel.findOne as any).mockReturnValue(
@@ -657,14 +657,14 @@ describe("ObservationToolSubmissionService", () => {
       );
       const from = new Date();
       await ObservationToolSubmissionService.listSubmissions({
-        companionId,
+        patientId: companionId,
         toolId,
         fromDate: from,
       });
 
       expect(ObservationToolSubmissionModel.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          companionId,
+          patientId: companionId,
           toolId,
           createdAt: { $gte: from },
         }),
@@ -674,7 +674,7 @@ describe("ObservationToolSubmissionService", () => {
     it("listSubmissions scopes by organisation when no companion filter is provided", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (CompanionOrganisationModel.find as any).mockReturnValue(
-        mockChain([{ companionId: { toString: () => companionId } }]),
+        mockChain([{ patientId: { toString: () => companionId } }]),
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (ObservationToolSubmissionModel.find as any).mockReturnValue(
@@ -687,7 +687,7 @@ describe("ObservationToolSubmissionService", () => {
 
       expect(ObservationToolSubmissionModel.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          companionId: { $in: [companionId] },
+          patientId: { $in: [companionId] },
         }),
       );
     });
@@ -704,12 +704,12 @@ describe("ObservationToolSubmissionService", () => {
 
       await ObservationToolSubmissionService.listSubmissions({
         organisationId,
-        companionId,
+        patientId: companionId,
       });
 
       expect(CompanionOrganisationModel.findOne).toHaveBeenCalled();
       expect(ObservationToolSubmissionModel.find).toHaveBeenCalledWith(
-        expect.objectContaining({ companionId }),
+        expect.objectContaining({ patientId: companionId }),
       );
     });
 
@@ -756,7 +756,7 @@ describe("ObservationToolSubmissionService", () => {
     it("listSubmissions throws for invalid dates", async () => {
       await expect(
         ObservationToolSubmissionService.listSubmissions({
-          companionId,
+          patientId: companionId,
           fromDate: "bad" as any,
         }),
       ).rejects.toThrow("Invalid fromDate");
@@ -765,9 +765,9 @@ describe("ObservationToolSubmissionService", () => {
     it("listSubmissions throws for invalid filters", async () => {
       await expect(
         ObservationToolSubmissionService.listSubmissions({
-          companionId: "   ",
+          patientId: "   ",
         }),
-      ).rejects.toThrow("Invalid companionId");
+      ).rejects.toThrow("Invalid patientId");
 
       await expect(
         ObservationToolSubmissionService.listSubmissions({
@@ -781,8 +781,8 @@ describe("ObservationToolSubmissionService", () => {
       (prismaMock.observationToolSubmission.findMany as any).mockResolvedValue([
         { id: submissionId },
       ]);
-      (prismaMock.companionOrganisation.findMany as any).mockResolvedValue([
-        { companionId },
+      (prismaMock.patientOrganisation.findMany as any).mockResolvedValue([
+        { patientId: companionId },
       ]);
 
       const res = await ObservationToolSubmissionService.listSubmissions({
@@ -799,13 +799,13 @@ describe("ObservationToolSubmissionService", () => {
       (prismaMock.observationToolSubmission.findMany as any).mockResolvedValue(
         [],
       );
-      (prismaMock.companionOrganisation.findFirst as any).mockResolvedValue({
+      (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
         id: "co1",
       });
 
       await ObservationToolSubmissionService.listSubmissions({
         organisationId: "org1",
-        companionId,
+        patientId: companionId,
         toolId,
         fromDate: from,
         toDate: to,
@@ -814,7 +814,7 @@ describe("ObservationToolSubmissionService", () => {
       expect(prisma.observationToolSubmission.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            companionId,
+            patientId: companionId,
             toolId,
             createdAt: { gte: from, lte: to },
           }),
@@ -1032,7 +1032,7 @@ describe("ObservationToolSubmissionService", () => {
         (prismaMock.task.findMany as any).mockResolvedValue([
           {
             id: "task-1",
-            companionId: "comp-1",
+            patientId: "comp-1",
             status: "PENDING",
             dueAt: new Date(),
             observationToolId: toolId,

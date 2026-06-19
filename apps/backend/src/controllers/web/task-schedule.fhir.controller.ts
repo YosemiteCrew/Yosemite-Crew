@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
-import { Parameters } from "@yosemite-crew/fhir";
+import { Bundle, Parameters } from "@yosemite-crew/fhir";
 import { z } from "zod";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import {
   TaskWorkflowService,
   TaskWorkflowServiceError,
@@ -10,35 +9,19 @@ import {
   taskScheduleFhirMapper,
   type TaskScheduleLike,
 } from "src/services/task-schedule.fhir.mapper";
-import logger from "src/utils/logger";
+import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const parametersSchema = z
   .object({ resourceType: z.literal("Parameters") })
   .passthrough();
 
-const handleError = (error: unknown, res: Response) => {
-  if (error instanceof TaskWorkflowServiceError) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
-
-  if (error instanceof z.ZodError) {
-    return res.status(400).json({
-      message: "Invalid FHIR payload.",
-      issues: error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
-  }
-
-  logger.error("Unexpected FHIR task schedule error", error);
-  return res.status(500).json({ message: "Internal Server Error" });
-};
-
-const resolveUserId = (req: Request) => {
-  const typed = req as AuthenticatedRequest;
-  return typeof typed.userId === "string" ? typed.userId : "";
-};
+const handleError = createFhirErrorHandler({
+  isServiceError: (error): error is TaskWorkflowServiceError =>
+    error instanceof TaskWorkflowServiceError,
+  invalidPayloadMessage: "Invalid FHIR payload.",
+  logMessage: "Unexpected FHIR task schedule error",
+});
 
 const parseParameters = (body: unknown) => {
   if (!body || typeof body !== "object") return undefined;
@@ -48,14 +31,35 @@ const parseParameters = (body: unknown) => {
   return parametersSchema.parse(body) as unknown as Parameters;
 };
 
+const buildScheduleBundle = (schedules: TaskScheduleLike[]): Bundle => ({
+  resourceType: "Bundle",
+  type: "searchset",
+  total: schedules.length,
+  entry: schedules.map((schedule) => ({
+    resource: taskScheduleFhirMapper.toTask(schedule),
+  })),
+});
+
 export const TaskScheduleFhirController = {
+  async listEncounterSchedules(req: Request, res: Response) {
+    try {
+      const schedules = await TaskWorkflowService.listSchedulesForEncounter(
+        req.params.organisationId,
+        req.params.encounterId,
+      );
+      return res.status(200).json(buildScheduleBundle(schedules));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
   async apply(req: Request, res: Response) {
     try {
       const parameters = parseParameters(req.body);
       const record = await TaskWorkflowService.launchFromTemplateInstance(
         req.params.instanceId,
         req.params.organisationId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         {
           force: taskScheduleFhirMapper.getBooleanParameter(
             parameters,
@@ -89,7 +93,7 @@ export const TaskScheduleFhirController = {
     try {
       const schedule = await TaskWorkflowService.pauseSchedule(
         req.params.instanceId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         req.params.organisationId,
       );
       return res
@@ -104,7 +108,7 @@ export const TaskScheduleFhirController = {
     try {
       const schedule = await TaskWorkflowService.resumeSchedule(
         req.params.instanceId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         req.params.organisationId,
       );
       return res
@@ -119,7 +123,7 @@ export const TaskScheduleFhirController = {
     try {
       const schedule = await TaskWorkflowService.cancelSchedule(
         req.params.instanceId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         req.params.organisationId,
       );
       return res
@@ -136,7 +140,7 @@ export const TaskScheduleFhirController = {
       const record = await TaskWorkflowService.regenerateSchedule(
         req.params.instanceId,
         req.params.organisationId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         {
           force: true,
           notify: taskScheduleFhirMapper.getBooleanParameter(

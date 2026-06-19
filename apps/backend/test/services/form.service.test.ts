@@ -14,6 +14,9 @@ let OrganizationModel: typeof import("../../src/models/organization").default;
 let UserModel: typeof import("../../src/models/user").default;
 let DocumensoService: typeof import("../../src/services/documenso.service").DocumensoService;
 let AuditTrailService: typeof import("../../src/services/audit-trail.service").AuditTrailService;
+let TemplateService: typeof import("../../src/services/template.service").TemplateService;
+let FormAssignmentService: typeof import("../../src/services/form-assignment.service").FormAssignmentService;
+let templateMapper: typeof import("../../src/services/fhir-template.mapper").templateMapper;
 let prisma: typeof import("src/config/prisma").prisma;
 let buildPdfViewModel: typeof import("../../src/services/formPDF.service").buildPdfViewModel;
 let renderPdf: typeof import("../../src/services/formPDF.service").renderPdf;
@@ -81,6 +84,25 @@ jest.mock("../../src/services/audit-trail.service", () => ({
   },
 }));
 
+jest.mock("../../src/services/template.service", () => ({
+  TemplateService: {
+    getById: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/form-assignment.service", () => ({
+  FormAssignmentService: {
+    listForAppointment: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/fhir-template.mapper", () => ({
+  templateMapper: {
+    templateToQuestionnaire: jest.fn(),
+    templateInstanceToQuestionnaireResponse: jest.fn(),
+  },
+}));
+
 jest.mock("../../src/services/formPDF.service", () => ({
   buildPdfViewModel: jest.fn(),
   renderPdf: jest.fn(),
@@ -107,6 +129,9 @@ jest.mock("src/config/prisma", () => ({
     formSubmission: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
+    },
+    templateInstance: {
       findMany: jest.fn(),
     },
     appointment: {
@@ -173,6 +198,11 @@ beforeAll(() => {
   UserModel = require("../../src/models/user").default;
   ({ DocumensoService } = require("../../src/services/documenso.service"));
   ({ AuditTrailService } = require("../../src/services/audit-trail.service"));
+  ({ TemplateService } = require("../../src/services/template.service"));
+  ({
+    FormAssignmentService,
+  } = require("../../src/services/form-assignment.service"));
+  ({ templateMapper } = require("../../src/services/fhir-template.mapper"));
   ({ prisma } = require("src/config/prisma"));
   ({
     buildPdfViewModel,
@@ -204,6 +234,14 @@ describe("FormService", () => {
     (FormSubmissionModel.find as jest.Mock).mockReset();
     (FormSubmissionModel.distinct as jest.Mock).mockReset();
     (FormSubmissionModel.aggregate as jest.Mock).mockReset();
+
+    (FormAssignmentService.listForAppointment as jest.Mock).mockReset();
+    (TemplateService.getById as jest.Mock).mockReset();
+    (templateMapper.templateToQuestionnaire as jest.Mock).mockReset();
+    (
+      templateMapper.templateInstanceToQuestionnaireResponse as jest.Mock
+    ).mockReset();
+    (prisma.templateInstance.findMany as jest.Mock).mockReset();
 
     (AppointmentModel.findById as jest.Mock).mockReset();
     (AppointmentModel.updateOne as jest.Mock).mockReset();
@@ -693,7 +731,7 @@ describe("FormService", () => {
       await FormService.submitFHIR({
         formId: validId,
         appointmentId: validId,
-        companionId: validId,
+        patientId: validId,
         parentId: validId, // triggers PARENT actor
       } as any);
 
@@ -723,7 +761,7 @@ describe("FormService", () => {
       await FormService.submitFHIR(
         {
           formId: validId,
-          companionId: validId, // No parentId
+          patientId: validId, // No parentId
         } as any,
         [],
       ); // empty schema
@@ -780,7 +818,7 @@ describe("FormService", () => {
         {
           formId: validId,
           appointmentId: validId,
-          companionId: validId,
+          patientId: validId,
           parentId: validId,
         } as any,
         [],
@@ -1274,6 +1312,132 @@ describe("FormService", () => {
       ).rejects.toThrow("Forbidden");
     });
 
+    it("prefers template-backed forms when postgres assignments exist", async () => {
+      const previousReadFromPostgres = process.env.READ_FROM_POSTGRES;
+      process.env.READ_FROM_POSTGRES = "true";
+
+      try {
+        (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+          organisationId: "org-template",
+          patient: { id: "companion-1" },
+        });
+        (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+          type: "GROOMER",
+        });
+        (
+          FormAssignmentService.listForAppointment as jest.Mock
+        ).mockResolvedValueOnce([
+          {
+            assignmentId: "assignment-1",
+            id: "assignment-1",
+            organisationId: "org-template",
+            templateId: "template-1",
+            templateVersion: 2,
+            appointmentId: validId,
+            encounterId: null,
+            companionId: null,
+            signerUserId: null,
+            signerName: null,
+            signerEmail: null,
+            signerRole: null,
+            mobileVisible: true,
+            signingRequired: true,
+            status: "sent",
+            sentAt: null,
+            viewedAt: null,
+            submittedAt: null,
+            signedAt: null,
+            expiredAt: null,
+            cancelledAt: null,
+            signerIdentity: null,
+            createdBy: "creator-1",
+            updatedBy: "creator-1",
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+        ] as any);
+        (TemplateService.getById as jest.Mock).mockResolvedValueOnce({
+          id: "template-1",
+          organisationId: "org-template",
+          ownerUserId: null,
+          ownership: "ORG_TEMPLATE",
+          kind: "FORM",
+          name: "Intake form",
+          description: null,
+          status: "PUBLISHED",
+          scope: "ORGANISATION",
+          rules: null,
+          latestVersion: 2,
+          publishedVersion: 2,
+          createdBy: "creator-1",
+          updatedBy: "creator-1",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          versions: [
+            {
+              id: "template-version-2",
+              version: 2,
+              schemaSnapshot: { sections: [] },
+              renderConfigSnapshot: {},
+              validationSnapshot: {},
+              publishedAt: null,
+              createdBy: "creator-1",
+            },
+          ],
+        } as any);
+        (prisma.templateInstance.findMany as jest.Mock).mockResolvedValueOnce([
+          {
+            templateId: "template-1",
+            templateVersion: 2,
+            organisationId: "org-template",
+            appointmentId: validId,
+            caseId: null,
+            encounterId: null,
+            status: "COMPLETED",
+            data: { animalName: "Milo" },
+            authorId: "creator-1",
+            signedBy: "creator-1",
+            signedAt: new Date("2026-01-02T00:00:00.000Z"),
+            generatedPdfUrl: null,
+            generatedPdf: null,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+          },
+        ]);
+        (
+          templateMapper.templateToQuestionnaire as jest.Mock
+        ).mockReturnValueOnce({
+          resourceType: "Questionnaire",
+          id: "template-1",
+        });
+        (
+          templateMapper.templateInstanceToQuestionnaireResponse as jest.Mock
+        ).mockReturnValueOnce({
+          resourceType: "QuestionnaireResponse",
+          id: "instance-1",
+        });
+
+        const res = await FormService.getFormsForAppointment({
+          appointmentId: validId,
+          isPMS: false,
+        });
+
+        const firstItem = res.items[0]!;
+        expect(res.items).toHaveLength(1);
+        expect(firstItem.questionnaire).toEqual({
+          resourceType: "Questionnaire",
+          id: "template-1",
+        });
+        expect(firstItem.questionnaireResponse).toEqual({
+          resourceType: "QuestionnaireResponse",
+          id: "instance-1",
+        });
+        expect(firstItem.status).toBe("completed");
+      } finally {
+        process.env.READ_FROM_POSTGRES = previousReadFromPostgres;
+      }
+    });
+
     it("returns empty items if no forms mapped", async () => {
       (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
         createChainable({ organisationId: "o" }),
@@ -1337,12 +1501,13 @@ describe("FormService", () => {
         isPMS: true,
       });
 
+      const firstItem = res.items[0]!;
       expect(res.items).toHaveLength(2);
-      expect(res.items[0].questionnaire).toBeUndefined(); // Because isPMS is true
+      expect(firstItem.questionnaire).toBeUndefined(); // Because isPMS is true
 
-      const anyQR = res.items[0].questionnaireResponse as any;
+      const anyQR = firstItem.questionnaireResponse as any;
       expect(anyQR?.signing?.pdf?.url).toBe("https://pdf"); // Documenso injected
-      expect(res.items[1].status).toBe("pending"); // No submission found
+      expect(res.items[1]!.status).toBe("pending"); // No submission found
     });
 
     it("handles documenso missing api key branch", async () => {
@@ -1379,9 +1544,10 @@ describe("FormService", () => {
         isPMS: false,
       });
 
-      expect(res.items[0].questionnaire).toBeDefined(); // isPMS false
+      const firstItem = res.items[0]!;
+      expect(firstItem.questionnaire).toBeDefined(); // isPMS false
 
-      const anyQR = res.items[0].questionnaireResponse as any;
+      const anyQR = firstItem.questionnaireResponse as any;
       expect(anyQR?.signing?.pdf?.url).toBeUndefined(); // Missing key prevented url fetch
     });
   });
@@ -1389,7 +1555,7 @@ describe("FormService", () => {
 
 describe("FormService.listSubmissionsForCompanionInOrganisation", () => {
   const organisationId = "507f1f77bcf86cd799439011";
-  const companionId = "507f191e810c19729de860ea";
+  const patientId = "507f191e810c19729de860ea";
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -1408,7 +1574,7 @@ describe("FormService.listSubmissionsForCompanionInOrganisation", () => {
           formId: matchingFormId,
           formVersion: 1,
           appointmentId,
-          companionId,
+          patientId,
           submittedBy: "parent-1",
           answers: { note: "ok" },
           submittedAt: new Date("2024-01-02T10:00:00.000Z"),
@@ -1418,7 +1584,7 @@ describe("FormService.listSubmissionsForCompanionInOrganisation", () => {
           formId: otherFormId,
           formVersion: 1,
           appointmentId: undefined,
-          companionId,
+          patientId,
           submittedBy: "parent-2",
           answers: { note: "skip" },
           submittedAt: new Date("2024-01-01T10:00:00.000Z"),
@@ -1457,7 +1623,7 @@ describe("FormService.listSubmissionsForCompanionInOrganisation", () => {
     const results = await FormService.listSubmissionsForCompanionInOrganisation(
       {
         organisationId,
-        companionId,
+        patientId: patientId,
       },
     );
 

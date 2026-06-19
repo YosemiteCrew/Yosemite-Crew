@@ -1,6 +1,6 @@
 import {renderHook, act} from '@testing-library/react-native';
 import {useClinicMapDiscovery} from '../../../../src/features/appointments/hooks/useClinicMapDiscovery';
-import {MOCK_CLINICS} from '../../../../src/features/appointments/mocks/clinicMocks';
+
 import type {VetBusiness} from '../../../../src/features/appointments/types';
 
 jest.mock('react-redux', () => ({
@@ -55,44 +55,40 @@ describe('useClinicMapDiscovery', () => {
     });
   });
 
-  describe('mock clinic merging', () => {
-    it('includes all 12 mock clinics when Redux store is empty', () => {
+  describe('redux businesses', () => {
+    it('returns empty list when Redux store is empty', () => {
       const {result} = renderHook(() => useClinicMapDiscovery(''));
-      expect(result.current.visibleClinics.length).toBeGreaterThanOrEqual(
-        MOCK_CLINICS.length,
-      );
+      expect(result.current.visibleClinics.length).toBe(0);
     });
 
-    it('handles undefined businesses slice gracefully (falls back to mock clinics)', () => {
+    it('handles undefined businesses slice gracefully (returns empty list)', () => {
       mockUseSelector.mockImplementation((selector: (s: any) => any) =>
         selector({businesses: undefined}),
       );
       const {result} = renderHook(() => useClinicMapDiscovery(''));
-      // Should still show mock clinics even when Redux slice is unavailable
-      expect(result.current.visibleClinics.length).toBeGreaterThanOrEqual(
-        MOCK_CLINICS.length,
-      );
+      expect(result.current.visibleClinics.length).toBe(0);
     });
 
-    it('merges Redux businesses with mock clinics without duplicates', () => {
+    it('shows Redux businesses in visible clinics', () => {
       setReduxBusinesses([makeReduxBusiness({id: 'redux_unique'})]);
       const {result} = renderHook(() => useClinicMapDiscovery(''));
       const ids = result.current.visibleClinics.map(c => c.id);
       expect(ids).toContain('redux_unique');
-      expect(ids).toContain('mock_clinic_01');
       const uniqueIds = new Set(ids);
       expect(uniqueIds.size).toBe(ids.length);
     });
 
-    it('deduplicates when Redux business shares an id with a mock clinic', () => {
+    it('shows multiple Redux businesses without duplicates', () => {
       setReduxBusinesses([
-        makeReduxBusiness({id: 'mock_clinic_01', name: 'Override'}),
+        makeReduxBusiness({id: 'biz_01', name: 'First'}),
+        makeReduxBusiness({id: 'biz_02', name: 'Second'}),
       ]);
       const {result} = renderHook(() => useClinicMapDiscovery(''));
-      const matches = result.current.visibleClinics.filter(
-        c => c.id === 'mock_clinic_01',
-      );
-      expect(matches).toHaveLength(1);
+      const ids = result.current.visibleClinics.map(c => c.id);
+      expect(ids).toContain('biz_01');
+      expect(ids).toContain('biz_02');
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(ids.length);
     });
   });
 
@@ -151,13 +147,17 @@ describe('useClinicMapDiscovery', () => {
   });
 
   describe('enrichWithDistance', () => {
-    it('returns at least as many entries as mock clinics', () => {
+    it('returns entries matching the Redux businesses', () => {
+      setReduxBusinesses([
+        makeReduxBusiness({id: 'biz_a', lat: 37.77, lng: -122.42}),
+        makeReduxBusiness({id: 'biz_b', lat: 37.8, lng: -122.41}),
+      ]);
       const {result} = renderHook(() => useClinicMapDiscovery(''));
       const enriched = result.current.enrichWithDistance({
         lat: 37.77,
         lng: -122.42,
       });
-      expect(enriched.length).toBeGreaterThanOrEqual(MOCK_CLINICS.length);
+      expect(enriched.length).toBe(2);
     });
 
     it('adds distanceMi to clinics that have both lat and lng', () => {
@@ -213,10 +213,11 @@ describe('useClinicMapDiscovery', () => {
 
   describe('initialSelectedId with selectionToken', () => {
     it('auto-selects a clinic that is already in allClinics', () => {
+      setReduxBusinesses([makeReduxBusiness({id: 'redux_biz_1'})]);
       const {result} = renderHook(() =>
-        useClinicMapDiscovery('', 'mock_clinic_01', 1000),
+        useClinicMapDiscovery('', 'redux_biz_1', 1000),
       );
-      expect(result.current.selectedClinicId).toBe('mock_clinic_01');
+      expect(result.current.selectedClinicId).toBe('redux_biz_1');
     });
 
     it('waits and selects when the business arrives in Redux after mount', () => {
@@ -244,28 +245,30 @@ describe('useClinicMapDiscovery', () => {
     });
 
     it('does not re-select after manual clear when token is unchanged', () => {
+      setReduxBusinesses([makeReduxBusiness({id: 'redux_biz_1'})]);
       const {result} = renderHook(() =>
-        useClinicMapDiscovery('', 'mock_clinic_01', 1000),
+        useClinicMapDiscovery('', 'redux_biz_1', 1000),
       );
-      expect(result.current.selectedClinicId).toBe('mock_clinic_01');
+      expect(result.current.selectedClinicId).toBe('redux_biz_1');
 
       act(() => result.current.setSelectedClinicId(null));
       expect(result.current.selectedClinicId).toBeNull();
     });
 
     it('re-selects when navigating again with a new selectionToken', () => {
+      setReduxBusinesses([makeReduxBusiness({id: 'redux_biz_1'})]);
       const {result, rerender} = renderHook(
         ({token}: {token: number}) =>
-          useClinicMapDiscovery('', 'mock_clinic_01', token),
+          useClinicMapDiscovery('', 'redux_biz_1', token),
         {initialProps: {token: 1000}},
       );
-      expect(result.current.selectedClinicId).toBe('mock_clinic_01');
+      expect(result.current.selectedClinicId).toBe('redux_biz_1');
 
       act(() => result.current.setSelectedClinicId(null));
       expect(result.current.selectedClinicId).toBeNull();
 
       rerender({token: 2000});
-      expect(result.current.selectedClinicId).toBe('mock_clinic_01');
+      expect(result.current.selectedClinicId).toBe('redux_biz_1');
     });
 
     it('keeps initial business in visibleClinics after Redux array is replaced', () => {

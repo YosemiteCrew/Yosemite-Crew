@@ -4,6 +4,7 @@ import {
   useAppointmentsForPrimaryOrg,
 } from '@/app/hooks/useAppointments';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
+import { AppointmentWithCompanion } from '@/app/features/appointments/types/appointments';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { Appointment } from '@yosemite-crew/types';
@@ -89,8 +90,18 @@ describe('useAppointments Hooks', () => {
 
   // --- Section 2: useAppointmentsForPrimaryOrg ---
   describe('useAppointmentsForPrimaryOrg', () => {
-    const mockAppt1 = { id: 'appt-1', title: 'Meeting' } as unknown as Appointment;
-    const mockAppt2 = { id: 'appt-2', title: 'Surgery' } as unknown as Appointment;
+    const mockAppt1 = {
+      id: 'appt-1',
+      title: 'Meeting',
+      patient: { id: 'pet-1' },
+      companion: { id: 'companion-1' },
+    } as unknown as AppointmentWithCompanion;
+    const mockAppt2 = {
+      id: 'appt-2',
+      title: 'Surgery',
+      patient: { id: 'pet-2' },
+      companion: { id: 'companion-2' },
+    } as unknown as AppointmentWithCompanion;
 
     it('returns an empty array if primaryOrgId is missing', () => {
       mockOrgState.primaryOrgId = null;
@@ -127,7 +138,7 @@ describe('useAppointments Hooks', () => {
       mockAppointmentState.appointmentsById = {
         'appt-1': mockAppt1,
         'appt-2': mockAppt2,
-        'appt-3': { id: 'appt-3' } as Appointment, // Belongs to another org/list
+        'appt-3': { id: 'appt-3', patient: { id: 'pet-3' } } as Appointment, // Belongs to another org/list
       };
 
       const { result } = renderHook(() => useAppointmentsForPrimaryOrg());

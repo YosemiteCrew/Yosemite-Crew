@@ -4,6 +4,7 @@ import {
   ServiceService,
   ServiceServiceError,
 } from "../../src/services/service.service";
+import { CatalogService } from "../../src/services/catalog.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
 import { ParentModel } from "../../src/models/parent";
 import helpers from "../../src/utils/helper";
@@ -29,6 +30,23 @@ jest.mock("../../src/services/service.service", () => {
     },
   };
 });
+
+jest.mock("../../src/services/catalog.service", () => ({
+  CatalogService: {
+    listOrganisationsProvidingServiceNearby: jest.fn(),
+    getBookableSlotsService: jest.fn(),
+    getCalendarPrefillMatches: jest.fn(),
+  },
+  CatalogServiceError: class CatalogServiceError extends Error {
+    statusCode: number;
+
+    constructor(message: string, statusCode: number) {
+      super(message);
+      this.statusCode = statusCode;
+      this.name = "CatalogServiceError";
+    }
+  },
+}));
 
 jest.mock("../../src/services/authUserMobile.service");
 jest.mock("../../src/models/parent");
@@ -83,6 +101,21 @@ describe("ServiceController", () => {
       (ServiceService.create as jest.Mock).mockRejectedValueOnce(customError);
 
       await ServiceController.createService(req, res);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({ message: "Custom Error" });
+    });
+
+    it("handles ServiceServiceError properly", async () => {
+      req = mockRequest({
+        query: { serviceName: "Vet", lat: "40.7", lng: "-74.1" },
+        headers: { "x-user-id": "header-user" },
+      });
+      const customError = new ServiceServiceError("Custom Error", 409);
+      (
+        ServiceService.listOrganisationsProvidingServiceNearby as jest.Mock
+      ).mockRejectedValueOnce(customError);
+
+      await ServiceController.listOrganisationByServiceName(req, res);
       expect(res.status).toHaveBeenCalledWith(409);
       expect(res.json).toHaveBeenCalledWith({ message: "Custom Error" });
     });
@@ -269,7 +302,7 @@ describe("ServiceController", () => {
 
       expect(
         ServiceService.listOrganisationsProvidingServiceNearby,
-      ).toHaveBeenCalledWith("Vet", 40.7, -74.1);
+      ).toHaveBeenCalledWith("Vet", 40.7, -74.1, undefined);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(["org1"]);
     });
@@ -340,7 +373,7 @@ describe("ServiceController", () => {
       expect(helpers.getGeoLocation).toHaveBeenCalledWith("NY 10001");
       expect(
         ServiceService.listOrganisationsProvidingServiceNearby,
-      ).toHaveBeenCalledWith("Vet", 40.7, -74.1);
+      ).toHaveBeenCalledWith("Vet", 40.7, -74.1, "NY 10001");
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(["org2"]);
     });
@@ -389,11 +422,13 @@ describe("ServiceController", () => {
         body: { serviceId: "1", organisationId: "2", date: "2026-01-01" },
       });
       (
-        ServiceService.getBookableSlotsService as jest.Mock
-      ).mockResolvedValueOnce({ slots: [] });
+        CatalogService.getBookableSlotsService as jest.Mock
+      ).mockResolvedValueOnce({
+        slots: [],
+      });
 
       await ServiceController.getBookableSlotsForService(req, res);
-      expect(ServiceService.getBookableSlotsService).toHaveBeenCalledWith(
+      expect(CatalogService.getBookableSlotsService).toHaveBeenCalledWith(
         "1",
         "2",
         expect.any(Date),
@@ -410,7 +445,7 @@ describe("ServiceController", () => {
         body: { serviceId: "1", organisationId: "2", date: "2026-01-01" },
       });
       (
-        ServiceService.getBookableSlotsService as jest.Mock
+        CatalogService.getBookableSlotsService as jest.Mock
       ).mockRejectedValueOnce(new Error("Fail"));
 
       await ServiceController.getBookableSlotsForService(req, res);
@@ -452,7 +487,7 @@ describe("ServiceController", () => {
       });
 
       (
-        ServiceService.getCalendarPrefillMatches as jest.Mock
+        CatalogService.getCalendarPrefillMatches as jest.Mock
       ).mockResolvedValueOnce([
         {
           serviceId: "svc-1",
@@ -470,7 +505,7 @@ describe("ServiceController", () => {
 
       await ServiceController.getCalendarPrefill(req, res);
 
-      expect(ServiceService.getCalendarPrefillMatches).toHaveBeenCalledWith({
+      expect(CatalogService.getCalendarPrefillMatches).toHaveBeenCalledWith({
         organisationId: "org-1",
         date: expect.any(Date),
         minuteOfDay: 1425,

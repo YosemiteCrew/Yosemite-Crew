@@ -332,7 +332,7 @@ describe('ObservationalToolScreen', () => {
           const res = selector(defaultMockState);
           // If selector returns undefined (e.g. not found), we respect that.
           return res;
-        } catch (e) {
+        } catch (_error) {
           // Fallback if selector logic crashes on mock state
           return undefined;
         }
@@ -352,7 +352,7 @@ describe('ObservationalToolScreen', () => {
             // Check if it's task selector
             const res = selector(defaultMockState);
             if (res === mockTask) return mockTask;
-          } catch (e) {}
+          } catch (_error) {}
 
           // Return empty businesses
           return selector({

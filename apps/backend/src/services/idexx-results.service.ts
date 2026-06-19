@@ -184,13 +184,13 @@ const buildResultTaskKey = (resultId: string) => `lab-result:${resultId}`;
 
 const ensureResultTask = async (params: {
   organisationId: string;
-  companionId: string;
+  patientId: string;
   appointmentId?: string | null;
   createdByUserId?: string | null;
   resultId: string;
 }) => {
   const existing = await TaskModel.findOne({
-    companionId: params.companionId,
+    patientId: params.patientId,
     category: "LAB_RESULTS",
     status: { $in: ["PENDING", "IN_PROGRESS"] },
     additionalNotes: buildResultTaskKey(params.resultId),
@@ -202,7 +202,7 @@ const ensureResultTask = async (params: {
   await TaskService.createCustom({
     organisationId: params.organisationId,
     appointmentId: params.appointmentId ?? undefined,
-    companionId: params.companionId,
+    patientId: params.patientId,
     createdBy: actor,
     assignedBy: actor,
     assignedTo: actor,
@@ -218,7 +218,7 @@ const ensureResultTask = async (params: {
 
 const ensureResultDocument = async (params: {
   organisationId: string;
-  companionId: string;
+  patientId: string;
   appointmentId?: string | null;
   resultId: string;
   issueDate?: string | null;
@@ -229,14 +229,14 @@ const ensureResultDocument = async (params: {
   const existing = isReadFromPostgres()
     ? await prisma.document.findFirst({
         where: {
-          companionId: params.companionId,
+          patientId: params.patientId,
           category: "HEALTH",
           subcategory: "LAB_TESTS",
           title,
         },
       })
     : await DocumentModel.findOne({
-        companionId: params.companionId,
+        patientId: params.patientId,
         category: "HEALTH",
         subcategory: "LAB_TESTS",
         title,
@@ -245,14 +245,14 @@ const ensureResultDocument = async (params: {
   if (existing) return;
 
   const upload = await uploadBufferAsFile(params.pdfBuffer, {
-    folderName: `lab-results/${params.companionId}`,
+    folderName: `lab-results/${params.patientId}`,
     mimeType: "application/pdf",
     originalName: `${params.resultId}.pdf`,
   });
 
   await DocumentService.create(
     {
-      companionId: params.companionId,
+      patientId: params.patientId,
       appointmentId: params.appointmentId ?? null,
       category: "HEALTH",
       subcategory: "LAB_TESTS",
@@ -307,7 +307,7 @@ export const IdexxResultsService = {
         let organisationId: string | null = null;
         let appointmentId: string | null = null;
         let createdByUserId: string | null = null;
-        let companionId: string | null = null;
+        let patientId: string | null = null;
 
         if (orderId) {
           if (isReadFromPostgres()) {
@@ -317,7 +317,7 @@ export const IdexxResultsService = {
             organisationId = order?.organisationId ?? null;
             appointmentId = order?.appointmentId ?? null;
             createdByUserId = order?.createdByUserId ?? null;
-            companionId = order?.companionId ?? null;
+            patientId = order?.patientId ?? null;
 
             if (order) {
               const mappedStatus = mapResultStatusToLabOrder(result);
@@ -341,9 +341,7 @@ export const IdexxResultsService = {
               ? order.appointmentId.toString()
               : null;
             createdByUserId = order?.createdByUserId ?? null;
-            companionId = order?.companionId
-              ? order.companionId.toString()
-              : null;
+            patientId = order?.patientId ? order.patientId.toString() : null;
 
             if (order) {
               const mappedStatus = mapResultStatusToLabOrder(result);
@@ -419,14 +417,14 @@ export const IdexxResultsService = {
 
         if (
           organisationId &&
-          companionId &&
+          patientId &&
           coerceStringOrEmpty(result.status).toUpperCase() === "COMPLETE"
         ) {
           try {
             const pdf = await client.getResultPdf(resultId);
             await ensureResultDocument({
               organisationId,
-              companionId,
+              patientId,
               appointmentId,
               resultId,
               issueDate: coerceString(result.updatedDate),
@@ -436,7 +434,7 @@ export const IdexxResultsService = {
 
             await ensureResultTask({
               organisationId,
-              companionId,
+              patientId,
               appointmentId,
               createdByUserId,
               resultId,

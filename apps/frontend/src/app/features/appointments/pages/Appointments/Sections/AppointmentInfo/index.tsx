@@ -1076,9 +1076,14 @@ const AppoitmentInfo = ({
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeLabel, activeSubLabel]);
 
+  if (!activeAppointment) {
+    return null;
+  }
+
+  const companion = activeAppointment.companion ?? activeAppointment.patient;
   const companionImageSrc = getSafeImageUrl(
-    getAppointmentCompanionPhotoUrl(activeAppointment?.companion),
-    resolveCompanionImageType(activeAppointment?.companion?.species)
+    getAppointmentCompanionPhotoUrl(companion),
+    resolveCompanionImageType(companion.species)
   );
 
   return (
@@ -1102,21 +1107,16 @@ const AppoitmentInfo = ({
                   router.push(
                     buildAppointmentCompanionHistoryHref(
                       activeAppointment?.id,
-                      activeAppointment?.companion?.id,
+                      companion.id,
                       '/appointments'
                     )
                   );
                   setShowModal(false);
                 }}
               >
-                {formatCompanionNameWithOwnerLastName(
-                  activeAppointment?.companion.name,
-                  activeAppointment?.companion.parent
-                )}
+                {formatCompanionNameWithOwnerLastName(companion.name, companion.parent)}
               </button>
-              <div className="text-body-4 text-text-primary mt-1">
-                {activeAppointment?.companion.breed}
-              </div>
+              <div className="text-body-4 text-text-primary mt-1">{companion.breed}</div>
             </div>
             <Close onClick={() => setShowModal(false)} />
           </div>

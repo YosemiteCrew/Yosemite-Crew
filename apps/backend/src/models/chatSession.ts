@@ -15,7 +15,7 @@ export interface ChatSessionMongo {
   channelId: string;
 
   organisationId: string;
-  companionId?: string;
+  patientId?: string;
   parentId?: string;
   vetId?: string | null;
   supportStaffIds?: string[];
@@ -80,7 +80,7 @@ const ChatSessionSchema = new Schema(
       index: true,
       trim: true,
     },
-    companionId: {
+    patientId: {
       type: String,
       trim: true,
     },

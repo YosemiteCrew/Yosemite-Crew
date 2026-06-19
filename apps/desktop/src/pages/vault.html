@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src file: data: blob:; font-src file:; style-src file:; script-src file:;"
+    />
+    <title>Document Vault — Yosemite Crew PIMS</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="vault.css" />
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-top">
+        <h1>Document Vault</h1>
+        <span class="badge" id="encBadge">checking…</span>
+      </div>
+      <div class="sub">
+        <span id="docCount">0 documents</span>
+        <span id="sizeInfo">0 KB</span>
+      </div>
+      <div class="search-row">
+        <span class="search-icon">&#x1F50D;</span>
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search by filename…"
+          autocomplete="off"
+          aria-label="Search documents by filename"
+        />
+        <span id="searchCount" class="search-count"></span>
+      </div>
+    </div>
+
+    <div class="drop-zone" id="dropZone">Drop files here to add them to the vault</div>
+
+    <div class="list-wrap" id="listWrap">
+      <div class="loading" id="loadingMsg">Loading documents</div>
+      <div class="empty hidden" id="emptyMsg">
+        <div class="empty-icon">&#x1F4C4;</div>
+        <div class="empty-title">No documents in the vault</div>
+        <div class="empty-hint">Drag files here or use the command palette to save documents</div>
+      </div>
+      <div id="docList"></div>
+    </div>
+
+    <div class="preview-panel" id="previewPanel">
+      <div class="preview-head">
+        <h2 id="previewTitle">Preview</h2>
+        <button class="preview-close" id="previewClose" aria-label="Close preview">&times;</button>
+      </div>
+      <div class="preview-body" id="previewBody">
+        <img id="previewImg" class="hidden" alt="preview" />
+        <div class="preview-text hidden" id="previewText"></div>
+        <div class="preview-meta" id="previewMeta"></div>
+        <div class="preview-actions">
+          <button id="previewExport">Export…</button>
+          <button id="previewReveal">Reveal in Finder</button>
+          <button id="previewDel" class="danger-text">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="vault.js"></script>
+  </body>
+</html>

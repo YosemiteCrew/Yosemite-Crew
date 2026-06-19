@@ -108,7 +108,7 @@ describe("LabOrderService", () => {
   it("creates order in postgres", async () => {
     const result = await LabOrderService.createOrder("IDEXX", {
       organisationId: "org-1",
-      companionId: "comp-1",
+      patientId: "comp-1",
       parentId: "parent-1",
       tests: ["T1"],
     });
@@ -121,7 +121,7 @@ describe("LabOrderService", () => {
     await expect(
       LabOrderService.createOrder("BAD", {
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         tests: ["T1"],
       } as any),
     ).rejects.toThrow("Unsupported lab provider.");

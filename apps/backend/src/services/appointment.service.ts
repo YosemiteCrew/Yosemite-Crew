@@ -76,7 +76,7 @@ const APPOINTMENT_STATUS_TRANSITIONS: Record<
   NO_SHOW: [],
 };
 
-const assertAppointmentStatusTransition = (
+export const assertAppointmentStatusTransition = (
   current: LegacyAppointmentStatus,
   next: AppointmentStatus,
   context: string,
@@ -93,7 +93,7 @@ const assertAppointmentStatusTransition = (
   }
 };
 
-const buildUsageCounterPayload = (doc: {
+export const buildUsageCounterPayload = (doc: {
   appointmentsUsed?: number | null;
   toolsUsed?: number | null;
   usersActiveCount?: number | null;
@@ -129,7 +129,7 @@ const assertRequestedAppointment = (
   assertAppointmentStatusTransition(status, "UPCOMING", context);
 };
 
-const resolvePaymentStatusByAppointmentIds = async (
+export const resolvePaymentStatusByAppointmentIds = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
   const uniqueIds = Array.from(new Set(appointmentIds.filter(Boolean)));
@@ -145,7 +145,7 @@ const resolvePaymentStatusByAppointmentIds = async (
   return resolvePaymentStatusByAppointmentIdsFromMongo(uniqueIds);
 };
 
-const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
+export const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
   const statusMap = new Map<string, AppointmentPaymentStatus>();
@@ -192,7 +192,7 @@ const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
   return statusMap;
 };
 
-const resolvePaymentStatusByAppointmentIdsFromMongo = async (
+export const resolvePaymentStatusByAppointmentIdsFromMongo = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
   const statusMap = new Map<string, AppointmentPaymentStatus>();
@@ -280,7 +280,7 @@ const mapLegacyServiceToDraftItems = (
   },
 ];
 
-const resolveCatalogSelectionSafe = async (
+export const resolveCatalogSelectionSafe = async (
   selectionId: string,
   organisationId: string,
 ) => {
@@ -294,37 +294,41 @@ const resolveCatalogSelectionSafe = async (
   }
 };
 
-const requireBaseAppointmentInput = (
+export const requireBaseAppointmentInput = (
   input: AppointmentRequestInput,
   messages: {
     organisation: string;
-    companion: string;
+    patient: string;
     timing: string;
   },
 ) => {
   if (!input.organisationId) {
     throw new AppointmentServiceError(messages.organisation, 400);
   }
-  if (!input.companion?.id || !input.companion.parent?.id) {
-    throw new AppointmentServiceError(messages.companion, 400);
+  if (!input.patient?.id || !input.patient.parent?.id) {
+    throw new AppointmentServiceError(messages.patient, 400);
   }
   if (!input.startTime || !input.endTime || !input.durationMinutes) {
     throw new AppointmentServiceError(messages.timing, 400);
   }
 };
 
-const validateRequestedFromMobileInput = (input: AppointmentRequestInput) => {
+export const validateRequestedFromMobileInput = (
+  input: AppointmentRequestInput,
+) => {
   requireBaseAppointmentInput(input, {
     organisation: "organisationId is required",
-    companion: "Companion and parent details are required",
+    patient: "Companion and parent details are required",
     timing: "startTime, endTime, durationMinutes required",
   });
 };
 
-const validateAppointmentFromPmsInput = (input: AppointmentRequestInput) => {
+export const validateAppointmentFromPmsInput = (
+  input: AppointmentRequestInput,
+) => {
   requireBaseAppointmentInput(input, {
     organisation: "organisationId is required.",
-    companion: "Companion and parent information is required.",
+    patient: "Companion and parent information is required.",
     timing: "startTime, endTime and durationMinutes are required.",
   });
   if (!input.lead?.id) {
@@ -668,7 +672,7 @@ const updateAppointmentPMSFromPostgresRow = async ({
 
     await AuditTrailService.recordSafely({
       organisationId: updated.organisationId,
-      companionId: appointmentDomain.companion.id,
+      patientId: appointmentDomain.patient.id,
       eventType,
       actorType: "SYSTEM",
       entityType: "APPOINTMENT",
@@ -804,7 +808,7 @@ const recordPmsMongoAppointmentAuditIfNeeded = async (args: {
 
   await AuditTrailService.recordSafely({
     organisationId: args.appointment.organisationId,
-    companionId: args.appointment.companion.id,
+    patientId: args.appointment.patient.id,
     eventType,
     actorType: "SYSTEM",
     entityType: "APPOINTMENT",
@@ -957,10 +961,10 @@ const sendCheckoutEmailIfNeeded = async ({
 
   const parent = isReadFromPostgres()
     ? await prisma.parent.findUnique({
-        where: { id: appointment.companion.parent.id },
+        where: { id: appointment.patient.parent.id },
         select: { email: true, firstName: true, lastName: true },
       })
-    : await ParentModel.findById(appointment.companion.parent.id)
+    : await ParentModel.findById(appointment.patient.parent.id)
         .select("email firstName lastName")
         .lean();
   if (!parent?.email) return;
@@ -990,7 +994,7 @@ const sendCheckoutEmailIfNeeded = async ({
       templateId: "appointmentPaymentCheckout",
       templateData: {
         parentName: parentName || undefined,
-        companionName: appointment.companion.name,
+        companionName: appointment.patient.name,
         organisationName: organisationName ?? undefined,
         appointmentTime,
         amountText,
@@ -1014,7 +1018,7 @@ const recordFormAttachmentAudit = async (
   for (const formId of appointment.formIds) {
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
-      companionId: appointment.companion.id,
+      patientId: appointment.patient.id,
       eventType: "FORM_ATTACHED",
       actorType: "SYSTEM",
       entityType: "FORM",
@@ -1050,8 +1054,8 @@ const maybeCreateObservationToolTask = async (
   await createObservationToolTaskForAppointment({
     appointmentId,
     organisationId: appointment.organisationId,
-    companionId: appointment.companion.id,
-    parentId: appointment.companion.parent.id,
+    patientId: appointment.patient.id,
+    parentId: appointment.patient.parent.id,
     observationToolId,
     appointmentStartTime: appointment.startTime,
   });
@@ -1269,7 +1273,7 @@ const sendAppointmentAssignmentEmails = async (
             templateId: "appointmentAssigned",
             templateData: {
               employeeName,
-              companionName: appointment.companion.name,
+              companionName: appointment.patient.name,
               appointmentType: appointment.appointmentType?.name,
               appointmentTime,
               organisationName,
@@ -1479,7 +1483,8 @@ const releaseAppointmentUsage = async (reservation: {
 
 const buildAppointmentDomain = (input: {
   id?: string;
-  companion: Appointment["companion"];
+  patient: Appointment["patient"];
+  companion?: Appointment["companion"];
   lead?: Appointment["lead"];
   supportStaff?: Appointment["supportStaff"];
   room?: Appointment["room"];
@@ -1499,7 +1504,8 @@ const buildAppointmentDomain = (input: {
   formIds?: string[];
 }): Appointment => ({
   id: input.id,
-  companion: input.companion,
+  patient: input.patient,
+  companion: input.companion ?? input.patient,
   lead: input.lead ?? undefined,
   supportStaff: input.supportStaff ?? [],
   room: input.room ?? undefined,
@@ -1526,7 +1532,7 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
 
   return buildAppointmentDomain({
     id: obj._id.toString(),
-    companion: obj.companion,
+    patient: obj.companion,
     lead: obj.lead ?? undefined,
     supportStaff: obj.supportStaff ?? [],
     room: obj.room ?? undefined,
@@ -1549,7 +1555,7 @@ const toDomain = (doc: AppointmentDocument): Appointment => {
 
 const toDomainFromPrisma = (row: {
   id: string;
-  companion: unknown;
+  patient: unknown;
   lead: unknown;
   supportStaff: unknown;
   room: unknown;
@@ -1570,7 +1576,7 @@ const toDomainFromPrisma = (row: {
 }): Appointment =>
   buildAppointmentDomain({
     id: row.id,
-    companion: row.companion as Appointment["companion"],
+    patient: row.patient as Appointment["patient"],
     lead: (row.lead ?? undefined) as Appointment["lead"] | undefined,
     supportStaff: (row.supportStaff ?? []) as Appointment["supportStaff"],
     room: (row.room ?? undefined) as Appointment["room"] | undefined,
@@ -1606,7 +1612,7 @@ const toDomainLean = (
 
   return buildAppointmentDomain({
     id,
-    companion: obj.companion,
+    patient: obj.companion,
     lead: obj.lead ?? undefined,
     supportStaff: obj.supportStaff ?? [],
     room: obj.room ?? undefined,
@@ -1634,7 +1640,8 @@ const buildAppointmentFromInput = (
 ): Appointment => ({
   id: undefined,
   organisationId: input.organisationId,
-  companion: input.companion,
+  patient: input.patient,
+  companion: input.patient,
   appointmentType: input.appointmentType,
   appointmentDate: input.startTime,
   startTime: input.startTime,
@@ -1687,7 +1694,7 @@ const mapAppointmentsFromDocs = async (
   });
 };
 
-const attachPaymentStatus = (
+export const attachPaymentStatus = (
   appointment: Appointment,
   paymentStatus: AppointmentPaymentStatus | undefined,
 ): Appointment => {
@@ -1697,7 +1704,7 @@ const attachPaymentStatus = (
   return appointment;
 };
 
-const buildPaymentStatusMapForDocs = async (
+export const buildPaymentStatusMapForDocs = async (
   docs: AppointmentMongo[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
   const appointmentIds = docs
@@ -1708,12 +1715,12 @@ const buildPaymentStatusMapForDocs = async (
   return resolvePaymentStatusByAppointmentIds(appointmentIds);
 };
 
-const buildPaymentStatusMapForAppointments = async (
+export const buildPaymentStatusMapForAppointments = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> =>
   resolvePaymentStatusByAppointmentIds(appointmentIds);
 
-const resolvePaymentStatusForAppointment = async (
+export const resolvePaymentStatusForAppointment = async (
   appointmentId: string,
 ): Promise<AppointmentPaymentStatus> => {
   const map = await resolvePaymentStatusByAppointmentIds([appointmentId]);
@@ -1731,7 +1738,7 @@ const toAppointmentResponseDTOWithPaymentStatus = async (
 
 const toAppointmentResponseDTOWithPaymentStatusFromPrisma = async (row: {
   id: string;
-  companion: Prisma.JsonValue;
+  patient: Prisma.JsonValue;
   lead: Prisma.JsonValue | null;
   supportStaff: Prisma.JsonValue | null;
   room: Prisma.JsonValue | null;
@@ -1756,7 +1763,8 @@ const toAppointmentResponseDTOWithPaymentStatusFromPrisma = async (row: {
 };
 
 const toPersistable = (appointment: Appointment): AppointmentMongo => ({
-  companion: appointment.companion,
+  patient: appointment.patient,
+  companion: appointment.patient,
   lead: appointment.lead,
   supportStaff: appointment.supportStaff ?? [],
   room: appointment.room,
@@ -1789,7 +1797,7 @@ const toPrismaAppointmentData = (
 
   return {
     id: obj._id.toString(),
-    companion: obj.companion,
+    patient: obj.patient,
     lead: obj.lead ?? undefined,
     supportStaff: obj.supportStaff ?? [],
     room: obj.room ?? undefined,
@@ -1924,8 +1932,7 @@ export const AppointmentService = {
       try {
         created = await prisma.appointment.create({
           data: {
-            companion:
-              appointment.companion as unknown as Prisma.InputJsonValue,
+            patient: appointment.patient as unknown as Prisma.InputJsonValue,
             lead: appointment.lead as unknown as Prisma.InputJsonValue,
             supportStaff: (appointment.supportStaff ??
               []) as unknown as Prisma.InputJsonValue,
@@ -1955,10 +1962,10 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
-        companionId: appointment.companion.id,
+        patientId: appointment.patient.id,
         eventType: "APPOINTMENT_REQUESTED",
         actorType: "PARENT",
-        actorId: appointment.companion.parent.id,
+        actorId: appointment.patient.parent.id,
         entityType: "APPOINTMENT",
         entityId: created.id,
         metadata: {
@@ -1971,8 +1978,8 @@ export const AppointmentService = {
 
       const invoice = await InvoiceService.getOrCreateDraftForAppointment({
         appointmentId: created.id,
-        parentId: appointment.companion.parent.id,
-        companionId: appointment.companion.id,
+        parentId: appointment.patient.parent.id,
+        patientId: appointment.patient.id,
         organisationId: appointment.organisationId,
         items: catalogSelection
           ? mapCatalogSelectionToDraftItems(catalogSelection)
@@ -1988,6 +1995,13 @@ export const AppointmentService = {
         typeof (invoice as { id?: string }).id === "string"
           ? (invoice as { id: string }).id
           : (invoice as { _id?: Types.ObjectId })._id?.toString();
+
+      if (invoiceId) {
+        await InvoiceService.setInvoiceDepositTarget(
+          invoiceId,
+          invoice.totalAmount,
+        );
+      }
 
       const paymentIntent = invoiceId
         ? await StripeService.createPaymentIntentForInvoice(invoiceId)
@@ -2073,10 +2087,10 @@ export const AppointmentService = {
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
-      companionId: appointment.companion.id,
+      patientId: appointment.patient.id,
       eventType: "APPOINTMENT_REQUESTED",
       actorType: "PARENT",
-      actorId: appointment.companion.parent.id,
+      actorId: appointment.patient.parent.id,
       entityType: "APPOINTMENT",
       entityId: savedAppointment._id.toString(),
       metadata: {
@@ -2092,8 +2106,8 @@ export const AppointmentService = {
 
     const invoice = await InvoiceService.getOrCreateDraftForAppointment({
       appointmentId: savedAppointment._id.toString(),
-      parentId: appointment.companion.parent.id,
-      companionId: appointment.companion.id,
+      parentId: appointment.patient.parent.id,
+      patientId: appointment.patient.id,
       organisationId: appointment.organisationId,
       items: catalogSelection
         ? mapCatalogSelectionToDraftItems(catalogSelection)
@@ -2230,7 +2244,7 @@ export const AppointmentService = {
 
           const created = await tx.appointment.create({
             data: {
-              companion: appointment.companion,
+              patient: appointment.patient,
               lead: appointment.lead,
               supportStaff: appointment.supportStaff ?? [],
               room: appointment.room,
@@ -2267,8 +2281,8 @@ export const AppointmentService = {
 
         const invoice = await InvoiceService.createDraftForAppointment({
           appointmentId: appointmentRow.id,
-          parentId: appointment.companion.parent.id,
-          companionId: appointment.companion.id,
+          parentId: appointment.patient.parent.id,
+          patientId: appointment.patient.id,
           organisationId: appointment.organisationId,
           items: catalogSelection
             ? mapCatalogSelectionToDraftItems(catalogSelection)
@@ -2284,7 +2298,7 @@ export const AppointmentService = {
 
         await AuditTrailService.recordSafely({
           organisationId: appointment.organisationId,
-          companionId: appointment.companion.id,
+          patientId: appointment.patient.id,
           eventType: "APPOINTMENT_CREATED",
           actorType: "SYSTEM",
           entityType: "APPOINTMENT",
@@ -2316,20 +2330,20 @@ export const AppointmentService = {
           await createObservationToolTaskForAppointment({
             appointmentId: appointmentRow.id,
             organisationId: appointment.organisationId,
-            companionId: appointment.companion.id,
-            parentId: appointment.companion.parent.id,
+            patientId: appointment.patient.id,
+            parentId: appointment.patient.parent.id,
             observationToolId: service.observationToolId,
             appointmentStartTime: appointment.startTime,
           });
         }
 
         const notificationPayload = NotificationTemplates.Appointment.APPROVED(
-          appointment.companion.name,
+          appointment.patient.name,
           appointment.startTime.toDateString(),
         );
 
         await NotificationService.sendToUser(
-          appointment.companion.parent.id,
+          appointment.patient.parent.id,
           notificationPayload,
         );
 
@@ -2464,8 +2478,8 @@ export const AppointmentService = {
       const invoice = await InvoiceService.createDraftForAppointment(
         {
           appointmentId: doc._id.toString(),
-          parentId: appointment.companion.parent.id,
-          companionId: appointment.companion.id,
+          parentId: appointment.patient.parent.id,
+          patientId: appointment.patient.id,
           organisationId: appointment.organisationId,
           items: catalogSelection
             ? mapCatalogSelectionToDraftItems(catalogSelection)
@@ -2489,7 +2503,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
-        companionId: appointment.companion.id,
+        patientId: appointment.patient.id,
         eventType: "APPOINTMENT_CREATED",
         actorType: "SYSTEM",
         entityType: "APPOINTMENT",
@@ -2523,20 +2537,20 @@ export const AppointmentService = {
         await createObservationToolTaskForAppointment({
           appointmentId: doc._id.toString(),
           organisationId: appointment.organisationId,
-          companionId: appointment.companion.id,
-          parentId: appointment.companion.parent.id,
+          patientId: appointment.patient.id,
+          parentId: appointment.patient.parent.id,
           observationToolId: service.observationToolId._id.toString(),
           appointmentStartTime: appointment.startTime,
         });
       }
 
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
-        appointment.companion.name,
+        appointment.patient.name,
         appointment.startTime.toDateString(),
       );
 
       // Send notification to parent
-      const parentId = appointment.companion.parent.id;
+      const parentId = appointment.patient.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
 
       const organisationName = await getOrganisationName(
@@ -2659,7 +2673,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: updated.organisationId,
-        companionId: (updated.companion as { id: string }).id,
+        patientId: (updated.patient as { id: string }).id,
         eventType: "APPOINTMENT_APPROVED",
         actorType: "SYSTEM",
         entityType: "APPOINTMENT",
@@ -2671,11 +2685,11 @@ export const AppointmentService = {
 
       const appointmentDomain = toDomainFromPrisma(updated);
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
-        appointmentDomain.companion.name,
+        appointmentDomain.patient.name,
         appointmentDomain.startTime.toDateString(),
       );
 
-      const parentId = appointmentDomain.companion.parent.id;
+      const parentId = appointmentDomain.patient.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
 
       const organisationName = await getOrganisationName(
@@ -2771,7 +2785,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
-        companionId: appointment.companion.id,
+        patientId: appointment.patient.id,
         eventType: "APPOINTMENT_APPROVED",
         actorType: "SYSTEM",
         entityType: "APPOINTMENT",
@@ -2782,12 +2796,12 @@ export const AppointmentService = {
       });
 
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(
-        appointment.companion.name,
+        appointment.patient.name,
         appointment.startTime.toDateString(),
       );
 
       // Send notification to parent
-      const parentId = appointment.companion.parent.id;
+      const parentId = appointment.patient.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
 
       const organisationName = await getOrganisationName(
@@ -2855,7 +2869,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: updated.organisationId,
-        companionId: (updated.companion as { id: string }).id,
+        patientId: (updated.patient as { id: string }).id,
         eventType: "APPOINTMENT_CANCELLED",
         actorType: "SYSTEM",
         entityType: "APPOINTMENT",
@@ -2868,9 +2882,9 @@ export const AppointmentService = {
 
       const appointmentDomain = toDomainFromPrisma(updated);
       const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
-        appointmentDomain.companion.name,
+        appointmentDomain.patient.name,
       );
-      const parentId = appointmentDomain.companion.parent.id;
+      const parentId = appointmentDomain.patient.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
 
       return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
@@ -2925,7 +2939,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
-        companionId: appointment.companion.id,
+        patientId: appointment.patient.id,
         eventType: "APPOINTMENT_CANCELLED",
         actorType: "SYSTEM",
         entityType: "APPOINTMENT",
@@ -2937,10 +2951,10 @@ export const AppointmentService = {
       });
 
       const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
-        appointment.companion.name,
+        appointment.patient.name,
       );
       // Send notification to parent
-      const parentId = appointment.companion.parent.id;
+      const parentId = appointment.patient.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
 
       return toAppointmentResponseDTOWithPaymentStatus(appointment);
@@ -2966,7 +2980,7 @@ export const AppointmentService = {
 
       const appointmentDomain = toDomainFromPrisma(appointment);
 
-      if (appointmentDomain.companion.parent.id !== parentId) {
+      if (appointmentDomain.patient.parent.id !== parentId) {
         throw new AppointmentServiceError("Not your appointment", 403);
       }
 
@@ -3002,7 +3016,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: updated.organisationId,
-        companionId: (updated.companion as { id: string }).id,
+        patientId: (updated.patient as { id: string }).id,
         eventType: "APPOINTMENT_CANCELLED",
         actorType: "PARENT",
         actorId: parentId,
@@ -3036,7 +3050,7 @@ export const AppointmentService = {
     }
 
     // Verify parent is owner of companion
-    if (appointment.companion.parent.id !== parentId) {
+    if (appointment.patient.parent.id !== parentId) {
       throw new AppointmentServiceError("Not your appointment", 403);
     }
 
@@ -3071,7 +3085,7 @@ export const AppointmentService = {
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
-      companionId: appointment.companion.id,
+      patientId: appointment.patient.id,
       eventType: "APPOINTMENT_CANCELLED",
       actorType: "PARENT",
       actorId: parentId,
@@ -3136,7 +3150,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: updated.organisationId,
-        companionId: (updated.companion as { id: string }).id,
+        patientId: (updated.patient as { id: string }).id,
         eventType: "APPOINTMENT_CANCELLED",
         actorType: "SYSTEM",
         entityType: "APPOINTMENT",
@@ -3149,10 +3163,10 @@ export const AppointmentService = {
 
       const appointmentDomain = toDomainFromPrisma(updated);
       const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
-        appointmentDomain.companion.name,
+        appointmentDomain.patient.name,
       );
 
-      const parentId = appointmentDomain.companion.parent.id;
+      const parentId = appointmentDomain.patient.parent.id;
       await NotificationService.sendToUser(parentId, notificationPayload);
 
       return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
@@ -3192,7 +3206,7 @@ export const AppointmentService = {
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
-      companionId: appointment.companion.id,
+      patientId: appointment.patient.id,
       eventType: "APPOINTMENT_CANCELLED",
       actorType: "SYSTEM",
       entityType: "APPOINTMENT",
@@ -3204,11 +3218,11 @@ export const AppointmentService = {
     });
 
     const notificationPayload = NotificationTemplates.Appointment.CANCELLED(
-      appointment.companion.name,
+      appointment.patient.name,
     );
 
     // Send notification to parent
-    const parentId = appointment.companion.parent.id;
+    const parentId = appointment.patient.parent.id;
     await NotificationService.sendToUser(parentId, notificationPayload);
 
     return toAppointmentResponseDTOWithPaymentStatus(appointment);
@@ -3336,7 +3350,7 @@ export const AppointmentService = {
       for (const formId of newIds) {
         await AuditTrailService.recordSafely({
           organisationId: appointment.organisationId,
-          companionId: (appointment.companion as { id: string }).id,
+          patientId: (appointment.patient as { id: string }).id,
           eventType: "FORM_ATTACHED",
           actorType: "SYSTEM",
           entityType: "FORM",
@@ -3412,7 +3426,7 @@ export const AppointmentService = {
     for (const formId of newIds) {
       await AuditTrailService.recordSafely({
         organisationId: appointment.organisationId,
-        companionId: appointment.companion.id,
+        patientId: appointment.patient.id,
         eventType: "FORM_ATTACHED",
         actorType: "SYSTEM",
         entityType: "FORM",
@@ -3437,7 +3451,7 @@ export const AppointmentService = {
 
       const appointmentDomain = toDomainFromPrisma(appointment);
 
-      if (appointmentDomain.companion.parent.id !== parentId) {
+      if (appointmentDomain.patient.parent.id !== parentId) {
         throw new AppointmentServiceError("Not your appointment", 403);
       }
 
@@ -3461,7 +3475,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: updated.organisationId,
-        companionId: appointmentDomain.companion.id,
+        patientId: appointmentDomain.patient.id,
         eventType: "APPOINTMENT_CHECKED_IN",
         actorType: "PARENT",
         actorId: parentId,
@@ -3481,7 +3495,7 @@ export const AppointmentService = {
     }
 
     // Verify parent is owner of companion
-    if (appointment.companion.parent.id !== parentId) {
+    if (appointment.patient.parent.id !== parentId) {
       throw new AppointmentServiceError("Not your appointment", 403);
     }
 
@@ -3505,7 +3519,7 @@ export const AppointmentService = {
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
-      companionId: appointment.companion.id,
+      patientId: appointment.patient.id,
       eventType: "APPOINTMENT_CHECKED_IN",
       actorType: "PARENT",
       actorId: parentId,
@@ -3548,7 +3562,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: updated.organisationId,
-        companionId: (updated.companion as { id: string }).id,
+        patientId: (updated.patient as { id: string }).id,
         eventType: "APPOINTMENT_CHECKED_IN",
         actorType: "SYSTEM",
         entityType: "APPOINTMENT",
@@ -3585,7 +3599,7 @@ export const AppointmentService = {
 
     await AuditTrailService.recordSafely({
       organisationId: appointment.organisationId,
-      companionId: appointment.companion.id,
+      patientId: appointment.patient.id,
       eventType: "APPOINTMENT_CHECKED_IN",
       actorType: "SYSTEM",
       entityType: "APPOINTMENT",
@@ -3638,7 +3652,7 @@ export const AppointmentService = {
       }
 
       const appointmentDomain = toDomainFromPrisma(existing);
-      const existingParentId = appointmentDomain.companion.parent.id;
+      const existingParentId = appointmentDomain.patient.parent.id;
 
       if (!existingParentId || existingParentId !== parentId) {
         throw new AppointmentServiceError(
@@ -3712,7 +3726,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: updated.organisationId,
-        companionId: appointmentDomain.companion.id,
+        patientId: appointmentDomain.patient.id,
         eventType: "APPOINTMENT_RESCHEDULED",
         actorType: "PARENT",
         actorId: parentId,
@@ -3742,7 +3756,7 @@ export const AppointmentService = {
 
       // 1. Auth: ensure this parent owns the appointment
       const existingParentId =
-        existing.companion?.parent?.id ?? existing.companion?.parent?.id;
+        existing.patient?.parent?.id ?? existing.patient?.parent?.id;
 
       if (!existingParentId || existingParentId !== parentId) {
         throw new AppointmentServiceError(
@@ -3816,7 +3830,7 @@ export const AppointmentService = {
 
       await AuditTrailService.recordSafely({
         organisationId: existing.organisationId,
-        companionId: existing.companion.id,
+        patientId: existing.patient.id,
         eventType: "APPOINTMENT_RESCHEDULED",
         actorType: "PARENT",
         actorId: parentId,
@@ -3841,15 +3855,15 @@ export const AppointmentService = {
     }
   },
 
-  async getAppointmentsForCompanion(companionId: string) {
-    if (!companionId) {
-      throw new AppointmentServiceError("companionId is required", 400);
+  async getAppointmentsForCompanion(patientId: string) {
+    if (!patientId) {
+      throw new AppointmentServiceError("patientId is required", 400);
     }
 
     if (isReadFromPostgres()) {
       const rows = await prisma.appointment.findMany({
         where: {
-          companion: { path: ["id"], equals: companionId },
+          patient: { path: ["id"], equals: patientId },
         },
         orderBy: { startTime: "desc" },
       });
@@ -3901,7 +3915,7 @@ export const AppointmentService = {
     }
 
     const docs: AppointmentMongo[] = await AppointmentModel.find({
-      "companion.id": companionId,
+      "companion.id": patientId,
     })
       .sort({ startTime: -1 })
       .lean<AppointmentMongo[]>();
@@ -3974,11 +3988,11 @@ export const AppointmentService = {
   },
 
   async getAppointmentsForCompanionByOrganisation(
-    companionId: string,
+    patientId: string,
     organisationId: string,
   ) {
-    if (!companionId) {
-      throw new AppointmentServiceError("companionId is required", 400);
+    if (!patientId) {
+      throw new AppointmentServiceError("patientId is required", 400);
     }
     if (!organisationId) {
       throw new AppointmentServiceError("organisationId is required", 400);
@@ -3988,7 +4002,7 @@ export const AppointmentService = {
       const rows = await prisma.appointment.findMany({
         where: {
           organisationId,
-          companion: { path: ["id"], equals: companionId },
+          patient: { path: ["id"], equals: patientId },
         },
         orderBy: { startTime: "desc" },
       });
@@ -3997,7 +4011,7 @@ export const AppointmentService = {
     }
 
     const docs: AppointmentMongo[] = await AppointmentModel.find({
-      "companion.id": companionId,
+      "companion.id": patientId,
       organisationId,
     })
       .sort({ startTime: -1 })
@@ -4040,7 +4054,7 @@ export const AppointmentService = {
     if (isReadFromPostgres()) {
       const rows = await prisma.appointment.findMany({
         where: {
-          companion: { path: ["parent", "id"], equals: parentId },
+          patient: { path: ["parent", "id"], equals: parentId },
         },
         orderBy: { startTime: "desc" },
       });
@@ -4235,7 +4249,7 @@ export const AppointmentService = {
   },
 
   async searchAppointments(filter: {
-    companionId?: string;
+    patientId?: string;
     parentId?: string;
     organisationId?: string;
     leadId?: string;
@@ -4255,14 +4269,14 @@ export const AppointmentService = {
           lte: filter.endDate ?? undefined,
         };
       }
-      if (filter.companionId) {
+      if (filter.patientId) {
         andFilters.push({
-          companion: { path: ["id"], equals: filter.companionId },
+          patient: { path: ["id"], equals: filter.patientId },
         });
       }
       if (filter.parentId) {
         andFilters.push({
-          companion: { path: ["parent", "id"], equals: filter.parentId },
+          patient: { path: ["parent", "id"], equals: filter.parentId },
         });
       }
       if (filter.leadId) {
@@ -4303,7 +4317,7 @@ export const AppointmentService = {
 
     const query: FilterQuery<AppointmentMongo> = {};
 
-    if (filter.companionId) query["companion.id"] = filter.companionId;
+    if (filter.patientId) query["companion.id"] = filter.patientId;
     if (filter.parentId) query["companion.parent.id"] = filter.parentId;
     if (filter.organisationId) query.organisationId = filter.organisationId;
     if (filter.leadId) query["lead.id"] = filter.leadId;
@@ -4398,14 +4412,14 @@ export const AppointmentService = {
 const createObservationToolTaskForAppointment = async ({
   appointmentId,
   organisationId,
-  companionId,
+  patientId,
   parentId,
   observationToolId,
   appointmentStartTime,
 }: {
   appointmentId: string;
   organisationId: string;
-  companionId: string;
+  patientId: string;
   parentId: string;
   observationToolId: string;
   appointmentStartTime: Date;
@@ -4416,7 +4430,7 @@ const createObservationToolTaskForAppointment = async ({
     organisationId,
     appointmentId,
 
-    companionId,
+    patientId,
 
     createdBy: parentId,
     assignedBy: parentId,

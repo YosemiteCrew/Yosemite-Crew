@@ -395,7 +395,7 @@ describe("rendered-document-renderer service", () => {
           sourceKind: "TEMPLATE_INSTANCE",
           sourceId: "missing",
           organisationId: "org-1",
-          templateKind: TemplateKind.CARE_PATHWAY,
+          templateKind: "INPATIENT_SCHEDULE",
         },
       }),
     ).rejects.toThrow("Template instance not found");

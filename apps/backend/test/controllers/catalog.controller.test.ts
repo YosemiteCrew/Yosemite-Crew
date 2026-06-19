@@ -25,6 +25,9 @@ jest.mock("../../src/services/catalog.service", () => ({
     archiveSpeciality: jest.fn(),
     restoreSpeciality: jest.fn(),
     deleteSpeciality: jest.fn(),
+    listOrganisationsProvidingServiceNearby: jest.fn(),
+    getBookableSlotsService: jest.fn(),
+    getCalendarPrefillMatches: jest.fn(),
   },
   CatalogServiceError: class CatalogServiceError extends Error {
     statusCode: number;
@@ -210,6 +213,142 @@ describe("CatalogController", () => {
         message:
           "Catalog item cannot be permanently deleted because it has dependencies.",
         details: { appointments: 2 },
+      },
+    });
+  });
+
+  it("returns nearby organisations for catalog service search", async () => {
+    (
+      CatalogService.listOrganisationsProvidingServiceNearby as jest.Mock
+    ).mockResolvedValue([{ id: "org_1", name: "Clinic" }]);
+
+    const req = {
+      params: { organisationId: "org_1" },
+      query: { lat: "12.97", lng: "77.59" },
+    };
+    const res = createResponse();
+
+    await CatalogController.getCatalogNearbyOrganisations(
+      req as never,
+      res as never,
+    );
+
+    expect(
+      CatalogService.listOrganisationsProvidingServiceNearby,
+    ).toHaveBeenCalledWith(12.97, 77.59, 5000);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith([{ id: "org_1", name: "Clinic" }]);
+  });
+
+  it("allows nearby organisation requests without coordinates", async () => {
+    (
+      CatalogService.listOrganisationsProvidingServiceNearby as jest.Mock
+    ).mockResolvedValue([{ id: "org_1", name: "Clinic" }]);
+
+    const req = {
+      params: { organisationId: "org_1" },
+      query: {},
+    };
+    const res = createResponse();
+
+    await CatalogController.getCatalogNearbyOrganisations(
+      req as never,
+      res as never,
+    );
+
+    expect(
+      CatalogService.listOrganisationsProvidingServiceNearby,
+    ).toHaveBeenCalledWith(undefined, undefined, 5000);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith([{ id: "org_1", name: "Clinic" }]);
+  });
+
+  it("returns catalog bookable slots", async () => {
+    (CatalogService.getBookableSlotsService as jest.Mock).mockResolvedValue({
+      date: "2026-01-01",
+      windows: [],
+    });
+
+    const req = {
+      params: { organisationId: "org_1" },
+      body: {
+        productItemId: "prod_1",
+        date: "2026-01-01",
+      },
+    };
+    const res = createResponse();
+
+    await CatalogController.getCatalogBookableSlots(req as never, res as never);
+
+    expect(CatalogService.getBookableSlotsService).toHaveBeenCalledWith(
+      "prod_1",
+      "org_1",
+      new Date("2026-01-01T00:00:00.000Z"),
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: { date: "2026-01-01", windows: [] },
+    });
+  });
+
+  it("returns catalog calendar prefill matches", async () => {
+    (CatalogService.getCalendarPrefillMatches as jest.Mock).mockResolvedValue([
+      {
+        serviceId: "prod_1",
+        slot: {
+          startTime: "10:00",
+          endTime: "10:30",
+          vetIds: ["vet_1"],
+        },
+        meta: {
+          localStartMinute: 600,
+          localEndMinute: 630,
+        },
+      },
+    ]);
+
+    const req = {
+      params: { organisationId: "org_1" },
+      body: {
+        organisationId: "org_1",
+        date: "2026-01-01",
+        minuteOfDay: 600,
+        productItemIds: ["prod_1"],
+      },
+    };
+    const res = createResponse();
+
+    await CatalogController.getCatalogCalendarPrefill(
+      req as never,
+      res as never,
+    );
+
+    expect(CatalogService.getCalendarPrefillMatches).toHaveBeenCalledWith({
+      organisationId: "org_1",
+      date: new Date("2026-01-01T00:00:00.000Z"),
+      minuteOfDay: 600,
+      leadId: undefined,
+      serviceIds: ["prod_1"],
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: {
+        matches: [
+          {
+            serviceId: "prod_1",
+            slot: {
+              startTime: "10:00",
+              endTime: "10:30",
+              vetIds: ["vet_1"],
+            },
+            meta: {
+              localStartMinute: 600,
+              localEndMinute: 630,
+            },
+          },
+        ],
       },
     });
   });

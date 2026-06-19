@@ -1,3 +1,8 @@
+---
+name: monorepo-ops
+description: Use for monorepo-level work — running pnpm and turbo scripts, adding dependencies, changing shared packages, or cross-app changes. Covers workspace layout, filters, and build and validation order.
+---
+
 # Monorepo Operations — Yosemite Crew
 
 ## Description
@@ -14,7 +19,7 @@ TRIGGER: tasks spanning multiple apps, dependency changes, turbo commands, pnpm 
 apps/
   frontend/       @yosemite-crew/frontend
   backend/        @yosemite-crew/backend
-  mobileAppYC/    @yosemite-crew/mobile
+  mobileAppYC/    mobileAppYC
   dev-docs/       @yosemite-crew/dev-docs
 packages/
   types/          @yosemite-crew/types
@@ -56,7 +61,7 @@ npx tsc --noemit
 
 # Tests (targeted)
 pnpm --filter frontend run test -- --testPathPattern="ComponentName"
-pnpm --filter mobile run test -- --testPathPattern="ScreenName"
+pnpm --filter mobileAppYC run test -- --testPathPattern="ScreenName"
 ```
 
 ---
@@ -67,7 +72,7 @@ pnpm --filter mobile run test -- --testPathPattern="ScreenName"
 # Add to a specific app
 pnpm --filter frontend add <package>
 pnpm --filter backend add <package>
-pnpm --filter mobile add <package>
+pnpm --filter mobileAppYC add <package>
 
 # Add as devDependency
 pnpm --filter frontend add -D <package>
@@ -86,7 +91,7 @@ pnpm add -D -w <package>
 When changing `packages/types` or `packages/fhirtypes`:
 
 1. Update the type definitions.
-2. Run `pnpm --filter @yosemite-crew/types build` (if it has a build step).
+2. Build the package you changed: `pnpm --filter @yosemite-crew/types build` or `pnpm --filter @yosemite-crew/fhirtypes build` (both have a `build` script).
 3. All consumers (frontend, backend, mobile) pick up changes automatically via workspace links.
 4. Run type-check in each affected app.
 

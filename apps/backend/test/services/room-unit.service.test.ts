@@ -76,6 +76,43 @@ describe("RoomUnitService", () => {
     expect(result.code).toBe("KEN-01");
   });
 
+  it("creates a room unit without an optional unit group", async () => {
+    mockedPrisma.roomUnit.create.mockResolvedValue({
+      id: "unit-2",
+      organisationId: "org_1",
+      roomId: "room_1",
+      unitGroupId: null,
+      code: "KEN-02",
+      displayName: "Kennel 2",
+      size: null,
+      speciesConstraints: [],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await RoomUnitService.create({
+      id: "unit-2",
+      organisationId: "org_1",
+      roomId: "room_1",
+      code: "KEN-02",
+      displayName: "Kennel 2",
+      size: "   ",
+      speciesConstraints: undefined,
+    });
+
+    expect(mockedPrisma.roomUnitGroup.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.roomUnit.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          unitGroupId: null,
+          size: null,
+        }),
+      }),
+    );
+    expect(result.unitGroupId).toBeUndefined();
+  });
+
   it("rejects units for unsupported room types", async () => {
     mockedPrisma.organisationRoom.findUnique.mockResolvedValueOnce({
       id: "room_1",
@@ -140,6 +177,54 @@ describe("RoomUnitService", () => {
       },
       orderBy: { displayName: "asc" },
     });
+  });
+
+  it("updates a room unit without changing its group membership", async () => {
+    mockedPrisma.roomUnit.findUnique.mockResolvedValue({
+      id: "unit_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      unitGroupId: null,
+      code: "KEN-01",
+      displayName: "Kennel 1",
+      size: "M",
+      speciesConstraints: ["dog"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockedPrisma.roomUnit.update.mockResolvedValue({
+      id: "unit_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      unitGroupId: null,
+      code: "KEN-01",
+      displayName: "Kennel 1 Updated",
+      size: "M",
+      speciesConstraints: ["dog"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await RoomUnitService.update("unit_1", {
+      displayName: "Kennel 1 Updated",
+    });
+
+    expect(mockedPrisma.roomUnitGroup.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.roomUnit.update).toHaveBeenCalledWith({
+      where: { id: "unit_1" },
+      data: {
+        roomId: "room_1",
+        unitGroupId: null,
+        code: undefined,
+        displayName: "Kennel 1 Updated",
+        size: undefined,
+        speciesConstraints: undefined,
+        isActive: undefined,
+      },
+    });
+    expect(result.displayName).toBe("Kennel 1 Updated");
   });
 
   it("deletes a room unit in the same organisation", async () => {

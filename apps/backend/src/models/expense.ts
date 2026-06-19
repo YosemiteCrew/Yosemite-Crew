@@ -7,7 +7,7 @@ export interface ExternalExpenseAttachment {
 }
 
 export interface ExternalExpenseMongo {
-  companionId: string;
+  patientId: string;
   parentId: string;
 
   category: string;
@@ -40,7 +40,7 @@ const AttachmentSchema = new Schema(
 
 const ExternalExpenseSchema = new Schema(
   {
-    companionId: { type: String, required: true, index: true },
+    patientId: { type: String, required: true, index: true },
     parentId: { type: String, required: true, index: true },
 
     category: { type: String, required: true },

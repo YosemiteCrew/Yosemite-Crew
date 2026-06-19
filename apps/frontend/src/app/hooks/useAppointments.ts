@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
-import { Appointment } from '@yosemite-crew/types';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
+import { AppointmentWithCompanion } from '@/app/features/appointments/types/appointments';
 
 export const useLoadAppointmentsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -16,7 +16,7 @@ export const useLoadAppointmentsForPrimaryOrg = () => {
   }, [primaryOrgId]);
 };
 
-export const useAppointmentsForPrimaryOrg = (): Appointment[] => {
+export const useAppointmentsForPrimaryOrg = (): AppointmentWithCompanion[] => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
   const appointmentIdsByOrgId = useAppointmentStore((s) => s.appointmentIdsByOrgId);
@@ -24,11 +24,15 @@ export const useAppointmentsForPrimaryOrg = (): Appointment[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = appointmentIdsByOrgId[primaryOrgId] ?? [];
-    return ids.map((id) => appointmentsById[id]).filter((a): a is Appointment => a != null);
+    return ids
+      .map((id) => appointmentsById[id])
+      .filter((a): a is AppointmentWithCompanion => Boolean(a?.companion));
   }, [primaryOrgId, appointmentsById, appointmentIdsByOrgId]);
 };
 
-export const useAppointmentsForCompanionInPrimaryOrg = (companionId?: string): Appointment[] => {
+export const useAppointmentsForCompanionInPrimaryOrg = (
+  companionId?: string
+): AppointmentWithCompanion[] => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
   const appointmentIdsByOrgId = useAppointmentStore((s) => s.appointmentIdsByOrgId);
@@ -37,7 +41,7 @@ export const useAppointmentsForCompanionInPrimaryOrg = (companionId?: string): A
     const ids = appointmentIdsByOrgId[primaryOrgId] ?? [];
     return ids
       .map((id) => appointmentsById[id])
-      .filter(Boolean)
+      .filter((a): a is AppointmentWithCompanion => Boolean(a?.companion))
       .filter((a) => a.companion.id === companionId);
   }, [primaryOrgId, companionId, appointmentsById, appointmentIdsByOrgId]);
 };

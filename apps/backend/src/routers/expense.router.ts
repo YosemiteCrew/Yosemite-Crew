@@ -25,13 +25,13 @@ router.get(
 );
 
 router.get(
-  "/companion/:companionId/list",
+  "/companion/:patientId/list",
   authorizeCognitoMobile,
   ExpenseController.getExpensesByCompanion,
 );
 
 router.get(
-  "/companion/:companionId/summary",
+  "/companion/:patientId/summary",
   authorizeCognitoMobile,
   ExpenseController.getExpenseSummary,
 );

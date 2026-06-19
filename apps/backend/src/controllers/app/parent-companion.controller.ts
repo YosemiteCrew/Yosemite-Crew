@@ -4,7 +4,6 @@ import {
   ParentCompanionService,
   ParentCompanionServiceError,
 } from "../../services/parent-companion.service";
-import { Types } from "mongoose";
 import { ParentService } from "src/services/parent.service";
 import type { ParentCompanionPermissions } from "@yosemite-crew/types";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
@@ -16,12 +15,8 @@ const resolveAuthenticatedUserId = (req: Request): string | undefined => {
   return trimmedUserId || undefined;
 };
 
-const resolveParentId = (parent: {
-  id?: string;
-  _id?: { toString(): string };
-}): string => {
+const resolveParentId = (parent: { id?: string }): string => {
   if ("id" in parent && typeof parent.id === "string") return parent.id;
-  if ("_id" in parent && parent._id) return parent._id.toString();
   throw new Error("Parent id missing");
 };
 
@@ -30,13 +25,11 @@ export const ParentCompanionController = {
     try {
       const { parentId } = req.params;
 
-      if (!Types.ObjectId.isValid(parentId)) {
+      if (!parentId || typeof parentId !== "string" || !parentId.trim()) {
         return res.status(400).json({ message: "Invalid parent ID." });
       }
 
-      const links = await ParentCompanionService.getLinksForParent(
-        new Types.ObjectId(parentId),
-      );
+      const links = await ParentCompanionService.getLinksForParent(parentId);
       return res.status(200).json({ links });
     } catch (error) {
       logger.error("Failed to get parent companion links", error);
@@ -46,15 +39,14 @@ export const ParentCompanionController = {
 
   getLinksForCompanion: async (req: Request, res: Response) => {
     try {
-      const { companionId } = req.params;
+      const { patientId } = req.params;
 
-      if (!Types.ObjectId.isValid(companionId)) {
+      if (!patientId || typeof patientId !== "string" || !patientId.trim()) {
         return res.status(400).json({ message: "Invalid companion ID." });
       }
 
-      const links = await ParentCompanionService.getLinksForCompanion(
-        new Types.ObjectId(companionId),
-      );
+      const links =
+        await ParentCompanionService.getLinksForCompanion(patientId);
       return res.status(200).json({ links });
     } catch (error) {
       logger.error("Failed to get companion links", error);
@@ -68,7 +60,7 @@ export const ParentCompanionController = {
       const requestingParent = await ParentService.findByLinkedUserId(
         authUserId!,
       );
-      const { companionId, targetParentId } = req.params;
+      const { patientId, targetParentId } = req.params;
       const updates = (
         typeof req.body === "object" && req.body ? req.body : {}
       ) as Partial<ParentCompanionPermissions>;
@@ -79,19 +71,16 @@ export const ParentCompanionController = {
           .json({ message: "Not authenticated as parent." });
       }
 
-      if (
-        !Types.ObjectId.isValid(companionId) ||
-        !Types.ObjectId.isValid(targetParentId)
-      ) {
+      if (!patientId || !targetParentId) {
         return res
           .status(400)
           .json({ message: "Invalid parent or companion ID." });
       }
 
       const updated = await ParentCompanionService.updatePermissions(
-        new Types.ObjectId(resolveParentId(requestingParent)),
-        new Types.ObjectId(targetParentId),
-        new Types.ObjectId(companionId),
+        resolveParentId(requestingParent),
+        targetParentId,
+        patientId,
         updates,
       );
 
@@ -111,7 +100,7 @@ export const ParentCompanionController = {
       const requestingParent = await ParentService.findByLinkedUserId(
         authUserId!,
       );
-      const { companionId, targetParentId } = req.params;
+      const { patientId, targetParentId } = req.params;
 
       if (!requestingParent) {
         return res
@@ -119,19 +108,16 @@ export const ParentCompanionController = {
           .json({ message: "Not authenticated as parent." });
       }
 
-      if (
-        !Types.ObjectId.isValid(companionId) ||
-        !Types.ObjectId.isValid(targetParentId)
-      ) {
+      if (!patientId || !targetParentId) {
         return res
           .status(400)
           .json({ message: "Invalid parent or companion ID." });
       }
 
       const updated = await ParentCompanionService.promoteToPrimary(
-        new Types.ObjectId(resolveParentId(requestingParent)),
-        new Types.ObjectId(companionId),
-        new Types.ObjectId(targetParentId),
+        resolveParentId(requestingParent),
+        patientId,
+        targetParentId,
       );
 
       return res.status(200).json(updated);
@@ -150,7 +136,7 @@ export const ParentCompanionController = {
       const requestingParent = await ParentService.findByLinkedUserId(
         authUserId!,
       );
-      const { companionId, coParentId } = req.params;
+      const { patientId, coParentId } = req.params;
 
       if (!requestingParent) {
         return res
@@ -158,19 +144,16 @@ export const ParentCompanionController = {
           .json({ message: "Not authenticated as parent." });
       }
 
-      if (
-        !Types.ObjectId.isValid(companionId) ||
-        !Types.ObjectId.isValid(coParentId)
-      ) {
+      if (!patientId || !coParentId) {
         return res
           .status(400)
           .json({ message: "Invalid parent or companion ID." });
       }
 
       await ParentCompanionService.removeCoParent(
-        new Types.ObjectId(resolveParentId(requestingParent)),
-        new Types.ObjectId(coParentId),
-        new Types.ObjectId(companionId),
+        resolveParentId(requestingParent),
+        coParentId,
+        patientId,
         false,
       );
 

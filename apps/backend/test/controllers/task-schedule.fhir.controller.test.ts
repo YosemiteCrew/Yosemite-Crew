@@ -14,6 +14,7 @@ jest.mock("../../src/services/task-workflow.service", () => {
 
   return {
     TaskWorkflowService: {
+      listSchedulesForEncounter: jest.fn(),
       launchFromTemplateInstance: jest.fn(),
       pauseSchedule: jest.fn(),
       resumeSchedule: jest.fn(),
@@ -67,6 +68,42 @@ describe("TaskScheduleFhirController", () => {
     mockedMapper.getBooleanParameter.mockReturnValue(false);
     mockedMapper.getDateParameter.mockReturnValue(undefined);
     mockedMapper.toTask.mockReturnValue({ resourceType: "Task" } as never);
+  });
+
+  it("lists encounter schedules as a FHIR bundle", async () => {
+    mockedService.listSchedulesForEncounter.mockResolvedValueOnce([
+      { id: "schedule-1" },
+      { id: "schedule-2" },
+    ] as never);
+
+    await TaskScheduleFhirController.listEncounterSchedules(
+      {
+        ...req,
+        params: {
+          organisationId: "org-1",
+          encounterId: "enc-1",
+        },
+      } as Request,
+      res as Response,
+    );
+
+    expect(mockedService.listSchedulesForEncounter).toHaveBeenCalledWith(
+      "org-1",
+      "enc-1",
+    );
+    expect(mockedMapper.toTask).toHaveBeenCalledTimes(2);
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resourceType: "Bundle",
+        type: "searchset",
+        total: 2,
+        entry: [
+          { resource: { resourceType: "Task" } },
+          { resource: { resourceType: "Task" } },
+        ],
+      }),
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
   });
 
   it("applies, pauses, resumes, cancels, and regenerates schedules", async () => {

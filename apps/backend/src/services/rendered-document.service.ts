@@ -7,6 +7,8 @@ import {
   buildRenderedDocumentDraft as buildRenderedDocumentDraftContract,
   buildRenderedDocumentPdfSnapshot,
   isSignableRenderedDocumentKind,
+  normalizeTemplateKind,
+  toLegacyTemplateKind,
   signRenderedDocument as signRenderedDocumentContract,
   type BuildRenderedDocumentInput,
   type PersistRenderedDocumentInput,
@@ -148,7 +150,7 @@ const toRenderedDocumentCreateData = (
   templateId: draft.source.templateId ?? undefined,
   templateVersion: draft.source.templateVersion ?? undefined,
   templateVersionId: draft.source.templateVersionId ?? undefined,
-  kind: draft.kind,
+  kind: toLegacyTemplateKind(draft.kind),
   version: draft.version,
   title: draft.title,
   mimeType: draft.mimeType,
@@ -165,6 +167,16 @@ const toRenderedDocumentCreateData = (
   signedAt: draft.signedAt ?? undefined,
   signing: draft.signing ?? undefined,
 });
+
+const normalizePersistedRenderedDocument = (
+  document: PersistedRenderedDocument,
+): PersistedRenderedDocument =>
+  ({
+    ...document,
+    kind: normalizeTemplateKind(
+      document.kind,
+    ) as PersistedRenderedDocument["kind"],
+  }) as PersistedRenderedDocument;
 
 export const createRenderedDocumentRecord = async (
   input: PersistRenderedDocumentInput,
@@ -205,7 +217,7 @@ export const getPersistedRenderedDocument = async (
     );
   }
 
-  return document;
+  return normalizePersistedRenderedDocument(document);
 };
 
 export const signPersistedRenderedDocument = async (
@@ -308,24 +320,26 @@ export const signPersistedRenderedDocument = async (
     apiKey,
   });
 
-  return client.renderedDocument.update({
-    where: { id: existing.id },
-    data: {
-      pdf: renderedPdfSnapshot as unknown as Prisma.InputJsonValue,
-      signing: {
-        required: true,
-        provider: "DOCUMENSO",
-        status: "IN_PROGRESS",
-        documentId: doc.id.toString(),
-        signerId: input.signerId,
-        signerType: input.signerType,
-        signerEmail: input.signerEmail,
-        signerName: input.signerName,
-        signingUrl,
-      } as unknown as Prisma.InputJsonValue,
-    },
-    include: { signature: true },
-  });
+  return normalizePersistedRenderedDocument(
+    await client.renderedDocument.update({
+      where: { id: existing.id },
+      data: {
+        pdf: renderedPdfSnapshot as unknown as Prisma.InputJsonValue,
+        signing: {
+          required: true,
+          provider: "DOCUMENSO",
+          status: "IN_PROGRESS",
+          documentId: doc.id.toString(),
+          signerId: input.signerId,
+          signerType: input.signerType,
+          signerEmail: input.signerEmail,
+          signerName: input.signerName,
+          signingUrl,
+        } as unknown as Prisma.InputJsonValue,
+      },
+      include: { signature: true },
+    }),
+  );
 };
 
 export const completePersistedRenderedDocumentSigning = async (
@@ -392,21 +406,23 @@ export const completePersistedRenderedDocumentSigning = async (
     },
   });
 
-  return client.renderedDocument.update({
-    where: { id: existing.id },
-    data: {
-      status: "SIGNED",
-      signedBy: signing.signerId ?? existing.signedBy ?? undefined,
-      signedAt: new Date(),
-      pdfUrl: signedPdf.downloadUrl ?? existing.pdfUrl ?? undefined,
-      signing: {
-        ...signing,
+  return normalizePersistedRenderedDocument(
+    await client.renderedDocument.update({
+      where: { id: existing.id },
+      data: {
         status: "SIGNED",
-        pdf: {
-          url: signedPdf.downloadUrl ?? null,
-        },
-      } as unknown as Prisma.InputJsonValue,
-    },
-    include: { signature: true },
-  });
+        signedBy: signing.signerId ?? existing.signedBy ?? undefined,
+        signedAt: new Date(),
+        pdfUrl: signedPdf.downloadUrl ?? existing.pdfUrl ?? undefined,
+        signing: {
+          ...signing,
+          status: "SIGNED",
+          pdf: {
+            url: signedPdf.downloadUrl ?? null,
+          },
+        } as unknown as Prisma.InputJsonValue,
+      },
+      include: { signature: true },
+    }),
+  );
 };

@@ -19,7 +19,7 @@ export const LabResultService = {
     organisationId?: string;
     provider?: string;
     orderId?: string;
-    companionId?: string;
+    patientId?: string;
     limit?: number;
   }) {
     const filter: Record<string, unknown> = {};
@@ -46,12 +46,12 @@ export const LabResultService = {
       if (safeProvider) where.provider = safeProvider;
       if (safeOrderId) where.orderId = safeOrderId;
 
-      if (params.companionId) {
-        if (!Types.ObjectId.isValid(params.companionId)) {
-          throw new LabResultServiceError("Invalid companionId", 400);
+      if (params.patientId) {
+        if (!Types.ObjectId.isValid(params.patientId)) {
+          throw new LabResultServiceError("Invalid patientId", 400);
         }
         const orders = await prisma.labOrder.findMany({
-          where: { companionId: params.companionId },
+          where: { patientId: params.patientId },
           select: { idexxOrderId: true },
         });
         const orderIds = orders
@@ -74,12 +74,12 @@ export const LabResultService = {
     if (safeProvider) filter.provider = safeProvider;
     if (safeOrderId) filter.orderId = safeOrderId;
 
-    if (params.companionId) {
-      if (!Types.ObjectId.isValid(params.companionId)) {
-        throw new LabResultServiceError("Invalid companionId", 400);
+    if (params.patientId) {
+      if (!Types.ObjectId.isValid(params.patientId)) {
+        throw new LabResultServiceError("Invalid patientId", 400);
       }
       const orders = (await LabOrderModel.find(
-        { companionId: params.companionId },
+        { patientId: params.patientId },
         { idexxOrderId: 1 },
       )
         .setOptions({ sanitizeFilter: true })

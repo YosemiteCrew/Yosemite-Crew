@@ -85,7 +85,10 @@ type DayCalendarProps = {
 };
 
 const getCompanionDisplayName = (appointment: Appointment) =>
-  formatCompanionNameWithOwnerLastName(appointment.companion?.name, appointment.companion?.parent);
+  formatCompanionNameWithOwnerLastName(
+    (appointment.companion ?? appointment.patient).name,
+    (appointment.companion ?? appointment.patient).parent
+  );
 
 const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
   const concernSuffix = appointment.concern ? `. ${appointment.concern}` : '';
@@ -95,7 +98,7 @@ const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
 const MARKER_CLICK_DELAY_MS = 180;
 
 const getEventKey = (event: Appointment, index: number, source: 'all-day' | 'timed') =>
-  `${source}-${event.companion.name}-${event.startTime.toISOString()}-${index}`;
+  `${source}-${(event.companion ?? event.patient).name}-${event.startTime.toISOString()}-${index}`;
 
 const setCustomDragGhost = (
   event: React.DragEvent<HTMLButtonElement>,
@@ -103,8 +106,8 @@ const setCustomDragGhost = (
 ) => {
   const ghost = document.createElement('img');
   ghost.src = getSafeImageUrl(
-    getAppointmentCompanionPhotoUrl(appointment.companion),
-    appointment.companion.species.toLowerCase() as ImageType
+    getAppointmentCompanionPhotoUrl(appointment.companion ?? appointment.patient),
+    (appointment.companion ?? appointment.patient).species.toLowerCase() as ImageType
   );
   ghost.width = 24;
   ghost.height = 24;
@@ -559,7 +562,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                   <Image
                     src={getSafeImageUrl(
                       getAppointmentCompanionPhotoUrl(ev.companion),
-                      ev.companion.species.toLowerCase() as ImageType
+                      (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
                     )}
                     height={20}
                     width={20}
@@ -710,7 +713,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
               const draggable = !!canDragAppointment?.(ev);
               return (
                 <div
-                  key={ev.companion.name + i}
+                  key={(ev.companion ?? ev.patient).name + i}
                   className={`absolute scrollbar-hidden ${isZoomOut ? 'rounded-md! p-0 bg-transparent' : 'rounded-xl! px-2 py-1.5 overflow-hidden'}`}
                   style={{
                     top: ev.topPx * yScale,
@@ -787,7 +790,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                           <Image
                             src={getSafeImageUrl(
                               getAppointmentCompanionPhotoUrl(ev.companion),
-                              ev.companion.species.toLowerCase() as ImageType
+                              (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
                             )}
                             height={26}
                             width={26}

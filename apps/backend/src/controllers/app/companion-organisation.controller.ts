@@ -28,13 +28,13 @@ const isOrganisationType = (value: unknown): value is OrganisationType =>
   (ORGANISATION_TYPES as readonly string[]).includes(value);
 
 type LinkPayload = {
-  companionId: string;
+  patientId: string;
   organisationId: string;
   organisationType: OrganisationType;
 };
 
 type InvitePayload = {
-  companionId: string;
+  patientId: string;
   email?: string | null;
   name?: string | null;
   placesId?: string | null;
@@ -48,31 +48,30 @@ type InviteResolutionPayload = {
 
 const parseLinkPayload = (body: unknown): LinkPayload | null => {
   if (!body || typeof body !== "object") return null;
-  const { companionId, organisationId, organisationType } = body as Record<
+  const { patientId, organisationId, organisationType } = body as Record<
     string,
     unknown
   >;
 
   if (
-    typeof companionId !== "string" ||
+    typeof patientId !== "string" ||
     typeof organisationId !== "string" ||
     !isOrganisationType(organisationType)
   ) {
     return null;
   }
 
-  return { companionId, organisationId, organisationType };
+  return { patientId, organisationId, organisationType };
 };
 
 const parseInvitePayload = (body: unknown): InvitePayload | null => {
   if (!body || typeof body !== "object") return null;
-  const { companionId, email, name, organisationType, placesId } =
-    body as Record<string, unknown>;
+  const { patientId, email, name, organisationType, placesId } = body as Record<
+    string,
+    unknown
+  >;
 
-  if (
-    typeof companionId !== "string" ||
-    !isOrganisationType(organisationType)
-  ) {
+  if (typeof patientId !== "string" || !isOrganisationType(organisationType)) {
     return null;
   }
 
@@ -87,7 +86,7 @@ const parseInvitePayload = (body: unknown): InvitePayload | null => {
   }
 
   return {
-    companionId,
+    patientId,
     email: emailValid ? email.trim() : undefined,
     name: nameValid ? name.trim() : undefined,
     placesId: placesIdValid ? placesId.trim() : undefined,
@@ -148,7 +147,7 @@ export const CompanionOrganisationController = {
       if (!linkPayload) {
         return res.status(400).json({
           message:
-            "companionId, organisationId and organisationType are required.",
+            "patientId, organisationId and organisationType are required.",
         });
       }
 
@@ -173,9 +172,9 @@ export const CompanionOrganisationController = {
       if (!pmsUser)
         return res.status(401).json({ message: "User not authenticated" });
 
-      const { companionId, organisationId } = req.params;
+      const { patientId, organisationId } = req.params;
 
-      if (!companionId || !organisationId) {
+      if (!patientId || !organisationId) {
         return res
           .status(400)
           .json({ message: "CompanionId and OrganisationId is required." });
@@ -192,7 +191,7 @@ export const CompanionOrganisationController = {
 
       const link = await CompanionOrganisationService.linkByPmsUser({
         pmsUserId: pmsUser,
-        companionId,
+        patientId,
         organisationId,
         organisationType: organisation.type,
       });
@@ -255,7 +254,7 @@ export const CompanionOrganisationController = {
       if (!invitePayload) {
         return res.status(400).json({
           message:
-            "companionId, email and organisationType are required to send an invite.",
+            "patientId, email and organisationType are required to send an invite.",
         });
       }
 
@@ -377,10 +376,10 @@ export const CompanionOrganisationController = {
 
   getLinksForCompanion: async (req: Request, res: Response) => {
     try {
-      const { companionId } = req.params;
+      const { patientId } = req.params;
 
       const links =
-        await CompanionOrganisationService.getLinksForCompanion(companionId);
+        await CompanionOrganisationService.getLinksForCompanion(patientId);
 
       return res.status(200).json(links);
     } catch (error) {
@@ -410,10 +409,10 @@ export const CompanionOrganisationController = {
     res: Response,
   ) => {
     try {
-      const { companionId } = req.params;
+      const { patientId } = req.params;
       const { type } = req.query;
 
-      if (!companionId) {
+      if (!patientId) {
         return res.status(400).json({ message: "Companion ID is required." });
       }
 
@@ -425,7 +424,7 @@ export const CompanionOrganisationController = {
 
       const links =
         await CompanionOrganisationService.getLinksForCompanionByOrganisationTye(
-          companionId,
+          patientId,
           type,
         );
 

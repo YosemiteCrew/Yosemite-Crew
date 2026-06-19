@@ -1,31 +1,51 @@
-import { Types } from "mongoose";
 import { randomUUID } from "node:crypto";
-import CompanionOrganisationModel, {
-  CompanionOrganisationDocument,
-} from "../models/companion-organisation";
-import { assertSafeString } from "src/utils/sanitize";
-import ParentCompanionModel from "src/models/parent-companion";
-import CompanionModel from "../models/companion";
-import { ParentModel } from "src/models/parent";
 import {
-  toFHIR as toFHIRCompanion,
-  toFHIRFromPrisma as toFHIRCompanionFromPrisma,
-} from "./companion.service";
-import {
-  toFHIR as toFHIRParent,
-  toFHIRFromPrisma as toFHIRParentFromPrisma,
-} from "./parent.service";
-import { AuditTrailService } from "./audit-trail.service";
-import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
-import {
-  CompanionOrganisationRole,
-  CompanionOrganisationStatus,
   OrganisationType,
+  PatientOrganisationRole,
+  PatientOrganisationStatus,
+  Prisma,
 } from "@prisma/client";
-import { isReadFromPostgres } from "src/config/read-switch";
+import type { PatientOrganisation } from "@prisma/client";
+import { prisma } from "src/config/prisma";
+import { assertSafeString } from "src/utils/sanitize";
+import { AuditTrailService } from "./audit-trail.service";
+import { toFHIRFromPrisma as toFHIRCompanionFromPrisma } from "./companion.service";
+import { toFHIRFromPrisma as toFHIRParentFromPrisma } from "./parent.service";
+import { Types } from "mongoose";
 
 type BusinessType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+
+type CompanionOrganisationLinkOrganization = {
+  id: string;
+  name: string;
+  phoneNo: string;
+  email?: string;
+  imageURL?: string;
+  googlePlacesId?: string;
+  address?: {
+    addressLine?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+};
+
+type CompanionOrganisationLinkWithOrganization = {
+  id: string;
+  organization: CompanionOrganisationLinkOrganization | null;
+  organisationType: BusinessType;
+  status: PatientOrganisationStatus;
+  patientId: string;
+};
+
+type CompanionOrganisationLinksResponse = {
+  links: CompanionOrganisationLinkWithOrganization[];
+};
+
+type PatientOrganisationRecord = PatientOrganisation & {
+  _id: string;
+};
 
 export class CompanionOrganisationServiceError extends Error {
   constructor(
@@ -37,196 +57,222 @@ export class CompanionOrganisationServiceError extends Error {
   }
 }
 
-const ensureObjectId = (value: string | Types.ObjectId, field: string) => {
-  // Reject objects or unexpected input
-  if (value instanceof Types.ObjectId) {
-    return value;
-  }
+const requireId = (value: string | Types.ObjectId, field: string) => {
+  const trimmed = assertSafeString(String(value), field);
 
-  if (typeof value !== "string") {
+  if (!trimmed || trimmed.includes("$") || trimmed.includes(".")) {
     throw new CompanionOrganisationServiceError(`Invalid ${field}`, 400);
   }
 
-  // Prevent NoSQL injection attempts: disallow $ and .
-  if (value.includes("$") || value.includes(".")) {
-    throw new CompanionOrganisationServiceError(`Invalid ${field}`, 400);
-  }
-
-  // Ensure format is strictly 24 hex chars
-  if (!/^[a-fA-F0-9]{24}$/.test(value)) {
-    throw new CompanionOrganisationServiceError(`Invalid ${field}`, 400);
-  }
-
-  return new Types.ObjectId(value);
+  return trimmed;
 };
 
-const toPrismaCompanionOrganisationData = (
-  doc: CompanionOrganisationDocument,
-) => {
-  const obj = doc.toObject() as CompanionOrganisationDocument & {
-    _id: Types.ObjectId;
-    createdAt?: Date;
-    updatedAt?: Date;
-  };
+const toRecord = (link: PatientOrganisation): PatientOrganisationRecord => ({
+  ...link,
+  _id: link.id,
+});
 
-  return {
-    id: obj._id.toString(),
-    companionId: obj.companionId.toString(),
-    organisationId: obj.organisationId
-      ? obj.organisationId.toString()
-      : undefined,
-    linkedByParentId: obj.linkedByParentId
-      ? obj.linkedByParentId.toString()
-      : undefined,
-    linkedByPmsUserId: obj.linkedByPmsUserId ?? undefined,
-    organisationType: obj.organisationType as OrganisationType,
-    role: obj.role as CompanionOrganisationRole,
-    status: obj.status as CompanionOrganisationStatus,
-    invitedViaEmail: obj.invitedViaEmail ?? undefined,
-    organisationName: obj.organisationName ?? undefined,
-    organisationPlacesId: obj.organisationPlacesId ?? undefined,
-    inviteToken: obj.inviteToken ?? undefined,
-    acceptedAt: obj.acceptedAt ?? undefined,
-    rejectedAt: obj.rejectedAt ?? undefined,
-    createdAt: obj.createdAt ?? undefined,
-    updatedAt: obj.updatedAt ?? undefined,
-  };
-};
+const mapOrganizationFromPrisma = (organization: {
+  id: string;
+  name: string;
+  phoneNo: string;
+  email: string | null;
+  imageUrl: string | null;
+  googlePlacesId: string | null;
+  address: {
+    addressLine: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    country: string | null;
+  } | null;
+}): CompanionOrganisationLinkOrganization => ({
+  id: organization.id,
+  name: organization.name,
+  phoneNo: organization.phoneNo,
+  email: organization.email ?? undefined,
+  imageURL: organization.imageUrl ?? undefined,
+  googlePlacesId: organization.googlePlacesId ?? undefined,
+  address: organization.address
+    ? {
+        addressLine: organization.address.addressLine ?? undefined,
+        city: organization.address.city ?? undefined,
+        state: organization.address.state ?? undefined,
+        postalCode: organization.address.postalCode ?? undefined,
+        country: organization.address.country ?? undefined,
+      }
+    : undefined,
+});
 
-const syncCompanionOrganisationToPostgres = async (
-  doc: CompanionOrganisationDocument,
-) => {
-  if (!shouldDualWrite) return;
-  try {
-    const data = toPrismaCompanionOrganisationData(doc);
-    await prisma.companionOrganisation.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
-  } catch (err) {
-    handleDualWriteError("CompanionOrganisation", err);
-  }
-};
+const findActiveOrPendingLink = async (params: {
+  patientId: string;
+  organisationId: string;
+}) =>
+  prisma.patientOrganisation.findFirst({
+    where: {
+      patientId: params.patientId,
+      organisationId: params.organisationId,
+      status: {
+        in: [
+          PatientOrganisationStatus.ACTIVE,
+          PatientOrganisationStatus.PENDING,
+        ],
+      },
+    },
+  });
+
+const createLink = async (input: {
+  patientId: string;
+  organisationId?: string | null;
+  linkedByParentId?: string | null;
+  linkedByPmsUserId?: string | null;
+  organisationType: BusinessType;
+  status: PatientOrganisationStatus;
+  invitedViaEmail?: string | null;
+  organisationName?: string | null;
+  organisationPlacesId?: string | null;
+  inviteToken?: string | null;
+  acceptedAt?: Date | null;
+  rejectedAt?: Date | null;
+}) =>
+  prisma.patientOrganisation.create({
+    data: {
+      patientId: input.patientId,
+      organisationId: input.organisationId ?? null,
+      linkedByParentId: input.linkedByParentId ?? null,
+      linkedByPmsUserId: input.linkedByPmsUserId ?? null,
+      organisationType: input.organisationType as OrganisationType,
+      role: PatientOrganisationRole.ORGANISATION,
+      status: input.status,
+      invitedViaEmail: input.invitedViaEmail ?? null,
+      organisationName: input.organisationName ?? null,
+      organisationPlacesId: input.organisationPlacesId ?? null,
+      inviteToken: input.inviteToken ?? null,
+      acceptedAt: input.acceptedAt ?? null,
+      rejectedAt: input.rejectedAt ?? null,
+    },
+  });
+
+const updateLink = async (
+  id: string,
+  data: Prisma.PatientOrganisationUpdateInput,
+) =>
+  prisma.patientOrganisation.update({
+    where: { id },
+    data,
+  });
 
 export const CompanionOrganisationService = {
   async linkByParent({
     parentId,
-    companionId,
+    patientId,
     organisationId,
     organisationType,
   }: {
-    parentId: Types.ObjectId | string;
-    companionId: Types.ObjectId | string;
-    organisationId: Types.ObjectId | string;
+    parentId: string | Types.ObjectId;
+    patientId: string | Types.ObjectId;
+    organisationId: string | Types.ObjectId;
     organisationType: BusinessType;
-  }): Promise<CompanionOrganisationDocument> {
-    const parent = ensureObjectId(parentId, "parentId");
-    const companion = ensureObjectId(companionId, "companionId");
-    const org = ensureObjectId(organisationId, "organisationId");
+  }): Promise<PatientOrganisationRecord> {
+    const parent = requireId(parentId, "parentId");
+    const companion = requireId(patientId, "patientId");
+    const org = requireId(organisationId, "organisationId");
 
-    // Prevent duplicate active links
-    const existing = await CompanionOrganisationModel.findOne({
-      companionId: companion,
+    const existing = await findActiveOrPendingLink({
+      patientId: companion,
       organisationId: org,
-      status: { $in: ["ACTIVE", "PENDING"] },
     });
+    if (existing) {
+      return toRecord(existing);
+    }
 
-    if (existing) return existing;
-
-    const link = await CompanionOrganisationModel.create({
-      companionId: companion,
+    const link = await createLink({
+      patientId: companion,
       organisationId: org,
       linkedByParentId: parent,
       organisationType,
-      role: "ORGANISATION",
-      status: "ACTIVE",
+      status: PatientOrganisationStatus.ACTIVE,
     });
 
-    await syncCompanionOrganisationToPostgres(link);
-
     await AuditTrailService.recordSafely({
-      organisationId: org.toString(),
-      companionId: companion.toString(),
-      eventType: "COMPANION_ORG_LINK_CREATED",
+      organisationId: org,
+      patientId: companion,
+      eventType: "PATIENT_ORG_LINK_CREATED",
       actorType: "PARENT",
-      actorId: parent.toString(),
-      entityType: "COMPANION_ORGANISATION",
-      entityId: link._id.toString(),
+      actorId: parent,
+      entityType: "PATIENT_ORGANISATION",
+      entityId: link.id,
       metadata: {
         organisationType,
         status: link.status,
       },
     });
 
-    return link;
+    return toRecord(link);
   },
 
   async linkByPmsUser({
     pmsUserId,
-    companionId,
+    patientId,
     organisationId,
     organisationType,
   }: {
     pmsUserId: string;
-    companionId: Types.ObjectId | string;
-    organisationId: Types.ObjectId | string;
+    patientId: string | Types.ObjectId;
+    organisationId: string | Types.ObjectId;
     organisationType: BusinessType;
-  }): Promise<CompanionOrganisationDocument> {
-    const companion = ensureObjectId(companionId, "companionId");
-    const org = ensureObjectId(organisationId, "organisationId");
+  }): Promise<PatientOrganisationRecord> {
+    const companion = requireId(patientId, "patientId");
+    const org = requireId(organisationId, "organisationId");
 
-    const existing = await CompanionOrganisationModel.findOne({
-      companionId: companion,
+    const existing = await findActiveOrPendingLink({
+      patientId: companion,
       organisationId: org,
-      status: { $in: ["ACTIVE", "PENDING"] },
     });
+    if (existing) {
+      return toRecord(existing);
+    }
 
-    if (existing) return existing;
-
-    const link = await CompanionOrganisationModel.create({
-      companionId: companion,
+    const link = await createLink({
+      patientId: companion,
       organisationId: org,
       linkedByPmsUserId: pmsUserId,
       organisationType,
-      role: "ORGANISATION",
-      status: "PENDING",
+      status: PatientOrganisationStatus.PENDING,
     });
 
-    await syncCompanionOrganisationToPostgres(link);
-
     await AuditTrailService.recordSafely({
-      organisationId: org.toString(),
-      companionId: companion.toString(),
-      eventType: "COMPANION_ORG_LINK_REQUESTED",
+      organisationId: org,
+      patientId: companion,
+      eventType: "PATIENT_ORG_LINK_REQUESTED",
       actorType: "PMS_USER",
       actorId: pmsUserId,
-      entityType: "COMPANION_ORGANISATION",
-      entityId: link._id.toString(),
+      entityType: "PATIENT_ORGANISATION",
+      entityId: link.id,
       metadata: {
         organisationType,
         status: link.status,
       },
     });
 
-    return link;
+    return toRecord(link);
   },
 
   async sendInvite({
     parentId,
-    companionId,
+    patientId,
     organisationType,
     email,
     name,
     placesId,
   }: {
-    parentId: Types.ObjectId | string;
-    companionId: Types.ObjectId | string;
+    parentId: string | Types.ObjectId;
+    patientId: string | Types.ObjectId;
     organisationType: BusinessType;
     email?: string | null;
     name?: string | null;
     placesId?: string | null;
-  }): Promise<CompanionOrganisationDocument> {
+  }): Promise<PatientOrganisationRecord> {
     if (!email && !name) {
       throw new CompanionOrganisationServiceError(
         "Email required or Name",
@@ -234,104 +280,85 @@ export const CompanionOrganisationService = {
       );
     }
 
-    const parent = ensureObjectId(parentId, "parentId");
-    const companion = ensureObjectId(companionId, "companionId");
+    const parent = requireId(parentId, "parentId");
+    const companion = requireId(patientId, "patientId");
 
-    const token = randomUUID();
-
-    const link = await CompanionOrganisationModel.create({
-      companionId: companion,
+    const link = await createLink({
+      patientId: companion,
       linkedByParentId: parent,
-      invitedViaEmail: email,
-      organisationName: name,
-      organisationPlacesId: placesId,
-      inviteToken: token,
-      organisationId: null,
       organisationType,
-      role: "ORGANISATION",
-      status: "PENDING",
+      status: PatientOrganisationStatus.PENDING,
+      invitedViaEmail: email ?? null,
+      organisationName: name ?? null,
+      organisationPlacesId: placesId ?? null,
+      inviteToken: randomUUID(),
     });
 
-    await syncCompanionOrganisationToPostgres(link);
-    return link;
+    return toRecord(link);
   },
 
-  // Validate Invite Token
   async validateInvite(token: string) {
-    if (!token)
-      throw new CompanionOrganisationServiceError("Invite token missing", 400);
+    const inviteToken = assertSafeString(token, "token");
 
-    if (isReadFromPostgres()) {
-      const invite = await prisma.companionOrganisation.findFirst({
-        where: {
-          inviteToken: token,
-          status: "PENDING",
-        },
-      });
-      if (!invite) {
-        throw new CompanionOrganisationServiceError(
-          "Invalid or expired invite",
-          404,
-        );
-      }
-      return { ...invite, _id: invite.id };
-    }
-
-    const invite = await CompanionOrganisationModel.findOne({
-      inviteToken: token,
-      status: "PENDING",
+    const invite = await prisma.patientOrganisation.findFirst({
+      where: {
+        inviteToken: inviteToken,
+        status: PatientOrganisationStatus.PENDING,
+      },
     });
 
-    if (!invite)
+    if (!invite) {
       throw new CompanionOrganisationServiceError(
         "Invalid or expired invite",
         404,
       );
+    }
 
-    return invite;
+    return toRecord(invite);
   },
 
-  // Accept Invite
   async acceptInvite({
     token,
     organisationId,
   }: {
     token: string;
-    organisationId: Types.ObjectId | string;
-  }): Promise<CompanionOrganisationDocument> {
-    const org = ensureObjectId(organisationId, "organisationId");
-    token = assertSafeString(token, "token");
-    const invite = await CompanionOrganisationModel.findOne({
-      inviteToken: token,
-      status: "PENDING",
-    });
+    organisationId: string | Types.ObjectId;
+  }): Promise<PatientOrganisationRecord> {
+    const org = requireId(organisationId, "organisationId");
+    const inviteToken = assertSafeString(token, "token");
 
-    if (!invite)
-      throw new CompanionOrganisationServiceError("Invalid invite token", 404);
-
-    invite.organisationId = org;
-    invite.acceptedAt = new Date();
-    invite.status = "ACTIVE";
-    invite.inviteToken = null;
-
-    await invite.save();
-
-    await syncCompanionOrganisationToPostgres(invite);
-
-    await AuditTrailService.recordSafely({
-      organisationId: org.toString(),
-      companionId: invite.companionId.toString(),
-      eventType: "COMPANION_ORG_INVITE_ACCEPTED",
-      actorType: "SYSTEM",
-      entityType: "COMPANION_ORGANISATION",
-      entityId: invite._id.toString(),
-      metadata: {
-        organisationType: invite.organisationType,
-        status: invite.status,
+    const invite = await prisma.patientOrganisation.findFirst({
+      where: {
+        inviteToken: inviteToken,
+        status: PatientOrganisationStatus.PENDING,
       },
     });
 
-    return invite;
+    if (!invite) {
+      throw new CompanionOrganisationServiceError("Invalid invite token", 404);
+    }
+
+    const updated = await updateLink(invite.id, {
+      organisationId: org,
+      acceptedAt: new Date(),
+      status: PatientOrganisationStatus.ACTIVE,
+      inviteToken: null,
+    });
+
+    await AuditTrailService.recordSafely({
+      organisationId: org,
+      patientId: invite.patientId,
+      eventType: "PATIENT_ORG_INVITE_ACCEPTED",
+      actorType: "SYSTEM",
+      entityType: "PATIENT_ORGANISATION",
+      entityId: updated.id,
+      metadata: {
+        organisationType: updated.organisationType,
+        status: updated.status,
+      },
+    });
+
+    return toRecord(updated);
   },
 
   async rejectInvite({
@@ -339,147 +366,146 @@ export const CompanionOrganisationService = {
     organisationId,
   }: {
     token: string;
-    organisationId: Types.ObjectId | string;
+    organisationId: string | Types.ObjectId;
   }): Promise<void> {
-    const org = ensureObjectId(organisationId, "organisationId");
-    token = assertSafeString(token, "token");
-    const invite = await CompanionOrganisationModel.findOne({
-      inviteToken: token,
-      status: "PENDING",
+    const org = requireId(organisationId, "organisationId");
+    const inviteToken = assertSafeString(token, "token");
+
+    const invite = await prisma.patientOrganisation.findFirst({
+      where: {
+        inviteToken: inviteToken,
+        status: PatientOrganisationStatus.PENDING,
+      },
     });
 
-    if (!invite)
+    if (!invite) {
       throw new CompanionOrganisationServiceError("Invalid invite token", 404);
+    }
 
-    invite.organisationId = org;
-    invite.rejectedAt = new Date();
-    invite.status = "REVOKED";
-    invite.inviteToken = null;
-
-    await invite.save();
-
-    await syncCompanionOrganisationToPostgres(invite);
+    const updated = await updateLink(invite.id, {
+      organisationId: org,
+      rejectedAt: new Date(),
+      status: PatientOrganisationStatus.REVOKED,
+      inviteToken: null,
+    });
 
     await AuditTrailService.recordSafely({
-      organisationId: org.toString(),
-      companionId: invite.companionId.toString(),
-      eventType: "COMPANION_ORG_INVITE_REJECTED",
+      organisationId: org,
+      patientId: invite.patientId,
+      eventType: "PATIENT_ORG_INVITE_REJECTED",
       actorType: "SYSTEM",
-      entityType: "COMPANION_ORGANISATION",
-      entityId: invite._id.toString(),
+      entityType: "PATIENT_ORGANISATION",
+      entityId: updated.id,
       metadata: {
-        organisationType: invite.organisationType,
-        status: invite.status,
+        organisationType: updated.organisationType,
+        status: updated.status,
       },
     });
   },
 
   async linkOnCompanionCreatedByPms({
-    companionId,
+    patientId,
     organisationId,
     pmsUserId,
     organisationType,
   }: {
-    companionId: string | Types.ObjectId;
+    patientId: string | Types.ObjectId;
     organisationId: string | Types.ObjectId;
     pmsUserId: string;
     organisationType: BusinessType;
   }) {
     return this.linkByPmsUser({
       pmsUserId,
-      companionId,
+      patientId,
       organisationId,
       organisationType,
     });
   },
 
   async linkOnAppointmentBooked({
-    companionId,
+    patientId,
     organisationId,
     organisationType,
   }: {
-    companionId: string | Types.ObjectId;
+    patientId: string | Types.ObjectId;
     organisationId: string | Types.ObjectId;
-    organisationType: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+    organisationType: BusinessType;
   }) {
-    const companion = ensureObjectId(companionId, "companionId");
-    const org = ensureObjectId(organisationId, "organisationId");
+    const companion = requireId(patientId, "patientId");
+    const org = requireId(organisationId, "organisationId");
 
-    const existing = await CompanionOrganisationModel.findOne({
-      companionId: companion,
+    const existing = await findActiveOrPendingLink({
+      patientId: companion,
       organisationId: org,
-      status: { $in: ["ACTIVE", "PENDING"] },
     });
+    if (existing) {
+      return toRecord(existing);
+    }
 
-    if (existing) return existing;
-
-    const link = await CompanionOrganisationModel.create({
-      companionId: companion,
+    const link = await createLink({
+      patientId: companion,
       organisationId: org,
       organisationType,
-      status: "ACTIVE",
-      role: "ORGANISATION",
+      status: PatientOrganisationStatus.ACTIVE,
     });
 
-    await syncCompanionOrganisationToPostgres(link);
-
     await AuditTrailService.recordSafely({
-      organisationId: org.toString(),
-      companionId: companion.toString(),
-      eventType: "COMPANION_ORG_LINK_AUTO",
+      organisationId: org,
+      patientId: companion,
+      eventType: "PATIENT_ORG_LINK_AUTO",
       actorType: "SYSTEM",
-      entityType: "COMPANION_ORGANISATION",
-      entityId: link._id.toString(),
+      entityType: "PATIENT_ORGANISATION",
+      entityId: link.id,
       metadata: {
         organisationType,
         status: link.status,
       },
     });
 
-    return link;
+    return toRecord(link);
   },
 
   async revokeLink(linkId: string | Types.ObjectId) {
-    const id = ensureObjectId(linkId, "linkId");
+    const id = requireId(linkId, "linkId");
 
-    const link = await CompanionOrganisationModel.findByIdAndDelete(id);
+    const link = await prisma.patientOrganisation.findUnique({
+      where: { id },
+    });
 
-    if (!link)
+    if (!link) {
       throw new CompanionOrganisationServiceError("Link not found", 404);
-
-    if (shouldDualWrite) {
-      try {
-        await prisma.companionOrganisation.deleteMany({
-          where: { id: link._id.toString() },
-        });
-      } catch (err) {
-        handleDualWriteError("CompanionOrganisation delete", err);
-      }
     }
 
+    await prisma.patientOrganisation.delete({
+      where: { id },
+    });
+
     await AuditTrailService.recordSafely({
-      organisationId: link.organisationId?.toString() ?? "",
-      companionId: link.companionId.toString(),
-      eventType: "COMPANION_ORG_LINK_REVOKED",
+      organisationId: link.organisationId ?? "",
+      patientId: link.patientId,
+      eventType: "PATIENT_ORG_LINK_REVOKED",
       actorType: "SYSTEM",
-      entityType: "COMPANION_ORGANISATION",
-      entityId: link._id.toString(),
+      entityType: "PATIENT_ORGANISATION",
+      entityId: link.id,
       metadata: {
         organisationType: link.organisationType,
         status: link.status,
       },
     });
 
-    return link;
+    return toRecord(link);
   },
 
-  async parentApproveLink(parentId: Types.ObjectId, linkId: string) {
-    linkId = assertSafeString(linkId, "linkId");
-    const id = ensureObjectId(linkId, "linkId");
-    const link = await CompanionOrganisationModel.findOne({
-      _id: id,
-      linkedByParentId: null, // PMS created it
-      status: "PENDING",
+  async parentApproveLink(parentId: string | Types.ObjectId, linkId: string) {
+    const parent = requireId(parentId, "parentId");
+    const id = requireId(linkId, "linkId");
+
+    const link = await prisma.patientOrganisation.findFirst({
+      where: {
+        id,
+        linkedByParentId: null,
+        status: PatientOrganisationStatus.PENDING,
+      },
     });
 
     if (!link) {
@@ -489,37 +515,38 @@ export const CompanionOrganisationService = {
       );
     }
 
-    link.status = "ACTIVE";
-    link.acceptedAt = new Date();
-    link.linkedByParentId = parentId;
-
-    await link.save();
-
-    await syncCompanionOrganisationToPostgres(link);
+    const updated = await updateLink(link.id, {
+      status: PatientOrganisationStatus.ACTIVE,
+      acceptedAt: new Date(),
+      linkedByParentId: parent,
+    });
 
     await AuditTrailService.recordSafely({
-      organisationId: link.organisationId?.toString() ?? "",
-      companionId: link.companionId.toString(),
-      eventType: "COMPANION_ORG_LINK_APPROVED",
+      organisationId: updated.organisationId ?? "",
+      patientId: updated.patientId,
+      eventType: "PATIENT_ORG_LINK_APPROVED",
       actorType: "PARENT",
-      actorId: parentId.toString(),
-      entityType: "COMPANION_ORGANISATION",
-      entityId: link._id.toString(),
+      actorId: parent,
+      entityType: "PATIENT_ORGANISATION",
+      entityId: updated.id,
       metadata: {
-        organisationType: link.organisationType,
-        status: link.status,
+        organisationType: updated.organisationType,
+        status: updated.status,
       },
     });
 
-    return link;
+    return toRecord(updated);
   },
 
-  async parentRejectLink(parentId: Types.ObjectId, linkId: string) {
-    linkId = assertSafeString(linkId, "linkId");
-    const id = ensureObjectId(linkId, "linkId");
-    const link = await CompanionOrganisationModel.findOne({
-      _id: id,
-      status: "PENDING",
+  async parentRejectLink(parentId: string | Types.ObjectId, linkId: string) {
+    const parent = requireId(parentId, "parentId");
+    const id = requireId(linkId, "linkId");
+
+    const link = await prisma.patientOrganisation.findFirst({
+      where: {
+        id,
+        status: PatientOrganisationStatus.PENDING,
+      },
     });
 
     if (!link) {
@@ -529,207 +556,152 @@ export const CompanionOrganisationService = {
       );
     }
 
-    link.status = "REVOKED";
-    link.acceptedAt = null;
-    link.linkedByParentId = parentId;
-
-    await link.save();
-
-    await syncCompanionOrganisationToPostgres(link);
+    const updated = await updateLink(link.id, {
+      status: PatientOrganisationStatus.REVOKED,
+      acceptedAt: null,
+      linkedByParentId: parent,
+    });
 
     await AuditTrailService.recordSafely({
-      organisationId: link.organisationId?.toString() ?? "",
-      companionId: link.companionId.toString(),
-      eventType: "COMPANION_ORG_LINK_REJECTED",
+      organisationId: updated.organisationId ?? "",
+      patientId: updated.patientId,
+      eventType: "PATIENT_ORG_LINK_REJECTED",
       actorType: "PARENT",
-      actorId: parentId.toString(),
-      entityType: "COMPANION_ORGANISATION",
-      entityId: link._id.toString(),
+      actorId: parent,
+      entityType: "PATIENT_ORGANISATION",
+      entityId: updated.id,
       metadata: {
-        organisationType: link.organisationType,
-        status: link.status,
+        organisationType: updated.organisationType,
+        status: updated.status,
       },
     });
 
-    return link;
+    return toRecord(updated);
   },
 
-  async getLinksForCompanion(companionId: string | Types.ObjectId) {
-    const id = ensureObjectId(companionId, "companionId");
-    if (isReadFromPostgres()) {
-      const links = await prisma.companionOrganisation.findMany({
-        where: { companionId: id.toString() },
-      });
-      return links.map((link) => ({ ...link, _id: link.id }));
-    }
-    return CompanionOrganisationModel.find({ companionId: id });
+  async getLinksForCompanion(patientId: string | Types.ObjectId) {
+    const id = requireId(patientId, "patientId");
+    const links = await prisma.patientOrganisation.findMany({
+      where: { patientId: id },
+    });
+    return links.map(toRecord);
   },
 
   async getLinksForCompanionByOrganisationTye(
-    companionId: string | Types.ObjectId,
-    type: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER",
-  ) {
-    companionId = assertSafeString(companionId, "companionId");
-    const id = ensureObjectId(companionId, "companionId");
-    if (isReadFromPostgres()) {
-      const links = await prisma.companionOrganisation.findMany({
-        where: {
-          companionId: id.toString(),
-          organisationType: type,
-          OR: [
-            { status: "ACTIVE" },
-            { status: "PENDING", organisationId: { not: null } },
-          ],
-        },
-      });
+    patientId: string | Types.ObjectId,
+    type: BusinessType,
+  ): Promise<CompanionOrganisationLinksResponse> {
+    const id = requireId(patientId, "patientId");
 
-      const parentLink = await prisma.parentCompanion.findFirst({
-        where: { companionId: id.toString(), role: "PRIMARY" },
-      });
+    const links = await prisma.patientOrganisation.findMany({
+      where: {
+        patientId: id,
+        organisationType: type as OrganisationType,
+        OR: [
+          { status: PatientOrganisationStatus.ACTIVE },
+          {
+            status: PatientOrganisationStatus.PENDING,
+            organisationId: { not: null },
+          },
+        ],
+      },
+    });
 
-      const companion = await prisma.companion.findUnique({
-        where: { id: id.toString() },
-      });
+    const organisationIds = links
+      .map((link) => link.organisationId)
+      .filter((organisationId): organisationId is string =>
+        Boolean(organisationId),
+      );
 
-      const parent = parentLink
-        ? await prisma.parent.findUnique({
-            where: { id: parentLink.parentId },
-          })
-        : null;
+    const organizations = organisationIds.length
+      ? await prisma.organization.findMany({
+          where: {
+            id: {
+              in: organisationIds,
+            },
+          },
+          include: {
+            address: true,
+          },
+        })
+      : [];
 
-      return {
-        links: links.map((link) => ({ ...link, _id: link.id })),
-        parentName: parent
-          ? [parent.firstName, parent.lastName].filter(Boolean).join(" ")
-          : undefined,
-        email: parent?.email,
-        companionName: companion?.name,
-        phoneNumber: parent?.phoneNumber ?? undefined,
-      };
-    }
-
-    const links = await CompanionOrganisationModel.find({
-      companionId: id,
-      organisationType: type,
-      $or: [
-        { status: "ACTIVE" },
-        {
-          status: "PENDING",
-          organisationId: { $ne: null }, // <-- key line
-        },
-      ],
-    }).populate(
-      "organisationId",
-      "name imageURL phoneNo address googlePlacesId",
+    const organizationMap = new Map(
+      organizations.map((organization) => [
+        organization.id,
+        mapOrganizationFromPrisma(organization),
+      ]),
     );
 
-    const parentComapnionLink = await ParentCompanionModel.findOne({
-      companionId: id,
-      role: "PRIMARY",
-    }).exec();
-
-    const companion = await CompanionModel.findById(id);
-    const parent = await ParentModel.findById(parentComapnionLink?.parentId);
-
     return {
-      links,
-      parentName: parent?.firstName + " " + parent?.lastName,
-      email: parent?.email,
-      companionName: companion?.name,
-      phoneNumber: parent?.phoneNumber,
+      links: links.map((link) => ({
+        id: link.id,
+        organization: link.organisationId
+          ? (organizationMap.get(link.organisationId) ?? null)
+          : null,
+        organisationType: link.organisationType as BusinessType,
+        status: link.status,
+        patientId: link.patientId,
+      })),
     };
   },
 
   async getLinksForOrganisation(organisationId: string | Types.ObjectId) {
-    const id = ensureObjectId(organisationId, "organisationId");
+    const id = requireId(organisationId, "organisationId");
 
-    if (isReadFromPostgres()) {
-      const links = await prisma.companionOrganisation.findMany({
-        where: {
-          organisationId: id.toString(),
-          status: { in: ["ACTIVE", "PENDING"] },
+    const links = await prisma.patientOrganisation.findMany({
+      where: {
+        organisationId: id,
+        status: {
+          in: [
+            PatientOrganisationStatus.ACTIVE,
+            PatientOrganisationStatus.PENDING,
+          ],
         },
-      });
-
-      const companionIds = Array.from(new Set(links.map((l) => l.companionId)));
-      const companions = await prisma.companion.findMany({
-        where: { id: { in: companionIds } },
-      });
-      const companionMap = new Map(companions.map((c) => [c.id, c]));
-
-      const parentLinks = await prisma.parentCompanion.findMany({
-        where: {
-          companionId: { in: companionIds },
-          role: "PRIMARY",
-          status: "ACTIVE",
-        },
-      });
-      const parentIds = Array.from(new Set(parentLinks.map((l) => l.parentId)));
-      const parents = await prisma.parent.findMany({
-        where: { id: { in: parentIds } },
-      });
-      const parentMap = new Map(parents.map((p) => [p.id, p]));
-      const parentByCompanion = new Map(
-        parentLinks.map((l) => [l.companionId, l.parentId]),
-      );
-
-      const results = links.map((link) => {
-        const companion = companionMap.get(link.companionId);
-        const parentId = parentByCompanion.get(link.companionId);
-        const parent = parentId ? parentMap.get(parentId) : null;
-
-        return {
-          linkId: link.id,
-          organisationId: link.organisationId ?? undefined,
-          organisationType: link.organisationType,
-          status: link.status,
-          companion: companion ? toFHIRCompanionFromPrisma(companion) : null,
-          parent: parent ? toFHIRParentFromPrisma(parent) : null,
-        };
-      });
-
-      return results.filter(Boolean);
-    }
-
-    const links = await CompanionOrganisationModel.find({
-      organisationId: id,
-      status: { $in: ["ACTIVE", "PENDING"] },
+      },
     });
 
-    const results = await Promise.all(
-      links.map(async (link) => {
-        // 1️⃣ Fetch companion
-        const companion = await CompanionModel.findById(link.companionId);
-        if (!companion) {
-          // orphaned link → skip
-          return null;
-        }
-
-        // 2️⃣ Fetch primary parent
-        const parentLink = await ParentCompanionModel.findOne({
-          companionId: companion._id,
-          role: "PRIMARY",
-          status: "ACTIVE",
-        });
-
-        const parent = parentLink
-          ? await ParentModel.findById(parentLink.parentId)
-          : null;
-
-        return {
-          linkId: link._id.toString(),
-          organisationId: link.organisationId?.toString(),
-          organisationType: link.organisationType,
-          status: link.status,
-
-          // ✅ SAFE
-          companion: toFHIRCompanion(companion),
-          parent: parent ? toFHIRParent(parent) : null,
-        };
-      }),
+    const companionIds = Array.from(
+      new Set(links.map((link) => link.patientId)),
+    );
+    const companions = await prisma.patient.findMany({
+      where: { id: { in: companionIds } },
+    });
+    const companionMap = new Map(
+      companions.map((companion) => [companion.id, companion]),
     );
 
-    // Remove nulls caused by orphaned links
-    return results.filter(Boolean);
+    const parentLinks = await prisma.parentPatient.findMany({
+      where: {
+        patientId: { in: companionIds },
+        role: "PRIMARY",
+        status: "ACTIVE",
+      },
+    });
+    const parentIds = Array.from(
+      new Set(parentLinks.map((link) => link.parentId)),
+    );
+    const parents = await prisma.parent.findMany({
+      where: { id: { in: parentIds } },
+    });
+    const parentMap = new Map(parents.map((parent) => [parent.id, parent]));
+    const parentByCompanion = new Map(
+      parentLinks.map((link) => [link.patientId, link.parentId]),
+    );
+
+    return links.map((link) => {
+      const companion = companionMap.get(link.patientId);
+      const parentId = parentByCompanion.get(link.patientId);
+      const parent = parentId ? parentMap.get(parentId) : null;
+
+      return {
+        linkId: link.id,
+        organisationId: link.organisationId ?? undefined,
+        organisationType: link.organisationType,
+        status: link.status,
+        companion: companion ? toFHIRCompanionFromPrisma(companion) : null,
+        parent: parent ? toFHIRParentFromPrisma(parent) : null,
+      };
+    });
   },
 };

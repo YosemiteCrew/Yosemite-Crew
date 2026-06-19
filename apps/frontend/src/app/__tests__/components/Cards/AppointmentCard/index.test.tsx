@@ -23,6 +23,9 @@ jest.mock('@/app/lib/appointments', () => ({
   allowCalendarDrag: jest.fn(() => true),
   canAssignAppointmentRoom: jest.fn(() => true),
   canShowStatusChangeAction: jest.fn(() => true),
+  getAppointmentCompanion: jest.fn(
+    (appointment: Appointment) => appointment.companion ?? appointment.patient
+  ),
   getAppointmentCompanionPhotoUrl: jest.fn(() => ''),
   getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
   getClinicalNotesLabel: jest.fn(() => 'Medical Records'),

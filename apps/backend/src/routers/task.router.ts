@@ -44,7 +44,7 @@ router.post(
 );
 
 router.get(
-  "/mobile/companion/:companionId",
+  "/mobile/companion/:patientId",
   authorizeCognitoMobile,
   TaskController.listForCompanion,
 );
@@ -89,7 +89,7 @@ router.get(
 
 // Companion tasks (PMS perspective)
 router.get(
-  "/pms/companion/:companionId",
+  "/pms/companion/:patientId",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission(["tasks:view:any", "tasks:view:own"]),

@@ -9,6 +9,16 @@ describe('LaidOutEvent Types Definition', () => {
       const now = new Date();
 
       const event: LaidOutEvent = {
+        patient: {
+          id: 'comp-1',
+          name: 'Mochi',
+          species: 'Canine',
+          breed: 'Shiba Inu',
+          parent: {
+            id: 'parent-1',
+            name: 'Alex',
+          },
+        },
         // --- Appointment required fields ---
         companion: {
           id: 'comp-1',
@@ -46,6 +56,15 @@ describe('LaidOutEvent Types Definition', () => {
 
       const event: LaidOutEvent = {
         id: 'appt-1',
+        patient: {
+          id: 'comp-2',
+          name: 'Buddy',
+          species: 'Canine',
+          parent: {
+            id: 'parent-2',
+            name: 'John Doe',
+          },
+        },
         companion: {
           id: 'comp-2',
           name: 'Buddy',
@@ -98,6 +117,15 @@ describe('LaidOutEvent Types Definition', () => {
       const now = new Date();
 
       const laidOut: LaidOutEvent = {
+        patient: {
+          id: 'comp-3',
+          name: 'Luna',
+          species: 'Feline',
+          parent: {
+            id: 'parent-3',
+            name: 'Priya',
+          },
+        },
         companion: {
           id: 'comp-3',
           name: 'Luna',
@@ -123,7 +151,7 @@ describe('LaidOutEvent Types Definition', () => {
       const appointment: Appointment = laidOut;
 
       expect(appointment.status).toBe('REQUESTED');
-      expect(appointment.companion.name).toBe('Luna');
+      expect(appointment.companion!.name).toBe('Luna');
     });
   });
 });

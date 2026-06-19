@@ -7,6 +7,7 @@ import { getStatusStyle } from '@/app/config/statusConfig';
 import { toTitle } from '@/app/lib/validators';
 import AppointmentDetailField from '@/app/features/appointments/components/AppointmentDetailField';
 import {
+  getAppointmentCompanion,
   getAppointmentCompanionPhotoUrl,
   normalizeAppointmentStatus,
 } from '@/app/lib/appointments';
@@ -26,26 +27,31 @@ const normalizeLeadId = (value?: string | null): string => {
 
 export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardContentProps) => (
   <div className="flex gap-2 items-center">
-    <Image
-      alt=""
-      src={getSafeImageUrl(
-        getAppointmentCompanionPhotoUrl(appointment.companion),
-        appointment.companion.species as ImageType
-      )}
-      height={40}
-      width={40}
-      priority
-      className="size-10 rounded-full object-cover"
-    />
+    {(() => {
+      const companion = getAppointmentCompanion(appointment);
+      return (
+        <Image
+          alt=""
+          src={getSafeImageUrl(
+            getAppointmentCompanionPhotoUrl(companion),
+            companion.species as ImageType
+          )}
+          height={40}
+          width={40}
+          priority
+          className="size-10 rounded-full object-cover"
+        />
+      );
+    })()}
     <div className="flex flex-col gap-0">
       <div className="text-body-3-emphasis text-text-primary">
         {formatCompanionNameWithOwnerLastName(
-          appointment.companion?.name,
-          appointment.companion?.parent
+          getAppointmentCompanion(appointment).name,
+          getAppointmentCompanion(appointment).parent
         )}
       </div>
       <div className="text-caption-1 text-text-primary">
-        {getOwnerFirstName(appointment.companion?.parent)}
+        {getOwnerFirstName(getAppointmentCompanion(appointment).parent)}
       </div>
     </div>
   </div>
@@ -66,7 +72,7 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
     <>
       <AppointmentDetailField
         label="Breed / Species"
-        value={`${appointment.companion?.breed || '-'} / ${appointment.companion?.species}`}
+        value={`${getAppointmentCompanion(appointment).breed || '-'} / ${getAppointmentCompanion(appointment).species}`}
       />
       <AppointmentDetailField
         label="Date / Time"

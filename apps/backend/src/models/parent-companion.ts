@@ -9,7 +9,7 @@ import type { ParentMongo } from "./parent";
 
 export interface ParentCompanionMongo {
   parentId: Types.ObjectId;
-  companionId: Types.ObjectId;
+  patientId: Types.ObjectId;
   role: ParentCompanionRole;
   status: ParentCompanionStatus;
   permissions: ParentCompanionPermissions;
@@ -39,7 +39,7 @@ const ParentCompanionSchema = new Schema(
       required: true,
       index: true,
     },
-    companionId: {
+    patientId: {
       type: Schema.Types.ObjectId,
       ref: "Companion",
       required: true,
@@ -61,9 +61,9 @@ const ParentCompanionSchema = new Schema(
   },
 );
 
-ParentCompanionSchema.index({ parentId: 1, companionId: 1 }, { unique: true });
+ParentCompanionSchema.index({ parentId: 1, patientId: 1 }, { unique: true });
 ParentCompanionSchema.index(
-  { companionId: 1 },
+  { patientId: 1 },
   {
     name: "unique_active_primary_per_companion",
     unique: true,
@@ -127,7 +127,7 @@ export const toCompanionParentLink = (
 };
 
 const ParentCompanionModel = model<ParentCompanionMongo>(
-  "ParentCompanion",
+  "ParentPatient",
   ParentCompanionSchema,
 );
 

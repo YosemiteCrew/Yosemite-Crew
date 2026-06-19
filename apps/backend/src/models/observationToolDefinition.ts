@@ -88,7 +88,7 @@ export interface ObservationToolSubmissionMongo {
   toolId: string;
   taskId?: string;
 
-  companionId: string;
+  patientId: string;
   filledBy: string;
 
   answers: ObservationToolAnswers;
@@ -107,7 +107,7 @@ const ObservationToolSubmissionSchema = new Schema(
     toolId: { type: String, required: true },
     taskId: String,
 
-    companionId: { type: String, required: true },
+    patientId: { type: String, required: true },
     filledBy: { type: String, required: true },
 
     answers: { type: Schema.Types.Mixed, required: true },

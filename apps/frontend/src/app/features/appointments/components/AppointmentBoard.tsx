@@ -536,12 +536,13 @@ const AppointmentBoardComponent = ({
                   data-calendar-scroll="true"
                 >
                   {columnAppointments.map((appointment) => {
+                    const companion = appointment.companion ?? appointment.patient;
                     const isCardDraggable =
                       canEditAppointments &&
                       getAllowedAppointmentStatusTransitions(appointment.status).length > 0;
                     const companionDisplayName = formatCompanionNameWithOwnerLastName(
-                      appointment.companion.name,
-                      appointment.companion.parent
+                      companion.name,
+                      companion.parent
                     );
 
                     return (
@@ -601,8 +602,8 @@ const AppointmentBoardComponent = ({
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             <Image
                               src={getSafeImageUrl(
-                                getAppointmentCompanionPhotoUrl(appointment.companion),
-                                appointment.companion.species.toLowerCase() as ImageType
+                                getAppointmentCompanionPhotoUrl(companion),
+                                companion.species.toLowerCase() as ImageType
                               )}
                               height={24}
                               width={24}

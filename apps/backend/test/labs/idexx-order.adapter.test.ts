@@ -17,8 +17,9 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     codeMapping: { findFirst: jest.fn() },
     codeEntry: { count: jest.fn() },
-    companion: { findFirst: jest.fn() },
-    parent: { findFirst: jest.fn() },
+    patient: { findFirst: jest.fn(), findUnique: jest.fn() },
+    parent: { findFirst: jest.fn(), findUnique: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
     parentCompanion: { findFirst: jest.fn() },
   },
 }));
@@ -126,7 +127,7 @@ describe("IdexxOrderAdapter", () => {
       targetCode: "IDX",
     } as any);
     prismaMock.codeEntry.count.mockResolvedValue(1 as any);
-    prismaMock.companion.findFirst.mockResolvedValue(baseCompanion as any);
+    prismaMock.patient.findFirst.mockResolvedValue(baseCompanion as any);
     prismaMock.parent.findFirst.mockResolvedValue(baseParent as any);
     prismaMock.parentCompanion.findFirst.mockResolvedValue({
       parentId: "parent-1",
@@ -155,7 +156,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         tests: ["T1"],
       } as any),
     ).rejects.toThrow("Primary parent not found for companion.");
@@ -165,7 +166,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: [],
       } as any),
@@ -177,7 +178,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
       } as any),
@@ -185,12 +186,12 @@ describe("IdexxOrderAdapter", () => {
   });
 
   it("errors when companion is missing", async () => {
-    prismaMock.companion.findFirst.mockResolvedValueOnce(null as any);
+    prismaMock.patient.findFirst.mockResolvedValueOnce(null as any);
 
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
       } as any),
@@ -203,7 +204,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
       } as any),
@@ -219,7 +220,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
       } as any),
@@ -227,7 +228,7 @@ describe("IdexxOrderAdapter", () => {
   });
 
   it("errors when companion species or breed is missing", async () => {
-    prismaMock.companion.findFirst.mockResolvedValueOnce({
+    prismaMock.patient.findFirst.mockResolvedValueOnce({
       ...baseCompanion,
       breedCode: null,
     } as any);
@@ -235,7 +236,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
       } as any),
@@ -248,7 +249,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
       } as any),
@@ -259,7 +260,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
         modality: "IN_HOUSE",
@@ -270,7 +271,7 @@ describe("IdexxOrderAdapter", () => {
   it("creates an in-house order and handles census flows", async () => {
     const result = await adapter.createOrder({
       organisationId: "org-1",
-      companionId: "comp-1",
+      patientId: "comp-1",
       parentId: "parent-1",
       tests: ["T1"],
       modality: "IN_HOUSE",
@@ -303,7 +304,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
         modality: "IN_HOUSE",
@@ -323,7 +324,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
         modality: "IN_HOUSE",
@@ -335,7 +336,7 @@ describe("IdexxOrderAdapter", () => {
   it("builds getOrder responses with explicit id", async () => {
     const result = await adapter.getOrder("IDX-99", {
       organisationId: "org-1",
-      companionId: "comp-1",
+      patientId: "comp-1",
       tests: ["T1"],
     } as any);
 
@@ -348,7 +349,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.updateOrder("IDX-99", {
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         tests: ["T1"],
       } as any),
     ).rejects.toThrow("parentId is required to update order.");
@@ -357,7 +358,7 @@ describe("IdexxOrderAdapter", () => {
   it("returns cancelled status when cancel response is unknown", async () => {
     const result = await adapter.cancelOrder("IDX-99", {
       organisationId: "org-1",
-      companionId: "comp-1",
+      patientId: "comp-1",
       tests: ["T1"],
     } as any);
 
@@ -368,7 +369,7 @@ describe("IdexxOrderAdapter", () => {
   it("uses mongo models when read from postgres is false", async () => {
     mockReadSwitch.mockReturnValue(false);
 
-    const companionId = "507f1f77bcf86cd799439011";
+    const patientId = "507f1f77bcf86cd799439011";
     const parentId = "507f1f77bcf86cd799439012";
 
     (CompanionModel.findById as jest.Mock).mockReturnValue({
@@ -401,7 +402,7 @@ describe("IdexxOrderAdapter", () => {
 
     const result = await adapter.updateOrder("IDX-77", {
       organisationId: "org-1",
-      companionId,
+      patientId,
       parentId,
       tests: ["T1"],
       modality: "REFERENCE_LAB",
@@ -417,14 +418,14 @@ describe("IdexxOrderAdapter", () => {
       }),
     );
     expect(CompanionModel.findById).toHaveBeenCalledWith(
-      new Types.ObjectId(companionId),
+      new Types.ObjectId(patientId),
     );
   });
 
   it("uses mongo parent link when parentId is missing", async () => {
     mockReadSwitch.mockReturnValue(false);
 
-    const companionId = "507f1f77bcf86cd799439013";
+    const patientId = "507f1f77bcf86cd799439013";
 
     (ParentCompanionModel.findOne as jest.Mock).mockReturnValue({
       lean: jest.fn().mockResolvedValue({ parentId: "mongo-parent" }),
@@ -459,7 +460,7 @@ describe("IdexxOrderAdapter", () => {
 
     await adapter.createOrder({
       organisationId: "org-1",
-      companionId,
+      patientId,
       tests: ["T1"],
       modality: "REFERENCE_LAB",
     } as any);
@@ -484,7 +485,7 @@ describe("IdexxOrderAdapter", () => {
 
     const result = await adapter.createOrder({
       organisationId: "org-1",
-      companionId: "comp-1",
+      patientId: "comp-1",
       parentId: "parent-1",
       tests: ["T1"],
     } as any);
@@ -500,7 +501,7 @@ describe("IdexxOrderAdapter", () => {
 
     const result = await adapter.createOrder({
       organisationId: "org-1",
-      companionId: "comp-1",
+      patientId: "comp-1",
       parentId: "parent-1",
       tests: ["T1"],
     } as any);
@@ -509,7 +510,7 @@ describe("IdexxOrderAdapter", () => {
   });
 
   it("throws when companion document is missing an id", async () => {
-    prismaMock.companion.findFirst.mockResolvedValueOnce({
+    prismaMock.patient.findFirst.mockResolvedValueOnce({
       name: "Buddy",
       speciesCode: "DOG",
       breedCode: "LAB",
@@ -519,7 +520,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.createOrder({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         parentId: "parent-1",
         tests: ["T1"],
       } as any),
@@ -534,7 +535,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.getOrder("IDX-1", {
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         tests: ["T1"],
       } as any),
     ).rejects.toThrow("IDEXX credentials missing.");
@@ -546,7 +547,7 @@ describe("IdexxOrderAdapter", () => {
     await expect(
       adapter.getOrder("IDX-1", {
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         tests: ["T1"],
       } as any),
     ).rejects.toThrow("IDEXX PIMS config missing.");

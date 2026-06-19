@@ -1,56 +1,14 @@
-import { Types } from "mongoose";
 import { randomUUID } from "node:crypto";
+
 import {
   CoParentInviteService,
   CoParentInviteServiceError,
 } from "../../src/services/coparentInvite.service";
-
-// Import the actual modules so we can assert and configure them (they will be mocked by Jest)
-import { CoParentInviteModel } from "../../src/models/coparentInvite";
-import { ParentModel } from "src/models/parent";
-import CompanionModel from "../../src/models/companion";
-import ParentCompanionModel from "src/models/parent-companion";
-import { ParentCompanionService } from "../../src/services/parent-companion.service";
 import { ParentService } from "../../src/services/parent.service";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError } from "src/utils/dual-write";
 
-// --- Global Mocks Setup (Inline definitions to prevent TDZ / initialization errors) ---
 jest.mock("node:crypto", () => ({
   randomUUID: jest.fn(),
-}));
-
-jest.mock("../../src/models/coparentInvite", () => ({
-  __esModule: true,
-  CoParentInviteModel: {
-    create: jest.fn(),
-    findOne: jest.fn(),
-    findById: jest.fn(),
-    find: jest.fn(),
-  },
-}));
-
-jest.mock("src/models/parent", () => ({
-  __esModule: true,
-  ParentModel: { findById: jest.fn() },
-}));
-
-jest.mock("../../src/models/companion", () => ({
-  __esModule: true,
-  default: { findById: jest.fn() },
-}));
-
-jest.mock("src/models/parent-companion", () => ({
-  __esModule: true,
-  default: { findOne: jest.fn() },
-}));
-
-jest.mock("../../src/services/parent-companion.service", () => ({
-  ParentCompanionService: { linkParent: jest.fn() },
-}));
-
-jest.mock("../../src/services/parent.service", () => ({
-  ParentService: { findByLinkedUserId: jest.fn() },
 }));
 
 jest.mock("src/config/prisma", () => ({
@@ -59,48 +17,39 @@ jest.mock("src/config/prisma", () => ({
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
-      updateMany: jest.fn(),
       findMany: jest.fn(),
     },
     parent: {
       findUnique: jest.fn(),
     },
-    companion: {
+    patient: {
       findUnique: jest.fn(),
     },
-    parentCompanion: {
+    parentPatient: {
       findFirst: jest.fn(),
       create: jest.fn(),
     },
   },
 }));
 
-jest.mock("src/utils/dual-write", () => ({
-  shouldDualWrite: true,
-  isDualWriteStrict: false,
-  handleDualWriteError: jest.fn(),
+jest.mock("../../src/services/parent.service", () => ({
+  ParentService: {
+    findByLinkedUserId: jest.fn(),
+  },
 }));
 
-// Helper to simulate Mongoose query objects that can be both awaited directly OR chained with .lean()
-const createMockQuery = (result: any) => ({
-  lean: jest.fn().mockResolvedValue(result),
-  then: function (resolve: any, reject: any) {
-    Promise.resolve(result).then(resolve).catch(reject);
-  },
-});
-
 describe("CoParentInviteService", () => {
-  const validCompanionId = new Types.ObjectId().toString();
-  const validParentId = new Types.ObjectId().toString();
+  const validCompanionId = "comp-1";
+  const validParentId = "parent-1";
 
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.READ_FROM_POSTGRES = "false";
   });
 
   describe("CoParentInviteServiceError", () => {
-    it("should correctly set message, statusCode, and name", () => {
+    it("sets message, statusCode, and name", () => {
       const error = new CoParentInviteServiceError("Test error", 400);
+
       expect(error.message).toBe("Test error");
       expect(error.statusCode).toBe(400);
       expect(error.name).toBe("CoParentInviteServiceError");
@@ -108,603 +57,455 @@ describe("CoParentInviteService", () => {
   });
 
   describe("sendInvite", () => {
-    it("should throw if email is missing", async () => {
+    it("throws if email is missing", async () => {
       await expect(
         CoParentInviteService.sendInvite({
           email: "",
-          companionId: validCompanionId,
+          patientId: validCompanionId,
           invitedByParentId: validParentId,
         }),
-      ).rejects.toThrow(
-        new CoParentInviteServiceError("Email is required.", 400),
-      );
+      ).rejects.toThrow("Email is required.");
     });
 
-    it("should throw if companionId is invalid", async () => {
+    it("throws if patientId is invalid", async () => {
       await expect(
         CoParentInviteService.sendInvite({
           email: "test@test.com",
-          companionId: "invalid",
+          patientId: "",
           invitedByParentId: validParentId,
         }),
-      ).rejects.toThrow(
-        new CoParentInviteServiceError("Invalid companionId.", 400),
-      );
+      ).rejects.toThrow("Invalid patientId.");
     });
 
-    it("should throw if invitedByParentId is invalid", async () => {
+    it("throws if invitedByParentId is invalid", async () => {
       await expect(
         CoParentInviteService.sendInvite({
           email: "test@test.com",
-          companionId: validCompanionId,
-          invitedByParentId: "invalid",
+          patientId: validCompanionId,
+          invitedByParentId: "",
+        }),
+      ).rejects.toThrow("Invalid invitedByParentId.");
+    });
+
+    it("throws if inviter is not the primary parent for the companion", async () => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        CoParentInviteService.sendInvite({
+          email: "test@test.com",
+          patientId: validCompanionId,
+          invitedByParentId: validParentId,
         }),
       ).rejects.toThrow(
-        new CoParentInviteServiceError("Invalid invitedByParentId.", 400),
+        "You are not authorized to invite a co-parent for this companion.",
       );
     });
 
-    it("should create and return an invite with trimmed inviteeName", async () => {
+    it("creates and returns an invite with a trimmed inviteeName", async () => {
       (randomUUID as jest.Mock).mockReturnValue("mock-uuid-token");
-      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValueOnce({
-        _id: "link-1",
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-1",
       });
 
-      const res = await CoParentInviteService.sendInvite({
+      const result = await CoParentInviteService.sendInvite({
         email: "TEST@example.com",
-        companionId: validCompanionId,
+        patientId: validCompanionId,
         invitedByParentId: validParentId,
         inviteeName: "  John Doe  ",
       });
 
-      expect(CoParentInviteModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(prisma.coParentInvite.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
           email: "test@example.com",
           inviteToken: "mock-uuid-token",
-          inviteeName: "  John Doe  ", // saved exactly as passed
-        }),
-      );
-
-      expect(res.email).toBe("test@example.com");
-      expect(res.inviteToken).toBe("mock-uuid-token");
-      expect(res.inviteeName).toBe("John Doe"); // Trimmed in response
-      expect(res.expiresAt.getTime()).toBeGreaterThan(Date.now());
-    });
-
-    it("should create and return an invite when inviteeName is missing (null fallback)", async () => {
-      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValueOnce({
-        _id: "link-1",
-      });
-      const res = await CoParentInviteService.sendInvite({
-        email: "test2@example.com",
-        companionId: validCompanionId,
-        invitedByParentId: validParentId,
-      });
-      expect(res.inviteeName).toBeNull();
-    });
-
-    it("should reject invite creation when inviter is not primary for companion", async () => {
-      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValueOnce(null);
-
-      await expect(
-        CoParentInviteService.sendInvite({
-          email: "test@example.com",
-          companionId: validCompanionId,
+          inviteeName: "  John Doe  ",
+          patientId: validCompanionId,
           invitedByParentId: validParentId,
+          consumed: false,
         }),
-      ).rejects.toThrow(
-        new CoParentInviteServiceError(
-          "You are not authorized to invite a co-parent for this companion.",
-          403,
-        ),
-      );
+      });
+      expect(result.email).toBe("test@example.com");
+      expect(result.inviteeName).toBe("John Doe");
+      expect(result.inviteToken).toBe("mock-uuid-token");
+      expect(result.expiresAt.getTime()).toBeGreaterThan(Date.now());
     });
 
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
+    it("returns null inviteeName when it is omitted", async () => {
       (randomUUID as jest.Mock).mockReturnValue("mock-uuid-token");
-      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
         id: "link-1",
       });
       (prisma.coParentInvite.create as jest.Mock).mockResolvedValue({
-        id: "pg-1",
+        id: "invite-1",
       });
 
-      const res = await CoParentInviteService.sendInvite({
-        email: "TEST@example.com",
-        companionId: "comp-1",
-        invitedByParentId: "parent-1",
-      });
-
-      expect(prisma.coParentInvite.create).toHaveBeenCalled();
-      expect(res.inviteToken).toBe("mock-uuid-token");
-    });
-
-    it("handles dual-write errors", async () => {
-      (randomUUID as jest.Mock).mockReturnValue("mock-uuid-token");
-      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValueOnce({
-        _id: "link-1",
-      });
-      (CoParentInviteModel.create as jest.Mock).mockResolvedValue({
-        _id: { toString: () => "mongo-1" },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      (prisma.coParentInvite.create as jest.Mock).mockRejectedValue(
-        new Error("sync fail"),
-      );
-
-      await CoParentInviteService.sendInvite({
-        email: "test@example.com",
-        companionId: validCompanionId,
+      const result = await CoParentInviteService.sendInvite({
+        email: "test2@example.com",
+        patientId: validCompanionId,
         invitedByParentId: validParentId,
       });
 
-      expect(handleDualWriteError).toHaveBeenCalledWith(
-        "CoParentInvite",
-        expect.any(Error),
-      );
+      expect(result.inviteeName).toBeNull();
     });
   });
 
   describe("validateInvite", () => {
-    it("should throw if token is missing or not a string", async () => {
+    it("throws if token is missing", async () => {
       await expect(CoParentInviteService.validateInvite("")).rejects.toThrow(
         "Invite token is required.",
       );
       await expect(
-        CoParentInviteService.validateInvite(null as any),
+        CoParentInviteService.validateInvite(null as unknown as string),
       ).rejects.toThrow("Invite token is required.");
     });
 
-    it("should throw if invite not found", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue(null);
+    it("throws if invite does not exist", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue(null);
+
       await expect(
         CoParentInviteService.validateInvite("token"),
       ).rejects.toThrow("Invalid invite token.");
     });
 
-    it("should throw if invite is consumed", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
+    it("throws if invite is consumed", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
         consumed: true,
       });
+
       await expect(
         CoParentInviteService.validateInvite("token"),
       ).rejects.toThrow("This invite has already been used.");
     });
 
-    it("should throw if invite is expired", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
+    it("throws if invite is expired", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
         consumed: false,
         expiresAt: new Date(Date.now() - 10000),
       });
+
       await expect(
         CoParentInviteService.validateInvite("token"),
       ).rejects.toThrow("This invite has expired.");
     });
 
-    it("should throw if inviter parent not found", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
+    it("throws if inviter parent is missing", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
+        id: "invite-1",
+        email: "test@test.com",
+        inviteeName: null,
         consumed: false,
         expiresAt: new Date(Date.now() + 10000),
         invitedByParentId: validParentId,
+        patientId: validCompanionId,
       });
-      (ParentModel.findById as jest.Mock).mockReturnValue(
-        createMockQuery(null),
-      );
+      (prisma.parent.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
         CoParentInviteService.validateInvite("token"),
       ).rejects.toThrow("Inviter parent not found.");
     });
 
-    it("should throw if companion not found", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
+    it("throws if companion is missing", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
+        id: "invite-1",
+        email: "test@test.com",
+        inviteeName: null,
         consumed: false,
         expiresAt: new Date(Date.now() + 10000),
         invitedByParentId: validParentId,
-        companionId: validCompanionId,
+        patientId: validCompanionId,
       });
-      (ParentModel.findById as jest.Mock).mockReturnValue(
-        createMockQuery({ _id: validParentId }),
-      );
-      (CompanionModel.findById as jest.Mock).mockReturnValue(
-        createMockQuery(null),
-      );
+      (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
+        id: validParentId,
+        firstName: "John",
+        lastName: "Doe",
+        profileImageUrl: null,
+      });
+      (prisma.patient.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
         CoParentInviteService.validateInvite("token"),
       ).rejects.toThrow("Companion not found.");
     });
 
-    it("should return fully mapped data when optionals are present", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
-        _id: "invite_id",
+    it("returns mapped invite data", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
+        id: "invite-1",
         email: "test@test.com",
         inviteeName: "Invitee",
         consumed: false,
         expiresAt: new Date(Date.now() + 10000),
         invitedByParentId: validParentId,
-        companionId: validCompanionId,
-      });
-      (ParentModel.findById as jest.Mock).mockReturnValue(
-        createMockQuery({
-          _id: validParentId,
-          firstName: "John",
-          lastName: "Doe",
-          profileImageUrl: "url",
-        }),
-      );
-      (CompanionModel.findById as jest.Mock).mockReturnValue(
-        createMockQuery({
-          _id: validCompanionId,
-          name: "Child",
-          photoUrl: "photo",
-        }),
-      );
-
-      const res = await CoParentInviteService.validateInvite("token");
-      expect(res.invitedBy.fullName).toBe("John Doe");
-      expect(res.invitedBy.profileImageUrl).toBe("url");
-      expect(res.companion.photoUrl).toBe("photo");
-    });
-
-    it("should return mapped data falling back to null for optionals", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
-        _id: "invite_id",
-        email: "test@test.com",
-        consumed: false,
-        expiresAt: new Date(Date.now() + 10000),
-        invitedByParentId: validParentId,
-        companionId: validCompanionId,
-      });
-      (ParentModel.findById as jest.Mock).mockReturnValue(
-        createMockQuery({
-          _id: validParentId,
-          firstName: "John", // Missing last name & image
-        }),
-      );
-      (CompanionModel.findById as jest.Mock).mockReturnValue(
-        createMockQuery({
-          _id: validCompanionId,
-          name: "Child", // Missing photoUrl
-        }),
-      );
-
-      const res = await CoParentInviteService.validateInvite("token");
-      expect(res.inviteeName).toBeNull();
-      expect(res.invitedBy.lastName).toBeNull();
-      expect(res.invitedBy.fullName).toBe("John"); // Only first name joined
-      expect(res.invitedBy.profileImageUrl).toBeNull();
-      expect(res.companion.photoUrl).toBeNull();
-    });
-
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
-        id: "pg-1",
-        inviteToken: "token",
-        email: "test@test.com",
-        inviteeName: null,
-        expiresAt: new Date(Date.now() + 10000),
-        consumed: false,
-        invitedByParentId: "parent-1",
-        companionId: "comp-1",
+        patientId: validCompanionId,
       });
       (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
-        id: "parent-1",
+        id: validParentId,
         firstName: "John",
         lastName: "Doe",
-        profileImageUrl: null,
+        profileImageUrl: "url",
       });
-      (prisma.companion.findUnique as jest.Mock).mockResolvedValue({
-        id: "comp-1",
+      (prisma.patient.findUnique as jest.Mock).mockResolvedValue({
+        id: validCompanionId,
         name: "Child",
-        photoUrl: null,
+        photoUrl: "photo",
       });
 
-      const res = await CoParentInviteService.validateInvite("token");
+      const result = await CoParentInviteService.validateInvite("token");
 
-      expect(res.invitedBy.fullName).toBe("John Doe");
-      expect(res.companion.id).toBe("comp-1");
+      expect(result.invitedBy.fullName).toBe("John Doe");
+      expect(result.companion.photoUrl).toBe("photo");
+      expect(result.patient.id).toBe(validCompanionId);
     });
   });
 
   describe("acceptInvite", () => {
-    let validateSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      validateSpy = jest.spyOn(CoParentInviteService, "validateInvite");
-    });
-
     afterEach(() => {
-      validateSpy.mockRestore();
+      jest.restoreAllMocks();
     });
 
-    it("should throw if token is missing", async () => {
+    it("throws if token is missing", async () => {
       await expect(
-        CoParentInviteService.acceptInvite("", "user1"),
+        CoParentInviteService.acceptInvite("", "user-1"),
       ).rejects.toThrow("Invite token is required.");
     });
 
-    it("should throw if authUserId is missing", async () => {
+    it("throws if authUserId is missing", async () => {
       await expect(
         CoParentInviteService.acceptInvite("token", ""),
       ).rejects.toThrow("Authenticated user required.");
     });
 
-    it("should throw if inviteDoc is not found after validation", async () => {
-      validateSpy.mockResolvedValue({
-        id: "inv_id",
-        companion: { id: "c1" },
-        invitedBy: { id: "p1" },
-      } as any);
-      (CoParentInviteModel.findById as jest.Mock).mockResolvedValue(null);
-
-      await expect(
-        CoParentInviteService.acceptInvite("token", "user1"),
-      ).rejects.toThrow("Invalid invite");
-    });
-
-    it("should throw if parent profile not found for accepting user", async () => {
-      validateSpy.mockResolvedValue({
-        id: "inv_id",
-        companion: { id: "c1" },
-        invitedBy: { id: "p1" },
-      } as any);
-      (CoParentInviteModel.findById as jest.Mock).mockResolvedValue({});
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue(null);
-
-      await expect(
-        CoParentInviteService.acceptInvite("token", "user1"),
-      ).rejects.toThrow("Parent profile not found");
-    });
-
-    it("should throw if an existing link already exists", async () => {
-      validateSpy.mockResolvedValue({
-        id: "inv_id",
-        companion: { id: "c1" },
-        invitedBy: { id: "p1" },
-      } as any);
-      (CoParentInviteModel.findById as jest.Mock).mockResolvedValue({});
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
-        _id: "p2",
-      });
-      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValue({
-        _id: "link1",
-      }); // Link exists
-
-      await expect(
-        CoParentInviteService.acceptInvite("token", "user1"),
-      ).rejects.toThrow("You are already linked to this companion.");
-    });
-
-    it("should create link, mark as consumed, save and return success", async () => {
-      validateSpy.mockResolvedValue({
-        id: "inv_id",
-        companion: { id: validCompanionId },
-        invitedBy: { id: validParentId },
-      } as any);
-
-      const mockSave = jest.fn();
-      const mockInviteDoc = { consumed: false, save: mockSave };
-      (CoParentInviteModel.findById as jest.Mock).mockResolvedValue(
-        mockInviteDoc,
-      );
-
-      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
-        _id: "p2",
-      });
-      (ParentCompanionModel.findOne as jest.Mock).mockResolvedValue(null); // No link exists
-
-      const res = await CoParentInviteService.acceptInvite("token", "user1");
-
-      expect(ParentCompanionService.linkParent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          parentId: "p2",
-          role: "CO_PARENT",
-          status: "ACTIVE",
-        }),
-      );
-      expect(mockInviteDoc.consumed).toBe(true);
-      expect(mockSave).toHaveBeenCalled();
-      expect(res.message).toBe("Invite accepted successfully.");
-      expect(res.companionId).toBe(validCompanionId);
-    });
-
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      const validateSpyLocal = jest.spyOn(
-        CoParentInviteService,
-        "validateInvite",
-      );
-      validateSpyLocal.mockResolvedValue({
-        id: "pg-invite",
+    it("throws if the parent profile is missing", async () => {
+      jest.spyOn(CoParentInviteService, "validateInvite").mockResolvedValue({
+        id: "invite-1",
         email: "test@test.com",
         inviteeName: null,
         expiresAt: new Date(Date.now() + 10000),
-        invitedBy: { id: "parent-1" },
-        companion: { id: "comp-1" },
+        invitedBy: {
+          id: validParentId,
+          firstName: "John",
+          lastName: null,
+          profileImageUrl: null,
+        },
+        companion: { id: validCompanionId, name: "Child", photoUrl: null },
+        patient: { id: validCompanionId, name: "Child", photoUrl: null },
+      } as any);
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        CoParentInviteService.acceptInvite("token", "user-1"),
+      ).rejects.toThrow("Parent profile not found");
+    });
+
+    it("throws if the parent is already linked", async () => {
+      jest.spyOn(CoParentInviteService, "validateInvite").mockResolvedValue({
+        id: "invite-1",
+        email: "test@test.com",
+        inviteeName: null,
+        expiresAt: new Date(Date.now() + 10000),
+        invitedBy: {
+          id: validParentId,
+          firstName: "John",
+          lastName: null,
+          profileImageUrl: null,
+        },
+        companion: { id: validCompanionId, name: "Child", photoUrl: null },
+        patient: { id: validCompanionId, name: "Child", photoUrl: null },
       } as any);
       (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
         id: "parent-2",
       });
-      (prisma.parentCompanion.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-1",
+      });
 
-      const res = await CoParentInviteService.acceptInvite("token", "user1");
+      await expect(
+        CoParentInviteService.acceptInvite("token", "user-1"),
+      ).rejects.toThrow("You are already linked to this companion.");
+    });
 
-      expect(prisma.parentCompanion.create).toHaveBeenCalled();
-      expect(prisma.coParentInvite.update).toHaveBeenCalled();
-      expect(res.message).toBe("Invite accepted successfully.");
-      validateSpyLocal.mockRestore();
+    it("creates a parent-patient link and marks the invite consumed", async () => {
+      jest.spyOn(CoParentInviteService, "validateInvite").mockResolvedValue({
+        id: "invite-1",
+        email: "test@test.com",
+        inviteeName: null,
+        expiresAt: new Date(Date.now() + 10000),
+        invitedBy: {
+          id: validParentId,
+          firstName: "John",
+          lastName: null,
+          profileImageUrl: null,
+        },
+        companion: { id: validCompanionId, name: "Child", photoUrl: null },
+        patient: { id: validCompanionId, name: "Child", photoUrl: null },
+      } as any);
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        id: "parent-2",
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const result = await CoParentInviteService.acceptInvite(
+        "token",
+        "user-1",
+      );
+
+      expect(prisma.parentPatient.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          parentId: "parent-2",
+          patientId: validCompanionId,
+          role: "CO_PARENT",
+          status: "ACTIVE",
+          invitedByParentId: validParentId,
+        }),
+      });
+      expect(prisma.coParentInvite.update).toHaveBeenCalledWith({
+        where: { id: "invite-1" },
+        data: expect.objectContaining({
+          consumed: true,
+        }),
+      });
+      expect(result.message).toBe("Invite accepted successfully.");
     });
   });
 
   describe("declineInvite", () => {
-    it("should throw if token missing", async () => {
+    it("throws if token is missing", async () => {
       await expect(CoParentInviteService.declineInvite("")).rejects.toThrow(
         "Invite token is required.",
       );
     });
 
-    it("should throw if invite not found", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue(null);
+    it("throws if invite is missing", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue(null);
+
       await expect(
         CoParentInviteService.declineInvite("token"),
       ).rejects.toThrow("Invalid invite token.");
     });
 
-    it("should throw if already consumed", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
+    it("throws if invite is consumed", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
         consumed: true,
       });
+
       await expect(
         CoParentInviteService.declineInvite("token"),
       ).rejects.toThrow("This invite has already been used.");
     });
 
-    it("should throw if expired", async () => {
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
+    it("throws if invite is expired", async () => {
+      (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
         consumed: false,
         expiresAt: new Date(Date.now() - 1000),
       });
+
       await expect(
         CoParentInviteService.declineInvite("token"),
       ).rejects.toThrow("This invite has expired.");
     });
 
-    it("should mark consumed and return success", async () => {
-      const mockSave = jest.fn();
-      (CoParentInviteModel.findOne as jest.Mock).mockResolvedValue({
-        consumed: false,
-        expiresAt: new Date(Date.now() + 10000),
-        email: "t@t.com",
-        companionId: "c1",
-        invitedByParentId: "p1",
-        save: mockSave,
-      });
-
-      const res = await CoParentInviteService.declineInvite("token");
-
-      expect(mockSave).toHaveBeenCalled();
-      expect(res.message).toBe("Invite declined successfully.");
-    });
-
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
+    it("marks the invite consumed and returns success", async () => {
       (prisma.coParentInvite.findUnique as jest.Mock).mockResolvedValue({
-        id: "pg-1",
-        inviteToken: "token",
-        email: "t@t.com",
-        companionId: "c1",
-        invitedByParentId: "p1",
+        id: "invite-1",
         consumed: false,
         expiresAt: new Date(Date.now() + 10000),
+        email: "t@t.com",
+        patientId: "c1",
+        invitedByParentId: "p1",
       });
       (prisma.coParentInvite.update as jest.Mock).mockResolvedValue({
         email: "t@t.com",
-        companionId: "c1",
+        patientId: "c1",
         invitedByParentId: "p1",
       });
 
-      const res = await CoParentInviteService.declineInvite("token");
-      expect(res.message).toBe("Invite declined successfully.");
+      const result = await CoParentInviteService.declineInvite("token");
+
+      expect(prisma.coParentInvite.update).toHaveBeenCalledWith({
+        where: { id: "invite-1" },
+        data: expect.objectContaining({
+          consumed: true,
+        }),
+      });
+      expect(result.message).toBe("Invite declined successfully.");
     });
   });
 
   describe("getPendingInvitesForEmail", () => {
-    it("should throw if email is missing", async () => {
+    it("throws if email is missing", async () => {
       await expect(
         CoParentInviteService.getPendingInvitesForEmail(""),
       ).rejects.toThrow("Email is required.");
     });
 
-    it("should return empty array if no invites found", async () => {
-      (CoParentInviteModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      });
-      const res =
-        await CoParentInviteService.getPendingInvitesForEmail("test@test.com");
-      expect(res.pendingInvites).toEqual([]);
-    });
+    it("returns an empty array when there are no invites", async () => {
+      (prisma.coParentInvite.findMany as jest.Mock).mockResolvedValue([]);
 
-    it("should skip invite if inviter or companion is not found and map valid ones", async () => {
-      const mockInvites = [
-        {
-          inviteToken: "t1",
-          email: "test@test.com",
-          invitedByParentId: "p1",
-          companionId: "c1",
-        }, // Missing inviter
-        {
-          inviteToken: "t2",
-          email: "test@test.com",
-          invitedByParentId: "p2",
-          companionId: "c2",
-        }, // Missing companion
-        {
-          inviteToken: "t3",
-          email: "test@test.com",
-          invitedByParentId: "p3",
-          companionId: "c3",
-          inviteeName: "Test Name",
-        }, // Valid
-      ];
-
-      (CoParentInviteModel.find as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockResolvedValue(mockInvites),
-      });
-
-      // Setup finding parents/companions based on IDs
-      (ParentModel.findById as jest.Mock).mockImplementation((id) => {
-        if (id === "p1") return createMockQuery(null); // Missing
-        return createMockQuery({ _id: id, firstName: "First" });
-      });
-
-      (CompanionModel.findById as jest.Mock).mockImplementation((id) => {
-        if (id === "c2") return createMockQuery(null); // Missing
-        return createMockQuery({ _id: id, name: "Child" });
-      });
-
-      const res =
+      const result =
         await CoParentInviteService.getPendingInvitesForEmail("test@test.com");
 
-      expect(res.pendingInvites).toHaveLength(1);
-      expect(res.pendingInvites[0].token).toBe("t3");
-      expect(res.pendingInvites[0].inviteeName).toBe("Test Name");
-      expect(res.pendingInvites[0].invitedBy.firstName).toBe("First");
-      expect(res.pendingInvites[0].invitedBy.lastName).toBeNull();
-      expect(res.pendingInvites[0].companion.name).toBe("Child");
+      expect(result.pendingInvites).toEqual([]);
     });
 
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
+    it("skips invites with missing relations and maps valid ones", async () => {
       (prisma.coParentInvite.findMany as jest.Mock).mockResolvedValue([
         {
           inviteToken: "t1",
           email: "test@test.com",
-          inviteeName: "Name",
-          expiresAt: new Date(Date.now() + 10000),
           invitedByParentId: "p1",
-          companionId: "c1",
+          patientId: "c1",
+          inviteeName: null,
+          expiresAt: new Date(Date.now() + 10000),
+        },
+        {
+          inviteToken: "t2",
+          email: "test@test.com",
+          invitedByParentId: "p2",
+          patientId: "c2",
+          inviteeName: null,
+          expiresAt: new Date(Date.now() + 10000),
+        },
+        {
+          inviteToken: "t3",
+          email: "test@test.com",
+          invitedByParentId: "p3",
+          patientId: "c3",
+          inviteeName: "Test Name",
+          expiresAt: new Date(Date.now() + 10000),
         },
       ]);
-      (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
-        id: "p1",
-        firstName: "First",
-        lastName: null,
-        profileImageUrl: null,
-      });
-      (prisma.companion.findUnique as jest.Mock).mockResolvedValue({
-        id: "c1",
-        name: "Child",
-        photoUrl: null,
-      });
 
-      const res =
+      (prisma.parent.findUnique as jest.Mock).mockImplementation(
+        async ({ where }: { where: { id: string } }) => {
+          if (where.id === "p1") return null;
+          return {
+            id: where.id,
+            firstName: "First",
+            lastName: null,
+            profileImageUrl: null,
+          };
+        },
+      );
+
+      (prisma.patient.findUnique as jest.Mock).mockImplementation(
+        async ({ where }: { where: { id: string } }) => {
+          if (where.id === "c2") return null;
+          return {
+            id: where.id,
+            name: "Child",
+            photoUrl: null,
+          };
+        },
+      );
+
+      const result =
         await CoParentInviteService.getPendingInvitesForEmail("test@test.com");
-      expect(res.pendingInvites).toHaveLength(1);
-      expect(res.pendingInvites[0].token).toBe("t1");
+
+      expect(result.pendingInvites).toHaveLength(1);
+      expect(result.pendingInvites[0].token).toBe("t3");
+      expect(result.pendingInvites[0].inviteeName).toBe("Test Name");
+      expect(result.pendingInvites[0].invitedBy.firstName).toBe("First");
+      expect(result.pendingInvites[0].companion.name).toBe("Child");
     });
   });
 });

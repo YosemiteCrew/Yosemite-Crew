@@ -17,6 +17,7 @@ import { useNotify } from '@/app/hooks/useNotify';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import AppointmentCentralModalShell from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentCentralModalShell';
 import AppointmentAvatar from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar';
+import { getAppointmentCompanion } from '@/app/lib/appointments';
 import { IoArrowForward } from 'react-icons/io5';
 
 type ViewAppointmentOverviewModalProps = {
@@ -74,6 +75,7 @@ const ViewAppointmentOverviewModal = ({
   const getServicesBySpecialityId = useServiceStore.getState().getServicesBySpecialityId;
 
   const [savingRoom, setSavingRoom] = useState(false);
+  const companion = getAppointmentCompanion(activeAppointment);
 
   const orgType =
     (activeAppointment.organisationId && orgsById[activeAppointment.organisationId]?.type) ||
@@ -165,28 +167,25 @@ const ViewAppointmentOverviewModal = ({
           {/* Patient */}
           <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
             <AppointmentAvatar
-              name={activeAppointment.companion.name}
-              photoUrl={
-                (activeAppointment.companion as Appointment['companion'] & { photoUrl?: string })
-                  .photoUrl
-              }
+              name={companion.name}
+              photoUrl={(companion as Appointment['patient'] & { photoUrl?: string }).photoUrl}
             />
             <div className="min-w-0">
               <div className="text-sm text-text-extra">Patient</div>
               <div className="font-satoshi text-base text-text-primary truncate">
-                {activeAppointment.companion.name || '-'}
+                {companion.name || '-'}
               </div>
             </div>
           </div>
 
           {/* Client */}
-          {activeAppointment.companion.parent?.name && (
+          {companion.parent?.name && (
             <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
-              <AppointmentAvatar name={activeAppointment.companion.parent.name} />
+              <AppointmentAvatar name={companion.parent.name} />
               <div className="min-w-0">
                 <div className="text-sm text-text-extra">Client</div>
                 <div className="font-satoshi text-base text-text-primary truncate">
-                  {activeAppointment.companion.parent.name}
+                  {companion.parent.name}
                 </div>
               </div>
             </div>

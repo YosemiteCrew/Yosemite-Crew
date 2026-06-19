@@ -268,7 +268,7 @@ describe('documentService', () => {
         expect.any(String),
         expect.objectContaining({
           category: 'HYGIENE_MAINTENANCE',
-          subcategory: 'GROOMER_VISIT',
+          subcategory: 'GROOMING_VISITS',
           issueDate: '',
         }),
         expect.any(Object),

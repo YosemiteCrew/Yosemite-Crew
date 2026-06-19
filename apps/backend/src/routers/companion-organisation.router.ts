@@ -40,7 +40,7 @@ router.delete(
 );
 
 router.get(
-  "/:companionId",
+  "/:patientId",
   authorizeCognitoMobile,
   CompanionOrganisationController.getLinksForCompanionByOrganisationType,
 );
@@ -69,7 +69,7 @@ router.post(
 
 // Link companion directly from PMS
 router.post(
-  "/pms/:organisationId/:companionId/link",
+  "/pms/:organisationId/:patientId/link",
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),

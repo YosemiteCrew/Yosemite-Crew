@@ -253,6 +253,38 @@ jest.mock(
   }),
 );
 
+jest.mock(
+  '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
+  () => ({
+    ConfirmActionBottomSheet: require('react').forwardRef(
+      ({primaryButton, secondaryButton}: any, ref: any) => {
+        const ReactLib = require('react');
+        const {View, Text, TouchableOpacity} = require('react-native');
+        ReactLib.useImperativeHandle(ref, () => ({
+          open: () => {},
+          close: () => {},
+        }));
+        return (
+          <View>
+            <TouchableOpacity
+              testID="confirm-primary-btn"
+              onPress={primaryButton?.onPress}>
+              <Text>{primaryButton?.label ?? 'Confirm'}</Text>
+            </TouchableOpacity>
+            {secondaryButton && (
+              <TouchableOpacity
+                testID="confirm-secondary-btn"
+                onPress={secondaryButton?.onPress}>
+                <Text>{secondaryButton?.label ?? 'Cancel'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+      },
+    ),
+  }),
+);
+
 jest.mock('@/features/tasks/components/form', () => ({
   TaskFormContent: () => {
     const {Text} = require('react-native');
@@ -592,31 +624,30 @@ describe('EditTaskScreen — additional coverage', () => {
   // -------------------------------------------------------------------------
 
   describe('handleSave — recurring tasks', () => {
-    it('opens taskSaveSheetRef when task frequency is not "once"', () => {
-      const mockOpen = jest.fn();
+    it('calls updateTask directly for daily frequency', async () => {
       Object.assign(mockHookData, {
         task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
-        taskSaveSheetRef: {current: {open: mockOpen, close: jest.fn()}},
       });
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('save-btn'));
 
-      expect(mockOpen).toHaveBeenCalled();
-      expect(mockUpdateTask).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockUpdateTask).toHaveBeenCalled();
+      });
     });
 
-    it('opens taskSaveSheetRef for weekly frequency', () => {
-      const mockOpen = jest.fn();
+    it('calls updateTask directly for weekly frequency', async () => {
       Object.assign(mockHookData, {
         task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'weekly'},
-        taskSaveSheetRef: {current: {open: mockOpen, close: jest.fn()}},
       });
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('save-btn'));
 
-      expect(mockOpen).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockUpdateTask).toHaveBeenCalled();
+      });
     });
   });
 
@@ -645,10 +676,10 @@ describe('EditTaskScreen — additional coverage', () => {
   // confirmSave — from TaskSaveOptionsBottomSheet
   // -------------------------------------------------------------------------
 
-  describe('confirmSave — from save options sheet', () => {
-    it('saves successfully via Save All button', async () => {
+  describe('confirmSave — via save button', () => {
+    it('saves successfully via save-btn', async () => {
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('save-all-btn'));
+      fireEvent.press(getByTestId('save-btn'));
 
       await waitFor(() => {
         expect(mockUpdateTask).toHaveBeenCalled();
@@ -656,23 +687,13 @@ describe('EditTaskScreen — additional coverage', () => {
       });
     });
 
-    it('saves successfully via Save For Day button', async () => {
-      const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('save-for-day-btn'));
-
-      await waitFor(() => {
-        expect(mockUpdateTask).toHaveBeenCalled();
-        expect(mockGoBack).toHaveBeenCalled();
-      });
-    });
-
-    it('shows error alert when confirmSave throws', async () => {
+    it('shows error alert when save throws', async () => {
       const error = new Error('Save failed');
       mockUnwrap.mockRejectedValue(error);
       mockUpdateTask.mockReturnValue({unwrap: mockUnwrap});
 
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('save-all-btn'));
+      fireEvent.press(getByTestId('save-btn'));
 
       await waitFor(() => {
         expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
@@ -695,7 +716,7 @@ describe('EditTaskScreen — additional coverage', () => {
       };
 
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('confirm-delete-all-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
       await waitFor(() => {
         expect(mockRemoveCalendarEvents).toHaveBeenCalledWith('evt-del');
@@ -715,7 +736,7 @@ describe('EditTaskScreen — additional coverage', () => {
       };
 
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('confirm-delete-all-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
       await waitFor(() => {
         expect(mockDeleteTask).toHaveBeenCalled();
@@ -728,15 +749,15 @@ describe('EditTaskScreen — additional coverage', () => {
   // confirmDeleteTaskForDay
   // -------------------------------------------------------------------------
 
-  describe('confirmDeleteTaskForDay', () => {
-    it('removes calendar events and deletes task successfully', async () => {
+  describe('confirmDeleteTask — via confirm sheet primary button', () => {
+    it('removes calendar events and deletes when calendarEventId exists', async () => {
       mockHookData.task = {
         ...mockHookData.task,
         calendarEventId: 'evt-day',
       };
 
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('confirm-delete-day-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
       await waitFor(() => {
         expect(mockRemoveCalendarEvents).toHaveBeenCalledWith('evt-day');
@@ -748,7 +769,7 @@ describe('EditTaskScreen — additional coverage', () => {
       });
     });
 
-    it('deletes task for day without calendar removal when no calendarEventId', async () => {
+    it('deletes task without calendar removal when no calendarEventId', async () => {
       mockHookData.task = {
         id: 't1',
         title: 'Task',
@@ -757,7 +778,7 @@ describe('EditTaskScreen — additional coverage', () => {
       };
 
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('confirm-delete-day-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
       await waitFor(() => {
         expect(mockDeleteTask).toHaveBeenCalled();
@@ -766,23 +787,23 @@ describe('EditTaskScreen — additional coverage', () => {
       expect(mockRemoveCalendarEvents).not.toHaveBeenCalled();
     });
 
-    it('shows error alert when delete for day fails', async () => {
-      const error = new Error('Day delete failed');
+    it('shows error alert when delete rejects via confirm button', async () => {
+      const error = new Error('Delete failed');
       mockUnwrap.mockRejectedValue(error);
       mockDeleteTask.mockReturnValue({unwrap: mockUnwrap});
 
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('confirm-delete-day-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
       await waitFor(() => {
         expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
-          'Unable to delete task for this day',
+          'Unable to delete task',
           error,
         );
       });
     });
 
-    it('shows error alert when calendar removal fails during day delete', async () => {
+    it('shows error alert when calendar removal fails before delete', async () => {
       mockHookData.task = {
         ...mockHookData.task,
         calendarEventId: 'evt-day',
@@ -791,11 +812,11 @@ describe('EditTaskScreen — additional coverage', () => {
       mockRemoveCalendarEvents.mockRejectedValue(error);
 
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('confirm-delete-day-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
       await waitFor(() => {
         expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
-          'Unable to delete task for this day',
+          'Unable to delete task',
           error,
         );
       });
@@ -825,7 +846,7 @@ describe('EditTaskScreen — additional coverage', () => {
   // -------------------------------------------------------------------------
 
   describe('handleDeletePress — via header delete button', () => {
-    it('calls confirmDeleteTask when frequency is "once" and delete pressed', async () => {
+    it('calls deleteTask when header delete pressed then confirm pressed', async () => {
       mockHookData.task = {
         id: 't1',
         title: 'Task',
@@ -836,6 +857,7 @@ describe('EditTaskScreen — additional coverage', () => {
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('header-delete-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
       await waitFor(() => {
         expect(mockDeleteTask).toHaveBeenCalledWith({
@@ -845,18 +867,22 @@ describe('EditTaskScreen — additional coverage', () => {
       });
     });
 
-    it('opens taskDeleteSheetRef when frequency is not "once"', () => {
-      const mockOpen = jest.fn();
+    it('shows confirm sheet and calls deleteTask regardless of task frequency', async () => {
       Object.assign(mockHookData, {
         task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
-        taskDeleteSheetRef: {current: {open: mockOpen, close: jest.fn()}},
       });
+      setupDispatch();
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('header-delete-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
-      expect(mockOpen).toHaveBeenCalled();
-      expect(mockDeleteTask).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockDeleteTask).toHaveBeenCalledWith({
+          taskId: 't1',
+          companionId: 'c1',
+        });
+      });
     });
   });
 
@@ -905,7 +931,7 @@ describe('EditTaskScreen — additional coverage', () => {
       };
 
       const {getByTestId} = renderScreen();
-      fireEvent.press(getByTestId('confirm-delete-all-btn'));
+      fireEvent.press(getByTestId('confirm-primary-btn'));
 
       await waitFor(() => {
         expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(

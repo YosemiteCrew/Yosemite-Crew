@@ -1,0 +1,143 @@
+/*
+ * Yosemite Crew desktop — shared design tokens for local (file://) pages.
+ * Mirrors apps/frontend/src/app/globals.css. Satoshi-only. No hardcoded hex
+ * in pages — use these variables.
+ *
+ * Theme override: set data-theme="dark" or data-theme="light" on <html> to
+ * force a mode regardless of prefers-color-scheme.
+ */
+
+@font-face {
+  font-family: 'Satoshi Variable';
+  src:
+    url('../fonts/Satoshi-Variable.woff2') format('woff2'),
+    url('../fonts/Satoshi-Variable.woff') format('woff');
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* ── Light (default) ── */
+:root {
+  --color-primary-500: #007cf5;
+  --color-primary-600: #006ae0;
+  --color-primary-700: #0057c2;
+  --color-primary-100: #e6f2ff;
+  --color-brand-925: #3b87ec;
+  --color-brand-900: #5394ec;
+  --color-brand-600: #99bdec;
+  --color-brand-500: #b1caec;
+
+  --color-neutral-950: #1d1c1b;
+  --color-neutral-900: #302f2e;
+  --color-neutral-800: #454341;
+  --color-neutral-700: #5c5956;
+  --color-neutral-600: #8f8984;
+  --color-neutral-500: #a9a39e;
+  --color-neutral-300: #d6d1cd;
+  --color-neutral-200: #e9e6e3;
+  --color-neutral-100: #f5f3f1;
+  --color-neutral-0: #ffffff;
+
+  /* Status ramps (from globals.css — theme-independent). */
+  --color-success-900: #004f33;
+  --color-success-700: #008255;
+  --color-success-600: #008f5d;
+  --color-success-bright: #22c55e;
+  --color-success-300: #8acbb4;
+  --color-success-100: #e6f4ef;
+  --color-warning-900: #874913;
+  --color-warning-800: #af5e19;
+  --color-warning-600: #f68523;
+  --color-warning-300: #fbc79a;
+  --color-warning-100: #fef3e9;
+  --color-danger-600: #ea3729;
+  --color-danger-100: #fdebea;
+
+  --font-satoshi:
+    'Satoshi Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --text-primary: var(--color-neutral-900);
+  --text-secondary: var(--color-neutral-700);
+  --text-tertiary: var(--color-neutral-600);
+  --text-brand: var(--color-primary-500);
+  --surface-page: var(--color-neutral-100);
+  --surface-card: var(--color-neutral-0);
+  --border-subtle: var(--color-neutral-200);
+  --border-card: var(--color-neutral-300);
+  --accent: var(--color-primary-500);
+  --accent-grad-from: var(--color-primary-500);
+  --accent-grad-to: var(--color-brand-925);
+  /* Primary buttons follow the website: near-black in light mode, inverted to
+     near-white in dark mode, with contrasting label. Not blue. */
+  --btn-bg: var(--color-neutral-950);
+  --btn-fg: var(--color-neutral-0);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(29, 28, 27, 0.04), 0 8px 28px rgba(29, 28, 27, 0.08);
+  --shadow-cta: 0 8px 20px rgba(29, 28, 27, 0.2);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Dark (system preference, no explicit override) ── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --text-primary: #f3f2f1;
+    --text-secondary: #c9c5c1;
+    --text-tertiary: var(--color-neutral-500);
+    --surface-page: #161514;
+    --surface-card: #211f1e;
+    --border-subtle: #2c2a28;
+    --border-card: #383532;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.45);
+    --btn-bg: #f3f2f1;
+    --btn-fg: #161514;
+    --shadow-cta: 0 8px 20px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ── Explicit dark override ── */
+[data-theme='dark'] {
+  --text-primary: #f3f2f1;
+  --text-secondary: #c9c5c1;
+  --text-tertiary: var(--color-neutral-500);
+  --surface-page: #161514;
+  --surface-card: #211f1e;
+  --border-subtle: #2c2a28;
+  --border-card: #383532;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.45);
+  --btn-bg: #f3f2f1;
+  --btn-fg: #161514;
+  --shadow-cta: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='light'] {
+  --surface-page: var(--color-neutral-100);
+  --surface-card: var(--color-neutral-0);
+  --border-subtle: var(--color-neutral-200);
+  --border-card: var(--color-neutral-300);
+  --shadow-card: 0 1px 2px rgba(29, 28, 27, 0.04), 0 8px 28px rgba(29, 28, 27, 0.08);
+  --btn-bg: var(--color-neutral-950);
+  --btn-fg: var(--color-neutral-0);
+  --shadow-cta: 0 8px 20px rgba(29, 28, 27, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  font-family: var(--font-satoshi);
+  color: var(--text-primary);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'ss01', 'cv01';
+}

@@ -143,7 +143,7 @@ describe("Task Model", () => {
       // Expected indexes:
       // { assignedTo: 1, dueAt: 1 }
       // { assignedGroupId: 1, dueAt: 1 }
-      // { companionId: 1, dueAt: 1 }
+      // { patientId: 1, dueAt: 1 }
       // { organisationId: 1, dueAt: 1 }
       // { "recurrence.masterTaskId": 1 }
 
@@ -157,9 +157,9 @@ describe("Task Model", () => {
         return keys["assignedGroupId"] === 1 && keys["dueAt"] === 1;
       });
 
-      const hasCompanionIndex = indexes.some((idx) => {
+      const hasPatientIndex = indexes.some((idx) => {
         const keys = idx[0];
-        return keys["companionId"] === 1 && keys["dueAt"] === 1;
+        return keys["patientId"] === 1 && keys["dueAt"] === 1;
       });
 
       const hasMasterTaskIndex = indexes.some((idx) => {
@@ -169,7 +169,7 @@ describe("Task Model", () => {
 
       expect(hasAssignedToIndex).toBe(true);
       expect(hasAssignedGroupIndex).toBe(true);
-      expect(hasCompanionIndex).toBe(true);
+      expect(hasPatientIndex).toBe(true);
       expect(hasMasterTaskIndex).toBe(true);
     });
   });

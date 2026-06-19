@@ -22,6 +22,7 @@ import {
 
 export interface TaskDraftPayload {
   companionId: string;
+  patientId?: string;
   category: TaskBackendCategory;
   name: string;
   description?: string;
@@ -242,7 +243,8 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
 
   return {
     id,
-    companionId: apiTask?.companionId ?? apiTask?.companion_id ?? '',
+    companionId:
+      apiTask?.companionId ?? apiTask?.patientId ?? apiTask?.companion_id ?? '',
     backendCategory: apiTask?.category,
     category: mapBackendCategoryToUi(apiTask?.category),
     subcategory: 'none',
@@ -425,6 +427,7 @@ export const buildTaskDraftFromForm = ({
 
   return {
     companionId,
+    patientId: companionId,
     category,
     name: formData.title || formData.description || 'Task',
     description: formData.description || undefined,

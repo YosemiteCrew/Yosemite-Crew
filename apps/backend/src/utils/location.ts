@@ -18,10 +18,7 @@ export const getParentAddressForAuthUser = async (
   const authUser = await AuthUserMobileService.getByProviderUserId(authUserId);
 
   if (isReadFromPostgres()) {
-    const parentId =
-      typeof authUser?.parentId === "string"
-        ? authUser.parentId
-        : authUser?.parentId?.toString();
+    const parentId = authUser?.parentId ?? null;
     const parent = parentId
       ? await prisma.parent.findFirst({
           where: { id: parentId },

@@ -13,12 +13,16 @@ module.exports = {
         'backend',
         'frontend',
         'mobile',
+        'desktop',
         'dev-docs',
         'types',
         'fhir',
         'repo',
         'ci',
-        'docs'
+        'docs',
+        'lib',
+        'auth',
+        'database'
       ]
     ],
     'subject-case': [0],

@@ -4,6 +4,10 @@ import {
   ServiceService,
   ServiceServiceError,
 } from "../../services/service.service";
+import {
+  CatalogService,
+  CatalogServiceError,
+} from "../../services/catalog.service";
 import logger from "../../utils/logger";
 import { ServiceRequestDTO } from "@yosemite-crew/types";
 import dayjs from "dayjs";
@@ -57,7 +61,10 @@ const CalendarPrefillPayloadSchema = z.object({
 });
 
 const handleError = (error: unknown, res: Response, defaultMessage: string) => {
-  if (error instanceof ServiceServiceError) {
+  if (
+    error instanceof ServiceServiceError ||
+    error instanceof CatalogServiceError
+  ) {
     return res.status(error.statusCode).json({ message: error.message });
   }
   logger.error(defaultMessage, error);
@@ -167,6 +174,7 @@ export const ServiceController = {
       const serviceName = req.query.serviceName as string;
       const latString = req.query.lat as string | undefined;
       const lngString = req.query.lng as string | undefined;
+      const query = req.query.query as string | undefined;
 
       if (!serviceName) {
         return res
@@ -176,6 +184,7 @@ export const ServiceController = {
 
       let lat: number | null = null;
       let lng: number | null = null;
+      let locationQuery: string | undefined = query;
 
       // --- 1. If lat/lng are provided by user, validate & use them ---
       if (latString && lngString) {
@@ -190,7 +199,7 @@ export const ServiceController = {
       }
 
       // --- 2. Otherwise get location from authenticated user's address ---
-      if (!lat || !lng) {
+      if (lat === null || lng === null) {
         const authUserId = resolveUserIdFromRequest(req);
 
         if (!authUserId) {
@@ -208,10 +217,10 @@ export const ServiceController = {
           });
         }
 
-        const query = `${parentAddress.city} ${parentAddress.postalCode}`;
+        locationQuery = `${parentAddress.city} ${parentAddress.postalCode}`;
 
         // 2a. Geocode city + pincode → lat/lng
-        const geo = await helpers.getGeoLocation(query);
+        const geo = await helpers.getGeoLocation(locationQuery);
 
         const geoRecord =
           geo && typeof geo === "object"
@@ -237,6 +246,7 @@ export const ServiceController = {
           serviceName,
           lat,
           lng,
+          locationQuery,
         );
       return res.status(200).json(results);
     } catch (error: unknown) {
@@ -275,7 +285,7 @@ export const ServiceController = {
       const { serviceId, organisationId, date } = payloadResult.data;
       const referenceDate = dayjs.utc(date, "YYYY-MM-DD", true).toDate();
 
-      const result = await ServiceService.getBookableSlotsService(
+      const result = await CatalogService.getBookableSlotsService(
         serviceId,
         organisationId,
         referenceDate,
@@ -308,7 +318,7 @@ export const ServiceController = {
       const { organisationId, date, minuteOfDay, leadId, serviceIds } =
         payloadResult.data;
 
-      const matches = await ServiceService.getCalendarPrefillMatches({
+      const matches = await CatalogService.getCalendarPrefillMatches({
         organisationId,
         date: dayjs.utc(date, "YYYY-MM-DD", true).toDate(),
         minuteOfDay,

@@ -14,7 +14,7 @@ const ListOrdersSearchBodySchema = z.preprocess(
   },
   z.object({
     appointmentId: z.string().min(1).optional(),
-    companionId: z.string().min(1).optional(),
+    patientId: z.string().min(1).optional(),
     status: z
       .enum([
         "CREATED",
@@ -73,7 +73,17 @@ const handleLabOrderError = (
   responseMessage: string,
 ) => {
   if (error instanceof LabOrderServiceError) {
-    return res.status(error.statusCode).json({ message: error.message });
+    return res.status(error.statusCode).json({
+      message: error.message,
+      ...(error.code || error.details
+        ? {
+            error: {
+              ...(error.code ? { code: error.code } : {}),
+              ...(error.details ? { details: error.details } : {}),
+            },
+          }
+        : {}),
+    });
   }
   logger.error(logMessage, error);
   return res.status(500).json({ message: responseMessage });
@@ -113,12 +123,12 @@ export const LabOrderController = {
         return res.status(400).json({ message: "Invalid request body." });
       }
 
-      const { appointmentId, companionId, status, limit } = bodyResult.data;
+      const { appointmentId, patientId, status, limit } = bodyResult.data;
 
       const orders = await LabOrderService.listOrders({
         organisationId,
         appointmentId,
-        companionId,
+        patientId,
         provider,
         status,
         limit,
@@ -188,7 +198,7 @@ export const LabOrderController = {
       const createdByUserId = orgReq.userId;
 
       const body = req.body as {
-        companionId?: string;
+        patientId?: string;
         appointmentId?: string;
         tests?: string[];
         modality?: "IN_HOUSE" | "REFERENCE_LAB";
@@ -201,7 +211,7 @@ export const LabOrderController = {
 
       const created = await LabOrderService.createOrder(provider, {
         organisationId,
-        companionId: body.companionId ?? "",
+        patientId: body.patientId ?? "",
         appointmentId: body.appointmentId,
         createdByUserId: createdByUserId ?? undefined,
         tests: body.tests ?? [],

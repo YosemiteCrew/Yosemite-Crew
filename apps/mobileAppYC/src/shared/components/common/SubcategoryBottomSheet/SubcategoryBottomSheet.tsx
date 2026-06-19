@@ -1,6 +1,15 @@
-import React, {forwardRef, useState, useImperativeHandle, useRef, useMemo} from 'react';
+import React, {
+  forwardRef,
+  useState,
+  useImperativeHandle,
+  useRef,
+  useMemo,
+} from 'react';
 import {GenericSelectBottomSheet} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
-import type {GenericSelectBottomSheetRef, SelectItem} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import type {
+  GenericSelectBottomSheetRef,
+  SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 
 export interface SubcategoryBottomSheetRef {
   open: () => void;
@@ -16,26 +25,39 @@ interface SubcategoryBottomSheetProps {
 const SUBCATEGORIES: Record<string, SelectItem[]> = {
   admin: [
     {id: 'passport', label: 'Passport'},
-    {id: 'certificates', label: 'Certificates (incl. pedigree, microchip, awards, breeder papers)'},
+    {
+      id: 'certificates',
+      label: 'Certificates (incl. pedigree, microchip, awards, breeder papers)',
+    },
     {id: 'insurance', label: 'Insurance'},
   ],
   health: [
-    {id: 'hospital-visits', label: 'Hospital visits'},
-    {id: 'prescriptions-treatments', label: 'Prescriptions & treatments'},
-    {id: 'vaccination-parasite', label: 'Vaccination, parasite prevention & chronic condition'},
-    {id: 'lab-tests', label: 'Lab tests'},
+    {id: 'surgery-procedure', label: 'Surgery/ Procedure'},
+    {id: 'prescription', label: 'Prescription'},
+    {id: 'vaccination', label: 'Vaccination'},
+    {id: 'discharge-summary', label: 'Discharge summary'},
+    {id: 'lab-test', label: 'Lab test'},
+    {id: 'imaging-diagnostic', label: 'Imaging/ Diagnostic'},
+    {id: 'parasite-prevention', label: 'Parasite prevention'},
+    {id: 'medical-condition', label: 'Medical condition'},
+    {id: 'other', label: 'Other'},
   ],
   'hygiene-maintenance': [
-    {id: 'grooming-visits', label: 'Grooming visits'},
-    {id: 'boarding-records', label: 'Boarding records'},
-    {id: 'training-behaviour', label: 'Training & behaviour reports'},
-    {id: 'breeder-interactions', label: 'Breeder interactions'},
+    {id: 'bathing', label: 'Bathing'},
+    {id: 'nail-trim', label: 'Nail trim'},
+    {id: 'grooming', label: 'Grooming'},
+    {id: 'ear-cleaning', label: 'Ear cleaning'},
+    {id: 'dental-cleaning', label: 'Dental cleaning'},
+    {id: 'skin-care', label: 'Skin care'},
+    {id: 'anal-gland-expression', label: 'Anal gland expression'},
+    {id: 'other', label: 'Other'},
   ],
-  'dietary-plans': [
-    {id: 'nutrition-plans', label: 'Nutrition plans'},
-  ],
+  'dietary-plans': [{id: 'nutrition-plans', label: 'Nutrition plans'}],
   others: [
-    {id: 'weight-logs', label: 'Weight logs, behaviour notes, photos of wounds, etc.'},
+    {
+      id: 'weight-logs',
+      label: 'Weight logs, behaviour notes, photos of wounds, etc.',
+    },
   ],
 };
 
@@ -81,7 +103,9 @@ export const SubcategoryBottomSheet = forwardRef<
     return cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ');
   };
 
-  const title = category ? `${formatCategoryName(category)}\nsub category` : 'Sub category';
+  const title = category
+    ? `${formatCategoryName(category)}\nsub category`
+    : 'Sub category';
 
   return (
     <GenericSelectBottomSheet

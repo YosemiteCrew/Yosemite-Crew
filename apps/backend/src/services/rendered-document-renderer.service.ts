@@ -40,7 +40,7 @@ type FormSubmissionDocumentSource = {
     formId: string;
     formVersion: number;
     appointmentId: string | null;
-    companionId: string | null;
+    patientId: string | null;
     parentId: string | null;
     submittedBy: string | null;
     answers: Prisma.JsonValue;
@@ -249,7 +249,7 @@ const buildFormSubmissionViewModel = (
       formId: record.submission.formId,
       formVersion: record.submission.formVersion,
       appointmentId: record.submission.appointmentId,
-      companionId: record.submission.companionId,
+      patientId: record.submission.patientId,
       parentId: record.submission.parentId,
       submittedBy: record.submission.submittedBy,
     }),
@@ -366,7 +366,7 @@ const loadFormSubmissionDocument = async (
       formId: submission.formId,
       formVersion: submission.formVersion,
       appointmentId: submission.appointmentId,
-      companionId: submission.companionId,
+      patientId: submission.patientId,
       parentId: submission.parentId,
       submittedBy: submission.submittedBy,
       answers: submission.answers,

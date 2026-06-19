@@ -1,0 +1,118 @@
+:root {
+  --ink: #f3f2f1;
+  --muted: #a9a39e;
+  --card: #211f1e;
+  --hair: rgba(255, 255, 255, 0.08);
+  --surface: #161514;
+  --brand-925: var(--color-brand-925);
+  --accent-bg: rgba(59, 135, 236, 0.12);
+}
+html,
+body {
+  overflow: hidden;
+}
+body {
+  color: var(--ink);
+  background: var(--surface);
+  padding: 10px;
+  border-radius: 12px;
+}
+#search {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  padding: 12px 14px;
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  outline: none;
+}
+#search:focus {
+  border-color: var(--brand-925);
+  box-shadow: 0 0 0 2px rgba(59, 135, 236, 0.2);
+}
+#search::placeholder {
+  color: var(--muted);
+}
+#results {
+  margin-top: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+#results::-webkit-scrollbar {
+  width: 6px;
+}
+#results::-webkit-scrollbar-thumb {
+  background: var(--hair);
+  border-radius: 3px;
+}
+.section-title {
+  font-size: 10px;
+  font-weight: 680;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  padding: 8px 12px 4px;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.item:hover,
+.item.selected {
+  background: var(--accent-bg);
+}
+.item-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--hair);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.item-label {
+  font-size: 14px;
+  font-weight: 540;
+  flex: 1;
+}
+.item-desc {
+  font-size: 11px;
+  color: var(--muted);
+}
+.item-type {
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--hair);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.item mark {
+  background: rgba(59, 135, 236, 0.3);
+  color: var(--ink);
+  border-radius: 2px;
+}
+#empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.recents-clock {
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    transition: none;
+  }
+}

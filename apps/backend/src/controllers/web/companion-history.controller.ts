@@ -29,7 +29,7 @@ const ObjectIdSchema = z.string().regex(/^[a-fA-F0-9]{24}$/);
 
 const ParamsSchema = z.object({
   organisationId: ObjectIdSchema,
-  companionId: ObjectIdSchema,
+  patientId: ObjectIdSchema,
 });
 
 const QuerySchema = z.object({
@@ -94,7 +94,7 @@ export const CompanionHistoryController = {
 
       const result = await CompanionHistoryService.listForCompanion({
         organisationId: paramsResult.data.organisationId,
-        companionId: paramsResult.data.companionId,
+        patientId: paramsResult.data.patientId,
         limit: queryResult.data.limit,
         cursor: queryResult.data.cursor,
         types,

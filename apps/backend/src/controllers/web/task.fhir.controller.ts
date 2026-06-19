@@ -2,10 +2,10 @@ import { Request, Response } from "express";
 import { ParamsDictionary } from "express-serve-static-core";
 import { Task as FhirTask } from "@yosemite-crew/fhir";
 import { z } from "zod";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import { TaskService, TaskServiceError } from "src/services/task.service";
 import { taskFhirMapper } from "src/services/fhir-task.mapper";
-import logger from "src/utils/logger";
+import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const taskResourceSchema = z
   .object({ resourceType: z.literal("Task") })
@@ -16,29 +16,12 @@ const listQuerySchema = z.object({
   audience: z.union([z.string(), z.array(z.string())]).optional(),
 });
 
-const handleError = (error: unknown, res: Response) => {
-  if (error instanceof TaskServiceError) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
-
-  if (error instanceof z.ZodError) {
-    return res.status(400).json({
-      message: "Invalid FHIR payload.",
-      issues: error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
-  }
-
-  logger.error("Unexpected FHIR task error", error);
-  return res.status(500).json({ message: "Internal Server Error" });
-};
-
-const resolveUserId = (req: Request) => {
-  const typed = req as AuthenticatedRequest;
-  return typeof typed.userId === "string" ? typed.userId : "";
-};
+const handleError = createFhirErrorHandler({
+  isServiceError: (error): error is TaskServiceError =>
+    error instanceof TaskServiceError,
+  invalidPayloadMessage: "Invalid FHIR payload.",
+  logMessage: "Unexpected FHIR task error",
+});
 
 const parseStatusList = (value?: string | string[]) => {
   if (!value) return undefined;
@@ -74,7 +57,7 @@ export const TaskFhirController = {
       const query = listQuerySchema.parse(req.query);
       const tasks = await TaskService.listForEmployee({
         organisationId: req.params.organisationId,
-        userId: resolveUserId(req) || undefined,
+        userId: resolveUserIdFromRequest(req),
         status: parseStatusList(query.status),
       });
       return res.status(200).json(taskFhirMapper.listBundle(tasks));
@@ -87,7 +70,7 @@ export const TaskFhirController = {
     try {
       const query = listQuerySchema.parse(req.query);
       const tasks = await TaskService.listForCompanion({
-        companionId: req.params.companionId,
+        patientId: req.params.patientId,
         organisationId: req.query.organisationId as string | undefined,
         audience: parseAudience(query.audience),
         status: parseStatusList(query.status),
@@ -104,7 +87,7 @@ export const TaskFhirController = {
   ) {
     try {
       const body = taskResourceSchema.parse(req.body) as unknown as FhirTask;
-      const userId = resolveUserId(req);
+      const userId = resolveUserIdFromRequest(req) ?? "";
       const input = taskFhirMapper.fromFhirTask(body, {
         organisationId: req.params.organisationId,
         createdBy: userId,
@@ -142,7 +125,7 @@ export const TaskFhirController = {
   ) {
     try {
       const body = taskResourceSchema.parse(req.body) as unknown as FhirTask;
-      const userId = resolveUserId(req);
+      const userId = resolveUserIdFromRequest(req) ?? "";
       await loadTaskOrThrow(req.params.taskId, req.params.organisationId);
       const updated = await TaskService.updateTask(
         req.params.taskId,
@@ -167,7 +150,7 @@ export const TaskFhirController = {
     try {
       const body = taskResourceSchema.parse(req.body) as unknown as FhirTask;
       const nextStatus = taskFhirMapper.fromTaskStatus(body.status);
-      const userId = resolveUserId(req);
+      const userId = resolveUserIdFromRequest(req) ?? "";
       await loadTaskOrThrow(req.params.taskId, req.params.organisationId);
       const { task } = await TaskService.changeStatus(
         req.params.taskId,

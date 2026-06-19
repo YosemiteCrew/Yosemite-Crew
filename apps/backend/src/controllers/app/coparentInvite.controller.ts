@@ -10,7 +10,7 @@ import type { AuthenticatedRequest } from "src/middlewares/auth";
 
 type SendInviteBody = {
   email?: string;
-  companionId?: string;
+  patientId?: string;
   inviteeName?: string;
 };
 
@@ -43,11 +43,11 @@ export const CoParentInviteController = {
         return res.status(401).json({ message: "Authentication required." });
       }
 
-      const { email, companionId, inviteeName } = req.body as SendInviteBody;
+      const { email, patientId, inviteeName } = req.body as SendInviteBody;
 
-      if (!email || !companionId || !inviteeName) {
+      if (!email || !patientId || !inviteeName) {
         return res.status(400).json({
-          message: "Email and companionId and InviteeName are required.",
+          message: "Email and patientId and InviteeName are required.",
         });
       }
 
@@ -60,7 +60,7 @@ export const CoParentInviteController = {
 
       await CoParentInviteService.sendInvite({
         email,
-        companionId,
+        patientId,
         invitedByParentId: resolveParentId(inviterParent),
         inviteeName,
       });

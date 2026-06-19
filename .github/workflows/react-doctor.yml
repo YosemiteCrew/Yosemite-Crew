@@ -36,8 +36,8 @@ jobs:
           REACT_DOCTOR_MIN_SCORE: '45'
         run: |
           if [ -z "$REACT_DOCTOR_SCORE" ]; then
-            echo "React Doctor did not return a score."
-            exit 1
+            echo "::warning::React Doctor did not return a score (scoring service unavailable); skipping the score gate. Blocking diagnostics are still enforced via 'blocking: error'."
+            exit 0
           fi
 
           echo "React Doctor score: $REACT_DOCTOR_SCORE"
@@ -67,8 +67,8 @@ jobs:
           REACT_DOCTOR_MIN_SCORE: '70'
         run: |
           if [ -z "$REACT_DOCTOR_SCORE" ]; then
-            echo "React Doctor did not return a score."
-            exit 1
+            echo "::warning::React Doctor did not return a score (scoring service unavailable); skipping the score gate. Blocking diagnostics are still enforced via 'blocking: error'."
+            exit 0
           fi
 
           echo "React Doctor score: $REACT_DOCTOR_SCORE"

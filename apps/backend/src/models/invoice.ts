@@ -38,7 +38,7 @@ const InvoiceItemSchema = new Schema(
 
 export interface InvoiceMongo {
   parentId?: string;
-  companionId?: string;
+  patientId?: string;
   organisationId?: string;
   appointmentId?: string;
 
@@ -76,7 +76,7 @@ export interface InvoiceMongo {
 const InvoiceSchema = new Schema(
   {
     parentId: { type: String },
-    companionId: { type: String },
+    patientId: { type: String },
     organisationId: { type: String },
     appointmentId: { type: String },
 

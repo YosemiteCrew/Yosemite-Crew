@@ -1,42 +1,16 @@
 import { Types } from "mongoose";
 import CompanionModel from "src/models/companion";
 import { ParentModel } from "src/models/parent";
-import CodeMappingModel from "src/models/code-mapping";
 import CompanionOrganisationModel from "src/models/companion-organisation";
 import ParentCompanionModel from "src/models/parent-companion";
-import { IntegrationService } from "src/services/integration.service";
-import { IdexxClient } from "src/integrations/idexx/idexx.client";
 import { normalizeLabProvider } from "src/labs";
 import { LabOrderServiceError } from "src/services/lab-order.service";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
-
-const lookupIdexxMapping = async (yosemiteCode: string) => {
-  const mapping = isReadFromPostgres()
-    ? await prisma.codeMapping.findFirst({
-        where: {
-          sourceSystem: "YOSEMITECODE",
-          sourceCode: yosemiteCode,
-          targetSystem: "IDEXX",
-          active: true,
-        },
-      })
-    : await CodeMappingModel.findOne({
-        sourceSystem: "YOSEMITECODE",
-        sourceCode: yosemiteCode,
-        targetSystem: "IDEXX",
-        active: true,
-      }).lean();
-
-  if (!mapping) {
-    throw new LabOrderServiceError(
-      `Missing IDEXX mapping for code ${yosemiteCode}.`,
-      400,
-    );
-  }
-
-  return mapping.targetCode;
-};
+import {
+  buildIdexxClient,
+  lookupIdexxMapping,
+} from "src/labs/idexx/idexx.shared";
 
 const resolveGenderCode = (gender: string, isNeutered?: boolean) => {
   if (gender === "male") {
@@ -66,14 +40,14 @@ const resolveDocId = (doc: { id?: string; _id?: { toString(): string } }) => {
 
 const buildCensusPayload = async (input: {
   organisationId: string;
-  companionId: IdLike;
+  patientId: IdLike;
   parentId: IdLike;
   veterinarian?: string | null;
   ivls?: Array<{ serialNumber: string }>;
 }) => {
   const safeCompanionIdString = ensureObjectIdString(
-    input.companionId,
-    "companionId",
+    input.patientId,
+    "patientId",
   );
   const safeParentIdString = ensureObjectIdString(input.parentId, "parentId");
   const safeCompanionId = new Types.ObjectId(safeCompanionIdString);
@@ -81,18 +55,18 @@ const buildCensusPayload = async (input: {
 
   if (isReadFromPostgres()) {
     const [companionOrgLink, parentCompanionLink] = await Promise.all([
-      prisma.companionOrganisation.findFirst({
+      prisma.patientOrganisation.findFirst({
         where: {
           organisationId: input.organisationId,
-          companionId: safeCompanionId.toString(),
+          patientId: safeCompanionId.toString(),
           status: { in: ["ACTIVE", "PENDING"] },
         },
         select: { id: true },
       }),
-      prisma.parentCompanion.findFirst({
+      prisma.parentPatient.findFirst({
         where: {
           parentId: safeParentId.toString(),
-          companionId: safeCompanionId.toString(),
+          patientId: safeCompanionId.toString(),
           status: { in: ["ACTIVE", "PENDING"] },
         },
         select: { id: true },
@@ -113,7 +87,7 @@ const buildCensusPayload = async (input: {
 
     const companionOrgLink = (await CompanionOrganisationModel.findOne({
       organisationId: { $eq: safeOrganisationIdString },
-      companionId: { $eq: safeCompanionIdString },
+      patientId: { $eq: safeCompanionIdString },
       status: { $in: ["ACTIVE", "PENDING"] },
     })
       .setOptions({ sanitizeFilter: true })
@@ -122,7 +96,7 @@ const buildCensusPayload = async (input: {
       .exec()) as unknown as { _id: unknown } | null;
     const parentCompanionLink = (await ParentCompanionModel.findOne({
       parentId: { $eq: safeParentIdString },
-      companionId: { $eq: safeCompanionIdString },
+      patientId: { $eq: safeCompanionIdString },
       status: { $in: ["ACTIVE", "PENDING"] },
     })
       .setOptions({ sanitizeFilter: true })
@@ -139,7 +113,7 @@ const buildCensusPayload = async (input: {
   }
 
   const companion = isReadFromPostgres()
-    ? await prisma.companion.findUnique({
+    ? await prisma.patient.findUnique({
         where: { id: safeCompanionId.toString() },
       })
     : await CompanionModel.findById(safeCompanionId)
@@ -175,8 +149,11 @@ const buildCensusPayload = async (input: {
     );
   }
 
-  const speciesCode = await lookupIdexxMapping(companion.speciesCode);
-  const breedCode = await lookupIdexxMapping(companion.breedCode);
+  const speciesCode = await lookupIdexxMapping(
+    companion.speciesCode,
+    "species",
+  );
+  const breedCode = await lookupIdexxMapping(companion.breedCode, "breed");
   const genderCode = resolveGenderCode(
     companion.gender,
     companion.isNeutered ?? undefined,
@@ -213,38 +190,6 @@ const buildCensusPayload = async (input: {
   };
 };
 
-const buildClientForOrg = async (organisationId: string) => {
-  const account = await IntegrationService.requireAccount(
-    organisationId,
-    "IDEXX",
-  );
-
-  const credentials = account.credentials as {
-    username?: string;
-    password?: string;
-    labAccountId?: string;
-  };
-
-  if (!credentials?.username || !credentials.password) {
-    throw new LabOrderServiceError("IDEXX credentials missing.", 400);
-  }
-
-  const pimsId = process.env.IDEXX_PIMS_ID;
-  const pimsVersion = process.env.IDEXX_PIMS_VERSION;
-
-  if (!pimsId || !pimsVersion) {
-    throw new LabOrderServiceError("IDEXX PIMS config missing.", 500);
-  }
-
-  return new IdexxClient({
-    username: credentials.username,
-    password: credentials.password,
-    labAccountId: credentials.labAccountId,
-    pimsId,
-    pimsVersion,
-  });
-};
-
 const requireIdexxProvider = (providerInput: string) => {
   const provider = normalizeLabProvider(providerInput);
   if (!provider || provider !== "IDEXX") {
@@ -257,21 +202,21 @@ export const LabCensusService = {
   async listIvlsDevices(providerInput: string, organisationId: string) {
     requireIdexxProvider(providerInput);
 
-    const client = await buildClientForOrg(organisationId);
+    const client = await buildIdexxClient(organisationId);
     return client.listIvlsDevices();
   },
 
   async listCensus(providerInput: string, organisationId: string) {
     requireIdexxProvider(providerInput);
 
-    const client = await buildClientForOrg(organisationId);
+    const client = await buildIdexxClient(organisationId);
     return client.listCensus();
   },
 
   async deleteCensus(providerInput: string, organisationId: string) {
     requireIdexxProvider(providerInput);
 
-    const client = await buildClientForOrg(organisationId);
+    const client = await buildIdexxClient(organisationId);
     return client.deleteCensus();
   },
 
@@ -282,7 +227,7 @@ export const LabCensusService = {
   ) {
     requireIdexxProvider(providerInput);
 
-    const client = await buildClientForOrg(organisationId);
+    const client = await buildIdexxClient(organisationId);
     return client.getCensusById(censusId);
   },
 
@@ -293,7 +238,7 @@ export const LabCensusService = {
   ) {
     requireIdexxProvider(providerInput);
 
-    const client = await buildClientForOrg(organisationId);
+    const client = await buildIdexxClient(organisationId);
     return client.deleteCensusById(censusId);
   },
 
@@ -304,7 +249,7 @@ export const LabCensusService = {
   ) {
     requireIdexxProvider(providerInput);
 
-    const client = await buildClientForOrg(organisationId);
+    const client = await buildIdexxClient(organisationId);
     return client.getCensusPatient(patientId);
   },
 
@@ -312,7 +257,7 @@ export const LabCensusService = {
     providerInput: string,
     organisationId: string,
     input: {
-      companionId: string;
+      patientId: string;
       parentId?: string;
       veterinarian?: string | null;
       ivls?: Array<{ serialNumber: string } | string>;
@@ -330,13 +275,13 @@ export const LabCensusService = {
 
     const payload = await buildCensusPayload({
       organisationId,
-      companionId: input.companionId,
+      patientId: input.patientId,
       parentId: input.parentId,
       veterinarian: input.veterinarian ?? undefined,
       ivls: normalizedIvls,
     });
 
-    const client = await buildClientForOrg(organisationId);
+    const client = await buildIdexxClient(organisationId);
     return client.addCensusPatient(payload);
   },
 
@@ -347,7 +292,7 @@ export const LabCensusService = {
   ) {
     requireIdexxProvider(providerInput);
 
-    const client = await buildClientForOrg(organisationId);
+    const client = await buildIdexxClient(organisationId);
     return client.deleteCensusPatient(patientId);
   },
 };

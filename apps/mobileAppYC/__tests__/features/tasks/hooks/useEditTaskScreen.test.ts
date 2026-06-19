@@ -1,4 +1,4 @@
-import {renderHook, act} from '@testing-library/react-native';
+import {renderHook} from '@testing-library/react-native';
 // Path: 4 levels up to project root
 import {useEditTaskScreen} from '../../../../src/features/tasks/hooks/useEditTaskScreen';
 import * as Redux from 'react-redux';
@@ -181,28 +181,13 @@ describe('useEditTaskScreen', () => {
   });
 
   describe('Handlers', () => {
-    it('handleDelete opens the delete sheet', () => {
+    it('exposes showErrorAlert from screen handlers', () => {
       const {result} = renderHook(() =>
         useEditTaskScreen(mockTaskId, mockNavigation),
       );
-
-      const mockOpen = jest.fn();
-      result.current.taskDeleteSheetRef.current = {
-        open: mockOpen,
-        close: jest.fn(),
-      };
-
-      act(() => {
-        result.current.handleDelete();
-      });
-
-      expect(mockOpen).toHaveBeenCalled();
-    });
-
-    it('handleDelete handles missing delete sheet ref gracefully (Branch coverage)', () => {
-      // Simulate ref not being attached
-      const noRefSetup = {...mockFormSetup, deleteSheetRef: {current: null}};
-      (TaskFormSetup.useTaskFormSetup as jest.Mock).mockReturnValue(noRefSetup);
+      expect(result.current.showErrorAlert).toBe(
+        mockScreenHandlers.showErrorAlert,
+      );
     });
 
     it('passes through screen handler methods', () => {

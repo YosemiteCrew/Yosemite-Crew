@@ -10,7 +10,7 @@ describe("getMissingCompanionForeignKeyReason", () => {
     expect(
       getMissingCompanionForeignKeyReason(
         "Organization",
-        { companionId: "companion-1" },
+        { patientId: "companion-1" },
         knownIds,
       ),
     ).toBeNull();
@@ -20,7 +20,7 @@ describe("getMissingCompanionForeignKeyReason", () => {
     expect(
       getMissingCompanionForeignKeyReason(
         "Document",
-        { companionId: "companion-1" },
+        { patientId: "companion-1" },
         knownIds,
       ),
     ).toBeNull();
@@ -28,25 +28,25 @@ describe("getMissingCompanionForeignKeyReason", () => {
 
   it("flags missing companionId values", () => {
     expect(getMissingCompanionForeignKeyReason("Document", {}, knownIds)).toBe(
-      "missing companionId",
+      "missing patientId",
     );
     expect(
       getMissingCompanionForeignKeyReason(
         "Document",
-        { companionId: "" },
+        { patientId: "" },
         knownIds,
       ),
-    ).toBe("missing companionId");
+    ).toBe("missing patientId");
   });
 
   it("flags unknown companion references", () => {
     expect(
       getMissingCompanionForeignKeyReason(
-        "CompanionOrganisation",
-        { companionId: "missing-id" },
+        "PatientOrganisation",
+        { patientId: "missing-id" },
         knownIds,
       ),
-    ).toBe("unknown companionId missing-id");
+    ).toBe("unknown patientId missing-id");
   });
 
   it("derives a room code from explicit and legacy fields", () => {

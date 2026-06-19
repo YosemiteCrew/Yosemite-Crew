@@ -1,7 +1,7 @@
 export const modelsRequiringCompanionId = new Set([
-  "CompanionOrganisation",
+  "PatientOrganisation",
   "Document",
-  "ParentCompanion",
+  "ParentPatient",
 ]);
 
 const slugifyRoomCode = (value: string) =>
@@ -21,13 +21,13 @@ export const getMissingCompanionForeignKeyReason = (
     return null;
   }
 
-  const companionId = data.companionId;
-  if (typeof companionId !== "string" || companionId.trim().length === 0) {
-    return "missing companionId";
+  const patientId = data.patientId;
+  if (typeof patientId !== "string" || patientId.trim().length === 0) {
+    return "missing patientId";
   }
 
-  if (!existingCompanionIds.has(companionId)) {
-    return `unknown companionId ${companionId}`;
+  if (!existingCompanionIds.has(patientId)) {
+    return `unknown patientId ${patientId}`;
   }
 
   return null;

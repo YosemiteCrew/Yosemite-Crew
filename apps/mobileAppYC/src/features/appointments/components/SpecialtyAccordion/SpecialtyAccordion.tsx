@@ -13,6 +13,9 @@ import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
+import type {VetPackage} from '@/features/appointments/types';
+import {PackageItem} from '@/features/appointments/components/PackageAccordion/PackageAccordion';
+import {createAccordionSectionStyles} from '@/features/appointments/components/accordionSectionStyles';
 
 interface Service {
   id: string;
@@ -23,26 +26,34 @@ interface Service {
   icon?: any;
 }
 
+interface SpecialtyGroup {
+  name: string;
+  serviceCount: number;
+  services: Service[];
+  packages: VetPackage[];
+}
+
 interface SpecialtyAccordionProps {
   title: string;
   icon?: any;
-  specialties: {
-    name: string;
-    serviceCount: number;
-    services: Service[];
-  }[];
+  specialties: SpecialtyGroup[];
   onSelectService: (serviceId: string, specialtyName: string) => void;
+  onSelectPackage: (packageId: string, packageName: string) => void;
 }
 
+// ─── Specialty Item ───────────────────────────────────────────────────────────
+
 interface SpecialtyItemProps {
-  specialty: SpecialtyAccordionProps['specialties'][number];
+  specialty: SpecialtyGroup;
   defaultExpanded?: boolean;
   onSelectService: (serviceId: string, specialtyName: string) => void;
+  onSelectPackage: (packageId: string, packageName: string) => void;
 }
 
 const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
   specialty,
   onSelectService,
+  onSelectPackage,
   defaultExpanded = false,
 }) => {
   const {theme} = useTheme();
@@ -74,8 +85,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
         <View style={styles.specialtyHeaderContent}>
           <Text style={styles.specialtyName}>{specialty.name}</Text>
           <Text style={styles.doctorCount}>
-            {specialty.serviceCount} Service
-            {specialty.serviceCount === 1 ? '' : 's'}
+            {specialty.serviceCount + specialty.packages.length}
           </Text>
         </View>
         <Animated.Image
@@ -130,17 +140,36 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
               />
             </LiquidGlassCard>
           ))}
+
+          {specialty.packages.length > 0 && (
+            <View style={styles.packagesSectionWrapper}>
+              <Text style={styles.packagesSectionLabel}>Packages</Text>
+              <View style={styles.pkgList}>
+                {specialty.packages.map(pkg => (
+                  <PackageItem
+                    key={pkg.id}
+                    pkg={pkg}
+                    compact
+                    onSelectPackage={onSelectPackage}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
         </View>
       )}
     </View>
   );
 };
 
+// ─── SpecialtyAccordion ───────────────────────────────────────────────────────
+
 export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
   title,
   icon,
   specialties,
   onSelectService,
+  onSelectPackage,
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -148,7 +177,9 @@ export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.parentHeader}>
-        {icon && <Image source={icon} style={styles.parentIcon} />}
+        {icon && (
+          <Image testID="parent-icon" source={icon} style={styles.parentIcon} />
+        )}
         <Text style={styles.parentTitle}>{title}</Text>
       </View>
 
@@ -159,6 +190,7 @@ export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
             specialty={specialty}
             defaultExpanded={index === 0}
             onSelectService={onSelectService}
+            onSelectPackage={onSelectPackage}
           />
         ))}
       </View>
@@ -166,27 +198,11 @@ export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      marginBottom: theme.spacing['4'],
-    },
-    parentHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing['2'],
-      paddingHorizontal: theme.spacing['1'],
-      marginBottom: theme.spacing['3'],
-    },
-    parentIcon: {
-      width: theme.spacing['7'],
-      height: theme.spacing['7'],
-      resizeMode: 'contain',
-    },
-    parentTitle: {
-      ...theme.typography.sectionHeading,
-      color: theme.colors.secondary,
-    },
+    ...createAccordionSectionStyles(theme),
     specialtiesList: {
       gap: theme.spacing['2'],
     },
@@ -279,6 +295,19 @@ const createStyles = (theme: any) =>
     selectButtonText: {
       ...theme.typography.titleSmall,
       color: theme.colors.white,
+    },
+
+    // ── Package section inside specialty ──
+    packagesSectionWrapper: {
+      gap: theme.spacing['2'],
+    },
+    packagesSectionLabel: {
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.textSecondary,
+      paddingHorizontal: theme.spacing['1'],
+    },
+    pkgList: {
+      gap: theme.spacing['2'],
     },
   });
 

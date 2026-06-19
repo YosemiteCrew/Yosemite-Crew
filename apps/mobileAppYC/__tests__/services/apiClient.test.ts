@@ -381,6 +381,7 @@ describe('apiClient', () => {
         url: '/submit',
         status: 400,
         message: 'Request failed',
+        data: {error: 'Bad Request'},
       });
     });
 

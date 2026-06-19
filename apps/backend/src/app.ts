@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import fileUpload from "express-fileupload";
 import { registerRoutes } from "./routers";
 import { StripeController } from "./controllers/web/stripe.controller";
+import { FinanceController } from "./controllers/app/finance.controller";
 import cors from "cors";
 import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
 import mongoSanitize from "express-mongo-sanitize";
@@ -56,6 +57,12 @@ export function createApp() {
     "/v1/documenso/webhook",
     express.raw({ type: "application/json" }),
     (req, res) => DocumensoWebhookController.handle(req, res),
+  );
+
+  app.post(
+    "/v1/finance/webhooks/:provider",
+    express.raw({ type: "application/json" }),
+    (req, res) => FinanceController.webhook(req, res),
   );
 
   app.use(fileUpload());

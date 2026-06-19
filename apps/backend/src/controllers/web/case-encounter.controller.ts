@@ -198,7 +198,7 @@ export const CaseController = {
       const query = caseListQuerySchema.parse(req.query);
       const values = await CaseEncounterService.listCases({
         organisationId: parseReferenceId(query.organization, "Organization"),
-        companionId: parseReferenceId(query.patient, "Patient"),
+        patientId: parseReferenceId(query.patient, "Patient"),
         parentId: parseReferenceId(query.parent, "RelatedPerson"),
         status: query.status as never,
         appointmentKind: query.appointmentKind,
@@ -447,7 +447,7 @@ export const EncounterController = {
       const values = await CaseEncounterService.listEncounters({
         organisationId: parseReferenceId(query.organization, "Organization"),
         caseId: parseReferenceId(query.episodeofcare, "EpisodeOfCare"),
-        companionId: parseReferenceId(query.patient, "Patient"),
+        patientId: parseReferenceId(query.patient, "Patient"),
         parentId: parseReferenceId(query.parent, "RelatedPerson"),
         status: query.status as never,
         appointmentKind: query.appointmentKind,

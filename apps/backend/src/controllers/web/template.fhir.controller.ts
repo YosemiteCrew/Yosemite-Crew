@@ -1,12 +1,16 @@
 import { Request, Response } from "express";
-import { TemplateKind, TemplateScope, TemplateStatus } from "@prisma/client";
+import {
+  TemplateKind as PrismaTemplateKind,
+  TemplateScope,
+  TemplateStatus,
+} from "@prisma/client";
 import {
   Questionnaire,
   QuestionnaireResponse,
   PlanDefinition,
 } from "@yosemite-crew/fhir";
+import type { TemplateKind as TemplateContractKind } from "@yosemite-crew/types";
 import { z } from "zod";
-import { AuthenticatedRequest } from "src/middlewares/auth";
 import {
   TemplateService,
   TemplateServiceError,
@@ -15,7 +19,8 @@ import {
   templateMapper,
   type TemplateLike,
 } from "src/services/fhir-template.mapper";
-import logger from "src/utils/logger";
+import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const questionnaireResourceSchema = z
   .object({ resourceType: z.literal("Questionnaire") })
@@ -28,52 +33,36 @@ const questionnaireResponseSchema = z
   .passthrough();
 
 const listQuerySchema = z.object({
-  kind: z.nativeEnum(TemplateKind).optional(),
+  kind: z
+    .union([
+      z.nativeEnum(PrismaTemplateKind),
+      z.enum([
+        "SOAP_NOTE",
+        "VITAL_RECORD",
+        "DISCHARGE_SUMMARY",
+        "PRESCRIPTION",
+        "FORM",
+        "CONSENT",
+        "INPATIENT_SCHEDULE",
+        "TASK_ASSIGNMENT",
+      ]),
+    ])
+    .optional(),
   status: z.nativeEnum(TemplateStatus).optional(),
   scope: z.nativeEnum(TemplateScope).optional(),
 });
 
-const handleError = (error: unknown, res: Response) => {
-  if (error instanceof TemplateServiceError) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
+const handleError = createFhirErrorHandler({
+  isServiceError: (error): error is TemplateServiceError =>
+    error instanceof TemplateServiceError,
+  invalidPayloadMessage: "Invalid FHIR payload.",
+  logMessage: "Unexpected FHIR template error",
+});
 
-  if (error instanceof z.ZodError) {
-    return res.status(400).json({
-      message: "Invalid FHIR payload.",
-      issues: error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
-  }
-
-  logger.error("Unexpected FHIR template error", error);
-  return res.status(500).json({ message: "Internal Server Error" });
-};
-
-const resolveUserId = (req: Request) => {
-  const typed = req as AuthenticatedRequest;
-  return typeof typed.userId === "string" ? typed.userId : "";
-};
-
-const questionnaireKinds = new Set<TemplateKind>([
-  "FORM",
-  "SOAP_NOTE",
-  "VITAL_RECORD",
-  "PRESCRIPTION",
-  "DISCHARGE_SUMMARY",
-]);
-
-const planDefinitionKinds = new Set<TemplateKind>([
-  "TASK_TEMPLATE",
-  "CARE_PATHWAY",
-]);
-
-const isQuestionnaireTemplate = (kind: TemplateKind) =>
-  questionnaireKinds.has(kind);
-const isPlanDefinitionTemplate = (kind: TemplateKind) =>
-  planDefinitionKinds.has(kind);
+const isQuestionnaireTemplate = (kind: TemplateContractKind) =>
+  templateMapper.isQuestionnaireResourceKind(kind);
+const isPlanDefinitionTemplate = (kind: TemplateContractKind) =>
+  templateMapper.isPlanDefinitionResourceKind(kind);
 
 const filterQuestionnaires = (templates: TemplateLike[]) =>
   templates.filter((template) => isQuestionnaireTemplate(template.kind));
@@ -230,7 +219,7 @@ export const TemplateFhirController = {
       const query = listQuerySchema.parse(req.query);
       const templates = (await TemplateService.listForUser(
         req.params.organisationId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         query,
       )) as TemplateLike[];
       return res
@@ -246,7 +235,7 @@ export const TemplateFhirController = {
       const questionnaire = questionnaireResourceSchema.parse(
         req.body,
       ) as unknown as Questionnaire;
-      const userId = resolveUserId(req);
+      const userId = resolveUserIdFromRequest(req) ?? "";
       const input = templateMapper.questionnaireToTemplateInput(questionnaire, {
         createdBy: userId,
         updatedBy: userId,
@@ -296,7 +285,7 @@ export const TemplateFhirController = {
         req.params.templateId,
         questionnaire,
         req.params.organisationId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       return res
         .status(200)
@@ -310,7 +299,7 @@ export const TemplateFhirController = {
     try {
       const template = await TemplateService.publish(
         req.params.templateId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         req.params.organisationId,
       );
       if (!isQuestionnaireTemplate(template.kind)) {
@@ -328,7 +317,7 @@ export const TemplateFhirController = {
     try {
       const template = await TemplateService.archive(
         req.params.templateId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         req.params.organisationId,
       );
       if (!isQuestionnaireTemplate(template.kind)) {
@@ -353,7 +342,7 @@ export const TemplateFhirController = {
           req.params.templateId,
           body,
           req.params.organisationId,
-          resolveUserId(req),
+          resolveUserIdFromRequest(req) ?? "",
           false,
         );
       return res.status(201).json(questionnaireResponse);
@@ -373,7 +362,7 @@ export const TemplateFhirController = {
           req.params.templateId,
           body,
           req.params.organisationId,
-          resolveUserId(req),
+          resolveUserIdFromRequest(req) ?? "",
           false,
         );
       return res.status(200).json(questionnaireResponse);
@@ -393,7 +382,7 @@ export const TemplateFhirController = {
           req.params.templateId,
           body,
           req.params.organisationId,
-          resolveUserId(req),
+          resolveUserIdFromRequest(req) ?? "",
           true,
         );
       return res.status(200).json(questionnaireResponse);
@@ -436,7 +425,7 @@ export const TemplateFhirController = {
       const query = listQuerySchema.parse(req.query);
       const templates = (await TemplateService.listForUser(
         req.params.organisationId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         query,
       )) as TemplateLike[];
       return res
@@ -452,7 +441,7 @@ export const TemplateFhirController = {
       const planDefinition = planDefinitionResourceSchema.parse(
         req.body,
       ) as unknown as PlanDefinition;
-      const userId = resolveUserId(req);
+      const userId = resolveUserIdFromRequest(req) ?? "";
       const input = templateMapper.planDefinitionToTemplateInput(
         planDefinition,
         {
@@ -505,7 +494,7 @@ export const TemplateFhirController = {
         req.params.templateId,
         planDefinition,
         req.params.organisationId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
       );
       return res
         .status(200)
@@ -519,7 +508,7 @@ export const TemplateFhirController = {
     try {
       const template = await TemplateService.publish(
         req.params.templateId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         req.params.organisationId,
       );
       if (!isPlanDefinitionTemplate(template.kind)) {
@@ -537,7 +526,7 @@ export const TemplateFhirController = {
     try {
       const template = await TemplateService.archive(
         req.params.templateId,
-        resolveUserId(req),
+        resolveUserIdFromRequest(req) ?? "",
         req.params.organisationId,
       );
       if (!isPlanDefinitionTemplate(template.kind)) {
@@ -562,7 +551,7 @@ export const TemplateFhirController = {
           req.params.templateId,
           body,
           req.params.organisationId,
-          resolveUserId(req),
+          resolveUserIdFromRequest(req) ?? "",
           false,
         );
       return res.status(201).json(questionnaireResponse);
@@ -582,7 +571,7 @@ export const TemplateFhirController = {
           req.params.templateId,
           body,
           req.params.organisationId,
-          resolveUserId(req),
+          resolveUserIdFromRequest(req) ?? "",
           false,
         );
       return res.status(200).json(questionnaireResponse);
@@ -602,7 +591,7 @@ export const TemplateFhirController = {
           req.params.templateId,
           body,
           req.params.organisationId,
-          resolveUserId(req),
+          resolveUserIdFromRequest(req) ?? "",
           true,
         );
       return res.status(200).json(questionnaireResponse);

@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useRef} from 'react';
 import {ScrollView, View, Text} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -7,8 +7,6 @@ import {useDispatch, useSelector} from 'react-redux';
 import {Input} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {TaskDeleteBottomSheet} from '@/features/tasks/components/TaskDeleteBottomSheet/TaskDeleteBottomSheet';
-import {TaskSaveOptionsBottomSheet} from '@/features/tasks/components/TaskSaveOptionsBottomSheet/TaskSaveOptionsBottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {updateTask, deleteTask, setTaskCalendarEventId} from '@/features/tasks';
@@ -34,6 +32,10 @@ import {
   removeCalendarEvents,
 } from '@/features/tasks/services/calendarSyncService';
 import {getAssignedUserName} from '@/features/tasks/utils/userHelpers';
+import {
+  ConfirmActionBottomSheet,
+  type ConfirmActionBottomSheetRef,
+} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'EditTask'>;
 type Route = RouteProp<TaskStackParamList, 'EditTask'>;
@@ -60,8 +62,6 @@ export const EditTaskScreen: React.FC = () => {
     isMedicationForm,
     isObservationalToolForm,
     isSimpleForm,
-    taskDeleteSheetRef,
-    taskSaveSheetRef,
     sheetHandlers,
     validateForm,
     showErrorAlert,
@@ -71,6 +71,8 @@ export const EditTaskScreen: React.FC = () => {
     openSheet,
     companions,
   } = hookData;
+
+  const confirmDeleteSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
 
   // Smart back handler that navigates back without resetting the stack
   const handleSmartBack = React.useCallback(() => {
@@ -160,66 +162,25 @@ export const EditTaskScreen: React.FC = () => {
   const handleSave = () => {
     if (!validateForm(formData)) return;
     if (!task) return;
-    if (task.frequency === 'once') {
-      performSave().catch(error =>
-        showErrorAlert('Unable to update task', error),
-      );
-    } else {
-      taskSaveSheetRef.current?.open();
-    }
+    performSave().catch(error =>
+      showErrorAlert('Unable to update task', error),
+    );
   };
 
   const handleDeletePress = () => {
     if (!task) return;
-    if (task.frequency === 'once') {
-      confirmDeleteTask();
-    } else {
-      taskDeleteSheetRef.current?.open();
-    }
+    confirmDeleteSheetRef.current?.open();
   };
 
-  const confirmSave = async () => {
-    try {
-      await performSave();
-    } catch (error) {
-      showErrorAlert('Unable to update task', error);
-    }
-  };
-
-  const confirmDeleteTask = async () => {
+  const handleDeleteTask = async () => {
     if (!task) return;
-    try {
-      // Remove calendar events if they exist
-      if (task.calendarEventId) {
-        console.log(
-          '[EditTask] Deleting task, removing calendar events:',
-          task.calendarEventId,
-        );
-        await removeCalendarEvents(task.calendarEventId);
-      }
-
-      await dispatch(
-        deleteTask({taskId: task.id, companionId: task.companionId}),
-      ).unwrap();
-      handleSmartBack();
-    } catch (error) {
-      showErrorAlert('Unable to delete task', error);
+    if (task.calendarEventId) {
+      await removeCalendarEvents(task.calendarEventId);
     }
-  };
-
-  const confirmDeleteTaskForDay = async () => {
-    if (!task) return;
-    try {
-      if (task.calendarEventId) {
-        await removeCalendarEvents(task.calendarEventId);
-      }
-      await dispatch(
-        deleteTask({taskId: task.id, companionId: task.companionId}),
-      ).unwrap();
-      handleSmartBack();
-    } catch (error) {
-      showErrorAlert('Unable to delete task for this day', error);
-    }
+    await dispatch(
+      deleteTask({taskId: task.id, companionId: task.companionId}),
+    ).unwrap();
+    handleSmartBack();
   };
 
   if (!task) {
@@ -322,17 +283,23 @@ export const EditTaskScreen: React.FC = () => {
         onDiscard={() => navigation.goBack()}
       />
 
-      <TaskDeleteBottomSheet
-        ref={taskDeleteSheetRef}
-        taskTitle={task?.title}
-        onDeleteAll={confirmDeleteTask}
-        onDeleteForDay={confirmDeleteTaskForDay}
-      />
-
-      <TaskSaveOptionsBottomSheet
-        ref={taskSaveSheetRef}
-        onSaveAll={confirmSave}
-        onSaveForDay={confirmSave}
+      <ConfirmActionBottomSheet
+        ref={confirmDeleteSheetRef}
+        title="Delete task"
+        message={
+          task ? `Are you sure you want to delete "${task.title}"?` : undefined
+        }
+        primaryButton={{
+          label: 'Delete',
+          onPress: () =>
+            handleDeleteTask().catch(error =>
+              showErrorAlert('Unable to delete task', error),
+            ),
+        }}
+        secondaryButton={{
+          label: 'Cancel',
+          onPress: () => confirmDeleteSheetRef.current?.close(),
+        }}
       />
     </>
   );

@@ -240,7 +240,7 @@ describe("CompanionController", () => {
 
   describe("createCompanionPMS", () => {
     it("should 400 if parentId invalid/missing", async () => {
-      req.body = { ...validFhirPayload, parentId: "invalid" };
+      req.body = { ...validFhirPayload, parentId: "" };
       await CompanionController.createCompanionPMS(
         req as Request,
         res as Response,
@@ -273,6 +273,7 @@ describe("CompanionController", () => {
       const pid = new Types.ObjectId();
       req.body = { ...validFhirPayload, parentId: pid.toHexString() };
       req.params = { orgId: "invalid" };
+      (req as any).userId = "user-1";
 
       // Mock create success first
       mockedCompanionService.create.mockResolvedValue({
@@ -283,10 +284,10 @@ describe("CompanionController", () => {
         req as Request,
         res as Response,
       );
-      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(statusMock).toHaveBeenCalledWith(404);
       expect(jsonMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining("Valid organisationId"),
+          message: expect.stringContaining("Organisation not found"),
         }),
       );
     });
@@ -350,7 +351,7 @@ describe("CompanionController", () => {
         pmsUserId: "pmsUser",
         organisationId: oid.toHexString(),
         organisationType: "HOSPITAL",
-        companionId: "c1",
+        patientId: "c1",
       });
       expect(statusMock).toHaveBeenCalledWith(201);
     });
@@ -446,7 +447,7 @@ describe("CompanionController", () => {
     it("should 404 if result null", async () => {
       req.params = { id: "c1" };
       req.body = validFhirPayload;
-      mockedCompanionService.update.mockResolvedValue(null);
+      mockedCompanionService.update.mockResolvedValue(null as any);
 
       await CompanionController.updateCompanion(
         req as Request,

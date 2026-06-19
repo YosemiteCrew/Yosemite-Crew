@@ -5,6 +5,11 @@ import { AuthenticatedRequest } from "src/middlewares/auth";
 import type { OrgRequest } from "src/middlewares/rbac";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
+  isTaskCategory,
+  isTaskKind,
+  type TaskCategory,
+} from "@yosemite-crew/types";
+import {
   CompleteTaskInput,
   CreateCustomTaskInput,
   CreateFromLibraryInput,
@@ -55,6 +60,8 @@ const TASK_STATUSES = new Set<TaskStatus>([
   "COMPLETED",
   "CANCELLED",
 ]);
+const pickFirstQueryValue = (value?: string | string[]): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
 
 const parseStatusList = (
   status?: string | string[],
@@ -84,6 +91,17 @@ const parseDateQuery = (value?: string | string[]): Date | undefined => {
   return Number.isNaN(date.getTime()) ? undefined : date;
 };
 
+const parseBooleanQuery = (
+  value?: boolean | string | string[],
+): boolean | undefined => {
+  if (typeof value === "boolean") return value;
+  const str = pickFirstQueryValue(value);
+  if (str === undefined) return undefined;
+  if (str === "true" || str === "1") return true;
+  if (str === "false" || str === "0") return false;
+  return undefined;
+};
+
 const parseAudience = (
   audience?: string | string[],
 ): TaskAudience | undefined => {
@@ -97,13 +115,40 @@ const parseAudience = (
 const parseTaskKind = (kind?: string | string[]): TaskKind | undefined => {
   if (!kind) return undefined;
   const value = Array.isArray(kind) ? kind[0] : kind;
-  return value === "MEDICATION" ||
-    value === "OBSERVATION_TOOL" ||
-    value === "HYGIENE" ||
-    value === "DIET" ||
-    value === "CUSTOM"
-    ? value
-    : undefined;
+  return typeof value === "string" && isTaskKind(value) ? value : undefined;
+};
+
+const parseTaskCategory = (
+  category?: string | string[],
+): TaskCategory | undefined => {
+  if (!category) return undefined;
+  const value = pickFirstQueryValue(category);
+  return value && isTaskCategory(value) ? value : undefined;
+};
+
+type TaskListQuery = {
+  userId?: string;
+  assignedTo?: string;
+  patientId?: string;
+  companionId?: string;
+  clientId?: string;
+  appointmentId?: string;
+  encounterId?: string;
+  episodeOfCareId?: string;
+  admissionId?: string;
+  templateInstanceId?: string;
+  scheduleId?: string;
+  audience?: string;
+  assignedRole?: string;
+  status?: string | string[];
+  category?: string | string[];
+  subcategory?: string | string[];
+  kind?: string | string[];
+  dueFrom?: string | string[];
+  dueTo?: string | string[];
+  fromDueAt?: string | string[];
+  toDueAt?: string | string[];
+  includeCompleted?: boolean | string | string[];
 };
 
 const handleError = (error: unknown, res: Response) => {
@@ -342,7 +387,7 @@ export const TaskController = {
       unknown,
       unknown,
       {
-        companionId?: string;
+        patientId?: string;
         fromDueAt?: string;
         toDueAt?: string;
         status?: string;
@@ -361,7 +406,7 @@ export const TaskController = {
 
       const tasks = await TaskService.listForParent({
         parentId,
-        companionId: req.query.companionId,
+        patientId: req.query.patientId,
         fromDueAt: parseDateQuery(req.query.fromDueAt),
         toDueAt: parseDateQuery(req.query.toDueAt),
         status: parseStatusList(req.query.status),
@@ -375,32 +420,43 @@ export const TaskController = {
 
   // PMS — List Employee Tasks
   listEmployeeTasks: async (
-    req: Request<
-      { organisationId: string },
-      unknown,
-      unknown,
-      {
-        userId?: string;
-        companionId?: string;
-        fromDueAt?: string;
-        toDueAt?: string;
-        status?: string;
-      }
-    >,
+    req: Request<{ organisationId: string }, unknown, unknown, TaskListQuery>,
     res: Response,
   ) => {
     try {
       const organisationId =
         (req as OrgRequest).organisationId ?? req.params.organisationId;
-      const userId = req.query.userId;
+      const assignedTo = req.query.assignedTo ?? req.query.userId;
+      const audience =
+        parseAudience(req.query.audience) ??
+        parseAudience(req.query.assignedRole);
 
       const tasks = await TaskService.listForEmployee({
         organisationId,
-        userId,
+        userId: assignedTo,
+        assignedTo,
+        patientId:
+          req.query.patientId ?? req.query.companionId ?? req.query.clientId,
         companionId: req.query.companionId,
-        fromDueAt: parseDateQuery(req.query.fromDueAt),
-        toDueAt: parseDateQuery(req.query.toDueAt),
+        clientId: req.query.clientId,
+        appointmentId: pickFirstQueryValue(req.query.appointmentId),
+        encounterId: pickFirstQueryValue(req.query.encounterId),
+        episodeOfCareId: pickFirstQueryValue(req.query.episodeOfCareId),
+        admissionId: pickFirstQueryValue(req.query.admissionId),
+        templateInstanceId: pickFirstQueryValue(req.query.templateInstanceId),
+        scheduleId: pickFirstQueryValue(req.query.scheduleId),
+        audience,
+        assignedRole: parseAudience(req.query.assignedRole),
         status: parseStatusList(req.query.status),
+        category: parseTaskCategory(req.query.category),
+        subcategory: pickFirstQueryValue(req.query.subcategory),
+        kind: parseTaskKind(req.query.kind),
+        dueFrom:
+          parseDateQuery(req.query.dueFrom) ??
+          parseDateQuery(req.query.fromDueAt),
+        dueTo:
+          parseDateQuery(req.query.dueTo) ?? parseDateQuery(req.query.toDueAt),
+        includeCompleted: parseBooleanQuery(req.query.includeCompleted),
       });
 
       res.json(tasks);
@@ -411,28 +467,35 @@ export const TaskController = {
 
   // Companion Task List
   listForCompanion: async (
-    req: Request<
-      { companionId: string },
-      unknown,
-      unknown,
-      {
-        audience?: string;
-        fromDueAt?: string;
-        toDueAt?: string;
-        status?: string;
-      }
-    >,
+    req: Request<{ patientId: string }, unknown, unknown, TaskListQuery>,
     res: Response,
   ) => {
     try {
       const organisationId = (req as OrgRequest).organisationId;
       const tasks = await TaskService.listForCompanion({
-        companionId: req.params.companionId,
+        patientId: req.params.patientId,
         organisationId,
         audience: parseAudience(req.query.audience),
-        fromDueAt: parseDateQuery(req.query.fromDueAt),
-        toDueAt: parseDateQuery(req.query.toDueAt),
+        companionId: req.query.companionId,
+        clientId: req.query.clientId,
+        assignedTo: pickFirstQueryValue(req.query.assignedTo),
+        assignedRole: parseAudience(req.query.assignedRole),
+        appointmentId: pickFirstQueryValue(req.query.appointmentId),
+        encounterId: pickFirstQueryValue(req.query.encounterId),
+        episodeOfCareId: pickFirstQueryValue(req.query.episodeOfCareId),
+        admissionId: pickFirstQueryValue(req.query.admissionId),
+        templateInstanceId: pickFirstQueryValue(req.query.templateInstanceId),
+        scheduleId: pickFirstQueryValue(req.query.scheduleId),
         status: parseStatusList(req.query.status),
+        category: parseTaskCategory(req.query.category),
+        subcategory: pickFirstQueryValue(req.query.subcategory),
+        kind: parseTaskKind(req.query.kind),
+        dueFrom:
+          parseDateQuery(req.query.dueFrom) ??
+          parseDateQuery(req.query.fromDueAt),
+        dueTo:
+          parseDateQuery(req.query.dueTo) ?? parseDateQuery(req.query.toDueAt),
+        includeCompleted: parseBooleanQuery(req.query.includeCompleted),
       });
 
       res.json(tasks);

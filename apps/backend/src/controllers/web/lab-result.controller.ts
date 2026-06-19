@@ -53,6 +53,44 @@ const sendPdfResponse = (
   return res.status(200).send(Buffer.from(payload.data));
 };
 
+const handlePdfRequest = async (params: {
+  req: Request;
+  res: Response;
+  fetchPayload: (resultId: string) => Promise<{
+    data: ArrayBuffer;
+    headers: Record<string, string>;
+  } | null>;
+}) => {
+  const organisationId = resolveOrganisationId(params.req);
+  const provider = params.req.params.provider;
+  const resultId = params.req.params.resultId;
+  if (!ensureOrganisationId(params.res, organisationId)) {
+    return;
+  }
+  if (!ensureProviderAndResultId(params.res, provider, resultId)) {
+    return;
+  }
+  if (!ensureIdexxProvider(params.res, provider)) {
+    return;
+  }
+
+  const stored = await LabResultService.getByResultId(
+    organisationId,
+    provider,
+    resultId,
+  );
+  if (!stored) {
+    return params.res.status(404).json({ message: "Result not found." });
+  }
+
+  const payload = await params.fetchPayload(resultId);
+  if (!payload) {
+    return params.res.status(500).json({ message: "PDF unavailable." });
+  }
+
+  return sendPdfResponse(params.res, payload);
+};
+
 const handleIdexxError = (
   res: Response,
   error: unknown,
@@ -76,16 +114,13 @@ export const LabResultController = {
       const organisationId = orgReq.organisationId ?? req.params.organisationId;
       const provider = req.params.provider;
 
-      const { orderId, companionId, limit } = req.query as Record<
-        string,
-        string
-      >;
+      const { orderId, patientId, limit } = req.query as Record<string, string>;
 
       const results = await LabResultService.list({
         organisationId,
         provider,
         orderId,
-        companionId,
+        patientId,
         limit: limit ? Number(limit) : undefined,
       });
 
@@ -136,34 +171,12 @@ export const LabResultController = {
 
   async getPdf(req: Request, res: Response) {
     try {
-      const organisationId = resolveOrganisationId(req);
-      const provider = req.params.provider;
-      const resultId = req.params.resultId;
-      if (!ensureOrganisationId(res, organisationId)) {
-        return;
-      }
-      if (!ensureProviderAndResultId(res, provider, resultId)) {
-        return;
-      }
-
-      if (!ensureIdexxProvider(res, provider)) {
-        return;
-      }
-
-      const stored = await LabResultService.getByResultId(
-        organisationId,
-        provider,
-        resultId,
-      );
-      if (!stored) {
-        return res.status(404).json({ message: "Result not found." });
-      }
-
-      const payload = await IdexxResultsQueryService.getResultPdf(resultId);
-      if (!payload)
-        return res.status(500).json({ message: "PDF unavailable." });
-
-      return sendPdfResponse(res, payload);
+      return await handlePdfRequest({
+        req,
+        res,
+        fetchPayload: (resultId) =>
+          IdexxResultsQueryService.getResultPdf(resultId),
+      });
     } catch (error) {
       return handleIdexxError(
         res,
@@ -176,35 +189,12 @@ export const LabResultController = {
 
   async getNotificationsPdf(req: Request, res: Response) {
     try {
-      const organisationId = resolveOrganisationId(req);
-      const provider = req.params.provider;
-      const resultId = req.params.resultId;
-      if (!ensureOrganisationId(res, organisationId)) {
-        return;
-      }
-      if (!ensureProviderAndResultId(res, provider, resultId)) {
-        return;
-      }
-
-      if (!ensureIdexxProvider(res, provider)) {
-        return;
-      }
-
-      const stored = await LabResultService.getByResultId(
-        organisationId,
-        provider,
-        resultId,
-      );
-      if (!stored) {
-        return res.status(404).json({ message: "Result not found." });
-      }
-
-      const payload =
-        await IdexxResultsQueryService.getResultNotificationsPdf(resultId);
-      if (!payload)
-        return res.status(500).json({ message: "PDF unavailable." });
-
-      return sendPdfResponse(res, payload);
+      return await handlePdfRequest({
+        req,
+        res,
+        fetchPayload: (resultId) =>
+          IdexxResultsQueryService.getResultNotificationsPdf(resultId),
+      });
     } catch (error) {
       return handleIdexxError(
         res,
@@ -219,10 +209,7 @@ export const LabResultController = {
     try {
       const organisationId = resolveOrganisationId(req);
       const provider = req.params.provider;
-      const { orderId, companionId, limit } = req.query as Record<
-        string,
-        string
-      >;
+      const { orderId, patientId, limit } = req.query as Record<string, string>;
       if (!ensureOrganisationId(res, organisationId)) {
         return;
       }
@@ -238,7 +225,7 @@ export const LabResultController = {
         organisationId,
         provider,
         orderId,
-        companionId,
+        patientId,
         limit: limit ? Number(limit) : undefined,
       });
 

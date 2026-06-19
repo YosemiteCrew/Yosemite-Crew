@@ -14,7 +14,18 @@ export type InvoiceStatus =
   | 'CANCELLED'
   | 'REFUNDED';
 
+export type CreditNoteStatus = 'DRAFT' | 'ISSUED' | 'VOIDED';
+
 export type PaymentCollectionMethod = 'PAYMENT_INTENT' | 'PAYMENT_LINK' | 'PAYMENT_AT_CLINIC';
+
+export type BillingCollectionMode =
+  | 'PREPAY_AT_BOOKING'
+  | 'PAY_AT_VISIT_END'
+  | 'STAGED_DURING_VISIT'
+  | 'DEPOSIT_THEN_SETTLE'
+  | 'MANUAL_OFFLINE';
+
+export type InvoiceVisitBillingStage = 'DRAFT' | 'READY_FOR_BILLING' | 'SETTLED';
 
 export type InvoiceItem = {
   id?: string;
@@ -29,6 +40,7 @@ export type InvoiceItem = {
 export type Invoice = {
   id?: string;
   parentId?: string;
+  patientId?: string;
   companionId?: string;
   organisationId?: string;
   appointmentId?: string;
@@ -39,21 +51,27 @@ export type Invoice = {
 
   paymentCollectionMethod: PaymentCollectionMethod;
 
+  billingCollectionMode?: BillingCollectionMode;
+  visitBillingStage?: InvoiceVisitBillingStage;
+  depositTargetAmount?: number;
+  depositCollectedAmount?: number;
+
   currency: Currency;
 
   discountTotal?: number;
   taxTotal?: number;
 
+  status: InvoiceStatus;
+  creditNotes?: CreditNote[];
+
+  stripePaymentIntentId?: string;
+  stripeInvoiceId?: string;
+  stripePaymentLinkId?: string;
+  stripeCustomerId?: string;
   stripeChargeId?: string;
   stripeReceiptUrl?: string;
-  stripePaymentIntentId?: string;
-  stripePaymentLinkId?: string;
-  stripeInvoiceId?: string;
-  stripeCustomerId?: string;
   stripeCheckoutSessionId?: string;
   stripeCheckoutUrl?: string;
-
-  status: InvoiceStatus;
 
   metadata?: Record<string, string | number | boolean>;
   paidAt?: Date;
@@ -61,19 +79,18 @@ export type Invoice = {
   updatedAt: Date;
 };
 
-const EXT_STRIPE_INVOICE_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-invoice-id';
-const EXT_STRIPE_PI_ID =
-  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-intent-id';
-const EXT_STRIPE_PL_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-payment-link-id';
-const EXT_STRIPE_CUSTOMER_ID =
-  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-customer-id';
-const EXT_STRIPE_CHARGE_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/stripe-charge-id';
-const EXT_STRIPE_RECEIPT_URL =
-  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-receipt-url';
-const EXT_STRIPE_CHECKOUT_SESSION_ID =
-  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-session-id';
-const EXT_STRIPE_CHECKOUT_URL =
-  'https://yosemitecrew.com/fhir/StructureDefinition/stripe-checkout-url';
+export type CreditNote = {
+  id: string;
+  invoiceId: string;
+  creditNoteNumber: string;
+  reason?: string;
+  amount: number;
+  status: CreditNoteStatus;
+  metadata?: Record<string, string | number | boolean>;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 const EXT_PAYMENT_COLLECTION_METHOD =
   'https://yosemitecrew.com/fhir/StructureDefinition/payment-collection-method';
 const EXT_PAID_AT = 'https://yosemitecrew.com/fhir/StructureDefinition/paid-at';
@@ -261,62 +278,6 @@ export function toFHIRInvoice(invoice: Invoice): FHIRInvoice {
   const metadataExt = buildMetadataExtension(invoice.metadata);
   if (metadataExt) extensions.push(metadataExt);
 
-  if (invoice.stripeInvoiceId) {
-    extensions.push({
-      url: EXT_STRIPE_INVOICE_ID,
-      valueString: invoice.stripeInvoiceId,
-    });
-  }
-
-  if (invoice.stripePaymentIntentId) {
-    extensions.push({
-      url: EXT_STRIPE_PI_ID,
-      valueString: invoice.stripePaymentIntentId,
-    });
-  }
-
-  if (invoice.stripePaymentLinkId) {
-    extensions.push({
-      url: EXT_STRIPE_PL_ID,
-      valueString: invoice.stripePaymentLinkId,
-    });
-  }
-
-  if (invoice.stripeCustomerId) {
-    extensions.push({
-      url: EXT_STRIPE_CUSTOMER_ID,
-      valueString: invoice.stripeCustomerId,
-    });
-  }
-
-  if (invoice.stripeChargeId) {
-    extensions.push({
-      url: EXT_STRIPE_CHARGE_ID,
-      valueString: invoice.stripeChargeId,
-    });
-  }
-
-  if (invoice.stripeReceiptUrl) {
-    extensions.push({
-      url: EXT_STRIPE_RECEIPT_URL,
-      valueUri: invoice.stripeReceiptUrl,
-    });
-  }
-
-  if (invoice.stripeCheckoutSessionId) {
-    extensions.push({
-      url: EXT_STRIPE_CHECKOUT_SESSION_ID,
-      valueString: invoice.stripeCheckoutSessionId,
-    });
-  }
-
-  if (invoice.stripeCheckoutUrl) {
-    extensions.push({
-      url: EXT_STRIPE_CHECKOUT_URL,
-      valueUri: invoice.stripeCheckoutUrl,
-    });
-  }
-
   if (invoice.paymentCollectionMethod) {
     extensions.push({
       url: EXT_PAYMENT_COLLECTION_METHOD,
@@ -345,11 +306,12 @@ export function toFHIRInvoice(invoice: Invoice): FHIRInvoice {
     resourceType: 'Invoice',
     id: invoice.id,
     status: statusMap[invoice.status] ?? 'draft',
-    subject: invoice.companionId
-      ? {
-          reference: `Patient/${invoice.companionId}`,
-        }
-      : undefined,
+    subject:
+      (invoice.patientId ?? invoice.companionId)
+        ? {
+            reference: `Patient/${invoice.patientId ?? invoice.companionId}`,
+          }
+        : undefined,
     recipient: {
       reference: `RelatedPerson/${invoice.parentId}`,
     },
@@ -517,6 +479,7 @@ export function fromFHIRInvoice(fhirInvoice: FHIRInvoice): Invoice {
   return {
     id: fhirInvoice.id ?? '',
     parentId: getIdFromReference(fhirInvoice.recipient?.reference) ?? '',
+    patientId: getIdFromReference(fhirInvoice.subject?.reference),
     companionId: getIdFromReference(fhirInvoice.subject?.reference),
     organisationId: getIdFromReference(fhirInvoice.issuer?.reference) ?? '',
     appointmentId:
@@ -530,26 +493,6 @@ export function fromFHIRInvoice(fhirInvoice: FHIRInvoice): Invoice {
     taxTotal,
     totalAmount,
     currency,
-    stripePaymentIntentId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_PI_ID)
-      ?.valueString,
-    stripePaymentLinkId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_PL_ID)
-      ?.valueString,
-    stripeInvoiceId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_INVOICE_ID)
-      ?.valueString,
-    stripeCustomerId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CUSTOMER_ID)
-      ?.valueString,
-    stripeChargeId: fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHARGE_ID)
-      ?.valueString,
-    stripeReceiptUrl:
-      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_RECEIPT_URL)?.valueUri ??
-      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_RECEIPT_URL)?.valueString,
-    stripeCheckoutSessionId: fhirInvoice.extension?.find(
-      (ext) => ext.url === EXT_STRIPE_CHECKOUT_SESSION_ID
-    )?.valueString,
-    stripeCheckoutUrl:
-      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueUri ??
-      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueUrl ??
-      fhirInvoice.extension?.find((ext) => ext.url === EXT_STRIPE_CHECKOUT_URL)?.valueString,
     paymentCollectionMethod:
       (fhirInvoice.extension?.find((ext) => ext.url === EXT_PAYMENT_COLLECTION_METHOD)
         ?.valueString as PaymentCollectionMethod | undefined) ?? 'PAYMENT_INTENT',

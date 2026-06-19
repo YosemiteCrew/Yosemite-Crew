@@ -52,6 +52,9 @@ import {
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
   CompanionAlert,
+  CompanionFormData,
+  fromStoredCompanionAlerts,
+  toStoredCompanionAlerts,
   AlertPriority,
   ALERT_PRIORITY_CONFIG,
   CountryDialCodeOptions,
@@ -478,7 +481,7 @@ type AddCompanionCentralModalProps = {
   onGoToAppointment?: () => void;
 };
 
-type ExtCompanionForValidation = StoredCompanion & { alerts?: CompanionAlert[] };
+type ExtCompanionForValidation = CompanionFormData;
 
 const validateParentFields = (
   parentFormData: StoredParent,
@@ -567,7 +570,11 @@ const createCompanionFlow = async (
   companionFormData: ExtCompanionForValidation
 ): Promise<StoredCompanion | undefined> => {
   if (normalizedParent.id) {
-    const payload: StoredCompanion = { ...companionFormData, parentId: normalizedParent.id };
+    const payload: StoredCompanion = {
+      ...companionFormData,
+      alerts: toStoredCompanionAlerts(companionFormData.alerts),
+      parentId: normalizedParent.id,
+    };
     if (companionFormData.id) {
       return (await linkCompanion(payload, normalizedParent)) ?? undefined;
     }
@@ -575,7 +582,16 @@ const createCompanionFlow = async (
   }
   const parentId = await createParent(normalizedParent);
   const pp: StoredParent = { ...normalizedParent, id: parentId! };
-  return (await createCompanion({ ...companionFormData, parentId: parentId! }, pp)) ?? undefined;
+  return (
+    (await createCompanion(
+      {
+        ...companionFormData,
+        alerts: toStoredCompanionAlerts(companionFormData.alerts),
+        parentId: parentId!,
+      },
+      pp
+    )) ?? undefined
+  );
 };
 
 const getModalTitle = (mode: ModalMode, companionTitle: string): string => {
@@ -748,7 +764,7 @@ const AddCompanionCentralModal = ({
     if (mode === 'edit' && viewCompanion) {
       const c = viewCompanion.companion;
       const p = viewCompanion.parent;
-      setCompanionFormData({ ...c, alerts: (c as any).alerts ?? [] });
+      setCompanionFormData({ ...c, alerts: fromStoredCompanionAlerts((c as any).alerts ?? []) });
       setCompanionDOB(c.dateOfBirth ? new Date(c.dateOfBirth) : null);
       setParentFormData(p);
       setParentDOB(p.birthDate ? new Date(p.birthDate) : null);
@@ -916,7 +932,10 @@ const AddCompanionCentralModal = ({
     const sel: StoredCompanion | undefined =
       cp?.companion ?? companionResults.find((c) => c.id === id);
     if (!sel) return;
-    setCompanionFormData({ ...sel, alerts: (sel as any).alerts ?? [] });
+    setCompanionFormData({
+      ...sel,
+      alerts: fromStoredCompanionAlerts((sel as any).alerts ?? []),
+    });
     setCompanionDOB(sel.dateOfBirth ? new Date(sel.dateOfBirth) : null);
     // Also autofill parent/client if found in store
     if (cp?.parent) {
@@ -985,6 +1004,7 @@ const AddCompanionCentralModal = ({
   const handleEditSave = async (normalizedParent: StoredParent) => {
     const companionPayload: StoredCompanion = {
       ...companionFormData,
+      alerts: toStoredCompanionAlerts(companionFormData.alerts),
       parentId: normalizedParent.id,
     };
     await Promise.all([updateCompanion(companionPayload), updateParent(normalizedParent)]);

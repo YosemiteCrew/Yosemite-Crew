@@ -6,10 +6,14 @@ import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 const router = Router();
 
 router.get(
-  "/pms/templates/library",
+  "/pms/resolve",
   authorizeCognito,
   requirePermission(["forms:view:any"]),
-  (req, res) => TemplateController.listLibrary(req, res),
+  (req, res) => TemplateController.resolve(req, res),
+);
+
+router.get("/pms/templates/library", authorizeCognito, (req, res) =>
+  TemplateController.listLibrary(req, res),
 );
 
 router.get(

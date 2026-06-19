@@ -176,7 +176,7 @@ describe("CompanionOrganisationController", () => {
       } as any);
 
       // Missing organisationId
-      req.body = { companionId: "c1", organisationType: "HOSPITAL" };
+      req.body = { patientId: "c1", organisationType: "HOSPITAL" };
       await CompanionOrganisationController.linkByParent(
         req as Request,
         res as Response,
@@ -185,7 +185,7 @@ describe("CompanionOrganisationController", () => {
 
       // Invalid Org Type
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "INVALID",
       };
@@ -202,7 +202,7 @@ describe("CompanionOrganisationController", () => {
         parentId: "p1",
       } as any);
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       };
@@ -218,7 +218,7 @@ describe("CompanionOrganisationController", () => {
 
       expect(mockedCompanionService.linkByParent).toHaveBeenCalledWith({
         parentId: "p1",
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       });
@@ -231,7 +231,7 @@ describe("CompanionOrganisationController", () => {
         parentId: "p1",
       } as any);
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       };
@@ -252,7 +252,7 @@ describe("CompanionOrganisationController", () => {
         parentId: "p1",
       } as any);
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationId: "o1",
         organisationType: "HOSPITAL",
       };
@@ -279,7 +279,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should return 400 if params missing", async () => {
       (req as any).userId = "pms";
-      req.params = { companionId: "c1" }; // missing organisationId
+      req.params = { patientId: "c1" }; // missing organisationId
       await CompanionOrganisationController.linkByPmsUser(
         req as Request,
         res as Response,
@@ -289,7 +289,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should return 404 if organisation not found", async () => {
       (req as any).userId = "pms";
-      req.params = { companionId: "c1", organisationId: "o1" };
+      req.params = { patientId: "c1", organisationId: "o1" };
       mockedOrgModel.findById.mockResolvedValue(null);
 
       await CompanionOrganisationController.linkByPmsUser(
@@ -301,7 +301,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should return 404 if organisation type invalid", async () => {
       (req as any).userId = "pms";
-      req.params = { companionId: "c1", organisationId: "o1" };
+      req.params = { patientId: "c1", organisationId: "o1" };
       mockedOrgModel.findById.mockResolvedValue({ type: "INVALID" } as any);
 
       await CompanionOrganisationController.linkByPmsUser(
@@ -313,7 +313,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should success (201)", async () => {
       (req as any).userId = "pms";
-      req.params = { companionId: "c1", organisationId: "o1" };
+      req.params = { patientId: "c1", organisationId: "o1" };
       mockedOrgModel.findById.mockResolvedValue({ type: "GROOMER" } as any);
       mockedCompanionService.linkByPmsUser.mockResolvedValue({
         id: "l1",
@@ -328,7 +328,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle service errors", async () => {
       (req as any).userId = "pms";
-      req.params = { companionId: "c1", organisationId: "o1" };
+      req.params = { patientId: "c1", organisationId: "o1" };
       mockedOrgModel.findById.mockResolvedValue({ type: "GROOMER" } as any);
 
       mockServiceError("linkByPmsUser", 400);
@@ -342,7 +342,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle generic errors", async () => {
       (req as any).userId = "pms";
-      req.params = { companionId: "c1", organisationId: "o1" };
+      req.params = { patientId: "c1", organisationId: "o1" };
       mockedOrgModel.findById.mockResolvedValue({ type: "GROOMER" } as any);
 
       mockGenericError("linkByPmsUser");
@@ -517,7 +517,7 @@ describe("CompanionOrganisationController", () => {
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
-    it("should 400 if payload missing keys (companionId)", async () => {
+    it("should 400 if payload missing keys (patientId)", async () => {
       (req as any).userId = "u1";
       mockedParentService.findByLinkedUserId.mockResolvedValue({
         _id: validObjectId,
@@ -536,7 +536,7 @@ describe("CompanionOrganisationController", () => {
         _id: "p1",
       } as any);
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationType: "HOSPITAL",
         email: "",
         name: " ",
@@ -555,7 +555,7 @@ describe("CompanionOrganisationController", () => {
         _id: "p1",
       } as any);
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationType: "HOSPITAL",
         email: "test@test.com",
       };
@@ -577,7 +577,7 @@ describe("CompanionOrganisationController", () => {
         _id: "p1",
       } as any);
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationType: "HOSPITAL",
         email: "test@test.com",
       };
@@ -597,7 +597,7 @@ describe("CompanionOrganisationController", () => {
         _id: "p1",
       } as any);
       req.body = {
-        companionId: "c1",
+        patientId: "c1",
         organisationType: "HOSPITAL",
         email: "test@test.com",
       };
@@ -738,7 +738,7 @@ describe("CompanionOrganisationController", () => {
 
   describe("getLinksForCompanion", () => {
     it("should success", async () => {
-      req.params = { companionId: "c1" };
+      req.params = { patientId: "c1" };
       mockedCompanionService.getLinksForCompanion.mockResolvedValue([] as any);
       await CompanionOrganisationController.getLinksForCompanion(
         req as Request,
@@ -781,7 +781,7 @@ describe("CompanionOrganisationController", () => {
   });
 
   describe("getLinksForCompanionByOrganisationType", () => {
-    it("should 400 if companionId missing", async () => {
+    it("should 400 if patientId missing", async () => {
       req.params = {};
       req.query = { type: "HOSPITAL" };
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
@@ -792,7 +792,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should 400 if type invalid", async () => {
-      req.params = { companionId: "c1" };
+      req.params = { patientId: "c1" };
       req.query = { type: "INVALID" };
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
         req as Request,
@@ -802,7 +802,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should success", async () => {
-      req.params = { companionId: "c1" };
+      req.params = { patientId: "c1" };
       req.query = { type: "HOSPITAL" };
       // Note: Typo in mocked method matches controller usage
       mockedCompanionService.getLinksForCompanionByOrganisationTye.mockResolvedValue(
@@ -820,7 +820,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should handle service error", async () => {
-      req.params = { companionId: "c1" };
+      req.params = { patientId: "c1" };
       req.query = { type: "HOSPITAL" };
       mockServiceError("getLinksForCompanionByOrganisationTye", 400);
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
@@ -831,7 +831,7 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should handle generic error", async () => {
-      req.params = { companionId: "c1" };
+      req.params = { patientId: "c1" };
       req.query = { type: "HOSPITAL" };
       mockGenericError("getLinksForCompanionByOrganisationTye");
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(

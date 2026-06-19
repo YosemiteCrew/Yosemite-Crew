@@ -502,6 +502,85 @@ const loadVitalRecordOrThrow = async (vitalRecordId: string) => {
   return vitalRecord;
 };
 
+const soapNoteInputFromRecord = (record: SoapNoteRecord): SoapNoteInput => ({
+  organisationId: record.artifact.organisationId,
+  appointmentId: record.artifact.appointmentId ?? undefined,
+  caseId: record.artifact.caseId ?? undefined,
+  encounterId: record.artifact.encounterId ?? undefined,
+  templateId: record.artifact.templateId ?? undefined,
+  templateVersion: record.artifact.templateVersion ?? undefined,
+  templateVersionId: record.artifact.templateVersionId ?? undefined,
+  authorId: record.artifact.authorId ?? undefined,
+  status: "DRAFT",
+  summary: record.artifact.summary,
+  subjective: record.soapNote.subjective,
+  objective: record.soapNote.objective,
+  assessment: record.soapNote.assessment,
+  plan: record.soapNote.plan,
+  diagnoses: record.soapNote.diagnoses,
+  metadata: record.soapNote.metadata,
+});
+
+const prescriptionInputFromRecord = (
+  record: PrescriptionRecord,
+): PrescriptionInput => ({
+  organisationId: record.artifact.organisationId,
+  appointmentId: record.artifact.appointmentId ?? undefined,
+  caseId: record.artifact.caseId ?? undefined,
+  encounterId: record.artifact.encounterId ?? undefined,
+  templateId: record.artifact.templateId ?? undefined,
+  templateVersion: record.artifact.templateVersion ?? undefined,
+  templateVersionId: record.artifact.templateVersionId ?? undefined,
+  authorId: record.artifact.authorId ?? undefined,
+  status: "DRAFT",
+  summary: record.artifact.summary,
+  medications: record.prescription.medications,
+  instructions: record.prescription.instructions,
+  notes: record.prescription.notes,
+  metadata: record.prescription.metadata,
+});
+
+const dischargeSummaryInputFromRecord = (
+  record: DischargeSummaryRecord,
+): DischargeSummaryInput => ({
+  organisationId: record.artifact.organisationId,
+  appointmentId: record.artifact.appointmentId ?? undefined,
+  caseId: record.artifact.caseId ?? undefined,
+  encounterId: record.artifact.encounterId ?? undefined,
+  templateId: record.artifact.templateId ?? undefined,
+  templateVersion: record.artifact.templateVersion ?? undefined,
+  templateVersionId: record.artifact.templateVersionId ?? undefined,
+  authorId: record.artifact.authorId ?? undefined,
+  status: "DRAFT",
+  summary: record.artifact.summary,
+  summaryContent: record.dischargeSummary.summary,
+  diagnoses: record.dischargeSummary.diagnoses,
+  medications: record.dischargeSummary.medications,
+  followUp: record.dischargeSummary.followUp,
+  instructions: record.dischargeSummary.instructions,
+  metadata: record.dischargeSummary.metadata,
+});
+
+const vitalRecordInputFromRecord = (
+  record: VitalRecordRecord,
+): VitalRecordInput => ({
+  organisationId: record.artifact.organisationId,
+  appointmentId: record.artifact.appointmentId ?? undefined,
+  caseId: record.artifact.caseId ?? undefined,
+  encounterId: record.artifact.encounterId ?? undefined,
+  templateId: record.artifact.templateId ?? undefined,
+  templateVersion: record.artifact.templateVersion ?? undefined,
+  templateVersionId: record.artifact.templateVersionId ?? undefined,
+  authorId: record.artifact.authorId ?? undefined,
+  status: "DRAFT",
+  summary: record.artifact.summary,
+  measuredAt: record.vitalRecord.measuredAt,
+  recordedBy: record.vitalRecord.recordedBy,
+  vitals: record.vitalRecord.vitals,
+  notes: record.vitalRecord.notes,
+  metadata: record.vitalRecord.metadata,
+});
+
 const toDate = (value: Date | string | undefined, field: string) => {
   if (value === undefined) return undefined;
   const date = value instanceof Date ? value : new Date(value);
@@ -510,6 +589,14 @@ const toDate = (value: Date | string | undefined, field: string) => {
   }
   return date;
 };
+
+const FINAL_CLINICAL_ARTIFACT_STATUSES = new Set<ClinicalArtifactStatus>([
+  "COMPLETED",
+  "SIGNED",
+]);
+
+const isFinalClinicalArtifactStatus = (status: ClinicalArtifactStatus) =>
+  FINAL_CLINICAL_ARTIFACT_STATUSES.has(status);
 
 export const ClinicalArtifactService = {
   async createSoapNote(input: SoapNoteInput): Promise<SoapNoteRecord> {
@@ -574,6 +661,17 @@ export const ClinicalArtifactService = {
   ): Promise<SoapNoteRecord> {
     const note = await loadSoapNoteOrThrow(soapNoteId);
     assertSoapNoteArtifact(note.artifact, organisationId);
+
+    if (
+      isFinalClinicalArtifactStatus(note.artifact.status) &&
+      (input.status === undefined ||
+        isFinalClinicalArtifactStatus(input.status))
+    ) {
+      throw new ClinicalArtifactServiceError(
+        "Artifact is final. Reopen or amend it before editing.",
+        409,
+      );
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const artifact = await tx.clinicalArtifact.update({
@@ -755,6 +853,17 @@ export const ClinicalArtifactService = {
       "prescription",
       organisationId,
     );
+
+    if (
+      isFinalClinicalArtifactStatus(record.artifact.status) &&
+      (input.status === undefined ||
+        isFinalClinicalArtifactStatus(input.status))
+    ) {
+      throw new ClinicalArtifactServiceError(
+        "Artifact is final. Reopen or amend it before editing.",
+        409,
+      );
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
@@ -964,6 +1073,17 @@ export const ClinicalArtifactService = {
       organisationId,
     );
 
+    if (
+      isFinalClinicalArtifactStatus(record.artifact.status) &&
+      (input.status === undefined ||
+        isFinalClinicalArtifactStatus(input.status))
+    ) {
+      throw new ClinicalArtifactServiceError(
+        "Artifact is final. Reopen or amend it before editing.",
+        409,
+      );
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
       const artifact = await txPrisma.clinicalArtifact.update({
@@ -1135,6 +1255,17 @@ export const ClinicalArtifactService = {
       organisationId,
     );
 
+    if (
+      isFinalClinicalArtifactStatus(record.artifact.status) &&
+      (input.status === undefined ||
+        isFinalClinicalArtifactStatus(input.status))
+    ) {
+      throw new ClinicalArtifactServiceError(
+        "Artifact is final. Reopen or amend it before editing.",
+        409,
+      );
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
       const artifact = await txPrisma.clinicalArtifact.update({
@@ -1231,5 +1362,145 @@ export const ClinicalArtifactService = {
     });
 
     return records.map(toVitalRecordRecord);
+  },
+
+  async finalizeSoapNote(
+    soapNoteId: string,
+    organisationId?: string,
+  ): Promise<SoapNoteRecord> {
+    return ClinicalArtifactService.updateSoapNote(
+      soapNoteId,
+      { status: "COMPLETED" },
+      organisationId,
+    );
+  },
+
+  async reopenSoapNote(
+    soapNoteId: string,
+    organisationId?: string,
+  ): Promise<SoapNoteRecord> {
+    return ClinicalArtifactService.updateSoapNote(
+      soapNoteId,
+      { status: "IN_PROGRESS" },
+      organisationId,
+    );
+  },
+
+  async amendSoapNote(
+    soapNoteId: string,
+    organisationId?: string,
+  ): Promise<SoapNoteRecord> {
+    const note = await ClinicalArtifactService.getSoapNote(
+      soapNoteId,
+      organisationId,
+    );
+    return ClinicalArtifactService.createSoapNote(
+      soapNoteInputFromRecord(note),
+    );
+  },
+
+  async finalizePrescription(
+    prescriptionId: string,
+    organisationId?: string,
+  ): Promise<PrescriptionRecord> {
+    return ClinicalArtifactService.updatePrescription(
+      prescriptionId,
+      { status: "COMPLETED" },
+      organisationId,
+    );
+  },
+
+  async reopenPrescription(
+    prescriptionId: string,
+    organisationId?: string,
+  ): Promise<PrescriptionRecord> {
+    return ClinicalArtifactService.updatePrescription(
+      prescriptionId,
+      { status: "IN_PROGRESS" },
+      organisationId,
+    );
+  },
+
+  async amendPrescription(
+    prescriptionId: string,
+    organisationId?: string,
+  ): Promise<PrescriptionRecord> {
+    const record = await ClinicalArtifactService.getPrescription(
+      prescriptionId,
+      organisationId,
+    );
+    return ClinicalArtifactService.createPrescription(
+      prescriptionInputFromRecord(record),
+    );
+  },
+
+  async finalizeDischargeSummary(
+    dischargeSummaryId: string,
+    organisationId?: string,
+  ): Promise<DischargeSummaryRecord> {
+    return ClinicalArtifactService.updateDischargeSummary(
+      dischargeSummaryId,
+      { status: "COMPLETED" },
+      organisationId,
+    );
+  },
+
+  async reopenDischargeSummary(
+    dischargeSummaryId: string,
+    organisationId?: string,
+  ): Promise<DischargeSummaryRecord> {
+    return ClinicalArtifactService.updateDischargeSummary(
+      dischargeSummaryId,
+      { status: "IN_PROGRESS" },
+      organisationId,
+    );
+  },
+
+  async amendDischargeSummary(
+    dischargeSummaryId: string,
+    organisationId?: string,
+  ): Promise<DischargeSummaryRecord> {
+    const record = await ClinicalArtifactService.getDischargeSummary(
+      dischargeSummaryId,
+      organisationId,
+    );
+    return ClinicalArtifactService.createDischargeSummary(
+      dischargeSummaryInputFromRecord(record),
+    );
+  },
+
+  async finalizeVitalRecord(
+    vitalRecordId: string,
+    organisationId?: string,
+  ): Promise<VitalRecordRecord> {
+    return ClinicalArtifactService.updateVitalRecord(
+      vitalRecordId,
+      { status: "COMPLETED" },
+      organisationId,
+    );
+  },
+
+  async reopenVitalRecord(
+    vitalRecordId: string,
+    organisationId?: string,
+  ): Promise<VitalRecordRecord> {
+    return ClinicalArtifactService.updateVitalRecord(
+      vitalRecordId,
+      { status: "IN_PROGRESS" },
+      organisationId,
+    );
+  },
+
+  async amendVitalRecord(
+    vitalRecordId: string,
+    organisationId?: string,
+  ): Promise<VitalRecordRecord> {
+    const record = await ClinicalArtifactService.getVitalRecord(
+      vitalRecordId,
+      organisationId,
+    );
+    return ClinicalArtifactService.createVitalRecord(
+      vitalRecordInputFromRecord(record),
+    );
   },
 };

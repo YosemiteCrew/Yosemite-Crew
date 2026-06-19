@@ -51,7 +51,7 @@ const mockDoc = (data: any) => ({
 describe("AuditTrailService", () => {
   const validRecordInput: any = {
     organisationId: "org-1",
-    companionId: "comp-1",
+    patientId: "comp-1",
     eventType: "APPOINTMENT_BOOKED",
     actorType: "PARENT",
     actorId: "parent-1",
@@ -233,7 +233,7 @@ describe("AuditTrailService", () => {
       expect(prisma.auditTrail.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           organisationId: "org-1",
-          companionId: "comp-1",
+          patientId: "comp-1",
           eventType: "APPOINTMENT_BOOKED",
         }),
       });
@@ -325,7 +325,7 @@ describe("AuditTrailService", () => {
 
       const res = await AuditTrailService.listForOrganisation({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         eventTypes: ["APPOINTMENT_BOOKED"] as any, // Cast to avoid TS enum issues
         entityTypes: ["APPOINTMENT"] as any,
         limit: 10,
@@ -334,7 +334,7 @@ describe("AuditTrailService", () => {
 
       expect(AuditTrailModel.find).toHaveBeenCalledWith({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         eventType: { $in: ["APPOINTMENT_BOOKED"] },
         entityType: { $in: ["APPOINTMENT"] },
         occurredAt: { $lt: mockDate },
@@ -390,7 +390,7 @@ describe("AuditTrailService", () => {
 
       const res = await AuditTrailService.listForOrganisation({
         organisationId: "org-1",
-        companionId: "comp-1",
+        patientId: "comp-1",
         eventTypes: ["APPOINTMENT_BOOKED"] as any,
         entityTypes: ["APPOINTMENT"] as any,
         limit: 10,
@@ -400,9 +400,9 @@ describe("AuditTrailService", () => {
       expect(prisma.auditTrail.findMany).toHaveBeenCalledWith({
         where: {
           organisationId: "org-1",
-          companionId: "comp-1",
-          eventType: { in: { $in: ["APPOINTMENT_BOOKED"] } },
-          entityType: { in: { $in: ["APPOINTMENT"] } },
+          patientId: "comp-1",
+          eventType: { in: ["APPOINTMENT_BOOKED"] },
+          entityType: { in: ["APPOINTMENT"] },
           occurredAt: { lt: occurredAt },
         },
         orderBy: { occurredAt: "desc" },

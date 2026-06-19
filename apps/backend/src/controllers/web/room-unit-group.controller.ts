@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import logger from "src/utils/logger";
 import {
   fromFHIRRoomUnitGroup,
   toFHIRRoomUnitGroup,
@@ -8,46 +7,17 @@ import {
   RoomUnitGroupService,
   RoomUnitGroupServiceError,
 } from "src/services/room-unit-group.service";
-import { OrgRequest } from "src/middlewares/rbac";
-
-const requireParam = (
-  res: Response,
-  value: string | undefined,
-  message: string,
-): value is string => {
-  if (!value) {
-    res.status(400).json({ message });
-    return false;
-  }
-
-  return true;
-};
-
-const getOrganisationId = (
-  req: Request,
-  fallback?: string,
-): string | undefined => (req as OrgRequest).organisationId ?? fallback;
-
-const handleError = (res: Response, error: unknown, fallback: string) => {
-  if (error instanceof RoomUnitGroupServiceError) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
-
-  logger.error(fallback, error);
-  return res.status(500).json({ message: fallback });
-};
-
-const isRoomUnitGroupPayload = (value: unknown): boolean =>
-  Boolean(
-    value &&
-    typeof value === "object" &&
-    (value as { resourceType?: string }).resourceType === "Location",
-  );
+import {
+  getOrganisationId,
+  handleError,
+  isLocationResourcePayload,
+  requireParam,
+} from "./room-unit.controller.shared";
 
 export const RoomUnitGroupController = {
   create: async (req: Request, res: Response) => {
     try {
-      if (!isRoomUnitGroupPayload(req.body)) {
+      if (!isLocationResourcePayload(req.body)) {
         return res.status(400).json({
           message: "Invalid payload. Expected FHIR Location resource.",
         });
@@ -70,13 +40,18 @@ export const RoomUnitGroupController = {
 
       return res.status(201).json(toFHIRRoomUnitGroup(created));
     } catch (error) {
-      return handleError(res, error, "Failed to create room unit group.");
+      return handleError(
+        res,
+        error,
+        "Failed to create room unit group.",
+        RoomUnitGroupServiceError,
+      );
     }
   },
 
   update: async (req: Request<{ id: string }>, res: Response) => {
     try {
-      if (!isRoomUnitGroupPayload(req.body)) {
+      if (!isLocationResourcePayload(req.body)) {
         return res.status(400).json({
           message: "Invalid payload. Expected FHIR Location resource.",
         });
@@ -103,7 +78,12 @@ export const RoomUnitGroupController = {
 
       return res.status(200).json(toFHIRRoomUnitGroup(updated));
     } catch (error) {
-      return handleError(res, error, "Failed to update room unit group.");
+      return handleError(
+        res,
+        error,
+        "Failed to update room unit group.",
+        RoomUnitGroupServiceError,
+      );
     }
   },
 
@@ -124,14 +104,19 @@ export const RoomUnitGroupController = {
 
       return res.status(200).json(values.map(toFHIRRoomUnitGroup));
     } catch (error) {
-      return handleError(res, error, "Failed to list room unit groups.");
+      return handleError(
+        res,
+        error,
+        "Failed to list room unit groups.",
+        RoomUnitGroupServiceError,
+      );
     }
   },
 
   delete: async (req: Request<{ id: string }>, res: Response) => {
     try {
       const { id } = req.params;
-      const { organisationId } = req as OrgRequest;
+      const organisationId = getOrganisationId(req);
 
       if (!requireParam(res, id, "Group identifier is required.")) {
         return;
@@ -146,7 +131,12 @@ export const RoomUnitGroupController = {
       const deleted = await RoomUnitGroupService.delete(id, organisationId);
       return res.status(200).json(toFHIRRoomUnitGroup(deleted));
     } catch (error) {
-      return handleError(res, error, "Failed to delete room unit group.");
+      return handleError(
+        res,
+        error,
+        "Failed to delete room unit group.",
+        RoomUnitGroupServiceError,
+      );
     }
   },
 };

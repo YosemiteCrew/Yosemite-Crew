@@ -90,12 +90,16 @@ Allowed `scope` values:
 - `backend`
 - `frontend`
 - `mobile`
+- `desktop`
 - `dev-docs`
 - `types`
 - `fhir`
 - `repo`
 - `ci`
 - `docs`
+- `lib`
+- `auth`
+- `database`
 
 Rules:
 

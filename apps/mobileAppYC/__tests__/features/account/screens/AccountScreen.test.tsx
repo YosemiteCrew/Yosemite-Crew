@@ -600,7 +600,7 @@ describe('AccountScreen', () => {
       await act(async () => {
         await fireEvent.press(confirmBtn);
       });
-    } catch (e) {
+    } catch (_error) {
       // Expected error bubbling up
     }
 
@@ -655,7 +655,7 @@ describe('AccountScreen', () => {
       await act(async () => {
         await fireEvent.press(confirmBtn);
       });
-    } catch (e) {
+    } catch (_error) {
       // Expected re-throw
     }
 
@@ -674,7 +674,7 @@ describe('AccountScreen', () => {
       await act(async () => {
         await fireEvent.press(screen.getByTestId('confirm-delete-btn'));
       });
-    } catch (e) {
+    } catch (_error) {
       // expected error
     }
 
@@ -690,7 +690,7 @@ describe('AccountScreen', () => {
       await act(async () => {
         await fireEvent.press(screen.getByTestId('confirm-delete-btn'));
       });
-    } catch (e) {
+    } catch (_error) {
       // expected error
     }
 

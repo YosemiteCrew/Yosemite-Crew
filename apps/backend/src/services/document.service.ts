@@ -1,20 +1,10 @@
-import { Types } from "mongoose";
-import DocumentModel, {
-  type DocumentMongo,
-  type DocumentDocument,
-} from "../models/document";
-import { assertSafeString } from "src/utils/sanitize";
+import { prisma } from "src/config/prisma";
 import {
   deleteFromS3,
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
-import escapeStringRegex from "escape-string-regexp";
+import { assertSafeString } from "src/utils/sanitize";
 import { AuditTrailService } from "./audit-trail.service";
-import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
-import { isReadFromPostgres } from "src/config/read-switch";
-import ParentCompanionModel from "src/models/parent-companion";
-import CompanionOrganisationModel from "src/models/companion-organisation";
 
 export class DocumentServiceError extends Error {
   constructor(
@@ -26,57 +16,69 @@ export class DocumentServiceError extends Error {
   }
 }
 
-const PMS_VISIBLE_CATEGORIES = new Set<string>([
+const COMPANION_DOCUMENT_CATEGORIES = new Set([
+  "ADMIN",
   "HEALTH",
   "HYGIENE_MAINTENANCE",
+  "DIETARY_PLANS",
+  "OTHERS",
 ]);
 
 const VALID_CATEGORY_SUBCATEGORIES: Record<string, Set<string>> = {
   ADMIN: new Set(["PASSPORT", "CERTIFICATES", "INSURANCE"]),
   HEALTH: new Set([
-    "HOSPITAL_VISITS",
-    "PRESCRIPTIONS_AND_TREATMENTS",
-    "VACCINATION_AND_PARASITE_PREVENTION",
-    "LAB_TESTS",
+    "SURGERY_OR_PROCEDURE",
+    "PRESCRIPTION",
+    "VACCINATION",
+    "DISCHARGE_SUMMARY",
+    "LAB_TEST",
+    "IMAGING_OR_DIAGNOSTIC",
+    "PARASITE_PREVENTION",
+    "MEDICAL_CONDITION",
   ]),
   HYGIENE_MAINTENANCE: new Set([
-    "GROOMER_VISIT",
-    "BOARDER_VISIT",
-    "BREEDER_VISIT",
-    "TRAINING_AND_BEHAVIOUR_REPORTS",
+    "BATHING",
+    "NAIL_TRIM",
+    "GROOMING",
+    "EAR_CLEANING",
+    "DENTAL_CLEANING",
+    "SKIN_CARE",
+    "ANAL_GLAND_EXPRESSION",
   ]),
   DIETARY_PLANS: new Set(["NUTRITION_PLANS"]),
   OTHERS: new Set(),
 };
 
-const isPmsVisibleCategory = (category: string): boolean =>
-  PMS_VISIBLE_CATEGORIES.has(category);
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const normalizeStringId = (value: string, fieldName: string): string => {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new DocumentServiceError(`Invalid ${fieldName}`, 400);
+  }
+  return normalized;
+};
 
 const validateCategoryAndSubcategory = (
   category: string,
   subcategory?: string | null,
 ): void => {
-  const upperCategory = String(category).toUpperCase();
-
-  if (!Object.hasOwn(VALID_CATEGORY_SUBCATEGORIES, upperCategory)) {
+  const upperCategory = category.toUpperCase();
+  if (!COMPANION_DOCUMENT_CATEGORIES.has(upperCategory)) {
     throw new DocumentServiceError(
       `Invalid document category: ${category}`,
       400,
     );
   }
 
-  const allowedSubcats = VALID_CATEGORY_SUBCATEGORIES[upperCategory];
-
-  if (!subcategory) {
+  const allowedSubcategories = VALID_CATEGORY_SUBCATEGORIES[upperCategory];
+  if (!subcategory || allowedSubcategories.size === 0) {
     return;
   }
 
-  if (allowedSubcats.size === 0) {
-    return;
-  }
-
-  const upperSubcat = String(subcategory).toUpperCase();
-  if (!allowedSubcats.has(upperSubcat)) {
+  const upperSubcategory = subcategory.toUpperCase();
+  if (!allowedSubcategories.has(upperSubcategory)) {
     throw new DocumentServiceError(
       `Invalid subcategory '${subcategory}' for category '${category}'`,
       400,
@@ -84,57 +86,51 @@ const validateCategoryAndSubcategory = (
   }
 };
 
-const ensureObjectId = (
-  value: string | Types.ObjectId,
-  fieldName: string,
-): Types.ObjectId => {
-  if (value instanceof Types.ObjectId) {
-    return value;
-  }
+const isPmsVisibleCategory = (category: string) =>
+  COMPANION_DOCUMENT_CATEGORIES.has(category.toUpperCase());
 
-  if (!Types.ObjectId.isValid(value)) {
-    throw new DocumentServiceError(`Invalid ${fieldName}`, 400);
+const parseIssueDate = (issueDate?: string | Date | null): Date | null => {
+  if (!issueDate) {
+    return null;
   }
-
-  return new Types.ObjectId(value);
+  if (issueDate instanceof Date) {
+    return Number.isNaN(issueDate.getTime()) ? null : issueDate;
+  }
+  const parsed = new Date(issueDate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0;
+const getPatientIdFromAppointment = (patient: unknown): string | null => {
+  if (!patient) {
+    return null;
+  }
+  if (typeof patient === "string") {
+    return patient.trim() || null;
+  }
+  if (typeof patient === "object" && !Array.isArray(patient)) {
+    const candidate = patient as { id?: unknown; patientId?: unknown };
+    if (typeof candidate.id === "string" && candidate.id.trim()) {
+      return candidate.id.trim();
+    }
+    if (typeof candidate.patientId === "string" && candidate.patientId.trim()) {
+      return candidate.patientId.trim();
+    }
+  }
+  return null;
+};
 
 const assertParentCanAccessCompanion = async (
-  parentId: string | Types.ObjectId,
-  companionId: Types.ObjectId,
+  parentId: string,
+  patientId: string,
 ): Promise<void> => {
-  const _parentId = ensureObjectId(parentId, "parentId");
-
-  if (isReadFromPostgres()) {
-    const link = await prisma.parentCompanion.findFirst({
-      where: {
-        parentId: _parentId.toString(),
-        companionId: companionId.toString(),
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-      select: { id: true },
-    });
-
-    if (!link) {
-      throw new DocumentServiceError("Document not found.", 404);
-    }
-    return;
-  }
-
-  const link = await ParentCompanionModel.findOne(
-    {
-      parentId: _parentId,
-      companionId,
-      status: { $in: ["ACTIVE", "PENDING"] },
+  const link = await prisma.parentPatient.findFirst({
+    where: {
+      parentId: normalizeStringId(parentId, "parentId"),
+      patientId: normalizeStringId(patientId, "patientId"),
+      status: { in: ["ACTIVE", "PENDING"] },
     },
-    { _id: 1 },
-    { sanitizeFilter: false },
-  )
-    .lean()
-    .exec();
+    select: { id: true },
+  });
 
   if (!link) {
     throw new DocumentServiceError("Document not found.", 404);
@@ -143,39 +139,17 @@ const assertParentCanAccessCompanion = async (
 
 const assertPmsCanAccessCompanion = async (
   organisationId: string,
-  companionId: Types.ObjectId,
+  patientId: string,
 ): Promise<void> => {
   assertSafeString(organisationId, "organisationId");
-
-  if (isReadFromPostgres()) {
-    const link = await prisma.companionOrganisation.findFirst({
-      where: {
-        organisationId,
-        companionId: companionId.toString(),
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-      select: { id: true },
-    });
-
-    if (!link) {
-      throw new DocumentServiceError("Document not found.", 404);
-    }
-    return;
-  }
-
-  const safeOrganisationId = ensureObjectId(organisationId, "organisationId");
-
-  const link = await CompanionOrganisationModel.findOne(
-    {
-      organisationId: safeOrganisationId,
-      companionId,
-      status: { $in: ["ACTIVE", "PENDING"] },
+  const link = await prisma.patientOrganisation.findFirst({
+    where: {
+      organisationId,
+      patientId: normalizeStringId(patientId, "patientId"),
+      status: { in: ["ACTIVE", "PENDING"] },
     },
-    { _id: 1 },
-    { sanitizeFilter: false },
-  )
-    .lean()
-    .exec();
+    select: { id: true },
+  });
 
   if (!link) {
     throw new DocumentServiceError("Document not found.", 404);
@@ -183,323 +157,100 @@ const assertPmsCanAccessCompanion = async (
 };
 
 const getParentAccessibleCompanionIds = async (
-  parentId: string | Types.ObjectId,
-): Promise<Types.ObjectId[]> => {
-  const _parentId = ensureObjectId(parentId, "parentId");
-
-  if (isReadFromPostgres()) {
-    const links = await prisma.parentCompanion.findMany({
-      where: {
-        parentId: _parentId.toString(),
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-      select: { companionId: true },
-    });
-
-    return links.map((link) => ensureObjectId(link.companionId, "companionId"));
-  }
-
-  const links = (await ParentCompanionModel.find(
-    {
-      parentId: _parentId,
-      status: { $in: ["ACTIVE", "PENDING"] },
+  parentId: string,
+): Promise<string[]> => {
+  const links = await prisma.parentPatient.findMany({
+    where: {
+      parentId: normalizeStringId(parentId, "parentId"),
+      status: { in: ["ACTIVE", "PENDING"] },
     },
-    { companionId: 1 },
-    { sanitizeFilter: false },
-  )
-    .lean()
-    .exec()) as unknown as Array<{ companionId: Types.ObjectId | string }>;
+    select: { patientId: true },
+  });
 
-  return links.map((link) => ensureObjectId(link.companionId, "companionId"));
+  return links
+    .map((link) => normalizeStringId(link.patientId, "patientId"))
+    .filter(Boolean);
 };
 
 const getOrganisationAccessibleCompanionIds = async (
   organisationId: string,
-): Promise<Types.ObjectId[]> => {
+): Promise<string[]> => {
   assertSafeString(organisationId, "organisationId");
-
-  if (isReadFromPostgres()) {
-    const links = await prisma.companionOrganisation.findMany({
-      where: {
-        organisationId,
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-      select: { companionId: true },
-    });
-
-    return links.map((link) => ensureObjectId(link.companionId, "companionId"));
-  }
-
-  const safeOrganisationId = ensureObjectId(organisationId, "organisationId");
-
-  const links = (await CompanionOrganisationModel.find(
-    {
-      organisationId: safeOrganisationId,
-      status: { $in: ["ACTIVE", "PENDING"] },
-    },
-    { companionId: 1 },
-    { sanitizeFilter: false },
-  )
-    .lean()
-    .exec()) as unknown as Array<{ companionId: Types.ObjectId | string }>;
-
-  return links.map((link) => ensureObjectId(link.companionId, "companionId"));
-};
-
-const getDocumentForParentAccess = async (
-  documentId: string | Types.ObjectId,
-  parentId: string | Types.ObjectId,
-): Promise<DocumentDto | null> => {
-  const _id = ensureObjectId(documentId, "documentId");
-
-  if (isReadFromPostgres()) {
-    const doc = await prisma.document.findUnique({
-      where: { id: _id.toString() },
-      include: { attachments: true },
-    });
-
-    if (!doc) {
-      return null;
-    }
-
-    await assertParentCanAccessCompanion(
-      parentId,
-      ensureObjectId(doc.companionId, "companionId"),
-    );
-    return mapDocumentToDtoFromPrisma(doc);
-  }
-
-  const doc = await DocumentModel.findById(_id).exec();
-  if (!doc) {
-    return null;
-  }
-
-  await assertParentCanAccessCompanion(parentId, doc.companionId);
-  return mapDocumentToDto(doc);
-};
-
-const getDocumentForPmsAccess = async (
-  documentId: string | Types.ObjectId,
-  organisationId: string,
-  requirePmsVisible = false,
-): Promise<DocumentDto | null> => {
-  const _id = ensureObjectId(documentId, "documentId");
-
-  if (isReadFromPostgres()) {
-    const doc = await prisma.document.findUnique({
-      where: { id: _id.toString() },
-      include: { attachments: true },
-    });
-
-    if (!doc || (requirePmsVisible && !doc.pmsVisible)) {
-      return null;
-    }
-
-    await assertPmsCanAccessCompanion(
+  const links = await prisma.patientOrganisation.findMany({
+    where: {
       organisationId,
-      ensureObjectId(doc.companionId, "companionId"),
-    );
-    return mapDocumentToDtoFromPrisma(doc);
-  }
+      status: { in: ["ACTIVE", "PENDING"] },
+    },
+    select: { patientId: true },
+  });
 
-  const doc = await DocumentModel.findById(_id).exec();
-  if (!doc || (requirePmsVisible && !doc.pmsVisible)) {
-    return null;
-  }
-
-  await assertPmsCanAccessCompanion(organisationId, doc.companionId);
-  return mapDocumentToDto(doc);
+  return links
+    .map((link) => normalizeStringId(link.patientId, "patientId"))
+    .filter(Boolean);
 };
 
-const assertUpdatePermissions = (
-  doc: DocumentDocument,
-  context: DocumentCreateContext,
-): void => {
-  if (
-    context.parentId &&
-    doc.uploadedByParentId?.toString() !== context.parentId.toString()
-  ) {
-    throw new DocumentServiceError(
-      "Parent is not allowed to update this document.",
-      403,
-    );
-  }
-
-  if (context.pmsUserId && !doc.syncedFromPms) {
-    throw new DocumentServiceError(
-      "PMS cannot update documents uploaded by parent.",
-      403,
-    );
-  }
-};
-
-const applyCategoryUpdate = (
-  doc: DocumentDocument,
-  updates: Partial<CreateDocumentInput>,
-): void => {
-  if (!updates.category && !updates.subcategory) {
-    return;
-  }
-
-  const newCategory = (updates.category ?? doc.category)
-    .toString()
-    .toUpperCase();
-  const newSubcategory = updates.subcategory
-    ? updates.subcategory.toString().toUpperCase()
-    : doc.subcategory;
-
-  validateCategoryAndSubcategory(newCategory, newSubcategory ?? undefined);
-
-  doc.category = newCategory;
-  doc.subcategory = newSubcategory ?? null;
-  // pmsVisible may change because category changed
-  doc.pmsVisible = isPmsVisibleCategory(newCategory);
-};
-
-const applySimpleFieldUpdates = (
-  doc: DocumentDocument,
-  updates: Partial<CreateDocumentInput>,
-): void => {
-  if (isNonEmptyString(updates.title)) {
-    doc.title = updates.title.trim();
-  }
-
-  if (updates.visitType !== undefined) {
-    doc.visitType = updates.visitType ? updates.visitType : null;
-  }
-
-  if (updates.issuingBusinessName !== undefined) {
-    doc.issuingBusinessName = updates.issuingBusinessName || null;
-  }
-
-  if (updates.issueDate !== undefined) {
-    if (updates.issueDate) {
-      const parsed = new Date(updates.issueDate);
-      if (!Number.isNaN(parsed.getTime())) {
-        doc.issueDate = parsed;
-      }
-    } else {
-      doc.issueDate = null;
-    }
-  }
-};
-
-const applyAttachmentUpdates = (
-  doc: DocumentDocument,
-  updates: Partial<CreateDocumentInput>,
-): void => {
-  if (!updates.attachments || !Array.isArray(updates.attachments)) {
-    return;
-  }
-
-  // Replace attachments entirely (or merge—your choice)
-  doc.attachments = updates.attachments.map((att) => ({
-    key: String(att.key),
-    mimeType: String(att.mimeType),
-    size: att.size,
-  }));
+type AttachmentInput = {
+  key: string;
+  mimeType: string;
+  size?: number;
 };
 
 export interface DocumentAttachmentInput {
-  key: string; // S3 key (temp or final)
+  key: string;
   mimeType: string;
   size?: number;
 }
 
 export interface CreateDocumentInput {
-  companionId: string | Types.ObjectId;
-  appointmentId?: string | Types.ObjectId | null;
-
+  patientId: string;
+  appointmentId?: string | null;
   category: string;
   subcategory?: string | null;
-
   visitType?: string | null;
   title: string;
   issuingBusinessName?: string | null;
   issueDate?: Date | string | null;
-
   attachments: DocumentAttachmentInput[];
 }
 
 export type DocumentCreateContext = {
-  parentId?: Types.ObjectId | string;
+  parentId?: string;
   pmsUserId?: string;
   organisationId?: string;
 };
 
 export interface DocumentDto {
   id: string;
-  companionId: string;
+  patientId: string;
   appointmentId: string | null;
-
   category: string;
   subcategory: string | null;
   visitType: string | null;
-
   title: string;
   issuingBusinessName: string | null;
   issueDate: string | null;
-
   attachments: {
     key: string;
     mimeType: string;
     size?: number;
   }[];
-
   pmsVisible: boolean;
   syncedFromPms: boolean;
-
   uploadedByParentId: string | null;
   uploadedByPmsUserId: string | null;
-
+  sourceKind?: string;
+  sourceId?: string;
+  templateId?: string | null;
+  templateVersion?: number | null;
+  signingStatus?: string;
+  pdfUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-const mapDocumentToDto = (doc: DocumentDocument): DocumentDto => {
-  const obj = doc.toObject() as DocumentMongo & {
-    _id: Types.ObjectId;
-    createdAt?: Date;
-    updatedAt?: Date;
-  };
-
-  return {
-    id: obj._id.toString(),
-    companionId: obj.companionId.toString(),
-    appointmentId: obj.appointmentId ? obj.appointmentId.toString() : null,
-
-    category: obj.category,
-    subcategory: obj.subcategory ?? null,
-    visitType: obj.visitType ?? null,
-
-    title: obj.title,
-    issuingBusinessName: obj.issuingBusinessName ?? null,
-    issueDate: obj.issueDate ? obj.issueDate.toISOString() : null,
-
-    attachments: (obj.attachments ?? []).map((att) => ({
-      key: att.key,
-      mimeType: att.mimeType,
-      size: att.size,
-    })),
-
-    pmsVisible: obj.pmsVisible,
-    syncedFromPms: obj.syncedFromPms,
-
-    uploadedByParentId: obj.uploadedByParentId
-      ? obj.uploadedByParentId.toString()
-      : null,
-    uploadedByPmsUserId: obj.uploadedByPmsUserId
-      ? obj.uploadedByPmsUserId.toString()
-      : null,
-
-    createdAt: (obj.createdAt ?? new Date()).toISOString(),
-    updatedAt: (obj.updatedAt ?? new Date()).toISOString(),
-  };
-};
-
-const mapDocumentToDtoFromPrisma = (doc: {
+type PrismaDocumentRow = {
   id: string;
-  companionId: string;
+  patientId: string;
   appointmentId: string | null;
   category: string;
   subcategory: string | null;
@@ -518,15 +269,41 @@ const mapDocumentToDtoFromPrisma = (doc: {
     mimeType: string;
     size: number | null;
   }>;
-}): DocumentDto => ({
+};
+
+type RenderedDocumentRow = {
+  id: string;
+  organisationId: string;
+  sourceKind: string;
+  sourceId: string;
+  templateId: string | null;
+  templateVersion: number | null;
+  kind: string;
+  title: string;
+  status: string;
+  pdfUrl: string | null;
+  signing: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+  templateInstance: {
+    appointmentId: string | null;
+    encounterId: string | null;
+  } | null;
+  clinicalArtifact: {
+    appointmentId: string | null;
+    encounterId: string | null;
+  } | null;
+};
+
+const mapDocumentToDto = (doc: PrismaDocumentRow): DocumentDto => ({
   id: doc.id,
-  companionId: doc.companionId,
-  appointmentId: doc.appointmentId ?? null,
+  patientId: doc.patientId,
+  appointmentId: doc.appointmentId,
   category: doc.category,
-  subcategory: doc.subcategory ?? null,
-  visitType: doc.visitType ?? null,
+  subcategory: doc.subcategory,
+  visitType: doc.visitType,
   title: doc.title,
-  issuingBusinessName: doc.issuingBusinessName ?? null,
+  issuingBusinessName: doc.issuingBusinessName,
   issueDate: doc.issueDate ? doc.issueDate.toISOString() : null,
   attachments: (doc.attachments ?? []).map((att) => ({
     key: att.key,
@@ -535,86 +312,122 @@ const mapDocumentToDtoFromPrisma = (doc: {
   })),
   pmsVisible: doc.pmsVisible,
   syncedFromPms: doc.syncedFromPms,
-  uploadedByParentId: doc.uploadedByParentId ?? null,
-  uploadedByPmsUserId: doc.uploadedByPmsUserId ?? null,
+  uploadedByParentId: doc.uploadedByParentId,
+  uploadedByPmsUserId: doc.uploadedByPmsUserId,
+  sourceKind: "DOCUMENT",
+  sourceId: doc.id,
+  templateId: null,
+  templateVersion: null,
+  signingStatus: doc.pmsVisible ? "SIGNED" : "NOT_STARTED",
+  pdfUrl: null,
   createdAt: doc.createdAt.toISOString(),
   updatedAt: doc.updatedAt.toISOString(),
 });
 
-const toPrismaDocumentData = (doc: DocumentDocument) => {
-  const obj = doc.toObject() as DocumentMongo & {
-    _id: Types.ObjectId;
-    createdAt?: Date;
-    updatedAt?: Date;
-  };
+const mapRenderedDocumentToDto = (
+  document: RenderedDocumentRow,
+): DocumentDto => ({
+  id: document.id,
+  patientId:
+    document.templateInstance?.appointmentId ??
+    document.clinicalArtifact?.appointmentId ??
+    document.sourceId,
+  appointmentId:
+    document.templateInstance?.appointmentId ??
+    document.clinicalArtifact?.appointmentId ??
+    null,
+  category: document.kind,
+  subcategory: null,
+  visitType: null,
+  title: document.title,
+  issuingBusinessName: null,
+  issueDate: null,
+  attachments: [],
+  pmsVisible: document.status === "SIGNED",
+  syncedFromPms: false,
+  uploadedByParentId: null,
+  uploadedByPmsUserId: null,
+  sourceKind: document.sourceKind,
+  sourceId: document.sourceId,
+  templateId: document.templateId,
+  templateVersion: document.templateVersion,
+  signingStatus:
+    typeof document.signing === "object" &&
+    document.signing !== null &&
+    !Array.isArray(document.signing) &&
+    typeof (document.signing as { status?: unknown }).status === "string"
+      ? String((document.signing as { status?: string }).status)
+      : document.status === "SIGNED"
+        ? "SIGNED"
+        : "NOT_STARTED",
+  pdfUrl: document.pdfUrl,
+  createdAt: document.createdAt.toISOString(),
+  updatedAt: document.updatedAt.toISOString(),
+});
+
+const loadAppointmentForDocumentLookup = async (appointmentId: string) => {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: {
+      organisationId: true,
+      patient: true,
+    },
+  });
+
+  if (!appointment) {
+    return null;
+  }
 
   return {
-    id: obj._id.toString(),
-    companionId: obj.companionId.toString(),
-    appointmentId: obj.appointmentId ? obj.appointmentId.toString() : undefined,
-    category: obj.category,
-    subcategory: obj.subcategory ?? undefined,
-    visitType: obj.visitType ?? undefined,
-    title: obj.title,
-    issuingBusinessName: obj.issuingBusinessName ?? undefined,
-    issueDate: obj.issueDate ?? undefined,
-    uploadedByParentId: obj.uploadedByParentId
-      ? obj.uploadedByParentId.toString()
-      : undefined,
-    uploadedByPmsUserId: obj.uploadedByPmsUserId ?? undefined,
-    pmsVisible: obj.pmsVisible ?? false,
-    syncedFromPms: obj.syncedFromPms ?? false,
-    createdAt: obj.createdAt ?? undefined,
-    updatedAt: obj.updatedAt ?? undefined,
+    organisationId: appointment.organisationId,
+    patientId: getPatientIdFromAppointment(appointment.patient),
   };
 };
 
-const syncDocumentAttachmentsToPostgres = async (
-  documentId: string,
-  attachments: DocumentAttachmentInput[],
-) => {
-  if (!shouldDualWrite) return;
-  try {
-    await prisma.documentAttachment.deleteMany({ where: { documentId } });
-    if (attachments.length) {
-      await prisma.documentAttachment.createMany({
-        data: attachments.map((att) => ({
-          documentId,
-          key: String(att.key),
-          mimeType: String(att.mimeType),
-          size: typeof att.size === "number" ? att.size : undefined,
-        })),
-      });
-    }
-  } catch (err) {
-    handleDualWriteError("DocumentAttachment", err);
-  }
+const loadRenderedAppointmentDocuments = async (params: {
+  appointmentId: string;
+  organisationId: string;
+}) => {
+  const renderedDocuments = (await prisma.renderedDocument.findMany({
+    where: {
+      organisationId: params.organisationId,
+      OR: [
+        {
+          templateInstance: {
+            is: { appointmentId: params.appointmentId },
+          },
+        },
+        {
+          clinicalArtifact: {
+            is: { appointmentId: params.appointmentId },
+          },
+        },
+      ],
+    },
+    include: {
+      templateInstance: {
+        select: {
+          appointmentId: true,
+          encounterId: true,
+        },
+      },
+      clinicalArtifact: {
+        select: {
+          appointmentId: true,
+          encounterId: true,
+        },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+  })) as unknown as RenderedDocumentRow[];
+
+  return renderedDocuments.map(mapRenderedDocumentToDto);
 };
 
-const syncDocumentToPostgres = async (doc: DocumentDocument) => {
-  if (!shouldDualWrite) return;
-  try {
-    const data = toPrismaDocumentData(doc);
-    await prisma.document.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
-    const obj = doc.toObject() as DocumentMongo & { _id: Types.ObjectId };
-    await syncDocumentAttachmentsToPostgres(data.id, obj.attachments ?? []);
-  } catch (err) {
-    handleDualWriteError("Document", err);
-  }
-};
-
-const buildPersistableDocument = (
+const createDocumentRecord = async (
   input: CreateDocumentInput,
   context: DocumentCreateContext,
-): DocumentMongo => {
-  let source: string;
-  if (context.parentId) source = "parent";
-  else source = "pms";
-
+): Promise<DocumentDto> => {
   if (!isNonEmptyString(input.title)) {
     throw new DocumentServiceError("Document title is required.", 400);
   }
@@ -623,236 +436,222 @@ const buildPersistableDocument = (
     throw new DocumentServiceError("At least one attachment is required.", 400);
   }
 
-  const companionId = ensureObjectId(input.companionId, "companionId");
-  const appointmentId =
-    input.appointmentId != null && input.appointmentId !== ""
-      ? ensureObjectId(input.appointmentId, "appointmentId")
-      : null;
-
-  const category = String(input.category).toUpperCase();
-  const subcategory = input.subcategory
-    ? String(input.subcategory).toUpperCase()
+  const patientId = normalizeStringId(input.patientId, "patientId");
+  const appointmentId = input.appointmentId
+    ? normalizeStringId(input.appointmentId, "appointmentId")
     : null;
 
-  validateCategoryAndSubcategory(category, subcategory ?? undefined);
+  const category = input.category.toUpperCase();
+  const subcategory = input.subcategory
+    ? input.subcategory.toUpperCase()
+    : null;
+  validateCategoryAndSubcategory(category, subcategory);
 
-  const pmsVisible = isPmsVisibleCategory(category);
-
-  let syncedFromPms = false;
-  let uploadedByParentId: Types.ObjectId | null = null;
-  let uploadedByPmsUserId: string | undefined;
-
-  if (source === "parent") {
-    uploadedByParentId = ensureObjectId(context.parentId!, "parentId");
-  } else {
-    uploadedByPmsUserId = assertSafeString(
-      context.pmsUserId,
-      "uploadedByPmsUserId",
-    );
-    syncedFromPms = true;
-  }
-
-  let issueDate: Date | null = null;
-  if (input.issueDate instanceof Date) {
-    issueDate = input.issueDate;
-  } else if (typeof input.issueDate === "string" && input.issueDate.trim()) {
-    const parsed = new Date(input.issueDate);
-    if (!Number.isNaN(parsed.getTime())) {
-      issueDate = parsed;
-    }
-  }
-
-  const attachments = input.attachments.map((att) => ({
+  const issueDate = parseIssueDate(input.issueDate);
+  const attachments: AttachmentInput[] = input.attachments.map((att) => ({
     key: String(att.key),
     mimeType: String(att.mimeType),
     size: typeof att.size === "number" ? att.size : undefined,
   }));
 
-  const persistable: DocumentMongo = {
-    companionId,
-    appointmentId,
+  const created = await prisma.$transaction(async (tx) => {
+    const document = await tx.document.create({
+      data: {
+        patientId,
+        appointmentId: appointmentId ?? undefined,
+        category,
+        subcategory: subcategory ?? undefined,
+        visitType: input.visitType ?? undefined,
+        title: input.title.trim(),
+        issuingBusinessName: input.issuingBusinessName?.trim() ?? undefined,
+        issueDate: issueDate ?? undefined,
+        uploadedByParentId: context.parentId ?? undefined,
+        uploadedByPmsUserId: context.pmsUserId ?? undefined,
+        pmsVisible: isPmsVisibleCategory(category),
+        syncedFromPms: Boolean(context.pmsUserId),
+      },
+    });
 
-    category,
-    subcategory,
+    if (attachments.length > 0) {
+      await tx.documentAttachment.createMany({
+        data: attachments.map((attachment) => ({
+          documentId: document.id,
+          key: attachment.key,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+        })),
+      });
+    }
 
-    visitType: input.visitType ?? null,
-    title: input.title.trim(),
-    issuingBusinessName: input.issuingBusinessName?.trim() ?? null,
+    return tx.document.findUnique({
+      where: { id: document.id },
+      include: { attachments: true },
+    });
+  });
 
-    issueDate,
+  if (!created) {
+    throw new DocumentServiceError("Document not found.", 404);
+  }
 
-    attachments,
+  if (context.organisationId) {
+    await AuditTrailService.recordSafely({
+      organisationId: context.organisationId,
+      patientId: created.patientId,
+      eventType: "DOCUMENT_ADDED",
+      actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
+      actorId: context.pmsUserId ?? null,
+      entityType: "DOCUMENT",
+      entityId: created.id,
+      metadata: {
+        category: created.category,
+        subcategory: created.subcategory,
+        appointmentId: created.appointmentId,
+        title: created.title,
+      },
+    });
+  }
 
-    uploadedByParentId,
-    uploadedByPmsUserId,
-
-    pmsVisible,
-    syncedFromPms,
-  };
-
-  return persistable;
+  return mapDocumentToDto(created);
 };
 
-// Service methods
+const loadDocumentById = async (
+  documentId: string,
+): Promise<PrismaDocumentRow | null> => {
+  const doc = (await prisma.document.findUnique({
+    where: { id: normalizeStringId(documentId, "documentId") },
+    include: { attachments: true },
+  })) as unknown as PrismaDocumentRow | null;
+  return doc;
+};
+
+const loadDocumentForParentAccess = async (
+  documentId: string,
+  parentId: string,
+): Promise<DocumentDto | null> => {
+  const doc = await loadDocumentById(documentId);
+  if (!doc) {
+    return null;
+  }
+
+  await assertParentCanAccessCompanion(parentId, doc.patientId);
+  return mapDocumentToDto(doc);
+};
+
+const loadDocumentForPmsAccess = async (
+  documentId: string,
+  organisationId: string,
+  requirePmsVisible = false,
+): Promise<DocumentDto | null> => {
+  const doc = await loadDocumentById(documentId);
+  if (!doc || (requirePmsVisible && !doc.pmsVisible)) {
+    return null;
+  }
+
+  await assertPmsCanAccessCompanion(organisationId, doc.patientId);
+  return mapDocumentToDto(doc);
+};
+
+const syncDocumentAttachmentsToPostgres = async (
+  documentId: string,
+  attachments: AttachmentInput[],
+) => {
+  await prisma.documentAttachment.deleteMany({ where: { documentId } });
+  if (!attachments.length) {
+    return;
+  }
+  await prisma.documentAttachment.createMany({
+    data: attachments.map((attachment) => ({
+      documentId,
+      key: attachment.key,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+    })),
+  });
+};
+
 export const DocumentService = {
   async create(
     input: CreateDocumentInput,
     context: DocumentCreateContext,
   ): Promise<DocumentDto> {
-    const persistable = buildPersistableDocument(input, context);
-    const doc = await DocumentModel.create(persistable);
-
-    await syncDocumentToPostgres(doc);
-
-    if (context.organisationId) {
-      await AuditTrailService.recordSafely({
-        organisationId: context.organisationId,
-        companionId: doc.companionId.toString(),
-        eventType: "DOCUMENT_ADDED",
-        actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
-        actorId: context.pmsUserId ?? null,
-        entityType: "DOCUMENT",
-        entityId: doc._id.toString(),
-        metadata: {
-          category: doc.category,
-          subcategory: doc.subcategory,
-          appointmentId: doc.appointmentId?.toString() ?? null,
-          title: doc.title,
-        },
-      });
-    }
-
-    return mapDocumentToDto(doc);
+    return createDocumentRecord(input, context);
   },
 
   async listForParent(params: {
-    companionId: string | Types.ObjectId;
-    parentId: string | Types.ObjectId;
+    patientId: string;
+    parentId: string;
     category?: string;
     subcategory?: string;
   }): Promise<DocumentDto[]> {
-    const companionId = ensureObjectId(params.companionId, "companionId");
-    await assertParentCanAccessCompanion(params.parentId, companionId);
+    const patientId = normalizeStringId(params.patientId, "patientId");
+    await assertParentCanAccessCompanion(params.parentId, patientId);
 
-    const filter: Record<string, unknown> = {
-      companionId,
-    };
+    const docs = (await prisma.document.findMany({
+      where: {
+        patientId,
+        category: params.category ? params.category.toUpperCase() : undefined,
+        subcategory: params.subcategory
+          ? params.subcategory.toUpperCase()
+          : undefined,
+      },
+      orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
+      include: { attachments: true },
+    })) as unknown as PrismaDocumentRow[];
 
-    if (params.category) {
-      filter.category = String(params.category).toUpperCase();
-    }
-
-    if (params.subcategory) {
-      filter.subcategory = String(params.subcategory).toUpperCase();
-    }
-
-    if (isReadFromPostgres()) {
-      const docs = await prisma.document.findMany({
-        where: {
-          companionId: companionId.toString(),
-          category: params.category
-            ? String(params.category).toUpperCase()
-            : undefined,
-          subcategory: params.subcategory
-            ? String(params.subcategory).toUpperCase()
-            : undefined,
-        },
-        orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
-        include: { attachments: true },
-      });
-      return docs.map(mapDocumentToDtoFromPrisma);
-    }
-
-    const docs = await DocumentModel.find(filter)
-      .sort({ issueDate: -1, createdAt: -1 })
-      .exec();
-
-    return docs.map((element) => mapDocumentToDto(element));
+    return docs.map(mapDocumentToDto);
   },
 
   async listForPms(params: {
-    companionId: string | Types.ObjectId;
+    patientId: string;
     organisationId: string;
     category?: string;
     subcategory?: string;
-    appointmentId?: string | Types.ObjectId;
+    appointmentId?: string;
   }): Promise<DocumentDto[]> {
-    const companionId = ensureObjectId(params.companionId, "companionId");
-    await assertPmsCanAccessCompanion(params.organisationId, companionId);
+    const patientId = normalizeStringId(params.patientId, "patientId");
+    await assertPmsCanAccessCompanion(params.organisationId, patientId);
 
-    const filter: Record<string, unknown> = {
-      companionId,
-      pmsVisible: true,
-    };
+    const docs = (await prisma.document.findMany({
+      where: {
+        patientId,
+        pmsVisible: true,
+        category: params.category ? params.category.toUpperCase() : undefined,
+        subcategory: params.subcategory
+          ? params.subcategory.toUpperCase()
+          : undefined,
+        appointmentId: params.appointmentId
+          ? normalizeStringId(params.appointmentId, "appointmentId")
+          : undefined,
+      },
+      orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
+      include: { attachments: true },
+    })) as unknown as PrismaDocumentRow[];
 
-    if (params.category) {
-      filter.category = String(params.category).toUpperCase();
-    }
-
-    if (params.subcategory) {
-      filter.subcategory = String(params.subcategory).toUpperCase();
-    }
-
-    if (params.appointmentId) {
-      filter.appointmentId = ensureObjectId(
-        params.appointmentId,
-        "appointmentId",
-      );
-    }
-
-    if (isReadFromPostgres()) {
-      const docs = await prisma.document.findMany({
-        where: {
-          companionId: companionId.toString(),
-          pmsVisible: true,
-          category: params.category
-            ? String(params.category).toUpperCase()
-            : undefined,
-          subcategory: params.subcategory
-            ? String(params.subcategory).toUpperCase()
-            : undefined,
-          appointmentId: params.appointmentId
-            ? ensureObjectId(params.appointmentId, "appointmentId").toString()
-            : undefined,
-        },
-        orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
-        include: { attachments: true },
-      });
-      return docs.map(mapDocumentToDtoFromPrisma);
-    }
-
-    const docs = await DocumentModel.find(filter)
-      .sort({ issueDate: -1, createdAt: -1 })
-      .exec();
-
-    return docs.map((element) => mapDocumentToDto(element));
+    return docs.map(mapDocumentToDto);
   },
 
   async getByIdForParent(
-    id: string | Types.ObjectId,
-    parentId: string | Types.ObjectId,
+    id: string,
+    parentId: string,
   ): Promise<DocumentDto | null> {
-    return getDocumentForParentAccess(id, parentId);
+    return loadDocumentForParentAccess(id, parentId);
   },
 
   async getByIdForPms(
-    id: string | Types.ObjectId,
+    id: string,
     organisationId: string,
   ): Promise<DocumentDto | null> {
-    return getDocumentForPmsAccess(id, organisationId, true);
+    return loadDocumentForPmsAccess(id, organisationId, true);
   },
 
-  async deleteForParent(
-    id: string | Types.ObjectId,
-    parentId: string | Types.ObjectId,
-  ): Promise<boolean> {
-    const _id = ensureObjectId(id, "documentId");
-    const _parentId = ensureObjectId(parentId, "parentId");
-
-    const doc = await DocumentModel.findOne({
-      _id,
-      uploadedByParentId: _parentId,
-    }).exec();
+  async deleteForParent(id: string, parentId: string): Promise<boolean> {
+    const doc = await prisma.document.findFirst({
+      where: {
+        id: normalizeStringId(id, "documentId"),
+        uploadedByParentId: normalizeStringId(parentId, "parentId"),
+      },
+      select: { id: true, attachments: { select: { key: true } } },
+    });
 
     if (!doc) {
       throw new DocumentServiceError(
@@ -861,178 +660,233 @@ export const DocumentService = {
       );
     }
 
-    // Delete all files from S3
     for (const attachment of doc.attachments) {
       await deleteFromS3(attachment.key);
     }
-    await DocumentModel.deleteOne({ _id }).exec();
 
-    if (shouldDualWrite) {
-      try {
-        await prisma.documentAttachment.deleteMany({
-          where: { documentId: _id.toString() },
-        });
-        await prisma.document.deleteMany({
-          where: { id: _id.toString() },
-        });
-      } catch (err) {
-        handleDualWriteError("Document delete", err);
-      }
-    }
+    await prisma.$transaction(async (tx) => {
+      await tx.documentAttachment.deleteMany({ where: { documentId: doc.id } });
+      await tx.document.deleteMany({ where: { id: doc.id } });
+    });
+
     return true;
   },
 
-  // List of Documents of Appointment for PMS
   async listForAppointmentParent(params: {
-    appointmentId: string | Types.ObjectId;
-    parentId: string | Types.ObjectId;
+    appointmentId: string;
+    parentId: string;
   }): Promise<DocumentDto[]> {
-    const appointmentId = ensureObjectId(params.appointmentId, "appointmentId");
+    const appointmentId = normalizeStringId(
+      params.appointmentId,
+      "appointmentId",
+    );
     const companionIds = await getParentAccessibleCompanionIds(params.parentId);
+    const appointmentLookup =
+      await loadAppointmentForDocumentLookup(appointmentId);
 
-    if (!companionIds.length) {
+    if (!appointmentLookup) {
       return [];
     }
 
-    if (isReadFromPostgres()) {
-      const docs = await prisma.document.findMany({
+    if (
+      appointmentLookup.patientId &&
+      !companionIds.includes(appointmentLookup.patientId)
+    ) {
+      return [];
+    }
+
+    const [docs, renderedDocs] = await Promise.all([
+      prisma.document.findMany({
         where: {
-          appointmentId: appointmentId.toString(),
-          companionId: { in: companionIds.map((id) => id.toString()) },
+          appointmentId,
+          patientId: { in: companionIds },
         },
         orderBy: { createdAt: "desc" },
         include: { attachments: true },
-      });
-      return docs.map(mapDocumentToDtoFromPrisma);
-    }
+      }),
+      loadRenderedAppointmentDocuments({
+        appointmentId,
+        organisationId: appointmentLookup.organisationId,
+      }),
+    ]);
 
-    const docs = await DocumentModel.find({
-      appointmentId,
-      companionId: { $in: companionIds },
-    })
-      .sort({ createdAt: -1 })
-      .exec();
-
-    return docs.map((element) => mapDocumentToDto(element));
+    return [
+      ...(docs as unknown as PrismaDocumentRow[]).map(mapDocumentToDto),
+      ...renderedDocs,
+    ].sort(
+      (left, right) =>
+        new Date(right.updatedAt).getTime() -
+        new Date(left.updatedAt).getTime(),
+    );
   },
 
-  // List of Documents of Appointment for PMS
   async listForAppointmentPms(params: {
-    appointmentId: string | Types.ObjectId;
+    appointmentId: string;
     organisationId: string;
-    companionId?: string | Types.ObjectId;
+    patientId?: string;
   }): Promise<DocumentDto[]> {
-    const appointmentId = ensureObjectId(params.appointmentId, "appointmentId");
-    const companionIds = params.companionId
-      ? [ensureObjectId(params.companionId, "companionId")]
+    const appointmentId = normalizeStringId(
+      params.appointmentId,
+      "appointmentId",
+    );
+    const companionIds = params.patientId
+      ? [normalizeStringId(params.patientId, "patientId")]
       : await getOrganisationAccessibleCompanionIds(params.organisationId);
+    const appointmentLookup =
+      await loadAppointmentForDocumentLookup(appointmentId);
 
-    if (params.companionId) {
+    if (params.patientId) {
       await assertPmsCanAccessCompanion(params.organisationId, companionIds[0]);
     }
 
-    if (!companionIds.length) {
+    if (!appointmentLookup) {
       return [];
     }
 
-    if (isReadFromPostgres()) {
-      const docs = await prisma.document.findMany({
+    const [docs, renderedDocs] = await Promise.all([
+      prisma.document.findMany({
         where: {
-          companionId: { in: companionIds.map((id) => id.toString()) },
-          appointmentId: appointmentId.toString(),
+          patientId: { in: companionIds },
+          appointmentId,
           pmsVisible: true,
         },
         orderBy: { createdAt: "desc" },
         include: { attachments: true },
-      });
-      return docs.map(mapDocumentToDtoFromPrisma);
-    }
+      }),
+      loadRenderedAppointmentDocuments({
+        appointmentId,
+        organisationId: appointmentLookup.organisationId,
+      }),
+    ]);
 
-    const docs = await DocumentModel.find({
-      companionId: { $in: companionIds },
-      appointmentId,
-      pmsVisible: true,
-    })
-      .sort({ createdAt: -1 })
-      .exec();
-
-    return docs.map((element) => mapDocumentToDto(element));
+    return [
+      ...(docs as unknown as PrismaDocumentRow[]).map(mapDocumentToDto),
+      ...renderedDocs,
+    ].sort(
+      (left, right) =>
+        new Date(right.updatedAt).getTime() -
+        new Date(left.updatedAt).getTime(),
+    );
   },
 
-  // Update Document
   async update(
-    id: string | Types.ObjectId,
+    id: string,
     updates: Partial<CreateDocumentInput>,
     context: DocumentCreateContext,
   ): Promise<DocumentDto> {
-    const _id = ensureObjectId(id, "documentId");
+    const documentId = normalizeStringId(id, "documentId");
+    const doc = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { attachments: true },
+    });
 
-    // 1. Load existing document
-    const doc = await DocumentModel.findById(_id);
     if (!doc) {
       throw new DocumentServiceError("Document not found.", 404);
     }
 
     if (context.parentId) {
-      await assertParentCanAccessCompanion(context.parentId, doc.companionId);
+      await assertParentCanAccessCompanion(context.parentId, doc.patientId);
+      if (doc.uploadedByParentId !== context.parentId) {
+        throw new DocumentServiceError(
+          "Parent is not allowed to update this document.",
+          403,
+        );
+      }
     }
+
     if (context.pmsUserId) {
       if (!context.organisationId) {
         throw new DocumentServiceError("organisationId is required.", 400);
       }
-      await assertPmsCanAccessCompanion(
-        context.organisationId,
-        doc.companionId,
-      );
+      await assertPmsCanAccessCompanion(context.organisationId, doc.patientId);
+      if (!doc.syncedFromPms) {
+        throw new DocumentServiceError(
+          "PMS cannot update documents uploaded by parent.",
+          403,
+        );
+      }
     }
 
-    // 2. Permission check
-    assertUpdatePermissions(doc, context);
+    const category = updates.category
+      ? updates.category.toUpperCase()
+      : doc.category;
+    const subcategory =
+      updates.subcategory !== undefined
+        ? updates.subcategory
+          ? updates.subcategory.toUpperCase()
+          : null
+        : doc.subcategory;
 
-    // 4. Validate category / subcategory only when changed
-    applyCategoryUpdate(doc, updates);
+    if (updates.category || updates.subcategory !== undefined) {
+      validateCategoryAndSubcategory(category, subcategory);
+    }
 
-    // 5. Handle simple field updates
-    applySimpleFieldUpdates(doc, updates);
+    const updated = await prisma.document.update({
+      where: { id: documentId },
+      data: {
+        category,
+        subcategory: subcategory ?? undefined,
+        visitType:
+          updates.visitType !== undefined
+            ? (updates.visitType ?? null)
+            : undefined,
+        title: isNonEmptyString(updates.title)
+          ? updates.title.trim()
+          : undefined,
+        issuingBusinessName:
+          updates.issuingBusinessName !== undefined
+            ? (updates.issuingBusinessName?.trim() ?? null)
+            : undefined,
+        issueDate:
+          updates.issueDate !== undefined
+            ? parseIssueDate(updates.issueDate)
+            : undefined,
+        pmsVisible: isPmsVisibleCategory(category),
+      },
+      include: { attachments: true },
+    });
 
-    // 6. Attachments update (optional)
-    applyAttachmentUpdates(doc, updates);
-
-    // 7. Save the updated document
-    await doc.save();
-
-    await syncDocumentToPostgres(doc);
+    if (Array.isArray(updates.attachments)) {
+      await syncDocumentAttachmentsToPostgres(
+        documentId,
+        updates.attachments.map((attachment) => ({
+          key: String(attachment.key),
+          mimeType: String(attachment.mimeType),
+          size: attachment.size,
+        })),
+      );
+    }
 
     if (context.organisationId) {
       await AuditTrailService.recordSafely({
         organisationId: context.organisationId,
-        companionId: doc.companionId.toString(),
+        patientId: updated.patientId,
         eventType: "DOCUMENT_UPDATED",
         actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
         actorId: context.pmsUserId ?? null,
         entityType: "DOCUMENT",
-        entityId: doc._id.toString(),
+        entityId: updated.id,
         metadata: {
-          category: doc.category,
-          subcategory: doc.subcategory,
-          appointmentId: doc.appointmentId?.toString() ?? null,
-          title: doc.title,
+          category: updated.category,
+          subcategory: updated.subcategory,
+          appointmentId: updated.appointmentId,
+          title: updated.title,
         },
       });
     }
 
-    return mapDocumentToDto(doc);
+    return mapDocumentToDto(updated as unknown as PrismaDocumentRow);
   },
 
   async getAllAttachmentUrls(params: {
-    documentId: string | Types.ObjectId;
-    parentId?: string | Types.ObjectId;
+    documentId: string;
+    parentId?: string;
     organisationId?: string;
   }) {
     const accessDoc = params.parentId
-      ? await getDocumentForParentAccess(params.documentId, params.parentId)
+      ? await loadDocumentForParentAccess(params.documentId, params.parentId)
       : params.organisationId
-        ? await getDocumentForPmsAccess(
+        ? await loadDocumentForPmsAccess(
             params.documentId,
             params.organisationId,
             true,
@@ -1043,133 +897,95 @@ export const DocumentService = {
       throw new DocumentServiceError("Document not found.", 404);
     }
 
-    const _id = ensureObjectId(params.documentId, "documentId");
+    const document = await prisma.document.findUnique({
+      where: { id: normalizeStringId(params.documentId, "documentId") },
+      select: {
+        attachments: {
+          select: { key: true, mimeType: true, size: true },
+        },
+      },
+    });
 
-    if (isReadFromPostgres()) {
-      const attachments = await prisma.documentAttachment.findMany({
-        where: { documentId: _id.toString() },
-      });
-      if (!attachments.length) {
-        throw new DocumentServiceError("No attachments found.", 404);
-      }
-      const urls = await Promise.all(
-        attachments.map((att) => generatePresignedDownloadUrl(att.key)),
-      );
-      return urls.map((url, index) => ({
-        url,
-        mimeType: attachments[index].mimeType,
-        key: attachments[index].key,
-      }));
-    }
-
-    const doc = await DocumentModel.findById(_id).exec();
-
-    if (!doc?.attachments?.length) {
+    const attachments = document?.attachments ?? [];
+    if (!attachments.length) {
       throw new DocumentServiceError("No attachments found.", 404);
     }
 
     const urls = await Promise.all(
-      doc.attachments.map((att) => generatePresignedDownloadUrl(att.key)),
+      attachments.map((attachment) =>
+        generatePresignedDownloadUrl(attachment.key),
+      ),
     );
 
     return urls.map((url, index) => ({
       url,
-      mimeType: doc.attachments[index].mimeType,
-      key: doc.attachments[index].key,
+      mimeType: attachments[index].mimeType,
+      key: attachments[index].key,
     }));
   },
 
   async getAttachmentUrlByKey(params: {
     key: string;
-    parentId?: string | Types.ObjectId;
+    parentId?: string;
     organisationId?: string;
   }): Promise<string> {
     if (!isNonEmptyString(params.key)) {
       throw new DocumentServiceError("Key is required.", 400);
     }
 
-    if (isReadFromPostgres()) {
-      const attachment = await prisma.documentAttachment.findFirst({
-        where: { key: params.key },
-      });
+    const attachment = await prisma.documentAttachment.findFirst({
+      where: { key: params.key },
+      select: { documentId: true },
+    });
 
-      if (!attachment) {
-        throw new DocumentServiceError("Attachment not found.", 404);
-      }
-
-      const accessDoc = params.parentId
-        ? await getDocumentForParentAccess(
-            attachment.documentId,
-            params.parentId,
-          )
-        : params.organisationId
-          ? await getDocumentForPmsAccess(
-              attachment.documentId,
-              params.organisationId,
-              true,
-            )
-          : null;
-
-      if (!accessDoc) {
-        throw new DocumentServiceError("Attachment not found.", 404);
-      }
-
-      return generatePresignedDownloadUrl(params.key);
-    }
-
-    const doc = await DocumentModel.findOne({
-      "attachments.key": params.key,
-    }).exec();
-
-    if (!doc) {
+    if (!attachment) {
       throw new DocumentServiceError("Attachment not found.", 404);
     }
 
-    if (params.parentId) {
-      await assertParentCanAccessCompanion(params.parentId, doc.companionId);
-    } else if (params.organisationId) {
-      await assertPmsCanAccessCompanion(params.organisationId, doc.companionId);
-    } else {
-      throw new DocumentServiceError("User not authorized.", 401);
+    const accessDoc = params.parentId
+      ? await loadDocumentForParentAccess(
+          attachment.documentId,
+          params.parentId,
+        )
+      : params.organisationId
+        ? await loadDocumentForPmsAccess(
+            attachment.documentId,
+            params.organisationId,
+            true,
+          )
+        : null;
+
+    if (!accessDoc) {
+      throw new DocumentServiceError("Attachment not found.", 404);
     }
 
     return generatePresignedDownloadUrl(params.key);
   },
 
   async searchByTitleForParent(params: {
-    companionId: string | Types.ObjectId;
-    parentId: string | Types.ObjectId;
+    patientId: string;
+    parentId: string;
     title: string;
   }): Promise<DocumentDto[]> {
-    const companionId = ensureObjectId(params.companionId, "companionId");
-    await assertParentCanAccessCompanion(params.parentId, companionId);
-
-    if (!params.title || typeof params.title !== "string") {
+    if (!isNonEmptyString(params.title)) {
       throw new DocumentServiceError("Search title is required.", 400);
     }
 
-    const safe = escapeStringRegex(params.title.trim());
-    const regex = new RegExp(safe, "i");
+    const patientId = normalizeStringId(params.patientId, "patientId");
+    await assertParentCanAccessCompanion(params.parentId, patientId);
 
-    if (isReadFromPostgres()) {
-      const docs = await prisma.document.findMany({
-        where: {
-          companionId: companionId.toString(),
-          title: { contains: params.title.trim(), mode: "insensitive" },
+    const docs = (await prisma.document.findMany({
+      where: {
+        patientId,
+        title: {
+          contains: params.title.trim(),
+          mode: "insensitive",
         },
-        orderBy: { createdAt: "desc" },
-        include: { attachments: true },
-      });
-      return docs.map(mapDocumentToDtoFromPrisma);
-    }
+      },
+      orderBy: { createdAt: "desc" },
+      include: { attachments: true },
+    })) as unknown as PrismaDocumentRow[];
 
-    const docs = await DocumentModel.find({
-      companionId,
-      title: { $regex: regex },
-    })
-      .sort({ createdAt: -1 })
-      .exec();
-
-    return docs.map((element) => mapDocumentToDto(element));
+    return docs.map(mapDocumentToDto);
   },
 };

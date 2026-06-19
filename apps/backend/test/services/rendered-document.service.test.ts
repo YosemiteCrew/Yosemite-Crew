@@ -84,12 +84,13 @@ describe("rendered-document service", () => {
 
   it("marks clinical and form document kinds as signable and task kinds as non-signable", () => {
     expect(isSignableRenderedDocumentKind("FORM")).toBe(true);
+    expect(isSignableRenderedDocumentKind("CONSENT")).toBe(true);
     expect(isSignableRenderedDocumentKind("SOAP_NOTE")).toBe(true);
     expect(isSignableRenderedDocumentKind("PRESCRIPTION")).toBe(true);
     expect(isSignableRenderedDocumentKind("DISCHARGE_SUMMARY")).toBe(true);
     expect(isSignableRenderedDocumentKind("VITAL_RECORD")).toBe(true);
-    expect(isSignableRenderedDocumentKind("TASK_TEMPLATE")).toBe(false);
-    expect(isSignableRenderedDocumentKind("CARE_PATHWAY")).toBe(false);
+    expect(isSignableRenderedDocumentKind("TASK_ASSIGNMENT")).toBe(false);
+    expect(isSignableRenderedDocumentKind("INPATIENT_SCHEDULE")).toBe(false);
   });
 
   it("builds a rendered document draft from a template source", () => {
@@ -137,11 +138,11 @@ describe("rendered-document service", () => {
     const draft = buildRenderedDocumentDraft({
       title: "Task bundle",
       source: buildTemplateSource({
-        templateKind: TemplateKind.TASK_TEMPLATE,
+        templateKind: "TASK_ASSIGNMENT",
       }),
     });
 
-    expect(draft.kind).toBe("TASK_TEMPLATE");
+    expect(draft.kind).toBe("TASK_ASSIGNMENT");
     expect(draft.signable).toBe(false);
   });
 
@@ -229,7 +230,7 @@ describe("rendered-document service", () => {
     const nonSignable = buildRenderedDocumentDraft({
       title: "Care pathway",
       source: buildTemplateSource({
-        templateKind: TemplateKind.CARE_PATHWAY,
+        templateKind: "INPATIENT_SCHEDULE",
       }),
     });
 

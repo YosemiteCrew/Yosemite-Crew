@@ -12,7 +12,7 @@ import type {
 type CaseRow = {
   id: string;
   organisationId: string;
-  companionId: string;
+  patientId: string;
   parentId: string | null;
   status: string;
   appointmentKind: AppointmentKind;
@@ -26,7 +26,7 @@ type EncounterRow = {
   id: string;
   caseId: string;
   organisationId: string;
-  companionId: string;
+  patientId: string;
   parentId: string | null;
   status: string;
   encounterClass: string;
@@ -44,13 +44,13 @@ type AppointmentLinkRow = {
   caseId: string | null;
   encounterId: string | null;
   organisationId: string;
-  companion: unknown;
+  patient: unknown;
 };
 
 type AdmissionRow = {
   encounterId: string;
   organisationId: string;
-  companionId: string;
+  patientId: string;
   unitId: string | null;
   expectedStayDays: number | null;
   admittedAt: Date;
@@ -382,7 +382,7 @@ const assertRoomUnitGroupSpeciesCompatibility = (
 const toCaseDomain = (row: CaseRow): CaseDomain => ({
   id: row.id,
   organisationId: row.organisationId,
-  companionId: row.companionId,
+  patientId: row.patientId,
   parentId: row.parentId ?? undefined,
   status: row.status as CaseStatus,
   appointmentKind: row.appointmentKind,
@@ -396,7 +396,7 @@ const toEncounterDomain = (row: EncounterRow): EncounterDomain => ({
   id: row.id,
   caseId: row.caseId,
   organisationId: row.organisationId,
-  companionId: row.companionId,
+  patientId: row.patientId,
   parentId: row.parentId ?? undefined,
   status: row.status as EncounterStatus,
   encounterClass: row.encounterClass as EncounterClass,
@@ -412,7 +412,7 @@ const toEncounterDomain = (row: EncounterRow): EncounterDomain => ({
 const toAdmissionDomain = (row: AdmissionRow): AdmissionDomain => ({
   encounterId: row.encounterId,
   organisationId: row.organisationId,
-  companionId: row.companionId,
+  patientId: row.patientId,
   unitId: row.unitId ?? undefined,
   expectedStayDays: row.expectedStayDays ?? undefined,
   admittedAt: row.admittedAt,
@@ -506,13 +506,13 @@ export const CaseEncounterService = {
       input.organisationId,
       "organisationId",
     );
-    const companionId = requireString(input.companionId, "companionId");
+    const patientId = requireString(input.patientId, "patientId");
     const status = toCaseStatus(input.status);
 
     const created = await prisma.case.create({
       data: {
         organisationId,
-        companionId,
+        patientId,
         parentId: normalizeOptionalString(input.parentId) ?? null,
         status,
         appointmentKind: input.appointmentKind,
@@ -570,7 +570,7 @@ export const CaseEncounterService = {
 
   async listCases(filters: {
     organisationId?: string;
-    companionId?: string;
+    patientId?: string;
     parentId?: string;
     status?: CaseStatus;
     appointmentKind?: AppointmentKind;
@@ -578,7 +578,7 @@ export const CaseEncounterService = {
     const rows = (await prisma.case.findMany({
       where: {
         organisationId: normalizeOptionalString(filters.organisationId),
-        companionId: normalizeOptionalString(filters.companionId),
+        patientId: normalizeOptionalString(filters.patientId),
         parentId: normalizeOptionalString(filters.parentId),
         status: filters.status,
         appointmentKind: filters.appointmentKind,
@@ -595,7 +595,7 @@ export const CaseEncounterService = {
       input.organisationId,
       "organisationId",
     );
-    const companionId = requireString(input.companionId, "companionId");
+    const patientId = requireString(input.patientId, "patientId");
     const status = toEncounterStatus(input.status);
     const encounterClass = toEncounterClass(input.encounterClass);
     assertPeriod(input.periodStart, input.periodEnd);
@@ -613,9 +613,9 @@ export const CaseEncounterService = {
         );
       }
 
-      if (caseRow.companionId !== companionId) {
+      if (caseRow.patientId !== patientId) {
         throw new CaseEncounterServiceError(
-          "Encounter companionId must match case companionId.",
+          "Encounter patientId must match case patientId.",
           409,
         );
       }
@@ -629,7 +629,7 @@ export const CaseEncounterService = {
             caseId: true,
             encounterId: true,
             organisationId: true,
-            companion: true,
+            patient: true,
           },
         })) as AppointmentLinkRow | null;
 
@@ -644,7 +644,7 @@ export const CaseEncounterService = {
           );
         }
 
-        if (toAppointmentCompanionId(appointment.companion) !== companionId) {
+        if (toAppointmentCompanionId(appointment.patient) !== patientId) {
           throw new CaseEncounterServiceError(
             "Encounter appointment companion mismatch.",
             409,
@@ -670,7 +670,7 @@ export const CaseEncounterService = {
         data: {
           caseId,
           organisationId,
-          companionId,
+          patientId,
           parentId: normalizeOptionalString(input.parentId) ?? null,
           status,
           encounterClass,
@@ -724,15 +724,15 @@ export const CaseEncounterService = {
       const nextOrganisationId =
         normalizeOptionalString(input.organisationId) ?? row.organisationId;
       const nextCompanionId =
-        normalizeOptionalString(input.companionId) ?? row.companionId;
+        normalizeOptionalString(input.patientId) ?? row.patientId;
 
       if (
         nextCaseId !== row.caseId ||
         nextOrganisationId !== row.organisationId ||
-        nextCompanionId !== row.companionId
+        nextCompanionId !== row.patientId
       ) {
         throw new CaseEncounterServiceError(
-          "caseId, organisationId and companionId cannot be changed for an encounter.",
+          "caseId, organisationId and patientId cannot be changed for an encounter.",
           400,
         );
       }
@@ -744,7 +744,7 @@ export const CaseEncounterService = {
           caseId: true,
           encounterId: true,
           organisationId: true,
-          companion: true,
+          patient: true,
         },
       })) as AppointmentLinkRow | null;
 
@@ -774,7 +774,7 @@ export const CaseEncounterService = {
               caseId: true,
               encounterId: true,
               organisationId: true,
-              companion: true,
+              patient: true,
             },
           })) as AppointmentLinkRow | null;
 
@@ -790,8 +790,7 @@ export const CaseEncounterService = {
           }
 
           if (
-            toAppointmentCompanionId(nextAppointment.companion) !==
-            row.companionId
+            toAppointmentCompanionId(nextAppointment.patient) !== row.patientId
           ) {
             throw new CaseEncounterServiceError(
               "Encounter appointment companion mismatch.",
@@ -1018,7 +1017,7 @@ export const CaseEncounterService = {
       }
 
       const companion = await companionDelegate.findUnique({
-        where: { id: encounter.companionId },
+        where: { id: encounter.patientId },
       });
 
       if (!companion) {
@@ -1314,7 +1313,7 @@ export const CaseEncounterService = {
   async listEncounters(filters: {
     organisationId?: string;
     caseId?: string;
-    companionId?: string;
+    patientId?: string;
     parentId?: string;
     status?: EncounterStatus;
     appointmentKind?: AppointmentKind;
@@ -1323,7 +1322,7 @@ export const CaseEncounterService = {
       where: {
         organisationId: normalizeOptionalString(filters.organisationId),
         caseId: normalizeOptionalString(filters.caseId),
-        companionId: normalizeOptionalString(filters.companionId),
+        patientId: normalizeOptionalString(filters.patientId),
         parentId: normalizeOptionalString(filters.parentId),
         status: filters.status,
         appointmentKind: filters.appointmentKind,

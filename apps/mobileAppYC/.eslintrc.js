@@ -15,6 +15,22 @@ module.exports = {
   ],
   overrides: [
     {
+      files: ['*.ts', '*.tsx'],
+      rules: {
+        // Allow intentionally-unused caught errors when named with a leading
+        // underscore, matching the argsIgnorePattern: '^_' convention already
+        // used by @react-native for unused arguments.
+        '@typescript-eslint/no-unused-vars': [
+          'error',
+          {
+            argsIgnorePattern: '^_',
+            destructuredArrayIgnorePattern: '^_',
+            caughtErrorsIgnorePattern: '^_',
+          },
+        ],
+      },
+    },
+    {
       files: ['e2e/**/*.e2e.js'],
       env: {
         jest: true,

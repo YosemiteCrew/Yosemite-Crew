@@ -14,12 +14,12 @@ jest.mock('../../../../src/shared/services/apiClient', () => ({
     post: jest.fn(),
     delete: jest.fn(),
   },
-  withAuthHeaders: jest.fn((token) => ({ Authorization: `Bearer ${token}` })),
+  withAuthHeaders: jest.fn(token => ({Authorization: `Bearer ${token}`})),
 }));
 
 describe('linkedBusinessesService', () => {
   const mockToken = 'mock-token';
-  const mockHeaders = { Authorization: `Bearer ${mockToken}` };
+  const mockHeaders = {Authorization: `Bearer ${mockToken}`};
 
   // Spy on console.error to keep test output clean and verify error logging
   let consoleSpy: jest.SpyInstance;
@@ -38,8 +38,8 @@ describe('linkedBusinessesService', () => {
     const type = 'HOSPITAL';
 
     it('handles successful fetch returning a direct array', async () => {
-      const mockData = [{ id: 'org-1', name: 'Vet' }];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockData });
+      const mockData = [{id: 'org-1', name: 'Vet'}];
+      (apiClient.get as jest.Mock).mockResolvedValue({data: mockData});
 
       const result = await linkedBusinessesService.fetchLinkedBusinesses(
         companionId,
@@ -49,7 +49,7 @@ describe('linkedBusinessesService', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith(
         `/v1/companion-organisation/${companionId}?type=${type}`,
-        { headers: mockHeaders },
+        {headers: mockHeaders},
       );
       expect(result).toEqual(mockData);
     });
@@ -57,8 +57,8 @@ describe('linkedBusinessesService', () => {
     it('handles successful fetch returning a wrapped object { links: [...] }', async () => {
       // This covers the implicit return response.data logic where data might vary in structure
       // based on the backend implementation hinted at in comments
-      const mockData = { links: [{ id: 'org-1', name: 'Vet' }] };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockData });
+      const mockData = {links: [{id: 'org-1', name: 'Vet'}]};
+      (apiClient.get as jest.Mock).mockResolvedValue({data: mockData});
 
       const result = await linkedBusinessesService.fetchLinkedBusinesses(
         companionId,
@@ -74,7 +74,11 @@ describe('linkedBusinessesService', () => {
       (apiClient.get as jest.Mock).mockRejectedValue(error);
 
       await expect(
-        linkedBusinessesService.fetchLinkedBusinesses(companionId, type, mockToken),
+        linkedBusinessesService.fetchLinkedBusinesses(
+          companionId,
+          type,
+          mockToken,
+        ),
       ).rejects.toThrow('Network Error');
 
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -93,10 +97,13 @@ describe('linkedBusinessesService', () => {
         addressLine: '123 Main St',
       };
 
-      const mockResponse = { isPmsOrganisation: true };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockResponse });
+      const mockResponse = {isPmsOrganisation: true};
+      (apiClient.post as jest.Mock).mockResolvedValue({data: mockResponse});
 
-      const result = await linkedBusinessesService.checkBusiness(request, mockToken);
+      const result = await linkedBusinessesService.checkBusiness(
+        request,
+        mockToken,
+      );
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/fhir/v1/organization/check',
@@ -106,7 +113,7 @@ describe('linkedBusinessesService', () => {
           lng: 88.987654, // Verified rounded value
           addressLine: '123 Main St',
         },
-        { headers: mockHeaders },
+        {headers: mockHeaders},
       );
       expect(result).toEqual(mockResponse);
     });
@@ -120,7 +127,7 @@ describe('linkedBusinessesService', () => {
         name: 'My Vet',
       };
 
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: {} });
+      (apiClient.post as jest.Mock).mockResolvedValue({data: {}});
 
       await linkedBusinessesService.checkBusiness(request, mockToken);
 
@@ -155,15 +162,23 @@ describe('linkedBusinessesService', () => {
         organisationId: 'o-1',
         organisationType: 'HOSPITAL',
       };
-      const mockResponse = { state: 'pending' };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockResponse });
+      const mockResponse = {state: 'pending'};
+      (apiClient.post as jest.Mock).mockResolvedValue({data: mockResponse});
 
-      const result = await linkedBusinessesService.linkBusiness(request, mockToken);
+      const result = await linkedBusinessesService.linkBusiness(
+        request,
+        mockToken,
+      );
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/v1/companion-organisation/link',
-        request,
-        { headers: mockHeaders },
+        {
+          companionId: 'c-1',
+          patientId: 'c-1',
+          organisationId: 'o-1',
+          organisationType: 'HOSPITAL',
+        },
+        {headers: mockHeaders},
       );
       expect(result).toEqual(mockResponse);
     });
@@ -191,15 +206,24 @@ describe('linkedBusinessesService', () => {
         organisationType: 'GROOMER',
         name: 'Best Groomers',
       };
-      const mockResponse = { success: true };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockResponse });
+      const mockResponse = {success: true};
+      (apiClient.post as jest.Mock).mockResolvedValue({data: mockResponse});
 
-      const result = await linkedBusinessesService.inviteBusiness(request, mockToken);
+      const result = await linkedBusinessesService.inviteBusiness(
+        request,
+        mockToken,
+      );
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/v1/companion-organisation/invite',
-        request,
-        { headers: mockHeaders },
+        {
+          companionId: 'c-1',
+          patientId: 'c-1',
+          email: 'test@vet.com',
+          organisationType: 'GROOMER',
+          name: 'Best Groomers',
+        },
+        {headers: mockHeaders},
       );
       expect(result).toEqual(mockResponse);
     });
@@ -222,15 +246,18 @@ describe('linkedBusinessesService', () => {
   describe('approveLinkInvite', () => {
     it('approves invite successfully', async () => {
       const linkId = 'link-123';
-      const mockResponse = { state: 'active' };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockResponse });
+      const mockResponse = {state: 'active'};
+      (apiClient.post as jest.Mock).mockResolvedValue({data: mockResponse});
 
-      const result = await linkedBusinessesService.approveLinkInvite(linkId, mockToken);
+      const result = await linkedBusinessesService.approveLinkInvite(
+        linkId,
+        mockToken,
+      );
 
       expect(apiClient.post).toHaveBeenCalledWith(
         `/v1/companion-organisation/${linkId}/approve`,
         {},
-        { headers: mockHeaders },
+        {headers: mockHeaders},
       );
       expect(result).toEqual(mockResponse);
     });
@@ -253,15 +280,18 @@ describe('linkedBusinessesService', () => {
   describe('denyLinkInvite', () => {
     it('denies invite successfully', async () => {
       const linkId = 'link-456';
-      const mockResponse = { state: 'rejected' };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockResponse });
+      const mockResponse = {state: 'rejected'};
+      (apiClient.post as jest.Mock).mockResolvedValue({data: mockResponse});
 
-      const result = await linkedBusinessesService.denyLinkInvite(linkId, mockToken);
+      const result = await linkedBusinessesService.denyLinkInvite(
+        linkId,
+        mockToken,
+      );
 
       expect(apiClient.post).toHaveBeenCalledWith(
         `/v1/companion-organisation/${linkId}/deny`,
         {},
-        { headers: mockHeaders },
+        {headers: mockHeaders},
       );
       expect(result).toEqual(mockResponse);
     });
@@ -284,14 +314,17 @@ describe('linkedBusinessesService', () => {
   describe('revokeLinkedBusiness', () => {
     it('revokes business link successfully', async () => {
       const linkId = 'link-789';
-      const mockResponse = { success: true };
-      (apiClient.delete as jest.Mock).mockResolvedValue({ data: mockResponse });
+      const mockResponse = {success: true};
+      (apiClient.delete as jest.Mock).mockResolvedValue({data: mockResponse});
 
-      const result = await linkedBusinessesService.revokeLinkedBusiness(linkId, mockToken);
+      const result = await linkedBusinessesService.revokeLinkedBusiness(
+        linkId,
+        mockToken,
+      );
 
       expect(apiClient.delete).toHaveBeenCalledWith(
         `/v1/companion-organisation/revoke/${linkId}`,
-        { headers: mockHeaders },
+        {headers: mockHeaders},
       );
       expect(result).toEqual(mockResponse);
     });

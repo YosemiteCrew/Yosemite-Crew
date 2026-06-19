@@ -1,27 +1,35 @@
-import { Types } from "mongoose";
 import {
   ParentService,
   ParentServiceError,
 } from "../../src/services/parent.service";
-import { ParentModel } from "../../src/models/parent";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
-import { moveFile } from "../../src/middlewares/upload";
-import logger from "../../src/utils/logger";
 import { prisma } from "src/config/prisma";
+import { moveFile } from "../../src/middlewares/upload";
 
-// 1. Mock the Database Model
-jest.mock("../../src/models/parent", () => ({
-  ParentModel: {
-    create: jest.fn(),
-    findOne: jest.fn(),
-    findOneAndUpdate: jest.fn(),
-    findOneAndDelete: jest.fn(),
-    findById: jest.fn(),
-    find: jest.fn(),
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    parent: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    parentAddress: {
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    parentPatient: {
+      deleteMany: jest.fn(),
+    },
+    authUserMobile: {
+      findFirst: jest.fn(),
+      updateMany: jest.fn(),
+    },
   },
 }));
 
-// 2. Mock external services and middlewares
 jest.mock("../../src/services/authUserMobile.service", () => ({
   AuthUserMobileService: {
     getAuthUserMobileIdByProviderId: jest.fn(),
@@ -30,578 +38,351 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
 }));
 
 jest.mock("../../src/middlewares/upload", () => ({
-  buildS3Key: jest.fn().mockReturnValue("mock-s3-key"),
+  buildS3Key: jest.fn(() => "parent/image-key"),
   moveFile: jest.fn(),
 }));
 
-jest.mock("../../src/utils/logger", () => ({
-  warn: jest.fn(),
-}));
-
-jest.mock("src/utils/dual-write", () => ({
-  shouldDualWrite: false,
-  isDualWriteStrict: false,
-  handleDualWriteError: jest.fn(),
-}));
-
-jest.mock("src/config/prisma", () => ({
-  prisma: {
-    parent: {
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      deleteMany: jest.fn(),
-      findMany: jest.fn(),
-    },
-    parentAddress: {
-      upsert: jest.fn(),
-      deleteMany: jest.fn(),
-    },
-    authUserMobile: {
-      findFirst: jest.fn(),
-    },
-  },
-}));
-
-// 3. Mock DTO mappings to pass data through directly
 jest.mock("@yosemite-crew/types", () => ({
   fromParentRequestDTO: jest.fn((dto) => dto),
-  toParentResponseDTO: jest.fn((dto) => ({ ...dto, isMappedToFHIR: true })),
+  toParentResponseDTO: jest.fn((dto) => ({ ...dto, mapped: true })),
 }));
 
-// Helper to generate a compliant Mongoose Document mock
-const makeMockDoc = (overrides: any = {}, toObjectOverrides: any = {}) => {
-  const id = new Types.ObjectId();
-  return {
-    _id: id,
-    firstName: "Test",
-    lastName: "Parent",
-    email: "test@parent.com",
-    phoneNumber: "1234567890",
-    birthDate: new Date(),
-    address: "123 Main St",
-    isProfileComplete: true,
-    save: jest.fn().mockResolvedValue(true),
-    toObject: jest.fn().mockReturnValue({
-      _id: id,
-      firstName: "Test",
-      lastName: "Parent",
-      email: "test@parent.com",
-      phoneNumber: "1234567890",
-      birthDate: new Date(),
-      address: "123 Main St",
-      profileImageUrl: "img.jpg",
-      isProfileComplete: true,
-      linkedUserId: new Types.ObjectId(),
-      createdFrom: "mobile",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...toObjectOverrides,
-    }),
-    ...overrides,
+const mockedPrisma = prisma as unknown as {
+  parent: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    deleteMany: jest.Mock;
   };
+  parentAddress: {
+    upsert: jest.Mock;
+    deleteMany: jest.Mock;
+  };
+  parentPatient: {
+    deleteMany: jest.Mock;
+  };
+  authUserMobile: {
+    findFirst: jest.Mock;
+    updateMany: jest.Mock;
+  };
+};
+
+const mockParent = {
+  id: "parent-1",
+  firstName: "Jane",
+  lastName: "Doe",
+  birthDate: new Date("2026-01-01"),
+  email: "jane@example.com",
+  phoneNumber: "123",
+  currency: "USD",
+  timezone: "UTC",
+  profileImageUrl: null,
+  isProfileComplete: true,
+  linkedUserId: "auth-1",
+  createdFrom: "mobile",
+  alerts: [],
+  createdAt: new Date("2026-01-01"),
+  updatedAt: new Date("2026-01-01"),
+  address: {
+    addressLine: "Line 1",
+    country: "US",
+    city: "Austin",
+    state: "TX",
+    postalCode: "73301",
+    latitude: null,
+    longitude: null,
+  },
 };
 
 describe("ParentService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.READ_FROM_POSTGRES = "false";
   });
 
-  describe("ParentServiceError", () => {
-    it("should instantiate correctly", () => {
-      const error = new ParentServiceError("Test Error", 418);
-      expect(error.message).toBe("Test Error");
-      expect(error.statusCode).toBe(418);
-      expect(error.name).toBe("ParentServiceError");
+  it("creates a mobile parent and links the auth user", async () => {
+    (
+      AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
+    ).mockResolvedValueOnce("auth-1");
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValueOnce({
+      id: "auth-1",
+      parentId: null,
     });
+    mockedPrisma.parent.findFirst.mockResolvedValueOnce(null);
+    mockedPrisma.parent.create.mockResolvedValueOnce({
+      ...mockParent,
+      isProfileComplete: false,
+      address: null,
+    });
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce({
+      ...mockParent,
+      isProfileComplete: false,
+      address: null,
+    });
+    mockedPrisma.parent.update.mockResolvedValueOnce({
+      ...mockParent,
+      isProfileComplete: false,
+      address: null,
+    });
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce({
+      ...mockParent,
+      isProfileComplete: false,
+      address: null,
+    });
+    (moveFile as jest.Mock).mockResolvedValueOnce(
+      "https://cdn.example.com/parent.jpg",
+    );
+    (AuthUserMobileService.linkParent as jest.Mock).mockResolvedValueOnce({
+      id: "auth-1",
+      parentId: "parent-1",
+    });
+
+    const result = await ParentService.create(
+      {
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "Jane@example.com",
+        phoneNumber: "123",
+        birthDate: new Date("2026-01-01"),
+        address: {
+          addressLine: "Line 1",
+          country: "US",
+          city: "Austin",
+          state: "TX",
+          postalCode: "73301",
+          latitude: null,
+          longitude: null,
+        },
+      } as any,
+      { source: "mobile", authUserId: "provider-1" },
+    );
+
+    expect(AuthUserMobileService.linkParent).toHaveBeenCalledWith(
+      "provider-1",
+      "parent-1",
+    );
+    expect((result.response as any).mapped).toBe(true);
   });
 
-  describe("Internal Helpers (toPersistable & ensureMongoId)", () => {
-    it("throws 400 if email is missing during DTO conversion", async () => {
-      await expect(
-        ParentService.create({ firstName: "NoEmail" } as any, {
-          source: "pms",
-        }),
-      ).rejects.toThrow(/Parent email is required/);
-    });
-
-    it("throws 400 if Mongo ID is invalid format", async () => {
-      await expect(ParentService.get("not-an-object-id")).rejects.toThrow(
-        /Invalid identifier/,
-      );
-    });
+  it("rejects invalid parent timezone values", async () => {
+    await expect(
+      ParentService.create(
+        {
+          firstName: "Jane",
+          email: "jane@example.com",
+          timezone: "Mars/Phobos",
+        } as any,
+        { source: "pms" },
+      ),
+    ).rejects.toMatchObject({
+      message: "Timezone must be a valid IANA timezone or UTC offset.",
+      statusCode: 400,
+    } satisfies Partial<ParentServiceError>);
   });
 
-  describe("create()", () => {
-    const validDto = { email: "Test@MAIL.com", firstName: "Test" } as any;
-
-    it("throws 401 if source is mobile but authUserId is missing", async () => {
-      await expect(
-        ParentService.create(validDto, { source: "mobile" }),
-      ).rejects.toThrow(/Authenticated user ID required/);
+  it("rejects duplicate linked users when creating parents", async () => {
+    (
+      AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
+    ).mockResolvedValueOnce("auth-1");
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValueOnce({
+      id: "auth-1",
+      parentId: null,
+    });
+    mockedPrisma.parent.findFirst.mockResolvedValueOnce({
+      id: "parent-existing",
     });
 
-    it("throws 409 if parent already exists for the linked user", async () => {
-      (
-        AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
-      ).mockResolvedValue(new Types.ObjectId());
-      (ParentModel.findOne as jest.Mock).mockResolvedValue(makeMockDoc());
+    await expect(
+      ParentService.create(
+        {
+          firstName: "Jane",
+          email: "jane@example.com",
+        } as any,
+        { source: "mobile", authUserId: "provider-1" },
+      ),
+    ).rejects.toMatchObject({
+      message: "Parent already exists for this user.",
+      statusCode: 409,
+    } satisfies Partial<ParentServiceError>);
+  });
 
-      await expect(
-        ParentService.create(validDto, {
+  it("logs profile image move failures but still creates the parent", async () => {
+    mockedPrisma.parent.findFirst.mockResolvedValueOnce(null);
+    mockedPrisma.parent.create.mockResolvedValueOnce({
+      ...mockParent,
+      isProfileComplete: false,
+      address: null,
+      profileImageUrl: null,
+      linkedUserId: null,
+    });
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce({
+      ...mockParent,
+      isProfileComplete: false,
+      address: null,
+      profileImageUrl: null,
+      linkedUserId: null,
+    });
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce({
+      ...mockParent,
+      isProfileComplete: false,
+      address: null,
+      profileImageUrl: null,
+      linkedUserId: null,
+    });
+    (moveFile as jest.Mock).mockRejectedValueOnce(new Error("bad key"));
+
+    const result = await ParentService.create(
+      {
+        firstName: "Jane",
+        email: "jane@example.com",
+        profileImageUrl: "https://cdn.example.com/original.jpg",
+      } as any,
+      { source: "pms" },
+    );
+
+    expect(moveFile).toHaveBeenCalledWith(
+      "https://cdn.example.com/original.jpg",
+      "parent/image-key",
+    );
+    expect(result.response.id).toBe("parent-1");
+  });
+
+  it("throws when mobile create is missing auth user", async () => {
+    await expect(
+      ParentService.create(
+        { firstName: "Jane", email: "jane@example.com" } as any,
+        {
           source: "mobile",
-          authUserId: "auth123",
-        }),
-      ).rejects.toThrow(/Parent already exists/);
-    });
-
-    it("creates mobile parent, uploads image, calculates completion, and links mobile user", async () => {
-      const mockDoc = makeMockDoc({ address: null }); // address null = incomplete
-      (
-        AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
-      ).mockResolvedValue(new Types.ObjectId());
-      (ParentModel.findOne as jest.Mock).mockResolvedValue(null); // No duplicate
-      (ParentModel.create as jest.Mock).mockResolvedValue(mockDoc);
-      (moveFile as jest.Mock).mockResolvedValue("https://s3.new-image.url");
-
-      const result = await ParentService.create(
-        { ...validDto, profileImageUrl: "temp-url" },
-        { source: "mobile", authUserId: "auth123" },
-      );
-
-      expect(moveFile).toHaveBeenCalled();
-      expect(mockDoc.profileImageUrl).toBe("https://s3.new-image.url");
-      expect(mockDoc.isProfileComplete).toBe(false); // Because address was null
-      expect(AuthUserMobileService.linkParent).toHaveBeenCalledWith(
-        "auth123",
-        mockDoc._id.toString(),
-      );
-      expect(result.isProfileComplete).toBe(false);
-      expect(result.response).toHaveProperty("isMappedToFHIR", true);
-    });
-
-    it("handles S3 upload failure safely via logger", async () => {
-      const mockDoc = makeMockDoc();
-      (ParentModel.create as jest.Mock).mockResolvedValue(mockDoc);
-      (moveFile as jest.Mock).mockRejectedValue(new Error("S3 Error"));
-
-      await ParentService.create(
-        { ...validDto, profileImageUrl: "bad-url" },
-        { source: "pms" },
-      );
-
-      expect(logger.warn).toHaveBeenCalledWith(
-        "Invalid key has been sent",
-        expect.any(Error),
-      );
-      // Failsafe: Create still passes, but image isn't updated
-    });
-
-    it("parses linkedUserId from DTO if provided (pms source)", async () => {
-      (ParentModel.create as jest.Mock).mockResolvedValue(makeMockDoc());
-
-      await ParentService.create(
-        { ...validDto, linkedUserId: new Types.ObjectId().toString() },
-        { source: "pms" }, // In pms source, it will forcefully override it to null anyway based on your code
-      );
-
-      expect(ParentModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ linkedUserId: null, createdFrom: "pms" }),
-      );
-    });
-
-    it("normalizes combined timezone strings", async () => {
-      (ParentModel.create as jest.Mock).mockResolvedValue(makeMockDoc());
-
-      await ParentService.create(
-        { ...validDto, timezone: "UTC+05:30 - Asia/Kolkata" },
-        { source: "pms" },
-      );
-
-      expect(ParentModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ timezone: "Asia/Kolkata" }),
-      );
-    });
-
-    it("throws 400 for invalid timezone", async () => {
-      await expect(
-        ParentService.create(
-          { ...validDto, timezone: "Bad/Timezone" },
-          { source: "pms" },
-        ),
-      ).rejects.toThrow(/Timezone must be a valid IANA timezone/);
-    });
-  });
-
-  describe("get()", () => {
-    const validId = new Types.ObjectId().toString();
-
-    it("returns null if parent not found", async () => {
-      (ParentModel.findOne as jest.Mock).mockResolvedValue(null);
-      const res = await ParentService.get(validId);
-      expect(res).toBeNull();
-    });
-
-    it("restricts query to linkedUserId if source is mobile", async () => {
-      const mockAuthId = new Types.ObjectId();
-      (
-        AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
-      ).mockResolvedValue(mockAuthId);
-      (ParentModel.findOne as jest.Mock).mockResolvedValue(makeMockDoc());
-
-      await ParentService.get(validId, {
-        source: "mobile",
-        authUserId: "user1",
-      });
-
-      expect(ParentModel.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({ linkedUserId: mockAuthId }),
-      );
-    });
-
-    it("safely maps missing optional fields in toFHIR", async () => {
-      const docWithMissingFields = makeMockDoc(
-        { isProfileComplete: null }, // <--- Added this to override the parent doc!
-        {
-          birthDate: null,
-          isProfileComplete: null,
-          linkedUserId: null,
-          address: null,
         },
-      );
-      (ParentModel.findOne as jest.Mock).mockResolvedValue(
-        docWithMissingFields,
-      );
-
-      const res = await ParentService.get(validId);
-      expect(res?.response).toHaveProperty("isMappedToFHIR", true);
-      expect(res?.isProfileComplete).toBe(false); // defaults to false
-    });
-
-    it("returns null for mobile postgres access when parentId mismatch", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.authUserMobile.findFirst as jest.Mock).mockResolvedValue({
-        parentId: "other-id",
-      });
-
-      const res = await ParentService.get("parent-1", {
-        source: "mobile",
-        authUserId: "auth-1",
-      });
-
-      expect(res).toBeNull();
-    });
-
-    it("returns postgres parent when found", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
-        id: "parent-1",
-        firstName: "A",
-        lastName: "B",
-        birthDate: null,
-        email: "a@b.com",
-        phoneNumber: null,
-        currency: null,
-        timezone: null,
-        profileImageUrl: null,
-        isProfileComplete: true,
-        linkedUserId: null,
-        createdFrom: "mobile",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        address: null,
-      });
-
-      const res = await ParentService.get("parent-1");
-      expect(res?.response).toHaveProperty("isMappedToFHIR", true);
-    });
+      ),
+    ).rejects.toBeInstanceOf(ParentServiceError);
   });
 
-  describe("update()", () => {
-    const validId = new Types.ObjectId().toString();
-    const validDto = { email: "update@mail.com" } as any;
+  it("returns a parent by id", async () => {
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce(mockParent);
 
-    it("returns null if document to update is not found", async () => {
-      (ParentModel.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
-      const res = await ParentService.update(validId, validDto);
-      expect(res).toBeNull();
-    });
+    const result = await ParentService.get("parent-1");
 
-    it("updates successfully and recalculates completion status", async () => {
-      const mockDoc = makeMockDoc({ address: "Now has address" });
-      (ParentModel.findOneAndUpdate as jest.Mock).mockResolvedValue(mockDoc);
-
-      const res = await ParentService.update(validId, validDto, {
-        source: "pms",
-      });
-
-      expect(mockDoc.save).toHaveBeenCalled();
-      expect(mockDoc.isProfileComplete).toBe(true);
-      expect(res?.response).toHaveProperty("isMappedToFHIR", true);
-    });
-
-    it("applies mobile context coalescing operators securely", async () => {
-      // If auth service returns null, linkedUserId ?? undefined gets triggered
-      (
-        AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
-      ).mockResolvedValue(null);
-      (ParentModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        makeMockDoc(),
-      );
-
-      await ParentService.update(validId, validDto, {
-        source: "mobile",
-        authUserId: "auth1",
-      });
-
-      expect(ParentModel.findOneAndUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          linkedUserId: undefined, // because ?? undefined
-        }),
-        expect.objectContaining({
-          $set: expect.objectContaining({ linkedUserId: null }), // because ?? null
-        }),
-        expect.any(Object),
-      );
-    });
-
-    it("uses postgres update path and recalculates completion", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.parent.update as jest.Mock).mockResolvedValue({});
-      (prisma.parent.findUnique as jest.Mock)
-        .mockResolvedValueOnce({
-          id: "parent-1",
-          firstName: "A",
-          lastName: "B",
-          birthDate: new Date(),
-          email: "a@b.com",
-          phoneNumber: "123",
-          currency: null,
-          timezone: null,
-          profileImageUrl: null,
-          isProfileComplete: false,
-          linkedUserId: null,
-          createdFrom: "mobile",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          address: { addressLine: "123" },
-        })
-        .mockResolvedValueOnce({
-          id: "parent-1",
-          firstName: "A",
-          lastName: "B",
-          birthDate: new Date(),
-          email: "a@b.com",
-          phoneNumber: "123",
-          currency: null,
-          timezone: null,
-          profileImageUrl: null,
-          isProfileComplete: false,
-          linkedUserId: null,
-          createdFrom: "mobile",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          address: { addressLine: "123" },
-        });
-
-      const res = await ParentService.update(
-        "parent-1",
-        { email: "a@b.com", address: { addressLine: "123" } } as any,
-        { source: "pms" },
-      );
-
-      expect(prisma.parentAddress.upsert).toHaveBeenCalled();
-      expect(prisma.parent.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: "parent-1" },
-          data: expect.objectContaining({ email: "a@b.com" }),
-        }),
-      );
-      expect(res?.isProfileComplete).toBe(true);
-    });
-
-    it("throws for invalid timezone on postgres update", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-
-      await expect(
-        ParentService.update("parent-1", { timezone: "Bad/Timezone" } as any, {
-          source: "pms",
-        }),
-      ).rejects.toThrow(/Timezone must be a valid IANA timezone/);
-    });
+    expect((result?.response as any).mapped).toBe(true);
+    expect(result?.response.id).toBe("parent-1");
   });
 
-  describe("delete()", () => {
-    const validId = new Types.ObjectId().toString();
+  it("updates a parent and normalizes timezone", async () => {
+    mockedPrisma.parent.update.mockResolvedValueOnce(mockParent);
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce(mockParent);
 
-    it("throws 401 if mobile source is missing authUserId", async () => {
-      await expect(
-        ParentService.delete(validId, { source: "mobile" }),
-      ).rejects.toThrow(/Authenticated user ID required/);
-    });
+    const result = await ParentService.update("parent-1", {
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      phoneNumber: "123",
+      birthDate: new Date("2026-01-01"),
+      timezone: "UTC+05:30 - Asia/Kolkata",
+      address: {
+        addressLine: "Line 1",
+        country: "US",
+        city: "Austin",
+        state: "TX",
+        postalCode: "73301",
+        latitude: null,
+        longitude: null,
+      },
+    } as any);
 
-    it("restricts deletion query to linked user for mobile source", async () => {
-      const mockAuthId = new Types.ObjectId();
-      (
-        AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
-      ).mockResolvedValue(mockAuthId);
-      (ParentModel.findOneAndDelete as jest.Mock).mockResolvedValue(
-        makeMockDoc(),
-      );
-
-      await ParentService.delete(validId, {
-        source: "mobile",
-        authUserId: "auth1",
-      });
-
-      expect(ParentModel.findOneAndDelete).toHaveBeenCalledWith(
-        expect.objectContaining({ linkedUserId: mockAuthId }),
-      );
-    });
-
-    it("returns null if not found", async () => {
-      (ParentModel.findOneAndDelete as jest.Mock).mockResolvedValue(null);
-      const res = await ParentService.delete(validId, { source: "pms" });
-      expect(res).toBeNull();
-    });
-
-    it("uses postgres delete path and returns fhir response", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
-        id: "parent-1",
-        firstName: "A",
-        lastName: "B",
-        birthDate: null,
-        email: "a@b.com",
-        phoneNumber: null,
-        currency: null,
-        timezone: null,
-        profileImageUrl: null,
-        isProfileComplete: true,
-        linkedUserId: null,
-        createdFrom: "mobile",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        address: null,
-      });
-
-      const res = await ParentService.delete("parent-1", { source: "pms" });
-
-      expect(prisma.parent.deleteMany).toHaveBeenCalledWith({
+    expect(mockedPrisma.parent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
         where: { id: "parent-1" },
-      });
-      expect(res).toHaveProperty("isMappedToFHIR", true);
-    });
+        data: expect.objectContaining({ timezone: "Asia/Kolkata" }),
+      }),
+    );
+    expect(result?.response.id).toBe("parent-1");
+  });
 
-    it("returns null for postgres delete when parent not found", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.parent.findUnique as jest.Mock).mockResolvedValue(null);
+  it("clears links and auth user mapping on delete", async () => {
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce(mockParent);
+    mockedPrisma.parentPatient.deleteMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.authUserMobile.updateMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.parentAddress.deleteMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.parent.deleteMany.mockResolvedValueOnce({ count: 1 });
 
-      const res = await ParentService.delete("parent-1", { source: "pms" });
-      expect(res).toBeNull();
+    const result = await ParentService.delete("parent-1", { source: "pms" });
+
+    expect(result?.id).toBe("parent-1");
+    expect(mockedPrisma.parentPatient.deleteMany).toHaveBeenCalledWith({
+      where: { parentId: "parent-1" },
     });
   });
 
-  describe("findByLinkedUserId()", () => {
-    it("throws 400 if authUserId is invalid/missing", async () => {
-      await expect(ParentService.findByLinkedUserId("")).rejects.toThrow(
-        /Invalid AuthUser ID/,
-      );
-    });
+  it("returns null when linked user mapping is missing", async () => {
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValueOnce(null);
 
-    it("calls findOne with safely parsed object ID", async () => {
-      const mockAuthId = new Types.ObjectId();
-      (
-        AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
-      ).mockResolvedValue(mockAuthId);
-      (ParentModel.findOne as jest.Mock).mockResolvedValue(makeMockDoc());
+    const result = await ParentService.findByLinkedUserId("provider-1");
 
-      await ParentService.findByLinkedUserId("auth1");
-      expect(ParentModel.findOne).toHaveBeenCalledWith({
-        linkedUserId: expect.any(Types.ObjectId),
-      });
-    });
-
-    it("uses postgres when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.authUserMobile.findFirst as jest.Mock).mockResolvedValue({
-        parentId: "parent-1",
-      });
-      (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
-        id: "parent-1",
-      });
-
-      const res = await ParentService.findByLinkedUserId("auth-1");
-      expect(res).toEqual({ id: "parent-1" });
-    });
+    expect(result).toBeNull();
   });
 
-  describe("findByMongoId()", () => {
-    it("returns result directly from findById", async () => {
-      const validId = new Types.ObjectId().toString();
-      (ParentModel.findById as jest.Mock).mockResolvedValue("mocked-db-res");
+  it("rejects invalid auth ids and empty search names", async () => {
+    await expect(ParentService.findByLinkedUserId("")).rejects.toMatchObject({
+      message: "Invalid AuthUser ID.",
+      statusCode: 400,
+    } satisfies Partial<ParentServiceError>);
 
-      const res = await ParentService.findByMongoId(validId);
-      expect(res).toBe("mocked-db-res");
-      expect(ParentModel.findById).toHaveBeenCalledWith(
-        expect.any(Types.ObjectId),
-      );
-    });
-
-    it("uses postgres findUnique when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
-        id: "parent-1",
-      });
-
-      const res = await ParentService.findByMongoId("parent-1");
-      expect(res).toEqual({ id: "parent-1" });
-    });
+    await expect(ParentService.getByName("   ")).rejects.toMatchObject({
+      message: "Name is required for searching.",
+      statusCode: 400,
+    } satisfies Partial<ParentServiceError>);
   });
 
-  describe("getByName()", () => {
-    it("throws 400 if name is missing or invalid", async () => {
-      await expect(ParentService.getByName("")).rejects.toThrow(
-        /Name is required/,
-      );
-      await expect(ParentService.getByName(null as any)).rejects.toThrow(
-        /Name is required/,
-      );
+  it("returns null when a mobile-authenticated caller asks for a different parent", async () => {
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValueOnce({
+      parentId: "other-parent",
     });
 
-    it("builds regex and maps responses on success", async () => {
-      (ParentModel.find as jest.Mock).mockResolvedValue([makeMockDoc()]);
-
-      const res = await ParentService.getByName(" Test  ");
-      expect(res.responses).toHaveLength(1);
-      expect(res.responses[0]).toHaveProperty("isMappedToFHIR", true);
+    const result = await ParentService.get("parent-1", {
+      source: "mobile",
+      authUserId: "provider-1",
     });
 
-    it("uses postgres name search when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.parent.findMany as jest.Mock).mockResolvedValue([
-        {
-          id: "parent-1",
-          firstName: "A",
-          lastName: "B",
-          birthDate: null,
-          email: "a@b.com",
-          phoneNumber: null,
-          currency: null,
-          timezone: null,
-          profileImageUrl: null,
-          isProfileComplete: true,
-          linkedUserId: null,
-          createdFrom: "mobile",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          address: null,
-        },
-      ]);
+    expect(result).toBeNull();
+  });
 
-      const res = await ParentService.getByName("A");
-      expect(res.responses).toHaveLength(1);
-      expect(prisma.parent.findMany).toHaveBeenCalled();
+  it("returns null when a mobile-authenticated update targets another parent", async () => {
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValueOnce({
+      parentId: "other-parent",
     });
+
+    const result = await ParentService.update(
+      "parent-1",
+      {
+        firstName: "Jane",
+        email: "jane@example.com",
+      } as any,
+      {
+        source: "mobile",
+        authUserId: "provider-1",
+      },
+    );
+
+    expect(result).toBeNull();
+    expect(mockedPrisma.parent.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects mobile deletes without an authenticated user", async () => {
+    await expect(
+      ParentService.delete("parent-1", { source: "mobile" }),
+    ).rejects.toMatchObject({
+      message: "Authenticated user ID required.",
+      statusCode: 401,
+    } satisfies Partial<ParentServiceError>);
+  });
+
+  it("returns parents by name", async () => {
+    mockedPrisma.parent.findMany.mockResolvedValueOnce([mockParent]);
+
+    const result = await ParentService.getByName("Jane");
+
+    expect(result.responses).toHaveLength(1);
+    expect(result.responses[0].id).toBe("parent-1");
   });
 });

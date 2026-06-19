@@ -105,8 +105,8 @@ export const fetchLinkedBusinesses = createAsyncThunk<
 
       // Transform API response to LinkedBusiness format
       const linkedBusinesses = organisations.map((link: any) => {
-        // Handle nested organisationId object from API response
-        const org = link.organisationId || link;
+        // Handle nested organisation object from API response
+        const org = link.organization || link.organisationId || link;
         const inviteStatus = link.status === 'PENDING' ? 'pending' : 'accepted';
         const state = link.status === 'PENDING' ? 'pending' : 'active';
 
@@ -127,9 +127,9 @@ export const fetchLinkedBusinesses = createAsyncThunk<
           : org.addressLine;
 
         const linkedBusiness = {
-          id: link._id || org.id || `${businessName}-${Date.now()}`,
+          id: link.id || link._id || org.id || `${businessName}-${Date.now()}`,
           companionId,
-          businessId: org._id || org.id,
+          businessId: org.id || org._id,
           businessName,
           name: businessName,
           category,
@@ -147,7 +147,7 @@ export const fetchLinkedBusinesses = createAsyncThunk<
           placeId: org.googlePlacesId,
           state,
           inviteStatus,
-          linkId: link._id,
+          linkId: link.id || link._id,
           parentName:
             link.linkedByParentId?.name ||
             (state === 'pending' ? parentLevelName : undefined),

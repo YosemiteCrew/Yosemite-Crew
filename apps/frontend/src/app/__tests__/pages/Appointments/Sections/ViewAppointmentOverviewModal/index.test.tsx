@@ -87,6 +87,13 @@ jest.mock(
 
 const baseAppointment: Appointment = {
   id: 'appt-1',
+  patient: {
+    id: 'comp-1',
+    name: 'Buddy',
+    species: 'Dog',
+    breed: 'Golden',
+    parent: { id: 'parent-1', name: 'John Doe' },
+  },
   companion: {
     id: 'comp-1',
     name: 'Buddy',

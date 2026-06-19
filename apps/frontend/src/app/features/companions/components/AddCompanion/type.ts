@@ -10,6 +10,40 @@ export type CompanionAlert = {
   priority: AlertPriority;
 };
 
+export type CompanionFormData = Omit<StoredCompanion, 'alerts'> & {
+  alerts?: CompanionAlert[];
+};
+
+export const toStoredCompanionAlerts = (alerts?: CompanionAlert[]) =>
+  alerts?.map((alert) => ({
+    title: alert.label,
+    severity: alert.priority,
+  }));
+
+export const fromStoredCompanionAlerts = (
+  alerts?: Array<{ title?: string; severity?: string }>
+): CompanionAlert[] =>
+  (alerts ?? []).flatMap((alert) => {
+    if (!alert.title || !alert.severity) {
+      return [];
+    }
+    if (
+      alert.severity !== 'low' &&
+      alert.severity !== 'medium' &&
+      alert.severity !== 'high' &&
+      alert.severity !== 'critical'
+    ) {
+      return [];
+    }
+    return [
+      {
+        id: crypto.randomUUID(),
+        label: alert.title,
+        priority: alert.severity,
+      },
+    ];
+  });
+
 export const ALERT_PRIORITY_CONFIG: Record<
   AlertPriority,
   { label: string; bg: string; text: string; border: string }
@@ -211,7 +245,7 @@ export const EMPTY_STORED_PARENT: StoredParent = {
   createdFrom: 'pms',
 };
 
-export const EMPTY_STORED_COMPANION: StoredCompanion & { alerts?: CompanionAlert[] } = {
+export const EMPTY_STORED_COMPANION: CompanionFormData = {
   id: '',
   organisationId: '',
   parentId: '',

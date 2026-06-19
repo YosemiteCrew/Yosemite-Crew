@@ -5,6 +5,7 @@ const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const TaskScheduleFhirController = {
+  listEncounterSchedules: jest.fn(),
   apply: jest.fn(),
   pause: jest.fn(),
   resume: jest.fn(),
@@ -47,6 +48,9 @@ const findRoute = (path: string, method: string) => {
 describe("task-schedule.fhir.router", () => {
   it("exposes schedule lifecycle routes", () => {
     expect(
+      findRoute("/organisation/:organisationId/encounter/:encounterId", "get"),
+    ).toBeDefined();
+    expect(
       findRoute(
         "/organisation/:organisationId/template-instance/:instanceId/$apply",
         "post",
@@ -62,14 +66,25 @@ describe("task-schedule.fhir.router", () => {
 
   it("protects schedule routes with auth and RBAC", () => {
     const route = findRoute(
-      "/organisation/:organisationId/template-instance/:instanceId/$apply",
-      "post",
+      "/organisation/:organisationId/encounter/:encounterId",
+      "get",
     );
     expect(route?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
     expect(route?.stack.map((layer) => layer.handle)).toContain(
       withOrgPermissions.mock.results[0].value,
+    );
+    expect(requirePermission).toHaveBeenCalledWith([
+      "tasks:view:any",
+      "tasks:view:own",
+    ]);
+  });
+
+  it("protects lifecycle routes with edit permissions", () => {
+    findRoute(
+      "/organisation/:organisationId/template-instance/:instanceId/$apply",
+      "post",
     );
     expect(requirePermission).toHaveBeenCalledWith([
       "tasks:edit:any",
