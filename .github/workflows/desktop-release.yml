@@ -1,9 +1,13 @@
 name: Desktop Release
 
-# Builds, code-signs, and publishes the desktop app to a GitHub Release.
-# Trigger by pushing a tag like `desktop-v0.1.0-beta.1`:
-#   1) bump "version" in apps/desktop/package.json
-#   2) git tag desktop-v<version> && git push origin desktop-v<version>
+# Builds and code-signs the desktop app. Two ways to run:
+#   • Push a tag `desktop-v*`  → builds, signs, and PUBLISHES a GitHub Release.
+#       1) bump "version" in apps/desktop/package.json
+#       2) git tag desktop-v<version> && git push origin desktop-v<version>
+#   • Run manually (Actions → "Desktop Release" → Run workflow / workflow_dispatch)
+#       → builds + signs, then uploads the signed installers as workflow ARTIFACTS
+#         (NO Release). Use this to collect signed mac/Windows builds for a
+#         coordinated joint release (alongside mobile + PIMS) later.
 #
 # Windows is signed via Azure Artifact Signing (formerly Trusted Signing).
 #   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
@@ -42,14 +46,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build, sign (Azure Artifact Signing), and publish
+      - name: Build & sign (Azure Artifact Signing); publish only on a tag
         working-directory: apps/desktop
-        run: pnpm run desktop:dist:win -- --publish always
+        run: pnpm run desktop:dist:win -- --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
         env:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload signed Windows artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-signed
+          path: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.blockmap
+            apps/desktop/dist/latest.yml
+          if-no-files-found: warn
 
   macos:
     runs-on: macos-14
@@ -66,9 +81,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build, sign (Developer ID), notarize, and publish
+      - name: Build, sign (Developer ID) & notarize; publish only on a tag
         working-directory: apps/desktop
-        run: pnpm run desktop:dist:mac -- --publish always
+        run: pnpm run desktop:dist:mac -- --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -76,3 +91,15 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload signed macOS artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos-signed
+          path: |
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.zip
+            apps/desktop/dist/*.blockmap
+            apps/desktop/dist/latest-mac.yml
+          if-no-files-found: warn

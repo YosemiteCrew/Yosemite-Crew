@@ -26,168 +26,147 @@ export interface RecentEntry {
 // Action items navigate to the owning page with an `?action=` intent param the
 // web app can read to open the corresponding modal (forward-compatible: without
 // that handler they simply land on the correct page).
+const nav = (
+  id: string,
+  label: string,
+  description: string,
+  keywords: string[],
+  slug: string
+): PaletteItem => ({
+  id,
+  label,
+  description,
+  keywords,
+  url: `yosemitecrew://${slug}`,
+  type: 'navigate',
+});
+
+const action = (
+  id: string,
+  label: string,
+  description: string,
+  keywords: string[],
+  slug?: string
+): PaletteItem => ({
+  id,
+  label,
+  description,
+  keywords,
+  ...(slug ? { url: `yosemitecrew://${slug}` } : {}),
+  type: 'action',
+});
+
 export const BUILTIN_ACTIONS: PaletteItem[] = [
-  {
-    id: 'go-dashboard',
-    label: 'Dashboard',
-    description: 'Go to workspace home',
-    keywords: ['home', 'overview'],
-    url: 'yosemitecrew://dashboard',
-    type: 'navigate',
-  },
-  {
-    id: 'go-appointments',
-    label: 'Appointments',
-    description: 'View and manage appointments',
-    keywords: ['schedule', 'calendar', 'visits', 'booking'],
-    url: 'yosemitecrew://appointments',
-    type: 'navigate',
-  },
-  {
-    id: 'go-patients',
-    label: 'Patients',
-    description: 'Companion (patient) records',
-    keywords: ['records', 'clients', 'companions', 'medical', 'pets'],
-    url: 'yosemitecrew://companions',
-    type: 'navigate',
-  },
-  {
-    id: 'go-chat',
-    label: 'Chat',
-    description: 'Messages and notifications',
-    keywords: ['messages', 'inbox', 'communication', 'alerts'],
-    url: 'yosemitecrew://chat',
-    type: 'navigate',
-  },
-  {
-    id: 'go-finance',
-    label: 'Finance',
-    description: 'Invoices and payments',
-    keywords: ['invoices', 'payments', 'billing', 'charges'],
-    url: 'yosemitecrew://finance',
-    type: 'navigate',
-  },
-  {
-    id: 'go-tasks',
-    label: 'Tasks',
-    description: 'Your tasks and to-dos',
-    keywords: ['todo', 'work', 'checklist'],
-    url: 'yosemitecrew://tasks',
-    type: 'navigate',
-  },
-  {
-    id: 'go-inventory',
-    label: 'Inventory',
-    description: 'Stock and supplies',
-    keywords: ['stock', 'supplies', 'drugs', 'products'],
-    url: 'yosemitecrew://inventory',
-    type: 'navigate',
-  },
-  {
-    id: 'go-insights',
-    label: 'Insights',
-    description: 'Analytics and reporting',
-    keywords: ['analytics', 'reports', 'data', 'statistics'],
-    url: 'yosemitecrew://insights',
-    type: 'navigate',
-  },
-  {
-    id: 'go-forms',
-    label: 'Forms',
-    description: 'Templates and forms',
-    keywords: ['templates', 'documents', 'forms'],
-    url: 'yosemitecrew://forms',
-    type: 'navigate',
-  },
-  {
-    id: 'go-organization',
-    label: 'Organization',
-    description: 'Practice settings',
-    keywords: ['practice', 'clinic', 'team', 'org'],
-    url: 'yosemitecrew://organization',
-    type: 'navigate',
-  },
-  {
-    id: 'action-new-appointment',
-    label: 'New appointment',
-    description: 'Book a new appointment',
-    keywords: ['create', 'schedule', 'book', 'add'],
-    url: 'yosemitecrew://appointments?action=new',
-    type: 'action',
-  },
-  {
-    id: 'action-find-patient',
-    label: 'Find patient',
-    description: 'Search for a companion',
-    keywords: ['search', 'lookup', 'client', 'find'],
-    url: 'yosemitecrew://companions?action=search',
-    type: 'action',
-  },
-  {
-    id: 'action-new-invoice',
-    label: 'Create invoice',
-    description: 'Generate a new invoice',
-    keywords: ['bill', 'charge', 'payment', 'create'],
-    url: 'yosemitecrew://finance?action=new-invoice',
-    type: 'action',
-  },
-  {
-    id: 'action-check-in',
-    label: 'Check in patient',
-    description: 'Walk-in patient check-in',
-    keywords: ['arrival', 'walk-in', 'register'],
-    url: 'yosemitecrew://appointments?action=check-in',
-    type: 'action',
-  },
-  {
-    id: 'open-settings',
-    label: 'Open settings',
-    description: 'Application preferences',
-    keywords: ['preferences', 'config', 'options'],
-    type: 'action',
-  },
-  {
-    id: 'tab:new',
-    label: 'New tab',
-    description: 'Open a new browser tab',
-    keywords: ['tab', 'add', 'open'],
-    type: 'action',
-  },
-  {
-    id: 'tab:close',
-    label: 'Close tab',
-    description: 'Close the current tab',
-    keywords: ['close', 'remove', 'exit'],
-    type: 'action',
-  },
-  {
-    id: 'tab:reopen',
-    label: 'Reopen closed tab',
-    description: 'Restore the last closed tab',
-    keywords: ['undo', 'restore', 'reopen'],
-    type: 'action',
-  },
-  {
-    id: 'tab:search',
-    label: 'Search tabs',
-    description: 'Find and switch to a tab',
-    keywords: ['find', 'switch', 'search', 'filter'],
-    type: 'action',
-  },
-  {
-    id: 'tab:toggle-vertical',
-    label: 'Toggle vertical tabs',
-    description: 'Switch between horizontal and sidebar layout',
-    keywords: ['vertical', 'sidebar', 'layout', 'orientation'],
-    type: 'action',
-  },
-  {
-    id: 'tab:toggle-split',
-    label: 'Toggle split view',
-    description: 'View two tabs side by side',
-    keywords: ['split', 'side', 'dual', 'layout'],
-    type: 'action',
-  },
+  nav('go-dashboard', 'Dashboard', 'Go to workspace home', ['home', 'overview'], 'dashboard'),
+  nav(
+    'go-appointments',
+    'Appointments',
+    'View and manage appointments',
+    ['schedule', 'calendar', 'visits', 'booking'],
+    'appointments'
+  ),
+  nav(
+    'go-patients',
+    'Patients',
+    'Companion (patient) records',
+    ['records', 'clients', 'companions', 'medical', 'pets'],
+    'companions'
+  ),
+  nav(
+    'go-chat',
+    'Chat',
+    'Messages and notifications',
+    ['messages', 'inbox', 'communication', 'alerts'],
+    'chat'
+  ),
+  nav(
+    'go-finance',
+    'Finance',
+    'Invoices and payments',
+    ['invoices', 'payments', 'billing', 'charges'],
+    'finance'
+  ),
+  nav('go-tasks', 'Tasks', 'Your tasks and to-dos', ['todo', 'work', 'checklist'], 'tasks'),
+  nav(
+    'go-inventory',
+    'Inventory',
+    'Stock and supplies',
+    ['stock', 'supplies', 'drugs', 'products'],
+    'inventory'
+  ),
+  nav(
+    'go-insights',
+    'Insights',
+    'Analytics and reporting',
+    ['analytics', 'reports', 'data', 'statistics'],
+    'insights'
+  ),
+  nav('go-forms', 'Forms', 'Templates and forms', ['templates', 'documents', 'forms'], 'forms'),
+  nav(
+    'go-organization',
+    'Organization',
+    'Practice settings',
+    ['practice', 'clinic', 'team', 'org'],
+    'organization'
+  ),
+  action(
+    'action-new-appointment',
+    'New appointment',
+    'Book a new appointment',
+    ['create', 'schedule', 'book', 'add'],
+    'appointments?action=new'
+  ),
+  action(
+    'action-find-patient',
+    'Find patient',
+    'Search for a companion',
+    ['search', 'lookup', 'client', 'find'],
+    'companions?action=search'
+  ),
+  action(
+    'action-new-invoice',
+    'Create invoice',
+    'Generate a new invoice',
+    ['bill', 'charge', 'payment', 'create'],
+    'finance?action=new-invoice'
+  ),
+  action(
+    'action-check-in',
+    'Check in patient',
+    'Walk-in patient check-in',
+    ['arrival', 'walk-in', 'register'],
+    'appointments?action=check-in'
+  ),
+  action('open-settings', 'Open settings', 'Application preferences', [
+    'preferences',
+    'config',
+    'options',
+  ]),
+  action('tab:new', 'New tab', 'Open a new browser tab', ['tab', 'add', 'open']),
+  action('tab:close', 'Close tab', 'Close the current tab', ['close', 'remove', 'exit']),
+  action('tab:reopen', 'Reopen closed tab', 'Restore the last closed tab', [
+    'undo',
+    'restore',
+    'reopen',
+  ]),
+  action('tab:search', 'Search tabs', 'Find and switch to a tab', [
+    'find',
+    'switch',
+    'search',
+    'filter',
+  ]),
+  action(
+    'tab:toggle-vertical',
+    'Toggle vertical tabs',
+    'Switch between horizontal and sidebar layout',
+    ['vertical', 'sidebar', 'layout', 'orientation']
+  ),
+  action('tab:toggle-split', 'Toggle split view', 'View two tabs side by side', [
+    'split',
+    'side',
+    'dual',
+    'layout',
+  ]),
 ];
 
 export const scoreFuzzyMatch = (query: string, text: string): number => {

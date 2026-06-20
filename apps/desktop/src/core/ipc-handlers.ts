@@ -814,15 +814,26 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok };
   });
 
+  // Thumbnails for the tab-hover preview. capturePage() forces a WebContentsView
+  // to render, so capturing a background tab (parked offscreen at 0x0) flickers
+  // the UI. Only the visible (active) tab is captured live; its thumbnail is
+  // cached so that when it later becomes a background tab, hovering still shows
+  // the last-known preview without a flicker-inducing live capture.
+  const tabPreviewCache = new Map<string, string>();
   registry.handle('yc:tab-get-preview', async (_event, args) => {
     const [id] = args as [string];
     if (!services.tabViewHost || typeof id !== 'string')
       return { ok: false, error: 'invalid-args' };
     const wc = services.tabViewHost.getWebContents(id);
     if (!wc || wc.isDestroyed()) return { ok: false, error: 'no-contents' };
+    if (wc !== services.activeContents()) {
+      const cached = tabPreviewCache.get(id);
+      return cached ? { ok: true, dataUrl: cached } : { ok: false, error: 'no-preview' };
+    }
     try {
       const image = await wc.capturePage();
       const dataUrl = image.toDataURL();
+      tabPreviewCache.set(id, dataUrl);
       return { ok: true, dataUrl };
     } catch {
       return { ok: false, error: 'capture-failed' };

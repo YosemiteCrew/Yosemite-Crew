@@ -1,6 +1,6 @@
 'use strict';
 
-import type { ControlledSubstanceLogbook } from './controlled-substance';
+import type { ControlledSubstanceLogbook, CsTransaction } from './controlled-substance';
 
 export interface WasteEvent {
   id: string;
@@ -55,6 +55,25 @@ const hashPin = (pin: string): string => {
   return hash.toString(16);
 };
 
+// A persisted waste transaction read back from the controlled-substance logbook
+// is, by definition, one that passed dual-witness verification at record time.
+const txToWasteEvent = (tx: CsTransaction): WasteEvent => ({
+  id: tx.id,
+  timestamp: tx.timestamp,
+  drugName: tx.drugName,
+  drugClass: tx.drugClass,
+  lotNumber: tx.lotNumber,
+  quantity: tx.quantity,
+  unit: tx.unit,
+  veterinarianId: tx.veterinarianId,
+  veterinarianName: tx.veterinarianName,
+  witnessId: tx.witnessId || '',
+  witnessName: tx.witnessName || '',
+  witnessPinVerified: true,
+  reason: tx.notes || '',
+  csTransactionId: tx.id,
+});
+
 export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
   const now = deps.now || (() => Date.now());
   const generateId = deps.generateId || defaultId;
@@ -81,27 +100,30 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
     >
   ): WasteEvent => {
     const pinVerified = verifyWitnessPin(input.witnessId, input.witnessPin);
+    const buildEvent = (witnessPinVerified: boolean, csTransactionId: string): WasteEvent => ({
+      id: generateId(),
+      timestamp: now(),
+      drugName: input.drugName,
+      drugClass: input.drugClass,
+      lotNumber: input.lotNumber,
+      quantity: input.quantity,
+      unit: input.unit,
+      veterinarianId: input.veterinarianId,
+      veterinarianName: input.veterinarianName,
+      witnessId: input.witnessId,
+      witnessName: input.witnessName,
+      witnessPinVerified,
+      reason: input.reason,
+      csTransactionId,
+    });
+
     if (!pinVerified) {
       // Reject before touching inventory: an unverified or missing witness must not
       // produce a controlled-substance waste transaction (which would decrement stock
       // and later read back via getWasteEvents() as a compliant, verified record).
-      return {
-        id: generateId(),
-        timestamp: now(),
-        drugName: input.drugName,
-        drugClass: input.drugClass,
-        lotNumber: input.lotNumber,
-        quantity: input.quantity,
-        unit: input.unit,
-        veterinarianId: input.veterinarianId,
-        veterinarianName: input.veterinarianName,
-        witnessId: input.witnessId,
-        witnessName: input.witnessName,
-        witnessPinVerified: false,
-        reason: input.reason,
-        csTransactionId: '',
-      };
+      return buildEvent(false, '');
     }
+
     const csTx = deps.logbook.record({
       action: 'waste',
       drugName: input.drugName,
@@ -115,68 +137,19 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
       witnessName: input.witnessName,
     });
 
-    const event: WasteEvent = {
-      id: generateId(),
-      timestamp: now(),
-      drugName: input.drugName,
-      drugClass: input.drugClass,
-      lotNumber: input.lotNumber,
-      quantity: input.quantity,
-      unit: input.unit,
-      veterinarianId: input.veterinarianId,
-      veterinarianName: input.veterinarianName,
-      witnessId: input.witnessId,
-      witnessName: input.witnessName,
-      witnessPinVerified: pinVerified,
-      reason: input.reason,
-      csTransactionId: csTx.id,
-    };
-
-    return event;
+    return buildEvent(pinVerified, csTx.id);
   };
 
   const getWasteEvents = (drugName?: string): WasteEvent[] => {
     const txs = drugName ? deps.logbook.getByDrug(drugName) : deps.logbook.getTransactions();
-    return txs
-      .filter((tx) => tx.action === 'waste')
-      .map((tx) => ({
-        id: tx.id,
-        timestamp: tx.timestamp,
-        drugName: tx.drugName,
-        drugClass: tx.drugClass,
-        lotNumber: tx.lotNumber,
-        quantity: tx.quantity,
-        unit: tx.unit,
-        veterinarianId: tx.veterinarianId,
-        veterinarianName: tx.veterinarianName,
-        witnessId: tx.witnessId || '',
-        witnessName: tx.witnessName || '',
-        witnessPinVerified: true,
-        reason: tx.notes || '',
-        csTransactionId: tx.id,
-      }));
+    return txs.filter((tx) => tx.action === 'waste').map(txToWasteEvent);
   };
 
   const getWasteByWitness = (witnessId: string): WasteEvent[] => {
     const txs = deps.logbook.getTransactions();
     return txs
       .filter((tx) => tx.action === 'waste' && tx.witnessId === witnessId)
-      .map((tx) => ({
-        id: tx.id,
-        timestamp: tx.timestamp,
-        drugName: tx.drugName,
-        drugClass: tx.drugClass,
-        lotNumber: tx.lotNumber,
-        quantity: tx.quantity,
-        unit: tx.unit,
-        veterinarianId: tx.veterinarianId,
-        veterinarianName: tx.veterinarianName,
-        witnessId: tx.witnessId || '',
-        witnessName: tx.witnessName || '',
-        witnessPinVerified: true,
-        reason: tx.notes || '',
-        csTransactionId: tx.id,
-      }));
+      .map(txToWasteEvent);
   };
 
   return {

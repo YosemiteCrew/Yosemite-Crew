@@ -222,6 +222,32 @@ const register = (services: IpcServices) => {
   });
 };
 
+describe('ipc-handlers — tab preview caching', () => {
+  test('captures only the active tab live and serves cache for background tabs', async () => {
+    let active: unknown = null;
+    const services = makeServices({ activeContents: () => active as never });
+    const call = register(services);
+    const wc = (
+      services.tabViewHost as unknown as { getWebContents: (id: string) => unknown }
+    ).getWebContents('t1');
+
+    // Background tab with nothing cached yet → no preview (and crucially, no
+    // flicker-inducing capturePage of an offscreen view).
+    expect(await call('yc:tab-get-preview', 't1')).toMatchObject({
+      ok: false,
+      error: 'no-preview',
+    });
+
+    // Active (visible) tab → live capture, result cached.
+    active = wc;
+    expect(await call('yc:tab-get-preview', 't1')).toMatchObject({ ok: true });
+
+    // Same tab, now in the background → served from cache, no live capture.
+    active = null;
+    expect(await call('yc:tab-get-preview', 't1')).toMatchObject({ ok: true });
+  });
+});
+
 describe('ipc-handlers — happy paths', () => {
   test('core + settings + palette + cache handlers', async () => {
     const services = makeServices();
