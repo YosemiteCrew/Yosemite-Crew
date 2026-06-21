@@ -43,12 +43,14 @@ router.post(
 router.get(
   "/mobile/payment-intent/:paymentIntentId",
   authorizeCognitoMobile,
+  invoiceActionLimiter,
   InvoiceController.getInvoiceByPaymentIntentId,
 );
 
 router.get(
   "/mobile/:invoiceId",
   authorizeCognitoMobile,
+  invoiceActionLimiter,
   InvoiceController.getInvoiceById,
 );
 // Routes for PMS
@@ -56,6 +58,7 @@ router.get(
 router.post(
   "/appointment/:appointmentId/charges",
   authorizeCognito,
+  invoiceActionLimiter,
   withAppointmentOrgPermissions(),
   requirePermission("billing:edit:any"),
   InvoiceController.addChargesToAppointment,
@@ -74,6 +77,7 @@ router.post(
 router.post(
   "/pms/appointment/:appointmentId/bootstrap",
   authorizeCognito,
+  invoiceActionLimiter,
   withAppointmentOrgPermissions(),
   requirePermission("billing:edit:any"),
   InvoiceController.bootstrapInvoiceForAppointment,
@@ -83,6 +87,7 @@ router.post(
 router.get(
   "/payment-intent/:paymentIntentId",
   authorizeCognito,
+  invoiceActionLimiter,
   withPaymentIntentOrgPermissions(),
   requirePermission("billing:view:any"),
   InvoiceController.getInvoiceByPaymentIntentId,
@@ -91,6 +96,7 @@ router.get(
 router.get(
   "/organisation/:organisationId/list",
   authorizeCognito,
+  invoiceActionLimiter,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   InvoiceController.listInvoicesForOrganisation,
@@ -100,6 +106,7 @@ router.get(
 router.post(
   "/:invoiceId/checkout-session",
   authorizeCognito,
+  invoiceActionLimiter,
   InvoiceController.createCheckoutSessionForInvoice,
 );
 
@@ -107,6 +114,7 @@ router.post(
 router.post(
   "/:invoiceId/mark-paid",
   authorizeCognito,
+  invoiceActionLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   InvoiceController.markInvoicePaidManually,
@@ -116,6 +124,7 @@ router.post(
 router.patch(
   "/:invoiceId/payment-collection-method",
   authorizeCognito,
+  invoiceActionLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   InvoiceController.updatePaymentCollectionMethod,
@@ -141,6 +150,11 @@ router.post(
 );
 
 // Get invoice by ID
-router.get("/:invoiceId", authorizeCognito, InvoiceController.getInvoiceById);
+router.get(
+  "/:invoiceId",
+  authorizeCognito,
+  invoiceActionLimiter,
+  InvoiceController.getInvoiceById,
+);
 
 export default router;

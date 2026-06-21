@@ -112,7 +112,7 @@ describe("scheduling utils", () => {
   });
 
   it("builds bookable windows and merges vet ids by slot", async () => {
-    const referenceDate = new Date("2026-06-20T00:00:00.000Z");
+    const referenceDate = new Date("2026-06-21T00:00:00.000Z");
     const result = await buildBookableWindowsForVets({
       organisationId: "org-1",
       vetIds: ["vet-1", "vet-2"],

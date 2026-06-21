@@ -82,7 +82,23 @@ target 'mobileAppYC' do
       target.build_configurations.each do |config|
         config.build_settings['SWIFT_VERSION'] = '5.0'
         config.build_settings['DEFINES_MODULE'] = 'YES'
-        config.build_settings['ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+        config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+        if target.name == 'fmt'
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -DFMT_USE_CONSTEVAL=0 -Wno-error'
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        end
+        if target.name == 'Yoga' || target.name == 'glog'
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -Wno-error -Wno-deprecated-declarations'
+          config.build_settings['WARNING_CFLAGS'] = '-Wno-error'
+        end
+        if target.name == 'stripe-react-native'
+          config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = '$(inherited) -Wno-error'
+          config.build_settings['OTHER_CFLAGS'] = '$(inherited) -Wno-error'
+          config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+          config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -suppress-warnings'
+        end
       end
     end
   end

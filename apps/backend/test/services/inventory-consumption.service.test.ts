@@ -32,6 +32,12 @@ jest.mock("src/config/prisma", () => ({
     productItem: {
       findFirst: jest.fn(),
     },
+    prescriptionDispenseRequest: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
   },
 }));
 
@@ -62,6 +68,12 @@ type MockedPrisma = typeof prisma & {
   productItem: {
     findFirst: jest.Mock;
   };
+  prescriptionDispenseRequest: {
+    findMany: jest.Mock;
+    findFirst: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+  };
 };
 
 describe("InventoryConsumptionService", () => {
@@ -78,6 +90,8 @@ describe("InventoryConsumptionService", () => {
     mockedPrisma.inventoryConsumptionEvent.findUnique.mockResolvedValue(null);
     mockedPrisma.inventoryStockMovement.findMany.mockResolvedValue([]);
     mockedPrisma.inventoryBatch.findFirst.mockResolvedValue(null);
+    mockedPrisma.prescriptionDispenseRequest.findMany.mockResolvedValue([]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValue(null);
   });
 
   it("upserts normalized mapping rules", async () => {
@@ -237,6 +251,351 @@ describe("InventoryConsumptionService", () => {
         }),
       }),
     );
+  });
+
+  it("creates a prescription dispense request and reuses an existing pending request", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "request-1",
+        prescriptionId: "rx-1",
+        organisationId: "org-1",
+        status: "PENDING",
+      });
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-1",
+      prescriptionId: "rx-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [{ inventoryItemId: "item-1", quantity: 1 }],
+      metadata: { source: "finalize" },
+      requestedBy: "user-1",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({
+      id: "request-1",
+      prescriptionId: "rx-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [{ inventoryItemId: "item-1", quantity: 2 }],
+      metadata: { source: "reopen" },
+      requestedBy: "user-2",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-1",
+      medications: [{ inventoryItemId: "item-1", quantity: 1 }],
+      metadata: { source: "finalize" },
+      requestedBy: "user-1",
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-1",
+      medications: [{ inventoryItemId: "item-1", quantity: 2 }],
+      metadata: { source: "reopen" },
+      requestedBy: "user-2",
+    });
+
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.create,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organisationId: "org-1",
+          prescriptionId: "rx-1",
+          status: "PENDING",
+          requestedBy: "user-1",
+        }),
+      }),
+    );
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.update,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "request-1" },
+        data: expect.objectContaining({
+          status: "PENDING",
+          requestedBy: "user-2",
+          reviewedBy: null,
+        }),
+      }),
+    );
+  });
+
+  it("approves a pending dispense request and consumes inventory", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-approve-1",
+      prescriptionId: "rx-approve-1",
+      organisationId: "org-1",
+      status: "PENDING",
+    });
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-approve-1",
+      organisationId: "org-1",
+      onHand: 4,
+      allocated: 0,
+    });
+    mockedPrisma.inventoryBatch.findMany
+      .mockResolvedValueOnce([
+        { id: "batch-approve-1", quantity: 4, allocated: 0 },
+      ])
+      .mockResolvedValueOnce([
+        { id: "batch-approve-1", quantity: 2, allocated: 0 },
+      ]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-approve-1",
+    });
+    mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({
+      id: "request-approve-1",
+      prescriptionId: "rx-approve-1",
+      organisationId: "org-1",
+      status: "DISPENSED",
+      reviewedBy: "user-1",
+      reviewedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    const events =
+      await InventoryConsumptionService.approvePrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-approve-1",
+        medications: [
+          {
+            inventoryItemId: "item-approve-1",
+            quantity: 2,
+            sourceLineKey: "line-1",
+          },
+        ],
+        reviewedBy: "user-1",
+      });
+
+    expect(events).toHaveLength(1);
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.update,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "request-approve-1" },
+        data: expect.objectContaining({
+          status: "DISPENSED",
+          reviewedBy: "user-1",
+        }),
+      }),
+    );
+    expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { onHand: 2, allocated: 0 },
+      }),
+    );
+  });
+
+  it("returns null when a dispense request is not found for not-dispensed", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+
+    const result =
+      await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed(
+        {
+          organisationId: "org-1",
+          prescriptionId: "rx-missing",
+          reviewedBy: "user-1",
+        },
+      );
+
+    expect(result).toBeNull();
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.update,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("marks a dispense request as not dispensed", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-not-dispensed-1",
+      prescriptionId: "rx-not-dispensed-1",
+      organisationId: "org-1",
+      status: "PENDING",
+    });
+    mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({
+      id: "request-not-dispensed-1",
+      prescriptionId: "rx-not-dispensed-1",
+      organisationId: "org-1",
+      status: "NOT_DISPENSED",
+      reviewedBy: "user-1",
+      reviewedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    const result =
+      await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed(
+        {
+          organisationId: "org-1",
+          prescriptionId: "rx-not-dispensed-1",
+          metadata: { reason: "patient unavailable" },
+          reviewedBy: "user-1",
+        },
+      );
+
+    expect(result).toMatchObject({
+      status: "NOT_DISPENSED",
+      reviewedBy: "user-1",
+    });
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.update,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "request-not-dispensed-1" },
+        data: expect.objectContaining({
+          status: "NOT_DISPENSED",
+          reviewedBy: "user-1",
+        }),
+      }),
+    );
+  });
+
+  it("lists dispense requests for an organisation", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findMany.mockResolvedValueOnce([
+      {
+        id: "request-list-1",
+        prescriptionId: "rx-list-1",
+        organisationId: "org-1",
+        status: "PENDING",
+        medications: [{ inventoryItemId: "item-1", quantity: 1 }],
+        metadata: null,
+        requestedBy: "user-1",
+        reviewedBy: null,
+        requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+        reviewedAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        prescription: {
+          id: "rx-list-1",
+          artifactId: "artifact-1",
+          artifact: {
+            id: "artifact-1",
+            organisationId: "org-1",
+            appointmentId: null,
+            caseId: null,
+            encounterId: null,
+            kind: "PRESCRIPTION",
+            status: "DRAFT",
+            templateId: null,
+            templateVersion: null,
+            templateVersionId: null,
+            authorId: null,
+            signedBy: null,
+            signedAt: null,
+            summary: null,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+        },
+      },
+    ]);
+
+    const result =
+      await InventoryConsumptionService.listPrescriptionDispenseRequests({
+        organisationId: "org-1",
+      });
+
+    expect(result).toHaveLength(1);
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.findMany,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org-1",
+        }),
+        include: expect.objectContaining({
+          prescription: expect.objectContaining({
+            include: expect.objectContaining({
+              artifact: true,
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("gets a single dispense request by id", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-get-1",
+      prescriptionId: "rx-get-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [],
+      metadata: null,
+      requestedBy: null,
+      reviewedBy: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      reviewedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      prescription: {
+        id: "rx-get-1",
+        artifactId: "artifact-1",
+        artifact: {
+          id: "artifact-1",
+          organisationId: "org-1",
+          appointmentId: null,
+          caseId: null,
+          encounterId: null,
+          kind: "PRESCRIPTION",
+          status: "DRAFT",
+          templateId: null,
+          templateVersion: null,
+          templateVersionId: null,
+          authorId: null,
+          signedBy: null,
+          signedAt: null,
+          summary: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      },
+    });
+
+    const result =
+      await InventoryConsumptionService.getPrescriptionDispenseRequest({
+        organisationId: "org-1",
+        dispenseRequestId: "request-get-1",
+      });
+
+    expect(result.id).toBe("request-get-1");
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.findFirst,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "request-get-1",
+          organisationId: "org-1",
+        },
+      }),
+    );
+  });
+
+  it("throws when a dispense request is missing", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+
+    await expect(
+      InventoryConsumptionService.getPrescriptionDispenseRequest({
+        organisationId: "org-1",
+        dispenseRequestId: "request-missing",
+      }),
+    ).rejects.toThrow("Dispense request not found");
   });
 
   it("resolves prescription batch selectors before consuming", async () => {

@@ -8,8 +8,10 @@ const adHocSignForLocalLaunch = (appPath) => {
   childProcess.execFileSync(
     'codesign',
     [
+      // No `--deep` — it is deprecated and signs nested code with the same flags
+      // incorrectly. electron-builder already signs nested binaries; this is only
+      // an ad-hoc re-sign of the top-level bundle for local launch.
       '--force',
-      '--deep',
       '--sign',
       '-',
       '--options',

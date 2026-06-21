@@ -11,6 +11,8 @@ jest.mock("src/config/prisma", () => ({
     appointment: { findFirst: jest.fn() },
     encounter: { findFirst: jest.fn(), findMany: jest.fn() },
     case: { findFirst: jest.fn() },
+    invoice: { findFirst: jest.fn() },
+    organization: { findUnique: jest.fn() },
     patient: { findFirst: jest.fn() },
     parent: { findFirst: jest.fn() },
     task: { findMany: jest.fn() },
@@ -55,6 +57,8 @@ describe("WorkspaceService", () => {
     appointment: { findFirst: jest.Mock };
     encounter: { findFirst: jest.Mock; findMany: jest.Mock };
     case: { findFirst: jest.Mock };
+    invoice: { findFirst: jest.Mock };
+    organization: { findUnique: jest.Mock };
     patient: { findFirst: jest.Mock };
     parent: { findFirst: jest.Mock };
     task: { findMany: jest.Mock };
@@ -93,6 +97,8 @@ describe("WorkspaceService", () => {
     mockedPrisma.appointment.findFirst.mockResolvedValue(null);
     mockedPrisma.encounter.findFirst.mockResolvedValue(null);
     mockedPrisma.case.findFirst.mockResolvedValue(null);
+    mockedPrisma.invoice.findFirst.mockResolvedValue(null);
+    mockedPrisma.organization.findUnique.mockResolvedValue(null);
     mockedPrisma.patient.findFirst.mockResolvedValue(null);
     mockedPrisma.parent.findFirst.mockResolvedValue(null);
     mockedPrisma.task.findMany.mockResolvedValue([]);
@@ -192,6 +198,37 @@ describe("WorkspaceService", () => {
       createdAt: new Date("2026-06-14T10:00:00.000Z"),
       updatedAt: new Date("2026-06-14T10:00:00.000Z"),
     });
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      id: "enc-1",
+      organisationId: "org-1",
+      caseId: "case-1",
+      patientId: "patient-1",
+      parentId: "parent-1",
+      status: "onleave",
+      encounterClass: "IMP",
+      appointmentKind: "OUTPATIENT",
+      title: "Annual review",
+      reason: null,
+      periodStart: null,
+      periodEnd: null,
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+    mockedClinicalArtifactService.listPrescriptionsForEncounter.mockResolvedValue(
+      [
+        {
+          artifact: {
+            id: "prescription-1",
+            status: "IN_PROGRESS",
+            createdAt: new Date("2026-06-15T00:00:00.000Z"),
+            updatedAt: new Date("2026-06-15T00:00:00.000Z"),
+          },
+          prescription: {
+            medications: [{ name: "Amoxicillin" }],
+          },
+        },
+      ],
+    );
     mockedPrisma.case.findFirst.mockResolvedValue({
       id: "case-1",
       organisationId: "org-1",
@@ -203,6 +240,14 @@ describe("WorkspaceService", () => {
       description: null,
       createdAt: new Date("2026-06-14T10:00:00.000Z"),
       updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.invoice.findFirst.mockResolvedValue({
+      id: "invoice-1",
+      visitBillingStage: "READY_FOR_BILLING",
+    });
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      appointmentLockWindowOutpatientMinutes: 30,
+      appointmentLockWindowInpatientMinutes: null,
     });
     mockedPrisma.patient.findFirst.mockResolvedValue({
       id: "patient-1",
@@ -315,6 +360,18 @@ describe("WorkspaceService", () => {
     expect(result.permissions.canAssignTasks).toBe(false);
     expect(result.permissions.canResumeSchedules).toBe(false);
     expect(result.permissions.canCancelSchedules).toBe(false);
+    expect(result.locks).toEqual(
+      expect.objectContaining({
+        appointment: true,
+        encounter: true,
+        episodeOfCare: true,
+        templateInstances: true,
+        clinicalArtifacts: true,
+        prescriptions: true,
+        documents: true,
+        treatmentItems: true,
+      }),
+    );
     expect(result.forms).toEqual([
       expect.objectContaining({
         assignmentId: "assignment-1",
@@ -333,6 +390,17 @@ describe("WorkspaceService", () => {
     expect(result.labSummary.providers).toEqual(["IDEXX"]);
     expect(result.labSummary.latestStatus).toBe("PARTIAL");
     expect(result.labSummary.blockingFinalization).toBe(true);
+    expect(result).toEqual(
+      expect.objectContaining({
+        visitBillingStage: "READY_FOR_BILLING",
+        readyForBilling: true,
+        readyForDischarge: true,
+        invoice: expect.objectContaining({
+          id: "invoice-1",
+          visitBillingStage: "READY_FOR_BILLING",
+        }),
+      }),
+    );
     expect(result.diagnosticQueue).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

@@ -48,6 +48,7 @@ describe('businessesSlice', () => {
     businesses: [],
     employees: [],
     services: [],
+    packages: [],
     availability: [],
     loading: false,
     error: null,
@@ -91,6 +92,7 @@ describe('businessesSlice', () => {
     const mockNearbyResponse = {
       businesses: [{id: 'b1', name: 'Vet 1'}],
       services: [{id: 's1', name: 'Service 1'}],
+      packages: [],
       meta: {page: 1},
     };
 
@@ -132,11 +134,13 @@ describe('businessesSlice', () => {
       (appointmentApi.fetchNearbyBusinesses as jest.Mock).mockResolvedValue({
         businesses: [],
         services: [],
+        packages: [],
       });
       (appointmentApi.searchBusinessesByService as jest.Mock).mockResolvedValue(
         {
           businesses: [{id: 'b2', name: 'Search Vet'}],
           services: [{id: 's2', name: 'Search Service'}],
+          packages: [],
         },
       );
 
@@ -164,6 +168,7 @@ describe('businessesSlice', () => {
           {id: 's1', name: 'Svc 1'},
           {id: 's1', name: 'Svc 1 Dup'},
         ],
+        packages: [],
       });
 
       await store.dispatch(fetchBusinesses(undefined)); // Test undefined params fallback
@@ -217,7 +222,7 @@ describe('businessesSlice', () => {
       await store.dispatch(fetchBusinesses(undefined));
 
       expect(appointmentApi.fetchNearbyBusinesses).toHaveBeenCalledWith(
-        expect.objectContaining({ accessToken: undefined })
+        expect.objectContaining({accessToken: undefined}),
       );
     });
   });
@@ -343,19 +348,21 @@ describe('businessesSlice', () => {
         windows: windowsWithNoTime,
       });
       await store.dispatch(fetchServiceSlots(mockArgs));
-      const slots = store.getState().businesses.availability[0].slotsByDate['2023-10-10'];
+      const slots =
+        store.getState().businesses.availability[0].slotsByDate['2023-10-10'];
       expect(slots[0].startTime).toBe(''); // fallback in normalize: startLocal ?? ''
     });
 
     it('should handle end fallback to startTime', async () => {
-       // logic: const endLocal = ... ?? window.endTime ?? window.startTime;
-       const windows = [{startTime: '10:00'}]; // No endTime
-       (appointmentApi.fetchBookableSlots as jest.Mock).mockResolvedValue({
+      // logic: const endLocal = ... ?? window.endTime ?? window.startTime;
+      const windows = [{startTime: '10:00'}]; // No endTime
+      (appointmentApi.fetchBookableSlots as jest.Mock).mockResolvedValue({
         date: '2023-10-10',
         windows,
       });
       await store.dispatch(fetchServiceSlots(mockArgs));
-      const slots = store.getState().businesses.availability[0].slotsByDate['2023-10-10'];
+      const slots =
+        store.getState().businesses.availability[0].slotsByDate['2023-10-10'];
       // The logic tries to calculate endDate using window.startTime if endTime is missing
       expect(slots[0].endTime).toBeTruthy();
     });

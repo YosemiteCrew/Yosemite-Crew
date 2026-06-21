@@ -5,7 +5,9 @@ import { isReadFromPostgres } from "src/config/read-switch";
 import UserModel from "src/models/user";
 import {
   getPersistedRenderedDocument,
+  getPersistedRenderedDocumentPdf,
   RenderedDocumentServiceError,
+  rerenderPersistedClinicalRenderedDocumentPdf,
   type RenderedDocumentSigning,
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
@@ -76,6 +78,38 @@ export const RenderedDocumentFhirController = {
       );
 
       return res.status(200).json(document);
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async getRenderedDocumentPdf(req: Request, res: Response) {
+    try {
+      const { pdf, filename, contentType } =
+        await getPersistedRenderedDocumentPdf(
+          req.params.renderedDocumentId,
+          req.params.organisationId,
+        );
+
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+      return res.status(200).send(pdf);
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async rerenderRenderedDocumentPdf(req: Request, res: Response) {
+    try {
+      const { pdf, filename, contentType } =
+        await rerenderPersistedClinicalRenderedDocumentPdf(
+          req.params.renderedDocumentId,
+          req.params.organisationId,
+        );
+
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+      return res.status(200).send(pdf);
     } catch (error) {
       return handleError(error, res);
     }

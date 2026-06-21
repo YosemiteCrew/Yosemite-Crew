@@ -109,6 +109,14 @@ type CompanionCreateContext = {
   organisationId?: string;
 };
 
+type ParentPatientLinkRecord = {
+  id: string;
+  parentId: string;
+  patientId: string;
+  role: "PRIMARY" | "CO_PARENT";
+  status: "ACTIVE" | "PENDING" | "REVOKED";
+};
+
 type CompanionPersistable = Omit<
   Companion,
   | "insurance"
@@ -619,8 +627,37 @@ export const CompanionService = {
       );
     }
 
-    await ParentCompanionService.ensurePrimaryOwnership(parent.id, id);
-    await ParentCompanionService.deleteLinksForCompanion(id);
-    await prisma.patient.deleteMany({ where: { id } });
+    const link = (await ParentCompanionService.getLinksForCompanion(id)).find(
+      (entry) => entry.parentId === parent.id && entry.status !== "REVOKED",
+    ) as ParentPatientLinkRecord | undefined;
+
+    if (!link) {
+      throw new CompanionServiceError(
+        "You are not authorized to modify this companion.",
+        403,
+      );
+    }
+
+    if (link.role === "PRIMARY") {
+      await prisma.$transaction(async (tx) => {
+        await tx.patient.update({
+          where: { id },
+          data: { status: "inactive" },
+        });
+
+        await tx.parentPatient.deleteMany({
+          where: { patientId: id },
+        });
+      });
+
+      return;
+    }
+
+    await prisma.parentPatient.deleteMany({
+      where: {
+        parentId: parent.id,
+        patientId: id,
+      },
+    });
   },
 };

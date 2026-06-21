@@ -7,6 +7,7 @@ import {
 import { FinanceSubscriptionService } from "src/services/finance/subscription";
 import { FinanceEventService } from "src/services/finance/events";
 import { StripeController } from "src/controllers/web/stripe.controller";
+import { StripeService } from "src/services/stripe.service";
 import {
   InvoiceService,
   InvoiceServiceError,
@@ -437,7 +438,7 @@ export const FinanceController = {
     }
   },
 
-  async getInvoiceByPaymentIntentId(this: void, req: Request, res: Response) {
+  async retrievePaymentIntent(this: void, req: Request, res: Response) {
     try {
       const paymentIntentId = req.params.paymentIntentId;
       if (!paymentIntentId) {
@@ -446,19 +447,12 @@ export const FinanceController = {
           .json({ message: "Payment Intent Id is required" });
       }
 
-      const organisationId = (req as OrgRequest).organisationId;
-      const invoice = await InvoiceService.getByPaymentIntentId(
-        paymentIntentId,
-        organisationId,
-      );
+      const paymentIntent =
+        await StripeService.retrievePaymentIntent(paymentIntentId);
 
-      if (!invoice) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-
-      return res.status(200).json(toFinanceSuccess(invoice));
+      return res.status(200).json(toFinanceSuccess(paymentIntent));
     } catch (error) {
-      logger.error("Error fetching invoice by payment intent", error);
+      logger.error("Error retrieving payment intent", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
@@ -1312,6 +1306,38 @@ export const FinanceController = {
           message: "Invalid request body",
         });
       }
+
+      if (error instanceof FinancePaymentError) {
+        return res.status(error.statusCode).json({
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async createMobileInvoicePaymentSession(
+    this: void,
+    req: Request,
+    res: Response,
+  ) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const result =
+        await FinancePaymentService.createPaymentIntentForInvoice(invoiceId);
+
+      return res.status(201).json({
+        data: result,
+        meta: null,
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error creating mobile invoice payment session", error);
 
       if (error instanceof FinancePaymentError) {
         return res.status(error.statusCode).json({

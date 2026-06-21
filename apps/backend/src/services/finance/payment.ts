@@ -6,6 +6,7 @@ import type {
   PaymentStatus as PrismaPaymentStatus,
   RefundStatus as PrismaRefundStatus,
   SettlementChannel as PrismaSettlementChannel,
+  TaxBehavior as PrismaTaxBehavior,
 } from "@prisma/client";
 import Stripe from "stripe";
 import { prisma } from "src/config/prisma";
@@ -176,6 +177,110 @@ const getOutstandingBalance = async (
     paid: summary.paid,
     balance: summary.balance,
   };
+};
+
+const applyCheckoutSessionTaxToInvoice = async (
+  invoice: {
+    id: string;
+    currency: string;
+    totalAmount: number;
+    taxSnapshot?: { taxBehavior?: PrismaTaxBehavior | null } | null;
+  },
+  input: {
+    sessionId: string;
+    amountSubtotal?: number | null;
+    amountTotal?: number | null;
+    amountTax?: number | null;
+    automaticTaxStatus?: string | null;
+    rawProviderPayload?: Prisma.InputJsonValue | null;
+  },
+) => {
+  const subtotal = roundMoney(input.amountSubtotal ?? invoice.totalAmount);
+  const taxAmount = roundMoney(
+    input.amountTax ??
+      Math.max(
+        0,
+        roundMoney((input.amountTotal ?? invoice.totalAmount) - subtotal),
+      ),
+  );
+  const totalAmount = roundMoney(input.amountTotal ?? subtotal + taxAmount);
+  const taxPercent =
+    subtotal > 0 ? roundMoney((taxAmount / subtotal) * 100) : 0;
+
+  return prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      taxProvider: "STRIPE",
+      subtotal,
+      taxTotal: taxAmount,
+      taxPercent,
+      totalAmount,
+      taxSnapshot: {
+        upsert: {
+          create: {
+            provider: "STRIPE",
+            providerReferenceId: input.sessionId,
+            jurisdictionCountry: null,
+            jurisdictionState: null,
+            taxBehavior: invoice.taxSnapshot?.taxBehavior ?? null,
+            taxableSubtotal: subtotal,
+            taxAmount,
+            taxBreakdown: {
+              subtotal,
+              taxableSubtotal: subtotal,
+              taxTotal: taxAmount,
+              totalAmount,
+              sessionId: input.sessionId,
+              amountSubtotal: input.amountSubtotal ?? null,
+              amountTotal: input.amountTotal ?? null,
+              amountTax: input.amountTax ?? null,
+              automaticTaxStatus: input.automaticTaxStatus ?? null,
+            } as unknown as Prisma.InputJsonValue,
+            rawProviderPayload:
+              input.rawProviderPayload ??
+              ({
+                sessionId: input.sessionId,
+                amountSubtotal: input.amountSubtotal ?? null,
+                amountTotal: input.amountTotal ?? null,
+                amountTax: input.amountTax ?? null,
+                automaticTaxStatus: input.automaticTaxStatus ?? null,
+              } as Prisma.InputJsonValue),
+            calculatedAt: new Date(),
+          },
+          update: {
+            provider: "STRIPE",
+            providerReferenceId: input.sessionId,
+            jurisdictionCountry: null,
+            jurisdictionState: null,
+            taxBehavior: invoice.taxSnapshot?.taxBehavior ?? null,
+            taxableSubtotal: subtotal,
+            taxAmount,
+            taxBreakdown: {
+              subtotal,
+              taxableSubtotal: subtotal,
+              taxTotal: taxAmount,
+              totalAmount,
+              sessionId: input.sessionId,
+              amountSubtotal: input.amountSubtotal ?? null,
+              amountTotal: input.amountTotal ?? null,
+              amountTax: input.amountTax ?? null,
+              automaticTaxStatus: input.automaticTaxStatus ?? null,
+            } as unknown as Prisma.InputJsonValue,
+            rawProviderPayload:
+              input.rawProviderPayload ??
+              ({
+                sessionId: input.sessionId,
+                amountSubtotal: input.amountSubtotal ?? null,
+                amountTotal: input.amountTotal ?? null,
+                amountTax: input.amountTax ?? null,
+                automaticTaxStatus: input.automaticTaxStatus ?? null,
+              } as Prisma.InputJsonValue),
+            calculatedAt: new Date(),
+          },
+        },
+      },
+    },
+  });
 };
 
 const createPaymentAttempt = async (
@@ -454,6 +559,9 @@ export const FinancePaymentService = {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      automatic_tax: {
+        enabled: true,
+      },
       line_items: lineItems,
       metadata: {
         type: "INVOICE_PAYMENT",
@@ -1215,6 +1323,10 @@ export const FinancePaymentService = {
     chargeId?: string | null;
     receiptUrl?: string | null;
     currency?: string | null;
+    amountSubtotal?: number | null;
+    amountTotal?: number | null;
+    amountTax?: number | null;
+    automaticTaxStatus?: string | null;
     rawProviderPayload?: Prisma.InputJsonValue | null;
   }) {
     const invoice = input.invoiceId
@@ -1248,15 +1360,32 @@ export const FinancePaymentService = {
       select: { id: true },
     });
 
+    const invoiceWithTax = await applyCheckoutSessionTaxToInvoice(invoice, {
+      sessionId: input.sessionId,
+      amountSubtotal: input.amountSubtotal,
+      amountTotal: input.amountTotal,
+      amountTax: input.amountTax,
+      automaticTaxStatus: input.automaticTaxStatus,
+      rawProviderPayload: input.rawProviderPayload ?? undefined,
+    });
+
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
-      amount: invoice.totalAmount,
-      currency: input.currency ?? invoice.currency,
+      amount: invoiceWithTax.totalAmount,
+      currency: input.currency ?? invoiceWithTax.currency,
       settlementChannel: "STRIPE",
       providerPaymentId: input.paymentIntentId ?? null,
       paymentAttemptId: paymentAttempt?.id ?? null,
       reference: input.receiptUrl ?? undefined,
-      rawProviderPayload: input.rawProviderPayload ?? undefined,
+      rawProviderPayload:
+        input.rawProviderPayload ??
+        ({
+          sessionId: input.sessionId,
+          amountSubtotal: input.amountSubtotal ?? null,
+          amountTotal: input.amountTotal ?? null,
+          amountTax: input.amountTax ?? null,
+          automaticTaxStatus: input.automaticTaxStatus ?? null,
+        } as Prisma.InputJsonValue),
     });
 
     return { action: "PAID" as const, ...applied };

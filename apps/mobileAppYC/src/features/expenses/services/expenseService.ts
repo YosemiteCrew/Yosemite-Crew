@@ -316,9 +316,9 @@ const toApiPayload = (input: ExpenseInputPayload) => {
   const normalizedDate = (() => {
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) {
-      return date;
+      return new Date().toISOString();
     }
-    return parsed.toISOString().split('T')[0];
+    return parsed.toISOString();
   })();
 
   const categoryLabel = resolveCategoryLabel(category);
@@ -361,6 +361,73 @@ const extractPaymentIntentId = (invoicePayload: any): string | null => {
     invoicePayload?.payment_intent_id ??
     null
   );
+};
+
+const toFiniteNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const mapFinancePaymentSession = (
+  payload: any,
+  fallbackPaymentIntentId: string,
+): PaymentIntentInfo => ({
+  paymentIntentId:
+    payload?.providerPaymentIntentId ??
+    payload?.paymentIntentId ??
+    payload?.id ??
+    fallbackPaymentIntentId,
+  clientSecret:
+    payload?.clientSecret ??
+    payload?.client_secret ??
+    payload?.paymentIntentClientSecret ??
+    '',
+  amount: toFiniteNumber(
+    payload?.amount ?? payload?.totalAmount ?? payload?.value,
+  ),
+  currency: payload?.currency ?? payload?.currencyCode ?? 'USD',
+  paymentLinkUrl:
+    payload?.checkoutUrl ??
+    payload?.paymentLinkUrl ??
+    payload?.providerCheckoutUrl ??
+    null,
+});
+
+const createFinancePaymentSession = async ({
+  invoiceId,
+  accessToken,
+  fallbackPaymentIntentId,
+}: {
+  invoiceId: string;
+  accessToken: string;
+  fallbackPaymentIntentId?: string;
+}): Promise<PaymentIntentInfo> => {
+  const {data} = await apiClient.post(
+    `/v1/finance/mobile/invoices/${encodeURIComponent(invoiceId)}/payments/sessions`,
+    {provider: 'STRIPE'},
+    {headers: withAuthHeaders(accessToken)},
+  );
+  const payload = data?.data ?? data ?? {};
+  const result = mapFinancePaymentSession(
+    payload,
+    fallbackPaymentIntentId ?? invoiceId,
+  );
+
+  // Fallback: if clientSecret missing, fetch from mobile payment-intent route
+  if (!result.clientSecret && result.paymentIntentId) {
+    const intentResp = await apiClient.get(
+      `/v1/finance/mobile/payment-intent/${encodeURIComponent(result.paymentIntentId)}`,
+      {headers: withAuthHeaders(accessToken)},
+    );
+    const intentPayload = intentResp.data?.data ?? intentResp.data ?? {};
+    const clientSecret =
+      intentPayload.clientSecret ?? intentPayload.client_secret ?? null;
+    if (clientSecret) {
+      return {...result, clientSecret};
+    }
+  }
+
+  return result;
 };
 
 export const expenseApi = {
@@ -498,7 +565,7 @@ export const expenseApi = {
     organisation?: any;
   }> {
     const {data} = await apiClient.get(
-      `/fhir/v1/invoice/mobile/${encodeURIComponent(invoiceId)}`,
+      `/v1/finance/mobile/${encodeURIComponent(invoiceId)}`,
       {headers: withAuthHeaders(accessToken)},
     );
 
@@ -516,11 +583,15 @@ export const expenseApi = {
     const organisationData = payload?.organistion ?? payload?.organisation;
 
     const {invoice, paymentIntent} = mapInvoiceFromResponse(invoiceData);
+    const invoiceWithOrganisation =
+      invoice && organisationData
+        ? {...invoice, organisation: organisationData}
+        : invoice;
     const paymentIntentId =
       paymentIntent?.paymentIntentId ?? extractPaymentIntentId(invoiceData);
 
     return {
-      invoice,
+      invoice: invoiceWithOrganisation,
       paymentIntent: paymentIntent ?? null,
       paymentIntentId: paymentIntentId ?? null,
       organistion: organisationData ?? undefined,
@@ -536,17 +607,35 @@ export const expenseApi = {
     accessToken: string;
   }): Promise<PaymentIntentInfo> {
     const {data} = await apiClient.get(
-      `/v1/stripe/payment-intent/${encodeURIComponent(paymentIntentId)}`,
+      `/v1/finance/mobile/payment-intent/${encodeURIComponent(paymentIntentId)}`,
       {headers: withAuthHeaders(accessToken)},
     );
     const payload = data?.paymentIntent ?? data?.data ?? data ?? {};
-    return {
-      paymentIntentId: payload.paymentIntentId ?? payload.id ?? paymentIntentId,
-      clientSecret: payload.clientSecret ?? payload.client_secret ?? '',
-      amount: payload.amount ?? payload.value ?? 0,
-      currency: payload.currency ?? payload.currencyCode ?? 'USD',
-      paymentLinkUrl: payload.paymentLinkUrl ?? null,
-    };
+    if (
+      data?.paymentIntent ||
+      payload?.clientSecret ||
+      payload?.client_secret ||
+      payload?.providerPaymentIntentId
+    ) {
+      return mapFinancePaymentSession(payload, paymentIntentId);
+    }
+
+    const invoicePayload = payload?.invoice ?? payload;
+    const {invoice, paymentIntent} = mapInvoiceFromResponse(invoicePayload);
+    if (paymentIntent?.clientSecret) {
+      return paymentIntent;
+    }
+
+    const resolvedInvoiceId =
+      invoice?.id ?? invoicePayload?.id ?? invoicePayload?.invoiceId ?? null;
+    if (!resolvedInvoiceId) {
+      return mapFinancePaymentSession(payload, paymentIntentId);
+    }
+    return createFinancePaymentSession({
+      invoiceId: resolvedInvoiceId,
+      accessToken,
+      fallbackPaymentIntentId: paymentIntentId,
+    });
   },
 
   async fetchPaymentIntentByInvoice({
@@ -556,19 +645,7 @@ export const expenseApi = {
     invoiceId: string;
     accessToken: string;
   }): Promise<PaymentIntentInfo> {
-    const {data} = await apiClient.get(
-      `/v1/stripe/invoice/${encodeURIComponent(invoiceId)}/payment-intent`,
-      {headers: withAuthHeaders(accessToken)},
-    );
-    const payload = data?.paymentIntent ?? data?.data ?? data ?? {};
-    return {
-      paymentIntentId:
-        payload.paymentIntentId ?? payload.id ?? payload.invoiceId ?? invoiceId,
-      clientSecret: payload.clientSecret ?? payload.client_secret ?? '',
-      amount: payload.amount ?? payload.value ?? 0,
-      currency: payload.currency ?? payload.currencyCode ?? 'USD',
-      paymentLinkUrl: payload.paymentLinkUrl ?? null,
-    };
+    return createFinancePaymentSession({invoiceId, accessToken});
   },
 };
 

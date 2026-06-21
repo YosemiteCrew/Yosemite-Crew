@@ -3,12 +3,24 @@ import {
   ClinicalArtifactService,
   ClinicalArtifactServiceError,
 } from "../../src/services/clinical-artifact.service";
+import { renderRenderedDocumentPdfWithMetadata } from "../../src/services/rendered-document-renderer.service";
+import { uploadBufferAsFile } from "../../src/middlewares/upload";
 
 jest.mock("../../src/services/inventory-consumption.service", () => ({
   InventoryConsumptionService: {
-    consumePrescription: jest.fn(),
+    approvePrescriptionDispenseRequest: jest.fn(),
+    createPrescriptionDispenseRequest: jest.fn(),
+    markPrescriptionDispenseRequestNotDispensed: jest.fn(),
     releasePrescription: jest.fn(),
   },
+}));
+
+jest.mock("../../src/services/rendered-document-renderer.service", () => ({
+  renderRenderedDocumentPdfWithMetadata: jest.fn(),
+}));
+
+jest.mock("../../src/middlewares/upload", () => ({
+  uploadBufferAsFile: jest.fn(),
 }));
 
 jest.mock("src/config/prisma", () => ({
@@ -21,6 +33,8 @@ jest.mock("src/config/prisma", () => ({
     },
     renderedDocument: {
       create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
     },
     soapNote: {
       create: jest.fn(),
@@ -63,6 +77,8 @@ describe("ClinicalArtifactService", () => {
     };
     renderedDocument: {
       create: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
     };
     soapNote: {
       create: jest.Mock;
@@ -89,6 +105,9 @@ describe("ClinicalArtifactService", () => {
       findMany: jest.Mock;
     };
   };
+  const mockedRenderedDocumentRenderer =
+    renderRenderedDocumentPdfWithMetadata as jest.Mock;
+  const mockedUploadBufferAsFile = uploadBufferAsFile as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -98,9 +117,118 @@ describe("ClinicalArtifactService", () => {
       }
       return undefined;
     });
+    mockedRenderedDocumentRenderer.mockResolvedValue({
+      pdf: Buffer.from("rendered-pdf"),
+      pageCount: 1,
+      signaturePlacement: {
+        pageNumber: 1,
+        pageX: 340,
+        pageY: 710,
+        width: 220,
+        height: 96,
+      },
+    });
+    mockedUploadBufferAsFile.mockResolvedValue({
+      url: "https://cdn.example/rendered.pdf",
+      key: "rendered-documents/org-1/file.pdf",
+      originalname: "rendered.pdf",
+      mimetype: "application/pdf",
+    });
   });
 
-  it("triggers inventory consumption when a prescription is signed", async () => {
+  const mockClinicalRenderedDocumentPersistence = (params: {
+    id: string;
+    kind: "SOAP_NOTE" | "PRESCRIPTION" | "DISCHARGE_SUMMARY" | "VITAL_RECORD";
+    title: string;
+    sourceId?: string;
+    templateId?: string | null;
+    templateVersion?: number | null;
+    templateVersionId?: string | null;
+  }) => {
+    const sourceId = params.sourceId ?? artifactId;
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: params.id,
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId,
+      templateInstanceId: null,
+      clinicalArtifactId: sourceId,
+      templateId: params.templateId ?? null,
+      templateVersion: params.templateVersion ?? null,
+      templateVersionId: params.templateVersionId ?? null,
+      kind: params.kind,
+      version: 1,
+      title: params.title,
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-01-01T00:00:00.000Z",
+        title: params.title,
+        mimeType: "application/pdf",
+        documentKind: params.kind,
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId,
+          organisationId,
+          templateKind: params.kind,
+          templateId: params.templateId ?? null,
+          templateVersion: params.templateVersion ?? null,
+          templateVersionId: params.templateVersionId ?? null,
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
+    mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
+      id: params.id,
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId,
+      templateInstanceId: null,
+      clinicalArtifactId: sourceId,
+      templateId: params.templateId ?? null,
+      templateVersion: params.templateVersion ?? null,
+      templateVersionId: params.templateVersionId ?? null,
+      kind: params.kind,
+      version: 1,
+      title: params.title,
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/rendered.pdf",
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-01-01T00:00:00.000Z",
+        title: params.title,
+        mimeType: "application/pdf",
+        documentKind: params.kind,
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId,
+          organisationId,
+          templateKind: params.kind,
+          templateId: params.templateId ?? null,
+          templateVersion: params.templateVersion ?? null,
+          templateVersionId: params.templateVersionId ?? null,
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
+  };
+
+  it("creates a dispense request when a prescription is signed", async () => {
     mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce({
       id: artifactId,
       organisationId,
@@ -131,6 +259,86 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      kind: "PRESCRIPTION",
+      version: 1,
+      title: "Prescription",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-01-01T00:00:00.000Z",
+        title: "Prescription",
+        mimeType: "application/pdf",
+        documentKind: "PRESCRIPTION",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: artifactId,
+          organisationId,
+          templateKind: "PRESCRIPTION",
+          templateId: "tmpl-2",
+          templateVersion: 4,
+          templateVersionId: "tmpl-ver-2",
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
+    mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      kind: "PRESCRIPTION",
+      version: 1,
+      title: "Prescription",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/rendered.pdf",
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-01-01T00:00:00.000Z",
+        title: "Prescription",
+        mimeType: "application/pdf",
+        documentKind: "PRESCRIPTION",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: artifactId,
+          organisationId,
+          templateKind: "PRESCRIPTION",
+          templateId: "tmpl-2",
+          templateVersion: 4,
+          templateVersionId: "tmpl-ver-2",
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
 
     await ClinicalArtifactService.createPrescription({
       organisationId,
@@ -152,7 +360,7 @@ describe("ClinicalArtifactService", () => {
     const { InventoryConsumptionService } =
       await import("../../src/services/inventory-consumption.service");
     expect(
-      InventoryConsumptionService.consumePrescription,
+      InventoryConsumptionService.createPrescriptionDispenseRequest,
     ).toHaveBeenCalledWith(
       expect.objectContaining({
         organisationId,
@@ -191,6 +399,86 @@ describe("ClinicalArtifactService", () => {
       metadata: { confidence: "high" },
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: "tmpl-1",
+      templateVersion: 3,
+      templateVersionId: "tmpl-ver-1",
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-01-01T00:00:00.000Z",
+        title: "SOAP note",
+        mimeType: "application/pdf",
+        documentKind: "SOAP_NOTE",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: artifactId,
+          organisationId,
+          templateKind: "SOAP_NOTE",
+          templateId: "tmpl-1",
+          templateVersion: 3,
+          templateVersionId: "tmpl-ver-1",
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
+    mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: "tmpl-1",
+      templateVersion: 3,
+      templateVersionId: "tmpl-ver-1",
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/rendered.pdf",
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-01-01T00:00:00.000Z",
+        title: "SOAP note",
+        mimeType: "application/pdf",
+        documentKind: "SOAP_NOTE",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: artifactId,
+          organisationId,
+          templateKind: "SOAP_NOTE",
+          templateId: "tmpl-1",
+          templateVersion: 3,
+          templateVersionId: "tmpl-ver-1",
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
     });
     mockedPrisma.renderedDocument.create.mockResolvedValueOnce({
       id: "doc-1",
@@ -335,6 +623,86 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-2",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      kind: "PRESCRIPTION",
+      version: 1,
+      title: "Prescription",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-01-01T00:00:00.000Z",
+        title: "Prescription",
+        mimeType: "application/pdf",
+        documentKind: "PRESCRIPTION",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: artifactId,
+          organisationId,
+          templateKind: "PRESCRIPTION",
+          templateId: "tmpl-2",
+          templateVersion: 4,
+          templateVersionId: "tmpl-ver-2",
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
+    mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
+      id: "doc-2",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      kind: "PRESCRIPTION",
+      version: 1,
+      title: "Prescription",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/rendered.pdf",
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-01-01T00:00:00.000Z",
+        title: "Prescription",
+        mimeType: "application/pdf",
+        documentKind: "PRESCRIPTION",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: artifactId,
+          organisationId,
+          templateKind: "PRESCRIPTION",
+          templateId: "tmpl-2",
+          templateVersion: 4,
+          templateVersionId: "tmpl-ver-2",
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
     mockedPrisma.renderedDocument.create.mockResolvedValueOnce({
       id: "doc-2",
       organisationId,
@@ -369,7 +737,17 @@ describe("ClinicalArtifactService", () => {
       templateVersionId: "tmpl-ver-2",
       authorId: "author-1",
       summary: "Rx summary",
-      medications: [{ drug: "Drug A" }],
+      medications: [
+        {
+          sourceLineKey: "line-1",
+          medication: "Drug A",
+          dosage: "250mg",
+          route: "oral",
+          frequency: "BID",
+          quantity: 1,
+          inventoryItemId: "item-1",
+        },
+      ],
       instructions: { text: "Take daily" },
       notes: null,
       metadata: null,
@@ -384,10 +762,38 @@ describe("ClinicalArtifactService", () => {
         }),
       }),
     );
+    expect(mockedPrisma.prescription.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          medications: [
+            expect.objectContaining({
+              sourceLineKey: "line-1",
+              medication: "Drug A",
+              dosage: "250mg",
+              route: "oral",
+              frequency: "BID",
+              quantity: 1,
+              inventoryItemId: "item-1",
+            }),
+          ],
+          items: {
+            create: [
+              expect.objectContaining({
+                medication: "Drug A",
+                dosage: "250mg",
+                route: "oral",
+                frequency: "BID",
+                quantity: "1",
+              }),
+            ],
+          },
+        }),
+      }),
+    );
     expect(result.artifact.kind).toBe("PRESCRIPTION");
   });
 
-  it("releases inventory when a signed prescription is voided", async () => {
+  it("marks the dispense request not dispensed when a signed prescription is voided", async () => {
     const signedMedications = [
       { inventoryItemId: "item-1", quantity: 2, sourceLineKey: "line-1" },
     ];
@@ -457,20 +863,19 @@ describe("ClinicalArtifactService", () => {
     const { InventoryConsumptionService } =
       await import("../../src/services/inventory-consumption.service");
     expect(
-      InventoryConsumptionService.releasePrescription,
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
     ).toHaveBeenCalledWith(
       expect.objectContaining({
         organisationId,
         prescriptionId: "prescription-1",
-        medications: signedMedications,
       }),
     );
     expect(
-      InventoryConsumptionService.consumePrescription,
+      InventoryConsumptionService.releasePrescription,
     ).not.toHaveBeenCalled();
   });
 
-  it("reconciles inventory when a signed prescription is revised", async () => {
+  it("marks the dispense request not dispensed when a signed prescription is reopened", async () => {
     mockedPrisma.clinicalArtifact.update.mockReset();
     mockedPrisma.prescription.update.mockReset();
     const originalMedications = [
@@ -511,7 +916,7 @@ describe("ClinicalArtifactService", () => {
       id: artifactId,
       organisationId,
       kind: "PRESCRIPTION",
-      status: "SIGNED",
+      status: "IN_PROGRESS",
       appointmentId: "appt-1",
       caseId: null,
       encounterId: "enc-1",
@@ -549,23 +954,19 @@ describe("ClinicalArtifactService", () => {
     const { InventoryConsumptionService } =
       await import("../../src/services/inventory-consumption.service");
     expect(
-      InventoryConsumptionService.releasePrescription,
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
     ).toHaveBeenCalledWith(
       expect.objectContaining({
         organisationId,
         prescriptionId: "prescription-2",
-        medications: originalMedications,
       }),
     );
     expect(
-      InventoryConsumptionService.consumePrescription,
-    ).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organisationId,
-        prescriptionId: "prescription-2",
-        medications: revisedMedications,
-      }),
-    );
+      InventoryConsumptionService.createPrescriptionDispenseRequest,
+    ).not.toHaveBeenCalled();
+    expect(
+      InventoryConsumptionService.releasePrescription,
+    ).not.toHaveBeenCalled();
   });
 
   it("creates a discharge summary artifact and document draft", async () => {
@@ -622,6 +1023,14 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       signature: null,
+    });
+    mockClinicalRenderedDocumentPersistence({
+      id: "doc-3",
+      kind: "DISCHARGE_SUMMARY",
+      title: "Discharge summary",
+      templateId: "tmpl-3",
+      templateVersion: 5,
+      templateVersionId: "tmpl-ver-3",
     });
 
     const result = await ClinicalArtifactService.createDischargeSummary({
@@ -706,6 +1115,14 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       signature: null,
+    });
+    mockClinicalRenderedDocumentPersistence({
+      id: "doc-4",
+      kind: "VITAL_RECORD",
+      title: "Vital record",
+      templateId: "tmpl-4",
+      templateVersion: 6,
+      templateVersionId: "tmpl-ver-4",
     });
 
     const result = await ClinicalArtifactService.createVitalRecord({
@@ -798,6 +1215,14 @@ describe("ClinicalArtifactService", () => {
       metadata: { source: "manual" },
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockClinicalRenderedDocumentPersistence({
+      id: "doc-1",
+      kind: "SOAP_NOTE",
+      title: "SOAP note",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
     });
 
     const result = await ClinicalArtifactService.updateSoapNote(
@@ -934,6 +1359,14 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     });
+    mockClinicalRenderedDocumentPersistence({
+      id: "doc-1",
+      kind: "SOAP_NOTE",
+      title: "SOAP note",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+    });
 
     await ClinicalArtifactService.finalizeSoapNote(soapNoteId, organisationId);
 
@@ -1002,6 +1435,14 @@ describe("ClinicalArtifactService", () => {
       metadata: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+    });
+    mockClinicalRenderedDocumentPersistence({
+      id: "doc-1",
+      kind: "SOAP_NOTE",
+      title: "SOAP note",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
     });
 
     await ClinicalArtifactService.reopenSoapNote(soapNoteId, organisationId);
@@ -1097,6 +1538,15 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-02T00:00:00.000Z"),
       updatedAt: new Date("2026-01-02T00:00:00.000Z"),
       signature: null,
+    });
+    mockClinicalRenderedDocumentPersistence({
+      id: "doc-amend-1",
+      kind: "DISCHARGE_SUMMARY",
+      title: "Discharge summary",
+      sourceId: "artifact-amend-1",
+      templateId: "tmpl-3",
+      templateVersion: 5,
+      templateVersionId: "tmpl-ver-3",
     });
 
     const amended = await ClinicalArtifactService.amendDischargeSummary(

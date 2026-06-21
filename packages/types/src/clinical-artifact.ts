@@ -472,27 +472,42 @@ const prescriptionToMedicationRequest = (record: PrescriptionRecord): Medication
 const medicationRequestToPrescriptionInput = (
   resource: MedicationRequest,
   defaults: ClinicalArtifactFhirInputDefaults
-): PrescriptionInput => ({
-  organisationId: defaults.organisationId,
-  appointmentId: defaults.appointmentId,
-  caseId: defaults.caseId,
-  encounterId: defaults.encounterId,
-  authorId: defaults.authorId,
-  templateId: defaults.templateId,
-  templateVersion: defaults.templateVersion,
-  templateVersionId: defaults.templateVersionId,
-  summary: resource.medicationCodeableConcept?.text,
-  medications: parseFlexibleJson(
-    getExtensionValue(resource.extension, PRESCRIPTION_MEDICATIONS_EXTENSION_URL)
-  ),
-  instructions: parseFlexibleJson(
-    getExtensionValue(resource.extension, PRESCRIPTION_INSTRUCTIONS_EXTENSION_URL)
-  ),
-  notes: parseFlexibleJson(getExtensionValue(resource.extension, PRESCRIPTION_NOTES_EXTENSION_URL)),
-  metadata: parseFlexibleJson(
+): PrescriptionInput => {
+  const metadata = parseFlexibleJson(
     getExtensionValue(resource.extension, PRESCRIPTION_METADATA_EXTENSION_URL)
-  ),
-});
+  );
+  const metadataRecord =
+    metadata !== null && typeof metadata === 'object' && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)
+      : {};
+
+  const readStringField = (key: string): string | undefined => {
+    const value = metadataRecord[key];
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  };
+
+  return {
+    organisationId: defaults.organisationId,
+    appointmentId: defaults.appointmentId,
+    caseId: defaults.caseId,
+    encounterId: defaults.encounterId,
+    authorId: defaults.authorId,
+    templateId: defaults.templateId,
+    templateVersion: defaults.templateVersion,
+    templateVersionId: defaults.templateVersionId,
+    summary: resource.medicationCodeableConcept?.text,
+    medications: parseFlexibleJson(
+      getExtensionValue(resource.extension, PRESCRIPTION_MEDICATIONS_EXTENSION_URL)
+    ),
+    instructions: parseFlexibleJson(
+      getExtensionValue(resource.extension, PRESCRIPTION_INSTRUCTIONS_EXTENSION_URL)
+    ),
+    notes: parseFlexibleJson(
+      getExtensionValue(resource.extension, PRESCRIPTION_NOTES_EXTENSION_URL)
+    ),
+    metadata,
+  };
+};
 
 const dischargeSummaryToComposition = (record: DischargeSummaryRecord): Composition => ({
   resourceType: 'Composition',

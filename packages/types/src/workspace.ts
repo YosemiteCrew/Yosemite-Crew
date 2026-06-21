@@ -58,6 +58,7 @@ export interface WorkspaceLockState {
   clinicalArtifacts: boolean;
   prescriptions: boolean;
   documents: boolean;
+  treatmentItems: boolean;
 }
 
 export interface WorkspacePermissionSnapshot {

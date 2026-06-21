@@ -161,7 +161,7 @@ async function uploadBufferAsFile(
   const { location, key } = await uploadToS3(fileName, buffer, mimeType);
 
   return {
-    url: location,
+    url: getURLForKey(key),
     key,
     originalname: originalnameWithExtension,
     mimetype: mimeType,

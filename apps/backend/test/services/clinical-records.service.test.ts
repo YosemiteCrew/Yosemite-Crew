@@ -16,6 +16,10 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       findUnique: jest.fn(),
     },
+    renderedDocument: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
     prescription: {
       create: jest.fn(),
       update: jest.fn(),
@@ -50,6 +54,10 @@ describe("ClinicalArtifactService clinical records", () => {
       create: jest.Mock;
       update: jest.Mock;
       findUnique: jest.Mock;
+    };
+    renderedDocument: {
+      findUnique: jest.Mock;
+      update: jest.Mock;
     };
     prescription: {
       create: jest.Mock;

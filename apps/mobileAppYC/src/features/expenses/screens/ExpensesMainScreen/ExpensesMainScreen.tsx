@@ -1,5 +1,12 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Image, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
@@ -12,9 +19,7 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {setSelectedCompanion} from '@/features/companion';
-import {
-  fetchExpensesForCompanion,
-} from '@/features/expenses';
+import {fetchExpensesForCompanion} from '@/features/expenses';
 import {
   selectExpenseSummaryByCompanion,
   selectExpensesLoading,
@@ -30,11 +35,18 @@ import {
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
-import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
+import {
+  hasInvoice,
+  isExpensePaid,
+  isExpensePaymentPending,
+} from '@/features/expenses/utils/status';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
-type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesMain'>;
+type Navigation = NativeStackNavigationProp<
+  ExpenseStackParamList,
+  'ExpensesMain'
+>;
 
 export const ExpensesMainScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
@@ -42,7 +54,9 @@ export const ExpensesMainScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const companions = useSelector((state: RootState) => state.companion.companions);
+  const companions = useSelector(
+    (state: RootState) => state.companion.companions,
+  );
   const selectedCompanionId = useSelector(
     (state: RootState) => state.companion.selectedCompanionId,
   );
@@ -54,7 +68,9 @@ export const ExpensesMainScreen: React.FC = () => {
     selectHasHydratedCompanion(selectedCompanionId ?? null),
   );
   const loading = useSelector(selectExpensesLoading);
-  const summary = useSelector(selectExpenseSummaryByCompanion(selectedCompanionId ?? null));
+  const summary = useSelector(
+    selectExpenseSummaryByCompanion(selectedCompanionId ?? null),
+  );
   const recentInAppExpenses = useSelector(
     selectRecentInAppExpenses(selectedCompanionId ?? null, 2),
   );
@@ -70,12 +86,6 @@ export const ExpensesMainScreen: React.FC = () => {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, selectedCompanionId, dispatch]);
-
-  useEffect(() => {
-    if (companions.length === 0) {
-      navigation.replace('ExpensesEmpty');
-    }
-  }, [companions.length, navigation]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -152,18 +162,26 @@ export const ExpensesMainScreen: React.FC = () => {
             <ScrollView
               contentContainerStyle={[styles.emptyState, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
-              <Image source={Images.emptyExpenseIllustration} style={styles.emptyIllustration} />
+              <Image
+                source={Images.emptyExpenseIllustration}
+                style={styles.emptyIllustration}
+              />
               <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
               <Text style={styles.emptySubtitle}>
                 It seems like you and your buddy are in saving mode!
               </Text>
-              <TouchableOpacity style={styles.emptyButton} onPress={handleAddExpense}>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={handleAddExpense}>
                 <Text style={styles.emptyButtonText}>Add expense</Text>
               </TouchableOpacity>
             </ScrollView>
           ) : (
             <ScrollView
-              contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+              contentContainerStyle={[
+                styles.contentContainer,
+                contentPaddingStyle,
+              ]}
               showsVerticalScrollIndicator={false}>
               <CompanionSelector
                 companions={companions}
@@ -175,87 +193,103 @@ export const ExpensesMainScreen: React.FC = () => {
                 permissionLabel="expenses"
               />
 
-          <TouchableOpacity onPress={() => handleViewMore('inApp')} activeOpacity={0.85}>
-            <YearlySpendCard
-              amount={yearlyTotal}
-              currencyCode={summaryCurrency}
-              currencySymbol={currencySymbol}
-              label="Yearly spend summary"
-              disableSwipe={true}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent in-app expenses</Text>
-            {recentInAppExpenses.length > 0 && (
-              <ViewMoreButton onPress={() => handleViewMore('inApp')} />
-            )}
-          </View>
-          {recentInAppExpenses.length > 0 ? (
-            <View style={styles.cardsContainer}>
-              {recentInAppExpenses.map(expense => (
-                <ExpenseCard
-                  key={expense.id}
-                  title={expense.title}
-                  categoryLabel={resolveCategoryLabel(expense.category)}
-                  subcategoryLabel={resolveSubcategoryLabel(expense.category, expense.subcategory)}
-                  visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
-                  date={expense.date}
-                  amount={expense.amount}
-                  currencyCode={expense.currencyCode}
-                  onPressView={() => handleViewExpense(expense.id)}
-                  showEditAction={false}
-                  showPayButton={isExpensePaymentPending(expense) && hasInvoice(expense)}
-                  isPaid={isExpensePaid(expense)}
-                  onPressPay={
-                    isExpensePaymentPending(expense) && hasInvoice(expense)
-                      ? () => {
-                          if (!processingPayment) {
-                            openPaymentScreen(expense);
-                          }
-                        }
-                      : undefined
-                  }
+              <TouchableOpacity
+                onPress={() => handleViewMore('inApp')}
+                activeOpacity={0.85}>
+                <YearlySpendCard
+                  amount={yearlyTotal}
+                  currencyCode={summaryCurrency}
+                  currencySymbol={currencySymbol}
+                  label="Yearly spend summary"
+                  disableSwipe={true}
                 />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptySection}>
-              <Text style={styles.emptySectionText}>No in-app expenses yet</Text>
-            </View>
-          )}
+              </TouchableOpacity>
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent external expenses</Text>
-            {recentExternalExpenses.length > 0 && (
-              <ViewMoreButton onPress={() => handleViewMore('external')} />
-            )}
-          </View>
-          {recentExternalExpenses.length > 0 ? (
-            <View style={styles.cardsContainer}>
-              {recentExternalExpenses.map(expense => (
-                <ExpenseCard
-                  key={expense.id}
-                  title={expense.title}
-                  categoryLabel={resolveCategoryLabel(expense.category)}
-                  subcategoryLabel={resolveSubcategoryLabel(expense.category, expense.subcategory)}
-                  visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
-                  date={expense.date}
-                  amount={expense.amount}
-                  currencyCode={expense.currencyCode}
-                  onPressView={() => handleViewExpense(expense.id)}
-                  onPressEdit={() => handleEditExpense(expense.id)}
-                  showEditAction
-                  showPayButton={false}
-                  isPaid
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptySection}>
-              <Text style={styles.emptySectionText}>No external expenses yet</Text>
-            </View>
-          )}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent in-app expenses</Text>
+                {recentInAppExpenses.length > 0 && (
+                  <ViewMoreButton onPress={() => handleViewMore('inApp')} />
+                )}
+              </View>
+              {recentInAppExpenses.length > 0 ? (
+                <View style={styles.cardsContainer}>
+                  {recentInAppExpenses.map(expense => (
+                    <ExpenseCard
+                      key={expense.id}
+                      title={expense.title}
+                      categoryLabel={resolveCategoryLabel(expense.category)}
+                      subcategoryLabel={resolveSubcategoryLabel(
+                        expense.category,
+                        expense.subcategory,
+                      )}
+                      visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
+                      date={expense.date}
+                      amount={expense.amount}
+                      currencyCode={expense.currencyCode}
+                      onPressView={() => handleViewExpense(expense.id)}
+                      showEditAction={false}
+                      showPayButton={
+                        isExpensePaymentPending(expense) && hasInvoice(expense)
+                      }
+                      isPaid={isExpensePaid(expense)}
+                      onPressPay={
+                        isExpensePaymentPending(expense) && hasInvoice(expense)
+                          ? () => {
+                              if (!processingPayment) {
+                                openPaymentScreen(expense);
+                              }
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptySection}>
+                  <Text style={styles.emptySectionText}>
+                    No in-app expenses yet
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  Recent external expenses
+                </Text>
+                {recentExternalExpenses.length > 0 && (
+                  <ViewMoreButton onPress={() => handleViewMore('external')} />
+                )}
+              </View>
+              {recentExternalExpenses.length > 0 ? (
+                <View style={styles.cardsContainer}>
+                  {recentExternalExpenses.map(expense => (
+                    <ExpenseCard
+                      key={expense.id}
+                      title={expense.title}
+                      categoryLabel={resolveCategoryLabel(expense.category)}
+                      subcategoryLabel={resolveSubcategoryLabel(
+                        expense.category,
+                        expense.subcategory,
+                      )}
+                      visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
+                      date={expense.date}
+                      amount={expense.amount}
+                      currencyCode={expense.currencyCode}
+                      onPressView={() => handleViewExpense(expense.id)}
+                      onPressEdit={() => handleEditExpense(expense.id)}
+                      showEditAction
+                      showPayButton={false}
+                      isPaid
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptySection}>
+                  <Text style={styles.emptySectionText}>
+                    No external expenses yet
+                  </Text>
+                </View>
+              )}
             </ScrollView>
           )
         }

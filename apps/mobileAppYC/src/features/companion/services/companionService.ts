@@ -78,35 +78,6 @@ const normalizeLegacyExtensionUrls = (
   };
 };
 
-const normalizeOutgoingExtensionUrls = (
-  payload: CompanionRequestDTO,
-): CompanionRequestDTO => {
-  if (!payload?.extension?.length) {
-    return payload;
-  }
-
-  const normalizedExtensions = payload.extension.map(extension => {
-    if (
-      typeof extension.url === 'string' &&
-      extension.url.startsWith(CURRENT_EXTENSION_PREFIX)
-    ) {
-      return {
-        ...extension,
-        url: extension.url.replace(
-          CURRENT_EXTENSION_PREFIX,
-          LEGACY_EXTENSION_PREFIX,
-        ),
-      };
-    }
-    return extension;
-  });
-
-  return {
-    ...payload,
-    extension: normalizedExtensions,
-  };
-};
-
 const resolveRemoteProfileImage = async ({
   imageUri,
   existingRemoteUrl,
@@ -771,9 +742,7 @@ export const companionApi = {
       ...params.payload,
       profileImage: remotePhoto ?? null,
     });
-    const fhirPayload = normalizeOutgoingExtensionUrls(
-      toFHIRCompanion(backendCompanion),
-    );
+    const fhirPayload = toFHIRCompanion(backendCompanion);
     const {data} = await postCompanion(
       params.parentId,
       fhirPayload,
@@ -799,9 +768,7 @@ export const companionApi = {
       ...params.companion,
       profileImage: remotePhoto ?? null,
     });
-    const fhirPayload = normalizeOutgoingExtensionUrls(
-      toFHIRCompanion(backendCompanion),
-    );
+    const fhirPayload = toFHIRCompanion(backendCompanion);
     const {data} = await putCompanion(
       params.companion.id,
       fhirPayload,

@@ -10,44 +10,42 @@ import {
   selectAvailabilityFor,
   selectInvoiceForAppointment,
 } from '../../../src/features/appointments/selectors';
-import type { RootState } from '../../../src/app/store';
+import type {RootState} from '../../../src/app/store';
 
 describe('Appointment Selectors', () => {
   // --- Mock Data ---
   const mockAppointments = [
-    { id: '1', companionId: 'c1', status: 'PENDING', date: '2025-01-01' },
-    { id: '2', companionId: 'c1', status: 'COMPLETED', date: '2024-01-01' },
-    { id: '3', companionId: 'c2', status: 'CANCELLED', date: '2024-01-01' },
-    { id: '4', companionId: 'c1', status: 'CONFIRMED', date: '2025-02-01' },
+    {id: '1', companionId: 'c1', status: 'PENDING', date: '2025-01-01'},
+    {id: '2', companionId: 'c1', status: 'COMPLETED', date: '2024-01-01'},
+    {id: '3', companionId: 'c2', status: 'CANCELLED', date: '2024-01-01'},
+    {id: '4', companionId: 'c1', status: 'CONFIRMED', date: '2025-02-01'},
   ];
 
   const mockBusinesses = [
-    { id: 'b1', name: 'Vet A', category: 'veterinarian' },
-    { id: 'b2', name: 'Groomer B', category: 'groomer' },
-    { id: 'b3', name: 'Vet C', category: 'veterinarian' },
+    {id: 'b1', name: 'Vet A', category: 'veterinarian'},
+    {id: 'b2', name: 'Groomer B', category: 'groomer'},
+    {id: 'b3', name: 'Vet C', category: 'veterinarian'},
   ];
 
   const mockServices = [
-    { id: 's1', businessId: 'b1', name: 'Checkup' },
-    { id: 's2', businessId: 'b1', name: 'Surgery' },
-    { id: 's3', businessId: 'b2', name: 'Wash' },
+    {id: 's1', businessId: 'b1', name: 'Checkup'},
+    {id: 's2', businessId: 'b1', name: 'Surgery'},
+    {id: 's3', businessId: 'b2', name: 'Wash'},
   ];
 
   const mockEmployees = [
-    { id: 'e1', businessId: 'b1', name: 'Doc A' },
-    { id: 'e2', businessId: 'b1', name: 'Nurse B' },
-    { id: 'e3', businessId: 'b2', name: 'Groomer C' },
+    {id: 'e1', businessId: 'b1', name: 'Doc A'},
+    {id: 'e2', businessId: 'b1', name: 'Nurse B'},
+    {id: 'e3', businessId: 'b2', name: 'Groomer C'},
   ];
 
   const mockAvailability = [
-    { businessId: 'b1', serviceId: 's1', slots: ['10:00'] },
-    { businessId: 'b1', employeeId: 'e1', slots: ['11:00'] },
-    { businessId: 'b1', slots: ['09:00'] }, // General business availability
+    {businessId: 'b1', serviceId: 's1', slots: ['10:00']},
+    {businessId: 'b1', employeeId: 'e1', slots: ['11:00']},
+    {businessId: 'b1', slots: ['09:00']}, // General business availability
   ];
 
-  const mockInvoices = [
-    { id: 'inv1', appointmentId: '1', amount: 100 },
-  ];
+  const mockInvoices = [{id: 'inv1', appointmentId: '1', amount: 100}];
 
   const mockState: RootState = {
     appointments: {
@@ -83,12 +81,14 @@ describe('Appointment Selectors', () => {
       it('filters appointments by companionId', () => {
         const result = selectByCompanion(mockState, 'c1');
         expect(result).toHaveLength(3); // id: 1, 2, 4
-        expect(result.map((a: any) => a.id)).toEqual(expect.arrayContaining(['1', '2', '4']));
+        expect(result.map((a: any) => a.id)).toEqual(
+          expect.arrayContaining(['1', '2', '4']),
+        );
       });
 
-      it('returns all appointments if companionId is null', () => {
+      it('returns empty array if companionId is null', () => {
         const result = selectByCompanion(mockState, null);
-        expect(result).toHaveLength(4);
+        expect(result).toHaveLength(0);
       });
 
       it('returns empty array if state.appointments is undefined', () => {
@@ -104,7 +104,9 @@ describe('Appointment Selectors', () => {
         // c1 has: 1(PENDING), 2(COMPLETED), 4(CONFIRMED) -> Expect 1, 4
         const result = selectUpcoming(mockState, 'c1');
         expect(result).toHaveLength(2);
-        expect(result.map((a: any) => a.id)).toEqual(expect.arrayContaining(['1', '4']));
+        expect(result.map((a: any) => a.id)).toEqual(
+          expect.arrayContaining(['1', '4']),
+        );
       });
 
       it('filters out COMPLETED and CANCELLED statuses', () => {
@@ -143,7 +145,9 @@ describe('Appointment Selectors', () => {
       it('filters businesses by category', () => {
         const result = selectByCategory(mockState, 'veterinarian' as any);
         expect(result).toHaveLength(2); // b1, b3
-        expect(result.map((b: any) => b.id)).toEqual(expect.arrayContaining(['b1', 'b3']));
+        expect(result.map((b: any) => b.id)).toEqual(
+          expect.arrayContaining(['b1', 'b3']),
+        );
       });
 
       it('returns all businesses if category is undefined', () => {
@@ -222,7 +226,7 @@ describe('Appointment Selectors', () => {
     // 1. Service ID Priority
     it('returns service-specific availability if serviceId provided and found', () => {
       // opts: { serviceId: 's1' } matches first mock entry
-      const selector = selectAvailabilityFor('b1', { serviceId: 's1' });
+      const selector = selectAvailabilityFor('b1', {serviceId: 's1'});
       const result = selector(mockState);
       expect(result).toEqual(mockAvailability[0]);
     });
@@ -230,7 +234,7 @@ describe('Appointment Selectors', () => {
     // 2. Employee ID Priority
     it('returns employee-specific availability if employeeId provided and found', () => {
       // opts: { employeeId: 'e1' } matches second mock entry
-      const selector = selectAvailabilityFor('b1', { employeeId: 'e1' });
+      const selector = selectAvailabilityFor('b1', {employeeId: 'e1'});
       const result = selector(mockState);
       expect(result).toEqual(mockAvailability[1]);
     });
@@ -245,7 +249,10 @@ describe('Appointment Selectors', () => {
     // 7. Prioritization check: Service > Employee
     it('prioritizes service over employee if both provided', () => {
       // s1 matches, e1 also matches a different entry. Should return s1 entry.
-      const selector = selectAvailabilityFor('b1', { serviceId: 's1', employeeId: 'e1' });
+      const selector = selectAvailabilityFor('b1', {
+        serviceId: 's1',
+        employeeId: 'e1',
+      });
       const result = selector(mockState);
       expect(result).toEqual(mockAvailability[0]); // s1 entry
     });

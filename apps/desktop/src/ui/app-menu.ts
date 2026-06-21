@@ -54,6 +54,13 @@ const tr = (key: MessageKey): string => translateMessage(key, app.getLocale());
 export const createAppMenu = (actions: MenuActions): void => {
   const isMac = process.platform === 'darwin';
 
+  // Forward a shortcut id to the focused tab's renderer. Find / Find Next /
+  // Find Previous each repeated this inline.
+  const sendShortcut = (shortcutId: string): void => {
+    const wc = actions.activeContents();
+    if (wc && !wc.isDestroyed()) wc.send('yc:shortcut', shortcutId);
+  };
+
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
       ? [
@@ -174,32 +181,17 @@ export const createAppMenu = (actions: MenuActions): void => {
         {
           label: 'Find…',
           accelerator: 'CmdOrCtrl+F',
-          click: () => {
-            const wc = actions.activeContents();
-            if (wc && !wc.isDestroyed()) {
-              wc.send('yc:shortcut', 'find-in-page');
-            }
-          },
+          click: () => sendShortcut('find-in-page'),
         },
         {
           label: 'Find Next',
           accelerator: 'CmdOrCtrl+G',
-          click: () => {
-            const wc = actions.activeContents();
-            if (wc && !wc.isDestroyed()) {
-              wc.send('yc:shortcut', 'find-next');
-            }
-          },
+          click: () => sendShortcut('find-next'),
         },
         {
           label: 'Find Previous',
           accelerator: 'CmdOrCtrl+Shift+G',
-          click: () => {
-            const wc = actions.activeContents();
-            if (wc && !wc.isDestroyed()) {
-              wc.send('yc:shortcut', 'find-previous');
-            }
-          },
+          click: () => sendShortcut('find-previous'),
         },
       ],
     },
@@ -279,7 +271,7 @@ export const createAppMenu = (actions: MenuActions): void => {
           label: 'Generate DEA Biennial Report…',
           click: actions.generateDeaReportAction,
         },
-        { label: 'PMP Submission Status', click: actions.showPmpStatus },
+        { label: 'PMP Reporting…', click: actions.showPmpStatus },
       ],
     },
     {

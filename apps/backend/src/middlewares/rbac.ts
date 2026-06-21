@@ -1,5 +1,6 @@
 // src/middlewares/rbac.ts
 import { NextFunction, Response, Request } from "express";
+import { Types } from "mongoose";
 import {
   Permission,
   ROLE_PERMISSIONS,
@@ -153,9 +154,11 @@ export function withAppointmentOrgPermissions() {
           where: { id: appointmentId },
           select: { organisationId: true },
         })
-      : await AppointmentModel.findById(appointmentId, {
-          organisationId: 1,
-        }).lean();
+      : Types.ObjectId.isValid(appointmentId)
+        ? await AppointmentModel.findById(appointmentId, {
+            organisationId: 1,
+          }).lean()
+        : null;
 
     const organisationId = appointment?.organisationId ?? null;
     if (!organisationId) {
@@ -257,9 +260,11 @@ export function withTaskOrgPermissions() {
           where: { id: taskId },
           select: { organisationId: true },
         })
-      : await TaskModel.findById(taskId, {
-          organisationId: 1,
-        }).lean();
+      : Types.ObjectId.isValid(taskId)
+        ? await TaskModel.findById(taskId, {
+            organisationId: 1,
+          }).lean()
+        : null;
 
     const organisationId = task?.organisationId ?? null;
     if (!organisationId) {

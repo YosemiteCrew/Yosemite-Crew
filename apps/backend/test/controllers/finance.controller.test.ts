@@ -10,6 +10,7 @@ import { Request, Response } from "express";
 jest.mock("../../src/services/finance/payment", () => ({
   FinancePaymentService: {
     createCheckoutSessionForInvoice: jest.fn(),
+    createPaymentIntentForInvoice: jest.fn(),
     recordInvoicePayment: jest.fn(),
     refundPaymentById: jest.fn(),
   },
@@ -119,6 +120,62 @@ describe("FinanceController", () => {
     });
     expect(
       FinancePaymentService.createCheckoutSessionForInvoice,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("creates a mobile payment intent session for Stripe invoices", async () => {
+    (
+      FinancePaymentService.createPaymentIntentForInvoice as jest.Mock
+    ).mockResolvedValueOnce({
+      paymentIntentId: "pi_1",
+      clientSecret: "secret_1",
+      amount: 42,
+      currency: "usd",
+    });
+
+    const req = {
+      params: { invoiceId: "inv_1" },
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createMobileInvoicePaymentSession(req, res);
+
+    expect(
+      FinancePaymentService.createPaymentIntentForInvoice,
+    ).toHaveBeenCalledWith("inv_1");
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      data: {
+        paymentIntentId: "pi_1",
+        clientSecret: "secret_1",
+        amount: 42,
+        currency: "usd",
+      },
+      meta: null,
+      error: null,
+    });
+  });
+
+  it("returns 400 when the mobile invoice payment session is missing an invoice id", async () => {
+    const req = {
+      params: {},
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createMobileInvoicePaymentSession(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Invoice Id is required",
+    });
+    expect(
+      FinancePaymentService.createPaymentIntentForInvoice,
     ).not.toHaveBeenCalled();
   });
 

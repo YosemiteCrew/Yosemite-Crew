@@ -6,6 +6,7 @@ export type PrescriptionLineItem = {
   code?: string | null;
   quantity: number;
   unit?: string | null;
+  route?: string | null;
   inventoryItemId?: string | null;
   inventoryItemSku?: string | null;
   batchId?: string | null;

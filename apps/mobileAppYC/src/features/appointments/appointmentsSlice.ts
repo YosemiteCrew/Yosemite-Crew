@@ -7,6 +7,7 @@ import type {
   PaymentIntentInfo,
 } from './types';
 import {appointmentApi} from './services/appointmentsService';
+import {deleteCompanion} from '@/features/companion/thunks';
 import {
   getFreshStoredTokens,
   isTokenExpired,
@@ -52,6 +53,7 @@ type BookAppointmentInput = {
   concern?: string;
   emergency?: boolean;
   companionId: string;
+  appointmentKinds?: string[];
   attachments?: Array<{
     key: string;
     name?: string | null;
@@ -201,6 +203,7 @@ export const createAppointment = createAsyncThunk<
       status: 'REQUESTED',
       isEmergency: payload.emergency ?? false,
       concern: payload.concern ?? '',
+      appointmentKind: (payload.appointmentKinds?.[0] as any) ?? undefined,
       attachments: payload.attachments
         ?.filter(att => att.key)
         .map(att => ({
@@ -223,6 +226,11 @@ export const createAppointment = createAsyncThunk<
           !participant?.actor?.reference?.startsWith('RelatedPerson/'),
       );
     }
+
+    console.log(
+      '[createAppointment] bookPayload:',
+      JSON.stringify(bookPayload, null, 2),
+    );
 
     const {appointment, invoice, paymentIntent} =
       await appointmentApi.bookAppointment({
@@ -346,11 +354,15 @@ export const cancelAppointment = createAsyncThunk(
 
 export const fetchPaymentIntentForAppointment = createAsyncThunk(
   'appointments/fetchPaymentIntent',
-  async ({appointmentId}: {appointmentId: string}, {rejectWithValue}) => {
+  async (
+    {appointmentId, invoiceId}: {appointmentId: string; invoiceId?: string},
+    {rejectWithValue},
+  ) => {
     try {
       const accessToken = await ensureAccessToken();
       const intent = await appointmentApi.createPaymentIntent({
         appointmentId,
+        invoiceId,
         accessToken,
       });
       return {appointmentId, intent};
@@ -576,6 +588,17 @@ const appointmentsSlice = createSlice({
         if (aptIdx >= 0 && paymentIntent) {
           state.items[aptIdx] = {...state.items[aptIdx], paymentIntent};
         }
+      })
+      .addCase(deleteCompanion.fulfilled, (state, action) => {
+        const deletedId = action.payload;
+        const deletedAppointmentIds = new Set(
+          state.items.filter(a => a.companionId === deletedId).map(a => a.id),
+        );
+        state.items = state.items.filter(a => a.companionId !== deletedId);
+        state.invoices = state.invoices.filter(
+          inv => !deletedAppointmentIds.has(inv.appointmentId),
+        );
+        delete state.hydratedCompanions[deletedId];
       })
       .addCase(recordPayment.fulfilled, (state, action) => {
         const refreshed = (action.payload as any)?.appointment as

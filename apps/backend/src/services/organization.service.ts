@@ -454,6 +454,14 @@ const sanitizeBusinessAttributes = (
     dto.appointmentCheckInRadiusMeters,
     "Appointment check-in radius meters",
   );
+  const appointmentLockWindowOutpatientMinutes = optionalNonNegativeInteger(
+    dto.appointmentLockWindowOutpatientMinutes,
+    "Appointment lock window outpatient minutes",
+  );
+  const appointmentLockWindowInpatientMinutes = optionalNonNegativeInteger(
+    dto.appointmentLockWindowInpatientMinutes,
+    "Appointment lock window inpatient minutes",
+  );
   const checkInConfig = resolveCheckInConfig({
     appointmentCheckInBufferMinutes,
     appointmentCheckInRadiusMeters,
@@ -482,6 +490,8 @@ const sanitizeBusinessAttributes = (
       checkInConfig.appointmentCheckInBufferMinutes,
     appointmentCheckInRadiusMeters:
       checkInConfig.appointmentCheckInRadiusMeters,
+    appointmentLockWindowOutpatientMinutes,
+    appointmentLockWindowInpatientMinutes,
   };
 };
 
@@ -499,6 +509,10 @@ const buildFHIRResponseFromPrisma = (
       appointmentCheckInRadiusMeters:
         organisation.appointmentCheckInRadiusMeters,
     }),
+    appointmentLockWindowOutpatientMinutes:
+      organisation.appointmentLockWindowOutpatientMinutes ?? undefined,
+    appointmentLockWindowInpatientMinutes:
+      organisation.appointmentLockWindowInpatientMinutes ?? undefined,
     _id: organisation.fhirId ?? organisation.id,
     name: organisation.name,
     taxId: organisation.taxId ?? "",
@@ -616,6 +630,10 @@ export const OrganizationService = {
       appointmentCheckInRadiusMeters:
         persistable.appointmentCheckInRadiusMeters ??
         DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+      appointmentLockWindowOutpatientMinutes:
+        persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
+      appointmentLockWindowInpatientMinutes:
+        persistable.appointmentLockWindowInpatientMinutes ?? undefined,
     };
 
     const organisation = existing
@@ -803,6 +821,10 @@ export const OrganizationService = {
         appointmentCheckInRadiusMeters:
           persistable.appointmentCheckInRadiusMeters ??
           DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+        appointmentLockWindowOutpatientMinutes:
+          persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
+        appointmentLockWindowInpatientMinutes:
+          persistable.appointmentLockWindowInpatientMinutes ?? undefined,
       },
     });
 

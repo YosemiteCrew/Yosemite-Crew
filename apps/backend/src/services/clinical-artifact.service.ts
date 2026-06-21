@@ -3,11 +3,17 @@ import {
   ClinicalArtifactKind,
   ClinicalArtifactStatus,
 } from "@prisma/client";
+import {
+  buildRenderedDocumentPdfSnapshot,
+  type RenderedDocumentKind,
+} from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
+import { uploadBufferAsFile } from "src/middlewares/upload";
 import {
   createRenderedDocumentRecord,
   type PersistRenderedDocumentInput,
 } from "src/services/rendered-document.service";
+import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
 import { InventoryConsumptionService } from "src/services/inventory-consumption.service";
 
 export class ClinicalArtifactServiceError extends Error {
@@ -43,11 +49,18 @@ type SoapNoteWithArtifact = Prisma.SoapNoteGetPayload<{
 }>;
 
 type PrescriptionWithArtifact = Prisma.PrescriptionGetPayload<{
-  include: { artifact: true };
+  include: { artifact: true; items: true };
 }>;
 
-type PrescriptionModel =
-  Prisma.PrescriptionGetPayload<Prisma.PrescriptionDefaultArgs>;
+type PrescriptionItemModel =
+  Prisma.PrescriptionItemGetPayload<Prisma.PrescriptionItemDefaultArgs>;
+
+type PrescriptionModel = Prisma.PrescriptionGetPayload<{
+  include: { items: true };
+}>;
+
+type PrescriptionDispenseRequestModel =
+  Prisma.PrescriptionDispenseRequestGetPayload<Prisma.PrescriptionDispenseRequestDefaultArgs>;
 
 type DischargeSummaryWithArtifact = Prisma.DischargeSummaryGetPayload<{
   include: { artifact: true };
@@ -73,6 +86,17 @@ type ClinicalPrisma = typeof prisma & {
     ): Promise<PrescriptionWithArtifact[]>;
     create(args: Prisma.PrescriptionCreateArgs): Promise<PrescriptionModel>;
     update(args: Prisma.PrescriptionUpdateArgs): Promise<PrescriptionModel>;
+  };
+  prescriptionDispenseRequest: {
+    findFirst(
+      args: Prisma.PrescriptionDispenseRequestFindFirstArgs,
+    ): Promise<PrescriptionDispenseRequestModel | null>;
+    create(
+      args: Prisma.PrescriptionDispenseRequestCreateArgs,
+    ): Promise<PrescriptionDispenseRequestModel>;
+    update(
+      args: Prisma.PrescriptionDispenseRequestUpdateArgs,
+    ): Promise<PrescriptionDispenseRequestModel>;
   };
   dischargeSummary: {
     findUnique(
@@ -102,16 +126,171 @@ type ClinicalPrisma = typeof prisma & {
 
 const clinicalPrisma = prisma as ClinicalPrisma;
 
-const shouldConsumeInventoryForPrescription = (
+const shouldCreateDispenseRequestForPrescription = (
   status: ClinicalArtifactStatus,
 ) => status === "SIGNED" || status === "COMPLETED";
 
-const isSamePrescriptionPayload = (
-  nextMedications: unknown,
-  previousMedications: unknown,
-) =>
-  JSON.stringify(nextMedications ?? null) ===
-  JSON.stringify(previousMedications ?? null);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+type PrescriptionItemInput = {
+  sourceLineKey?: string;
+  medication: string;
+  strength?: string;
+  dosage?: string;
+  route?: string;
+  frequency?: string;
+  duration?: string;
+  quantity?: number;
+  instructions?: string;
+  inventoryItemId?: string;
+  inventoryItemSku?: string;
+  batchId?: string;
+  batchNumber?: string;
+  lotNumber?: string;
+  expiryDate?: Date | string;
+  metadata?: unknown;
+  sortOrder: number;
+};
+
+const readPrescriptionItemString = (
+  item: Record<string, unknown>,
+  keys: string[],
+): string | undefined => {
+  for (const key of keys) {
+    const value = item[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+};
+
+const readPrescriptionItemQuantity = (
+  item: Record<string, unknown>,
+  keys: string[],
+): number | undefined => {
+  for (const key of keys) {
+    const value = item[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const quantity = Math.trunc(value);
+      if (quantity > 0) {
+        return quantity;
+      }
+      continue;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        const quantity = Math.trunc(parsed);
+        if (quantity > 0) {
+          return quantity;
+        }
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const normalizePrescriptionItemInputs = (
+  value: unknown,
+): PrescriptionItemInput[] => {
+  const source = Array.isArray(value) ? value : [];
+
+  return source.map((item, index) => {
+    if (!isRecord(item)) {
+      return {
+        medication: String(item ?? "").trim(),
+        sortOrder: index,
+      } as PrescriptionItemInput;
+    }
+
+    return {
+      sourceLineKey: readPrescriptionItemString(item, ["sourceLineKey", "id"]),
+      medication:
+        readPrescriptionItemString(item, [
+          "medication",
+          "name",
+          "drug",
+          "product",
+        ]) ?? "",
+      strength: readPrescriptionItemString(item, ["strength", "doseStrength"]),
+      dosage: readPrescriptionItemString(item, ["dosage", "dose"]),
+      route: readPrescriptionItemString(item, [
+        "route",
+        "routeOfAdministration",
+        "administrationRoute",
+      ]),
+      frequency: readPrescriptionItemString(item, ["frequency", "freq"]),
+      duration: readPrescriptionItemString(item, ["duration", "days"]),
+      quantity: readPrescriptionItemQuantity(item, [
+        "quantity",
+        "qty",
+        "units",
+        "count",
+        "dispenseQuantity",
+      ]),
+      instructions: readPrescriptionItemString(item, [
+        "instructions",
+        "instruction",
+        "sig",
+      ]),
+      inventoryItemId: readPrescriptionItemString(item, ["inventoryItemId"]),
+      inventoryItemSku: readPrescriptionItemString(item, [
+        "inventoryItemSku",
+        "sku",
+      ]),
+      batchId: readPrescriptionItemString(item, ["batchId"]),
+      batchNumber: readPrescriptionItemString(item, ["batchNumber"]),
+      lotNumber: readPrescriptionItemString(item, ["lotNumber"]),
+      expiryDate:
+        item.expiryDate instanceof Date || typeof item.expiryDate === "string"
+          ? item.expiryDate
+          : undefined,
+      metadata: isRecord(item.metadata) ? item.metadata : null,
+      sortOrder: index,
+    } as PrescriptionItemInput;
+  });
+};
+
+const prescriptionItemRowsToCreate = (items: PrescriptionItemInput[]) =>
+  items.map((item) => ({
+    medication: item.medication,
+    strength: item.strength,
+    dosage: item.dosage,
+    route: item.route,
+    frequency: item.frequency,
+    duration: item.duration,
+    quantity: item.quantity === undefined ? undefined : String(item.quantity),
+    instructions: item.instructions,
+    sortOrder: item.sortOrder,
+  }));
+
+const prescriptionItemsToJson = (items: PrescriptionItemInput[]) =>
+  items.map((item) => ({
+    sourceLineKey: item.sourceLineKey,
+    medication: item.medication,
+    strength: item.strength,
+    dosage: item.dosage,
+    route: item.route,
+    frequency: item.frequency,
+    duration: item.duration,
+    quantity: item.quantity,
+    instructions: item.instructions,
+    inventoryItemId: item.inventoryItemId,
+    inventoryItemSku: item.inventoryItemSku,
+    batchId: item.batchId,
+    batchNumber: item.batchNumber,
+    lotNumber: item.lotNumber,
+    expiryDate:
+      item.expiryDate instanceof Date
+        ? item.expiryDate.toISOString()
+        : item.expiryDate,
+    metadata: item.metadata ?? undefined,
+  }));
 
 export type SoapNoteInput = ClinicalArtifactBaseInput & {
   subjective?: unknown;
@@ -170,6 +349,7 @@ export type SoapNoteRecord = {
 };
 
 export type PrescriptionInput = ClinicalArtifactBaseInput & {
+  items?: unknown;
   medications?: unknown;
   instructions?: unknown;
   notes?: unknown;
@@ -179,7 +359,13 @@ export type PrescriptionInput = ClinicalArtifactBaseInput & {
 export type PrescriptionUpdateInput = Partial<
   Pick<
     PrescriptionInput,
-    "status" | "summary" | "medications" | "instructions" | "notes" | "metadata"
+    | "status"
+    | "summary"
+    | "items"
+    | "medications"
+    | "instructions"
+    | "notes"
+    | "metadata"
   >
 >;
 
@@ -190,6 +376,7 @@ export type PrescriptionRecord = {
   prescription: {
     id: string;
     artifactId: string;
+    items: PrescriptionItemModel[];
     medications: Prisma.JsonValue | null;
     instructions: Prisma.JsonValue | null;
     notes: Prisma.JsonValue | null;
@@ -338,6 +525,70 @@ const buildClinicalArtifactRenderedDocumentInput = (artifact: {
   clinicalArtifactId: artifact.id,
 });
 
+const persistClinicalArtifactRenderedDocumentPdf = async (
+  artifactId: string,
+) => {
+  const renderedDocument = await prisma.renderedDocument.findUnique({
+    where: { clinicalArtifactId: ensureId(artifactId, "artifactId") },
+  });
+
+  if (!renderedDocument) {
+    return;
+  }
+
+  const renderedPdf = await renderRenderedDocumentPdfWithMetadata({
+    title: renderedDocument.title,
+    source: {
+      sourceKind: renderedDocument.sourceKind,
+      sourceId: renderedDocument.sourceId,
+      organisationId: renderedDocument.organisationId,
+      templateKind: renderedDocument.kind as ClinicalArtifactKind,
+      templateId: renderedDocument.templateId,
+      templateVersion: renderedDocument.templateVersion,
+      templateVersionId: renderedDocument.templateVersionId,
+    },
+  });
+
+  const upload = await uploadBufferAsFile(renderedPdf.pdf, {
+    folderName: `rendered-documents/${renderedDocument.organisationId}`,
+    mimeType: "application/pdf",
+    originalName: `${renderedDocument.kind.toLowerCase().replaceAll("_", "-")}-${renderedDocument.id}.pdf`,
+  });
+
+  const nextPdf =
+    renderedDocument.pdf &&
+    typeof renderedDocument.pdf === "object" &&
+    !Array.isArray(renderedDocument.pdf)
+      ? {
+          ...(renderedDocument.pdf as Record<string, unknown>),
+          signaturePlacement: renderedPdf.signaturePlacement,
+        }
+      : {
+          ...buildRenderedDocumentPdfSnapshot({
+            title: renderedDocument.title,
+            kind: renderedDocument.kind as RenderedDocumentKind,
+            source: {
+              sourceKind: renderedDocument.sourceKind,
+              sourceId: renderedDocument.sourceId,
+              organisationId: renderedDocument.organisationId,
+              templateKind: renderedDocument.kind as ClinicalArtifactKind,
+              templateId: renderedDocument.templateId,
+              templateVersion: renderedDocument.templateVersion,
+              templateVersionId: renderedDocument.templateVersionId,
+            },
+          }),
+          signaturePlacement: renderedPdf.signaturePlacement,
+        };
+
+  await prisma.renderedDocument.update({
+    where: { id: renderedDocument.id },
+    data: {
+      pdfUrl: upload.url,
+      pdf: nextPdf as Prisma.InputJsonValue,
+    },
+  });
+};
+
 const assertArtifactKind = (
   artifact: { kind: ClinicalArtifactKind; organisationId: string },
   expectedKind: ClinicalArtifactKind,
@@ -383,6 +634,7 @@ const toPrescriptionRecord = (
   buildPrescriptionRecord(record.artifact, {
     id: record.id,
     artifactId: record.artifactId,
+    items: record.items,
     medications: record.medications,
     instructions: record.instructions,
     notes: record.notes,
@@ -456,7 +708,7 @@ const loadSoapNoteOrThrow = async (soapNoteId: string) => {
 const loadPrescriptionOrThrow = async (prescriptionId: string) => {
   const prescription = await clinicalPrisma.prescription.findUnique({
     where: { id: ensureId(prescriptionId, "prescriptionId") },
-    include: { artifact: true },
+    include: { artifact: true, items: true },
   });
 
   if (!prescription) {
@@ -651,6 +903,10 @@ export const ClinicalArtifactService = {
       };
     });
 
+    if (DOCUMENT_BACKED_CLINICAL_KINDS.has(artifact.artifact.kind)) {
+      await persistClinicalArtifactRenderedDocumentPdf(artifact.artifact.id);
+    }
+
     return artifact;
   },
 
@@ -717,6 +973,10 @@ export const ClinicalArtifactService = {
 
       return { artifact, soapNote };
     });
+
+    if (DOCUMENT_BACKED_CLINICAL_KINDS.has(updated.artifact.kind)) {
+      await persistClinicalArtifactRenderedDocumentPdf(updated.artifact.id);
+    }
 
     return updated;
   },
@@ -803,11 +1063,21 @@ export const ClinicalArtifactService = {
       const createdPrescription = await txPrisma.prescription.create({
         data: {
           artifactId: createdArtifact.id,
-          medications: toNullableJsonInput(input.medications),
+          medications: toNullableJsonInput(
+            prescriptionItemsToJson(
+              normalizePrescriptionItemInputs(input.items ?? input.medications),
+            ),
+          ),
+          items: {
+            create: prescriptionItemRowsToCreate(
+              normalizePrescriptionItemInputs(input.items ?? input.medications),
+            ),
+          },
           instructions: toNullableJsonInput(input.instructions),
           notes: toNullableJsonInput(input.notes),
           metadata: toNullableJsonInput(input.metadata),
         },
+        include: { items: true },
       });
 
       if (DOCUMENT_BACKED_CLINICAL_KINDS.has(createdArtifact.kind)) {
@@ -827,14 +1097,19 @@ export const ClinicalArtifactService = {
       return buildPrescriptionRecord(createdArtifact, createdPrescription);
     });
 
-    if (shouldConsumeInventoryForPrescription(artifact.artifact.status)) {
-      await InventoryConsumptionService.consumePrescription({
+    if (DOCUMENT_BACKED_CLINICAL_KINDS.has(artifact.artifact.kind)) {
+      await persistClinicalArtifactRenderedDocumentPdf(artifact.artifact.id);
+    }
+
+    if (shouldCreateDispenseRequestForPrescription(artifact.artifact.status)) {
+      await InventoryConsumptionService.createPrescriptionDispenseRequest({
         organisationId,
         prescriptionId: artifact.prescription.id,
         medications: artifact.prescription.medications,
         metadata: artifact.prescription.metadata as
           | Prisma.InputJsonValue
           | undefined,
+        requestedBy: artifact.artifact.authorId,
       });
     }
 
@@ -882,9 +1157,26 @@ export const ClinicalArtifactService = {
         where: { id: record.id },
         data: {
           medications:
-            input.medications === undefined
+            input.items === undefined && input.medications === undefined
               ? toNullableJsonInput(record.medications)
-              : toNullableJsonInput(input.medications),
+              : toNullableJsonInput(
+                  prescriptionItemsToJson(
+                    normalizePrescriptionItemInputs(
+                      input.items ?? input.medications,
+                    ),
+                  ),
+                ),
+          items:
+            input.items === undefined && input.medications === undefined
+              ? undefined
+              : {
+                  deleteMany: {},
+                  create: prescriptionItemRowsToCreate(
+                    normalizePrescriptionItemInputs(
+                      input.items ?? input.medications,
+                    ),
+                  ),
+                },
           instructions:
             input.instructions === undefined
               ? toNullableJsonInput(record.instructions)
@@ -898,53 +1190,42 @@ export const ClinicalArtifactService = {
               ? toNullableJsonInput(record.metadata)
               : toNullableJsonInput(input.metadata),
         },
+        include: { items: true },
       });
 
       return buildPrescriptionRecord(artifact, prescription);
     });
 
-    const wasConsumed = shouldConsumeInventoryForPrescription(
-      record.artifact.status,
-    );
-    const isConsumed = shouldConsumeInventoryForPrescription(
+    if (DOCUMENT_BACKED_CLINICAL_KINDS.has(updated.artifact.kind)) {
+      await persistClinicalArtifactRenderedDocumentPdf(updated.artifact.id);
+    }
+
+    const wasPendingDispenseRequest =
+      shouldCreateDispenseRequestForPrescription(record.artifact.status);
+    const isPendingDispenseRequest = shouldCreateDispenseRequestForPrescription(
       updated.artifact.status,
     );
-    const medicationChanged = !isSamePrescriptionPayload(
-      updated.prescription.medications,
-      record.medications,
-    );
 
-    if (wasConsumed && !isConsumed) {
-      await InventoryConsumptionService.releasePrescription({
-        organisationId: updated.artifact.organisationId,
-        prescriptionId: updated.prescription.id,
-        medications: record.medications,
-        metadata: record.metadata as Prisma.InputJsonValue | undefined,
-      });
-    } else if (!wasConsumed && isConsumed) {
-      await InventoryConsumptionService.consumePrescription({
+    if (!wasPendingDispenseRequest && isPendingDispenseRequest) {
+      await InventoryConsumptionService.createPrescriptionDispenseRequest({
         organisationId: updated.artifact.organisationId,
         prescriptionId: updated.prescription.id,
         medications: updated.prescription.medications,
         metadata: updated.prescription.metadata as
           | Prisma.InputJsonValue
           | undefined,
+        requestedBy: updated.artifact.authorId,
       });
-    } else if (wasConsumed && isConsumed && medicationChanged) {
-      await InventoryConsumptionService.releasePrescription({
-        organisationId: updated.artifact.organisationId,
-        prescriptionId: updated.prescription.id,
-        medications: record.medications,
-        metadata: record.metadata as Prisma.InputJsonValue | undefined,
-      });
-      await InventoryConsumptionService.consumePrescription({
-        organisationId: updated.artifact.organisationId,
-        prescriptionId: updated.prescription.id,
-        medications: updated.prescription.medications,
-        metadata: updated.prescription.metadata as
-          | Prisma.InputJsonValue
-          | undefined,
-      });
+    } else if (wasPendingDispenseRequest && !isPendingDispenseRequest) {
+      await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed(
+        {
+          organisationId: updated.artifact.organisationId,
+          prescriptionId: updated.prescription.id,
+          metadata: updated.prescription.metadata as
+            | Prisma.InputJsonValue
+            | undefined,
+        },
+      );
     }
 
     return updated;
@@ -977,7 +1258,7 @@ export const ClinicalArtifactService = {
           kind: "PRESCRIPTION",
         },
       },
-      include: { artifact: true },
+      include: { artifact: true, items: true },
       orderBy: { createdAt: "desc" },
     });
 
@@ -996,7 +1277,7 @@ export const ClinicalArtifactService = {
           kind: "PRESCRIPTION",
         },
       },
-      include: { artifact: true },
+      include: { artifact: true, items: true },
       orderBy: { createdAt: "desc" },
     });
 
@@ -1056,6 +1337,10 @@ export const ClinicalArtifactService = {
         createdDischargeSummary,
       );
     });
+
+    if (DOCUMENT_BACKED_CLINICAL_KINDS.has(artifact.artifact.kind)) {
+      await persistClinicalArtifactRenderedDocumentPdf(artifact.artifact.id);
+    }
 
     return artifact;
   },
@@ -1129,6 +1414,10 @@ export const ClinicalArtifactService = {
 
       return buildDischargeSummaryRecord(artifact, dischargeSummary);
     });
+
+    if (DOCUMENT_BACKED_CLINICAL_KINDS.has(updated.artifact.kind)) {
+      await persistClinicalArtifactRenderedDocumentPdf(updated.artifact.id);
+    }
 
     return updated;
   },
@@ -1239,6 +1528,10 @@ export const ClinicalArtifactService = {
       return buildVitalRecordRecord(createdArtifact, createdVitalRecord);
     });
 
+    if (DOCUMENT_BACKED_CLINICAL_KINDS.has(artifact.artifact.kind)) {
+      await persistClinicalArtifactRenderedDocumentPdf(artifact.artifact.id);
+    }
+
     return artifact;
   },
 
@@ -1307,6 +1600,10 @@ export const ClinicalArtifactService = {
 
       return buildVitalRecordRecord(artifact, vitalRecord);
     });
+
+    if (DOCUMENT_BACKED_CLINICAL_KINDS.has(updated.artifact.kind)) {
+      await persistClinicalArtifactRenderedDocumentPdf(updated.artifact.id);
+    }
 
     return updated;
   },

@@ -48,7 +48,7 @@ describe('useLocationPermission', () => {
       expect(result.current.userLocation).toBeNull();
     });
 
-    it('uses DEFAULT_CENTER as mapCenter when userLocation is null', async () => {
+    it('returns null for mapCenter and userCoords when userLocation is null', async () => {
       mockRequestAuthorization.mockImplementation(() => {});
       mockGetCurrentPosition.mockImplementation((_s: any, error: any) =>
         error(new Error('fail')),
@@ -57,11 +57,8 @@ describe('useLocationPermission', () => {
       const {result} = renderHook(() => useLocationPermission());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      expect(result.current.mapCenter).toEqual({
-        latitude: 37.7749,
-        longitude: -122.4194,
-      });
-      expect(result.current.userCoords).toEqual({lat: 37.7749, lng: -122.4194});
+      expect(result.current.mapCenter).toBeNull();
+      expect(result.current.userCoords).toBeNull();
     });
 
     it('uses userLocation as mapCenter and userCoords when available', async () => {

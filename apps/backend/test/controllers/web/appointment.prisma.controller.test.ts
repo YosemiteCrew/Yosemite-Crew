@@ -184,8 +184,34 @@ describe("AppointmentPrismaController", () => {
 
   it("checks in and updates appointments from PMS", async () => {
     req.params = { appointmentId: "appt_1" };
-    req.body = { resourceType: "Appointment" } as any;
+    req.body = {
+      admittedAt: "2026-06-11T12:00:00.000Z",
+      expectedStayDays: 3,
+      lead: {
+        id: "lead_1",
+        name: "Dr. Patel",
+      },
+      supportStaff: [
+        {
+          id: "staff_1",
+          name: "Nurse One",
+        },
+      ],
+      room: {
+        id: "room_1",
+        name: "ICU Room 1",
+      },
+      roomUnitId: "unit_1",
+      assignedAt: "2026-06-11T12:15:00.000Z",
+      assignedBy: "user_1",
+      assignmentReason: "Initial inpatient placement",
+    } as any;
     mockedService.checkInAppointment.mockResolvedValue({ id: "appt_1" } as any);
+    mockedService.admitAppointmentToInpatient.mockResolvedValue({
+      appointment: { id: "appt_1" },
+      admission: { encounterId: "enc_1", unitId: "unit_1" },
+      unitAssignment: { id: "assign_1", unitId: "unit_1" },
+    } as any);
     mockedService.updateAppointmentPMS.mockResolvedValue({
       id: "appt_1",
     } as any);
@@ -194,12 +220,38 @@ describe("AppointmentPrismaController", () => {
       req as any,
       res as any,
     );
+    await AppointmentController.admitFromPMS(req as any, res as any);
     await AppointmentController.updateFromPms(req as any, res as any);
 
     expect(mockedService.checkInAppointment).toHaveBeenCalledWith("appt_1");
+    expect(mockedService.admitAppointmentToInpatient).toHaveBeenCalledWith(
+      "appt_1",
+      expect.objectContaining({
+        admittedAt: new Date("2026-06-11T12:00:00.000Z"),
+        expectedStayDays: 3,
+        lead: {
+          id: "lead_1",
+          name: "Dr. Patel",
+        },
+        roomUnitId: "unit_1",
+        assignedAt: new Date("2026-06-11T12:15:00.000Z"),
+      }),
+    );
     expect(mockedService.updateAppointmentPMS).toHaveBeenCalledWith(
       "appt_1",
       req.body,
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Appointment admitted",
+        data: expect.objectContaining({
+          admission: expect.objectContaining({
+            encounterId: "enc_1",
+            unitId: "unit_1",
+          }),
+        }),
+      }),
     );
   });
 

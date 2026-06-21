@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import {
   InventoryConsumptionAction,
   InventoryConsumptionSourceType,
+  PrescriptionDispenseRequestStatus,
   Prisma,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
@@ -595,30 +596,105 @@ const runPrescriptionInventoryAction = async (params: {
   }
 
   return prisma.$transaction(async (tx) => {
-    const lines = await resolvePrescriptionLines(
-      tx,
+    return consumePrescriptionMedications(tx, {
       organisationId,
-      params.medications,
-    );
-    if (!lines.length) return [];
-
-    return consumeResolvedLines(
-      tx,
-      {
-        organisationId,
-        sourceType: "PRESCRIPTION",
-        sourceId: prescriptionId,
-        action: params.action,
-        metadata: params.metadata,
-        lines,
-      },
-      lines,
-      params.movementReason
-        ? { movementReason: params.movementReason }
-        : undefined,
-    );
+      prescriptionId,
+      medications: params.medications,
+      metadata: params.metadata,
+      action: params.action,
+      movementReason: params.movementReason,
+    });
   });
 };
+
+const consumePrescriptionMedications = async (
+  tx: Prisma.TransactionClient,
+  params: {
+    organisationId: string;
+    prescriptionId: string;
+    medications: unknown;
+    metadata?: Prisma.InputJsonValue;
+    action: InventoryConsumptionAction;
+    movementReason?: string;
+  },
+) => {
+  const lines = await resolvePrescriptionLines(
+    tx,
+    params.organisationId,
+    params.medications,
+  );
+  if (!lines.length) return [];
+
+  return consumeResolvedLines(
+    tx,
+    {
+      organisationId: params.organisationId,
+      sourceType: "PRESCRIPTION",
+      sourceId: params.prescriptionId,
+      action: params.action,
+      metadata: params.metadata,
+      lines,
+    },
+    lines,
+    params.movementReason
+      ? { movementReason: params.movementReason }
+      : undefined,
+  );
+};
+
+const upsertPendingDispenseRequest = async (
+  tx: Prisma.TransactionClient,
+  params: {
+    organisationId: string;
+    prescriptionId: string;
+    medications: unknown;
+    metadata?: Prisma.InputJsonValue;
+    requestedBy?: string | null;
+  },
+) => {
+  const existing = await tx.prescriptionDispenseRequest.findFirst({
+    where: {
+      organisationId: params.organisationId,
+      prescriptionId: params.prescriptionId,
+      status: "PENDING",
+    },
+    orderBy: { requestedAt: "desc" },
+  });
+
+  if (existing) {
+    return tx.prescriptionDispenseRequest.update({
+      where: { id: existing.id },
+      data: {
+        medications: params.medications as Prisma.InputJsonValue,
+        metadata: params.metadata,
+        requestedBy: params.requestedBy ?? existing.requestedBy ?? undefined,
+        reviewedBy: null,
+        reviewedAt: null,
+        status: "PENDING",
+      },
+    });
+  }
+
+  return tx.prescriptionDispenseRequest.create({
+    data: {
+      organisationId: params.organisationId,
+      prescriptionId: params.prescriptionId,
+      medications: params.medications as Prisma.InputJsonValue,
+      metadata: params.metadata,
+      requestedBy: params.requestedBy ?? undefined,
+      status: "PENDING",
+    },
+  });
+};
+
+const buildPrescriptionDispenseRequestInclude = () =>
+  ({
+    prescription: {
+      include: {
+        artifact: true,
+      },
+    },
+  }) as const;
 
 export const InventoryConsumptionService = {
   async upsertRule(input: InventoryConsumptionRuleInput) {
@@ -670,6 +746,186 @@ export const InventoryConsumptionService = {
     return prisma.inventoryConsumptionRule.findMany({
       where: { organisationId: safeOrganisationId },
       orderBy: [{ sourceType: "asc" }, { sourceKey: "asc" }],
+    });
+  },
+
+  async listPrescriptionDispenseRequests(params: {
+    organisationId: string;
+    status?: PrescriptionDispenseRequestStatus;
+    prescriptionId?: string;
+  }) {
+    const organisationId = asNonEmptyString(params.organisationId);
+    if (!organisationId) {
+      throw new InventoryConsumptionServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
+
+    return prisma.prescriptionDispenseRequest.findMany({
+      where: {
+        organisationId,
+        ...(params.status ? { status: params.status } : {}),
+        ...(params.prescriptionId
+          ? { prescriptionId: params.prescriptionId }
+          : {}),
+      },
+      include: buildPrescriptionDispenseRequestInclude(),
+      orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }],
+    });
+  },
+
+  async getPrescriptionDispenseRequest(params: {
+    organisationId: string;
+    dispenseRequestId: string;
+  }) {
+    const organisationId = asNonEmptyString(params.organisationId);
+    const dispenseRequestId = asNonEmptyString(params.dispenseRequestId);
+    if (!organisationId || !dispenseRequestId) {
+      throw new InventoryConsumptionServiceError(
+        "organisationId and dispenseRequestId are required",
+        400,
+      );
+    }
+
+    const request = await prisma.prescriptionDispenseRequest.findFirst({
+      where: {
+        id: dispenseRequestId,
+        organisationId,
+      },
+      include: buildPrescriptionDispenseRequestInclude(),
+    });
+
+    if (!request) {
+      throw new InventoryConsumptionServiceError(
+        "Dispense request not found",
+        404,
+      );
+    }
+
+    return request;
+  },
+
+  async createPrescriptionDispenseRequest(params: {
+    organisationId: string;
+    prescriptionId: string;
+    medications: unknown;
+    metadata?: Prisma.InputJsonValue;
+    requestedBy?: string | null;
+  }) {
+    const organisationId = asNonEmptyString(params.organisationId);
+    const prescriptionId = asNonEmptyString(params.prescriptionId);
+    if (!organisationId || !prescriptionId) {
+      throw new InventoryConsumptionServiceError(
+        "organisationId and prescriptionId are required",
+        400,
+      );
+    }
+
+    return prisma.$transaction((tx) =>
+      upsertPendingDispenseRequest(tx, {
+        organisationId,
+        prescriptionId,
+        medications: params.medications,
+        metadata: params.metadata,
+        requestedBy: params.requestedBy,
+      }),
+    );
+  },
+
+  async approvePrescriptionDispenseRequest(params: {
+    organisationId: string;
+    prescriptionId: string;
+    medications: unknown;
+    metadata?: Prisma.InputJsonValue;
+    reviewedBy?: string | null;
+  }) {
+    const organisationId = asNonEmptyString(params.organisationId);
+    const prescriptionId = asNonEmptyString(params.prescriptionId);
+    if (!organisationId || !prescriptionId) {
+      throw new InventoryConsumptionServiceError(
+        "organisationId and prescriptionId are required",
+        400,
+      );
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const request = await tx.prescriptionDispenseRequest.findFirst({
+        where: {
+          organisationId,
+          prescriptionId,
+          status: "PENDING",
+        },
+        orderBy: { requestedAt: "desc" },
+      });
+
+      if (!request) {
+        throw new InventoryConsumptionServiceError(
+          "Dispense request not found",
+          404,
+        );
+      }
+
+      const inventoryEvents = await consumePrescriptionMedications(tx, {
+        organisationId,
+        prescriptionId,
+        medications: params.medications,
+        metadata: params.metadata,
+        action: "CONSUME",
+        movementReason: "PRESCRIPTION_DISPENSE",
+      });
+
+      await tx.prescriptionDispenseRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "DISPENSED",
+          reviewedBy: params.reviewedBy ?? undefined,
+          reviewedAt: new Date(),
+        },
+      });
+
+      return inventoryEvents;
+    });
+  },
+
+  async markPrescriptionDispenseRequestNotDispensed(params: {
+    organisationId: string;
+    prescriptionId: string;
+    metadata?: Prisma.InputJsonValue;
+    reviewedBy?: string | null;
+  }) {
+    const organisationId = asNonEmptyString(params.organisationId);
+    const prescriptionId = asNonEmptyString(params.prescriptionId);
+    if (!organisationId || !prescriptionId) {
+      throw new InventoryConsumptionServiceError(
+        "organisationId and prescriptionId are required",
+        400,
+      );
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const request = await tx.prescriptionDispenseRequest.findFirst({
+        where: {
+          organisationId,
+          prescriptionId,
+          status: "PENDING",
+        },
+        orderBy: { requestedAt: "desc" },
+      });
+
+      if (!request) {
+        return null;
+      }
+
+      return tx.prescriptionDispenseRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "NOT_DISPENSED",
+          metadata: params.metadata,
+          reviewedBy: params.reviewedBy ?? undefined,
+          reviewedAt: new Date(),
+        },
+      });
     });
   },
 

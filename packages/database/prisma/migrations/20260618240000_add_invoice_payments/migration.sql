@@ -148,7 +148,10 @@ BEGIN
       CASE WHEN i."stripeChargeId" IS NOT NULL THEN i."totalAmount" ELSE 0 END,
       CASE WHEN i."stripeChargeId" IS NOT NULL THEN i."totalAmount" ELSE 0 END,
       i."currency",
-      i."billingCollectionMode",
+      CASE
+        WHEN i."paymentCollectionMethod" = 'PAYMENT_AT_CLINIC' THEN 'PAY_AT_VISIT_END'::"BillingCollectionMode"
+        ELSE 'PREPAY_AT_BOOKING'::"BillingCollectionMode"
+      END,
       FALSE,
       FALSE,
       jsonb_strip_nulls(
@@ -201,7 +204,10 @@ BEGIN
       CONCAT('legacy-payment-attempt-', i."id"),
       'STRIPE'::"PaymentProvider",
       'STRIPE'::"SettlementChannel",
-      i."billingCollectionMode",
+      CASE
+        WHEN i."paymentCollectionMethod" = 'PAYMENT_AT_CLINIC' THEN 'PAY_AT_VISIT_END'::"BillingCollectionMode"
+        ELSE 'PREPAY_AT_BOOKING'::"BillingCollectionMode"
+      END,
       i."stripeChargeId",
       i."totalAmount",
       i."currency",

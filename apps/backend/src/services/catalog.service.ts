@@ -2416,12 +2416,56 @@ export const CatalogService = {
         kind: true,
         specialityId: true,
         organisationId: true,
+        bookable: {
+          select: {
+            durationMinutes: true,
+            supportsOutpatient: true,
+            supportsInpatient: true,
+          },
+        },
         prices: {
           orderBy: [{ isDefault: "desc" as const }],
           select: {
             unitPrice: true,
           },
           take: 1,
+        },
+        package: {
+          select: {
+            items: {
+              orderBy: [{ sortOrder: "asc" as const }],
+              select: {
+                id: true,
+                childProductItemId: true,
+                quantity: true,
+                pricingMode: true,
+                overridePrice: true,
+                discountPercent: true,
+                sortOrder: true,
+                isOptional: true,
+                childProductItem: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    kind: true,
+                    isActive: true,
+                    prices: {
+                      orderBy: [{ isDefault: "desc" as const }],
+                      select: {
+                        unitPrice: true,
+                        currency: true,
+                        defaultDiscountPercent: true,
+                        maxDiscountPercent: true,
+                        isDefault: true,
+                      },
+                      take: 1,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -2434,14 +2478,42 @@ export const CatalogService = {
 
         const orgServices = allProductsForOrgs
           .filter((s) => s.organisationId === org.id)
-          .map((product) => ({
-            id: product.id,
-            name: product.name,
-            kind: product.kind,
-            cost: product.prices?.[0]?.unitPrice ?? 0,
-            specialityId: product.specialityId,
-            organisationId: product.organisationId,
-          }));
+          .filter((product) => Boolean(product.bookable))
+          .map((product) => {
+            const packageItems =
+              product.kind === "PACKAGE" && product.package?.items.length
+                ? product.package.items
+                    .map(buildPackageBreakdownRow)
+                    .map((item) => ({
+                      id: item.id,
+                      childProductItemId: item.childItemId,
+                      childProductName: item.childItemName,
+                      childProductKind: item.childItemKind,
+                      childProductCode: item.childItemCode ?? null,
+                      quantity: item.quantity,
+                      pricingMode: item.pricingMode,
+                      overridePrice: item.overridePrice,
+                      discountPercent: item.discountPercent,
+                      sortOrder: item.sortOrder,
+                      isOptional: item.isOptional,
+                      currency: item.currency,
+                      grossAmount: item.grossAmount,
+                      discountAmount: item.discountAmount,
+                      finalAmount: item.finalAmount,
+                    }))
+                : undefined;
+
+            return {
+              id: product.id,
+              name: product.name,
+              kind: product.kind,
+              appointmentKinds: toAppointmentKinds(product.bookable),
+              cost: product.prices?.[0]?.unitPrice ?? 0,
+              specialityId: product.specialityId,
+              organisationId: product.organisationId,
+              ...(packageItems ? { packageItems } : {}),
+            };
+          });
 
         const specialitiesWithServices = orgSpecialities
           .map((spec) => {

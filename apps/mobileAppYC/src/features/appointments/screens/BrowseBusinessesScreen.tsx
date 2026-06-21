@@ -213,12 +213,11 @@ export const BrowseBusinessesScreen: React.FC = () => {
       }
       lastTermRef.current = trimmed;
       lastSearchRef.current = now;
+      const coords = userCoords
+        ? {lat: userCoords.lat, lng: userCoords.lng}
+        : undefined;
       dispatch(
-        fetchBusinesses(
-          trimmed
-            ? {serviceName: trimmed, lat: userCoords.lat, lng: userCoords.lng}
-            : {lat: userCoords.lat, lng: userCoords.lng},
-        ),
+        fetchBusinesses(trimmed ? {serviceName: trimmed, ...coords} : coords),
       );
     },
     [dispatch, searchQuery, userCoords],
@@ -240,12 +239,13 @@ export const BrowseBusinessesScreen: React.FC = () => {
   clearResultsRef.current = clearResults;
   pinAndSelectClinicRef.current = pinAndSelectClinic;
 
-  const enrichedClinics = useMemo(
-    () => enrichWithDistance(userCoords),
-    [enrichWithDistance, userCoords],
-  );
+  const enrichedClinics = useMemo(() => {
+    if (userCoords == null) return visibleClinics;
+    return enrichWithDistance(userCoords);
+  }, [enrichWithDistance, userCoords, visibleClinics]);
   const hasInitialSearched = useRef(false);
   const hasLocationSearched = useRef(false);
+  const prevPermissionRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     setSearchQuery(initialQuery);
@@ -262,6 +262,18 @@ export const BrowseBusinessesScreen: React.FC = () => {
     hasLocationSearched.current = true;
     performSearch(initialQuery);
   }, [userLocation, initialQuery, performSearch]);
+
+  // Re-search when location permission is toggled at runtime (via device Settings)
+  useEffect(() => {
+    if (locationLoading) return;
+    const changed =
+      prevPermissionRef.current !== null &&
+      prevPermissionRef.current !== hasPermission;
+    prevPermissionRef.current = hasPermission;
+    if (!changed) return;
+    hasLocationSearched.current = false;
+    performSearch(initialQuery);
+  }, [hasPermission, locationLoading, initialQuery, performSearch]);
 
   const reduxBusinesses = useSelector(
     (state: RootState) => state.businesses?.businesses ?? [],

@@ -4,6 +4,7 @@ const authorizeCognito = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const dischargeSummaryLimiter = jest.fn((_req, _res, next) => next());
+const rateLimit = jest.fn(() => dischargeSummaryLimiter);
 
 const ClinicalArtifactFhirController = {
   listSoapNotesForAppointment: jest.fn(),
@@ -51,7 +52,7 @@ jest.mock("../../src/middlewares/rbac", () => ({
 
 jest.mock("express-rate-limit", () => ({
   __esModule: true,
-  default: jest.fn(() => dischargeSummaryLimiter),
+  default: rateLimit,
 }));
 
 jest.mock(
@@ -83,93 +84,101 @@ const findRoute = (path: string, method: string) => {
 
 describe("clinical-artifact.fhir.router", () => {
   it("exposes the clinical artifact routes", () => {
-    expect(
-      findRoute(
+    const protectedRoutes = [
+      [
         "/organisation/:organisationId/appointment/:appointmentId/soap-notes",
         "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
+      ],
+      [
         "/organisation/:organisationId/encounter/:encounterId/soap-notes",
         "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute("/organisation/:organisationId/soap-note/:soapNoteId", "post"),
-    ).toBeDefined();
-    expect(
-      findRoute(
-        "/organisation/:organisationId/soap-note/:soapNoteId/$finalize",
-        "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
-        "/organisation/:organisationId/soap-note/:soapNoteId/$reopen",
-        "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
-        "/organisation/:organisationId/soap-note/:soapNoteId/$amend",
-        "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
-        "/organisation/:organisationId/appointment/:appointmentId/vital-records",
-        "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
-        "/organisation/:organisationId/encounter/:encounterId/vital-records",
-        "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
+      ],
+      ["/organisation/:organisationId/soap-note", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId/$finalize", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId/$reopen", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId/$amend", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId", "patch"],
+      [
         "/organisation/:organisationId/appointment/:appointmentId/prescriptions",
         "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
-        "/organisation/:organisationId/prescription/:prescriptionId",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/prescriptions",
         "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
+      ],
+      ["/organisation/:organisationId/prescription", "post"],
+      ["/organisation/:organisationId/prescription/:prescriptionId", "post"],
+      [
         "/organisation/:organisationId/prescription/:prescriptionId/$finalize",
         "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
+      ],
+      [
+        "/organisation/:organisationId/prescription/:prescriptionId/$reopen",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/prescription/:prescriptionId/$amend",
+        "post",
+      ],
+      ["/organisation/:organisationId/prescription/:prescriptionId", "patch"],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/discharge-summaries",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/discharge-summaries",
+        "post",
+      ],
+      ["/organisation/:organisationId/discharge-summary", "post"],
+      [
         "/organisation/:organisationId/discharge-summary/:dischargeSummaryId",
         "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
+      ],
+      [
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId/$finalize",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId/$reopen",
+        "post",
+      ],
+      [
         "/organisation/:organisationId/discharge-summary/:dischargeSummaryId/$amend",
         "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
-        "/organisation/:organisationId/vital-record/:vitalRecordId",
+      ],
+      [
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId",
+        "patch",
+      ],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/vital-records",
         "post",
-      ),
-    ).toBeDefined();
-    expect(
-      findRoute(
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/vital-records",
+        "post",
+      ],
+      ["/organisation/:organisationId/vital-record", "post"],
+      ["/organisation/:organisationId/vital-record/:vitalRecordId", "post"],
+      [
+        "/organisation/:organisationId/vital-record/:vitalRecordId/$finalize",
+        "post",
+      ],
+      [
         "/organisation/:organisationId/vital-record/:vitalRecordId/$reopen",
         "post",
-      ),
-    ).toBeDefined();
+      ],
+      [
+        "/organisation/:organisationId/vital-record/:vitalRecordId/$amend",
+        "post",
+      ],
+      ["/organisation/:organisationId/vital-record/:vitalRecordId", "patch"],
+    ] as const;
+
+    for (const [path, method] of protectedRoutes) {
+      expect(findRoute(path, method)).toBeDefined();
+    }
   });
 
   it("protects routes with auth and RBAC", () => {
@@ -183,14 +192,109 @@ describe("clinical-artifact.fhir.router", () => {
     expect(requirePermission).toHaveBeenCalledWith(["forms:view:any"]);
   });
 
-  it("rate limits discharge summary reads", () => {
-    const route = findRoute(
-      "/organisation/:organisationId/appointment/:appointmentId/discharge-summaries",
-      "post",
-    );
+  it("rate limits every authenticated route", () => {
+    const protectedRoutes = [
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/soap-notes",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/soap-notes",
+        "post",
+      ],
+      ["/organisation/:organisationId/soap-note", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId/$finalize", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId/$reopen", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId/$amend", "post"],
+      ["/organisation/:organisationId/soap-note/:soapNoteId", "patch"],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/prescriptions",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/prescriptions",
+        "post",
+      ],
+      ["/organisation/:organisationId/prescription", "post"],
+      ["/organisation/:organisationId/prescription/:prescriptionId", "post"],
+      [
+        "/organisation/:organisationId/prescription/:prescriptionId/$finalize",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/prescription/:prescriptionId/$reopen",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/prescription/:prescriptionId/$amend",
+        "post",
+      ],
+      ["/organisation/:organisationId/prescription/:prescriptionId", "patch"],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/discharge-summaries",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/discharge-summaries",
+        "post",
+      ],
+      ["/organisation/:organisationId/discharge-summary", "post"],
+      [
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId/$finalize",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId/$reopen",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId/$amend",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/discharge-summary/:dischargeSummaryId",
+        "patch",
+      ],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/vital-records",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/vital-records",
+        "post",
+      ],
+      ["/organisation/:organisationId/vital-record", "post"],
+      ["/organisation/:organisationId/vital-record/:vitalRecordId", "post"],
+      [
+        "/organisation/:organisationId/vital-record/:vitalRecordId/$finalize",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/vital-record/:vitalRecordId/$reopen",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/vital-record/:vitalRecordId/$amend",
+        "post",
+      ],
+      ["/organisation/:organisationId/vital-record/:vitalRecordId", "patch"],
+    ] as const;
 
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      dischargeSummaryLimiter,
-    );
+    for (const [path, method] of protectedRoutes) {
+      const route = findRoute(path, method);
+      expect(route?.stack.map((layer) => layer.handle)).toContain(
+        authorizeCognito,
+      );
+      expect(route?.stack.map((layer) => layer.handle)).toContain(
+        dischargeSummaryLimiter,
+      );
+    }
+
+    expect(rateLimit).toHaveBeenCalledTimes(1);
   });
 });

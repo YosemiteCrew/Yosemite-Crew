@@ -342,6 +342,19 @@
   });
   dropZone.addEventListener('drop', handleDrop);
 
+  // Without window-level handlers, dropping a file anywhere outside the small
+  // drop zone makes Chromium navigate the window to that file (file://...),
+  // replacing the vault UI — which looks like the vault "not working". Prevent
+  // the default across the whole window and accept drops anywhere. Drops on the
+  // drop zone call stopPropagation above, so they are never handled twice.
+  globalThis.addEventListener('dragover', function (e) {
+    e.preventDefault();
+  });
+  globalThis.addEventListener('drop', function (e) {
+    e.preventDefault();
+    handleDrop(e);
+  });
+
   // ── Search ──
   searchInput.addEventListener('input', filterDocs);
 

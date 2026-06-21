@@ -6,6 +6,7 @@ import {
 import type {
   BusinessesState,
   VetBusiness,
+  VetPackage,
   VetService,
   SlotWindow,
 } from './types';
@@ -44,17 +45,23 @@ type FetchBusinessesArgs = {
   lat?: number;
   lng?: number;
   page?: number;
+  limit?: number;
   serviceName?: string;
 };
 
 export const fetchBusinesses = createAsyncThunk<
-  {businesses: VetBusiness[]; services: VetService[]; meta?: any},
+  {
+    businesses: VetBusiness[];
+    services: VetService[];
+    packages: VetPackage[];
+    meta?: any;
+  },
   FetchBusinessesArgs | undefined
 >('businesses/fetch', async (params, {rejectWithValue}) => {
   try {
     const accessToken = await ensureAccessTokenOptional();
 
-    // Resolve lat/lng: caller-supplied → live GPS → omit (backend geocodes from saved address)
+    // Resolve lat/lng: caller-supplied → live GPS → omit (backend returns all PIMS businesses)
     let resolvedLat = params?.lat;
     let resolvedLng = params?.lng;
     if (resolvedLat == null || resolvedLng == null) {
@@ -63,20 +70,24 @@ export const fetchBusinesses = createAsyncThunk<
         resolvedLat = coords.latitude;
         resolvedLng = coords.longitude;
       } catch {
-        // Permission denied or GPS unavailable — let backend fall back to saved address
+        // Permission denied or GPS unavailable — fetch top 10 PIMS businesses without location
       }
     }
+
+    const noLocation = resolvedLat == null || resolvedLng == null;
 
     const nearby = await appointmentApi.fetchNearbyBusinesses({
       lat: resolvedLat,
       lng: resolvedLng,
-      page: params?.page,
+      page: noLocation ? 1 : (params?.page ?? 1),
+      limit: noLocation ? 10 : params?.limit,
       accessToken: accessToken ?? undefined,
     });
 
     let search = {
       businesses: [] as VetBusiness[],
       services: [] as VetService[],
+      packages: [] as VetPackage[],
     };
     if (params?.serviceName) {
       search = await appointmentApi.searchBusinessesByService({
@@ -89,10 +100,12 @@ export const fetchBusinesses = createAsyncThunk<
 
     const mergedBusinesses = [...nearby.businesses, ...search.businesses];
     const mergedServices = [...nearby.services, ...search.services];
+    const mergedPackages = [...nearby.packages, ...search.packages];
 
     return {
       businesses: mergedBusinesses,
       services: mergedServices,
+      packages: mergedPackages,
       meta: nearby.meta,
     };
   } catch (error) {
@@ -132,6 +145,7 @@ const initialState: BusinessesState = {
   businesses: [],
   employees: [],
   services: [],
+  packages: [],
   availability: [],
   loading: false,
   error: null,
@@ -228,6 +242,7 @@ const businessesSlice = createSlice({
         // Replace (not append) to avoid stale data and preserve empty responses
         state.businesses = dedupeById(action.payload.businesses);
         state.services = dedupeById(action.payload.services);
+        state.packages = dedupeById(action.payload.packages);
       })
       .addCase(fetchBusinesses.rejected, (state, action) => {
         state.loading = false;

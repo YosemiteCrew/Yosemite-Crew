@@ -9,61 +9,23 @@ export interface ShortcutDef {
   description: string;
 }
 
+const sc = (accelerator: string, id: string, label: string, description: string): ShortcutDef => ({
+  accelerator,
+  id,
+  label,
+  description,
+});
+
 export const SHORTCUTS: ShortcutDef[] = [
-  {
-    accelerator: 'CommandOrControl+K',
-    id: 'open-palette',
-    label: 'Command Palette',
-    description: 'Open command palette',
-  },
-  {
-    accelerator: 'CommandOrControl+P',
-    id: 'open-palette',
-    label: 'Quick Switch',
-    description: 'Quick switch between recent items',
-  },
-  {
-    accelerator: 'CommandOrControl+Shift+N',
-    id: 'new-patient',
-    label: 'New patient',
-    description: 'Create a new patient record',
-  },
-  {
-    accelerator: 'CommandOrControl+Shift+A',
-    id: 'appointments',
-    label: 'Appointments',
-    description: 'Go to appointments',
-  },
-  {
-    accelerator: 'CommandOrControl+Shift+S',
-    id: 'search',
-    label: 'Search patients',
-    description: 'Search for patients',
-  },
-  {
-    accelerator: 'CommandOrControl+Shift+E',
-    id: 'check-in',
-    label: 'Check in patient',
-    description: 'Walk-in check-in',
-  },
-  {
-    accelerator: 'CommandOrControl+Shift+I',
-    id: 'inbox',
-    label: 'Inbox',
-    description: 'Open inbox',
-  },
-  {
-    accelerator: 'CommandOrControl+Shift+B',
-    id: 'billing',
-    label: 'Billing',
-    description: 'Go to billing',
-  },
-  {
-    accelerator: 'CommandOrControl+Shift+T',
-    id: 'new-appointment',
-    label: 'New appointment',
-    description: 'Book a new appointment',
-  },
+  sc('CommandOrControl+K', 'open-palette', 'Command Palette', 'Open command palette'),
+  sc('CommandOrControl+P', 'open-palette', 'Quick Switch', 'Quick switch between recent items'),
+  sc('CommandOrControl+Shift+N', 'new-patient', 'New patient', 'Create a new patient record'),
+  sc('CommandOrControl+Shift+A', 'appointments', 'Appointments', 'Go to appointments'),
+  sc('CommandOrControl+Shift+S', 'search', 'Search patients', 'Search for patients'),
+  sc('CommandOrControl+Shift+E', 'check-in', 'Check in patient', 'Walk-in check-in'),
+  sc('CommandOrControl+Shift+I', 'inbox', 'Inbox', 'Open inbox'),
+  sc('CommandOrControl+Shift+B', 'billing', 'Billing', 'Go to billing'),
+  sc('CommandOrControl+Shift+T', 'new-appointment', 'New appointment', 'Book a new appointment'),
 ];
 
 export type ShortcutId = (typeof SHORTCUTS)[number]['id'];

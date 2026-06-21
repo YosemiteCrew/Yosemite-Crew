@@ -135,7 +135,7 @@ describe("InvoiceService", () => {
     expect(prisma.invoice.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          taxProvider: "STRIPE",
+          taxProvider: null,
           billingCollectionMode: "PREPAY_AT_BOOKING",
           visitBillingStage: "DRAFT",
           depositTargetAmount: 0,
@@ -145,13 +145,8 @@ describe("InvoiceService", () => {
           invoiceDiscountTotal: 12,
           subtotal: 120,
           totalAmount: 108,
-          taxSnapshot: expect.objectContaining({
-            create: expect.objectContaining({
-              provider: "STRIPE",
-              taxBehavior: "EXCLUSIVE",
-              taxAmount: 0,
-            }),
-          }),
+          taxTotal: 0,
+          taxPercent: 0,
         }),
       }),
     );
@@ -218,17 +213,13 @@ describe("InvoiceService", () => {
     expect(prisma.invoice.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          taxProvider: "STRIPE",
+          taxProvider: null,
           billingCollectionMode: "STAGED_DURING_VISIT",
           visitBillingStage: "READY_FOR_BILLING",
           depositTargetAmount: 0,
           depositCollectedAmount: 0,
-          taxSnapshot: expect.objectContaining({
-            create: expect.objectContaining({
-              provider: "STRIPE",
-              taxBehavior: "EXCLUSIVE",
-            }),
-          }),
+          taxTotal: 0,
+          taxPercent: 0,
         }),
       }),
     );
@@ -262,6 +253,42 @@ describe("InvoiceService", () => {
         currency: "usd",
         paymentCollectionMethod: "PAYMENT_LINK",
       });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_visit",
+      appointmentId,
+      status: "AWAITING_PAYMENT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+      visitBillingStage: "DRAFT",
+      depositTargetAmount: 0,
+      depositCollectedAmount: 0,
+      totalAmount: 100,
+      currency: "usd",
+      paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          quantity: 1,
+          unitPrice: 100,
+          total: 100,
+        },
+      ],
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 18,
+      taxPercent: 18,
+      taxSnapshot: {
+        provider: "STRIPE",
+        taxBehavior: "EXCLUSIVE",
+      },
+      finalizedAt: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
       id: "inv_visit",
       appointmentId,
@@ -270,9 +297,37 @@ describe("InvoiceService", () => {
       visitBillingStage: "READY_FOR_BILLING",
       depositTargetAmount: 0,
       depositCollectedAmount: 0,
-      totalAmount: 100,
+      totalAmount: 118,
       currency: "usd",
       paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountTotal: 0,
+      taxTotal: 18,
+      taxPercent: 18,
+      taxProvider: "STRIPE",
+      finalizedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_visit",
+      appointmentId,
+      status: "AWAITING_PAYMENT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+      visitBillingStage: "READY_FOR_BILLING",
+      depositTargetAmount: 0,
+      depositCollectedAmount: 0,
+      totalAmount: 118,
+      currency: "usd",
+      paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountTotal: 0,
+      taxTotal: 18,
+      taxPercent: 18,
+      taxProvider: "STRIPE",
+      finalizedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -292,6 +347,7 @@ describe("InvoiceService", () => {
       }),
     );
     expect(updated?.visitBillingStage).toBe("READY_FOR_BILLING");
+    expect(updated?.totalAmount).toBe(118);
     expect(skipped?.billingCollectionMode).toBe("PREPAY_AT_BOOKING");
   });
 
@@ -606,7 +662,10 @@ describe("InvoiceService", () => {
         data: expect.objectContaining({
           finalizedAt: expect.any(Date),
           taxProvider: "STRIPE",
+          subtotal: 100,
+          totalAmount: 118,
           taxTotal: 18,
+          taxPercent: 18,
           taxSnapshot: expect.objectContaining({
             upsert: expect.objectContaining({
               create: expect.objectContaining({
@@ -928,6 +987,107 @@ describe("InvoiceService", () => {
 
     const result = await InvoiceService.bootstrapForAppointment(appointmentId);
     expect((result as { id: string }).id).toBe("inv_6");
+  });
+
+  it("uses the package final amount as the invoice line item total even with multiple billing items", async () => {
+    (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+      id: appointmentId,
+      organisationId,
+      patient: { id: patientId, parent: { id: parentId } },
+      companion: { id: patientId, parent: { id: parentId } },
+      appointmentType: { id: "pkg_1", name: "Wellness Package" },
+      productItemId: "pkg_1",
+      concern: "package booking",
+    });
+    (CatalogService.resolveSelection as jest.Mock).mockResolvedValueOnce({
+      productItemId: "pkg_1",
+      productKind: "PACKAGE",
+      name: "Wellness Package",
+      code: "PKG-1",
+      currency: "usd",
+      isBookable: false,
+      appointmentKinds: ["OUTPATIENT"],
+      grossAmount: 400,
+      itemDiscountAmount: 50,
+      additionalDiscountAmount: 25,
+      finalAmount: 325,
+      templateKinds: [],
+      templateBindings: [],
+      billingItems: [
+        {
+          productItemId: "child_1",
+          code: "CH-1",
+          name: "Child item",
+          kind: "CONSULTATION",
+          quantity: 1,
+          currency: "usd",
+          unitPrice: 250,
+          discountPercent: 0,
+          grossAmount: 250,
+          discountAmount: 0,
+          finalAmount: 250,
+          isPackageComponent: true,
+          packageProductItemId: "pkg_1",
+        },
+        {
+          productItemId: "child_2",
+          code: "CH-2",
+          name: "Additional item",
+          kind: "LAB",
+          quantity: 1,
+          currency: "usd",
+          unitPrice: 150,
+          discountPercent: 0,
+          grossAmount: 150,
+          discountAmount: 0,
+          finalAmount: 150,
+          isPackageComponent: true,
+          packageProductItemId: "pkg_1",
+        },
+      ],
+      includedItems: [],
+    });
+    (prisma.invoice.create as jest.Mock).mockResolvedValue({
+      id: "inv_pkg_1",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      items: [],
+      subtotal: 325,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 325,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await InvoiceService.bootstrapForAppointment(appointmentId);
+
+    expect(prisma.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          items: [
+            expect.objectContaining({
+              description: "Wellness Package",
+              quantity: 1,
+              unitPrice: 325,
+              total: 325,
+            }),
+          ],
+          subtotal: 325,
+          totalAmount: 325,
+        }),
+      }),
+    );
   });
 
   it("returns invoice lookup data", async () => {

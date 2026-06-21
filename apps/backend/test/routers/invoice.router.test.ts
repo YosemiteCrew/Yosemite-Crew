@@ -94,6 +94,16 @@ describe("invoice.router", () => {
       "/organisation/:organisationId/list",
       "get",
     );
+    const checkoutSessionRoute = findRoute(
+      "/:invoiceId/checkout-session",
+      "post",
+    );
+    const markPaidRoute = findRoute("/:invoiceId/mark-paid", "post");
+    const paymentCollectionMethodRoute = findRoute(
+      "/:invoiceId/payment-collection-method",
+      "patch",
+    );
+    const getInvoiceRoute = findRoute("/:invoiceId", "get");
     const creditNoteRoute = findRoute("/:invoiceId/credit-notes", "post");
     const voidCreditNoteRoute = findRoute(
       "/:invoiceId/credit-notes/:creditNoteId/void",
@@ -106,8 +116,16 @@ describe("invoice.router", () => {
     expect(
       mobileAppointmentRoute?.stack.map((layer) => layer.handle),
     ).toContain(invoiceActionLimiter);
+    const mobilePaymentIntentRoute = findRoute(
+      "/mobile/payment-intent/:paymentIntentId",
+      "get",
+    );
+    const mobileInvoiceRoute = findRoute("/mobile/:invoiceId", "get");
     expect(addChargesRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
+    );
+    expect(addChargesRoute?.stack.map((layer) => layer.handle)).toContain(
+      invoiceActionLimiter,
     );
     expect(appointmentListRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
@@ -115,11 +133,63 @@ describe("invoice.router", () => {
     expect(appointmentListRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
+    expect(
+      mobilePaymentIntentRoute?.stack.map((layer) => layer.handle),
+    ).toContain(authorizeCognitoMobile);
+    expect(
+      mobilePaymentIntentRoute?.stack.map((layer) => layer.handle),
+    ).toContain(invoiceActionLimiter);
+    expect(mobileInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognitoMobile,
+    );
+    expect(mobileInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
+      invoiceActionLimiter,
+    );
     expect(paymentIntentRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
+    expect(paymentIntentRoute?.stack.map((layer) => layer.handle)).toContain(
+      invoiceActionLimiter,
+    );
     expect(organisationListRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
+    );
+    expect(organisationListRoute?.stack.map((layer) => layer.handle)).toContain(
+      invoiceActionLimiter,
+    );
+    expect(checkoutSessionRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(checkoutSessionRoute?.stack.map((layer) => layer.handle)).toContain(
+      invoiceActionLimiter,
+    );
+    expect(markPaidRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(markPaidRoute?.stack.map((layer) => layer.handle)).toContain(
+      invoiceActionLimiter,
+    );
+    expect(
+      paymentCollectionMethodRoute?.stack.map((layer) => layer.handle),
+    ).toContain(authorizeCognito);
+    expect(
+      paymentCollectionMethodRoute?.stack.map((layer) => layer.handle),
+    ).toContain(invoiceActionLimiter);
+    const bootstrapRoute = findRoute(
+      "/pms/appointment/:appointmentId/bootstrap",
+      "post",
+    );
+    expect(bootstrapRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(bootstrapRoute?.stack.map((layer) => layer.handle)).toContain(
+      invoiceActionLimiter,
+    );
+    expect(getInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(getInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
+      invoiceActionLimiter,
     );
     expect(creditNoteRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,

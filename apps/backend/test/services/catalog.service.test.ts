@@ -2610,6 +2610,11 @@ describe("CatalogService", () => {
         kind: "CONSULTATION",
         specialityId: "spec_1",
         organisationId: "org_near",
+        bookable: {
+          durationMinutes: 30,
+          supportsOutpatient: true,
+          supportsInpatient: false,
+        },
         prices: [{ unitPrice: 150 }],
       },
     ]);
@@ -2632,6 +2637,7 @@ describe("CatalogService", () => {
               expect.objectContaining({
                 id: "prod_1",
                 kind: "CONSULTATION",
+                appointmentKinds: ["OUTPATIENT"],
                 cost: 150,
               }),
             ],
@@ -2675,6 +2681,11 @@ describe("CatalogService", () => {
         kind: "CONSULTATION",
         specialityId: "spec_1",
         organisationId: "org_fallback",
+        bookable: {
+          durationMinutes: 30,
+          supportsOutpatient: true,
+          supportsInpatient: false,
+        },
         prices: [{ unitPrice: 75 }],
       },
     ]);
@@ -2725,6 +2736,11 @@ describe("CatalogService", () => {
         kind: "CONSULTATION",
         specialityId: "spec_1",
         organisationId: "org_1",
+        bookable: {
+          durationMinutes: 30,
+          supportsOutpatient: true,
+          supportsInpatient: false,
+        },
         prices: [{ unitPrice: 50 }],
       },
     ]);
@@ -3071,6 +3087,11 @@ describe("CatalogService", () => {
           kind: "CONSULTATION",
           specialityId: "spec_1",
           organisationId: "org_1",
+          bookable: {
+            durationMinutes: 30,
+            supportsOutpatient: true,
+            supportsInpatient: false,
+          },
           prices: [{ unitPrice: 50 }],
         },
       ]);
@@ -3092,6 +3113,7 @@ describe("CatalogService", () => {
                   id: "prod_1",
                   name: "Checkup",
                   kind: "CONSULTATION",
+                  appointmentKinds: ["OUTPATIENT"],
                   cost: 50,
                 }),
               ],
@@ -3132,7 +3154,41 @@ describe("CatalogService", () => {
           kind: "PACKAGE",
           specialityId: "spec_1",
           organisationId: "org_1",
+          bookable: {
+            durationMinutes: 45,
+            supportsOutpatient: true,
+            supportsInpatient: true,
+          },
           prices: [{ unitPrice: 50 }],
+          package: {
+            items: [
+              {
+                id: "pkg_item_1",
+                childProductItemId: "child_1",
+                quantity: 2,
+                pricingMode: "INCLUDED",
+                overridePrice: null,
+                discountPercent: null,
+                sortOrder: 0,
+                isOptional: false,
+                childProductItem: {
+                  id: "child_1",
+                  name: "Blood Test",
+                  code: "BT-1",
+                  kind: "LAB_TEST",
+                  prices: [
+                    {
+                      unitPrice: 25,
+                      currency: "USD",
+                      defaultDiscountPercent: 10,
+                      maxDiscountPercent: 20,
+                      isDefault: true,
+                    },
+                  ],
+                },
+              },
+            ],
+          },
         },
       ]);
 
@@ -3152,13 +3208,107 @@ describe("CatalogService", () => {
                   id: "prod_1",
                   name: "Checkup",
                   kind: "PACKAGE",
+                  appointmentKinds: ["OUTPATIENT", "INPATIENT"],
                   cost: 50,
+                  packageItems: [
+                    expect.objectContaining({
+                      id: "pkg_item_1",
+                      childProductItemId: "child_1",
+                      childProductName: "Blood Test",
+                      childProductKind: "LAB_TEST",
+                      childProductCode: "BT-1",
+                      quantity: 2,
+                      pricingMode: "INCLUDED",
+                      grossAmount: 0,
+                      discountAmount: 0,
+                      finalAmount: 0,
+                    }),
+                  ],
                 }),
               ],
             }),
           ],
         }),
       );
+    });
+
+    it("filters out nearby products that are not bookable", async () => {
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "org_1",
+          name: "Org",
+          imageUrl: null,
+          phoneNo: "12345",
+          type: "CLINIC",
+          appointmentCheckInBufferMinutes: null,
+          appointmentCheckInRadiusMeters: null,
+          address: {
+            addressLine: "1 Main St",
+            country: "US",
+            city: "Austin",
+            state: "TX",
+            postalCode: "73301",
+            latitude: 40,
+            longitude: -74,
+          },
+        },
+      ]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "spec_1", name: "General", organisationId: "org_1" },
+      ]);
+      (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "prod_bookable",
+          name: "Checkup",
+          kind: "CONSULTATION",
+          specialityId: "spec_1",
+          organisationId: "org_1",
+          bookable: {
+            durationMinutes: 30,
+            supportsOutpatient: true,
+            supportsInpatient: false,
+          },
+          prices: [{ unitPrice: 50 }],
+        },
+        {
+          id: "prod_unbookable",
+          name: "Archived Bundle",
+          kind: "PACKAGE",
+          specialityId: "spec_1",
+          organisationId: "org_1",
+          prices: [{ unitPrice: 75 }],
+          package: {
+            items: [],
+          },
+        },
+      ]);
+
+      const result =
+        await CatalogService.listOrganisationsProvidingServiceNearby(40, -74);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          id: "org_1",
+          specialities: [
+            expect.objectContaining({
+              id: "spec_1",
+              services: [
+                expect.objectContaining({
+                  id: "prod_bookable",
+                  name: "Checkup",
+                  appointmentKinds: ["OUTPATIENT"],
+                }),
+              ],
+            }),
+          ],
+        }),
+      );
+      expect(
+        result[0].specialities[0].services.find(
+          (service) => service.id === "prod_unbookable",
+        ),
+      ).toBeUndefined();
     });
   });
 });

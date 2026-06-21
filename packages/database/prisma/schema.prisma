@@ -33,6 +33,12 @@ enum ContactStatus {
   CLOSED
 }
 
+enum PrescriptionDispenseRequestStatus {
+  PENDING
+  NOT_DISPENSED
+  DISPENSED
+}
+
 enum PatientType {
   dog
   cat
@@ -706,6 +712,8 @@ model Organization {
   ratingCount                 Int              @default(0)
   appointmentCheckInBufferMinutes Int          @default(5)
   appointmentCheckInRadiusMeters  Int          @default(200)
+  appointmentLockWindowOutpatientMinutes Int?
+  appointmentLockWindowInpatientMinutes   Int?
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 
@@ -2021,6 +2029,8 @@ model SoapNote {
 model Prescription {
   id              String           @id @default(uuid())
   artifactId      String           @unique
+  items           PrescriptionItem[]
+  dispenseRequests PrescriptionDispenseRequest[]
   medications     Json?
   instructions    Json?
   notes           Json?
@@ -2031,6 +2041,46 @@ model Prescription {
   artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
+}
+
+model PrescriptionItem {
+  id             String       @id @default(uuid())
+  prescriptionId String
+  medication     String
+  strength       String?
+  dosage         String?
+  route          String?
+  frequency      String?
+  duration       String?
+  quantity       String?
+  instructions   String?
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId, sortOrder])
+}
+
+model PrescriptionDispenseRequest {
+  id             String                              @id @default(uuid())
+  prescriptionId String
+  organisationId String
+  status         PrescriptionDispenseRequestStatus   @default(PENDING)
+  medications    Json
+  metadata       Json?
+  requestedBy    String?
+  reviewedBy     String?
+  requestedAt    DateTime                            @default(now())
+  reviewedAt     DateTime?
+  createdAt      DateTime                            @default(now())
+  updatedAt      DateTime                            @updatedAt
+
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId, status, requestedAt])
+  @@index([organisationId, status])
 }
 
 model DischargeSummary {

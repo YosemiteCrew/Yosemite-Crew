@@ -61,6 +61,12 @@ const writeManifest = (manifestPath: string, manifest: VaultManifest, deps: Vaul
 const docFilePath = (vaultDir: string, docId: string): string =>
   path.join(vaultDir, `${docId}.enc`);
 
+// Defense-in-depth: store only a bare filename (no directory components) and cap
+// its length, so a renderer-supplied name can't become a path-traversal vector
+// when later reused as an export/reveal default path.
+const sanitizeFilename = (name: string): string =>
+  path.basename(String(name)).slice(0, 255) || 'document';
+
 export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) => {
   const vaultDir = path.join(userDataPath, VAULT_DIR);
   const manifestPath = path.join(vaultDir, MANIFEST_FILE);
@@ -118,7 +124,7 @@ export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) 
     const now = Date.now();
     const doc: VaultDocument = {
       id: randomUUID(),
-      filename,
+      filename: sanitizeFilename(filename),
       mimeType: mimeType || 'application/octet-stream',
       sizeBytes: Buffer.byteLength(content, 'utf8'),
       createdAt: now,
@@ -144,7 +150,7 @@ export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) 
     const now = Date.now();
     const doc: VaultDocument = {
       id: randomUUID(),
-      filename,
+      filename: sanitizeFilename(filename),
       mimeType: mimeType || 'application/octet-stream',
       sizeBytes: content.length,
       createdAt: now,

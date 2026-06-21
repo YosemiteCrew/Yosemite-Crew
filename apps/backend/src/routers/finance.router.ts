@@ -171,7 +171,7 @@ router.get(
   authorizeCognito,
   withPaymentIntentOrgPermissions(),
   requirePermission("billing:view:any"),
-  FinanceController.getInvoiceByPaymentIntentId,
+  FinanceController.retrievePaymentIntent,
 );
 
 router.post(
@@ -249,10 +249,16 @@ router.post(
   FinanceController.bootstrapInvoiceForAppointment,
 );
 
+router.post(
+  "/mobile/invoices/:invoiceId/payments/sessions",
+  authorizeCognitoMobile,
+  FinanceController.createMobileInvoicePaymentSession,
+);
+
 router.get(
   "/mobile/payment-intent/:paymentIntentId",
   authorizeCognitoMobile,
-  FinanceController.getInvoiceByPaymentIntentId,
+  FinanceController.retrievePaymentIntent,
 );
 
 router.get(

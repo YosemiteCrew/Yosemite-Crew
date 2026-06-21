@@ -2,6 +2,8 @@ import {
   Prisma,
   RenderedDocumentSourceKind as PrismaRenderedDocumentSourceKind,
 } from "@prisma/client";
+import AWS from "aws-sdk";
+import axios from "axios";
 import {
   buildDocumentSignature as buildDocumentSignatureContract,
   buildRenderedDocumentDraft as buildRenderedDocumentDraftContract,
@@ -17,11 +19,14 @@ import {
   type RenderedDocumentKind,
   type RenderedDocumentSignature,
   type RenderedDocumentSigning,
+  type RenderedDocumentSource,
   type SignRenderedDocumentInput,
 } from "@yosemite-crew/types";
+import type { ClinicalPdfSignaturePlacement } from "@yosemite-crew/lib";
 import { prisma } from "src/config/prisma";
+import { uploadBufferAsFile } from "src/middlewares/upload";
 import { DocumensoService } from "src/services/documenso.service";
-import { renderRenderedDocumentPdf } from "src/services/rendered-document-renderer.service";
+import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
 
 export class RenderedDocumentServiceError extends Error {
   constructor(
@@ -60,7 +65,30 @@ type PersistedRenderedDocument = Prisma.RenderedDocumentGetPayload<{
   include: { signature: true };
 }>;
 
+export type RenderedDocumentPdfResult = {
+  pdf: Buffer;
+  filename: string;
+  contentType: "application/pdf";
+};
+
 const renderedDocumentClient = prisma as unknown as RenderedDocumentWriteClient;
+
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
+
+const getBucketName = (): string => {
+  const bucket = process.env.AWS_S3_BUCKET_NAME;
+  if (!bucket) {
+    throw new RenderedDocumentServiceError(
+      "AWS_S3_BUCKET_NAME is not defined",
+      500,
+    );
+  }
+  return bucket;
+};
 
 const translateRenderedDocumentContractError = (
   error: unknown,
@@ -107,6 +135,193 @@ const normalizeRequiredString = (value: string, fieldName: string): string => {
   }
 
   return normalized;
+};
+
+const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
+  try {
+    const parsedUrl = new URL(url);
+    const key = decodeURIComponent(parsedUrl.pathname.replace(/^\/+/, ""));
+
+    if (key) {
+      const response = await s3
+        .getObject({
+          Bucket: getBucketName(),
+          Key: key,
+        })
+        .promise();
+
+      if (response.Body) {
+        if (Buffer.isBuffer(response.Body)) {
+          return response.Body;
+        }
+
+        if (response.Body instanceof Uint8Array) {
+          return Buffer.from(response.Body);
+        }
+
+        if (typeof response.Body === "string") {
+          return Buffer.from(response.Body);
+        }
+      }
+    }
+  } catch {
+    // Fall back to direct fetch below. This covers public URLs and non-S3 sources.
+  }
+
+  const response = await axios.get<ArrayBuffer>(url, {
+    responseType: "arraybuffer",
+  });
+
+  return Buffer.from(response.data);
+};
+
+type PersistedRenderedDocumentPdfSnapshot = {
+  signaturePlacement?: ClinicalPdfSignaturePlacement | null;
+};
+
+const extractSignaturePlacement = (
+  pdf: Prisma.JsonValue | null | undefined,
+): ClinicalPdfSignaturePlacement | null => {
+  if (!pdf || typeof pdf !== "object" || Array.isArray(pdf)) {
+    return null;
+  }
+
+  const snapshot = pdf as PersistedRenderedDocumentPdfSnapshot;
+  const placement = snapshot.signaturePlacement;
+
+  if (
+    !placement ||
+    typeof placement !== "object" ||
+    Array.isArray(placement) ||
+    typeof placement.pageNumber !== "number" ||
+    typeof placement.pageX !== "number" ||
+    typeof placement.pageY !== "number" ||
+    typeof placement.width !== "number" ||
+    typeof placement.height !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    pageNumber: placement.pageNumber,
+    pageX: placement.pageX,
+    pageY: placement.pageY,
+    width: placement.width,
+    height: placement.height,
+  };
+};
+
+const resolvePersistedRenderedDocumentPdf = async (
+  document: PersistedRenderedDocument,
+): Promise<{
+  pdf: Buffer;
+  signaturePlacement?: ClinicalPdfSignaturePlacement;
+}> => {
+  if (document.pdfUrl) {
+    const signaturePlacement = extractSignaturePlacement(document.pdf);
+
+    if (
+      document.sourceKind === "CLINICAL_ARTIFACT" &&
+      signaturePlacement === null
+    ) {
+      throw new RenderedDocumentServiceError(
+        "Rendered clinical document is missing signature placement metadata",
+        409,
+      );
+    }
+
+    return {
+      pdf: await downloadPdfBuffer(document.pdfUrl),
+      signaturePlacement: signaturePlacement ?? undefined,
+    };
+  }
+
+  if (document.sourceKind === "CLINICAL_ARTIFACT") {
+    throw new RenderedDocumentServiceError(
+      "Rendered clinical document PDF is not available yet",
+      409,
+    );
+  }
+
+  const renderedPdf = await renderRenderedDocumentPdfWithMetadata({
+    title: document.title,
+    source: {
+      sourceKind: document.sourceKind,
+      sourceId: document.sourceId,
+      organisationId: document.organisationId,
+      templateKind: document.kind as RenderedDocumentSource["templateKind"],
+      templateId: document.templateId,
+      templateVersion: document.templateVersion,
+      templateVersionId: document.templateVersionId,
+    },
+  });
+
+  return {
+    pdf: renderedPdf.pdf,
+    signaturePlacement: renderedPdf.signaturePlacement,
+  };
+};
+
+const rerenderAndPersistClinicalRenderedDocumentPdf = async (
+  document: PersistedRenderedDocument,
+  client: RenderedDocumentWriteClient = renderedDocumentClient,
+): Promise<RenderedDocumentPdfResult> => {
+  if (document.sourceKind !== "CLINICAL_ARTIFACT") {
+    throw new RenderedDocumentServiceError(
+      "Rendered document is not a clinical artifact",
+      409,
+    );
+  }
+
+  const renderedPdf = await renderRenderedDocumentPdfWithMetadata({
+    title: document.title,
+    source: {
+      sourceKind: document.sourceKind,
+      sourceId: document.sourceId,
+      organisationId: document.organisationId,
+      templateKind: document.kind as RenderedDocumentSource["templateKind"],
+      templateId: document.templateId,
+      templateVersion: document.templateVersion,
+      templateVersionId: document.templateVersionId,
+    },
+  });
+
+  const upload = await uploadBufferAsFile(renderedPdf.pdf, {
+    folderName: `rendered-documents/${document.organisationId}`,
+    mimeType: "application/pdf",
+    originalName: `${document.kind.toLowerCase().replaceAll("_", "-")}-${document.id}.pdf`,
+  });
+
+  const pdfSnapshot = {
+    ...buildRenderedDocumentPdfSnapshot({
+      title: document.title,
+      kind: document.kind as RenderedDocumentKind,
+      source: {
+        sourceKind: document.sourceKind,
+        sourceId: document.sourceId,
+        organisationId: document.organisationId,
+        templateKind: document.kind as RenderedDocumentSource["templateKind"],
+        templateId: document.templateId,
+        templateVersion: document.templateVersion,
+        templateVersionId: document.templateVersionId,
+      },
+    }),
+    signaturePlacement: renderedPdf.signaturePlacement ?? null,
+  };
+
+  await client.renderedDocument.update({
+    where: { id: document.id },
+    data: {
+      pdfUrl: upload.url,
+      pdf: pdfSnapshot as unknown as Prisma.InputJsonValue,
+    },
+  });
+
+  return {
+    pdf: renderedPdf.pdf,
+    filename: `${document.kind.toLowerCase().replaceAll("_", "-")}-${document.id}.pdf`,
+    contentType: "application/pdf",
+  };
 };
 
 export {
@@ -220,6 +435,66 @@ export const getPersistedRenderedDocument = async (
   return normalizePersistedRenderedDocument(document);
 };
 
+export const getPersistedRenderedDocumentPdf = async (
+  renderedDocumentId: string,
+  organisationId?: string,
+  client: RenderedDocumentWriteClient = renderedDocumentClient,
+): Promise<RenderedDocumentPdfResult> => {
+  const document = await getPersistedRenderedDocument(
+    renderedDocumentId,
+    organisationId,
+    client,
+  );
+
+  if (document.pdfUrl) {
+    return {
+      pdf: await downloadPdfBuffer(document.pdfUrl),
+      filename: `${document.kind.toLowerCase().replaceAll("_", "-")}-${document.id}.pdf`,
+      contentType: "application/pdf",
+    };
+  }
+
+  if (document.sourceKind === "CLINICAL_ARTIFACT") {
+    throw new RenderedDocumentServiceError(
+      "Rendered clinical document PDF is not available yet",
+      409,
+    );
+  }
+
+  const renderedPdf = await renderRenderedDocumentPdfWithMetadata({
+    title: document.title,
+    source: {
+      sourceKind: document.sourceKind,
+      sourceId: document.sourceId,
+      organisationId: document.organisationId,
+      templateKind: document.kind as RenderedDocumentSource["templateKind"],
+      templateId: document.templateId,
+      templateVersion: document.templateVersion,
+      templateVersionId: document.templateVersionId,
+    },
+  });
+
+  return {
+    pdf: renderedPdf.pdf,
+    filename: `${document.kind.toLowerCase().replaceAll("_", "-")}-${document.id}.pdf`,
+    contentType: "application/pdf",
+  };
+};
+
+export const rerenderPersistedClinicalRenderedDocumentPdf = async (
+  renderedDocumentId: string,
+  organisationId?: string,
+  client: RenderedDocumentWriteClient = renderedDocumentClient,
+): Promise<RenderedDocumentPdfResult> => {
+  const document = await getPersistedRenderedDocument(
+    renderedDocumentId,
+    organisationId,
+    client,
+  );
+
+  return rerenderAndPersistClinicalRenderedDocumentPdf(document, client);
+};
+
 export const signPersistedRenderedDocument = async (
   input: PersistRenderedDocumentSignatureInput,
   client: RenderedDocumentWriteClient = renderedDocumentClient,
@@ -265,37 +540,31 @@ export const signPersistedRenderedDocument = async (
     );
   }
 
-  const pdf = await renderRenderedDocumentPdf({
-    title: existing.title,
-    source: {
-      sourceKind: existing.sourceKind,
-      sourceId: existing.sourceId,
-      organisationId: existing.organisationId,
-      templateKind: existing.kind as RenderedDocumentKind,
-      templateId: existing.templateId,
-      templateVersion: existing.templateVersion,
-      templateVersionId: existing.templateVersionId,
-    },
-  });
-  const renderedPdfSnapshot = buildRenderedDocumentPdfSnapshot({
-    title: existing.title,
-    kind,
-    source: {
-      sourceKind: existing.sourceKind,
-      sourceId: existing.sourceId,
-      organisationId: existing.organisationId,
-      templateKind: existing.kind as RenderedDocumentKind,
-      templateId: existing.templateId,
-      templateVersion: existing.templateVersion,
-      templateVersionId: existing.templateVersionId,
-    },
-  });
+  const renderedPdf = await resolvePersistedRenderedDocumentPdf(existing);
+  const renderedPdfSnapshot = {
+    ...buildRenderedDocumentPdfSnapshot({
+      title: existing.title,
+      kind,
+      source: {
+        sourceKind: existing.sourceKind,
+        sourceId: existing.sourceId,
+        organisationId: existing.organisationId,
+        templateKind: existing.kind as RenderedDocumentKind,
+        templateId: existing.templateId,
+        templateVersion: existing.templateVersion,
+        templateVersionId: existing.templateVersionId,
+      },
+    }),
+    signaturePlacement: renderedPdf.signaturePlacement ?? null,
+  };
 
   const doc = await DocumensoService.createDocument({
-    pdf,
+    pdf: renderedPdf.pdf,
     signerEmail: input.signerEmail,
     signerName: input.signerName,
     apiKey,
+    signaturePlacement: renderedPdf.signaturePlacement,
+    title: existing.title,
   });
 
   if (!doc || typeof doc.id !== "number") {

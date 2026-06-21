@@ -112,6 +112,17 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
     },
 
     showDeaStatus: (): void => {
+      const registrations = deps.deaTracker?.getAllRegistrations() ?? [];
+      // Without this guard the reminder service reports "biennial report is due"
+      // even when no DEA registration exists at all — a false compliance alarm.
+      if (registrations.length === 0) {
+        infoDialog(
+          'DEA Compliance Status',
+          'No DEA registrations are configured yet. Add a DEA registration to track renewal ' +
+            'deadlines and biennial inventory reporting.'
+        );
+        return;
+      }
       const reminder = deps.deaReminder?.getReminderMessage();
       const expiring = deps.deaTracker?.getExpiringSoon(60) ?? [];
       infoDialog(
@@ -126,6 +137,20 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
         return;
       }
       const registrations = deps.deaTracker?.getAllRegistrations() ?? [];
+      if (registrations.length === 0) {
+        // Don't silently write a report with no registrant details — make the
+        // empty-data case explicit and let the user back out.
+        const proceed = dialog.showMessageBoxSync({
+          type: 'warning',
+          buttons: ['Cancel', 'Generate anyway'],
+          defaultId: 0,
+          cancelId: 0,
+          message: 'No DEA registration configured',
+          detail:
+            'The biennial report would have no registrant details. Add a DEA registration first, or generate an empty template anyway.',
+        });
+        if (proceed !== 1) return;
+      }
       const deaNumber = registrations[0]?.deaNumber || '';
       const report = generateDeaReport({
         logbook: deps.controlledSubstanceLog,
@@ -137,10 +162,13 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
         { name: 'CSV', extension: 'csv' },
         { name: 'Text', extension: 'txt' },
       ] as const;
+      // 'Cancel' is the last button; selecting it yields an out-of-range index so
+      // `formats[formatIndex]` is undefined and we bail below.
       const formatIndex = dialog.showMessageBoxSync({
         type: 'question',
-        buttons: formats.map((f) => f.name),
+        buttons: [...formats.map((f) => f.name), 'Cancel'],
         defaultId: 0,
+        cancelId: formats.length,
         message: 'Select DEA report format',
       });
       const selectedFormat = formats[formatIndex];
@@ -166,8 +194,12 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
 
     showPmpStatus: (): void => {
       infoDialog(
-        'PMP Submission Status',
-        `Pending: ${deps.pmpService?.getPending().length ?? 0}\nSubmitted: ${deps.pmpService?.getSubmitted().length ?? 0}\nFailed: ${deps.pmpService?.getFailed().length ?? 0}\n` +
+        'PMP Reporting',
+        `This app prepares state-compliant PMP batch files for manual upload to your state's ` +
+          `Prescription Monitoring Program portal. It does not transmit to the PMP automatically.\n\n` +
+          `Records pending export: ${deps.pmpService?.getPending().length ?? 0}\n` +
+          `Marked exported: ${deps.pmpService?.getSubmitted().length ?? 0}\n` +
+          `Marked failed: ${deps.pmpService?.getFailed().length ?? 0}\n` +
           `Witnessed waste events: ${deps.dualWitnessLog?.getWasteEvents().length ?? 0}\n` +
           `Unsynced offline mutations: ${deps.offlineAuditTrail?.getUnsyncedCount() ?? 0}`
       );

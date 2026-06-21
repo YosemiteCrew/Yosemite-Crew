@@ -750,9 +750,21 @@ export const StripeService = {
             ? session.payment_intent
             : null,
         currency: session.currency ?? null,
+        amountSubtotal: session.amount_subtotal
+          ? session.amount_subtotal / 100
+          : null,
+        amountTotal: session.amount_total ? session.amount_total / 100 : null,
+        amountTax: session.total_details?.amount_tax
+          ? session.total_details.amount_tax / 100
+          : null,
+        automaticTaxStatus: session.automatic_tax?.status ?? null,
         rawProviderPayload: {
           sessionId: session.id,
           invoiceId,
+          amountSubtotal: session.amount_subtotal ?? null,
+          amountTotal: session.amount_total ?? null,
+          amountTax: session.total_details?.amount_tax ?? null,
+          automaticTaxStatus: session.automatic_tax?.status ?? null,
         } as Prisma.InputJsonValue,
       });
 

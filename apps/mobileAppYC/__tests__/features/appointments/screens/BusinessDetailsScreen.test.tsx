@@ -61,6 +61,11 @@ jest.mock('../../../../src/features/appointments/selectors', () => ({
       (s: any) => s.businessId === businessId,
     );
   },
+  createSelectPackagesForBusiness: () => (state: any, businessId: string) => {
+    return (state.businesses.packages ?? []).filter(
+      (p: any) => p.businessId === businessId,
+    );
+  },
 }));
 
 // --- 3. Component Mocks (Crucial for "Element type is invalid" fix) ---

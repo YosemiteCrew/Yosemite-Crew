@@ -1,4 +1,5 @@
 import { ClinicalArtifactKind, TemplateKind } from "@prisma/client";
+import axios from "axios";
 import { prisma } from "src/config/prisma";
 import {
   buildDocumentSignature,
@@ -6,14 +7,17 @@ import {
   buildRenderedDocumentDraft,
   createRenderedDocumentRecord,
   getPersistedRenderedDocument,
+  getPersistedRenderedDocumentPdf,
   isSignableRenderedDocumentKind,
   RenderedDocumentServiceError,
   completePersistedRenderedDocumentSigning,
+  rerenderPersistedClinicalRenderedDocumentPdf,
   signPersistedRenderedDocument,
   signRenderedDocument,
 } from "../../src/services/rendered-document.service";
 import { DocumensoService } from "../../src/services/documenso.service";
-import { renderRenderedDocumentPdf } from "../../src/services/rendered-document-renderer.service";
+import { renderRenderedDocumentPdfWithMetadata } from "../../src/services/rendered-document-renderer.service";
+import { uploadBufferAsFile } from "../../src/middlewares/upload";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -36,7 +40,13 @@ jest.mock("../../src/services/documenso.service", () => ({
   },
 }));
 jest.mock("../../src/services/rendered-document-renderer.service", () => ({
-  renderRenderedDocumentPdf: jest.fn(),
+  renderRenderedDocumentPdfWithMetadata: jest.fn(),
+}));
+jest.mock("../../src/middlewares/upload", () => ({
+  uploadBufferAsFile: jest.fn(),
+}));
+jest.mock("axios", () => ({
+  get: jest.fn(),
 }));
 
 describe("rendered-document service", () => {
@@ -57,7 +67,10 @@ describe("rendered-document service", () => {
     distributeDocument: jest.Mock;
     downloadSignedDocument: jest.Mock;
   };
-  const mockedRenderedDocumentRenderer = renderRenderedDocumentPdf as jest.Mock;
+  const mockedRenderedDocumentRenderer =
+    renderRenderedDocumentPdfWithMetadata as jest.Mock;
+  const mockedUploadBufferAsFile = uploadBufferAsFile as jest.Mock;
+  const mockedAxiosGet = axios.get as jest.Mock;
 
   beforeEach(() => {
     process.env.DOCUMENSO_HOST_URL = "https://documenso.example";
@@ -392,8 +405,256 @@ describe("rendered-document service", () => {
     ).rejects.toThrow("Rendered document does not belong to organisation");
   });
 
+  it("builds a persisted rendered document pdf", async () => {
+    mockedRenderedDocumentRenderer.mockResolvedValueOnce({
+      pdf: Buffer.from("pdf"),
+      pageCount: 1,
+      signaturePlacement: {
+        pageNumber: 1,
+        pageX: 340,
+        pageY: 710,
+        width: 220,
+        height: 96,
+      },
+    });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-2",
+      organisationId: "org-123",
+      sourceKind: "TEMPLATE_INSTANCE",
+      sourceId: "instance-123",
+      templateInstanceId: "instance-123",
+      clinicalArtifactId: null,
+      templateId: "template-123",
+      templateVersion: 3,
+      templateVersionId: "template-version-1",
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP Note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: null,
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-13T00:00:00.000Z"),
+      signature: null,
+    });
+
+    const result = await getPersistedRenderedDocumentPdf("doc-2", "org-123");
+
+    expect(mockedRenderedDocumentRenderer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "SOAP Note",
+        source: expect.objectContaining({
+          sourceId: "instance-123",
+          organisationId: "org-123",
+        }),
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        contentType: "application/pdf",
+        filename: "soap-note-doc-2.pdf",
+        pdf: Buffer.from("pdf"),
+      }),
+    );
+  });
+
+  it("uses the stored pdfUrl for clinical documents", async () => {
+    mockedRenderedDocumentRenderer.mockClear();
+    mockedAxiosGet.mockClear();
+    mockedAxiosGet.mockResolvedValueOnce({
+      data: Buffer.from("stored-pdf"),
+    });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-3",
+      organisationId: "org-123",
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: "artifact-123",
+      templateInstanceId: null,
+      clinicalArtifactId: "artifact-123",
+      templateId: "template-123",
+      templateVersion: 3,
+      templateVersionId: "template-version-1",
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP Note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/stored.pdf",
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-06-13T00:00:00.000Z",
+        title: "SOAP Note",
+        mimeType: "application/pdf",
+        documentKind: "SOAP_NOTE",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: "artifact-123",
+          organisationId: "org-123",
+          templateKind: "SOAP_NOTE",
+          templateId: "template-123",
+          templateVersion: 3,
+          templateVersionId: "template-version-1",
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-13T00:00:00.000Z"),
+      signature: null,
+    });
+
+    const result = await getPersistedRenderedDocumentPdf("doc-3", "org-123");
+
+    expect(mockedAxiosGet).toHaveBeenCalledWith(
+      "https://cdn.example/stored.pdf",
+      expect.objectContaining({
+        responseType: "arraybuffer",
+      }),
+    );
+    expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
+    expect(result.pdf).toEqual(Buffer.from("stored-pdf"));
+  });
+
+  it("rerenders and persists a clinical rendered document", async () => {
+    mockedRenderedDocumentRenderer.mockResolvedValueOnce({
+      pdf: Buffer.from("rerendered-pdf"),
+      pageCount: 1,
+      signaturePlacement: {
+        pageNumber: 1,
+        pageX: 340,
+        pageY: 710,
+        width: 220,
+        height: 96,
+      },
+    });
+    mockedUploadBufferAsFile.mockResolvedValueOnce({
+      url: "https://cdn.example/rerendered.pdf",
+      key: "rendered-documents/org-123/doc-4.pdf",
+      originalname: "soap-note-doc-4.pdf",
+      mimetype: "application/pdf",
+    });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-4",
+      organisationId: "org-123",
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: "artifact-4",
+      templateInstanceId: null,
+      clinicalArtifactId: "artifact-4",
+      templateId: "template-123",
+      templateVersion: 3,
+      templateVersionId: "template-version-1",
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP Note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: null,
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-13T00:00:00.000Z"),
+      signature: null,
+    });
+    mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
+      id: "doc-4",
+      organisationId: "org-123",
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: "artifact-4",
+      templateInstanceId: null,
+      clinicalArtifactId: "artifact-4",
+      templateId: "template-123",
+      templateVersion: 3,
+      templateVersionId: "template-version-1",
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP Note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/rerendered.pdf",
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-06-13T00:00:00.000Z",
+        title: "SOAP Note",
+        mimeType: "application/pdf",
+        documentKind: "SOAP_NOTE",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: "artifact-4",
+          organisationId: "org-123",
+          templateKind: "SOAP_NOTE",
+          templateId: "template-123",
+          templateVersion: 3,
+          templateVersionId: "template-version-1",
+        },
+        signaturePlacement: {
+          pageNumber: 1,
+          pageX: 340,
+          pageY: 710,
+          width: 220,
+          height: 96,
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-13T00:00:00.000Z"),
+      signature: null,
+    });
+
+    const result = await rerenderPersistedClinicalRenderedDocumentPdf(
+      "doc-4",
+      "org-123",
+    );
+
+    expect(mockedRenderedDocumentRenderer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "SOAP Note",
+        source: expect.objectContaining({
+          sourceId: "artifact-4",
+          organisationId: "org-123",
+        }),
+      }),
+    );
+    expect(mockedUploadBufferAsFile).toHaveBeenCalledWith(
+      Buffer.from("rerendered-pdf"),
+      expect.objectContaining({
+        folderName: "rendered-documents/org-123",
+        mimeType: "application/pdf",
+      }),
+    );
+    expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "doc-4" },
+        data: expect.objectContaining({
+          pdfUrl: "https://cdn.example/rerendered.pdf",
+        }),
+      }),
+    );
+    expect(result.pdf).toEqual(Buffer.from("rerendered-pdf"));
+  });
+
   it("persists a rendered document signature and updates the document", async () => {
-    mockedRenderedDocumentRenderer.mockResolvedValueOnce(Buffer.from("pdf"));
+    mockedRenderedDocumentRenderer.mockResolvedValueOnce({
+      pdf: Buffer.from("pdf"),
+      pageCount: 1,
+      signaturePlacement: {
+        pageNumber: 1,
+        pageX: 340,
+        pageY: 710,
+        width: 220,
+        height: 96,
+      },
+    });
     mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
       "api-key-1",
     );
@@ -491,6 +752,11 @@ describe("rendered-document service", () => {
         signerEmail: "user@example.com",
         signerName: "User One",
         apiKey: "api-key-1",
+        signaturePlacement: expect.objectContaining({
+          pageNumber: 1,
+          pageX: 340,
+          pageY: 710,
+        }),
       }),
     );
     expect(mockedDocumensoService.distributeDocument).toHaveBeenCalledWith(

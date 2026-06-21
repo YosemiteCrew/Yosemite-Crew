@@ -41,47 +41,29 @@ body {
 }
 .badge {
   position: relative;
-  width: 116px;
-  height: 116px;
   display: grid;
   place-items: center;
 }
+/* The logo art already includes its own badge ring and a BETA pill that breaks
+   the circle, so we deliberately avoid a hard frame here. A framed circle clipped
+   the protruding pill and left a dark backing square behind the mark. Instead a
+   soft circular brand glow sits behind the artwork. */
 .badge::before {
   content: '';
   position: absolute;
-  inset: -10px;
+  width: 132px;
+  height: 132px;
   border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    var(--brand-925),
-    var(--brand-900),
-    var(--color-brand-600),
-    var(--brand-925)
-  );
-  animation: spin 2.4s linear infinite;
-  filter: blur(2px);
-  opacity: 0.55;
-}
-.badge::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--surface-card);
+  background: radial-gradient(circle, rgba(59, 135, 236, 0.34), transparent 70%);
+  filter: blur(14px);
 }
 .logo {
   position: relative;
   z-index: 1;
-  width: 96px;
-  height: 96px;
-  border-radius: 22px;
-  object-fit: contain;
-  box-shadow: 0 10px 30px rgba(59, 135, 236, 0.25);
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  width: 136px;
+  height: auto;
+  /* drop-shadow follows the artwork's alpha, so there is no square halo */
+  filter: drop-shadow(0 10px 22px rgba(59, 135, 236, 0.28));
 }
 .title {
   font-size: 19px;
@@ -124,7 +106,6 @@ body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .badge::before,
   .bar,
   .wrap {
     animation: none;

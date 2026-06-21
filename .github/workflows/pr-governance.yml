@@ -34,6 +34,7 @@ jobs:
             backend
             frontend
             mobile
+            desktop
             dev-docs
             types
             fhir

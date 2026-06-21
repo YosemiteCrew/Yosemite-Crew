@@ -312,6 +312,9 @@ describe("FinancePaymentService", () => {
     expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: "payment",
+        automatic_tax: {
+          enabled: true,
+        },
         line_items: [
           expect.objectContaining({
             quantity: 1,
@@ -682,18 +685,31 @@ describe("FinancePaymentService", () => {
     (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
       id: "pa_webhook_2",
     });
+    (prisma.invoice.update as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "inv_webhook_2",
+        subtotal: 38,
+        taxTotal: 4,
+        taxPercent: 10.53,
+        totalAmount: 42,
+        currency: "usd",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        status: "PENDING",
+        parentId: "parent_2",
+        payments: [],
+      })
+      .mockResolvedValueOnce({
+        id: "inv_webhook_2",
+        status: "PAID",
+        totalAmount: 42,
+        currency: "usd",
+        parentId: "parent_2",
+        payments: [],
+      });
     (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
       id: "pay_webhook_2",
       amount: 42,
       status: "SUCCEEDED",
-    });
-    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
-      id: "inv_webhook_2",
-      status: "PAID",
-      totalAmount: 42,
-      currency: "usd",
-      parentId: "parent_2",
-      payments: [],
     });
 
     const result =
@@ -702,8 +718,35 @@ describe("FinancePaymentService", () => {
         sessionId: "cs_webhook_2",
         paymentIntentId: "pi_webhook_2",
         currency: "usd",
+        amountSubtotal: 38,
+        amountTotal: 42,
+        amountTax: 4,
+        automaticTaxStatus: "complete",
       });
 
+    expect(prisma.invoice.update).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { id: "inv_webhook_2" },
+        data: expect.objectContaining({
+          taxProvider: "STRIPE",
+          subtotal: 38,
+          taxTotal: 4,
+          taxPercent: 10.53,
+          totalAmount: 42,
+          taxSnapshot: expect.objectContaining({
+            upsert: expect.objectContaining({
+              create: expect.objectContaining({
+                provider: "STRIPE",
+                providerReferenceId: "cs_webhook_2",
+                taxableSubtotal: 38,
+                taxAmount: 4,
+              }),
+            }),
+          }),
+        }),
+      }),
+    );
     expect(prisma.paymentAttempt.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "pa_webhook_2" },
@@ -1078,6 +1121,9 @@ describe("FinancePaymentService", () => {
 
     expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        automatic_tax: {
+          enabled: true,
+        },
         line_items: [
           expect.objectContaining({
             price_data: expect.objectContaining({ unit_amount: 9000 }),
@@ -1260,6 +1306,9 @@ describe("FinancePaymentService", () => {
 
     expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        automatic_tax: {
+          enabled: true,
+        },
         line_items: [
           expect.objectContaining({
             price_data: expect.objectContaining({ unit_amount: 6000 }),

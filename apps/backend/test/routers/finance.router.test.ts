@@ -39,7 +39,7 @@ const FinanceController = {
   createInvoice: jest.fn(),
   addInvoiceItems: jest.fn(),
   getInvoiceById: jest.fn(),
-  getInvoiceByPaymentIntentId: jest.fn(),
+  retrievePaymentIntent: jest.fn(),
   listInvoicesForAppointment: jest.fn(),
   listInvoicesForParent: jest.fn(),
   bootstrapInvoiceForAppointment: jest.fn(),
@@ -48,6 +48,7 @@ const FinanceController = {
   voidInvoice: jest.fn(),
   supplementInvoice: jest.fn(),
   createInvoicePaymentSession: jest.fn(),
+  createMobileInvoicePaymentSession: jest.fn(),
   recordInvoicePayment: jest.fn(),
   refundPayment: jest.fn(),
   getSubscriptionOverview: jest.fn(),
@@ -130,10 +131,19 @@ describe("finance.router", () => {
       "/mobile/appointments/:appointmentId/invoices",
       "post",
     );
+    const mobilePaymentSessionRoute = findRoute(
+      "/mobile/invoices/:invoiceId/payments/sessions",
+      "post",
+    );
 
     expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
       FinanceController.createInvoicePaymentSession,
     );
+    expect(
+      findRoute("/invoices/payment-intent/:paymentIntentId", "get")?.stack.map(
+        (layer) => layer.handle,
+      ),
+    ).toContain(FinanceController.retrievePaymentIntent);
     expect(paymentRoute?.stack.map((layer) => layer.handle)).toContain(
       FinanceController.recordInvoicePayment,
     );
@@ -164,6 +174,17 @@ describe("finance.router", () => {
     expect(
       mobileAppointmentRoute?.stack.map((layer) => layer.handle),
     ).toContain(financeAppointmentLimiter);
+    expect(
+      mobilePaymentSessionRoute?.stack.map((layer) => layer.handle),
+    ).toContain(authorizeCognitoMobile);
+    expect(
+      mobilePaymentSessionRoute?.stack.map((layer) => layer.handle),
+    ).toContain(FinanceController.createMobileInvoicePaymentSession);
+    expect(
+      findRoute("/mobile/payment-intent/:paymentIntentId", "get")?.stack.map(
+        (layer) => layer.handle,
+      ),
+    ).toContain(FinanceController.retrievePaymentIntent);
     expect(rateLimit).toHaveBeenCalledTimes(1);
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
     expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
