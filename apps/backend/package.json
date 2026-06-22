@@ -25,7 +25,7 @@
     "@prisma/client": "^5.22.0",
     "@aws-sdk/client-cognito-identity-provider": "3.772.0",
     "@aws-sdk/client-pinpoint": "^3.806.0",
-    "@aws-sdk/client-s3": "^3.842.0",
+    "@aws-sdk/client-s3": "^3.1073.0",
     "@aws-sdk/client-ses": "^3.839.0",
     "aws-sdk": "2.1692.0",
     "axios": "^1.16.0",
