@@ -65,7 +65,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@documenso/sdk-typescript": "^0.5.1",
+    "@documenso/sdk-typescript": "^0.8.1",
     "@eslint/js": "^9.21.0",
     "@types/aws-sdk": "^2.7.4",
     "@types/bcrypt": "^5.0.2",
