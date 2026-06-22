@@ -57,7 +57,7 @@
     "i18next-resources-to-backend": "^1.2.1",
     "js-sha256": "^0.11.1",
     "react": "19.1.0",
-    "react-hook-form": "^7.63.0",
+    "react-hook-form": "^7.80.0",
     "react-i18next": "^15.4.1",
     "react-native": "0.81.4",
     "react-native-asset": "^2.1.1",
