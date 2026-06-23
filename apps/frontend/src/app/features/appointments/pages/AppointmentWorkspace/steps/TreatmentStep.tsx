@@ -7,6 +7,7 @@ import InpatientSchedule from '@/app/features/appointments/pages/AppointmentWork
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 import { savePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
+import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import {
   getAvailableStock,
@@ -384,7 +385,13 @@ const TreatmentStep = ({
     }
   };
 
-  const handleSaveTreatment = () => {
+  const handleSaveTreatment = async () => {
+    if (organisationId) {
+      const persistedPrescriptions = encounter.prescription.filter((rx) => rx.id);
+      await Promise.allSettled(
+        persistedPrescriptions.map((rx) => finalizePrescription(organisationId, rx.id))
+      );
+    }
     setStepStatus(appointmentId, 'TREATMENT', 'COMPLETED');
     onOpenInvoice();
   };
