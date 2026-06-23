@@ -58,6 +58,7 @@ export type FieldDef<S extends InventorySectionKey = InventorySectionKey> = {
   label?: string;
   component: FieldComponentType;
   options?: string[];
+  readonly?: boolean;
 };
 
 export type ConfigItem<S extends InventorySectionKey = InventorySectionKey> =
@@ -79,6 +80,16 @@ const field = <S extends InventorySectionKey>(
 const row = <S extends InventorySectionKey>(...fields: FieldDef<S>[]): ConfigItem<S> => ({
   kind: 'row',
   fields,
+});
+
+const readonlyField = <S extends InventorySectionKey>(
+  name: FieldNameForSection<S>,
+  placeholder: string,
+  component: FieldComponentType,
+  options?: string[]
+): ConfigItem<S> => ({
+  kind: 'field',
+  field: { name, placeholder, component, options, readonly: true },
 });
 
 const f = <S extends InventorySectionKey>(
@@ -114,7 +125,7 @@ const commonStockFields = (includesStockType: boolean = false): SectionConfig<'s
   ),
   field('abcClass', 'ABC Class', 'dropdown', AbcClassOptions),
   field('withdrawlPeriod', 'Withdrawal period (optional)', 'dropdown', WithdrawalPeriodOptions),
-  field('available', 'Available stock', 'text'),
+  readonlyField('available', 'Available stock', 'text'),
   ...(includesStockType
     ? [field<'stock'>('stockType', 'Stock type', 'dropdown', StockTypeOptions)]
     : []),
@@ -195,6 +206,7 @@ export const InventoryFormConfig: Record<
       },
     ],
     classification: [
+      field('genericName', 'Generic name', 'text'),
       {
         kind: 'row',
         fields: [

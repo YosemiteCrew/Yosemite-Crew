@@ -21,6 +21,15 @@ jest.mock('next/dynamic', () => ({
         return <MockInventoryTable {...props} />;
       }
 
+      if (source.includes('ui/tables/DispensaryTable')) {
+        const MockDispensaryTable = (
+          jest.requireMock('@/app/ui/tables/DispensaryTable') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockDispensaryTable {...props} />;
+      }
+
       if (source.includes('ui/tables/InventoryTurnoverTable')) {
         const MockInventoryTurnoverTable = (
           jest.requireMock('@/app/ui/tables/InventoryTurnoverTable') as {
@@ -126,6 +135,25 @@ jest.mock('@/app/ui/filters/InventoryFilters', () => ({
 jest.mock('@/app/ui/filters/InventoryTurnoverFilters', () => ({
   __esModule: true,
   default: () => <div data-testid="turnover-filters" />,
+}));
+
+jest.mock('@/app/ui/tables/DispensaryTable', () => ({
+  __esModule: true,
+  default: () => <div data-testid="dispensary-table" />,
+}));
+
+jest.mock('@/app/features/inventory/components/DispensaryDetailModal', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/app/features/inventory/services/dispensaryService', () => ({
+  listDispenseRequests: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('@/app/features/appointments/services/prescriptionWorkflowService', () => ({
+  dispensePrescription: jest.fn().mockResolvedValue({}),
+  finalizePrescription: jest.fn().mockResolvedValue({}),
 }));
 
 // Mock Tables
@@ -332,18 +360,16 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     expect(screen.getByRole('button', { name: 'Inventory info' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Turnover' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dispensary' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sort by' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add item' })).toBeInTheDocument();
     expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
-    expect(screen.queryByTestId('turnover-filters')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('turnover-table')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dispensary-table')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
 
-    expect(screen.getByTestId('turnover-filters')).toBeInTheDocument();
-    expect(screen.getByTestId('turnover-table')).toBeInTheDocument();
+    expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
     expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
   });
 
@@ -413,6 +439,7 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Medicine' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
@@ -426,16 +453,15 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Medicine' }));
 
-    const removeChip = screen.getByRole('button', { name: 'Remove Medicine filter' });
+    const removeChip = screen.getByRole('button', { name: 'Remove Medicine' });
     expect(removeChip).toBeInTheDocument();
 
     fireEvent.click(removeChip);
 
-    expect(
-      screen.queryByRole('button', { name: 'Remove Medicine filter' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove Medicine' })).not.toBeInTheDocument();
     expect((screen.getByRole('checkbox', { name: 'Medicine' }) as HTMLInputElement).checked).toBe(
       false
     );
@@ -444,9 +470,8 @@ describe('Inventory Page', () => {
   it('filters inventory by status', async () => {
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Visible' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+
     await waitFor(() => {
       expect(screen.getByTestId('item-1')).toBeInTheDocument();
       expect(screen.queryByTestId('item-2')).not.toBeInTheDocument();

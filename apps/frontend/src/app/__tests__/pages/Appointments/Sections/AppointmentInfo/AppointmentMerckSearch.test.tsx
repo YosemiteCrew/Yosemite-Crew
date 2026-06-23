@@ -140,7 +140,10 @@ describe('AppointmentMerckSearch', () => {
     fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
-    await waitFor(() => expect(searchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(searchMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Canine Fever')).toBeInTheDocument();
+    });
     expect(searchMock).toHaveBeenCalledWith(
       expect.objectContaining({
         organisationId: 'org-1',

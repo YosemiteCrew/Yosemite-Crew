@@ -6,7 +6,7 @@ export type PrescriptionWorkflowResult = Record<string, unknown>;
 const prescriptionAction = async (
   organisationId: string,
   prescriptionId: string,
-  action: '$reserve' | '$dispense' | '$return' | '$void-dispense',
+  action: '$reserve' | '$dispense' | '$return' | '$void-dispense' | '$not-dispensed' | '$finalize',
   body: PrescriptionWorkflowBody = {}
 ) => {
   const res = await postData<PrescriptionWorkflowResult>(
@@ -39,3 +39,15 @@ export const voidPrescriptionDispense = (
   prescriptionId: string,
   body: PrescriptionWorkflowBody = {}
 ) => prescriptionAction(organisationId, prescriptionId, '$void-dispense', body);
+
+export const notDispensedPrescription = (
+  organisationId: string,
+  prescriptionId: string,
+  body: PrescriptionWorkflowBody = {}
+) => prescriptionAction(organisationId, prescriptionId, '$not-dispensed', body);
+
+export const finalizePrescription = (
+  organisationId: string,
+  prescriptionId: string,
+  body: PrescriptionWorkflowBody = {}
+) => prescriptionAction(organisationId, prescriptionId, '$finalize', body);

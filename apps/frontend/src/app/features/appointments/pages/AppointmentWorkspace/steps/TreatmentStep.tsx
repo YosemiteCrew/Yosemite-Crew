@@ -11,12 +11,13 @@ import type {
   ScheduleTaskStatus,
 } from '@/app/features/appointments/types/workspace';
 import { savePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
+import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
+import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import {
   getAppointmentWorkspaceBootstrap,
   normalizeWorkspaceBootstrapForEncounter,
   persistTreatmentItems,
 } from '@/app/features/appointments/services/workspaceAggregateService';
-import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import { mapApiItemToInventoryItem } from '@/app/features/inventory/pages/Inventory/utils';
 import { inventoryToPrescriptionItem } from '@/app/features/appointments/lib/inventoryPrescription';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
@@ -573,6 +574,14 @@ const TreatmentStep = ({
       setTreatmentSaveError('Unable to save treatment items. Please try again.');
       setIsSavingTreatment(false);
       return;
+    }
+    if (organisationId) {
+      const persistedPrescriptions = encounter.prescription.filter(
+        (rx) => rx.id && rx.fulfillment !== 'PRESCRIPTION_ONLY'
+      );
+      await Promise.allSettled(
+        persistedPrescriptions.map((rx) => finalizePrescription(organisationId, rx.id))
+      );
     }
     setStepStatus(appointmentId, 'TREATMENT', 'COMPLETED');
     setIsSavingTreatment(false);

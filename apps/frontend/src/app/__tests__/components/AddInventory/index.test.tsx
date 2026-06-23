@@ -77,6 +77,10 @@ jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => 
 
       {/* Classification Fields */}
       <input
+        data-testid="in-generic-name"
+        onChange={(e) => onFieldChange('classification', 'genericName', e.target.value)}
+      />
+      <input
         data-testid="in-item-type"
         onChange={(e) => onFieldChange('classification', 'itemType', e.target.value)}
       />
@@ -186,7 +190,10 @@ describe('AddInventory Component', () => {
 
     expect(screen.getByTestId('active-label')).toHaveTextContent('classification');
 
-    // 2. Classification (No validation logic in component)
+    // 2. Classification
+    fireEvent.change(screen.getByTestId('in-generic-name'), {
+      target: { value: 'Item 1 generic' },
+    });
     fireEvent.click(screen.getByTestId('save-btn')); // Next
     expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
 
@@ -225,6 +232,33 @@ describe('AddInventory Component', () => {
     expect(mockSubmit).toHaveBeenCalled();
     // Upon success, modal should close and form reset
     expect(mockSetShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('requires generic name for hospital medical items before leaving Clinical Details', async () => {
+    render(<AddInventory {...props} businessType={'HOSPITAL' as BusinessType} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), {
+      target: { value: 'Amoxicillin 250mg' },
+    });
+    fireEvent.change(screen.getByTestId('in-cat'), {
+      target: { value: 'Medicine' },
+    });
+    fireEvent.change(screen.getByTestId('in-sub'), {
+      target: { value: 'Antibiotic' },
+    });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    expect(screen.getByTestId('active-label')).toHaveTextContent('classification');
+
+    fireEvent.click(screen.getByTestId('save-btn'));
+    expect(screen.getByTestId('active-label')).toHaveTextContent('classification');
+
+    fireEvent.change(screen.getByTestId('in-generic-name'), {
+      target: { value: 'Amoxicillin' },
+    });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
   });
 
   it('clears drug-only clinical fields when Non-drug is selected', async () => {

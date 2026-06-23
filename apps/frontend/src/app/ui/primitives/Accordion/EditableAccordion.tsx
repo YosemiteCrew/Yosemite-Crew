@@ -37,6 +37,7 @@ type EditableAccordionProps = {
   hideInlineActions?: boolean;
   compactInlineActions?: boolean;
   onEditingChange?: (isEditing: boolean) => void;
+  footer?: React.ReactNode;
   onRegisterActions?: (
     actions: {
       save: () => Promise<void>;
@@ -154,6 +155,23 @@ const FieldComponents: Record<
       error={error}
     />
   ),
+  checkbox: ({ field, value, onChange, error }) => {
+    const checked = value === true || value === 'true' || value === 'Yes';
+    return (
+      <div className="flex flex-col gap-2">
+        <label className="flex min-h-10 cursor-pointer items-center gap-3 text-body-4 text-text-primary">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(event) => onChange(event.target.checked ? 'true' : 'false')}
+            className="size-5 rounded border-input-border-default accent-blue-text"
+          />
+          <span>{field.label}</span>
+        </label>
+        {error ? <div className="px-4 text-caption-1 text-red-600">{error}</div> : null}
+      </div>
+    );
+  },
   country: ({ value, onChange, error }) => (
     <LabelDropdown
       placeholder="Choose country"
@@ -286,6 +304,20 @@ const isCurrencyField = (fieldKey: string) => {
   return fieldKey === 'purchaseCost' || fieldKey === 'selling';
 };
 
+const formatDisplayValue = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.join(', ') : '-';
+  }
+  if (value === undefined || value === null || value === '') {
+    return '-';
+  }
+  if (typeof value === 'object') return '-';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '-';
+};
+
 const FieldValueComponents: Record<
   string,
   React.FC<{
@@ -297,9 +329,7 @@ const FieldValueComponents: Record<
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
       <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
       <div className="text-body-4 text-text-primary text-right">
-        {Array.isArray(formValues[field.key])
-          ? (formValues[field.key] as string[]).join(', ')
-          : formValues[field.key] || '-'}
+        {formatDisplayValue(formValues[field.key])}
       </div>
     </div>
   ),
@@ -314,7 +344,9 @@ const FieldValueComponents: Record<
   number: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
       <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
-      <div className="text-body-4 text-text-primary text-right">{formValues[field.key] || '-'}</div>
+      <div className="text-body-4 text-text-primary text-right">
+        {formatDisplayValue(formValues[field.key])}
+      </div>
     </div>
   ),
   select: ({ field, formValues }) => (
@@ -325,7 +357,7 @@ const FieldValueComponents: Record<
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
           if (options.length) return resolveLabel(options, value);
-          return value || '-';
+          return formatDisplayValue(value);
         })()}
       </div>
     </div>
@@ -338,7 +370,7 @@ const FieldValueComponents: Record<
           const value = formValues[field.key];
           const options = normalizeOptions(field.options);
           if (options.length) return resolveLabel(options, value);
-          return value || '-';
+          return formatDisplayValue(value);
         })()}
       </div>
     </div>
@@ -365,6 +397,18 @@ const FieldValueComponents: Record<
       </div>
     </div>
   ),
+  checkbox: ({ field, formValues }) => {
+    const value = formValues[field.key];
+    const checked = value === true || value === 'true' || value === 'Yes';
+    return (
+      <div
+        className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}
+      >
+        <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
+        <div className="text-body-4 text-text-primary text-right">{checked ? 'Yes' : 'No'}</div>
+      </div>
+    );
+  },
   country: ({ field, formValues }) => (
     <div className={`py-2.5! flex items-center gap-2 justify-between border-t border-card-border`}>
       <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
@@ -435,9 +479,19 @@ const buildInitialValues = (fields: FieldConfig[], data: Record<string, any>): F
       if (Array.isArray(initialValue)) {
         value = initialValue;
       } else if (typeof initialValue === 'string' && initialValue.trim() !== '') {
-        value = [initialValue];
+        value = initialValue.includes(',')
+          ? initialValue
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : [initialValue];
       }
       acc[field.key] = value;
+    } else if (field.type === 'checkbox') {
+      acc[field.key] =
+        initialValue === true || initialValue === 'true' || initialValue === 'Yes'
+          ? 'true'
+          : 'false';
     } else if (field.type === 'date') {
       acc[field.key] = initialValue ?? '';
     } else {
@@ -474,6 +528,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   hideInlineActions = false,
   compactInlineActions = false,
   onEditingChange,
+  footer,
   onRegisterActions,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -526,10 +581,12 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setIsEditing(false);
   }, [data, fields, isSaving]);
 
-  if (readOnly && isEditing) {
-    setIsEditing(false);
-    onEditingChange?.(false);
-  }
+  useEffect(() => {
+    if (readOnly && isEditing) {
+      setIsEditing(false);
+      onEditingChange?.(false);
+    }
+  }, [readOnly, isEditing, onEditingChange]);
 
   const handleSave = useCallback(async () => {
     if (isSaving) return;
@@ -601,6 +658,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
               </div>
             );
           })}
+          {footer && <div className="mt-3">{footer}</div>}
         </div>
       </Accordion>
 

@@ -672,14 +672,26 @@ const configureDownloads = (ses: Session): void => {
           try {
             const mimeType = item.getMimeType() || 'application/octet-stream';
             const isText = /^text\/|^application\/(json|xml|javascript)$/.test(mimeType);
-            if (isText) {
-              const content = fs.readFileSync(item.getSavePath(), 'utf8');
-              documentVault.saveDocument(item.getFilename(), content, mimeType);
+            const saved = isText
+              ? documentVault.saveDocument(
+                  item.getFilename(),
+                  fs.readFileSync(item.getSavePath(), 'utf8'),
+                  mimeType
+                )
+              : documentVault.saveDocumentBuffer(
+                  item.getFilename(),
+                  fs.readFileSync(item.getSavePath()),
+                  mimeType
+                );
+            if ('error' in saved) {
+              // e.g. OS encryption unavailable — never vault PHI in cleartext.
+              logger.warn('download_vault_skipped', {
+                filename: item.getFilename(),
+                reason: saved.error,
+              });
             } else {
-              const content = fs.readFileSync(item.getSavePath());
-              documentVault.saveDocumentBuffer(item.getFilename(), content, mimeType);
+              logger.debug('download_vaulted', { filename: item.getFilename() });
             }
-            logger.debug('download_vaulted', { filename: item.getFilename() });
           } catch {
             logger.warn('download_vault_failed', {
               filename: item.getFilename(),

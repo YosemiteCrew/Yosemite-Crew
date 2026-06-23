@@ -515,6 +515,7 @@ type InventoryInfoProps = {
   canEdit?: boolean;
   stockLocationOptions?: string[];
   initialSection?: InventorySectionKey;
+  organisationId?: string;
 };
 
 const modalSections: { key: InventorySectionKey; name: string }[] = [
@@ -608,37 +609,26 @@ const PreviewItem = ({ item, batchData }: { item: ConfigItem<any>; batchData: Ba
 const PricingCurrencySummary = ({ inventory }: { inventory: InventoryItem }) => {
   const currency = inventory.currency;
   return (
-    <div className="flex flex-col gap-2 px-1 pt-2 text-body-4 text-text-primary">
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Purchase cost</span>
-        <span className="font-semibold">
-          {formatCurrencyValue(inventory.pricing.purchaseCost, currency)}
-        </span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Selling price</span>
-        <span className="font-semibold">
-          {formatCurrencyValue(inventory.pricing.selling, currency)}
-        </span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Gross profit per unit</span>
+    <div className="flex flex-col gap-2 px-4 pt-2 text-body-4 text-text-primary">
+      <div>
+        <span>Gross profit per unit : </span>
         <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
           {formatCurrencyValue(getGrossProfitPerUnit(inventory), currency)}
         </span>
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Margin</span>
+      <div>
+        <span>Margin : </span>
         <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
           {formatPercentValue(getMarginPercent(inventory))}
         </span>
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Total stock value</span>
-        <span className="font-semibold">
-          {formatCurrencyValue(getStockValue(inventory), currency)}
-        </span>
-      </div>
+      <FormInput
+        intype="text"
+        inname="stockValue"
+        value={formatCurrencyValue(getStockValue(inventory), currency)}
+        inlabel="Total stock value"
+        readonly
+      />
     </div>
   );
 };
@@ -656,6 +646,7 @@ const InventoryInfo = ({
   canEdit = true,
   stockLocationOptions,
   initialSection,
+  organisationId,
 }: InventoryInfoProps) => {
   const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
     initialSection ?? modalSections[0].key
@@ -848,7 +839,7 @@ const InventoryInfo = ({
             setActiveLabel={setActiveLabel}
           />
 
-          <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
+          <div className="flex flex-col overflow-y-auto flex-1 scrollbar-hidden">
             {activeInventory && (
               <>
                 {activeLabel === 'batch' ? (
@@ -872,6 +863,7 @@ const InventoryInfo = ({
                     disableEditing={!canEdit || isUpdating || isHiding}
                     onEditingChange={setIsSectionEditing}
                     stockLocationOptions={stockLocationOptions}
+                    organisationId={organisationId}
                     onRegisterActions={(actions) => {
                       sectionActions.current = actions;
                     }}

@@ -8,6 +8,7 @@ import { useInventoryStore } from '@/app/stores/inventoryStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import { savePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
+import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import {
   applyInpatientScheduleTemplate,
   createWorkspaceTemplateInstance,
@@ -33,6 +34,10 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
   savePrescriptionArtifact: jest.fn().mockResolvedValue({ resourceType: 'MedicationRequest' }),
+}));
+
+jest.mock('@/app/features/appointments/services/prescriptionWorkflowService', () => ({
+  finalizePrescription: jest.fn().mockResolvedValue({}),
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
@@ -297,6 +302,8 @@ describe('TreatmentStep', () => {
     (savePrescriptionArtifact as jest.Mock).mockResolvedValue({
       resourceType: 'MedicationRequest',
     });
+    (finalizePrescription as jest.Mock).mockClear();
+    (finalizePrescription as jest.Mock).mockResolvedValue({});
     (applyInpatientScheduleTemplate as jest.Mock).mockClear();
     (createWorkspaceTemplateInstance as jest.Mock).mockClear();
     (listInpatientScheduleTemplates as jest.Mock).mockClear();
@@ -573,6 +580,8 @@ describe('TreatmentStep', () => {
     await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
     expect(persistTreatmentItems).toHaveBeenCalledWith(ORG, 'enc-1', enc.services);
     expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT);
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-1');
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
       'COMPLETED'
     );

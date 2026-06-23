@@ -7,7 +7,7 @@ import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import { BusinessType } from '@/app/features/organization/types/org';
-import { RiUploadCloud2Fill } from 'react-icons/ri';
+import ImageUploadField from '@/app/features/inventory/components/AddInventory/ImageUploadField';
 
 import {
   InventoryItem,
@@ -77,6 +77,7 @@ type FormSectionProps = {
   onRemoveBatch?: (index: number) => void;
   stockLocationOptions?: string[];
   headerSlot?: React.ReactNode;
+  organisationId?: string;
 };
 
 const PricingSummary = ({ formData }: { formData: InventoryItem }) => (
@@ -129,6 +130,7 @@ const FormSection: React.FC<FormSectionProps> = ({
   onRemoveBatch,
   stockLocationOptions,
   headerSlot,
+  organisationId,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] ?? {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -329,31 +331,13 @@ const FormSection: React.FC<FormSectionProps> = ({
 
     if (component === 'upload') {
       return (
-        <div key={key ?? field.name} className="relative">
-          <div className="mb-1 px-4 text-caption-1 text-text-secondary">{placeholder}</div>
-          <button
-            type="button"
-            className="flex min-h-35 w-full flex-col items-center justify-center rounded-2xl border border-input-border-default bg-white px-4 py-5 text-center text-text-primary"
-            onClick={() => document.getElementById(`inventory-upload-${field.name}`)?.click()}
-          >
-            <RiUploadCloud2Fill size={34} className="text-blue-text" aria-hidden="true" />
-            <span className="mt-2 text-body-4-emphasis">Upload document</span>
-            <span className="text-caption-1 text-text-secondary">PNG, JPG, WebP</span>
-            <span className="text-caption-1 text-text-secondary">Max size 2mb</span>
-          </button>
-          <input
-            id={`inventory-upload-${field.name}`}
-            type="file"
-            className="hidden"
-            aria-label={placeholder || 'Upload inventory image'}
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-              handleChange(field, URL.createObjectURL(file), index);
-            }}
-          />
-        </div>
+        <ImageUploadField
+          key={key ?? field.name}
+          label={placeholder}
+          value={value}
+          organisationId={organisationId}
+          onChange={(url) => handleChange(field, url, index)}
+        />
       );
     }
 

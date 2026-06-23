@@ -1,4 +1,4 @@
-import { isHttpsImageUrl, getSafeImageUrl } from '@/app/lib/urls';
+import { isHttpsImageUrl, getSafeImageUrl, getSafeOrgImageUrl } from '@/app/lib/urls';
 
 jest.mock('@/app/constants/mediaSources', () => ({
   MEDIA_SOURCES: {
@@ -8,6 +8,9 @@ jest.mock('@/app/constants/mediaSources', () => ({
       horse: 'https://cdn.example.com/avatars/horse.png',
       person: 'https://cdn.example.com/avatars/person.png',
       business: 'https://cdn.example.com/avatars/business.png',
+    },
+    organization: {
+      fromS3Key: (s3Key: string) => `https://org-cdn.example.com/${s3Key}`,
     },
   },
 }));
@@ -49,5 +52,26 @@ describe('getSafeImageUrl', () => {
     // 'other' type maps to dog avatar
     const result = getSafeImageUrl(null, 'other' as any);
     expect(result).toBe('https://cdn.example.com/avatars/dog.png');
+  });
+});
+
+describe('getSafeOrgImageUrl', () => {
+  it('returns https urls unchanged', () => {
+    expect(getSafeOrgImageUrl('https://example.com/item.png')).toBe('https://example.com/item.png');
+  });
+
+  it('converts inventory s3 keys into org cdn urls', () => {
+    expect(getSafeOrgImageUrl('inventory/org-1/item.png')).toBe(
+      'https://org-cdn.example.com/inventory/org-1/item.png'
+    );
+  });
+
+  it('allows blob previews when explicitly enabled', () => {
+    expect(getSafeOrgImageUrl('blob:test-preview', { allowBlob: true })).toBe('blob:test-preview');
+  });
+
+  it('rejects unsafe or empty values', () => {
+    expect(getSafeOrgImageUrl('javascript:alert(1)')).toBe('');
+    expect(getSafeOrgImageUrl('')).toBe('');
   });
 });
