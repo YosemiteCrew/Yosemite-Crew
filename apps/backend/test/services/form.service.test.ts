@@ -1333,6 +1333,28 @@ describe("FormService", () => {
       ).rejects.toThrow("Forbidden");
     });
 
+    it("throws forbidden when the appointment belongs to another organisation (cross-tenant IDOR)", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({
+          organisationId: "org-owner",
+          companion: { parent: { id: "parent-a" } },
+        }),
+      );
+
+      await expect(
+        FormService.getFormsForAppointment({
+          appointmentId: validId,
+          requesterOrgId: "org-attacker",
+        }),
+      ).rejects.toThrow(
+        "Forbidden: appointment does not belong to this organisation",
+      );
+
+      // The signed-document download / questionnaire build must never run for a
+      // cross-tenant caller.
+      expect(DocumensoService.downloadSignedDocument).not.toHaveBeenCalled();
+    });
+
     it("marks assignments viewed when a parent opens the appointment forms", async () => {
       (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
         createChainable({

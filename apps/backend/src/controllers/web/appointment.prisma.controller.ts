@@ -7,6 +7,7 @@ import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import { OrgRequest } from "src/middlewares/rbac";
 
 type RescheduleRequestBody = {
   startTime: string | Date;
@@ -394,10 +395,34 @@ export const AppointmentController = {
     }
   },
 
-  getById: async (req: Request<{ appointmentId: string }>, res: Response) => {
+  getById: async (
+    req: Request<{ appointmentId: string; organisationId?: string }>,
+    res: Response,
+  ) => {
     try {
+      const orgReq = req as OrgRequest;
+      // PMS routes pass through withOrgPermissions which sets organisationId on
+      // the request; mobile routes (authorizeCognitoMobile) do not. When there
+      // is no authorized org context (mobile/internal), call unscoped exactly
+      // as before so those callers are unchanged.
+      const organisationId =
+        orgReq.organisationId ?? req.params.organisationId ?? undefined;
+
+      let restrictToAssignedActorId: string | undefined;
+      if (organisationId) {
+        const permissions = orgReq.userPermissions ?? [];
+        const canViewAny = permissions.includes("appointments:view:any");
+        if (!canViewAny) {
+          // Caller holds only appointments:view:own: limit to appointments
+          // assigned to the authenticated actor from the verified token.
+          restrictToAssignedActorId = resolveUserIdFromRequest(req);
+        }
+      }
+
       const data = await AppointmentPrismaService.getById(
         req.params.appointmentId,
+        organisationId,
+        restrictToAssignedActorId,
       );
       return res.status(200).json({ data });
     } catch (err: unknown) {

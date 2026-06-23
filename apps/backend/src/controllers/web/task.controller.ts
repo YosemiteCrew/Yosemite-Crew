@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { ParamsDictionary } from "express-serve-static-core";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import type { OrgRequest } from "src/middlewares/rbac";
+import type { Permission } from "src/models/role-permission";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
   isTaskCategory,
@@ -159,9 +160,30 @@ const handleError = (error: unknown, res: Response) => {
   return res.status(500).json({ message: "Internal Server Error" });
 };
 
-const resolveUserId = (req: Request): string => {
+const resolveUserId = (
+  req: Request<unknown, unknown, unknown, unknown>,
+): string => {
   const authReq = req as AuthenticatedRequest;
   return typeof authReq.userId === "string" ? authReq.userId : "";
+};
+
+const resolveOrganisationId = (
+  req: Request<unknown, unknown, unknown, unknown>,
+): string | undefined => {
+  const orgReq = req as OrgRequest;
+  return typeof orgReq.organisationId === "string"
+    ? orgReq.organisationId
+    : undefined;
+};
+
+const hasPermission = (
+  req: Request<unknown, unknown, unknown, unknown>,
+  permission: Permission,
+): boolean => {
+  const orgReq = req as OrgRequest;
+  return Array.isArray(orgReq.userPermissions)
+    ? orgReq.userPermissions.includes(permission)
+    : false;
 };
 
 export const TaskController = {
@@ -261,8 +283,22 @@ export const TaskController = {
   // Get Task Detail
   getById: async (req: Request, res: Response) => {
     try {
-      const task = await TaskService.getById(req.params.taskId);
+      const organisationId = resolveOrganisationId(req);
+      const task = await TaskService.getById(req.params.taskId, organisationId);
       if (!task) return res.status(404).json({ message: "Task not found" });
+
+      // PMS context (org membership resolved): callers without tasks:view:any
+      // may only read tasks they created or are assigned to.
+      if (organisationId && !hasPermission(req, "tasks:view:any")) {
+        const actorId = resolveUserId(req);
+        const isOwner =
+          !!actorId &&
+          (task.createdBy === actorId || task.assignedTo === actorId);
+        if (!isOwner) {
+          return res.status(404).json({ message: "Task not found" });
+        }
+      }
+
       res.json(task);
     } catch (error) {
       handleError(error, res);
@@ -305,7 +341,13 @@ export const TaskController = {
         return res.status(403).json({ message: "Account not found" });
       }
 
-      const task = await TaskService.updateTask(taskId, req.body, actorId);
+      const organisationId = resolveOrganisationId(req);
+      const task = await TaskService.updateTask(
+        taskId,
+        req.body,
+        actorId,
+        organisationId,
+      );
       res.json(task);
     } catch (error) {
       handleError(error, res);
@@ -368,11 +410,13 @@ export const TaskController = {
         return res.status(400).json({ message: "Invalid task status" });
       }
 
+      const organisationId = resolveOrganisationId(req);
       const result = await TaskService.changeStatus(
         taskId,
         status,
         actorId,
         completion,
+        organisationId,
       );
       res.json(result);
     } catch (error) {
@@ -426,7 +470,14 @@ export const TaskController = {
     try {
       const organisationId =
         (req as OrgRequest).organisationId ?? req.params.organisationId;
-      const assignedTo = req.query.assignedTo ?? req.query.userId;
+
+      // Own-scope enforcement: callers without tasks:view:any may only list
+      // tasks assigned to themselves. The client-supplied userId/assignedTo is
+      // ignored for these callers and forced to the authenticated actor.
+      const canViewAny = hasPermission(req, "tasks:view:any");
+      const assignedTo = canViewAny
+        ? (req.query.assignedTo ?? req.query.userId)
+        : resolveUserId(req);
       const audience =
         parseAudience(req.query.audience) ??
         parseAudience(req.query.assignedRole);

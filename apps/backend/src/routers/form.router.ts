@@ -101,7 +101,7 @@ router.post(
 router.post(
   "/appointments/:appointmentId/forms",
   authorizeCognito,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("forms:view:any"),
   FormController.getFormsForAppointment,
 );

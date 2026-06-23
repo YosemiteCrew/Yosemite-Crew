@@ -2298,12 +2298,17 @@ export const InventoryService = {
   async addBatch(
     itemId: string,
     batchInput: InventoryBatchInput,
+    organisationId: string,
   ): Promise<InventoryBatchLike> {
     ensureObjectId(itemId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
       const item = await prisma.inventoryItem.findFirst({
-        where: { id: itemId },
+        where: { id: itemId, organisationId: safeOrganisationId },
       });
       if (!item)
         throw new InventoryServiceError("Inventory item not found", 404);
@@ -2335,7 +2340,10 @@ export const InventoryService = {
       };
     }
 
-    const item = await InventoryItemModel.findById(itemId);
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    });
     if (!item) throw new InventoryServiceError("Inventory item not found", 404);
 
     const batch = await InventoryBatchModel.create({
@@ -2367,12 +2375,17 @@ export const InventoryService = {
   async updateBatch(
     batchId: string,
     input: Partial<InventoryBatchInput>,
+    organisationId: string,
   ): Promise<InventoryBatchLike> {
     ensureObjectId(batchId, "batchId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
       const batch = await prisma.inventoryBatch.findFirst({
-        where: { id: batchId },
+        where: { id: batchId, organisationId: safeOrganisationId },
       });
       if (!batch) {
         throw new InventoryServiceError("Batch not found", 404);
@@ -2413,7 +2426,10 @@ export const InventoryService = {
       };
     }
 
-    const batch = await InventoryBatchModel.findById(batchId).exec();
+    const batch = await InventoryBatchModel.findOne({
+      _id: batchId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!batch) {
       throw new InventoryServiceError("Batch not found", 404);
     }
@@ -2455,17 +2471,21 @@ export const InventoryService = {
     return batch.toObject();
   },
 
-  async deleteBatch(batchId: string): Promise<void> {
+  async deleteBatch(batchId: string, organisationId: string): Promise<void> {
     ensureObjectId(batchId, "batchId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
       const batch = await prisma.inventoryBatch.findFirst({
-        where: { id: batchId },
+        where: { id: batchId, organisationId: safeOrganisationId },
       });
       if (!batch) return;
 
       await prisma.inventoryBatch.deleteMany({
-        where: { id: batchId },
+        where: { id: batchId, organisationId: safeOrganisationId },
       });
 
       const { onHand, allocated } = await recomputeStockFromBatches(
@@ -2478,7 +2498,10 @@ export const InventoryService = {
       return;
     }
 
-    const batch = await InventoryBatchModel.findById(batchId).exec();
+    const batch = await InventoryBatchModel.findOne({
+      _id: batchId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!batch) return;
 
     const itemId = batch.itemId.toString();
@@ -2514,15 +2537,22 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   // STOCK CONSUMPTION (FIFO by expiry)
   // ─────────────────────────────────────────────
-  async consumeStock(input: ConsumeStockInput): Promise<InventoryItemLike> {
+  async consumeStock(
+    input: ConsumeStockInput,
+    organisationId: string,
+  ): Promise<InventoryItemLike> {
     const safeItemId = ensureObjectId(input.itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (input.quantity <= 0) {
       throw new InventoryServiceError("quantity must be > 0", 400);
     }
 
     if (isReadFromPostgres()) {
       const item = await prisma.inventoryItem.findFirst({
-        where: { id: safeItemId },
+        where: { id: safeItemId, organisationId: safeOrganisationId },
       });
       if (!item) {
         throw new InventoryServiceError("Inventory item not found", 404);
@@ -2569,7 +2599,10 @@ export const InventoryService = {
       };
     }
 
-    const item = await InventoryItemModel.findById(safeItemId).exec();
+    const item = await InventoryItemModel.findOne({
+      _id: safeItemId,
+      organisationId: safeOrganisationId,
+    }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
     }
@@ -2622,14 +2655,19 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   async bulkConsumeStock(
     input: BulkConsumeStockInput,
+    organisationId: string,
   ): Promise<InventoryItemLike[]> {
     if (!Array.isArray(input.items) || input.items.length === 0) {
       throw new InventoryServiceError("items must be a non-empty array", 400);
     }
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     const results: InventoryItemLike[] = [];
     for (const itemInput of input.items) {
-      results.push(await this.consumeStock(itemInput));
+      results.push(await this.consumeStock(itemInput, safeOrganisationId));
     }
 
     return results;
@@ -2677,12 +2715,17 @@ export const InventoryAdjustmentService = {
     newOnHand: number;
     reason: string; // "MANUAL_ADJUSTMENT", etc.
     userId?: string;
+    organisationId: string;
   }): Promise<InventoryItemLike> {
     const safeItemId = ensureObjectId(input.itemId);
+    const safeOrganisationId = ensureNonEmptyString(
+      input.organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
       const item = await prisma.inventoryItem.findFirst({
-        where: { id: safeItemId },
+        where: { id: safeItemId, organisationId: safeOrganisationId },
       });
       if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -2750,7 +2793,10 @@ export const InventoryAdjustmentService = {
       };
     }
 
-    const item = await InventoryItemModel.findById(safeItemId);
+    const item = await InventoryItemModel.findOne({
+      _id: safeItemId,
+      organisationId: safeOrganisationId,
+    });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
     const delta = input.newOnHand - (item.onHand ?? 0);
@@ -2828,16 +2874,22 @@ export const InventoryAllocationService = {
     itemId,
     quantity,
     referenceId,
+    organisationId,
   }: {
     itemId: string;
     quantity: number;
     referenceId: string; // appointment ID, grooming ID, boarding ID
+    organisationId: string;
   }): Promise<InventoryItemLike> {
     ensureObjectId(itemId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
       const item = await prisma.inventoryItem.findFirst({
-        where: { id: itemId },
+        where: { id: itemId, organisationId: safeOrganisationId },
       });
       if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -2863,7 +2915,10 @@ export const InventoryAllocationService = {
       };
     }
 
-    const item = await InventoryItemModel.findById(itemId);
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
     if (item.onHand - item.allocated < quantity) {
@@ -2888,16 +2943,22 @@ export const InventoryAllocationService = {
     itemId,
     quantity,
     referenceId,
+    organisationId,
   }: {
     itemId: string;
     quantity: number;
     referenceId: string;
+    organisationId: string;
   }): Promise<InventoryItemLike> {
     ensureObjectId(itemId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
       const item = await prisma.inventoryItem.findFirst({
-        where: { id: itemId },
+        where: { id: itemId, organisationId: safeOrganisationId },
       });
       if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -2919,7 +2980,10 @@ export const InventoryAllocationService = {
       } as unknown as InventoryItemDocument;
     }
 
-    const item = await InventoryItemModel.findById(itemId);
+    const item = await InventoryItemModel.findOne({
+      _id: itemId,
+      organisationId: safeOrganisationId,
+    });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
     item.allocated = Math.max(0, item.allocated - quantity);
@@ -2985,10 +3049,21 @@ export const InventoryVendorService = {
   async updateVendor(
     vendorId: string,
     updates: Partial<InventoryVendorDocument>,
+    organisationId: string,
   ) {
     ensureObjectId(vendorId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     if (isReadFromPostgres()) {
+      const existing = await prisma.inventoryVendor.findFirst({
+        where: { id: vendorId, organisationId: safeOrganisationId },
+      });
+      if (!existing) {
+        throw new InventoryServiceError("Vendor not found", 404);
+      }
       const updated = await prisma.inventoryVendor.update({
         where: { id: vendorId },
         data: {
@@ -3006,7 +3081,10 @@ export const InventoryVendorService = {
       return updated as unknown as InventoryVendorDocument;
     }
 
-    const vendor = await InventoryVendorModel.findById(vendorId);
+    const vendor = await InventoryVendorModel.findOne({
+      _id: vendorId,
+      organisationId: safeOrganisationId,
+    });
     if (!vendor) throw new InventoryServiceError("Vendor not found", 404);
 
     Object.assign(vendor, updates);
@@ -3031,26 +3109,44 @@ export const InventoryVendorService = {
     }).exec();
   },
 
-  async getVendor(vendorId: string) {
+  async getVendor(vendorId: string, organisationId: string) {
     ensureObjectId(vendorId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (isReadFromPostgres()) {
       return prisma.inventoryVendor.findFirst({
-        where: { id: vendorId },
+        where: { id: vendorId, organisationId: safeOrganisationId },
       });
     }
-    return InventoryVendorModel.findById(vendorId);
+    return InventoryVendorModel.findOne({
+      _id: vendorId,
+      organisationId: safeOrganisationId,
+    });
   },
 
-  async deleteVendor(vendorId: string) {
+  async deleteVendor(vendorId: string, organisationId: string) {
     ensureObjectId(vendorId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (isReadFromPostgres()) {
-      await prisma.inventoryVendor.deleteMany({ where: { id: vendorId } });
+      await prisma.inventoryVendor.deleteMany({
+        where: { id: vendorId, organisationId: safeOrganisationId },
+      });
       return;
     }
-    await InventoryVendorModel.findByIdAndDelete(vendorId);
+    await InventoryVendorModel.findOneAndDelete({
+      _id: vendorId,
+      organisationId: safeOrganisationId,
+    });
     if (shouldDualWrite) {
       try {
-        await prisma.inventoryVendor.deleteMany({ where: { id: vendorId } });
+        await prisma.inventoryVendor.deleteMany({
+          where: { id: vendorId, organisationId: safeOrganisationId },
+        });
       } catch (err) {
         handleDualWriteError("InventoryVendor delete", err);
       }

@@ -360,9 +360,19 @@ export const CompanionOrganisationController = {
 
   revokeLink: async (req: Request, res: Response) => {
     try {
+      const authUserId = resolveAuthenticatedUserIdFromRequest(req);
+      if (!authUserId)
+        return res.status(401).json({ message: "User not authenticated" });
+
+      const parent = await ParentService.findByLinkedUserId(authUserId);
+      if (!parent) return res.status(401).json({ message: "Parent not found" });
+
       const { linkId } = req.params;
 
-      const updated = await CompanionOrganisationService.revokeLink(linkId);
+      const updated = await CompanionOrganisationService.revokeLink(
+        linkId,
+        resolveParentId(parent),
+      );
 
       return res.status(200).json(updated);
     } catch (error) {
@@ -409,6 +419,13 @@ export const CompanionOrganisationController = {
     res: Response,
   ) => {
     try {
+      const authUserId = resolveAuthenticatedUserIdFromRequest(req);
+      if (!authUserId)
+        return res.status(401).json({ message: "User not authenticated" });
+
+      const parent = await ParentService.findByLinkedUserId(authUserId);
+      if (!parent) return res.status(401).json({ message: "Parent not found" });
+
       const { patientId } = req.params;
       const { type } = req.query;
 
@@ -426,6 +443,7 @@ export const CompanionOrganisationController = {
         await CompanionOrganisationService.getLinksForCompanionByOrganisationTye(
           patientId,
           type,
+          resolveParentId(parent),
         );
 
       return res.status(200).json(links);

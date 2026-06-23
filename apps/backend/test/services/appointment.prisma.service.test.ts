@@ -43,6 +43,7 @@ jest.mock("../../src/config/prisma", () => ({
     appointment: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
     },
@@ -481,6 +482,82 @@ describe("AppointmentPrismaService", () => {
     ).rejects.toMatchObject({
       message: "Appointment not found",
       statusCode: 404,
+    });
+  });
+
+  describe("getById org-scoping and own-scope (IDOR)", () => {
+    it("uses findUnique unscoped when no organisationId is supplied (mobile/internal preserved)", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue(makeRow());
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById("appt_1");
+
+      expect(mockedPrisma.appointment.findUnique).toHaveBeenCalledWith({
+        where: { id: "appt_1" },
+      });
+      expect(mockedPrisma.appointment.findFirst).not.toHaveBeenCalled();
+      expect(result.id).toBe("appt_1");
+    });
+
+    it("binds to organisationId via findFirst when org is supplied", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ organisationId: "org_1" }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById("appt_1", "org_1");
+
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_1", organisationId: "org_1" },
+      });
+      expect(mockedPrisma.appointment.findUnique).not.toHaveBeenCalled();
+      expect(result.id).toBe("appt_1");
+    });
+
+    it("returns 404 for a cross-org id when org is supplied (no cross-tenant leak)", async () => {
+      // findFirst with the org binding finds nothing for an out-of-org id.
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.getById("appt_in_org_b", "org_a"),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_in_org_b", organisationId: "org_a" },
+      });
+    });
+
+    it("own-scope: returns the appointment when assigned to the actor", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ organisationId: "org_1", lead: { id: "vet_1", name: "V" } }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById(
+        "appt_1",
+        "org_1",
+        "vet_1",
+      );
+
+      expect(result.id).toBe("appt_1");
+    });
+
+    it("own-scope: returns 404 for an in-org appointment not assigned to the actor", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({
+          organisationId: "org_1",
+          lead: { id: "other_vet", name: "Other" },
+        }),
+      );
+
+      await expect(
+        AppointmentPrismaService.getById("appt_1", "org_1", "vet_1"),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
     });
   });
 

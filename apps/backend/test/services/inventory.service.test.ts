@@ -329,15 +329,23 @@ describe("Inventory service", () => {
       allocated: 0,
     });
 
-    const created = await InventoryService.addBatch("item-1", { quantity: 3 });
+    const created = await InventoryService.addBatch(
+      "item-1",
+      { quantity: 3 },
+      "org-1",
+    );
     expect(created.id).toBe("batch-1");
 
-    const updated = await InventoryService.updateBatch("batch-1", {
-      quantity: 4,
-    });
+    const updated = await InventoryService.updateBatch(
+      "batch-1",
+      {
+        quantity: 4,
+      },
+      "org-1",
+    );
     expect(updated.quantity).toBe(4);
 
-    await InventoryService.deleteBatch("batch-1");
+    await InventoryService.deleteBatch("batch-1", "org-1");
     expect(prisma.inventoryBatch.deleteMany).toHaveBeenCalled();
   });
 
@@ -387,11 +395,14 @@ describe("Inventory service", () => {
       _sum: { quantity: 5 },
     });
 
-    const consumed = await InventoryService.consumeStock({
-      itemId: "item-1",
-      quantity: 2,
-      reason: "MANUAL_ADJUSTMENT",
-    });
+    const consumed = await InventoryService.consumeStock(
+      {
+        itemId: "item-1",
+        quantity: 2,
+        reason: "MANUAL_ADJUSTMENT",
+      },
+      "org-1",
+    );
     expect(consumed.onHand).toBe(3);
 
     const turnover = await InventoryService.getInventoryTurnoverByItem({
@@ -457,6 +468,7 @@ describe("Inventory service", () => {
       itemId: "item-1",
       newOnHand: 5,
       reason: "ADJUSTMENT",
+      organisationId: "org-1",
     });
     expect(adjusted.onHand).toBe(5);
 
@@ -464,6 +476,7 @@ describe("Inventory service", () => {
       itemId: "item-1",
       quantity: 1,
       referenceId: "ref-1",
+      organisationId: "org-1",
     });
     expect(allocated.allocated).toBeGreaterThanOrEqual(1);
 
@@ -471,6 +484,7 @@ describe("Inventory service", () => {
       itemId: "item-1",
       quantity: 1,
       referenceId: "ref-1",
+      organisationId: "org-1",
     });
     expect(released.allocated).toBeGreaterThanOrEqual(0);
   });
@@ -565,6 +579,7 @@ describe("Inventory service", () => {
         itemId: "item-missing",
         newOnHand: 10,
         reason: "MANUAL_ADJUSTMENT",
+        organisationId: "org-1",
       }),
     ).rejects.toThrow("Item not found");
   });
@@ -581,6 +596,7 @@ describe("Inventory service", () => {
         itemId: "item-1",
         quantity: 1,
         referenceId: "ref-1",
+        organisationId: "org-1",
       }),
     ).rejects.toThrow("Not enough unallocated stock");
   });
@@ -600,5 +616,167 @@ describe("Inventory service", () => {
         values: [],
       }),
     ).rejects.toThrow("Invalid businessType");
+  });
+
+  describe("cross-organisation access is rejected (IDOR)", () => {
+    // The authorized organisation is "org-1" (resolved by withOrgPermissions
+    // from the verified token / x-org-id). The attacker references a record
+    // that belongs to "org-2". Every query must be bound to the authorized
+    // org, so the foreign record is invisible (treated as not found).
+
+    it("addBatch refuses an item from another organisation", async () => {
+      // Scoped lookup (id + authorized org) returns nothing for a foreign item.
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        InventoryService.addBatch("foreign-item", { quantity: 1 }, "org-1"),
+      ).rejects.toThrow("Inventory item not found");
+
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-item", organisationId: "org-1" },
+      });
+      expect(prisma.inventoryBatch.create).not.toHaveBeenCalled();
+    });
+
+    it("updateBatch refuses a batch from another organisation", async () => {
+      (prisma.inventoryBatch.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      await expect(
+        InventoryService.updateBatch("foreign-batch", { quantity: 9 }, "org-1"),
+      ).rejects.toThrow("Batch not found");
+
+      expect(prisma.inventoryBatch.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-batch", organisationId: "org-1" },
+      });
+      expect(prisma.inventoryBatch.update).not.toHaveBeenCalled();
+    });
+
+    it("deleteBatch does not delete a batch from another organisation", async () => {
+      (prisma.inventoryBatch.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      await InventoryService.deleteBatch("foreign-batch", "org-1");
+
+      expect(prisma.inventoryBatch.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-batch", organisationId: "org-1" },
+      });
+      expect(prisma.inventoryBatch.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("consumeStock refuses an item from another organisation", async () => {
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        InventoryService.consumeStock(
+          { itemId: "foreign-item", quantity: 1, reason: "OTHER" },
+          "org-1",
+        ),
+      ).rejects.toThrow("Inventory item not found");
+
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-item", organisationId: "org-1" },
+      });
+    });
+
+    it("adjustStock refuses an item from another organisation", async () => {
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        InventoryAdjustmentService.adjustStock({
+          itemId: "foreign-item",
+          newOnHand: 10,
+          reason: "MANUAL_ADJUSTMENT",
+          organisationId: "org-1",
+        }),
+      ).rejects.toThrow("Item not found");
+
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-item", organisationId: "org-1" },
+      });
+    });
+
+    it("allocateStock refuses an item from another organisation", async () => {
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        InventoryAllocationService.allocateStock({
+          itemId: "foreign-item",
+          quantity: 1,
+          referenceId: "ref-1",
+          organisationId: "org-1",
+        }),
+      ).rejects.toThrow("Item not found");
+
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-item", organisationId: "org-1" },
+      });
+    });
+
+    it("releaseAllocatedStock refuses an item from another organisation", async () => {
+      (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        InventoryAllocationService.releaseAllocatedStock({
+          itemId: "foreign-item",
+          quantity: 1,
+          referenceId: "ref-1",
+          organisationId: "org-1",
+        }),
+      ).rejects.toThrow("Item not found");
+
+      expect(prisma.inventoryItem.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-item", organisationId: "org-1" },
+      });
+    });
+
+    it("getVendor scopes the lookup to the authorized organisation", async () => {
+      (prisma.inventoryVendor.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      const result = await InventoryVendorService.getVendor(
+        "foreign-vendor",
+        "org-1",
+      );
+
+      expect(result).toBeNull();
+      expect(prisma.inventoryVendor.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-vendor", organisationId: "org-1" },
+      });
+    });
+
+    it("updateVendor refuses a vendor from another organisation", async () => {
+      (prisma.inventoryVendor.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      await expect(
+        InventoryVendorService.updateVendor(
+          "foreign-vendor",
+          { name: "Hacked" },
+          "org-1",
+        ),
+      ).rejects.toThrow("Vendor not found");
+
+      expect(prisma.inventoryVendor.findFirst).toHaveBeenCalledWith({
+        where: { id: "foreign-vendor", organisationId: "org-1" },
+      });
+      expect(prisma.inventoryVendor.update).not.toHaveBeenCalled();
+    });
+
+    it("deleteVendor only deletes within the authorized organisation", async () => {
+      (prisma.inventoryVendor.deleteMany as jest.Mock).mockResolvedValueOnce({
+        count: 0,
+      });
+
+      await InventoryVendorService.deleteVendor("foreign-vendor", "org-1");
+
+      expect(prisma.inventoryVendor.deleteMany).toHaveBeenCalledWith({
+        where: { id: "foreign-vendor", organisationId: "org-1" },
+      });
+    });
   });
 });

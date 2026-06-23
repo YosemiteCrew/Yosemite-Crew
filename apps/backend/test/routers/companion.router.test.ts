@@ -57,6 +57,24 @@ describe("companion.router", () => {
     ]);
   });
 
+  it("requires auth and RBAC for companion name search", () => {
+    const route = findRoute("/org/search", "get");
+
+    expect(route?.stack.map((layer) => layer.handle)).toEqual([
+      authorizeCognito,
+      requirePermissionMiddleware,
+      CompanionController.searchCompanionByName,
+    ]);
+  });
+
+  it("does not expose companion name search without authentication", () => {
+    const handlers =
+      findRoute("/org/search", "get")?.stack.map((layer) => layer.handle) ?? [];
+
+    expect(handlers[0]).toBe(authorizeCognito);
+    expect(handlers).not.toContain(authorizeCognitoMobile);
+  });
+
   it("keeps the mobile routes on mobile auth", () => {
     expect(
       findRoute("/:id", "get")?.stack.map((layer) => layer.handle),

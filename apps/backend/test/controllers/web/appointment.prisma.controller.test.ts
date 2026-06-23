@@ -334,7 +334,11 @@ describe("AppointmentPrismaController", () => {
       "parent_1",
     );
     expect(mockedService.cancelAppointment).toHaveBeenCalledWith("appt_1");
-    expect(mockedService.getById).toHaveBeenCalledWith("appt_1");
+    expect(mockedService.getById).toHaveBeenCalledWith(
+      "appt_1",
+      undefined,
+      undefined,
+    );
     expect(mockedService.getAppointmentsForCompanion).toHaveBeenCalledWith(
       "comp_1",
     );
@@ -370,5 +374,86 @@ describe("AppointmentPrismaController", () => {
       res as any,
     );
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  describe("getById org-scoping and own-scope (IDOR)", () => {
+    it("mobile path (no org context) calls getById unscoped", async () => {
+      mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
+      req.params = { appointmentId: "appt_1" };
+
+      await AppointmentController.getById(req as any, res as any);
+
+      expect(mockedService.getById).toHaveBeenCalledWith(
+        "appt_1",
+        undefined,
+        undefined,
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("PMS view:any caller passes the authorized org and no own-scope restriction", async () => {
+      mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
+      req.params = { appointmentId: "appt_1" };
+      (req as any).userId = "vet_1";
+      (req as any).organisationId = "org_1";
+      (req as any).userPermissions = ["appointments:view:any"];
+
+      await AppointmentController.getById(req as any, res as any);
+
+      expect(mockedService.getById).toHaveBeenCalledWith(
+        "appt_1",
+        "org_1",
+        undefined,
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("PMS view:own-only caller restricts to the authenticated actor", async () => {
+      mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
+      req.params = { appointmentId: "appt_1" };
+      (req as any).userId = "vet_1";
+      (req as any).organisationId = "org_1";
+      (req as any).userPermissions = ["appointments:view:own"];
+
+      await AppointmentController.getById(req as any, res as any);
+
+      expect(mockedService.getById).toHaveBeenCalledWith(
+        "appt_1",
+        "org_1",
+        "vet_1",
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("PMS path uses OrgRequest.organisationId over params", async () => {
+      mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
+      req.params = { appointmentId: "appt_1", organisationId: "org_param" };
+      (req as any).userId = "vet_1";
+      (req as any).organisationId = "org_authorized";
+      (req as any).userPermissions = ["appointments:view:any"];
+
+      await AppointmentController.getById(req as any, res as any);
+
+      expect(mockedService.getById).toHaveBeenCalledWith(
+        "appt_1",
+        "org_authorized",
+        undefined,
+      );
+    });
+
+    it("surfaces a service 404 for a cross-org id", async () => {
+      const notFound = Object.assign(new Error("Appointment not found"), {
+        statusCode: 404,
+      });
+      mockedService.getById.mockRejectedValue(notFound);
+      req.params = { appointmentId: "appt_in_org_b" };
+      (req as any).userId = "vet_1";
+      (req as any).organisationId = "org_a";
+      (req as any).userPermissions = ["appointments:view:any"];
+
+      await AppointmentController.getById(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
   });
 });

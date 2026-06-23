@@ -1432,8 +1432,14 @@ export const TaskService = {
     taskId: string,
     updates: TaskUpdateInput,
     actorId: string,
+    organisationId?: string,
   ): Promise<TaskLike> {
-    const task = await prisma.task.findFirst({ where: { id: taskId } });
+    const orgScope = asNonEmptyString(organisationId);
+    const task = await prisma.task.findFirst({
+      where: orgScope
+        ? { id: taskId, organisationId: orgScope }
+        : { id: taskId },
+    });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
     const isCreator = task.createdBy === actorId;
@@ -1505,8 +1511,14 @@ export const TaskService = {
     newStatus: TaskStatus,
     actorId: string,
     completion?: CompleteTaskInput,
+    organisationId?: string,
   ): Promise<{ task: TaskLike; completion?: TaskCompletionLike }> {
-    const task = await prisma.task.findFirst({ where: { id: taskId } });
+    const orgScope = asNonEmptyString(organisationId);
+    const task = await prisma.task.findFirst({
+      where: orgScope
+        ? { id: taskId, organisationId: orgScope }
+        : { id: taskId },
+    });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
     if (task.assignedTo !== actorId && task.createdBy !== actorId) {
@@ -1562,9 +1574,15 @@ export const TaskService = {
     return mapped;
   },
 
-  async getById(taskId: string): Promise<TaskLike | null> {
+  async getById(
+    taskId: string,
+    organisationId?: string,
+  ): Promise<TaskLike | null> {
+    const orgScope = asNonEmptyString(organisationId);
     const task = await prisma.task.findFirst({
-      where: { id: taskId },
+      where: orgScope
+        ? { id: taskId, organisationId: orgScope }
+        : { id: taskId },
     });
     return task ? toTaskLike(task) : null;
   },

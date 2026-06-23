@@ -689,8 +689,9 @@ describe("FormController", () => {
       });
     });
 
-    it("should parse body values and call service", async () => {
+    it("should parse body values and call service with the authorised org (web)", async () => {
       req.params.appointmentId = "a1";
+      req.organisationId = "org-1";
       req.body = { serviceId: "s1", species: "CAT", isPMS: "true" };
       (FormService.getFormsForAppointment as jest.Mock).mockResolvedValue([]);
 
@@ -702,12 +703,25 @@ describe("FormController", () => {
         species: "CAT",
         isPMS: true,
         viewerParentId: undefined,
+        requesterOrgId: "org-1",
       });
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
+    it("should return 403 on the web route when org context is missing", async () => {
+      req.params.appointmentId = "a1";
+      req.body = { isPMS: "true" };
+
+      await FormController.getFormsForAppointment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: "Forbidden" });
+      expect(FormService.getFormsForAppointment).not.toHaveBeenCalled();
+    });
+
     it("should handle non-string / missing properties safely", async () => {
       req.params.appointmentId = "a1";
+      req.organisationId = "org-1";
       req.body = { serviceId: 123, isPMS: false }; // Non-strings
 
       await FormController.getFormsForAppointment(req, res);
@@ -718,6 +732,7 @@ describe("FormController", () => {
         species: undefined,
         isPMS: undefined,
         viewerParentId: undefined,
+        requesterOrgId: "org-1",
       });
     });
 
@@ -738,6 +753,7 @@ describe("FormController", () => {
         species: undefined,
         isPMS: undefined,
         viewerParentId: "parent-1",
+        requesterOrgId: undefined,
       });
     });
 
@@ -757,6 +773,7 @@ describe("FormController", () => {
 
     it("should handle FormServiceError and generic errors", async () => {
       req.params.appointmentId = "a1";
+      req.organisationId = "org-1";
 
       (FormService.getFormsForAppointment as jest.Mock).mockRejectedValue(
         new FormServiceError("Not found", 404),

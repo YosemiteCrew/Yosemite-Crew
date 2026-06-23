@@ -316,6 +316,7 @@ export const FormController = {
       }
 
       let viewerParentId: string | undefined;
+      let requesterOrgId: string | undefined;
       if (isMobileRequest) {
         const authUserId = resolveUserIdFromRequest(req);
         if (!authUserId) {
@@ -331,6 +332,11 @@ export const FormController = {
         if (!viewerParentId) {
           return res.status(403).json({ message: "Forbidden" });
         }
+      } else {
+        requesterOrgId = (req as OrgRequest).organisationId;
+        if (!requesterOrgId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
       }
 
       const result = await FormService.getFormsForAppointment({
@@ -339,6 +345,7 @@ export const FormController = {
         species: typeof species === "string" ? species : undefined,
         isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
         viewerParentId,
+        requesterOrgId,
       });
 
       return res.status(200).json(result);

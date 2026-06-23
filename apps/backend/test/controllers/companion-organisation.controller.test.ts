@@ -545,17 +545,45 @@ describe("CompanionOrganisationController", () => {
   });
 
   describe("revokeLink", () => {
-    it("should revoke link on success", async () => {
+    it("should return 401 when no authenticated parent", async () => {
+      req.userId = undefined;
+      req.params.linkId = "l1";
+      await CompanionOrganisationController.revokeLink(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(CompanionOrganisationService.revokeLink).not.toHaveBeenCalled();
+    });
+
+    it("should return 401 when authenticated user is not a parent", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue(null);
+      req.params.linkId = "l1";
+      await CompanionOrganisationController.revokeLink(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(CompanionOrganisationService.revokeLink).not.toHaveBeenCalled();
+    });
+
+    it("should revoke link on success, scoped to the authenticated parent", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validObjectId,
+      });
       req.params.linkId = "l1";
       (CompanionOrganisationService.revokeLink as jest.Mock).mockResolvedValue(
         "revoked",
       );
       await CompanionOrganisationController.revokeLink(req, res);
+      expect(CompanionOrganisationService.revokeLink).toHaveBeenCalledWith(
+        "l1",
+        validObjectId,
+      );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith("revoked");
     });
 
     it("should handle errors", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validObjectId,
+      });
+      req.params.linkId = "l1";
+
       (CompanionOrganisationService.revokeLink as jest.Mock).mockRejectedValue(
         new Error("Test error"),
       );
@@ -609,7 +637,38 @@ describe("CompanionOrganisationController", () => {
   });
 
   describe("getLinksForCompanionByOrganisationType", () => {
+    it("should return 401 when no authenticated parent", async () => {
+      req.userId = undefined;
+      req.params.patientId = "c1";
+      req.query.type = "HOSPITAL";
+      await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
+        req,
+        res,
+      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(
+        CompanionOrganisationService.getLinksForCompanionByOrganisationTye,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should return 401 when authenticated user is not a parent", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue(null);
+      req.params.patientId = "c1";
+      req.query.type = "HOSPITAL";
+      await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
+        req,
+        res,
+      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(
+        CompanionOrganisationService.getLinksForCompanionByOrganisationTye,
+      ).not.toHaveBeenCalled();
+    });
+
     it("should return 400 if patientId missing", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validObjectId,
+      });
       req.query.type = "HOSPITAL";
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
         req,
@@ -619,6 +678,9 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should return 400 if type is invalid", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validObjectId,
+      });
       req.params.patientId = "c1";
       req.query.type = "INVALID";
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
@@ -628,7 +690,10 @@ describe("CompanionOrganisationController", () => {
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
-    it("should fetch links successfully", async () => {
+    it("should fetch links successfully, scoped to the authenticated parent", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validObjectId,
+      });
       req.params.patientId = "c1";
       req.query.type = "HOSPITAL";
       (
@@ -642,10 +707,13 @@ describe("CompanionOrganisationController", () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(
         CompanionOrganisationService.getLinksForCompanionByOrganisationTye,
-      ).toHaveBeenCalledWith("c1", "HOSPITAL");
+      ).toHaveBeenCalledWith("c1", "HOSPITAL", validObjectId);
     });
 
     it("should handle errors", async () => {
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        _id: validObjectId,
+      });
       req.params.patientId = "c1";
       req.query.type = "HOSPITAL";
 

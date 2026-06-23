@@ -685,4 +685,67 @@ describe("TaskService", () => {
 
     expect(result.appointmentId).toBe("appt-1");
   });
+
+  describe("organisation binding", () => {
+    it("scopes getById to the supplied organisationId", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(null);
+
+      const result = await TaskService.getById("task-1", "org-1");
+
+      expect(mockedPrisma.task.findFirst).toHaveBeenCalledWith({
+        where: { id: "task-1", organisationId: "org-1" },
+      });
+      expect(result).toBeNull();
+    });
+
+    it("returns null for a task that belongs to another organisation", async () => {
+      // Cross-tenant read attempt: task exists but not in org-1, so the
+      // org-scoped findFirst yields no row.
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(null);
+
+      const result = await TaskService.getById("task-other-org", "org-1");
+
+      expect(result).toBeNull();
+    });
+
+    it("does not org-scope getById when no organisationId is supplied (mobile)", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(null);
+
+      await TaskService.getById("task-1");
+
+      expect(mockedPrisma.task.findFirst).toHaveBeenCalledWith({
+        where: { id: "task-1" },
+      });
+    });
+
+    it("scopes updateTask lookup to the supplied organisationId", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        TaskService.updateTask("task-1", { name: "x" }, "user-1", "org-1"),
+      ).rejects.toThrow("Task not found");
+
+      expect(mockedPrisma.task.findFirst).toHaveBeenCalledWith({
+        where: { id: "task-1", organisationId: "org-1" },
+      });
+    });
+
+    it("scopes changeStatus lookup to the supplied organisationId", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        TaskService.changeStatus(
+          "task-1",
+          "COMPLETED",
+          "user-1",
+          undefined,
+          "org-1",
+        ),
+      ).rejects.toThrow("Task not found");
+
+      expect(mockedPrisma.task.findFirst).toHaveBeenCalledWith({
+        where: { id: "task-1", organisationId: "org-1" },
+      });
+    });
+  });
 });

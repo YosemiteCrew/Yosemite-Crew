@@ -113,4 +113,16 @@ describe("organization.router", () => {
       OrganizationController.getLogoUploadUrl,
     ]);
   });
+
+  it("never exposes a logo presigned upload route without authentication", () => {
+    const routes = [
+      findRoute("/logo/presigned-url", "post"),
+      findRoute("/logo/presigned-url/:orgId", "post"),
+    ];
+
+    routes.forEach((route) => {
+      const handlers = route?.stack.map((layer) => layer.handle) ?? [];
+      expect(handlers[0]).toBe(authorizeCognito);
+    });
+  });
 });

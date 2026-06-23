@@ -323,8 +323,13 @@ export const InventoryController = {
     try {
       const { itemId } = req.params;
       const batchInput = req.body;
+      const { organisationId } = req as OrgRequest;
 
-      const batch = await InventoryService.addBatch(itemId, batchInput);
+      const batch = await InventoryService.addBatch(
+        itemId,
+        batchInput,
+        organisationId!,
+      );
       res.status(201).json(batch);
     } catch (error) {
       handleError(error, res);
@@ -345,8 +350,13 @@ export const InventoryController = {
     try {
       const { batchId } = req.params;
       const updates = req.body;
+      const { organisationId } = req as OrgRequest;
 
-      const batch = await InventoryService.updateBatch(batchId, updates);
+      const batch = await InventoryService.updateBatch(
+        batchId,
+        updates,
+        organisationId!,
+      );
       res.json(batch);
     } catch (error) {
       handleError(error, res);
@@ -362,7 +372,8 @@ export const InventoryController = {
   ): Promise<void> => {
     try {
       const { batchId } = req.params;
-      await InventoryService.deleteBatch(batchId);
+      const { organisationId } = req as OrgRequest;
+      await InventoryService.deleteBatch(batchId, organisationId!);
       res.status(204).send();
     } catch (error) {
       handleError(error, res);
@@ -378,7 +389,8 @@ export const InventoryController = {
   ): Promise<void> => {
     try {
       const input = req.body;
-      const item = await InventoryService.consumeStock(input);
+      const { organisationId } = req as OrgRequest;
+      const item = await InventoryService.consumeStock(input, organisationId!);
       res.json(item);
     } catch (error) {
       handleError(error, res);
@@ -394,7 +406,11 @@ export const InventoryController = {
   ): Promise<void> => {
     try {
       const input = req.body;
-      const items = await InventoryService.bulkConsumeStock(input);
+      const { organisationId } = req as OrgRequest;
+      const items = await InventoryService.bulkConsumeStock(
+        input,
+        organisationId!,
+      );
       res.json(items);
     } catch (error) {
       handleError(error, res);
@@ -415,6 +431,7 @@ export const InventoryController = {
     try {
       const { itemId } = req.params;
       const { newOnHand, reason } = req.body;
+      const { organisationId } = req as OrgRequest;
 
       const userId = resolveUserId(req);
 
@@ -423,6 +440,7 @@ export const InventoryController = {
         newOnHand,
         reason,
         userId,
+        organisationId: organisationId!,
       });
 
       res.json(item);
@@ -445,11 +463,13 @@ export const InventoryController = {
     try {
       const { itemId } = req.params;
       const { quantity, referenceId } = req.body;
+      const { organisationId } = req as OrgRequest;
 
       const item = await InventoryAllocationService.allocateStock({
         itemId,
         quantity,
         referenceId,
+        organisationId: organisationId!,
       });
 
       res.json(item);
@@ -472,11 +492,13 @@ export const InventoryController = {
     try {
       const { itemId } = req.params;
       const { quantity, referenceId } = req.body;
+      const { organisationId } = req as OrgRequest;
 
       const item = await InventoryAllocationService.releaseAllocatedStock({
         itemId,
         quantity,
         referenceId,
+        organisationId: organisationId!,
       });
 
       res.json(item);
@@ -577,9 +599,11 @@ export const InventoryVendorController = {
   ): Promise<void> => {
     try {
       const { vendorId } = req.params;
+      const { organisationId } = req as OrgRequest;
       const updated = await InventoryVendorService.updateVendor(
         vendorId,
         req.body,
+        organisationId!,
       );
       res.json(updated);
     } catch (error) {
@@ -606,7 +630,11 @@ export const InventoryVendorController = {
   ): Promise<void> => {
     try {
       const { vendorId } = req.params;
-      const vendor = await InventoryVendorService.getVendor(vendorId);
+      const { organisationId } = req as OrgRequest;
+      const vendor = await InventoryVendorService.getVendor(
+        vendorId,
+        organisationId!,
+      );
       if (!vendor) {
         res.status(404).json({ message: "Vendor not found" });
         return;
@@ -623,7 +651,8 @@ export const InventoryVendorController = {
   ): Promise<void> => {
     try {
       const { vendorId } = req.params;
-      await InventoryVendorService.deleteVendor(vendorId);
+      const { organisationId } = req as OrgRequest;
+      await InventoryVendorService.deleteVendor(vendorId, organisationId!);
       res.status(204).send();
     } catch (error) {
       handleError(error, res);

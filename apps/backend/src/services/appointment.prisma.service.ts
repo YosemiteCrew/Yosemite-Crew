@@ -2105,7 +2105,11 @@ export const AppointmentPrismaService = {
     return toResponse(updated as AppointmentRow);
   },
 
-  async getById(appointmentId: string): Promise<AppointmentResponseDTO> {
+  async getById(
+    appointmentId: string,
+    organisationId?: string,
+    restrictToAssignedActorId?: string,
+  ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError(
         "Appointment ID is required",
@@ -2113,10 +2117,24 @@ export const AppointmentPrismaService = {
       );
     }
 
-    const row = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
+    const row = organisationId
+      ? await prisma.appointment.findFirst({
+          where: { id: appointmentId, organisationId },
+        })
+      : await prisma.appointment.findUnique({
+          where: { id: appointmentId },
+        });
     if (!row) {
+      throw new AppointmentPrismaServiceError("Appointment not found", 404);
+    }
+
+    // Own-scope enforcement: when the caller is restricted to appointments
+    // assigned to them, an appointment not assigned to that actor is
+    // indistinguishable from not-found.
+    if (
+      restrictToAssignedActorId &&
+      getLeadIdFromRow(row as AppointmentRow) !== restrictToAssignedActorId
+    ) {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }
 
