@@ -47,7 +47,8 @@ const STATUS_LABELS: Record<DispensaryStatus, string> = {
 };
 
 const formatAmount = (cents: number, currency = 'USD') => {
-  const symbol = currency === 'USD' ? '$' : currency;
+  const upper = currency.toUpperCase();
+  const symbol = upper === 'USD' ? '$' : upper;
   return `${symbol} ${(cents / 100).toFixed(2)}`;
 };
 
