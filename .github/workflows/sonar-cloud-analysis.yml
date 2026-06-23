@@ -190,7 +190,9 @@ jobs:
           # Measure PR "new code" against the PR's real target branch (e.g. dev),
           # not SonarCloud's default (main). Otherwise the whole dev-ahead-of-main
           # delta is miscounted as new code on every PR, tanking new-code coverage
-          # and duplication for changes that did not introduce it.
-          args: ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.base={0}', github.base_ref) || '' }}
+          # and duplication for changes that did not introduce it. Setting any
+          # sonar.pullrequest.* param disables the action's auto-detection, so we
+          # must supply key + branch + base together for PR analysis.
+          args: ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.key={0} -Dsonar.pullrequest.branch={1} -Dsonar.pullrequest.base={2}', github.event.pull_request.number, github.head_ref, github.base_ref) || '' }}
         env:
           SONAR_TOKEN: ${{ secrets[matrix.sonar_token] }}
