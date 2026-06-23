@@ -12,7 +12,8 @@ jobs:
       contents: write
     steps:
       - name: Generate repo stats report
-        uses: jgehrcke/github-repo-stats@v1.4.2
+        # Pinned to the full commit SHA for v1.4.2; mutable tags can be retagged to malicious code
+        uses: jgehrcke/github-repo-stats@306db38ad131cab2aa5f2cd3062bf6f8aa78c1aa # v1.4.2
         with:
           ghtoken: ${{ secrets.GHRS_GITHUB_API_TOKEN }}
           repository: YosemiteCrew/Yosemite-Crew
@@ -23,7 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: stats
     permissions:
-      contents: write
+      # Checkout/push to the data branch uses the GHRS_GITHUB_API_TOKEN PAT, not GITHUB_TOKEN.
+      # The default GITHUB_TOKEN only needs read access here.
+      contents: read
     steps:
       - name: Checkout stats branch
         uses: actions/checkout@v4
