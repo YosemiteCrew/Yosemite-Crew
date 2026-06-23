@@ -452,40 +452,37 @@ describe("ServiceService", () => {
     const orgA = new Types.ObjectId().toHexString();
     const orgB = new Types.ObjectId().toHexString();
 
-    it("update: scopes the Mongo lookup to the authorized org via findOne", async () => {
+    it("update: allows updating a service in the caller's own org", async () => {
       const mockDoc = createMockDoc();
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      mockDoc.organisationId = new Types.ObjectId(orgA);
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
 
       await ServiceService.update(validIdStr, { name: "X" } as any, orgA);
 
-      expect(ServiceModel.findById).not.toHaveBeenCalled();
-      const callArg = (ServiceModel.findOne as jest.Mock).mock.calls[0][0];
-      expect(callArg._id.toString()).toBe(validIdStr);
-      expect(callArg.organisationId.toString()).toBe(orgA);
+      expect(ServiceModel.findById).toHaveBeenCalled();
       expect(mockDoc.save).toHaveBeenCalled();
     });
 
     it("update: editor in org A gets 404 for a service in org B", async () => {
-      // findOne returns null because the {_id, organisationId} filter does not match
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue(null);
+      const mockDoc = createMockDoc();
+      mockDoc.organisationId = new Types.ObjectId(orgB);
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
 
       await expect(
-        ServiceService.update(validIdStr, { name: "X" } as any, orgB),
+        ServiceService.update(validIdStr, { name: "X" } as any, orgA),
       ).rejects.toThrow(new ServiceServiceError("Service not found", 404));
-      expect(ServiceModel.findById).not.toHaveBeenCalled();
+      expect(mockDoc.save).not.toHaveBeenCalled();
     });
 
-    it("delete: scopes the Mongo lookup and the Postgres deleteMany to the authorized org", async () => {
+    it("delete: removes a service in the caller's own org (Mongo + Postgres scoped)", async () => {
       const mockDoc = createMockDoc();
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue(mockDoc);
+      mockDoc.organisationId = new Types.ObjectId(orgA);
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
 
       const res = await ServiceService.delete(validIdStr, orgA);
 
       expect(res).toBe(true);
-      expect(ServiceModel.findById).not.toHaveBeenCalled();
-      const callArg = (ServiceModel.findOne as jest.Mock).mock.calls[0][0];
-      expect(callArg._id.toString()).toBe(validIdStr);
-      expect(callArg.organisationId.toString()).toBe(orgA);
+      expect(ServiceModel.findById).toHaveBeenCalled();
       expect(mockDoc.deleteOne).toHaveBeenCalled();
       expect(prisma.service.deleteMany).toHaveBeenCalledWith({
         where: { id: validIdStr, organisationId: orgA },
@@ -493,12 +490,14 @@ describe("ServiceService", () => {
     });
 
     it("delete: editor in org A gets a no-op (null) for a service in org B", async () => {
-      (ServiceModel.findOne as jest.Mock).mockResolvedValue(null);
+      const mockDoc = createMockDoc();
+      mockDoc.organisationId = new Types.ObjectId(orgB);
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
 
-      const res = await ServiceService.delete(validIdStr, orgB);
+      const res = await ServiceService.delete(validIdStr, orgA);
 
       expect(res).toBeNull();
-      expect(ServiceModel.findById).not.toHaveBeenCalled();
+      expect(mockDoc.deleteOne).not.toHaveBeenCalled();
       expect(prisma.service.deleteMany).not.toHaveBeenCalled();
     });
 
