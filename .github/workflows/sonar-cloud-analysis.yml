@@ -187,5 +187,10 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v6
         with:
           projectBaseDir: ${{ matrix.dir }}
+          # Measure PR "new code" against the PR's real target branch (e.g. dev),
+          # not SonarCloud's default (main). Otherwise the whole dev-ahead-of-main
+          # delta is miscounted as new code on every PR, tanking new-code coverage
+          # and duplication for changes that did not introduce it.
+          args: ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.base={0}', github.base_ref) || '' }}
         env:
           SONAR_TOKEN: ${{ secrets[matrix.sonar_token] }}
