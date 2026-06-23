@@ -4,13 +4,14 @@ import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
-import InventoryTurnoverFilters from '@/app/ui/filters/InventoryTurnoverFilters';
 import {
   AbcClassOptions,
   CategoryOptionsByBusiness,
+  DispensaryRecord,
+  DispensaryRequestType,
+  DispensaryStatus,
   InventoryFiltersState,
   InventoryItem,
-  InventoryTurnoverItem,
   SubCategoryOptions,
   SubCategoryByCategory,
 } from '@/app/features/inventory/pages/Inventory/types';
@@ -29,11 +30,27 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
+import {
+  listDispenseRequests,
+  DispenseRequestApi,
+} from '@/app/features/inventory/services/dispensaryService';
+import { dispensePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import Modal from '@/app/ui/overlays/Modal';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { FiCheck, FiFilter, FiPlus, FiSearch, FiSliders, FiX } from 'react-icons/fi';
+import {
+  FiCheck,
+  FiChevronDown,
+  FiChevronUp,
+  FiFilter,
+  FiPlus,
+  FiSearch,
+  FiSliders,
+  FiX,
+} from 'react-icons/fi';
+import { TbLayoutGrid, TbPill } from 'react-icons/tb';
+import { LuFileText } from 'react-icons/lu';
 
 const INVENTORY_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -44,10 +61,13 @@ const InventorySectionSkeleton = () => (
 const InventoryTable = dynamic(() => import('@/app/ui/tables/InventoryTable'), {
   loading: () => <InventorySectionSkeleton />,
 });
-const InventoryTurnoverTable = dynamic(() => import('@/app/ui/tables/InventoryTurnoverTable'), {
+const DispensaryTable = dynamic(() => import('@/app/ui/tables/DispensaryTable'), {
   loading: () => <InventorySectionSkeleton />,
 });
 const AddInventory = dynamic(() => import('@/app/features/inventory/components/AddInventory'));
+const DispensaryDetailModal = dynamic(
+  () => import('@/app/features/inventory/components/DispensaryDetailModal')
+);
 const InventoryInfo = dynamic(() =>
   import('@/app/features/inventory/components').then((module) => ({
     default: module.InventoryInfo,
@@ -77,14 +97,79 @@ const compareInventoryRows = (a: InventoryItem, b: InventoryItem, sortMode: Sort
   return a.basicInfo.name.localeCompare(b.basicInfo.name);
 };
 
-const getVisibilityLabel = (visibility: 'ALL' | 'ACTIVE' | 'HIDDEN'): string => {
-  if (visibility === 'ALL') return 'All';
-  if (visibility === 'ACTIVE') return 'Visible';
+const getSupplierName = (item: InventoryItem) =>
+  (item.vendor?.supplierName || item.vendor?.vendor || '').trim();
+
+const getDispenseRequestType = (
+  fulfillment: string | undefined,
+  patientName: string | null
+): 'IN_HOUSE' | 'PATIENT' => {
+  if (fulfillment === 'IN_HOUSE') return 'IN_HOUSE';
+  return patientName ? 'PATIENT' : 'IN_HOUSE';
+};
+
+const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryRecord => {
+  const firstMed = req.medications[0];
+  const requestType = getDispenseRequestType(firstMed?.fulfillment, req.patientName);
+  const amountCents = req.medications.reduce((sum, m) => sum + (m.priceCents ?? 0), 0);
+
+  return {
+    id: req.id,
+    prescriptionId: req.prescriptionId,
+    patient: {
+      name: req.patientName ?? '—',
+      appointmentId: req.prescription.artifact.appointmentId ?? '—',
+      imageUrl: req.patientImageUrl ?? undefined,
+      petBreed: req.petBreed ?? undefined,
+      petAge: req.petAge ?? undefined,
+    },
+    status: req.status,
+    prescriptionItems: req.medications.map((m) => m.inventoryItemId),
+    prescriptionCreated: req.requestedAt,
+    amountCents,
+    currency: req.currency ?? undefined,
+    lead: req.leadName ?? '—',
+    location: req.location ?? '—',
+    requestType,
+    invoiceId: req.invoiceId ?? undefined,
+    paymentStatus: req.paymentStatus ?? undefined,
+    timeDispensed: req.reviewedAt ?? undefined,
+    items: req.medications.map((m) => ({
+      name: m.medicineName ?? req.prescription.artifact.summary ?? m.inventoryItemId,
+      quantity: String(m.quantity ?? 1),
+      priceCents: m.priceCents ?? 0,
+      prescription: {
+        dose: m.dosage ?? '',
+        freq: m.frequency ?? '',
+        duration: '',
+        refill: '',
+        route: m.route ?? '',
+      },
+    })),
+  };
+};
+
+const getVisibilityLabel = (vis: 'ALL' | 'ACTIVE' | 'HIDDEN'): string => {
+  if (vis === 'ALL') return 'All inventory';
+  if (vis === 'ACTIVE') return 'Active';
   return 'Hidden';
 };
 
-const getSupplierName = (item: InventoryItem) =>
-  (item.vendor?.supplierName || item.vendor?.vendor || '').trim();
+const getDispensaryRequestTypeLabel = (type: DispensaryRequestType): string => {
+  if (type === 'ALL') return 'All requests';
+  if (type === 'PATIENT') return 'Patient';
+  return 'Inhouse';
+};
+
+const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
+  const next = new Set(prev);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  return next;
+};
 
 const Inventory = () => {
   useLoadOrg();
@@ -103,18 +188,50 @@ const Inventory = () => {
   const resolvedBusinessType: BusinessType = businessType ?? 'GROOMER';
 
   const inventoryModule = useInventoryModule(resolvedBusinessType);
-  const { inventory, turnover, status, error: loadError } = inventoryModule;
+  const { inventory, status, error: loadError } = inventoryModule;
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
   const [debouncedSearch, setDebouncedSearch] = useState(headerSearchQuery);
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
-  const [filteredTurnoverList, setFilteredTurnoverList] = useState<InventoryTurnoverItem[]>([]);
+  const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
+
+  const fetchDispensaryRecords = useCallback(async () => {
+    if (!primaryOrgId) return;
+    try {
+      const data = await listDispenseRequests(primaryOrgId);
+      setDispensaryRecords(data.map(mapDispenseRequestToRecord));
+    } catch {
+      // silently fail — table shows empty state
+    }
+  }, [primaryOrgId]);
+
+  useEffect(() => {
+    fetchDispensaryRecords();
+  }, [fetchDispensaryRecords]);
+  const [activeDispensaryRecord, setActiveDispensaryRecord] = useState<DispensaryRecord | null>(
+    null
+  );
+  const [dispensaryModalOpen, setDispensaryModalOpen] = useState(false);
+  const [dispensaryRequestType, setDispensaryRequestType] = useState<DispensaryRequestType>('ALL');
+  const [dispensarySearch, setDispensarySearch] = useState('');
+  const [dispensaryFilterOpen, setDispensaryFilterOpen] = useState(false);
+  const [dispensaryStatusFilter, setDispensaryStatusFilter] = useState<DispensaryStatus | 'ALL'>(
+    'ALL'
+  );
   const [addPopup, setAddPopup] = useState(false);
   const [viewInventory, setViewInventory] = useState(false);
   const [infoInitialSection, setInfoInitialSection] = useState<InventorySectionKey | undefined>(
     undefined
   );
   const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOpenSections, setFilterOpenSections] = useState<Set<string>>(
+    new Set(['stock-status'])
+  );
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const toggleFilterSection = (key: string) =>
+    setFilterOpenSections((prev) => toggleSetItem(prev, key));
+  const toggleExpandedCategory = (cat: string) =>
+    setExpandedCategories((prev) => toggleSetItem(prev, cat));
   const [activeInventory, setActiveInventory] = useState<InventoryItem | null>(null);
   const [savingItem, setSavingItem] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -186,25 +303,12 @@ const Inventory = () => {
     }, {});
   }, [categoryOptions, inventory]);
 
-  const turnoverCategoryOptions = useMemo(() => {
-    return Array.from(
-      new Set(
-        turnover
-          .map((item) => item.category?.trim())
-          .filter((category): category is string => Boolean(category))
-      )
-    );
-  }, [turnover]);
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView: 'list',
     listWrapperClassName:
       'w-full flex flex-col gap-4 h-[calc(100vh-236px)] min-h-[540px] max-h-[calc(100vh-236px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-104px)] lg:min-h-[calc(100dvh-104px)] lg:max-h-[calc(100dvh-104px)]',
     plannerClassName: '',
   });
-
-  useEffect(() => {
-    setFilteredTurnoverList(turnover);
-  }, [turnover]);
 
   useEffect(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
@@ -271,11 +375,7 @@ const Inventory = () => {
   useEffect(() => {
     setActiveInventory((prev) => {
       if (!filteredInventory.length) return null;
-      if (prev) {
-        const existing = filteredInventory.find((i) => i.id === prev.id);
-        if (existing) return existing;
-      }
-      return filteredInventory[0];
+      return filteredInventory.find((i) => i.id === prev?.id) ?? filteredInventory[0];
     });
     if (!filteredInventory.length) {
       setViewInventory(false);
@@ -482,13 +582,6 @@ const Inventory = () => {
         onRemove: () => setFilters((prev) => ({ ...prev, category: 'all' })),
       });
     }
-    if (filters.visibility !== 'ALL') {
-      chips.push({
-        id: `visibility-${filters.visibility}`,
-        label: filters.visibility === 'ACTIVE' ? 'Visible' : 'Hidden',
-        onRemove: () => setFilters((prev) => ({ ...prev, visibility: 'ALL' })),
-      });
-    }
     return chips;
   }, [filters, toggleCategoryFilter, toggleListFilter]);
 
@@ -497,23 +590,25 @@ const Inventory = () => {
       <div className="flex justify-between items-center w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
-            <span>Inventory</span>
-            <GlassTooltip
-              content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."
-              side="bottom"
-            >
-              <button
-                type="button"
-                aria-label="Inventory info"
-                className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+            <span>{activeView === 'turnover' ? 'Dispensary' : 'Inventory'}</span>
+            {activeView === 'inventory' && (
+              <GlassTooltip
+                content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."
+                side="bottom"
               >
-                <IoInformationCircleOutline size={20} />
-              </button>
-            </GlassTooltip>
+                <button
+                  type="button"
+                  aria-label="Inventory info"
+                  className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <IoInformationCircleOutline size={20} />
+                </button>
+              </GlassTooltip>
+            )}
           </h1>
         </div>
         <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
-          {canEditInventory && (
+          {canEditInventory && activeView === 'inventory' && (
             <Primary
               href="#"
               text={savingItem ? 'Saving...' : 'Add item'}
@@ -523,13 +618,50 @@ const Inventory = () => {
               className="h-11!"
             />
           )}
-          <button
-            type="button"
-            onClick={() => setActiveView(activeView === 'turnover' ? 'inventory' : 'turnover')}
-            className="inline-flex h-11 items-center justify-center rounded-2xl border border-text-primary bg-white px-4 text-body-3-emphasis text-text-primary"
+          <GlassTooltip content="Export inventory" side="bottom">
+            <button
+              type="button"
+              aria-label="Export inventory"
+              className="inline-flex size-11 items-center justify-center rounded-full border border-card-border bg-white text-text-primary hover:bg-card-hover transition-colors"
+            >
+              <LuFileText size={20} aria-hidden="true" />
+            </button>
+          </GlassTooltip>
+          <fieldset
+            aria-label="Inventory view"
+            className="relative flex h-10 w-[260px] items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white m-0 p-0"
           >
-            {activeView === 'turnover' ? 'Stock' : 'Turnover'}
-          </button>
+            <legend className="sr-only">Inventory view</legend>
+            <div
+              aria-hidden
+              className={`absolute top-0 bottom-0 w-1/2 rounded-[999px]! transition-all duration-300 ease-in-out ${activeView === 'inventory' ? 'bg-(--color-primary-700)' : 'bg-success-700'}`}
+              style={{ transform: `translateX(${activeView === 'inventory' ? '0%' : '100%'})` }}
+            />
+            {(
+              [
+                { key: 'inventory', label: 'Inventory', Icon: TbLayoutGrid },
+                { key: 'turnover', label: 'Dispensary', Icon: TbPill },
+              ] as const
+            ).map(({ key, label, Icon }) => {
+              const isActive = activeView === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveView(key)}
+                  aria-pressed={isActive}
+                  className={`relative z-10 flex w-1/2 items-center justify-center gap-1.5 text-body-4 transition-colors ${
+                    isActive
+                      ? 'text-white duration-150 delay-150'
+                      : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
+                  }`}
+                >
+                  <Icon size={15} aria-hidden="true" className="shrink-0" />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </fieldset>
         </div>
       </div>
 
@@ -541,6 +673,22 @@ const Inventory = () => {
           <div className="flex w-full shrink-0 flex-col gap-4">
             {activeView === 'inventory' ? (
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex items-center gap-2">
+                  {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((vis) => {
+                    const label = getVisibilityLabel(vis);
+                    const active = filters.visibility === vis;
+                    return (
+                      <button
+                        key={vis}
+                        type="button"
+                        onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
+                        className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-white'}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
@@ -549,10 +697,12 @@ const Inventory = () => {
                   >
                     <FiSliders size={18} aria-hidden="true" />
                     <span>Filter</span>
-                    {selectedFilterChips.length > 0 && (
+                    {selectedFilterChips.length > 0 ? (
                       <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
                         {selectedFilterChips.length}
                       </span>
+                    ) : (
+                      <FiChevronDown size={16} aria-hidden="true" className="text-text-secondary" />
                     )}
                   </button>
                   <button
@@ -563,30 +713,68 @@ const Inventory = () => {
                     <FiFilter size={18} aria-hidden="true" />
                     <span>Sort by</span>
                   </button>
-                </div>
-                <div className="relative w-full xl:max-w-100">
-                  <FiSearch
-                    size={18}
-                    aria-hidden="true"
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
-                  />
-                  <input
-                    aria-label="Search inventory"
-                    value={filters.search}
-                    onChange={(event) =>
-                      setFilters((prev) => ({ ...prev, search: event.target.value }))
-                    }
-                    placeholder="Search by item name, category, batch..."
-                    className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
-                  />
+                  <div className="relative w-full sm:w-auto sm:min-w-72">
+                    <FiSearch
+                      size={18}
+                      aria-hidden="true"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+                    />
+                    <input
+                      aria-label="Search inventory"
+                      value={filters.search}
+                      onChange={(event) =>
+                        setFilters((prev) => ({ ...prev, search: event.target.value }))
+                      }
+                      placeholder="Search by item name, category, batch..."
+                      className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
-              <InventoryTurnoverFilters
-                list={turnover}
-                setFilteredList={setFilteredTurnoverList}
-                categories={turnoverCategoryOptions}
-              />
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex items-center gap-2">
+                  {(['ALL', 'PATIENT', 'IN_HOUSE'] as const).map((type) => {
+                    const label = getDispensaryRequestTypeLabel(type);
+                    const active = dispensaryRequestType === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setDispensaryRequestType(type)}
+                        className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-white'}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDispensaryFilterOpen(true)}
+                    className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
+                  >
+                    <FiSliders size={18} aria-hidden="true" />
+                    <span>Filter</span>
+                    <FiChevronDown size={16} aria-hidden="true" className="text-text-secondary" />
+                  </button>
+                  <div className="relative w-full sm:w-auto sm:min-w-72">
+                    <FiSearch
+                      size={18}
+                      aria-hidden="true"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+                    />
+                    <input
+                      aria-label="Search dispensary"
+                      value={dispensarySearch}
+                      onChange={(e) => setDispensarySearch(e.target.value)}
+                      placeholder="Search by item name, category, batch..."
+                      className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
+                    />
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
@@ -608,10 +796,47 @@ const Inventory = () => {
                 onRestock={handleRestock}
               />
             ) : (
-              <InventoryTurnoverTable filteredList={filteredTurnoverList} />
+              <DispensaryTable
+                filteredList={dispensaryRecords.filter((r) => {
+                  const typeMatch =
+                    dispensaryRequestType === 'ALL' || r.requestType === dispensaryRequestType;
+                  const statusMatch =
+                    dispensaryStatusFilter === 'ALL' || r.status === dispensaryStatusFilter;
+                  const searchMatch =
+                    !dispensarySearch.trim() ||
+                    r.patient.name.toLowerCase().includes(dispensarySearch.toLowerCase()) ||
+                    r.prescriptionItems.some((i) =>
+                      i.toLowerCase().includes(dispensarySearch.toLowerCase())
+                    );
+                  return typeMatch && statusMatch && searchMatch;
+                })}
+                onView={(record) => {
+                  setActiveDispensaryRecord(record);
+                  setDispensaryModalOpen(true);
+                }}
+                onDispense={async (record) => {
+                  if (!primaryOrgId) return;
+                  try {
+                    await dispensePrescription(primaryOrgId, record.prescriptionId);
+                    fetchDispensaryRecords();
+                  } catch {
+                    // silently fail
+                  }
+                }}
+              />
             )}
           </div>
         </div>
+
+        {activeDispensaryRecord && (
+          <DispensaryDetailModal
+            record={activeDispensaryRecord}
+            showModal={dispensaryModalOpen}
+            setShowModal={setDispensaryModalOpen}
+            organisationId={primaryOrgId ?? ''}
+            onActionComplete={fetchDispensaryRecords}
+          />
+        )}
 
         <AddInventory
           showModal={addPopup}
@@ -624,7 +849,8 @@ const Inventory = () => {
         {filterOpen && (
           <Modal showModal={filterOpen} setShowModal={setFilterOpen}>
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between gap-3 pb-5">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 shrink-0">
                 <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
                   <FiSliders size={18} aria-hidden="true" />
                   <span>Filter</span>
@@ -632,15 +858,16 @@ const Inventory = () => {
                 {selectedFilterChips.length > 0 && (
                   <button
                     type="button"
-                    className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text transition-colors hover:bg-blue-light"
                     onClick={() => setFilters(defaultFilters)}
+                    className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
                   >
                     Clear all
                   </button>
                 )}
               </div>
+              {/* Chips */}
               {selectedFilterChips.length > 0 && (
-                <div className="flex flex-wrap gap-2 pb-5">
+                <div className="flex flex-wrap gap-2 pb-4 shrink-0">
                   {selectedFilterChips.map((chip) => (
                     <span
                       key={chip.id}
@@ -649,151 +876,425 @@ const Inventory = () => {
                       {chip.label}
                       <button
                         type="button"
-                        aria-label={`Remove ${chip.label} filter`}
+                        aria-label={`Remove ${chip.label}`}
                         onClick={chip.onRemove}
-                        className="inline-flex size-4 items-center justify-center rounded-full text-badge-blue-text transition-colors hover:bg-badge-blue-text/15"
+                        className="inline-flex size-4 items-center justify-center rounded-full hover:bg-badge-blue-text/15 transition-colors"
                       >
-                        <FiX size={13} aria-hidden="true" />
+                        <FiX size={12} aria-hidden="true" />
                       </button>
                     </span>
                   ))}
                 </div>
               )}
-              <div className="flex flex-1 flex-col gap-5 overflow-y-auto pr-1">
-                <div className="flex flex-col gap-2 border-b border-card-border pb-4">
-                  <div className="text-body-4-emphasis text-text-primary">Stock status</div>
-                  {['ALL', 'LOW_STOCK', 'EXPIRED', 'OUT_OF_STOCK'].map((status) => (
-                    <label
-                      key={status}
-                      className="flex items-center gap-3 text-body-4 text-text-primary"
-                    >
-                      <input
-                        type="radio"
-                        name="stock-status"
-                        checked={filters.status === status}
-                        onChange={() => setFilters((prev) => ({ ...prev, status }))}
-                      />
-                      <span>
-                        {status === 'ALL' ? 'All' : status.replaceAll('_', ' ').toLowerCase()}
-                      </span>
-                    </label>
-                  ))}
+              {/* Accordion sections */}
+              <div className="flex flex-1 flex-col overflow-y-auto pr-1 divide-y divide-card-border">
+                {/* Stock status */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => toggleFilterSection('stock-status')}
+                    className="flex w-full items-center justify-between py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-body-4 text-text-primary">Stock status</span>
+                      {filters.status !== 'ALL' && (
+                        <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                          1
+                        </span>
+                      )}
+                    </div>
+                    {filterOpenSections.has('stock-status') ? (
+                      <FiChevronUp size={16} className="text-text-secondary" />
+                    ) : (
+                      <FiChevronDown size={16} className="text-text-secondary" />
+                    )}
+                  </button>
+                  {filterOpenSections.has('stock-status') && (
+                    <div className="flex flex-col gap-3 pb-3">
+                      {(['ALL', 'LOW_STOCK', 'EXPIRED', 'OUT_OF_STOCK'] as const).map((s) => (
+                        <label
+                          key={s}
+                          className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
+                        >
+                          <input
+                            type="radio"
+                            name="stock-status"
+                            checked={filters.status === s}
+                            onChange={() => setFilters((prev) => ({ ...prev, status: s }))}
+                            className="accent-blue-text"
+                          />
+                          <span>{s === 'ALL' ? 'All' : s.replaceAll('_', ' ').toLowerCase()}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                {/* Location */}
                 {locationFilterOptions.length > 0 && (
-                  <div className="flex flex-col gap-2 border-b border-card-border pb-4">
-                    <div className="text-body-4-emphasis text-text-primary">Location</div>
-                    {locationFilterOptions.map((location) => (
-                      <label
-                        key={location}
-                        className="flex items-center gap-3 text-body-4 text-text-primary"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.locations.includes(location)}
-                          onChange={() => toggleListFilter('locations', location)}
-                          className="size-4 accent-blue-text"
-                        />
-                        <span>{location}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                <div className="flex flex-col gap-2 border-b border-card-border pb-4">
-                  <div className="text-body-4-emphasis text-text-primary">Category</div>
-                  {categoryOptions.map((category) => (
-                    <div key={category} className="flex flex-col gap-2">
-                      <label className="flex items-center gap-3 text-body-4 text-text-primary">
-                        <input
-                          type="checkbox"
-                          checked={filters.categories.includes(category)}
-                          onChange={() => toggleCategoryFilter(category)}
-                          className="size-4 accent-blue-text"
-                        />
-                        <span>{category}</span>
-                      </label>
-                      {filters.categories.includes(category) &&
-                        categorySubcategoryOptions[category]?.map((subCategory) => (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFilterSection('location')}
+                      className="flex w-full items-center justify-between py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-body-4 text-text-primary">Location</span>
+                        {filters.locations.length > 0 && (
+                          <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                            {filters.locations.length}
+                          </span>
+                        )}
+                      </div>
+                      {filterOpenSections.has('location') ? (
+                        <FiChevronUp size={16} className="text-text-secondary" />
+                      ) : (
+                        <FiChevronDown size={16} className="text-text-secondary" />
+                      )}
+                    </button>
+                    {filterOpenSections.has('location') && (
+                      <div className="flex flex-col gap-3 pb-3">
+                        {locationFilterOptions.map((loc) => (
                           <label
-                            key={`${category}-${subCategory}`}
-                            className="ml-7 flex items-center gap-3 text-body-4 text-text-secondary"
+                            key={loc}
+                            className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
                           >
                             <input
                               type="checkbox"
-                              checked={filters.subCategories.includes(subCategory)}
-                              onChange={() => toggleListFilter('subCategories', subCategory)}
+                              checked={filters.locations.includes(loc)}
+                              onChange={() => toggleListFilter('locations', loc)}
                               className="size-4 accent-blue-text"
                             />
-                            <span>{subCategory}</span>
+                            <span>{loc}</span>
                           </label>
                         ))}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-col gap-2 border-b border-card-border pb-4">
-                  <div className="text-body-4-emphasis text-text-primary">ABC class</div>
-                  {AbcClassOptions.map((abcClass) => (
-                    <label
-                      key={abcClass}
-                      className="flex items-center gap-3 text-body-4 text-text-primary"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filters.abcClasses.includes(abcClass)}
-                        onChange={() => toggleListFilter('abcClasses', abcClass)}
-                        className="size-4 accent-blue-text"
-                      />
-                      <span>{abcClass}</span>
-                    </label>
-                  ))}
-                </div>
-                {supplierFilterOptions.length > 0 && (
-                  <div className="flex flex-col gap-2 border-b border-card-border pb-4">
-                    <div className="text-body-4-emphasis text-text-primary">Supplier</div>
-                    {supplierFilterOptions.map((supplier) => (
-                      <label
-                        key={supplier}
-                        className="flex items-center gap-3 text-body-4 text-text-primary"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.suppliers.includes(supplier)}
-                          onChange={() => toggleListFilter('suppliers', supplier)}
-                          className="size-4 accent-blue-text"
-                        />
-                        <span>{supplier}</span>
-                      </label>
-                    ))}
+                      </div>
+                    )}
                   </div>
                 )}
-                <div className="flex flex-col gap-2">
-                  <div className="text-body-4-emphasis text-text-primary">Visibility</div>
-                  {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((visibility) => (
-                    <label
-                      key={visibility}
-                      className="flex items-center gap-3 text-body-4 text-text-primary"
-                    >
-                      <input
-                        type="radio"
-                        name="inventory-visibility"
-                        checked={filters.visibility === visibility}
-                        onChange={() => setFilters((prev) => ({ ...prev, visibility }))}
-                      />
-                      <span>{getVisibilityLabel(visibility)}</span>
-                    </label>
-                  ))}
+                {/* Category */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => toggleFilterSection('category')}
+                    className="flex w-full items-center justify-between py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-body-4 text-text-primary">Category</span>
+                      {filters.categories.length > 0 && (
+                        <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                          {filters.categories.length}
+                        </span>
+                      )}
+                    </div>
+                    {filterOpenSections.has('category') ? (
+                      <FiChevronUp size={16} className="text-text-secondary" />
+                    ) : (
+                      <FiChevronDown size={16} className="text-text-secondary" />
+                    )}
+                  </button>
+                  {filterOpenSections.has('category') && (
+                    <div className="flex flex-col pb-3">
+                      {categoryOptions.map((category) => {
+                        const subs = categorySubcategoryOptions[category] ?? [];
+                        const isChecked = filters.categories.includes(category);
+                        const isExpanded = expandedCategories.has(category);
+                        return (
+                          <div key={category}>
+                            <div className="flex items-center gap-2 py-2">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleCategoryFilter(category)}
+                                className="size-4 accent-blue-text"
+                                id={`cat-${category}`}
+                              />
+                              <label
+                                htmlFor={`cat-${category}`}
+                                className={`flex-1 text-body-4 cursor-pointer ${isChecked ? 'text-blue-text font-semibold' : 'text-text-primary'}`}
+                              >
+                                {category}
+                              </label>
+                              {subs.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpandedCategory(category)}
+                                  className="text-text-secondary"
+                                >
+                                  {isExpanded ? (
+                                    <FiChevronUp size={14} />
+                                  ) : (
+                                    <FiChevronDown size={14} />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                            {subs.length > 0 && isExpanded && (
+                              <div className="ml-6 flex flex-col gap-2 pb-2">
+                                {subs.map((sub) => (
+                                  <label
+                                    key={sub}
+                                    className="flex items-center gap-3 text-body-4 text-text-secondary cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={filters.subCategories.includes(sub)}
+                                      onChange={() => toggleListFilter('subCategories', sub)}
+                                      className="size-4 accent-blue-text"
+                                    />
+                                    <span>{sub}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
+                {/* ABC */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => toggleFilterSection('abc')}
+                    className="flex w-full items-center justify-between py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-body-4 text-text-primary">ABC</span>
+                      {filters.abcClasses.length > 0 && (
+                        <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                          {filters.abcClasses.length}
+                        </span>
+                      )}
+                    </div>
+                    {filterOpenSections.has('abc') ? (
+                      <FiChevronUp size={16} className="text-text-secondary" />
+                    ) : (
+                      <FiChevronDown size={16} className="text-text-secondary" />
+                    )}
+                  </button>
+                  {filterOpenSections.has('abc') && (
+                    <div className="flex flex-col gap-3 pb-3">
+                      {AbcClassOptions.map((cls) => (
+                        <label
+                          key={cls}
+                          className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.abcClasses.includes(cls)}
+                            onChange={() => toggleListFilter('abcClasses', cls)}
+                            className="size-4 accent-blue-text"
+                          />
+                          <span>{cls}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Supplier */}
+                {supplierFilterOptions.length > 0 && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFilterSection('supplier')}
+                      className="flex w-full items-center justify-between py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-body-4 text-text-primary">Supplier</span>
+                        {filters.suppliers.length > 0 && (
+                          <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                            {filters.suppliers.length}
+                          </span>
+                        )}
+                      </div>
+                      {filterOpenSections.has('supplier') ? (
+                        <FiChevronUp size={16} className="text-text-secondary" />
+                      ) : (
+                        <FiChevronDown size={16} className="text-text-secondary" />
+                      )}
+                    </button>
+                    {filterOpenSections.has('supplier') && (
+                      <div className="flex flex-col gap-3 pb-3">
+                        {supplierFilterOptions.map((sup) => (
+                          <label
+                            key={sup}
+                            className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={filters.suppliers.includes(sup)}
+                              onChange={() => toggleListFilter('suppliers', sup)}
+                              className="size-4 accent-blue-text"
+                            />
+                            <span>{sup}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-3 border-t border-card-border pt-5 mt-5">
-                <Primary
-                  href="#"
-                  text="Apply"
-                  onClick={() => setFilterOpen(false)}
-                  icon={<FiCheck size={18} aria-hidden="true" />}
-                />
+              {/* Footer */}
+              <div className="grid grid-cols-2 gap-3 border-t border-card-border pt-5 mt-5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setFilterOpen(false)}
-                  className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-text-primary bg-white px-4 text-body-3-emphasis text-text-primary"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-text-primary px-4 text-body-3-emphasis text-white hover:opacity-90 transition-opacity"
+                >
+                  <FiCheck size={18} aria-hidden="true" />
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters(defaultFilters);
+                    setFilterOpen(false);
+                  }}
+                  className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-white px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {dispensaryFilterOpen && (
+          <Modal showModal={dispensaryFilterOpen} setShowModal={setDispensaryFilterOpen}>
+            <div className="flex h-full flex-col">
+              <div className="flex items-center justify-between pb-4 shrink-0">
+                <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
+                  <FiSliders size={18} aria-hidden="true" />
+                  <span>Filter</span>
+                </div>
+                {(dispensaryStatusFilter !== 'ALL' || dispensaryRequestType !== 'ALL') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDispensaryStatusFilter('ALL');
+                      setDispensaryRequestType('ALL');
+                    }}
+                    className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col overflow-y-auto pr-1 divide-y divide-card-border">
+                {/* Status */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => toggleFilterSection('disp-status')}
+                    className="flex w-full items-center justify-between py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-body-4 text-text-primary">Status</span>
+                      {dispensaryStatusFilter !== 'ALL' && (
+                        <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                          1
+                        </span>
+                      )}
+                    </div>
+                    {filterOpenSections.has('disp-status') ? (
+                      <FiChevronUp size={16} className="text-text-secondary" />
+                    ) : (
+                      <FiChevronDown size={16} className="text-text-secondary" />
+                    )}
+                  </button>
+                  {filterOpenSections.has('disp-status') && (
+                    <div className="flex flex-col gap-3 pb-3">
+                      {(
+                        [
+                          { value: 'ALL', label: 'All' },
+                          { value: 'PENDING', label: 'Pending' },
+                          { value: 'DISPENSED', label: 'Dispensed' },
+                          { value: 'NOT_DISPENSED', label: 'Not dispensed' },
+                        ] as const
+                      ).map(({ value, label }) => (
+                        <label
+                          key={value}
+                          className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
+                        >
+                          <input
+                            type="radio"
+                            name="dispensary-status"
+                            checked={dispensaryStatusFilter === value}
+                            onChange={() => setDispensaryStatusFilter(value)}
+                            className="accent-blue-text"
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Request type */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => toggleFilterSection('disp-type')}
+                    className="flex w-full items-center justify-between py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-body-4 text-text-primary">Request type</span>
+                      {dispensaryRequestType !== 'ALL' && (
+                        <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                          1
+                        </span>
+                      )}
+                    </div>
+                    {filterOpenSections.has('disp-type') ? (
+                      <FiChevronUp size={16} className="text-text-secondary" />
+                    ) : (
+                      <FiChevronDown size={16} className="text-text-secondary" />
+                    )}
+                  </button>
+                  {filterOpenSections.has('disp-type') && (
+                    <div className="flex flex-col gap-3 pb-3">
+                      {(
+                        [
+                          { value: 'ALL', label: 'All requests' },
+                          { value: 'PATIENT', label: 'Patient' },
+                          { value: 'IN_HOUSE', label: 'Inhouse' },
+                        ] as const
+                      ).map(({ value, label }) => (
+                        <label
+                          key={value}
+                          className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
+                        >
+                          <input
+                            type="radio"
+                            name="dispensary-type"
+                            checked={dispensaryRequestType === value}
+                            onChange={() => setDispensaryRequestType(value)}
+                            className="accent-blue-text"
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 border-t border-card-border pt-5 mt-5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setDispensaryFilterOpen(false)}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-text-primary px-4 text-body-3-emphasis text-white hover:opacity-90 transition-opacity"
+                >
+                  <FiCheck size={18} aria-hidden="true" />
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDispensaryStatusFilter('ALL');
+                    setDispensaryRequestType('ALL');
+                    setDispensaryFilterOpen(false);
+                  }}
+                  className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-white px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
                 >
                   Discard
                 </button>
