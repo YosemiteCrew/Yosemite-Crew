@@ -9,6 +9,8 @@ import {
 import { Appointment } from '@yosemite-crew/types';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { useNotify } from '@/app/hooks/useNotify';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
 
 const reloadAfterPayment = () =>
   Promise.all([
@@ -135,6 +137,8 @@ const InvoicePaymentActions = ({
   activeAppointment,
 }: InvoicePaymentActionsProps) => {
   const { notify } = useNotify();
+  const { canAny } = usePermissions(activeAppointment?.organisationId);
+  const canEditBilling = canAny([PERMISSIONS.BILLING_EDIT_ANY, PERMISSIONS.BILLING_EDIT_LIMITED]);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [showCashConfirmation, setShowCashConfirmation] = useState(false);
   const [settingCashCollectionMethod, setSettingCashCollectionMethod] = useState(false);
@@ -177,6 +181,10 @@ const InvoicePaymentActions = ({
         <Secondary text="Download" href="#" onClick={handleDownload} className="w-fit" />
       </div>
     );
+  }
+
+  if (!canEditBilling) {
+    return null;
   }
 
   return (
