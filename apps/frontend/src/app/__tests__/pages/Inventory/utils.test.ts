@@ -188,9 +188,9 @@ describe('Inventory Utils', () => {
         borderColor: 'var(--color-pill-warning-border)',
       });
       expect(getStatusBadgeStyle('Out of Stock')).toEqual({
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       });
       // hidden
       expect(getStatusBadgeStyle('Hidden')).toEqual({
@@ -257,6 +257,36 @@ describe('Inventory Utils', () => {
       expect(result.status).toBe('ACTIVE');
     });
 
+    it('hydrates backend top-level clinical and stock fields for edit flow', () => {
+      const result = mapApiItemToInventoryItem({
+        ...mockApiItem,
+        itemType: 'NON_MEDICAL',
+        genericName: 'Amoxicillin',
+        strength: '250 mg',
+        dosageForm: 'Tablet',
+        routeOfAdministration: 'Oral',
+        prescriptionRequired: true,
+        controlledItem: false,
+        storageInstructions: 'Keep refrigerated',
+        unitOfMeasure: 'Tablet',
+        storageLocation: 'Pharmacy shelf',
+        minimumStock: 12,
+      });
+
+      expect(result.basicInfo.itemType).toBe('Non-drug');
+      expect(result.classification.itemType).toBe('Non-drug');
+      expect(result.classification.genericName).toBe('Amoxicillin');
+      expect(result.classification.strength).toBe('250 mg');
+      expect(result.classification.dosageForm).toBe('Tablet');
+      expect(result.classification.administration).toBe('Oral');
+      expect(result.classification.prescriptionRequired).toBe('true');
+      expect(result.classification.controlledSubstance).toBe('false');
+      expect(result.classification.storageCondition).toBe('Keep refrigerated');
+      expect(result.classification.unitofMeasure).toBe('Tablet');
+      expect(result.stock.stockLocation).toBe('Pharmacy shelf');
+      expect(result.stock.minStockAlert).toBe('12');
+    });
+
     it('normalizes status correctly (Hidden case)', () => {
       const item = { ...mockApiItem, status: 'HIDDEN' };
       const result = mapApiItemToInventoryItem(item);
@@ -311,6 +341,23 @@ describe('Inventory Utils', () => {
       // Totals calculation check
       // 5 + 10 = 15
       expect(result.stock.current).toBe('15');
+    });
+
+    it('rehydrates saved batch display fields from attributes', () => {
+      const result = mapApiItemToInventoryItem({
+        ...mockApiItem,
+        attributes: {
+          ...mockApiItem.attributes,
+          expiryWarningBefore: '30 days',
+          barcode: 'BAR-123',
+        },
+        batches: [{ _id: 'b1', batchNumber: 'BATCH-1', quantity: 10 }],
+      } as unknown as InventoryApiItem);
+
+      expect(result.batch.expiryWarningBefore).toBe('30 days');
+      expect(result.batch.barcode).toBe('BAR-123');
+      expect(result.batches?.[0].expiryWarningBefore).toBe('30 days');
+      expect(result.batches?.[0].barcode).toBe('BAR-123');
     });
 
     it('selects first batch if no expiry dates provided', () => {
@@ -505,16 +552,25 @@ describe('Inventory Utils', () => {
     } as InventoryItem;
 
     describe('buildBatchPayload', () => {
-      it('normalizes Slash dates to ISO YYYY-MM-DD', () => {
+      it('normalizes slash dates to full ISO datetimes', () => {
         const batch = { ...mockInventoryItem.batches![0] };
         const payload = buildBatchPayload(batch);
-        expect(payload?.expiryDate).toBe('2025-12-31');
+        expect(payload?.expiryDate).toBe('2025-12-31T00:00:00.000Z');
       });
 
-      it('keeps ISO dates as YYYY-MM-DD', () => {
+      it('normalizes plain ISO calendar dates to full ISO datetimes', () => {
         const batch = { ...mockInventoryItem.batches![1] };
         const payload = buildBatchPayload(batch);
-        expect(payload?.expiryDate).toBe('2026-01-01');
+        expect(payload?.expiryDate).toBe('2026-01-01T00:00:00.000Z');
+      });
+
+      it('preserves full ISO datetime values', () => {
+        const batch = {
+          ...mockInventoryItem.batches![1],
+          expiryDate: '2026-01-01T05:30:00.000Z',
+        };
+        const payload = buildBatchPayload(batch);
+        expect(payload?.expiryDate).toBe('2026-01-01T05:30:00.000Z');
       });
 
       it('falls back to current/available for quantity if quantity field missing', () => {
@@ -564,6 +620,61 @@ describe('Inventory Utils', () => {
         // Check attributes cleaning
         expect(payload.attributes?.stockLocation).toBe('Loc A');
         expect(payload.attributes?.species).toEqual(['Dog']);
+      });
+
+      it('maps medical clinical fields to top-level API keys', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            classification: {
+              ...mockInventoryItem.classification,
+              genericName: 'Amoxicillin',
+              form: 'Tablet',
+              strength: '250 mg',
+              administration: 'Oral',
+            },
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        expect(payload.genericName).toBe('Amoxicillin');
+        expect(payload.dosageForm).toBe('Tablet');
+        expect(payload.strength).toBe('250 mg');
+        expect(payload.routeOfAdministration).toBe('Oral');
+      });
+
+      it('maps inventory edit fields to backend-owned top-level columns', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            classification: {
+              ...mockInventoryItem.classification,
+              itemType: 'Non-drug',
+              unitofMeasure: ['Tablet'],
+              prescriptionRequired: 'true',
+              controlledSubstance: 'false',
+              storageCondition: 'Cool and dry',
+              packSize: '24',
+            },
+            stock: {
+              ...mockInventoryItem.stock,
+              stockLocation: 'Cabinet A',
+              minStockAlert: '5',
+            },
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        expect(payload.itemType).toBe('NON_MEDICAL');
+        expect(payload.unitOfMeasure).toBe('Tablet');
+        expect(payload.prescriptionRequired).toBe(true);
+        expect(payload.controlledItem).toBe(false);
+        expect(payload.storageInstructions).toBe('Cool and dry');
+        expect(payload.packageQuantity).toBe(24);
+        expect(payload.storageLocation).toBe('Cabinet A');
+        expect(payload.minimumStock).toBe(5);
       });
 
       it('uses single batch from formData.batch if formData.batches is empty', () => {

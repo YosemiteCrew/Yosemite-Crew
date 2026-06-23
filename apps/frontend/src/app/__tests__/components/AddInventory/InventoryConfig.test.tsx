@@ -90,6 +90,7 @@ describe('InventoryFormConfig', () => {
     it('should have the correct field structure in the classification section', () => {
       const classificationFields = extractFieldNames(config.classification!);
       const expectedFields = [
+        'genericName',
         'itemType',
         'drugSchedule',
         'species',

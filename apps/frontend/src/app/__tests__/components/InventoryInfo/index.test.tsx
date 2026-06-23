@@ -106,8 +106,13 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
 
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
-  default: ({ value, onChange, inname }: any) => (
-    <input data-testid={`input-${inname}`} value={value} onChange={onChange} />
+  default: ({ value, onChange, inname, readonly }: any) => (
+    <input
+      data-testid={`input-${inname}`}
+      value={value}
+      onChange={onChange ?? (() => {})}
+      readOnly={readonly}
+    />
   ),
 }));
 
