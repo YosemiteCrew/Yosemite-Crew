@@ -89,6 +89,9 @@ describe("CompanionOrganisationService", () => {
 
   describe("linking", () => {
     it("returns an existing active link without creating a new one", async () => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "pp-1",
+      });
       (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
         {
           id: linkId,
@@ -134,6 +137,9 @@ describe("CompanionOrganisationService", () => {
     });
 
     it("creates a parent link and records audit", async () => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "pp-1",
+      });
       (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
         null,
       );
@@ -327,6 +333,9 @@ describe("CompanionOrganisationService", () => {
           status: "PENDING",
         },
       );
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "pp-1",
+      });
       (prisma.patientOrganisation.update as jest.Mock).mockResolvedValueOnce({
         id: linkId,
         patientId,
@@ -349,6 +358,9 @@ describe("CompanionOrganisationService", () => {
           status: "PENDING",
         },
       );
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "pp-1",
+      });
       (prisma.patientOrganisation.update as jest.Mock).mockResolvedValueOnce({
         id: linkId,
         patientId,
@@ -376,6 +388,207 @@ describe("CompanionOrganisationService", () => {
           statusCode: 404,
         }),
       );
+    });
+  });
+
+  describe("companion ownership enforcement", () => {
+    it("rejects linking a companion the parent does not own", async () => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        CompanionOrganisationService.linkByParent({
+          parentId,
+          patientId,
+          organisationId,
+          organisationType: "HOSPITAL",
+        }),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "You are not authorized to manage this companion.",
+          statusCode: 403,
+        }),
+      );
+
+      expect(prisma.parentPatient.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            parentId,
+            patientId,
+            status: { in: ["ACTIVE", "PENDING"] },
+          }),
+        }),
+      );
+      expect(prisma.patientOrganisation.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects inviting an organisation for a non-owned companion", async () => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        CompanionOrganisationService.sendInvite({
+          parentId,
+          patientId,
+          organisationType: "HOSPITAL",
+          email: "vet@example.com",
+        }),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "You are not authorized to manage this companion.",
+          statusCode: 403,
+        }),
+      );
+      expect(prisma.patientOrganisation.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects approving a pending link for a non-owned companion", async () => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
+        {
+          id: linkId,
+          patientId,
+          organisationId: null,
+          organisationType: "HOSPITAL",
+          status: "PENDING",
+        },
+      );
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        CompanionOrganisationService.parentApproveLink(parentId, linkId),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "You are not authorized to manage this companion.",
+          statusCode: 403,
+        }),
+      );
+      expect(prisma.patientOrganisation.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects revoking another owner's link (IDOR) and does not delete", async () => {
+      (
+        prisma.patientOrganisation.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        id: linkId,
+        patientId,
+        organisationId,
+        organisationType: "HOSPITAL",
+        status: "ACTIVE",
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        CompanionOrganisationService.revokeLink(linkId, parentId),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "You are not authorized to manage this companion.",
+          statusCode: 403,
+        }),
+      );
+
+      expect(prisma.parentPatient.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            parentId,
+            patientId,
+            status: { in: ["ACTIVE", "PENDING"] },
+          }),
+        }),
+      );
+      expect(prisma.patientOrganisation.delete).not.toHaveBeenCalled();
+      expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+    });
+
+    it("allows the legitimate owner to revoke their own link", async () => {
+      (
+        prisma.patientOrganisation.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        id: linkId,
+        patientId,
+        organisationId,
+        organisationType: "HOSPITAL",
+        status: "ACTIVE",
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "pp-1",
+      });
+
+      await CompanionOrganisationService.revokeLink(linkId, parentId);
+
+      expect(prisma.patientOrganisation.delete).toHaveBeenCalledWith({
+        where: { id: linkId },
+      });
+      expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "PATIENT_ORG_LINK_REVOKED" }),
+      );
+    });
+
+    it("rejects listing another companion's org links (IDOR) and does not query links", async () => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        CompanionOrganisationService.getLinksForCompanionByOrganisationTye(
+          patientId,
+          "HOSPITAL",
+          parentId,
+        ),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "You are not authorized to manage this companion.",
+          statusCode: 403,
+        }),
+      );
+
+      expect(prisma.parentPatient.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            parentId,
+            patientId,
+            status: { in: ["ACTIVE", "PENDING"] },
+          }),
+        }),
+      );
+      expect(prisma.patientOrganisation.findMany).not.toHaveBeenCalled();
+    });
+
+    it("allows the legitimate owner to list their companion's org links", async () => {
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "pp-1",
+      });
+      (prisma.patientOrganisation.findMany as jest.Mock).mockResolvedValueOnce(
+        [],
+      );
+
+      const result =
+        await CompanionOrganisationService.getLinksForCompanionByOrganisationTye(
+          patientId,
+          "HOSPITAL",
+          parentId,
+        );
+
+      expect(result).toEqual({ links: [] });
+      expect(prisma.patientOrganisation.findMany).toHaveBeenCalled();
+    });
+
+    it("rejects denying a pending link for a non-owned companion", async () => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
+        {
+          id: linkId,
+          patientId,
+          organisationId: null,
+          organisationType: "HOSPITAL",
+          status: "PENDING",
+        },
+      );
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        CompanionOrganisationService.parentRejectLink(parentId, linkId),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "You are not authorized to manage this companion.",
+          statusCode: 403,
+        }),
+      );
+      expect(prisma.patientOrganisation.update).not.toHaveBeenCalled();
     });
   });
 

@@ -495,12 +495,22 @@ export const ServiceService = {
     return docs.map((d) => toServiceResponseDTO(mapDocToDomain(d)));
   },
 
-  async update(id: string, fhirDto: ServiceRequestDTO) {
+  async update(
+    id: string,
+    fhirDto: ServiceRequestDTO,
+    organisationId?: string,
+  ) {
     const serviceUpdates = fromServiceRequestDTO(fhirDto);
 
     const oid = ensureObjectId(id, "serviceId");
 
-    const doc = await ServiceModel.findById(oid);
+    const doc =
+      organisationId === undefined
+        ? await ServiceModel.findById(oid)
+        : await ServiceModel.findOne({
+            _id: oid,
+            organisationId: ensureObjectId(organisationId, "organisationId"),
+          });
     if (!doc) {
       throw new ServiceServiceError("Service not found", 404);
     }
@@ -542,17 +552,34 @@ export const ServiceService = {
     return toServiceResponseDTO(mapDocToDomain(doc));
   },
 
-  async delete(id: string) {
+  async delete(id: string, organisationId?: string) {
     const oid = ensureObjectId(id, "serviceId");
 
-    const doc = await ServiceModel.findById(oid);
+    const doc =
+      organisationId === undefined
+        ? await ServiceModel.findById(oid)
+        : await ServiceModel.findOne({
+            _id: oid,
+            organisationId: ensureObjectId(organisationId, "organisationId"),
+          });
     if (!doc) return null;
 
     await doc.deleteOne();
 
     if (shouldDualWrite) {
       try {
-        await prisma.service.deleteMany({ where: { id: id } });
+        await prisma.service.deleteMany({
+          where:
+            organisationId === undefined
+              ? { id: id }
+              : {
+                  id: id,
+                  organisationId: requireSafeString(
+                    organisationId,
+                    "organisationId",
+                  ),
+                },
+        });
       } catch (err) {
         handleDualWriteError("Service delete", err);
       }

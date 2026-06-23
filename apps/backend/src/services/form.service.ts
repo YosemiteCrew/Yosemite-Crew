@@ -2446,6 +2446,7 @@ export const FormService = {
     species?: string;
     isPMS?: boolean;
     viewerParentId?: string;
+    requesterOrgId?: string;
   }) {
     const appointmentLookup = await loadAppointmentForFormsRecord(
       params.appointmentId,
@@ -2455,6 +2456,17 @@ export const FormService = {
     }
     const appointment = appointmentLookup.appointment;
     const appointmentId = normalizeAppointmentId(params.appointmentId);
+
+    if (
+      params.requesterOrgId &&
+      appointment.organisationId !== params.requesterOrgId
+    ) {
+      throw new FormServiceError(
+        "Forbidden: appointment does not belong to this organisation",
+        403,
+      );
+    }
+
     if (params.viewerParentId) {
       const appointmentParentId = resolveAppointmentParentId(appointment);
       if (

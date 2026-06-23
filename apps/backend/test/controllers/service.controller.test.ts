@@ -182,7 +182,29 @@ describe("ServiceController", () => {
 
       await ServiceController.updateService(req, res);
 
-      expect(ServiceService.update).toHaveBeenCalledWith("123", { cost: 100 });
+      expect(ServiceService.update).toHaveBeenCalledWith(
+        "123",
+        { cost: 100 },
+        undefined,
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("passes the authorized organisationId from the request to the service", async () => {
+      req = mockRequest({
+        params: { id: "123" },
+        body: { cost: 100 },
+        organisationId: "org-A",
+      });
+      (ServiceService.update as jest.Mock).mockResolvedValueOnce({ id: "123" });
+
+      await ServiceController.updateService(req, res);
+
+      expect(ServiceService.update).toHaveBeenCalledWith(
+        "123",
+        { cost: 100 },
+        "org-A",
+      );
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
@@ -203,9 +225,22 @@ describe("ServiceController", () => {
 
       await ServiceController.deleteService(req, res);
 
-      expect(ServiceService.delete).toHaveBeenCalledWith("123");
+      expect(ServiceService.delete).toHaveBeenCalledWith("123", undefined);
       expect(res.status).toHaveBeenCalledWith(204);
       expect(res.send).toHaveBeenCalled();
+    });
+
+    it("passes the authorized organisationId from the request to the service", async () => {
+      req = mockRequest({
+        params: { id: "123" },
+        organisationId: "org-A",
+      });
+      (ServiceService.delete as jest.Mock).mockResolvedValueOnce(true);
+
+      await ServiceController.deleteService(req, res);
+
+      expect(ServiceService.delete).toHaveBeenCalledWith("123", "org-A");
+      expect(res.status).toHaveBeenCalledWith(204);
     });
 
     it("returns 500 on error", async () => {
