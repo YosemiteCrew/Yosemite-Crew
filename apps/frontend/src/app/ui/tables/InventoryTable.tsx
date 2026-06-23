@@ -111,6 +111,19 @@ const InventoryTable = ({
       ),
     },
     {
+      label: 'Stock health',
+      key: 'stock-health',
+      width: '110px',
+      render: (item: InventoryItem) => (
+        <div
+          className="appointment-status"
+          style={getInventoryStatusStyle(displayStatusLabel(item))}
+        >
+          {displayStatusLabel(item)}
+        </div>
+      ),
+    },
+    {
       label: 'ABC',
       key: 'abc',
       width: '48px',
@@ -129,7 +142,7 @@ const InventoryTable = ({
         const expired = displayStatusLabel(item).toLowerCase() === 'expired';
         return (
           <div
-            className={`appointment-profile-title ${expired ? 'text-text-error' : 'text-green-text'}`}
+            className={`appointment-profile-title ${expired ? 'text-text-error' : 'text-[var(--color-pill-success-text)]'}`}
           >
             {label}
           </div>
@@ -185,7 +198,7 @@ const InventoryTable = ({
       key: 'margin',
       width: '78px',
       render: (item: InventoryItem) => (
-        <div className="appointment-profile-title text-green-text">
+        <div className="appointment-profile-title text-[var(--color-pill-success-text)]">
           {formatPercentValue(getMarginPercent(item))}
         </div>
       ),
@@ -197,19 +210,6 @@ const InventoryTable = ({
       render: (item: InventoryItem) => (
         <div className="appointment-profile-title text-blue-text">
           {displayValue(item.stock.stockLocation)}
-        </div>
-      ),
-    },
-    {
-      label: 'Status',
-      key: 'status',
-      width: '94px',
-      render: (item: InventoryItem) => (
-        <div
-          className="appointment-status"
-          style={getInventoryStatusStyle(displayStatusLabel(item))}
-        >
-          {displayStatusLabel(item)}
         </div>
       ),
     },

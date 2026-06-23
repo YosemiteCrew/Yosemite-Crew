@@ -129,6 +129,7 @@ const logValidationFailure = (section: InventorySectionKey, details: Record<stri
 };
 
 const nonDrugClassificationDefaults = {
+  genericName: '',
   drugSchedule: '',
   form: '',
   administration: '',
@@ -280,6 +281,22 @@ const AddInventory = ({
     return errors;
   };
 
+  const validateClassification = (): Partial<
+    Record<keyof typeof formData.classification, string>
+  > => {
+    const classification = formData.classification;
+    const nextErrors: Partial<Record<keyof typeof formData.classification, string>> = {};
+    const isMedicalItem =
+      businessType === 'HOSPITAL' &&
+      String(classification.itemType ?? '').toLowerCase() !== 'non-drug';
+
+    if (isMedicalItem && !String(classification.genericName ?? '').trim()) {
+      nextErrors.genericName = 'Generic name is required';
+    }
+
+    return nextErrors;
+  };
+
   const validateSection = (section: InventorySectionKey): boolean => {
     const nextErrors: InventoryErrors = { ...errors };
     const updateStatus = (valid: boolean) => {
@@ -305,6 +322,14 @@ const AddInventory = ({
     }
 
     if (section === 'classification') {
+      const sectionErrors = validateClassification();
+      if (Object.keys(sectionErrors).length > 0) {
+        nextErrors.classification = sectionErrors;
+        setErrors(nextErrors);
+        logValidationFailure(section, sectionErrors as Record<string, string>);
+        updateStatus(false);
+        return false;
+      }
       delete nextErrors.classification;
       setErrors(nextErrors);
       updateStatus(true);

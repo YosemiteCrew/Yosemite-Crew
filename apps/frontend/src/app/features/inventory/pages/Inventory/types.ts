@@ -30,12 +30,24 @@ export type InventoryApiItem = {
   _id: string;
   organisationId: string;
   businessType: BusinessType;
+  itemType?: string;
   name: string;
   sku?: string;
   category?: string;
   subCategory?: string;
   description?: string;
   imageUrl?: string;
+  genericName?: string;
+  strength?: string;
+  dosageForm?: string;
+  routeOfAdministration?: string;
+  prescriptionRequired?: boolean;
+  controlledItem?: boolean;
+  storageInstructions?: string;
+  unitOfMeasure?: string;
+  packageQuantity?: number;
+  storageLocation?: string;
+  minimumStock?: number;
   attributes?: Record<string, any>;
   onHand?: number;
   allocated?: number;
@@ -68,12 +80,24 @@ export type InventoryBatchPayload = {
 export type InventoryRequestPayload = {
   organisationId: string;
   businessType: BusinessType;
+  itemType?: 'MEDICAL' | 'NON_MEDICAL';
   name: string;
   sku?: string;
   category?: string;
   subCategory?: string;
   description?: string;
   imageUrl?: string;
+  genericName?: string;
+  strength?: string;
+  dosageForm?: string;
+  routeOfAdministration?: string;
+  prescriptionRequired?: boolean;
+  controlledItem?: boolean;
+  storageInstructions?: string;
+  unitOfMeasure?: string;
+  packageQuantity?: number;
+  storageLocation?: string;
+  minimumStock?: number;
   attributes?: Record<string, any>;
   onHand?: number;
   allocated?: number;
@@ -488,6 +512,7 @@ export const SafetyClassificationOptions: string[] = [
 ];
 
 export type ClassificationValues = {
+  genericName?: string;
   form?: string;
   unitofMeasure?: string | string[];
   species?: string | string[];
@@ -664,6 +689,48 @@ export type InventoryErrors = {
   stock?: Partial<Record<keyof StockValues, string>>;
   batch?: Partial<Record<keyof BatchValues, string>>;
 };
+
+export type DispensaryRequestType = 'ALL' | 'PATIENT' | 'IN_HOUSE';
+export type DispensaryStatus = 'PENDING' | 'DISPENSED' | 'NOT_DISPENSED';
+
+export interface DispensaryItem {
+  name: string;
+  quantity: string;
+  priceCents: number;
+  isRx?: boolean;
+  isControlled?: boolean;
+  prescription?: {
+    dose: string;
+    freq: string;
+    duration: string;
+    refill: string;
+    route?: string;
+  };
+}
+
+export interface DispensaryRecord {
+  id: string;
+  prescriptionId: string;
+  patient: {
+    name: string;
+    appointmentId: string;
+    imageUrl?: string;
+    petBreed?: string;
+    petAge?: string;
+  };
+  status: DispensaryStatus;
+  prescriptionItems: string[];
+  prescriptionCreated: string;
+  amountCents: number;
+  currency?: string;
+  lead: string;
+  location: string;
+  timeDispensed?: string;
+  requestType: 'PATIENT' | 'IN_HOUSE';
+  invoiceId?: string;
+  paymentStatus?: 'PAID' | 'UNPAID';
+  items?: DispensaryItem[];
+}
 
 export interface InventoryTurnoverItem {
   itemId?: string;

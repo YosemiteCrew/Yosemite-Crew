@@ -32,8 +32,9 @@ type InfoSectionProps = {
 type EditableField = {
   label: string;
   key: string;
-  type: 'text' | 'select' | 'date';
+  type: 'text' | 'select' | 'date' | 'multiSelect' | 'checkbox';
   options?: string[];
+  editable?: boolean;
 };
 
 const InfoSection: React.FC<InfoSectionProps> = ({
@@ -65,6 +66,10 @@ const InfoSection: React.FC<InfoSectionProps> = ({
     let type: EditableField['type'];
     if (field.component === 'dropdown') {
       type = 'select';
+    } else if (field.component === 'multiSelect') {
+      type = 'multiSelect';
+    } else if (field.component === 'checkbox') {
+      type = 'checkbox';
     } else if (field.component === 'date') {
       type = 'date';
     } else {
@@ -82,7 +87,11 @@ const InfoSection: React.FC<InfoSectionProps> = ({
       label,
       key: field.name,
       type,
-      options: field.component === 'dropdown' ? resolvedOptions : undefined,
+      options:
+        field.component === 'dropdown' || field.component === 'multiSelect'
+          ? resolvedOptions
+          : undefined,
+      ...(field.readonly ? { editable: false } : {}),
     };
   };
 
