@@ -8,6 +8,7 @@ const loadInvoicesForOrgPrimaryOrgMock = jest.fn();
 const markInvoicePaidMock = jest.fn();
 const loadAppointmentsForPrimaryOrgMock = jest.fn();
 const notifyMock = jest.fn();
+const canAnyMock = jest.fn();
 
 jest.mock('@/app/features/billing/services/invoiceService', () => ({
   getPaymentLink: (...args: any[]) => getPaymentLinkMock(...args),
@@ -23,6 +24,10 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: notifyMock }),
 }));
 
+jest.mock('@/app/hooks/usePermissions', () => ({
+  usePermissions: (...args: any[]) => ({ canAny: (perms: any) => canAnyMock(perms, ...args) }),
+}));
+
 describe('InvoicePaymentActions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -30,6 +35,8 @@ describe('InvoicePaymentActions', () => {
     loadInvoicesForOrgPrimaryOrgMock.mockResolvedValue(undefined);
     markInvoicePaidMock.mockResolvedValue(undefined);
     loadAppointmentsForPrimaryOrgMock.mockResolvedValue(undefined);
+    // Default: actor has billing edit permission.
+    canAnyMock.mockReturnValue(true);
   });
 
   it('shows a confirmation state after setting payment collection method', async () => {
@@ -128,5 +135,38 @@ describe('InvoicePaymentActions', () => {
 
     expect(screen.getByText('Pay in cash')).toBeInTheDocument();
     expect(screen.getByText('Generate & Mail link')).toBeInTheDocument();
+  });
+
+  it('renders no payment mutation actions for a billing viewer without edit permission', () => {
+    canAnyMock.mockReturnValue(false);
+
+    const { container } = render(
+      <InvoicePaymentActions
+        invoiceId="inv-1"
+        invoiceStatus="AWAITING_PAYMENT"
+        activeAppointment={{ organisationId: 'org-1' } as any}
+      />
+    );
+
+    expect(canAnyMock).toHaveBeenCalledWith(['billing:edit:any', 'billing:edit:limited'], 'org-1');
+    expect(screen.queryByText('Pay in cash')).not.toBeInTheDocument();
+    expect(screen.queryByText('Generate & Mail link')).not.toBeInTheDocument();
+    expect(screen.queryByText('Collect cash')).not.toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('still lets a billing viewer download a paid receipt', () => {
+    canAnyMock.mockReturnValue(false);
+
+    render(
+      <InvoicePaymentActions
+        invoiceId="inv-1"
+        invoiceStatus="PAID"
+        stripeReceiptUrl="https://stripe.test/receipt"
+        activeAppointment={{ organisationId: 'org-1' } as any}
+      />
+    );
+
+    expect(screen.getByText('Download')).toBeInTheDocument();
   });
 });
