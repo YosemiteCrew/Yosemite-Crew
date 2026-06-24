@@ -1,4 +1,11 @@
 import { createDocumentVault } from '../src/utils/document-vault';
+import type { VaultDocument, VaultSaveError } from '../src/utils/document-vault';
+
+// Narrow the save union to a document, failing the test if a write was refused.
+const expectDoc = (result: VaultDocument | VaultSaveError): VaultDocument => {
+  if ('error' in result) throw new Error(`unexpected vault save error: ${result.error}`);
+  return result;
+};
 
 const makeDeps = (overrides: Record<string, unknown> = {}) => {
   const files = new Map<string, string | Buffer>();
@@ -31,7 +38,7 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
 describe('createDocumentVault', () => {
   test('saveDocument stores document and returns metadata', () => {
     const vault = createDocumentVault('/tmp/vault-test', makeDeps());
-    const doc = vault.saveDocument('report.pdf', 'PDF content here', 'application/pdf');
+    const doc = expectDoc(vault.saveDocument('report.pdf', 'PDF content here', 'application/pdf'));
     expect(doc.id).toBe('uuid-1');
     expect(doc.filename).toBe('report.pdf');
     expect(doc.mimeType).toBe('application/pdf');
@@ -52,7 +59,7 @@ describe('createDocumentVault', () => {
 
   test('getDocument returns document and decrypted content', () => {
     const vault = createDocumentVault('/tmp/vault-test', makeDeps());
-    const saved = vault.saveDocument('secret.txt', 'sensitive data');
+    const saved = expectDoc(vault.saveDocument('secret.txt', 'sensitive data'));
     const result = vault.getDocument(saved.id);
     expect(result).not.toBeNull();
     expect(result!.doc.id).toBe(saved.id);
@@ -66,7 +73,7 @@ describe('createDocumentVault', () => {
 
   test('deleteDocument removes document and returns true', () => {
     const vault = createDocumentVault('/tmp/vault-test', makeDeps());
-    const saved = vault.saveDocument('delete-me.txt', 'bye');
+    const saved = expectDoc(vault.saveDocument('delete-me.txt', 'bye'));
     expect(vault.listDocuments()).toHaveLength(1);
     expect(vault.deleteDocument(saved.id)).toBe(true);
     expect(vault.listDocuments()).toHaveLength(0);
@@ -87,7 +94,7 @@ describe('createDocumentVault', () => {
 
   test('saveDocument defaults mimeType to octet-stream', () => {
     const vault = createDocumentVault('/tmp/vault-test', makeDeps());
-    const doc = vault.saveDocument('binary.bin', '\x00\x01\x02');
+    const doc = expectDoc(vault.saveDocument('binary.bin', '\x00\x01\x02'));
     expect(doc.mimeType).toBe('application/octet-stream');
   });
 
@@ -212,7 +219,7 @@ describe('createDocumentVault', () => {
       },
     });
     const vault = createDocumentVault('/tmp/vault-test', deps);
-    const doc = vault.saveDocument('stuck.txt', 'stuck');
+    const doc = expectDoc(vault.saveDocument('stuck.txt', 'stuck'));
     const deleted = vault.deleteDocument(doc.id);
     expect(deleted).toBe(true);
     expect(vault.listDocuments()).toHaveLength(0);
@@ -223,7 +230,7 @@ describe('createDocumentVault', () => {
   test('listDocuments cross-references removes orphaned manifest entry', () => {
     const deps = makeDeps();
     const vault = createDocumentVault('/tmp/vault-test', deps);
-    const doc = vault.saveDocument('orphan.txt', 'will be orphaned');
+    const doc = expectDoc(vault.saveDocument('orphan.txt', 'will be orphaned'));
     expect(vault.listDocuments()).toHaveLength(1);
     // Simulate orphan: create second vault where this file's read fails
     const depsWithMissingFile = makeDeps({
@@ -246,8 +253,8 @@ describe('createDocumentVault', () => {
 
   test('multiple saves with same filename produce unique IDs', () => {
     const vault = createDocumentVault('/tmp/vault-test', makeDeps());
-    const doc1 = vault.saveDocument('same.txt', 'first');
-    const doc2 = vault.saveDocument('same.txt', 'second');
+    const doc1 = expectDoc(vault.saveDocument('same.txt', 'first'));
+    const doc2 = expectDoc(vault.saveDocument('same.txt', 'second'));
     expect(doc1.id).not.toBe(doc2.id);
     expect(doc1.filename).toBe(doc2.filename);
     expect(vault.listDocuments()).toHaveLength(2);
@@ -263,11 +270,43 @@ describe('createDocumentVault', () => {
         return Buffer.from(`custom:${s}`);
       },
     });
-    const doc = vault.saveDocument('test.txt', 'hello');
+    const doc = expectDoc(vault.saveDocument('test.txt', 'hello'));
     const result = vault.getDocument(doc.id);
     expect(result).not.toBeNull();
     expect(customEncryptCalled).toBe(true);
     // decryptString not overridden so it will try to decode 'custom:hello' as plain utf8
     // which is fine — it's the default fallback
+  });
+
+  // ── L7: refuse plaintext writes when OS encryption is unavailable ─────
+
+  test('encryptionAvailable reflects whether an encryptString dep is provided', () => {
+    expect(createDocumentVault('/tmp/vault-test', makeDeps()).encryptionAvailable).toBe(true);
+    expect(
+      createDocumentVault('/tmp/vault-test', makeDeps({ encryptString: undefined }))
+        .encryptionAvailable
+    ).toBe(false);
+  });
+
+  test('saveDocument refuses and writes nothing when encryption is unavailable', () => {
+    const files = new Map<string, string | Buffer>();
+    const deps = makeDeps({
+      encryptString: undefined,
+      writeFileSync: (p: string, data: string | Buffer) => {
+        files.set(p, data);
+      },
+    });
+    const vault = createDocumentVault('/tmp/vault-test', deps);
+    const result = vault.saveDocument('phi.txt', 'sensitive PHI');
+    expect(result).toEqual({ ok: false, error: 'encryption-unavailable' });
+    // Nothing was persisted — no document file, no manifest entry.
+    expect(files.size).toBe(0);
+    expect(vault.listDocuments()).toEqual([]);
+  });
+
+  test('saveDocumentBuffer refuses when encryption is unavailable', () => {
+    const vault = createDocumentVault('/tmp/vault-test', makeDeps({ encryptString: undefined }));
+    const result = vault.saveDocumentBuffer('scan.pdf', Buffer.from('pdf bytes'));
+    expect(result).toEqual({ ok: false, error: 'encryption-unavailable' });
   });
 });

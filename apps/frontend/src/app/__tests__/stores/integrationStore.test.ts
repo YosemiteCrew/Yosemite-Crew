@@ -26,6 +26,24 @@ describe('integrationStore', () => {
     expect(state.status).toBe('loaded');
   });
 
+  it('keys integrations by backend `id` and keeps every provider distinct', () => {
+    const store = useIntegrationStore.getState();
+    store.setIntegrationsForOrg('org-1', [
+      { id: 'idexx-1', organisationId: 'org-1', provider: 'IDEXX', status: 'disabled' } as any,
+      {
+        id: 'merck-1',
+        organisationId: 'org-1',
+        provider: 'MERCK_MANUALS',
+        status: 'enabled',
+      } as any,
+    ]);
+
+    const state = useIntegrationStore.getState();
+    expect(state.integrationIdsByOrgId['org-1']).toEqual(['idexx-1', 'merck-1']);
+    expect(state.getIntegrationByProvider('org-1', 'IDEXX')?.status).toBe('disabled');
+    expect(state.getIntegrationByProvider('org-1', 'MERCK_MANUALS')?.status).toBe('enabled');
+  });
+
   it('upserts integration and avoids duplicate ids', () => {
     const store = useIntegrationStore.getState();
     store.upsertIntegration({

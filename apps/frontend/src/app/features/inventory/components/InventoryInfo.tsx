@@ -1,7 +1,15 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { BatchValues, InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import { BusinessType } from '@/app/features/organization/types/org';
-import { formatDisplayDate, toStringSafe } from '@/app/features/inventory/pages/Inventory/utils';
+import {
+  formatCurrencyValue,
+  formatDisplayDate,
+  formatPercentValue,
+  getGrossProfitPerUnit,
+  getMarginPercent,
+  getStockValue,
+  toStringSafe,
+} from '@/app/features/inventory/pages/Inventory/utils';
 import {
   ConfigItem,
   InventoryFormConfig,
@@ -13,9 +21,14 @@ import Datepicker from '@/app/ui/inputs/Datepicker';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Modal from '@/app/ui/overlays/Modal';
+import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import InfoSection from '@/app/features/inventory/components/InfoSection';
 import Close from '@/app/ui/primitives/Icons/Close';
 import Labels from '@/app/ui/widgets/Labels/Labels';
+import Delete from '@/app/ui/primitives/Buttons/Delete';
+
+const drugOnlyBatchFieldNames = new Set(['tracking']);
 
 const emptyBatch: BatchValues = {
   batch: '',
@@ -191,9 +204,15 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   }, [inventory, onEditingChange]);
 
   const configForBusiness = InventoryFormConfig[businessType] || {};
+  const isNonDrug = String(inventory.classification?.itemType ?? '').toLowerCase() === 'non-drug';
   const sectionConfig = useMemo<ConfigItem<any>[]>(
-    () => configForBusiness.batch || [],
-    [configForBusiness.batch]
+    () =>
+      (configForBusiness.batch || []).filter((item) => {
+        if (!isNonDrug) return true;
+        const names = item.kind === 'row' ? item.fields.map((f: any) => f.name) : [item.field.name];
+        return names.every((n: string) => !drugOnlyBatchFieldNames.has(n));
+      }),
+    [configForBusiness.batch, isNonDrug]
   );
 
   const beginEditing = useCallback(() => {
@@ -503,15 +522,17 @@ type InventoryInfoProps = {
   onUnhide: (itemId: string) => Promise<void>;
   canEdit?: boolean;
   stockLocationOptions?: string[];
+  initialSection?: InventorySectionKey;
+  organisationId?: string;
 };
 
 const modalSections: { key: InventorySectionKey; name: string }[] = [
-  { key: 'basicInfo', name: 'Basic Information' },
-  { key: 'classification', name: 'Classification attribute' },
+  { key: 'basicInfo', name: 'Basic Details' },
+  { key: 'classification', name: 'Clinical Details' },
+  { key: 'stock', name: 'Stock Control' },
+  { key: 'batch', name: 'Batch and expiry' },
   { key: 'pricing', name: 'Pricing' },
   { key: 'vendor', name: 'Vendor details' },
-  { key: 'stock', name: 'Stock and quantity details' },
-  { key: 'batch', name: 'Batch / Lot details' },
 ];
 
 const getPrimaryButtonText = (
@@ -526,7 +547,7 @@ const getPrimaryButtonText = (
   if (isHiding) {
     return isHidden ? 'Unhiding...' : 'Hiding...';
   }
-  return isHidden ? 'Unhide item' : 'Hide item';
+  return isHidden ? 'Restore item' : 'Delete item';
 };
 
 const getFieldDisplay = (
@@ -593,6 +614,39 @@ const PreviewItem = ({ item, batchData }: { item: ConfigItem<any>; batchData: Ba
   );
 };
 
+const PricingCurrencySummary = ({ inventory }: { inventory: InventoryItem }) => {
+  const currency = inventory.currency;
+  return (
+    <div className="flex flex-col gap-2 px-4 pt-2 text-body-4 text-text-primary">
+      <div>
+        <span>Gross profit per unit : </span>
+        <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+          {formatCurrencyValue(getGrossProfitPerUnit(inventory), currency)}
+        </span>
+      </div>
+      <div>
+        <span>Margin : </span>
+        <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+          {formatPercentValue(getMarginPercent(inventory))}
+        </span>
+      </div>
+      <div className="relative rounded-2xl border border-input-border-default px-6 py-3 min-h-12">
+        <span className="absolute left-4 -top-[11px] bg-white px-1.5 text-xs text-input-text-placeholder">
+          Total stock value
+        </span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-body-4 text-text-primary">
+            {formatCurrencyValue(getStockValue(inventory), currency)}
+          </span>
+          <span className="text-caption-1 text-text-extra whitespace-nowrap">
+            on-hand stock x unit cost
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const InventoryInfo = ({
   showModal,
   setShowModal,
@@ -605,11 +659,27 @@ const InventoryInfo = ({
   onUpdateBatch,
   canEdit = true,
   stockLocationOptions,
+  initialSection,
+  organisationId,
 }: InventoryInfoProps) => {
-  const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(modalSections[0].key);
+  const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
+    initialSection ?? modalSections[0].key
+  );
+  // On each (re)open, land on the requested section (e.g. Restock → Stock Control)
+  // or fall back to the first tab. Adjusted during render via a prev-prop comparison
+  // rather than an effect, so the correct tab shows on the first commit.
+  const [lastOpenKey, setLastOpenKey] = useState<string | null>(null);
+  const openKey = showModal ? `${activeInventory?.id ?? ''}:${initialSection ?? ''}` : null;
+  if (openKey !== null && openKey !== lastOpenKey) {
+    setLastOpenKey(openKey);
+    setActiveLabel(initialSection ?? modalSections[0].key);
+  } else if (openKey === null && lastOpenKey !== null) {
+    setLastOpenKey(null);
+  }
   const [isUpdating, setIsUpdating] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
   const [isSectionEditing, setIsSectionEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const sectionActions = useRef<{
     save: () => Promise<void>;
     cancel: () => void;
@@ -741,7 +811,7 @@ const InventoryInfo = ({
     if (isHidden) {
       await handleUnhide();
     } else {
-      await handleHide();
+      setShowDeleteConfirm(true);
     }
   };
 
@@ -759,77 +829,114 @@ const InventoryInfo = ({
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
+    <>
+      <Modal showModal={showModal} setShowModal={setShowModal}>
+        <div className="flex flex-col h-full gap-6">
+          <div className="flex items-center justify-between border-b border-card-border pb-4">
+            <div className="min-w-0">
+              <div className="truncate text-body-1 text-text-primary">
+                {activeInventory?.basicInfo.name}
+              </div>
+              <div className="text-caption-1 text-text-secondary">
+                {activeInventory?.basicInfo.category || 'Inventory item'}
+                {activeInventory?.basicInfo.skuCode
+                  ? ` · ${activeInventory.basicInfo.skuCode}`
+                  : ''}
+              </div>
+            </div>
+            <Close onClick={() => setShowModal(false)} />
           </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">{activeInventory?.basicInfo.name}</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
 
-        <Labels labels={modalSections} activeLabel={activeLabel} setActiveLabel={setActiveLabel} />
-
-        <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
-          {activeInventory && (
-            <>
-              {activeLabel === 'batch' ? (
-                <BatchEditor
-                  businessType={businessType}
-                  inventory={activeInventory}
-                  onSave={(vals) => handleSectionSave('batch', vals)}
-                  disableEditing={!canEdit || isUpdating || isHiding}
-                  onEditingChange={setIsSectionEditing}
-                  onRegisterActions={(actions) => {
-                    batchActions.current = actions;
-                  }}
-                />
-              ) : (
-                <InfoSection
-                  businessType={businessType}
-                  sectionKey={activeLabel}
-                  sectionTitle={currentLabelConfig.name}
-                  inventory={activeInventory}
-                  onSaveSection={handleSectionSave}
-                  disableEditing={!canEdit || isUpdating || isHiding}
-                  onEditingChange={setIsSectionEditing}
-                  stockLocationOptions={stockLocationOptions}
-                  onRegisterActions={(actions) => {
-                    sectionActions.current = actions;
-                  }}
-                />
-              )}
-            </>
-          )}
-        </div>
-
-        <div
-          className={`grid gap-3 ${canEdit || inEditMode ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
-        >
-          <Secondary
-            href="#"
-            text={inEditMode ? 'Cancel' : 'Close'}
-            onClick={handleSecondaryAction}
-            isDisabled={isUpdating || isHiding}
-            className="h-12! text-lg! tracking-[-0.36px]!"
+          <Labels
+            labels={modalSections}
+            activeLabel={activeLabel}
+            setActiveLabel={setActiveLabel}
           />
-          {(canEdit || inEditMode) && (
-            <Primary
+
+          <div className="flex flex-col overflow-y-auto flex-1 scrollbar-hidden">
+            {activeInventory && (
+              <>
+                {activeLabel === 'batch' ? (
+                  <BatchEditor
+                    businessType={businessType}
+                    inventory={activeInventory}
+                    onSave={(vals) => handleSectionSave('batch', vals)}
+                    disableEditing={!canEdit || isUpdating || isHiding}
+                    onEditingChange={setIsSectionEditing}
+                    onRegisterActions={(actions) => {
+                      batchActions.current = actions;
+                    }}
+                  />
+                ) : (
+                  <InfoSection
+                    businessType={businessType}
+                    sectionKey={activeLabel}
+                    sectionTitle={currentLabelConfig.name}
+                    inventory={activeInventory}
+                    onSaveSection={handleSectionSave}
+                    disableEditing={!canEdit || isUpdating || isHiding}
+                    onEditingChange={setIsSectionEditing}
+                    stockLocationOptions={stockLocationOptions}
+                    organisationId={organisationId}
+                    onRegisterActions={(actions) => {
+                      sectionActions.current = actions;
+                    }}
+                  />
+                )}
+                {activeLabel === 'pricing' && (
+                  <PricingCurrencySummary inventory={activeInventory} />
+                )}
+              </>
+            )}
+          </div>
+
+          <div
+            className={`grid gap-3 ${canEdit || inEditMode ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
+          >
+            <Secondary
               href="#"
-              text={getPrimaryButtonText(inEditMode, isUpdating, isHiding, isHidden)}
-              onClick={handlePrimaryAction}
-              isDisabled={
-                (inEditMode && isUpdating) || (!inEditMode && (isHiding || !activeInventory?.id))
-              }
+              text={inEditMode ? 'Cancel' : 'Close'}
+              onClick={handleSecondaryAction}
+              isDisabled={isUpdating || isHiding}
               className="h-12! text-lg! tracking-[-0.36px]!"
             />
-          )}
+            {(canEdit || inEditMode) && (
+              <Primary
+                href="#"
+                text={getPrimaryButtonText(inEditMode, isUpdating, isHiding, isHidden)}
+                onClick={handlePrimaryAction}
+                isDisabled={
+                  (inEditMode && isUpdating) || (!inEditMode && (isHiding || !activeInventory?.id))
+                }
+                className="h-12! text-lg! tracking-[-0.36px]!"
+              />
+            )}
+          </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
+
+      {showDeleteConfirm && (
+        <CenterModal showModal={showDeleteConfirm} setShowModal={setShowDeleteConfirm}>
+          <ModalHeader title="Delete inventory item?" onClose={() => setShowDeleteConfirm(false)} />
+          <div className="text-body-4 text-text-primary">
+            This will remove {activeInventory?.basicInfo.name || 'this item'} from active inventory.
+            Backend hard delete is not enabled yet, so the item will be hidden and can be restored.
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Secondary href="#" text="Discard" onClick={() => setShowDeleteConfirm(false)} />
+            <Delete
+              href="#"
+              text={isHiding ? 'Deleting...' : 'Delete'}
+              onClick={async () => {
+                await handleHide();
+                setShowDeleteConfirm(false);
+              }}
+              isDisabled={isHiding}
+            />
+          </div>
+        </CenterModal>
+      )}
+    </>
   );
 };
 

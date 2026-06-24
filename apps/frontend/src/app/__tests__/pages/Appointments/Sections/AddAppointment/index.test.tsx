@@ -123,21 +123,26 @@ jest.mock('@/app/ui/inputs/SearchDropdown', () => ({
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ placeholder, onSelect, error, options }: any) => (
-    <div>
-      <button
-        data-testid={`select-${placeholder}`}
-        onClick={() => {
-          if (placeholder === 'Speciality') onSelect({ value: 'spec-1', label: 'General Checkup' });
-          if (placeholder === 'Service') onSelect({ value: 'serv-1', label: 'Consultation' });
-          if (placeholder === 'Lead' && options?.length) onSelect(options[0]);
-        }}
-      >
-        Select {placeholder}
-      </button>
-      {error && <span data-testid={`err-${placeholder}`}>{error}</span>}
-    </div>
-  ),
+  default: ({ placeholder, onSelect, error, options }: any) => {
+    const isService = placeholder === 'Services / Packages';
+    const testKey = isService ? 'Service' : placeholder;
+    return (
+      <div>
+        <button
+          data-testid={`select-${testKey}`}
+          onClick={() => {
+            if (placeholder === 'Speciality')
+              onSelect({ value: 'spec-1', label: 'General Checkup' });
+            if (isService) onSelect({ value: 'serv-1', label: 'Consultation' });
+            if (placeholder === 'Lead' && options?.length) onSelect(options[0]);
+          }}
+        >
+          Select {placeholder}
+        </button>
+        {error && <span data-testid={`err-${testKey}`}>{error}</span>}
+      </div>
+    );
+  },
 }));
 
 jest.mock('@/app/ui/inputs/FormDesc/FormDesc', () => ({

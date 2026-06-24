@@ -189,7 +189,7 @@ const DEFAULT_STRIPE_CONFIG: StripeConfig = {
 };
 
 const DEFAULT_AUTH_FEATURE_FLAGS: AuthFeatureFlags = {
-  enableReviewLogin: true,
+  enableReviewLogin: false,
 };
 
 const DEFAULT_DEMO_LOGIN_CONFIG: DemoLoginConfig = {
@@ -328,3 +328,4 @@ export const POSTHOG_CONFIG: PostHogConfig = {
 
 export const PENDING_PROFILE_STORAGE_KEY = '@pending_profile_payload';
 export const PENDING_PROFILE_UPDATED_EVENT = 'pendingProfileUpdated';
+export const DEV_API_MODE_CHANGED_EVENT = 'devApiModeChanged';

@@ -1,6 +1,4 @@
-import CodeMappingModel from "src/models/code-mapping";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { LabOrderServiceError } from "src/services/lab-order.service";
 import { IntegrationService } from "src/services/integration.service";
 import { IdexxClient } from "src/integrations/idexx/idexx.client";
@@ -11,21 +9,14 @@ export const lookupIdexxMapping = async (
   yosemiteCode: string,
   field: IdexxLookupField = "providerCode",
 ) => {
-  const mapping = isReadFromPostgres()
-    ? await prisma.codeMapping.findFirst({
-        where: {
-          sourceSystem: "YOSEMITECODE",
-          sourceCode: yosemiteCode,
-          targetSystem: "IDEXX",
-          active: true,
-        },
-      })
-    : await CodeMappingModel.findOne({
-        sourceSystem: "YOSEMITECODE",
-        sourceCode: yosemiteCode,
-        targetSystem: "IDEXX",
-        active: true,
-      }).lean();
+  const mapping = await prisma.codeMapping.findFirst({
+    where: {
+      sourceSystem: "YOSEMITECODE",
+      sourceCode: yosemiteCode,
+      targetSystem: "IDEXX",
+      active: true,
+    },
+  });
 
   if (!mapping) {
     throw new LabOrderServiceError(

@@ -55,6 +55,16 @@ export type Appointment = {
     // Clinic room being booked
     id: string;
     name: string;
+    // Inpatient ward/unit the room is assigned to (surfaced on the appointments
+    // list so the room's unit is visible without opening the workspace).
+    unitId?: string;
+    unitName?: string;
+    unit?: {
+      id: string;
+      name: string;
+      displayName?: string;
+      code?: string;
+    };
   };
   appointmentType?: {
     id: string;
@@ -91,6 +101,8 @@ const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appoint
 const EXT_APPOINTMENT_ATTACHMENTS =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments';
 const EXT_LEAD_PROFILE_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url';
+const EXT_ROOM_UNIT_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-id';
+const EXT_ROOM_UNIT_NAME = 'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-name';
 const EXT_APPOINTMENT_FORM_IDS =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-form-id';
 const EXT_APPOINTMENT_PAYMENT_STATUS =
@@ -189,6 +201,11 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
 
   // Room participant
   if (appointment.room) {
+    const roomUnitId = appointment.room.unitId ?? appointment.room.unit?.id;
+    const roomUnitName =
+      appointment.room.unitName ??
+      appointment.room.unit?.displayName ??
+      appointment.room.unit?.name;
     participants.push({
       actor: {
         reference: `Location/${appointment.room.id}`,
@@ -206,6 +223,12 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
           ],
         },
       ],
+      extension: roomUnitId
+        ? [
+            { url: EXT_ROOM_UNIT_ID, valueString: roomUnitId },
+            { url: EXT_ROOM_UNIT_NAME, valueString: roomUnitName ?? '' },
+          ]
+        : undefined,
     });
   }
 
@@ -405,6 +428,13 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const leadProfileExtension = leadParticipant?.extension?.find(
     (ext) => ext.url === EXT_LEAD_PROFILE_URL
   );
+  const roomUnitId =
+    roomParticipant?.extension?.find((ext) => ext.url === EXT_ROOM_UNIT_ID)?.valueString?.trim() ||
+    '';
+  const roomUnitName =
+    roomParticipant?.extension
+      ?.find((ext) => ext.url === EXT_ROOM_UNIT_NAME)
+      ?.valueString?.trim() || '';
 
   const pmsStatus = FHIRappointment.status; // fallback if unknown status
   const normalizedStatus = pmsStatus === 'NO_PAYMENT' ? 'REQUESTED' : pmsStatus;
@@ -503,6 +533,17 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
       ? {
           id: roomParticipant.actor?.reference?.split('/')[1] ?? '',
           name: roomParticipant.actor?.display ?? '',
+          ...(roomUnitId
+            ? {
+                unitId: roomUnitId,
+                unitName: roomUnitName || undefined,
+                unit: {
+                  id: roomUnitId,
+                  name: roomUnitName ?? '',
+                  displayName: roomUnitName ?? '',
+                },
+              }
+            : {}),
         }
       : undefined,
     appointmentDate: FHIRappointment.start ? new Date(FHIRappointment.start) : new Date(),

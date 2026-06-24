@@ -10,6 +10,7 @@ import {
   toStatusLabel,
 } from '@/app/lib/appointments';
 import {
+  assignEncounterUnit,
   changeAppointmentStatus,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
@@ -17,7 +18,13 @@ import { AppointmentStatus } from '@/app/features/appointments/types/appointment
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
+import {
+  buildWorkspaceHrefForIntent,
+  canEnterAppointmentWorkspace,
+} from '@/app/lib/appointmentWorkspace';
 import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
+import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { IoChevronForward } from 'react-icons/io5';
 
 type AppointmentContextMenuProps = {
@@ -26,7 +33,6 @@ type AppointmentContextMenuProps = {
   menuRef: React.RefObject<HTMLDivElement | null>;
   menuStyle: React.CSSProperties;
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
-  handleDetailAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
   onClose: () => void;
 };
@@ -75,19 +81,31 @@ const getRoomStatusLabel = (selected: boolean, saving: boolean) => {
   return null;
 };
 
+const getFirstUnitIdForRoom = (
+  roomId: string,
+  roomUnitsById: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitsById'],
+  roomUnitIdsByRoomId: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitIdsByRoomId']
+) =>
+  (roomUnitIdsByRoomId[roomId] ?? [])
+    .map((unitId) => roomUnitsById[unitId])
+    .find((unit) => unit?.isActive !== false)?.id;
+
 const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = ({
   appointment,
   canEditAppointments,
   menuRef,
   menuStyle,
   handleViewAppointment,
-  handleDetailAppointment,
   handleRescheduleAppointment,
   onClose,
 }) => {
   const router = useRouter();
   useLoadRoomsForPrimaryOrg();
   const rooms = useRoomsForPrimaryOrg();
+  const roomUnitsById = useOrganisationRoomStore((state) => state.roomUnitsById);
+  const roomUnitIdsByRoomId = useOrganisationRoomStore((state) => state.roomUnitIdsByRoomId);
+  const initEncounter = useAppointmentWorkspaceStore((state) => state.initEncounter);
+  const setRoomUnit = useAppointmentWorkspaceStore((state) => state.setRoomUnit);
   const orgsById = useOrgStore((state) => state.orgsById);
   const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const submenuRef = useRef<HTMLDivElement | null>(null);
@@ -102,6 +120,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
 
   const orgType =
     (appointment.organisationId && orgsById[appointment.organisationId]?.type) || 'HOSPITAL';
+  const isInpatient = appointment.appointmentKind === 'INPATIENT';
   const clinicalNotesLabel = getClinicalNotesLabel(orgType);
   const clinicalNotesIntent = getClinicalNotesIntent(orgType);
   const statusOptions = useMemo(
@@ -117,6 +136,17 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
         '/appointments'
       )
     );
+    onClose();
+  };
+
+  const openWorkspace = (intent?: AppointmentViewIntent) => {
+    if (!appointment.id) return;
+    if (!canEnterAppointmentWorkspace(appointment.status)) {
+      handleViewAppointment(appointment, intent);
+      onClose();
+      return;
+    }
+    router.push(buildWorkspaceHrefForIntent(appointment.id, intent));
     onClose();
   };
 
@@ -138,10 +168,28 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
       const roomId = room?.id || 'none';
       setSavingKey(`room-${roomId}`);
       setMenuError(null);
+      const nextUnitId =
+        isInpatient && room
+          ? getFirstUnitIdForRoom(room.id, roomUnitsById, roomUnitIdsByRoomId)
+          : undefined;
       await updateAppointment({
         ...appointment,
         room: room ? { id: room.id, name: room.name } : undefined,
       });
+      if (isInpatient && appointment.id) {
+        initEncounter(appointment.id, 'INPATIENT', {
+          leadId: appointment.lead?.id,
+          leadName: appointment.lead?.name,
+        });
+        setRoomUnit(appointment.id, room?.id, nextUnitId);
+        if (appointment.encounterId && nextUnitId) {
+          await assignEncounterUnit({
+            encounterId: appointment.encounterId,
+            unitId: nextUnitId,
+            reason: 'Appointment quick action room assignment',
+          });
+        }
+      }
       onClose();
     } catch (error) {
       setMenuError(resolveMenuError(error, 'Unable to update room.'));
@@ -164,31 +212,33 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
       label: 'Open companion overview',
       onSelect: openCompanionHistory,
     },
-    {
-      key: 'open-clinical-notes',
-      label: clinicalNotesLabel,
-      onSelect: () => {
-        handleDetailAppointment(appointment, clinicalNotesIntent);
-        onClose();
-      },
-    },
-    {
-      key: 'open-finance-summary',
-      label: 'Finance summary',
-      onSelect: () => {
-        handleDetailAppointment(appointment, { label: 'finance', subLabel: 'summary' });
-        onClose();
-      },
-    },
-    {
-      key: 'open-lab-tests',
-      label: 'Lab tests',
-      onSelect: () => {
-        handleDetailAppointment(appointment, { label: 'labs', subLabel: 'idexx-labs' });
-        onClose();
-      },
-    },
   ];
+
+  if (canEnterAppointmentWorkspace(appointment.status)) {
+    actions.push(
+      {
+        key: 'open-clinical-notes',
+        label: clinicalNotesLabel,
+        onSelect: () => {
+          openWorkspace(clinicalNotesIntent);
+        },
+      },
+      {
+        key: 'open-finance-summary',
+        label: 'Finance summary',
+        onSelect: () => {
+          openWorkspace({ label: 'finance', subLabel: 'summary' });
+        },
+      },
+      {
+        key: 'open-lab-tests',
+        label: 'Lab tests',
+        onSelect: () => {
+          openWorkspace({ label: 'labs', subLabel: 'idexx-labs' });
+        },
+      }
+    );
+  }
 
   if (canEditAppointments && statusOptions.length > 0) {
     actions.push({

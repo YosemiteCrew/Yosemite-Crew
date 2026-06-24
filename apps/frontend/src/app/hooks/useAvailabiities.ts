@@ -11,10 +11,13 @@ import {
 } from '@/app/features/appointments/components/Availability/utils';
 
 export const useLoadAvailabilities = () => {
+  const authStatus = useAuthStore((s) => s.status);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
+  const isAuthed = authStatus === 'authenticated' || authStatus === 'signin-authenticated';
 
   useEffect(() => {
+    if (!isAuthed) return;
     if (!primaryOrgId) return;
     const isLoaded = availabilityIdsByOrgId
       ? Object.hasOwn(availabilityIdsByOrgId, primaryOrgId)
@@ -22,7 +25,7 @@ export const useLoadAvailabilities = () => {
     if (!isLoaded && useAvailabilityStore.getState().status !== 'loading') {
       void loadAvailability({ silent: true, orgId: primaryOrgId });
     }
-  }, [primaryOrgId, availabilityIdsByOrgId]);
+  }, [isAuthed, primaryOrgId, availabilityIdsByOrgId]);
 };
 
 export const usePrimaryAvailability = (): {

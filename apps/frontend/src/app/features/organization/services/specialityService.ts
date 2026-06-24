@@ -63,12 +63,56 @@ export const loadSpecialitiesForOrg = async (opts?: {
 };
 
 const fetchSpecialities = async (orgId: string): Promise<SpecialityWithServices[]> => {
-  const res = await getData<SpecialityWithServices[]>(`/fhir/v1/speciality/${orgId}`);
-  if (!Array.isArray(res.data)) {
-    console.warn('Specialities response is not an array.', res.data);
+  const res = await getData<SpecialityWithServices[]>(`/fhir/v1/speciality/organization/${orgId}`);
+  const data = res.data as unknown;
+
+  // If backend returns a FHIR Bundle (searchset), extract resources from entry[].resource
+  if (
+    data &&
+    typeof data === 'object' &&
+    (data as any).resourceType === 'Bundle' &&
+    Array.isArray((data as any).entry)
+  ) {
+    try {
+      const items: SpecialityWithServices[] = (data as any).entry
+        .map((e: any) => e && (e.resource ?? e))
+        .filter(Boolean)
+        .map((raw: any) => {
+          // If backend returned an Organization resource for a speciality, wrap it
+          if (raw.resourceType === 'Organization') {
+            return { speciality: raw, services: [] } as SpecialityWithServices;
+          }
+
+          // If the item already matches expected shape (has speciality), return as-is
+          if (raw.speciality) return raw as SpecialityWithServices;
+
+          // If the entry looks like a direct Speciality resource, wrap it
+          if (
+            raw.resourceType &&
+            (raw.resourceType === 'Speciality' ||
+              raw.resourceType === 'HealthcareService' ||
+              raw.resourceType === 'Service')
+          ) {
+            return { speciality: raw, services: [] } as SpecialityWithServices;
+          }
+
+          // Unknown shape, return empty wrapper with raw in speciality to avoid downstream crashes
+          return { speciality: raw, services: [] } as SpecialityWithServices;
+        });
+
+      return items;
+    } catch (err) {
+      console.warn('Failed to parse Bundle specialities response.', err, data);
+      return [];
+    }
+  }
+
+  if (!Array.isArray(data)) {
+    console.warn('Specialities response is not an array.', data);
     return [];
   }
-  return res.data;
+
+  return data as SpecialityWithServices[];
 };
 
 const shouldFetchSpecialities = (

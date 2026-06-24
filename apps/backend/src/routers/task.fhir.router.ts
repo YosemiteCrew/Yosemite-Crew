@@ -46,7 +46,7 @@ router.patch(
 );
 
 router.post(
-  "/organisation/:organisationId/:taskId/$status",
+  String.raw`/organisation/:organisationId/:taskId/\$status`,
   authorizeCognito,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any", "tasks:edit:own"]),

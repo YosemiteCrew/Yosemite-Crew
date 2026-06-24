@@ -42,4 +42,32 @@ describe('SectionContainer', () => {
     );
     expect(container.firstChild).toHaveClass('extra-class');
   });
+
+  it('uses the default roomy top padding', () => {
+    const { container } = render(<SectionContainer title="Default">child</SectionContainer>);
+    expect(container.firstChild).toHaveClass('pt-9');
+  });
+
+  it('tightens the top padding when compactTop is set', () => {
+    const { container } = render(
+      <SectionContainer title="Compact" compactTop>
+        child
+      </SectionContainer>
+    );
+    expect(container.firstChild).toHaveClass('pt-5');
+    expect(container.firstChild).not.toHaveClass('pt-9');
+  });
+
+  it('applies a custom title typography class and drops the default size/color', () => {
+    const { container } = render(
+      <SectionContainer title="Styled" titleClassName="text-yc-20-b-primary">
+        child
+      </SectionContainer>
+    );
+    const titleEl = container.querySelector('span');
+    expect(titleEl?.className).toContain('text-yc-20-b-primary');
+    // The default size class and inline colour are not applied when overridden.
+    expect(titleEl?.className).not.toContain('text-[20px]');
+    expect(titleEl?.getAttribute('style')).toBeNull();
+  });
 });

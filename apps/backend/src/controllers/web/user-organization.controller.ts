@@ -7,14 +7,118 @@ import {
 } from "../../services/user-organization.service";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
+const normalizeOrganisationReference = (value: string): string => {
+  const trimmed = value.trim();
+  // If the reference already starts with "Organization/" then remove "Organization/" prefix to avoid duplication, otherwise add it.
+  return trimmed.startsWith("Organization/")
+    ? trimmed.replace("Organization/", "")
+    : trimmed;
+};
+
+const getOrganisationReference = (resource: unknown): string | undefined => {
+  logger.debug("Extracting organization reference from resource", { resource });
+  if (!resource) return undefined;
+
+  if (Array.isArray(resource)) {
+    const first = resource[0] as
+      | { organizationReference?: unknown; mapping?: unknown }
+      | undefined;
+    if (first && typeof first.organizationReference === "string") {
+      return first.organizationReference;
+    }
+    const firstMapping = first?.mapping as
+      | { organizationReference?: unknown }
+      | undefined;
+    if (
+      firstMapping &&
+      typeof firstMapping.organizationReference === "string"
+    ) {
+      return firstMapping.organizationReference;
+    }
+    return undefined;
+  }
+
+  const candidate = resource as {
+    organizationReference?: unknown;
+    mapping?: unknown;
+  };
+  if (typeof candidate.organizationReference === "string") {
+    return candidate.organizationReference;
+  }
+
+  const mapping = candidate.mapping as
+    | { organizationReference?: unknown }
+    | undefined;
+  return typeof mapping?.organizationReference === "string"
+    ? mapping.organizationReference
+    : undefined;
+};
+
+const getPayloadOrganisationReference = (
+  payload: UserOrganizationFHIRPayload,
+): string | undefined => {
+  // FHIR PractitionerRole carries the organisation as organization.reference.
+  // Fall back to a flat organizationReference field if a caller still sends it.
+  const candidate = payload as {
+    organization?: { reference?: unknown };
+    organizationReference?: unknown;
+  };
+
+  const nested = candidate.organization?.reference;
+  if (typeof nested === "string" && nested.trim().length > 0) {
+    return nested;
+  }
+
+  return typeof candidate.organizationReference === "string" &&
+    candidate.organizationReference.trim().length > 0
+    ? candidate.organizationReference
+    : undefined;
+};
+
+const hasOrgAccess = async (userId: string, organisationReference: string) => {
+  const normalizedTarget = normalizeOrganisationReference(
+    organisationReference,
+  );
+  logger.debug("Checking organization access for user", {
+    userId,
+    organisationReference,
+    normalizedTarget,
+  });
+  const mapping = await UserOrganizationService.getMappingByUserAndOrganization(
+    userId,
+    normalizedTarget,
+  );
+
+  return Boolean(mapping);
+};
+
 export const UserOrganizationController = {
   upsertMapping: async (req: Request, res: Response) => {
     try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized: missing user id." });
+        return;
+      }
+
       const payload = req.body as UserOrganizationFHIRPayload | undefined;
 
       if (payload?.resourceType !== "PractitionerRole") {
         res.status(400).json({
           message: "Invalid payload. Expected FHIR PractitionerRole resource.",
+        });
+        return;
+      }
+
+      const payloadOrganisationReference =
+        getPayloadOrganisationReference(payload);
+
+      if (
+        !payloadOrganisationReference ||
+        !(await hasOrgAccess(userId, payloadOrganisationReference))
+      ) {
+        res.status(403).json({
+          message: "You do not have access to this organisation.",
         });
         return;
       }
@@ -36,6 +140,12 @@ export const UserOrganizationController = {
 
   getMappingById: async (req: Request, res: Response) => {
     try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized: missing user id." });
+        return;
+      }
+
       const { id } = req.params;
 
       if (!id) {
@@ -47,6 +157,18 @@ export const UserOrganizationController = {
 
       if (!resource || (Array.isArray(resource) && resource.length === 0)) {
         res.status(404).json({ message: "Mapping not found." });
+        return;
+      }
+
+      const organisationReference = getOrganisationReference(resource);
+
+      if (
+        !organisationReference ||
+        !(await hasOrgAccess(userId, organisationReference))
+      ) {
+        res.status(403).json({
+          message: "You do not have access to this organisation.",
+        });
         return;
       }
 
@@ -63,9 +185,15 @@ export const UserOrganizationController = {
     }
   },
 
-  listMappings: async (_req: Request, res: Response) => {
+  listMappings: async (req: Request, res: Response) => {
     try {
-      const resources = await UserOrganizationService.listAll();
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized: missing user id." });
+        return;
+      }
+
+      const resources = await UserOrganizationService.listByUserId(userId);
       res.status(200).json(resources);
     } catch (error) {
       logger.error("Failed to list user-organization mappings", error);
@@ -77,10 +205,33 @@ export const UserOrganizationController = {
 
   deleteMappingById: async (req: Request, res: Response) => {
     try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized: missing user id." });
+        return;
+      }
+
       const { id } = req.params;
 
       if (!id) {
         res.status(400).json({ message: "Mapping ID is required." });
+        return;
+      }
+
+      const existing = await UserOrganizationService.getById(id);
+      if (!existing || (Array.isArray(existing) && existing.length === 0)) {
+        res.status(404).json({ message: "Mapping not found." });
+        return;
+      }
+
+      const organisationReference = getOrganisationReference(existing);
+      if (
+        !organisationReference ||
+        !(await hasOrgAccess(userId, organisationReference))
+      ) {
+        res.status(403).json({
+          message: "You do not have access to this organisation.",
+        });
         return;
       }
 
@@ -106,6 +257,12 @@ export const UserOrganizationController = {
 
   updateMappingById: async (req: Request, res: Response) => {
     try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized: missing user id." });
+        return;
+      }
+
       const { id } = req.params;
       const payload = req.body as UserOrganizationFHIRPayload | undefined;
 
@@ -117,6 +274,19 @@ export const UserOrganizationController = {
       if (payload?.resourceType !== "PractitionerRole") {
         res.status(400).json({
           message: "Invalid payload. Expected FHIR PractitionerRole resource.",
+        });
+        return;
+      }
+
+      const payloadOrganisationReference =
+        getPayloadOrganisationReference(payload);
+
+      if (
+        !payloadOrganisationReference ||
+        !(await hasOrgAccess(userId, payloadOrganisationReference))
+      ) {
+        res.status(403).json({
+          message: "You do not have access to this organisation.",
         });
         return;
       }
@@ -171,11 +341,24 @@ export const UserOrganizationController = {
 
   listByOrganisationId: async (req: Request, res: Response) => {
     try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: missing user id." });
+      }
+
       const { organisationId } = req.params;
 
       if (!organisationId) {
         return res.status(400).json({
           message: "Organisation Id is required and type should be string.",
+        });
+      }
+
+      if (!(await hasOrgAccess(userId, organisationId))) {
+        return res.status(403).json({
+          message: "You do not have access to this organisation.",
         });
       }
 

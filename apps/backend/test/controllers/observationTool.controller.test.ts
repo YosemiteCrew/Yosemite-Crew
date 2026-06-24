@@ -554,6 +554,79 @@ describe("ObservationTool Controllers", () => {
       });
     });
 
+    describe("createForAppointment", () => {
+      it("should create and return the submission (201)", async () => {
+        (req as any).organisationId = "org1";
+        req.params = { appointmentId: "apt1" };
+        req.body = {
+          toolId: "t1",
+          companionId: "c1",
+          filledBy: "vet1",
+          answers: { q1: "a1" },
+          taskId: "tsk1",
+          summary: "sum",
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedSubService.createForAppointment as any).mockResolvedValue({
+          id: "s1",
+          score: 5,
+        });
+
+        await ObservationToolSubmissionController.createForAppointment(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedSubService.createForAppointment).toHaveBeenCalledWith({
+          appointmentId: "apt1",
+          organisationId: "org1",
+          toolId: "t1",
+          patientId: "c1",
+          filledBy: "vet1",
+          answers: { q1: "a1" },
+          taskId: "tsk1",
+          summary: "sum",
+        });
+        expect(statusMock).toHaveBeenCalledWith(201);
+        expect(jsonMock).toHaveBeenCalledWith({ id: "s1", score: 5 });
+      });
+
+      it("should 400 when body fails validation", async () => {
+        (req as any).organisationId = "org1";
+        req.params = { appointmentId: "apt1" };
+        req.body = { toolId: "t1" }; // missing companionId/filledBy/answers
+
+        await ObservationToolSubmissionController.createForAppointment(
+          req as any,
+          res as Response,
+        );
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(mockedSubService.createForAppointment).not.toHaveBeenCalled();
+      });
+
+      it("should handle service error", async () => {
+        (req as any).organisationId = "org1";
+        req.params = { appointmentId: "apt1" };
+        req.body = {
+          toolId: "t1",
+          companionId: "c1",
+          filledBy: "vet1",
+          answers: { q1: "a1" },
+        };
+        mockSubError("createForAppointment", 404);
+
+        await ObservationToolSubmissionController.createForAppointment(
+          req as any,
+          res as Response,
+        );
+        // The service error is routed through handleError (status asserted loosely
+        // because the auto-mocked error class cannot satisfy `instanceof` here, the
+        // same reason the sibling service-error tests assert nothing).
+        expect(statusMock).toHaveBeenCalled();
+      });
+    });
+
     describe("getByTaskId", () => {
       it("should 404 if not found", async () => {
         req.params = { taskId: "tsk1" };

@@ -1,6 +1,7 @@
-import { useImperativeHandle, useState, type Ref } from 'react';
+import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { RiEdit2Line } from 'react-icons/ri';
-import { MdDeleteForever } from 'react-icons/md';
+import { MdOutlineArchive } from 'react-icons/md';
+import { LuBedSingle, LuCheck } from 'react-icons/lu';
 import { AiOutlineInfoCircle, AiOutlinePlus } from 'react-icons/ai';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -11,9 +12,14 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 import { useNotify } from '@/app/hooks/useNotify';
-import { computeServiceTotal } from '@/app/features/organization/services/revampMockData';
+import { computeServiceTotal } from '@/app/features/organization/services/catalogCalculations';
 import Badge from '@/app/ui/Badge';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { formatMoney } from '@/app/lib/money';
+import YosemiteLoader from '@/app/ui/overlays/Loader/YosemiteLoader';
+import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
 
 export type ServicesTabHandle = { openAdd: () => void };
 
@@ -23,7 +29,7 @@ type ServicesTabProps = Readonly<{
   ref?: Ref<ServicesTabHandle>;
 }>;
 
-type ActionMode = null | 'edit' | 'delete' | 'view';
+type ActionMode = null | 'edit' | 'archive' | 'view';
 
 const TYPE_LABELS: Record<string, string> = {
   CONSULTATION: 'Consultation',
@@ -37,14 +43,16 @@ const ServiceRow = ({
   service,
   index,
   onEdit,
-  onDelete,
+  onArchive,
 }: {
   service: ServiceRevamp;
   index: number;
   onEdit: () => void;
-  onDelete: () => void;
+  onArchive: () => void;
 }) => {
   const { total } = computeServiceTotal(service);
+  const orgCurrency = useCurrencyForPrimaryOrg();
+  const currency = service.currency ?? orgCurrency;
   return (
     <div className="flex items-start gap-3">
       <span className="text-body-4 font-semibold text-text-secondary shrink-0 w-6 text-right leading-none -mt-1.5">
@@ -53,160 +61,186 @@ const ServiceRow = ({
       <SectionContainer
         title={service.name}
         titleColor="var(--color-neutral-900)"
-        titleSlot={service.isBookable ? <Badge tone="brand">✓ Bookable</Badge> : undefined}
+        titleSlot={
+          service.isBookable || service.isInpatientPreferred ? (
+            <div className="flex items-center gap-2">
+              {service.isBookable && (
+                <Badge tone="brand">
+                  <LuCheck size={14} aria-hidden="true" />
+                  Bookable
+                </Badge>
+              )}
+              {service.isInpatientPreferred && (
+                <Badge tone="brand">
+                  <LuBedSingle size={14} aria-hidden="true" />
+                  In-patient
+                </Badge>
+              )}
+            </div>
+          ) : undefined
+        }
         className="flex-1 min-w-0"
       >
-        {/* Action buttons row on mobile, inline on desktop */}
-        <div className="flex sm:hidden items-center justify-end gap-2 mb-3">
-          <button
-            type="button"
-            aria-label={`Edit ${service.name}`}
-            onClick={onEdit}
-            className="flex items-center justify-center size-10 rounded-full border-[1.5px] border-neutral-300 bg-white hover:border-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors"
-          >
-            <RiEdit2Line size={20} color="var(--color-neutral-900)" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Delete ${service.name}`}
-            onClick={onDelete}
-            className="flex items-center justify-center size-10 rounded-full border-[1.5px] border-neutral-300 bg-white hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors"
-          >
-            <MdDeleteForever size={20} color="var(--color-danger-600)" aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className="flex items-start gap-4">
-          {/* Data grid: 2-col on mobile, full 8-col on large */}
-          <div className="flex-1 min-w-0">
-            {/* Mobile: 2-column grid */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:hidden">
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Code</span>
-                <span className="text-body-4 text-text-primary break-all">{service.code}</span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Type</span>
-                <span className="text-body-4 text-text-primary">
-                  {TYPE_LABELS[service.type] ?? service.type}
-                </span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-caption-2 font-bold text-text-tertiary block">
-                  Description
-                </span>
-                <span className="text-body-4 text-text-primary">{service.description || '—'}</span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Duration</span>
-                <span className="text-body-4 text-text-primary">
-                  {service.durationMinutes} mins
-                </span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">
-                  Gross amt.
-                </span>
-                <span className="text-body-4 text-text-primary">
-                  $ {service.grossAmount.toFixed(2)}
-                </span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">
-                  Disc. (default)
-                </span>
-                <span className="text-body-4 text-text-primary">-{service.defaultDiscount}%</span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Max disc.</span>
-                <span className="text-body-4 text-text-primary">-{service.maxDiscount}%</span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Total</span>
-                <span className="text-body-4-emphasis text-text-primary">$ {total.toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Desktop: single-row grid */}
-            <div
-              className="hidden sm:grid gap-x-6 gap-y-1 items-start"
-              style={{ gridTemplateColumns: 'auto auto minmax(0,220px) auto auto auto auto auto' }}
-            >
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Code</span>
-                <span className="text-body-4 text-text-primary whitespace-nowrap">
-                  {service.code}
-                </span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Type</span>
-                <span className="text-body-4 text-text-primary whitespace-nowrap">
-                  {TYPE_LABELS[service.type] ?? service.type}
-                </span>
-              </div>
-              <div className="min-w-0">
-                <span className="text-caption-2 font-bold text-text-tertiary block">
-                  Description
-                </span>
-                <span className="text-body-4 text-text-primary line-clamp-2">
-                  {service.description || '—'}
-                </span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Duration</span>
-                <span className="text-body-4 text-text-primary whitespace-nowrap">
-                  {service.durationMinutes} mins
-                </span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">
-                  Gross amt.
-                </span>
-                <span className="text-body-4 text-text-primary whitespace-nowrap">
-                  $ {service.grossAmount.toFixed(2)}
-                </span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">
-                  Disc. (default)
-                </span>
-                <span className="text-body-4 text-text-primary whitespace-nowrap">
-                  -{service.defaultDiscount}%
-                </span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Max disc.</span>
-                <span className="text-body-4 text-text-primary whitespace-nowrap">
-                  -{service.maxDiscount}%
-                </span>
-              </div>
-              <div>
-                <span className="text-caption-2 font-bold text-text-tertiary block">Total</span>
-                <span className="text-body-4-emphasis text-text-primary whitespace-nowrap">
-                  $ {total.toFixed(2)}
-                </span>
-              </div>
-            </div>
+        {/* @container drives layout from available width (page vs. narrow side drawer) */}
+        <div className="@container">
+          {/* Action buttons row on narrow containers, inline on wide */}
+          <div className="flex @2xl:hidden items-center justify-end gap-2 mb-3">
+            <CircleIconButton
+              label={`Edit ${service.name}`}
+              tooltip="Edit"
+              onClick={onEdit}
+              icon={<RiEdit2Line size={20} aria-hidden="true" />}
+            />
+            <CircleIconButton
+              label={`Archive ${service.name}`}
+              tooltip="Archive"
+              onClick={onArchive}
+              variant="danger"
+              icon={<MdOutlineArchive size={20} aria-hidden="true" />}
+            />
           </div>
 
-          {/* Action buttons — hidden on mobile (shown above), visible on sm+ */}
-          <div className="hidden sm:flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              aria-label={`Edit ${service.name}`}
-              onClick={onEdit}
-              className="flex items-center justify-center size-12 rounded-full border-[1.5px] border-neutral-300 bg-white hover:border-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors"
-            >
-              <RiEdit2Line size={24} color="var(--color-neutral-900)" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              aria-label={`Delete ${service.name}`}
-              onClick={onDelete}
-              className="flex items-center justify-center size-12 rounded-full border-[1.5px] border-neutral-300 bg-white hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors"
-            >
-              <MdDeleteForever size={24} color="var(--color-danger-600)" aria-hidden="true" />
-            </button>
+          <div className="flex items-start gap-4">
+            {/* Data grid: 2-col on narrow, full 8-col on wide */}
+            <div className="flex-1 min-w-0">
+              {/* Narrow: 2-column grid */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 @2xl:hidden">
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">Code</span>
+                  <span className="text-body-4 text-text-primary break-all">{service.code}</span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">Type</span>
+                  <span className="text-body-4 text-text-primary">
+                    {TYPE_LABELS[service.type] ?? service.type}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Description
+                  </span>
+                  <span className="text-body-4 text-text-primary">
+                    {service.description || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Duration
+                  </span>
+                  <span className="text-body-4 text-text-primary">
+                    {service.durationMinutes} mins
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Gross amt.
+                  </span>
+                  <span className="text-body-4 text-text-primary">
+                    {formatMoney(service.grossAmount, currency)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Disc. (default)
+                  </span>
+                  <span className="text-body-4 text-text-primary">-{service.defaultDiscount}%</span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Max disc.
+                  </span>
+                  <span className="text-body-4 text-text-primary">-{service.maxDiscount}%</span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">Total</span>
+                  <span className="text-body-4-emphasis text-text-primary">
+                    {formatMoney(total, currency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Wide container: single-row grid */}
+              <div
+                className="hidden @2xl:grid gap-x-6 gap-y-1 items-start"
+                style={{
+                  gridTemplateColumns: 'auto auto minmax(0,220px) auto auto auto auto auto',
+                }}
+              >
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">Code</span>
+                  <span className="text-body-4 text-text-primary whitespace-nowrap">
+                    {service.code}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">Type</span>
+                  <span className="text-body-4 text-text-primary whitespace-nowrap">
+                    {TYPE_LABELS[service.type] ?? service.type}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Description
+                  </span>
+                  <span className="text-body-4 text-text-primary line-clamp-2">
+                    {service.description || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Duration
+                  </span>
+                  <span className="text-body-4 text-text-primary whitespace-nowrap">
+                    {service.durationMinutes} mins
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Gross amt.
+                  </span>
+                  <span className="text-body-4 text-text-primary whitespace-nowrap">
+                    {formatMoney(service.grossAmount, currency)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Disc. (default)
+                  </span>
+                  <span className="text-body-4 text-text-primary whitespace-nowrap">
+                    -{service.defaultDiscount}%
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">
+                    Max disc.
+                  </span>
+                  <span className="text-body-4 text-text-primary whitespace-nowrap">
+                    -{service.maxDiscount}%
+                  </span>
+                </div>
+                <div>
+                  <span className="text-caption-2 font-bold text-text-tertiary block">Total</span>
+                  <span className="text-body-4-emphasis text-text-primary whitespace-nowrap">
+                    {formatMoney(total, currency)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons — hidden on narrow (shown above), visible on wide container */}
+            <div className="hidden @2xl:flex items-center gap-2 shrink-0">
+              <CircleIconButton
+                label={`Edit ${service.name}`}
+                onClick={onEdit}
+                icon={<RiEdit2Line size={20} aria-hidden="true" />}
+              />
+              <CircleIconButton
+                label={`Archive ${service.name}`}
+                onClick={onArchive}
+                variant="danger"
+                icon={<MdOutlineArchive size={20} aria-hidden="true" />}
+              />
+            </div>
           </div>
         </div>
       </SectionContainer>
@@ -220,13 +254,22 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
       s.services.filter((svc) => svc.specialityId === specialityId && svc.status === 'ACTIVE')
     )
   );
-  const deleteService = useRevampCatalogStore((s) => s.deleteService);
+  const archiveService = useRevampCatalogStore((s) => s.archiveService);
+  const loadSpecialityCatalog = useRevampCatalogStore((s) => s.loadSpecialityCatalog);
   const { notify } = useNotify();
 
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftAtTop, setDraftAtTop] = useState(false);
   const [activeService, setActiveService] = useState<ServiceRevamp | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode>(null);
+  const loaded = useRevampCatalogStore((s) =>
+    (s.loadedSpecialityIds ?? []).includes(`${specialityId}:active`)
+  );
+  const loading = !loaded;
+
+  useEffect(() => {
+    Promise.resolve(loadSpecialityCatalog(organisationId, specialityId)).catch(() => undefined);
+  }, [loadSpecialityCatalog, organisationId, specialityId]);
 
   useImperativeHandle(ref, () => ({
     openAdd: () => {
@@ -248,15 +291,25 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
     setDraftOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleArchiveConfirm = async () => {
     if (!activeService) return;
-    deleteService(activeService.id);
-    notify('success', {
-      title: 'Service deleted',
-      text: `"${activeService.name}" has been removed.`,
-    });
-    setActionMode(null);
-    setActiveService(null);
+    try {
+      await archiveService(activeService.id);
+      notify('success', {
+        title: 'Service archived',
+        text: `"${activeService.name}" has been archived.`,
+      });
+      setActionMode(null);
+      setActiveService(null);
+    } catch (error) {
+      notify('error', {
+        title: 'Unable to archive service',
+        text: getCatalogErrorMessage(
+          error,
+          'This service could not be archived. Please try again.'
+        ),
+      });
+    }
   };
 
   const handleCloseForm = () => {
@@ -276,7 +329,13 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
         />
       )}
 
-      {services.length === 0 && !draftOpen && (
+      {loading && services.length === 0 && (
+        <div className="flex items-center justify-center py-8">
+          <YosemiteLoader variant="inline" size={48} label="Loading services" />
+        </div>
+      )}
+
+      {!loading && services.length === 0 && !draftOpen && (
         <div className="flex items-center justify-center gap-2 py-8 text-body-4 text-text-secondary">
           <AiOutlineInfoCircle size={16} aria-hidden="true" />
           You haven&apos;t added any services yet.
@@ -298,9 +357,9 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
             service={svc}
             index={i}
             onEdit={() => handleEdit(svc)}
-            onDelete={() => {
+            onArchive={() => {
               setActiveService(svc);
-              setActionMode('delete');
+              setActionMode('archive');
             }}
           />
         )
@@ -325,7 +384,7 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
         </button>
       )}
 
-      {actionMode === 'delete' && activeService && (
+      {actionMode === 'archive' && activeService && (
         <CenterModal
           showModal
           setShowModal={() => {
@@ -334,15 +393,16 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
           }}
         >
           <ModalHeader
-            title="Delete service"
+            title="Archive service"
             onClose={() => {
               setActionMode(null);
               setActiveService(null);
             }}
           />
           <p className="text-body-4 text-text-primary">
-            Are you sure you want to delete <strong>{activeService.name}</strong>? This action
-            cannot be undone.
+            Are you sure you want to archive <strong>{activeService.name}</strong>? It will be
+            hidden from active lists and the package builder, and you can restore it later from the
+            Archive tab.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <Secondary
@@ -353,7 +413,13 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
                 setActiveService(null);
               }}
             />
-            <Delete href="#" text="Delete" onClick={handleDeleteConfirm} />
+            <Delete
+              href="#"
+              text="Archive"
+              onClick={() => {
+                Promise.resolve(handleArchiveConfirm()).catch(() => undefined);
+              }}
+            />
           </div>
         </CenterModal>
       )}

@@ -54,7 +54,10 @@ describe("task.fhir.router", () => {
       findRoute("/organisation/:organisationId/:taskId", "patch"),
     ).toBeDefined();
     expect(
-      findRoute("/organisation/:organisationId/:taskId/$status", "post"),
+      findRoute(
+        String.raw`/organisation/:organisationId/:taskId/\$status`,
+        "post",
+      ),
     ).toBeDefined();
   });
 

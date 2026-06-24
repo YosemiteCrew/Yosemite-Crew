@@ -1,5 +1,6 @@
 import {
   AdminstrationOptions,
+  AbcClassOptions,
   AllergenFreeOptions,
   AnimalStageOptions,
   BreedingUseOptions,
@@ -7,6 +8,8 @@ import {
   CoatTypeOptions,
   DepartmentOptions,
   DispenseUnitOptions,
+  DrugScheduleOptions,
+  ExpiryWarningOptions,
   FormOptions,
   FragranceTypeOptions,
   HeatCycleOptions,
@@ -16,8 +19,6 @@ import {
   ItemTypeOptions,
   PaymentTermsOptions,
   PetSizeOptions,
-  PrescriptionRequiredOptions,
-  RegulationTypeOptions,
   SafetyClassificationOptions,
   SpeciesOptions,
   StockLocationOptions,
@@ -25,30 +26,31 @@ import {
   StorageConditionOptions,
   SubCategoryOptions,
   TemperatureConditionOptions,
-  TherapeuticOptions,
   UnitOptions,
   UsageTypeOptions,
   VendorOptions,
-} from "@/app/features/inventory/pages/Inventory/types";
-import { BusinessType } from "@/app/features/organization/types/org";
+  WithdrawalPeriodOptions,
+} from '@/app/features/inventory/pages/Inventory/types';
+import { BusinessType } from '@/app/features/organization/types/org';
 
 export type FieldComponentType =
-  | "text"
-  | "dropdown"
-  | "textarea"
-  | "date"
-  | "multiSelect";
+  | 'text'
+  | 'dropdown'
+  | 'textarea'
+  | 'date'
+  | 'multiSelect'
+  | 'checkbox'
+  | 'upload';
 
 export type InventorySectionKey =
-  | "basicInfo"
-  | "classification"
-  | "pricing"
-  | "vendor"
-  | "stock"
-  | "batch";
+  | 'basicInfo'
+  | 'classification'
+  | 'pricing'
+  | 'vendor'
+  | 'stock'
+  | 'batch';
 
-export type FieldNameForSection<S extends InventorySectionKey> =
-  keyof InventoryItem[S] & string;
+export type FieldNameForSection<S extends InventorySectionKey> = keyof InventoryItem[S] & string;
 
 export type FieldDef<S extends InventorySectionKey = InventorySectionKey> = {
   name: FieldNameForSection<S>;
@@ -56,14 +58,14 @@ export type FieldDef<S extends InventorySectionKey = InventorySectionKey> = {
   label?: string;
   component: FieldComponentType;
   options?: string[];
+  readonly?: boolean;
 };
 
 export type ConfigItem<S extends InventorySectionKey = InventorySectionKey> =
-  | { kind: "field"; field: FieldDef<S> }
-  | { kind: "row"; fields: FieldDef<S>[] };
+  | { kind: 'field'; field: FieldDef<S> }
+  | { kind: 'row'; fields: FieldDef<S>[] };
 
-export type SectionConfig<S extends InventorySectionKey = InventorySectionKey> =
-  ConfigItem<S>[];
+export type SectionConfig<S extends InventorySectionKey = InventorySectionKey> = ConfigItem<S>[];
 
 const field = <S extends InventorySectionKey>(
   name: FieldNameForSection<S>,
@@ -71,15 +73,23 @@ const field = <S extends InventorySectionKey>(
   component: FieldComponentType,
   options?: string[]
 ): ConfigItem<S> => ({
-  kind: "field",
+  kind: 'field',
   field: { name, placeholder, component, options },
 });
 
-const row = <S extends InventorySectionKey>(
-  ...fields: FieldDef<S>[]
-): ConfigItem<S> => ({
-  kind: "row",
+const row = <S extends InventorySectionKey>(...fields: FieldDef<S>[]): ConfigItem<S> => ({
+  kind: 'row',
   fields,
+});
+
+const readonlyField = <S extends InventorySectionKey>(
+  name: FieldNameForSection<S>,
+  placeholder: string,
+  component: FieldComponentType,
+  options?: string[]
+): ConfigItem<S> => ({
+  kind: 'field',
+  field: { name, placeholder, component, options, readonly: true },
 });
 
 const f = <S extends InventorySectionKey>(
@@ -89,42 +99,54 @@ const f = <S extends InventorySectionKey>(
   options?: string[]
 ): FieldDef<S> => ({ name, placeholder, component, options });
 
-const commonPricingFields: SectionConfig<"pricing"> = [
-  field("purchaseCost", "Purchase cost (per unit)", "text"),
-  field("selling", "Selling price", "text"),
-  field("maxDiscount", "Max allowable discount (%)", "text"),
-  field("tax", "Tax (%)", "text"),
+const commonPricingFields: SectionConfig<'pricing'> = [
+  field('purchaseCost', 'Unit cost', 'text'),
+  field('selling', 'Selling price', 'text'),
+  field('maxDiscount', 'Max. discount %', 'text'),
+  field('tax', 'Tax (%)', 'text'),
 ];
 
-const commonVendorFields = (includesLicense: boolean): SectionConfig<"vendor"> => [
-  field("supplierName", "Supplier name", "text"),
-  field("brand", "Brand", "text"),
-  field("vendor", "Vendor type", "dropdown", VendorOptions),
-  ...(includesLicense ? [field<"vendor">("license", "License number", "text")] : []),
-  field("paymentTerms", "Payment terms", "dropdown", PaymentTermsOptions),
-  field("leadTime", "Lead time", "text"),
+const commonVendorFields = (includesLicense: boolean): SectionConfig<'vendor'> => [
+  field('vendor', 'Vendor type', 'dropdown', VendorOptions),
+  field('supplierName', 'Vendor name', 'text'),
+  ...(includesLicense ? [field<'vendor'>('license', 'License number', 'text')] : []),
+  field('paymentTerms', 'Payment terms', 'dropdown', PaymentTermsOptions),
 ];
 
-const commonStockFields = (includesStockType: boolean = false): SectionConfig<"stock"> => [
-  field("current", "Current quantity (on hand)", "text"),
-  field("allocated", "Allocated quantity", "text"),
-  field("available", "Available quantity", "text"),
-  field("reorderLevel", "Reorder level", "text"),
-  field("reorderQuantity", "Reorder quantity (optional)", "text"),
-  field("stockLocation", "Stock location / Storage area", "dropdown", StockLocationOptions),
-  ...(includesStockType ? [field<"stock">("stockType", "Stock type", "dropdown", StockTypeOptions)] : []),
-  field("minStockAlert", "Min stock alert", "text"),
-];
-
-const commonBatchFields: SectionConfig<"batch"> = [
-  field("batch", "Batch / Lot Number", "text"),
+const commonStockFields = (includesStockType: boolean = false): SectionConfig<'stock'> => [
+  row(f('current', 'On hand stock', 'text'), f('allocated', 'Allocated stock (optional)', 'text')),
   row(
-    f("quantity", "Quantity", "text"),
-    f("allocated", "Allocated", "text")
+    f('maxStock', 'Max stock', 'text'),
+    f('stockLocation', 'Stock location', 'dropdown', StockLocationOptions)
   ),
-  field("manufactureDate", "Manufacture date", "date"),
-  field("expiryDate", "Expiry date", "date"),
-  field("nextRefillDate", "Next refill date", "date"),
+  row(
+    f('reorderLevel', 'Reorder point', 'text'),
+    f('reorderQuantity', 'Reorder quantity (optional)', 'text')
+  ),
+  field('abcClass', 'ABC Class', 'dropdown', AbcClassOptions),
+  field('withdrawlPeriod', 'Withdrawal period (optional)', 'dropdown', WithdrawalPeriodOptions),
+  readonlyField('available', 'Available stock', 'text'),
+  ...(includesStockType
+    ? [
+        row<'stock'>(
+          {
+            name: 'stockType',
+            placeholder: 'Stock unit type',
+            component: 'dropdown',
+            options: StockTypeOptions,
+          },
+          { name: 'unitQnt', placeholder: 'Unit qnt', component: 'text' }
+        ),
+      ]
+    : []),
+];
+
+const commonBatchFields: SectionConfig<'batch'> = [
+  row(f('batch', 'Batch/ Lot number', 'text'), f('quantity', 'Batch quantity', 'text')),
+  row(f('manufactureDate', 'Manufacturing date', 'date'), f('expiryDate', 'Expiry date', 'date')),
+  field('expiryWarningBefore', 'Expiring warning before', 'dropdown', ExpiryWarningOptions),
+  field('barcode', 'Barcode', 'text'),
+  field('tracking', 'Regulatory tracking ID', 'text'),
 ];
 
 export const InventoryFormConfig: Record<
@@ -136,314 +158,290 @@ export const InventoryFormConfig: Record<
   HOSPITAL: {
     basicInfo: [
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "name",
-          placeholder: "Item name",
-          component: "text",
+          name: 'name',
+          placeholder: 'Item name',
+          component: 'text',
         },
       },
       {
-        kind: "row",
+        kind: 'field',
+        field: {
+          name: 'brand',
+          placeholder: 'Brand (optional)',
+          component: 'text',
+        },
+      },
+      {
+        kind: 'field',
+        field: {
+          name: 'skuCode',
+          placeholder: 'SKU (optional)',
+          component: 'text',
+        },
+      },
+      {
+        kind: 'row',
         fields: [
           {
-            name: "category",
-            placeholder: "Category",
-            component: "dropdown",
+            name: 'category',
+            placeholder: 'Category',
+            component: 'dropdown',
             options: CategoryOptionsByBusiness.HOSPITAL,
           },
           {
-            name: "subCategory",
-            placeholder: "Sub category",
-            component: "dropdown",
+            name: 'subCategory',
+            placeholder: 'Sub category',
+            component: 'dropdown',
             options: SubCategoryOptions,
           },
         ],
       },
       {
-        kind: "row",
-        fields: [
-          {
-            name: "itemType",
-            placeholder: "Item type",
-            component: "dropdown",
-            options: ItemTypeOptions,
-          },
-          {
-            name: "department",
-            placeholder: "Department",
-            component: "dropdown",
-            options: DepartmentOptions,
-          },
-        ],
-      },
-      {
-        kind: "row",
-        fields: [
-          {
-            name: "prescriptionRequired",
-            placeholder: "Prescription",
-            component: "dropdown",
-            options: PrescriptionRequiredOptions,
-          },
-          {
-            name: "regulationType",
-            placeholder: "Regulation type",
-            component: "dropdown",
-            options: RegulationTypeOptions,
-          },
-        ],
-      },
-      {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "storageCondition",
-          placeholder: "Storage condition",
-          component: "dropdown",
-          options: StorageConditionOptions,
+          name: 'description',
+          placeholder: 'Description (optional)',
+          component: 'textarea',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "description",
-          placeholder: "Description",
-          component: "textarea",
+          name: 'imageUrl',
+          placeholder: 'Product image (optional)',
+          component: 'upload',
         },
       },
     ],
     classification: [
+      field('genericName', 'Generic name', 'text'),
       {
-        kind: "field",
-        field: {
-          name: "therapeuticClass",
-          placeholder: "Therapeutic class",
-          component: "dropdown",
-          options: TherapeuticOptions,
-        },
-      },
-      {
-        kind: "field",
-        field: {
-          name: "form",
-          placeholder: "Form / Presentation",
-          component: "dropdown",
-          options: FormOptions,
-        },
-      },
-      {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "strength",
-            placeholder: "Strength",
-            component: "text",
+            name: 'itemType',
+            placeholder: 'Item type',
+            component: 'dropdown',
+            options: ItemTypeOptions,
           },
           {
-            name: "dosageForm",
-            placeholder: "Dosage form",
-            component: "text",
+            name: 'drugSchedule',
+            placeholder: 'Drug schedule',
+            component: 'dropdown',
+            options: DrugScheduleOptions,
           },
         ],
       },
       {
-        kind: "row",
+        kind: 'field',
+        field: {
+          name: 'species',
+          placeholder: 'Species',
+          component: 'multiSelect',
+          options: SpeciesOptions,
+        },
+      },
+      {
+        kind: 'field',
+        field: {
+          name: 'storageCondition',
+          placeholder: 'Storage condition',
+          component: 'dropdown',
+          options: StorageConditionOptions,
+        },
+      },
+      {
+        kind: 'row',
         fields: [
           {
-            name: "species",
-            placeholder: "Species",
-            component: "multiSelect",
-            options: SpeciesOptions,
+            name: 'form',
+            placeholder: 'Form',
+            component: 'dropdown',
+            options: FormOptions,
           },
           {
-            name: "administration",
-            placeholder: "Administration",
-            component: "dropdown",
+            name: 'administration',
+            placeholder: 'Administration route',
+            component: 'dropdown',
             options: AdminstrationOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "unitofMeasure",
-          placeholder: "Unit of Measure (Base)",
-          component: "dropdown",
-          options: UnitOptions,
+          name: 'strength',
+          placeholder: 'Strength',
+          component: 'text',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "withdrawlPeriod",
-          placeholder: "Withdrawal Period (optional)",
-          component: "text",
+          name: 'unitofMeasure',
+          placeholder: 'Strength unit',
+          component: 'dropdown',
+          options: UnitOptions,
         },
       },
+      field('controlledSubstance', 'Controlled substance', 'checkbox'),
+      field('prescriptionRequired', 'Prescription required', 'checkbox'),
+      field('reportableToGovernment', 'Is it reportable to Government?', 'checkbox'),
     ],
     pricing: commonPricingFields,
     vendor: commonVendorFields(true),
     stock: commonStockFields(true),
-    batch: [
-      field("serial", "Serial / Barcode", "text"),
-      field("batch", "Batch / Lot Number", "text"),
-      field("tracking", "Regulatory tracking ID", "text"),
-      row(
-        f("quantity", "Quantity", "text"),
-        f("allocated", "Allocated", "text")
-      ),
-      field("manufactureDate", "Manufacture date", "date"),
-      field("expiryDate", "Expiry date", "date"),
-      field("nextRefillDate", "Next refill date", "date"),
-    ],
+    batch: commonBatchFields,
   },
   GROOMER: {
     basicInfo: [
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "name",
-          placeholder: "Item name",
-          component: "text",
+          name: 'name',
+          placeholder: 'Item name',
+          component: 'text',
         },
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "category",
-            placeholder: "Category",
-            component: "dropdown",
+            name: 'category',
+            placeholder: 'Category',
+            component: 'dropdown',
             options: CategoryOptionsByBusiness.GROOMER,
           },
           {
-            name: "subCategory",
-            placeholder: "Sub category",
-            component: "dropdown",
+            name: 'subCategory',
+            placeholder: 'Sub category',
+            component: 'dropdown',
             options: SubCategoryOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "department",
-          placeholder: "Department",
-          component: "dropdown",
+          name: 'department',
+          placeholder: 'Department',
+          component: 'dropdown',
           options: DepartmentOptions,
         },
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "productUsage",
-            placeholder: "Product use",
-            component: "dropdown",
+            name: 'productUsage',
+            placeholder: 'Product use',
+            component: 'dropdown',
             options: IntendedUsageOptions.GROOMER,
           },
           {
-            name: "coatType",
-            placeholder: "Coat type",
-            component: "dropdown",
+            name: 'coatType',
+            placeholder: 'Coat type',
+            component: 'dropdown',
             options: CoatTypeOptions,
           },
         ],
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "fragranceType",
-            placeholder: "Fragrance type",
-            component: "dropdown",
+            name: 'fragranceType',
+            placeholder: 'Fragrance type',
+            component: 'dropdown',
             options: FragranceTypeOptions,
           },
           {
-            name: "allergenFree",
-            placeholder: "Allergen free",
-            component: "dropdown",
+            name: 'allergenFree',
+            placeholder: 'Allergen free',
+            component: 'dropdown',
             options: AllergenFreeOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "petSize",
-          placeholder: "Companion size",
-          component: "dropdown",
+          name: 'petSize',
+          placeholder: 'Companion size',
+          component: 'dropdown',
           options: PetSizeOptions,
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "description",
-          placeholder: "Description",
-          component: "textarea",
+          name: 'description',
+          placeholder: 'Description',
+          component: 'textarea',
         },
       },
     ],
     classification: [
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "form",
-          placeholder: "Form / Presentation",
-          component: "dropdown",
+          name: 'form',
+          placeholder: 'Form / Presentation',
+          component: 'dropdown',
           options: FormOptions,
         },
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "species",
-            placeholder: "Species",
-            component: "multiSelect",
+            name: 'species',
+            placeholder: 'Species',
+            component: 'multiSelect',
             options: SpeciesOptions,
           },
           {
-            name: "administration",
-            placeholder: "Administration",
-            component: "dropdown",
+            name: 'administration',
+            placeholder: 'Administration',
+            component: 'dropdown',
             options: AdminstrationOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "unitofMeasure",
-          placeholder: "Unit of Measure (Base)",
-          component: "dropdown",
+          name: 'unitofMeasure',
+          placeholder: 'Unit of Measure (Base)',
+          component: 'dropdown',
           options: UnitOptions,
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "dispenseUnit",
-          placeholder: "Dispense unit",
-          component: "dropdown",
+          name: 'dispenseUnit',
+          placeholder: 'Dispense unit',
+          component: 'dropdown',
           options: DispenseUnitOptions,
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "packSize",
-          placeholder: "Pack size / Quantity per pack",
-          component: "text",
+          name: 'packSize',
+          placeholder: 'Pack size / Quantity per pack',
+          component: 'text',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "usagePerService",
-          placeholder: "Usage per service",
-          component: "text",
+          name: 'usagePerService',
+          placeholder: 'Usage per service',
+          component: 'text',
         },
       },
     ],
@@ -455,319 +453,316 @@ export const InventoryFormConfig: Record<
   BREEDER: {
     basicInfo: [
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "name",
-          placeholder: "Item name",
-          component: "text",
+          name: 'name',
+          placeholder: 'Item name',
+          component: 'text',
         },
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "category",
-            placeholder: "Category",
-            component: "dropdown",
+            name: 'category',
+            placeholder: 'Category',
+            component: 'dropdown',
             options: CategoryOptionsByBusiness.BOARDER,
           },
           {
-            name: "subCategory",
-            placeholder: "Sub category",
-            component: "dropdown",
+            name: 'subCategory',
+            placeholder: 'Sub category',
+            component: 'dropdown',
             options: SubCategoryOptions,
           },
         ],
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "itemType",
-            placeholder: "Item type",
-            component: "dropdown",
+            name: 'itemType',
+            placeholder: 'Item type',
+            component: 'dropdown',
             options: ItemTypeOptions,
           },
           {
-            name: "department",
-            placeholder: "Department",
-            component: "dropdown",
+            name: 'department',
+            placeholder: 'Department',
+            component: 'dropdown',
             options: DepartmentOptions,
           },
         ],
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "productUsage",
-            placeholder: "Intended use",
-            component: "dropdown",
+            name: 'productUsage',
+            placeholder: 'Intended use',
+            component: 'dropdown',
             options: IntendedUsageOptions.BOARDER,
           },
           {
-            name: "animalStage",
-            placeholder: "Animal stage",
-            component: "dropdown",
+            name: 'animalStage',
+            placeholder: 'Animal stage',
+            component: 'dropdown',
             options: AnimalStageOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "description",
-          placeholder: "Description",
-          component: "textarea",
+          name: 'description',
+          placeholder: 'Description',
+          component: 'textarea',
         },
       },
     ],
     classification: [
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "breedingUse",
-          placeholder: "Breeding use",
-          component: "dropdown",
+          name: 'breedingUse',
+          placeholder: 'Breeding use',
+          component: 'dropdown',
           options: BreedingUseOptions,
         },
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "form",
-            placeholder: "Form / Presentation",
-            component: "dropdown",
+            name: 'form',
+            placeholder: 'Form / Presentation',
+            component: 'dropdown',
             options: FormOptions,
           },
           {
-            name: "unitofMeasure",
-            placeholder: "Unit of Measure (Base)",
-            component: "dropdown",
+            name: 'unitofMeasure',
+            placeholder: 'Unit of Measure (Base)',
+            component: 'dropdown',
             options: UnitOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "strength",
-          placeholder: "Strength",
-          component: "text",
+          name: 'strength',
+          placeholder: 'Strength',
+          component: 'text',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "packSize",
-          placeholder: "Pack size / Quantity per pack",
-          component: "text",
+          name: 'packSize',
+          placeholder: 'Pack size / Quantity per pack',
+          component: 'text',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "temperatureCondition",
-          placeholder: "Temperature condition",
-          component: "dropdown",
+          name: 'temperatureCondition',
+          placeholder: 'Temperature condition',
+          component: 'dropdown',
           options: TemperatureConditionOptions,
         },
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "species",
-            placeholder: "Species",
-            component: "multiSelect",
+            name: 'species',
+            placeholder: 'Species',
+            component: 'multiSelect',
             options: SpeciesOptions,
           },
           {
-            name: "usageType",
-            placeholder: "Usage type",
-            component: "dropdown",
+            name: 'usageType',
+            placeholder: 'Usage type',
+            component: 'dropdown',
             options: UsageTypeOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "litterGroup",
-          placeholder: "Litter group / Batch name",
-          component: "text",
+          name: 'litterGroup',
+          placeholder: 'Litter group / Batch name',
+          component: 'text',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "shelfLife",
-          placeholder: "Shelf life (optional)",
-          component: "text",
+          name: 'shelfLife',
+          placeholder: 'Shelf life (optional)',
+          component: 'text',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "heatCycle",
-          placeholder: "Heat cycle kit included",
-          component: "dropdown",
+          name: 'heatCycle',
+          placeholder: 'Heat cycle kit included',
+          component: 'dropdown',
           options: HeatCycleOptions,
         },
       },
     ],
     pricing: commonPricingFields,
     vendor: [
-      field("supplierName", "Supplier name", "text"),
-      field("brand", "Brand", "text"),
-      field("vendor", "Vendor type", "dropdown", VendorOptions),
-      field("license", "Supplier product code", "text"),
-      field("paymentTerms", "Payment terms", "dropdown", PaymentTermsOptions),
+      field('supplierName', 'Supplier name', 'text'),
+      field('brand', 'Brand', 'text'),
+      field('vendor', 'Vendor type', 'dropdown', VendorOptions),
+      field('license', 'Supplier product code', 'text'),
+      field('paymentTerms', 'Payment terms', 'dropdown', PaymentTermsOptions),
     ],
     stock: commonStockFields(false),
     batch: [
-      field("batch", "Batch / Lot Number", "text"),
-      row(
-        f("quantity", "Quantity", "text"),
-        f("allocated", "Allocated", "text")
-      ),
-      field("litterId", "Manufacture date", "text"),
-      field("manufactureDate", "Associated litter ID", "date"),
-      field("expiryDate", "Expiry date", "date"),
-      field("nextRefillDate", "Next refill date", "date"),
+      field('batch', 'Batch / Lot Number', 'text'),
+      row(f('quantity', 'Quantity', 'text'), f('allocated', 'Allocated', 'text')),
+      field('litterId', 'Manufacture date', 'text'),
+      field('manufactureDate', 'Associated litter ID', 'date'),
+      field('expiryDate', 'Expiry date', 'date'),
+      field('nextRefillDate', 'Next refill date', 'date'),
     ],
   },
   BOARDER: {
     basicInfo: [
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "name",
-          placeholder: "Item name",
-          component: "text",
+          name: 'name',
+          placeholder: 'Item name',
+          component: 'text',
         },
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "category",
-            placeholder: "Category",
-            component: "dropdown",
+            name: 'category',
+            placeholder: 'Category',
+            component: 'dropdown',
             options: CategoryOptionsByBusiness.BREEDER,
           },
           {
-            name: "subCategory",
-            placeholder: "Sub category",
-            component: "dropdown",
+            name: 'subCategory',
+            placeholder: 'Sub category',
+            component: 'dropdown',
             options: SubCategoryOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "department",
-          placeholder: "Department",
-          component: "dropdown",
+          name: 'department',
+          placeholder: 'Department',
+          component: 'dropdown',
           options: DepartmentOptions,
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "skuCode",
-          placeholder: "SKU / Code",
-          component: "text",
+          name: 'skuCode',
+          placeholder: 'SKU / Code',
+          component: 'text',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "productUsage",
-          placeholder: "Usage location",
-          component: "dropdown",
+          name: 'productUsage',
+          placeholder: 'Usage location',
+          component: 'dropdown',
           options: IntendedUsageOptions.BREEDER,
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "description",
-          placeholder: "Description",
-          component: "textarea",
+          name: 'description',
+          placeholder: 'Description',
+          component: 'textarea',
         },
       },
     ],
     classification: [
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "intakeType",
-          placeholder: "Item type",
-          component: "dropdown",
+          name: 'intakeType',
+          placeholder: 'Item type',
+          component: 'dropdown',
           options: IntakeTypeOptions,
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "form",
-          placeholder: "Form / Presentation",
-          component: "dropdown",
+          name: 'form',
+          placeholder: 'Form / Presentation',
+          component: 'dropdown',
           options: FormOptions,
         },
       },
       {
-        kind: "row",
+        kind: 'row',
         fields: [
           {
-            name: "species",
-            placeholder: "Species",
-            component: "multiSelect",
+            name: 'species',
+            placeholder: 'Species',
+            component: 'multiSelect',
             options: SpeciesOptions,
           },
           {
-            name: "administration",
-            placeholder: "Administration",
-            component: "dropdown",
+            name: 'administration',
+            placeholder: 'Administration',
+            component: 'dropdown',
             options: AdminstrationOptions,
           },
         ],
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "unitofMeasure",
-          placeholder: "Unit of Measure (Base)",
-          component: "dropdown",
+          name: 'unitofMeasure',
+          placeholder: 'Unit of Measure (Base)',
+          component: 'dropdown',
           options: UnitOptions,
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "safetyClassification",
-          placeholder: "Safety classification",
-          component: "dropdown",
+          name: 'safetyClassification',
+          placeholder: 'Safety classification',
+          component: 'dropdown',
           options: SafetyClassificationOptions,
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "brand",
-          placeholder: "Brand",
-          component: "text",
+          name: 'brand',
+          placeholder: 'Brand',
+          component: 'text',
         },
       },
       {
-        kind: "field",
+        kind: 'field',
         field: {
-          name: "shelfLife",
-          placeholder: "Shelf life (optional)",
-          component: "text",
+          name: 'shelfLife',
+          placeholder: 'Shelf life (optional)',
+          component: 'text',
         },
       },
     ],

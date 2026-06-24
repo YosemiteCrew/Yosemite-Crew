@@ -3,6 +3,16 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { AppointmentWithCompanion } from '@/app/features/appointments/types/appointments';
+import type { Appointment } from '@yosemite-crew/types';
+
+const withCompanionFallback = (appointment?: Appointment): AppointmentWithCompanion | null => {
+  const companion = appointment?.companion ?? appointment?.patient;
+  if (!appointment || !companion) return null;
+  return {
+    ...appointment,
+    companion,
+  };
+};
 
 export const useLoadAppointmentsForPrimaryOrg = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -26,7 +36,8 @@ export const useAppointmentsForPrimaryOrg = (): AppointmentWithCompanion[] => {
     const ids = appointmentIdsByOrgId[primaryOrgId] ?? [];
     return ids
       .map((id) => appointmentsById[id])
-      .filter((a): a is AppointmentWithCompanion => Boolean(a?.companion));
+      .map(withCompanionFallback)
+      .filter((appointment): appointment is AppointmentWithCompanion => appointment !== null);
   }, [primaryOrgId, appointmentsById, appointmentIdsByOrgId]);
 };
 
@@ -41,7 +52,8 @@ export const useAppointmentsForCompanionInPrimaryOrg = (
     const ids = appointmentIdsByOrgId[primaryOrgId] ?? [];
     return ids
       .map((id) => appointmentsById[id])
-      .filter((a): a is AppointmentWithCompanion => Boolean(a?.companion))
-      .filter((a) => a.companion.id === companionId);
+      .map(withCompanionFallback)
+      .filter((appointment): appointment is AppointmentWithCompanion => appointment !== null)
+      .filter((appointment) => appointment.companion.id === companionId);
   }, [primaryOrgId, companionId, appointmentsById, appointmentIdsByOrgId]);
 };

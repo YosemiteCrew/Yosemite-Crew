@@ -612,7 +612,6 @@ describe('formsSlice', () => {
       expect(formApi.startSigning).toHaveBeenCalledWith({
         submissionId: 'sub-1',
         accessToken: mockAccessToken,
-        userId: mockUserId,
       });
       expect(store.getState().forms.signingBySubmission['sub-1']).toBe(false);
 

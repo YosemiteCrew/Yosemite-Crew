@@ -5,8 +5,48 @@ import { PrescriptionController } from "src/controllers/web/prescription.control
 
 const router = Router();
 
+router.get(
+  "/organisations/:organisationId/prescription-dispense-requests",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["inventory:view:any", "prescription:view:any"]),
+  (req, res) => PrescriptionController.listDispenseRequests(req, res),
+);
+
+router.get(
+  "/organisations/:organisationId/prescription-dispense-requests/:dispenseRequestId",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["inventory:view:any", "prescription:view:any"]),
+  (req, res) => PrescriptionController.getDispenseRequest(req, res),
+);
+
+router.get(
+  "/organisations/:organisationId/:prescriptionId/label.pdf",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["prescription:view:any"]),
+  (req, res) => PrescriptionController.generateLabelPdf(req, res),
+);
+
 router.post(
-  "/organisations/:organisationId/:prescriptionId/$reserve",
+  "/organisations/:organisationId/:prescriptionId/labels",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["prescription:view:any"]),
+  (req, res) => PrescriptionController.generateLabels(req, res),
+);
+
+router.post(
+  String.raw`/organisations/:organisationId/:prescriptionId/\$finalize`,
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["prescription:edit:any"]),
+  (req, res) => PrescriptionController.finalize(req, res),
+);
+
+router.post(
+  String.raw`/organisations/:organisationId/:prescriptionId/\$reserve`,
   authorizeCognito,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any", "inventory:edit:any"]),
@@ -14,7 +54,7 @@ router.post(
 );
 
 router.post(
-  "/organisations/:organisationId/:prescriptionId/$dispense",
+  String.raw`/organisations/:organisationId/:prescriptionId/\$approve`,
   authorizeCognito,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any", "inventory:edit:any"]),
@@ -22,7 +62,23 @@ router.post(
 );
 
 router.post(
-  "/organisations/:organisationId/:prescriptionId/$return",
+  String.raw`/organisations/:organisationId/:prescriptionId/\$not-dispensed`,
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["prescription:edit:any", "inventory:edit:any"]),
+  (req, res) => PrescriptionController.notDispensed(req, res),
+);
+
+router.post(
+  String.raw`/organisations/:organisationId/:prescriptionId/\$dispense`,
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["prescription:edit:any", "inventory:edit:any"]),
+  (req, res) => PrescriptionController.dispense(req, res),
+);
+
+router.post(
+  String.raw`/organisations/:organisationId/:prescriptionId/\$return`,
   authorizeCognito,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any", "inventory:edit:any"]),
@@ -30,7 +86,7 @@ router.post(
 );
 
 router.post(
-  "/organisations/:organisationId/:prescriptionId/$void-dispense",
+  String.raw`/organisations/:organisationId/:prescriptionId/\$void-dispense`,
   authorizeCognito,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any", "inventory:edit:any"]),

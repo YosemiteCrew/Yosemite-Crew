@@ -34,7 +34,10 @@ export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
       for (const id of existingIds) delete integrationsById[id];
       const nextIds: string[] = [];
       for (const integration of integrations) {
-        const id = integration._id;
+        // Backend returns `id`; older payloads used `_id`. Resolve either so each integration
+        // is keyed by a real id (a missing key collapsed every provider onto `undefined`).
+        const id = integration.id ?? integration._id;
+        if (!id) continue;
         integrationsById[id] = integration;
         nextIds.push(id);
       }
@@ -52,7 +55,8 @@ export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
 
   upsertIntegration: (integration) =>
     set((state) => {
-      const id = integration._id;
+      const id = integration.id ?? integration._id;
+      if (!id) return state;
       const orgId = integration.organisationId;
       const integrationsById = {
         ...state.integrationsById,

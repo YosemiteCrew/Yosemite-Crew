@@ -68,13 +68,13 @@ describe('audit service', () => {
       const result = await getCompanionAuditTrail('companion-456');
 
       expect(postMock).toHaveBeenCalledWith('/v1/audit-trail/companion', {
-        companionId: 'companion-456',
+        patientId: 'companion-456',
       });
       expect(result).toEqual(mockEntries);
     });
 
     it('throws error when companion ID is missing', async () => {
-      await expect(getCompanionAuditTrail('')).rejects.toThrow('CompanionId ID missing');
+      await expect(getCompanionAuditTrail('')).rejects.toThrow('Companion ID missing');
     });
 
     it('throws error when API call fails', async () => {

@@ -50,3 +50,5 @@ chromatic-build-*.xml
 chromatic-diagnostics.json
 
 /storybook-static
+
+/backendGuidesIntegration

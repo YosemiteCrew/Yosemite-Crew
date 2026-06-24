@@ -1,4 +1,4 @@
-import React, { forwardRef, useId, useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import { IoIosWarning } from 'react-icons/io';
 import { IoTimeOutline } from 'react-icons/io5';
@@ -20,40 +20,47 @@ type TimeInputButtonProps = {
   error?: string;
   errorId?: string;
   className?: string;
+  ref?: React.Ref<HTMLButtonElement>;
 };
 
-const TimeInputButton = forwardRef<HTMLButtonElement, TimeInputButtonProps>(
-  function TimeInputButton({ value, onClick, label, error, errorId, className }, ref) {
-    return (
-      <button
-        ref={ref}
-        type="button"
-        onClick={onClick}
-        className={`peer relative flex min-h-12 w-full items-center rounded-2xl! border bg-transparent px-6 py-2.5 text-left text-body-4 text-text-primary transition-colors focus-visible:outline-none! ${
-          error ? 'border-input-border-error!' : 'border-input-border-default!'
-        } focus:border-input-border-active! ${className ?? ''}`}
-        aria-label={value ? `${label}: ${value}` : label}
-        aria-haspopup="dialog"
-        aria-describedby={error && errorId ? errorId : undefined}
+const TimeInputButton = ({
+  value,
+  onClick,
+  label,
+  error,
+  errorId,
+  className,
+  ref,
+}: TimeInputButtonProps) => {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onClick}
+      className={`peer relative flex min-h-12 w-full items-center rounded-2xl! border bg-transparent px-6 py-2.5 text-left text-body-4 text-text-primary transition-colors focus-visible:outline-none! ${
+        error ? 'border-input-border-error!' : 'border-input-border-default!'
+      } focus:border-input-border-active! ${className ?? ''}`}
+      aria-label={value ? `${label}: ${value}` : label}
+      aria-haspopup="dialog"
+      aria-describedby={error && errorId ? errorId : undefined}
+    >
+      <span aria-hidden="true">{value || ''}</span>
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute left-6 text-body-4 transition-all duration-200 ${
+          value
+            ? '-top-[11px] translate-y-0 bg-(--whitebg) px-1 text-sm! text-input-text-placeholder-active'
+            : 'top-1/2 -translate-y-1/2 text-input-text-placeholder'
+        }`}
       >
-        <span aria-hidden="true">{value || ''}</span>
-        <span
-          aria-hidden="true"
-          className={`pointer-events-none absolute left-6 text-body-4 transition-all duration-200 ${
-            value
-              ? '-top-[11px] translate-y-0 bg-(--whitebg) px-1 text-sm! text-input-text-placeholder-active'
-              : 'top-1/2 -translate-y-1/2 text-input-text-placeholder'
-          }`}
-        >
-          {label}
-        </span>
-        <span className="absolute right-6 top-1/2 -translate-y-1/2" aria-hidden="true">
-          <IoTimeOutline size={20} color="var(--color-neutral-900)" />
-        </span>
-      </button>
-    );
-  }
-);
+        {label}
+      </span>
+      <span className="absolute right-6 top-1/2 -translate-y-1/2" aria-hidden="true">
+        <IoTimeOutline size={20} color="var(--color-neutral-900)" />
+      </span>
+    </button>
+  );
+};
 
 const toDateFromTimeString = (value: string): Date | null => {
   if (!value) return null;

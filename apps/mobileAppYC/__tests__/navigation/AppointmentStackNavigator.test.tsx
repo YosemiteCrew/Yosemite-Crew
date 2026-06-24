@@ -147,7 +147,10 @@ jest.mock('@/features/appointments/screens/BusinessesListScreen', () => ({
 
 describe('AppointmentStackNavigator', () => {
   const mockState = {
-    companion: {selectedCompanionId: 'comp-123'},
+    companion: {
+      selectedCompanionId: 'comp-123',
+      companions: [{id: 'comp-123'}],
+    },
     appointments: {
       items: [
         {id: 'apt-1', companionId: 'comp-123'}, // Match
@@ -201,7 +204,10 @@ describe('AppointmentStackNavigator', () => {
       // Change selector to return a different ID that matches nothing
       const emptyState = {
         ...mockState,
-        companion: {selectedCompanionId: 'comp-999'}, // No matching appointments
+        companion: {
+          selectedCompanionId: 'comp-999',
+          companions: [{id: 'comp-999'}],
+        }, // No matching appointments
       };
 
       mockUseSelector.mockImplementation(callback => callback(emptyState));
@@ -212,11 +218,11 @@ describe('AppointmentStackNavigator', () => {
       expect(queryByTestId('MyAppointmentsScreen')).toBeNull();
     });
 
-    it('renders MyAppointmentsScreen when NO companion is selected but appointments exist', () => {
-      // Case: selectedCompanionId is undefined/null, should check if ANY appointments exist
+    it('renders MyAppointmentsEmptyScreen when NO companion is selected even if appointments exist', () => {
+      // Case: selectedCompanionId is null — hasAny is always false per selector logic, so empty screen shows
       const nullCompanionState = {
         ...mockState,
-        companion: {selectedCompanionId: null},
+        companion: {selectedCompanionId: null, companions: [{id: 'comp-123'}]},
       };
 
       mockUseSelector.mockImplementation(callback =>
@@ -224,12 +230,13 @@ describe('AppointmentStackNavigator', () => {
       );
 
       const {queryByTestId} = renderNavigator();
-      expect(queryByTestId('MyAppointmentsScreen')).toBeTruthy();
+      expect(queryByTestId('MyAppointmentsEmptyScreen')).toBeTruthy();
+      expect(queryByTestId('MyAppointmentsScreen')).toBeNull();
     });
 
     it('renders MyAppointmentsEmptyScreen when NO companion selected and NO appointments exist', () => {
       const absoluteEmptyState = {
-        companion: {selectedCompanionId: null},
+        companion: {selectedCompanionId: null, companions: []},
         appointments: {items: []},
       };
 

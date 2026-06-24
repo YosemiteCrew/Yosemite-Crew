@@ -6,6 +6,8 @@ export type ButtonSize = 'default' | 'large';
 export type BaseButtonProps = {
   text: string;
   icon?: React.ReactNode;
+  /** Render the icon after the text (e.g. trailing "→"). Defaults to `left`. */
+  iconPosition?: 'left' | 'right';
   href?: string;
   onClick?: React.MouseEventHandler<HTMLAnchorElement | HTMLButtonElement>;
   style?: React.CSSProperties;
@@ -31,6 +33,7 @@ const updateInteractionPosition = (
 const BaseButton = ({
   text,
   icon,
+  iconPosition = 'left',
   href,
   onClick,
   style,
@@ -48,6 +51,13 @@ const BaseButton = ({
       {icon}
     </span>
   ) : null;
+  const content = (
+    <>
+      {iconPosition === 'left' && iconNode}
+      <span>{text}</span>
+      {iconPosition === 'right' && iconNode}
+    </>
+  );
 
   if (href) {
     return (
@@ -71,10 +81,7 @@ const BaseButton = ({
         onPointerMove={updateInteractionPosition}
         style={style}
       >
-        <>
-          {iconNode}
-          <span>{text}</span>
-        </>
+        {content}
       </Link>
     );
   }
@@ -91,8 +98,7 @@ const BaseButton = ({
       onPointerMove={updateInteractionPosition}
       style={style}
     >
-      {iconNode}
-      <span>{text}</span>
+      {content}
     </button>
   );
 };

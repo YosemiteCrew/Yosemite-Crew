@@ -3,6 +3,7 @@ export type Specie = 'Canine' | 'Feline' | 'Equine';
 export type Option = {
   value: string;
   label: string;
+  badge?: string;
 };
 
 export type Breed = {

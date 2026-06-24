@@ -1,6 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { getInitials } from './appointmentCentralModalUtils';
+import { getSafeImageUrl } from '@/app/lib/urls';
 
 type AppointmentAvatarProps = {
   name: string;
@@ -12,9 +13,10 @@ const AppointmentAvatar = ({ name, photoUrl, size = 32 }: AppointmentAvatarProps
   const initials = getInitials(name);
 
   if (photoUrl) {
+    const safePhotoUrl = getSafeImageUrl(photoUrl, 'person');
     return (
       <Image
-        src={photoUrl}
+        src={safePhotoUrl}
         alt={name}
         width={size}
         height={size}

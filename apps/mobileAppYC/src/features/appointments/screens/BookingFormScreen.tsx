@@ -328,6 +328,7 @@ export const BookingFormScreen: React.FC = () => {
           employeeName: assignedEmployeeName,
           concern,
           emergency,
+          appointmentKinds: selectedService?.appointmentKinds,
           attachments,
         }),
       );

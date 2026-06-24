@@ -514,4 +514,86 @@ describe("AuditTrailService", () => {
       expect(err.message).toBe("Test Error");
     });
   });
+
+  describe("recordAlertMutation", () => {
+    let recordSafelySpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      recordSafelySpy = jest
+        .spyOn(AuditTrailService, "recordSafely")
+        .mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+      recordSafelySpy.mockRestore();
+    });
+
+    it("records CREATED when alerts go from empty to present", async () => {
+      await AuditTrailService.recordAlertMutation({
+        entity: "COMPANION",
+        organisationId: "org-1",
+        patientId: "comp-1",
+        actorId: "user-1",
+        previousAlerts: [],
+        nextAlerts: [{ text: "Diabetic" }],
+      });
+      expect(recordSafelySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "org-1",
+          patientId: "comp-1",
+          eventType: "COMPANION_ALERT_CREATED",
+          entityType: "COMPANION",
+          actorType: "PMS_USER",
+          actorId: "user-1",
+        }),
+      );
+    });
+
+    it("records UPDATED when the alert set changes", async () => {
+      await AuditTrailService.recordAlertMutation({
+        entity: "PARENT",
+        organisationId: "org-1",
+        patientId: "parent-1",
+        previousAlerts: [{ text: "A" }],
+        nextAlerts: [{ text: "B" }],
+      });
+      expect(recordSafelySpy).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "PARENT_ALERT_UPDATED" }),
+      );
+    });
+
+    it("records DELETED when alerts are cleared", async () => {
+      await AuditTrailService.recordAlertMutation({
+        entity: "PARENT",
+        organisationId: "org-1",
+        patientId: "parent-1",
+        previousAlerts: [{ text: "A" }],
+        nextAlerts: [],
+      });
+      expect(recordSafelySpy).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: "PARENT_ALERT_DELETED" }),
+      );
+    });
+
+    it("no-ops when the alert set is unchanged", async () => {
+      await AuditTrailService.recordAlertMutation({
+        entity: "COMPANION",
+        organisationId: "org-1",
+        patientId: "comp-1",
+        previousAlerts: [{ text: "A" }],
+        nextAlerts: [{ text: "A" }],
+      });
+      expect(recordSafelySpy).not.toHaveBeenCalled();
+    });
+
+    it("no-ops when no organisation context is available", async () => {
+      await AuditTrailService.recordAlertMutation({
+        entity: "COMPANION",
+        patientId: "comp-1",
+        previousAlerts: [],
+        nextAlerts: [{ text: "A" }],
+      });
+      expect(recordSafelySpy).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -26,6 +26,17 @@ import {
 } from '@/app/lib/appointments';
 
 type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CLINIC';
+export type AdmitAppointmentInput = {
+  admittedAt: string;
+  expectedStayDays?: number;
+  lead?: { id?: string; name?: string };
+  supportStaff?: Array<{ id?: string; name?: string }>;
+  room?: { id: string; name: string };
+  roomUnitId?: string;
+  assignedAt?: string;
+  assignedBy?: string;
+  assignmentReason?: string;
+};
 const inFlightBookableSlotsRequests = new Map<string, Promise<Slot[]>>();
 const inFlightCalendarPrefillRequests = new Map<
   string,
@@ -71,6 +82,18 @@ const compareServiceIdsAlphabetically = (left: string, right: string) => left.lo
 const getOrgIdForAppointment = (appointment: Appointment) => {
   const { primaryOrgId } = useOrgStore.getState();
   return primaryOrgId ?? appointment.organisationId;
+};
+
+const hasPatientIdentity = (patient?: Appointment['patient']) =>
+  Boolean(patient?.id?.trim() || patient?.name?.trim());
+
+const withCanonicalPatient = (appointment: Appointment): Appointment => {
+  if (hasPatientIdentity(appointment.patient)) return appointment;
+  if (!appointment.companion) return appointment;
+  return {
+    ...appointment,
+    patient: appointment.companion,
+  };
 };
 
 const extractAppointmentDTO = (response: any): AppointmentResponseDTO | null => {
@@ -158,7 +181,7 @@ export const createAppointment = async (appointment: Appointment) => {
       ...appointment,
       organisationId: primaryOrgId,
     };
-    const fhirAppointment = toAppointmentResponseDTO(payload);
+    const fhirAppointment = toAppointmentResponseDTO(withCanonicalPatient(payload));
     const res = await postData<{
       data: { appointment: AppointmentResponseDTO };
     }>('/fhir/v1/appointment/pms?createPayment=true', fhirAppointment);
@@ -181,10 +204,12 @@ export const updateAppointment = async (payload: Appointment) => {
     return;
   }
   try {
-    const fhirAppointment = toAppointmentResponseDTO({
-      ...payload,
-      organisationId: organisationIdForRequest,
-    });
+    const fhirAppointment = toAppointmentResponseDTO(
+      withCanonicalPatient({
+        ...payload,
+        organisationId: organisationIdForRequest,
+      })
+    );
     const res = await patchData<{
       data: AppointmentResponseDTO;
     }>('/fhir/v1/appointment/pms/' + organisationIdForRequest + '/' + payload.id, fhirAppointment);
@@ -389,7 +414,7 @@ const performAppointmentAction = async (
       };
     }
 
-    const fhirAppointment = toAppointmentResponseDTO(appointmentPayload);
+    const fhirAppointment = toAppointmentResponseDTO(withCanonicalPatient(appointmentPayload));
     const res = await patchData<{
       data: { appointment: AppointmentResponseDTO };
     }>(
@@ -462,6 +487,117 @@ export const updateAppointmentPaymentStatus = async (
     ...appointment,
     paymentStatus,
   } as Appointment);
+};
+
+export const admitAppointment = async (
+  organisationId: string,
+  appointmentId: string,
+  input: AdmitAppointmentInput
+) => {
+  if (!organisationId) throw new Error('Organisation ID missing');
+  if (!appointmentId) throw new Error('Appointment ID missing');
+  try {
+    const res = await postData(
+      `/fhir/v1/appointment/pms/${organisationId}/${appointmentId}/admit`,
+      input
+    );
+    return res.data;
+  } catch (err) {
+    console.error('Failed to admit appointment:', err);
+    throw err;
+  }
+};
+
+export const assignEncounterUnit = async ({
+  encounterId,
+  unitId,
+  assignedBy,
+  reason,
+}: {
+  encounterId?: string;
+  unitId?: string;
+  assignedBy?: string;
+  reason?: string;
+}) => {
+  if (!encounterId || !unitId) return;
+  type EncounterParameter = { name: string; valueString?: string; valueDateTime?: string };
+  const parameters: EncounterParameter[] = [
+    { name: 'unitId', valueString: unitId },
+    { name: 'assignedAt', valueDateTime: new Date().toISOString() },
+  ];
+  if (assignedBy) parameters.push({ name: 'assignedBy', valueString: assignedBy });
+  if (reason) parameters.push({ name: 'reason', valueString: reason });
+
+  try {
+    await postData(`/fhir/v1/encounter/${encounterId}/$assign-unit`, {
+      resourceType: 'Parameters',
+      parameter: parameters,
+    });
+  } catch (err) {
+    console.error('Failed to assign encounter unit:', err);
+    throw err;
+  }
+};
+
+const postEncounterLifecycleOperation = async ({
+  encounterId,
+  operation,
+  logLabel,
+}: {
+  encounterId?: string;
+  operation: '$ready-for-discharge' | '$undo-ready-for-discharge';
+  logLabel: string;
+}) => {
+  if (!encounterId) return;
+  try {
+    await postData(`/fhir/v1/encounter/${encounterId}/${operation}`, {
+      resourceType: 'Parameters',
+      parameter: [{ name: 'actedAt', valueDateTime: new Date().toISOString() }],
+    });
+  } catch (err) {
+    console.error(`Failed to ${logLabel}:`, err);
+    throw err;
+  }
+};
+
+export const markEncounterReadyForDischarge = (encounterId?: string) =>
+  postEncounterLifecycleOperation({
+    encounterId,
+    operation: '$ready-for-discharge',
+    logLabel: 'mark encounter ready for discharge',
+  });
+
+export const undoEncounterReadyForDischarge = (encounterId?: string) =>
+  postEncounterLifecycleOperation({
+    encounterId,
+    operation: '$undo-ready-for-discharge',
+    logLabel: 'undo encounter ready for discharge',
+  });
+
+export const dischargeEncounter = async (
+  encounterId?: string,
+  dischargedAt?: string,
+  options: { periodEnd?: string; overrideReason?: string } = {}
+) => {
+  if (!encounterId) return;
+  try {
+    const parameter: { name: string; valueDateTime?: string; valueString?: string }[] = [
+      { name: 'dischargedAt', valueDateTime: dischargedAt ?? new Date().toISOString() },
+    ];
+    if (options.periodEnd) parameter.push({ name: 'periodEnd', valueDateTime: options.periodEnd });
+    // Only sent when the clinician explicitly overrides a disabled finalization
+    // gate — the backend treats this as an audited, exceptional discharge.
+    if (options.overrideReason?.trim()) {
+      parameter.push({ name: 'overrideReason', valueString: options.overrideReason.trim() });
+    }
+    await postData(`/fhir/v1/encounter/${encounterId}/$discharge`, {
+      resourceType: 'Parameters',
+      parameter,
+    });
+  } catch (err) {
+    console.error('Failed to discharge encounter:', err);
+    throw err;
+  }
 };
 
 export const consumeInventory = async (inventory: InventoryConsumeRequest) => {

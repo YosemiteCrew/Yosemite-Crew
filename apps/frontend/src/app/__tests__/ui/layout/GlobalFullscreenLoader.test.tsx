@@ -19,7 +19,7 @@ describe('GlobalFullscreenLoader', () => {
     render(<GlobalFullscreenLoader testId="global-loader" />);
 
     const loader = screen.getByTestId('global-loader');
-    expect(loader).toHaveAttribute('data-size', '120');
+    expect(loader).toHaveAttribute('data-size', '44');
     expect(loader).toHaveAttribute('data-variant', 'fullscreen-translucent');
   });
 });

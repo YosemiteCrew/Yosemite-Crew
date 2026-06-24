@@ -85,6 +85,7 @@ const buildS3Key = (
     | "temp"
     | "user"
     | "org"
+    | "inventory"
     | "custom"
     | "parent"
     | "companion"
@@ -100,6 +101,8 @@ const buildS3Key = (
       return `users/${idOrFolder}/${uuidv4()}${ext}`;
     case "org":
       return `orgs/${idOrFolder}/${uuidv4()}${ext}`;
+    case "inventory":
+      return `inventory/${idOrFolder}/${uuidv4()}${ext}`;
     case "parent":
       return `parent/${idOrFolder}/${uuidv4()}${ext}`;
     case "companion":
@@ -161,7 +164,7 @@ async function uploadBufferAsFile(
   const { location, key } = await uploadToS3(fileName, buffer, mimeType);
 
   return {
-    url: location,
+    url: getURLForKey(key),
     key,
     originalname: originalnameWithExtension,
     mimetype: mimeType,
@@ -176,6 +179,7 @@ async function generatePresignedUrl(
     | "temp"
     | "user"
     | "org"
+    | "inventory"
     | "custom"
     | "parent"
     | "companion"

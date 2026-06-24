@@ -157,6 +157,47 @@ describe('status dialogs — uninitialized / edge branches', () => {
     expect(deps.logger.info).not.toHaveBeenCalledWith('dea_report_saved', expect.any(Object));
   });
 
+  test('generateDeaReportAction warns and aborts when no DEA registration exists', () => {
+    const dialog = baseDialog();
+    dialog.showMessageBoxSync = jest.fn(() => 0); // warning → "Cancel"
+    const deps = makeDeps({
+      dialog: dialog as never,
+      deaTracker: { getExpiringSoon: () => [], getAllRegistrations: () => [] } as never,
+    });
+    createStatusDialogService(deps).generateDeaReportAction();
+    expect(deps.logger.info).not.toHaveBeenCalledWith('dea_report_saved', expect.any(Object));
+  });
+
+  test('generateDeaReportAction generates an empty template when confirmed', () => {
+    let call = 0;
+    const dialog = baseDialog();
+    // 1st prompt = warning → "Generate anyway" (1); 2nd = format picker → JSON (0)
+    dialog.showMessageBoxSync = jest.fn(() => (call++ === 0 ? 1 : 0));
+    const deps = makeDeps({
+      dialog: dialog as never,
+      deaTracker: { getExpiringSoon: () => [], getAllRegistrations: () => [] } as never,
+    });
+    createStatusDialogService(deps).generateDeaReportAction();
+    expect(deps.logger.info).toHaveBeenCalledWith('dea_report_saved', expect.any(Object));
+  });
+
+  test('showDeaStatus reports when no DEA registration is configured', () => {
+    const deps = makeDeps({
+      deaTracker: { getExpiringSoon: () => [], getAllRegistrations: () => [] } as never,
+    });
+    createStatusDialogService(deps).showDeaStatus();
+    expect(deps.dialog.showMessageBox).toHaveBeenCalled();
+  });
+
+  test('generateDeaReportAction aborts when the format picker Cancel is chosen', () => {
+    const dialog = baseDialog();
+    // Index past the three formats = the appended "Cancel" button.
+    dialog.showMessageBoxSync = jest.fn(() => 3);
+    const deps = makeDeps({ dialog: dialog as never }); // default deaTracker has a registration
+    createStatusDialogService(deps).generateDeaReportAction();
+    expect(deps.logger.info).not.toHaveBeenCalledWith('dea_report_saved', expect.any(Object));
+  });
+
   test('savePageAsPdf no-ops without a window and handles cancel', async () => {
     const noWin = makeDeps({ mainWindow: null });
     await createStatusDialogService(noWin).savePageAsPdf();

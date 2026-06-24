@@ -575,6 +575,10 @@ const createCompanionFlow = async (
       alerts: toStoredCompanionAlerts(companionFormData.alerts),
       parentId: normalizedParent.id,
     };
+    // Persist parent-level edits (e.g. client alerts) for the existing parent;
+    // createCompanion/linkCompanion only upsert the parent into the local store,
+    // so without this the alerts would disappear after a refresh.
+    await updateParent(normalizedParent);
     if (companionFormData.id) {
       return (await linkCompanion(payload, normalizedParent)) ?? undefined;
     }
@@ -665,6 +669,12 @@ const getSexLabel = (gender: string | undefined, isneutered: boolean | undefined
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+const isCompanionModalBusy = (isSubmitting: boolean, savingStatus: boolean): boolean =>
+  isSubmitting || savingStatus;
+
+const getCompanionModalLoadingLabel = (savingStatus: boolean): string =>
+  savingStatus ? 'Updating status…' : 'Saving companion…';
+
 const AddCompanionCentralModal = ({
   showModal,
   setShowModal,
@@ -730,6 +740,11 @@ const AddCompanionCentralModal = ({
   const [alertInput, setAlertInput] = useState('');
   const [alertPriority, setAlertPriority] = useState<AlertPriority>('medium');
 
+  // ── Client (parent) alerts ──
+  const [clientAlertInput, setClientAlertInput] = useState('');
+  const [clientAlertPriority, setClientAlertPriority] = useState<AlertPriority>('medium');
+  const [clientAlerts, setClientAlerts] = useState<CompanionAlert[]>([]);
+
   useLayoutEffect(() => {
     setMode(initialMode);
     setPendingStatus(null);
@@ -750,6 +765,9 @@ const AddCompanionCentralModal = ({
     setCompanionResults([]);
     setAlertInput('');
     setAlertPriority('medium');
+    setClientAlertInput('');
+    setClientAlertPriority('medium');
+    setClientAlerts([]);
   }, [defaultPhoneData.selectedCode]);
 
   useLayoutEffect(() => {
@@ -767,6 +785,7 @@ const AddCompanionCentralModal = ({
       setCompanionFormData({ ...c, alerts: fromStoredCompanionAlerts((c as any).alerts ?? []) });
       setCompanionDOB(c.dateOfBirth ? new Date(c.dateOfBirth) : null);
       setParentFormData(p);
+      setClientAlerts(fromStoredCompanionAlerts((p as { alerts?: unknown }).alerts as never));
       setParentDOB(p.birthDate ? new Date(p.birthDate) : null);
       const pd = findPhoneData(p.phoneNumber || '', p.address.country);
       setSelectedCountryCode(pd.selectedCode);
@@ -868,6 +887,7 @@ const AddCompanionCentralModal = ({
     if (!sel) return;
     parentSelectionRef.current = true; // suppress next search re-fetch
     setParentFormData(sel);
+    setClientAlerts(fromStoredCompanionAlerts((sel as { alerts?: unknown }).alerts as never));
     const pd = findPhoneData(sel.phoneNumber || '', sel.address.country);
     setSelectedCountryCode(pd.selectedCode);
     setLocalPhoneNumber(pd.localNumber);
@@ -941,6 +961,7 @@ const AddCompanionCentralModal = ({
     if (cp?.parent) {
       const p = cp.parent;
       setParentFormData(p);
+      setClientAlerts(fromStoredCompanionAlerts((p as { alerts?: unknown }).alerts as never));
       const pd = findPhoneData(p.phoneNumber || '', p.address.country);
       setSelectedCountryCode(pd.selectedCode);
       setLocalPhoneNumber(pd.localNumber);
@@ -967,6 +988,20 @@ const AddCompanionCentralModal = ({
       ...prev,
       alerts: (prev.alerts ?? []).filter((a) => a.id !== id),
     }));
+
+  // ── Handlers: client (parent) alerts ──
+  const addClientAlert = () => {
+    const label = clientAlertInput.trim();
+    if (!label) return;
+    setClientAlerts((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), label, priority: clientAlertPriority },
+    ]);
+    setClientAlertInput('');
+  };
+
+  const removeClientAlert = (id: string) =>
+    setClientAlerts((prev) => prev.filter((a) => a.id !== id));
 
   // ── Status change (view mode) ──
   const handleStatusChange = async (newStatus: RecordStatus) => {
@@ -1020,7 +1055,11 @@ const AddCompanionCentralModal = ({
     if (!validateParent() || !validateCompanion()) return;
     setIsSubmitting(true);
     try {
-      const normalizedParent = { ...parentFormData, email: normalizeEmail(parentFormData.email) };
+      const normalizedParent: StoredParent = {
+        ...parentFormData,
+        email: normalizeEmail(parentFormData.email),
+        alerts: toStoredCompanionAlerts(clientAlerts),
+      };
 
       if (mode === 'edit') {
         await handleEditSave(normalizedParent);
@@ -1050,7 +1089,10 @@ const AddCompanionCentralModal = ({
   const displayStatus: RecordStatus = pendingStatus ?? vc?.status ?? 'active';
   const statusStyle = vc ? getCompanionStatusStyle(displayStatus) : {};
   const speciesLabel = vc ? (SPECIES_LABEL[vc.type?.toLowerCase()] ?? toTitleCase(vc.type)) : '';
-  const vcAlerts: CompanionAlert[] = (vc as any)?.alerts ?? [];
+  const vcAlerts: CompanionAlert[] = fromStoredCompanionAlerts((vc as any)?.alerts ?? []);
+  const vpAlerts: CompanionAlert[] = fromStoredCompanionAlerts(
+    (vp as { alerts?: unknown } | undefined)?.alerts as never
+  );
   const companionTitle = vc && vp ? formatCompanionNameWithOwnerLastName(vc.name, vp) : '';
 
   const parentSearchOptions = useMemo(
@@ -1120,8 +1162,8 @@ const AddCompanionCentralModal = ({
         setShowModal={setShowModal}
         title={modalTitle}
         canClose={canCloseModal}
-        isLoading={isSubmitting || savingStatus}
-        loadingLabel={savingStatus ? 'Updating status…' : 'Saving companion…'}
+        isLoading={isCompanionModalBusy(isSubmitting, savingStatus)}
+        loadingLabel={getCompanionModalLoadingLabel(savingStatus)}
       >
         <div className="flex flex-col gap-6">
           {/* ══ VIEW MODE ═══════════════════════════════════════════════════════ */}
@@ -1278,6 +1320,20 @@ const AddCompanionCentralModal = ({
                     <InfoRow label="State / Province" value={fmt(vp.address?.state)} />
                     <InfoRow label="ZIP" value={fmt(vp.address?.postalCode)} />
                   </div>
+
+                  {/* Client alerts */}
+                  {vpAlerts.length > 0 && (
+                    <div className="flex flex-col gap-2 pt-1">
+                      <span className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">
+                        Alerts
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {vpAlerts.map((a) => (
+                          <AlertChipView key={a.id} alert={a} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1760,6 +1816,53 @@ const AddCompanionCentralModal = ({
                     error={parentErrors.postalCode}
                     className="min-h-12!"
                   />
+
+                  {/* Client alerts */}
+                  <div className="flex flex-col gap-2.5">
+                    <span className="text-body-4 text-text-secondary">Alerts (optional)</span>
+                    <fieldset
+                      className="grid items-center gap-2"
+                      style={{ gridTemplateColumns: '1fr 160px 48px' }}
+                    >
+                      <legend className="sr-only">Add client alert</legend>
+                      <FormInput
+                        intype="text"
+                        inname="clientAlertLabel"
+                        value={clientAlertInput}
+                        inlabel="e.g. Outstanding balance, VIP…"
+                        onChange={(e) => setClientAlertInput(e.target.value)}
+                        className="min-h-12!"
+                      />
+                      <LabelDropdown
+                        placeholder="Priority"
+                        options={ALERT_PRIORITY_OPTIONS}
+                        defaultOption={clientAlertPriority}
+                        onSelect={(o) => setClientAlertPriority(o.value as AlertPriority)}
+                        portal
+                      />
+                      <button
+                        type="button"
+                        aria-label="Add client alert"
+                        onClick={addClientAlert}
+                        disabled={!clientAlertInput.trim()}
+                        className={clsx(
+                          'flex items-center justify-center size-12 rounded-full border transition-colors',
+                          clientAlertInput.trim()
+                            ? 'border-input-border-active text-text-brand hover:bg-neutral-50'
+                            : 'border-card-border text-text-tertiary opacity-40 cursor-not-allowed'
+                        )}
+                      >
+                        <FiPlus size={16} />
+                      </button>
+                    </fieldset>
+                    {clientAlerts.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {clientAlerts.map((a) => (
+                          <AlertChipEdit key={a.id} alert={a} onRemove={removeClientAlert} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

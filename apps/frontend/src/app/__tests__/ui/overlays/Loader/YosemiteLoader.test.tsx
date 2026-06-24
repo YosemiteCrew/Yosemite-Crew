@@ -13,8 +13,8 @@ describe('YosemiteLoader', () => {
     const loader = screen.getByRole('status', { name: 'Loading' });
     expect(loader.className).toContain('yosemite-loader--inline');
 
-    const image = screen.getByRole('img', { name: 'Loading' });
-    expect(image).toHaveStyle({ width: '80px', height: '80px' });
+    const spinner = loader.querySelector('.yosemite-loader__spinner');
+    expect(spinner).toHaveStyle({ width: '80px', height: '80px' });
   });
 
   it('renders fullscreen translucent variant and label', () => {
@@ -30,7 +30,14 @@ describe('YosemiteLoader', () => {
     const loader = screen.getByRole('status', { name: 'Please wait' });
     expect(loader.className).toContain('yosemite-loader--fullscreen-translucent');
     expect(screen.getByText('Please wait')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Loading' })).toHaveStyle({ width: '120px' });
+    expect(loader.querySelector('.yosemite-loader__spinner')).toHaveStyle({ width: '120px' });
+  });
+
+  it('renders fullscreen variant', () => {
+    render(<YosemiteLoader variant="fullscreen" label="Loading page" testId="loader" />);
+
+    const loader = screen.getByRole('status', { name: 'Loading page' });
+    expect(loader.className).toContain('yosemite-loader--fullscreen');
   });
 
   it('has no axe accessibility violations for inline variant', async () => {

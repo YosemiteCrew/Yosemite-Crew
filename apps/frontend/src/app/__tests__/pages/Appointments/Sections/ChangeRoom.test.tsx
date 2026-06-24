@@ -57,8 +57,32 @@ jest.mock('@/app/hooks/useRooms', () => ({
 }));
 
 const mockUpdateAppointment = jest.fn();
+const mockAssignEncounterUnit = jest.fn();
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   updateAppointment: (...args: any[]) => mockUpdateAppointment(...args),
+  assignEncounterUnit: (...args: any[]) => mockAssignEncounterUnit(...args),
+}));
+
+const mockInitEncounter = jest.fn();
+const mockSetRoomUnit = jest.fn();
+let mockEncounterById: Record<string, any> = {};
+jest.mock('@/app/stores/appointmentWorkspaceStore', () => ({
+  useAppointmentWorkspaceStore: (selector: any) =>
+    selector({
+      encountersById: mockEncounterById,
+      initEncounter: mockInitEncounter,
+      setRoomUnit: mockSetRoomUnit,
+    }),
+}));
+
+let mockRoomState = {
+  roomUnitsById: {} as Record<string, any>,
+  roomUnitIdsByRoomId: {} as Record<string, string[]>,
+};
+jest.mock('@/app/stores/roomStore', () => ({
+  useOrganisationRoomStore: Object.assign((selector: any) => selector(mockRoomState), {
+    getState: () => mockRoomState,
+  }),
 }));
 
 import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/ChangeRoom';
@@ -71,6 +95,11 @@ const baseAppointment: any = {
 describe('ChangeRoom', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockEncounterById = {};
+    mockRoomState = {
+      roomUnitsById: {},
+      roomUnitIdsByRoomId: {},
+    };
   });
 
   it('renders when showModal is true', () => {
@@ -140,6 +169,50 @@ describe('ChangeRoom', () => {
     await waitFor(() => {
       expect(mockUpdateAppointment).toHaveBeenCalledWith(
         expect.objectContaining({ room: { id: 'room-2', name: 'Room B' } })
+      );
+      expect(setShowModal).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('renders and persists a unit when an inpatient room is assigned', async () => {
+    mockUpdateAppointment.mockResolvedValue({});
+    mockAssignEncounterUnit.mockResolvedValue({});
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-2a': {
+          id: 'unit-2a',
+          roomId: 'room-2',
+          displayName: 'Ward 2A',
+          code: '2A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-2': ['unit-2a'] },
+    };
+    const setShowModal = jest.fn();
+    render(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={setShowModal}
+        activeAppointment={{
+          ...baseAppointment,
+          appointmentKind: 'INPATIENT',
+          encounterId: 'enc-1',
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Room B' }));
+    expect(screen.getByRole('button', { name: 'Ward 2A' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+
+    await waitFor(() => {
+      expect(mockUpdateAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({ room: { id: 'room-2', name: 'Room B' } })
+      );
+      expect(mockSetRoomUnit).toHaveBeenCalledWith('appt-1', 'room-2', 'unit-2a');
+      expect(mockAssignEncounterUnit).toHaveBeenCalledWith(
+        expect.objectContaining({ encounterId: 'enc-1', unitId: 'unit-2a' })
       );
       expect(setShowModal).toHaveBeenCalledWith(false);
     });

@@ -20,6 +20,14 @@ jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
   ),
 }));
 
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
+jest.mock('@/app/lib/money', () => ({
+  formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
+}));
+
 const baseItem: PackageBreakdownItem = {
   id: 'item-1',
   type: 'CONSULTATION',
@@ -114,6 +122,11 @@ describe('PackageBreakdownTable', () => {
       render(<PackageBreakdownTable items={makeItems()} additionalDiscount={0} editable />);
       const qtyInput = screen.getByLabelText('Quantity for Test Consult');
       expect(qtyInput).toHaveValue(2);
+    });
+
+    it('renders an accessible actions column header', () => {
+      render(<PackageBreakdownTable items={makeItems()} additionalDiscount={0} editable />);
+      expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeInTheDocument();
     });
 
     it('renders discount input with correct value', () => {

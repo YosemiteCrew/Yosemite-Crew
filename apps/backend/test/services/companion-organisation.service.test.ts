@@ -30,6 +30,7 @@ jest.mock("../../src/services/parent.service", () => ({
     lastName: value.lastName,
     email: value.email,
     phoneNumber: value.phoneNumber,
+    address: value.address,
   })),
 }));
 
@@ -466,9 +467,43 @@ describe("CompanionOrganisationService", () => {
         ],
       });
 
-      (prisma.patient.findMany as jest.Mock).mockResolvedValueOnce([]);
-      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValueOnce([]);
-      (prisma.parent.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.patient.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: patientId, name: "Buddy" },
+      ]);
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          parentId,
+          patientId,
+        },
+      ]);
+      (prisma.parent.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: parentId,
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane@example.com",
+          phoneNumber: "123",
+          birthDate: null,
+          currency: null,
+          timezone: null,
+          profileImageUrl: null,
+          isProfileComplete: true,
+          linkedUserId: null,
+          createdFrom: "MANUAL",
+          alerts: null,
+          createdAt: new Date("2026-06-14T00:00:00.000Z"),
+          updatedAt: new Date("2026-06-14T00:00:00.000Z"),
+          address: {
+            addressLine: "123 Parent Lane",
+            country: "US",
+            city: "San Francisco",
+            state: "CA",
+            postalCode: "94105",
+            latitude: null,
+            longitude: null,
+          },
+        },
+      ]);
 
       const orgView =
         await CompanionOrganisationService.getLinksForOrganisation(
@@ -480,6 +515,22 @@ describe("CompanionOrganisationService", () => {
         organisationId,
         organisationType: "HOSPITAL",
         status: "ACTIVE",
+        parent: {
+          id: parentId,
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane@example.com",
+          phoneNumber: "123",
+          address: {
+            addressLine: "123 Parent Lane",
+            country: "US",
+            city: "San Francisco",
+            state: "CA",
+            postalCode: "94105",
+            latitude: null,
+            longitude: null,
+          },
+        },
       });
     });
   });

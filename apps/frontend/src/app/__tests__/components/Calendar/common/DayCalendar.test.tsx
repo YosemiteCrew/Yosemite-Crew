@@ -137,6 +137,7 @@ jest.mock('react-icons/md', () => ({
 describe('DayCalendar (Appointments)', () => {
   const handleViewAppointment = jest.fn();
   const handleDetailAppointment = jest.fn();
+  const handleOpenWorkspace = jest.fn();
   const handleRescheduleAppointment = jest.fn();
   const setCurrentDate = jest.fn();
   const originalConsoleError = console.error;
@@ -217,6 +218,7 @@ describe('DayCalendar (Appointments)', () => {
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
         handleDetailAppointment={handleDetailAppointment}
+        handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments={false}
@@ -246,6 +248,7 @@ describe('DayCalendar (Appointments)', () => {
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
         handleDetailAppointment={handleDetailAppointment}
+        handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments={false}
@@ -279,6 +282,7 @@ describe('DayCalendar (Appointments)', () => {
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
         handleDetailAppointment={handleDetailAppointment}
+        handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments
@@ -327,6 +331,7 @@ describe('DayCalendar (Appointments)', () => {
         date={baseDate}
         handleViewAppointment={handleViewAppointment}
         handleDetailAppointment={handleDetailAppointment}
+        handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
         setCurrentDate={setCurrentDate}
         canEditAppointments
@@ -335,7 +340,8 @@ describe('DayCalendar (Appointments)', () => {
 
     fireEvent.doubleClick(screen.getByRole('button', { name: /Rex/i }));
 
-    expect(handleDetailAppointment).toHaveBeenCalledWith(expect.objectContaining({ id: 'timed' }));
+    expect(handleOpenWorkspace).toHaveBeenCalledWith(expect.objectContaining({ id: 'timed' }));
+    expect(handleDetailAppointment).not.toHaveBeenCalled();
   });
 
   it('opens the custom context menu on right click', () => {

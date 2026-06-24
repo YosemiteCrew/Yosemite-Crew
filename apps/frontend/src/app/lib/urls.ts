@@ -44,6 +44,29 @@ export const getSafeIdexxIframeUrl = (
   }
 };
 
+const LOCAL_PREVIEW_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+
+export const getSafePdfPreviewUrl = (
+  src: string | null | undefined,
+  options?: { allowBlob?: boolean }
+): string => {
+  const value = String(src ?? '').trim();
+  if (!value) return '';
+  if (options?.allowBlob && value.startsWith('blob:')) return value;
+  if (value.startsWith('/') && !value.startsWith('//') && !value.includes('\\')) return value;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === 'https:') return parsed.toString();
+    if (parsed.protocol === 'http:' && LOCAL_PREVIEW_HOSTS.has(parsed.hostname)) {
+      return parsed.toString();
+    }
+    return '';
+  } catch {
+    return '';
+  }
+};
+
 const getAllowedDocumensoOrigin = (): string => {
   const configuredOrigin = process.env.NEXT_PUBLIC_DOCUMENSO_HOST ?? DEFAULT_DOCUMENSO_ORIGIN;
 
@@ -81,4 +104,62 @@ export const getSafeImageUrl = (src: string | null | undefined, type: ImageType)
   if (!value || value === 'undefined' || value === 'null') return pick(fallbackPool);
   if (/\/(undefined|null)(\?.*)?$/.test(value)) return pick(fallbackPool);
   return isHttpsImageUrl(src) ? src : pick(fallbackPool);
+};
+
+export const getSafeOrgImageUrl = (
+  src: string | null | undefined,
+  options?: { allowBlob?: boolean }
+): string => {
+  const value = String(src ?? '').trim();
+  if (!value || value === 'undefined' || value === 'null') return '';
+  if (options?.allowBlob && value.startsWith('blob:')) return value;
+  if (/^https:\/\/.+/i.test(value)) return value;
+  if (value.includes(':')) return '';
+  if (value.includes('://')) return '';
+  const normalizedKey = value.replace(/^\/+/, '');
+  return normalizedKey ? MEDIA_SOURCES.organization.fromS3Key(normalizedKey) : '';
+};
+
+const STRIPE_ALLOWED_HOST_SUFFIXES = ['stripe.com'] as const;
+
+const hasAllowedStripeHost = (hostname: string): boolean => {
+  const normalizedHost = hostname.trim().toLowerCase();
+  if (!normalizedHost) return false;
+  return STRIPE_ALLOWED_HOST_SUFFIXES.some(
+    (suffix) => normalizedHost === suffix || normalizedHost.endsWith(`.${suffix}`)
+  );
+};
+
+/**
+ * Validate a Stripe-issued redirect URL (billing portal / checkout) before
+ * navigating to it. The value comes from our backend today, but validating
+ * `https:` + a Stripe host means an unexpected/compromised value can never
+ * become an outbound redirect sink. Returns '' when the URL is not trusted.
+ */
+export const getSafeStripeRedirectUrl = (src: string | null | undefined): string => {
+  const value = String(src ?? '').trim();
+  if (!value) return '';
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') return '';
+    if (!hasAllowedStripeHost(parsed.hostname)) return '';
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * Build a safe same-origin navigation target from an internally-constructed
+ * path. Rejects anything that could escape the current origin (a scheme via
+ * `:` or a protocol-relative `//host`). Returns '' when the value is unsafe.
+ */
+export const getSafeSameOriginPath = (path: string | null | undefined): string => {
+  const value = String(path ?? '').trim();
+  if (!value) return '';
+  // Must be a root-relative path and must not smuggle a scheme or host.
+  if (!value.startsWith('/') || value.startsWith('//')) return '';
+  if (value.includes(':')) return '';
+  if (value.includes('\\')) return '';
+  return value;
 };

@@ -6,11 +6,8 @@ import { useFormsStore } from '@/app/stores/formsStore';
 import { loadForms } from '@/app/features/forms/services/formService';
 
 expect.extend(toHaveNoViolations);
-import {
-  useLoadSpecialitiesForPrimaryOrg,
-  useSpecialitiesForPrimaryOrg,
-  useServicesForPrimaryOrgSpecialities,
-} from '@/app/hooks/useSpecialities';
+import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
@@ -48,7 +45,8 @@ jest.mock('next/dynamic', () => ({
 // 1. Mock Hooks & Services
 jest.mock('@/app/stores/formsStore');
 jest.mock('@/app/features/forms/services/formService');
-jest.mock('@/app/hooks/useSpecialities');
+jest.mock('@/app/stores/revampCatalogStore');
+jest.mock('@/app/stores/orgStore');
 jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: () => ({
     can: () => true,
@@ -168,14 +166,42 @@ const mockForms = {
 };
 const mockFormIds = ['form-1', 'form-2'];
 
+const ORG_ID = 'org-1';
 const mockServices = [
-  { id: 'srv-1', name: 'General Consult', specialityId: 'spec-1' },
-  { _id: 'srv-2', name: 'General Consult', specialityId: 'spec-2' }, // Test _id fallback
-  { id: 'srv-3', name: 'Vaccination', specialityId: 'spec-1' },
+  {
+    id: 'srv-1',
+    name: 'General Consult',
+    specialityId: 'spec-1',
+    organisationId: ORG_ID,
+    status: 'ACTIVE',
+  },
+  {
+    id: 'srv-2',
+    name: 'General Consult',
+    specialityId: 'spec-2',
+    organisationId: ORG_ID,
+    status: 'ACTIVE',
+  },
+  {
+    id: 'srv-3',
+    name: 'Vaccination',
+    specialityId: 'spec-1',
+    organisationId: ORG_ID,
+    status: 'ACTIVE',
+  },
+];
+const mockPackages = [
+  {
+    id: 'pkg-1',
+    name: 'Wellness Package',
+    specialityId: 'spec-1',
+    organisationId: ORG_ID,
+    status: 'ACTIVE',
+  },
 ];
 const mockSpecialities = [
-  { _id: 'spec-1', name: 'General Practice' },
-  { _id: 'spec-2', name: 'Emergency Care' },
+  { id: 'spec-1', name: 'General Practice', organisationId: ORG_ID },
+  { id: 'spec-2', name: 'Emergency Care', organisationId: ORG_ID },
 ];
 
 describe('Forms Page', () => {
@@ -185,15 +211,30 @@ describe('Forms Page', () => {
     jest.clearAllMocks();
 
     // Default Hook Returns
-    (useLoadSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue({});
-    (useServicesForPrimaryOrgSpecialities as jest.Mock).mockReturnValue(mockServices);
-    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue(mockSpecialities);
+    const catalogState = {
+      specialities: mockSpecialities,
+      services: mockServices,
+      packages: mockPackages,
+      loadOrganisationCatalog: jest.fn().mockResolvedValue(undefined),
+      loadSpecialityCatalog: jest.fn().mockResolvedValue(undefined),
+    };
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector(catalogState)
+    );
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: ORG_ID })
+    );
     (useFormsStore as unknown as jest.Mock).mockReturnValue({
       formsById: mockForms,
       formIds: mockFormIds,
       activeFormId: 'form-1',
       setActiveForm: mockSetActiveForm,
       loading: false,
+    });
+    // Component reads the action imperatively via getState() inside effects
+    // to avoid re-subscribing; mirror that on the mock.
+    (useFormsStore as unknown as { getState: () => unknown }).getState = () => ({
+      setActiveForm: mockSetActiveForm,
     });
   });
 
@@ -392,16 +433,17 @@ describe('Forms Page', () => {
     expect(mockSetActiveForm).not.toHaveBeenCalled();
   });
 
-  it('formats duplicate service labels as Speciality / Service name', () => {
+  it('builds service and package options with badges, deduping shared names by speciality', () => {
     render(<ProtectedForms />);
     fireEvent.click(screen.getByTestId('btn-add'));
 
     const serviceOptions = JSON.parse(screen.getByTestId('service-options').textContent ?? '[]');
 
     expect(serviceOptions).toEqual([
-      { label: 'General Practice / General Consult', value: 'srv-1' },
-      { label: 'Emergency Care / General Consult', value: 'srv-2' },
-      { label: 'Vaccination', value: 'srv-3' },
+      { label: 'General Practice / General Consult', value: 'srv-1', badge: 'Service' },
+      { label: 'Emergency Care / General Consult', value: 'srv-2', badge: 'Service' },
+      { label: 'Vaccination', value: 'srv-3', badge: 'Service' },
+      { label: 'Wellness Package', value: 'pkg-1', badge: 'Package' },
     ]);
   });
 });

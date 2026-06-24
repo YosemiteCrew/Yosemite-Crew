@@ -32,4 +32,13 @@ describe('useFullscreenLoader', () => {
 
     expect(useFullscreenLoaderStore.getState().activeSources).toEqual({});
   });
+
+  it('clears all active fullscreen loader sources', () => {
+    useFullscreenLoaderStore.getState().show('auth-guard');
+    useFullscreenLoaderStore.getState().show('org-guard');
+
+    useFullscreenLoaderStore.getState().clear();
+
+    expect(useFullscreenLoaderStore.getState().activeSources).toEqual({});
+  });
 });

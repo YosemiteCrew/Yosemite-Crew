@@ -8,6 +8,7 @@ jest.mock("src/services/workspace.prisma.service", () => ({
   WorkspaceService: {
     getAppointmentBootstrap: jest.fn(),
     getEncounterBootstrap: jest.fn(),
+    getEncounterFinalizationGate: jest.fn(),
     getAppointmentDocuments: jest.fn(),
     getEncounterDocuments: jest.fn(),
     getCompanionDocuments: jest.fn(),
@@ -128,6 +129,37 @@ describe("WorkspaceController", () => {
       [],
     );
     expect(status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns the encounter finalization gate payload", async () => {
+    req.params = {
+      organisationId: "org-2",
+      encounterId: "enc-1",
+    };
+    (
+      WorkspaceService.getEncounterFinalizationGate as jest.Mock
+    ).mockResolvedValue({
+      enabled: false,
+      disabledReason: "Required forms are still pending.",
+    });
+
+    await WorkspaceController.getEncounterFinalizationGate(
+      req as Request,
+      res as Response,
+    );
+
+    expect(WorkspaceService.getEncounterFinalizationGate).toHaveBeenCalledWith(
+      {
+        organisationId: "org-2",
+        encounterId: "enc-1",
+      },
+      [],
+    );
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith({
+      enabled: false,
+      disabledReason: "Required forms are still pending.",
+    });
   });
 
   it("returns appointment documents", async () => {

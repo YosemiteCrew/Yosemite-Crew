@@ -13,39 +13,75 @@ export const CategoryOptions: Option[] = [
 
 export const HealthCategoryOptions: Option[] = [
   {
-    label: 'Hospital visits',
-    value: 'HOSPITAL_VISITS',
+    label: 'Surgery/ Procedure',
+    value: 'SURGERY_PROCEDURE',
   },
   {
-    label: 'Prescriptions & treatments',
-    value: 'PRESCRIPTIONS_AND_TREATMENTS',
+    label: 'Prescription',
+    value: 'PRESCRIPTION',
   },
   {
-    label: 'Vaccination & parasite prevention',
-    value: 'VACCINATION_AND_PARASITE_PREVENTION',
+    label: 'Vaccination',
+    value: 'VACCINATION',
   },
   {
-    label: 'Lab tests',
-    value: 'LAB_TESTS',
+    label: 'Discharge summary',
+    value: 'DISCHARGE_SUMMARY',
+  },
+  {
+    label: 'Lab test',
+    value: 'LAB_TEST',
+  },
+  {
+    label: 'Imaging/ Diagnostic',
+    value: 'IMAGING_DIAGNOSTIC',
+  },
+  {
+    label: 'Parasite prevention',
+    value: 'PARASITE_PREVENTION',
+  },
+  {
+    label: 'Medical condition',
+    value: 'MEDICAL_CONDITION',
+  },
+  {
+    label: 'Other',
+    value: 'OTHER',
   },
 ];
 
 export const HygieneCategoryOptions: Option[] = [
   {
-    label: 'Grooming visits',
-    value: 'GROOMER_VISIT',
+    label: 'Bathing',
+    value: 'BATHING',
   },
   {
-    label: 'Boarding records',
-    value: 'BOARDER_VISIT',
+    label: 'Nail trim',
+    value: 'NAIL_TRIM',
   },
   {
-    label: 'Training & behavior reports',
-    value: 'TRAINING_AND_BEHAVIOUR_REPORTS',
+    label: 'Grooming',
+    value: 'GROOMING',
   },
   {
-    label: 'Breeder interactions',
-    value: 'BREEDER_VISIT',
+    label: 'Ear cleaning',
+    value: 'EAR_CLEANING',
+  },
+  {
+    label: 'Dental cleaning',
+    value: 'DENTAL_CLEANING',
+  },
+  {
+    label: 'Skin care',
+    value: 'SKIN_CARE',
+  },
+  {
+    label: 'Anal gland expression',
+    value: 'ANAL_GLAND_EXPRESSION',
+  },
+  {
+    label: 'Other',
+    value: 'OTHER',
   },
 ];
 
@@ -87,18 +123,41 @@ export type VisitType = 'HOSPITAL' | 'GROOMER' | 'BOARDER' | 'BREEDER' | 'SHOP' 
 export type Category = 'HEALTH' | 'HYGIENE_MAINTENANCE';
 
 export type HealthSubcategory =
-  | 'HOSPITAL_VISITS'
-  | 'PRESCRIPTIONS_AND_TREATMENTS'
-  | 'VACCINATION_AND_PARASITE_PREVENTION'
-  | 'LAB_TESTS';
+  | 'SURGERY_PROCEDURE'
+  | 'PRESCRIPTION'
+  | 'VACCINATION'
+  | 'DISCHARGE_SUMMARY'
+  | 'LAB_TEST'
+  | 'IMAGING_DIAGNOSTIC'
+  | 'PARASITE_PREVENTION'
+  | 'MEDICAL_CONDITION'
+  | 'OTHER';
 
 export type HygieneSubcategory =
-  | 'GROOMER_VISIT'
-  | 'BOARDER_VISIT'
-  | 'TRAINING_AND_BEHAVIOUR_REPORTS'
-  | 'BREEDER_VISIT';
+  | 'BATHING'
+  | 'NAIL_TRIM'
+  | 'GROOMING'
+  | 'EAR_CLEANING'
+  | 'DENTAL_CLEANING'
+  | 'SKIN_CARE'
+  | 'ANAL_GLAND_EXPRESSION'
+  | 'OTHER';
 
 export type Subcategory = HealthSubcategory | HygieneSubcategory;
+
+export const getSubcategoryOptionsForCategory = (category: Category): Option[] =>
+  category === 'HEALTH' ? HealthCategoryOptions : HygieneCategoryOptions;
+
+export const getDefaultSubcategoryForCategory = (category: Category): Subcategory =>
+  getSubcategoryOptionsForCategory(category)[0].value as Subcategory;
+
+const AllSubcategoryOptions = [...HealthCategoryOptions, ...HygieneCategoryOptions];
+
+export const getCompanionDocumentCategoryLabel = (category: string): string =>
+  CategoryOptions.find((option) => option.value === category)?.label ?? category;
+
+export const getCompanionDocumentSubcategoryLabel = (subcategory: string): string =>
+  AllSubcategoryOptions.find((option) => option.value === subcategory)?.label ?? subcategory;
 
 export type CompanionRecord = {
   id?: string;
@@ -123,7 +182,7 @@ export type CompanionRecord = {
 export const emptyCompanionRecord: CompanionRecord = {
   title: '',
   category: 'HEALTH',
-  subcategory: 'HOSPITAL_VISITS',
+  subcategory: 'SURGERY_PROCEDURE',
   attachments: [],
   appointmentId: undefined,
   visitType: 'HOSPITAL',

@@ -270,25 +270,31 @@ describe("ParentService", () => {
 
   it("updates a parent and normalizes timezone", async () => {
     mockedPrisma.parent.update.mockResolvedValueOnce(mockParent);
-    mockedPrisma.parent.findUnique.mockResolvedValueOnce(mockParent);
+    // findUnique is called for the pre-update alert snapshot and twice via resolveParentRecord.
+    mockedPrisma.parent.findUnique.mockResolvedValue(mockParent);
 
-    const result = await ParentService.update("parent-1", {
-      firstName: "Jane",
-      lastName: "Doe",
-      email: "jane@example.com",
-      phoneNumber: "123",
-      birthDate: new Date("2026-01-01"),
-      timezone: "UTC+05:30 - Asia/Kolkata",
-      address: {
-        addressLine: "Line 1",
-        country: "US",
-        city: "Austin",
-        state: "TX",
-        postalCode: "73301",
-        latitude: null,
-        longitude: null,
-      },
-    } as any);
+    const result = await ParentService.update(
+      "parent-1",
+      {
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane@example.com",
+        phoneNumber: "123",
+        birthDate: new Date("2026-01-01"),
+        timezone: "UTC+05:30 - Asia/Kolkata",
+        alerts: [{ title: "Allergy", severity: "high" }],
+        address: {
+          addressLine: "Line 1",
+          country: "US",
+          city: "Austin",
+          state: "TX",
+          postalCode: "73301",
+          latitude: null,
+          longitude: null,
+        },
+      } as any,
+      { source: "pms" },
+    );
 
     expect(mockedPrisma.parent.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -296,7 +302,66 @@ describe("ParentService", () => {
         data: expect.objectContaining({ timezone: "Asia/Kolkata" }),
       }),
     );
+    expect(mockedPrisma.parent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "parent-1" },
+        data: expect.objectContaining({
+          alerts: [{ title: "Allergy", severity: "high" }],
+        }),
+      }),
+    );
     expect(result?.response.id).toBe("parent-1");
+  });
+
+  it("persists client alerts on a PMS update", async () => {
+    mockedPrisma.parent.update.mockResolvedValueOnce(mockParent);
+    mockedPrisma.parent.findUnique.mockResolvedValue(mockParent);
+
+    const alerts = [{ title: "Aggressive", severity: "high" }];
+    await ParentService.update(
+      "parent-1",
+      {
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane@example.com",
+        phoneNumber: "123",
+        alerts,
+      } as any,
+      { source: "pms" },
+    );
+
+    expect(mockedPrisma.parent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "parent-1" },
+        data: expect.objectContaining({ alerts }),
+      }),
+    );
+  });
+
+  it("does not touch client alerts on a mobile update (prevents wiping vet-set alerts)", async () => {
+    // clearAllMocks does not drain mockResolvedValueOnce queues, so reset to avoid
+    // consuming a leaked queued value and leaving this one for a later test.
+    mockedPrisma.authUserMobile.findFirst.mockReset();
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValueOnce({
+      parentId: "parent-1",
+    });
+    mockedPrisma.parent.update.mockResolvedValueOnce(mockParent);
+    mockedPrisma.parent.findUnique.mockResolvedValue(mockParent);
+
+    // A mobile self-service profile edit never carries client alerts.
+    await ParentService.update(
+      "parent-1",
+      {
+        firstName: "Jane",
+        email: "jane@example.com",
+        phoneNumber: "123",
+      } as any,
+      { source: "mobile", authUserId: "provider-1" },
+    );
+
+    const dataArg =
+      mockedPrisma.parent.update.mock.calls.at(-1)?.[0]?.data ?? {};
+    expect(dataArg).not.toHaveProperty("alerts");
   });
 
   it("clears links and auth user mapping on delete", async () => {

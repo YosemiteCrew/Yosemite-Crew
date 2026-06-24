@@ -65,8 +65,23 @@ export interface InvoiceTaxProviderAdapter {
 type AutoTaxPreviewLineItem = {
   amount: number;
   description: string;
-  quantity: number;
+  currency: string;
   tax_behavior: "exclusive" | "inclusive";
+};
+
+const resolveStripeInvoiceIssuer = (
+  liabilityAccountId?: string | null,
+): Stripe.InvoiceCreatePreviewParams.Issuer => {
+  if (liabilityAccountId) {
+    return {
+      type: "account",
+      account: liabilityAccountId,
+    };
+  }
+
+  return {
+    type: "self",
+  };
 };
 
 let stripeClient: Stripe | null = null;
@@ -204,7 +219,7 @@ const buildAutomaticTaxLineItems = (
     return {
       amount: Math.round(discountedAmount * 100),
       description: input.lineItems[index]?.description ?? `Line ${index + 1}`,
-      quantity: input.lineItems[index]?.quantity ?? 1,
+      currency: input.currency,
       tax_behavior:
         (input.taxBehavior ?? DEFAULT_TAX_BEHAVIOR) === "INCLUSIVE"
           ? "inclusive"
@@ -251,8 +266,10 @@ const buildAutomaticTaxSnapshot = async (
   }
 
   const stripe = getStripeClient();
+  const issuer = resolveStripeInvoiceIssuer(input.liabilityAccountId ?? null);
   const preview = await stripe.invoices.createPreview({
     currency: input.currency,
+    issuer,
     automatic_tax: {
       enabled: true,
       liability: input.liabilityAccountId
@@ -317,6 +334,7 @@ const buildAutomaticTaxSnapshot = async (
       invoiceDiscount: input.invoiceDiscount ?? null,
       lineItems,
       mode: input.mode,
+      issuer,
       previewId: preview.id,
       totalExcludingTax: preview.total_excluding_tax,
       totalTaxes,

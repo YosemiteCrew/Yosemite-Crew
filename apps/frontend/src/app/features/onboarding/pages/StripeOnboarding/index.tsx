@@ -17,6 +17,7 @@ import {
 } from '@stripe/react-connect-js';
 import { useSubscriptionByOrgId } from '@/app/hooks/useBilling';
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import { IoArrowBack } from 'react-icons/io5';
 
 const StripeOnboarding = () => {
   const searchParams = useSearchParams();
@@ -126,6 +127,11 @@ const StripeOnboarding = () => {
     <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       <div className="flex justify-between items-center w-full">
         <h1 className="text-text-primary text-heading-1">Stripe Onboarding</h1>
+        <Secondary
+          text="Back"
+          icon={<IoArrowBack aria-hidden="true" />}
+          onClick={() => router.back()}
+        />
       </div>
       <div className="max-w-3xl text-body-3 text-text-secondary">
         Complete your Stripe setup to accept card payments, verify tax details, and review

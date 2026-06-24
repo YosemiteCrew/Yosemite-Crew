@@ -50,8 +50,10 @@ jest.mock('@/app/ui/primitives/Buttons/Secondary', () => ({
 }));
 
 const mockAddSpeciality = jest.fn();
+let mockSpecialities: Array<{ name: string; organisationId: string }> = [];
 jest.mock('@/app/stores/revampCatalogStore', () => ({
-  useRevampCatalogStore: (selector: any) => selector({ addSpeciality: mockAddSpeciality }),
+  useRevampCatalogStore: (selector: any) =>
+    selector({ addSpeciality: mockAddSpeciality, specialities: mockSpecialities }),
 }));
 
 const mockNotify = jest.fn();
@@ -70,6 +72,7 @@ const defaultProps = {
 describe('AddSpecialityModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSpecialities = [];
   });
 
   it('renders the modal when showModal is true', () => {
@@ -121,6 +124,17 @@ describe('AddSpecialityModal', () => {
       );
       expect(setShowModal).toHaveBeenCalledWith(false);
     });
+  });
+
+  it('rejects duplicate names in the same organisation', () => {
+    mockSpecialities = [{ name: 'Dermatology', organisationId: 'org-1' }];
+    render(<AddSpecialityModal {...defaultProps} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: ' dermatology ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Speciality' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'A speciality with this name already exists.'
+    );
+    expect(mockAddSpeciality).not.toHaveBeenCalled();
   });
 
   it('trims the name before submitting', async () => {

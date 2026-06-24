@@ -19,6 +19,14 @@ describe('AppointmentAvatar', () => {
     expect(img).toHaveAttribute('src', 'https://example.com/photo.jpg');
   });
 
+  it('falls back to a safe person image for unsupported image URLs', () => {
+    render(<AppointmentAvatar name="John Doe" photoUrl="blob:https://example.com/photo.jpg" />);
+    expect(screen.getByAltText('John Doe')).not.toHaveAttribute(
+      'src',
+      'blob:https://example.com/photo.jpg'
+    );
+  });
+
   it('renders initials fallback when no photoUrl', () => {
     render(<AppointmentAvatar name="John Doe" />);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();

@@ -1,18 +1,35 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+const routerReplaceMock = jest.fn();
+const searchParamGetMock = jest.fn<null | string, [string]>(() => null);
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<unknown>) => {
     const source = loader.toString();
 
-    const MockDynamicComponent = () => {
+    const MockDynamicComponent = (props: Record<string, unknown>) => {
       if (source.includes('companions/pages/Companions/Companions')) {
         return <div data-testid="route-companions">Companions page</div>;
       }
 
       if (source.includes('features/chat/components/ChatContainer')) {
-        return <div data-testid="route-chat">Chat container</div>;
+        return (
+          <button
+            type="button"
+            data-testid="route-chat"
+            data-appointment-id={String(props.appointmentId ?? '')}
+            onClick={() => {
+              const onChannelSelect = props.onChannelSelect as
+                | ((channel: Record<string, unknown>) => void)
+                | undefined;
+              onChannelSelect?.({ id: 'channel-1' });
+            }}
+          >
+            Chat container
+          </button>
+        );
       }
 
       if (source.includes('features/inventory/pages/Inventory')) {
@@ -39,7 +56,19 @@ jest.mock('@/app/features/inventory/pages/Inventory', () => ({
 
 jest.mock('@/app/features/chat/components/ChatContainer', () => ({
   __esModule: true,
-  ChatContainer: () => <div data-testid="route-chat">Chat container</div>,
+  ChatContainer: (props: {
+    appointmentId?: string;
+    onChannelSelect?: (channel: Record<string, unknown>) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="route-chat"
+      data-appointment-id={props.appointmentId ?? ''}
+      onClick={() => props.onChannelSelect?.({ id: 'channel-1' })}
+    >
+      Chat container
+    </button>
+  ),
   default: () => <div data-testid="route-chat">Chat container</div>,
 }));
 
@@ -55,10 +84,11 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => ({
-    get: () => null,
+    get: searchParamGetMock,
   }),
   useRouter: () => ({
     push: jest.fn(),
+    replace: routerReplaceMock,
     back: jest.fn(),
     forward: jest.fn(),
     refresh: jest.fn(),
@@ -77,6 +107,12 @@ import ChatRoute, * as ChatModule from '@/app/(routes)/(app)/chat/page';
 import SignInRoute, * as SignInModule from '@/app/(routes)/(public)/signin/page';
 
 describe('protected route wrappers', () => {
+  beforeEach(() => {
+    routerReplaceMock.mockClear();
+    searchParamGetMock.mockReset();
+    searchParamGetMock.mockReturnValue(null);
+  });
+
   test('companions route renders ProtectedCompanions', () => {
     render(<CompanionsRoute />);
     expect(screen.getByTestId('route-companions')).toBeInTheDocument();
@@ -94,6 +130,19 @@ describe('protected route wrappers', () => {
     render(<ChatRoute />);
     expect(screen.getByTestId('route-chat')).toBeInTheDocument();
     expect(typeof ChatModule.default).toBe('function');
+  });
+
+  test('chat route consumes appointment deep link once channel activates', async () => {
+    searchParamGetMock.mockImplementation((key: string) =>
+      key === 'appointmentId' ? 'appt-1' : null
+    );
+
+    render(<ChatRoute />);
+
+    const chat = await screen.findByTestId('route-chat');
+    await waitFor(() => expect(chat).toHaveAttribute('data-appointment-id', 'appt-1'));
+    fireEvent.click(chat);
+    expect(routerReplaceMock).toHaveBeenCalledWith('/chat', { scroll: false });
   });
 
   test('signin route renders SignIn within Suspense', () => {

@@ -12,6 +12,9 @@ import {
   rejectAppointment,
   changeAppointmentStatus,
   updateAppointmentPaymentStatus,
+  markEncounterReadyForDischarge,
+  undoEncounterReadyForDischarge,
+  dischargeEncounter,
   consumeInventory,
   consumeBulkInventory,
 } from '@/app/features/appointments/services/appointmentService';
@@ -79,6 +82,7 @@ const mockedGetDateKeyInPreferredTimeZone = getDateKeyInPreferredTimeZone as jes
 
 // 4. Mock External DTO mappers
 jest.mock('@yosemite-crew/types', () => ({
+  ...jest.requireActual('@yosemite-crew/types'),
   fromAppointmentRequestDTO: jest.fn(),
   toAppointmentResponseDTO: jest.fn(),
 }));
@@ -291,6 +295,41 @@ describe('Appointment Service', () => {
       );
       expect(mockedFromAppointmentDTO).toHaveBeenCalledWith(returnedDTO);
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
+    });
+
+    it('uses selected companion as canonical patient when appointment patient is empty', async () => {
+      const appointment = makeBaseAppointment({
+        patient: {
+          id: '',
+          name: '',
+          species: '',
+          parent: { id: '', name: '' },
+        },
+        companion: {
+          id: 'companion-selected',
+          name: 'Luna',
+          species: 'Feline',
+          parent: { id: 'parent-selected', name: 'Mia Chen' },
+        },
+      });
+
+      mockedToAppointmentDTO.mockReturnValue({ fhir: true });
+      mockedPostData.mockResolvedValue({
+        data: { data: { appointment: { id: 'returned-dto' } as AppointmentResponseDTO } },
+      });
+      mockedFromAppointmentDTO.mockReturnValue(makeBaseAppointment({ id: 'appt-created' }));
+
+      await createAppointment(appointment);
+
+      expect(mockedToAppointmentDTO).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patient: expect.objectContaining({
+            id: 'companion-selected',
+            name: 'Luna',
+            parent: expect.objectContaining({ id: 'parent-selected', name: 'Mia Chen' }),
+          }),
+        })
+      );
     });
 
     it('handles alternate response shape at data.appointment', async () => {
@@ -572,6 +611,107 @@ describe('Appointment Service', () => {
       });
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('encounter lifecycle operations', () => {
+    it('marks an encounter ready for discharge', async () => {
+      mockedPostData.mockResolvedValue({});
+
+      await markEncounterReadyForDischarge('enc-1');
+
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/encounter/enc-1/$ready-for-discharge',
+        expect.objectContaining({
+          resourceType: 'Parameters',
+          parameter: [expect.objectContaining({ name: 'actedAt' })],
+        })
+      );
+    });
+
+    it('undoes ready for discharge against the planned backend endpoint', async () => {
+      mockedPostData.mockResolvedValue({});
+
+      await undoEncounterReadyForDischarge('enc-1');
+
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/encounter/enc-1/$undo-ready-for-discharge',
+        expect.objectContaining({
+          resourceType: 'Parameters',
+          parameter: [expect.objectContaining({ name: 'actedAt' })],
+        })
+      );
+    });
+
+    it('discharges an encounter with the supplied timestamp', async () => {
+      mockedPostData.mockResolvedValue({});
+
+      await dischargeEncounter('enc-1', '2026-05-01T10:00:00Z');
+
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/encounter/enc-1/$discharge',
+        expect.objectContaining({
+          resourceType: 'Parameters',
+          parameter: [
+            expect.objectContaining({
+              name: 'dischargedAt',
+              valueDateTime: '2026-05-01T10:00:00Z',
+            }),
+          ],
+        })
+      );
+    });
+
+    it('includes the override reason and period end when overriding the gate', async () => {
+      mockedPostData.mockResolvedValue({});
+
+      await dischargeEncounter('enc-1', '2026-05-01T10:00:00Z', {
+        periodEnd: '2026-05-01T10:00:00Z',
+        overrideReason: '  Owner requested early discharge  ',
+      });
+
+      const body = mockedPostData.mock.calls[0][1] as {
+        parameter: { name: string; valueString?: string; valueDateTime?: string }[];
+      };
+      expect(body.parameter).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'periodEnd', valueDateTime: '2026-05-01T10:00:00Z' }),
+          // The reason is trimmed before it is sent.
+          expect.objectContaining({
+            name: 'overrideReason',
+            valueString: 'Owner requested early discharge',
+          }),
+        ])
+      );
+    });
+
+    it('omits the override reason when it is blank', async () => {
+      mockedPostData.mockResolvedValue({});
+      await dischargeEncounter('enc-1', '2026-05-01T10:00:00Z', { overrideReason: '   ' });
+      const body = mockedPostData.mock.calls[0][1] as { parameter: { name: string }[] };
+      expect(body.parameter.some((p) => p.name === 'overrideReason')).toBe(false);
+    });
+
+    it('skips encounter lifecycle calls without an encounter id', async () => {
+      await markEncounterReadyForDischarge();
+      await undoEncounterReadyForDischarge();
+      await dischargeEncounter();
+
+      expect(mockedPostData).not.toHaveBeenCalled();
+    });
+
+    it('logs and rethrows encounter lifecycle errors', async () => {
+      const error = new Error('Lifecycle failed');
+      mockedPostData.mockRejectedValue(error);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(markEncounterReadyForDischarge('enc-1')).rejects.toThrow('Lifecycle failed');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to mark encounter ready for discharge:',
+        error
+      );
+      consoleSpy.mockRestore();
     });
   });
 

@@ -116,7 +116,7 @@ describe('specialityService', () => {
       await loadSpecialitiesForOrg();
 
       expect(mockStartLoading).toHaveBeenCalled();
-      expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/speciality/org-1');
+      expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/speciality/organization/org-1');
     });
 
     it('skips fetching when the selected org already has speciality data', async () => {

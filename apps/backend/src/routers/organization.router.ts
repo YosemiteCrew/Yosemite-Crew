@@ -31,6 +31,8 @@ router.post(
 router.post(
   "/logo/presigned-url/:orgId",
   authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("teams:edit:any"),
   OrganizationController.getLogoUploadUrl,
 );
 

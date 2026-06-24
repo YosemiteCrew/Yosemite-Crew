@@ -53,6 +53,18 @@ describe('SearchDropdown', () => {
     expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
   });
 
+  it('selects a result with arrow keys and enter', () => {
+    const onSelect = jest.fn();
+    render(<Wrapper onSelect={onSelect} />);
+
+    const input = screen.getByPlaceholderText('Search companion');
+    fireEvent.change(input, { target: { value: 'b' } });
+    fireEvent.keyDown(input, { key: 'End' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onSelect).toHaveBeenCalledWith('bella');
+  });
+
   it('renders error message when provided', () => {
     render(
       <SearchDropdown

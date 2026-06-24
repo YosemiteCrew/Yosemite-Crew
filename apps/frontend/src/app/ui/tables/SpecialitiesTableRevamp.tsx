@@ -17,8 +17,7 @@ type SpecialitiesTableRevampProps = {
   onManageTeam: (speciality: SpecialityWeb) => void;
 };
 
-const getRevampId = (item: SpecialityWeb): string =>
-  (item as SpecialityWeb & { revampId?: string }).revampId ?? item._id ?? '';
+const getRevampId = (item: SpecialityWeb): string => String(item._id ?? '');
 
 const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTableRevampProps) => {
   const allServices = useRevampCatalogStore(useShallow((s) => s.services));
@@ -52,7 +51,8 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
         const revampCount = id
           ? allServices.filter((s) => s.specialityId === id && s.status === 'ACTIVE').length
           : 0;
-        const count = revampCount > 0 ? revampCount : (item.services?.length ?? 0);
+        const count =
+          revampCount > 0 ? revampCount : (item.activeServiceCount ?? item.services?.length ?? 0);
         return <ProfileTitle>{count}</ProfileTitle>;
       },
     },
@@ -65,7 +65,8 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
         const revampCount = id
           ? allPackages.filter((p) => p.specialityId === id && p.status === 'ACTIVE').length
           : 0;
-        return <ProfileTitle>{revampCount}</ProfileTitle>;
+        const count = revampCount > 0 ? revampCount : (item.activePackageCount ?? 0);
+        return <ProfileTitle>{count}</ProfileTitle>;
       },
     },
     {
@@ -73,20 +74,21 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       key: 'Head',
       width: '28%',
       render: (item: SpecialityWeb) => {
-        if (!item.headName) return <ProfileTitle>{'—'}</ProfileTitle>;
         const headTeam = teams?.find((t) => t.practionerId === item.headUserId);
+        const headName = item.headName ?? headTeam?.name;
+        if (!headName) return <ProfileTitle>{'—'}</ProfileTitle>;
         const picUrl = headTeam?.image ?? item.headProfilePicUrl;
         return (
           <div className="appointment-profile">
             <Image
               src={getSafeImageUrl(picUrl, 'person')}
-              alt={item.headName}
+              alt={headName}
               width={36}
               height={36}
               className="size-9 rounded-full object-cover shrink-0"
             />
             <div className="appointment-profile-two min-w-0">
-              <div className="appointment-profile-title truncate">{item.headName}</div>
+              <div className="appointment-profile-title truncate">{headName}</div>
             </div>
           </div>
         );
@@ -114,7 +116,8 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
 
   return (
     <div className="w-full">
-      <div className="hidden xl:flex">
+      {/* Table on wide screens; the table scrolls horizontally if space is tight */}
+      <div className="hidden lg:block w-full overflow-x-auto">
         <GenericTable
           data={filteredList}
           columns={columns}
@@ -124,13 +127,14 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
           tableClassName="specialities-table"
         />
       </div>
-      <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
+      {/* Responsive card grid below lg: 1 col on mobile, 2 on sm, 3 on md */}
+      <div className="grid lg:hidden grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {filteredList.length === 0 ? (
           <NoDataMessage />
         ) : (
           filteredList.map((item, i) => (
             <SpecialitiesCard
-              key={(item.name ?? '') + i}
+              key={(item._id ?? item.name ?? '') + i}
               speciality={item}
               handleViewSpeciality={() => onManageTeam(item)}
             />

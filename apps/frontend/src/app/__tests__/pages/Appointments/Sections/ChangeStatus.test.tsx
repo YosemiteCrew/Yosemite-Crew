@@ -8,8 +8,10 @@ if (typeof globalThis.structuredClone === 'undefined') {
 }
 
 const mockChangeAppointmentStatus = jest.fn();
+const mockGetSlots = jest.fn();
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   changeAppointmentStatus: (...args: any[]) => mockChangeAppointmentStatus(...args),
+  getSlotsForServiceAndDateForPrimaryOrg: (...args: any[]) => mockGetSlots(...args),
 }));
 
 let mockTeams: any[] = [];
@@ -20,12 +22,31 @@ jest.mock('@/app/hooks/useTeam', () => ({
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ placeholder, options, onSelect, defaultOption }: any) => (
+  default: ({ placeholder, options, onSelect, defaultOption, noOptionsMessage }: any) => (
     <div>
       <span data-testid={`dropdown-${placeholder}`}>{defaultOption}</span>
+      {noOptionsMessage ? <span data-testid="lead-no-options">{noOptionsMessage}</span> : null}
       {options?.map((opt: any) => (
         <button key={opt.value} type="button" onClick={() => onSelect(opt)}>
           {opt.label}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
+jest.mock('@/app/ui/inputs/MultiSelectDropdown', () => ({
+  __esModule: true,
+  default: ({ placeholder, options, value, onChange }: any) => (
+    <div>
+      <span data-testid={`multiselect-${placeholder}`}>{(value ?? []).join(',')}</span>
+      {options?.map((opt: any) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange([...(value ?? []), opt.value])}
+        >
+          {`support-${opt.label}`}
         </button>
       ))}
     </div>
@@ -116,6 +137,8 @@ describe('ChangeStatus (Appointments)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockTeams = [];
+    // Default: no service id on the appointment → availability never fetched.
+    mockGetSlots.mockResolvedValue([]);
   });
 
   it('renders modal when showModal is true', () => {
@@ -259,5 +282,94 @@ describe('ChangeStatus (Appointments)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Upcoming' }));
     expect(screen.getByTestId('dropdown-Select lead')).toHaveTextContent('dr-1');
+  });
+
+  it('restricts lead options to vets available for the slot but keeps all support options', async () => {
+    mockTeams = [
+      { practionerId: 'dr-1', name: 'Dr. Smith' },
+      { practionerId: 'dr-2', name: 'Dr. Jones' },
+    ];
+    mockGetSlots.mockResolvedValue([
+      {
+        startTime: '2026-03-16T09:00:00.000Z',
+        endTime: '2026-03-16T09:30:00.000Z',
+        vetIds: ['dr-1'],
+      },
+    ]);
+    render(
+      <ChangeStatus
+        showModal={true}
+        setShowModal={jest.fn()}
+        activeAppointment={makeAppointment({
+          status: 'REQUESTED',
+          appointmentType: { id: 'svc-1' },
+          startTime: new Date('2026-03-16T09:00:00.000Z'),
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Upcoming' }));
+    // Lead list is filtered to the available vet only.
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Dr. Jones' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Dr. Smith' })).toBeInTheDocument();
+    // Support list still offers everyone (minus the selected lead, which is none yet).
+    expect(screen.getByRole('button', { name: 'support-Dr. Smith' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'support-Dr. Jones' })).toBeInTheDocument();
+  });
+
+  it('saves the selected lead and support staff when accepting', async () => {
+    mockTeams = [
+      { practionerId: 'dr-1', name: 'Dr. Smith' },
+      { practionerId: 'dr-2', name: 'Dr. Jones' },
+    ];
+    mockChangeAppointmentStatus.mockResolvedValue({});
+    render(
+      <ChangeStatus
+        showModal={true}
+        setShowModal={jest.fn()}
+        activeAppointment={makeAppointment({ status: 'REQUESTED' })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Upcoming' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dr. Smith' }));
+    fireEvent.click(screen.getByRole('button', { name: 'support-Dr. Jones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(mockChangeAppointmentStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lead: expect.objectContaining({ id: 'dr-1' }),
+          supportStaff: [expect.objectContaining({ id: 'dr-2', name: 'Dr. Jones' })],
+        }),
+        'UPCOMING'
+      );
+    });
+  });
+
+  it('blocks accepting when no lead is available for the slot', async () => {
+    mockTeams = [{ practionerId: 'dr-1', name: 'Dr. Smith' }];
+    mockGetSlots.mockResolvedValue([
+      { startTime: '2026-03-16T09:00:00.000Z', endTime: '2026-03-16T09:30:00.000Z', vetIds: [] },
+    ]);
+    render(
+      <ChangeStatus
+        showModal={true}
+        setShowModal={jest.fn()}
+        activeAppointment={makeAppointment({
+          status: 'REQUESTED',
+          appointmentType: { id: 'svc-1' },
+          startTime: new Date('2026-03-16T09:00:00.000Z'),
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Upcoming' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('lead-no-options')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('modal-error')).toHaveTextContent('No lead is available');
+    });
+    expect(mockChangeAppointmentStatus).not.toHaveBeenCalled();
   });
 });

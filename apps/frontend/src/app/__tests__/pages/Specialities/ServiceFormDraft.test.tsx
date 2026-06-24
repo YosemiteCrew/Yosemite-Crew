@@ -1,14 +1,19 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ServiceFormDraft from '@/app/features/organization/pages/Specialities/ServiceFormDraft';
 import { ServiceRevamp } from '@/app/features/organization/types/revamp';
 
 jest.mock('react-icons/md', () => ({
   MdOutlineArchive: () => <span data-testid="icon-archive" />,
+  MdDeleteForever: () => <span data-testid="icon-delete" />,
 }));
 jest.mock('react-icons/fi', () => ({
   FiCheck: () => <span data-testid="icon-check" />,
+}));
+jest.mock('react-icons/lu', () => ({
+  LuBedSingle: () => <span data-testid="icon-bed" />,
+  LuCheck: () => <span data-testid="icon-check-lu" />,
 }));
 
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
@@ -120,7 +125,7 @@ jest.mock('@/app/ui/Badge', () => ({
 
 const mockAddService = jest.fn();
 const mockUpdateService = jest.fn();
-const mockArchiveService = jest.fn();
+const mockDeleteService = jest.fn();
 const mockGenerateCode = jest.fn().mockReturnValue('CS-0005');
 const mockNotify = jest.fn();
 
@@ -132,7 +137,11 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: mockNotify }),
 }));
 
-jest.mock('@/app/features/organization/services/revampMockData', () => ({
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
+jest.mock('@/app/features/organization/services/catalogCalculations', () => ({
   computeServiceTotal: jest.fn(({ grossAmount, defaultDiscount }) => {
     const amt = grossAmount - (grossAmount * defaultDiscount) / 100;
     return { defaultDiscountAmt: (grossAmount * defaultDiscount) / 100, total: amt };
@@ -147,7 +156,7 @@ const setupStoreMock = () => {
       const state = {
         addService: mockAddService,
         updateService: mockUpdateService,
-        archiveService: mockArchiveService,
+        deleteService: mockDeleteService,
         generateItemCode: mockGenerateCode,
       };
       return selector(state);
@@ -203,7 +212,7 @@ describe('ServiceFormDraft', () => {
 
     it('does not render Archive button in create mode', () => {
       render(<ServiceFormDraft {...defaultProps} />);
-      expect(screen.queryByText('Archive Service')).not.toBeInTheDocument();
+      expect(screen.queryByText('Delete Service')).not.toBeInTheDocument();
     });
 
     it('shows Cancel and Save Service buttons', () => {
@@ -243,15 +252,40 @@ describe('ServiceFormDraft', () => {
       expect(screen.getByText('Max discount must be 0–100.')).toBeInTheDocument();
     });
 
-    it('calls addService and onClose when form is valid', () => {
+    it('shows default discount error when value is above 100', () => {
+      render(<ServiceFormDraft {...defaultProps} />);
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Service A' } });
+      fireEvent.change(screen.getByLabelText('Gross amt.'), { target: { value: '200' } });
+      fireEvent.change(screen.getByLabelText('Default Discount (%)'), {
+        target: { value: '150' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
+      expect(screen.getByText('Default discount must be 0–100.')).toBeInTheDocument();
+    });
+
+    it('shows default discount error when it exceeds max discount', () => {
+      render(<ServiceFormDraft {...defaultProps} />);
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Service A' } });
+      fireEvent.change(screen.getByLabelText('Gross amt.'), { target: { value: '200' } });
+      fireEvent.change(screen.getByLabelText('Default Discount (%)'), {
+        target: { value: '20' },
+      });
+      fireEvent.change(screen.getByLabelText('Max. Discount (%)'), { target: { value: '10' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
+      expect(screen.getByText('Default discount cannot exceed max discount.')).toBeInTheDocument();
+    });
+
+    it('calls addService and onClose when form is valid', async () => {
       render(<ServiceFormDraft {...defaultProps} />);
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Service' } });
       fireEvent.change(screen.getByLabelText('Gross amt.'), { target: { value: '100' } });
       fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
       expect(mockAddService).toHaveBeenCalledTimes(1);
-      expect(mockNotify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({ title: 'Service added' })
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'success',
+          expect.objectContaining({ title: 'Service added' })
+        )
       );
       expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     });
@@ -325,32 +359,40 @@ describe('ServiceFormDraft', () => {
       expect(screen.getByLabelText('Gross amt.')).toHaveValue(500);
     });
 
-    it('shows Archive Service button in edit mode', () => {
+    it('shows Delete Service button in edit mode', () => {
       render(<ServiceFormDraft {...defaultProps} editService={mockEditService} />);
-      expect(screen.getByText('Archive Service')).toBeInTheDocument();
+      expect(screen.getByText('Delete Service')).toBeInTheDocument();
     });
 
-    it('calls archiveService and onClose when Archive is clicked', () => {
+    it('confirms before deleting, then calls deleteService and onClose', async () => {
       render(<ServiceFormDraft {...defaultProps} editService={mockEditService} />);
-      fireEvent.click(screen.getByText('Archive Service'));
-      expect(mockArchiveService).toHaveBeenCalledWith('svc-edit-1');
-      expect(mockNotify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({ title: 'Service archived' })
+      // Clicking the toolbar button opens the confirmation modal — no delete yet.
+      fireEvent.click(screen.getByText('Delete Service'));
+      expect(mockDeleteService).not.toHaveBeenCalled();
+      // Confirm in the modal.
+      fireEvent.click(screen.getByText('Delete'));
+      expect(mockDeleteService).toHaveBeenCalledWith('svc-edit-1');
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'success',
+          expect.objectContaining({ title: 'Service deleted' })
+        )
       );
       expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     });
 
-    it('calls updateService on save in edit mode', () => {
+    it('calls updateService on save in edit mode', async () => {
       render(<ServiceFormDraft {...defaultProps} editService={mockEditService} />);
       fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
       expect(mockUpdateService).toHaveBeenCalledWith(
         'svc-edit-1',
         expect.objectContaining({ name: 'Existing Service' })
       );
-      expect(mockNotify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({ title: 'Service updated' })
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'success',
+          expect.objectContaining({ title: 'Service updated' })
+        )
       );
       expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { IoChevronBack } from 'react-icons/io5';
@@ -12,23 +12,46 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useSearchStore } from '@/app/stores/searchStore';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 
-const MOCK_ORG_ID = 'mock-org-001';
+const getSpecialitiesEmptyMessage = (status: string, searchQuery: string): string => {
+  if (status === 'loading') return 'Loading specialities...';
+  if (searchQuery) return `No specialities match "${searchQuery}"`;
+  return 'No specialities yet.';
+};
 
 const SpecialitiesRevamp = () => {
   const specialities = useRevampCatalogStore((s) => s.specialities);
+  const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
+  const status = useRevampCatalogStore((s) => s.status);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const searchQuery = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const openId = searchParams.get('open');
 
-  const orgId = primaryOrgId ?? MOCK_ORG_ID;
+  useEffect(() => {
+    if (!primaryOrgId) return;
+    Promise.resolve(loadOrganisationCatalog(primaryOrgId)).catch(() => undefined);
+  }, [loadOrganisationCatalog, primaryOrgId]);
 
   const filteredSpecialities = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return specialities;
-    return specialities.filter((s) => s.name.toLowerCase().includes(q));
-  }, [specialities, searchQuery]);
+    const orgSpecialities = primaryOrgId
+      ? specialities.filter((s) => s.organisationId === primaryOrgId)
+      : [];
+    if (!q) return orgSpecialities;
+    return orgSpecialities.filter((s) => s.name.toLowerCase().includes(q));
+  }, [primaryOrgId, specialities, searchQuery]);
+
+  if (!primaryOrgId) {
+    return (
+      <div className="flex flex-col w-full gap-3 px-4 md:px-8 py-6 max-w-350 mx-auto">
+        <h1 className="text-heading-2 text-text-primary">Specialities</h1>
+        <p className="text-body-4 text-text-secondary">
+          Select an organisation before managing specialities.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full gap-6 px-4 md:px-8 py-6 max-w-350 mx-auto">
@@ -69,10 +92,8 @@ const SpecialitiesRevamp = () => {
         ))}
         {filteredSpecialities.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl border border-card-border text-text-secondary">
-            <p className="text-body-3">
-              {searchQuery ? `No specialities match "${searchQuery}"` : 'No specialities yet.'}
-            </p>
-            {!searchQuery && (
+            <p className="text-body-3">{getSpecialitiesEmptyMessage(status, searchQuery)}</p>
+            {!searchQuery && status !== 'loading' && (
               <Primary
                 href="#"
                 icon={<span>+</span>}
@@ -90,7 +111,7 @@ const SpecialitiesRevamp = () => {
       <AddSpecialityModal
         showModal={addModalOpen}
         setShowModal={setAddModalOpen}
-        organisationId={orgId}
+        organisationId={primaryOrgId}
       />
     </div>
   );

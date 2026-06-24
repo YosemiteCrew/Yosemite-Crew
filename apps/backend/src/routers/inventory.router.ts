@@ -18,6 +18,15 @@ const router = Router();
    ITEMS
    ====================================================== */
 
+// Inventory item image upload URL
+router.post(
+  "/organisation/:organisationId/items/upload-url",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("inventory:edit:any"),
+  InventoryController.getItemImageUploadUrl,
+);
+
 // Create item
 router.post(
   "/items",

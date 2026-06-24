@@ -59,13 +59,13 @@ export interface MapDiscoveryViewProps {
   onSearchBarLayout?: (height: number) => void;
 }
 
-const DEFAULT_CENTER = {latitude: 37.7749, longitude: -122.4194};
-
-const buildInitialRegion = (userLocation: UserLocation | null): Region => {
-  const center = userLocation ?? DEFAULT_CENTER;
+const buildInitialRegion = (
+  userLocation: UserLocation | null,
+): Region | undefined => {
+  if (!userLocation) return undefined;
   return {
-    latitude: center.latitude,
-    longitude: center.longitude,
+    latitude: userLocation.latitude,
+    longitude: userLocation.longitude,
     latitudeDelta: INITIAL_LAT_DELTA,
     longitudeDelta: INITIAL_LNG_DELTA,
   };
@@ -136,6 +136,18 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
       500,
     );
   }, [userLocation]);
+
+  useEffect(() => {
+    if (userLocation || clinics.length === 0) return;
+    const coords = clinics
+      .filter(c => c.lat != null && c.lng != null)
+      .map(c => ({latitude: c.lat as number, longitude: c.lng as number}));
+    if (coords.length === 0) return;
+    mapRef.current?.fitToCoordinates(coords, {
+      edgePadding: {top: 80, right: 40, bottom: 220, left: 40},
+      animated: true,
+    });
+  }, [clinics, userLocation]);
 
   const selectedClinic = useMemo(
     () => clinics.find(c => c.id === selectedClinicId) ?? null,

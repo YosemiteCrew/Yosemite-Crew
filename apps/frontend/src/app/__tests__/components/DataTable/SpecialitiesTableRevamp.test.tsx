@@ -184,6 +184,19 @@ describe('SpecialitiesTableRevamp', () => {
     expect(headCols[0]).toHaveTextContent('Dr. Lee');
   });
 
+  it('resolves head name from team list when only headUserId is present', () => {
+    mockTeams = [{ practionerId: 'u-1', name: 'Dr. Team Lead', image: '/lead.png' }];
+    render(
+      <SpecialitiesTableRevamp
+        filteredList={[makeSpeciality({ headName: null, headUserId: 'u-1' })]}
+        onManageTeam={jest.fn()}
+      />
+    );
+    expect(screen.getByRole('img', { name: 'Dr. Team Lead' })).toBeInTheDocument();
+    const headCols = screen.getAllByTestId('col-Head');
+    expect(headCols[0]).toHaveTextContent('Dr. Team Lead');
+  });
+
   it('shows team member count', () => {
     render(
       <SpecialitiesTableRevamp

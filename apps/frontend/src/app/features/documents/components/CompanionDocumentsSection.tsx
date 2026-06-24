@@ -7,6 +7,8 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import {
   CompanionRecord,
   emptyCompanionRecord,
+  getCompanionDocumentCategoryLabel,
+  getCompanionDocumentSubcategoryLabel,
 } from '@/app/features/documents/types/companionDocuments';
 import {
   createCompanionDocument,
@@ -184,13 +186,13 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                     <div className="flex items-center gap-1.5">
                       <div className="text-caption-1 text-text-extra">Category:</div>
                       <div className="text-caption-1 text-text-primary">
-                        {formatTextValue(doc.category)}
+                        {getCompanionDocumentCategoryLabel(doc.category)}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="text-caption-1 text-text-extra">Sub-category:</div>
                       <div className="text-caption-1 text-text-primary">
-                        {formatTextValue(doc.subcategory)}
+                        {getCompanionDocumentSubcategoryLabel(doc.subcategory)}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">

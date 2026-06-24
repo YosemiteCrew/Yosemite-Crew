@@ -301,11 +301,10 @@ export const startFormSigning = createAsyncThunk<
   'forms/startFormSigning',
   async ({appointmentId, submissionId}, {rejectWithValue}) => {
     try {
-      const {accessToken, userId} = await ensureAccessToken();
+      const {accessToken} = await ensureAccessToken();
       const result = await formApi.startSigning({
         submissionId,
         accessToken,
-        userId,
       });
       return {
         appointmentId,

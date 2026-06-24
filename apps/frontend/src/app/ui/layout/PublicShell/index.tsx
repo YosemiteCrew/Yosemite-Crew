@@ -9,7 +9,7 @@ export default function PublicShell({ children }: { readonly children: React.Rea
     <>
       <Github />
       <Header />
-      <div className="pt-20 flex-1 lg:pt-0">{children}</div>
+      <div className="yc-public-page flex-1">{children}</div>
     </>
   );
 }

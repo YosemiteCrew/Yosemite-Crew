@@ -6,6 +6,7 @@ import { TaskService, TaskServiceError } from "src/services/task.service";
 import { taskFhirMapper } from "src/services/fhir-task.mapper";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import type { OrgRequest } from "src/middlewares/rbac";
 
 const taskResourceSchema = z
   .object({ resourceType: z.literal("Task") })
@@ -38,7 +39,13 @@ const parseAudience = (value?: string | string[]) => {
   return raw === "EMPLOYEE_TASK" || raw === "PARENT_TASK" ? raw : undefined;
 };
 
-const loadTaskOrThrow = async (taskId: string, organisationId?: string) => {
+const loadTaskOrThrow = async (input: {
+  taskId: string;
+  organisationId?: string;
+  actorId?: string;
+  canViewAny?: boolean;
+}) => {
+  const { taskId, organisationId, actorId, canViewAny } = input;
   const task = await TaskService.getById(taskId);
   if (!task) {
     throw new TaskServiceError("Task not found", 404);
@@ -48,6 +55,12 @@ const loadTaskOrThrow = async (taskId: string, organisationId?: string) => {
     throw new TaskServiceError("Task does not belong to organisation", 403);
   }
 
+  if (!canViewAny && actorId) {
+    if (task.assignedTo !== actorId && task.createdBy !== actorId) {
+      throw new TaskServiceError("Forbidden – insufficient permissions", 403);
+    }
+  }
+
   return task;
 };
 
@@ -55,9 +68,16 @@ export const TaskFhirController = {
   async listEmployeeTasks(req: Request, res: Response) {
     try {
       const query = listQuerySchema.parse(req.query);
+      const actorId = resolveUserIdFromRequest(req);
+      const canViewAny =
+        (req as OrgRequest).userPermissions?.includes("tasks:view:any") ??
+        false;
+      if (!canViewAny && !actorId) {
+        throw new TaskServiceError("Forbidden – insufficient permissions", 403);
+      }
       const tasks = await TaskService.listForEmployee({
         organisationId: req.params.organisationId,
-        userId: resolveUserIdFromRequest(req),
+        userId: canViewAny ? undefined : actorId,
         status: parseStatusList(query.status),
       });
       return res.status(200).json(taskFhirMapper.listBundle(tasks));
@@ -109,10 +129,16 @@ export const TaskFhirController = {
 
   async getById(req: Request, res: Response) {
     try {
-      const task = await loadTaskOrThrow(
-        req.params.taskId,
-        req.params.organisationId,
-      );
+      const actorId = resolveUserIdFromRequest(req);
+      const canViewAny =
+        (req as OrgRequest).userPermissions?.includes("tasks:view:any") ??
+        false;
+      const task = await loadTaskOrThrow({
+        taskId: req.params.taskId,
+        organisationId: req.params.organisationId,
+        actorId,
+        canViewAny,
+      });
       return res.status(200).json(taskFhirMapper.toFhirTask(task));
     } catch (error) {
       return handleError(error, res);
@@ -126,7 +152,15 @@ export const TaskFhirController = {
     try {
       const body = taskResourceSchema.parse(req.body) as unknown as FhirTask;
       const userId = resolveUserIdFromRequest(req) ?? "";
-      await loadTaskOrThrow(req.params.taskId, req.params.organisationId);
+      const canViewAny =
+        (req as OrgRequest).userPermissions?.includes("tasks:view:any") ??
+        false;
+      await loadTaskOrThrow({
+        taskId: req.params.taskId,
+        organisationId: req.params.organisationId,
+        actorId: userId,
+        canViewAny,
+      });
       const updated = await TaskService.updateTask(
         req.params.taskId,
         taskFhirMapper.toTaskUpdateInput(body),
@@ -151,7 +185,15 @@ export const TaskFhirController = {
       const body = taskResourceSchema.parse(req.body) as unknown as FhirTask;
       const nextStatus = taskFhirMapper.fromTaskStatus(body.status);
       const userId = resolveUserIdFromRequest(req) ?? "";
-      await loadTaskOrThrow(req.params.taskId, req.params.organisationId);
+      const canViewAny =
+        (req as OrgRequest).userPermissions?.includes("tasks:view:any") ??
+        false;
+      await loadTaskOrThrow({
+        taskId: req.params.taskId,
+        organisationId: req.params.organisationId,
+        actorId: userId,
+        canViewAny,
+      });
       const { task } = await TaskService.changeStatus(
         req.params.taskId,
         nextStatus,

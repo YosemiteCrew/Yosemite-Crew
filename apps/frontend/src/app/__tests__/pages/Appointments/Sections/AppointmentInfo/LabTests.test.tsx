@@ -167,7 +167,7 @@ describe('LabTests', () => {
       expect(createIdexxLabOrderMock).toHaveBeenCalledWith({
         organisationId: 'org-1',
         payload: expect.objectContaining({
-          companionId: 'patient-1',
+          patientId: 'patient-1',
           appointmentId: 'appt-1',
           tests: ['9126'],
           modality: 'REFERENCE_LAB',
@@ -203,7 +203,7 @@ describe('LabTests', () => {
       expect(addPatientToIdexxCensusMock).toHaveBeenCalledWith({
         organisationId: 'org-1',
         payload: expect.objectContaining({
-          companionId: 'patient-1',
+          patientId: 'patient-1',
           parentId: 'parent-1',
           ivls: ['ivls-1'],
         }),

@@ -4,7 +4,7 @@
  * Handles all chat-related API calls to the backend
  */
 
-import { getData, postData, deleteData, patchData } from "@/app/services/axios";
+import { getData, postData, deleteData, patchData } from '@/app/services/axios';
 import type {
   ChatTokenResponse,
   CreateChatSessionResponse,
@@ -14,7 +14,7 @@ import type {
   OrgDirectRequest,
   OrgGroupRequest,
   OrgUser,
-} from "@/app/features/chat/types/chat";
+} from '@/app/features/chat/types/chat';
 
 // Utility function to log errors with context
 const logError = (context: string, error: unknown, additionalInfo?: Record<string, unknown>) => {
@@ -26,7 +26,7 @@ const logError = (context: string, error: unknown, additionalInfo?: Record<strin
     ...additionalInfo,
   };
 
-  console.error("Chat Service Error:", errorInfo);
+  console.error('Chat Service Error:', errorInfo);
 
   // In a real application, you might want to send this to an error tracking service
   // errorReportingService.captureException(error, errorInfo);
@@ -39,16 +39,16 @@ const logError = (context: string, error: unknown, additionalInfo?: Record<strin
  */
 export const getChatToken = async (): Promise<ChatTokenResponse> => {
   try {
-    const response = await postData<ChatTokenResponse>("/v1/chat/pms/token");
+    const response = await postData<ChatTokenResponse>('/v1/chat/pms/token');
     return response.data;
   } catch (error) {
-    const context = "getChatToken - Failed to retrieve chat authentication token";
-    logError(context, error, { endpoint: "/v1/chat/pms/token" });
+    const context = 'getChatToken - Failed to retrieve chat authentication token';
+    logError(context, error, { endpoint: '/v1/chat/pms/token' });
 
     if (error instanceof Error) {
       throw new Error(`Failed to get chat token: ${error.message}`);
     }
-    throw new Error("Failed to get chat token due to an unknown error");
+    throw new Error('Failed to get chat token due to an unknown error');
   }
 };
 
@@ -61,8 +61,8 @@ export const getChatToken = async (): Promise<ChatTokenResponse> => {
 export const createChatSession = async (
   appointmentId: string
 ): Promise<CreateChatSessionResponse> => {
-  if (!appointmentId || typeof appointmentId !== "string") {
-    throw new Error("Invalid appointment ID provided");
+  if (!appointmentId || typeof appointmentId !== 'string') {
+    throw new Error('Invalid appointment ID provided');
   }
 
   try {
@@ -71,7 +71,7 @@ export const createChatSession = async (
     );
     return response.data;
   } catch (error) {
-    const context = "createChatSession - Failed to create or retrieve chat session";
+    const context = 'createChatSession - Failed to create or retrieve chat session';
     logError(context, error, { appointmentId });
 
     if (error instanceof Error) {
@@ -90,8 +90,8 @@ export const getChatSessions = async (
   organisationId: string,
   options: { includeClosed?: boolean } = {}
 ): Promise<ChatSessionListResponse> => {
-  if (!organisationId || typeof organisationId !== "string") {
-    throw new Error("Invalid organisation ID provided");
+  if (!organisationId || typeof organisationId !== 'string') {
+    throw new Error('Invalid organisation ID provided');
   }
 
   try {
@@ -103,7 +103,7 @@ export const getChatSessions = async (
     );
     return response.data;
   } catch (error) {
-    const context = "getChatSessions - Failed to retrieve chat sessions list";
+    const context = 'getChatSessions - Failed to retrieve chat sessions list';
     logError(context, error, {
       endpoint: `/v1/chat/pms/sessions/${organisationId}`,
       organisationId,
@@ -112,7 +112,7 @@ export const getChatSessions = async (
     if (error instanceof Error) {
       throw new Error(`Failed to get chat sessions: ${error.message}`);
     }
-    throw new Error("Failed to retrieve chat sessions list");
+    throw new Error('Failed to retrieve chat sessions list');
   }
 };
 
@@ -123,10 +123,11 @@ export const getChatSessions = async (
  * @returns Promise<CreateChatSessionResponse>
  */
 export const getChatSession = async (
-  appointmentId: string
+  appointmentId: string,
+  options?: { silent?: boolean }
 ): Promise<CreateChatSessionResponse> => {
-  if (!appointmentId || typeof appointmentId !== "string") {
-    throw new Error("Invalid appointment ID provided");
+  if (!appointmentId || typeof appointmentId !== 'string') {
+    throw new Error('Invalid appointment ID provided');
   }
 
   try {
@@ -135,8 +136,12 @@ export const getChatSession = async (
     );
     return response.data;
   } catch (error) {
-    const context = "getChatSession - Failed to retrieve specific chat session";
-    logError(context, error, { appointmentId });
+    const context = 'getChatSession - Failed to retrieve specific chat session';
+    // The mount-time status probe expects this to fail when no session exists yet;
+    // callers pass `silent` so that benign case doesn't spam the console.
+    if (!options?.silent) {
+      logError(context, error, { appointmentId });
+    }
 
     if (error instanceof Error) {
       throw new Error(`Failed to get chat session: ${error.message}`);
@@ -151,11 +156,9 @@ export const getChatSession = async (
  * @param sessionId - The session ID to close
  * @returns Promise<CloseChatSessionResponse>
  */
-export const closeChatSession = async (
-  sessionId: string
-): Promise<CloseChatSessionResponse> => {
-  if (!sessionId || typeof sessionId !== "string") {
-    throw new Error("Invalid session ID provided");
+export const closeChatSession = async (sessionId: string): Promise<CloseChatSessionResponse> => {
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new Error('Invalid session ID provided');
   }
 
   try {
@@ -164,7 +167,7 @@ export const closeChatSession = async (
     );
     return response.data;
   } catch (error) {
-    const context = "closeChatSession - Failed to close chat session";
+    const context = 'closeChatSession - Failed to close chat session';
     logError(context, error, { sessionId });
 
     if (error instanceof Error) {
@@ -177,14 +180,12 @@ export const closeChatSession = async (
 /**
  * Create a direct org chat (colleague/support DM)
  */
-export const createOrgDirectChat = async (
-  payload: OrgDirectRequest
-): Promise<OrgChatSession> => {
+export const createOrgDirectChat = async (payload: OrgDirectRequest): Promise<OrgChatSession> => {
   try {
-    const response = await postData<OrgChatSession>("/v1/chat/pms/org/direct", payload);
+    const response = await postData<OrgChatSession>('/v1/chat/pms/org/direct', payload);
     return response.data;
   } catch (error) {
-    const context = "createOrgDirectChat - Failed to create direct org chat";
+    const context = 'createOrgDirectChat - Failed to create direct org chat';
     logError(context, error, { payload });
     throw error;
   }
@@ -193,14 +194,12 @@ export const createOrgDirectChat = async (
 /**
  * Create an org group chat (team/broadcast)
  */
-export const createOrgGroupChat = async (
-  payload: OrgGroupRequest
-): Promise<OrgChatSession> => {
+export const createOrgGroupChat = async (payload: OrgGroupRequest): Promise<OrgChatSession> => {
   try {
-    const response = await postData<OrgChatSession>("/v1/chat/pms/org/group", payload);
+    const response = await postData<OrgChatSession>('/v1/chat/pms/org/group', payload);
     return response.data;
   } catch (error) {
-    const context = "createOrgGroupChat - Failed to create group org chat";
+    const context = 'createOrgGroupChat - Failed to create group org chat';
     logError(context, error, { payload });
     throw error;
   }
@@ -209,16 +208,12 @@ export const createOrgGroupChat = async (
 /**
  * List chat sessions for an organisation
  */
-export const listOrgChatSessions = async (
-  organisationId: string
-): Promise<OrgChatSession[]> => {
+export const listOrgChatSessions = async (organisationId: string): Promise<OrgChatSession[]> => {
   try {
-    const response = await getData<OrgChatSession[]>(
-      `/v1/chat/pms/sessions/${organisationId}`
-    );
+    const response = await getData<OrgChatSession[]>(`/v1/chat/pms/sessions/${organisationId}`);
     return response.data;
   } catch (error) {
-    const context = "listOrgChatSessions - Failed to list org chat sessions";
+    const context = 'listOrgChatSessions - Failed to list org chat sessions';
     logError(context, error, { organisationId });
     throw error;
   }
@@ -227,10 +222,7 @@ export const listOrgChatSessions = async (
 /**
  * Add members to a group
  */
-export const addGroupMembers = async (
-  groupId: string,
-  memberIds: string[]
-): Promise<void> => {
+export const addGroupMembers = async (groupId: string, memberIds: string[]): Promise<void> => {
   if (!groupId || !memberIds.length) return;
   await postData(`/v1/chat/pms/groups/${groupId}/members/add`, { memberIds });
 };
@@ -238,10 +230,7 @@ export const addGroupMembers = async (
 /**
  * Remove members from a group
  */
-export const removeGroupMembers = async (
-  groupId: string,
-  memberIds: string[]
-): Promise<void> => {
+export const removeGroupMembers = async (groupId: string, memberIds: string[]): Promise<void> => {
   if (!groupId || !memberIds.length) return;
   await postData(`/v1/chat/pms/groups/${groupId}/members/remove`, { memberIds });
 };
@@ -251,12 +240,9 @@ export const removeGroupMembers = async (
  */
 export const updateGroup = async (
   groupId: string,
-  payload: Partial<Pick<OrgGroupRequest, "title" | "isPrivate" | "description">>
+  payload: Partial<Pick<OrgGroupRequest, 'title' | 'isPrivate' | 'description'>>
 ): Promise<OrgChatSession> => {
-  const response = await patchData<OrgChatSession>(
-    `/v1/chat/pms/groups/${groupId}`,
-    payload
-  );
+  const response = await patchData<OrgChatSession>(`/v1/chat/pms/groups/${groupId}`, payload);
   return response.data;
 };
 
@@ -272,7 +258,7 @@ export const deleteGroup = async (groupId: string): Promise<void> => {
  */
 export const fetchOrgUsers = async (organisationId: string): Promise<OrgUser[]> => {
   if (!organisationId) {
-    throw new Error("Organisation ID is required to fetch users");
+    throw new Error('Organisation ID is required to fetch users');
   }
   try {
     const response = await getData<any[]>(
@@ -285,13 +271,11 @@ export const fetchOrgUsers = async (organisationId: string): Promise<OrgUser[]> 
         entry?.userId ||
         entry?.id,
       userId:
-        entry?.userId ||
-        entry?.userOrganisation?.userReference ||
-        entry?.userOrganisation?.userId,
+        entry?.userId || entry?.userOrganisation?.userReference || entry?.userOrganisation?.userId,
       practitionerId:
         entry?.userOrganisation?.practitioner?.reference ||
         entry?.userOrganisation?.practitionerReference,
-      name: entry?.name || entry?.userOrganisation?.name || "User",
+      name: entry?.name || entry?.userOrganisation?.name || 'User',
       email: entry?.email,
       image: entry?.profileUrl,
       role:
@@ -301,7 +285,7 @@ export const fetchOrgUsers = async (organisationId: string): Promise<OrgUser[]> 
       speciality: entry?.speciality?.name || entry?.speciality,
     })) as OrgUser[];
   } catch (error) {
-    const context = "fetchOrgUsers - Failed to fetch org users for chat search";
+    const context = 'fetchOrgUsers - Failed to fetch org users for chat search';
     logError(context, error, { organisationId });
     throw error;
   }

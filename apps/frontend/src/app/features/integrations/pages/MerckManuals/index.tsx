@@ -584,7 +584,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [readerLoading, setReaderLoading] = useState(false);
 
   const requestIdRef = useRef(0);
-  const resultCacheRef = useRef<Map<string, MerckEntry[]>>(new Map());
+  const resultCacheRef = useRef<Map<string, MerckEntry[]>>(null!);
+  resultCacheRef.current ??= new Map();
   const performSearchRef = useRef<((nextQuery?: string, fresh?: boolean) => Promise<void>) | null>(
     null
   );

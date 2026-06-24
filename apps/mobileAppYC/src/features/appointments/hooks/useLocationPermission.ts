@@ -1,5 +1,5 @@
 import {useReducer, useEffect} from 'react';
-import {Platform, PermissionsAndroid} from 'react-native';
+import {Platform, PermissionsAndroid, AppState} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import i18n from '@/localization';
 
@@ -15,17 +15,15 @@ export interface UserCoords {
 
 export interface LocationPermissionState {
   userLocation: UserLocation | null;
-  userCoords: UserCoords;
+  userCoords: UserCoords | null;
   hasPermission: boolean;
   isLoading: boolean;
-  mapCenter: UserLocation;
+  mapCenter: UserLocation | null;
 }
-
-const DEFAULT_CENTER: UserLocation = {latitude: 37.7749, longitude: -122.4194};
 const GEOLOCATION_OPTIONS = {
-  enableHighAccuracy: false,
-  timeout: 10000,
-  maximumAge: 60000,
+  enableHighAccuracy: Platform.OS === 'android',
+  timeout: Platform.OS === 'android' ? 20000 : 10000,
+  maximumAge: 0,
 };
 
 type LocationState = {
@@ -37,7 +35,8 @@ type LocationState = {
 type LocationAction =
   | {type: 'GRANTED'; location: UserLocation}
   | {type: 'DENIED'}
-  | {type: 'ERROR'};
+  | {type: 'ERROR'}
+  | {type: 'LOADING'};
 
 const initialState: LocationState = {
   userLocation: null,
@@ -58,7 +57,9 @@ function locationReducer(
       };
     case 'DENIED':
     case 'ERROR':
-      return {...state, hasPermission: false, isLoading: false};
+      return {userLocation: null, hasPermission: false, isLoading: false};
+    case 'LOADING':
+      return {...state, isLoading: true};
     default:
       return state;
   }
@@ -98,15 +99,14 @@ export const useLocationPermission = (): LocationPermissionState => {
     let cancelled = false;
 
     const fetchLocation = async () => {
+      dispatch({type: 'LOADING'});
       try {
         const granted = await requestPermission();
+        if (cancelled) return;
         if (!granted) {
-          if (!cancelled) {
-            dispatch({type: 'DENIED'});
-          }
+          dispatch({type: 'DENIED'});
           return;
         }
-
         Geolocation.getCurrentPosition(
           position => {
             if (cancelled) return;
@@ -132,16 +132,23 @@ export const useLocationPermission = (): LocationPermissionState => {
     };
 
     fetchLocation();
+
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        fetchLocation();
+      }
+    });
+
     return () => {
       cancelled = true;
+      subscription.remove();
     };
   }, []);
 
-  const mapCenter = state.userLocation ?? DEFAULT_CENTER;
-  const userCoords: UserCoords = {
-    lat: mapCenter.latitude,
-    lng: mapCenter.longitude,
-  };
+  const mapCenter = state.userLocation ?? null;
+  const userCoords: UserCoords | null = mapCenter
+    ? {lat: mapCenter.latitude, lng: mapCenter.longitude}
+    : null;
 
   return {
     userLocation: state.userLocation,

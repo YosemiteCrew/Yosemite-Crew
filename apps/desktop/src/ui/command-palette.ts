@@ -142,6 +142,14 @@ export const BUILTIN_ACTIONS: PaletteItem[] = [
     'config',
     'options',
   ]),
+  action('pin-current', 'Pin current page', 'Float the current page in an always-on-top window', [
+    'pin',
+    'float',
+    'reference',
+    'always on top',
+    'side',
+    'window',
+  ]),
   action('tab:new', 'New tab', 'Open a new browser tab', ['tab', 'add', 'open']),
   action('tab:close', 'Close tab', 'Close the current tab', ['close', 'remove', 'exit']),
   action('tab:reopen', 'Reopen closed tab', 'Restore the last closed tab', [

@@ -1,5 +1,8 @@
 import apiClient, {withAuthHeaders} from '@/shared/services/apiClient';
-import {ensureAccessContext, toErrorMessage} from '@/shared/utils/serviceHelpers';
+import {
+  ensureAccessContext,
+  toErrorMessage,
+} from '@/shared/utils/serviceHelpers';
 
 export type WithdrawalRequestPayload = {
   fullName: string;
@@ -13,11 +16,8 @@ export type WithdrawalRequestPayload = {
 export const withdrawalService = {
   async submitWithdrawal(payload: WithdrawalRequestPayload) {
     try {
-      const {accessToken, userId} = await ensureAccessContext();
-      const headers = withAuthHeaders(
-        accessToken,
-        userId ? {'x-user-id': userId} : undefined,
-      );
+      const {accessToken} = await ensureAccessContext();
+      const headers = withAuthHeaders(accessToken);
 
       const {data} = await apiClient.post(
         '/v1/account-withdrawal/withdraw',
@@ -28,7 +28,10 @@ export const withdrawalService = {
       return data;
     } catch (error) {
       throw new Error(
-        toErrorMessage(error, 'Unable to submit withdrawal request. Please try again.'),
+        toErrorMessage(
+          error,
+          'Unable to submit withdrawal request. Please try again.',
+        ),
       );
     }
   },

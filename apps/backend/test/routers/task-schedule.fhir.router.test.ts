@@ -52,13 +52,13 @@ describe("task-schedule.fhir.router", () => {
     ).toBeDefined();
     expect(
       findRoute(
-        "/organisation/:organisationId/template-instance/:instanceId/$apply",
+        String.raw`/organisation/:organisationId/template-instance/:instanceId/\$apply`,
         "post",
       ),
     ).toBeDefined();
     expect(
       findRoute(
-        "/organisation/:organisationId/template-instance/:instanceId/$regenerate",
+        String.raw`/organisation/:organisationId/template-instance/:instanceId/\$regenerate`,
         "post",
       ),
     ).toBeDefined();
@@ -83,7 +83,7 @@ describe("task-schedule.fhir.router", () => {
 
   it("protects lifecycle routes with edit permissions", () => {
     findRoute(
-      "/organisation/:organisationId/template-instance/:instanceId/$apply",
+      String.raw`/organisation/:organisationId/template-instance/:instanceId/\$apply`,
       "post",
     );
     expect(requirePermission).toHaveBeenCalledWith([

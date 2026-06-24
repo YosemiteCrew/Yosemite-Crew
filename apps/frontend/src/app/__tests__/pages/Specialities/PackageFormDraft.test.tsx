@@ -1,17 +1,23 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PackageFormDraft from '@/app/features/organization/pages/Specialities/PackageFormDraft';
 import { PackageRevamp } from '@/app/features/organization/types/revamp';
 
 jest.mock('react-icons/md', () => ({
   MdOutlineArchive: () => <span data-testid="icon-archive" />,
+  MdDeleteForever: () => <span data-testid="icon-delete" />,
+}));
+jest.mock('react-icons/lu', () => ({
+  LuBedSingle: () => <span data-testid="icon-bed" />,
+  LuCheck: () => <span data-testid="icon-check-lu" />,
 }));
 jest.mock('react-icons/fi', () => ({
   FiCheck: () => <span data-testid="icon-check" />,
 }));
 jest.mock('react-icons/io', () => ({
   IoIosSearch: () => <span data-testid="icon-search" />,
+  IoIosClose: () => <span data-testid="icon-close" />,
 }));
 
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
@@ -166,7 +172,11 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: mockNotify }),
 }));
 
-jest.mock('@/app/features/organization/services/revampMockData', () => ({
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
+jest.mock('@/app/features/organization/services/catalogCalculations', () => ({
   computePackageTotals: jest.fn((pkg: any) => ({
     totalCost: 200,
     totalItems: pkg.breakdown?.length ?? 0,
@@ -176,18 +186,73 @@ jest.mock('@/app/features/organization/services/revampMockData', () => ({
 const mockNotify = jest.fn();
 const mockAddPackage = jest.fn();
 const mockUpdatePackage = jest.fn();
-const mockArchivePackage = jest.fn();
+const mockDeletePackage = jest.fn();
+
+jest.mock('@/app/features/organization/services/catalogApiService', () => ({
+  catalogApi: {
+    searchItems: jest.fn(),
+    mapSearchItem: jest.fn((item) => item),
+  },
+}));
 
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import { catalogApi } from '@/app/features/organization/services/catalogApiService';
 
-const setupStoreMock = (packages: any[] = []) => {
+const mockSearchItems = catalogApi.searchItems as jest.MockedFunction<
+  typeof catalogApi.searchItems
+>;
+
+const mockServices = [
+  {
+    id: 'inv-syringe-1',
+    code: 'INV-0001',
+    name: 'Syringe',
+    type: 'INVENTORY',
+    grossAmount: 4,
+    currency: 'USD',
+    defaultDiscount: 0,
+    maxDiscount: 0,
+    isBookable: false,
+    isInpatientPreferred: false,
+    status: 'ACTIVE',
+  },
+  {
+    id: 'svc-consult-1',
+    code: 'CS-0001',
+    name: 'Radiographic Consultation',
+    type: 'CONSULTATION',
+    grossAmount: 100,
+    currency: 'USD',
+    defaultDiscount: 0,
+    maxDiscount: 15,
+    isBookable: true,
+    isInpatientPreferred: false,
+    status: 'ACTIVE',
+  },
+  {
+    id: 'svc-mri-1',
+    code: 'PR-0001',
+    name: 'MRI Procedure',
+    type: 'PROCEDURE',
+    grossAmount: 100,
+    currency: 'USD',
+    defaultDiscount: 0,
+    maxDiscount: 5,
+    isBookable: true,
+    isInpatientPreferred: true,
+    status: 'ACTIVE',
+  },
+];
+
+const setupStoreMock = (packages: any[] = [], services: any[] = mockServices) => {
   (useRevampCatalogStore as unknown as jest.Mock).mockImplementation(
     (selector: (s: Record<string, unknown>) => unknown) => {
       const state = {
         addPackage: mockAddPackage,
         updatePackage: mockUpdatePackage,
-        archivePackage: mockArchivePackage,
+        deletePackage: mockDeletePackage,
         packages,
+        services,
       };
       return selector(state);
     }
@@ -200,6 +265,12 @@ const defaultProps = {
   onClose: jest.fn(),
 };
 
+const addSyringeToBreakdown = () => {
+  const searchInput = screen.getByLabelText('Search catalog items');
+  fireEvent.change(searchInput, { target: { value: 'syringe' } });
+  fireEvent.click(screen.getByText('Syringe'));
+};
+
 const mockEditPackage: PackageRevamp = {
   id: 'pkg-edit-1',
   code: 'PKG-001',
@@ -207,10 +278,11 @@ const mockEditPackage: PackageRevamp = {
   description: 'A wellness package',
   specialityId: 'spec-1',
   organisationId: 'org-1',
-  durationMinutes: 60,
+  durationText: 'Approx. 60 mins',
   leadCount: 1,
   supportCount: 2,
   isBookable: true,
+  isInpatientPreferred: false,
   additionalDiscount: 5,
   breakdown: [
     {
@@ -230,6 +302,7 @@ const mockEditPackage: PackageRevamp = {
 describe('PackageFormDraft', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSearchItems.mockResolvedValue([]);
     setupStoreMock();
     defaultProps.onClose = jest.fn();
   });
@@ -246,9 +319,9 @@ describe('PackageFormDraft', () => {
       expect(screen.getByLabelText('Description')).toBeInTheDocument();
     });
 
-    it('renders Duration, Lead and Support dropdowns', () => {
+    it('renders duration text, Lead and Support controls', () => {
       render(<PackageFormDraft {...defaultProps} />);
-      expect(screen.getByLabelText('Duration')).toBeInTheDocument();
+      expect(screen.getByLabelText('Approx. duration')).toBeInTheDocument();
       expect(screen.getByLabelText('Lead')).toBeInTheDocument();
       expect(screen.getByLabelText('Support')).toBeInTheDocument();
     });
@@ -271,9 +344,9 @@ describe('PackageFormDraft', () => {
       ).toBeInTheDocument();
     });
 
-    it('does not render Archive Package button in create mode', () => {
+    it('does not render Delete Package button in create mode', () => {
       render(<PackageFormDraft {...defaultProps} />);
-      expect(screen.queryByText('Archive Package')).not.toBeInTheDocument();
+      expect(screen.queryByText('Delete Package')).not.toBeInTheDocument();
     });
 
     it('shows Cancel and Save Package buttons', () => {
@@ -291,7 +364,6 @@ describe('PackageFormDraft', () => {
     it('shows validation error when saving with empty name', () => {
       render(<PackageFormDraft {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
-      expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(screen.getByText('Package name is required.')).toBeInTheDocument();
     });
 
@@ -301,14 +373,17 @@ describe('PackageFormDraft', () => {
       expect(mockAddPackage).not.toHaveBeenCalled();
     });
 
-    it('calls addPackage and onClose when form is valid', () => {
+    it('calls addPackage and onClose when form is valid', async () => {
       render(<PackageFormDraft {...defaultProps} />);
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New Package' } });
+      addSyringeToBreakdown();
       fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
       expect(mockAddPackage).toHaveBeenCalledTimes(1);
-      expect(mockNotify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({ title: 'Package added' })
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'success',
+          expect.objectContaining({ title: 'Package added' })
+        )
       );
       expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     });
@@ -342,14 +417,15 @@ describe('PackageFormDraft', () => {
       expect(descInput.value).toBe('Package description');
     });
 
-    it('changes duration via dropdown', () => {
+    it('saves approximate duration text', () => {
       render(<PackageFormDraft {...defaultProps} />);
-      const durationDropdown = screen.getByLabelText('Duration');
+      const durationDropdown = screen.getByLabelText('Approx. duration');
       fireEvent.change(durationDropdown, { target: { value: '60' } });
       // name needed to save
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Package' } });
+      addSyringeToBreakdown();
       fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
-      expect(mockAddPackage).toHaveBeenCalledWith(expect.objectContaining({ durationMinutes: 60 }));
+      expect(mockAddPackage).toHaveBeenCalledWith(expect.objectContaining({ durationText: '60' }));
     });
 
     it('changes lead count via dropdown', () => {
@@ -357,6 +433,7 @@ describe('PackageFormDraft', () => {
       const leadDropdown = screen.getByLabelText('Lead');
       fireEvent.change(leadDropdown, { target: { value: '0' } });
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Package' } });
+      addSyringeToBreakdown();
       fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
       expect(mockAddPackage).toHaveBeenCalledWith(expect.objectContaining({ leadCount: 0 }));
     });
@@ -366,6 +443,7 @@ describe('PackageFormDraft', () => {
       const supportDropdown = screen.getByLabelText('Support');
       fireEvent.change(supportDropdown, { target: { value: '3' } });
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Package' } });
+      addSyringeToBreakdown();
       fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
       expect(mockAddPackage).toHaveBeenCalledWith(expect.objectContaining({ supportCount: 3 }));
     });
@@ -374,10 +452,29 @@ describe('PackageFormDraft', () => {
       render(<PackageFormDraft {...defaultProps} />);
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Package' } });
       fireEvent.change(screen.getByLabelText('Discount %'), { target: { value: '10' } });
+      addSyringeToBreakdown();
       fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
       expect(mockAddPackage).toHaveBeenCalledWith(
         expect.objectContaining({ additionalDiscount: 10 })
       );
+    });
+
+    it('requires at least one breakdown item before saving', () => {
+      render(<PackageFormDraft {...defaultProps} />);
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Package' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
+      expect(screen.getByText('Add at least one item to this package.')).toBeInTheDocument();
+      expect(mockAddPackage).not.toHaveBeenCalled();
+    });
+
+    it('validates additional discount bounds', () => {
+      render(<PackageFormDraft {...defaultProps} />);
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Package' } });
+      addSyringeToBreakdown();
+      fireEvent.change(screen.getByLabelText('Discount %'), { target: { value: '150' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
+      expect(screen.getByText('Additional discount must be 0–100.')).toBeInTheDocument();
+      expect(mockAddPackage).not.toHaveBeenCalled();
     });
   });
 
@@ -466,11 +563,33 @@ describe('PackageFormDraft', () => {
       expect(screen.getByTestId('breakdown-table')).toBeInTheDocument();
     });
 
+    it('auto-checks and locks bookable when a bookable service is added', () => {
+      render(<PackageFormDraft {...defaultProps} />);
+      const checkbox = screen.getByLabelText('Package bookable') as HTMLInputElement;
+      fireEvent.change(screen.getByLabelText('Search catalog items'), {
+        target: { value: 'radiograph' },
+      });
+      fireEvent.click(screen.getByText('Radiographic Consultation'));
+      expect(checkbox).toBeChecked();
+      expect(checkbox).toBeDisabled();
+    });
+
+    it('auto-checks and locks in-patient when an inpatient service is added', () => {
+      render(<PackageFormDraft {...defaultProps} />);
+      const inpatientCheckbox = screen.getByLabelText('Package in-patient') as HTMLInputElement;
+      fireEvent.change(screen.getByLabelText('Search catalog items'), { target: { value: 'mri' } });
+      fireEvent.click(screen.getByText('MRI Procedure'));
+      expect(inpatientCheckbox).toBeChecked();
+      expect(inpatientCheckbox).toBeDisabled();
+    });
+
     it('shows active packages from store in search results', () => {
       const activePackage = {
         id: 'pkg-active-1',
         name: 'Wellness Pack',
         status: 'ACTIVE',
+        isBookable: false,
+        isInpatientPreferred: false,
         breakdown: [],
       };
       setupStoreMock([activePackage]);
@@ -478,6 +597,36 @@ describe('PackageFormDraft', () => {
       const searchInput = screen.getByLabelText('Search catalog items');
       fireEvent.change(searchInput, { target: { value: 'wellness' } });
       expect(screen.getByText('Wellness Pack')).toBeInTheDocument();
+    });
+
+    it('blocks adding a second bookable service and warns', () => {
+      render(<PackageFormDraft {...defaultProps} />);
+      const searchInput = screen.getByLabelText('Search catalog items');
+      // Add first bookable service.
+      fireEvent.change(searchInput, { target: { value: 'radiograph' } });
+      fireEvent.click(screen.getByText('Radiographic Consultation'));
+      // Attempt to add a second bookable service.
+      fireEvent.change(searchInput, { target: { value: 'mri' } });
+      fireEvent.click(screen.getByText('MRI Procedure'));
+
+      expect(mockNotify).toHaveBeenCalledWith(
+        'warning',
+        expect.objectContaining({ title: 'Only one bookable service allowed' })
+      );
+      // Only the first bookable item remains in the breakdown.
+      expect(screen.getAllByTestId(/^breakdown-item-/)).toHaveLength(1);
+    });
+
+    it('allows a non-bookable item alongside one bookable service', () => {
+      render(<PackageFormDraft {...defaultProps} />);
+      const searchInput = screen.getByLabelText('Search catalog items');
+      fireEvent.change(searchInput, { target: { value: 'radiograph' } });
+      fireEvent.click(screen.getByText('Radiographic Consultation'));
+      fireEvent.change(searchInput, { target: { value: 'syringe' } });
+      fireEvent.click(screen.getByText('Syringe'));
+
+      expect(mockNotify).not.toHaveBeenCalledWith('warning', expect.anything());
+      expect(screen.getAllByTestId(/^breakdown-item-/)).toHaveLength(2);
     });
 
     it('excludes the editPackage itself from the combined catalog', () => {
@@ -500,9 +649,9 @@ describe('PackageFormDraft', () => {
       expect(screen.getByLabelText('Name')).toHaveValue('Wellness Package');
     });
 
-    it('shows Archive Package button in edit mode', () => {
+    it('shows Delete Package button in edit mode', () => {
       render(<PackageFormDraft {...defaultProps} editPackage={mockEditPackage} />);
-      expect(screen.getByText('Archive Package')).toBeInTheDocument();
+      expect(screen.getByText('Delete Package')).toBeInTheDocument();
     });
 
     it('shows package code in title slot', () => {
@@ -520,27 +669,35 @@ describe('PackageFormDraft', () => {
       expect(screen.getByTestId('breakdown-table')).toBeInTheDocument();
     });
 
-    it('calls updatePackage on save in edit mode', () => {
+    it('calls updatePackage on save in edit mode', async () => {
       render(<PackageFormDraft {...defaultProps} editPackage={mockEditPackage} />);
       fireEvent.click(screen.getByRole('button', { name: 'Save Package' }));
       expect(mockUpdatePackage).toHaveBeenCalledWith(
         'pkg-edit-1',
         expect.objectContaining({ name: 'Wellness Package' })
       );
-      expect(mockNotify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({ title: 'Package updated' })
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'success',
+          expect.objectContaining({ title: 'Package updated' })
+        )
       );
       expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     });
 
-    it('calls archivePackage and onClose when Archive is clicked', () => {
+    it('confirms before deleting, then calls deletePackage and onClose', async () => {
       render(<PackageFormDraft {...defaultProps} editPackage={mockEditPackage} />);
-      fireEvent.click(screen.getByText('Archive Package'));
-      expect(mockArchivePackage).toHaveBeenCalledWith('pkg-edit-1');
-      expect(mockNotify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({ title: 'Package archived' })
+      // Clicking the toolbar button opens the confirmation modal — no delete yet.
+      fireEvent.click(screen.getByText('Delete Package'));
+      expect(mockDeletePackage).not.toHaveBeenCalled();
+      // Confirm in the modal.
+      fireEvent.click(screen.getByText('Delete'));
+      expect(mockDeletePackage).toHaveBeenCalledWith('pkg-edit-1');
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'success',
+          expect.objectContaining({ title: 'Package deleted' })
+        )
       );
       expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
     });

@@ -76,6 +76,8 @@ export interface OrganizationMongo {
   ratingCount?: number;
   appointmentCheckInBufferMinutes?: number;
   appointmentCheckInRadiusMeters?: number;
+  appointmentLockWindowOutpatientMinutes?: number;
+  appointmentLockWindowInpatientMinutes?: number;
 }
 
 const OrganizationSchema = new Schema(
@@ -116,6 +118,8 @@ const OrganizationSchema = new Schema(
     ratingCount: { type: Number, default: 0 },
     appointmentCheckInBufferMinutes: { type: Number, default: 5 },
     appointmentCheckInRadiusMeters: { type: Number, default: 200 },
+    appointmentLockWindowOutpatientMinutes: { type: Number },
+    appointmentLockWindowInpatientMinutes: { type: Number },
   },
   {
     timestamps: true,

@@ -1,8 +1,8 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-jest.mock("@/app/ui/overlays/Modal", () => ({
+jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ children, showModal }: any) => (
     <div data-testid="modal" data-open={showModal}>
@@ -11,17 +11,13 @@ jest.mock("@/app/ui/overlays/Modal", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/widgets/Labels/SubLabels", () => ({
+jest.mock('@/app/ui/widgets/Labels/SubLabels', () => ({
   __esModule: true,
   default: ({ labels, activeLabel, setActiveLabel }: any) => (
     <div data-testid="sub-labels">
       <div data-testid="active-label">{activeLabel}</div>
       {labels.map((label: any) => (
-        <button
-          key={label.key}
-          type="button"
-          onClick={() => setActiveLabel(label.key)}
-        >
+        <button key={label.key} type="button" onClick={() => setActiveLabel(label.key)}>
           {label.name}
         </button>
       ))}
@@ -30,7 +26,7 @@ jest.mock("@/app/ui/widgets/Labels/SubLabels", () => ({
 }));
 
 const formSectionRender = jest.fn();
-jest.mock("@/app/features/inventory/components/AddInventory/FormSection", () => ({
+jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => ({
   __esModule: true,
   default: (props: any) => {
     formSectionRender(props);
@@ -38,21 +34,15 @@ jest.mock("@/app/features/inventory/components/AddInventory/FormSection", () => 
     return (
       <div data-testid="form-section" data-section={sectionKey}>
         <div data-testid="errors">{JSON.stringify(errors)}</div>
-        <button
-          type="button"
-          onClick={() => onFieldChange(sectionKey, "name", "Inventory Name")}
-        >
+        <button type="button" onClick={() => onFieldChange(sectionKey, 'name', 'Inventory Name')}>
           set-name
         </button>
-        <button
-          type="button"
-          onClick={() => onFieldChange(sectionKey, "category", "Category A")}
-        >
+        <button type="button" onClick={() => onFieldChange(sectionKey, 'category', 'Category A')}>
           set-category
         </button>
         <button
           type="button"
-          onClick={() => onFieldChange(sectionKey, "subCategory", "SubCategory A")}
+          onClick={() => onFieldChange(sectionKey, 'subCategory', 'SubCategory A')}
         >
           set-subcategory
         </button>
@@ -64,71 +54,60 @@ jest.mock("@/app/features/inventory/components/AddInventory/FormSection", () => 
   },
 }));
 
-import AddInventory from "@/app/features/inventory/components/AddInventory";
+import AddInventory from '@/app/features/inventory/components/AddInventory';
 
-describe("<AddInventory />", () => {
+describe('<AddInventory />', () => {
   let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
   });
 
   afterEach(() => {
     consoleErrorSpy.mockRestore();
   });
 
-  test("switches between sections via sub labels", () => {
+  test('switches between sections via sub labels', () => {
     render(
       <AddInventory
         showModal={true}
         setShowModal={jest.fn()}
         businessType="HOSPITAL"
         onSubmit={jest.fn().mockResolvedValue(undefined)}
-      />,
+      />
     );
 
-    expect(screen.getByTestId("modal")).toHaveAttribute("data-open", "true");
-    expect(screen.getByTestId("form-section")).toHaveAttribute(
-      "data-section",
-      "basicInfo",
-    );
+    expect(screen.getByTestId('modal')).toHaveAttribute('data-open', 'true');
+    expect(screen.getByTestId('form-section')).toHaveAttribute('data-section', 'basicInfo');
 
     // Fill required fields to allow navigation
-    fireEvent.click(screen.getByText("set-name"));
-    fireEvent.click(screen.getByText("set-category"));
-    fireEvent.click(screen.getByText("set-subcategory"));
+    fireEvent.click(screen.getByText('set-name'));
+    fireEvent.click(screen.getByText('set-category'));
+    fireEvent.click(screen.getByText('set-subcategory'));
 
-    fireEvent.click(screen.getByText("Classification attribute"));
-    expect(screen.getByTestId("form-section")).toHaveAttribute(
-      "data-section",
-      "classification",
-    );
+    fireEvent.click(screen.getByText('Clinical Details'));
+    expect(screen.getByTestId('form-section')).toHaveAttribute('data-section', 'classification');
   });
 
-  test("validates required fields before saving", () => {
+  test('validates required fields before saving', () => {
     render(
       <AddInventory
         showModal={false}
         setShowModal={jest.fn()}
         businessType="GROOMER"
         onSubmit={jest.fn().mockResolvedValue(undefined)}
-      />,
+      />
     );
 
-    fireEvent.click(screen.getByText("save-section"));
-    expect(screen.getByTestId("errors").textContent).toMatch("Name is required");
-    expect(screen.getByTestId("errors").textContent).toMatch(
-      "Category is required",
-    );
-    expect(screen.getByTestId("errors").textContent).toMatch(
-      "Sub category is required",
-    );
+    fireEvent.click(screen.getByText('save-section'));
+    expect(screen.getByTestId('errors').textContent).toMatch('Item name cannot be empty');
+    expect(screen.getByTestId('errors').textContent).toMatch('Select Category');
 
-    fireEvent.click(screen.getByText("set-name"));
-    fireEvent.click(screen.getByText("set-category"));
-    fireEvent.click(screen.getByText("set-subcategory"));
-    fireEvent.click(screen.getByText("save-section"));
+    fireEvent.click(screen.getByText('set-name'));
+    fireEvent.click(screen.getByText('set-category'));
+    fireEvent.click(screen.getByText('set-subcategory'));
+    fireEvent.click(screen.getByText('save-section'));
 
-    expect(screen.getByTestId("errors").textContent).toBe("{}");
+    expect(screen.getByTestId('errors').textContent).toBe('{}');
   });
 });

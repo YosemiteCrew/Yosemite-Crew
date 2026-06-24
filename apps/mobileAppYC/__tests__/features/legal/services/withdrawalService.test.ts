@@ -1,6 +1,11 @@
 import withdrawalService from '../../../../src/features/legal/services/withdrawalService';
-import apiClient, {withAuthHeaders} from '../../../../src/shared/services/apiClient';
-import {ensureAccessContext, toErrorMessage} from '../../../../src/shared/utils/serviceHelpers';
+import apiClient, {
+  withAuthHeaders,
+} from '../../../../src/shared/services/apiClient';
+import {
+  ensureAccessContext,
+  toErrorMessage,
+} from '../../../../src/shared/utils/serviceHelpers';
 
 // --- Mocks ---
 
@@ -43,7 +48,10 @@ describe('withdrawalService', () => {
       userId: mockUserId,
     });
 
-    const mockHeaders = {Authorization: 'Bearer mock-token', 'x-user-id': mockUserId};
+    const mockHeaders = {
+      Authorization: 'Bearer mock-token',
+      'x-user-id': mockUserId,
+    };
     (withAuthHeaders as jest.Mock).mockReturnValue(mockHeaders);
 
     const mockResponse = {success: true};
@@ -54,14 +62,11 @@ describe('withdrawalService', () => {
 
     // Verify
     expect(ensureAccessContext).toHaveBeenCalled();
-    expect(withAuthHeaders).toHaveBeenCalledWith(
-      mockAccessToken,
-      {'x-user-id': mockUserId}
-    );
+    expect(withAuthHeaders).toHaveBeenCalledWith(mockAccessToken);
     expect(apiClient.post).toHaveBeenCalledWith(
       '/v1/account-withdrawal/withdraw',
       mockPayload,
-      {headers: mockHeaders}
+      {headers: mockHeaders},
     );
     expect(result).toEqual(mockResponse);
   });
@@ -81,10 +86,7 @@ describe('withdrawalService', () => {
     await withdrawalService.submitWithdrawal(mockPayload);
 
     // Verify
-    expect(withAuthHeaders).toHaveBeenCalledWith(
-      mockAccessToken,
-      undefined // userId header object is undefined
-    );
+    expect(withAuthHeaders).toHaveBeenCalledWith(mockAccessToken);
   });
 
   // --- 2. Error Handling ---
@@ -94,19 +96,21 @@ describe('withdrawalService', () => {
     const formattedErrorMsg = 'Custom error message from helper';
 
     // Setup Mocks
-    (ensureAccessContext as jest.Mock).mockResolvedValue({accessToken: mockAccessToken});
+    (ensureAccessContext as jest.Mock).mockResolvedValue({
+      accessToken: mockAccessToken,
+    });
     (apiClient.post as jest.Mock).mockRejectedValue(apiError);
     (toErrorMessage as jest.Mock).mockReturnValue(formattedErrorMsg);
 
     // Execute & Verify
-    await expect(withdrawalService.submitWithdrawal(mockPayload))
-      .rejects
-      .toThrow(formattedErrorMsg);
+    await expect(
+      withdrawalService.submitWithdrawal(mockPayload),
+    ).rejects.toThrow(formattedErrorMsg);
 
     // Verify helpers called correctly
     expect(toErrorMessage).toHaveBeenCalledWith(
       apiError,
-      'Unable to submit withdrawal request. Please try again.'
+      'Unable to submit withdrawal request. Please try again.',
     );
   });
 });

@@ -28,6 +28,10 @@ const CompanionTerminologyPreference = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/CompanionTerminologyPreference'),
   { loading: () => <SettingsSectionSkeleton /> }
 );
+const AppointmentLockWindowPreference = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/AppointmentLockWindowPreference'),
+  { loading: () => <SettingsSectionSkeleton /> }
+);
 const DeleteProfile = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/DeleteProfile'),
   {
@@ -43,7 +47,10 @@ const Settings = () => {
         <DefaultOpenScreenPreference />
         <TimezonePreference />
       </div>
-      <CompanionTerminologyPreference />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <CompanionTerminologyPreference />
+        <AppointmentLockWindowPreference />
+      </div>
       <DeleteProfile />
     </div>
   );

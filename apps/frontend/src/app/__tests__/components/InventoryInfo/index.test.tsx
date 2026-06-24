@@ -10,6 +10,13 @@ import { BusinessType } from '@/app/features/organization/types/org';
 jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
   formatDisplayDate: jest.fn((val) => (val ? `Formatted ${val}` : '')),
   toStringSafe: jest.fn((val) => (val === null || val === undefined ? '' : String(val))),
+  formatCurrencyValue: jest.fn((val, currency) =>
+    val === undefined || val === null || val === '' ? '—' : `${currency ?? 'USD'} ${val}`
+  ),
+  formatPercentValue: jest.fn((val) => (val === undefined ? '—' : `${val}%`)),
+  getGrossProfitPerUnit: jest.fn(() => 10),
+  getMarginPercent: jest.fn(() => 50),
+  getStockValue: jest.fn(() => 100),
 }));
 
 jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', () => ({
@@ -99,8 +106,13 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
 
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
-  default: ({ value, onChange, inname }: any) => (
-    <input data-testid={`input-${inname}`} value={value} onChange={onChange} />
+  default: ({ value, onChange, inname, readonly }: any) => (
+    <input
+      data-testid={`input-${inname}`}
+      value={value}
+      onChange={onChange ?? (() => {})}
+      readOnly={readonly}
+    />
   ),
 }));
 
@@ -245,7 +257,12 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.getByText('Item 1')).toBeInTheDocument();
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Hide item');
+    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Delete item');
+  });
+
+  it('opens directly on the requested initialSection (Restock → Stock Control)', () => {
+    render(<InventoryInfo {...defaultProps} initialSection="stock" />);
+    expect(screen.getByText('Current Section: stock')).toBeInTheDocument();
   });
 
   it('switches tabs correctly', () => {
@@ -259,11 +276,10 @@ describe('InventoryInfo Component', () => {
 
     fireEvent.click(screen.getByTestId('tab-batch'));
 
-    // Batch tab renders BatchEditor (which has "Batch / Lot details" title)
+    // Batch tab renders BatchEditor (which has "Batch and expiry" title)
     // We check that InfoSection is NOT present
     expect(screen.queryByText('Current Section:')).not.toBeInTheDocument();
-    // Batch editor has header "Batch / Lot details"
-    const headers = screen.getAllByText('Batch / Lot details');
+    const headers = screen.getAllByText('Batch and expiry');
     expect(headers.length).toBeGreaterThan(0);
   });
 
@@ -361,10 +377,14 @@ describe('InventoryInfo Component', () => {
   it('hides an active item', async () => {
     render(<InventoryInfo {...defaultProps} />);
 
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Hide item');
+    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Delete item');
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Delete'));
     });
 
     expect(mockOnHide).toHaveBeenCalledWith('item-1');
@@ -375,7 +395,7 @@ describe('InventoryInfo Component', () => {
     const hiddenItem = { ...activeInventory, status: 'HIDDEN' };
     render(<InventoryInfo {...defaultProps} activeInventory={hiddenItem} />);
 
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Unhide item');
+    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Restore item');
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('primary-btn'));

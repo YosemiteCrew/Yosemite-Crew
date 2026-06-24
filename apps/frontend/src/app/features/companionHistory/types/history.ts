@@ -40,11 +40,9 @@ export type CompanionHistoryResponse = {
 };
 
 export type HistoryFilterKey =
-  | 'ALL'
   | 'APPOINTMENT'
   | 'TASK'
-  | 'FORM_SUBMISSION'
-  | 'DOCUMENT'
+  | 'MEDICAL_RECORDS'
   | 'LAB_RESULT'
   | 'INVOICE'
   | 'AUDIT_TRAIL';
@@ -61,24 +59,20 @@ export const getFormHistoryLabel = (orgType?: string | null): string => {
 };
 
 export const getHistoryFilters = (orgType?: string | null): HistoryFilterDefinition[] => [
-  { key: 'ALL', label: 'All' },
   { key: 'APPOINTMENT', label: 'Appointments' },
+  { key: 'LAB_RESULT', label: 'Diagnostics' },
+  { key: 'MEDICAL_RECORDS', label: getFormHistoryLabel(orgType) },
   { key: 'TASK', label: 'Tasks' },
-  { key: 'FORM_SUBMISSION', label: getFormHistoryLabel(orgType) },
-  { key: 'DOCUMENT', label: 'Documents' },
-  { key: 'LAB_RESULT', label: 'Labs' },
-  { key: 'INVOICE', label: 'Finance' },
+  { key: 'INVOICE', label: 'Billing' },
   { key: 'AUDIT_TRAIL', label: 'Audit trail' },
 ];
 
 export const HISTORY_FILTER_TYPE_MAP: Record<
-  Exclude<HistoryFilterKey, 'ALL' | 'AUDIT_TRAIL'>,
-  HistoryEntryType
+  Exclude<HistoryFilterKey, 'MEDICAL_RECORDS' | 'AUDIT_TRAIL'>,
+  HistoryEntryType[]
 > = {
-  APPOINTMENT: 'APPOINTMENT',
-  TASK: 'TASK',
-  FORM_SUBMISSION: 'FORM_SUBMISSION',
-  DOCUMENT: 'DOCUMENT',
-  LAB_RESULT: 'LAB_RESULT',
-  INVOICE: 'INVOICE',
+  APPOINTMENT: ['APPOINTMENT'],
+  TASK: ['TASK'],
+  LAB_RESULT: ['LAB_RESULT'],
+  INVOICE: ['INVOICE'],
 };

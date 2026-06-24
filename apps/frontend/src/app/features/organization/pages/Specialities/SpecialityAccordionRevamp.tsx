@@ -3,7 +3,7 @@ import type { ServicesTabHandle } from '@/app/features/organization/pages/Specia
 import type { PackagesTabHandle } from '@/app/features/organization/pages/Specialities/PackagesTab';
 import { IoIosArrowDown, IoIosSearch } from 'react-icons/io';
 import { RiEdit2Line } from 'react-icons/ri';
-import { MdOutlineArchive } from 'react-icons/md';
+import { MdOutlineArchive, MdDeleteForever } from 'react-icons/md';
 import { FiCheck, FiX } from 'react-icons/fi';
 import TabToggle, { TabOption } from '@/app/ui/primitives/TabToggle/TabToggle';
 import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
@@ -14,6 +14,11 @@ import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useNotify } from '@/app/hooks/useNotify';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
+import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import Secondary from '@/app/ui/primitives/Buttons/Secondary';
+import Delete from '@/app/ui/primitives/Buttons/Delete';
+import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
 
 type SpecialityAccordionRevampProps = {
   speciality: SpecialityRevamp;
@@ -45,24 +50,40 @@ const SpecialityAccordionRevamp = ({
   const [activeTab, setActiveTab] = useState<ActiveTab>('services');
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(speciality.name);
+  const [nameError, setNameError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const servicesTabRef = useRef<ServicesTabHandle>(null);
   const packagesTabRef = useRef<PackagesTabHandle>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const renameSpeciality = useRevampCatalogStore((s) => s.renameSpeciality);
-  const serviceCount = useRevampCatalogStore(
+  const deleteSpeciality = useRevampCatalogStore((s) => s.deleteSpeciality);
+  const specialities = useRevampCatalogStore((s) => s.specialities);
+  const specialityLoaded = useRevampCatalogStore((s) =>
+    (s.loadedSpecialityIds ?? []).includes(`${speciality.id}:active`)
+  );
+  const loadedServiceCount = useRevampCatalogStore(
     (s) =>
       s.services.filter((svc) => svc.specialityId === speciality.id && svc.status === 'ACTIVE')
         .length
   );
-  const packageCount = useRevampCatalogStore(
+  const loadedPackageCount = useRevampCatalogStore(
     (s) =>
       s.packages.filter((pkg) => pkg.specialityId === speciality.id && pkg.status === 'ACTIVE')
         .length
   );
+  // Before a speciality's catalog is lazily loaded, trust the server-provided counts from the
+  // specialities list so headers are accurate without fetching every speciality up front.
+  const serviceCount = specialityLoaded
+    ? loadedServiceCount
+    : (speciality.activeServiceCount ?? loadedServiceCount);
+  const packageCount = specialityLoaded
+    ? loadedPackageCount
+    : (speciality.activePackageCount ?? loadedPackageCount);
 
   const allServices = useRevampCatalogStore(
     useShallow((s) =>
@@ -130,23 +151,67 @@ const SpecialityAccordionRevamp = ({
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
-  const handleSaveName = (e: React.MouseEvent | React.KeyboardEvent) => {
+  const handleSaveName = async (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     const trimmed = nameValue.trim();
-    if (!trimmed) return;
-    renameSpeciality(speciality.id, trimmed);
-    notify('success', { title: 'Speciality renamed', text: `Renamed to "${trimmed}".` });
-    setEditingName(false);
+    if (!trimmed) {
+      setNameError('Speciality name is required.');
+      return;
+    }
+    const duplicate = specialities.some(
+      (s) =>
+        s.id !== speciality.id &&
+        s.organisationId === speciality.organisationId &&
+        s.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) {
+      setNameError('A speciality with this name already exists.');
+      return;
+    }
+    try {
+      await renameSpeciality(speciality.id, trimmed);
+      notify('success', { title: 'Speciality renamed', text: `Renamed to "${trimmed}".` });
+      setNameError('');
+      setEditingName(false);
+    } catch {
+      notify('error', { title: 'Unable to rename speciality', text: 'Please try again.' });
+    }
   };
 
   const handleCancelName = (e: React.MouseEvent) => {
     e.stopPropagation();
     setNameValue(speciality.name);
+    setNameError('');
     setEditingName(false);
   };
 
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
+    try {
+      await deleteSpeciality(speciality.id);
+      notify('success', {
+        title: 'Speciality deleted',
+        text: `"${speciality.name}" has been removed.`,
+      });
+      setConfirmDelete(false);
+      setEditingName(false);
+    } catch (error) {
+      notify('error', {
+        title: 'Unable to delete speciality',
+        text: getCatalogErrorMessage(
+          error,
+          'It may have services, packages, or historical usage. Please try again.'
+        ),
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') handleSaveName(e);
+    if (e.key === 'Enter') {
+      Promise.resolve(handleSaveName(e)).catch(() => undefined);
+    }
     if (e.key === 'Escape') {
       e.stopPropagation();
       setNameValue(speciality.name);
@@ -192,15 +257,21 @@ const SpecialityAccordionRevamp = ({
                   id={nameInputId}
                   type="text"
                   value={nameValue}
-                  onChange={(e) => setNameValue(e.target.value)}
+                  onChange={(e) => {
+                    setNameValue(e.target.value);
+                    if (nameError) setNameError('');
+                  }}
                   onKeyDown={handleNameKeyDown}
                   className="flex-1 min-w-0 text-heading-3 text-text-primary bg-transparent border-b-2 border-input-border-active focus-visible:outline-none px-1"
                   aria-label="Edit speciality name"
+                  aria-invalid={Boolean(nameError)}
                 />
                 <button
                   type="button"
                   aria-label="Save name"
-                  onClick={handleSaveName}
+                  onClick={(event) => {
+                    Promise.resolve(handleSaveName(event)).catch(() => undefined);
+                  }}
                   className="flex items-center justify-center size-8 rounded-full bg-text-brand text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand shrink-0"
                 >
                   <FiCheck size={14} aria-hidden="true" />
@@ -212,6 +283,17 @@ const SpecialityAccordionRevamp = ({
                   className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors shrink-0"
                 >
                   <FiX size={14} color="var(--color-danger-600)" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${speciality.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setConfirmDelete(true);
+                  }}
+                  className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors shrink-0"
+                >
+                  <MdDeleteForever size={16} color="var(--color-danger-600)" aria-hidden="true" />
                 </button>
               </div>
             ) : (
@@ -238,6 +320,9 @@ const SpecialityAccordionRevamp = ({
             )}
           </div>
         </div>
+        {editingName && nameError && (
+          <p className="text-caption-1 text-text-error sm:basis-full sm:pl-12">{nameError}</p>
+        )}
 
         {/* Row 2 on mobile / inline on sm+: primary button (left) + search (right) */}
         {!editingName && (
@@ -360,11 +445,36 @@ const SpecialityAccordionRevamp = ({
             )}
             {activeTab === 'archive' && (
               <div id={panelId('archive')} role="tabpanel" aria-labelledby="tab-archive">
-                <ArchiveTab specialityId={speciality.id} />
+                <ArchiveTab
+                  specialityId={speciality.id}
+                  organisationId={speciality.organisationId}
+                />
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {confirmDelete && (
+        <CenterModal showModal setShowModal={() => setConfirmDelete(false)}>
+          <ModalHeader title="Delete speciality" onClose={() => setConfirmDelete(false)} />
+          <p className="text-body-4 text-text-primary">
+            Are you sure you want to delete <strong>{speciality.name}</strong>? This will remove the
+            speciality and is only possible if it has no services, packages, or historical usage.
+            This action cannot be undone.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Secondary href="#" text="Cancel" onClick={() => setConfirmDelete(false)} />
+            <Delete
+              href="#"
+              text={deleting ? 'Deleting...' : 'Delete'}
+              onClick={() => {
+                if (deleting) return;
+                Promise.resolve(handleDeleteConfirm()).catch(() => undefined);
+              }}
+            />
+          </div>
+        </CenterModal>
       )}
     </div>
   );

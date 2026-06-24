@@ -73,6 +73,7 @@ const footerLinks = [
       { label: 'Accessibility', href: '/accessibility' },
       { label: 'Pricing', href: '/pricing' },
       { label: 'Trust Center', href: '/trust-center' },
+      { label: 'DMCA', href: '/dmca' },
     ],
   },
 ];

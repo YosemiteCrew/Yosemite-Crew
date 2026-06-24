@@ -42,6 +42,7 @@ import {
   useCalendarWeekNavigation,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
+import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 
 const HOUR_ROW_TOP_OFFSET_PX = 0;
 
@@ -58,12 +59,14 @@ type WeekCalendarProps = {
   zoomMode?: CalendarZoomMode;
   handleViewAppointment: any;
   handleDetailAppointment?: any;
+  handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
   handleChangeStatusAppointment?: any;
   handleChangeRoomAppointment?: any;
+  handleAcceptAppointment?: (appt: Appointment) => void;
   canEditAppointments: boolean;
   draggedAppointmentId?: string | null;
   draggedAppointmentLabel?: string | null;
@@ -92,12 +95,14 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   zoomMode = 'in',
   handleViewAppointment,
   handleDetailAppointment,
+  handleOpenWorkspace,
   weekStart,
   setWeekStart,
   setCurrentDate,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment: _handleChangeStatusAppointment,
+  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
+  handleAcceptAppointment,
   canEditAppointments,
   draggedAppointmentId,
   draggedAppointmentLabel,
@@ -258,7 +263,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       topPx = ((focusMinutes - currentRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
     }
     scrollContainerToTarget(container, topPx);
-  }, [weekStartKey, draggedAppointmentId, skipAutoScroll, days, height]);
+  }, [weekStartKey, draggedAppointmentId, skipAutoScroll, days, height, scrollRef]);
 
   const unavailableByDay = useMemo(
     () =>
@@ -432,8 +437,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             dayIndex={dayIndex}
                             handleViewAppointment={handleViewAppointment}
                             handleDetailAppointment={handleDetailAppointment}
+                            handleOpenWorkspace={handleOpenWorkspace}
                             handleRescheduleAppointment={handleRescheduleAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
+                            handleAcceptAppointment={
+                              handleAcceptAppointment ?? handleChangeStatusAppointment
+                            }
                             canEditAppointments={canEditAppointments}
                             length={days.length - 1}
                             draggedAppointmentId={draggedAppointmentId}

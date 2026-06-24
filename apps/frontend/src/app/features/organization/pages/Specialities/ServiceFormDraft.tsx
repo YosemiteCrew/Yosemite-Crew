@@ -1,16 +1,23 @@
 import React, { useCallback, useEffect, useId, useState } from 'react';
-import { MdOutlineArchive } from 'react-icons/md';
+import { MdDeleteForever } from 'react-icons/md';
 import { FiCheck } from 'react-icons/fi';
+import { LuBedSingle, LuCheck } from 'react-icons/lu';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
+import Delete from '@/app/ui/primitives/Buttons/Delete';
+import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import Badge from '@/app/ui/Badge';
 import { CatalogItemType, ServiceRevamp } from '@/app/features/organization/types/revamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
-import { computeServiceTotal } from '@/app/features/organization/services/revampMockData';
+import { computeServiceTotal } from '@/app/features/organization/services/catalogCalculations';
 import { useNotify } from '@/app/hooks/useNotify';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { formatMoney } from '@/app/lib/money';
+import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
 
 const TYPE_OPTIONS = [
   { value: 'CONSULTATION', label: 'Consultation' },
@@ -45,9 +52,11 @@ const ServiceFormDraft = ({
   const isEditing = Boolean(editService);
   const addService = useRevampCatalogStore((s) => s.addService);
   const updateService = useRevampCatalogStore((s) => s.updateService);
-  const archiveService = useRevampCatalogStore((s) => s.archiveService);
+  const deleteService = useRevampCatalogStore((s) => s.deleteService);
   const generateCode = useRevampCatalogStore((s) => s.generateItemCode);
   const { notify } = useNotify();
+  const orgCurrency = useCurrencyForPrimaryOrg();
+  const currency = editService?.currency ?? orgCurrency;
 
   const [name, setName] = useState(editService?.name ?? '');
   const [description, setDescription] = useState(editService?.description ?? '');
@@ -61,6 +70,7 @@ const ServiceFormDraft = ({
   const [isBookable, setIsBookable] = useState(editService?.isBookable ?? true);
   const [isInpatient, setIsInpatient] = useState(editService?.isInpatientPreferred ?? false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [previewCode, setPreviewCode] = useState<string>(editService?.code ?? '');
   const descId = useId();
@@ -76,65 +86,96 @@ const ServiceFormDraft = ({
   const { total } = computeServiceTotal({
     grossAmount: gross,
     defaultDiscount: disc,
-  } as ServiceRevamp);
+  });
 
   const validate = useCallback((): boolean => {
     const errs: FormErrors = {};
+    const defaultDiscountValue = Number(defaultDiscount);
+    const maxDiscountValue = Number(maxDiscount);
     if (!name.trim()) errs.name = 'Name is required.';
     if (!grossAmount || Number.isNaN(Number(grossAmount)) || Number(grossAmount) < 0)
       errs.grossAmount = 'Enter a valid gross amount.';
     if (
+      defaultDiscount &&
+      (Number.isNaN(defaultDiscountValue) || defaultDiscountValue < 0 || defaultDiscountValue > 100)
+    )
+      errs.defaultDiscount = 'Default discount must be 0–100.';
+    if (
       maxDiscount &&
-      (Number.isNaN(Number(maxDiscount)) || Number(maxDiscount) < 0 || Number(maxDiscount) > 100)
+      (Number.isNaN(maxDiscountValue) || maxDiscountValue < 0 || maxDiscountValue > 100)
     )
       errs.maxDiscount = 'Max discount must be 0–100.';
+    if (
+      !errs.defaultDiscount &&
+      !errs.maxDiscount &&
+      defaultDiscount &&
+      maxDiscount &&
+      defaultDiscountValue > maxDiscountValue
+    )
+      errs.defaultDiscount = 'Default discount cannot exceed max discount.';
     setErrors(errs);
     return Object.keys(errs).length === 0;
-  }, [name, grossAmount, maxDiscount]);
+  }, [defaultDiscount, grossAmount, maxDiscount, name]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    if (isEditing && editService) {
-      updateService(editService.id, {
-        name: name.trim(),
-        description: description.trim(),
-        type,
-        durationMinutes: Number.parseInt(duration, 10),
-        grossAmount: Number.parseFloat(grossAmount),
-        defaultDiscount: Number.parseFloat(defaultDiscount) || 0,
-        maxDiscount: Number.parseFloat(maxDiscount) || 0,
-        isBookable,
-        isInpatientPreferred: isInpatient,
+    try {
+      if (isEditing && editService) {
+        await updateService(editService.id, {
+          name: name.trim(),
+          description: description.trim(),
+          type,
+          durationMinutes: Number.parseInt(duration, 10),
+          grossAmount: Number.parseFloat(grossAmount),
+          currency,
+          defaultDiscount: Number.parseFloat(defaultDiscount) || 0,
+          maxDiscount: Number.parseFloat(maxDiscount) || 0,
+          isBookable,
+          isInpatientPreferred: isInpatient,
+        });
+        notify('success', { title: 'Service updated', text: `"${name}" has been saved.` });
+      } else {
+        await addService({
+          name: name.trim(),
+          description: description.trim(),
+          type,
+          specialityId,
+          organisationId,
+          durationMinutes: Number.parseInt(duration, 10),
+          grossAmount: Number.parseFloat(grossAmount),
+          currency,
+          defaultDiscount: Number.parseFloat(defaultDiscount) || 0,
+          maxDiscount: Number.parseFloat(maxDiscount) || 0,
+          isBookable,
+          isInpatientPreferred: isInpatient,
+          status: 'ACTIVE',
+        });
+        notify('success', { title: 'Service added', text: `"${name}" has been created.` });
+      }
+      onClose();
+    } catch (error) {
+      notify('error', {
+        title: 'Unable to save service',
+        text: getCatalogErrorMessage(error, 'Please check the details and try again.'),
       });
-      notify('success', { title: 'Service updated', text: `"${name}" has been saved.` });
-    } else {
-      addService({
-        name: name.trim(),
-        description: description.trim(),
-        type,
-        specialityId,
-        organisationId,
-        durationMinutes: Number.parseInt(duration, 10),
-        grossAmount: Number.parseFloat(grossAmount),
-        defaultDiscount: Number.parseFloat(defaultDiscount) || 0,
-        maxDiscount: Number.parseFloat(maxDiscount) || 0,
-        isBookable,
-        isInpatientPreferred: isInpatient,
-        status: 'ACTIVE',
-      });
-      notify('success', { title: 'Service added', text: `"${name}" has been created.` });
     }
-    onClose();
   };
 
-  const handleArchive = () => {
+  const handleDelete = async () => {
     if (!editService) return;
-    archiveService(editService.id);
-    notify('success', {
-      title: 'Service archived',
-      text: `"${editService.name}" has been archived.`,
-    });
-    onClose();
+    try {
+      await deleteService(editService.id);
+      notify('success', {
+        title: 'Service deleted',
+        text: `"${editService.name}" has been removed.`,
+      });
+      onClose();
+    } catch (error) {
+      notify('error', {
+        title: 'Unable to delete service',
+        text: getCatalogErrorMessage(error, 'This service could not be deleted. Please try again.'),
+      });
+    }
   };
 
   const draftTitle = `${isEditing ? name || 'Service' : 'New Service'} (draft)`;
@@ -145,14 +186,29 @@ const ServiceFormDraft = ({
           {previewCode}
         </span>
       )}
-      {isBookable && <Badge tone="brand">✓ Bookable</Badge>}
+      {isBookable && (
+        <Badge tone="brand">
+          <LuCheck size={14} aria-hidden="true" />
+          Bookable
+        </Badge>
+      )}
+      {isInpatient && (
+        <Badge tone="brand">
+          <LuBedSingle size={14} aria-hidden="true" />
+          In-patient
+        </Badge>
+      )}
     </>
   );
 
   return (
-    <SectionContainer title={draftTitle} titleSlot={draftTitleSlot} className="flex flex-col gap-5">
-      {/* Two-column: left = Name + Description, right = Type + Duration + Checkboxes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
+    <SectionContainer
+      title={draftTitle}
+      titleSlot={draftTitleSlot}
+      className="@container flex flex-col gap-5"
+    >
+      {/* Two-column: collapses to one column in narrow containers (e.g. side drawer) */}
+      <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-6 gap-y-4 items-start">
         {/* Left col */}
         <div className="flex flex-col gap-4">
           <FormInput
@@ -229,8 +285,8 @@ const ServiceFormDraft = ({
         </div>
       </div>
 
-      {/* Pricing row — flat, no nested border */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Pricing row — always 2 per row, expanding to 4 on wide containers */}
+      <div className="grid grid-cols-2 @2xl:grid-cols-4 gap-4">
         <FormInput
           intype="number"
           inlabel="Gross amt."
@@ -245,7 +301,11 @@ const ServiceFormDraft = ({
           intype="number"
           inlabel="Default Discount (%)"
           value={defaultDiscount}
-          onChange={(e) => setDefaultDiscount(e.target.value)}
+          onChange={(e) => {
+            setDefaultDiscount(e.target.value);
+            setErrors((p) => ({ ...p, defaultDiscount: undefined }));
+          }}
+          error={errors.defaultDiscount}
         />
         <FormInput
           intype="number"
@@ -260,7 +320,7 @@ const ServiceFormDraft = ({
         <FormInput
           intype="text"
           inlabel="Total Amount"
-          value={total > 0 ? `$ ${total.toFixed(2)}` : ''}
+          value={total > 0 ? formatMoney(total, currency) : ''}
           readonly
         />
       </div>
@@ -270,19 +330,47 @@ const ServiceFormDraft = ({
         {isEditing ? (
           <Secondary
             href="#"
-            text="Archive Service"
-            icon={<MdOutlineArchive size={16} />}
-            onClick={handleArchive}
-            style={{ borderColor: 'var(--color-text-error)', color: 'var(--color-text-error)' }}
+            danger
+            text="Delete Service"
+            icon={<MdDeleteForever size={16} />}
+            onClick={() => setConfirmDelete(true)}
           />
         ) : (
           <div />
         )}
         <div className="flex gap-3">
           <Secondary href="#" text="Cancel" onClick={onClose} />
-          <Primary href="#" text="Save Service" icon={<FiCheck size={16} />} onClick={handleSave} />
+          <Primary
+            href="#"
+            text="Save Service"
+            icon={<FiCheck size={16} />}
+            onClick={() => {
+              Promise.resolve(handleSave()).catch(() => undefined);
+            }}
+          />
         </div>
       </div>
+
+      {confirmDelete && editService && (
+        <CenterModal showModal setShowModal={() => setConfirmDelete(false)}>
+          <ModalHeader title="Delete service" onClose={() => setConfirmDelete(false)} />
+          <p className="text-body-4 text-text-primary">
+            Are you sure you want to delete <strong>{editService.name}</strong>? This permanently
+            removes the service and cannot be undone. If it is used in packages or has historical
+            usage, consider archiving instead.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Secondary href="#" text="Cancel" onClick={() => setConfirmDelete(false)} />
+            <Delete
+              href="#"
+              text="Delete"
+              onClick={() => {
+                Promise.resolve(handleDelete()).catch(() => undefined);
+              }}
+            />
+          </div>
+        </CenterModal>
+      )}
     </SectionContainer>
   );
 };

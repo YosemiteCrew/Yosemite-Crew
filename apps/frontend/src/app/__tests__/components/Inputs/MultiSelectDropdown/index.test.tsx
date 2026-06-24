@@ -12,6 +12,24 @@ jest.mock('react-icons/fa6', () => ({
 }));
 
 describe('MultiSelectDropdown', () => {
+  it('renders a badge pill next to options that provide one', () => {
+    render(
+      <MultiSelectDropdown
+        placeholder="Select"
+        value={[]}
+        onChange={jest.fn()}
+        options={[
+          { label: 'Consult', value: 'srv-1', badge: 'Service' },
+          { label: 'Wellness', value: 'pkg-1', badge: 'Package' },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Select/i }));
+    expect(screen.getByText('Service')).toBeInTheDocument();
+    expect(screen.getByText('Package')).toBeInTheDocument();
+  });
+
   it('adds and removes options', () => {
     const onChange = jest.fn();
     const { rerender } = render(
@@ -24,7 +42,7 @@ describe('MultiSelectDropdown', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Select/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'One' }));
+    fireEvent.click(screen.getByRole('button', { name: 'One', pressed: false }));
     expect(onChange).toHaveBeenCalledWith(['One']);
 
     rerender(
@@ -38,12 +56,28 @@ describe('MultiSelectDropdown', () => {
 
     expect(screen.getByText('One')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('One'));
-    const oneButtons = screen.getAllByRole('button', { name: 'One' });
-    const selectedOption = oneButtons.at(-1);
-    expect(selectedOption).toBeDefined();
-    fireEvent.click(selectedOption!);
+    const selectedOption = screen.getByRole('button', { name: 'One', pressed: true });
+    fireEvent.click(selectedOption);
     expect(onChange).toHaveBeenCalledWith([]);
+  });
+
+  it('toggles options with arrow keys and enter', () => {
+    const onChange = jest.fn();
+    render(
+      <MultiSelectDropdown
+        placeholder="Select"
+        value={[]}
+        onChange={onChange}
+        options={['One', 'Two']}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: /Select/i });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+
+    expect(onChange).toHaveBeenCalledWith(['Two']);
   });
 
   it('renders selected values inside the input as comma-separated text', () => {

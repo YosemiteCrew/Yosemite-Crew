@@ -73,8 +73,10 @@ const Chat = ({ activeAppointment }: ChatProps) => {
       setCheckingStatus(true);
 
       try {
-        // Try to get the session status - this will fail if no session exists yet
-        const session = await getChatSession(activeAppointment.id);
+        // Probe the session status. This is expected to fail when no session
+        // exists yet (the backend returns an error rather than an empty result),
+        // so it's silent and any failure is treated as "no session yet".
+        const session = await getChatSession(activeAppointment.id, { silent: true });
 
         if (!cancelled) {
           const resolvedSessionId = (session as any)?._id || (session as any)?.id;
@@ -85,25 +87,13 @@ const Chat = ({ activeAppointment }: ChatProps) => {
           const isClosed = sessionStatus === 'CLOSED' || sessionStatus === 'ended' || isFrozen;
           setSessionClosed(isClosed);
         }
-      } catch (error: any) {
-        // Handle expected case where no session exists yet
+      } catch {
+        // No session yet (or the probe failed) — the user hasn't opened/created a
+        // chat. Treat as "not started": no session id, not closed. The real
+        // open/close actions surface their own errors when the user acts.
         if (!cancelled) {
-          // Check if this is a "not found" type error
-          const isNotFoundError =
-            error?.response?.status === 404 ||
-            error?.status === 404 ||
-            error?.message?.includes('not found') ||
-            error?.message?.includes('does not exist');
-
-          if (isNotFoundError) {
-            // No session exists yet - this is expected, just mark as not closed
-            setSessionClosed(false);
-            setSessionId(null);
-          } else {
-            // Unexpected error - log for debugging
-            console.error('Unexpected error checking chat session status:', error);
-            setSessionClosed(false);
-          }
+          setSessionClosed(false);
+          setSessionId(null);
         }
       } finally {
         if (!cancelled) {

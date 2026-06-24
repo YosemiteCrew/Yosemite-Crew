@@ -6,7 +6,6 @@ import InvoicePaymentActions from '@/app/features/appointments/pages/Appointment
 const getPaymentLinkMock = jest.fn();
 const loadInvoicesForOrgPrimaryOrgMock = jest.fn();
 const markInvoicePaidMock = jest.fn();
-const updateInvoicePaymentCollectionMethodMock = jest.fn();
 const loadAppointmentsForPrimaryOrgMock = jest.fn();
 const notifyMock = jest.fn();
 
@@ -14,8 +13,6 @@ jest.mock('@/app/features/billing/services/invoiceService', () => ({
   getPaymentLink: (...args: any[]) => getPaymentLinkMock(...args),
   loadInvoicesForOrgPrimaryOrg: (...args: any[]) => loadInvoicesForOrgPrimaryOrgMock(...args),
   markInvoicePaid: (...args: any[]) => markInvoicePaidMock(...args),
-  updateInvoicePaymentCollectionMethod: (...args: any[]) =>
-    updateInvoicePaymentCollectionMethodMock(...args),
 }));
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
@@ -32,7 +29,6 @@ describe('InvoicePaymentActions', () => {
     getPaymentLinkMock.mockResolvedValue('https://stripe.test');
     loadInvoicesForOrgPrimaryOrgMock.mockResolvedValue(undefined);
     markInvoicePaidMock.mockResolvedValue(undefined);
-    updateInvoicePaymentCollectionMethodMock.mockResolvedValue(undefined);
     loadAppointmentsForPrimaryOrgMock.mockResolvedValue(undefined);
   });
 
@@ -48,13 +44,6 @@ describe('InvoicePaymentActions', () => {
     fireEvent.click(screen.getByText('Pay in cash'));
 
     await waitFor(() =>
-      expect(updateInvoicePaymentCollectionMethodMock).toHaveBeenCalledWith(
-        'inv-1',
-        'PAYMENT_AT_CLINIC'
-      )
-    );
-
-    await waitFor(() =>
       expect(
         screen.getByText('Confirm cash payment before marking this invoice as paid.')
       ).toBeInTheDocument()
@@ -66,7 +55,7 @@ describe('InvoicePaymentActions', () => {
     });
     expect(notifyMock).toHaveBeenCalledWith('info', {
       title: 'Cash collection ready',
-      text: 'Payment collection method is set to in-person cash. Click Collect cash after receiving payment.',
+      text: 'Click Collect cash after receiving payment. The payment will be recorded through finance.',
     });
     expect(screen.queryByText('Generate & Mail link')).not.toBeInTheDocument();
   });
@@ -81,13 +70,6 @@ describe('InvoicePaymentActions', () => {
     );
 
     fireEvent.click(screen.getByText('Pay in cash'));
-
-    await waitFor(() =>
-      expect(updateInvoicePaymentCollectionMethodMock).toHaveBeenCalledWith(
-        'inv-1',
-        'PAYMENT_AT_CLINIC'
-      )
-    );
 
     await waitFor(() => expect(screen.getByText('Collect cash')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Collect cash'));

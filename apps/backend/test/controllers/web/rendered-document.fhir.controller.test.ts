@@ -5,6 +5,8 @@ import { isReadFromPostgres } from "../../../src/config/read-switch";
 import { RenderedDocumentFhirController } from "../../../src/controllers/web/rendered-document.fhir.controller";
 import {
   getPersistedRenderedDocument,
+  getPersistedRenderedDocumentPdf,
+  rerenderPersistedClinicalRenderedDocumentPdf,
   signPersistedRenderedDocument,
 } from "../../../src/services/rendered-document.service";
 import logger from "../../../src/utils/logger";
@@ -33,6 +35,12 @@ const mockedIsReadFromPostgres = jest.mocked(isReadFromPostgres);
 const mockedGetPersistedRenderedDocument = jest.mocked(
   getPersistedRenderedDocument,
 );
+const mockedGetPersistedRenderedDocumentPdf = jest.mocked(
+  getPersistedRenderedDocumentPdf,
+);
+const mockedRerenderPersistedClinicalRenderedDocumentPdf = jest.mocked(
+  rerenderPersistedClinicalRenderedDocumentPdf,
+);
 const mockedSignPersistedRenderedDocument = jest.mocked(
   signPersistedRenderedDocument,
 );
@@ -43,6 +51,8 @@ describe("RenderedDocumentFhirController", () => {
   let res: Partial<Response>;
   let statusMock: jest.Mock;
   let jsonMock: jest.Mock;
+  let sendMock: jest.Mock;
+  let setHeaderMock: jest.Mock;
 
   beforeEach(() => {
     mockedIsReadFromPostgres.mockReturnValue(true);
@@ -53,7 +63,9 @@ describe("RenderedDocumentFhirController", () => {
     });
 
     jsonMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+    sendMock = jest.fn();
+    setHeaderMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
 
     req = {
       params: {
@@ -66,6 +78,8 @@ describe("RenderedDocumentFhirController", () => {
     res = {
       status: statusMock,
       json: jsonMock,
+      send: sendMock,
+      setHeader: setHeaderMock,
     } as unknown as Response;
 
     jest.clearAllMocks();
@@ -91,6 +105,61 @@ describe("RenderedDocumentFhirController", () => {
       id: "doc-1",
       organisationId: "org-1",
     });
+  });
+
+  it("returns a rendered document pdf by id", async () => {
+    mockedGetPersistedRenderedDocumentPdf.mockResolvedValueOnce({
+      pdf: Buffer.from("%PDF-FAKE"),
+      filename: "soap-note-doc-1.pdf",
+      contentType: "application/pdf",
+    } as never);
+
+    await RenderedDocumentFhirController.getRenderedDocumentPdf(
+      req as Request,
+      res as Response,
+    );
+
+    expect(mockedGetPersistedRenderedDocumentPdf).toHaveBeenCalledWith(
+      "doc-1",
+      "org-1",
+    );
+    expect(setHeaderMock).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/pdf",
+    );
+    expect(setHeaderMock).toHaveBeenCalledWith(
+      "Content-Disposition",
+      'inline; filename="soap-note-doc-1.pdf"',
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(sendMock).toHaveBeenCalledWith(Buffer.from("%PDF-FAKE"));
+  });
+
+  it("rerenders a clinical rendered document pdf by id", async () => {
+    mockedRerenderPersistedClinicalRenderedDocumentPdf.mockResolvedValueOnce({
+      pdf: Buffer.from("%PDF-RERENDERED"),
+      filename: "soap-note-doc-1.pdf",
+      contentType: "application/pdf",
+    } as never);
+
+    await RenderedDocumentFhirController.rerenderRenderedDocumentPdf(
+      req as Request,
+      res as Response,
+    );
+
+    expect(
+      mockedRerenderPersistedClinicalRenderedDocumentPdf,
+    ).toHaveBeenCalledWith("doc-1", "org-1");
+    expect(setHeaderMock).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/pdf",
+    );
+    expect(setHeaderMock).toHaveBeenCalledWith(
+      "Content-Disposition",
+      'inline; filename="soap-note-doc-1.pdf"',
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(sendMock).toHaveBeenCalledWith(Buffer.from("%PDF-RERENDERED"));
   });
 
   it("signs a rendered document using the authenticated user", async () => {

@@ -50,6 +50,7 @@ type AppointmentCalendarProps = {
   setChangeStatusPopup?: (open: boolean) => void;
   setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<AppointmentStatus | null>>;
   setChangeRoomPopup?: (open: boolean) => void;
+  onOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   activeCalendar: string;
   setActiveCalendar?: React.Dispatch<React.SetStateAction<string>>;
   currentDate: Date;
@@ -151,6 +152,7 @@ const AppointmentCalendar = ({
   setChangeStatusPopup,
   setChangeStatusPreferredStatus,
   setChangeRoomPopup,
+  onOpenWorkspace,
   activeCalendar,
   setActiveCalendar,
   currentDate,
@@ -662,12 +664,10 @@ const AppointmentCalendar = ({
   const handleViewAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     setActiveAppointment?.(appointment);
     setViewIntent?.(intent ?? null);
-    setViewPopup?.(true);
-  };
-
-  const handleDetailAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
-    setActiveAppointment?.(appointment);
-    setViewIntent?.(intent ?? null);
+    if (setViewPopup) {
+      setViewPopup(true);
+      return;
+    }
     setDetailPopup?.(true);
   };
 
@@ -730,14 +730,6 @@ const AppointmentCalendar = ({
     ]
   );
 
-  const myAppointments = useMemo(() => {
-    const currentLeadId = normalizeId(getCurrentUserPractitionerId() || authUserId);
-    if (!currentLeadId) return filteredList;
-    return filteredList.filter(
-      (appointment) => normalizeId(appointment.lead?.id) === currentLeadId
-    );
-  }, [authUserId, filteredList, getCurrentUserPractitionerId, normalizeId]);
-
   const dayEvents = useMemo(
     () =>
       filteredList.filter((event) =>
@@ -746,16 +738,9 @@ const AppointmentCalendar = ({
     [filteredList, currentDate]
   );
 
-  const myDayEvents = useMemo(
-    () =>
-      myAppointments.filter((event) =>
-        isOnPreferredTimeZoneCalendarDay(event.startTime, currentDate)
-      ),
-    [myAppointments, currentDate]
-  );
   const weekEvents = useMemo(
-    () => filterAppointmentsForWeek(myAppointments, weekStart),
-    [myAppointments, weekStart]
+    () => filterAppointmentsForWeek(filteredList, weekStart),
+    [filteredList, weekStart]
   );
 
   return (
@@ -784,11 +769,12 @@ const AppointmentCalendar = ({
       ) : null}
       {activeCalendar === 'day' && (
         <DayCalendar
-          events={myDayEvents}
+          events={dayEvents}
           date={currentDate}
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
-          handleDetailAppointment={handleDetailAppointment}
+          handleDetailAppointment={handleViewAppointment}
+          handleOpenWorkspace={onOpenWorkspace}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           setCurrentDate={setCurrentDate}
@@ -852,7 +838,7 @@ const AppointmentCalendar = ({
           events={weekEvents}
           zoomMode={zoomMode}
           handleViewAppointment={handleViewAppointment}
-          handleDetailAppointment={handleDetailAppointment}
+          handleOpenWorkspace={onOpenWorkspace}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
@@ -921,9 +907,10 @@ const AppointmentCalendar = ({
           zoomMode={zoomMode}
           forceFullDayInZoomIn
           handleViewAppointment={handleViewAppointment}
-          handleDetailAppointment={handleDetailAppointment}
+          handleOpenWorkspace={onOpenWorkspace}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
+          handleChangeStatusAppointment={handleChangeStatusAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
           draggedAppointmentId={draggedAppointmentId}

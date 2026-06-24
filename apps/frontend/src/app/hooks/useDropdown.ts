@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 export type DropdownOption = {
   value: string;
   label: string;
+  /** Optional short pill rendered to the right of the label (e.g. "Package"). */
+  badge?: string;
 };
 
 type UseDropdownOptions = {

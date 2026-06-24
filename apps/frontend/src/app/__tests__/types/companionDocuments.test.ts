@@ -30,66 +30,33 @@ describe('companionDocuments types', () => {
   });
 
   describe('HealthCategoryOptions', () => {
-    it('has Hospital visits option', () => {
-      const option = HealthCategoryOptions.find((o) => o.value === 'HOSPITAL_VISITS');
-      expect(option).toBeDefined();
-      expect(option?.label).toBe('Hospital visits');
-    });
-
-    it('has Prescriptions & treatments option', () => {
-      const option = HealthCategoryOptions.find((o) => o.value === 'PRESCRIPTIONS_AND_TREATMENTS');
-      expect(option).toBeDefined();
-      expect(option?.label).toBe('Prescriptions & treatments');
-    });
-
-    it('has Vaccination & parasite prevention option', () => {
-      const option = HealthCategoryOptions.find(
-        (o) => o.value === 'VACCINATION_AND_PARASITE_PREVENTION'
-      );
-      expect(option).toBeDefined();
-      expect(option?.label).toBe('Vaccination & parasite prevention');
-    });
-
-    it('has Lab tests option', () => {
-      const option = HealthCategoryOptions.find((o) => o.value === 'LAB_TESTS');
-      expect(option).toBeDefined();
-      expect(option?.label).toBe('Lab tests');
-    });
-
-    it('has exactly 4 options', () => {
-      expect(HealthCategoryOptions).toHaveLength(4);
+    it('matches the approved health subcategory list', () => {
+      expect(HealthCategoryOptions).toEqual([
+        { label: 'Surgery/ Procedure', value: 'SURGERY_PROCEDURE' },
+        { label: 'Prescription', value: 'PRESCRIPTION' },
+        { label: 'Vaccination', value: 'VACCINATION' },
+        { label: 'Discharge summary', value: 'DISCHARGE_SUMMARY' },
+        { label: 'Lab test', value: 'LAB_TEST' },
+        { label: 'Imaging/ Diagnostic', value: 'IMAGING_DIAGNOSTIC' },
+        { label: 'Parasite prevention', value: 'PARASITE_PREVENTION' },
+        { label: 'Medical condition', value: 'MEDICAL_CONDITION' },
+        { label: 'Other', value: 'OTHER' },
+      ]);
     });
   });
 
   describe('HygieneCategoryOptions', () => {
-    it('has Grooming visits option', () => {
-      const option = HygieneCategoryOptions.find((o) => o.value === 'GROOMER_VISIT');
-      expect(option).toBeDefined();
-      expect(option?.label).toBe('Grooming visits');
-    });
-
-    it('has Boarding records option', () => {
-      const option = HygieneCategoryOptions.find((o) => o.value === 'BOARDER_VISIT');
-      expect(option).toBeDefined();
-      expect(option?.label).toBe('Boarding records');
-    });
-
-    it('has Training & behavior reports option', () => {
-      const option = HygieneCategoryOptions.find(
-        (o) => o.value === 'TRAINING_AND_BEHAVIOUR_REPORTS'
-      );
-      expect(option).toBeDefined();
-      expect(option?.label).toBe('Training & behavior reports');
-    });
-
-    it('has Breeder interactions option', () => {
-      const option = HygieneCategoryOptions.find((o) => o.value === 'BREEDER_VISIT');
-      expect(option).toBeDefined();
-      expect(option?.label).toBe('Breeder interactions');
-    });
-
-    it('has exactly 4 options', () => {
-      expect(HygieneCategoryOptions).toHaveLength(4);
+    it('matches the approved hygiene subcategory list', () => {
+      expect(HygieneCategoryOptions).toEqual([
+        { label: 'Bathing', value: 'BATHING' },
+        { label: 'Nail trim', value: 'NAIL_TRIM' },
+        { label: 'Grooming', value: 'GROOMING' },
+        { label: 'Ear cleaning', value: 'EAR_CLEANING' },
+        { label: 'Dental cleaning', value: 'DENTAL_CLEANING' },
+        { label: 'Skin care', value: 'SKIN_CARE' },
+        { label: 'Anal gland expression', value: 'ANAL_GLAND_EXPRESSION' },
+        { label: 'Other', value: 'OTHER' },
+      ]);
     });
   });
 
@@ -102,8 +69,8 @@ describe('companionDocuments types', () => {
       expect(emptyCompanionRecord.category).toBe('HEALTH');
     });
 
-    it('has HOSPITAL_VISITS subcategory by default', () => {
-      expect(emptyCompanionRecord.subcategory).toBe('HOSPITAL_VISITS');
+    it('has SURGERY_PROCEDURE subcategory by default', () => {
+      expect(emptyCompanionRecord.subcategory).toBe('SURGERY_PROCEDURE');
     });
 
     it('has empty attachments array', () => {
@@ -136,10 +103,10 @@ describe('companionDocuments types', () => {
     });
 
     it('allows valid Subcategory types', () => {
-      const hospitalVisits: Subcategory = 'HOSPITAL_VISITS';
-      const groomerVisit: Subcategory = 'GROOMER_VISIT';
-      expect(hospitalVisits).toBe('HOSPITAL_VISITS');
-      expect(groomerVisit).toBe('GROOMER_VISIT');
+      const surgeryProcedure: Subcategory = 'SURGERY_PROCEDURE';
+      const bathing: Subcategory = 'BATHING';
+      expect(surgeryProcedure).toBe('SURGERY_PROCEDURE');
+      expect(bathing).toBe('BATHING');
     });
 
     it('allows valid CompanionRecord', () => {
@@ -147,7 +114,7 @@ describe('companionDocuments types', () => {
         id: 'rec-123',
         title: 'Test Record',
         category: 'HEALTH',
-        subcategory: 'LAB_TESTS',
+        subcategory: 'LAB_TEST',
         attachments: [{ key: 'file-key', mimeType: 'application/pdf', size: 1024 }],
         appointmentId: 'appt-123',
         companionId: 'comp-123',

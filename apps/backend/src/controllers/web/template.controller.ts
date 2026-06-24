@@ -32,6 +32,7 @@ const listQuerySchema = z.object({
   kind: templateKindQuerySchema.optional(),
   status: z.nativeEnum(TemplateStatus).optional(),
   scope: z.nativeEnum(TemplateScope).optional(),
+  search: z.string().trim().optional(),
 });
 
 const handleError = (error: unknown, res: Response) => {

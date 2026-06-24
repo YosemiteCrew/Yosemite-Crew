@@ -1,4 +1,4 @@
-import type { LabOrderStatus } from "src/models/lab-order";
+import type { LabOrderStatus } from "@prisma/client";
 
 export const normalizeLabStatus = (
   status: unknown,

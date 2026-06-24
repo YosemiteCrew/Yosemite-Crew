@@ -4,6 +4,7 @@ type BlueprintFieldType =
   | "text"
   | "textarea"
   | "datetime"
+  | "date"
   | "number"
   | "select"
   | "multiSelect"
@@ -73,348 +74,284 @@ type SnapshotSection = {
   fields?: SnapshotField[];
 };
 
+const SOAP_NOTE_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: "subjective",
+      title: "Subjective",
+      order: 1,
+      fields: [
+        {
+          key: "subjective",
+          label: "Subjective",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "objective",
+      title: "Objective",
+      order: 2,
+      fields: [
+        {
+          key: "objective",
+          label: "Objective",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "assessment",
+      title: "Assessment",
+      order: 3,
+      fields: [
+        {
+          key: "assessment",
+          label: "Assessment",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "plan",
+      title: "Plan",
+      order: 4,
+      fields: [
+        {
+          key: "plan",
+          label: "Plan",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+  ],
+};
+
+const PRESCRIPTION_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: "medications",
+      title: "Medications",
+      order: 1,
+      fields: [
+        {
+          key: "medicationLine",
+          label: "Medication lines",
+          type: "medicationLine",
+          repeatable: true,
+          required: true,
+          order: 1,
+          rules: {
+            columns: [
+              "inventoryItemId",
+              "dosage",
+              "frequency",
+              "durationDays",
+              "instructions",
+              "qty",
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "instructions",
+      title: "Instructions",
+      order: 2,
+      fields: [
+        {
+          key: "usageInstructions",
+          label: "Usage instructions",
+          type: "instructionBlock",
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "notes",
+      title: "Notes",
+      order: 3,
+      fields: [
+        {
+          key: "clinicalNotes",
+          label: "Clinical notes",
+          type: "richText",
+          order: 1,
+        },
+      ],
+    },
+  ],
+};
+
+const DISCHARGE_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: "summary",
+      title: "Discharge summary",
+      order: 1,
+      fields: [
+        {
+          key: "summaryText",
+          label: "Discharge summary",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "home_care",
+      title: "Home care instructions",
+      order: 2,
+      fields: [
+        {
+          key: "homeCare",
+          label: "Home care instructions",
+          type: "richText",
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "medications",
+      title: "Medications",
+      order: 3,
+      fields: [
+        {
+          key: "dischargeMedications",
+          label: "Medications",
+          type: "richText",
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "follow_up",
+      title: "Follow up",
+      order: 4,
+      fields: [
+        {
+          key: "followUpInDays",
+          label: "Follow-up in days",
+          type: "number",
+          order: 1,
+          rules: { unit: "days" },
+        },
+      ],
+    },
+    {
+      id: "signature",
+      title: "Signature",
+      order: 5,
+      fields: [
+        {
+          key: "signature",
+          label: "Signature",
+          type: "signature",
+          order: 1,
+        },
+      ],
+    },
+  ],
+};
+
+const VITALS_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: "vitals",
+      title: "Vitals",
+      order: 1,
+      fields: [
+        {
+          key: "weightLbs",
+          label: "Weight",
+          type: "number",
+          order: 1,
+          rules: { unit: "lbs" },
+        },
+        {
+          key: "tempF",
+          label: "Temperature",
+          type: "number",
+          order: 2,
+          rules: { unit: "°F" },
+        },
+        {
+          key: "heartRateBpm",
+          label: "Heart rate",
+          type: "number",
+          order: 3,
+          rules: { unit: "bpm" },
+        },
+        {
+          key: "respRateBpm",
+          label: "Respiratory rate",
+          type: "number",
+          order: 4,
+          rules: { unit: "bpm" },
+        },
+        {
+          key: "crtSec",
+          label: "CRT",
+          type: "text",
+          order: 5,
+          rules: { unit: "sec" },
+        },
+        {
+          key: "mucousMembrane",
+          label: "Mucous membrane",
+          type: "text",
+          order: 6,
+        },
+        {
+          key: "painScore",
+          label: "Pain score",
+          type: "number",
+          order: 7,
+          rules: { unit: "/ 10" },
+        },
+        {
+          key: "bcs",
+          label: "BCS",
+          type: "number",
+          order: 8,
+          rules: { unit: "/ 9" },
+        },
+      ],
+    },
+    {
+      id: "notes",
+      title: "Notes",
+      order: 2,
+      fields: [{ key: "notes", label: "Notes", type: "richText", order: 1 }],
+    },
+  ],
+};
+
 const clinicalBlueprints: Record<
   ClinicalTemplateKind,
   ClinicalTemplateSchemaSnapshot
 > = {
-  SOAP_NOTE: {
-    sections: [
-      {
-        id: "subjective",
-        title: "Subjective",
-        order: 1,
-        fields: [
-          {
-            key: "chiefComplaint",
-            label: "Chief complaint",
-            type: "textarea",
-            required: true,
-            order: 1,
-          },
-          {
-            key: "history",
-            label: "History",
-            type: "richText",
-            order: 2,
-          },
-          {
-            key: "ownerConcern",
-            label: "Owner concern",
-            type: "text",
-            order: 3,
-          },
-        ],
-      },
-      {
-        id: "objective",
-        title: "Objective",
-        order: 2,
-        fields: [
-          {
-            key: "vitals",
-            label: "Vitals",
-            type: "vitalRow",
-            repeatable: true,
-            order: 1,
-            rules: {
-              columns: ["label", "value", "unit"],
-            },
-          },
-          {
-            key: "examFindings",
-            label: "Exam findings",
-            type: "richText",
-            order: 2,
-          },
-          {
-            key: "testResults",
-            label: "Test results",
-            type: "table",
-            order: 3,
-            rules: {
-              columns: ["testName", "result", "unit"],
-            },
-          },
-        ],
-      },
-      {
-        id: "assessment",
-        title: "Assessment",
-        order: 3,
-        fields: [
-          {
-            key: "diagnoses",
-            label: "Diagnoses",
-            type: "diagnosis",
-            required: true,
-            repeatable: true,
-            order: 1,
-          },
-          {
-            key: "assessmentNotes",
-            label: "Assessment notes",
-            type: "richText",
-            order: 2,
-          },
-          {
-            key: "severity",
-            label: "Severity",
-            type: "select",
-            order: 3,
-            options: [
-              { label: "Mild", value: "mild" },
-              { label: "Moderate", value: "moderate" },
-              { label: "Severe", value: "severe" },
-            ],
-            rules: {
-              allowCustom: false,
-            },
-          },
-        ],
-      },
-      {
-        id: "plan",
-        title: "Plan",
-        order: 4,
-        fields: [
-          {
-            key: "medications",
-            label: "Medications",
-            type: "medicationLine",
-            required: true,
-            repeatable: true,
-            order: 1,
-            rules: {
-              columns: ["drug", "dose", "frequency", "duration"],
-            },
-          },
-          {
-            key: "procedures",
-            label: "Procedures",
-            type: "procedure",
-            repeatable: true,
-            order: 2,
-            rules: {
-              columns: ["procedure", "notes"],
-            },
-          },
-          {
-            key: "instructions",
-            label: "Instructions",
-            type: "instructionBlock",
-            required: true,
-            order: 3,
-          },
-          {
-            key: "followUp",
-            label: "Follow up",
-            type: "datetime",
-            order: 4,
-          },
-        ],
-      },
-    ],
-  },
-  PRESCRIPTION: {
-    sections: [
-      {
-        id: "medications",
-        title: "Medications",
-        order: 1,
-        fields: [
-          {
-            key: "prescribedItems",
-            label: "Prescribed items",
-            type: "medicationLine",
-            repeatable: true,
-            order: 1,
-            rules: {
-              columns: ["drug", "dose", "frequency", "duration"],
-            },
-          },
-        ],
-      },
-      {
-        id: "instructions",
-        title: "Instructions",
-        order: 2,
-        fields: [
-          {
-            key: "usageInstructions",
-            label: "Usage instructions",
-            type: "instructionBlock",
-            order: 1,
-          },
-        ],
-      },
-      {
-        id: "notes",
-        title: "Notes",
-        order: 3,
-        fields: [
-          {
-            key: "clinicalNotes",
-            label: "Clinical notes",
-            type: "richText",
-            order: 1,
-          },
-        ],
-      },
-    ],
-  },
-  DISCHARGE_SUMMARY: {
-    sections: [
-      {
-        id: "summary",
-        title: "Summary",
-        order: 1,
-        fields: [
-          {
-            key: "summaryText",
-            label: "Summary text",
-            type: "richText",
-            required: true,
-            order: 1,
-          },
-        ],
-      },
-      {
-        id: "diagnoses",
-        title: "Diagnoses",
-        order: 2,
-        fields: [
-          {
-            key: "diagnosisItems",
-            label: "Diagnosis items",
-            type: "diagnosis",
-            required: true,
-            repeatable: true,
-            order: 1,
-          },
-        ],
-      },
-      {
-        id: "medications",
-        title: "Medications",
-        order: 3,
-        fields: [
-          {
-            key: "medicationLines",
-            label: "Medication lines",
-            type: "medicationLine",
-            required: true,
-            repeatable: true,
-            order: 1,
-            rules: {
-              columns: ["drug", "dose", "frequency", "duration"],
-            },
-          },
-        ],
-      },
-      {
-        id: "follow_up",
-        title: "Follow Up",
-        order: 4,
-        fields: [
-          {
-            key: "followUpDate",
-            label: "Follow up date",
-            type: "datetime",
-            order: 1,
-          },
-        ],
-      },
-      {
-        id: "instructions",
-        title: "Instructions",
-        order: 5,
-        fields: [
-          {
-            key: "dischargeInstructions",
-            label: "Discharge instructions",
-            type: "instructionBlock",
-            required: true,
-            order: 1,
-          },
-        ],
-      },
-    ],
-  },
-  VITAL_RECORD: {
-    sections: [
-      {
-        id: "measured_at",
-        title: "Measured At",
-        order: 1,
-        fields: [
-          {
-            key: "measuredAt",
-            label: "Measured at",
-            type: "datetime",
-            required: true,
-            order: 1,
-          },
-        ],
-      },
-      {
-        id: "vitals",
-        title: "Vitals",
-        order: 2,
-        fields: [
-          {
-            key: "vitalRows",
-            label: "Vital rows",
-            type: "vitalRow",
-            required: true,
-            repeatable: true,
-            order: 1,
-            rules: {
-              columns: ["label", "value", "unit"],
-            },
-          },
-        ],
-      },
-      {
-        id: "notes",
-        title: "Notes",
-        order: 3,
-        fields: [
-          {
-            key: "recordNotes",
-            label: "Record notes",
-            type: "richText",
-            order: 1,
-          },
-        ],
-      },
-      {
-        id: "metadata",
-        title: "Metadata",
-        order: 4,
-        fields: [
-          {
-            key: "recordedBy",
-            label: "Recorded by",
-            type: "text",
-            order: 1,
-          },
-        ],
-      },
-    ],
-  },
+  // Single-sourced inside the backend so the builder/seed/validation layer stays in lock-step.
+  SOAP_NOTE: SOAP_NOTE_BLUEPRINT,
+  PRESCRIPTION: PRESCRIPTION_BLUEPRINT,
+  DISCHARGE_SUMMARY: DISCHARGE_BLUEPRINT,
+  VITAL_RECORD: VITALS_BLUEPRINT,
 };
 
 const kindToRequiredSectionIds: Record<ClinicalTemplateKind, string[]> = {
   SOAP_NOTE: ["subjective", "objective", "assessment", "plan"],
   PRESCRIPTION: ["medications", "instructions", "notes"],
-  DISCHARGE_SUMMARY: [
-    "summary",
-    "diagnoses",
-    "medications",
-    "follow_up",
-    "instructions",
-  ],
-  VITAL_RECORD: ["measured_at", "vitals", "notes", "metadata"],
+  DISCHARGE_SUMMARY: ["summary", "home_care", "medications", "follow_up"],
+  VITAL_RECORD: ["vitals"],
 };
 
 const isClinicalTemplateKind = (
@@ -528,6 +465,17 @@ export const buildClinicalTemplateSchemaSnapshot = (
     fields: section.fields.map((field) => ({ ...field })),
   })),
 });
+
+// FE-consumable default SOAP seed: four S/O/A/P sections, single-sourced from the backend
+// canonical structure.
+export const buildDefaultSoapNoteSchemaSnapshot =
+  (): ClinicalTemplateSchemaSnapshot =>
+    ({
+      sections: SOAP_NOTE_BLUEPRINT.sections.map((section) => ({
+        ...section,
+        fields: section.fields.map((field) => ({ ...field })),
+      })),
+    }) as ClinicalTemplateSchemaSnapshot;
 
 export const validateClinicalTemplateBlueprint = (
   kind: TemplateKind,

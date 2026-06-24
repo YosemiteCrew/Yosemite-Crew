@@ -58,6 +58,21 @@ const syncProfileTimezoneToLocalDevice = async (
   }
 };
 
+// Per-org in-flight dedup so the fan-out (loadProfiles with no orgId) and the
+// single-org fast path (used by useLoadProfiles for the primary org) share one
+// request per orgId instead of firing duplicate GETs for the same profile.
+const inFlightProfileByOrgId = new Map<string, Promise<UserProfile | null>>();
+
+const fetchProfileForOrgDeduped = (orgId: string): Promise<UserProfile | null> => {
+  const existing = inFlightProfileByOrgId.get(orgId);
+  if (existing) return existing;
+  const request = fetchProfileForOrg(orgId).finally(() => {
+    inFlightProfileByOrgId.delete(orgId);
+  });
+  inFlightProfileByOrgId.set(orgId, request);
+  return request;
+};
+
 const fetchProfileForOrg = async (orgId: string): Promise<UserProfile | null> => {
   try {
     const res = await getData<any>(
@@ -82,7 +97,7 @@ export const loadProfiles = async (opts?: { silent?: boolean; orgId?: string }) 
   // Single-org fast path — used during org switch to avoid fan-out
   if (opts?.orgId) {
     if (!opts?.silent) startLoading();
-    const profile = await fetchProfileForOrg(opts.orgId);
+    const profile = await fetchProfileForOrgDeduped(opts.orgId);
     if (profile) addProfile(profile);
     return;
   }
@@ -100,7 +115,7 @@ export const loadProfiles = async (opts?: { silent?: boolean; orgId?: string }) 
     const temp: UserProfile[] = [];
     await Promise.allSettled(
       orgIds.map(async (orgId) => {
-        const profile = await fetchProfileForOrg(orgId);
+        const profile = await fetchProfileForOrgDeduped(orgId);
         if (profile) temp.push(profile);
       })
     );

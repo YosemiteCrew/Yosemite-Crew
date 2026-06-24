@@ -23,7 +23,7 @@ const ChatContainer = dynamic(
 );
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import './page.css';
@@ -39,8 +39,10 @@ const chatScopes: Array<{
 ];
 
 function ChatPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [activeScope, setActiveScope] = useState<ChatScope>('clients');
+  const [pendingAppointmentId, setPendingAppointmentId] = useState<string | null>(null);
   const appointmentId = searchParams.get('appointmentId');
   const attributes = useAuthStore((s) => s.attributes);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -67,11 +69,12 @@ function ChatPageContent() {
 
   useEffect(() => {
     if (appointmentId) {
+      setPendingAppointmentId(appointmentId);
       setActiveScope('clients');
     }
   }, [appointmentId]);
 
-  const effectiveAppointmentId = activeScope === 'clients' ? appointmentId : null;
+  const effectiveAppointmentId = activeScope === 'clients' ? pendingAppointmentId : null;
 
   return (
     <ProtectedRoute>
@@ -126,6 +129,11 @@ function ChatPageContent() {
             <div className="chat-workspace">
               <ChatContainer
                 appointmentId={effectiveAppointmentId || undefined}
+                onChannelSelect={(channel) => {
+                  if (!channel || !pendingAppointmentId) return;
+                  setPendingAppointmentId(null);
+                  router.replace('/chat', { scroll: false });
+                }}
                 scope={activeScope}
                 className="chat-module"
               />

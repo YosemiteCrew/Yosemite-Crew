@@ -13,6 +13,7 @@ import {resetNotificationState} from '@/features/notifications';
 import {resetFormsState} from '@/features/forms';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
 import {getAuth, signOut} from '@react-native-firebase/auth';
+import {DeviceEventEmitter} from 'react-native';
 
 import {
   mergeUser,
@@ -37,6 +38,17 @@ import {
   scheduleSessionRefresh,
   type RecoverAuthOutcome,
 } from './sessionManager';
+import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
+import {
+  API_CONFIG,
+  DEV_API_MODE_CHANGED_EVENT,
+  DEVELOPMENT_API_BASE_URL,
+  MOBILE_CONFIG_BEHAVIOR,
+  PRODUCTION_API_BASE_URL,
+} from '@/config/variables';
+import {Amplify} from 'aws-amplify';
+import devOutputs from '../../../devamplify_outputs.json';
+import prodOutputs from '../../../prodamplify_outputs.json';
 
 let appStateListenerRegistered = false;
 
@@ -256,6 +268,24 @@ export const logout = createAsyncThunk<
   }
 
   await clearSessionData({clearPendingProfile: true});
+
+  const defaultBaseUrl =
+    MOBILE_CONFIG_BEHAVIOR.overrides?.apiBaseUrl ??
+    (MOBILE_CONFIG_BEHAVIOR.useDevApi
+      ? DEVELOPMENT_API_BASE_URL
+      : PRODUCTION_API_BASE_URL);
+  const defaultPmsUrl =
+    MOBILE_CONFIG_BEHAVIOR.overrides?.pmsBaseUrl ?? defaultBaseUrl;
+  API_CONFIG.baseUrl = defaultBaseUrl;
+  API_CONFIG.pmsBaseUrl = defaultPmsUrl;
+  updateApiClientBaseConfig({baseUrl: defaultBaseUrl});
+  Amplify.configure(
+    MOBILE_CONFIG_BEHAVIOR.useDevApi ? devOutputs : prodOutputs,
+  );
+  DeviceEventEmitter.emit(DEV_API_MODE_CHANGED_EVENT, {
+    isDevApi: MOBILE_CONFIG_BEHAVIOR.useDevApi,
+  });
+
   resetAuthLifecycle({clearPendingProfile: true});
   appStateListenerRegistered = false;
 

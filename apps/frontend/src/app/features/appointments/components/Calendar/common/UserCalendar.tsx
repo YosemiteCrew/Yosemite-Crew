@@ -40,6 +40,7 @@ import {
   getVisibleHours,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
+import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 
 type UserCalendarProps = {
   events: Appointment[];
@@ -47,10 +48,12 @@ type UserCalendarProps = {
   zoomMode?: CalendarZoomMode;
   handleViewAppointment: any;
   handleDetailAppointment?: any;
+  handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
   handleChangeStatusAppointment?: any;
   handleChangeRoomAppointment?: any;
+  handleAcceptAppointment?: (appt: Appointment) => void;
   canEditAppointments: boolean;
   draggedAppointmentId?: string | null;
   draggedAppointmentLabel?: string | null;
@@ -81,9 +84,11 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   zoomMode = 'in',
   handleViewAppointment,
   handleDetailAppointment,
+  handleOpenWorkspace,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment: _handleChangeStatusAppointment,
+  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
+  handleAcceptAppointment,
   setCurrentDate,
   canEditAppointments,
   draggedAppointmentId,
@@ -300,8 +305,12 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                             dayIndex={index}
                             handleViewAppointment={handleViewAppointment}
                             handleDetailAppointment={handleDetailAppointment}
+                            handleOpenWorkspace={handleOpenWorkspace}
                             handleRescheduleAppointment={handleRescheduleAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
+                            handleAcceptAppointment={
+                              handleAcceptAppointment ?? handleChangeStatusAppointment
+                            }
                             length={team.length - 1}
                             canEditAppointments={canEditAppointments}
                             draggedAppointmentId={draggedAppointmentId}

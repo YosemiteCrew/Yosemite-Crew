@@ -8,7 +8,7 @@
 .TrustHeroSec {
   position: relative;
   background: linear-gradient(135deg, var(--color-brand-300) 0%, var(--color-brand-100) 100%);
-  padding: 20px 0;
+  padding: 112px 0 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -25,8 +25,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  min-height: 300px;
+  gap: 48px;
+  min-height: 360px;
 }
 
 .TrustHeroContent {
@@ -704,10 +704,15 @@ select.FormInput {
 }
 
 @media screen and (max-width: 900px) {
+  .TrustHeroSec {
+    padding: 96px 0 40px;
+  }
+
   .TrustHeroSplit {
-    flex-direction: column-reverse;
+    flex-direction: column;
     text-align: center;
-    gap: 32px;
+    gap: 24px;
+    min-height: auto;
   }
   .TrustHeroContent {
     align-items: center;

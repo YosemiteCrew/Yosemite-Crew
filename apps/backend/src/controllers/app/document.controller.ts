@@ -67,11 +67,9 @@ export const DocumentController = {
       const resolvedPatientId = patientId ?? companionId;
 
       if (!resolvedPatientId || !mimeType) {
-        return res
-          .status(400)
-          .json({
-            message: "patientId/companionId and mimeType are required.",
-          });
+        return res.status(400).json({
+          message: "patientId/companionId and mimeType are required.",
+        });
       }
 
       const { url, key } = await generatePresignedUrl(

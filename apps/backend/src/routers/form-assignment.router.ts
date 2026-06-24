@@ -22,6 +22,14 @@ router.get(
 );
 
 router.get(
+  "/organisations/:organisationId/assignments",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("forms:view:any"),
+  (req, res) => FormAssignmentController.listForOrganisation(req, res),
+);
+
+router.get(
   "/organisations/:organisationId/companions/:companionId/assignments",
   authorizeCognito,
   withOrgPermissions(),
@@ -29,8 +37,16 @@ router.get(
   (req, res) => FormAssignmentController.listForCompanion(req, res),
 );
 
+router.get(
+  "/organisations/:organisationId/assignments",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("forms:view:any"),
+  (req, res) => FormAssignmentController.listForOrganisation(req, res),
+);
+
 router.post(
-  "/organisations/:organisationId/assignments/:assignmentId/$resend",
+  String.raw`/organisations/:organisationId/assignments/:assignmentId/\$resend`,
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
@@ -38,7 +54,7 @@ router.post(
 );
 
 router.post(
-  "/organisations/:organisationId/assignments/:assignmentId/$cancel",
+  String.raw`/organisations/:organisationId/assignments/:assignmentId/\$cancel`,
   authorizeCognito,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),

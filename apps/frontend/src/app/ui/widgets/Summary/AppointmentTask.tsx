@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Appointments from '@/app/ui/tables/Appointments';
 import Tasks from '@/app/ui/tables/Tasks';
 
@@ -21,14 +22,71 @@ import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/
 import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
 import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 import Filters from '@/app/ui/filters/Filters';
+import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
+import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
+import { startRouteLoader } from '@/app/lib/routeLoader';
+import ViewAppointmentOverviewModal from '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal';
+
+const revampEnabled = isAppointmentRevampEnabled();
+
+const resetActiveTableState = (
+  activeTable: string,
+  activeSubLabel: string,
+  viewTaskPopup: boolean,
+  setters: {
+    setActiveSubLabel: React.Dispatch<React.SetStateAction<string>>;
+    setViewTaskPopup: React.Dispatch<React.SetStateAction<boolean>>;
+    setViewPopup: React.Dispatch<React.SetStateAction<boolean>>;
+    setDetailPopup: React.Dispatch<React.SetStateAction<boolean>>;
+    setReschedulePopup: React.Dispatch<React.SetStateAction<boolean>>;
+    setChangeStatusPopup: React.Dispatch<React.SetStateAction<boolean>>;
+    setChangeRoomPopup: React.Dispatch<React.SetStateAction<boolean>>;
+    setViewIntent: React.Dispatch<React.SetStateAction<AppointmentViewIntent | null>>;
+  }
+) => {
+  if (activeSubLabel !== 'all') setters.setActiveSubLabel('all');
+  if (activeTable === 'Appointments') {
+    if (viewTaskPopup) setters.setViewTaskPopup(false);
+    return;
+  }
+  setters.setViewPopup(false);
+  setters.setDetailPopup(false);
+  setters.setReschedulePopup(false);
+  setters.setChangeStatusPopup(false);
+  setters.setChangeRoomPopup(false);
+  setters.setViewIntent(null);
+};
+
+const getNextSelectedAppointment = (
+  current: Appointment | null,
+  appointments: Appointment[]
+): Appointment | null => {
+  if (appointments.length === 0) return null;
+  if (current?.id) {
+    const updated = appointments.find((item) => item.id === current.id);
+    if (updated) return updated;
+  }
+  return appointments[0];
+};
+
+const getNextSelectedTask = (current: Task | null, tasks: Task[]): Task | null => {
+  if (tasks.length === 0) return null;
+  if (current?._id) {
+    const updated = tasks.find((item) => item._id === current._id);
+    if (updated) return updated;
+  }
+  return tasks[0];
+};
 
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
   const { can } = usePermissions();
   const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
   const tasks = useTasksForPrimaryOrg();
+  const router = useRouter();
   const [activeTable, setActiveTable] = useState('Appointments');
   const [viewPopup, setViewPopup] = useState(false);
+  const [detailPopup, setDetailPopup] = useState(false);
   const [viewTaskPopup, setViewTaskPopup] = useState(false);
   const [reschedulePopup, setReschedulePopup] = useState(false);
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
@@ -43,44 +101,30 @@ const AppointmentTask = () => {
   const [activeSubLabel, setActiveSubLabel] = useState('all');
 
   useEffect(() => {
-    if (!viewPopup) setViewIntent(null);
-  }, [viewPopup]);
+    if (!viewPopup && !detailPopup) setViewIntent(null);
+  }, [viewPopup, detailPopup]);
 
   const prevActiveTableRef = useRef(activeTable);
   if (prevActiveTableRef.current !== activeTable) {
     prevActiveTableRef.current = activeTable;
-    if (activeSubLabel !== 'all') setActiveSubLabel('all');
-    if (activeTable === 'Appointments') {
-      if (viewTaskPopup) setViewTaskPopup(false);
-    } else {
-      setViewPopup(false);
-      setReschedulePopup(false);
-      setChangeStatusPopup(false);
-      setChangeRoomPopup(false);
-      setViewIntent(null);
-    }
+    resetActiveTableState(activeTable, activeSubLabel, viewTaskPopup, {
+      setActiveSubLabel,
+      setViewTaskPopup,
+      setViewPopup,
+      setDetailPopup,
+      setReschedulePopup,
+      setChangeStatusPopup,
+      setChangeRoomPopup,
+      setViewIntent,
+    });
   }
 
   useEffect(() => {
-    setActiveAppointment((prev) => {
-      if (appointments.length === 0) return null;
-      if (prev?.id) {
-        const updated = appointments.find((s) => s.id === prev.id);
-        if (updated) return updated;
-      }
-      return appointments[0];
-    });
+    setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
   }, [appointments]);
 
   useEffect(() => {
-    setActiveTask((prev) => {
-      if (tasks.length === 0) return null;
-      if (prev?._id) {
-        const updated = tasks.find((s) => s._id === prev._id);
-        if (updated) return updated;
-      }
-      return tasks[0];
-    });
+    setActiveTask((prev) => getNextSelectedTask(prev, tasks));
   }, [tasks]);
 
   const filteredList = useMemo(() => {
@@ -138,6 +182,7 @@ const AppointmentTask = () => {
             filteredList={filteredList}
             setActiveAppointment={setActiveAppointment}
             setViewPopup={setViewPopup}
+            setDetailPopup={setDetailPopup}
             setReschedulePopup={setReschedulePopup}
             canEditAppointments={canEditAppointments}
             setChangeStatusPopup={setChangeStatusPopup}
@@ -154,10 +199,28 @@ const AppointmentTask = () => {
           />
         )}
 
-        {activeAppointment && (
-          <AppoitmentInfo
+        {activeAppointment && revampEnabled && (
+          <ViewAppointmentOverviewModal
             showModal={viewPopup}
             setShowModal={setViewPopup}
+            activeAppointment={activeAppointment}
+            canEditAppointments={canEditAppointments}
+            onOpenDetails={(appointment, intent) => {
+              setActiveAppointment(appointment);
+              setViewIntent(intent ?? null);
+              setViewPopup(false);
+              if (appointment.id) {
+                startRouteLoader();
+                router.push(buildWorkspaceHref(appointment.id));
+              }
+            }}
+          />
+        )}
+
+        {activeAppointment && (
+          <AppoitmentInfo
+            showModal={revampEnabled ? detailPopup : viewPopup}
+            setShowModal={revampEnabled ? setDetailPopup : setViewPopup}
             activeAppointment={activeAppointment}
             initialViewIntent={viewIntent}
           />

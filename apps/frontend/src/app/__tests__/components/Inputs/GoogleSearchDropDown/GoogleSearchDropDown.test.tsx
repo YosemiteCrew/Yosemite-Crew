@@ -37,6 +37,30 @@ afterAll(() => {
 describe('GoogleSearchDropDown Component', () => {
   const mockOnChange = jest.fn();
   const mockSetFormData = jest.fn();
+  type ControlledProps = Omit<React.ComponentProps<typeof GoogleSearchDropDown>, 'value'> & {
+    initialValue?: string;
+  };
+  const ControlledGoogleSearchDropDown = ({ initialValue = '', ...props }: ControlledProps) => {
+    const [value, setValue] = React.useState(initialValue);
+    return (
+      <GoogleSearchDropDown
+        {...props}
+        value={value}
+        onChange={(event) => {
+          setValue(event.target.value);
+          props.onChange?.(event);
+        }}
+      />
+    );
+  };
+
+  beforeAll(() => {
+    jest.useFakeTimers();
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -110,34 +134,26 @@ describe('GoogleSearchDropDown Component', () => {
       }),
     });
 
-    // Initial render
-    const { rerender } = render(
-      <GoogleSearchDropDown
+    render(
+      <ControlledGoogleSearchDropDown
         intype="text"
         inname="address"
         inlabel="Address"
-        value=""
+        initialValue=""
         onChange={mockOnChange}
       />
     );
 
     const input = screen.getByRole('textbox');
     fireEvent.focus(input); // Trigger focus to allow dropdown open
-
-    // Simulate prop update (typing)
-    rerender(
-      <GoogleSearchDropDown
-        intype="text"
-        inname="address"
-        inlabel="Address"
-        value="New"
-        onChange={mockOnChange}
-      />
-    );
+    fireEvent.change(input, { target: { value: 'New' } });
 
     // Fast-forward debounce timer (400ms)
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      await Promise.resolve();
     });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -165,31 +181,24 @@ describe('GoogleSearchDropDown Component', () => {
 
     const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
 
-    const { rerender } = render(
-      <GoogleSearchDropDown
+    render(
+      <ControlledGoogleSearchDropDown
         intype="text"
         inname="address"
         inlabel="Address"
-        value=""
+        initialValue=""
         onChange={mockOnChange}
       />
     );
 
     fireEvent.focus(screen.getByRole('textbox'));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Fail' } });
 
-    // Trigger update
-    rerender(
-      <GoogleSearchDropDown
-        intype="text"
-        inname="address"
-        inlabel="Address"
-        value="Fail"
-        onChange={mockOnChange}
-      />
-    );
-
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      await Promise.resolve();
     });
 
     // Should log error but not crash
@@ -239,12 +248,12 @@ describe('GoogleSearchDropDown Component', () => {
       }),
     });
 
-    const { rerender } = render(
-      <GoogleSearchDropDown
+    render(
+      <ControlledGoogleSearchDropDown
         intype="text"
         inname="address"
         inlabel="Address"
-        value=""
+        initialValue=""
         onChange={mockOnChange}
         setFormData={mockSetFormData}
       />
@@ -252,19 +261,13 @@ describe('GoogleSearchDropDown Component', () => {
 
     // Trigger autocomplete
     fireEvent.focus(screen.getByRole('textbox'));
-    rerender(
-      <GoogleSearchDropDown
-        intype="text"
-        inname="address"
-        inlabel="Address"
-        value="Goo"
-        onChange={mockOnChange}
-        setFormData={mockSetFormData}
-      />
-    );
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Goo' } });
 
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      await Promise.resolve();
     });
 
     // Click suggestion
@@ -342,12 +345,12 @@ describe('GoogleSearchDropDown Component', () => {
       }),
     });
 
-    const { rerender } = render(
-      <GoogleSearchDropDown
+    render(
+      <ControlledGoogleSearchDropDown
         intype="text"
         inname="address"
         inlabel="Address"
-        value=""
+        initialValue=""
         onChange={mockOnChange}
         setFormData={mockSetFormData}
         onlyAddress={true}
@@ -355,20 +358,13 @@ describe('GoogleSearchDropDown Component', () => {
     );
 
     fireEvent.focus(screen.getByRole('textbox'));
-    rerender(
-      <GoogleSearchDropDown
-        intype="text"
-        inname="address"
-        inlabel="Address"
-        value="Ho"
-        onChange={mockOnChange}
-        setFormData={mockSetFormData}
-        onlyAddress={true}
-      />
-    );
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Ho' } });
 
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      await Promise.resolve();
     });
 
     const suggestion = await screen.findByRole('button', { name: /123 Test St/ });
@@ -411,29 +407,24 @@ describe('GoogleSearchDropDown Component', () => {
       }),
     });
 
-    const { rerender } = render(
-      <GoogleSearchDropDown
+    render(
+      <ControlledGoogleSearchDropDown
         intype="text"
         inname="address"
         inlabel="Address"
-        value=""
+        initialValue=""
         onChange={mockOnChange}
       />
     );
 
     fireEvent.focus(screen.getByRole('textbox'));
-    rerender(
-      <GoogleSearchDropDown
-        intype="text"
-        inname="address"
-        inlabel="Address"
-        value="1600"
-        onChange={mockOnChange}
-      />
-    );
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '1600' } });
 
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      await Promise.resolve();
     });
 
     const primary = await screen.findByText('1600 Amphitheatre Parkway');
@@ -455,25 +446,27 @@ describe('GoogleSearchDropDown Component', () => {
       }),
     });
 
-    const { rerender } = render(
+    render(
       <div>
-        <GoogleSearchDropDown value="" inlabel="Search" intype="text" onChange={mockOnChange} />
+        <ControlledGoogleSearchDropDown
+          initialValue=""
+          inlabel="Search"
+          intype="text"
+          onChange={mockOnChange}
+        />
         <div data-testid="outside">Outside</div>
       </div>
     );
 
     const input = screen.getByRole('textbox');
     fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Test' } });
 
-    rerender(
-      <div>
-        <GoogleSearchDropDown value="Test" inlabel="Search" intype="text" onChange={mockOnChange} />
-        <div data-testid="outside">Outside</div>
-      </div>
-    );
-
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      await Promise.resolve();
     });
     expect(await screen.findByRole('button', { name: /Result/ })).toBeInTheDocument();
 
@@ -486,25 +479,36 @@ describe('GoogleSearchDropDown Component', () => {
   it('does not fetch if input is readonly or too short', async () => {
     // Short query
     render(
-      <GoogleSearchDropDown value="A" inlabel="Search" intype="text" onChange={mockOnChange} />
+      <ControlledGoogleSearchDropDown
+        initialValue="A"
+        inlabel="Search"
+        intype="text"
+        onChange={mockOnChange}
+      />
     );
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      await Promise.resolve();
     });
     expect(mockFetch).not.toHaveBeenCalled();
 
     // Readonly case - mockOnChange needed for React, even if readonly prop is true on component
     render(
-      <GoogleSearchDropDown
-        value="Long Enough"
+      <ControlledGoogleSearchDropDown
+        initialValue="Long Enough"
         inlabel="Search"
         intype="text"
         onChange={mockOnChange}
         readonly
       />
     );
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 500));
+      await Promise.resolve();
     });
     expect(mockFetch).not.toHaveBeenCalled();
   });

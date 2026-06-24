@@ -125,7 +125,7 @@ describe("UserController", () => {
       const mockUser = { id: "123", name: "Test" };
       (UserService.getById as jest.Mock).mockResolvedValue(mockUser);
 
-      const req = createMockReq({ params: { id: "123" } });
+      const req = createMockReq({ params: { id: "123" }, userId: "123" });
       await UserController.getById(req, mockRes as Response);
 
       expect(UserService.getById).toHaveBeenCalledWith("123");
@@ -136,11 +136,36 @@ describe("UserController", () => {
     it("should return 404 if user not found", async () => {
       (UserService.getById as jest.Mock).mockResolvedValue(null);
 
-      const req = createMockReq({ params: { id: "999" } });
+      const req = createMockReq({ params: { id: "999" }, userId: "999" });
       await UserController.getById(req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(mockRes.json).toHaveBeenCalledWith({ message: "User not found." });
+    });
+
+    it("should return 401 when auth context is missing userId", async () => {
+      const req = createMockReq({ params: { id: "123" }, userId: undefined });
+      await UserController.getById(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "Missing user identity from token.",
+      });
+      expect(UserService.getById).not.toHaveBeenCalled();
+    });
+
+    it("should return 403 when requesting a different user", async () => {
+      const req = createMockReq({
+        params: { id: "target-user" },
+        userId: "123",
+      });
+      await UserController.getById(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "You can only view your own user.",
+      });
+      expect(UserService.getById).not.toHaveBeenCalled();
     });
 
     it("should handle UserServiceError", async () => {
@@ -148,7 +173,7 @@ describe("UserController", () => {
         new UserServiceError("Bad Request", 400),
       );
 
-      const req = createMockReq({ params: { id: "123" } });
+      const req = createMockReq({ params: { id: "123" }, userId: "123" });
       await UserController.getById(req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -159,7 +184,7 @@ describe("UserController", () => {
       const error = new Error("DB Error");
       (UserService.getById as jest.Mock).mockRejectedValue(error);
 
-      const req = createMockReq({ params: { id: "123" } });
+      const req = createMockReq({ params: { id: "123" }, userId: "123" });
       await UserController.getById(req, mockRes as Response);
 
       expect(logger.error).toHaveBeenCalledWith(

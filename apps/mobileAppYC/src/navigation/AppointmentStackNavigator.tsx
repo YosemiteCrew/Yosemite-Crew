@@ -35,10 +35,15 @@ const MyAppointmentsEntry: React.FC = () => {
   const selectedCompanionId = useSelector(
     (state: RootState) => state.companion.selectedCompanionId,
   );
+  const hasCompanions = useSelector(
+    (state: RootState) => state.companion.companions.length > 0,
+  );
   const hasAny = useSelector((state: RootState) =>
-    state.appointments.items.some(a =>
-      selectedCompanionId ? a.companionId === selectedCompanionId : true,
-    ),
+    selectedCompanionId
+      ? state.appointments.items.some(
+          a => a.companionId === selectedCompanionId,
+        )
+      : false,
   );
   const resetKey = route.params?.resetKey;
 
@@ -51,7 +56,11 @@ const MyAppointmentsEntry: React.FC = () => {
     }
   }, [navigation, resetKey]);
 
-  return hasAny ? <MyAppointmentsScreen /> : <MyAppointmentsEmptyScreen />;
+  return hasCompanions && hasAny ? (
+    <MyAppointmentsScreen />
+  ) : (
+    <MyAppointmentsEmptyScreen />
+  );
 };
 
 export const AppointmentStackNavigator: React.FC = () => {

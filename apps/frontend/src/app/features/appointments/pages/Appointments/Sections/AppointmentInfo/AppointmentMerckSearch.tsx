@@ -218,7 +218,8 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   const [readerTitle, setReaderTitle] = useState('Merck Manual');
   const [readerLoading, setReaderLoading] = useState(false);
   const requestRef = useRef(0);
-  const resultCacheRef = useRef<Map<string, MerckEntry[]>>(new Map());
+  const resultCacheRef = useRef<Map<string, MerckEntry[]>>(null!);
+  resultCacheRef.current ??= new Map();
 
   const performSearch = async (audienceOverride?: MerckAudience) => {
     if (!primaryOrgId || !query.trim()) return;

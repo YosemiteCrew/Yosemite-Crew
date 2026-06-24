@@ -120,6 +120,14 @@ router.post(
   ObservationToolSubmissionController.listForAppointment,
 );
 
+router.post(
+  "/pms/appointments/:appointmentId/submissions/create",
+  authorizeCognito,
+  withAppointmentOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  ObservationToolSubmissionController.createForAppointment,
+);
+
 router.get(
   "/pms/tasks/:taskId/submission",
   authorizeCognito,

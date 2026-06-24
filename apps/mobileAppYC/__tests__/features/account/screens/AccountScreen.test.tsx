@@ -11,13 +11,7 @@ import configureStore from 'redux-mock-store';
 // FIX: Relative imports
 import {AccountScreen} from '../../../../src/features/account/screens/AccountScreen';
 import {useAuth} from '../../../../src/features/auth/context/AuthContext';
-import {
-  Linking,
-  Alert,
-  Image,
-  BackHandler,
-  ToastAndroid,
-} from 'react-native';
+import {Linking, Alert, Image, BackHandler, ToastAndroid} from 'react-native';
 import {deleteParentProfile} from '../../../../src/features/account/services/profileService';
 import {
   deleteAmplifyAccount,
@@ -444,7 +438,10 @@ describe('AccountScreen', () => {
     fireEvent.press(editIcons[1].parent);
 
     // Check if permission was denied (should show toast on Android, not navigate)
-    if (toastSpy.mock.calls.length > 0 || (Alert.alert as jest.Mock).mock.calls.length > 0) {
+    if (
+      toastSpy.mock.calls.length > 0 ||
+      (Alert.alert as jest.Mock).mock.calls.length > 0
+    ) {
       // Permission denied successfully
       expect(mockNavigate).not.toHaveBeenCalledWith(
         'ProfileOverview',

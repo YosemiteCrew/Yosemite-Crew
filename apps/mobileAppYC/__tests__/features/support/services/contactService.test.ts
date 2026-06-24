@@ -3,9 +3,14 @@ import {
   uploadContactAttachments,
   CONTACT_SOURCE,
 } from '../../../../src/features/support/services/contactService';
-import apiClient, {withAuthHeaders} from '../../../../src/shared/services/apiClient';
+import apiClient, {
+  withAuthHeaders,
+} from '../../../../src/shared/services/apiClient';
 import {documentApi} from '../../../../src/features/documents/services/documentService';
-import {ensureAccessContext, toErrorMessage} from '../../../../src/shared/utils/serviceHelpers';
+import {
+  ensureAccessContext,
+  toErrorMessage,
+} from '../../../../src/shared/utils/serviceHelpers';
 
 // --- Mocks ---
 
@@ -38,7 +43,9 @@ describe('contactService', () => {
       accessToken: mockToken,
       userId: mockUserId,
     });
-    (withAuthHeaders as jest.Mock).mockReturnValue({Authorization: 'Bearer token'});
+    (withAuthHeaders as jest.Mock).mockReturnValue({
+      Authorization: 'Bearer token',
+    });
   });
 
   // ===========================================================================
@@ -58,7 +65,9 @@ describe('contactService', () => {
     it('throws error if companionId is missing', async () => {
       await expect(
         uploadContactAttachments({files: [validFile] as any, companionId: ''}),
-      ).rejects.toThrow('Please add a pet profile before uploading attachments.');
+      ).rejects.toThrow(
+        'Please add a pet profile before uploading attachments.',
+      );
     });
 
     it('throws error if a file has an empty/missing URI', async () => {
@@ -116,7 +125,9 @@ describe('contactService', () => {
 
       // Mock response with NO url fields
       const badUploadResponse = {id: 'doc-1', name: 'No URL File'};
-      (documentApi.uploadAttachment as jest.Mock).mockResolvedValue(badUploadResponse);
+      (documentApi.uploadAttachment as jest.Mock).mockResolvedValue(
+        badUploadResponse,
+      );
 
       const result = await uploadContactAttachments({
         files: [file1] as any,
@@ -160,8 +171,8 @@ describe('contactService', () => {
 
       expect(ensureAccessContext).toHaveBeenCalled();
 
-      // Verify headers include User ID
-      expect(withAuthHeaders).toHaveBeenCalledWith(mockToken, {'x-user-id': mockUserId});
+      // Verify auth headers are set
+      expect(withAuthHeaders).toHaveBeenCalledWith(mockToken);
 
       // Verify Payload includes default source
       expect(apiClient.post).toHaveBeenCalledWith(
@@ -189,8 +200,8 @@ describe('contactService', () => {
         source: 'WEB_DASHBOARD',
       });
 
-      // Verify userId arg is undefined
-      expect(withAuthHeaders).toHaveBeenCalledWith(mockToken, undefined);
+      // x-user-id is no longer sent; only the access token is used
+      expect(withAuthHeaders).toHaveBeenCalledWith(mockToken);
 
       // Verify custom source usage
       expect(apiClient.post).toHaveBeenCalledWith(
@@ -205,8 +216,9 @@ describe('contactService', () => {
       (apiClient.post as jest.Mock).mockRejectedValue(error);
       (toErrorMessage as jest.Mock).mockReturnValue('Formatted Error');
 
-      await expect(contactService.submitContact(basePayload))
-        .rejects.toThrow('Formatted Error');
+      await expect(contactService.submitContact(basePayload)).rejects.toThrow(
+        'Formatted Error',
+      );
 
       expect(toErrorMessage).toHaveBeenCalledWith(
         error,

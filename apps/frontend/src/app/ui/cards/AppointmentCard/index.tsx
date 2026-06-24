@@ -24,7 +24,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 type AppointmentCardProps = {
   appointment: Appointment;
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
-  handleDetailAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
+  handleWorkspaceAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   getSoapViewIntent: (appointment: Appointment) => AppointmentViewIntent;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeStatusAppointment?: (appointment: Appointment) => void;
@@ -35,7 +35,7 @@ type AppointmentCardProps = {
 const AppointmentCard = ({
   appointment,
   handleViewAppointment,
-  handleDetailAppointment,
+  handleWorkspaceAppointment,
   getSoapViewIntent,
   handleRescheduleAppointment,
   handleChangeStatusAppointment,
@@ -127,7 +127,7 @@ const AppointmentCard = ({
               <button
                 type="button"
                 onClick={() =>
-                  handleDetailAppointment(
+                  handleWorkspaceAppointment(
                     appointment,
                     orgType === 'HOSPITAL' ? getSoapViewIntent(appointment) : clinicalNotesIntent
                   )
@@ -142,7 +142,7 @@ const AppointmentCard = ({
               <button
                 type="button"
                 onClick={() =>
-                  handleDetailAppointment(appointment, {
+                  handleWorkspaceAppointment(appointment, {
                     label: 'finance',
                     subLabel: 'summary',
                   })
@@ -157,7 +157,7 @@ const AppointmentCard = ({
               <button
                 type="button"
                 onClick={() =>
-                  handleDetailAppointment(appointment, {
+                  handleWorkspaceAppointment(appointment, {
                     label: 'labs',
                     subLabel: 'idexx-labs',
                   })

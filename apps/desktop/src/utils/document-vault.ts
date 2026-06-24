@@ -8,6 +8,18 @@ export const VAULT_DIR = 'document-vault';
 export const MANIFEST_FILE = 'manifest.json';
 export const MAX_BUFFER_SIZE_BYTES = 50 * 1024 * 1024;
 
+// Returned by the save APIs when a write is refused. The vault stores PHI, so it
+// fails closed rather than writing cleartext when OS-backed encryption is missing.
+export interface VaultSaveError {
+  ok: false;
+  error: string;
+}
+
+const ENCRYPTION_UNAVAILABLE: VaultSaveError = {
+  ok: false,
+  error: 'encryption-unavailable',
+};
+
 export interface VaultDocument {
   id: string;
   filename: string;
@@ -61,6 +73,12 @@ const writeManifest = (manifestPath: string, manifest: VaultManifest, deps: Vaul
 const docFilePath = (vaultDir: string, docId: string): string =>
   path.join(vaultDir, `${docId}.enc`);
 
+// Defense-in-depth: store only a bare filename (no directory components) and cap
+// its length, so a renderer-supplied name can't become a path-traversal vector
+// when later reused as an export/reveal default path.
+const sanitizeFilename = (name: string): string =>
+  path.basename(String(name)).slice(0, 255) || 'document';
+
 export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) => {
   const vaultDir = path.join(userDataPath, VAULT_DIR);
   const manifestPath = path.join(vaultDir, MANIFEST_FILE);
@@ -69,8 +87,13 @@ export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) 
   const unlinkSync = deps.unlinkSync || fs.unlinkSync;
   const mkdirSync = deps.mkdirSync || fs.mkdirSync;
   const randomUUID = deps.randomUUID || (() => crypto.randomUUID());
-  const encryptString = deps.encryptString || ((s: string) => Buffer.from(s, 'utf8'));
+  const encryptString = deps.encryptString;
   const decryptString = deps.decryptString || ((b: Buffer) => b.toString('utf8'));
+  // The OS keystore (Electron safeStorage) is what makes the vault encrypted at
+  // rest; when it is unavailable, main.ts omits encryptString. Without it we must
+  // not fall back to writing cleartext PHI, so writes are refused. Reads of any
+  // pre-existing cleartext still work via the decrypt fallback above.
+  const encryptionAvailable = typeof encryptString === 'function';
 
   const getManifest = (): VaultManifest => readManifest(manifestPath, deps);
 
@@ -112,13 +135,18 @@ export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) 
     }
   };
 
-  const saveDocument = (filename: string, content: string, mimeType?: string): VaultDocument => {
+  const saveDocument = (
+    filename: string,
+    content: string,
+    mimeType?: string
+  ): VaultDocument | VaultSaveError => {
+    if (!encryptionAvailable || !encryptString) return ENCRYPTION_UNAVAILABLE;
     const manifest = getManifest();
     mkdirSync(vaultDir, { recursive: true });
     const now = Date.now();
     const doc: VaultDocument = {
       id: randomUUID(),
-      filename,
+      filename: sanitizeFilename(filename),
       mimeType: mimeType || 'application/octet-stream',
       sizeBytes: Buffer.byteLength(content, 'utf8'),
       createdAt: now,
@@ -135,7 +163,8 @@ export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) 
     filename: string,
     content: Buffer,
     mimeType?: string
-  ): VaultDocument | { ok: false; error: string } => {
+  ): VaultDocument | VaultSaveError => {
+    if (!encryptionAvailable || !encryptString) return ENCRYPTION_UNAVAILABLE;
     if (content.length > MAX_BUFFER_SIZE_BYTES) {
       return { ok: false, error: 'file-too-large' };
     }
@@ -144,7 +173,7 @@ export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) 
     const now = Date.now();
     const doc: VaultDocument = {
       id: randomUUID(),
-      filename,
+      filename: sanitizeFilename(filename),
       mimeType: mimeType || 'application/octet-stream',
       sizeBytes: content.length,
       createdAt: now,
@@ -210,6 +239,7 @@ export const createDocumentVault = (userDataPath: string, deps: VaultDeps = {}) 
   };
 
   return {
+    encryptionAvailable,
     listDocuments,
     getDocument,
     saveDocument,

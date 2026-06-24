@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { AppointmentController } from "../controllers/web/appointment.prisma.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
-import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+import {
+  requirePermission,
+  withAppointmentOrgPermissions,
+  withOrgPermissions,
+} from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -124,6 +128,14 @@ router.patch(
   AppointmentController.checkInAppointmentForPMS,
 );
 
+router.post(
+  "/pms/:organisationId/:appointmentId/admit",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.admitFromPMS,
+);
+
 // Mark appointment ready for billing
 router.patch(
   "/pms/:organisationId/:appointmentId/ready-for-billing",
@@ -131,6 +143,14 @@ router.patch(
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.markReadyForBillingForPMS,
+);
+
+router.post(
+  "/pms/:organisationId/:appointmentId/forms",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.attachFormsToAppointment,
 );
 
 // Update appointment
@@ -143,19 +163,12 @@ router.patch(
 );
 
 // Attach forms to appointment
-router.post(
-  "/pms/:organisationId/:appointmentId/forms",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("appointments:edit:any"),
-  AppointmentController.attachFormsToAppointment,
-);
 
 // Get appointment detail
 router.get(
   "/pms/:organisationId/:appointmentId",
   authorizeCognito,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission([
     "appointments:view:any",
     "appointments:view:own", // vets can see if assigned

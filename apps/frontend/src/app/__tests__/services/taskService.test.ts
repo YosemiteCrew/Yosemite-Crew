@@ -1,16 +1,26 @@
 import {
   changeTaskStatus,
+  archiveTaskTemplate,
+  createTaskLibrary,
   createTask,
   createTaskTemplate,
   getTaskLibrary,
+  getTaskLibraryById,
+  getTaskTemplateById,
+  getTasksForCompanion,
   getTaskTemplatesForPrimaryOrg,
   loadTasksForPrimaryOrg,
+  updateTaskLibrary,
   updateTask,
+  updateTaskTemplate,
 } from '@/app/features/tasks/services/taskService';
 
 const getDataMock = jest.fn();
 const postDataMock = jest.fn();
 const patchDataMock = jest.fn();
+const putDataMock = jest.fn();
+const deleteDataMock = jest.fn();
+const loadTemplateFormsMock = jest.fn();
 
 const orgState = { primaryOrgId: 'org-1' };
 const taskStoreState: any = {
@@ -22,9 +32,11 @@ const taskStoreState: any = {
 };
 
 jest.mock('@/app/services/axios', () => ({
+  deleteData: (...args: any[]) => deleteDataMock(...args),
   getData: (...args: any[]) => getDataMock(...args),
   postData: (...args: any[]) => postDataMock(...args),
   patchData: (...args: any[]) => patchDataMock(...args),
+  putData: (...args: any[]) => putDataMock(...args),
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
@@ -35,11 +47,19 @@ jest.mock('@/app/stores/taskStore', () => ({
   useTaskStore: { getState: () => taskStoreState },
 }));
 
+jest.mock('@/app/features/forms/services/templateFormsService', () => ({
+  loadTemplateForms: (...args: any[]) => loadTemplateFormsMock(...args),
+}));
+
 describe('taskService', () => {
   beforeEach(() => {
     getDataMock.mockReset();
     postDataMock.mockReset();
     patchDataMock.mockReset();
+    putDataMock.mockReset();
+    deleteDataMock.mockReset();
+    loadTemplateFormsMock.mockReset();
+    loadTemplateFormsMock.mockResolvedValue([]);
     taskStoreState.startLoading.mockReset();
     taskStoreState.setTasksForOrg.mockReset();
     taskStoreState.upsertTask.mockReset();
@@ -59,6 +79,48 @@ describe('taskService', () => {
 
     expect(getDataMock).toHaveBeenCalledWith('/v1/task/pms/organisation/org-1');
     expect(taskStoreState.setTasksForOrg).toHaveBeenCalledWith('org-1', [{ _id: 't1' }]);
+  });
+
+  it('loads tasks for org with backend-supported filters', async () => {
+    getDataMock.mockResolvedValue({ data: [{ _id: 't-filtered' }] });
+
+    await loadTasksForPrimaryOrg({
+      force: true,
+      filters: {
+        userId: 'user-1',
+        companionId: 'comp-1',
+        fromDueAt: new Date('2026-04-20T00:00:00.000Z'),
+        toDueAt: '2026-04-21T00:00:00.000Z',
+        status: ['PENDING', 'IN_PROGRESS'],
+      },
+    });
+
+    expect(getDataMock).toHaveBeenCalledWith('/v1/task/pms/organisation/org-1', {
+      userId: 'user-1',
+      companionId: 'comp-1',
+      fromDueAt: '2026-04-20T00:00:00.000Z',
+      toDueAt: '2026-04-21T00:00:00.000Z',
+      status: 'PENDING,IN_PROGRESS',
+    });
+    expect(taskStoreState.setTasksForOrg).toHaveBeenCalledWith('org-1', [{ _id: 't-filtered' }]);
+  });
+
+  it('loads companion-scoped PMS tasks with filters', async () => {
+    getDataMock.mockResolvedValue({ data: [{ _id: 'comp-task' }] });
+
+    const tasks = await getTasksForCompanion('comp-1', {
+      audience: 'PARENT_TASK',
+      status: 'COMPLETED',
+      fromDueAt: '2026-04-20T00:00:00.000Z',
+    });
+
+    expect(getDataMock).toHaveBeenCalledWith('/v1/task/pms/companion/comp-1', {
+      audience: 'PARENT_TASK',
+      status: 'COMPLETED',
+      fromDueAt: '2026-04-20T00:00:00.000Z',
+      toDueAt: undefined,
+    });
+    expect(tasks).toEqual([{ _id: 'comp-task' }]);
   });
 
   it('creates custom task and upserts', async () => {
@@ -109,6 +171,24 @@ describe('taskService', () => {
     expect(postDataMock).toHaveBeenCalledWith('/v1/task/pms/templates', expect.any(Object));
   });
 
+  it('gets, updates, and archives a task template', async () => {
+    getDataMock.mockResolvedValueOnce({ data: { _id: 'tpl-1', name: 'Template' } });
+    patchDataMock.mockResolvedValueOnce({ data: { _id: 'tpl-1', name: 'Updated' } });
+    deleteDataMock.mockResolvedValueOnce({ data: undefined });
+
+    const template = await getTaskTemplateById('tpl-1');
+    const updated = await updateTaskTemplate('tpl-1', { name: 'Updated' } as any);
+    await archiveTaskTemplate('tpl-1');
+
+    expect(getDataMock).toHaveBeenCalledWith('/v1/task/pms/templates/tpl-1');
+    expect(patchDataMock).toHaveBeenCalledWith('/v1/task/pms/templates/tpl-1', {
+      name: 'Updated',
+    });
+    expect(deleteDataMock).toHaveBeenCalledWith('/v1/task/pms/templates/tpl-1');
+    expect(template?._id).toBe('tpl-1');
+    expect(updated?.name).toBe('Updated');
+  });
+
   it('loads templates and library', async () => {
     getDataMock.mockResolvedValue({ data: [] });
 
@@ -117,6 +197,91 @@ describe('taskService', () => {
 
     expect(templates).toEqual([]);
     expect(library).toEqual([]);
+    expect(loadTemplateFormsMock).toHaveBeenCalledWith('org-1', {
+      kind: 'TASK_ASSIGNMENT',
+      status: 'PUBLISHED',
+    });
+  });
+
+  it('gets, creates, and updates task library definitions', async () => {
+    getDataMock.mockResolvedValueOnce({ data: { _id: 'lib-1', name: 'Library' } });
+    postDataMock.mockResolvedValueOnce({ data: { _id: 'lib-2', name: 'Created' } });
+    putDataMock.mockResolvedValueOnce({ data: { _id: 'lib-1', name: 'Updated' } });
+
+    const library = await getTaskLibraryById('lib-1');
+    const created = await createTaskLibrary({
+      source: 'YC_LIBRARY',
+      kind: 'CARE',
+      category: 'Care',
+      name: 'Created',
+      schema: {},
+      isActive: true,
+    });
+    const updated = await updateTaskLibrary('lib-1', { name: 'Updated' });
+
+    expect(getDataMock).toHaveBeenCalledWith('/v1/task/pms/library/lib-1');
+    expect(postDataMock).toHaveBeenCalledWith('/v1/task/pms/library', {
+      source: 'YC_LIBRARY',
+      kind: 'CARE',
+      category: 'Care',
+      name: 'Created',
+      schema: {},
+      isActive: true,
+    });
+    expect(putDataMock).toHaveBeenCalledWith('/v1/task/pms/library/lib-1', { name: 'Updated' });
+    expect(library?._id).toBe('lib-1');
+    expect(created._id).toBe('lib-2');
+    expect(updated?.name).toBe('Updated');
+  });
+
+  it('merges legacy task templates with generic template API task templates', async () => {
+    getDataMock.mockResolvedValueOnce({
+      data: [
+        {
+          _id: 'legacy-template',
+          source: 'ORG_TEMPLATE',
+          organisationId: 'org-1',
+          kind: 'MEDICATION',
+          category: 'MEDICATION',
+          name: 'Legacy meds',
+          defaultRole: 'EMPLOYEE',
+          isActive: true,
+          createdBy: 'user-1',
+        },
+      ],
+    });
+    loadTemplateFormsMock.mockResolvedValue([
+      {
+        id: 'generic-template',
+        organisationId: 'org-1',
+        name: 'Generic communication',
+        description: 'Call parent',
+        kind: 'TASK_ASSIGNMENT',
+        status: 'PUBLISHED',
+        rules: {
+          category: 'COMMUNICATION',
+          taskKind: 'COMMUNICATION',
+          audience: 'PARENT_TASK',
+          defaultReminderOffsetMinutes: 15,
+        },
+        createdBy: 'user-2',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      },
+    ]);
+
+    const templates = await getTaskTemplatesForPrimaryOrg();
+
+    expect(templates).toEqual([
+      expect.objectContaining({ _id: 'legacy-template', category: 'MEDICATION' }),
+      expect.objectContaining({
+        _id: 'generic-template',
+        category: 'COMMUNICATION',
+        kind: 'COMMUNICATION',
+        defaultRole: 'PARENT',
+        defaultReminderOffsetMinutes: 15,
+      }),
+    ]);
   });
 
   it('does not load tasks when status is loaded and force is false', async () => {

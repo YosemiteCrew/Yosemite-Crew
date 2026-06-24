@@ -116,16 +116,13 @@ export const uploadContactAttachments = async ({
 export const contactService = {
   async submitContact(payload: ContactRequestPayload) {
     try {
-      const {accessToken, userId} = await ensureAccessContext();
+      const {accessToken} = await ensureAccessContext();
       const body = {
         ...payload,
         source: payload.source ?? CONTACT_SOURCE,
       };
 
-      const headers = withAuthHeaders(
-        accessToken,
-        userId ? {'x-user-id': userId} : undefined,
-      );
+      const headers = withAuthHeaders(accessToken);
 
       const {data} = await apiClient.post('/v1/contact-us/contact', body, {
         headers,

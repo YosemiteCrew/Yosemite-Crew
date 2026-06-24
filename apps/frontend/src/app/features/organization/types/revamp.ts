@@ -12,6 +12,7 @@ export type BookingMode = 'OUTPATIENT' | 'INPATIENT' | 'EITHER';
 
 export type ServiceRevamp = {
   id: string;
+  version?: number;
   code: string;
   name: string;
   description: string;
@@ -19,6 +20,7 @@ export type ServiceRevamp = {
   specialityId: string;
   organisationId: string;
   grossAmount: number;
+  currency?: string;
   defaultDiscount: number;
   maxDiscount: number;
   durationMinutes: number;
@@ -30,28 +32,38 @@ export type ServiceRevamp = {
 
 export type PackageBreakdownItem = {
   id: string;
+  childItemId?: string;
+  code?: string;
   type: CatalogItemType;
   name: string;
   unitPrice: number;
+  currency?: string;
   quantity: number;
   discount: number;
   maxDiscount?: number;
+  isBookable?: boolean;
+  isInpatientPreferred?: boolean;
   nestedBreakdown?: PackageBreakdownItem[];
 };
 
 export type PackageRevamp = {
   id: string;
+  version?: number;
   code: string;
   name: string;
   description: string;
   specialityId: string;
   organisationId: string;
-  durationMinutes: number;
+  durationText: string;
   isBookable: boolean;
+  isInpatientPreferred: boolean;
+  currency?: string;
   leadCount: number;
   supportCount: number;
   additionalDiscount: number;
   breakdown: PackageBreakdownItem[];
+  /** Backend pre-computed final amount; used as the total when breakdown is not loaded. */
+  serverFinalAmount?: number;
   status: CatalogItemStatus;
   createdAt: string;
 };
@@ -62,4 +74,6 @@ export type SpecialityRevamp = {
   organisationId: string;
   headVetId?: string;
   teamMemberIds: string[];
+  activeServiceCount?: number;
+  activePackageCount?: number;
 };

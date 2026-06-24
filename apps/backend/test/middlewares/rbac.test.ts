@@ -311,7 +311,7 @@ describe("rbac middleware", () => {
     } as unknown as OrgRequest as Request;
     const taskReq = {
       userId: "user_1",
-      params: { taskId: "task_1" },
+      params: { taskId: "507f1f77bcf86cd799439012" },
       headers: {},
     } as unknown as OrgRequest as Request;
     const itemReq = {
@@ -335,6 +335,7 @@ describe("rbac middleware", () => {
 
   it("uses mongo lookups in resource wrappers when postgres reads are disabled", async () => {
     (isReadFromPostgres as jest.Mock).mockReturnValue(false);
+    const mongoAppointmentId = "507f1f77bcf86cd799439011";
     (AppointmentModel.findById as jest.Mock).mockReturnValue(
       leanResult({ organisationId: "org_apt" }),
     );
@@ -361,15 +362,52 @@ describe("rbac middleware", () => {
     await withAppointmentOrgPermissions()(
       {
         userId: "user_1",
-        params: { appointmentId: "apt_1" },
+        params: { appointmentId: mongoAppointmentId },
         headers: {},
       } as never,
       mockRes(),
       next(),
     );
 
-    expect(AppointmentModel.findById).toHaveBeenCalledWith("apt_1", {
+    await withTaskOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { taskId: "507f1f77bcf86cd799439012" },
+        headers: {},
+      } as never,
+      mockRes(),
+      next(),
+    );
+
+    expect(AppointmentModel.findById).toHaveBeenCalledWith(mongoAppointmentId, {
       organisationId: 1,
+    });
+    expect(TaskModel.findById).toHaveBeenCalledWith(
+      "507f1f77bcf86cd799439012",
+      {
+        organisationId: 1,
+      },
+    );
+  });
+
+  it("returns 404 instead of hanging for UUID appointment ids in mongo mode", async () => {
+    (isReadFromPostgres as jest.Mock).mockReturnValue(false);
+    const res = mockRes();
+
+    await withAppointmentOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { appointmentId: "bb264871-8d18-420e-bbc0-fd926db9e7ad" },
+        headers: {},
+      } as never,
+      res,
+      next(),
+    );
+
+    expect(AppointmentModel.findById).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Appointment not found",
     });
   });
 });

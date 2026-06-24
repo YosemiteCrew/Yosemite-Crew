@@ -4,9 +4,26 @@ import {
   applyTemplateToForm,
   toTemplateOptions,
 } from '@/app/lib/taskForm';
-import { Task, TaskTemplate, TaskLibrary } from '@/app/features/tasks/types/task';
+import { Task, TaskTemplate, TaskLibrary, TaskKindOptions } from '@/app/features/tasks/types/task';
 
 describe('taskForm utilities', () => {
+  it('exposes the production task category taxonomy', () => {
+    expect(TaskKindOptions.map((option) => option.value)).toEqual([
+      'MEDICATION',
+      'CARE',
+      'DIET',
+      'PROCEDURE',
+      'DIAGNOSTIC',
+      'COMMUNICATION',
+      'BILLING',
+      'RECORD',
+      'ADMIN',
+      'OBSERVATION_TOOL',
+      'HYGIENE',
+      'CUSTOM',
+    ]);
+  });
+
   describe('validateTaskForm', () => {
     const baseTask: Task = {
       _id: 'task-1',

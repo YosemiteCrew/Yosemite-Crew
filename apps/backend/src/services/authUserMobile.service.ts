@@ -120,9 +120,7 @@ export const AuthUserMobileService = {
     return mapAuthUserMobile(linked);
   },
 
-  async autoLinkParentByEmail(
-    authUser: AuthUserMobileRecord,
-  ): Promise<{
+  async autoLinkParentByEmail(authUser: AuthUserMobileRecord): Promise<{
     id: string;
     firstName: string;
     lastName: string | null;

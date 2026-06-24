@@ -619,6 +619,133 @@ describe("ObservationToolSubmissionService", () => {
     });
   });
 
+  describe("createForAppointment", () => {
+    const validInput = {
+      appointmentId,
+      organisationId,
+      toolId,
+      patientId: companionId,
+      filledBy: userId,
+      answers: { q1: "yes" },
+    };
+
+    it("creates and links the submission to the appointment (mongo path)", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (AppointmentModel.findOne as any).mockReturnValue(
+        mockChain({ _id: appointmentId }),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (CompanionOrganisationModel.findOne as any).mockReturnValue(
+        mockChain({ _id: "link1" }),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (ObservationToolDefinitionModel.findById as any).mockReturnValue(
+        mockChain({
+          isActive: true,
+          fields: [{ key: "q1", scoring: { points: 3 } }],
+        }),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (ObservationToolSubmissionModel.create as any).mockResolvedValue({
+        _id: submissionId,
+        score: 3,
+        evaluationAppointmentId: appointmentId,
+      });
+
+      const res =
+        await ObservationToolSubmissionService.createForAppointment(validInput);
+
+      expect(AppointmentModel.findOne).toHaveBeenCalled();
+      expect(CompanionOrganisationModel.findOne).toHaveBeenCalled();
+      expect(ObservationToolSubmissionModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolId,
+          patientId: companionId,
+          filledBy: userId,
+          score: 3,
+          evaluationAppointmentId: appointmentId,
+        }),
+      );
+      // returns the created object, never an array
+      expect(Array.isArray(res)).toBe(false);
+      expect(res).toEqual(
+        expect.objectContaining({ evaluationAppointmentId: appointmentId }),
+      );
+    });
+
+    it("throws when required fields are missing", async () => {
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ObservationToolSubmissionService.createForAppointment({} as any),
+      ).rejects.toThrow("toolId is required");
+    });
+
+    it("throws Forbidden when appointment is not in the organisation", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (AppointmentModel.findOne as any).mockReturnValue(mockChain(null));
+
+      await expect(
+        ObservationToolSubmissionService.createForAppointment(validInput),
+      ).rejects.toThrow("Forbidden");
+    });
+
+    it("throws when the tool is not found or inactive", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (AppointmentModel.findOne as any).mockReturnValue(
+        mockChain({ _id: appointmentId }),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (CompanionOrganisationModel.findOne as any).mockReturnValue(
+        mockChain({ _id: "link1" }),
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (ObservationToolDefinitionModel.findById as any).mockReturnValue(
+        mockChain({ isActive: false }),
+      );
+
+      await expect(
+        ObservationToolSubmissionService.createForAppointment(validInput),
+      ).rejects.toThrow("Observation tool not found or inactive");
+    });
+
+    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prismaMock.appointment.findFirst as any).mockResolvedValue({
+        id: appointmentId,
+      });
+      (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
+        id: "co1",
+      });
+      (prismaMock.observationToolDefinition.findFirst as any).mockResolvedValue(
+        {
+          id: toolId,
+          isActive: true,
+          fields: [{ key: "q1", scoring: { points: 3 } }],
+        },
+      );
+      (prismaMock.observationToolSubmission.create as any).mockResolvedValue({
+        id: submissionId,
+        score: 3,
+        evaluationAppointmentId: appointmentId,
+      });
+
+      const res =
+        await ObservationToolSubmissionService.createForAppointment(validInput);
+
+      expect(prisma.observationToolSubmission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            evaluationAppointmentId: appointmentId,
+            score: 3,
+          }),
+        }),
+      );
+      expect(res).toEqual(
+        expect.objectContaining({ evaluationAppointmentId: appointmentId }),
+      );
+    });
+  });
+
   // ======================================================================
   // 3. Retrieval & Listing
   // ======================================================================

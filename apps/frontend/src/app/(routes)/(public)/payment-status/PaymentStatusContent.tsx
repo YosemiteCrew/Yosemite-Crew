@@ -12,30 +12,43 @@ type Return = {
   total: number;
 };
 
+type PaymentStatusState = {
+  data: Return | null;
+  requestState: RequestState;
+  stopped: boolean;
+};
+
 const shortId = (value: string) =>
   value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
 
 export function PaymentStatusContent() {
   const searchParams = useSearchParams();
-  const session_id = searchParams.get('session_id');
+  // Stripe's configured redirect appends a stray quote to the session id
+  // (…{CHECKOUT_SESSION_ID}"), which arrives here as a trailing " / %22 and breaks
+  // the status lookup. Strip any surrounding quotes/whitespace before using it.
+  const rawSessionId = searchParams.get('session_id');
+  const session_id = rawSessionId
+    ? rawSessionId.trim().replaceAll('"', '').replaceAll("'", '') || null
+    : rawSessionId;
 
-  const [data, setData] = useState<Return | null>(null);
-  const [requestState, setRequestState] = useState<RequestState>('loading');
-  const [stopped, setStopped] = useState(false);
+  const [state, setState] = useState<PaymentStatusState>({
+    data: null,
+    requestState: session_id ? 'loading' : 'missing_session',
+    stopped: false,
+  });
   const stopPollingRef = useRef(false);
 
   useEffect(() => {
-    setData(null);
-    setRequestState('loading');
-    setStopped(false);
+    setState({
+      data: null,
+      requestState: session_id ? 'loading' : 'missing_session',
+      stopped: !session_id,
+    });
     stopPollingRef.current = false;
   }, [session_id]);
 
   useEffect(() => {
     if (!session_id) {
-      setRequestState('missing_session');
-      setStopped(true);
-      setData(null);
       return;
     }
 
@@ -52,8 +65,7 @@ export function PaymentStatusContent() {
         });
         const json = (await res.json()) as Return;
         if (!alive) return;
-        setData(json);
-        setRequestState('ready');
+        setState((current) => ({ ...current, data: json, requestState: 'ready' }));
         attempts += 1;
         if (
           json.status === 'paid' ||
@@ -61,14 +73,13 @@ export function PaymentStatusContent() {
           attempts >= maxAttempts
         ) {
           stopPollingRef.current = true;
-          setStopped(true);
+          setState((current) => ({ ...current, stopped: true }));
         }
       } catch {
         if (!alive) return;
-        setRequestState('error');
-        setData(null);
+        setState((current) => ({ ...current, requestState: 'error', data: null }));
         stopPollingRef.current = true;
-        setStopped(true);
+        setState((current) => ({ ...current, stopped: true }));
       }
     }
 
@@ -80,6 +91,8 @@ export function PaymentStatusContent() {
       clearInterval(interval);
     };
   }, [session_id]);
+
+  const { data, requestState, stopped } = state;
 
   const title = useMemo(() => {
     if (!session_id || requestState === 'missing_session') return 'Missing payment session';
@@ -129,7 +142,7 @@ export function PaymentStatusContent() {
     requestState === 'error' || requestState === 'missing_session' ? 'alert' : 'status';
 
   return (
-    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]">
+    <div className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]">
       <div className="w-full max-w-xl bg-white/80 border border-card-border rounded-2xl px-6 py-10">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="relative flex items-center justify-center size-24 rounded-full">

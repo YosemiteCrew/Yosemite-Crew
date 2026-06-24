@@ -4,8 +4,9 @@ import {
   hasSignatureField,
   removeSignatureFields,
   ensureSingleSignatureAtEnd,
+  buildTemplateSchemaSnapshot,
 } from '@/app/lib/forms';
-import type { FormField } from '@/app/features/forms/types/forms';
+import type { FormField, FormsProps } from '@/app/features/forms/types/forms';
 
 // We only test pure logic functions that don't depend on timezone/date formatting
 
@@ -156,5 +157,50 @@ describe('ensureSingleSignatureAtEnd', () => {
     const result = ensureSingleSignatureAtEnd([]);
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe('signature');
+  });
+});
+
+describe('buildTemplateSchemaSnapshot rich-text round-trip', () => {
+  const baseForm = (schema: FormField[]): FormsProps => ({
+    name: 'Notes form',
+    category: 'Custom',
+    usage: 'Internal',
+    updatedBy: 'user-1',
+    lastUpdated: '',
+    schema,
+  });
+
+  it('emits the rich-text type and carries the default HTML as defaultValue', () => {
+    const schema = [
+      {
+        id: 'clinicalNotes',
+        type: 'richtext',
+        label: 'Clinical notes',
+        defaultValue: '<p>Seen and treated</p>',
+      },
+    ] as unknown as FormField[];
+
+    const snapshot = buildTemplateSchemaSnapshot(baseForm(schema), 'FORM');
+    const field = snapshot.sections[0].fields[0];
+
+    expect(field.type).toBe('richText');
+    expect(field.defaultValue).toBe('<p>Seen and treated</p>');
+  });
+
+  it('omits defaultValue for non rich-text fields', () => {
+    const schema = [
+      {
+        id: 'name',
+        type: 'input',
+        label: 'Name',
+        defaultValue: 'should be ignored',
+      },
+    ] as unknown as FormField[];
+
+    const snapshot = buildTemplateSchemaSnapshot(baseForm(schema), 'FORM');
+    const field = snapshot.sections[0].fields[0];
+
+    expect(field.type).toBe('text');
+    expect(field.defaultValue).toBeUndefined();
   });
 });

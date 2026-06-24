@@ -485,7 +485,7 @@ export const buildTaskDraftFromForm = ({
 
 export const taskApi = {
   async list(params?: {companionId?: string; status?: TaskStatusApi[]}) {
-    const {accessToken, userId} = await ensureAccessToken();
+    const {accessToken} = await ensureAccessToken();
     const response = await apiClient.get('/v1/task/mobile/task', {
       params: {
         companionId: params?.companionId,
@@ -493,7 +493,6 @@ export const taskApi = {
       },
       headers: {
         ...withAuthHeaders(accessToken),
-        ...(userId ? {'x-user-id': userId} : {}),
       },
     });
     const data = Array.isArray(response.data) ? response.data : [];
@@ -501,36 +500,33 @@ export const taskApi = {
   },
 
   async get(taskId: string) {
-    const {accessToken, userId} = await ensureAccessToken();
+    const {accessToken} = await ensureAccessToken();
     const response = await apiClient.get(`/v1/task/mobile/${taskId}`, {
       headers: {
         ...withAuthHeaders(accessToken),
-        ...(userId ? {'x-user-id': userId} : {}),
       },
     });
     return mapApiTaskToTask(response.data);
   },
 
   async create(payload: TaskDraftPayload) {
-    const {accessToken, userId} = await ensureAccessToken();
+    const {accessToken} = await ensureAccessToken();
     const response = await apiClient.post('/v1/task/mobile/', payload, {
       headers: {
         ...withAuthHeaders(accessToken),
-        ...(userId ? {'x-user-id': userId} : {}),
       },
     });
     return mapApiTaskToTask(response.data);
   },
 
   async update(taskId: string, updates: Partial<TaskDraftPayload>) {
-    const {accessToken, userId} = await ensureAccessToken();
+    const {accessToken} = await ensureAccessToken();
     const response = await apiClient.patch(
       `/v1/task/mobile/${taskId}`,
       updates,
       {
         headers: {
           ...withAuthHeaders(accessToken),
-          ...(userId ? {'x-user-id': userId} : {}),
         },
       },
     );
@@ -538,14 +534,13 @@ export const taskApi = {
   },
 
   async changeStatus(taskId: string, status: TaskStatusApi, completion?: any) {
-    const {accessToken, userId} = await ensureAccessToken();
+    const {accessToken} = await ensureAccessToken();
     const response = await apiClient.post(
       `/v1/task/mobile/${taskId}/status`,
       completion ? {status, completion} : {status},
       {
         headers: {
           ...withAuthHeaders(accessToken),
-          ...(userId ? {'x-user-id': userId} : {}),
         },
       },
     );

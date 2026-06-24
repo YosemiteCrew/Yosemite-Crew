@@ -1,19 +1,19 @@
-"use strict";
+'use strict';
 
-import fs from "node:fs";
-import path from "node:path";
-import crypto from "node:crypto";
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 
-export const CACHE_FILENAME = "offline-cache-v1.json";
+export const CACHE_FILENAME = 'offline-cache-v1.json';
 export const MAX_ENTRIES = 500;
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_SIZE_BYTES = 100 * 1024 * 1024;
 
 // Encrypted format: YCENC\x01<HMAC(32 bytes)><ciphertext>
-const MAGIC_HEADER = Buffer.from("YCENC\x01", "utf8");
+const MAGIC_HEADER = Buffer.from('YCENC\x01', 'utf8');
 const MAGIC_SIZE = 6;
 const INTEGRITY_SIZE = 32;
-const HMAC_KEY = Buffer.from("yc-offline-cache-integrity-key", "utf8");
+const HMAC_KEY = Buffer.from('yc-offline-cache-integrity-key', 'utf8');
 
 export interface CacheEntry {
   url: string;
@@ -62,8 +62,8 @@ export interface StoreDeps {
 const bufferReviver = (_key: string, value: unknown): unknown => {
   if (
     value &&
-    typeof value === "object" &&
-    (value as Record<string, unknown>).type === "Buffer" &&
+    typeof value === 'object' &&
+    (value as Record<string, unknown>).type === 'Buffer' &&
     Array.isArray((value as Record<string, unknown>).data)
   ) {
     return Buffer.from((value as Record<string, unknown>).data as number[]);
@@ -72,20 +72,18 @@ const bufferReviver = (_key: string, value: unknown): unknown => {
 };
 
 const detectOldBase64Body = (body: unknown): Buffer | null => {
-  if (typeof body !== "string") return null;
+  if (typeof body !== 'string') return null;
   try {
-    return Buffer.from(body, "base64");
+    return Buffer.from(body, 'base64');
   } catch {
     return null;
   }
 };
 
-const OLD_MAGIC_HEADER = Buffer.from("YCENC", "utf8");
+const OLD_MAGIC_HEADER = Buffer.from('YCENC', 'utf8');
 const OLD_MAGIC_SIZE = 5;
 
-const detectHeader = (
-  raw: Buffer,
-): { encryptedOffset: number; isEncrypted: boolean } => {
+const detectHeader = (raw: Buffer): { encryptedOffset: number; isEncrypted: boolean } => {
   if (raw.subarray(0, MAGIC_SIZE).equals(MAGIC_HEADER)) {
     return { encryptedOffset: MAGIC_SIZE + INTEGRITY_SIZE, isEncrypted: true };
   }
@@ -105,20 +103,15 @@ const detectHeader = (
 // ~1-in-256 collision can't silently drop an otherwise valid cache.
 const decryptVerified = (
   raw: Buffer,
-  decryptString: (encrypted: Buffer) => string,
+  decryptString: (encrypted: Buffer) => string
 ): string | null => {
   const headerSizes: number[] = [];
-  if (raw.subarray(0, MAGIC_SIZE).equals(MAGIC_HEADER))
-    headerSizes.push(MAGIC_SIZE);
-  if (raw.subarray(0, OLD_MAGIC_SIZE).equals(OLD_MAGIC_HEADER))
-    headerSizes.push(OLD_MAGIC_SIZE);
+  if (raw.subarray(0, MAGIC_SIZE).equals(MAGIC_HEADER)) headerSizes.push(MAGIC_SIZE);
+  if (raw.subarray(0, OLD_MAGIC_SIZE).equals(OLD_MAGIC_HEADER)) headerSizes.push(OLD_MAGIC_SIZE);
   for (const headerSize of headerSizes) {
     const encrypted = raw.subarray(headerSize + INTEGRITY_SIZE);
     const storedHash = raw.subarray(headerSize, headerSize + INTEGRITY_SIZE);
-    const computedHash = crypto
-      .createHmac("sha256", HMAC_KEY)
-      .update(encrypted)
-      .digest();
+    const computedHash = crypto.createHmac('sha256', HMAC_KEY).update(encrypted).digest();
     if (storedHash.equals(computedHash)) return decryptString(encrypted);
   }
   return null;
@@ -128,7 +121,7 @@ const loadEntries = (
   filePath: string,
   readFileSync: typeof fs.readFileSync,
   decryptString?: (encrypted: Buffer) => string,
-  existsSync?: typeof fs.existsSync,
+  existsSync?: typeof fs.existsSync
 ): CacheEntry[] => {
   try {
     if (existsSync && !existsSync(filePath)) return [];
@@ -143,18 +136,18 @@ const loadEntries = (
     } else if (isEncrypted && !decryptString) {
       return [];
     } else {
-      jsonStr = raw.toString("utf8");
+      jsonStr = raw.toString('utf8');
     }
 
     const data: unknown = JSON.parse(jsonStr, bufferReviver);
     if (!Array.isArray(data)) return [];
     return data.filter((e: unknown): e is CacheEntry => {
-      if (typeof e !== "object" || e === null) return false;
+      if (typeof e !== 'object' || e === null) return false;
       const entry = e as Record<string, unknown>;
-      if (typeof entry.url !== "string") return false;
-      if (typeof entry.cachedAt !== "number") return false;
+      if (typeof entry.url !== 'string') return false;
+      if (typeof entry.cachedAt !== 'number') return false;
       if (entry.body === undefined || entry.body === null) return false;
-      if (typeof entry.body === "string") {
+      if (typeof entry.body === 'string') {
         const decoded = detectOldBase64Body(entry.body);
         if (!decoded) return false;
         entry.body = decoded;
@@ -173,23 +166,17 @@ const persistEntries = (
   entries: CacheEntry[],
   writeFileSync: typeof fs.writeFileSync,
   mkdirSync: typeof fs.mkdirSync,
-  encryptString?: (plain: string) => Buffer,
+  encryptString?: (plain: string) => Buffer
 ): { ok: true } | { ok: false; error: string } => {
   try {
     mkdirSync(path.dirname(filePath), { recursive: true });
     const jsonStr = JSON.stringify(entries);
     if (encryptString) {
       const encrypted = encryptString(jsonStr);
-      const integrityHash = crypto
-        .createHmac("sha256", HMAC_KEY)
-        .update(encrypted)
-        .digest();
-      writeFileSync(
-        filePath,
-        Buffer.concat([MAGIC_HEADER, integrityHash, encrypted]),
-      );
+      const integrityHash = crypto.createHmac('sha256', HMAC_KEY).update(encrypted).digest();
+      writeFileSync(filePath, Buffer.concat([MAGIC_HEADER, integrityHash, encrypted]));
     } else {
-      writeFileSync(filePath, jsonStr, "utf8");
+      writeFileSync(filePath, jsonStr, 'utf8');
     }
     return { ok: true };
   } catch (err) {
@@ -197,10 +184,7 @@ const persistEntries = (
   }
 };
 
-export const createOfflineCache = (
-  dirPath: string,
-  deps: StoreDeps = {},
-): OfflineCache => {
+export const createOfflineCache = (dirPath: string, deps: StoreDeps = {}): OfflineCache => {
   const readFileSync = deps.readFileSync || fs.readFileSync;
   const writeFileSync = deps.writeFileSync || fs.writeFileSync;
   const mkdirSync = deps.mkdirSync || fs.mkdirSync;
@@ -231,8 +215,7 @@ export const createOfflineCache = (
     if (loaded) return cached;
     loaded = true;
     if (!encryptString) {
-      if (logger)
-        logger.warn("offline_cache_skipped", { reason: "no-encryption" });
+      if (logger) logger.warn('offline_cache_skipped', { reason: 'no-encryption' });
       cached = [];
       urlIndex.clear();
       return cached;
@@ -244,15 +227,9 @@ export const createOfflineCache = (
 
   const persist = (entries: CacheEntry[]): void => {
     if (!encryptString) return;
-    const result = persistEntries(
-      filePath,
-      entries,
-      writeFileSync,
-      mkdirSync,
-      encryptString,
-    );
+    const result = persistEntries(filePath, entries, writeFileSync, mkdirSync, encryptString);
     if (!result.ok) {
-      logger?.warn("offline_cache_write_failed", { error: result.error });
+      logger?.warn('offline_cache_write_failed', { error: result.error });
     }
   };
 
@@ -271,9 +248,7 @@ export const createOfflineCache = (
     if (!writePending) return;
     // Write is sync so pending should resolve immediately; if somehow still
     // pending (e.g. async file system in tests), wait for next microtask.
-    await new Promise<void>((resolve) =>
-      setImmediate(() => settleFlush(resolve)),
-    );
+    await new Promise<void>((resolve) => setImmediate(() => settleFlush(resolve)));
   };
 
   const markWritten = (): void => {
@@ -405,9 +380,9 @@ export const createCacheEntry = (
   contentType: string,
   statusCode: number = 200,
   headers: Record<string, string> = {},
-  cachedAt: number = Date.now(),
+  cachedAt: number = Date.now()
 ): CacheEntry => {
-  const buf = typeof body === "string" ? Buffer.from(body, "utf8") : body;
+  const buf = typeof body === 'string' ? Buffer.from(body, 'utf8') : body;
   return {
     url,
     body: buf,
@@ -421,7 +396,7 @@ export const createCacheEntry = (
 };
 
 export const decodeCacheEntry = (
-  entry: CacheEntry,
+  entry: CacheEntry
 ): {
   url: string;
   body: Buffer;

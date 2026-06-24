@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import { AppointmentService } from "src/services/appointment.service";
 import { TaskService } from "src/services/task.service";
 import { FormService } from "src/services/form.service";
@@ -7,19 +6,20 @@ import { LabResultService } from "src/services/lab-result.service";
 import { LabOrderService } from "src/services/lab-order.service";
 import { InvoiceService } from "src/services/invoice.service";
 import { CompanionService } from "src/services/companion.service";
-import CompanionOrganisationModel from "src/models/companion-organisation";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import logger from "src/utils/logger";
 import { type AppointmentResponseDTO } from "@yosemite-crew/types";
 import type { DocumentDto } from "src/services/document.service";
-import type { LabResultMongo } from "src/models/lab-result";
 
 type LabOrderSummary = {
   idexxOrderId?: string | null;
-  appointmentId?: string | Types.ObjectId | null;
+  appointmentId?: string | null;
   pdfUrl?: string | null;
 };
+
+type LabResultSummary = Awaited<
+  ReturnType<typeof LabResultService.list>
+>[number];
 
 export class CompanionHistoryServiceError extends Error {
   constructor(
@@ -283,7 +283,7 @@ const buildDocumentSummary = (doc: DocumentDto) => {
   return pieces.length ? pieces.join(" • ") : undefined;
 };
 
-const buildLabSummary = (result: LabResultMongo) => {
+const buildLabSummary = (result: LabResultSummary) => {
   if (result.status) return result.status;
   return "Result available";
 };
@@ -303,34 +303,347 @@ const ensureCompanionVisible = async (
   organisationId: string,
   patientId: string,
 ) => {
-  if (isReadFromPostgres()) {
-    const link = await prisma.patientOrganisation.findFirst({
-      where: {
-        organisationId,
-        patientId: patientId,
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-      select: { id: true },
-    });
-    return Boolean(link);
-  }
-
-  if (!Types.ObjectId.isValid(organisationId)) {
-    throw new CompanionHistoryServiceError("Invalid organisationId", 400);
-  }
-  if (!Types.ObjectId.isValid(patientId)) {
-    throw new CompanionHistoryServiceError("Invalid patientId", 400);
-  }
-
-  const link = await CompanionOrganisationModel.findOne({
-    organisationId: new Types.ObjectId(organisationId),
-    patientId: new Types.ObjectId(patientId),
-    status: { $in: ["ACTIVE", "PENDING"] },
-  })
-    .select({ _id: 1 })
-    .lean();
-
+  const link = await prisma.patientOrganisation.findFirst({
+    where: {
+      organisationId,
+      patientId,
+      status: { in: ["ACTIVE", "PENDING"] },
+    },
+    select: { id: true },
+  });
   return Boolean(link);
+};
+
+const getAppointmentIdSet = async (
+  patientId: string,
+  organisationId: string,
+) => {
+  const appointments =
+    await AppointmentService.getAppointmentsForCompanionByOrganisation(
+      patientId,
+      organisationId,
+    );
+
+  return new Set(
+    appointments
+      .map((appointment) => appointment.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+};
+
+const appendAppointmentHistoryEntries = async (params: {
+  entries: HistoryEntry[];
+  patientId: string;
+  organisationId: string;
+}) => {
+  const appointments =
+    await AppointmentService.getAppointmentsForCompanionByOrganisation(
+      params.patientId,
+      params.organisationId,
+    );
+
+  for (const appointment of appointments) {
+    const { lead, room, support } = resolveAppointmentParticipants(appointment);
+    const appointmentType = appointment.serviceType?.[0]?.coding?.[0];
+    const speciality = appointment.specialty?.[0]?.coding?.[0];
+    const paymentStatus = resolveAppointmentPaymentStatus(appointment);
+
+    const appointmentId = appointment.id ?? "";
+    const occurredAt = appointment.start ?? new Date().toISOString();
+
+    params.entries.push({
+      id: `APPOINTMENT:${appointmentId}`,
+      type: "APPOINTMENT",
+      occurredAt,
+      status: appointment.status as HistoryEntryStatus,
+      title: appointmentType?.display ?? "Appointment",
+      subtitle: formatDateSubtitle(
+        occurredAt,
+        room?.actor?.display ?? undefined,
+      ),
+      summary: appointment.description ?? undefined,
+      actor: lead?.actor?.reference
+        ? {
+            id: lead.actor.reference.split("/")[1],
+            name: lead.actor.display ?? undefined,
+            role: "VET",
+          }
+        : undefined,
+      link: {
+        kind: "appointment",
+        id: appointmentId,
+        patientId: params.patientId,
+      },
+      source: "APPOINTMENT",
+      payload: {
+        appointmentId,
+        serviceName: appointmentType?.display ?? undefined,
+        specialityName: speciality?.display ?? undefined,
+        reason: appointment.description ?? undefined,
+        roomName: room?.actor?.display ?? undefined,
+        leadName: lead?.actor?.display ?? undefined,
+        supportStaffNames: support
+          .map((member) => member.actor?.display)
+          .filter(Boolean),
+        paymentStatus: paymentStatus ?? undefined,
+      },
+    });
+  }
+};
+
+const appendTaskHistoryEntries = async (params: {
+  entries: HistoryEntry[];
+  patientId: string;
+  organisationId: string;
+}) => {
+  const tasks = await TaskService.listForCompanion({
+    patientId: params.patientId,
+  });
+  for (const task of tasks.filter(
+    (item) => item.organisationId === params.organisationId,
+  )) {
+    const taskId = task.id;
+    const occurredAt =
+      task.completedAt?.toISOString() ??
+      task.dueAt?.toISOString() ??
+      task.createdAt?.toISOString() ??
+      new Date().toISOString();
+
+    params.entries.push({
+      id: `TASK:${taskId}`,
+      type: "TASK",
+      occurredAt,
+      status: task.status as HistoryEntryStatus,
+      title: task.name,
+      subtitle: [task.category, task.audience].filter(Boolean).join(" • "),
+      summary: buildTaskSummary(task),
+      actor: task.assignedTo
+        ? { id: task.assignedTo, role: "STAFF" }
+        : undefined,
+      link: {
+        kind: "task",
+        id: taskId,
+        patientId: params.patientId,
+        appointmentId: task.appointmentId ?? undefined,
+      },
+      source: "TASK",
+      payload: {
+        taskId,
+        appointmentId: task.appointmentId ?? undefined,
+        audience: task.audience,
+        category: task.category,
+        dueAt: task.dueAt?.toISOString(),
+        completedAt: task.completedAt?.toISOString(),
+        medication: task.medication ?? undefined,
+      },
+    });
+  }
+};
+
+const appendFormSubmissionHistoryEntries = async (params: {
+  entries: HistoryEntry[];
+  patientId: string;
+  organisationId: string;
+}) => {
+  const submissions =
+    await FormService.listSubmissionsForCompanionInOrganisation({
+      organisationId: params.organisationId,
+      patientId: params.patientId,
+    });
+
+  for (const submission of submissions) {
+    const occurredAt =
+      submission.submittedAt?.toISOString() ?? new Date().toISOString();
+    const tags =
+      submission.formCategory && SOAP_CATEGORIES.has(submission.formCategory)
+        ? ["SOAP", submission.formCategory]
+        : undefined;
+
+    params.entries.push({
+      id: `FORM_SUBMISSION:${submission.id}`,
+      type: "FORM_SUBMISSION",
+      occurredAt,
+      status: submission.signing?.status === "SIGNED" ? "SIGNED" : "COMPLETED",
+      title: submission.formName ?? "Form submission",
+      subtitle: submission.formCategory ?? undefined,
+      summary: resolveAnswersPreview(submission.answers) ?? "Submitted",
+      actor: submission.submittedBy
+        ? { id: submission.submittedBy, role: "PARENT" }
+        : undefined,
+      tags,
+      link: {
+        kind: "form_submission",
+        id: submission.id,
+        patientId: params.patientId,
+        appointmentId: submission.appointmentId ?? undefined,
+      },
+      source: "FORM",
+      payload: {
+        submissionId: submission.id,
+        formId: submission.formId,
+        formVersion: submission.formVersion,
+        formName: submission.formName ?? undefined,
+        formCategory: submission.formCategory ?? undefined,
+        appointmentId: submission.appointmentId ?? undefined,
+        signing: submission.signing ?? undefined,
+        answers: submission.answers ?? undefined,
+      },
+    });
+  }
+};
+
+const appendDocumentHistoryEntries = async (params: {
+  entries: HistoryEntry[];
+  patientId: string;
+  organisationId: string;
+  ensureAppointmentIds: () => Promise<Set<string>>;
+}) => {
+  const documents = await DocumentService.listForPms({
+    patientId: params.patientId,
+    organisationId: params.organisationId,
+  });
+  const appointmentIds = documents
+    .map((doc) => doc.appointmentId ?? undefined)
+    .filter(Boolean) as string[];
+  const appointmentIdsInOrg =
+    appointmentIds.length > 0 ? await params.ensureAppointmentIds() : null;
+
+  for (const doc of documents) {
+    if (
+      doc.appointmentId &&
+      appointmentIdsInOrg &&
+      !appointmentIdsInOrg.has(doc.appointmentId)
+    ) {
+      continue;
+    }
+    const occurredAt = doc.issueDate ?? doc.createdAt ?? undefined;
+    const normalizedOccurredAt = occurredAt ?? new Date().toISOString();
+
+    params.entries.push({
+      id: `DOCUMENT:${doc.id}`,
+      type: "DOCUMENT",
+      occurredAt: normalizedOccurredAt,
+      status: "COMPLETED",
+      title: doc.title,
+      subtitle: [doc.category, doc.subcategory].filter(Boolean).join(" • "),
+      summary: buildDocumentSummary(doc),
+      link: {
+        kind: "document",
+        id: doc.id,
+        patientId: params.patientId,
+        appointmentId: doc.appointmentId ?? undefined,
+      },
+      source: "DOCUMENT",
+      payload: {
+        documentId: doc.id,
+        appointmentId: doc.appointmentId ?? undefined,
+        category: doc.category,
+        subcategory: doc.subcategory ?? undefined,
+        issueDate: doc.issueDate ?? undefined,
+        issuingBusinessName: doc.issuingBusinessName ?? undefined,
+        attachmentCount: doc.attachments?.length ?? 0,
+        openable: (doc.attachments?.length ?? 0) > 0,
+      },
+    });
+  }
+};
+
+const appendLabResultHistoryEntries = async (params: {
+  entries: HistoryEntry[];
+  patientId: string;
+  organisationId: string;
+}) => {
+  const results = await LabResultService.list({
+    organisationId: params.organisationId,
+    provider: "IDEXX",
+    patientId: params.patientId,
+  });
+
+  const orders = await LabOrderService.listOrders({
+    organisationId: params.organisationId,
+    patientId: params.patientId,
+    provider: "IDEXX",
+  });
+  const orderMap = new Map<string, LabOrderSummary>();
+  orders.forEach((order) => {
+    if (!order.idexxOrderId) return;
+    orderMap.set(order.idexxOrderId, order);
+  });
+
+  for (const result of results) {
+    const occurredAt =
+      result.updatedAt?.toISOString() ??
+      result.createdAt?.toISOString() ??
+      new Date().toISOString();
+    const order = result.orderId ? orderMap.get(result.orderId) : undefined;
+
+    params.entries.push({
+      id: `LAB_RESULT:${result.resultId}`,
+      type: "LAB_RESULT",
+      occurredAt,
+      status: result.status ? "COMPLETED" : "PENDING",
+      title: `${result.provider ?? "Lab"} Result`,
+      subtitle: result.status ?? undefined,
+      summary: buildLabSummary(result),
+      link: {
+        kind: "lab_result",
+        id: result.resultId,
+        patientId: params.patientId,
+        appointmentId: order?.appointmentId?.toString(),
+      },
+      source: "LAB",
+      payload: {
+        resultId: result.resultId,
+        orderId: result.orderId ?? undefined,
+        patientName: result.patientName ?? undefined,
+        status: result.status ?? undefined,
+        accessionId: result.accessionId ?? undefined,
+        pdfAvailable: Boolean(order?.pdfUrl ?? result.rawPayload),
+      },
+    });
+  }
+};
+
+const appendInvoiceHistoryEntries = async (params: {
+  entries: HistoryEntry[];
+  patientId: string;
+  organisationId: string;
+}) => {
+  const invoices = await InvoiceService.listForCompanion(params.patientId);
+  for (const invoice of invoices.filter(
+    (item) => item.organisationId === params.organisationId,
+  )) {
+    const occurredAt =
+      invoice.paidAt?.toISOString() ??
+      invoice.createdAt?.toISOString() ??
+      new Date().toISOString();
+
+    params.entries.push({
+      id: `INVOICE:${invoice.id ?? ""}`,
+      type: "INVOICE",
+      occurredAt,
+      status: invoice.status as HistoryEntryStatus,
+      title: "Invoice",
+      subtitle: invoice.status,
+      summary: `${invoice.totalAmount} ${invoice.currency}`,
+      link: {
+        kind: "invoice",
+        id: invoice.id ?? "",
+        patientId: params.patientId,
+        appointmentId: invoice.appointmentId ?? undefined,
+      },
+      source: "INVOICE",
+      payload: {
+        invoiceId: invoice.id ?? undefined,
+        appointmentId: invoice.appointmentId ?? undefined,
+        status: invoice.status,
+        totalAmount: invoice.totalAmount,
+        currency: invoice.currency,
+        paymentCollectionMethod: invoice.paymentCollectionMethod,
+        paidAt: invoice.paidAt?.toISOString(),
+      },
+    });
+  }
 };
 
 export const CompanionHistoryService = {
@@ -367,83 +680,20 @@ export const CompanionHistoryService = {
 
     const entries: HistoryEntry[] = [];
     let appointmentIdSet: Set<string> | null = null;
-
     const ensureAppointmentIds = async () => {
       if (appointmentIdSet) return appointmentIdSet;
-      const appointments =
-        await AppointmentService.getAppointmentsForCompanionByOrganisation(
-          patientId,
-          organisationId,
-        );
-      appointmentIdSet = new Set(
-        appointments
-          .map((appointment) => appointment.id)
-          .filter((id): id is string => Boolean(id)),
-      );
+      appointmentIdSet = await getAppointmentIdSet(patientId, organisationId);
       return appointmentIdSet;
     };
 
     if (types.includes("APPOINTMENT")) {
       try {
-        const appointments =
-          await AppointmentService.getAppointmentsForCompanionByOrganisation(
-            patientId,
-            organisationId,
-          );
-        appointmentIdSet = new Set(
-          appointments
-            .map((appointment) => appointment.id)
-            .filter((id): id is string => Boolean(id)),
-        );
-
-        appointments.forEach((appointment) => {
-          const { lead, room, support } =
-            resolveAppointmentParticipants(appointment);
-          const appointmentType = appointment.serviceType?.[0]?.coding?.[0];
-          const speciality = appointment.specialty?.[0]?.coding?.[0];
-          const paymentStatus = resolveAppointmentPaymentStatus(appointment);
-
-          const appointmentId = appointment.id ?? "";
-          const occurredAt = appointment.start ?? new Date().toISOString();
-
-          entries.push({
-            id: `APPOINTMENT:${appointmentId}`,
-            type: "APPOINTMENT",
-            occurredAt,
-            status: appointment.status as HistoryEntryStatus,
-            title: appointmentType?.display ?? "Appointment",
-            subtitle: formatDateSubtitle(
-              occurredAt,
-              room?.actor?.display ?? undefined,
-            ),
-            summary: appointment.description ?? undefined,
-            actor: lead?.actor?.reference
-              ? {
-                  id: lead.actor.reference.split("/")[1],
-                  name: lead.actor.display ?? undefined,
-                  role: "VET",
-                }
-              : undefined,
-            link: {
-              kind: "appointment",
-              id: appointmentId,
-              patientId,
-            },
-            source: "APPOINTMENT",
-            payload: {
-              appointmentId,
-              serviceName: appointmentType?.display ?? undefined,
-              specialityName: speciality?.display ?? undefined,
-              reason: appointment.description ?? undefined,
-              roomName: room?.actor?.display ?? undefined,
-              leadName: lead?.actor?.display ?? undefined,
-              supportStaffNames: support
-                .map((member) => member.actor?.display)
-                .filter(Boolean),
-              paymentStatus: paymentStatus ?? undefined,
-            },
-          });
+        await appendAppointmentHistoryEntries({
+          entries,
+          patientId,
+          organisationId,
         });
+        appointmentIdSet = await getAppointmentIdSet(patientId, organisationId);
       } catch (error) {
         logger.warn("Companion history appointments failed", {
           error,
@@ -455,48 +705,7 @@ export const CompanionHistoryService = {
 
     if (types.includes("TASK")) {
       try {
-        const tasks = await TaskService.listForCompanion({ patientId });
-        tasks
-          .filter((task) => task.organisationId === organisationId)
-          .forEach((task) => {
-            const taskId = task.id;
-            const occurredAt =
-              task.completedAt?.toISOString() ??
-              task.dueAt?.toISOString() ??
-              task.createdAt?.toISOString() ??
-              new Date().toISOString();
-
-            entries.push({
-              id: `TASK:${taskId}`,
-              type: "TASK",
-              occurredAt,
-              status: task.status as HistoryEntryStatus,
-              title: task.name,
-              subtitle: [task.category, task.audience]
-                .filter(Boolean)
-                .join(" • "),
-              summary: buildTaskSummary(task),
-              actor: task.assignedTo
-                ? { id: task.assignedTo, role: "STAFF" }
-                : undefined,
-              link: {
-                kind: "task",
-                id: taskId,
-                patientId,
-                appointmentId: task.appointmentId ?? undefined,
-              },
-              source: "TASK",
-              payload: {
-                taskId,
-                appointmentId: task.appointmentId ?? undefined,
-                audience: task.audience,
-                category: task.category,
-                dueAt: task.dueAt?.toISOString(),
-                completedAt: task.completedAt?.toISOString(),
-                medication: task.medication ?? undefined,
-              },
-            });
-          });
+        await appendTaskHistoryEntries({ entries, patientId, organisationId });
       } catch (error) {
         logger.warn("Companion history tasks failed", {
           error,
@@ -508,52 +717,10 @@ export const CompanionHistoryService = {
 
     if (types.includes("FORM_SUBMISSION")) {
       try {
-        const submissions =
-          await FormService.listSubmissionsForCompanionInOrganisation({
-            organisationId,
-            patientId,
-          });
-
-        submissions.forEach((submission) => {
-          const occurredAt =
-            submission.submittedAt?.toISOString() ?? new Date().toISOString();
-          const tags =
-            submission.formCategory &&
-            SOAP_CATEGORIES.has(submission.formCategory)
-              ? ["SOAP", submission.formCategory]
-              : undefined;
-
-          entries.push({
-            id: `FORM_SUBMISSION:${submission.id}`,
-            type: "FORM_SUBMISSION",
-            occurredAt,
-            status:
-              submission.signing?.status === "SIGNED" ? "SIGNED" : "COMPLETED",
-            title: submission.formName ?? "Form submission",
-            subtitle: submission.formCategory ?? undefined,
-            summary: resolveAnswersPreview(submission.answers) ?? "Submitted",
-            actor: submission.submittedBy
-              ? { id: submission.submittedBy, role: "PARENT" }
-              : undefined,
-            tags,
-            link: {
-              kind: "form_submission",
-              id: submission.id,
-              patientId,
-              appointmentId: submission.appointmentId ?? undefined,
-            },
-            source: "FORM",
-            payload: {
-              submissionId: submission.id,
-              formId: submission.formId,
-              formVersion: submission.formVersion,
-              formName: submission.formName ?? undefined,
-              formCategory: submission.formCategory ?? undefined,
-              appointmentId: submission.appointmentId ?? undefined,
-              signing: submission.signing ?? undefined,
-              answers: submission.answers ?? undefined,
-            },
-          });
+        await appendFormSubmissionHistoryEntries({
+          entries,
+          patientId,
+          organisationId,
         });
       } catch (error) {
         logger.warn("Companion history form submissions failed", {
@@ -566,56 +733,11 @@ export const CompanionHistoryService = {
 
     if (types.includes("DOCUMENT")) {
       try {
-        const documents = await DocumentService.listForPms({
+        await appendDocumentHistoryEntries({
+          entries,
           patientId,
           organisationId,
-        });
-        const appointmentIds =
-          documents
-            .map((doc) => doc.appointmentId ?? undefined)
-            .filter(Boolean) ?? [];
-        const appointmentIdsInOrg =
-          appointmentIds.length > 0 ? await ensureAppointmentIds() : null;
-
-        documents.forEach((doc) => {
-          if (
-            doc.appointmentId &&
-            appointmentIdsInOrg &&
-            !appointmentIdsInOrg.has(doc.appointmentId)
-          ) {
-            return;
-          }
-          const occurredAt = doc.issueDate ?? doc.createdAt ?? undefined;
-          const normalizedOccurredAt = occurredAt ?? new Date().toISOString();
-
-          entries.push({
-            id: `DOCUMENT:${doc.id}`,
-            type: "DOCUMENT",
-            occurredAt: normalizedOccurredAt,
-            status: "COMPLETED",
-            title: doc.title,
-            subtitle: [doc.category, doc.subcategory]
-              .filter(Boolean)
-              .join(" • "),
-            summary: buildDocumentSummary(doc),
-            link: {
-              kind: "document",
-              id: doc.id,
-              patientId,
-              appointmentId: doc.appointmentId ?? undefined,
-            },
-            source: "DOCUMENT",
-            payload: {
-              documentId: doc.id,
-              appointmentId: doc.appointmentId ?? undefined,
-              category: doc.category,
-              subcategory: doc.subcategory ?? undefined,
-              issueDate: doc.issueDate ?? undefined,
-              issuingBusinessName: doc.issuingBusinessName ?? undefined,
-              attachmentCount: doc.attachments?.length ?? 0,
-              openable: (doc.attachments?.length ?? 0) > 0,
-            },
-          });
+          ensureAppointmentIds,
         });
       } catch (error) {
         logger.warn("Companion history documents failed", {
@@ -628,56 +750,10 @@ export const CompanionHistoryService = {
 
     if (types.includes("LAB_RESULT")) {
       try {
-        const results = (await LabResultService.list({
-          organisationId,
-          provider: "IDEXX",
+        await appendLabResultHistoryEntries({
+          entries,
           patientId,
-        })) as LabResultMongo[];
-
-        const orders = (await LabOrderService.listOrders({
           organisationId,
-          patientId,
-          provider: "IDEXX",
-        })) as LabOrderSummary[];
-        const orderMap = new Map<string, LabOrderSummary>();
-        orders.forEach((order) => {
-          if (!order.idexxOrderId) return;
-          orderMap.set(order.idexxOrderId, order);
-        });
-
-        results.forEach((result) => {
-          const occurredAt =
-            result.updatedAt?.toISOString() ??
-            result.createdAt?.toISOString() ??
-            new Date().toISOString();
-          const order = result.orderId
-            ? orderMap.get(result.orderId)
-            : undefined;
-
-          entries.push({
-            id: `LAB_RESULT:${result.resultId}`,
-            type: "LAB_RESULT",
-            occurredAt,
-            status: result.status ? "COMPLETED" : "PENDING",
-            title: `${result.provider ?? "Lab"} Result`,
-            subtitle: result.status ?? undefined,
-            summary: buildLabSummary(result),
-            link: {
-              kind: "lab_result",
-              id: result.resultId,
-              patientId,
-              appointmentId: order?.appointmentId?.toString(),
-            },
-            source: "LAB",
-            payload: {
-              resultId: result.resultId,
-              orderId: result.orderId ?? undefined,
-              patientName: result.patientName ?? undefined,
-              status: result.status ?? undefined,
-              accessionId: result.accessionId ?? undefined,
-              pdfAvailable: Boolean(order?.pdfUrl ?? result.rawPayload),
-            },
-          });
         });
       } catch (error) {
         logger.warn("Companion history lab results failed", {
@@ -690,41 +766,11 @@ export const CompanionHistoryService = {
 
     if (types.includes("INVOICE")) {
       try {
-        const invoices = await InvoiceService.listForCompanion(patientId);
-        invoices
-          .filter((invoice) => invoice.organisationId === organisationId)
-          .forEach((invoice) => {
-            const occurredAt =
-              invoice.paidAt?.toISOString() ??
-              invoice.createdAt?.toISOString() ??
-              new Date().toISOString();
-
-            entries.push({
-              id: `INVOICE:${invoice.id ?? ""}`,
-              type: "INVOICE",
-              occurredAt,
-              status: invoice.status as HistoryEntryStatus,
-              title: "Invoice",
-              subtitle: invoice.status,
-              summary: `${invoice.totalAmount} ${invoice.currency}`,
-              link: {
-                kind: "invoice",
-                id: invoice.id ?? "",
-                patientId,
-                appointmentId: invoice.appointmentId ?? undefined,
-              },
-              source: "INVOICE",
-              payload: {
-                invoiceId: invoice.id ?? undefined,
-                appointmentId: invoice.appointmentId ?? undefined,
-                status: invoice.status,
-                totalAmount: invoice.totalAmount,
-                currency: invoice.currency,
-                paymentCollectionMethod: invoice.paymentCollectionMethod,
-                paidAt: invoice.paidAt?.toISOString(),
-              },
-            });
-          });
+        await appendInvoiceHistoryEntries({
+          entries,
+          patientId,
+          organisationId,
+        });
       } catch (error) {
         logger.warn("Companion history invoices failed", {
           error,

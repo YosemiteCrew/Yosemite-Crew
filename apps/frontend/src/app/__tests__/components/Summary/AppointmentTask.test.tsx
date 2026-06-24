@@ -9,6 +9,11 @@ const useTasksMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const appointmentsSpy = jest.fn();
 const tasksSpy = jest.fn();
+const pushMock = jest.fn();
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock, back: jest.fn() }),
+}));
 
 jest.mock('@/app/hooks/useAppointments', () => ({
   useAppointmentsForPrimaryOrg: () => useAppointmentsMock(),
@@ -49,6 +54,11 @@ jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom', 
 ));
 
 jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeStatus', () => () => null);
+
+jest.mock(
+  '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal',
+  () => () => <div data-testid="appointment-overview" />
+);
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,

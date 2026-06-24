@@ -55,6 +55,7 @@ export interface CreateTaskTemplateInput {
 
   kind: TaskKind;
   defaultRole: "EMPLOYEE" | "PARENT";
+  inpatientOnly?: boolean;
 
   defaultMedication?: {
     name?: string;
@@ -81,6 +82,7 @@ export interface UpdateTaskTemplateInput {
   name?: string;
   description?: string;
   defaultRole?: "EMPLOYEE" | "PARENT";
+  inpatientOnly?: boolean;
   defaultMedication?: {
     name?: string;
     type?: string;
@@ -125,6 +127,7 @@ export const TaskTemplateService = {
           return kind;
         })(),
         defaultRole: toDefaultRole(input.defaultRole),
+        inpatientOnly: input.inpatientOnly ?? false,
         defaultMedication: toJsonInput(input.defaultMedication ?? undefined),
         defaultObservationToolId: input.defaultObservationToolId ?? undefined,
         defaultRecurrence: toJsonInput(input.defaultRecurrence ?? undefined),
@@ -164,6 +167,10 @@ export const TaskTemplateService = {
           input.defaultRole === undefined
             ? existing.defaultRole
             : toDefaultRole(input.defaultRole),
+        inpatientOnly:
+          input.inpatientOnly === undefined
+            ? existing.inpatientOnly
+            : input.inpatientOnly,
         defaultMedication:
           input.defaultMedication === undefined
             ? (existing.defaultMedication ?? undefined)
@@ -203,18 +210,50 @@ export const TaskTemplateService = {
     });
   },
 
-  async listForOrganisation(organisationId: string, kind?: TaskKind) {
+  async listForOrganisation(
+    organisationId: string,
+    kind?: TaskKind,
+    options?: { inpatientOnly?: boolean; search?: string },
+  ) {
     const safeOrganisationId = ensureId(organisationId, "organisationId");
     const safeKind = kind ? sanitizeTaskKind(kind) : undefined;
     if (kind && !safeKind) {
       throw new TaskTemplateServiceError("Invalid kind", 400);
     }
+    const search = options?.search?.trim();
 
     const docs = await prisma.taskTemplate.findMany({
       where: {
         organisationId: safeOrganisationId,
         isActive: true,
         kind: safeKind,
+        ...(options?.inpatientOnly === undefined
+          ? {}
+          : { inpatientOnly: options.inpatientOnly }),
+        ...(search
+          ? {
+              OR: [
+                {
+                  category: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  name: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  description: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     });

@@ -7,6 +7,8 @@ type SearchProps = {
   className?: string;
   placeholder?: string;
   label?: string;
+  /** Forwarded to the underlying input so callers can focus it programmatically. */
+  inputRef?: React.Ref<HTMLInputElement>;
 };
 
 const Search = ({
@@ -15,6 +17,7 @@ const Search = ({
   className,
   placeholder = 'Search',
   label = 'Search',
+  inputRef,
 }: SearchProps) => {
   const inputId = useId();
 
@@ -27,6 +30,7 @@ const Search = ({
       </label>
       <input
         id={inputId}
+        ref={inputRef}
         type="search"
         aria-label={label}
         value={value}

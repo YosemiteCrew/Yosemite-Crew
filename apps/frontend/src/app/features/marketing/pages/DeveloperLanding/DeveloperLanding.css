@@ -5,17 +5,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 85vh;
+  min-height: min(720px, calc(100vh - 88px));
   font-family: var(--font-satoshi);
 }
 @media screen and (max-width: 1280px) {
   .Container {
-    padding: 32px 48px;
+    padding: 32px 48px 48px;
   }
 }
 @media screen and (max-width: 768px) {
   .Container {
-    padding: 16px 16px;
+    padding: 16px 16px 32px;
   }
 }
 
@@ -23,6 +23,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 96px;
 }
 .DevlpHeroData {
   display: grid;
@@ -68,6 +69,10 @@
   }
 }
 @media screen and (max-width: 1024px) {
+  .DevlpHeroSec {
+    padding-top: 88px;
+  }
+
   .DevlpHeroData .LeftDevBanr {
     max-width: 100%;
     padding-right: 0px;
@@ -82,6 +87,10 @@
   }
 }
 @media screen and (max-width: 768px) {
+  .DevlpHeroSec {
+    padding-top: 80px;
+  }
+
   .DevlpHeroData {
     grid-gap: 16px;
   }

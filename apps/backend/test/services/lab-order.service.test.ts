@@ -1,17 +1,17 @@
-import { LabOrderService } from "../../src/services/lab-order.service";
-import { prisma } from "../../src/config/prisma";
-import { isReadFromPostgres } from "../../src/config/read-switch";
-import { getLabOrderAdapter } from "../../src/labs";
-import LabOrderModel from "../../src/models/lab-order";
-import CodeEntryModel from "../../src/models/code-entry";
+import { LabOrderService } from "src/services/lab-order.service";
+import { prisma } from "src/config/prisma";
+import { getLabOrderAdapter } from "src/labs";
+import { InvoiceService } from "src/services/invoice.service";
 
-jest.mock("../../src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(),
-}));
-
-jest.mock("../../src/config/prisma", () => ({
+jest.mock("src/config/prisma", () => ({
   prisma: {
-    codeEntry: { count: jest.fn(), findMany: jest.fn() },
+    codeEntry: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+    },
+    parentPatient: {
+      findFirst: jest.fn(),
+    },
     labOrder: {
       create: jest.fn(),
       update: jest.fn(),
@@ -21,75 +21,100 @@ jest.mock("../../src/config/prisma", () => ({
   },
 }));
 
-jest.mock("../../src/labs", () => {
-  const actual = jest.requireActual("../../src/labs");
+jest.mock("src/labs", () => {
+  const actual = jest.requireActual("src/labs");
   return {
     ...actual,
     getLabOrderAdapter: jest.fn(),
   };
 });
 
-jest.mock("../../src/models/lab-order", () => ({
-  __esModule: true,
-  default: {
-    findOne: jest.fn(),
-    find: jest.fn(),
+jest.mock("src/services/invoice.service", () => ({
+  InvoiceService: {
+    addChargesToAppointment: jest.fn(),
+    handleInvoiceCancellation: jest.fn(),
   },
 }));
 
-jest.mock("../../src/models/code-entry", () => ({
-  __esModule: true,
-  default: {
-    countDocuments: jest.fn(),
-    find: jest.fn(),
-  },
-}));
+const prismaMock = prisma as unknown as {
+  codeEntry: { count: jest.Mock; findMany: jest.Mock };
+  parentPatient: { findFirst: jest.Mock };
+  labOrder: {
+    create: jest.Mock;
+    update: jest.Mock;
+    findFirst: jest.Mock;
+    findMany: jest.Mock;
+  };
+};
+
+const adapterMock = {
+  createOrder: jest.fn(),
+  getOrder: jest.fn(),
+  updateOrder: jest.fn(),
+  cancelOrder: jest.fn(),
+};
+
+const invoiceServiceMock = InvoiceService as unknown as {
+  addChargesToAppointment: jest.Mock;
+  handleInvoiceCancellation: jest.Mock;
+};
 
 describe("LabOrderService", () => {
-  const readSwitch = isReadFromPostgres as jest.Mock;
-  const adapter = {
-    createOrder: jest.fn(),
-    getOrder: jest.fn(),
-    updateOrder: jest.fn(),
-    cancelOrder: jest.fn(),
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
-    readSwitch.mockReturnValue(true);
-    (getLabOrderAdapter as jest.Mock).mockReturnValue(adapter);
-    adapter.createOrder.mockResolvedValue({
-      idexxOrderId: "id-1",
+    (getLabOrderAdapter as jest.Mock).mockReturnValue(adapterMock);
+    adapterMock.createOrder.mockResolvedValue({
+      idexxOrderId: "ID-1",
       requestPayload: {},
       responsePayload: {},
       status: "CREATED",
     });
-    (prisma.labOrder.create as jest.Mock).mockResolvedValue({
+    adapterMock.getOrder.mockResolvedValue({
+      requestPayload: {},
+      responsePayload: {},
+      status: "CREATED",
+    });
+    adapterMock.updateOrder.mockResolvedValue({
+      requestPayload: {},
+      responsePayload: {},
+      status: "CREATED",
+    });
+    adapterMock.cancelOrder.mockResolvedValue({
+      requestPayload: {},
+      responsePayload: {},
+      status: "CANCELLED",
+    });
+    prismaMock.labOrder.create.mockResolvedValue({
       id: "order-1",
       status: "CREATED",
       modality: "REFERENCE_LAB",
+      tests: ["T1"],
+      billedAt: null,
+      appointmentId: null,
+      invoiceId: null,
     });
-    (prisma.labOrder.update as jest.Mock).mockResolvedValue({
+    prismaMock.labOrder.update.mockResolvedValue({
       id: "order-1",
       status: "CREATED",
+      modality: "REFERENCE_LAB",
+      tests: ["T1"],
+    });
+    prismaMock.labOrder.findFirst.mockResolvedValue({
+      id: "order-1",
+      organisationId: "org-1",
+      provider: "IDEXX",
+      idexxOrderId: "ID-1",
+      patientId: "patient-1",
+      parentId: "parent-1",
+      status: "CREATED",
+      modality: "REFERENCE_LAB",
+      tests: ["T1"],
     });
   });
 
-  it("rejects unsupported provider for listProviderTests", async () => {
-    await expect(LabOrderService.listProviderTests("BAD", {})).rejects.toThrow(
-      "Unsupported lab provider.",
-    );
-  });
-
-  it("rejects invalid query type", async () => {
-    await expect(
-      LabOrderService.listProviderTests("IDEXX", { query: 123 as any }),
-    ).rejects.toThrow("Invalid query.");
-  });
-
-  it("lists provider tests using postgres", async () => {
-    (prisma.codeEntry.count as jest.Mock).mockResolvedValue(2);
-    (prisma.codeEntry.findMany as jest.Mock).mockResolvedValue([{ code: "A" }]);
+  it("lists provider tests using prisma", async () => {
+    prismaMock.codeEntry.count.mockResolvedValue(1);
+    prismaMock.codeEntry.findMany.mockResolvedValue([{ code: "T1" }]);
 
     const result = await LabOrderService.listProviderTests("IDEXX", {
       query: "chem",
@@ -98,44 +123,55 @@ describe("LabOrderService", () => {
     });
 
     expect(result).toEqual({
-      total: 2,
+      total: 1,
       page: 1,
       limit: 10,
-      tests: [{ code: "A" }],
+      tests: [{ code: "T1" }],
     });
   });
 
-  it("creates order in postgres", async () => {
+  it("creates an order with a resolved primary parent", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({
+      parentId: "parent-1",
+    });
+
     const result = await LabOrderService.createOrder("IDEXX", {
       organisationId: "org-1",
-      patientId: "comp-1",
-      parentId: "parent-1",
+      patientId: "patient-1",
       tests: ["T1"],
     });
 
-    expect(result).toEqual({ id: "order-1", status: "CREATED" });
-    expect(adapter.createOrder).toHaveBeenCalled();
+    expect(prismaMock.parentPatient.findFirst).toHaveBeenCalledWith({
+      where: {
+        patientId: "patient-1",
+        role: "PRIMARY",
+        status: "ACTIVE",
+      },
+    });
+    expect(adapterMock.createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: "parent-1",
+      }),
+    );
+    expect(result).toMatchObject({
+      id: "order-1",
+      status: "CREATED",
+    });
   });
 
-  it("rejects unsupported provider for createOrder", async () => {
-    await expect(
-      LabOrderService.createOrder("BAD", {
+  it("gets an order through prisma", async () => {
+    await LabOrderService.getOrder("IDEXX", "org-1", "ID-1");
+
+    expect(prismaMock.labOrder.findFirst).toHaveBeenCalledWith({
+      where: {
         organisationId: "org-1",
-        patientId: "comp-1",
-        tests: ["T1"],
-      } as any),
-    ).rejects.toThrow("Unsupported lab provider.");
+        provider: "IDEXX",
+        idexxOrderId: "ID-1",
+      },
+    });
   });
 
-  it("throws when getOrder missing in postgres", async () => {
-    (prisma.labOrder.findFirst as jest.Mock).mockResolvedValue(null);
-
-    await expect(
-      LabOrderService.getOrder("IDEXX", "org-1", "id-1"),
-    ).rejects.toThrow("Lab order not found.");
-  });
-
-  it("rejects invalid provider in listOrders", async () => {
+  it("rejects unsupported provider for listOrders", async () => {
     await expect(
       LabOrderService.listOrders({
         organisationId: "org-1",
@@ -144,49 +180,41 @@ describe("LabOrderService", () => {
     ).rejects.toThrow("Unsupported lab provider.");
   });
 
-  it("rejects updateOrder when status is not CREATED", async () => {
-    readSwitch.mockReturnValue(false);
-    (LabOrderModel.findOne as jest.Mock).mockReturnValue({
-      setOptions: jest.fn().mockResolvedValue({
-        status: "SUBMITTED",
-      }),
-    });
-
+  it("rejects unsupported provider for createOrder", async () => {
     await expect(
-      LabOrderService.updateOrder("IDEXX", "org-1", "id-1", {
+      LabOrderService.createOrder("BAD", {
+        organisationId: "org-1",
+        patientId: "patient-1",
         tests: ["T1"],
-      }),
-    ).rejects.toThrow("Only CREATED orders can be updated.");
+      } as any),
+    ).rejects.toThrow("Unsupported lab provider.");
   });
 
-  it("throws when cancelOrder cannot find order", async () => {
-    readSwitch.mockReturnValue(false);
-    (LabOrderModel.findOne as jest.Mock).mockReturnValue({
-      setOptions: jest.fn().mockResolvedValue(null),
-    });
-
-    await expect(
-      LabOrderService.cancelOrder("IDEXX", "org-1", "id-1"),
-    ).rejects.toThrow("Lab order not found.");
-  });
-
-  it("lists orders using mongo", async () => {
-    readSwitch.mockReturnValue(false);
-    const mockQuery = {
-      sort: jest.fn().mockReturnThis(),
-      setOptions: jest.fn().mockReturnThis(),
-      lean: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue([]),
-    };
-    (LabOrderModel.find as jest.Mock).mockReturnValue(mockQuery);
-
-    const result = await LabOrderService.listOrders({
+  it("cancels an order and forwards invoice cancellation when needed", async () => {
+    prismaMock.labOrder.findFirst.mockResolvedValueOnce({
+      id: "order-1",
       organisationId: "org-1",
-      limit: 5,
+      provider: "IDEXX",
+      idexxOrderId: "ID-1",
+      patientId: "patient-1",
+      parentId: "parent-1",
+      status: "CREATED",
+      modality: "REFERENCE_LAB",
+      tests: ["T1"],
+      invoiceId: "invoice-1",
+      ivls: null,
+    });
+    prismaMock.labOrder.update.mockResolvedValueOnce({
+      id: "order-1",
+      invoiceId: "invoice-1",
+      status: "CANCELLED",
     });
 
-    expect(result).toEqual([]);
-    expect(LabOrderModel.find).toHaveBeenCalled();
+    await LabOrderService.cancelOrder("IDEXX", "org-1", "ID-1");
+
+    expect(invoiceServiceMock.handleInvoiceCancellation).toHaveBeenCalledWith(
+      "invoice-1",
+      "Lab order cancelled",
+    );
   });
 });

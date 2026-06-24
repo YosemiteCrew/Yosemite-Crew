@@ -12,6 +12,11 @@ import {
 } from '@/app/features/forms/types/forms';
 import React from 'react';
 import { archiveForm, publishForm, unpublishForm } from '@/app/features/forms/services/formService';
+import {
+  archiveTemplateForm,
+  publishTemplateForm,
+  unpublishTemplateForm,
+} from '@/app/features/forms/services/templateFormsService';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
@@ -58,7 +63,7 @@ type FormInfoProps = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   activeForm: FormsProps;
   onEdit: (form: FormsProps) => void;
-  serviceOptions: { label: string; value: string }[];
+  serviceOptions: { label: string; value: string; badge?: string }[];
   canEdit?: boolean;
 };
 
@@ -88,6 +93,12 @@ const UsageFields = [
   },
 ];
 
+const getModalTitle = (activeForm: FormsProps, canMutateLegacyForm: boolean) => {
+  if (activeForm.isTemplateBacked) return 'View template';
+  if (canMutateLegacyForm) return 'Edit form';
+  return 'View form';
+};
+
 const FormInfo = ({
   showModal,
   setShowModal,
@@ -99,6 +110,7 @@ const FormInfo = ({
   const orgType = useOrgStore((s) =>
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
     | Organisation['type']
     | undefined;
@@ -108,6 +120,9 @@ const FormInfo = ({
   const [unpublishLoading, setUnpublishLoading] = React.useState(false);
   const [archiveLoading, setArchiveLoading] = React.useState(false);
   const actionLoading = publishLoading || unpublishLoading || archiveLoading;
+  const canMutateLegacyForm =
+    canEdit && (!activeForm.isTemplateBacked || activeForm.templateSource !== 'YC_LIBRARY');
+  const modalTitle = getModalTitle(activeForm, canMutateLegacyForm);
   const detailsFields = React.useMemo(
     () => [
       baseDetailsFields[0],
@@ -145,7 +160,12 @@ const FormInfo = ({
     if (!activeForm._id) return;
     setPublishLoading(true);
     try {
-      await publishForm(activeForm._id);
+      if (activeForm.isTemplateBacked) {
+        if (!primaryOrgId) throw new Error('No primary organisation selected');
+        await publishTemplateForm(activeForm, primaryOrgId);
+      } else {
+        await publishForm(activeForm._id);
+      }
       setShowModal(false);
     } catch (err: any) {
       console.error('Failed to publish form', err);
@@ -159,7 +179,12 @@ const FormInfo = ({
     if (!activeForm._id) return;
     setUnpublishLoading(true);
     try {
-      await unpublishForm(activeForm._id);
+      if (activeForm.isTemplateBacked) {
+        if (!primaryOrgId) throw new Error('No primary organisation selected');
+        await unpublishTemplateForm(activeForm, primaryOrgId);
+      } else {
+        await unpublishForm(activeForm._id);
+      }
       setShowModal(false);
     } catch (err: any) {
       console.error('Failed to unpublish form', err);
@@ -173,7 +198,12 @@ const FormInfo = ({
     if (!activeForm._id) return;
     setArchiveLoading(true);
     try {
-      await archiveForm(activeForm._id);
+      if (activeForm.isTemplateBacked) {
+        if (!primaryOrgId) throw new Error('No primary organisation selected');
+        await archiveTemplateForm(activeForm, primaryOrgId);
+      } else {
+        await archiveForm(activeForm._id);
+      }
       setShowModal(false);
     } catch (err: any) {
       console.error('Failed to archive form', err);
@@ -257,9 +287,7 @@ const FormInfo = ({
             <Close onClick={() => {}} />
           </div>
           <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">
-              {canEdit ? 'Edit form' : 'View form'}
-            </div>
+            <div className="text-body-1 text-text-primary">{modalTitle}</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
@@ -300,8 +328,8 @@ const FormInfo = ({
             )}
           </div>
           <div className="flex flex-col gap-3 px-3 pb-3">
-            {canEdit && renderActions()}
-            {canEdit ? (
+            {canMutateLegacyForm && renderActions()}
+            {canMutateLegacyForm ? (
               <Secondary
                 href="#"
                 text="Edit form"

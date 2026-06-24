@@ -39,12 +39,14 @@ jest.mock('next/dynamic', () => ({
 }));
 
 const useAppointmentsMock = jest.fn();
+const useLoadAppointmentsForPrimaryOrgMock = jest.fn();
 const useCompanionsForPrimaryOrgMock = jest.fn();
 const useCompanionsParentsForPrimaryOrgMock = jest.fn();
 const useLoadCompanionsForPrimaryOrgMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const useSearchParamsMock = jest.fn();
+const routerPushMock = jest.fn();
 const usePrimaryOrgProfileMock = jest.fn();
 const useAppointmentStoreMock = jest.fn();
 const useTeamForPrimaryOrgMock = jest.fn();
@@ -67,6 +69,7 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 }));
 
 jest.mock('@/app/hooks/useAppointments', () => ({
+  useLoadAppointmentsForPrimaryOrg: () => useLoadAppointmentsForPrimaryOrgMock(),
   useAppointmentsForPrimaryOrg: () => useAppointmentsMock(),
 }));
 
@@ -86,6 +89,9 @@ jest.mock('@/app/stores/searchStore', () => ({
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
+  useRouter: () => ({
+    push: routerPushMock,
+  }),
 }));
 
 jest.mock('@/app/hooks/useProfiles', () => ({
@@ -219,6 +225,7 @@ describe('Appointments page', () => {
     );
     useCompanionsForPrimaryOrgMock.mockReturnValue([]);
     useCompanionsParentsForPrimaryOrgMock.mockReturnValue([]);
+    useLoadAppointmentsForPrimaryOrgMock.mockReturnValue(undefined);
     useAppointmentsMock.mockReturnValue([
       {
         id: 'a1',
@@ -246,6 +253,7 @@ describe('Appointments page', () => {
   it('renders calendar view by default and toggles to list/board', async () => {
     await renderAppointments();
 
+    expect(useLoadAppointmentsForPrimaryOrgMock).toHaveBeenCalled();
     expect(screen.getByTestId('appointment-calendar')).toBeInTheDocument();
     expect(calendarSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -503,7 +511,12 @@ describe('Appointments page', () => {
 
     expect(calendarSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        allAppointments: [expect.objectContaining({ id: 'a1' })],
+        allAppointments: [
+          expect.objectContaining({
+            id: 'a1',
+            companion: expect.objectContaining({ photoUrl: 'photo.jpg' }),
+          }),
+        ],
       })
     );
   });

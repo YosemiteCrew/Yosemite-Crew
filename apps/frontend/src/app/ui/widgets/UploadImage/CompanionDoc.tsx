@@ -24,7 +24,7 @@ const CompanionDoc = ({
   const getSignedUrl = async (file: File): Promise<{ uploadUrl: string; s3Key: string }> => {
     const body = {
       mimeType: file.type,
-      companionId: companionId,
+      patientId: companionId,
     };
     const res = await postData<GetSignedUrlResponse>(apiUrl, body);
     return { uploadUrl: res.data.url, s3Key: res.data.key };

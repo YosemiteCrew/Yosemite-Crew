@@ -51,6 +51,15 @@ jest.mock('@/app/ui/primitives/Buttons/Delete', () => ({
   ),
 }));
 
+jest.mock('@/app/ui/primitives/Buttons/Primary', () => ({
+  __esModule: true,
+  default: ({ onClick, text }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
+
 jest.mock('@/app/ui/primitives/Buttons', () => ({
   Secondary: ({ onClick, text }: any) => (
     <button type="button" onClick={onClick}>
@@ -66,6 +75,16 @@ jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => (props: any) 
   return <div data-testid="editable-accordion" />;
 });
 
+jest.mock('@/app/ui/primitives/SectionContainer/SectionContainer', () => ({
+  __esModule: true,
+  default: ({ title, children }: any) => (
+    <section>
+      <h2>{title}</h2>
+      {children}
+    </section>
+  ),
+}));
+
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => (props: any) => (
   <div>
     <div>{props.title}</div>
@@ -76,6 +95,24 @@ jest.mock('@/app/ui/primitives/Accordion/Accordion', () => (props: any) => (
 jest.mock('@/app/ui/inputs/ServiceSearch/ServiceSearchEdit', () => () => (
   <div data-testid="service-search" />
 ));
+
+jest.mock('@/app/features/organization/pages/Specialities/ServicesTab', () => ({
+  __esModule: true,
+  default: ({ specialityId, organisationId }: any) => (
+    <div data-testid="services-tab">
+      Services {specialityId} {organisationId}
+    </div>
+  ),
+}));
+
+jest.mock('@/app/features/organization/pages/Specialities/PackagesTab', () => ({
+  __esModule: true,
+  default: ({ specialityId, organisationId }: any) => (
+    <div data-testid="packages-tab">
+      Packages {specialityId} {organisationId}
+    </div>
+  ),
+}));
 
 describe('SpecialityInfo modal', () => {
   const activeSpeciality: any = {
@@ -121,5 +158,20 @@ describe('SpecialityInfo modal', () => {
 
     expect(updateSpecialityMock).toHaveBeenCalled();
     expect(deleteSpecialityMock).toHaveBeenCalled();
+  });
+
+  it('renders inline services and packages management', () => {
+    render(
+      <SpecialityInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeSpeciality={activeSpeciality}
+        canEditSpecialities
+      />
+    );
+
+    expect(screen.getByText('Services & Packages')).toBeInTheDocument();
+    expect(screen.getByTestId('services-tab')).toHaveTextContent('Services spec-1 org-1');
+    expect(screen.getByTestId('packages-tab')).toHaveTextContent('Packages spec-1 org-1');
   });
 });

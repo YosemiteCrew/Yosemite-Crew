@@ -36,6 +36,22 @@ describe('Primary button', () => {
     expect(screen.getByTestId('primary-icon')).toBeInTheDocument();
   });
 
+  test('renders the icon after the text when iconPosition is right', () => {
+    render(
+      <Primary
+        text="Save & Next"
+        icon={<span data-testid="trailing-icon" />}
+        iconPosition="right"
+      />
+    );
+
+    const button = screen.getByRole('button', { name: 'Save & Next' });
+    const icon = screen.getByTestId('trailing-icon');
+    // The trailing icon is the button's last child element (after the text).
+    expect(button).toContainElement(icon);
+    expect(button.lastElementChild).toContainElement(icon);
+  });
+
   test('applies the shared token-backed primary background color', () => {
     render(<Primary text="Continue" />);
 

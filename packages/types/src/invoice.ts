@@ -53,6 +53,8 @@ export type Invoice = {
 
   billingCollectionMode?: BillingCollectionMode;
   visitBillingStage?: InvoiceVisitBillingStage;
+  readyForBillingAt?: Date;
+  readyForBillingActorId?: string | null;
   depositTargetAmount?: number;
   depositCollectedAmount?: number;
 

@@ -98,6 +98,10 @@ describe('Footer Component', () => {
     const aboutUsLink = screen.getByRole('link', { name: 'About us' });
     expect(aboutUsLink).toBeInTheDocument();
     expect(aboutUsLink).toHaveAttribute('href', '/about');
+
+    const dmcaLink = screen.getByRole('link', { name: 'DMCA' });
+    expect(dmcaLink).toBeInTheDocument();
+    expect(dmcaLink).toHaveAttribute('href', '/dmca');
   });
 
   it('should render the copyright and contact information', () => {

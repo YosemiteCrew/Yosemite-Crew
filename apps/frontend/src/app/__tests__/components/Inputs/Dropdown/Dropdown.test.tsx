@@ -141,6 +141,24 @@ describe('Dropdown Component', () => {
     expect(screen.queryByText('Option A')).not.toBeInTheDocument();
   });
 
+  it('handles keyboard selection with arrow keys and enter', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A', 'Option B']}
+      />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+
+    expect(mockOnChange).toHaveBeenCalledWith('Option B');
+  });
+
   it('handles object options ({ label, value }) selection', () => {
     const options = [
       { label: 'Label 1', value: 'val1' },

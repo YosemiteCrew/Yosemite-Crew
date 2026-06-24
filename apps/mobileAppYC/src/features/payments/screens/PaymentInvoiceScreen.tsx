@@ -1394,7 +1394,12 @@ export const PaymentInvoiceScreen: React.FC = () => {
     paymentIntentRequestedRef.current = true;
     (async () => {
       setPaymentIntentLoading(true);
-      await dispatch(fetchPaymentIntentForAppointment({appointmentId}))
+      await dispatch(
+        fetchPaymentIntentForAppointment({
+          appointmentId,
+          invoiceId: invoice?.id,
+        }),
+      )
         .unwrap()
         .catch(() => {});
       setPaymentIntentLoading(false);
@@ -1403,6 +1408,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     appointmentId,
     dispatch,
     effectiveInvoice?.status,
+    invoice?.id,
     isInvoiceBasedFlow,
     isPaymentPendingStatus,
     paymentIntent?.clientSecret,
@@ -1580,7 +1586,9 @@ const MetaRow = ({label, value}: {label: string; value: string}) => {
   return (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
+      <Text style={styles.value} numberOfLines={1} ellipsizeMode="middle">
+        {value}
+      </Text>
     </View>
   );
 };
@@ -1809,17 +1817,22 @@ const metaStyles = (theme: any) =>
   StyleSheet.create({
     row: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
       paddingVertical: theme.spacing['2'],
+      gap: theme.spacing['2'],
     },
     label: {
       ...theme.typography.labelSmall,
       color: theme.colors.placeholder,
+      flexShrink: 0,
     },
     value: {
       ...theme.typography.labelSmall,
       color: theme.colors.secondary,
+      flex: 1,
+      flexShrink: 1,
+      minWidth: 0,
+      textAlign: 'right',
     },
   });
 

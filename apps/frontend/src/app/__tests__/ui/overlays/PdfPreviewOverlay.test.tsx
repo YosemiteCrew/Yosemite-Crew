@@ -44,6 +44,51 @@ describe('PdfPreviewOverlay', () => {
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
   });
 
+  it('renders iframe for workspace document URLs returned by the backend', () => {
+    render(
+      <PdfPreviewOverlay
+        open
+        pdfUrl="https://files.test/workspace/doc.pdf"
+        title="Workspace document"
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTitle('Workspace document')).toHaveAttribute(
+      'src',
+      'https://files.test/workspace/doc.pdf'
+    );
+  });
+
+  it('renders iframe for local development document URLs', () => {
+    render(
+      <PdfPreviewOverlay
+        open
+        pdfUrl="http://localhost:4000/workspace/doc.pdf"
+        title="Local document"
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTitle('Local document')).toHaveAttribute(
+      'src',
+      'http://localhost:4000/workspace/doc.pdf'
+    );
+  });
+
+  it('renders iframe for same-origin document paths', () => {
+    render(
+      <PdfPreviewOverlay
+        open
+        pdfUrl="/workspace/doc.pdf"
+        title="Path document"
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTitle('Path document')).toHaveAttribute('src', '/workspace/doc.pdf');
+  });
+
   it('shows loader before iframe loads and hides it after', () => {
     render(
       <PdfPreviewOverlay
@@ -59,6 +104,25 @@ describe('PdfPreviewOverlay', () => {
     fireEvent.load(screen.getByTitle('Preview'));
 
     expect(screen.queryByRole('status', { name: 'Loading PDF' })).not.toBeInTheDocument();
+  });
+
+  it('renders optional download action without making it required for existing viewers', () => {
+    const onDownload = jest.fn();
+    const onClose = jest.fn();
+    render(
+      <PdfPreviewOverlay
+        open
+        pdfUrl="https://integration.vetconnectplus.com/acknowledgment/1"
+        title="Preview"
+        downloadLabel="Download preview"
+        onDownload={onDownload}
+        onClose={onClose}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download preview' }));
+    expect(onDownload).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('does not render iframe for unsafe URL schemes', () => {

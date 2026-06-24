@@ -183,11 +183,8 @@ const ensureAccessToken = async (): Promise<{
 };
 
 const createAuthHeaders = async () => {
-  const {accessToken, userId} = await ensureAccessToken();
-  return {
-    ...withAuthHeaders(accessToken),
-    ...(userId ? {'x-user-id': userId} : {}),
-  };
+  const {accessToken} = await ensureAccessToken();
+  return withAuthHeaders(accessToken);
 };
 
 export const observationToolApi = {

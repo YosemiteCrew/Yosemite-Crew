@@ -5,7 +5,6 @@ import {
   getPaymentLink,
   loadInvoicesForOrgPrimaryOrg,
   markInvoicePaid,
-  updateInvoicePaymentCollectionMethod,
 } from '@/app/features/billing/services/invoiceService';
 import { Appointment } from '@yosemite-crew/types';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
@@ -76,11 +75,10 @@ const startCashCollection = async (
       title: 'Confirm cash collection',
       text: 'Record cash only after you have physically received the payment from the client.',
     });
-    await updateInvoicePaymentCollectionMethod(invoiceId, 'PAYMENT_AT_CLINIC');
     setShowCashConfirmation(true);
     notify('info', {
       title: 'Cash collection ready',
-      text: 'Payment collection method is set to in-person cash. Click Collect cash after receiving payment.',
+      text: 'Click Collect cash after receiving payment. The payment will be recorded through finance.',
     });
   } catch (error) {
     console.log(error);

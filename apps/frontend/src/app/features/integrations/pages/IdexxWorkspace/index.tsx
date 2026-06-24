@@ -35,6 +35,7 @@ import {
 } from '@/app/features/integrations/services/types';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import Close from '@/app/ui/primitives/Icons/Close';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { formatDateTimeLocal } from '@/app/lib/date';
@@ -536,6 +537,7 @@ type IdexxFollowUpPortalProps = {
 };
 
 const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpPortalProps) => {
+  const [loaded, setLoaded] = useState(false);
   if (!open || !followUpFrameUrl || typeof document === 'undefined') {
     return null;
   }
@@ -559,15 +561,24 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
             <Close iconOnly />
           </button>
         </div>
-        <iframe
-          src={followUpFrameUrl}
-          title="IDEXX follow-up hub"
-          className="flex-1 w-full border-0"
-          loading="lazy"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          style={{ pointerEvents: 'auto' }}
-        />
+        <div className="relative flex-1">
+          {loaded ? null : (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+              <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-followup-loader" />
+            </div>
+          )}
+          <iframe
+            key={followUpFrameUrl}
+            src={followUpFrameUrl}
+            title="IDEXX follow-up hub"
+            className="size-full border-0"
+            loading="lazy"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            style={{ pointerEvents: 'auto' }}
+            onLoad={() => setLoaded(true)}
+          />
+        </div>
       </div>
     </div>,
     document.body

@@ -52,6 +52,15 @@ const toPrismaAuditEventType = (
   return value;
 };
 
+const resolveAlertAction = (
+  prevCount: number,
+  nextCount: number,
+): "CREATED" | "DELETED" | "UPDATED" => {
+  if (prevCount === 0) return "CREATED";
+  if (nextCount === 0) return "DELETED";
+  return "UPDATED";
+};
+
 const ensureSafeString = (value: unknown, fieldName: string): string => {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new AuditTrailServiceError(`${fieldName} is required`, 400);
@@ -237,6 +246,40 @@ export const AuditTrailService = {
     } catch (error) {
       logger.warn("Audit trail record failed", error);
     }
+  },
+
+  /**
+   * Record a parent/companion alert mutation, choosing CREATED / UPDATED / DELETED by diffing
+   * the previous and next alert sets. No-ops (no audit, never throws) when the alert set is
+   * unchanged or no organisation context is available, so it is safe to call from any update
+   * path. For companion alerts patientId is the companion id; for client (parent) alerts it is
+   * the parent id (client-scoped).
+   */
+  async recordAlertMutation(params: {
+    entity: "PARENT" | "COMPANION";
+    organisationId?: string;
+    patientId: string;
+    actorId?: string | null;
+    previousAlerts: unknown;
+    nextAlerts: unknown;
+  }): Promise<void> {
+    if (!params.organisationId) return;
+    const prev = Array.isArray(params.previousAlerts)
+      ? params.previousAlerts
+      : [];
+    const next = Array.isArray(params.nextAlerts) ? params.nextAlerts : [];
+    if (JSON.stringify(prev) === JSON.stringify(next)) return;
+    const action = resolveAlertAction(prev.length, next.length);
+    await this.recordSafely({
+      organisationId: params.organisationId,
+      patientId: params.patientId,
+      eventType: `${params.entity}_ALERT_${action}` as AuditEventType,
+      actorType: "PMS_USER",
+      actorId: params.actorId ?? null,
+      entityType: params.entity,
+      entityId: params.patientId,
+      metadata: { previousCount: prev.length, nextCount: next.length },
+    });
   },
 
   async listForOrganisation(params: {

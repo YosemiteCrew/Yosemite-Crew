@@ -194,7 +194,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         <main
           id="main-content"
           tabIndex={-1}
-          className="pt-[72px] flex-1 lg:pt-0 lg:overflow-y-scroll lg:[scrollbar-gutter:stable] min-w-0"
+          className="flex-1 lg:overflow-y-scroll lg:[scrollbar-gutter:stable] min-w-0"
         >
           {isChecking ? null : children}
         </main>

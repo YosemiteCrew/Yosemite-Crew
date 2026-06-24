@@ -115,7 +115,7 @@ export default function AccessibilityReportClient() {
   if (submitted) {
     return (
       <>
-        <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 py-16">
+        <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
           <output
             aria-live="polite"
             className="rounded-2xl border border-card-border bg-white p-8 text-center"
@@ -146,7 +146,7 @@ export default function AccessibilityReportClient() {
 
   return (
     <>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 py-16">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
         <nav aria-label="Breadcrumb" className="mb-6">
           <ol className="flex items-center gap-2 text-body-4 text-text-secondary list-none p-0 m-0">
             <li>

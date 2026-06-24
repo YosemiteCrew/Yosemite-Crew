@@ -51,6 +51,7 @@ export interface VetService {
   currency?: string;
   icon?: any; // Image source
   defaultEmployeeId?: string;
+  appointmentKinds?: string[];
 }
 
 export interface SlotWindow {
@@ -142,7 +143,7 @@ export interface InvoiceItem {
 
 export interface PaymentIntentInfo {
   paymentIntentId: string;
-  clientSecret: string;
+  clientSecret: string | null;
   amount: number;
   currency: string;
   paymentLinkUrl?: string | null;
@@ -254,6 +255,7 @@ export interface BusinessesState {
   businesses: VetBusiness[];
   employees: VetEmployee[];
   services: VetService[];
+  packages: VetPackage[];
   availability: EmployeeAvailability[];
   loading: boolean;
   error: string | null;

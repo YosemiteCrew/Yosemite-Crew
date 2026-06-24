@@ -108,7 +108,7 @@ describe('CompanionDocumentsSection', () => {
         id: 'doc-1',
         title: 'vaccination card',
         category: 'HEALTH',
-        subcategory: 'GENERAL',
+        subcategory: 'VACCINATION',
         visitType: 'CHECKUP',
         issueDate: '2026-01-01T10:00:00Z',
         syncedFromPms: true,
@@ -119,6 +119,7 @@ describe('CompanionDocumentsSection', () => {
 
     render(<CompanionDocumentsSection companionId="comp-1" />);
     await waitFor(() => expect(screen.getByText('vaccination card')).toBeInTheDocument());
+    expect(screen.getByText('Vaccination')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Open file'));
     await waitFor(() => expect(loadDocumentDownloadURLMock).toHaveBeenCalledWith('doc-1'));
@@ -143,7 +144,7 @@ describe('CompanionDocumentsSection', () => {
         id: 'doc-2',
         title: 'xray report',
         category: 'HEALTH',
-        subcategory: 'GENERAL',
+        subcategory: 'IMAGING_DIAGNOSTIC',
         attachments: [{ key: 'file-key-1', mimeType: 'application/pdf' }],
       },
     ]);

@@ -110,12 +110,14 @@ const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps)
 
   const pollForSignedUrl = useCallback(
     async (attempts = 3): Promise<string | undefined> => {
-      for (let i = 0; i < attempts; i += 1) {
-        const url = await resolveSignedUrl();
-        if (url) return url;
-        await new Promise((r) => setTimeout(r, 750 * (i + 1)));
-      }
-      return undefined;
+      const attemptPromises = Array.from({ length: attempts }, async (_, index) => {
+        if (index > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 750 * index));
+        }
+        return resolveSignedUrl();
+      });
+      const results = await Promise.all(attemptPromises);
+      return results.find((url): url is string => Boolean(url));
     },
     [resolveSignedUrl]
   );

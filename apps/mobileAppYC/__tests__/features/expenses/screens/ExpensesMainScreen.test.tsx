@@ -38,7 +38,6 @@ jest.mock('react-redux', () => ({
   useSelector: jest.fn(selector => selector(mockState)),
 }));
 
-
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
@@ -48,7 +47,9 @@ jest.mock('@/shared/components/common', () => {
   return {
     SafeArea: ({children}: {children: React.ReactNode}) => <>{children}</>,
     YearlySpendCard: (props: any) => (
-      <RN.TouchableOpacity data-testid="yearly-spend-card" onPress={props.onPress}>
+      <RN.TouchableOpacity
+        data-testid="yearly-spend-card"
+        onPress={props.onPress}>
         <RN.Text>{props.label}</RN.Text>
       </RN.TouchableOpacity>
     ),
@@ -70,19 +71,22 @@ jest.mock('@/shared/components/common/Header/Header', () => {
   };
 });
 
-jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => {
-  const RN = jest.requireActual('react-native');
-  return {
-    CompanionSelector: (props: any) => (
-      <RN.View data-testid="companion-selector">
-        <RN.TouchableOpacity
-          testID="select-c2"
-          onPress={() => props.onSelect('c2')}
-        />
-      </RN.View>
-    ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/CompanionSelector/CompanionSelector',
+  () => {
+    const RN = jest.requireActual('react-native');
+    return {
+      CompanionSelector: (props: any) => (
+        <RN.View data-testid="companion-selector">
+          <RN.TouchableOpacity
+            testID="select-c2"
+            onPress={() => props.onSelect('c2')}
+          />
+        </RN.View>
+      ),
+    };
+  },
+);
 
 jest.mock('@/features/expenses/components', () => {
   const RN = jest.requireActual('react-native');
@@ -91,7 +95,10 @@ jest.mock('@/features/expenses/components', () => {
       <RN.View data-testid="expense-card">
         <RN.TouchableOpacity testID="view-button" onPress={props.onPressView} />
         {props.showEditAction && props.onPressEdit && (
-          <RN.TouchableOpacity testID="edit-button" onPress={props.onPressEdit} />
+          <RN.TouchableOpacity
+            testID="edit-button"
+            onPress={props.onPressEdit}
+          />
         )}
         {props.showPayButton && props.onPressPay && (
           <RN.TouchableOpacity testID="pay-button" onPress={props.onPressPay} />
@@ -118,7 +125,7 @@ jest.mock('@/assets/images', () => ({
 
 jest.mock('@/shared/utils/currency', () => ({
   resolveCurrencySymbol: jest.fn(() => '$'),
-  formatCurrency: jest.fn((amount) => `$${amount}`),
+  formatCurrency: jest.fn(amount => `$${amount}`),
 }));
 jest.mock('@/features/expenses/utils/expenseLabels', () => ({
   resolveCategoryLabel: jest.fn(val => `${val}-label`),
@@ -150,22 +157,27 @@ jest.mock('@/features/expenses/hooks/useExpensePayment', () => ({
 jest.mock('react-native-safe-area-context', () => {
   const RN = jest.requireActual('react-native');
   return {
-    SafeAreaView: ({children, style}: any) => <RN.View style={style}>{children}</RN.View>,
+    SafeAreaView: ({children, style}: any) => (
+      <RN.View style={style}>{children}</RN.View>
+    ),
     useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
   };
 });
 
-jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
-  const RN = jest.requireActual('react-native');
-  return {
-    LiquidGlassHeaderScreen: ({header, children}: any) => (
-      <RN.View>
-        {header}
-        {children(null)}
-      </RN.View>
-    ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const RN = jest.requireActual('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children}: any) => (
+        <RN.View>
+          {header}
+          {children(null)}
+        </RN.View>
+      ),
+    };
+  },
+);
 
 jest.mock('@/shared/components/common/ViewMoreButton/ViewMoreButton', () => {
   const RN = jest.requireActual('react-native');
@@ -193,30 +205,38 @@ jest.mock('@/shared/components/common/cardStyles', () => ({
   }),
 }));
 
-jest.mock('@/shared/components/common/SwipeableActionCard/SwipeableActionCard', () => {
-  const RN = jest.requireActual('react-native');
-  return {
-    SwipeableActionCard: (props: any) => (
-      <RN.View testID="swipeable-card">{props.children}</RN.View>
-    ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/SwipeableActionCard/SwipeableActionCard',
+  () => {
+    const RN = jest.requireActual('react-native');
+    return {
+      SwipeableActionCard: (props: any) => (
+        <RN.View testID="swipeable-card">{props.children}</RN.View>
+      ),
+    };
+  },
+);
 
-jest.mock('@/shared/components/common/CardActionButton/CardActionButton', () => {
-  const RN = jest.requireActual('react-native');
-  return {
-    CardActionButton: (props: any) => (
-      <RN.TouchableOpacity testID="card-action-btn" onPress={props.onPress}>
-        <RN.Text>{props.label}</RN.Text>
-      </RN.TouchableOpacity>
-    ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/CardActionButton/CardActionButton',
+  () => {
+    const RN = jest.requireActual('react-native');
+    return {
+      CardActionButton: (props: any) => (
+        <RN.TouchableOpacity testID="card-action-btn" onPress={props.onPress}>
+          <RN.Text>{props.label}</RN.Text>
+        </RN.TouchableOpacity>
+      ),
+    };
+  },
+);
 
-jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  formatDateForDisplay: jest.fn((date) => date.toISOString()),
-}));
-
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => ({
+    formatDateForDisplay: jest.fn(date => date.toISOString()),
+  }),
+);
 
 const useSelectorMock = jest.requireMock('react-redux').useSelector;
 const selectExpenseSummaryByCompanionMock =
@@ -228,7 +248,6 @@ const selectRecentExternalExpensesMock =
   selectRecentExternalExpenses as unknown as jest.Mock;
 const selectRecentInAppExpensesMock =
   selectRecentInAppExpenses as unknown as jest.Mock;
-
 
 const mockUser: User = {
   id: 'u1',
@@ -378,7 +397,6 @@ const baseState: RootState = {
 
 let mockState: RootState;
 
-
 describe('ExpensesMainScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -392,12 +410,10 @@ describe('ExpensesMainScreen', () => {
     selectRecentInAppExpensesMock.mockReturnValue(() => []);
   });
 
-  it('should navigate to ExpensesEmpty if no companions exist', async () => {
+  it('should render nothing if no companions exist', () => {
     mockState.companion.companions = [];
-    render(<ExpensesMainScreen />);
-    await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('ExpensesEmpty');
-    });
+    const {toJSON} = render(<ExpensesMainScreen />);
+    expect(toJSON()).toBeNull();
   });
 
   it('should dispatch setSelectedCompanion if one is not selected', async () => {
@@ -446,16 +462,13 @@ describe('ExpensesMainScreen', () => {
       lastUpdated: '',
     }));
 
-    const {getByText, queryByText} = render(
-      <ExpensesMainScreen />,
-    );
+    const {getByText, queryByText} = render(<ExpensesMainScreen />);
 
     expect(queryByText('Zero bucks spent!')).toBeNull();
 
     expect(getByText('Recent in-app expenses')).toBeTruthy();
     expect(getByText('Recent external expenses')).toBeTruthy();
   });
-
 
   describe('Interactions', () => {
     beforeEach(() => {

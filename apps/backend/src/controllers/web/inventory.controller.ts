@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment */
 import { Request, Response } from "express";
+import { z } from "zod";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { OrgRequest } from "src/middlewares/rbac";
+import { generatePresignedUrl } from "src/middlewares/upload";
 import {
   InventoryService,
   InventoryAdjustmentService,
@@ -28,6 +30,10 @@ import {
 import logger from "src/utils/logger";
 
 type EmptyParams = Record<string, never>;
+
+const inventoryImageUploadBodySchema = z.object({
+  mimeType: z.string().min(1),
+});
 
 /**
  * Common error handler to keep controllers clean
@@ -83,6 +89,36 @@ interface ListMetaFieldsQuery {
  * INVENTORY ITEM + BATCH + STOCK CONTROLLER
  */
 export const InventoryController = {
+  getItemImageUploadUrl: async (
+    req: Request<{ organisationId: string }>,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      const parsedBody = inventoryImageUploadBodySchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        res
+          .status(400)
+          .json({ message: "MIME type is required in the request body." });
+        return;
+      }
+
+      const { organisationId } = req.params;
+      const { mimeType } = parsedBody.data;
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "inventory",
+        organisationId,
+      );
+
+      res.status(200).json({ uploadUrl: url, s3Key: key });
+    } catch (error) {
+      logger.error("Failed to generate inventory image upload URL", error);
+      res.status(500).json({
+        message: "Unable to generate inventory image upload URL.",
+      });
+    }
+  },
+
   // ─────────────────────────────────────────────
   // ITEM: CREATE
   // ─────────────────────────────────────────────

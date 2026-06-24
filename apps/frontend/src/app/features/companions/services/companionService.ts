@@ -292,6 +292,7 @@ export const updateParent = async (payload: StoredParent) => {
     const newParent: StoredParent = {
       ...normalParent,
       id: payload.id,
+      alerts: normalParent.alerts ?? payload.alerts,
     };
     upsertParent(newParent);
   } catch (err) {

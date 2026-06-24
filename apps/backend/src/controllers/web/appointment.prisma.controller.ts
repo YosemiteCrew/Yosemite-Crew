@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { z } from "zod";
 import { AppointmentRequestDTO } from "@yosemite-crew/types";
 import { AppointmentPrismaService } from "src/services/appointment.prisma.service";
 import { InvoiceService } from "src/services/invoice.service";
@@ -6,6 +7,7 @@ import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import type { OrgRequest } from "src/middlewares/rbac";
 
 type RescheduleRequestBody = {
   startTime: string | Date;
@@ -19,6 +21,27 @@ type CancelBody = { reason?: string };
 
 type UploadUrlBody = { patientId?: string; mimeType?: string };
 type AttachFormsBody = { formIds?: string[] };
+type AdmitBody = {
+  admittedAt?: string;
+  expectedStayDays?: number;
+  lead?: {
+    id: string;
+    name: string;
+    profileUrl?: string;
+  };
+  supportStaff?: Array<{
+    id: string;
+    name: string;
+  }>;
+  room?: {
+    id: string;
+    name: string;
+  };
+  roomUnitId?: string;
+  assignedAt?: string;
+  assignedBy?: string;
+  assignmentReason?: string;
+};
 
 type ErrorWithStatus = Error & { statusCode?: number };
 
@@ -48,6 +71,36 @@ const sendAppointmentError = (
   const { status, message } = parseError(err, fallbackMessage);
   return res.status(status).json({ message });
 };
+
+const admitAppointmentSchema = z.object({
+  admittedAt: z.string().datetime().optional(),
+  expectedStayDays: z.number().int().nonnegative().optional(),
+  lead: z
+    .object({
+      id: z.string().trim().min(1),
+      name: z.string().trim().min(1),
+      profileUrl: z.string().trim().min(1).optional(),
+    })
+    .optional(),
+  supportStaff: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        name: z.string().trim().min(1),
+      }),
+    )
+    .optional(),
+  room: z
+    .object({
+      id: z.string().trim().min(1),
+      name: z.string().trim().min(1),
+    })
+    .optional(),
+  roomUnitId: z.string().trim().min(1).optional(),
+  assignedAt: z.string().datetime().optional(),
+  assignedBy: z.string().trim().min(1).optional(),
+  assignmentReason: z.string().trim().min(1).optional(),
+});
 
 export const AppointmentController = {
   createRequestedFromMobile: async (
@@ -215,6 +268,38 @@ export const AppointmentController = {
     }
   },
 
+  admitFromPMS: async (
+    req: Request<{ appointmentId: string }, unknown, AdmitBody>,
+    res: Response,
+  ) => {
+    try {
+      const body = admitAppointmentSchema.parse(req.body);
+
+      const data = await AppointmentPrismaService.admitAppointmentToInpatient(
+        req.params.appointmentId,
+        {
+          admittedAt: body.admittedAt ? new Date(body.admittedAt) : undefined,
+          // The admitting user is whoever is signed in and clicked
+          // "Convert to Inpatient" (the verified Cognito token), never the body.
+          admittedBy: (req as { userId?: string }).userId,
+          expectedStayDays: body.expectedStayDays,
+          lead: body.lead,
+          supportStaff: body.supportStaff,
+          room: body.room,
+          roomUnitId: body.roomUnitId,
+          assignedAt: body.assignedAt ? new Date(body.assignedAt) : undefined,
+          assignedBy: body.assignedBy,
+          assignmentReason: body.assignmentReason,
+        },
+      );
+
+      return res.status(200).json({ message: "Appointment admitted", data });
+    } catch (err: unknown) {
+      logger.error("Appointment admit error", err);
+      return sendAppointmentError(res, err, "Failed to admit appointment");
+    }
+  },
+
   markReadyForBillingForPMS: async (
     req: Request<{ appointmentId: string }>,
     res: Response,
@@ -222,6 +307,7 @@ export const AppointmentController = {
     try {
       await InvoiceService.markAppointmentReadyForBilling(
         req.params.appointmentId,
+        resolveUserIdFromRequest(req),
       );
       return res
         .status(200)
@@ -289,7 +375,6 @@ export const AppointmentController = {
       const data = await AppointmentPrismaService.cancelAppointmentFromParent(
         req.params.appointmentId,
         authUser.parentId.toString(),
-        req.body.reason,
       );
 
       return res.status(200).json({ message: "Appointment cancelled", data });
@@ -306,7 +391,6 @@ export const AppointmentController = {
     try {
       const data = await AppointmentPrismaService.cancelAppointment(
         req.params.appointmentId,
-        req.body.reason,
       );
       return res.status(200).json({ message: "Appointment cancelled", data });
     } catch (err: unknown) {
@@ -317,8 +401,19 @@ export const AppointmentController = {
 
   getById: async (req: Request<{ appointmentId: string }>, res: Response) => {
     try {
+      const typedReq = req as OrgRequest;
+      const actorId = resolveUserIdFromRequest(req);
+      const canViewAny =
+        typedReq.userPermissions?.includes("appointments:view:any") ?? false;
+
+      if (!canViewAny && !actorId) {
+        return res.status(403).json({ message: "User not authenticated" });
+      }
+
       const data = await AppointmentPrismaService.getById(
         req.params.appointmentId,
+        typedReq.organisationId ?? req.params.organisationId,
+        canViewAny ? undefined : actorId,
       );
       return res.status(200).json({ data });
     } catch (err: unknown) {

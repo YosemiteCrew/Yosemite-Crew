@@ -589,6 +589,72 @@ describe('appointmentsService', () => {
         expect(invoice?.items[0].lineTotal).toBe(40);
         expect(paymentIntent?.paymentIntentId).toBe('pi-fallback');
       });
+
+      it('should map canonical finance invoice fields and payment session links', () => {
+        const {mapInvoiceFromResponse} = getModule();
+        const raw = {
+          id: 'inv-finance',
+          appointmentId: 'apt-finance',
+          parentId: 'parent-1',
+          patientId: 'patient-1',
+          organisationId: 'org-1',
+          status: 'AWAITING_PAYMENT',
+          totalAmount: 1180,
+          taxTotal: 180,
+          discountTotal: 20,
+          billingCollectionMode: 'PREPAY_AT_BOOKING',
+          visitBillingStage: 'DRAFT',
+          providerPaymentIntentId: 'pi_finance',
+          providerCheckoutSessionId: 'cs_finance',
+          checkoutUrl: 'https://checkout.example/inv-finance',
+          organisation: {name: 'Clinic'},
+          lines: [{name: 'Medication', quantity: 2, unitPrice: 20, total: 40}],
+          paymentIntent: {
+            providerPaymentIntentId: 'pi_finance',
+            clientSecret: 'secret-finance',
+            amount: 1180,
+            currency: 'USD',
+            checkoutUrl: 'https://checkout.example/inv-finance',
+          },
+        };
+
+        const {invoice, paymentIntent} = mapInvoiceFromResponse(raw);
+
+        expect(invoice).toEqual(
+          expect.objectContaining({
+            id: 'inv-finance',
+            appointmentId: 'apt-finance',
+            parentId: 'parent-1',
+            patientId: 'patient-1',
+            organisationId: 'org-1',
+            total: 1180,
+            totalAmount: 1180,
+            taxTotal: 180,
+            discountTotal: 20,
+            billingCollectionMode: 'PREPAY_AT_BOOKING',
+            visitBillingStage: 'DRAFT',
+            stripePaymentIntentId: 'pi_finance',
+            stripeCheckoutSessionId: 'cs_finance',
+            stripeCheckoutUrl: 'https://checkout.example/inv-finance',
+          }),
+        );
+        expect((invoice as any)?.organisation).toEqual({name: 'Clinic'});
+        expect(invoice?.items[0]).toEqual(
+          expect.objectContaining({
+            description: 'Medication',
+            qty: 2,
+            rate: 20,
+            lineTotal: 40,
+          }),
+        );
+        expect(paymentIntent).toEqual(
+          expect.objectContaining({
+            paymentIntentId: 'pi_finance',
+            clientSecret: 'secret-finance',
+            paymentLinkUrl: 'https://checkout.example/inv-finance',
+          }),
+        );
+      });
     });
 
     describe('mapBusinessFromResponse', () => {
@@ -1026,18 +1092,44 @@ describe('appointmentsService', () => {
     it('createPaymentIntent calls POST', async () => {
       const {appointmentApi} = getModule();
       const client = getApiClient();
-      client.post.mockResolvedValue({data: {paymentIntentId: 'pi-new'}});
+      client.post
+        .mockResolvedValueOnce({data: {data: {id: 'inv-a1'}}})
+        .mockResolvedValueOnce({
+          data: {
+            data: {
+              providerPaymentIntentId: 'pi-new',
+              clientSecret: 'sec-new',
+            },
+          },
+        });
       const result = await appointmentApi.createPaymentIntent({
         appointmentId: 'a1',
         accessToken: mockToken,
       });
+      expect(client.post).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('/v1/finance/mobile/appointments/a1/seed'),
+        undefined,
+        expect.anything(),
+      );
+      expect(client.post).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining(
+          '/v1/finance/mobile/invoices/inv-a1/payments/sessions',
+        ),
+        {provider: 'STRIPE'},
+        expect.anything(),
+      );
       expect(result.paymentIntentId).toBe('pi-new');
+      expect(result.clientSecret).toBe('sec-new');
     });
 
     it('createPaymentIntent handles fallback logic', async () => {
       const {appointmentApi} = getModule();
       const client = getApiClient();
-      client.post.mockResolvedValue({data: {}});
+      client.post
+        .mockResolvedValueOnce({data: {id: 'inv-a1'}})
+        .mockResolvedValueOnce({data: {}});
       const result = await appointmentApi.createPaymentIntent({
         appointmentId: 'a1',
         accessToken: mockToken,

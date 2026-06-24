@@ -93,6 +93,14 @@ textarea:focus-visible {
   outline: none;
 }
 
+/* The rich-text editor's contenteditable is the focus surface; its wrapping
+   SectionContainer turns its border blue on focus-within instead, so suppress
+   the global focus ring here to avoid an inner box on top of that border. */
+.yc-rte-content:focus,
+.yc-rte-content:focus-visible {
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -394,6 +402,13 @@ textarea:focus-visible {
   --status-no-show-bg: #fff7ed;
   --status-no-show-text: #9a3412;
   --status-no-show-border: #f97316;
+
+  /* Alert / document-category palette (workspace revamp — Figma "documents cat" sheet) */
+  --color-category-caution: #b9501f;
+  --color-category-medical: #6b3fd6;
+  --color-category-info: #0b6f92;
+  --color-category-attention: #7a6d00;
+  --color-category-admin: #2e4d85;
 }
 :root {
   --black-text: var(--color-black-text);
@@ -577,6 +592,16 @@ input[type='number'] {
     @apply font-satoshi text-[0.75rem] font-medium leading-[1.125rem] tracking-[-0.24px];
   }
 
+  .text-yc-12-r-neutral {
+    color: var(--color-neutral-900);
+    font-family: var(--font-satoshi);
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
   .text-yc-12-b-neutral {
     color: var(--color-neutral-900);
     font-family: var(--font-satoshi);
@@ -597,6 +622,26 @@ input[type='number'] {
     line-height: 120%;
   }
 
+  .text-yc-14-m-neutral {
+    color: var(--color-neutral-900);
+    font-family: var(--font-satoshi);
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
+  .text-yc-14-b-primary {
+    color: var(--color-primary-600);
+    font-family: var(--font-satoshi);
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
   .text-yc-16-r-neutral {
     color: var(--color-neutral-900);
     font-family: var(--font-satoshi);
@@ -607,10 +652,30 @@ input[type='number'] {
     line-height: 120%;
   }
 
+  .text-yc-16-b-neutral {
+    color: var(--color-neutral-900);
+    font-family: var(--font-satoshi);
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
   .text-yc-16-b-primary {
     color: var(--color-primary-600);
     font-family: var(--font-satoshi);
     font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 120%;
+  }
+
+  .text-yc-20-b-primary {
+    color: var(--color-primary-600);
+    font-family: var(--font-satoshi);
+    font-size: 20px;
     font-style: normal;
     font-weight: 700;
     letter-spacing: 0;

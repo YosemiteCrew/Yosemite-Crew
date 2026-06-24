@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
 import { ServiceRevamp } from '@/app/features/organization/types/revamp';
@@ -9,6 +9,12 @@ jest.mock('react-icons/ri', () => ({
 }));
 jest.mock('react-icons/md', () => ({
   MdDeleteForever: () => <span data-testid="icon-delete" />,
+  MdOutlineArchive: () => <span data-testid="icon-archive" />,
+}));
+
+jest.mock('react-icons/lu', () => ({
+  LuBedSingle: () => <span data-testid="icon-bed" />,
+  LuCheck: () => <span data-testid="icon-check" />,
 }));
 jest.mock('react-icons/ai', () => ({
   AiOutlineInfoCircle: () => <span data-testid="icon-info" />,
@@ -27,7 +33,15 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: mockNotify }),
 }));
 
-jest.mock('@/app/features/organization/services/revampMockData', () => ({
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
+jest.mock('@/app/lib/money', () => ({
+  formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
+}));
+
+jest.mock('@/app/features/organization/services/catalogCalculations', () => ({
   computeServiceTotal: jest.fn(() => ({ total: 90 })),
 }));
 
@@ -106,7 +120,8 @@ jest.mock('@/app/ui/Badge', () => ({
 }));
 
 const mockNotify = jest.fn();
-const mockDeleteService = jest.fn();
+const mockArchiveService = jest.fn();
+const mockLoadSpecialityCatalog = jest.fn();
 
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 
@@ -138,7 +153,9 @@ const setupStoreMock = (services: ServiceRevamp[] = []) => {
     (selector: (s: Record<string, unknown>) => unknown) => {
       const state = {
         services,
-        deleteService: mockDeleteService,
+        archiveService: mockArchiveService,
+        loadSpecialityCatalog: mockLoadSpecialityCatalog,
+        loadedSpecialityIds: ['spec-1:active'],
       };
       return selector(state);
     }
@@ -197,7 +214,7 @@ describe('ServicesTab', () => {
     it('renders delete button for service', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      expect(screen.getAllByLabelText('Delete Consultation').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByLabelText('Archive Consultation').length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders service description', () => {
@@ -281,47 +298,49 @@ describe('ServicesTab', () => {
     it('opens delete confirmation modal when delete button is clicked', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Delete Consultation');
+      const deleteBtns = screen.getAllByLabelText('Archive Consultation');
       fireEvent.click(deleteBtns[0]);
       expect(screen.getByTestId('center-modal')).toBeInTheDocument();
-      expect(screen.getByText('Delete service')).toBeInTheDocument();
+      expect(screen.getByText('Archive service')).toBeInTheDocument();
     });
 
     it('shows service name in delete confirmation', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Delete Consultation');
+      const deleteBtns = screen.getAllByLabelText('Archive Consultation');
       fireEvent.click(deleteBtns[0]);
       expect(screen.getByText('Consultation', { selector: 'strong' })).toBeInTheDocument();
     });
 
-    it('calls deleteService and notifies on confirm delete', () => {
+    it('calls archiveService and notifies on confirm archive', async () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Delete Consultation');
-      fireEvent.click(deleteBtns[0]);
-      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-      expect(mockDeleteService).toHaveBeenCalledWith('svc-1');
-      expect(mockNotify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({ title: 'Service deleted' })
+      const archiveBtns = screen.getAllByLabelText('Archive Consultation');
+      fireEvent.click(archiveBtns[0]);
+      fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+      expect(mockArchiveService).toHaveBeenCalledWith('svc-1');
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'success',
+          expect.objectContaining({ title: 'Service archived' })
+        )
       );
     });
 
     it('closes modal on Cancel without deleting', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Delete Consultation');
+      const deleteBtns = screen.getAllByLabelText('Archive Consultation');
       fireEvent.click(deleteBtns[0]);
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
       expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
-      expect(mockDeleteService).not.toHaveBeenCalled();
+      expect(mockArchiveService).not.toHaveBeenCalled();
     });
 
     it('closes modal via modal header close button', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Delete Consultation');
+      const deleteBtns = screen.getAllByLabelText('Archive Consultation');
       fireEvent.click(deleteBtns[0]);
       fireEvent.click(screen.getByRole('button', { name: 'Close Modal' }));
       expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();

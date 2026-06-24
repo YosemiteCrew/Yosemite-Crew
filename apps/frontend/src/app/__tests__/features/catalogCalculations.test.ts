@@ -4,7 +4,7 @@ import {
   computePackageTotals,
   computeServiceTotal,
   resetCounters,
-} from '@/app/features/organization/services/revampMockData';
+} from '@/app/features/organization/services/catalogCalculations';
 import { PackageRevamp, ServiceRevamp } from '@/app/features/organization/types/revamp';
 
 describe('generateCode', () => {
@@ -84,8 +84,9 @@ describe('computePackageTotals', () => {
       description: '',
       specialityId: 'spec-1',
       organisationId: 'org-1',
-      durationMinutes: 30,
+      durationText: 'Approx. 30 mins',
       isBookable: false,
+      isInpatientPreferred: false,
       leadCount: 1,
       supportCount: 0,
       additionalDiscount: 10,
@@ -112,8 +113,9 @@ describe('computePackageTotals', () => {
       description: '',
       specialityId: 'spec-1',
       organisationId: 'org-1',
-      durationMinutes: 30,
+      durationText: 'Approx. 30 mins',
       isBookable: false,
+      isInpatientPreferred: false,
       leadCount: 1,
       supportCount: 0,
       additionalDiscount: 5,
@@ -124,5 +126,28 @@ describe('computePackageTotals', () => {
     const { grossTotal, totalCost } = computePackageTotals(pkg);
     expect(grossTotal).toBe(0);
     expect(totalCost).toBe(0);
+  });
+
+  it('falls back to serverFinalAmount when breakdown is not loaded', () => {
+    const pkg: PackageRevamp = {
+      id: 'p3',
+      code: 'PK-0003',
+      name: 'List row without breakdown',
+      description: '',
+      specialityId: 'spec-1',
+      organisationId: 'org-1',
+      durationText: 'Approx. 30 mins',
+      isBookable: false,
+      isInpatientPreferred: false,
+      leadCount: 1,
+      supportCount: 0,
+      additionalDiscount: 5,
+      breakdown: [],
+      serverFinalAmount: 130.15,
+      status: 'ACTIVE',
+      createdAt: '2025-01-01T00:00:00Z',
+    };
+    const { totalCost } = computePackageTotals(pkg);
+    expect(totalCost).toBe(130.15);
   });
 });

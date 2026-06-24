@@ -1,6 +1,7 @@
 import { Documenso } from "@documenso/sdk-typescript";
 import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
 import axios from "axios";
+import type { ClinicalPdfSignaturePlacement } from "@yosemite-crew/lib";
 import { Types } from "mongoose";
 import OrganizationModel from "src/models/organization";
 import { prisma } from "src/config/prisma";
@@ -15,6 +16,17 @@ const EXTERNAL_AUTH_SECRET =
   process.env["DOCUMENSO_EXTERNAL_AUTH_SECRET"] ?? "";
 
 const documensoClients = new Map<string, Documenso>();
+
+// Documenso positions fields as percentages (0–100) of the page from the
+// top-left, not PDF points. Last-resort fallback when a caller provides no
+// placement; real placements come from the PDF renderers as percentages.
+const DEFAULT_SIGNATURE_PLACEMENT: ClinicalPdfSignaturePlacement = {
+  pageNumber: 1,
+  pageX: 55.44,
+  pageY: 83.15,
+  width: 36.96,
+  height: 11.4,
+};
 
 const getBaseUrl = () => {
   if (!BASE_URL) {
@@ -121,16 +133,24 @@ export class DocumensoService {
     signerEmail,
     signerName,
     apiKey,
+    signaturePlacement,
+    title,
   }: {
     pdf: Buffer;
     signerEmail: string;
     signerName?: string;
     apiKey?: string;
+    signaturePlacement?: ClinicalPdfSignaturePlacement;
+    title?: string;
   }) {
     try {
       const documenso = getDocumensoClient(apiKey);
+      const placement = signaturePlacement ?? DEFAULT_SIGNATURE_PLACEMENT;
+      logger.info("Creating document with signature placement", {
+        placement,
+      });
       const createDocumentResponse = await documenso.documents.createV0({
-        title: "Form Submission",
+        title: title ?? "Form Submission",
         recipients: [
           {
             email: signerEmail,
@@ -139,11 +159,11 @@ export class DocumensoService {
             fields: [
               {
                 type: "SIGNATURE",
-                pageNumber: 1,
-                pageX: 100,
-                pageY: 100,
-                width: 20,
-                height: 10,
+                pageNumber: placement.pageNumber,
+                pageX: placement.pageX,
+                pageY: placement.pageY,
+                width: placement.width,
+                height: placement.height,
               },
             ],
           },

@@ -21,25 +21,33 @@ export const toStoredCompanionAlerts = (alerts?: CompanionAlert[]) =>
   }));
 
 export const fromStoredCompanionAlerts = (
-  alerts?: Array<{ title?: string; severity?: string }>
+  alerts?: Array<{ title?: string; severity?: string; label?: string; priority?: string }>
 ): CompanionAlert[] =>
   (alerts ?? []).flatMap((alert) => {
-    if (!alert.title || !alert.severity) {
+    const label = alert.title ?? alert.label;
+    const priority = alert.severity ?? alert.priority;
+    if (!label || !priority) {
       return [];
     }
     if (
-      alert.severity !== 'low' &&
-      alert.severity !== 'medium' &&
-      alert.severity !== 'high' &&
-      alert.severity !== 'critical'
+      priority !== 'low' &&
+      priority !== 'medium' &&
+      priority !== 'high' &&
+      priority !== 'critical'
     ) {
-      return [];
+      return [
+        {
+          id: crypto.randomUUID(),
+          label,
+          priority: priority as AlertPriority,
+        },
+      ];
     }
     return [
       {
         id: crypto.randomUUID(),
-        label: alert.title,
-        priority: alert.severity,
+        label,
+        priority,
       },
     ];
   });

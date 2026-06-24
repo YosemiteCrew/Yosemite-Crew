@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { IoIosArrowDown, IoIosWarning } from 'react-icons/io';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { getStripeBillingPortal } from '@/app/features/billing/services/billingService';
+import { getSafeStripeRedirectUrl } from '@/app/lib/urls';
 import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
@@ -78,7 +79,11 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
     setLoadingPortal(true);
     try {
       const url = await getStripeBillingPortal();
-      globalThis.location.href = url;
+      const safeUrl = getSafeStripeRedirectUrl(url);
+      if (!safeUrl) {
+        throw new Error('Received an unexpected billing portal URL.');
+      }
+      globalThis.location.href = safeUrl;
     } catch (e: any) {
       setError(e?.message || 'Failed to open billing portal');
     } finally {

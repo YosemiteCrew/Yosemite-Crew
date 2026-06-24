@@ -267,60 +267,76 @@ const validateField = (
   field: BlueprintField,
   snapshotField: SnapshotField | undefined,
 ) => {
-  const issues: string[] = [];
-
+  const path = `${kind}.${sectionId}.${field.key}`;
   if (!snapshotField) {
-    if (field.required) {
-      issues.push(`${kind}.${sectionId}.${field.key}`);
-    }
-    return issues;
+    return field.required ? [path] : [];
   }
 
-  if (snapshotField.type !== field.type) {
-    issues.push(`${kind}.${sectionId}.${field.key}.type`);
+  return [
+    ...validateFieldType(path, field, snapshotField),
+    ...validateFieldRepeatable(path, field, snapshotField),
+    ...validateFieldOptions(path, field, snapshotField),
+    ...validateFieldRules(path, field, snapshotField),
+  ];
+};
+
+const validateFieldType = (
+  path: string,
+  field: BlueprintField,
+  snapshotField: SnapshotField,
+) => (snapshotField.type !== field.type ? [`${path}.type`] : []);
+
+const validateFieldRepeatable = (
+  path: string,
+  field: BlueprintField,
+  snapshotField: SnapshotField,
+) =>
+  field.repeatable !== undefined &&
+  snapshotField.repeatable !== field.repeatable
+    ? [`${path}.repeatable`]
+    : [];
+
+const validateFieldOptions = (
+  path: string,
+  field: BlueprintField,
+  snapshotField: SnapshotField,
+) => {
+  if (!field.options) return [];
+
+  const snapshotOptions = snapshotField.options ?? [];
+  const same =
+    snapshotOptions.length === field.options.length &&
+    field.options.every((option, index) => {
+      const snapshotOption = snapshotOptions[index];
+      return (
+        snapshotOption?.label === option.label &&
+        snapshotOption?.value === option.value
+      );
+    });
+
+  return same ? [] : [`${path}.options`];
+};
+
+const validateFieldRules = (
+  path: string,
+  field: BlueprintField,
+  snapshotField: SnapshotField,
+) => {
+  if (!field.rules) return [];
+
+  const snapshotRules = snapshotField.rules;
+  if (!snapshotRules || typeof snapshotRules !== "object") {
+    return [`${path}.rules`];
   }
 
-  if (
-    field.repeatable !== undefined &&
-    snapshotField.repeatable !== field.repeatable
-  ) {
-    issues.push(`${kind}.${sectionId}.${field.key}.repeatable`);
-  }
+  const same = Object.entries(field.rules).every(([key, value]) => {
+    const snapshotValue = Object.entries(snapshotRules).find(
+      ([snapshotKey]) => snapshotKey === key,
+    )?.[1];
+    return JSON.stringify(snapshotValue) === JSON.stringify(value);
+  });
 
-  if (field.options) {
-    const snapshotOptions = snapshotField.options ?? [];
-    const same =
-      snapshotOptions.length === field.options.length &&
-      field.options.every((option, index) => {
-        const snapshotOption = snapshotOptions[index];
-        return (
-          snapshotOption?.label === option.label &&
-          snapshotOption?.value === option.value
-        );
-      });
-    if (!same) {
-      issues.push(`${kind}.${sectionId}.${field.key}.options`);
-    }
-  }
-
-  if (field.rules) {
-    const snapshotRules = snapshotField.rules;
-    if (!snapshotRules || typeof snapshotRules !== "object") {
-      issues.push(`${kind}.${sectionId}.${field.key}.rules`);
-    } else {
-      const same = Object.entries(field.rules).every(([key, value]) => {
-        const snapshotValue = Object.entries(snapshotRules).find(
-          ([snapshotKey]) => snapshotKey === key,
-        )?.[1];
-        return JSON.stringify(snapshotValue) === JSON.stringify(value);
-      });
-      if (!same) {
-        issues.push(`${kind}.${sectionId}.${field.key}.rules`);
-      }
-    }
-  }
-
-  return issues;
+  return same ? [] : [`${path}.rules`];
 };
 
 export const buildTaskWorkflowTemplateSchemaSnapshot = (

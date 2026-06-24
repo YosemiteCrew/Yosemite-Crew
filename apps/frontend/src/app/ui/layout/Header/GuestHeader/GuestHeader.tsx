@@ -131,10 +131,7 @@ const GuestHeader = () => {
   };
 
   return (
-    <div
-      className="flex items-center justify-between px-4! sm:px-12! lg:px-20! gap-10 w-full h-20"
-      data-terminology-lock="true"
-    >
+    <div className="yc-guest-header" data-terminology-lock="true">
       <Link href="/" className="yc-guest-logo-link" aria-label="Yosemite Crew home">
         <Image
           src={logoUrl}
@@ -146,14 +143,16 @@ const GuestHeader = () => {
         />
       </Link>
 
-      <div className="max-w-200 flex-1 hidden lg:flex">
-        <ul className="list-none flex items-center justify-between flex-1 p-0 m-0">
+      <div className="yc-guest-nav">
+        <ul className="yc-guest-nav-list">
           {publicNavItems.map((item) => (
             <li key={item.label}>
               <Link
                 href={item.href ? item.href : '#'}
                 aria-current={item.href === pathname ? 'page' : undefined}
-                className={`${item.href === pathname ? 'text-text-primary!' : 'text-text-secondary!'} inline-block text-body-4 hover:text-text-brand! transition-colors duration-200 ease-out`}
+                className={`yc-guest-nav-link text-body-4 ${
+                  item.href === pathname ? 'yc-guest-nav-link-active' : ''
+                }`}
               >
                 {item.label}
               </Link>
@@ -168,7 +167,9 @@ const GuestHeader = () => {
             type="button"
             key={item.label}
             onClick={() => handleClick(item.href ? item.href : '#')}
-            className={`text-body-4 px-3 py-2 rounded-2xl! border border-card-border! text-start transition-all duration-300 ease-in hover:bg-card-border ${item.href === pathname && 'text-text-brand border-text-brand! bg-brand-100'}`}
+            className={`yc-guest-mobile-route text-body-4 px-3 py-2 ${
+              item.href === pathname ? 'yc-guest-mobile-route-active' : ''
+            }`}
           >
             {item.label}
           </button>

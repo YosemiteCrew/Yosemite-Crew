@@ -124,6 +124,7 @@ export type DischargeSummaryRecord = {
 export type VitalRecordInput = ClinicalArtifactBaseInput & {
   measuredAt: Date | string;
   recordedBy?: string | null;
+  recordedByDisplay?: string | null;
   vitals: unknown;
   notes?: unknown;
   metadata?: unknown;
@@ -138,6 +139,7 @@ export type VitalRecordRecord = {
     artifactId: string;
     measuredAt: Date;
     recordedBy: string | null;
+    recordedByDisplay?: string | null;
     vitals: unknown;
     notes: unknown;
     metadata: unknown;
@@ -162,6 +164,7 @@ export type ClinicalArtifactFhirInputDefaults = {
   templateVersion?: number;
   templateVersionId?: string;
   recordedBy?: string | null;
+  recordedByDisplay?: string | null;
 };
 
 const SOAP_SUBJECTIVE_EXTENSION_URL =
@@ -259,6 +262,29 @@ const toTaskStatus = (status: string): string => {
       return 'cancelled';
     default:
       return 'draft';
+  }
+};
+
+const toClinicalArtifactStatus = (status?: string): ClinicalArtifactStatus => {
+  switch (status) {
+    case 'final':
+    case 'active':
+      return 'COMPLETED';
+    case 'preliminary':
+    // 'accepted'/'in-progress' are emitted by toTaskStatus for IN_PROGRESS prescriptions; keep round-trips in progress.
+    case 'accepted':
+    case 'in-progress':
+      return 'IN_PROGRESS';
+    case 'draft':
+      return 'DRAFT';
+    case 'amended':
+    case 'corrected':
+      return 'SIGNED';
+    case 'entered-in-error':
+    case 'cancelled':
+      return 'VOID';
+    default:
+      return 'DRAFT';
   }
 };
 
@@ -425,6 +451,7 @@ const compositionToSoapNoteInput = (
   templateId: defaults.templateId,
   templateVersion: defaults.templateVersion,
   templateVersionId: defaults.templateVersionId,
+  status: toClinicalArtifactStatus(resource.status),
   summary: resource.title,
   subjective: parseFlexibleJson(
     getExtensionValue(resource.extension, SOAP_SUBJECTIVE_EXTENSION_URL)
@@ -472,27 +499,43 @@ const prescriptionToMedicationRequest = (record: PrescriptionRecord): Medication
 const medicationRequestToPrescriptionInput = (
   resource: MedicationRequest,
   defaults: ClinicalArtifactFhirInputDefaults
-): PrescriptionInput => ({
-  organisationId: defaults.organisationId,
-  appointmentId: defaults.appointmentId,
-  caseId: defaults.caseId,
-  encounterId: defaults.encounterId,
-  authorId: defaults.authorId,
-  templateId: defaults.templateId,
-  templateVersion: defaults.templateVersion,
-  templateVersionId: defaults.templateVersionId,
-  summary: resource.medicationCodeableConcept?.text,
-  medications: parseFlexibleJson(
-    getExtensionValue(resource.extension, PRESCRIPTION_MEDICATIONS_EXTENSION_URL)
-  ),
-  instructions: parseFlexibleJson(
-    getExtensionValue(resource.extension, PRESCRIPTION_INSTRUCTIONS_EXTENSION_URL)
-  ),
-  notes: parseFlexibleJson(getExtensionValue(resource.extension, PRESCRIPTION_NOTES_EXTENSION_URL)),
-  metadata: parseFlexibleJson(
+): PrescriptionInput => {
+  const metadata = parseFlexibleJson(
     getExtensionValue(resource.extension, PRESCRIPTION_METADATA_EXTENSION_URL)
-  ),
-});
+  );
+  const metadataRecord =
+    metadata !== null && typeof metadata === 'object' && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)
+      : {};
+
+  const readStringField = (key: string): string | undefined => {
+    const value = metadataRecord[key];
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  };
+
+  return {
+    organisationId: defaults.organisationId,
+    appointmentId: defaults.appointmentId,
+    caseId: defaults.caseId,
+    encounterId: defaults.encounterId,
+    authorId: defaults.authorId,
+    templateId: defaults.templateId,
+    templateVersion: defaults.templateVersion,
+    templateVersionId: defaults.templateVersionId,
+    status: toClinicalArtifactStatus(resource.status),
+    summary: resource.medicationCodeableConcept?.text,
+    medications: parseFlexibleJson(
+      getExtensionValue(resource.extension, PRESCRIPTION_MEDICATIONS_EXTENSION_URL)
+    ),
+    instructions: parseFlexibleJson(
+      getExtensionValue(resource.extension, PRESCRIPTION_INSTRUCTIONS_EXTENSION_URL)
+    ),
+    notes: parseFlexibleJson(
+      getExtensionValue(resource.extension, PRESCRIPTION_NOTES_EXTENSION_URL)
+    ),
+    metadata,
+  };
+};
 
 const dischargeSummaryToComposition = (record: DischargeSummaryRecord): Composition => ({
   resourceType: 'Composition',
@@ -529,6 +572,7 @@ const compositionToDischargeSummaryInput = (
   templateId: defaults.templateId,
   templateVersion: defaults.templateVersion,
   templateVersionId: defaults.templateVersionId,
+  status: toClinicalArtifactStatus(resource.status),
   summary: resource.title,
   summaryContent: parseFlexibleJson(
     getExtensionValue(resource.extension, DISCHARGE_SUMMARY_CONTENT_EXTENSION_URL)
@@ -575,7 +619,12 @@ const vitalRecordToObservation = (record: VitalRecordRecord): Observation => {
     encounter: toReference(clinicalContextReference(record.artifact)),
     effectiveDateTime: toIso(record.vitalRecord.measuredAt),
     performer: record.vitalRecord.recordedBy
-      ? [{ reference: `Practitioner/${record.vitalRecord.recordedBy}` }]
+      ? [
+          {
+            reference: `Practitioner/${record.vitalRecord.recordedBy}`,
+            display: record.vitalRecord.recordedByDisplay ?? undefined,
+          },
+        ]
       : undefined,
     note:
       typeof record.vitalRecord.notes === 'string'
@@ -600,9 +649,18 @@ const observationToVitalRecordInput = (
   encounterId: defaults.encounterId,
   authorId: defaults.authorId,
   recordedBy: defaults.recordedBy,
+  recordedByDisplay:
+    typeof resource.performer === 'object' &&
+    Array.isArray(resource.performer) &&
+    typeof resource.performer[0] === 'object' &&
+    resource.performer[0] !== null &&
+    typeof (resource.performer[0] as { display?: unknown }).display === 'string'
+      ? String((resource.performer[0] as { display: string }).display).trim()
+      : defaults.recordedByDisplay,
   templateId: defaults.templateId,
   templateVersion: defaults.templateVersion,
   templateVersionId: defaults.templateVersionId,
+  status: toClinicalArtifactStatus(resource.status),
   summary: resource.code?.text,
   measuredAt: resource.effectiveDateTime ?? new Date().toISOString(),
   vitals: parseFlexibleJson(getExtensionValue(resource.extension, VITALS_EXTENSION_URL)),

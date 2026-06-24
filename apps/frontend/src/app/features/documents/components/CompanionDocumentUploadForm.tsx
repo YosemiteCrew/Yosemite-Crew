@@ -8,11 +8,11 @@ import {
   Category,
   CategoryOptions,
   CompanionRecord,
-  HealthCategoryOptions,
-  HygieneCategoryOptions,
   Subcategory,
   VisitType,
   VisitTypeOptions,
+  getDefaultSubcategoryForCategory,
+  getSubcategoryOptionsForCategory,
 } from '@/app/features/documents/types/companionDocuments';
 
 export type DocumentUploadFormErrors = {
@@ -45,19 +45,20 @@ const CompanionDocumentUploadForm = ({
   onSave,
   issueDateInputId = 'includeIssueDate',
 }: CompanionDocumentUploadFormProps) => {
-  const subcategoryOptions =
-    formData.category === 'HEALTH' ? HealthCategoryOptions : HygieneCategoryOptions;
+  const subcategoryOptions = getSubcategoryOptionsForCategory(formData.category);
 
   return (
     <div className="flex flex-col gap-3">
       <LabelDropdown
         placeholder="Category"
-        onSelect={(option) =>
+        onSelect={(option) => {
+          const category = option.value as Category;
           setFormData({
             ...formData,
-            category: option.value as Category,
-          })
-        }
+            category,
+            subcategory: getDefaultSubcategoryForCategory(category),
+          });
+        }}
         defaultOption={formData.category}
         options={CategoryOptions}
         error={formDataErrors.category}

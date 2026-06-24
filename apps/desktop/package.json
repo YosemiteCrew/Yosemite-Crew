@@ -52,6 +52,7 @@
     "appId": "com.yosemitecrew.pims",
     "productName": "Yosemite Crew PIMS",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "generateUpdatesFilesForAllChannels": true,
     "asar": true,
     "asarUnpack": [
       "**/node_modules/sql.js/dist/*.wasm"

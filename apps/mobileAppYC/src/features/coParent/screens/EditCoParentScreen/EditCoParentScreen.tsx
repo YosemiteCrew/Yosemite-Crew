@@ -88,8 +88,9 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     tasks: false,
     chatWithVet: false,
   };
-  const [permissions, setPermissions] =
-    useState<CoParentPermissions>(defaultPermissions);
+  const [permissions, setPermissions] = useState<CoParentPermissions>(
+    coParent?.permissions ?? defaultPermissions,
+  );
   const deleteSheetRef = React.useRef<DeleteCoParentBottomSheetRef>(null);
   const [isPromoting, setIsPromoting] = useState(false);
 

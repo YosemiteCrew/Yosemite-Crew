@@ -1,4 +1,11 @@
-import { getData, postData, putData, deleteData, patchData } from '@/app/services/axios';
+import {
+  getData,
+  postData,
+  putData,
+  deleteData,
+  patchData,
+  isAuthRedirectError,
+} from '@/app/services/axios';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { logger } from '@/app/lib/logger';
@@ -92,10 +99,22 @@ describe('Axios Service', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    globalThis.window.history.replaceState({}, '', '/');
     mockOrgGetState.mockReturnValue({ primaryOrgId: 'org-1', clearOrgs: jest.fn() });
   });
 
   // --- Helper Functions Tests ---
+
+  // The instance is created once at module import, before beforeEach clears
+  // mocks — capture the create config in beforeAll so the assertion survives.
+  let createConfig: { timeout?: number } | undefined;
+  beforeAll(() => {
+    createConfig = (axios.create as jest.Mock).mock.calls[0]?.[0];
+  });
+
+  it('creates the api instance with a generous timeout for slow backends', () => {
+    expect(createConfig).toEqual(expect.objectContaining({ timeout: 60_000 }));
+  });
 
   describe('Wrapper Methods', () => {
     it('getData calls api.get', async () => {
@@ -343,6 +362,35 @@ describe('Axios Service', () => {
       expect(result.headers.Authorization).toBeUndefined();
     });
 
+    it('rejects protected API requests before hitting the backend when auth is gone', async () => {
+      const mockSignout = jest.fn().mockResolvedValue(undefined);
+      globalThis.window.history.replaceState({}, '', '/appointments');
+      mockGetState.mockReturnValue({
+        status: 'unauthenticated',
+        getValidSession: jest.fn().mockResolvedValue(null),
+        signout: mockSignout,
+      });
+
+      try {
+        await requestSuccessHandler({ url: '/fhir/v1/appointments', headers: {} });
+        throw new Error('Expected request interceptor to reject');
+      } catch (error) {
+        expect(isAuthRedirectError(error)).toBe(true);
+      }
+
+      expect(mockSignout).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows public API requests without a session', async () => {
+      mockGetState.mockReturnValue({
+        status: 'unauthenticated',
+        getValidSession: jest.fn().mockResolvedValue(null),
+      });
+
+      const config = { url: '/v1/contact-us/contact-web', headers: {} };
+      await expect(requestSuccessHandler(config)).resolves.toBe(config);
+    });
+
     it('logs warning if accessing store fails', async () => {
       // Simulate error accessing state
       mockGetState.mockImplementationOnce(() => {
@@ -376,23 +424,45 @@ describe('Axios Service', () => {
       expect(responseSuccessHandler(response)).toEqual(response);
     });
 
-    it('throws error immediately if status is not 401', async () => {
+    it('throws non-retryable errors immediately for idempotent reads', async () => {
       const error = {
-        response: { status: 500 },
-        config: {},
+        response: { status: 400 },
+        config: { method: 'get' },
       };
       await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockAxiosInstance).not.toHaveBeenCalled();
     });
 
-    it('throws rate-limit errors without retrying', async () => {
+    it('does not retry transient failures on non-idempotent writes', async () => {
       const error = {
         response: { status: 429 },
-        config: {},
+        config: { method: 'post' },
       };
-
       await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockAxiosInstance).not.toHaveBeenCalled();
+    });
 
-      expect(mockGetState).not.toHaveBeenCalled();
+    it('retries idempotent reads on rate-limit (429) with backoff', async () => {
+      const error = {
+        response: { status: 429, headers: { 'retry-after': '0' } },
+        config: { method: 'get' },
+      };
+      mockAxiosInstance.mockResolvedValueOnce({ data: 'recovered' });
+
+      const result = await responseErrorHandler(error);
+
+      expect(mockAxiosInstance).toHaveBeenCalledTimes(1);
+      expect((error.config as { _transientRetryCount?: number })._transientRetryCount).toBe(1);
+      expect(result).toEqual({ data: 'recovered' });
+    });
+
+    it('gives up after the maximum transient retries', async () => {
+      const error = {
+        response: { status: 503, headers: { 'retry-after': '0' } },
+        config: { method: 'get', _transientRetryCount: 3 },
+      };
+      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockAxiosInstance).not.toHaveBeenCalled();
     });
 
     it('logs out and throws if request has already been retried', async () => {
@@ -404,7 +474,12 @@ describe('Axios Service', () => {
         config: { _retry: true },
       };
 
-      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      try {
+        await responseErrorHandler(error);
+        throw new Error('Expected response interceptor to reject');
+      } catch (caughtError) {
+        expect(isAuthRedirectError(caughtError)).toBe(true);
+      }
       expect(mockSignout).toHaveBeenCalled();
     });
 
@@ -445,7 +520,12 @@ describe('Axios Service', () => {
       });
 
       const error = { response: { status: 401 }, config: {} };
-      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      try {
+        await responseErrorHandler(error);
+        throw new Error('Expected response interceptor to reject');
+      } catch (caughtError) {
+        expect(isAuthRedirectError(caughtError)).toBe(true);
+      }
       expect(mockSignout).toHaveBeenCalled();
     });
 
@@ -458,7 +538,12 @@ describe('Axios Service', () => {
       });
 
       const error = { response: { status: 401 }, config: {} };
-      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      try {
+        await responseErrorHandler(error);
+        throw new Error('Expected response interceptor to reject');
+      } catch (caughtError) {
+        expect(isAuthRedirectError(caughtError)).toBe(true);
+      }
       expect(mockSignout).toHaveBeenCalled();
     });
   });

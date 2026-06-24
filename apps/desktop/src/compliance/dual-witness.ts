@@ -1,5 +1,6 @@
 'use strict';
 
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { ControlledSubstanceLogbook, CsTransaction } from './controlled-substance';
 
 export interface WasteEvent {
@@ -46,13 +47,19 @@ interface WitnessAccount {
 let dwCounter = 0;
 const defaultId = (): string => `waste-${Date.now()}-${++dwCounter}`;
 
-const hashPin = (pin: string): string => {
-  let hash = 0;
-  for (let i = 0; i < pin.length; i++) {
-    const chr = pin.codePointAt(i) ?? 0;
-    hash = Math.trunc((hash << 5) - hash + chr);
-  }
-  return hash.toString(16);
+// Salted scrypt hashing for witness PINs. The dual-witness check is a DEA
+// control, so the stored value must not be brute-forceable or collidable (the
+// previous 32-bit string hash was both). Stored as "<saltHex>:<hashHex>".
+const PIN_KEYLEN = 32;
+const makePinHash = (pin: string): string => {
+  const salt = randomBytes(16);
+  return `${salt.toString('hex')}:${scryptSync(pin, salt, PIN_KEYLEN).toString('hex')}`;
+};
+const verifyPinHash = (pin: string, stored: string): boolean => {
+  const [saltHex = '', hashHex = ''] = stored.split(':');
+  const expected = Buffer.from(hashHex, 'hex');
+  const actual = scryptSync(pin, Buffer.from(saltHex, 'hex'), PIN_KEYLEN);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 };
 
 // A persisted waste transaction read back from the controlled-substance logbook
@@ -83,14 +90,14 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
     witnesses.set(witnessId, {
       id: witnessId,
       name: witnessName,
-      pinHash: hashPin(pin),
+      pinHash: makePinHash(pin),
     });
   };
 
   const verifyWitnessPin = (witnessId: string, pin: string): boolean => {
     const account = witnesses.get(witnessId);
     if (!account) return false;
-    return account.pinHash === hashPin(pin);
+    return verifyPinHash(pin, account.pinHash);
   };
 
   const recordWaste = (

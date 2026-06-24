@@ -21,10 +21,11 @@
   background: linear-gradient(355.06deg, #ffffff 64.22%, #eaeef6 95.67%);
 }
 .DownlodeSec {
-  min-height: 90vh;
+  min-height: min(720px, calc(100vh - 80px));
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 96px;
 }
 .Downlode_Data {
   display: flex;
@@ -71,6 +72,7 @@
 @media screen and (max-width: 1024px) {
   .DownlodeSec {
     min-height: auto;
+    padding-top: 88px;
   }
   .PetToolkitSec {
     min-height: auto;
@@ -100,6 +102,10 @@
   }
 }
 @media screen and (max-width: 768px) {
+  .DownlodeSec {
+    padding-top: 80px;
+  }
+
   .downlodetext {
     gap: 8px;
     align-items: center;

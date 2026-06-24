@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SpecialityAccordionRevamp from '@/app/features/organization/pages/Specialities/SpecialityAccordionRevamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
@@ -28,6 +28,43 @@ jest.mock('react-icons/ri', () => ({
 
 jest.mock('react-icons/md', () => ({
   MdOutlineArchive: () => <span data-testid="archive-icon" />,
+  MdDeleteForever: () => <span data-testid="delete-icon" />,
+}));
+
+jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
+  __esModule: true,
+  default: ({ children, showModal }: any) =>
+    showModal ? <div data-testid="center-modal">{children}</div> : null,
+}));
+
+jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
+  __esModule: true,
+  default: ({ title, onClose }: any) => (
+    <div>
+      <h3>{title}</h3>
+      <button type="button" onClick={onClose}>
+        Close Modal
+      </button>
+    </div>
+  ),
+}));
+
+jest.mock('@/app/ui/primitives/Buttons/Secondary', () => ({
+  __esModule: true,
+  default: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
+
+jest.mock('@/app/ui/primitives/Buttons/Delete', () => ({
+  __esModule: true,
+  default: ({ text, onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      {text}
+    </button>
+  ),
 }));
 
 jest.mock('react-icons/fi', () => ({
@@ -104,6 +141,7 @@ describe('SpecialityAccordionRevamp', () => {
       if (typeof selector === 'function') {
         return selector({
           renameSpeciality: mockRenameSpeciality,
+          specialities: [mockSpeciality],
           services: [
             {
               id: 'svc-1',
@@ -194,16 +232,18 @@ describe('SpecialityAccordionRevamp', () => {
     expect(screen.getByLabelText('Edit speciality name')).toBeInTheDocument();
   });
 
-  it('saves name on check button click', () => {
+  it('saves name on check button click', async () => {
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} />);
     fireEvent.click(screen.getByRole('button', { name: /Rename General Practice/i }));
     const input = screen.getByLabelText('Edit speciality name');
     fireEvent.change(input, { target: { value: 'New Name' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
     expect(mockRenameSpeciality).toHaveBeenCalledWith('spec-1', 'New Name');
-    expect(mockNotify).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ title: 'Speciality renamed' })
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'success',
+        expect.objectContaining({ title: 'Speciality renamed' })
+      )
     );
   });
 

@@ -40,6 +40,9 @@ describe('useLoadAvailabilities', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
+    mockUseAuthStore.mockImplementation((selector: any) =>
+      selector({ status: 'authenticated', attributes: { sub: 'Practitioner/USER-1' } })
+    );
     mockUseAvailabilityStore.mockImplementation((selector: any) =>
       selector({ availabilityIdsByOrgId: {} })
     );
@@ -57,6 +60,18 @@ describe('useLoadAvailabilities', () => {
 
   it('does not load when primaryOrgId is null', async () => {
     mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: null }));
+
+    renderHook(() => useLoadAvailabilities());
+
+    await waitFor(() => {
+      expect(loadAvailability).not.toHaveBeenCalled();
+    });
+  });
+
+  it('does not load when unauthenticated', async () => {
+    mockUseAuthStore.mockImplementation((selector: any) =>
+      selector({ status: 'unauthenticated', attributes: { sub: 'Practitioner/USER-1' } })
+    );
 
     renderHook(() => useLoadAvailabilities());
 

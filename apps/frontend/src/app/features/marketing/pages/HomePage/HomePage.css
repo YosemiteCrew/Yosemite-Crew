@@ -3,6 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 96px;
 }
 .Container {
   padding: 32px 80px;
@@ -131,6 +132,10 @@ a.UnFillbtn {
   }
 }
 @media screen and (max-width: 1024px) {
+  .HomeHeroSection {
+    padding-top: 88px;
+  }
+
   .HomeHeroData {
     gap: 32px;
     flex-direction: column;
@@ -149,6 +154,10 @@ a.UnFillbtn {
   }
 }
 @media screen and (max-width: 768px) {
+  .HomeHeroSection {
+    padding-top: 80px;
+  }
+
   .Container {
     padding: 32px 16px;
   }

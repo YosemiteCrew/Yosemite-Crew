@@ -39,6 +39,7 @@ const SearchDropdown = ({
   optionClassName,
 }: SearchDropdownProps) => {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [hasSelected, setHasSelected] = useState(false);
   const inputId = useId();
@@ -70,6 +71,24 @@ const SearchDropdown = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open || filtered.length === 0 || query.length < minChars) {
+      setActiveIndex(-1);
+      return;
+    }
+    setActiveIndex((current) => (current >= 0 && current < filtered.length ? current : 0));
+  }, [filtered, minChars, open, query.length]);
+
+  const activeOptionId =
+    activeIndex >= 0 && activeIndex < filtered.length
+      ? `${listboxId}-option-${filtered[activeIndex].value}`
+      : undefined;
+
+  useEffect(() => {
+    if (!open || !activeOptionId) return;
+    document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
+  }, [activeOptionId, open]);
+
   const onSelectOption = (key: string) => {
     onSelect(key);
     setHasSelected(true);
@@ -77,6 +96,42 @@ const SearchDropdown = ({
   };
 
   const canSearch = open && query.length >= minChars && filtered.length > 0;
+
+  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setOpen(false);
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setOpen(true);
+      if (filtered.length === 0 || query.length < minChars) return;
+      setActiveIndex((current) => (current + 1 >= filtered.length ? 0 : current + 1));
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setOpen(true);
+      if (filtered.length === 0 || query.length < minChars) return;
+      setActiveIndex((current) => (current <= 0 ? filtered.length - 1 : current - 1));
+      return;
+    }
+    if (event.key === 'Home' && canSearch) {
+      event.preventDefault();
+      setActiveIndex(0);
+      return;
+    }
+    if (event.key === 'End' && canSearch) {
+      event.preventDefault();
+      setActiveIndex(filtered.length - 1);
+      return;
+    }
+    if (event.key !== 'Enter' || !canSearch) return;
+    if (activeIndex < 0 || activeIndex >= filtered.length) return;
+    event.preventDefault();
+    onSelectOption(filtered[activeIndex].value);
+  };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (!onReachEnd || !hasMore || isLoadingMore) return;
@@ -104,8 +159,11 @@ const SearchDropdown = ({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={handleInputKeyDown}
           aria-invalid={!!error}
           aria-describedby={error ? errorId : undefined}
+          aria-controls={canSearch ? listboxId : undefined}
+          aria-activedescendant={activeOptionId}
           className="border-0 text-body-4 text-text-primary w-full placeholder:text-input-text-placeholder placeholder:text-body-4 focus-visible:outline-none"
           placeholder={placeholder}
           autoComplete="off"
@@ -129,10 +187,16 @@ const SearchDropdown = ({
             <button
               type="button"
               key={option.value}
+              id={`${listboxId}-option-${option.value}`}
+              onMouseEnter={() => setActiveIndex(filtered.indexOf(option))}
               onClick={() => onSelectOption(option.value)}
               className={
                 optionClassName ??
-                'px-5 py-3 text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start'
+                `px-5 py-3 text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start ${
+                  activeOptionId === `${listboxId}-option-${option.value}`
+                    ? 'bg-card-hover text-text-primary!'
+                    : ''
+                }`
               }
             >
               {renderOption ? renderOption(option) : option.label}

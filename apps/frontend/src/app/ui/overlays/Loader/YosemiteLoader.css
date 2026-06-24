@@ -2,22 +2,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   font-family: var(--font-satoshi);
   color: var(--color-text-primary, #1f2937);
 }
 
-.yosemite-loader__image {
+.yosemite-loader__spinner {
   display: inline-block;
-  border: 3px solid var(--color-card-border, #e5e7eb);
-  border-top-color: var(--color-primary-700, #2f6fed);
+  box-sizing: border-box;
+  border: 2px solid var(--color-card-border, #e5e7eb);
+  border-top-color: var(--color-text-brand, #2f6fed);
   border-radius: 9999px;
-  animation: yosemite-loader-spin 0.8s linear infinite;
+  animation: yosemite-loader-spin 0.7s linear infinite;
+  box-shadow: 0 0 0 1px rgba(47, 111, 237, 0.04);
 }
 
 .yosemite-loader__label {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .yosemite-loader--inline {
@@ -27,7 +29,7 @@
 .yosemite-loader--fullscreen {
   position: fixed;
   inset: 0;
-  background: #ffffff;
+  background: var(--color-bg, #ffffff);
   z-index: 9999;
   width: 100%;
   height: 100%;
@@ -39,9 +41,9 @@
 .yosemite-loader--fullscreen-translucent {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.56);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.64);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 9999;
   width: 100%;
   height: 100%;

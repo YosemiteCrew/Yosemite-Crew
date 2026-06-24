@@ -159,20 +159,25 @@ describe('Chat Component', () => {
     });
   });
 
-  it('handles unexpected errors during status check gracefully', async () => {
+  it('treats any status-check failure as "no session yet" without logging', async () => {
+    // The backend errors (e.g. 500) when no session exists yet. The mount probe
+    // is silent and treats every failure as the benign "not started" state.
     const errorUnexpected = { message: 'Server exploded' };
     (getChatSession as jest.Mock).mockRejectedValue(errorUnexpected);
 
     render(<Chat activeAppointment={mockActiveAppointment} />);
 
-    // It defaults to open state (sessionClosed = false) on unexpected error
     await waitFor(() => {
       expect(screen.getByText('Open Chat')).toBeInTheDocument();
     });
-    expect(console.error).toHaveBeenCalledWith(
+    expect(screen.queryByText('This chat session has been closed')).not.toBeInTheDocument();
+    // No error is logged for the expected first-visit/no-session case.
+    expect(console.error).not.toHaveBeenCalledWith(
       'Unexpected error checking chat session status:',
       errorUnexpected
     );
+    // The probe is called silently.
+    expect(getChatSession).toHaveBeenCalledWith('appt-1', { silent: true });
   });
 
   // --- Section 3: Open Chat Interaction ---

@@ -18,6 +18,10 @@ import { RiSettings3Line, RiTeamLine } from 'react-icons/ri';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useRouter } from 'next/navigation';
+import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
+import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
+import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
 
 type SpecialityInfoProps = {
   showModal: boolean;
@@ -68,6 +72,8 @@ const SpecialityInfo = ({
     }),
     [activeSpeciality]
   );
+  const specialityId = activeSpeciality._id ?? '';
+  const organisationId = activeSpeciality.organisationId ?? '';
 
   const handleDelete = async () => {
     try {
@@ -87,7 +93,10 @@ const SpecialityInfo = ({
       console.log(error);
       notify('error', {
         title: 'Unable to delete speciality',
-        text: 'Failed to delete speciality. Please try again.',
+        text: getCatalogErrorMessage(
+          error,
+          'Failed to delete speciality. It may have services, packages, or historical usage.'
+        ),
       });
     }
   };
@@ -159,12 +168,30 @@ const SpecialityInfo = ({
                 await updateSpeciality(payload);
               }}
             />
+            {specialityId && organisationId && (
+              <SectionContainer
+                title="Services & Packages"
+                titleColor="var(--color-neutral-900)"
+                className="shrink-0"
+              >
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <div className="mb-2 text-body-4-emphasis text-text-primary">Services</div>
+                    <ServicesTab specialityId={specialityId} organisationId={organisationId} />
+                  </div>
+                  <div>
+                    <div className="mb-2 text-body-4-emphasis text-text-primary">Packages</div>
+                    <PackagesTab specialityId={specialityId} organisationId={organisationId} />
+                  </div>
+                </div>
+              </SectionContainer>
+            )}
           </div>
 
-          {/* Manage Services CTA */}
+          {/* Manage catalog CTA */}
           <Primary
             href="#"
-            text="Manage Services"
+            text="Manage Services & Packages"
             icon={<RiSettings3Line size={18} aria-hidden="true" />}
             size="large"
             onClick={(e) => {

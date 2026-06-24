@@ -13,6 +13,7 @@ import type {
 export type FieldType =
   | 'input'
   | 'textarea'
+  | 'richtext'
   | 'number'
   | 'dropdown'
   | 'radio'
@@ -39,7 +40,7 @@ export interface BaseField {
 }
 
 export interface InputField extends BaseField {
-  type: 'input' | 'textarea' | 'number';
+  type: 'input' | 'textarea' | 'number' | 'richtext';
 }
 
 export interface ChoiceField extends BaseField {
@@ -269,6 +270,7 @@ const toQuestionnaireItemType = (field: FormField): QuestionnaireItemType => {
     case 'input':
       return 'string';
     case 'textarea':
+    case 'richtext':
       return 'text';
     case 'number':
       return 'decimal'; // FIX APPLIED

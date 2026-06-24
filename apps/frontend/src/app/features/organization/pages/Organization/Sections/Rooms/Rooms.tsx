@@ -1,23 +1,30 @@
-import AccordionButton from "@/app/ui/primitives/Accordion/AccordionButton";
-import RoomTable from "@/app/ui/tables/RoomTable";
-import React, { useEffect, useState } from "react";
-import AddRoom from "@/app/features/organization/pages/Organization/Sections/Rooms/AddRoom";
-import RoomInfo from "@/app/features/organization/pages/Organization/Sections/Rooms/RoomInfo";
-import { useRoomsForPrimaryOrg } from "@/app/hooks/useRooms";
-import { OrganisationRoom } from "@yosemite-crew/types";
-import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
-import { PERMISSIONS } from "@/app/lib/permissions";
-import { usePermissions } from "@/app/hooks/usePermissions";
+import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
+import RoomTable from '@/app/ui/tables/RoomTable';
+import React, { useEffect, useState } from 'react';
+import AddRoom from '@/app/features/organization/pages/Organization/Sections/Rooms/AddRoom';
+import RoomInfo from '@/app/features/organization/pages/Organization/Sections/Rooms/RoomInfo';
+import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
+import { OrganisationRoom } from '@yosemite-crew/types';
+import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import { PERMISSIONS } from '@/app/lib/permissions';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { toggleRoomAvailability } from '@/app/features/organization/services/roomService';
+import { useNotify } from '@/app/hooks/useNotify';
+
+type ManagedRoom = OrganisationRoom & {
+  availability?: {
+    isAvailable?: boolean;
+  };
+};
 
 const Rooms = () => {
   const rooms = useRoomsForPrimaryOrg();
+  const { notify } = useNotify();
   const { can } = usePermissions();
   const canEditRoom = can(PERMISSIONS.ROOM_EDIT_ANY);
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
-  const [activeRoom, setActiveRoom] = useState<OrganisationRoom | null>(
-    rooms[0] ?? null
-  );
+  const [activeRoom, setActiveRoom] = useState<OrganisationRoom | null>(rooms[0] ?? null);
 
   useEffect(() => {
     setActiveRoom((prev) => {
@@ -30,11 +37,33 @@ const Rooms = () => {
     });
   }, [rooms]);
 
+  const handleEditRoom = (room: ManagedRoom) => {
+    setActiveRoom(room);
+    setViewPopup(true);
+  };
+
+  const handleToggleAvailability = async (room: ManagedRoom, isAvailable: boolean) => {
+    if (!canEditRoom) return;
+    try {
+      await toggleRoomAvailability(room, isAvailable);
+      notify('success', {
+        title: isAvailable ? 'Room available' : 'Room unavailable',
+        text: `${room.name} availability has been updated.`,
+      });
+    } catch (error) {
+      console.log(error);
+      notify('error', {
+        title: 'Unable to update room',
+        text: 'Failed to update room availability. Please try again.',
+      });
+    }
+  };
+
   return (
     <PermissionGate allOf={[PERMISSIONS.ROOM_VIEW_ANY]}>
       <AccordionButton
         title="Rooms"
-        buttonTitle="Add"
+        buttonTitle="Add Room"
         buttonClick={setAddPopup}
         showButton={canEditRoom}
       >
@@ -42,6 +71,9 @@ const Rooms = () => {
           filteredList={rooms}
           setActive={setActiveRoom}
           setView={setViewPopup}
+          onEdit={handleEditRoom}
+          onToggleAvailability={handleToggleAvailability}
+          canEditRoom={canEditRoom}
         />
       </AccordionButton>
       <AddRoom showModal={addPopup} setShowModal={setAddPopup} />

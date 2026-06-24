@@ -16,6 +16,12 @@ jest.mock('@/app/ui/overlays/Fallback', () => ({
   default: () => <div>fallback</div>,
 }));
 
+jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
+  __esModule: true,
+  default: ({ open, pdfUrl, title }: any) =>
+    open ? <div data-testid="pdf-preview">{`${title}-${pdfUrl}`}</div> : null,
+}));
+
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: (selector: any) =>
     selector({ primaryOrgId: 'org-1', orgsById: { 'org-1': { type: 'HOSPITAL' } } }),
@@ -131,7 +137,7 @@ describe('CompanionHistoryTimeline', () => {
     windowOpenSpy.mockRestore();
   });
 
-  it('renders mixed entries and type-specific action labels', async () => {
+  it('renders table tabs and type-specific action labels', async () => {
     (fetchCompanionHistory as jest.Mock).mockResolvedValue({
       entries: baseEntries,
       nextCursor: null,
@@ -141,16 +147,36 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+      expect(screen.getByText('Consult')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
+
+    await waitFor(() => {
       expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
     });
 
     expect(screen.getByRole('button', { name: 'Open file' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Diagnostics' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('IDEXX Result')).toBeInTheDocument();
+    });
+
     expect(screen.getByRole('button', { name: 'Open result' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Billing' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('i-1')).toBeInTheDocument();
+    });
+
     expect(screen.getByRole('button', { name: 'Open finance' })).toBeInTheDocument();
   });
 
-  it('filters by selected quick filter', async () => {
+  it('filters by selected table tab', async () => {
     (fetchCompanionHistory as jest.Mock)
       .mockResolvedValueOnce({
         entries: baseEntries,
@@ -158,22 +184,31 @@ describe('CompanionHistoryTimeline', () => {
         summary: { totalReturned: 6, countsByType: {} },
       })
       .mockResolvedValueOnce({
-        entries: baseEntries.filter((entry) => entry.type === 'DOCUMENT'),
+        entries: baseEntries.filter(
+          (entry) => entry.type === 'DOCUMENT' || entry.type === 'FORM_SUBMISSION'
+        ),
         nextCursor: null,
-        summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+        summary: { totalReturned: 2, countsByType: { DOCUMENT: 1, FORM_SUBMISSION: 1 } },
+      })
+      .mockResolvedValueOnce({
+        entries: baseEntries.filter(
+          (entry) => entry.type === 'DOCUMENT' || entry.type === 'FORM_SUBMISSION'
+        ),
+        nextCursor: null,
+        summary: { totalReturned: 2, countsByType: { DOCUMENT: 1, FORM_SUBMISSION: 1 } },
       });
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+      expect(screen.getByText('Consult')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
 
     await waitFor(() => {
       expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
-      expect(screen.queryByText('Recheck visit')).not.toBeInTheDocument();
+      expect(screen.queryByText('Consult')).not.toBeInTheDocument();
     });
     expect(fetchCompanionHistory).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -181,12 +216,12 @@ describe('CompanionHistoryTimeline', () => {
         organisationId: 'org-1',
         limit: 50,
         cursor: null,
-        types: ['DOCUMENT'],
+        types: ['FORM_SUBMISSION', 'DOCUMENT'],
       })
     );
   });
 
-  it('shows document upload accordion in documents filter and refreshes after upload', async () => {
+  it('shows document upload accordion in medical records filter and refreshes after upload', async () => {
     (fetchCompanionHistory as jest.Mock)
       .mockResolvedValueOnce({
         entries: baseEntries,
@@ -194,25 +229,22 @@ describe('CompanionHistoryTimeline', () => {
         summary: { totalReturned: 6, countsByType: {} },
       })
       .mockResolvedValueOnce({
-        entries: baseEntries.filter((entry) => entry.type === 'DOCUMENT'),
+        entries: baseEntries.filter(
+          (entry) => entry.type === 'DOCUMENT' || entry.type === 'FORM_SUBMISSION'
+        ),
         nextCursor: null,
-        summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
-      })
-      .mockResolvedValueOnce({
-        entries: baseEntries.filter((entry) => entry.type === 'DOCUMENT'),
-        nextCursor: null,
-        summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+        summary: { totalReturned: 2, countsByType: { DOCUMENT: 1, FORM_SUBMISSION: 1 } },
       });
 
     render(<CompanionHistoryTimeline companionId="c-1" showDocumentUpload />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+      expect(screen.getByText('Consult')).toBeInTheDocument();
     });
 
     expect(screen.queryByText('history-document-upload-c-1')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
 
     await waitFor(() => {
       expect(screen.getByText('history-document-upload-c-1')).toBeInTheDocument();
@@ -227,7 +259,7 @@ describe('CompanionHistoryTimeline', () => {
           organisationId: 'org-1',
           limit: 50,
           cursor: null,
-          types: ['DOCUMENT'],
+          types: ['FORM_SUBMISSION', 'DOCUMENT'],
         })
       );
     });
@@ -236,27 +268,33 @@ describe('CompanionHistoryTimeline', () => {
   it('appends entries on load more', async () => {
     (fetchCompanionHistory as jest.Mock)
       .mockResolvedValueOnce({
-        entries: baseEntries.slice(0, 2),
+        entries: [baseEntries[0]],
         nextCursor: 'cursor-1',
-        summary: { totalReturned: 2, countsByType: {} },
+        summary: { totalReturned: 1, countsByType: {} },
       })
       .mockResolvedValueOnce({
-        entries: baseEntries.slice(2, 4),
+        entries: [
+          {
+            ...baseEntries[0],
+            id: 'entry-appointment-2',
+            title: 'Second appointment',
+            payload: { serviceName: 'Wellness consult', roomName: 'Room 3' },
+          },
+        ],
         nextCursor: null,
-        summary: { totalReturned: 2, countsByType: {} },
+        summary: { totalReturned: 1, countsByType: {} },
       });
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+      expect(screen.getByText('Consult')).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
 
     await waitFor(() => {
-      expect(screen.getByText('SOAP Subjective')).toBeInTheDocument();
-      expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
+      expect(screen.getByText('Wellness consult')).toBeInTheDocument();
     });
   });
 
@@ -294,7 +332,7 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'SOAP / Templates' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Medical Records' })).toBeInTheDocument();
     });
   });
 
@@ -314,7 +352,7 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+      expect(screen.getByText('Consult')).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('tab', { name: 'Tasks' }));
@@ -348,7 +386,7 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recheck visit')).toBeInTheDocument();
+      expect(screen.getByText('Consult')).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('tab', { name: 'Audit trail' }));
@@ -368,6 +406,8 @@ describe('CompanionHistoryTimeline', () => {
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+
     const openFile = await screen.findByRole('button', { name: 'Open file' });
     fireEvent.click(openFile);
 
@@ -379,6 +419,53 @@ describe('CompanionHistoryTimeline', () => {
         'noopener,noreferrer'
       );
     });
+  });
+
+  it('expands structured medical record results inline', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[2],
+          payload: {
+            ...baseEntries[2].payload,
+            results: [{ test: 'Heart rate', value: '88', unit: 'bpm' }],
+          },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { FORM_SUBMISSION: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open submission' }));
+
+    expect(await screen.findByText('Heart rate')).toBeInTheDocument();
+    expect(screen.getByText('88 / bpm')).toBeInTheDocument();
+  });
+
+  it('opens medical record PDFs in the preview overlay when a URL is available', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[3],
+          payload: { ...baseEntries[3].payload, pdfUrl: 'https://example.com/result.pdf' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open file' }));
+
+    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
+      'Blood panel PDF-https://example.com/result.pdf'
+    );
+    expect(loadDocumentDownloadURL).not.toHaveBeenCalled();
   });
 
   it('uses in-page callback for active appointment linked entries', async () => {
@@ -397,8 +484,10 @@ describe('CompanionHistoryTimeline', () => {
       />
     );
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Diagnostics' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open result' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Open appointment' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Appointments' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
 
     expect(onOpenAppointmentView).toHaveBeenCalledWith({
       label: 'labs',

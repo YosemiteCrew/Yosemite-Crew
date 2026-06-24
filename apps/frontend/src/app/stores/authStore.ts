@@ -8,7 +8,6 @@ import {
   ISignUpResult,
   AuthenticationDetails,
 } from 'amazon-cognito-identity-js';
-import { useOrgStore } from '@/app/stores/orgStore';
 import { removeStorageItem } from '@/app/lib/browserStorage';
 import { logger } from '@/app/lib/logger';
 import { clearSessionScopedStores } from '@/app/lib/resetSessionStores';
@@ -318,7 +317,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const { user } = get();
     const resetState = () => resetAuthState(set);
     resetState();
-    if (!user) return;
+    if (!user) {
+      // No in-memory user, but a previous session's Cognito tokens may still be
+      // cached in localStorage. Clear them so a later refresh does not try to
+      // refresh a revoked token (NotAuthorizedException: token has been revoked).
+      clearCachedCognitoUser();
+      return;
+    }
     if (typeof globalThis === 'undefined') {
       return;
     }
@@ -387,31 +392,51 @@ const resetAuthState = (set: (partial: Partial<AuthStore>) => void) => {
     loading: false,
   });
   try {
-    useOrgStore.getState().clearOrgs();
+    clearSessionScopedStores();
   } catch (err) {
-    logger.warn('Failed to clear org store on signout', err);
+    logger.warn('Failed to clear session-scoped stores on signout', err);
+  }
+};
+
+/**
+ * Clear the Cognito tokens that amazon-cognito-identity-js caches in
+ * localStorage. Without this, a logged-out user who refreshes still has a
+ * `getCurrentUser()` that attempts to refresh a revoked token, producing
+ * `NotAuthorizedException: Access Token has been revoked`. `signOut()` is
+ * local-only (no network) so it is safe even when the server session is gone.
+ */
+const clearCachedCognitoUser = () => {
+  try {
+    userPool?.getCurrentUser()?.signOut();
+  } catch (err) {
+    logger.warn('Failed to clear cached Cognito tokens on signout', err);
   }
 };
 
 const performGlobalSignOut = (user: CognitoUser, resetState: () => void): Promise<void> =>
   new Promise((resolve) => {
     user.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      // Always purge the locally cached tokens so a later refresh never replays
+      // a revoked refresh token, regardless of whether globalSignOut runs.
       if (err || !session?.isValid()) {
         if (err) {
           logger.warn('getSession failed during signout:', err);
         } else {
           logger.warn('Invalid session during signout');
         }
+        clearCachedCognitoUser();
         resolve();
         return;
       }
       user.globalSignOut({
         onSuccess: () => {
+          clearCachedCognitoUser();
           resetState();
           resolve();
         },
         onFailure: (signoutErr: Error | null) => {
           logger.error('globalSignOut failed', signoutErr);
+          clearCachedCognitoUser();
           resetState();
           resolve();
         },

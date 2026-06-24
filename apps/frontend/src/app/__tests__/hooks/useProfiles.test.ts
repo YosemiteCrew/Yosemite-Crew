@@ -3,6 +3,7 @@ import { useLoadProfiles, usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { loadProfiles } from '@/app/features/organization/services/profileService';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
+import { useAuthStore } from '@/app/stores/authStore';
 
 // --- Mocks ---
 
@@ -12,6 +13,7 @@ jest.mock('@/app/features/organization/services/profileService', () => ({
 
 jest.mock('@/app/stores/orgStore');
 jest.mock('@/app/stores/profileStore');
+jest.mock('@/app/stores/authStore');
 
 const mockProfileGetState = jest.fn();
 
@@ -37,6 +39,9 @@ describe('useProfiles Hooks', () => {
     (useUserProfileStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockProfileState)
     );
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ status: 'authenticated' })
+    );
     mockProfileGetState.mockReturnValue(mockProfileState);
     (useUserProfileStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
       mockProfileGetState;
@@ -58,6 +63,17 @@ describe('useProfiles Hooks', () => {
     it('should NOT trigger loadProfiles if primaryOrgId is null', () => {
       mockOrgState.primaryOrgId = null;
       mockProfileState.status = 'idle';
+
+      renderHook(() => useLoadProfiles());
+
+      expect(loadProfiles).not.toHaveBeenCalled();
+    });
+
+    it('should NOT trigger loadProfiles while unauthenticated', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
+        selector({ status: 'unauthenticated' })
+      );
 
       renderHook(() => useLoadProfiles());
 

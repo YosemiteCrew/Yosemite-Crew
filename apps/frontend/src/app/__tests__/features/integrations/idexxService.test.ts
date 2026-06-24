@@ -17,6 +17,7 @@ import {
   getIdexxResultById,
   getIdexxResultPdfUrl,
   getIdexxResultPdfBlob,
+  getIdexxCombinedResultsPdfBlob,
 } from '@/app/features/integrations/services/idexxService';
 
 const getDataMock = jest.fn();
@@ -301,20 +302,34 @@ describe('listIdexxOrders', () => {
     );
   });
 
-  it('posts companionId, status, and limit when provided', async () => {
+  it('posts patientId, status, and limit when provided', async () => {
     postDataMock.mockResolvedValue({ data: [] });
     await listIdexxOrders({
       organisationId: 'org-1',
-      companionId: 'comp-1',
+      patientId: 'patient-1',
       status: 'SUBMITTED',
       limit: 10,
     });
     expect(postDataMock).toHaveBeenCalledWith(
       '/v1/labs/pms/organisation/org-1/idexx/orders/search',
       {
-        companionId: 'comp-1',
+        patientId: 'patient-1',
         status: 'SUBMITTED',
         limit: 10,
+      }
+    );
+  });
+
+  it('serializes companionId as patientId for existing callers', async () => {
+    postDataMock.mockResolvedValue({ data: [] });
+    await listIdexxOrders({
+      organisationId: 'org-1',
+      companionId: 'comp-1',
+    });
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/labs/pms/organisation/org-1/idexx/orders/search',
+      {
+        patientId: 'comp-1',
       }
     );
   });
@@ -330,7 +345,7 @@ describe('listIdexxOrders', () => {
       '/v1/labs/pms/organisation/org-1/idexx/orders/search',
       {
         appointmentId: 'appt-1',
-        companionId: 'comp-1',
+        patientId: 'comp-1',
       }
     );
   });
@@ -440,5 +455,28 @@ describe('getIdexxResultPdfBlob', () => {
     apiGetMock.mockResolvedValue({ data: nonHexBlob });
     const result = await getIdexxResultPdfBlob({ organisationId: 'org-1', resultId: 'r1' });
     expect(result.type).toBe('application/pdf');
+  });
+});
+
+describe('getIdexxCombinedResultsPdfBlob', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('requests the combined results PDF with comma-joined resultIds', async () => {
+    const mockBlob = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
+    apiGetMock.mockResolvedValue({ data: mockBlob });
+
+    const result = await getIdexxCombinedResultsPdfBlob({
+      organisationId: 'org-1',
+      resultIds: ['r1', 'r2'],
+    });
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(apiGetMock).toHaveBeenCalledWith(
+      '/v1/labs/pms/organisation/org-1/IDEXX/results/pdf',
+      expect.objectContaining({
+        responseType: 'blob',
+        params: { resultIds: 'r1,r2' },
+      })
+    );
   });
 });

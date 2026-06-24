@@ -7,6 +7,7 @@ import {
 import { FinanceSubscriptionService } from "src/services/finance/subscription";
 import { FinanceEventService } from "src/services/finance/events";
 import { StripeController } from "src/controllers/web/stripe.controller";
+import { StripeService } from "src/services/stripe.service";
 import {
   InvoiceService,
   InvoiceServiceError,
@@ -187,6 +188,12 @@ const RecordInvoicePaymentBodySchema = z.object({
   receivedAt: z.string().datetime().optional(),
 });
 
+const CloseoutInvoiceBodySchema = z.object({
+  settlementChannel: z.string().trim().min(1).optional(),
+  reference: z.string().trim().min(1).optional(),
+  receivedAt: z.string().datetime().optional(),
+});
+
 const RefundPaymentBodySchema = z.object({
   amount: z.number().positive(),
   reason: z.string().trim().min(1).optional(),
@@ -268,6 +275,10 @@ export const FinanceController = {
       }
 
       const filters = query.data;
+      // Tenant scope must come from the org authorized by withOrgPermissions
+      // (which may be supplied via header/param), not the raw query value.
+      const authorizedOrganisationId =
+        (req as OrgRequest).organisationId ?? filters.organisationId;
       const resolved = {
         organisationId: filters.organisationId,
         appointmentId: filters.appointmentId,
@@ -287,16 +298,17 @@ export const FinanceController = {
         });
       }
 
-      if (resolved.organisationId) {
-        const invoices = await InvoiceService.listForOrganisation(
-          resolved.organisationId,
+      if (resolved.appointmentId) {
+        const invoices = await InvoiceService.getByAppointmentId(
+          resolved.appointmentId,
+          authorizedOrganisationId,
         );
         return res.status(200).json(toFinanceSuccess(invoices));
       }
 
-      if (resolved.appointmentId) {
-        const invoices = await InvoiceService.getByAppointmentId(
-          resolved.appointmentId,
+      if (resolved.organisationId) {
+        const invoices = await InvoiceService.listForOrganisation(
+          resolved.organisationId,
         );
         return res.status(200).json(toFinanceSuccess(invoices));
       }
@@ -437,7 +449,7 @@ export const FinanceController = {
     }
   },
 
-  async getInvoiceByPaymentIntentId(this: void, req: Request, res: Response) {
+  async retrievePaymentIntent(this: void, req: Request, res: Response) {
     try {
       const paymentIntentId = req.params.paymentIntentId;
       if (!paymentIntentId) {
@@ -446,19 +458,12 @@ export const FinanceController = {
           .json({ message: "Payment Intent Id is required" });
       }
 
-      const organisationId = (req as OrgRequest).organisationId;
-      const invoice = await InvoiceService.getByPaymentIntentId(
-        paymentIntentId,
-        organisationId,
-      );
+      const paymentIntent =
+        await StripeService.retrievePaymentIntent(paymentIntentId);
 
-      if (!invoice) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-
-      return res.status(200).json(toFinanceSuccess(invoice));
+      return res.status(200).json(toFinanceSuccess(paymentIntent));
     } catch (error) {
-      logger.error("Error fetching invoice by payment intent", error);
+      logger.error("Error retrieving payment intent", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
@@ -517,6 +522,60 @@ export const FinanceController = {
           : "Internal server error";
 
       logger.error("Error finalizing invoice", error);
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async settleInvoiceAtCloseout(this: void, req: Request, res: Response) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const body = CloseoutInvoiceBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const invoice = await InvoiceService.settleInvoiceAtCloseout(
+        invoiceId,
+        organisationId,
+        {
+          settlementChannel: body.data.settlementChannel as
+            | "CASH"
+            | "BANK_TRANSFER"
+            | "CARD_PRESENT"
+            | "DEPOSIT"
+            | "OTHER"
+            | undefined,
+          reference: body.data.reference,
+          receivedAt: body.data.receivedAt
+            ? new Date(body.data.receivedAt)
+            : undefined,
+        },
+      );
+
+      return res.status(200).json(toFinanceSuccess(invoice));
+    } catch (error) {
+      const statusCode =
+        error instanceof InvoiceServiceError
+          ? error.statusCode
+          : error instanceof FinancePaymentError
+            ? error.statusCode
+            : 500;
+      const message =
+        error instanceof InvoiceServiceError ||
+        error instanceof FinancePaymentError
+          ? error.message
+          : "Internal server error";
+
+      logger.error("Error settling invoice at closeout", error);
       return res.status(statusCode).json({ message });
     }
   },
@@ -1312,6 +1371,38 @@ export const FinanceController = {
           message: "Invalid request body",
         });
       }
+
+      if (error instanceof FinancePaymentError) {
+        return res.status(error.statusCode).json({
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async createMobileInvoicePaymentSession(
+    this: void,
+    req: Request,
+    res: Response,
+  ) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const result =
+        await FinancePaymentService.createPaymentIntentForInvoice(invoiceId);
+
+      return res.status(201).json({
+        data: result,
+        meta: null,
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error creating mobile invoice payment session", error);
 
       if (error instanceof FinancePaymentError) {
         return res.status(error.statusCode).json({

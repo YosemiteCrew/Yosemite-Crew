@@ -62,7 +62,7 @@ const AppointmentDetailsSection = ({
         options={specialitiesOptions}
       />
       <LabelDropdown
-        placeholder="Service"
+        placeholder="Services / Packages"
         onSelect={onServiceSelect}
         defaultOption={serviceId}
         error={serviceError}

@@ -53,7 +53,7 @@ describe('Configuration Variables', () => {
       expect(config.PASSWORDLESS_AUTH_CONFIG.profileServiceUrl).toBe('');
       expect(config.STREAM_CHAT_CONFIG.apiKey).toBe('');
       expect(config.STRIPE_CONFIG.urlScheme).toBe('yosemitecrew');
-      expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(true);
+      expect(config.AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
       expect(config.DEMO_LOGIN_CONFIG.email).toBe('');
       expect(config.POSTHOG_CONFIG).toEqual({
         apiKey: '',

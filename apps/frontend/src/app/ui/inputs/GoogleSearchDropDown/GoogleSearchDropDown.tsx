@@ -111,6 +111,7 @@ const GoogleSearchDropDown = ({
   const fetchDetails = true;
   const canShowPredictions = !readonly && (value ?? '').trim().length >= 2;
   const isDropdownOpen = open && canShowPredictions;
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -124,68 +125,83 @@ const GoogleSearchDropDown = ({
     };
   }, []);
 
-  useEffect(() => {
-    const q = (value ?? '').trim();
+  const fetchPredictions = async (q: string) => {
     if (readonly || q.length < 2) {
-      return;
-    }
-    if (!shouldFetchRef.current) {
+      setPredictions([]);
+      setOpen(false);
       return;
     }
     if (q === lastQueriedRef.current) {
       return;
     }
-    const handle = setTimeout(async () => {
-      try {
-        const body: any = {
-          input: q,
-        };
-        const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
-          },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error(`Autocomplete failed: ${res.status}`);
-        const json = await res.json();
-        const list: Prediction[] = (json?.suggestions ?? []).map((s: any) => {
-          if (s.placePrediction) {
-            const p = s.placePrediction;
-            return {
-              kind: 'place' as const,
-              description: p.text?.text ?? p.structuredFormat?.mainText?.text ?? '',
-              placeId: p.placeId,
-              mainText: p.structuredFormat?.mainText?.text,
-              secondaryText: p.structuredFormat?.secondaryText?.text,
-              types: p.types,
-              distanceMeters: p.distanceMeters,
-            };
-          } else if (s.queryPrediction) {
-            const qp = s.queryPrediction;
-            return {
-              kind: 'query' as const,
-              description: qp.text?.text ?? qp.structuredFormat?.mainText?.text ?? '',
-              mainText: qp.structuredFormat?.mainText?.text,
-              secondaryText: qp.structuredFormat?.secondaryText?.text,
-            };
-          }
-          return { kind: 'query', description: '' };
-        });
-        logger.debug('Google places autocomplete results', list);
-        lastQueriedRef.current = q;
-        setPredictions(list);
-        if (!suppressNextOpenRef.current && isFocused) setOpen(list.length > 0);
-      } catch (err) {
-        logger.error('Google places autocomplete failed', err);
-        setPredictions([]);
-        setOpen(false);
-      }
-    }, 400);
+    try {
+      const body: any = {
+        input: q,
+      };
+      const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`Autocomplete failed: ${res.status}`);
+      const json = await res.json();
+      const list: Prediction[] = (json?.suggestions ?? []).map((s: any) => {
+        if (s.placePrediction) {
+          const p = s.placePrediction;
+          return {
+            kind: 'place' as const,
+            description: p.text?.text ?? p.structuredFormat?.mainText?.text ?? '',
+            placeId: p.placeId,
+            mainText: p.structuredFormat?.mainText?.text,
+            secondaryText: p.structuredFormat?.secondaryText?.text,
+            types: p.types,
+            distanceMeters: p.distanceMeters,
+          };
+        } else if (s.queryPrediction) {
+          const qp = s.queryPrediction;
+          return {
+            kind: 'query' as const,
+            description: qp.text?.text ?? qp.structuredFormat?.mainText?.text ?? '',
+            mainText: qp.structuredFormat?.mainText?.text,
+            secondaryText: qp.structuredFormat?.secondaryText?.text,
+          };
+        }
+        return { kind: 'query', description: '' };
+      });
+      logger.debug('Google places autocomplete results', list);
+      lastQueriedRef.current = q;
+      setPredictions(list);
+      if (!suppressNextOpenRef.current && isFocused) setOpen(list.length > 0);
+    } catch (err) {
+      logger.error('Google places autocomplete failed', err);
+      setPredictions([]);
+      setOpen(false);
+    }
+  };
 
-    return () => clearTimeout(handle);
-  }, [value, readonly, isFocused]);
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onChange?.(event);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    const q = event.target.value.trim();
+    if (!shouldFetchRef.current) return;
+    debounceRef.current = setTimeout(() => {
+      void fetchPredictions(q);
+    }, 400);
+  };
+
+  useEffect(
+    () => () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    },
+    []
+  );
 
   const selectPrediction = async (item: (typeof predictions)[number]) => {
     suppressNextOpenRef.current = true;
@@ -341,7 +357,7 @@ const GoogleSearchDropDown = ({
           id={uid}
           aria-label={inlabel}
           value={value ?? ''}
-          onChange={onChange}
+          onChange={handleInputChange}
           autoComplete="off"
           readOnly={readonly}
           required

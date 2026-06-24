@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 import {
   useLoadAppointmentsForPrimaryOrg,
   useAppointmentsForPrimaryOrg,
+  useAppointmentsForCompanionInPrimaryOrg,
 } from '@/app/hooks/useAppointments';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { AppointmentWithCompanion } from '@/app/features/appointments/types/appointments';
@@ -147,6 +148,32 @@ describe('useAppointments Hooks', () => {
       expect(result.current).toEqual([mockAppt1, mockAppt2]);
     });
 
+    it('returns FHIR-converted appointments that only have patient data', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      const patientOnlyAppointment = {
+        id: 'appt-patient-only',
+        patient: {
+          id: 'pet-1',
+          name: 'Buddy',
+          species: 'Canine',
+          parent: { id: 'parent-1', name: 'John Doe' },
+        },
+      } as Appointment;
+      mockAppointmentState.appointmentIdsByOrgId['org-1'] = ['appt-patient-only'];
+      mockAppointmentState.appointmentsById = {
+        'appt-patient-only': patientOnlyAppointment,
+      };
+
+      const { result } = renderHook(() => useAppointmentsForPrimaryOrg());
+
+      expect(result.current).toEqual([
+        expect.objectContaining({
+          id: 'appt-patient-only',
+          companion: patientOnlyAppointment.patient,
+        }),
+      ]);
+    });
+
     it('filters out null/undefined appointments (data integrity check)', () => {
       mockOrgState.primaryOrgId = 'org-1';
       // Index says we have appt-1 and appt-ghost, but map only has appt-1
@@ -159,6 +186,33 @@ describe('useAppointments Hooks', () => {
 
       expect(result.current).toHaveLength(1);
       expect(result.current[0]).toEqual(mockAppt1);
+    });
+  });
+
+  describe('useAppointmentsForCompanionInPrimaryOrg', () => {
+    it('matches companion id against patient fallback data', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockAppointmentState.appointmentIdsByOrgId['org-1'] = ['appt-patient-only'];
+      mockAppointmentState.appointmentsById = {
+        'appt-patient-only': {
+          id: 'appt-patient-only',
+          patient: {
+            id: 'pet-1',
+            name: 'Buddy',
+            species: 'Canine',
+            parent: { id: 'parent-1', name: 'John Doe' },
+          },
+        } as Appointment,
+      };
+
+      const { result } = renderHook(() => useAppointmentsForCompanionInPrimaryOrg('pet-1'));
+
+      expect(result.current).toEqual([
+        expect.objectContaining({
+          id: 'appt-patient-only',
+          companion: expect.objectContaining({ id: 'pet-1' }),
+        }),
+      ]);
     });
   });
 });

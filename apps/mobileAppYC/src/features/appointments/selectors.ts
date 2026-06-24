@@ -19,7 +19,7 @@ export const createSelectAppointmentsByCompanion = () =>
   createSelector(
     [selectAppointments, selectCompanionParam],
     (items, companionId) =>
-      items.filter(a => (companionId ? a.companionId === companionId : true)),
+      companionId ? items.filter(a => a.companionId === companionId) : [],
   );
 
 export const createSelectUpcomingAppointments = () => {
@@ -65,6 +65,14 @@ export const createSelectServicesForBusiness = () =>
   createSelector(
     [selectServices, (_: RootState, businessId: string) => businessId],
     (services, businessId) => services.filter(s => s.businessId === businessId),
+  );
+
+const selectPackages = (state: RootState) => state.businesses?.packages ?? [];
+
+export const createSelectPackagesForBusiness = () =>
+  createSelector(
+    [selectPackages, (_: RootState, businessId: string) => businessId],
+    (packages, businessId) => packages.filter(p => p.businessId === businessId),
   );
 
 export const selectServiceById =

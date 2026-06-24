@@ -6,6 +6,7 @@ export type Admission = {
   unitId?: string;
   expectedStayDays?: number;
   admittedAt: Date;
+  admittedBy?: string;
   dischargedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;

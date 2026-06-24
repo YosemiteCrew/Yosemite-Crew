@@ -203,6 +203,10 @@ describe("CaseEncounterController", () => {
           name: "dischargedAt",
           valueDateTime: "2026-06-11T12:00:00.000Z",
         },
+        {
+          name: "overrideReason",
+          valueString: "Approved clinical override",
+        },
       ],
     };
     mockedService.dischargeEncounter.mockResolvedValue({
@@ -220,6 +224,8 @@ describe("CaseEncounterController", () => {
     expect(mockedService.dischargeEncounter).toHaveBeenCalledWith("enc_1", {
       dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
       periodEnd: undefined,
+      overrideReason: "Approved clinical override",
+      actorUserId: undefined,
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -361,6 +367,7 @@ describe("CaseEncounterController", () => {
   it("marks an encounter ready for discharge", async () => {
     req.params = { id: "enc_1" };
     req.body = { resourceType: "Parameters" };
+    (req as any).userId = "user-1";
     mockedService.markEncounterReadyForDischarge.mockResolvedValue({
       id: "enc_1",
       caseId: "case_1",
@@ -375,6 +382,7 @@ describe("CaseEncounterController", () => {
 
     expect(mockedService.markEncounterReadyForDischarge).toHaveBeenCalledWith(
       "enc_1",
+      "user-1",
     );
     expect(res.status).toHaveBeenCalledWith(200);
   });

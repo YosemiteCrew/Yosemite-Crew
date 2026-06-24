@@ -1,5 +1,13 @@
 import React, {useMemo, useCallback, useEffect} from 'react';
-import {View, Text, StyleSheet, Image, TouchableOpacity, Linking, ScrollView} from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Linking,
+  ScrollView,
+} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -24,9 +32,15 @@ export const PaymentSuccessScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
-  const {appointmentId, companionId, expenseId} = route.params as {appointmentId: string; companionId?: string; expenseId?: string};
+  const {appointmentId, companionId, expenseId} = route.params as {
+    appointmentId: string;
+    companionId?: string;
+    expenseId?: string;
+  };
   const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const appointment = useSelector((state: RootState) => state.appointments.items.find(a => a.id === appointmentId));
+  const appointment = useSelector((state: RootState) =>
+    state.appointments.items.find(a => a.id === appointmentId),
+  );
   const invoice = useSelector(selectInvoiceForAppointment(appointmentId));
   const resolvedCompanionId = companionId ?? appointment?.companionId ?? null;
   const invoiceNumber = invoice?.invoiceNumber ?? invoice?.id ?? '—';
@@ -47,7 +61,9 @@ export const PaymentSuccessScreen: React.FC = () => {
     }
     if (appointment?.date && appointment?.time) {
       const normalizedTime =
-        appointment.time.length === 5 ? `${appointment.time}:00` : appointment.time;
+        appointment.time.length === 5
+          ? `${appointment.time}:00`
+          : appointment.time;
       const parsed = new Date(`${appointment.date}T${normalizedTime}Z`);
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
@@ -70,7 +86,8 @@ export const PaymentSuccessScreen: React.FC = () => {
         timeZone: deviceTimeZone,
       })
     : '—';
-  const receiptUrl = invoice?.downloadUrl ?? invoice?.paymentIntent?.paymentLinkUrl ?? null;
+  const receiptUrl =
+    invoice?.downloadUrl ?? invoice?.paymentIntent?.paymentLinkUrl ?? null;
 
   useEffect(() => {
     if (appointmentId) {
@@ -95,7 +112,9 @@ export const PaymentSuccessScreen: React.FC = () => {
       } as any);
     } else {
       // Otherwise navigate to Appointments
-      tabNavigation?.navigate('Appointments', {screen: 'MyAppointments'} as any);
+      tabNavigation?.navigate('Appointments', {
+        screen: 'MyAppointments',
+      } as any);
     }
   }, [dispatch, navigation, resolvedCompanionId, expenseId]);
   const handleViewInvoice = useCallback(() => {
@@ -109,7 +128,7 @@ export const PaymentSuccessScreen: React.FC = () => {
 
   return (
     <LiquidGlassHeaderScreen
-    showBottomFade={false}
+      showBottomFade={false}
       header={
         <Header
           title="Successful Payment"
@@ -121,19 +140,23 @@ export const PaymentSuccessScreen: React.FC = () => {
       contentPadding={20}>
       {contentPaddingStyle => (
         <ScrollView
-          contentContainerStyle={[
-            styles.container,
-            contentPaddingStyle,
-          ]}
+          contentContainerStyle={[styles.container, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
           <Image source={Images.successPayment} style={styles.illustration} />
           <Text style={styles.title}>Thank you</Text>
-          <Text style={styles.subtitle}>You have Successfully made Payment</Text>
+          <Text style={styles.subtitle}>
+            You have Successfully made Payment
+          </Text>
           <View style={styles.detailsBlock}>
             <Text style={styles.detailsTitle}>Invoice Details</Text>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Invoice number</Text>
-              <Text style={styles.detailValue}>{invoiceNumber}</Text>
+              <Text
+                style={styles.detailValue}
+                numberOfLines={1}
+                ellipsizeMode="middle">
+                {invoiceNumber}
+              </Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Invoice date & time</Text>
@@ -141,7 +164,12 @@ export const PaymentSuccessScreen: React.FC = () => {
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Invoice ID</Text>
-              <Text style={styles.detailValue}>{invoice?.id ?? '—'}</Text>
+              <Text
+                style={styles.detailValue}
+                numberOfLines={1}
+                ellipsizeMode="middle">
+                {invoice?.id ?? '—'}
+              </Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Invoice</Text>
@@ -149,11 +177,16 @@ export const PaymentSuccessScreen: React.FC = () => {
                 style={styles.downloadInvoiceTouchable}
                 disabled={!receiptUrl}
                 onPress={handleViewInvoice}>
-                <Text style={[styles.detailValue, styles.link]}>
+                <Text
+                  style={[styles.detailValue, styles.link]}
+                  numberOfLines={1}>
                   {receiptUrl ? 'View invoice' : 'Not available'}
                 </Text>
                 {receiptUrl ? (
-                  <Image source={Images.downloadInvoice} style={styles.downloadInvoiceIcon} />
+                  <Image
+                    source={Images.downloadInvoice}
+                    style={styles.downloadInvoiceIcon}
+                  />
                 ) : null}
               </TouchableOpacity>
             </View>
@@ -183,81 +216,91 @@ export const PaymentSuccessScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: theme.spacing['4'],
-    paddingHorizontal: theme.spacing['4'],
-    paddingBottom: theme.spacing['24'],
-  },
-  illustration: {
-    width: 200,
-    height: 200,
-    resizeMode: 'contain',
-  },
-  title: {
-    ...theme.typography.h2,
-    color: theme.colors.secondary,
-  },
-  subtitle: {
-    ...theme.typography.body14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  detailsBlock: {
-    gap: theme.spacing['2'],
-    width: '100%',
-    maxWidth: theme.spacing['100'],
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing['4'],
-    backgroundColor: theme.colors.cardBackground,
-    marginTop: theme.spacing['3'],
-  },
-  detailsTitle: {
-    ...theme.typography.titleMedium,
-    color: theme.colors.secondary,
-    marginBottom: theme.spacing['2'],
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: theme.spacing['1'],
-  },
-  detailLabel: {
-    ...theme.typography.body14,
-    color: theme.colors.textSecondary,
-  },
-  detailValue: {
-    ...theme.typography.body14,
-    color: theme.colors.secondary,
-  },
-  link: {
-    color: theme.colors.primary,
-  },
-  downloadInvoiceTouchable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  downloadInvoiceIcon: {
-    width: theme.spacing['4'],
-    height: theme.spacing['4'],
-    marginLeft: theme.spacing['1'],
-  },
-  buttonContainer: {
-    width: '100%',
-    maxWidth: theme.spacing['100'],
-    marginTop: theme.spacing['4'],
-  },
-  confirmPrimaryButtonText: {
-    ...theme.typography.button,
-    color: theme.colors.white,
-    textAlign: 'center',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['24'],
+    },
+    illustration: {
+      width: 200,
+      height: 200,
+      resizeMode: 'contain',
+    },
+    title: {
+      ...theme.typography.h2,
+      color: theme.colors.secondary,
+    },
+    subtitle: {
+      ...theme.typography.body14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    detailsBlock: {
+      gap: theme.spacing['2'],
+      width: '100%',
+      maxWidth: theme.spacing['100'],
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing['4'],
+      backgroundColor: theme.colors.cardBackground,
+      marginTop: theme.spacing['3'],
+    },
+    detailsTitle: {
+      ...theme.typography.titleMedium,
+      color: theme.colors.secondary,
+      marginBottom: theme.spacing['2'],
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: theme.spacing['1'],
+      gap: theme.spacing['2'],
+    },
+    detailLabel: {
+      ...theme.typography.body14,
+      color: theme.colors.textSecondary,
+      flexShrink: 0,
+    },
+    detailValue: {
+      ...theme.typography.body14,
+      color: theme.colors.secondary,
+      flex: 1,
+      flexShrink: 1,
+      minWidth: 0,
+      textAlign: 'right',
+    },
+    link: {
+      color: theme.colors.primary,
+    },
+    downloadInvoiceTouchable: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      flexShrink: 1,
+      minWidth: 0,
+      justifyContent: 'flex-end',
+    },
+    downloadInvoiceIcon: {
+      width: theme.spacing['4'],
+      height: theme.spacing['4'],
+      marginLeft: theme.spacing['1'],
+    },
+    buttonContainer: {
+      width: '100%',
+      maxWidth: theme.spacing['100'],
+      marginTop: theme.spacing['4'],
+    },
+    confirmPrimaryButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.white,
+      textAlign: 'center',
+    },
+  });
 
 export default PaymentSuccessScreen;

@@ -1,0 +1,170 @@
+.DmcaPolicySec {
+  background: var(--whitebg);
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  padding: 88px 0 80px;
+}
+
+.DmcaPolicyData {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  max-width: 842px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.DmcaPolicyHead {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+}
+
+.DmcaPolicyEyebrow {
+  color: var(--blue-text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 120%;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.DmcaPolicyHead h1 {
+  color: var(--black-text);
+  font-family: var(--font-satoshi);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 120%;
+  margin: 0;
+}
+
+.DmcaPolicyLead,
+.DmcaPolicyMeta,
+.DmcaPolicySection p,
+.DmcaPolicySection li,
+.DmcaAgentCard p,
+.DmcaNoticeCard {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 140%;
+  margin: 0;
+}
+
+.DmcaPolicyMeta {
+  color: var(--color-text-secondary);
+  font-size: 16px;
+}
+
+.DmcaPolicyMetaRow {
+  align-items: center;
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--satoshi-font);
+  font-size: 16px;
+  font-weight: 400;
+  gap: 10px;
+  justify-content: center;
+  line-height: 140%;
+}
+
+.DmcaPolicyMetaSeparator {
+  background: var(--color-text-secondary);
+  display: inline-flex;
+  height: 16px;
+  opacity: 0.45;
+  width: 1px;
+}
+
+.DmcaPolicyContent {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+}
+
+.DmcaPolicySection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.DmcaPolicySection h2 {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 120%;
+  margin: 0;
+}
+
+.DmcaPolicySection h3 {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 120%;
+  margin: 0;
+}
+
+.DmcaPolicySection ol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 24px;
+}
+
+.DmcaAgentCard,
+.DmcaNoticeCard {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--lightgrey);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.DmcaNoticeCard {
+  border-left: 4px solid var(--blue-text);
+}
+
+.DmcaPolicyLink {
+  color: var(--blue-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.DmcaPolicyLink:hover {
+  color: var(--color-text-brand);
+}
+
+@media (max-width: 768px) {
+  .DmcaPolicySec {
+    padding: 80px 0 56px;
+  }
+
+  .DmcaPolicyData {
+    gap: 32px;
+  }
+
+  .DmcaPolicyHead h1 {
+    font-size: 32px;
+  }
+
+  .DmcaPolicyMetaSeparator {
+    height: 14px;
+  }
+
+  .DmcaPolicyLead,
+  .DmcaPolicySection p,
+  .DmcaPolicySection li,
+  .DmcaAgentCard p,
+  .DmcaNoticeCard {
+    font-size: 16px;
+  }
+}

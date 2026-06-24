@@ -62,6 +62,9 @@ jest.mock('@/app/ui/inputs/Dropdown/Dropdown', () => ({
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper', () => ({
   __esModule: true,
+  // Real context so Build's <StructureLockContext.Provider> renders; the stub wrapper
+  // below ignores the lock (BuilderWrapper's own lock behaviour is covered in its own test).
+  StructureLockContext: jest.requireActual('react').createContext(false),
   default: ({ field, onDelete, onMoveUp, onMoveDown, children }: any) => (
     <section aria-label={`${field.type.charAt(0).toUpperCase()}${field.type.slice(1)} field`}>
       {onMoveUp ? (
@@ -257,6 +260,14 @@ describe('Build form step', () => {
     expect(screen.getByText('Only one signature field is allowed per form.')).toBeInTheDocument();
   });
 
+  it('hides signature fields for SOAP templates', () => {
+    renderBuild(baseFormData({ category: 'SOAP', requiredSigner: 'CLIENT' }));
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'toggle-add-field' })[0]);
+
+    expect(screen.queryByRole('button', { name: 'Signature' })).not.toBeInTheDocument();
+  });
+
   it('uses ensureSingleSignatureAtEnd for Prescription forms', () => {
     renderBuild(baseFormData({ category: 'Prescription', requiredSigner: 'CLIENT' }));
 
@@ -385,6 +396,46 @@ describe('Build form step', () => {
       expect(updated.fields).toHaveLength(1);
       expect(updated.fields[0].label).toBe('Amoxicillin');
       expect(updated.fields[0].fields).toHaveLength(7);
+    });
+  });
+
+  describe('YC-default structure lock', () => {
+    const medicationGroup: FormField = {
+      id: 'med-group',
+      type: 'group',
+      label: 'Medications',
+      meta: { medicationGroup: true } as any,
+      fields: [],
+    };
+
+    it('hides every structure-add control when the template is YC-default', () => {
+      renderBuild(
+        baseFormData({
+          templateSource: 'YC_LIBRARY',
+          category: 'SOAP',
+          schema: [medicationGroup],
+        })
+      );
+
+      // Top-level + nested add dropdowns and the bottom Add Field button are hidden.
+      expect(screen.queryAllByRole('button', { name: 'toggle-add-field' })).toHaveLength(0);
+      expect(screen.queryByText('Add Field')).not.toBeInTheDocument();
+      // The medication picker (structure mutation) is hidden; content stays editable.
+      expect(screen.queryByTestId('medicine-dropdown')).not.toBeInTheDocument();
+    });
+
+    it('shows structure-add controls for custom (non-YC-default) templates', () => {
+      renderBuild(
+        baseFormData({
+          templateSource: 'ORG_TEMPLATE',
+          category: 'SOAP',
+          schema: [medicationGroup],
+        })
+      );
+
+      expect(screen.getAllByRole('button', { name: 'toggle-add-field' }).length).toBeGreaterThan(0);
+      expect(screen.getByText('Add Field')).toBeInTheDocument();
+      expect(screen.getByTestId('medicine-dropdown')).toBeInTheDocument();
     });
   });
 });

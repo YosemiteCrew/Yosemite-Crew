@@ -102,7 +102,7 @@ interface ChatLayoutProps {
   previewComponent: ComponentType<ChannelPreviewUIComponentProps>;
   onBack: () => void;
   currentUserId?: string | null;
-  channelFilter?: ChannelListProps['channelRenderFilterFn'];
+  channelFilter?: NonNullable<ChannelListProps['channelRenderFilterFn']>;
   showEmpty?: boolean;
   channelListHeader?: ReactNode;
 }
@@ -256,14 +256,7 @@ const GroupModal: FC<GroupModalProps> = ({
   onRemoveMember,
   onDelete,
 }) => {
-  const [showModal, setShowModal] = useState(open);
-
-  useEffect(() => {
-    setShowModal(open);
-  }, [open]);
-
   const handleClose = () => {
-    setShowModal(false);
     onClose();
   };
 
@@ -343,7 +336,7 @@ const GroupModal: FC<GroupModalProps> = ({
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal} onClose={handleClose}>
+    <Modal showModal={open} setShowModal={() => undefined} onClose={handleClose}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
           <div className="opacity-0">

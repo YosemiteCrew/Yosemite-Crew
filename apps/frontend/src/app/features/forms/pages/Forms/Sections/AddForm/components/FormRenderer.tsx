@@ -3,6 +3,7 @@ import DropdownRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/
 import InputRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputRenderer';
 import SignatureRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureRenderer';
 import TextRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer';
+import RichTextRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/RichText/RichTextRenderer';
 import BooleanRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanRenderer';
 import DateRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateRenderer';
 
@@ -37,6 +38,7 @@ type RuntimeRendererProps = {
 
 const runtimeComponentMap: Record<FormFieldType, React.ComponentType<RuntimeRendererProps>> = {
   textarea: TextRenderer as any,
+  richtext: RichTextRenderer as any,
   input: InputRenderer as any,
   number: InputRenderer as any,
   dropdown: DropdownRenderer as any,

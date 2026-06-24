@@ -1,0 +1,419 @@
+.yc-liquid-header-shell {
+  isolation: isolate;
+  min-height: 80px;
+  overflow: visible;
+  color: var(--color-text-primary);
+  background:
+    radial-gradient(
+      ellipse at 12% -20%,
+      color-mix(in srgb, var(--color-neutral-0) 72%, transparent) 0 30%,
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse at 84% 0%,
+      color-mix(in srgb, var(--color-brand-100) 54%, transparent) 0 26%,
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-neutral-0) 54%, transparent),
+      color-mix(in srgb, var(--color-neutral-0) 34%, transparent)
+    );
+  border-bottom: 1px solid color-mix(in srgb, var(--color-neutral-0) 56%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 94%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-neutral-0) 38%, transparent),
+    0 16px 40px color-mix(in srgb, var(--color-neutral-950) 11%, transparent);
+  z-index: 997;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+.yc-liquid-header-shell::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--color-neutral-0) 54%, transparent) 24%,
+      transparent 46%,
+      color-mix(in srgb, var(--color-brand-100) 28%, transparent) 72%,
+      transparent
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-neutral-0) 36%, transparent),
+      transparent 58%
+    );
+  opacity: 0.86;
+}
+
+.yc-liquid-header-shell::after {
+  position: absolute;
+  right: 18px;
+  bottom: -1px;
+  left: 18px;
+  z-index: -1;
+  height: 1px;
+  pointer-events: none;
+  content: '';
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-brand-950) 30%, var(--color-card-border)),
+    transparent
+  );
+  opacity: 0.58;
+}
+
+/* At top: fully transparent shell — only the floating pill is visible. */
+.yc-guest-header-shell {
+  position: fixed;
+  top: 0;
+  left: 0;
+  min-height: 80px;
+  pointer-events: none;
+  background: transparent;
+  border-bottom: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Shell is always a transparent passthrough — the pill itself grows into the bar. */
+.yc-guest-header-shell::before,
+.yc-guest-header-shell::after {
+  display: none;
+  content: none;
+}
+
+.yc-public-page {
+  --yc-public-nav-offset: 88px;
+}
+
+.yc-public-page > :where(section, main, div):first-child {
+  box-sizing: border-box;
+  padding-top: var(--yc-public-nav-offset);
+}
+
+.yc-public-page > .new-hero-section:first-child {
+  min-height: max(760px, 100vh);
+  padding-top: var(--yc-public-nav-offset);
+}
+
+/*
+ * The pill content box NEVER changes — fixed width/margin/padding — so the logo,
+ * nav and buttons never shift (zero layout movement in either state).
+ *
+ * Only the glass surface (::before) grows: from the pill's bounds (inset:0,
+ * rounded) outward to a flush full-width bar (negative insets reach the viewport
+ * edges, the shell top, and the shell bottom; corners flatten). Animating inset
+ * + border-radius reads as the pill expanding into the bar.
+ */
+.yc-guest-header {
+  position: relative;
+  display: flex;
+  width: min(1180px, calc(100% - 24px));
+  height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 0 10px 0 18px;
+  margin: 8px auto;
+  pointer-events: auto;
+}
+
+.yc-guest-header::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  border: 1px solid color-mix(in srgb, var(--color-neutral-0) 28%, transparent);
+  border-radius: 24px;
+  background:
+    radial-gradient(
+      ellipse at 18% 0%,
+      color-mix(in srgb, var(--color-neutral-0) 72%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-neutral-0) 58%, transparent),
+      color-mix(in srgb, var(--color-neutral-0) 28%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 58%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--color-neutral-0) 22%, transparent),
+    inset 0 -18px 32px color-mix(in srgb, var(--color-neutral-0) 12%, transparent),
+    0 18px 48px color-mix(in srgb, var(--color-neutral-950) 10%, transparent);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  transition:
+    top 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    right 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    bottom 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    left 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Docked: glass expands past the content box to a flush, square full-width bar. */
+.yc-public-header-docked .yc-guest-header::before {
+  /* top/bottom: -8px each → uniform extension above and below the content box.
+     left/right: negative half of (viewport - content width) → screen edges. */
+  top: -8px;
+  right: calc((100% - 100vw) / 2);
+  bottom: -8px;
+  left: calc((100% - 100vw) / 2);
+  border-radius: 0;
+  border-color: transparent;
+  background:
+    radial-gradient(
+      ellipse at 84% 0%,
+      color-mix(in srgb, var(--color-brand-100) 46%, transparent) 0 26%,
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-neutral-0) 90%, transparent),
+      color-mix(in srgb, var(--color-neutral-0) 78%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 92%, transparent),
+    0 1px 0 color-mix(in srgb, var(--color-neutral-0) 80%, var(--color-card-border)),
+    0 16px 40px color-mix(in srgb, var(--color-neutral-950) 12%, transparent);
+}
+
+.yc-guest-logo-link {
+  display: inline-flex;
+  height: 48px;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 16px;
+}
+
+.yc-guest-logo-link img {
+  width: auto;
+  height: 48px;
+  max-width: 104px;
+  object-fit: contain;
+}
+
+.yc-guest-nav {
+  display: none;
+  max-width: 800px;
+  flex: 1;
+}
+
+.yc-guest-nav-list {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.yc-guest-nav-link {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--color-text-secondary) !important;
+  /* typography comes from the text-body-4 utility on the link (see GuestHeader) */
+  padding: 8px 12px;
+  text-decoration: none;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.yc-guest-nav-link:hover,
+.yc-guest-nav-link-active {
+  border-color: color-mix(in srgb, var(--color-brand-950) 16%, transparent);
+  background: color-mix(in srgb, var(--color-neutral-0) 52%, var(--color-brand-100));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 84%, transparent),
+    0 8px 20px color-mix(in srgb, var(--color-brand-950) 8%, transparent);
+  color: var(--color-text-primary) !important;
+}
+
+.yc-guest-mobile-route {
+  border: 1px solid color-mix(in srgb, var(--color-card-border) 88%, transparent) !important;
+  border-radius: 16px !important;
+  background: color-mix(in srgb, var(--color-neutral-0) 78%, transparent);
+  color: var(--color-text-primary);
+  text-align: start;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.yc-guest-mobile-route:hover,
+.yc-guest-mobile-route-active {
+  border-color: color-mix(in srgb, var(--color-brand-950) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--color-brand-100) 76%, var(--color-neutral-0));
+  color: var(--color-text-brand);
+}
+
+.yc-mobile-menu-drawer {
+  top: 76px;
+  right: 10px;
+  left: 10px;
+  width: auto;
+  max-height: min(calc(100vh - 92px), 640px);
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-neutral-0) 68%, var(--color-card-border));
+  border-radius: 24px;
+  background:
+    radial-gradient(
+      ellipse at 16% 0%,
+      color-mix(in srgb, var(--color-neutral-0) 76%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-neutral-0) 62%, transparent),
+      color-mix(in srgb, var(--color-neutral-0) 38%, transparent)
+    ),
+    var(--color-surface-card);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 88%, transparent),
+    0 22px 60px color-mix(in srgb, var(--color-neutral-950) 16%, transparent);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  pointer-events: auto;
+}
+
+.yc-mobile-menu-drawer[hidden] {
+  display: flex;
+  visibility: hidden;
+}
+
+.yc-hamburger-button {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--color-card-border) 88%, transparent);
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-neutral-0) 90%, transparent),
+      color-mix(in srgb, var(--color-neutral-0) 72%, transparent)
+    ),
+    var(--color-surface-card);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 78%, transparent),
+    0 8px 20px color-mix(in srgb, var(--color-neutral-950) 6%, transparent);
+  color: var(--color-text-primary);
+}
+
+.yc-hamburger-line {
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .yc-liquid-header-shell {
+    background: var(--color-surface-card);
+  }
+}
+
+@media screen and (min-width: 640px) {
+  .yc-guest-header {
+    width: min(1180px, calc(100% - 32px));
+  }
+}
+
+@media screen and (min-width: 1024px) {
+  .yc-guest-nav {
+    display: flex;
+  }
+
+  .yc-hamburger-button {
+    display: none;
+  }
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1280px) {
+  .yc-guest-header {
+    gap: 18px;
+  }
+
+  .yc-guest-nav {
+    max-width: none;
+  }
+
+  .yc-guest-nav-list {
+    gap: 4px;
+  }
+
+  .yc-guest-nav-link {
+    padding: 8px 9px;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .yc-liquid-header-shell {
+    min-height: 72px;
+  }
+
+  .yc-guest-header-shell {
+    min-height: 72px;
+  }
+
+  .yc-guest-header {
+    width: calc(100% - 20px);
+    height: 58px;
+    gap: 16px;
+    padding: 0 8px 0 14px;
+    margin: 7px auto;
+    border-radius: 22px;
+  }
+
+  .yc-guest-logo-link {
+    height: 44px;
+  }
+
+  .yc-guest-logo-link img {
+    height: 44px;
+    max-width: 100px;
+  }
+
+  .yc-public-page {
+    --yc-public-nav-offset: 80px;
+  }
+
+  .yc-public-page > :where(section, main, div):first-child,
+  .yc-public-page > .new-hero-section:first-child {
+    box-sizing: border-box;
+  }
+}
+
+@media screen and (min-width: 640px) and (max-width: 1023px) {
+  .yc-mobile-menu-drawer {
+    right: 16px;
+    left: auto;
+    width: min(420px, calc(100vw - 32px));
+    padding: 16px;
+  }
+}

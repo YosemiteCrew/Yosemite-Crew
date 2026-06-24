@@ -329,6 +329,9 @@ const useIdexxActions = (s: IdexxActionsState) => {
     try {
       const res = await validateIntegrationCredentials(s.primaryOrgId, 'IDEXX');
       s.setValidateState(res.ok ? 'valid' : 'invalid');
+      // Validation updates credentialsStatus/lastValidatedAt on the backend; refresh the store so
+      // the Enable button (gated on stored/validated credentials) unlocks without a manual reload.
+      await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
     } catch (e) {
       s.setValidateState('invalid');
       s.setError(getApiErrorMessage(e, 'Credential validation failed.'));

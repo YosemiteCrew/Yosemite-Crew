@@ -60,13 +60,18 @@ jest.mock('@/app/hooks/useNotify', () => ({
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   updateAppointment: jest.fn(() => Promise.resolve()),
+  assignEncounterUnit: jest.fn(() => Promise.resolve()),
+  changeAppointmentStatus: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ onSelect, options }: any) => (
-    <button data-testid="room-dropdown" onClick={() => options?.[0] && onSelect(options[0])}>
-      Select Room
+  default: ({ placeholder, onSelect, options }: any) => (
+    <button
+      data-testid={placeholder?.toLowerCase().includes('unit') ? 'unit-dropdown' : 'room-dropdown'}
+      onClick={() => options?.[0] && onSelect(options[0])}
+    >
+      {placeholder?.toLowerCase().includes('unit') ? 'Select Unit' : 'Select Room'}
     </button>
   ),
 }));
@@ -84,6 +89,28 @@ jest.mock(
       ) : null,
   })
 );
+
+const mockInitEncounter = jest.fn();
+const mockSetRoomUnit = jest.fn();
+let mockEncounterById: Record<string, any> = {};
+jest.mock('@/app/stores/appointmentWorkspaceStore', () => ({
+  useAppointmentWorkspaceStore: (selector: any) =>
+    selector({
+      encountersById: mockEncounterById,
+      initEncounter: mockInitEncounter,
+      setRoomUnit: mockSetRoomUnit,
+    }),
+}));
+
+let mockRoomState = {
+  roomUnitsById: {} as Record<string, any>,
+  roomUnitIdsByRoomId: {} as Record<string, string[]>,
+};
+jest.mock('@/app/stores/roomStore', () => ({
+  useOrganisationRoomStore: Object.assign((selector: any) => selector(mockRoomState), {
+    getState: () => mockRoomState,
+  }),
+}));
 
 const baseAppointment: Appointment = {
   id: 'appt-1',
@@ -130,6 +157,11 @@ const defaultProps = {
 describe('ViewAppointmentOverviewModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockEncounterById = {};
+    mockRoomState = {
+      roomUnitsById: {},
+      roomUnitIdsByRoomId: {},
+    };
   });
 
   it('renders the modal title', () => {
@@ -207,6 +239,46 @@ describe('ViewAppointmentOverviewModal', () => {
     expect(screen.getByTestId('room-dropdown')).toBeInTheDocument();
   });
 
+  it('does not render unit selection for outpatient appointments', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{ ...baseAppointment, appointmentKind: 'OUTPATIENT' }}
+      />
+    );
+    expect(screen.getByTestId('room-dropdown')).toBeInTheDocument();
+    expect(screen.queryByTestId('unit-dropdown')).not.toBeInTheDocument();
+  });
+
+  it('renders unit selection for inpatient appointments', () => {
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-1a': {
+          id: 'unit-1a',
+          roomId: 'room-1',
+          displayName: 'Ward 1A',
+          code: '1A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-1': ['unit-1a'] },
+    };
+
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{
+          ...baseAppointment,
+          appointmentKind: 'INPATIENT',
+          room: { id: 'room-1', name: 'Room A' },
+        }}
+      />
+    );
+
+    expect(screen.getByTestId('room-dropdown')).toBeInTheDocument();
+    expect(screen.getByTestId('unit-dropdown')).toBeInTheDocument();
+  });
+
   it('renders read-only room for COMPLETED status', () => {
     render(
       <ViewAppointmentOverviewModal
@@ -215,6 +287,21 @@ describe('ViewAppointmentOverviewModal', () => {
       />
     );
     expect(screen.queryByTestId('room-dropdown')).not.toBeInTheDocument();
+  });
+
+  it('renders an interactive status pill that lists allowed transitions when editable', () => {
+    render(<ViewAppointmentOverviewModal {...defaultProps} canEditAppointments />);
+    // UPCOMING allows transitions, so the pill is a dropdown trigger (aria-haspopup=menu).
+    const trigger = screen.getByRole('button', { name: 'Upcoming' });
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menuitem', { name: /checked in/i })).toBeInTheDocument();
+  });
+
+  it('renders a static status pill when the user cannot edit appointments', () => {
+    render(<ViewAppointmentOverviewModal {...defaultProps} canEditAppointments={false} />);
+    expect(screen.queryByRole('button', { name: 'Upcoming' })).not.toBeInTheDocument();
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
   });
 
   it('does not render modal content when showModal is false', () => {

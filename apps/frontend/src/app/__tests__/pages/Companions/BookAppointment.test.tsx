@@ -174,7 +174,7 @@ describe('BookAppointment', () => {
     render(<BookAppointment showModal setShowModal={jest.fn()} activeCompanion={companion} />);
 
     fireEvent.click(screen.getByText('Speciality'));
-    fireEvent.click(screen.getByText('Service'));
+    fireEvent.click(screen.getByText('Services / Packages'));
 
     await waitFor(() => {
       expect(appointmentService.getSlotsForServiceAndDateForPrimaryOrg).toHaveBeenCalled();

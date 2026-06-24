@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 import ProtectedStripeOnboarding from '@/app/features/onboarding/pages/StripeOnboarding';
 
 const pushMock = jest.fn();
+const backMock = jest.fn();
 const useStripeOnboardingMock = jest.fn();
 const useSubscriptionCounterUpdateMock = jest.fn();
 const useSubscriptionMock = jest.fn();
@@ -13,7 +14,7 @@ const onboardAccountMock = jest.fn();
 const loadConnectMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: pushMock }),
+  useRouter: () => ({ push: pushMock, back: backMock }),
   useSearchParams: () => ({ get: () => 'org-1' }),
 }));
 
@@ -111,6 +112,9 @@ describe('Stripe onboarding page', () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId('connect-provider')).toBeInTheDocument();
     expect(screen.getByTestId('connect-onboarding')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(backMock).toHaveBeenCalled();
   });
 
   it('shows a retryable alert when account creation fails', async () => {

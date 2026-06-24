@@ -4,6 +4,7 @@ type FullscreenLoaderState = {
   activeSources: Record<string, true>;
   show: (source: string) => void;
   hide: (source: string) => void;
+  clear: () => void;
 };
 
 export const useFullscreenLoaderStore = create<FullscreenLoaderState>((set) => ({
@@ -22,4 +23,5 @@ export const useFullscreenLoaderStore = create<FullscreenLoaderState>((set) => (
       delete nextSources[source];
       return { activeSources: nextSources };
     }),
+  clear: () => set({ activeSources: {} }),
 }));

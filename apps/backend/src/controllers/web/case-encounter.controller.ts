@@ -13,6 +13,7 @@ import {
   CaseEncounterServiceError,
 } from "src/services/case-encounter.service";
 import logger from "src/utils/logger";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const caseResourceSchema = z
   .object({ resourceType: z.literal("EpisodeOfCare") })
@@ -48,6 +49,7 @@ const dischargeEncounterSchema = z
         z.object({
           name: z.string(),
           valueDateTime: z.string().datetime().optional(),
+          valueString: z.string().trim().min(1).optional(),
         }),
       )
       .optional(),
@@ -262,12 +264,18 @@ export const EncounterController = {
       const periodEnd = payload.parameter?.find(
         (parameter) => parameter.name === "periodEnd",
       )?.valueDateTime;
+      const overrideReason = payload.parameter?.find(
+        (parameter) => parameter.name === "overrideReason",
+      )?.valueString;
+      const actorUserId = resolveUserIdFromRequest(req);
 
       const updated = await CaseEncounterService.dischargeEncounter(
         req.params.id,
         {
           dischargedAt: dischargedAt ? new Date(dischargedAt) : undefined,
           periodEnd: periodEnd ? new Date(periodEnd) : undefined,
+          overrideReason,
+          actorUserId,
         },
       );
 
@@ -364,6 +372,7 @@ export const EncounterController = {
       lifecycleOperationSchema.parse(req.body ?? {});
       const updated = await CaseEncounterService.markEncounterReadyForDischarge(
         req.params.id,
+        resolveUserIdFromRequest(req),
       );
 
       return res.status(200).json(toEncounterResponseDTO(updated));

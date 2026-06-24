@@ -584,6 +584,16 @@ describe('companionService', () => {
       expect(mockUpsertParent).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }));
     });
 
+    it('preserves submitted alerts when update response omits them', async () => {
+      const alerts = [{ title: 'Call before visit', severity: 'low' as const }];
+      (axiosService.putData as jest.Mock).mockResolvedValue({ data: { id: 'p1', name: 'Jane' } });
+      (converters.fromParentRequestDTO as jest.Mock).mockReturnValue({ id: 'p1', name: 'Jane' });
+
+      await updateParent({ ...payload, alerts });
+
+      expect(mockUpsertParent).toHaveBeenCalledWith(expect.objectContaining({ alerts }));
+    });
+
     it('returns early with missing org id', async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});

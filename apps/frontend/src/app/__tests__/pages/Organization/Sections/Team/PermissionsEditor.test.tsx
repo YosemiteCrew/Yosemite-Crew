@@ -159,4 +159,22 @@ describe('PermissionsEditor component', () => {
     const checkboxes = screen.getAllByRole('checkbox');
     expect(checkboxes.length).toBeGreaterThan(0);
   });
+
+  it('resets draft permissions when the value prop changes', () => {
+    const { rerender } = render(
+      <PermissionsEditor role={adminRole} value={defaultPermissions} onSave={mockOnSave} />
+    );
+
+    expect(screen.getByText('Reset to role defaults')).toBeInTheDocument();
+
+    rerender(
+      <PermissionsEditor
+        role={adminRole}
+        value={[PERMISSIONS.TASKS_VIEW_ANY]}
+        onSave={mockOnSave}
+      />
+    );
+
+    expect(screen.getByText('Reset to role defaults')).toBeInTheDocument();
+  });
 });

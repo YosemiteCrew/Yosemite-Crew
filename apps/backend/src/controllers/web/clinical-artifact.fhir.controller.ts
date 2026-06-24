@@ -30,6 +30,45 @@ const handleError = createFhirErrorHandler({
   logMessage: "Unexpected FHIR clinical artifact error",
 });
 
+const readFirstPerformer = (resource: Record<string, unknown>) => {
+  if (
+    typeof resource.performer !== "object" ||
+    resource.performer === null ||
+    !Array.isArray(resource.performer) ||
+    resource.performer.length === 0
+  ) {
+    return undefined;
+  }
+
+  const performer: unknown = resource.performer[0];
+  if (typeof performer !== "object" || performer === null) {
+    return undefined;
+  }
+
+  return performer as Record<string, unknown>;
+};
+
+const readPerformerReference = (resource: Record<string, unknown>) => {
+  const performer = readFirstPerformer(resource);
+  const reference = performer?.reference;
+  if (typeof reference !== "string") {
+    return undefined;
+  }
+
+  return reference.split("/").pop() || undefined;
+};
+
+const readPerformerDisplay = (resource: Record<string, unknown>) => {
+  const performer = readFirstPerformer(resource);
+  const display = performer?.display;
+  if (typeof display !== "string") {
+    return undefined;
+  }
+
+  const trimmed = display.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
 const readContext = (resource: Record<string, unknown>, userId: string) => ({
   organisationId:
     typeof resource.organisationId === "string" ? resource.organisationId : "",
@@ -54,16 +93,11 @@ const readContext = (resource: Record<string, unknown>, userId: string) => ({
   recordedBy:
     typeof resource.recordedBy === "string"
       ? resource.recordedBy
-      : typeof resource.performer === "object" &&
-          Array.isArray(resource.performer) &&
-          typeof resource.performer[0] === "object" &&
-          resource.performer[0] !== null &&
-          typeof (resource.performer[0] as { reference?: unknown })
-            .reference === "string"
-        ? String((resource.performer[0] as { reference: string }).reference)
-            .split("/")
-            .pop()
-        : undefined,
+      : readPerformerReference(resource),
+  recordedByDisplay:
+    typeof resource.recordedByDisplay === "string"
+      ? resource.recordedByDisplay
+      : readPerformerDisplay(resource),
 });
 
 const readAppointmentId = (value: string | undefined) => value?.trim() || "";

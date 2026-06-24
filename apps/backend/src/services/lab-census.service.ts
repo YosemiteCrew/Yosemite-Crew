@@ -1,12 +1,6 @@
-import { Types } from "mongoose";
-import CompanionModel from "src/models/companion";
-import { ParentModel } from "src/models/parent";
-import CompanionOrganisationModel from "src/models/companion-organisation";
-import ParentCompanionModel from "src/models/parent-companion";
 import { normalizeLabProvider } from "src/labs";
 import { LabOrderServiceError } from "src/services/lab-order.service";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import {
   buildIdexxClient,
   lookupIdexxMapping,
@@ -22,115 +16,50 @@ const resolveGenderCode = (gender: string, isNeutered?: boolean) => {
   return "UNKNOWN";
 };
 
-type IdLike = Types.ObjectId | string;
-
-const ensureObjectIdString = (value: unknown, field: string): string => {
-  if (value instanceof Types.ObjectId) return value.toString();
-  if (typeof value !== "string" || !Types.ObjectId.isValid(value)) {
-    throw new LabOrderServiceError(`Invalid ${field}.`, 400);
-  }
-  return value;
-};
-
-const resolveDocId = (doc: { id?: string; _id?: { toString(): string } }) => {
-  if ("id" in doc && typeof doc.id === "string") return doc.id;
-  if ("_id" in doc && doc._id) return doc._id.toString();
-  throw new LabOrderServiceError("Missing document id.", 500);
-};
-
 const buildCensusPayload = async (input: {
   organisationId: string;
-  patientId: IdLike;
-  parentId: IdLike;
+  patientId: string;
+  parentId: string;
   veterinarian?: string | null;
   ivls?: Array<{ serialNumber: string }>;
 }) => {
-  const safeCompanionIdString = ensureObjectIdString(
-    input.patientId,
-    "patientId",
-  );
-  const safeParentIdString = ensureObjectIdString(input.parentId, "parentId");
-  const safeCompanionId = new Types.ObjectId(safeCompanionIdString);
-  const safeParentId = new Types.ObjectId(safeParentIdString);
+  const [companionOrgLink, parentCompanionLink] = await Promise.all([
+    prisma.patientOrganisation.findFirst({
+      where: {
+        organisationId: input.organisationId,
+        patientId: input.patientId,
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { id: true },
+    }),
+    prisma.parentPatient.findFirst({
+      where: {
+        parentId: input.parentId,
+        patientId: input.patientId,
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { id: true },
+    }),
+  ]);
 
-  if (isReadFromPostgres()) {
-    const [companionOrgLink, parentCompanionLink] = await Promise.all([
-      prisma.patientOrganisation.findFirst({
-        where: {
-          organisationId: input.organisationId,
-          patientId: safeCompanionId.toString(),
-          status: { in: ["ACTIVE", "PENDING"] },
-        },
-        select: { id: true },
-      }),
-      prisma.parentPatient.findFirst({
-        where: {
-          parentId: safeParentId.toString(),
-          patientId: safeCompanionId.toString(),
-          status: { in: ["ACTIVE", "PENDING"] },
-        },
-        select: { id: true },
-      }),
-    ]);
-
-    if (!companionOrgLink) {
-      throw new LabOrderServiceError("Companion not found.", 404);
-    }
-    if (!parentCompanionLink) {
-      throw new LabOrderServiceError("Parent not found.", 404);
-    }
-  } else {
-    const safeOrganisationIdString = ensureObjectIdString(
-      input.organisationId,
-      "organisationId",
-    );
-
-    const companionOrgLink = (await CompanionOrganisationModel.findOne({
-      organisationId: { $eq: safeOrganisationIdString },
-      patientId: { $eq: safeCompanionIdString },
-      status: { $in: ["ACTIVE", "PENDING"] },
-    })
-      .setOptions({ sanitizeFilter: true })
-      .select({ _id: 1 })
-      .lean()
-      .exec()) as unknown as { _id: unknown } | null;
-    const parentCompanionLink = (await ParentCompanionModel.findOne({
-      parentId: { $eq: safeParentIdString },
-      patientId: { $eq: safeCompanionIdString },
-      status: { $in: ["ACTIVE", "PENDING"] },
-    })
-      .setOptions({ sanitizeFilter: true })
-      .select({ _id: 1 })
-      .lean()
-      .exec()) as unknown as { _id: unknown } | null;
-
-    if (!companionOrgLink) {
-      throw new LabOrderServiceError("Companion not found.", 404);
-    }
-    if (!parentCompanionLink) {
-      throw new LabOrderServiceError("Parent not found.", 404);
-    }
+  if (!companionOrgLink) {
+    throw new LabOrderServiceError("Companion not found.", 404);
+  }
+  if (!parentCompanionLink) {
+    throw new LabOrderServiceError("Parent not found.", 404);
   }
 
-  const companion = isReadFromPostgres()
-    ? await prisma.patient.findUnique({
-        where: { id: safeCompanionId.toString() },
-      })
-    : await CompanionModel.findById(safeCompanionId)
-        .setOptions({ sanitizeFilter: true })
-        .lean();
+  const companion = await prisma.patient.findUnique({
+    where: { id: input.patientId },
+  });
   if (!companion) {
     throw new LabOrderServiceError("Companion not found.", 404);
   }
 
-  const parent = isReadFromPostgres()
-    ? await prisma.parent.findUnique({
-        where: { id: safeParentId.toString() },
-        include: { address: true },
-      })
-    : await ParentModel.findById(safeParentId)
-        .setOptions({ sanitizeFilter: true })
-        .lean();
+  const parent = await prisma.parent.findUnique({
+    where: { id: input.parentId },
+    include: { address: true },
+  });
   if (!parent) {
     throw new LabOrderServiceError("Parent not found.", 404);
   }
@@ -161,7 +90,7 @@ const buildCensusPayload = async (input: {
 
   return {
     patient: {
-      patientId: resolveDocId(companion),
+      patientId: companion.id,
       name: companion.name,
       microchip: companion.microchipNumber ?? undefined,
       speciesCode,
@@ -171,7 +100,7 @@ const buildCensusPayload = async (input: {
         ? companion.dateOfBirth.toISOString().split("T")[0]
         : undefined,
       client: {
-        id: resolveDocId(parent),
+        id: parent.id,
         firstName: parent.firstName,
         lastName: parent.lastName,
         address: {

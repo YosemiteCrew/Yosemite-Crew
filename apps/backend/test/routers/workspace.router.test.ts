@@ -7,6 +7,7 @@ const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const WorkspaceController = {
   getAppointmentBootstrap: jest.fn(),
   getEncounterBootstrap: jest.fn(),
+  getEncounterFinalizationGate: jest.fn(),
   getAppointmentDocuments: jest.fn(),
   getEncounterDocuments: jest.fn(),
   getCompanionDocuments: jest.fn(),
@@ -16,6 +17,7 @@ const WorkspaceController = {
   updateTreatmentItem: jest.fn(),
   deleteTreatmentItem: jest.fn(),
   createDocumentPacket: jest.fn(),
+  getEncounterDocumentPacketPdf: jest.fn(),
   getDocumentPacket: jest.fn(),
   signDocumentPacket: jest.fn(),
 };
@@ -73,6 +75,10 @@ describe("workspace.router", () => {
       "/organisations/:organisationId/encounters/:encounterId/documents",
       "get",
     );
+    const finalizationGateRoute = findRoute(
+      "/organisations/:organisationId/encounters/:encounterId/finalization-gate",
+      "get",
+    );
     const companionDocumentsRoute = findRoute(
       "/organisations/:organisationId/companions/:companionId/documents",
       "get",
@@ -101,6 +107,10 @@ describe("workspace.router", () => {
       "/organisations/:organisationId/encounters/:encounterId/document-packet",
       "post",
     );
+    const packetPdfRoute = findRoute(
+      "/organisations/:organisationId/encounters/:encounterId/document-packet/pdf",
+      "get",
+    );
     const packetGetRoute = findRoute(
       "/organisations/:organisationId/document-packets/:packetId",
       "get",
@@ -122,6 +132,9 @@ describe("workspace.router", () => {
     expect(
       encounterDocumentsRoute?.stack.map((layer) => layer.handle),
     ).toContain(authorizeCognito);
+    expect(finalizationGateRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
     expect(
       companionDocumentsRoute?.stack.map((layer) => layer.handle),
     ).toContain(authorizeCognito);
@@ -143,13 +156,16 @@ describe("workspace.router", () => {
     expect(packetCreateRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
+    expect(packetPdfRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
     expect(packetGetRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
     expect(packetSignRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
-    expect(withOrgPermissions).toHaveBeenCalledTimes(13);
+    expect(withOrgPermissions).toHaveBeenCalledTimes(15);
     expect(requirePermission).toHaveBeenCalled();
     expect(WorkspaceController.getAppointmentBootstrap).toHaveBeenCalledTimes(
       0,

@@ -14,10 +14,16 @@ const BasicFields: ProfileField[] = [
   field('Current plan', 'plan', 'text', false),
   field('Next invoice date', 'nextInvoiceDate', 'date', false),
   field('Joining date', 'joiningDate', 'date'),
-  field('Appointments', 'appointments', 'country'),
+  field('Appointments', 'appointments', 'text', false),
   field('Observational tools', 'obervationalTools', 'text', true, false),
-  field('Users', 'members'),
+  field('Users', 'members', 'text', false),
 ];
+
+const formatUsage = (used?: number, limit?: number): string => {
+  if (typeof used !== 'number' && typeof limit !== 'number') return '0';
+  if (typeof limit !== 'number') return String(used ?? 0);
+  return `${used ?? 0} / ${limit}`;
+};
 
 const Payment = () => {
   const subscription = useSubscriptionForPrimaryOrg();
@@ -28,9 +34,9 @@ const Payment = () => {
       plan: toTitle(subscription?.plan),
       joiningDate: subscription?.joinedAt,
       nextInvoiceDate: subscription?.nextInvoiceAt,
-      appointments: counter?.appointmentsUsed || '0',
-      obervationalTools: counter?.toolsUsed || '0',
-      members: counter?.usersBillableCount,
+      appointments: formatUsage(counter?.appointmentsUsed, counter?.freeAppointmentsLimit),
+      obervationalTools: formatUsage(counter?.toolsUsed, counter?.freeToolsLimit),
+      members: formatUsage(counter?.usersBillableCount, counter?.freeUsersLimit),
     }),
     [subscription, counter]
   );

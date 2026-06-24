@@ -92,7 +92,10 @@ jest.mock("../../src/services/template.service", () => ({
 
 jest.mock("../../src/services/form-assignment.service", () => ({
   FormAssignmentService: {
+    syncLinkedTemplateAssignmentsForAppointment: jest.fn(),
     listForAppointment: jest.fn(),
+    markViewedForAppointment: jest.fn(),
+    markSubmittedFromSubmission: jest.fn(),
   },
 }));
 
@@ -236,6 +239,9 @@ describe("FormService", () => {
     (FormSubmissionModel.aggregate as jest.Mock).mockReset();
 
     (FormAssignmentService.listForAppointment as jest.Mock).mockReset();
+    (
+      FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment as jest.Mock
+    ).mockReset();
     (TemplateService.getById as jest.Mock).mockReset();
     (templateMapper.templateToQuestionnaire as jest.Mock).mockReset();
     (
@@ -724,7 +730,7 @@ describe("FormService", () => {
       (FormSubmissionModel.create as jest.Mock).mockResolvedValueOnce(
         createdSub,
       );
-      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+      (FormModel.findById as jest.Mock).mockReturnValue(
         createChainable({ orgId: "o1", name: "Form" }),
       );
 
@@ -748,13 +754,21 @@ describe("FormService", () => {
       expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
         expect.objectContaining({ actorType: "PARENT" }),
       );
+      expect(
+        FormAssignmentService.markSubmittedFromSubmission,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "o1",
+          templateId: validId,
+        }),
+      );
     });
 
     it("handles system audit trail without parent", async () => {
       (FormSubmissionModel.create as jest.Mock).mockResolvedValueOnce(
         mockDoc({ _id: validId }),
       );
-      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+      (FormModel.findById as jest.Mock).mockReturnValue(
         createChainable({ orgId: "o1" }),
       );
 
@@ -777,6 +791,9 @@ describe("FormService", () => {
       );
       (FormSubmissionModel.create as jest.Mock).mockResolvedValueOnce(
         mockDoc({ _id: validId }),
+      );
+      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({ orgId: "o1" }),
       );
 
       await FormService.submitFHIR({
@@ -826,6 +843,14 @@ describe("FormService", () => {
 
       expect(prisma.formSubmission.create).toHaveBeenCalled();
       expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+      expect(
+        FormAssignmentService.markSubmittedFromSubmission,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "org-1",
+          templateId: validId,
+        }),
+      );
     });
   });
 
@@ -1310,6 +1335,32 @@ describe("FormService", () => {
           viewerParentId: "parent-b",
         }),
       ).rejects.toThrow("Forbidden");
+    });
+
+    it("marks assignments viewed when a parent opens the appointment forms", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({
+          organisationId: "o",
+          companion: { parent: { id: "parent-a" } },
+        }),
+      );
+      (OrganizationModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({ type: "HOSPITAL" }),
+      );
+      (FormSubmissionModel.distinct as jest.Mock).mockResolvedValueOnce([]);
+      (FormModel.find as jest.Mock).mockReturnValue(createChainable([]));
+
+      await FormService.getFormsForAppointment({
+        appointmentId: validId,
+        viewerParentId: "parent-a",
+      });
+
+      expect(
+        FormAssignmentService.markViewedForAppointment,
+      ).toHaveBeenCalledWith({
+        organisationId: "o",
+        appointmentId: validId,
+      });
     });
 
     it("prefers template-backed forms when postgres assignments exist", async () => {

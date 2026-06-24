@@ -1,19 +1,24 @@
 import apiClient from '../../../../src/shared/services/apiClient';
-import { getFreshStoredTokens, isTokenExpired } from '../../../../src/features/auth/sessionManager';
-import { resolveObservationToolIdSync } from '../../../../src/features/observationalTools/services/observationToolService';
-import { buildCdnUrlFromKey } from '../../../../src/shared/utils/cdnHelpers';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '../../../../src/features/auth/sessionManager';
+import {resolveObservationToolIdSync} from '../../../../src/features/observationalTools/services/observationToolService';
+import {buildCdnUrlFromKey} from '../../../../src/shared/utils/cdnHelpers';
 import {
   taskApi,
   mapApiTaskToTask,
-  buildTaskDraftFromForm
+  buildTaskDraftFromForm,
 } from '../../../../src/features/tasks/services/taskService';
 // We use 'as any' for the mock data to avoid importing every single strict type dependency
-import type { TaskFormData } from '../../../../src/features/tasks/types';
+import type {TaskFormData} from '../../../../src/features/tasks/types';
 
 // --- Mocks ---
 jest.mock('../../../../src/shared/services/apiClient');
 jest.mock('../../../../src/features/auth/sessionManager');
-jest.mock('../../../../src/features/observationalTools/services/observationToolService');
+jest.mock(
+  '../../../../src/features/observationalTools/services/observationToolService',
+);
 jest.mock('../../../../src/shared/utils/cdnHelpers');
 
 describe('taskService', () => {
@@ -30,18 +35,21 @@ describe('taskService', () => {
       expiresAt: Date.now() + 10000,
     });
     (isTokenExpired as jest.Mock).mockReturnValue(false);
-    (resolveObservationToolIdSync as jest.Mock).mockImplementation((id) => id);
-    (buildCdnUrlFromKey as jest.Mock).mockImplementation((key) => key ? `https://cdn.com/${key}` : null);
+    (resolveObservationToolIdSync as jest.Mock).mockImplementation(id => id);
+    (buildCdnUrlFromKey as jest.Mock).mockImplementation(key =>
+      key ? `https://cdn.com/${key}` : null,
+    );
   });
 
   // =========================================================================
   // Section 1: Helper Functions & Auth Logic
   // =========================================================================
   describe('Internal Helpers (via public interface side-effects)', () => {
-
     describe('ensureAccessToken', () => {
       it('throws error if access token is missing', async () => {
-        (getFreshStoredTokens as jest.Mock).mockResolvedValue({ accessToken: null });
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: null,
+        });
         await expect(taskApi.list()).rejects.toThrow('Missing access token');
       });
 
@@ -53,19 +61,19 @@ describe('taskService', () => {
 
     describe('resolveDateParts (implicitly tested via mapApiTaskToTask)', () => {
       it('handles null/undefined dueAt dates by defaulting to today', () => {
-        const result = mapApiTaskToTask({ dueAt: null });
+        const result = mapApiTaskToTask({dueAt: null});
         expect(result.date).toBeDefined(); // Should be today
         expect(result.time).toBeUndefined();
       });
 
       it('handles invalid date strings by defaulting to today', () => {
-        const result = mapApiTaskToTask({ dueAt: 'invalid-date-string' });
+        const result = mapApiTaskToTask({dueAt: 'invalid-date-string'});
         expect(result.date).toBeDefined();
         expect(result.time).toBeUndefined();
       });
 
       it('parses valid ISO date strings', () => {
-        const result = mapApiTaskToTask({ dueAt: '2025-10-20T14:30:00.000Z' });
+        const result = mapApiTaskToTask({dueAt: '2025-10-20T14:30:00.000Z'});
         expect(result.date).toBe('2025-10-20');
         expect(result.time).toBeDefined();
       });
@@ -74,7 +82,7 @@ describe('taskService', () => {
     describe('Attachment Normalization', () => {
       it('normalizes attachment with key', () => {
         const apiData = {
-          attachments: [{ key: 'file.jpg', size: 1024 }]
+          attachments: [{key: 'file.jpg', size: 1024}],
         };
         const task = mapApiTaskToTask(apiData);
         expect(task.attachments[0].id).toBe('file.jpg');
@@ -83,7 +91,7 @@ describe('taskService', () => {
 
       it('normalizes attachment with nested id path', () => {
         const apiData = {
-          attachments: [{ id: 'folder/doc.pdf' }]
+          attachments: [{id: 'folder/doc.pdf'}],
         };
         const task = mapApiTaskToTask(apiData);
         expect(task.attachments[0].key).toBe('folder/doc.pdf');
@@ -93,22 +101,24 @@ describe('taskService', () => {
       it('fallbacks to _id or name if key missing', () => {
         const apiData = {
           attachments: [
-            { _id: '123', fileName: 'test.docx' },
-            { name: 'just-name.png' }
-          ]
+            {_id: '123', fileName: 'test.docx'},
+            {name: 'just-name.png'},
+          ],
         };
         const task = mapApiTaskToTask(apiData);
         expect(task.attachments[0].id).toBe('123');
-        expect(task.attachments[0].type).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        expect(task.attachments[0].type).toBe(
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
         expect(task.attachments[1].id).toBe('just-name.png');
       });
 
       it('uses provided viewUrl/downloadUrl or falls back to uri/cdn', () => {
         const apiData = {
           attachments: [
-            { key: 'abc', viewUrl: 'http://view', downloadUrl: 'http://dl' },
-            { uri: 'http://uri' } // no key
-          ]
+            {key: 'abc', viewUrl: 'http://view', downloadUrl: 'http://dl'},
+            {uri: 'http://uri'}, // no key
+          ],
         };
         const task = mapApiTaskToTask(apiData);
         expect(task.attachments[0].viewUrl).toBe('http://view');
@@ -141,25 +151,41 @@ describe('taskService', () => {
     });
 
     it('maps Categories correctly', () => {
-      expect(mapApiTaskToTask({ category: 'HYGIENE' }).category).toBe('hygiene');
-      expect(mapApiTaskToTask({ category: 'DIET' }).category).toBe('dietary');
-      expect(mapApiTaskToTask({ category: 'MEDICATION' }).category).toBe('health');
-      expect(mapApiTaskToTask({ category: 'OBSERVATION_TOOL' }).category).toBe('health');
-      expect(mapApiTaskToTask({ category: 'UNKNOWN' }).category).toBe('custom');
+      expect(mapApiTaskToTask({category: 'HYGIENE'}).category).toBe('hygiene');
+      expect(mapApiTaskToTask({category: 'DIET'}).category).toBe('dietary');
+      expect(mapApiTaskToTask({category: 'MEDICATION'}).category).toBe(
+        'health',
+      );
+      expect(mapApiTaskToTask({category: 'OBSERVATION_TOOL'}).category).toBe(
+        'health',
+      );
+      expect(mapApiTaskToTask({category: 'UNKNOWN'}).category).toBe('custom');
     });
 
     it('maps Recurrence correctly', () => {
-      expect(mapApiTaskToTask({ recurrence: { type: 'DAILY' } }).frequency).toBe('daily');
-      expect(mapApiTaskToTask({ recurrence: { type: 'WEEKLY' } }).frequency).toBe('weekly');
-      expect(mapApiTaskToTask({ recurrence: { type: 'CUSTOM' } }).frequency).toBe('daily');
-      expect(mapApiTaskToTask({ recurrence: null }).frequency).toBe('once');
+      expect(mapApiTaskToTask({recurrence: {type: 'DAILY'}}).frequency).toBe(
+        'daily',
+      );
+      expect(mapApiTaskToTask({recurrence: {type: 'WEEKLY'}}).frequency).toBe(
+        'weekly',
+      );
+      expect(mapApiTaskToTask({recurrence: {type: 'CUSTOM'}}).frequency).toBe(
+        'daily',
+      );
+      expect(mapApiTaskToTask({recurrence: null}).frequency).toBe('once');
     });
 
     it('maps Reminders correctly', () => {
-      expect(mapApiTaskToTask({ reminder: { offsetMinutes: 5 } }).reminderOptions).toBe('5-mins-prior');
-      expect(mapApiTaskToTask({ reminder: { offsetMinutes: 1440 } }).reminderOptions).toBe('1-day-prior');
-      expect(mapApiTaskToTask({ reminder: { offsetMinutes: 999 } }).reminderOptions).toBeNull(); // invalid mapping
-      expect(mapApiTaskToTask({ reminder: null }).reminderOptions).toBeNull();
+      expect(
+        mapApiTaskToTask({reminder: {offsetMinutes: 5}}).reminderOptions,
+      ).toBe('5-mins-prior');
+      expect(
+        mapApiTaskToTask({reminder: {offsetMinutes: 1440}}).reminderOptions,
+      ).toBe('1-day-prior');
+      expect(
+        mapApiTaskToTask({reminder: {offsetMinutes: 999}}).reminderOptions,
+      ).toBeNull(); // invalid mapping
+      expect(mapApiTaskToTask({reminder: null}).reminderOptions).toBeNull();
     });
 
     // --- Complex Logic: Medication ---
@@ -168,7 +194,7 @@ describe('taskService', () => {
         const apiTask = {
           category: 'MEDICATION',
           dueAt: '2025-01-01T10:00:00Z',
-          medication: { name: 'Aspirin', dosage: '1 pill' }
+          medication: {name: 'Aspirin', dosage: '1 pill'},
         };
         const result = mapApiTaskToTask(apiTask);
         expect(result.details.taskType).toBe('give-medication');
@@ -184,10 +210,10 @@ describe('taskService', () => {
           medication: {
             name: 'Meds',
             doses: [
-              { id: 'd1', dosage: '10mg', time: '08:00' },
-              { id: 'd2', label: '20mg', time: '2025-01-01T20:00:00Z' }
-            ]
-          }
+              {id: 'd1', dosage: '10mg', time: '08:00'},
+              {id: 'd2', label: '20mg', time: '2025-01-01T20:00:00Z'},
+            ],
+          },
         };
         const result = mapApiTaskToTask(apiTask);
         expect(result.details.dosages).toHaveLength(2);
@@ -200,7 +226,7 @@ describe('taskService', () => {
         // Valid end date
         const apiTaskValid = {
           category: 'MEDICATION',
-          recurrence: { endDate: '2025-12-31T00:00:00Z' }
+          recurrence: {endDate: '2025-12-31T00:00:00Z'},
         };
         const resValid = mapApiTaskToTask(apiTaskValid);
         expect(resValid.details.endDate).toContain('2025-12-31');
@@ -208,7 +234,7 @@ describe('taskService', () => {
         // Invalid end date
         const apiTaskInvalid = {
           category: 'MEDICATION',
-          recurrence: { endDate: 'invalid-date' }
+          recurrence: {endDate: 'invalid-date'},
         };
         const resInvalid = mapApiTaskToTask(apiTaskInvalid);
         expect(resInvalid.details.endDate).toBeUndefined();
@@ -221,7 +247,7 @@ describe('taskService', () => {
         const apiTask = {
           category: 'OBSERVATION_TOOL',
           observationToolId: 'tool-xyz',
-          chronicConditionType: 'Diabetes'
+          chronicConditionType: 'Diabetes',
         };
         const result = mapApiTaskToTask(apiTask);
         expect(result.details.taskType).toBe('take-observational-tool');
@@ -248,7 +274,7 @@ describe('taskService', () => {
     it('builds basic task payload', () => {
       const payload = buildTaskDraftFromForm({
         formData: baseForm,
-        companionId: 'comp-123'
+        companionId: 'comp-123',
       });
 
       expect(payload.companionId).toBe('comp-123');
@@ -262,17 +288,27 @@ describe('taskService', () => {
       const form = {
         ...baseForm,
         reminderEnabled: true,
-        reminderOptions: '30-mins-prior'
+        reminderOptions: '30-mins-prior',
       } as unknown as TaskFormData;
 
-      const payload = buildTaskDraftFromForm({ formData: form, companionId: 'c1' });
+      const payload = buildTaskDraftFromForm({
+        formData: form,
+        companionId: 'c1',
+      });
       expect(payload.reminder?.enabled).toBe(true);
       expect(payload.reminder?.offsetMinutes).toBe(30);
     });
 
     it('defaults reminder to 30 mins if enabled but option is invalid/missing', () => {
-      const form = { ...baseForm, reminderEnabled: true, reminderOptions: undefined } as unknown as TaskFormData;
-      const payload = buildTaskDraftFromForm({ formData: form, companionId: 'c1' });
+      const form = {
+        ...baseForm,
+        reminderEnabled: true,
+        reminderOptions: undefined,
+      } as unknown as TaskFormData;
+      const payload = buildTaskDraftFromForm({
+        formData: form,
+        companionId: 'c1',
+      });
       expect(payload.reminder?.offsetMinutes).toBe(30);
     });
 
@@ -283,10 +319,13 @@ describe('taskService', () => {
         medicineName: 'Advil',
         medicineType: 'Pill' as any, // Cast specific enum/string if needed
         medicationFrequency: 'daily',
-        dosages: [{ id: 'dose-1', label: '10mg', time: '09:00' }] // Added ID to satisfy DosagesSchedule
+        dosages: [{id: 'dose-1', label: '10mg', time: '09:00'}], // Added ID to satisfy DosagesSchedule
       } as unknown as TaskFormData;
 
-      const payload = buildTaskDraftFromForm({ formData: form, companionId: 'c1' });
+      const payload = buildTaskDraftFromForm({
+        formData: form,
+        companionId: 'c1',
+      });
 
       expect(payload.category).toBe('MEDICATION');
       expect(payload.medication?.name).toBe('Advil');
@@ -301,13 +340,13 @@ describe('taskService', () => {
       const form = {
         ...baseForm,
         healthTaskType: 'take-observational-tool',
-        observationalTool: 'tool-id-1'
+        observationalTool: 'tool-id-1',
       } as unknown as TaskFormData;
 
       const payload = buildTaskDraftFromForm({
         formData: form,
         companionId: 'c1',
-        observationToolId: 'tool-id-1' // Pass explicitly or via form
+        observationToolId: 'tool-id-1', // Pass explicitly or via form
       });
 
       expect(payload.category).toBe('OBSERVATION_TOOL');
@@ -317,8 +356,8 @@ describe('taskService', () => {
     it('maps Recurrence Frequencies', () => {
       const checkFreq = (freq: any, expected: string) => {
         const p = buildTaskDraftFromForm({
-          formData: { ...baseForm, frequency: freq } as unknown as TaskFormData,
-          companionId: 'c1'
+          formData: {...baseForm, frequency: freq} as unknown as TaskFormData,
+          companionId: 'c1',
         });
         expect(p.recurrence?.type).toBe(expected);
       };
@@ -332,10 +371,13 @@ describe('taskService', () => {
     it('handles attachments in form data', () => {
       const form = {
         ...baseForm,
-        attachments: [{ uri: 'file://img.jpg', name: 'img.jpg' }]
+        attachments: [{uri: 'file://img.jpg', name: 'img.jpg'}],
       } as unknown as TaskFormData;
 
-      const payload = buildTaskDraftFromForm({ formData: form, companionId: 'c1' });
+      const payload = buildTaskDraftFromForm({
+        formData: form,
+        companionId: 'c1',
+      });
       expect(payload.attachments).toHaveLength(1);
       expect(payload.attachments?.[0].name).toBe('img.jpg');
     });
@@ -346,70 +388,90 @@ describe('taskService', () => {
   // =========================================================================
   describe('taskApi', () => {
     it('list() fetches tasks with correct params', async () => {
-      const mockResponse = { data: [{ _id: '1' }, { _id: '2' }] };
+      const mockResponse = {data: [{_id: '1'}, {_id: '2'}]};
       (apiClient.get as jest.Mock).mockResolvedValue(mockResponse);
 
-      const res = await taskApi.list({ companionId: 'c1', status: ['PENDING'] });
+      const res = await taskApi.list({companionId: 'c1', status: ['PENDING']});
 
-      expect(apiClient.get).toHaveBeenCalledWith('/v1/task/mobile/task', expect.objectContaining({
-        params: { companionId: 'c1', status: 'PENDING' },
-        headers: expect.objectContaining({ 'x-user-id': mockUserId })
-      }));
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/v1/task/mobile/task',
+        expect.objectContaining({
+          params: {companionId: 'c1', status: 'PENDING'},
+          headers: expect.not.objectContaining({
+            'x-user-id': expect.anything(),
+          }),
+        }),
+      );
       expect(res).toHaveLength(2);
     });
 
     it('list() handles empty response safely', async () => {
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: null }); // Non-array response
+      (apiClient.get as jest.Mock).mockResolvedValue({data: null}); // Non-array response
       const res = await taskApi.list();
       expect(res).toEqual([]);
     });
 
     it('get() fetches single task', async () => {
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: { _id: 't1' } });
+      (apiClient.get as jest.Mock).mockResolvedValue({data: {_id: 't1'}});
       const res = await taskApi.get('t1');
-      expect(apiClient.get).toHaveBeenCalledWith(expect.stringContaining('/t1'), expect.anything());
+      expect(apiClient.get).toHaveBeenCalledWith(
+        expect.stringContaining('/t1'),
+        expect.anything(),
+      );
       expect(res.id).toBe('t1');
     });
 
     it('create() posts new task', async () => {
-      const payload: any = { name: 'New' };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: { _id: 'new-1' } });
+      const payload: any = {name: 'New'};
+      (apiClient.post as jest.Mock).mockResolvedValue({data: {_id: 'new-1'}});
       const res = await taskApi.create(payload);
-      expect(apiClient.post).toHaveBeenCalledWith('/v1/task/mobile/', payload, expect.anything());
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/v1/task/mobile/',
+        payload,
+        expect.anything(),
+      );
       expect(res.id).toBe('new-1');
     });
 
     it('update() patches existing task', async () => {
-      (apiClient.patch as jest.Mock).mockResolvedValue({ data: { _id: 'u1' } });
-      const res = await taskApi.update('u1', { name: 'Updated' });
-      expect(apiClient.patch).toHaveBeenCalledWith(expect.stringContaining('/u1'), { name: 'Updated' }, expect.anything());
+      (apiClient.patch as jest.Mock).mockResolvedValue({data: {_id: 'u1'}});
+      const res = await taskApi.update('u1', {name: 'Updated'});
+      expect(apiClient.patch).toHaveBeenCalledWith(
+        expect.stringContaining('/u1'),
+        {name: 'Updated'},
+        expect.anything(),
+      );
       expect(res.id).toBe('u1');
     });
 
     it('changeStatus() posts status change with completion', async () => {
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: { task: { _id: 's1', status: 'COMPLETED' } } });
-      const completionData = { note: 'Done' };
+      (apiClient.post as jest.Mock).mockResolvedValue({
+        data: {task: {_id: 's1', status: 'COMPLETED'}},
+      });
+      const completionData = {note: 'Done'};
 
       const res = await taskApi.changeStatus('s1', 'COMPLETED', completionData);
 
       expect(apiClient.post).toHaveBeenCalledWith(
         expect.stringContaining('/s1/status'),
-        { status: 'COMPLETED', completion: completionData },
-        expect.anything()
+        {status: 'COMPLETED', completion: completionData},
+        expect.anything(),
       );
       expect(res.status).toBe('COMPLETED');
     });
 
     it('changeStatus() handles simple status change without completion object', async () => {
       // Sometimes backend might return the task directly instead of { task: ... }
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: { _id: 's1', status: 'IN_PROGRESS' } });
+      (apiClient.post as jest.Mock).mockResolvedValue({
+        data: {_id: 's1', status: 'IN_PROGRESS'},
+      });
 
       const res = await taskApi.changeStatus('s1', 'IN_PROGRESS');
 
       expect(apiClient.post).toHaveBeenCalledWith(
         expect.stringContaining('/s1/status'),
-        { status: 'IN_PROGRESS' },
-        expect.anything()
+        {status: 'IN_PROGRESS'},
+        expect.anything(),
       );
       expect(res.status).toBe('IN_PROGRESS');
     });

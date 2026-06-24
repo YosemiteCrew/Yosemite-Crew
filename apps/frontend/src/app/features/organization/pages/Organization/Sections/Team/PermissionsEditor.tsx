@@ -1,7 +1,7 @@
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/permissions';
-import React, { useEffect } from 'react';
+import React, { useRef } from 'react';
 import { uniq } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
 
 type PermissionRow = {
@@ -217,14 +217,16 @@ type PermissionsEditorProps = {
 
 const PermissionsEditor = ({ value, onSave, role, readOnly = false }: PermissionsEditorProps) => {
   const roleDefaults = React.useMemo(() => ROLE_PERMISSIONS[role] ?? [], [role]);
-
   const [draft, setDraft] = React.useState<Permission[]>(value);
   const [saving, setSaving] = React.useState(false);
-
-  // reset draft when member/value changes (or role changes)
-  useEffect(() => {
-    setDraft(value);
-  }, [value, role]);
+  const resetKeyRef = useRef<string>('');
+  const resetKey = `${role}:${value.join('|')}`;
+  if (resetKeyRef.current !== resetKey) {
+    resetKeyRef.current = resetKey;
+    if (!samePermissionSet(draft, value)) {
+      setDraft(value);
+    }
+  }
 
   const isDirty = React.useMemo(() => !samePermissionSet(draft, value), [draft, value]);
 

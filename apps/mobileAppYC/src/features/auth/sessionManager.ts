@@ -8,23 +8,34 @@ import {
   signOut as firebaseSignOut,
 } from '@react-native-firebase/auth';
 import {syncAuthUser} from '@/features/auth/services/authUserService';
-import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
+import {
+  fetchAuthSession,
+  fetchUserAttributes,
+  getCurrentUser,
+} from 'aws-amplify/auth';
 import {Buffer} from 'node:buffer';
 
-import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
+import {
+  PENDING_PROFILE_STORAGE_KEY,
+  PENDING_PROFILE_UPDATED_EVENT,
+} from '@/config/variables';
 import {
   clearStoredTokens,
   loadStoredTokens,
   storeTokens,
   type StoredAuthTokens,
 } from '@/features/auth/services/tokenStorage';
-import {fetchProfileStatus, type ParentProfileSummary} from '@/features/account/services/profileService';
+import {
+  fetchProfileStatus,
+  type ParentProfileSummary,
+} from '@/features/account/services/profileService';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 
 import type {AuthProvider, NormalizedAuthTokens, User} from './types';
 
 const LEGACY_AUTH_TOKEN_KEY = '@auth_tokens';
 const USER_KEY = '@user_data';
+export const DEMO_API_MODE_KEY = '@demo_api_mode';
 
 export const REFRESH_BUFFER_MS = 2 * 60 * 1000; // 2 minutes
 const DEFAULT_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours fallback
@@ -65,7 +76,10 @@ export const resolveExpiration = (tokens: {
     return tokens.expiresAt;
   }
 
-  return decodeJwtExpiration(tokens.idToken) ?? decodeJwtExpiration(tokens.accessToken);
+  return (
+    decodeJwtExpiration(tokens.idToken) ??
+    decodeJwtExpiration(tokens.accessToken)
+  );
 };
 
 export const isTokenExpired = (
@@ -160,7 +174,10 @@ export const persistSessionData = async (
         }),
       );
     } catch (fallbackError) {
-      console.error('Failed to persist auth tokens to legacy storage', fallbackError);
+      console.error(
+        'Failed to persist auth tokens to legacy storage',
+        fallbackError,
+      );
     }
   }
 
@@ -174,7 +191,7 @@ export const persistUserData = async (user: User) => {
 export const clearSessionData = async ({
   clearPendingProfile = false,
 }: {clearPendingProfile?: boolean} = {}) => {
-  const keys = [USER_KEY, LEGACY_AUTH_TOKEN_KEY];
+  const keys = [USER_KEY, LEGACY_AUTH_TOKEN_KEY, DEMO_API_MODE_KEY];
 
   if (clearPendingProfile) {
     keys.push(PENDING_PROFILE_STORAGE_KEY);
@@ -191,8 +208,12 @@ export const clearSessionData = async ({
 
 type MaybePendingProfile = 'none' | 'pending';
 
-const checkPendingProfile = async (userId: string): Promise<MaybePendingProfile> => {
-  const pendingProfileRaw = await AsyncStorage.getItem(PENDING_PROFILE_STORAGE_KEY);
+const checkPendingProfile = async (
+  userId: string,
+): Promise<MaybePendingProfile> => {
+  const pendingProfileRaw = await AsyncStorage.getItem(
+    PENDING_PROFILE_STORAGE_KEY,
+  );
   if (!pendingProfileRaw) {
     return 'none';
   }
@@ -219,7 +240,9 @@ const clearPendingProfileForUser = async (userId: string) => {
   }
 
   try {
-    const pendingProfileRaw = await AsyncStorage.getItem(PENDING_PROFILE_STORAGE_KEY);
+    const pendingProfileRaw = await AsyncStorage.getItem(
+      PENDING_PROFILE_STORAGE_KEY,
+    );
     if (!pendingProfileRaw) {
       return;
     }
@@ -257,14 +280,12 @@ const resolveProfileTokenForUser = async (
     parentId?: string | null;
   },
   sourceLabel: 'Amplify' | 'Firebase',
-): Promise<
-  {
-    status: 'resolved';
-    token?: string | null;
-    parent?: ParentProfileSummary;
-    isComplete?: boolean;
-  }
-> => {
+): Promise<{
+  status: 'resolved';
+  token?: string | null;
+  parent?: ParentProfileSummary;
+  isComplete?: boolean;
+}> => {
   try {
     const profileStatus = await fetchProfileStatus({
       accessToken: params.accessToken,
@@ -345,10 +366,14 @@ const attemptAmplifyRecovery = async (
       profileTokenResult.parent,
       existingParentId,
     );
-    const mergedUser = mergeUserWithParentProfile(baseUser, profileTokenResult.parent);
+    const mergedUser = mergeUserWithParentProfile(
+      baseUser,
+      profileTokenResult.parent,
+    );
     const hydratedUser: User = {
       ...mergedUser,
-      profileCompleted: profileTokenResult.isComplete ?? mergedUser.profileCompleted,
+      profileCompleted:
+        profileTokenResult.isComplete ?? mergedUser.profileCompleted,
     };
 
     if (pendingProfileStatus === 'pending') {
@@ -384,7 +409,10 @@ const attemptAmplifyRecovery = async (
       provider: 'amplify',
     };
   } catch (error) {
-    console.log('No active Amplify session detected; checking Firebase session.', error);
+    console.log(
+      'No active Amplify session detected; checking Firebase session.',
+      error,
+    );
     return null;
   }
 };
@@ -411,7 +439,10 @@ const attemptFirebaseRecovery = async (
         idToken,
       });
     } catch (error) {
-      console.warn('[Auth] Failed to sync Firebase auth user during recovery', error);
+      console.warn(
+        '[Auth] Failed to sync Firebase auth user during recovery',
+        error,
+      );
     }
 
     const parentSummary = authSync?.parentSummary;
@@ -419,11 +450,18 @@ const attemptFirebaseRecovery = async (
 
     // If we have no linked parent and no pending profile to resume, treat this
     // Firebase session as orphaned and sign out to avoid forcing CreateAccount.
-    if (!parentSummary && !existingUser?.parentId && pendingProfileStatus !== 'pending') {
+    if (
+      !parentSummary &&
+      !existingUser?.parentId &&
+      pendingProfileStatus !== 'pending'
+    ) {
       try {
         await firebaseSignOut(auth);
       } catch (signOutError) {
-        console.warn('[Auth] Firebase sign out failed during orphan recovery', signOutError);
+        console.warn(
+          '[Auth] Firebase sign out failed during orphan recovery',
+          signOutError,
+        );
       }
       await clearSessionData({clearPendingProfile: true});
       return null;
@@ -464,13 +502,18 @@ const attemptFirebaseRecovery = async (
         existingUser?.profilePicture ??
         firebaseUser.photoURL ??
         undefined,
-      profileToken: profileTokenResult.token ?? existingProfileToken ?? undefined,
+      profileToken:
+        profileTokenResult.token ?? existingProfileToken ?? undefined,
       address: existingUser?.address,
     };
-    const mergedUser = mergeUserWithParentProfile(baseUser, profileTokenResult.parent);
+    const mergedUser = mergeUserWithParentProfile(
+      baseUser,
+      profileTokenResult.parent,
+    );
     const hydratedUser: User = {
       ...mergedUser,
-      profileCompleted: profileTokenResult.isComplete ?? mergedUser.profileCompleted,
+      profileCompleted:
+        profileTokenResult.isComplete ?? mergedUser.profileCompleted,
     };
 
     if (pendingProfileStatus === 'pending') {
@@ -527,7 +570,10 @@ const recoverFromStoredTokens = async (
           userId: legacyTokens.userId ?? existingUser?.id,
         });
       } catch (migrateError) {
-        console.error('Failed to migrate legacy auth tokens into secure storage', migrateError);
+        console.error(
+          'Failed to migrate legacy auth tokens into secure storage',
+          migrateError,
+        );
       }
 
       await AsyncStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
@@ -548,7 +594,9 @@ const recoverFromStoredTokens = async (
   );
 
   if (isTokenExpired(normalizedTokens.expiresAt)) {
-    console.warn('[Auth] Stored tokens are expired; skipping cached session recovery.');
+    console.warn(
+      '[Auth] Stored tokens are expired; skipping cached session recovery.',
+    );
     return null;
   }
 
@@ -556,105 +604,112 @@ const recoverFromStoredTokens = async (
     kind: 'authenticated',
     user: {
       ...existingUser,
-      profileToken: existingUser.profileToken ?? existingProfileToken ?? undefined,
+      profileToken:
+        existingUser.profileToken ?? existingProfileToken ?? undefined,
     },
     tokens: normalizedTokens,
     provider: normalizedTokens.provider,
   };
 };
 
-export const getFreshStoredTokens = async (): Promise<NormalizedAuthTokens | null> => {
-  const storedTokens = await loadStoredTokens();
+export const getFreshStoredTokens =
+  async (): Promise<NormalizedAuthTokens | null> => {
+    const storedTokens = await loadStoredTokens();
 
-  if (!storedTokens) {
-    return null;
-  }
+    if (!storedTokens) {
+      return null;
+    }
 
-  const normalized = normalizeTokens(
-    {
-      ...storedTokens,
-      userId: storedTokens.userId ?? '',
-      provider: storedTokens.provider ?? 'amplify',
-    },
-    storedTokens.userId ?? '',
-  );
+    const normalized = normalizeTokens(
+      {
+        ...storedTokens,
+        userId: storedTokens.userId ?? '',
+        provider: storedTokens.provider ?? 'amplify',
+      },
+      storedTokens.userId ?? '',
+    );
 
-  if (!isTokenExpired(normalized.expiresAt)) {
-    return normalized;
-  }
+    if (!isTokenExpired(normalized.expiresAt)) {
+      return normalized;
+    }
 
-  try {
-    if (normalized.provider === 'firebase') {
-      const auth = getAuth();
-      const firebaseUser = auth.currentUser;
+    try {
+      if (normalized.provider === 'firebase') {
+        const auth = getAuth();
+        const firebaseUser = auth.currentUser;
 
-      if (!firebaseUser) {
+        if (!firebaseUser) {
+          return null;
+        }
+
+        await reload(firebaseUser);
+        const idToken = await getIdToken(firebaseUser, true);
+        const tokenResult = await getIdTokenResult(firebaseUser, true);
+        const refreshed: StoredAuthTokens = {
+          idToken,
+          accessToken: idToken,
+          refreshToken: undefined,
+          expiresAt: tokenResult?.expirationTime
+            ? new Date(tokenResult.expirationTime).getTime()
+            : undefined,
+          userId: firebaseUser.uid,
+          provider: 'firebase',
+        };
+
+        await storeTokens(refreshed);
+        markAuthRefreshed();
+        return normalizeTokens(refreshed, firebaseUser.uid, 'firebase');
+      }
+
+      const session = await fetchAuthSession({forceRefresh: true});
+      const idToken = session.tokens?.idToken?.toString();
+      const accessToken = session.tokens?.accessToken?.toString();
+
+      if (!idToken || !accessToken) {
         return null;
       }
 
-      await reload(firebaseUser);
-      const idToken = await getIdToken(firebaseUser, true);
-      const tokenResult = await getIdTokenResult(firebaseUser, true);
+      const expiresAtSeconds =
+        session.tokens?.idToken?.payload?.exp ??
+        session.tokens?.accessToken?.payload?.exp ??
+        undefined;
+
+      let resolvedUserId = normalized.userId;
+      if (!resolvedUserId) {
+        try {
+          const authUser = await getCurrentUser();
+          resolvedUserId = authUser.userId;
+        } catch {
+          resolvedUserId = storedTokens.userId ?? '';
+        }
+      }
+
       const refreshed: StoredAuthTokens = {
         idToken,
-        accessToken: idToken,
+        accessToken,
         refreshToken: undefined,
-        expiresAt: tokenResult?.expirationTime
-          ? new Date(tokenResult.expirationTime).getTime()
-          : undefined,
-        userId: firebaseUser.uid,
-        provider: 'firebase',
+        expiresAt: expiresAtSeconds ? expiresAtSeconds * 1000 : undefined,
+        userId: resolvedUserId,
+        provider: 'amplify',
       };
 
       await storeTokens(refreshed);
       markAuthRefreshed();
-      return normalizeTokens(refreshed, firebaseUser.uid, 'firebase');
+      return normalizeTokens(refreshed, resolvedUserId ?? '', 'amplify');
+    } catch (error) {
+      console.warn(
+        '[Auth] Unable to refresh stored tokens from provider',
+        error,
+      );
+      return normalized;
     }
-
-    const session = await fetchAuthSession({forceRefresh: true});
-    const idToken = session.tokens?.idToken?.toString();
-    const accessToken = session.tokens?.accessToken?.toString();
-
-    if (!idToken || !accessToken) {
-      return null;
-    }
-
-    const expiresAtSeconds =
-      session.tokens?.idToken?.payload?.exp ??
-      session.tokens?.accessToken?.payload?.exp ??
-      undefined;
-
-    let resolvedUserId = normalized.userId;
-    if (!resolvedUserId) {
-      try {
-        const authUser = await getCurrentUser();
-        resolvedUserId = authUser.userId;
-      } catch {
-        resolvedUserId = storedTokens.userId ?? '';
-      }
-    }
-
-    const refreshed: StoredAuthTokens = {
-      idToken,
-      accessToken,
-      refreshToken: undefined,
-      expiresAt: expiresAtSeconds ? expiresAtSeconds * 1000 : undefined,
-      userId: resolvedUserId,
-      provider: 'amplify',
-    };
-
-    await storeTokens(refreshed);
-    markAuthRefreshed();
-    return normalizeTokens(refreshed, resolvedUserId ?? '', 'amplify');
-  } catch (error) {
-    console.warn('[Auth] Unable to refresh stored tokens from provider', error);
-    return normalized;
-  }
-};
+  };
 
 export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
   const existingUserRaw = await AsyncStorage.getItem(USER_KEY);
-  const existingUser = existingUserRaw ? (JSON.parse(existingUserRaw) as User) : null;
+  const existingUser = existingUserRaw
+    ? (JSON.parse(existingUserRaw) as User)
+    : null;
   const existingProfileToken = existingUser?.profileToken;
 
   const amplifyResult = await attemptAmplifyRecovery(
@@ -665,7 +720,10 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
     return amplifyResult;
   }
 
-  const firebaseResult = await attemptFirebaseRecovery(existingUser, existingProfileToken);
+  const firebaseResult = await attemptFirebaseRecovery(
+    existingUser,
+    existingProfileToken,
+  );
   if (firebaseResult) {
     return firebaseResult;
   }
@@ -676,7 +734,9 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
   );
   if (storedTokensResult) {
     if (storedTokensResult.kind === 'authenticated') {
-      const pendingProfileStatus = await checkPendingProfile(storedTokensResult.user.id);
+      const pendingProfileStatus = await checkPendingProfile(
+        storedTokensResult.user.id,
+      );
       if (pendingProfileStatus === 'pending') {
         if (isProfileComplete(storedTokensResult.user)) {
           await clearPendingProfileForUser(storedTokensResult.user.id);
@@ -693,7 +753,8 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
 };
 
 let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
-let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
+let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null =
+  null;
 let lastRefreshTimestamp = 0;
 
 const clearRefreshTimeout = () => {
@@ -718,7 +779,9 @@ export const scheduleSessionRefresh = (
 
   if (expiresAt) {
     const candidate = expiresAt - now - REFRESH_BUFFER_MS;
-    const safeCandidate = Number.isFinite(candidate) ? candidate : DEFAULT_REFRESH_INTERVAL_MS;
+    const safeCandidate = Number.isFinite(candidate)
+      ? candidate
+      : DEFAULT_REFRESH_INTERVAL_MS;
     delay = Math.max(REFRESH_BUFFER_MS, safeCandidate);
   }
 
@@ -735,15 +798,18 @@ export const registerAppStateListener = (refreshCallback: () => void) => {
     return;
   }
 
-  appStateSubscription = AppState.addEventListener('change', (nextStatus: AppStateStatus) => {
-    if (nextStatus === 'active') {
-      const now = Date.now();
-      if (now - lastRefreshTimestamp > MIN_APPSTATE_REFRESH_MS) {
-        markAuthRefreshed(now);
-        refreshCallback();
+  appStateSubscription = AppState.addEventListener(
+    'change',
+    (nextStatus: AppStateStatus) => {
+      if (nextStatus === 'active') {
+        const now = Date.now();
+        if (now - lastRefreshTimestamp > MIN_APPSTATE_REFRESH_MS) {
+          markAuthRefreshed(now);
+          refreshCallback();
+        }
       }
-    }
-  });
+    },
+  );
 };
 
 export const resetAuthLifecycle = ({clearPendingProfile = false} = {}) => {

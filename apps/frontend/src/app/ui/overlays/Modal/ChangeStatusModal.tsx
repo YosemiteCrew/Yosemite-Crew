@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
@@ -6,6 +6,31 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { useNotify } from '@/app/hooks/useNotify';
 
 type StatusOption<S extends string> = { value: S; label: string };
+
+const resolveSelectedStatus = <S extends string>(
+  currentStatus: S,
+  preferredStatus: S | null,
+  canTransition: (from: S, to: S) => boolean,
+  statusOptions: StatusOption<S>[]
+): S =>
+  preferredStatus &&
+  canTransition(currentStatus, preferredStatus) &&
+  statusOptions.some((option) => option.value === preferredStatus)
+    ? preferredStatus
+    : currentStatus;
+
+const buildSelectionKey = <S extends string>(
+  showModal: boolean,
+  currentStatus: S,
+  preferredStatus: S | null,
+  statusOptions: StatusOption<S>[]
+) =>
+  [
+    showModal ? 'open' : 'closed',
+    currentStatus,
+    preferredStatus ?? '',
+    statusOptions.map((option) => option.value).join('|'),
+  ].join('::');
 
 type ChangeStatusModalProps<S extends string> = {
   showModal: boolean;
@@ -37,25 +62,33 @@ const ChangeStatusModal = <S extends string>({
   onSave,
 }: ChangeStatusModalProps<S>) => {
   const { notify } = useNotify();
-  const [selectedStatus, setSelectedStatus] = useState<S>(currentStatus);
+  const preferredSelection = resolveSelectedStatus(
+    currentStatus,
+    preferredStatus,
+    canTransition,
+    statusOptions
+  );
+  const [selectedStatus, setSelectedStatus] = useState<S>(preferredSelection);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const previousSelectionKeyRef = useRef<string | null>(null);
+  const selectionKey = buildSelectionKey(showModal, currentStatus, preferredStatus, statusOptions);
 
-  useEffect(() => {
-    if (!showModal) {
-      setSelectedStatus(currentStatus);
-      return;
+  if (previousSelectionKeyRef.current !== selectionKey) {
+    previousSelectionKeyRef.current = selectionKey;
+    const nextSelection = resolveSelectedStatus(
+      currentStatus,
+      preferredStatus,
+      canTransition,
+      statusOptions
+    );
+    if (selectedStatus !== nextSelection) {
+      setSelectedStatus(nextSelection);
     }
-    if (
-      preferredStatus &&
-      canTransition(currentStatus, preferredStatus) &&
-      statusOptions.some((option) => option.value === preferredStatus)
-    ) {
-      setSelectedStatus(preferredStatus);
-      return;
+    if (!showModal && errorMessage !== null) {
+      setErrorMessage(null);
     }
-    setSelectedStatus(currentStatus);
-  }, [currentStatus, canTransition, preferredStatus, showModal, statusOptions]);
+  }
 
   const handleCancel = () => {
     setShowModal(false);

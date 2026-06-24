@@ -187,23 +187,19 @@ describe('formService', () => {
       expect(result).toEqual(mockData);
     });
 
-    it('includes user-id header if provided', async () => {
+    it('sends request with auth headers only (no x-user-id)', async () => {
       mockApiClient.post.mockResolvedValue({data: {}});
 
       await formApi.startSigning({
         submissionId: 'sub-1',
         accessToken: mockToken,
-        userId: 'user-123',
       });
 
       expect(mockApiClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.anything(),
         {
-          headers: {
-            ...mockAuthHeaders,
-            'x-user-id': 'user-123',
-          },
+          headers: mockAuthHeaders,
         },
       );
     });

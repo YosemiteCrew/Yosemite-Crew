@@ -105,6 +105,9 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
     },
+    organizationAddress: {
+      findUnique: jest.fn(),
+    },
     organizationBilling: {
       upsert: jest.fn(),
       findUnique: jest.fn(),

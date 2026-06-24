@@ -38,6 +38,14 @@ router.get(
 );
 
 router.get(
+  "/organisations/:organisationId/encounters/:encounterId/finalization-gate",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["appointments:view:any", "appointments:view:own"]),
+  (req, res) => WorkspaceController.getEncounterFinalizationGate(req, res),
+);
+
+router.get(
   "/organisations/:organisationId/encounters/:encounterId/treatment-items",
   authorizeCognito,
   withOrgPermissions(),
@@ -91,6 +99,14 @@ router.post(
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   (req, res) => WorkspaceController.createDocumentPacket(req, res),
+);
+
+router.get(
+  "/organisations/:organisationId/encounters/:encounterId/document-packet/pdf",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("document:view:any"),
+  (req, res) => WorkspaceController.getEncounterDocumentPacketPdf(req, res),
 );
 
 router.get(

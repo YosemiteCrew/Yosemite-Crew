@@ -120,6 +120,15 @@ All SonarQube rules, test writing rules, and frontend code quality patterns live
 - **Test patterns:** load `.claude/skills/frontend-testing` — covers Jest/RTL conventions, Zustand mocking, async state, common pitfalls.
 - Violations introduced in any change must be fixed before the change is considered done.
 
+### Pre-push Sonar gate — MANDATORY, never skip
+
+Identify and fix Sonar findings **locally before pushing** — never let issues or security hotspots first surface on the PR.
+
+- Before pushing ANY change, run the local Sonar pipeline (for `apps/desktop`: `./apps/desktop/sonar-local.sh`, which runs lint → type-check → tests+coverage → build → a SonarCloud branch scan).
+- Review **every** reported issue **and security hotspot** from `sonar-issues.json` (or the project results) — not just gate-failing ones — and fix all of them.
+- Re-run until the scan is clean (zero new issues, zero hotspots). Only then push / open the PR.
+- `sonar-local.sh`, `sonar-issues.json`, and `.sonar-token` are local-only and gitignored — never commit, print, echo, or `git add` them.
+
 ---
 
 ## What NOT to Do

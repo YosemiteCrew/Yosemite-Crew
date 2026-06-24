@@ -253,6 +253,10 @@ describe("finance tax helpers", () => {
 
     expect(createPreview).toHaveBeenCalledWith(
       expect.objectContaining({
+        issuer: expect.objectContaining({
+          type: "account",
+          account: "acct_1",
+        }),
         automatic_tax: expect.objectContaining({
           liability: expect.objectContaining({
             type: "account",
@@ -265,6 +269,11 @@ describe("finance tax helpers", () => {
         ]),
       }),
     );
+    const calledWith = createPreview.mock.calls[0][0];
+    expect(calledWith.invoice_items[0]).not.toHaveProperty("quantity");
+    expect(calledWith.invoice_items[1]).not.toHaveProperty("quantity");
+    expect(calledWith.invoice_items[0]).toMatchObject({ currency: "usd" });
+    expect(calledWith.invoice_items[1]).toMatchObject({ currency: "usd" });
     expect(snapshot.providerReferenceId).toBe("upcoming_in_2");
   });
 

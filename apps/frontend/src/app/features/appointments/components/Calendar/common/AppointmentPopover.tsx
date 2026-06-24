@@ -1,40 +1,39 @@
-import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useId } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import PopoverDetail from './PopoverDetail';
 import StaffInput from './StaffInput';
+import AppointmentStatusPill from '@/app/features/appointments/components/AppointmentStatusPill';
+import EmergencyBadge from '@/app/features/appointments/components/EmergencyBadge';
+import { AppointmentModePill } from '@/app/features/appointments/components/AppointmentCardContent';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import {
   allowReschedule,
   canAssignAppointmentRoom,
-  canShowStatusChangeAction,
-  getAllowedAppointmentStatusTransitions,
   getAppointmentCompanionPhotoUrl,
   getClinicalNotesIntent,
   getClinicalNotesLabel,
   isRequestedLikeStatus,
-  toStatusLabel,
 } from '@/app/lib/appointments';
-import { getStatusStyle } from '@/app/config/statusConfig';
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 import { getAppointmentPaymentDisplay } from '@/app/lib/paymentStatus';
 import { normalizeAppointmentId } from '@/app/lib/invoice';
 import { formatMoney } from '@/app/lib/money';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import {
-  acceptAppointment,
-  changeAppointmentStatus,
-  rejectAppointment,
-} from '@/app/features/appointments/services/appointmentService';
+import { rejectAppointment } from '@/app/features/appointments/services/appointmentService';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useCompanionStore } from '@/app/stores/companionStore';
+import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 import {
-  IoWarning,
+  buildWorkspaceHrefForIntent,
+  canEnterAppointmentWorkspace,
+} from '@/app/lib/appointmentWorkspace';
+import {
   IoCalendarOutline,
   IoDocumentTextOutline,
   IoCardOutline,
@@ -44,10 +43,10 @@ import {
 } from 'react-icons/io5';
 import { MdMeetingRoom } from 'react-icons/md';
 import { RiHistoryLine } from 'react-icons/ri';
-import { FaCaretDown, FaCheckCircle } from 'react-icons/fa';
+import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle } from 'react-icons/io';
-import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
+import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
 
 type AppointmentPopoverProps = {
   appointment: Appointment;
@@ -56,10 +55,9 @@ type AppointmentPopoverProps = {
   popoverId: string;
   popoverDialogRef: React.RefObject<HTMLDialogElement | null>;
   popoverStyle: React.CSSProperties;
-  handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
-  handleDetailAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
   handleChangeRoomAppointment?: (appt: Appointment) => void;
+  handleAcceptAppointment?: (appt: Appointment) => void;
   onClose: () => void;
   registerAnchorEl: (el: HTMLElement | null) => () => void;
 };
@@ -153,17 +151,6 @@ const updatePrimaryActionGlowPosition = (event: React.PointerEvent<HTMLButtonEle
   event.currentTarget.style.setProperty('--yc-button-y', `${event.clientY - rect.top}px`);
 };
 
-const EMERGENCY_BADGE_STYLE: React.CSSProperties = {
-  border: '1px solid var(--error-color)',
-  background: 'var(--color-danger-100)',
-  color: 'var(--error-color)',
-  fontFamily: 'var(--font-satoshi)',
-  fontSize: '12px',
-  fontWeight: 500,
-  lineHeight: '150%',
-  letterSpacing: '-0.22px',
-};
-
 const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
   appointment,
   invoicesByAppointmentId,
@@ -171,15 +158,16 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
   popoverId,
   popoverDialogRef,
   popoverStyle,
-  handleViewAppointment,
-  handleDetailAppointment,
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
+  handleAcceptAppointment,
   onClose,
   registerAnchorEl,
 }) => {
   const router = useRouter();
   const orgsById = useOrgStore((s) => s.orgsById);
+  const encountersById = useAppointmentWorkspaceStore((s) => s.encountersById);
+  const roomUnitsById = useOrganisationRoomStore((s) => s.roomUnitsById);
   const companion = appointment.companion ?? appointment.patient;
   const storeCompanion = useCompanionStore((s) => s.getCompanionById(companion.id));
   const companionDetails = {
@@ -197,112 +185,25 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
   const clinicalNotesLabel = getClinicalNotesLabel(orgType);
   const clinicalNotesIntent = getClinicalNotesIntent(orgType);
 
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [savingStatus, setSavingStatus] = useState(false);
-  const [statusError, setStatusError] = useState<string | null>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-  const statusTriggerRef = useRef<HTMLButtonElement>(null);
-  const statusPanelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const statusMenuId = useId();
   const onActionBarWheel = useWheelToHorizontalScroll({ ignoreAncestors: true });
 
-  const statusStyle = getStatusStyle(appointment.status);
-  const statusButtonStyle = useMemo<React.CSSProperties>(
-    () => ({
-      backgroundColor: statusStyle.backgroundColor,
-      color: statusStyle.color,
-      fontFamily: 'var(--font-satoshi), sans-serif',
-      fontSize: '14px',
-      fontWeight: 500,
-      lineHeight: '120%',
-      letterSpacing: '-0.28px',
-      borderWidth: '1px',
-      borderStyle: 'solid',
-      borderColor: statusStyle.borderColor,
-      opacity: savingStatus ? 0.6 : 1,
-    }),
-    [statusStyle, savingStatus]
-  );
-  const statusDisplayStyle = useMemo<React.CSSProperties>(
-    () => ({
-      backgroundColor: statusStyle.backgroundColor,
-      color: statusStyle.color,
-      fontFamily: 'var(--font-satoshi), sans-serif',
-      fontSize: '14px',
-      fontWeight: 500,
-      lineHeight: '120%',
-      letterSpacing: '-0.28px',
-      borderWidth: '1px',
-      borderStyle: 'solid',
-      borderColor: statusStyle.borderColor,
-    }),
-    [statusStyle]
-  );
-  const allowedTransitions = getAllowedAppointmentStatusTransitions(appointment.status);
   const appointmentInvoice = getInvoiceForAppointment(appointment.id, invoicesByAppointmentId);
   const paymentTitle = getPaymentTitle(payment?.state);
   const paymentValue = getPaymentValue(payment?.label, appointmentInvoice);
   const supportStaffValue = appointment.supportStaff?.map((staff) => staff.name).join(', ') || '-';
+  const roomDisplay = getAppointmentRoomDisplay(appointment, encountersById, roomUnitsById);
+  const canOpenWorkspace = canEnterAppointmentWorkspace(appointment.status);
   const primaryActionLabel =
     appointment.status === 'UPCOMING' ? 'Start Appointment' : 'View Appointment';
-  const canChangeStatus =
-    canEditAppointments &&
-    !isRequestedLikeStatus(appointment.status) &&
-    canShowStatusChangeAction(appointment.status) &&
-    allowedTransitions.length > 0;
-
-  const positionDropdown = () => {
-    if (!statusTriggerRef.current) return;
-    const rect = statusTriggerRef.current.getBoundingClientRect();
-    setDropdownStyle({
-      position: 'fixed',
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: 'max-content',
-      zIndex: 10000,
-    });
-  };
-
-  useLayoutEffect(() => {
-    if (statusDropdownOpen) positionDropdown();
-  }, [statusDropdownOpen]); // positionDropdown reads refs, no deps needed
-
-  useEffect(() => {
-    if (!statusDropdownOpen) return;
-    return registerAnchorEl(statusPanelRef.current);
-  }, [statusDropdownOpen, registerAnchorEl]);
-
-  useEffect(() => {
-    if (!statusDropdownOpen) return;
-    const handlePointerDown = (e: PointerEvent) => {
-      if (
-        statusTriggerRef.current?.contains(e.target as Node) ||
-        statusPanelRef.current?.contains(e.target as Node)
-      )
-        return;
-      setStatusDropdownOpen(false);
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [statusDropdownOpen]);
-
-  const handleStatusChange = async (nextStatus: AppointmentStatus) => {
-    try {
-      setSavingStatus(true);
-      setStatusError(null);
-      await changeAppointmentStatus(appointment, nextStatus);
-      setStatusDropdownOpen(false);
+  const openWorkspace = (intent?: AppointmentViewIntent) => {
+    if (!appointment.id) return;
+    if (!canOpenWorkspace) {
       onClose();
-    } catch (err) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as Error)?.message ||
-        'Failed to update status.';
-      setStatusError(String(msg));
-    } finally {
-      setSavingStatus(false);
+      return;
     }
+    router.push(buildWorkspaceHrefForIntent(appointment.id, intent));
+    onClose();
   };
 
   return (
@@ -378,55 +279,17 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
           </div>
         </div>
 
-        {/* Status pill — acts as dropdown trigger if status can be changed */}
+        {/* Status pill — shared component (dropdown trigger when changeable). */}
         <div className="relative shrink-0 flex flex-col items-end gap-1.5">
-          {canChangeStatus ? (
-            <button
-              ref={statusTriggerRef}
-              type="button"
-              data-popover-panel="true"
-              disabled={savingStatus}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => setStatusDropdownOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={statusDropdownOpen}
-              aria-controls={statusMenuId}
-              className="flex h-8 min-w-25 items-center justify-between gap-1.5 rounded-2xl! px-3 py-2 font-satoshi text-[14px] font-medium leading-[120%] tracking-[-0.0175rem] whitespace-nowrap shadow-[0_1px_10px_0_rgba(169,163,158,0.10)]"
-              style={statusButtonStyle}
-            >
-              <span>{savingStatus ? 'Saving…' : toStatusLabel(appointment.status)}</span>
-              <FaCaretDown
-                size={10}
-                className={`shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`}
-              />
-            </button>
-          ) : (
-            <span
-              className="flex h-8 min-w-25 items-center justify-center rounded-2xl! px-3 py-2 font-satoshi text-[14px] font-medium leading-[120%] tracking-[-0.0175rem] whitespace-nowrap shadow-[0_1px_10px_0_rgba(169,163,158,0.10)]"
-              style={statusDisplayStyle}
-            >
-              {toStatusLabel(appointment.status)}
-            </span>
-          )}
+          <AppointmentStatusPill
+            appointment={appointment}
+            canEdit={canEditAppointments}
+            onChanged={onClose}
+            registerAnchorEl={registerAnchorEl}
+          />
+          <AppointmentModePill appointment={appointment} className="w-fit" />
 
-          {appointment.isEmergency && (
-            <div
-              className="flex h-5.5 items-center gap-1 rounded-lg px-2 whitespace-nowrap"
-              style={EMERGENCY_BADGE_STYLE}
-            >
-              <IoWarning size={11} aria-hidden="true" />
-              {'Emergency'}
-            </div>
-          )}
-
-          {statusError && (
-            <div
-              role="alert"
-              className="absolute right-0 top-full mt-1 text-[10px] text-text-error whitespace-nowrap bg-white border border-card-border rounded-lg px-2 py-1 shadow-sm z-10"
-            >
-              {statusError}
-            </div>
-          )}
+          {appointment.isEmergency && <EmergencyBadge />}
         </div>
       </div>
 
@@ -442,7 +305,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
         />
         <PopoverDetail label="Service" value={appointment.appointmentType?.name || '-'} />
         <PopoverDetail label="Date" value={formatAppointmentDate(appointment)} />
-        <PopoverDetail label="Room" value={appointment.room?.name || '-'} />
+        <PopoverDetail label={roomDisplay.label} value={roomDisplay.value} />
         <PopoverDetail label="Client Name" value={getOwnerFirstName(companion.parent) || '-'} />
         <PopoverDetail label="Reason" value={appointment.concern || '-'} scrollValue />
         <PopoverDetail label={paymentTitle} value={paymentValue} emphasized />
@@ -455,15 +318,15 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
 
       <div className="mt-5 flex items-center justify-between gap-2 px-1">
         {canEditAppointments && isRequestedLikeStatus(appointment.status) && (
-          <>
+          <div className="flex shrink-0 items-center gap-2">
             <GlassTooltip content="Accept request" side="top">
               <button
                 type="button"
                 title="Accept request"
                 aria-label="Accept request"
-                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-success-100"
-                onClick={async () => {
-                  await acceptAppointment(appointment);
+                className="flex size-10 shrink-0 items-center justify-center rounded-full! border border-success-200 bg-success-100 hover:bg-success-200"
+                onClick={() => {
+                  handleAcceptAppointment?.(appointment);
                   onClose();
                 }}
               >
@@ -475,7 +338,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 type="button"
                 title="Decline request"
                 aria-label="Decline request"
-                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-danger-100"
+                className="flex size-10 shrink-0 items-center justify-center rounded-full! border border-danger-200 bg-danger-100 hover:bg-danger-200"
                 onClick={async () => {
                   await rejectAppointment(appointment);
                   onClose();
@@ -484,9 +347,9 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 <IoIosCloseCircle size={20} color="var(--color-danger-600)" aria-hidden="true" />
               </button>
             </GlassTooltip>
-          </>
+          </div>
         )}
-        {!isRequestedLikeStatus(appointment.status) && (
+        {!isRequestedLikeStatus(appointment.status) && canOpenWorkspace && (
           <div
             className="scrollbar-hidden flex w-48 shrink-0 items-center gap-2 overflow-x-auto pr-1"
             onWheel={onActionBarWheel}
@@ -518,8 +381,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 aria-label="Finance summary"
                 className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                 onClick={() => {
-                  handleDetailAppointment(appointment, { label: 'finance', subLabel: 'summary' });
-                  onClose();
+                  openWorkspace({ label: 'finance', subLabel: 'summary' });
                 }}
               >
                 <IoCardOutline size={20} aria-hidden="true" />
@@ -532,8 +394,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 aria-label="Lab tests"
                 className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                 onClick={() => {
-                  handleDetailAppointment(appointment, { label: 'labs', subLabel: 'idexx-labs' });
-                  onClose();
+                  openWorkspace({ label: 'labs', subLabel: 'idexx-labs' });
                 }}
               >
                 <IoFlaskOutline size={20} aria-hidden="true" />
@@ -578,8 +439,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 aria-label={clinicalNotesLabel}
                 className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                 onClick={() => {
-                  handleDetailAppointment(appointment, clinicalNotesIntent);
-                  onClose();
+                  openWorkspace(clinicalNotesIntent);
                 }}
               >
                 <IoDocumentTextOutline size={20} aria-hidden="true" />
@@ -590,74 +450,18 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
         <button
           type="button"
           title={primaryActionLabel}
+          disabled={!canOpenWorkspace}
           className="yc-primary-button text-yc-16-m-white flex h-12 w-50 shrink-0 items-center justify-end gap-2 rounded-2xl! px-4"
           onPointerDown={updatePrimaryActionGlowPosition}
           onPointerMove={updatePrimaryActionGlowPosition}
           onClick={() => {
-            handleViewAppointment(
-              appointment,
-              appointment.status === 'UPCOMING' ? clinicalNotesIntent : undefined
-            );
-            onClose();
+            openWorkspace(appointment.status === 'UPCOMING' ? clinicalNotesIntent : undefined);
           }}
         >
           <span className="whitespace-nowrap">{primaryActionLabel}</span>
           <IoArrowForward size={18} className="shrink-0" />
         </button>
       </div>
-
-      {/* Status dropdown portal — hover events handled via registerAnchorEl */}
-      {statusDropdownOpen &&
-        createPortal(
-          <div
-            id={statusMenuId}
-            ref={statusPanelRef}
-            data-popover-panel="true"
-            role="menu"
-            onPointerDown={(e) => e.stopPropagation()}
-            className="rounded-2xl! bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden whitespace-nowrap"
-            style={{
-              ...dropdownStyle,
-              minWidth: 120,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              borderColor: 'var(--color-card-border)',
-            }}
-          >
-            {allowedTransitions.map((nextStatus) => {
-              const s = getStatusStyle(nextStatus);
-              return (
-                <button
-                  key={nextStatus}
-                  type="button"
-                  role="menuitem"
-                  disabled={savingStatus}
-                  onClick={() => void handleStatusChange(nextStatus)}
-                  className="flex h-8 w-full items-center gap-1 rounded-none! px-3 py-2 text-left transition-colors hover:bg-card-hover"
-                  style={{
-                    fontFamily: 'var(--font-satoshi), sans-serif',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    lineHeight: '120%',
-                    letterSpacing: '-0.28px',
-                  }}
-                >
-                  <span
-                    className="inline-block size-2 rounded-full shrink-0"
-                    style={{
-                      backgroundColor: s.borderColor,
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: s.borderColor,
-                    }}
-                  />
-                  <span style={{ color: s.color }}>{toStatusLabel(nextStatus)}</span>
-                </button>
-              );
-            })}
-          </div>,
-          document.body
-        )}
     </dialog>
   );
 };

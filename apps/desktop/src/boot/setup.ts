@@ -76,6 +76,19 @@ export interface TelemetryDeps {
 export const setupTelemetry = (deps: TelemetryDeps): TelemetryClient | null => {
   const endpoint = process.env.YC_DESKTOP_TELEMETRY_URL;
   if (!endpoint) return null;
+  // Require HTTPS so usage events are never sent in cleartext, even if the
+  // endpoint is supplied via managed/MDM config.
+  let parsed: URL;
+  try {
+    parsed = new URL(endpoint);
+  } catch {
+    deps.logger.warn('telemetry_endpoint_invalid', { endpoint });
+    return null;
+  }
+  if (parsed.protocol !== 'https:') {
+    deps.logger.warn('telemetry_endpoint_insecure', { protocol: parsed.protocol });
+    return null;
+  }
   const client = createTelemetryClient(
     createTelemetryHttpSink({ endpoint, logger: deps.logger }),
     process.env,
@@ -378,6 +391,27 @@ export const setupNativeSurfaces = (deps: NativeSurfacesDeps): NativeSurfacesSer
         fullscreen: true,
         webPreferences: deps.secureWebPreferences(path.join(__dirname, '..', 'preload.js')),
       });
+      // Containment: this preload-bearing window must stay on its seed origin, so
+      // an open redirect / XSS on the loaded page can't move it to attacker
+      // content that would then inherit the bridge.
+      const seedOrigin = (() => {
+        try {
+          return new URL(cfg.url).origin;
+        } catch {
+          return '';
+        }
+      })();
+      const keepOnOrigin = (e: Electron.Event, navUrl: string): void => {
+        let sameOrigin = false;
+        try {
+          sameOrigin = new URL(navUrl).origin === seedOrigin && seedOrigin !== '';
+        } catch {
+          sameOrigin = false;
+        }
+        if (!sameOrigin) e.preventDefault();
+      };
+      win.webContents.on('will-navigate', keepOnOrigin);
+      win.webContents.on('will-redirect', keepOnOrigin);
       void win.loadURL(cfg.url);
       return String(win.id);
     },

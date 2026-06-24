@@ -24,6 +24,8 @@ export interface Organisation {
   stripeAccountId?: string;
   appointmentCheckInBufferMinutes?: number;
   appointmentCheckInRadiusMeters?: number;
+  appointmentLockWindowOutpatientMinutes?: number;
+  appointmentLockWindowInpatientMinutes?: number;
 }
 
 export type Organization = Organisation;
@@ -57,6 +59,10 @@ const APPOINTMENT_CHECK_IN_BUFFER_MINUTES_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-check-in-buffer-minutes';
 const APPOINTMENT_CHECK_IN_RADIUS_METERS_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-check-in-radius-meters';
+const APPOINTMENT_LOCK_WINDOW_OUTPATIENT_MINUTES_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-lock-window-outpatient-minutes';
+const APPOINTMENT_LOCK_WINDOW_INPATIENT_MINUTES_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-lock-window-inpatient-minutes';
 
 const ORGANISATION_TYPE_CODING_MAP: Record<
   Organisation['type'],
@@ -216,6 +222,20 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
     });
   }
 
+  if (typeof organisation.appointmentLockWindowOutpatientMinutes === 'number') {
+    extensions.push({
+      url: APPOINTMENT_LOCK_WINDOW_OUTPATIENT_MINUTES_EXTENSION_URL,
+      valueInteger: organisation.appointmentLockWindowOutpatientMinutes,
+    });
+  }
+
+  if (typeof organisation.appointmentLockWindowInpatientMinutes === 'number') {
+    extensions.push({
+      url: APPOINTMENT_LOCK_WINDOW_INPATIENT_MINUTES_EXTENSION_URL,
+      valueInteger: organisation.appointmentLockWindowInpatientMinutes,
+    });
+  }
+
   return extensions.length ? extensions : undefined;
 };
 
@@ -359,6 +379,14 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
     appointmentCheckInRadiusMeters: extractIntegerExtension(
       extensions,
       APPOINTMENT_CHECK_IN_RADIUS_METERS_EXTENSION_URL
+    ),
+    appointmentLockWindowOutpatientMinutes: extractIntegerExtension(
+      extensions,
+      APPOINTMENT_LOCK_WINDOW_OUTPATIENT_MINUTES_EXTENSION_URL
+    ),
+    appointmentLockWindowInpatientMinutes: extractIntegerExtension(
+      extensions,
+      APPOINTMENT_LOCK_WINDOW_INPATIENT_MINUTES_EXTENSION_URL
     ),
   };
 };

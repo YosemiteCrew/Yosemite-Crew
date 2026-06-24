@@ -48,6 +48,9 @@ jest.mock("../../../src/config/prisma", () => ({
       findFirst: jest.fn(),
       findUnique: jest.fn(),
     },
+    workspaceDocumentPacket: {
+      findFirst: jest.fn(),
+    },
     user: { findFirst: jest.fn() },
     userOrganization: { findFirst: jest.fn() },
   },

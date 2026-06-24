@@ -3,7 +3,9 @@ export type IntegrationProvider = 'IDEXX' | 'MERCK_MANUALS';
 export type IntegrationStatus = 'enabled' | 'disabled' | 'error' | 'pending';
 
 export type OrgIntegration = {
-  _id: string;
+  /** Backend now returns `id`; `_id` retained for backward compatibility with older payloads. */
+  id?: string;
+  _id?: string;
   organisationId: string;
   provider: IntegrationProvider;
   status: IntegrationStatus;
@@ -50,7 +52,7 @@ export type IdexxTestsResponse = {
 };
 
 export type CreateLabOrderPayload = {
-  companionId: string;
+  patientId: string;
   appointmentId?: string;
   tests: string[];
   modality: 'REFERENCE_LAB' | 'INHOUSE' | 'IN_HOUSE';
@@ -111,7 +113,7 @@ export type CensusEntry = {
 };
 
 export type AddCensusPayload = {
-  companionId: string;
+  patientId: string;
   parentId?: string;
   veterinarian?: string;
   ivls?: string[];

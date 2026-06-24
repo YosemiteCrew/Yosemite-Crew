@@ -11,6 +11,14 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
+import { useOrgStore } from '@/app/stores/orgStore';
+import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+
+type RevampSpecialityTableRow = SpecialityWeb & {
+  revampId: string;
+  activeServiceCount?: number;
+  activePackageCount?: number;
+};
 
 const Specialities = () => {
   const specialities = useSpecialitiesWithServiceNamesForPrimaryOrg();
@@ -18,6 +26,9 @@ const Specialities = () => {
   const canEditSpecialities = can(PERMISSIONS.SPECIALITIES_EDIT_ANY);
   const router = useRouter();
   const revampEnabled = isAppointmentRevampEnabled();
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const revampSpecialities = useRevampCatalogStore((s) => s.specialities);
+  const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
 
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
@@ -36,7 +47,29 @@ const Specialities = () => {
     });
   }, [specialities]);
 
+  useEffect(() => {
+    if (!revampEnabled || !primaryOrgId) return;
+    Promise.resolve(loadOrganisationCatalog(primaryOrgId)).catch(() => undefined);
+  }, [loadOrganisationCatalog, primaryOrgId, revampEnabled]);
+
   if (revampEnabled) {
+    const catalogSpecialities = primaryOrgId
+      ? revampSpecialities.reduce<RevampSpecialityTableRow[]>((rows, speciality) => {
+          if (speciality.organisationId !== primaryOrgId) return rows;
+          rows.push({
+            _id: speciality.id,
+            revampId: speciality.id,
+            organisationId: speciality.organisationId,
+            name: speciality.name,
+            headUserId: speciality.headVetId,
+            teamMemberIds: speciality.teamMemberIds,
+            activeServiceCount: speciality.activeServiceCount,
+            activePackageCount: speciality.activePackageCount,
+            services: [],
+          });
+          return rows;
+        }, [])
+      : [];
     return (
       <PermissionGate allOf={[PERMISSIONS.SPECIALITIES_VIEW_ANY]}>
         <AccordionButton
@@ -46,7 +79,7 @@ const Specialities = () => {
           showButton={canEditSpecialities}
         >
           <SpecialitiesTableRevamp
-            filteredList={specialities}
+            filteredList={catalogSpecialities}
             onManageTeam={(s) => {
               setActiveSpeciality(s);
               setViewPopup(true);

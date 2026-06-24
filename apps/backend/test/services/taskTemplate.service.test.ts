@@ -50,6 +50,7 @@ describe("TaskTemplateService", () => {
           organisationId: "org-1",
           defaultRole: "EMPLOYEE",
           kind: "CUSTOM",
+          inpatientOnly: false,
         }),
       }),
     );
@@ -90,6 +91,7 @@ describe("TaskTemplateService", () => {
     const result = await TaskTemplateService.update("tmpl-1", {
       name: "New",
       defaultRole: "PARENT",
+      inpatientOnly: true,
       defaultMedication: null,
       isActive: false,
     });
@@ -100,6 +102,7 @@ describe("TaskTemplateService", () => {
         data: expect.objectContaining({
           name: "New",
           defaultRole: "PARENT",
+          inpatientOnly: true,
           isActive: false,
         }),
       }),
@@ -126,6 +129,7 @@ describe("TaskTemplateService", () => {
     const result = await TaskTemplateService.listForOrganisation(
       "org-1",
       "CUSTOM",
+      { inpatientOnly: true, search: "care" },
     );
 
     expect(mockedPrisma.taskTemplate.findMany).toHaveBeenCalledWith(
@@ -134,6 +138,27 @@ describe("TaskTemplateService", () => {
           organisationId: "org-1",
           kind: "CUSTOM",
           isActive: true,
+          inpatientOnly: true,
+          OR: [
+            {
+              category: {
+                contains: "care",
+                mode: "insensitive",
+              },
+            },
+            {
+              name: {
+                contains: "care",
+                mode: "insensitive",
+              },
+            },
+            {
+              description: {
+                contains: "care",
+                mode: "insensitive",
+              },
+            },
+          ],
         }),
       }),
     );

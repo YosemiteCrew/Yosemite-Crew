@@ -7,7 +7,19 @@ import {
 
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
-export type TaskKind = 'MEDICATION' | 'OBSERVATION_TOOL' | 'HYGIENE' | 'DIET' | 'CUSTOM';
+export type TaskKind =
+  | 'MEDICATION'
+  | 'CARE'
+  | 'DIET'
+  | 'PROCEDURE'
+  | 'DIAGNOSTIC'
+  | 'COMMUNICATION'
+  | 'BILLING'
+  | 'RECORD'
+  | 'ADMIN'
+  | 'OBSERVATION_TOOL'
+  | 'HYGIENE'
+  | 'CUSTOM';
 
 export const TaskRecurrenceOptions = [
   { label: 'Once', value: 'ONCE' },
@@ -17,9 +29,16 @@ export const TaskRecurrenceOptions = [
 
 export const TaskKindOptions = [
   { label: 'Medication', value: 'MEDICATION' },
-  { label: 'Observation Tool', value: 'OBSERVATION_TOOL' },
-  { label: 'Hygiene', value: 'HYGIENE' },
+  { label: 'Care', value: 'CARE' },
   { label: 'Diet', value: 'DIET' },
+  { label: 'Procedure', value: 'PROCEDURE' },
+  { label: 'Diagnostic', value: 'DIAGNOSTIC' },
+  { label: 'Communication', value: 'COMMUNICATION' },
+  { label: 'Billing', value: 'BILLING' },
+  { label: 'Record', value: 'RECORD' },
+  { label: 'Admin', value: 'ADMIN' },
+  { label: 'Observation tool', value: 'OBSERVATION_TOOL' },
+  { label: 'Hygiene', value: 'HYGIENE' },
   { label: 'Custom', value: 'CUSTOM' },
 ];
 

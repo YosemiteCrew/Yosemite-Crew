@@ -6,6 +6,8 @@ const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const RenderedDocumentFhirController = {
   getRenderedDocument: jest.fn(),
+  getRenderedDocumentPdf: jest.fn(),
+  rerenderRenderedDocumentPdf: jest.fn(),
   signRenderedDocument: jest.fn(),
 };
 
@@ -52,6 +54,15 @@ describe("rendered-document.fhir.router", () => {
       findRoute("/organisation/:organisationId/:renderedDocumentId", "get"),
     ).toBeDefined();
     expect(
+      findRoute("/organisation/:organisationId/:renderedDocumentId/pdf", "get"),
+    ).toBeDefined();
+    expect(
+      findRoute(
+        "/organisation/:organisationId/:renderedDocumentId/rerender-pdf",
+        "post",
+      ),
+    ).toBeDefined();
+    expect(
       findRoute(
         "/organisation/:organisationId/:renderedDocumentId/sign",
         "post",
@@ -61,14 +72,30 @@ describe("rendered-document.fhir.router", () => {
 
   it("protects routes with auth and RBAC", () => {
     const route = findRoute(
-      "/organisation/:organisationId/:renderedDocumentId/sign",
-      "post",
+      "/organisation/:organisationId/:renderedDocumentId/pdf",
+      "get",
     );
 
     expect(route?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
     expect(withOrgPermissions).toHaveBeenCalled();
+    expect(requirePermission).toHaveBeenCalledWith([
+      "forms:view:any",
+      "prescription:view:any",
+    ]);
+    expect(route?.stack.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("protects the rerender route with auth and RBAC", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/:renderedDocumentId/rerender-pdf",
+      "post",
+    );
+
+    expect(route?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
     expect(requirePermission).toHaveBeenCalledWith([
       "forms:edit:any",
       "prescription:edit:any",

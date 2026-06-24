@@ -1,7 +1,8 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AddAppointmentCentralModal from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
+import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
 
 // ── React 19 createPortal mock ──────────────────────────────────────────────
 jest.mock('react-dom', () => ({
@@ -37,6 +38,7 @@ const mockFormData = {
   supportStaff: [],
   notes: '',
   isEmergency: false,
+  appointmentKind: 'OUTPATIENT' as 'OUTPATIENT' | 'INPATIENT',
   startTime: null,
   endTime: null,
   companion: { id: '', name: '' },
@@ -106,9 +108,12 @@ jest.mock(
 );
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => (props: any) => (
-  <div data-testid={`label-dropdown-${props['aria-label'] ?? props.label ?? 'default'}`}>
+  <div
+    data-testid={`label-dropdown-${props.placeholder ?? props['aria-label'] ?? props.label ?? 'default'}`}
+    data-default-option={props.defaultOption}
+  >
     <button type="button" onClick={() => props.onSelect?.(props.options?.[0]?.value)}>
-      {props.label}
+      {props.placeholder ?? props.label}
     </button>
   </div>
 ));
@@ -403,6 +408,20 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getAllByTestId(/label-dropdown/)).toBeTruthy();
   });
 
+  it('passes empty controlled values to lead, speciality, and service after form reset', () => {
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    expect(screen.getByTestId('label-dropdown-Lead')).toHaveAttribute('data-default-option', '');
+    expect(screen.getByTestId('label-dropdown-Speciality')).toHaveAttribute(
+      'data-default-option',
+      ''
+    );
+    expect(screen.getByTestId('label-dropdown-Services / Packages')).toHaveAttribute(
+      'data-default-option',
+      ''
+    );
+  });
+
   it('renders estimate panel', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
     expect(screen.getByTestId('estimate-panel')).toBeInTheDocument();
@@ -464,6 +483,21 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
     // LabelDropdown for visit type is rendered
     expect(screen.getAllByTestId(/label-dropdown/).length).toBeGreaterThan(0);
+  });
+
+  it('keeps the visit type synced to the selected service appointment kind', async () => {
+    mockAppointmentForm.formData = {
+      ...mockFormData,
+      appointmentKind: 'INPATIENT',
+    };
+
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(useAppointmentForm).toHaveBeenLastCalledWith(
+        expect.objectContaining({ appointmentKind: 'INPATIENT' })
+      );
+    });
   });
 
   it('renders time slot dropdown button', () => {

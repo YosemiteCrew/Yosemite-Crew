@@ -215,6 +215,7 @@ jest.mock("src/config/prisma", () => ({
       updateMany: jest.fn(),
     },
     invoice: { findMany: jest.fn() },
+    admission: { findMany: jest.fn() },
     form: { findFirst: jest.fn(), findMany: jest.fn() },
     formVersion: { findFirst: jest.fn() },
     occupancy: {
@@ -1715,6 +1716,66 @@ describe("AppointmentService", () => {
         await AppointmentService.getAppointmentsForOrganisation("org_1");
 
       expect((results[0] as any)?.paymentStatus).toBe("PAID");
+    });
+
+    it("enriches the room with its inpatient unit", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prisma } = require("src/config/prisma");
+      const startTime = new Date();
+      const row = {
+        id: "appt_ipd",
+        encounterId: "enc_1",
+        companion: { id: "comp_1", parent: { id: "parent_1" }, name: "Pet" },
+        lead: null,
+        supportStaff: [],
+        room: { id: "room_1", name: "Recovery Room" },
+        appointmentType: { id: "service_1", name: "Checkup" },
+        organisationId: "org_1",
+        appointmentDate: startTime,
+        startTime,
+        endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
+        timeSlot: "10:00",
+        durationMinutes: 30,
+        status: "REQUESTED",
+        isEmergency: false,
+        concern: null,
+        createdAt: startTime,
+        updatedAt: startTime,
+        attachments: null,
+        formIds: [],
+      };
+
+      prisma.appointment.findMany.mockResolvedValueOnce([row]);
+      prisma.invoice.findMany.mockResolvedValueOnce([]);
+      prisma.admission.findMany.mockResolvedValueOnce([
+        {
+          encounterId: "enc_1",
+          currentUnit: {
+            id: "unit_7",
+            displayName: "ICU - Bed 2",
+            code: "ICU-2",
+          },
+        },
+      ]);
+
+      const results =
+        await AppointmentService.getAppointmentsForOrganisation("org_1");
+      const room = (results[0] as any)?.room;
+
+      expect(prisma.admission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { encounterId: { in: ["enc_1"] } },
+        }),
+      );
+      expect(room?.id).toBe("room_1");
+      expect(room?.unitId).toBe("unit_7");
+      expect(room?.unitName).toBe("ICU - Bed 2");
+      expect(room?.unit).toEqual({
+        id: "unit_7",
+        name: "ICU - Bed 2",
+        displayName: "ICU - Bed 2",
+        code: "ICU-2",
+      });
     });
   });
 

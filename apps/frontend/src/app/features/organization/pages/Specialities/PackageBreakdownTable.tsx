@@ -2,8 +2,10 @@ import React from 'react';
 import { MdDeleteForever } from 'react-icons/md';
 import { AiOutlineInfoCircle } from 'react-icons/ai';
 import { PackageBreakdownItem } from '@/app/features/organization/types/revamp';
-import { computePackageBreakdownItem } from '@/app/features/organization/services/revampMockData';
+import { computePackageBreakdownItem } from '@/app/features/organization/services/catalogCalculations';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { formatMoney } from '@/app/lib/money';
 
 const TYPE_LABELS: Record<string, string> = {
   CONSULTATION: 'Consultation',
@@ -30,6 +32,7 @@ const NestedBreakdownTooltip = ({
   items: PackageBreakdownItem[];
   additionalDiscount: number;
 }) => {
+  const orgCurrency = useCurrencyForPrimaryOrg();
   const subtotal = items.reduce((sum, item) => {
     const { net } = computePackageBreakdownItem(item);
     return sum + net;
@@ -61,13 +64,15 @@ const NestedBreakdownTooltip = ({
                 </td>
                 <td style={{ padding: '3px 6px' }}>{item.name}</td>
                 <td style={{ padding: '3px 6px', textAlign: 'right' }}>
-                  $ {item.unitPrice.toFixed(2)}
+                  {formatMoney(item.unitPrice, item.currency ?? orgCurrency)}
                 </td>
                 <td style={{ padding: '3px 6px', textAlign: 'center' }}>×{item.quantity}</td>
                 <td style={{ padding: '3px 6px', textAlign: 'right', opacity: 0.7 }}>
                   {item.discount}%
                 </td>
-                <td style={{ padding: '3px 6px', textAlign: 'right' }}>$ {net.toFixed(2)}</td>
+                <td style={{ padding: '3px 6px', textAlign: 'right' }}>
+                  {formatMoney(net, item.currency ?? orgCurrency)}
+                </td>
               </tr>
             );
           })}
@@ -82,7 +87,7 @@ const NestedBreakdownTooltip = ({
                 Additional discount ({additionalDiscount}%)
               </td>
               <td style={{ padding: '3px 6px', textAlign: 'right', opacity: 0.8 }}>
-                - $ {((subtotal * additionalDiscount) / 100).toFixed(2)}
+                - {formatMoney((subtotal * additionalDiscount) / 100, orgCurrency)}
               </td>
             </tr>
           )}
@@ -94,7 +99,7 @@ const NestedBreakdownTooltip = ({
               Total
             </td>
             <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>
-              $ {afterAdditional.toFixed(2)}
+              {formatMoney(afterAdditional, orgCurrency)}
             </td>
           </tr>
         </tfoot>
@@ -111,6 +116,7 @@ const PackageBreakdownTable = ({
   onChangeQty,
   onChangeDiscount,
 }: PackageBreakdownTableProps) => {
+  const orgCurrency = useCurrencyForPrimaryOrg();
   const afterItemDiscounts = items.reduce((sum, item) => {
     const { net } = computePackageBreakdownItem(item);
     return sum + net;
@@ -142,7 +148,11 @@ const PackageBreakdownTable = ({
             <th className="text-right p-3 whitespace-nowrap">Gross amt.</th>
             <th className="text-right p-3 whitespace-nowrap">Discount %</th>
             <th className="text-right p-3">Amount</th>
-            {editable && <th aria-label="Actions" />}
+            {editable && (
+              <th className="p-3 text-right">
+                <span className="sr-only">Actions</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -175,7 +185,9 @@ const PackageBreakdownTable = ({
                     )}
                   </span>
                 </td>
-                <td className="p-3 text-right whitespace-nowrap">$ {item.unitPrice.toFixed(2)}</td>
+                <td className="p-3 text-right whitespace-nowrap">
+                  {formatMoney(item.unitPrice, item.currency ?? orgCurrency)}
+                </td>
                 <td className="p-3 text-center">
                   {editable ? (
                     <input
@@ -193,7 +205,9 @@ const PackageBreakdownTable = ({
                     <span>×{item.quantity}</span>
                   )}
                 </td>
-                <td className="p-3 text-right whitespace-nowrap">$ {gross.toFixed(2)}</td>
+                <td className="p-3 text-right whitespace-nowrap">
+                  {formatMoney(gross, item.currency ?? orgCurrency)}
+                </td>
                 <td className="p-3 text-right">
                   {editable ? (
                     <input
@@ -214,7 +228,9 @@ const PackageBreakdownTable = ({
                     <span>-{item.discount}%</span>
                   )}
                 </td>
-                <td className="p-3 text-right whitespace-nowrap">$ {net.toFixed(2)}</td>
+                <td className="p-3 text-right whitespace-nowrap">
+                  {formatMoney(net, item.currency ?? orgCurrency)}
+                </td>
                 {editable && (
                   <td className="p-3">
                     <button
@@ -245,7 +261,7 @@ const PackageBreakdownTable = ({
                 colSpan={editable ? 2 : 1}
                 className="px-3 py-2 text-right text-text-brand whitespace-nowrap"
               >
-                - $ {additionalDiscountAmt.toFixed(2)}
+                - {formatMoney(additionalDiscountAmt, orgCurrency)}
               </td>
             </tr>
           )}
@@ -259,14 +275,14 @@ const PackageBreakdownTable = ({
             <td colSpan={editable ? 2 : 1} className="px-3 pt-3 pb-2 text-right">
               {editable ? (
                 <span className="text-body-4-emphasis text-text-brand whitespace-nowrap">
-                  $ {totalCost.toFixed(2)}
+                  {formatMoney(totalCost, orgCurrency)}
                 </span>
               ) : (
                 <span
-                  className="inline-flex items-center gap-2 justify-end rounded-2xl bg-[#E6F2FF] px-4 py-2 text-[16px] font-bold leading-[120%] text-[#006AE0] whitespace-nowrap"
+                  className="inline-flex items-center gap-2 justify-end rounded-2xl bg-blue-50 px-4 py-2 text-body-3-emphasis text-text-brand whitespace-nowrap"
                   style={{ minWidth: 120, height: 40 }}
                 >
-                  $ {totalCost.toFixed(2)}
+                  {formatMoney(totalCost, orgCurrency)}
                 </span>
               )}
             </td>

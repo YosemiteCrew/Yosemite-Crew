@@ -15,6 +15,11 @@ import {
   InventoryAlertService,
   InventoryServiceError,
 } from "../../src/services/inventory.service";
+import { generatePresignedUrl } from "../../src/middlewares/upload";
+
+jest.mock("../../src/middlewares/upload", () => ({
+  generatePresignedUrl: jest.fn(),
+}));
 
 // --- MOCKS ---
 jest.mock("../../src/services/inventory.service", () => {
@@ -155,6 +160,46 @@ describe("Inventory Controllers", () => {
   });
 
   describe("InventoryController", () => {
+    describe("getItemImageUploadUrl", () => {
+      it("returns a presigned upload URL for inventory images", async () => {
+        req = mockRequest({
+          params: { organisationId: "org1" },
+          body: { mimeType: "image/png" },
+        });
+        (generatePresignedUrl as jest.Mock).mockResolvedValueOnce({
+          url: "https://s3.example/upload",
+          key: "inventory/org1/image.png",
+        });
+
+        await InventoryController.getItemImageUploadUrl(req as any, res);
+
+        expect(generatePresignedUrl).toHaveBeenCalledWith(
+          "image/png",
+          "inventory",
+          "org1",
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+          uploadUrl: "https://s3.example/upload",
+          s3Key: "inventory/org1/image.png",
+        });
+      });
+
+      it("rejects missing mimeType", async () => {
+        req = mockRequest({
+          params: { organisationId: "org1" },
+          body: {},
+        });
+
+        await InventoryController.getItemImageUploadUrl(req as any, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+          message: "MIME type is required in the request body.",
+        });
+      });
+    });
+
     describe("createItem", () => {
       it("should create item successfully", async () => {
         req = mockRequest({ body: { name: "Test" } });

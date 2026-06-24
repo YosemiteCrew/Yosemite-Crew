@@ -36,6 +36,7 @@ import { IoIosWarning } from 'react-icons/io';
 import { IoPaw, IoPerson, IoChevronDown } from 'react-icons/io5';
 import { TiPlus } from 'react-icons/ti';
 import clsx from 'clsx';
+import type { AppointmentKind } from '@yosemite-crew/types';
 
 // ─── Design tokens (spec-exact) ────────────────────────────────────────────────
 const FONT = 'var(--font-satoshi), sans-serif';
@@ -100,6 +101,15 @@ const VISIT_TYPE_OPTIONS = [
   { label: 'Outpatient', value: 'Outpatient' },
   { label: 'Inpatient', value: 'Inpatient' },
 ];
+
+const visitTypeToAppointmentKind = (visitType: string): AppointmentKind =>
+  visitType === 'Inpatient' ? 'INPATIENT' : 'OUTPATIENT';
+
+const appointmentKindToVisitType = (appointmentKind?: AppointmentKind): string =>
+  appointmentKind === 'INPATIENT' ? 'Inpatient' : 'Outpatient';
+
+const getDropdownValue = (option: string | { value: string }): string =>
+  typeof option === 'string' ? option : option.value;
 
 // ─── Shared arrow icon (spec: solid but light-weight) ─────────────────────────
 const Arrow = ({ open }: { open: boolean }) => (
@@ -627,6 +637,7 @@ const AddAppointmentCentralModal = ({
     },
     initialPrefill: showModal ? prefill : null,
     calendarSlotFlow: calendarSlotFlowActive,
+    appointmentKind: visitTypeToAppointmentKind(visitType),
   });
   const {
     formData,
@@ -697,6 +708,10 @@ const AddAppointmentCentralModal = ({
   useLayoutEffect(() => {
     setIsLoadingTimeSlots(false);
   }, [timeSlots]);
+
+  useLayoutEffect(() => {
+    setVisitType(appointmentKindToVisitType(formData.appointmentKind));
+  }, [formData.appointmentKind]);
 
   // ── Revalidate after submit attempt ─────────────────────────────────────────
   useLayoutEffect(() => {
@@ -846,6 +861,18 @@ const AddAppointmentCentralModal = ({
     }
     setNotifyChannels(next);
   };
+
+  const handleVisitTypeSelect = useCallback(
+    (opt: string | { label: string; value: string }) => {
+      const nextVisitType = getDropdownValue(opt);
+      setVisitType(nextVisitType);
+      setFormData((prev) => ({
+        ...prev,
+        appointmentKind: visitTypeToAppointmentKind(nextVisitType),
+      }));
+    },
+    [setFormData]
+  );
 
   const showError = (field: keyof typeof formDataErrors) =>
     submitAttempted ? formDataErrors[field] : undefined;
@@ -1011,7 +1038,7 @@ const AddAppointmentCentralModal = ({
                     placeholder="Type of Visit"
                     options={VISIT_TYPE_OPTIONS}
                     defaultOption={visitType}
-                    onSelect={(opt) => setVisitType(opt.value)}
+                    onSelect={handleVisitTypeSelect}
                     searchable={false}
                     portal
                   />
@@ -1023,7 +1050,7 @@ const AddAppointmentCentralModal = ({
                 <LabelDropdown
                   placeholder="Lead"
                   options={LeadOptions}
-                  defaultOption={formData.lead?.id}
+                  defaultOption={formData.lead?.id ?? ''}
                   onSelect={handleLeadSelectWithReset}
                   error={showError('leadId')}
                   searchable
@@ -1058,7 +1085,7 @@ const AddAppointmentCentralModal = ({
               <LabelDropdown
                 placeholder="Speciality"
                 options={SpecialitiesOptions}
-                defaultOption={formData.appointmentType?.speciality?.id}
+                defaultOption={formData.appointmentType?.speciality?.id ?? ''}
                 onSelect={handleSpecialitySelect}
                 error={showError('specialityId')}
                 searchable
@@ -1066,11 +1093,11 @@ const AddAppointmentCentralModal = ({
                 icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
               />
 
-              {/* Service */}
+              {/* Service / Package */}
               <LabelDropdown
-                placeholder="Service"
+                placeholder="Services / Packages"
                 options={ServicesOptions}
-                defaultOption={formData.appointmentType?.id}
+                defaultOption={formData.appointmentType?.id ?? ''}
                 onSelect={handleServiceSelect}
                 error={showError('serviceId')}
                 searchable

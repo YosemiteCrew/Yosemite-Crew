@@ -21,6 +21,7 @@ const AddSpecialityModal = ({
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const addSpeciality = useRevampCatalogStore((s) => s.addSpeciality);
+  const specialities = useRevampCatalogStore((s) => s.specialities);
   const { notify } = useNotify();
 
   const handleClose = () => {
@@ -29,20 +30,32 @@ const AddSpecialityModal = ({
     setShowModal(false);
   };
 
-  const submitSpeciality = () => {
+  const submitSpeciality = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
       setError('Speciality name is required.');
       return;
     }
-    addSpeciality(trimmed, organisationId);
-    notify('success', { title: 'Speciality added', text: `"${trimmed}" has been created.` });
-    handleClose();
+    const exists = specialities.some(
+      (s) =>
+        s.organisationId === organisationId && s.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (exists) {
+      setError('A speciality with this name already exists.');
+      return;
+    }
+    try {
+      await addSpeciality(trimmed, organisationId);
+      notify('success', { title: 'Speciality added', text: `"${trimmed}" has been created.` });
+      handleClose();
+    } catch {
+      notify('error', { title: 'Unable to add speciality', text: 'Please try again.' });
+    }
   };
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    submitSpeciality();
+    Promise.resolve(submitSpeciality()).catch(() => undefined);
   };
 
   return (
@@ -61,7 +74,13 @@ const AddSpecialityModal = ({
         />
         <div className="grid grid-cols-2 gap-3">
           <Secondary href="#" text="Cancel" onClick={handleClose} />
-          <Primary href="#" text="Add Speciality" onClick={submitSpeciality} />
+          <Primary
+            href="#"
+            text="Add Speciality"
+            onClick={() => {
+              Promise.resolve(submitSpeciality()).catch(() => undefined);
+            }}
+          />
         </div>
       </form>
     </CenterModal>

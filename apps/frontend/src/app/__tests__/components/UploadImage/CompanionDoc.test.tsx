@@ -57,7 +57,7 @@ describe('CompanionDoc', () => {
     await waitFor(() => {
       expect(postData).toHaveBeenCalledWith('/api/companion/sign', {
         mimeType: 'application/pdf',
-        companionId: 'comp-99',
+        patientId: 'comp-99',
       });
     });
     expect(onChange).toHaveBeenCalledWith('s3/key.pdf', 'application/pdf', expect.any(Number));

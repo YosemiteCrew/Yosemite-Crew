@@ -8,6 +8,13 @@ import {
   buildFHIRPayload,
   questionnaireToForm,
   mapQuestionnaireToUI,
+  mapTemplateToUI,
+  templateKindToCategory,
+  templateStatusToLabel,
+  categoryToTemplateKind,
+  shouldUseTemplateApi,
+  buildTemplateSchemaSnapshot,
+  buildTemplatePayload,
   hasSignatureField,
   removeSignatureFields,
   ensureSingleSignatureAtEnd,
@@ -20,6 +27,9 @@ import { FormsCategory } from '@/app/features/forms/types/forms';
 
 // Mock external library functions to verify they are called
 jest.mock('@yosemite-crew/types', () => ({
+  // Keep the real shared constants (e.g. CANONICAL_* clinical structures) so the
+  // single-sourced clinical blueprints resolve; only the DTO/mapper helpers are mocked.
+  ...jest.requireActual('@yosemite-crew/types'),
   // Pass through relevant types if needed, or just mock functions
   fromFormRequestDTO: jest.fn((dto) => ({
     ...dto,
@@ -29,6 +39,34 @@ jest.mock('@yosemite-crew/types', () => ({
     ...form,
     _convertedToDTO: true,
   })),
+  templateMapper: {
+    isPlanDefinitionResourceKind: jest.fn(
+      (kind) => kind === 'TASK_ASSIGNMENT' || kind === 'INPATIENT_SCHEDULE'
+    ),
+    templateToPlanDefinition: jest.fn((template) => ({
+      resourceType: 'PlanDefinition',
+      title: template.name,
+      description: template.description,
+    })),
+    templateToQuestionnaire: jest.fn((template) => ({
+      resourceType: 'Questionnaire',
+      id: template.id,
+      title: template.name,
+      description: template.description,
+    })),
+    planDefinitionToTemplateInput: jest.fn((resource, defaults) => ({
+      name: resource.title,
+      description: resource.description,
+      kind: defaults.kind,
+      schemaSnapshot: { sections: [] },
+    })),
+    questionnaireToTemplateInput: jest.fn((resource, defaults) => ({
+      name: resource.title,
+      description: resource.description,
+      kind: defaults.kind,
+      schemaSnapshot: { sections: [{ id: 'section-1', title: 'Section', fields: [] }] },
+    })),
+  },
 }));
 
 // Mock the constants file to control CategoryTemplates data
@@ -118,6 +156,43 @@ describe('Forms Utils', () => {
     it("labelToStatus defaults to 'draft'", () => {
       expect(labelToStatus()).toBe('draft');
       expect(labelToStatus('Unknown' as any)).toBe('draft');
+    });
+
+    it('maps template statuses to form status labels', () => {
+      expect(templateStatusToLabel('PUBLISHED')).toBe('Published');
+      expect(templateStatusToLabel('ARCHIVED')).toBe('Archived');
+      expect(templateStatusToLabel('DRAFT')).toBe('Draft');
+      expect(templateStatusToLabel()).toBe('Draft');
+    });
+
+    it('maps template kinds to user-facing form categories', () => {
+      expect(templateKindToCategory('SOAP_NOTE')).toBe('SOAP');
+      expect(templateKindToCategory('VITAL_RECORD')).toBe('Vitals');
+      expect(templateKindToCategory('PRESCRIPTION')).toBe('Prescription Template');
+      expect(templateKindToCategory('DISCHARGE_SUMMARY')).toBe('Discharge Form');
+      expect(templateKindToCategory('TASK_ASSIGNMENT')).toBe('Task Template');
+      expect(templateKindToCategory('INPATIENT_SCHEDULE')).toBe('Inpatient Schedule');
+      expect(templateKindToCategory()).toBe('Custom');
+    });
+
+    it('maps form categories back to backend template kinds', () => {
+      expect(categoryToTemplateKind('SOAP')).toBe('SOAP_NOTE');
+      expect(categoryToTemplateKind('Vitals')).toBe('VITAL_RECORD');
+      expect(categoryToTemplateKind('Prescription Template')).toBe('PRESCRIPTION');
+      expect(categoryToTemplateKind('Discharge Form')).toBe('DISCHARGE_SUMMARY');
+      expect(categoryToTemplateKind('Task Template')).toBe('TASK_ASSIGNMENT');
+      expect(categoryToTemplateKind('Inpatient Schedule')).toBe('INPATIENT_SCHEDULE');
+      expect(categoryToTemplateKind('Consent form')).toBe('CONSENT');
+      expect(categoryToTemplateKind('Custom')).toBe('FORM');
+      expect(categoryToTemplateKind('Boarder - Schedule' as any)).toBeNull();
+    });
+
+    it('detects rows that should use the template API', () => {
+      expect(shouldUseTemplateApi({ category: 'SOAP' as any })).toBe(true);
+      expect(shouldUseTemplateApi({ category: 'Boarder - Schedule' as any })).toBe(false);
+      expect(
+        shouldUseTemplateApi({ category: 'Boarder - Schedule' as any, isTemplateBacked: true })
+      ).toBe(true);
     });
   });
 
@@ -247,6 +322,118 @@ describe('Forms Utils', () => {
       const result = mapQuestionnaireToUI(dto);
       expect(result._id).toBe('dto-id');
       expect(result.status).toBe('Published');
+    });
+
+    it('maps questionnaire-backed templates to form UI rows with template metadata', () => {
+      const result = mapTemplateToUI({
+        id: 'tpl-soap',
+        organisationId: 'org-1',
+        ownerUserId: null,
+        ownership: 'YC_LIBRARY',
+        kind: 'SOAP_NOTE',
+        name: 'YC SOAP',
+        description: 'Default SOAP',
+        status: 'PUBLISHED',
+        scope: 'ORGANISATION',
+        rules: null,
+        latestVersion: 3,
+        publishedVersion: 2,
+        createdBy: 'system',
+        updatedBy: 'system',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        versions: [],
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          _id: 'tpl-soap',
+          name: 'YC SOAP',
+          category: 'SOAP',
+          status: 'Published',
+          templateId: 'tpl-soap',
+          templateKind: 'SOAP_NOTE',
+          templateSource: 'YC_LIBRARY',
+          templateVersion: 2,
+          isTemplateBacked: true,
+        })
+      );
+    });
+
+    it('maps care pathway templates to inpatient schedule rows', () => {
+      const result = mapTemplateToUI({
+        id: 'tpl-care',
+        organisationId: 'org-1',
+        ownerUserId: 'user-1',
+        ownership: 'USER_TEMPLATE',
+        kind: 'INPATIENT_SCHEDULE',
+        name: 'Post-op pathway',
+        description: null,
+        status: 'DRAFT',
+        scope: 'INPATIENT',
+        rules: null,
+        latestVersion: 1,
+        publishedVersion: null,
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        versions: [],
+      });
+
+      expect(result.category).toBe('Inpatient Schedule');
+      expect(result.status).toBe('Draft');
+      expect(result.templateVersion).toBe(1);
+    });
+
+    it('builds backend-compatible clinical template schemas with custom fields appended', () => {
+      const schema = buildTemplateSchemaSnapshot({
+        name: 'SOAP',
+        category: 'SOAP',
+        usage: 'Internal',
+        updatedBy: '',
+        lastUpdated: '',
+        schema: [{ id: 'custom_note', label: 'Custom note', type: 'textarea' }],
+      } as any);
+
+      expect(schema.sections.map((section) => section.id)).toEqual(
+        expect.arrayContaining(['subjective', 'objective', 'assessment', 'plan', 'custom_fields'])
+      );
+      expect(schema.sections.at(-1)?.fields[0]).toEqual(
+        expect.objectContaining({ key: 'custom_note', type: 'richText' })
+      );
+    });
+
+    it('builds template upsert payloads with rules from form metadata', () => {
+      const payload = buildTemplatePayload(
+        {
+          name: 'Vitals',
+          description: 'Vitals template',
+          category: 'Vitals',
+          usage: 'Internal',
+          requiredSigner: '',
+          species: ['Canine'],
+          services: ['srv-1'],
+          updatedBy: 'user-1',
+          lastUpdated: '',
+          schema: [],
+        } as any,
+        'org-1'
+      );
+
+      expect(payload).toEqual(
+        expect.objectContaining({
+          organisationId: 'org-1',
+          ownership: 'ORG_TEMPLATE',
+          kind: 'VITAL_RECORD',
+          name: 'Vitals',
+          scope: 'ORGANISATION',
+          rules: expect.objectContaining({ species: ['Canine'], visibility: 'Internal' }),
+        })
+      );
+      expect(payload.schemaSnapshot.sections.map((section) => section.id)).toEqual(
+        expect.arrayContaining(['vitals', 'notes'])
+      );
     });
   });
 

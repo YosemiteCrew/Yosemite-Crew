@@ -124,6 +124,7 @@ describe("clinicalArtifactFhirMapper", () => {
       artifactId: "artifact-4",
       measuredAt: now,
       recordedBy: "nurse-1",
+      recordedByDisplay: "Nurse Joy",
       vitals: { temperature: 39.1, pulse: 120 },
       notes: "stable",
       metadata: { source: "template" },
@@ -156,6 +157,7 @@ describe("clinicalArtifactFhirMapper", () => {
       { organisationId: "org-1" },
     );
 
+    expect(input.status).toBe("COMPLETED");
     expect(input.subjective).toEqual({ chiefComplaint: "Cough" });
     expect(input.assessment).toEqual({ diagnosis: "Flu" });
   });
@@ -180,15 +182,41 @@ describe("clinicalArtifactFhirMapper", () => {
           medicationCodeableConcept: { text: "Rx summary" },
           medicationReference: { reference: "MedicationRequest/artifact-2" },
           intent: "order",
-          status: "draft",
+          status: "active",
           subject: { reference: "Encounter/enc-1" },
           extension: resource.extension,
         },
         { organisationId: "org-1" },
       );
 
+    expect(input.status).toBe("COMPLETED");
     expect(input.medications).toEqual([{ name: "Amoxicillin" }]);
     expect(input.notes).toBe("after food");
+  });
+
+  it("round-trips an in-progress prescription without downgrading to DRAFT", () => {
+    const resource = clinicalArtifactFhirMapper.prescriptionToMedicationRequest(
+      {
+        ...prescriptionRecord,
+        artifact: {
+          ...prescriptionRecord.artifact,
+          status: "IN_PROGRESS" as const,
+        },
+      },
+    );
+    // An IN_PROGRESS prescription serialises to FHIR status 'accepted'...
+    expect(resource.status).toBe("accepted");
+
+    const input =
+      clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(
+        resource,
+        {
+          organisationId: "org-1",
+        },
+      );
+
+    // ...and must map back to IN_PROGRESS, not fall through to DRAFT.
+    expect(input.status).toBe("IN_PROGRESS");
   });
 
   it("maps discharge summaries to and from Composition", () => {
@@ -215,6 +243,7 @@ describe("clinicalArtifactFhirMapper", () => {
       { organisationId: "org-1" },
     );
 
+    expect(input.status).toBe("COMPLETED");
     expect(input.summaryContent).toEqual({ text: "Recovered well" });
     expect(input.followUp).toEqual({ afterDays: 7 });
   });
@@ -225,6 +254,10 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(resource.resourceType).toBe("Observation");
     expect(resource.id).toBe("artifact-4");
     expect(resource.component).toHaveLength(2);
+    expect(resource.performer?.[0]).toEqual({
+      reference: "Practitioner/nurse-1",
+      display: "Nurse Joy",
+    });
     expect(
       resource.extension?.some((extension) =>
         extension.url.includes("vital-record-vitals"),
@@ -237,13 +270,21 @@ describe("clinicalArtifactFhirMapper", () => {
         status: "final",
         code: { text: "Vitals" },
         effectiveDateTime: now.toISOString(),
+        performer: [
+          {
+            reference: "Practitioner/nurse-1",
+            display: "Nurse Joy",
+          },
+        ],
         extension: resource.extension,
       },
       { organisationId: "org-1", recordedBy: "nurse-1" },
     );
 
+    expect(input.status).toBe("COMPLETED");
     expect(input.vitals).toEqual({ temperature: 39.1, pulse: 120 });
     expect(input.recordedBy).toBe("nurse-1");
+    expect(input.recordedByDisplay).toBe("Nurse Joy");
   });
 
   it("builds list bundles for each clinical record kind", () => {

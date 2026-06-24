@@ -17,7 +17,7 @@ import countries from '@/app/lib/data/countryList';
 
 import './Dropdown.css';
 
-type DropdownType = 'country' | 'breed' | 'general' | undefined;
+type DropdownType = 'country' | 'breed' | 'general';
 
 type DropdownProps = {
   placeholder: string;
@@ -37,6 +37,12 @@ type DropdownProps = {
 const DROPDOWN_MAX_HEIGHT = 200;
 const DROPDOWN_MIN_HEIGHT = 72;
 
+/** Wrap the active option index when navigating with the arrow keys. */
+const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): number => {
+  if (delta === 1) return current + 1 >= optionCount ? 0 : current + 1;
+  return current <= 0 ? optionCount - 1 : current - 1;
+};
+
 const Dropdown = ({
   placeholder,
   onChange,
@@ -53,6 +59,7 @@ const Dropdown = ({
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
   const errorId = useId();
@@ -100,6 +107,10 @@ const Dropdown = ({
     }
     return list;
   }, [list, query, search]);
+  const activeOptionId =
+    activeIndex >= 0 && activeIndex < filteredList.length
+      ? `${listboxId}-option-${filteredList[activeIndex].value}`
+      : undefined;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -175,6 +186,94 @@ const Dropdown = ({
   const isActive = open || !!value;
   const selected = list.find((opt: any) => opt.value === value);
 
+  useEffect(() => {
+    if (!open || filteredList.length === 0) {
+      setActiveIndex(-1);
+      return;
+    }
+    setActiveIndex((current) => {
+      if (current >= 0 && current < filteredList.length) return current;
+      const selectedIndex = filteredList.findIndex((option: any) => option.value === value);
+      return Math.max(selectedIndex, 0);
+    });
+  }, [filteredList, open, value]);
+
+  useEffect(() => {
+    if (!open || !activeOptionId) return;
+    document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
+  }, [activeOptionId, open]);
+
+  const selectOption = useCallback(
+    (option: any) => {
+      const valueToSend: string = option.value ?? option.label ?? '';
+      onChange(returnObject ? option : valueToSend);
+      setOpen(false);
+      setQuery('');
+    },
+    [onChange, returnObject]
+  );
+
+  const handleArrowKey = useCallback(
+    (delta: 1 | -1) => {
+      const optionCount = filteredList.length;
+      if (optionCount === 0) return;
+      if (!open) {
+        setOpen(true);
+        return;
+      }
+      setActiveIndex((current) => wrapActiveIndex(current, optionCount, delta));
+    },
+    [filteredList.length, open]
+  );
+
+  const handleConfirmKey = useCallback(() => {
+    const optionCount = filteredList.length;
+    if (!open) {
+      setOpen(true);
+      return;
+    }
+    if (activeIndex < 0 || activeIndex >= optionCount) return;
+    selectOption(filteredList[activeIndex]);
+  }, [activeIndex, filteredList, open, selectOption]);
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (disabled) return;
+      const optionCount = filteredList.length;
+      switch (event.key) {
+        case 'Escape':
+          event.preventDefault();
+          setOpen(false);
+          return;
+        case 'ArrowDown':
+          event.preventDefault();
+          handleArrowKey(1);
+          return;
+        case 'ArrowUp':
+          event.preventDefault();
+          handleArrowKey(-1);
+          return;
+        case 'Home':
+          if (!open || optionCount === 0) return;
+          event.preventDefault();
+          setActiveIndex(0);
+          return;
+        case 'End':
+          if (!open || optionCount === 0) return;
+          event.preventDefault();
+          setActiveIndex(optionCount - 1);
+          return;
+        case 'Enter':
+        case ' ':
+          event.preventDefault();
+          handleConfirmKey();
+          return;
+        default:
+      }
+    },
+    [disabled, filteredList.length, handleArrowKey, handleConfirmKey, open]
+  );
+
   const panel = (
     <div
       id={listboxId}
@@ -194,6 +293,12 @@ const Dropdown = ({
             aria-label={`Search ${placeholder}`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              handleKeyDown(event);
+            }}
+            aria-controls={listboxId}
+            aria-activedescendant={activeOptionId}
             className="border-0 text-[16px]! w-full px-2 focus-visible:outline-none"
             placeholder={`Search ${placeholder}`}
             autoComplete="off"
@@ -209,18 +314,16 @@ const Dropdown = ({
       {filteredList.map((option: any, index: number) => {
         const label: string = option.label ?? option.value ?? '';
         const valueToSend: string = option.value ?? option.label ?? '';
-        const isSelected = valueToSend === value;
         return (
           <button
             key={valueToSend || label}
+            id={`${listboxId}-option-${valueToSend}`}
             type="button"
-            aria-pressed={isSelected}
-            className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'}`}
-            onClick={() => {
-              onChange(returnObject ? option : valueToSend);
-              setOpen(false);
-              setQuery('');
-            }}
+            className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'} ${
+              activeOptionId === `${listboxId}-option-${valueToSend}` ? 'bg-card-hover' : ''
+            }`}
+            onMouseEnter={() => setActiveIndex(index)}
+            onClick={() => selectOption(option)}
           >
             {label}
           </button>
@@ -252,6 +355,7 @@ const Dropdown = ({
           aria-label={selected ? `${placeholder}: ${selected.label}` : placeholder}
           aria-describedby={error ? errorId : undefined}
           disabled={disabled}
+          onKeyDown={handleKeyDown}
         >
           {selected && <div className="select-input-selected">{selected.label}</div>}
           <div className="select-input-drop-icon" aria-hidden="true">

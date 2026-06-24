@@ -9,6 +9,7 @@ import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Close from '@/app/ui/primitives/Icons/Close';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { Appointment } from '@yosemite-crew/types';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -65,6 +66,24 @@ const normalizeOrders = (orders: LabOrder[]): LabOrder[] =>
     return bDate - aDate;
   });
 
+/**
+ * Lists lab orders scoped to the appointment, falling back to companion-only when the labs
+ * provider does not recognise the appointment (e.g. it was never registered as a lab order
+ * context). The clinician still sees the companion's lab history instead of an error.
+ */
+const listIdexxOrdersWithFallback = async (
+  organisationId: string,
+  appointmentId: string,
+  companionId?: string
+): Promise<LabOrder[]> => {
+  try {
+    return await listIdexxOrders({ organisationId, appointmentId, companionId });
+  } catch (error) {
+    if (!companionId) throw error;
+    return listIdexxOrders({ organisationId, companionId });
+  }
+};
+
 const resolveLatestOrder = (prev: LabOrder | null, normalizedOrders: LabOrder[]): LabOrder => {
   if (!prev) return normalizedOrders[0];
   return normalizedOrders.find((order) => order._id === prev._id) ?? normalizedOrders[0];
@@ -92,7 +111,7 @@ const getResultOrderId = (result: LabResult) => {
   ).trim();
 };
 
-const formatTestPrice = (test: IdexxTest) => {
+export const formatTestPrice = (test: IdexxTest) => {
   const amount = String(test.meta?.listPrice ?? '').trim();
   if (!amount) return 'Rate unavailable';
   const currency = String(test.meta?.currencyCode ?? '').trim();
@@ -110,10 +129,10 @@ const formatTestPrice = (test: IdexxTest) => {
   }
 };
 
-const getTestTurnaround = (test: IdexxTest) =>
+export const getTestTurnaround = (test: IdexxTest) =>
   String(test.meta?.turnaround ?? '').trim() || 'TAT not listed';
 
-const getTestSpecimen = (test: IdexxTest) =>
+export const getTestSpecimen = (test: IdexxTest) =>
   String(test.meta?.specimen ?? '').trim() || 'Specimen not listed';
 
 const formatCensusIvlsDevices = (entry: CensusEntry | null) => {
@@ -162,7 +181,7 @@ const getMeterMeta = (test: LabResultTest) => {
   return { canRender: true, percent, markerClass };
 };
 
-const toTitleCase = (value?: string | null) => {
+export const toTitleCase = (value?: string | null) => {
   const raw = String(value ?? '').trim();
   if (!raw) return '-';
   const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
@@ -171,7 +190,7 @@ const toTitleCase = (value?: string | null) => {
 
 const orderSortDate = (order: LabOrder) => order.updatedAt ?? order.createdAt ?? '';
 
-const resolveOrderUiUrl = (order: LabOrder | null) => {
+export const resolveOrderUiUrl = (order: LabOrder | null) => {
   if (!order) return '';
   const nested = String(
     (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
@@ -180,7 +199,7 @@ const resolveOrderUiUrl = (order: LabOrder | null) => {
   return getSafeIdexxIframeUrl(raw);
 };
 
-const resolveOrderPdfUrl = (order: LabOrder | null) => {
+export const resolveOrderPdfUrl = (order: LabOrder | null) => {
   if (!order) return '';
   const nested = String(
     (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
@@ -217,7 +236,7 @@ const normalizeResultProgress = (status?: string | null) => {
   return '';
 };
 
-const getOrderStatusBadgeClass = (
+export const getOrderStatusBadgeClass = (
   order: LabOrder,
   resultProgressByOrderId: Map<string, string>
 ) => {
@@ -305,7 +324,7 @@ const LabResultMeter = ({ test }: { test: LabResultTest }) => {
   );
 };
 
-const LabResultCategoryTable = ({
+export const LabResultCategoryTable = ({
   category,
   resultId,
 }: {
@@ -411,7 +430,7 @@ const PastOrderCard = ({
 
 // ---------- Custom hook ----------
 
-const useLabTests = (activeAppointment: Appointment | null) => {
+export const useLabTests = (activeAppointment: Appointment | null) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const idexxIntegration = useIntegrationByProviderForPrimaryOrg('IDEXX');
   const [integrationEnabled, setIntegrationEnabled] = useState(false);
@@ -501,10 +520,14 @@ const useLabTests = (activeAppointment: Appointment | null) => {
   }, []);
 
   useEffect(() => {
-    const leadName = activeAppointment?.lead?.name ?? '';
-    const firstSupportName = activeAppointment?.supportStaff?.[0]?.name ?? '';
+    const leadName = (activeAppointment?.lead?.name ?? '').trim();
+    // Technician defaults to the first support staff member who isn't the lead,
+    // so the Veterinarian (lead) and Technician fields don't echo the same person.
+    const supportTechnicianName = (activeAppointment?.supportStaff ?? [])
+      .map((staff) => (staff.name ?? '').trim())
+      .find((name) => name && name !== leadName);
     setVeterinarian(leadName);
-    setTechnician(firstSupportName || leadName);
+    setTechnician(supportTechnicianName ?? '');
   }, [activeAppointment?.id, activeAppointment?.lead?.name, activeAppointment?.supportStaff]);
 
   useEffect(() => {
@@ -582,11 +605,11 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     setOrdersLoading(true);
     setError(null);
     try {
-      const orders = await listIdexxOrders({
-        organisationId: primaryOrgId,
-        appointmentId: activeAppointment.id,
-        companionId,
-      });
+      const orders = await listIdexxOrdersWithFallback(
+        primaryOrgId,
+        activeAppointment.id,
+        companionId
+      );
       const normalized = normalizeOrders(orders);
       setAppointmentOrders(normalized);
       appointmentOrdersRef.current = normalized;
@@ -695,11 +718,11 @@ const useLabTests = (activeAppointment: Appointment | null) => {
             }
           }
 
-          const refreshedOrders = await listIdexxOrders({
-            organisationId: primaryOrgId,
-            appointmentId: activeAppointment.id,
-            companionId,
-          });
+          const refreshedOrders = await listIdexxOrdersWithFallback(
+            primaryOrgId,
+            activeAppointment.id,
+            companionId
+          );
           const normalizedOrders = normalizeOrders(refreshedOrders);
           if (normalizedOrders.length > 0) {
             setAppointmentOrders(normalizedOrders);
@@ -869,7 +892,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
     setError(null);
     try {
       const payload = {
-        companionId,
+        patientId: companionId,
         appointmentId: activeAppointment?.id,
         tests: selectedTests.map((test) => test.code),
         modality,
@@ -884,6 +907,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
       setSelectedTests([]);
       setSelectedTestLabel('');
       setQuery('');
+      setNotes('');
       openOrderIframe('order', created.status, created);
       await refreshAppointmentOrders();
       await refreshResults();
@@ -916,7 +940,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
       await addPatientToIdexxCensus({
         organisationId: primaryOrgId,
         payload: {
-          companionId,
+          patientId: companionId,
           parentId: parentId || undefined,
           veterinarian: veterinarian || undefined,
           ivls: selectedIvls ? [selectedIvls] : undefined,
@@ -1055,7 +1079,7 @@ const useLabTests = (activeAppointment: Appointment | null) => {
 
 // ---------- Sub-components ----------
 
-type UseLabTestsReturn = ReturnType<typeof useLabTests>;
+export type UseLabTestsReturn = ReturnType<typeof useLabTests>;
 
 const getCensusStatusLabel = (selectedIvls: string, companionInCensus: boolean): string => {
   if (selectedIvls) return companionInCensus ? 'Already added to census' : 'Not added to census';
@@ -1454,6 +1478,56 @@ const LabResultsList = ({ s }: { s: UseLabTestsReturn }) => (
 
 // ---------- Main component ----------
 
+type IdexxOrderIframeOverlayProps = {
+  url: string;
+  title: string;
+  onClose: () => void;
+};
+
+const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverlayProps) => {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div
+      className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      data-signing-overlay="true"
+      style={{ pointerEvents: 'auto' }}
+    >
+      <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
+          <div className="text-body-2 text-text-primary">{title}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+            aria-label="Close IDEXX order frame"
+            style={{ pointerEvents: 'auto' }}
+          >
+            <Close iconOnly />
+          </button>
+        </div>
+        <div className="relative flex-1">
+          {loaded ? null : (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+              <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-order-loader" />
+            </div>
+          )}
+          <iframe
+            key={url}
+            src={url}
+            title="IDEXX order UI"
+            className="size-full border-0"
+            loading="lazy"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            style={{ pointerEvents: 'auto' }}
+            onLoad={() => setLoaded(true)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 type LabTestsProps = {
   activeAppointment: Appointment | null;
 };
@@ -1495,35 +1569,11 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
     <>
       {s.showOrderIframe && orderIframeUrl && typeof document !== 'undefined'
         ? createPortal(
-            <div
-              className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-              data-signing-overlay="true"
-              style={{ pointerEvents: 'auto' }}
-            >
-              <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
-                  <div className="text-body-2 text-text-primary">{iframeTitle}</div>
-                  <button
-                    type="button"
-                    onClick={s.closeOrderIframeManually}
-                    className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
-                    aria-label="Close IDEXX order frame"
-                    style={{ pointerEvents: 'auto' }}
-                  >
-                    <Close iconOnly />
-                  </button>
-                </div>
-                <iframe
-                  src={orderIframeUrl}
-                  title="IDEXX order UI"
-                  className="flex-1 w-full border-0"
-                  loading="lazy"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  style={{ pointerEvents: 'auto' }}
-                />
-              </div>
-            </div>,
+            <IdexxOrderIframeOverlay
+              url={orderIframeUrl}
+              title={iframeTitle}
+              onClose={s.closeOrderIframeManually}
+            />,
             document.body
           )
         : null}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -12,6 +12,14 @@ jest.mock('@/app/stores/revampCatalogStore', () => ({
 
 jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: jest.fn(),
+}));
+
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
+jest.mock('@/app/lib/money', () => ({
+  formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
 }));
 
 jest.mock('zustand/react/shallow', () => ({
@@ -86,7 +94,7 @@ jest.mock('@/app/ui/primitives/SectionContainer/SectionContainer', () => ({
   ),
 }));
 
-jest.mock('@/app/features/organization/services/revampMockData', () => ({
+jest.mock('@/app/features/organization/services/catalogCalculations', () => ({
   computePackageTotals: jest.fn(() => ({ totalCost: 100, grossTotal: 120 })),
 }));
 
@@ -96,6 +104,12 @@ jest.mock('react-icons/ri', () => ({
 
 jest.mock('react-icons/md', () => ({
   MdDeleteForever: () => <span data-testid="delete-icon" />,
+  MdOutlineArchive: () => <span data-testid="archive-icon" />,
+}));
+
+jest.mock('react-icons/lu', () => ({
+  LuBedSingle: () => <span data-testid="bed-icon" />,
+  LuCheck: () => <span data-testid="check-icon" />,
 }));
 
 jest.mock('react-icons/io5', () => ({
@@ -117,7 +131,7 @@ const mockPackage = {
   status: 'ACTIVE' as const,
   isBookable: true,
   description: 'Annual wellness check',
-  durationMinutes: 60,
+  durationText: 'Approx. 60 mins',
   additionalDiscount: 10,
   breakdown: [],
 };
@@ -130,7 +144,9 @@ const mockPackageWithBreakdown = {
 };
 
 describe('PackagesTab', () => {
-  const mockDeletePackage = jest.fn();
+  const mockArchivePackage = jest.fn();
+  const mockHydratePackageDetail = jest.fn();
+  const mockLoadSpecialityCatalog = jest.fn();
   const mockNotify = jest.fn();
 
   beforeEach(() => {
@@ -139,7 +155,10 @@ describe('PackagesTab', () => {
     (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) => {
       const state = {
         packages: [mockPackage, mockPackageWithBreakdown],
-        deletePackage: mockDeletePackage,
+        archivePackage: mockArchivePackage,
+        hydratePackageDetail: mockHydratePackageDetail,
+        loadSpecialityCatalog: mockLoadSpecialityCatalog,
+        loadedSpecialityIds: ['spec-1:active'],
       };
       return selector(state);
     });
@@ -160,7 +179,13 @@ describe('PackagesTab', () => {
 
   it('shows empty state message when no packages exist', () => {
     (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
-      selector({ packages: [], deletePackage: mockDeletePackage })
+      selector({
+        packages: [],
+        archivePackage: mockArchivePackage,
+        hydratePackageDetail: mockHydratePackageDetail,
+        loadSpecialityCatalog: mockLoadSpecialityCatalog,
+        loadedSpecialityIds: ['spec-1:active'],
+      })
     );
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
     expect(screen.getByText(/haven.*t added any packages yet/i)).toBeInTheDocument();
@@ -179,7 +204,9 @@ describe('PackagesTab', () => {
           { ...mockPackage, id: 'pkg-other', specialityId: 'spec-other' },
           { ...mockPackage, id: 'pkg-hidden', status: 'ARCHIVED' as const },
         ],
-        deletePackage: mockDeletePackage,
+        archivePackage: mockArchivePackage,
+        hydratePackageDetail: mockHydratePackageDetail,
+        loadSpecialityCatalog: mockLoadSpecialityCatalog,
       };
       return selector(state);
     });
@@ -214,6 +241,15 @@ describe('PackagesTab', () => {
     expect(screen.getByTestId('edit-draft-pkg-1')).toBeInTheDocument();
   });
 
+  it('hydrates package detail when viewing an empty breakdown', () => {
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    const viewButtons = screen.getAllByRole('button', {
+      name: /View breakdown of Wellness Package/i,
+    });
+    fireEvent.click(viewButtons[0]);
+    expect(mockHydratePackageDetail).toHaveBeenCalledWith('pkg-1');
+  });
+
   it('closes edit draft when Close Draft is clicked', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
     const editButtons = screen.getAllByRole('button', { name: /Edit Wellness Package/i });
@@ -226,38 +262,40 @@ describe('PackagesTab', () => {
 
   it('shows delete confirmation modal when delete button is clicked', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    const deleteButtons = screen.getAllByRole('button', { name: /Delete Wellness Package/i });
+    const deleteButtons = screen.getAllByRole('button', { name: /Archive Wellness Package/i });
     fireEvent.click(deleteButtons[0]);
     expect(screen.getByTestId('center-modal')).toBeInTheDocument();
-    expect(screen.getByText('Delete package')).toBeInTheDocument();
+    expect(screen.getByText('Archive package')).toBeInTheDocument();
     expect(screen.getAllByText(/Wellness Package/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('cancels delete when Cancel is clicked', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    const deleteButtons = screen.getAllByRole('button', { name: /Delete Wellness Package/i });
+    const deleteButtons = screen.getAllByRole('button', { name: /Archive Wellness Package/i });
     fireEvent.click(deleteButtons[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
-    expect(mockDeletePackage).not.toHaveBeenCalled();
+    expect(mockArchivePackage).not.toHaveBeenCalled();
   });
 
-  it('confirms delete and calls deletePackage + notify on confirm', () => {
+  it('confirms archive and calls archivePackage + notify on confirm', async () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    const deleteButtons = screen.getAllByRole('button', { name: /Delete Wellness Package/i });
-    fireEvent.click(deleteButtons[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    expect(mockDeletePackage).toHaveBeenCalledWith('pkg-1');
-    expect(mockNotify).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ title: 'Package deleted' })
-    );
-    expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+    const archiveButtons = screen.getAllByRole('button', { name: /Archive Wellness Package/i });
+    fireEvent.click(archiveButtons[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    expect(mockArchivePackage).toHaveBeenCalledWith('pkg-1');
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        'success',
+        expect.objectContaining({ title: 'Package archived' })
+      );
+      expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+    });
   });
 
   it('closes delete modal via modal header close button', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    const deleteButtons = screen.getAllByRole('button', { name: /Delete Wellness Package/i });
+    const deleteButtons = screen.getAllByRole('button', { name: /Archive Wellness Package/i });
     fireEvent.click(deleteButtons[0]);
     // Modal close button (from ModalHeader mock)
     fireEvent.click(screen.getByRole('button', { name: 'Modal Close' }));

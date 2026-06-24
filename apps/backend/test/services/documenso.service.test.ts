@@ -237,6 +237,75 @@ describe("DocumensoService", () => {
         );
       });
 
+      it("sends the signature field on-page so the signer can reach it", async () => {
+        mockCreateV0.mockResolvedValueOnce({
+          document: { id: "doc_sig" },
+          uploadUrl: "http://upload",
+        });
+
+        await DocumensoService.createDocument({
+          pdf: Buffer.from("test"),
+          signerEmail: "test@test.com",
+          signaturePlacement: {
+            pageNumber: 1,
+            pageX: 59.66,
+            pageY: 60.21,
+            width: 36.97,
+            height: 2.85,
+          },
+        });
+
+        const arg = mockCreateV0.mock.calls.at(-1)?.[0] as {
+          recipients: Array<{
+            fields: Array<{
+              type: string;
+              pageX: number;
+              pageY: number;
+              width: number;
+              height: number;
+            }>;
+          }>;
+        };
+        const field = arg.recipients[0].fields[0];
+        expect(field.type).toBe("SIGNATURE");
+        // Documenso uses 0–100 page percentages. PDF points (>100) placed the
+        // field off-page where the signer could not reach it — the historical
+        // "sign button doesn't work" bug. Guard the field stays on the page.
+        for (const value of [
+          field.pageX,
+          field.pageY,
+          field.width,
+          field.height,
+        ]) {
+          expect(value).toBeGreaterThan(0);
+          expect(value).toBeLessThanOrEqual(100);
+        }
+        expect(field.pageX + field.width).toBeLessThanOrEqual(100);
+        expect(field.pageY + field.height).toBeLessThanOrEqual(100);
+      });
+
+      it("falls back to an on-page default placement when none is provided", async () => {
+        mockCreateV0.mockResolvedValueOnce({
+          document: { id: "doc_def" },
+          uploadUrl: "http://upload",
+        });
+
+        await DocumensoService.createDocument({
+          pdf: Buffer.from("test"),
+          signerEmail: "test@test.com",
+        });
+
+        const arg = mockCreateV0.mock.calls.at(-1)?.[0] as {
+          recipients: Array<{
+            fields: Array<{ pageX: number; pageY: number; height: number }>;
+          }>;
+        };
+        const field = arg.recipients[0].fields[0];
+        expect(field.pageX).toBeLessThanOrEqual(100);
+        expect(field.pageY).toBeLessThanOrEqual(100);
+        expect(field.pageY + field.height).toBeLessThanOrEqual(100);
+      });
+
       it("throws when uploadPdfBuffer fetch fails (!response.ok)", async () => {
         (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
           ok: false,

@@ -39,6 +39,7 @@ describe('ProtectedRoute Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'false';
     process.env.YC_TEST_HOSTNAME = 'localhost';
     globalThis.window?.sessionStorage?.clear();
 
@@ -113,6 +114,56 @@ describe('ProtectedRoute Component', () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
+  it('renders children when user just signed in', () => {
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ status: 'signin-authenticated' })
+    );
+
+    render(
+      <ProtectedRoute>
+        <div data-testid="child">Protected Content</div>
+      </ProtectedRoute>
+    );
+
+    expect(screen.getByTestId('child')).toBeInTheDocument();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('does not render protected children from cached auth while session is checking', () => {
+    globalThis.window.sessionStorage.setItem('yc_auth_passed', '1');
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ status: 'checking' })
+    );
+
+    render(
+      <ProtectedRoute>
+        <div data-testid="child">Protected Content</div>
+      </ProtectedRoute>
+    );
+
+    expect(screen.queryByTestId('child')).not.toBeInTheDocument();
+    expect(useFullscreenLoader).toHaveBeenCalledWith('auth-guard', true);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('does not render protected children from cached auth after session is unauthenticated', async () => {
+    globalThis.window.sessionStorage.setItem('yc_auth_passed', '1');
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ status: 'unauthenticated' })
+    );
+
+    const { container } = render(
+      <ProtectedRoute>
+        <div data-testid="child">Protected Content</div>
+      </ProtectedRoute>
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(`/signin?next=${encodeURIComponent(mockPathname)}`);
+    });
+  });
+
   it('does not bypass auth guard on non-local hosts even if the flag is enabled', async () => {
     process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
     process.env.YC_TEST_HOSTNAME = 'dev.yosemitecrew.com';
@@ -130,5 +181,22 @@ describe('ProtectedRoute Component', () => {
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith(`/signin?next=${encodeURIComponent(mockPathname)}`);
     });
+  });
+
+  it('bypasses auth guard only for local development when explicitly enabled', () => {
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
+    process.env.YC_TEST_HOSTNAME = 'localhost';
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ status: 'unauthenticated' })
+    );
+
+    render(
+      <ProtectedRoute>
+        <div data-testid="child">Protected Content</div>
+      </ProtectedRoute>
+    );
+
+    expect(screen.getByTestId('child')).toBeInTheDocument();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

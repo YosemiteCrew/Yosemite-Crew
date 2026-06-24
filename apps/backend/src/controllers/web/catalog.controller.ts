@@ -129,6 +129,9 @@ const listQuerySchema = z.object({
   specialityId: z.string().trim().min(1).optional(),
   kinds: z.string().trim().optional(),
   search: z.string().trim().optional(),
+  supportsInpatient: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional(),
   includeInactive: z.union([z.literal("true"), z.literal("false")]).optional(),
   organization: z.string().trim().min(1).optional(),
   "provided-by": z.string().trim().min(1).optional(),
@@ -172,11 +175,17 @@ const serviceListQuerySchema = z.object({
     .enum(["CONSULTATION", "PROCEDURE", "DIAGNOSTIC", "LAB_TEST"])
     .optional(),
   isBookable: z.union([z.literal("true"), z.literal("false")]).optional(),
+  supportsInpatient: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional(),
 });
 
 const packageListQuerySchema = z.object({
   status: z.enum(["ACTIVE", "ARCHIVED", "ALL"]).optional(),
   search: z.string().trim().optional(),
+  supportsInpatient: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional(),
 });
 
 const itemSearchQuerySchema = z.object({
@@ -475,6 +484,12 @@ export const CatalogController = {
           queryResult.data.active === "true"
             ? true
             : queryResult.data.active === "false"
+              ? false
+              : undefined,
+        supportsInpatient:
+          queryResult.data.supportsInpatient === "true"
+            ? true
+            : queryResult.data.supportsInpatient === "false"
               ? false
               : undefined,
         includeInactive:
@@ -803,6 +818,12 @@ export const CatalogController = {
         includeInactive:
           parsed.data.status === "ALL" || parsed.data.status === "ARCHIVED",
         search: parsed.data.search,
+        supportsInpatient:
+          parsed.data.supportsInpatient === "true"
+            ? true
+            : parsed.data.supportsInpatient === "false"
+              ? false
+              : undefined,
       });
 
       return res.status(200).json({
@@ -951,6 +972,12 @@ export const CatalogController = {
         includeInactive:
           parsed.data.status === "ALL" || parsed.data.status === "ARCHIVED",
         search: parsed.data.search,
+        supportsInpatient:
+          parsed.data.supportsInpatient === "true"
+            ? true
+            : parsed.data.supportsInpatient === "false"
+              ? false
+              : undefined,
       });
 
       return res.status(200).json({

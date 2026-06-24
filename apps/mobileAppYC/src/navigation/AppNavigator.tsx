@@ -479,8 +479,21 @@ const AppNavigatorEmergencySheet: React.FC = () => {
 const AppNavigatorCoParentInviteSheet: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {user, isLoggedIn, isLoading} = useAuth();
-  const pendingInvites = useSelector(
+  const allPendingInvites = useSelector(
     (state: RootState) => (state as any)?.coParent?.pendingInvites ?? [],
+  );
+  // Only show invites where the current user is the recipient, not the sender.
+  // The API may return invites from both perspectives; filter out any where
+  // invitedBy.id matches the current user's parentId (they sent it, not received it).
+  const pendingInvites = React.useMemo(
+    () =>
+      allPendingInvites.filter(
+        (invite: any) =>
+          !invite.invitedBy?.id ||
+          (invite.invitedBy.id !== user?.parentId &&
+            invite.invitedBy.id !== user?.id),
+      ),
+    [allPendingInvites, user?.id, user?.parentId],
   );
   const [currentInviteIndex, setCurrentInviteIndex] = React.useState(0);
   const sheetRef = React.useRef<CoParentInviteBottomSheetRef>(null);

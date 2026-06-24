@@ -668,6 +668,7 @@ describe("CatalogController", () => {
       active: false,
       includeInactive: false,
       search: undefined,
+      supportsInpatient: undefined,
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -857,6 +858,7 @@ describe("CatalogController", () => {
       kinds: undefined,
       includeInactive: true,
       search: undefined,
+      supportsInpatient: undefined,
     });
     expect(res.json).toHaveBeenCalledWith({
       items: [

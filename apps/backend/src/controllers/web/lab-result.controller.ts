@@ -7,6 +7,7 @@ import {
 } from "src/services/lab-result.service";
 import { IdexxResultsQueryService } from "src/services/idexx-results-query.service";
 import { mapAxiosError } from "src/utils/external-error";
+import { mergePdfBuffers } from "@yosemite-crew/lib";
 
 const ensureProviderAndResultId = (
   res: Response,
@@ -183,6 +184,74 @@ export const LabResultController = {
         error,
         "Failed to fetch result PDF",
         "Failed to fetch result PDF.",
+      );
+    }
+  },
+
+  async getCombinedPdf(req: Request, res: Response) {
+    try {
+      const organisationId = resolveOrganisationId(req);
+      const provider = req.params.provider;
+      if (!ensureOrganisationId(res, organisationId)) {
+        return;
+      }
+      if (!provider) {
+        return res.status(400).json({ message: "provider required." });
+      }
+      if (!ensureIdexxProvider(res, provider)) {
+        return;
+      }
+
+      const resultIdsParam = req.query.resultIds;
+      const resultIds = (
+        typeof resultIdsParam === "string" ? resultIdsParam : ""
+      )
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (!resultIds.length) {
+        return res
+          .status(400)
+          .json({ message: "At least one resultId is required." });
+      }
+
+      const buffers: Buffer[] = [];
+      for (const resultId of resultIds) {
+        // Verify the result is stored for this organisation before fetching its
+        // PDF from IDEXX — otherwise a user could pull PDFs for arbitrary result
+        // ids belonging to other organisations.
+        const stored = await LabResultService.getByResultId(
+          organisationId,
+          provider,
+          resultId,
+        );
+        if (!stored) {
+          return res
+            .status(404)
+            .json({ message: `Result not found for ${resultId}.` });
+        }
+        const payload = await IdexxResultsQueryService.getResultPdf(resultId);
+        if (!payload) {
+          return res
+            .status(502)
+            .json({ message: `Result PDF unavailable for ${resultId}.` });
+        }
+        buffers.push(Buffer.from(payload.data));
+      }
+
+      const merged = await mergePdfBuffers(buffers);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="lab-results-${resultIds.length}.pdf"`,
+      );
+      return res.status(200).send(merged);
+    } catch (error) {
+      return handleIdexxError(
+        res,
+        error,
+        "Failed to build combined results PDF",
+        "Failed to build combined results PDF.",
       );
     }
   },

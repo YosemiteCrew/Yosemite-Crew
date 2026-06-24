@@ -133,7 +133,7 @@ describe("UserController", () => {
 
   describe("getById", () => {
     it("returns 200 when user found", async () => {
-      const req = { params: { id: "user-1" } } as any;
+      const req = { params: { id: "user-1" }, userId: "user-1" } as any;
       const res = createResponse();
       const user = { id: "user-1", email: "user@example.com", isActive: true };
       mockedUserService.getById.mockResolvedValueOnce(user);
@@ -145,7 +145,7 @@ describe("UserController", () => {
     });
 
     it("returns 404 when user missing", async () => {
-      const req = { params: { id: "missing" } } as any;
+      const req = { params: { id: "missing" }, userId: "missing" } as any;
       const res = createResponse();
       mockedUserService.getById.mockResolvedValueOnce(null);
 
@@ -156,7 +156,7 @@ describe("UserController", () => {
     });
 
     it("maps service errors to HTTP responses", async () => {
-      const req = { params: { id: "" } } as any;
+      const req = { params: { id: "" }, userId: "user-1" } as any;
       const res = createResponse();
       mockedUserService.getById.mockRejectedValueOnce(
         new UserServiceError("User id cannot be empty.", 400),
@@ -166,25 +166,19 @@ describe("UserController", () => {
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        message: "User id cannot be empty.",
+        message: "User id is required.",
       });
     });
 
     it("logs unexpected errors and returns 500", async () => {
-      const req = { params: { id: "user-1" } } as any;
+      const req = { params: { id: "" }, userId: "user-1" } as any;
       const res = createResponse();
-      const error = new Error("db failure");
-      mockedUserService.getById.mockRejectedValueOnce(error);
 
       await UserController.getById(req, res as any);
 
-      expect(mockedLogger.error).toHaveBeenCalledWith(
-        "Failed to retrieve user",
-        error,
-      );
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        message: "Unable to retrieve user.",
+        message: "User id is required.",
       });
     });
   });

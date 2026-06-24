@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppointmentContextMenu from '@/app/features/appointments/components/Calendar/common/AppointmentContextMenu';
 import {
+  assignEncounterUnit,
   changeAppointmentStatus,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
@@ -28,6 +29,9 @@ jest.mock('@/app/lib/appointments', () => ({
   ),
   getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
   getClinicalNotesLabel: jest.fn(() => 'Clinical notes'),
+  normalizeAppointmentStatus: jest.fn((status: string) =>
+    status === 'NO_PAYMENT' ? 'REQUESTED' : status
+  ),
   toStatusLabel: jest.fn((status: string) => status),
 }));
 
@@ -40,8 +44,29 @@ jest.mock('@/app/hooks/useRooms', () => ({
 }));
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
+  assignEncounterUnit: jest.fn(),
   changeAppointmentStatus: jest.fn(),
   updateAppointment: jest.fn(),
+}));
+
+const mockInitEncounter = jest.fn();
+const mockSetRoomUnit = jest.fn();
+jest.mock('@/app/stores/appointmentWorkspaceStore', () => ({
+  useAppointmentWorkspaceStore: (selector: any) =>
+    selector({
+      initEncounter: mockInitEncounter,
+      setRoomUnit: mockSetRoomUnit,
+    }),
+}));
+
+let mockRoomState = {
+  roomUnitsById: {} as Record<string, any>,
+  roomUnitIdsByRoomId: {} as Record<string, string[]>,
+};
+jest.mock('@/app/stores/roomStore', () => ({
+  useOrganisationRoomStore: Object.assign((selector: any) => selector(mockRoomState), {
+    getState: () => mockRoomState,
+  }),
 }));
 
 jest.mock('react-icons/io5', () => ({
@@ -57,6 +82,10 @@ describe('AppointmentContextMenu', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRoomState = {
+      roomUnitsById: {},
+      roomUnitIdsByRoomId: {},
+    };
     Object.defineProperty(globalThis, 'innerWidth', {
       configurable: true,
       writable: true,
@@ -77,7 +106,6 @@ describe('AppointmentContextMenu', () => {
         menuRef={{ current: null }}
         menuStyle={{ top: 20, left: 20, width: 280 }}
         handleViewAppointment={jest.fn()}
-        handleDetailAppointment={jest.fn()}
         handleRescheduleAppointment={jest.fn()}
         onClose={jest.fn()}
       />
@@ -98,7 +126,6 @@ describe('AppointmentContextMenu', () => {
         menuRef={{ current: null }}
         menuStyle={{ top: 20, left: 20, width: 280 }}
         handleViewAppointment={jest.fn()}
-        handleDetailAppointment={jest.fn()}
         handleRescheduleAppointment={jest.fn()}
         onClose={jest.fn()}
       />
@@ -116,18 +143,31 @@ describe('AppointmentContextMenu', () => {
   });
 
   it('shows a room submenu and updates the room inline', async () => {
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-2a': {
+          id: 'unit-2a',
+          roomId: 'room-2',
+          displayName: 'Ward 2A',
+          code: '2A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-2': ['unit-2a'] },
+    };
     render(
       <AppointmentContextMenu
         appointment={{
           ...baseAppointment,
           status: 'UPCOMING',
+          appointmentKind: 'INPATIENT',
+          encounterId: 'enc-1',
           room: { id: 'room-1', name: 'Room 1' },
         }}
         canEditAppointments
         menuRef={{ current: null }}
         menuStyle={{ top: 20, left: 20, width: 280 }}
         handleViewAppointment={jest.fn()}
-        handleDetailAppointment={jest.fn()}
         handleRescheduleAppointment={jest.fn()}
         onClose={jest.fn()}
       />
@@ -143,6 +183,10 @@ describe('AppointmentContextMenu', () => {
         id: 'appt-1',
         room: { id: 'room-2', name: 'Room 2' },
       })
+    );
+    expect(mockSetRoomUnit).toHaveBeenCalledWith('appt-1', 'room-2', 'unit-2a');
+    expect(assignEncounterUnit).toHaveBeenCalledWith(
+      expect.objectContaining({ encounterId: 'enc-1', unitId: 'unit-2a' })
     );
   });
 
@@ -164,7 +208,6 @@ describe('AppointmentContextMenu', () => {
         menuRef={{ current: null }}
         menuStyle={{ top: 20, left: 260, width: 220 }}
         handleViewAppointment={jest.fn()}
-        handleDetailAppointment={jest.fn()}
         handleRescheduleAppointment={jest.fn()}
         onClose={jest.fn()}
       />

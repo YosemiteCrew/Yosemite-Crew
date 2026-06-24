@@ -683,6 +683,7 @@ export const CompanionOrganisationService = {
     );
     const parents = await prisma.parent.findMany({
       where: { id: { in: parentIds } },
+      include: { address: true },
     });
     const parentMap = new Map(parents.map((parent) => [parent.id, parent]));
     const parentByCompanion = new Map(

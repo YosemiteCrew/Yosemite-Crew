@@ -12,7 +12,6 @@ import { Appointment } from '@yosemite-crew/types';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 
 import {
-  acceptAppointment,
   cancelAppointment,
   rejectAppointment,
 } from '@/app/features/appointments/services/appointmentService';
@@ -39,6 +38,15 @@ import {
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
+import {
+  buildWorkspaceHrefForIntent,
+  canEnterAppointmentWorkspace,
+} from '@/app/lib/appointmentWorkspace';
+import { startRouteLoader } from '@/app/lib/routeLoader';
+import { AppointmentModePill } from '@/app/features/appointments/components/AppointmentCardContent';
+import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import { useOrganisationRoomStore } from '@/app/stores/roomStore';
+import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
 
 import './DataTable.css';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -71,14 +79,6 @@ type AppointmentTableProps = {
   small?: boolean;
 };
 
-const handleAcceptAppointment = async (appointment: Appointment) => {
-  try {
-    await acceptAppointment(appointment);
-  } catch (error) {
-    console.log(error);
-  }
-};
-
 const handleCancelAppointment = async (appointment: Appointment) => {
   try {
     if (appointment.status === 'REQUESTED') {
@@ -108,6 +108,8 @@ const AppointmentsComponent = ({
   useLoadTeam();
   const teams = useTeamForPrimaryOrg();
   const orgsById = useOrgStore((s) => s.orgsById);
+  const encountersById = useAppointmentWorkspaceStore((s) => s.encountersById);
+  const roomUnitsById = useOrganisationRoomStore((s) => s.roomUnitsById);
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = React.useMemo(
     () => createInvoiceByAppointmentId(invoices),
@@ -138,16 +140,25 @@ const AppointmentsComponent = ({
   const handleViewAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     setActiveAppointment?.(appointment);
     setViewIntent?.(intent ?? null);
-    setViewPopup?.(true);
-  };
-
-  const handleDetailAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
-    setActiveAppointment?.(appointment);
-    setViewIntent?.(intent ?? null);
+    if (setViewPopup) {
+      setViewPopup(true);
+      return;
+    }
     setDetailPopup?.(true);
   };
 
+  const handleWorkspaceAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
+    if (!appointment.id) return;
+    if (!canEnterAppointmentWorkspace(appointment.status)) {
+      handleViewAppointment(appointment, intent);
+      return;
+    }
+    startRouteLoader();
+    router.push(buildWorkspaceHrefForIntent(appointment.id, intent));
+  };
+
   const handleViewAppointmentHistory = (appointment: Appointment) => {
+    startRouteLoader();
     router.push(
       buildAppointmentCompanionHistoryHref(
         appointment.id,
@@ -242,10 +253,24 @@ const AppointmentsComponent = ({
     {
       label: 'Room',
       key: 'room',
-      width: '100px',
-      render: (item: Appointment) => (
-        <div className="appointment-profile-title">{item.room?.name || '-'}</div>
-      ),
+      width: '130px',
+      render: (item: Appointment) => {
+        const roomDisplay = getAppointmentRoomDisplay(item, encountersById, roomUnitsById);
+        return (
+          <div className="appointment-profile-two">
+            <div className="appointment-profile-title">{roomDisplay.roomName}</div>
+            {roomDisplay.unitLabel && (
+              <div className="appointment-profile-sub text-[12px]">{roomDisplay.unitLabel}</div>
+            )}
+            <AppointmentModePill
+              appointment={item}
+              className="mt-1 h-6 w-fit px-2.5 text-[10px]"
+              iconSize={12}
+              tone="strong"
+            />
+          </div>
+        );
+      },
     },
     {
       label: 'Date/Time',
@@ -349,7 +374,7 @@ const AppointmentsComponent = ({
                     type="button"
                     className="action-btn"
                     style={{ background: 'var(--color-success-100)' }}
-                    onClick={() => handleAcceptAppointment(item)}
+                    onClick={() => handleChangeStatusAppointment(item)}
                   >
                     <FaCheckCircle size={22} color="var(--color-success-400)" />
                   </button>
@@ -443,7 +468,7 @@ const AppointmentsComponent = ({
               >
                 <button
                   type="button"
-                  onClick={() => handleDetailAppointment(item, getSoapViewIntent(item))}
+                  onClick={() => handleWorkspaceAppointment(item, getSoapViewIntent(item))}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title={clinicalNotesLabel}
                 >
@@ -458,7 +483,7 @@ const AppointmentsComponent = ({
                 <button
                   type="button"
                   onClick={() =>
-                    handleDetailAppointment(item, {
+                    handleWorkspaceAppointment(item, {
                       label: 'finance',
                       subLabel: 'summary',
                     })
@@ -472,7 +497,7 @@ const AppointmentsComponent = ({
                 <button
                   type="button"
                   onClick={() =>
-                    handleDetailAppointment(item, {
+                    handleWorkspaceAppointment(item, {
                       label: 'labs',
                       subLabel: 'idexx-labs',
                     })
@@ -515,7 +540,7 @@ const AppointmentsComponent = ({
               key={item.id}
               appointment={item}
               handleViewAppointment={handleViewAppointment}
-              handleDetailAppointment={handleDetailAppointment}
+              handleWorkspaceAppointment={handleWorkspaceAppointment}
               getSoapViewIntent={getSoapViewIntent}
               handleRescheduleAppointment={handleRescheduleAppointment}
               handleChangeStatusAppointment={handleChangeStatusAppointment}

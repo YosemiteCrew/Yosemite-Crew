@@ -15,7 +15,10 @@ import {SpecialtyAccordion} from '@/features/appointments/components/SpecialtyAc
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import VetBusinessCard from '@/features/appointments/components/VetBusinessCard/VetBusinessCard';
-import {createSelectServicesForBusiness} from '@/features/appointments/selectors';
+import {
+  createSelectServicesForBusiness,
+  createSelectPackagesForBusiness,
+} from '@/features/appointments/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
 import {
   useRoute,
@@ -67,6 +70,13 @@ export const BusinessDetailsScreen: React.FC = () => {
   const services = useSelector((state: RootState) =>
     servicesSelector(state, businessId),
   );
+  const packagesSelector = React.useMemo(
+    () => createSelectPackagesForBusiness(),
+    [],
+  );
+  const packages = useSelector((state: RootState) =>
+    packagesSelector(state, businessId),
+  );
   const totalServices = useSelector(
     (state: RootState) => state.businesses.services.length,
   );
@@ -111,19 +121,28 @@ export const BusinessDetailsScreen: React.FC = () => {
   }, [business?.googlePlacesId, business?.photo, dispatch]);
 
   const specialties = useMemo(() => {
-    const groups: Record<string, typeof services> = {};
+    const serviceGroups: Record<string, typeof services> = {};
     for (const svc of services) {
       const key = svc.specialty || 'General';
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(svc);
+      if (!serviceGroups[key]) serviceGroups[key] = [];
+      serviceGroups[key].push(svc);
     }
-    return Object.entries(groups).map(([name, svcs]) => ({
+    const packageGroups: Record<string, typeof packages> = {};
+    for (const pkg of packages) {
+      const key = pkg.specialty || 'General';
+      if (!packageGroups[key]) packageGroups[key] = [];
+      packageGroups[key].push(pkg);
+    }
+    const allKeys = Array.from(
+      new Set([...Object.keys(serviceGroups), ...Object.keys(packageGroups)]),
+    );
+    return allKeys.map(name => ({
       name,
-      serviceCount: svcs.length,
-      services: svcs,
-      packages: [],
+      serviceCount: serviceGroups[name]?.length ?? 0,
+      services: serviceGroups[name] ?? [],
+      packages: packageGroups[name] ?? [],
     }));
-  }, [services]);
+  }, [services, packages]);
 
   const handleSelectPackage = (packageId: string, packageName: string) => {
     navigation.navigate('BookingForm', {
@@ -221,7 +240,7 @@ export const BusinessDetailsScreen: React.FC = () => {
             fallbackPhoto={fallbackPhoto ?? undefined}
             cta=""
           />
-          {services.length ? (
+          {services.length || packages.length ? (
             <SpecialtyAccordion
               title="Specialties"
               icon={Images.specialityIcon}

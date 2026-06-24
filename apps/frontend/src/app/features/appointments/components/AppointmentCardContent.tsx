@@ -13,9 +13,20 @@ import {
 } from '@/app/lib/appointments';
 import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+import { resolveEncounterMode } from '@/app/lib/appointmentWorkspace';
+import type { EncounterMode } from '@/app/features/appointments/types/workspace';
+import { LuFootprints } from 'react-icons/lu';
+import { TbBed } from 'react-icons/tb';
 
 type AppointmentCardContentProps = {
   appointment: Appointment;
+};
+
+type AppointmentModePillProps = {
+  appointment: Appointment;
+  className?: string;
+  iconSize?: number;
+  tone?: 'default' | 'strong';
 };
 
 const normalizeLeadId = (value?: string | null): string => {
@@ -23,6 +34,11 @@ const normalizeLeadId = (value?: string | null): string => {
   if (!trimmed) return '';
   const lowered = trimmed.toLowerCase();
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
+};
+
+const resolveModeBackgroundColor = (isInpatient: boolean, isStrong: boolean): string => {
+  if (!isInpatient) return 'var(--color-neutral-100)';
+  return isStrong ? 'var(--color-primary-600)' : 'var(--color-primary-500)';
 };
 
 export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardContentProps) => (
@@ -106,10 +122,46 @@ export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentPr
   );
 };
 
+export const AppointmentModePill = ({
+  appointment,
+  className = '',
+  iconSize = 14,
+  tone = 'default',
+}: AppointmentModePillProps) => {
+  const mode: EncounterMode = resolveEncounterMode(appointment);
+  const isInpatient = mode === 'INPATIENT';
+  const isStrong = tone === 'strong';
+  const modeStyle: React.CSSProperties = {
+    backgroundColor: resolveModeBackgroundColor(isInpatient, isStrong),
+    borderColor: isInpatient ? 'var(--color-primary-700)' : 'var(--color-neutral-200)',
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: isStrong && isInpatient ? '0 1px 6px rgba(0, 87, 194, 0.18)' : undefined,
+    color: isInpatient ? 'var(--color-neutral-0)' : 'var(--color-neutral-700)',
+  };
+
+  return (
+    <div
+      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-2xl px-3 text-yc-12-b-neutral ${className}`}
+      style={modeStyle}
+    >
+      {isInpatient ? (
+        <TbBed size={iconSize} aria-hidden="true" />
+      ) : (
+        <LuFootprints size={iconSize} aria-hidden="true" />
+      )}
+      <span className="whitespace-nowrap" style={{ color: 'inherit', opacity: 1 }}>
+        {isInpatient ? 'Inpatient' : 'Outpatient'}
+      </span>
+    </div>
+  );
+};
+
 const AppointmentCardContent = ({ appointment }: AppointmentCardContentProps) => (
   <>
     <AppointmentCompanionHeader appointment={appointment} />
     <AppointmentDetails appointment={appointment} />
+    <AppointmentModePill appointment={appointment} className="w-fit self-start" />
     <AppointmentStatusBadge appointment={appointment} />
   </>
 );

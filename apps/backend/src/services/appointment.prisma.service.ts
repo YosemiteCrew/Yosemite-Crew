@@ -16,6 +16,8 @@ import {
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
 import { InvoiceService } from "./invoice.service";
+import { FinancePaymentService } from "./finance/payment";
+import { resolvePaymentCollectionMethod } from "src/utils/payment";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -67,21 +69,42 @@ type RescheduleChanges = {
 type CatalogSelection = Awaited<
   ReturnType<typeof CatalogService.resolveSelection>
 >;
+type AppointmentRequestInput = ReturnType<typeof fromAppointmentRequestDTO>;
 type AppointmentTemplateDefault = NonNullable<
   AppointmentDomain["templateDefaults"]
 >[number];
 type TransactionClient = Prisma.TransactionClient;
 type AdmissionUpsertDelegate = {
+  findUnique(args: {
+    where: { encounterId: string };
+  }): Promise<AdmissionRow | null>;
   upsert(args: {
     where: { encounterId: string };
-    update: Record<string, never>;
+    update: {
+      unitId?: string | null;
+      admittedAt?: Date;
+      expectedStayDays?: number | null;
+    };
     create: {
       encounterId: string;
       organisationId: string;
       patientId: string;
       admittedAt: Date;
+      admittedBy?: string | null;
+      expectedStayDays?: number | null;
     };
   }): Promise<unknown>;
+};
+type AdmissionRow = {
+  encounterId: string;
+  organisationId: string;
+  patientId: string;
+  unitId: string | null;
+  expectedStayDays: number | null;
+  admittedAt: Date;
+  dischargedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 type CaseRow = {
   id: string;
@@ -93,6 +116,117 @@ type EncounterLinkRow = {
   caseId: string;
   organisationId: string;
   patientId: string;
+};
+type EncounterAdmissionRow = {
+  id: string;
+  caseId: string;
+  organisationId: string;
+  patientId: string;
+  status: string;
+  encounterClass: string;
+  appointmentKind: AppointmentKind;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+};
+type RoomUnitRow = {
+  id: string;
+  organisationId: string;
+  roomId: string;
+  unitGroupId: string | null;
+  code: string;
+  displayName: string;
+  size: string | null;
+  speciesConstraints: unknown;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+type RoomUnitGroupRow = {
+  id: string;
+  organisationId: string;
+  roomId: string;
+  name: string;
+  size: string | null;
+  unitCount: number;
+  speciesConstraints: unknown;
+  capabilities: string[];
+  isActive: boolean;
+};
+type CompanionRow = {
+  id: string;
+  type: string;
+  speciesCode: string | null;
+};
+type RoomUnitAssignmentRow = {
+  id: string;
+  encounterId: string;
+  admissionId: string;
+  unitId: string;
+  assignedAt: Date;
+  releasedAt: Date | null;
+  assignedBy: string | null;
+  reason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+type RoomUnitDelegate = {
+  findUnique(args: { where: { id: string } }): Promise<RoomUnitRow | null>;
+};
+type RoomUnitGroupDelegate = {
+  findUnique(args: { where: { id: string } }): Promise<RoomUnitGroupRow | null>;
+};
+type RoomUnitAssignmentDelegate = {
+  findFirst(args: {
+    where: {
+      admissionId?: string;
+      unitId?: string;
+      releasedAt: null;
+    };
+    orderBy: { assignedAt: "desc" };
+  }): Promise<RoomUnitAssignmentRow | null>;
+  update(args: {
+    where: { id: string };
+    data: { releasedAt: Date };
+  }): Promise<RoomUnitAssignmentRow>;
+  create(args: {
+    data: {
+      encounterId: string;
+      admissionId: string;
+      unitId: string;
+      assignedAt: Date;
+      assignedBy: string | null;
+      reason: string | null;
+    };
+  }): Promise<RoomUnitAssignmentRow>;
+};
+type AdmitLeadInput = {
+  id: string;
+  name: string;
+  profileUrl?: string;
+};
+type AdmitSupportStaffInput = {
+  id: string;
+  name: string;
+};
+type AdmitRequestInput = {
+  admittedAt?: Date;
+  admittedBy?: string;
+  expectedStayDays?: number;
+  lead?: AdmitLeadInput;
+  supportStaff?: AdmitSupportStaffInput[];
+  room?: {
+    id: string;
+    name: string;
+  };
+  roomUnitId?: string;
+  assignedAt?: Date;
+  assignedBy?: string;
+  assignmentReason?: string;
+};
+type AdmitResponse = {
+  appointment: AppointmentResponseDTO;
+  admission: AdmissionRow;
+  unitAssignment?: RoomUnitAssignmentRow;
 };
 type TemplateRow = {
   id: string;
@@ -376,6 +510,308 @@ const getParentIdFromPatient = (
   ((patient as { parent?: { id?: string } } | null)?.parent?.id ?? "").trim() ||
   undefined;
 
+const isAppointmentAdmissible = (status: AppointmentStatus) =>
+  status === "CHECKED_IN" || status === "IN_PROGRESS";
+
+const normalizeStringTokens = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      value
+        .map((item) =>
+          typeof item === "string" ? item.trim().toLowerCase() : "",
+        )
+        .filter((item) => item.length > 0),
+    ),
+  ];
+};
+
+const getCompanionSpeciesTokens = (companion: CompanionRow) => {
+  const tokens = new Set<string>();
+  const type = companion.type.trim().toLowerCase();
+
+  if (type) {
+    tokens.add(type);
+  }
+
+  if (companion.speciesCode?.trim()) {
+    tokens.add(companion.speciesCode.trim().toLowerCase());
+  }
+
+  const aliases: Record<string, string[]> = {
+    dog: ["canine"],
+    cat: ["feline"],
+    horse: ["equine"],
+    other: ["other"],
+  };
+
+  for (const alias of aliases[type] ?? []) {
+    tokens.add(alias);
+  }
+
+  return tokens;
+};
+
+const assertRoomUnitSpeciesCompatibility = (
+  unit: RoomUnitRow,
+  companion: CompanionRow,
+) => {
+  const constraints = normalizeStringTokens(unit.speciesConstraints);
+  if (constraints.length === 0) {
+    return;
+  }
+
+  const allowedSpecies = getCompanionSpeciesTokens(companion);
+  const isCompatible = constraints.some((constraint) =>
+    allowedSpecies.has(constraint),
+  );
+
+  if (!isCompatible) {
+    throw new AppointmentPrismaServiceError(
+      "Room unit is not compatible with this companion's species.",
+      409,
+    );
+  }
+};
+
+const assertRoomUnitGroupSpeciesCompatibility = (
+  group: RoomUnitGroupRow,
+  companion: CompanionRow,
+) => {
+  const constraints = normalizeStringTokens(group.speciesConstraints);
+  if (constraints.length === 0) {
+    return;
+  }
+
+  const allowedSpecies = getCompanionSpeciesTokens(companion);
+  const isCompatible = constraints.some((constraint) =>
+    allowedSpecies.has(constraint),
+  );
+
+  if (!isCompatible) {
+    throw new AppointmentPrismaServiceError(
+      "Room unit group is not compatible with this companion's species.",
+      409,
+    );
+  }
+};
+
+const assertInpatientAdmissionCanProceed = (params: {
+  row: AppointmentRow;
+  encounterId: string;
+  encounter: EncounterAdmissionRow;
+  admission: AdmissionRow | null;
+}) => {
+  const { row, encounterId, encounter, admission } = params;
+
+  if (!isAppointmentAdmissible(row.status)) {
+    throw new AppointmentPrismaServiceError(
+      "Only checked-in or in-progress appointments can be admitted.",
+      409,
+    );
+  }
+
+  const resolvedEncounterId = normalizeOptionalString(encounterId);
+  if (!resolvedEncounterId) {
+    throw new AppointmentPrismaServiceError(
+      "Appointment must be checked in before admitting.",
+      400,
+    );
+  }
+
+  if (admission?.dischargedAt) {
+    throw new AppointmentPrismaServiceError(
+      "Admission is already discharged.",
+      409,
+    );
+  }
+
+  const nextCaseId =
+    normalizeOptionalString(row.caseId) ??
+    normalizeOptionalString(encounter.caseId);
+  if (!nextCaseId) {
+    throw new AppointmentPrismaServiceError(
+      "Encounter caseId is required for inpatient admission.",
+      400,
+    );
+  }
+
+  return { encounterId: resolvedEncounterId, nextCaseId };
+};
+
+const resolveInpatientAdmissionFields = (
+  row: AppointmentRow,
+  input: AdmitRequestInput | undefined,
+) => ({
+  nextLead:
+    input?.lead === undefined
+      ? toNullableJsonValue(row.lead)
+      : input.lead
+        ? toJsonValue(input.lead)
+        : Prisma.JsonNull,
+  nextSupportStaff:
+    input?.supportStaff === undefined
+      ? toNullableJsonValue(row.supportStaff)
+      : toJsonValue(input.supportStaff ?? []),
+  nextRoom:
+    input?.room === undefined
+      ? toNullableJsonValue(row.room)
+      : input.room
+        ? toJsonValue(input.room)
+        : Prisma.JsonNull,
+});
+
+const admitInpatientRoomUnit = async (params: {
+  tx: TransactionClient;
+  row: AppointmentRow;
+  encounterId: string;
+  companion: CompanionRow | null;
+  input: AdmitRequestInput;
+  admittedAt: Date;
+  admissionDelegate: AdmissionUpsertDelegate;
+}) => {
+  const {
+    tx,
+    row,
+    encounterId,
+    companion,
+    input,
+    admittedAt,
+    admissionDelegate,
+  } = params;
+
+  const unitId = normalizeOptionalString(input.roomUnitId);
+  if (!unitId) {
+    throw new AppointmentPrismaServiceError("roomUnitId is required.", 400);
+  }
+
+  const roomUnitDelegate = (tx as unknown as { roomUnit: RoomUnitDelegate })
+    .roomUnit;
+  const roomUnitGroupDelegate = (
+    tx as unknown as { roomUnitGroup: RoomUnitGroupDelegate }
+  ).roomUnitGroup;
+  const assignmentDelegate = (
+    tx as unknown as { roomUnitAssignment: RoomUnitAssignmentDelegate }
+  ).roomUnitAssignment;
+
+  const unit = await roomUnitDelegate.findUnique({ where: { id: unitId } });
+  if (!unit) {
+    throw new AppointmentPrismaServiceError("Room unit not found.", 404);
+  }
+
+  if (unit.organisationId !== row.organisationId) {
+    throw new AppointmentPrismaServiceError("Unit organisation mismatch.", 409);
+  }
+
+  if (!unit.isActive) {
+    throw new AppointmentPrismaServiceError("Selected unit is inactive.", 409);
+  }
+
+  if (!companion) {
+    throw new AppointmentPrismaServiceError("Companion not found.", 404);
+  }
+
+  assertRoomUnitSpeciesCompatibility(unit, companion);
+
+  if (unit.unitGroupId) {
+    const group = await roomUnitGroupDelegate.findUnique({
+      where: { id: unit.unitGroupId },
+    });
+
+    if (!group) {
+      throw new AppointmentPrismaServiceError(
+        "Room unit group not found.",
+        404,
+      );
+    }
+
+    if (group.organisationId !== row.organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "Room unit group organisation mismatch.",
+        409,
+      );
+    }
+
+    assertRoomUnitGroupSpeciesCompatibility(group, companion);
+  }
+
+  const conflictingAssignment = await assignmentDelegate.findFirst({
+    where: {
+      unitId,
+      releasedAt: null,
+    },
+    orderBy: { assignedAt: "desc" },
+  });
+
+  if (
+    conflictingAssignment &&
+    conflictingAssignment.admissionId !== encounterId
+  ) {
+    throw new AppointmentPrismaServiceError(
+      "Room unit is already occupied.",
+      409,
+    );
+  }
+
+  const activeAssignment = await assignmentDelegate.findFirst({
+    where: {
+      admissionId: encounterId,
+      releasedAt: null,
+    },
+    orderBy: { assignedAt: "desc" },
+  });
+
+  const assignedAt = input?.assignedAt ?? input?.admittedAt ?? admittedAt;
+  if (Number.isNaN(assignedAt.getTime())) {
+    throw new AppointmentPrismaServiceError("Invalid assignedAt.", 400);
+  }
+
+  if (activeAssignment && activeAssignment.unitId !== unitId) {
+    await assignmentDelegate.update({
+      where: { id: activeAssignment.id },
+      data: { releasedAt: assignedAt },
+    });
+  }
+
+  const unitAssignment =
+    !activeAssignment || activeAssignment.unitId !== unitId
+      ? await assignmentDelegate.create({
+          data: {
+            encounterId,
+            admissionId: encounterId,
+            unitId,
+            assignedAt,
+            assignedBy: normalizeOptionalString(input?.assignedBy) ?? null,
+            reason: normalizeOptionalString(input?.assignmentReason) ?? null,
+          },
+        })
+      : activeAssignment;
+
+  await admissionDelegate.upsert({
+    where: { encounterId },
+    update: {
+      unitId,
+      admittedAt,
+      ...(input?.expectedStayDays !== undefined
+        ? { expectedStayDays: input.expectedStayDays }
+        : {}),
+    },
+    create: {
+      encounterId,
+      organisationId: row.organisationId,
+      patientId: getPatientId(row.patient),
+      admittedAt,
+      admittedBy: normalizeOptionalString(input?.admittedBy) ?? null,
+      expectedStayDays: input?.expectedStayDays ?? null,
+    },
+  });
+
+  return unitAssignment;
+};
+
 const resolveCaseContext = async (args: {
   tx: TransactionClient;
   appointmentKind: AppointmentKind;
@@ -431,6 +867,44 @@ const resolveCaseContext = async (args: {
   });
 
   return created.id;
+};
+
+const resolveEncounterForAdmission = async (args: {
+  tx: TransactionClient;
+  encounterId: string;
+  appointment: AppointmentRow;
+}) => {
+  const encounter = (await args.tx.encounter.findUnique({
+    where: { id: args.encounterId },
+  })) as EncounterAdmissionRow | null;
+
+  if (!encounter) {
+    throw new AppointmentPrismaServiceError("Encounter not found.", 404);
+  }
+
+  if (encounter.organisationId !== args.appointment.organisationId) {
+    throw new AppointmentPrismaServiceError(
+      "Appointment encounter organisation mismatch.",
+      409,
+    );
+  }
+
+  if (encounter.patientId !== getPatientId(args.appointment.patient)) {
+    throw new AppointmentPrismaServiceError(
+      "Appointment encounter companion mismatch.",
+      409,
+    );
+  }
+
+  const appointmentCaseId = normalizeOptionalString(args.appointment.caseId);
+  if (appointmentCaseId && appointmentCaseId !== encounter.caseId) {
+    throw new AppointmentPrismaServiceError(
+      "Appointment encounter must belong to the selected case.",
+      409,
+    );
+  }
+
+  return encounter;
 };
 
 const assertEncounterMatchesAppointmentContext = async (args: {
@@ -806,6 +1280,34 @@ const getLeadIdFromRow = (row: AppointmentRow): string | undefined => {
   return typeof lead?.id === "string" && lead.id.trim() ? lead.id : undefined;
 };
 
+const getSupportStaffIdsFromRow = (row: AppointmentRow): string[] => {
+  const supportStaff = row.supportStaff as Array<{ id?: string }> | null;
+  if (!Array.isArray(supportStaff)) return [];
+
+  return supportStaff
+    .map((member) => (typeof member?.id === "string" ? member.id.trim() : ""))
+    .filter((id): id is string => Boolean(id));
+};
+
+const canViewOwnAppointment = (row: AppointmentRow, actorId: string): boolean =>
+  getLeadIdFromRow(row) === actorId ||
+  getSupportStaffIdsFromRow(row).includes(actorId);
+
+const getParentIdFromRow = (row: AppointmentRow): string | undefined => {
+  const patient = row.patient as { parent?: { id?: string } } | null;
+  const parentId = patient?.parent?.id;
+  return typeof parentId === "string" && parentId.trim() ? parentId : undefined;
+};
+
+const assertParentOwnsAppointment = (row: AppointmentRow, parentId: string) => {
+  if (getParentIdFromRow(row) !== parentId) {
+    throw new AppointmentPrismaServiceError(
+      "You are not allowed to modify this appointment.",
+      403,
+    );
+  }
+};
+
 const createAppointment = async (
   dto: AppointmentRequestDTO,
   status: AppointmentStatus,
@@ -952,6 +1454,54 @@ const applyDtoPatch = (
   };
 };
 
+const approveRequestedFromPmsInTransaction = async (args: {
+  tx: TransactionClient;
+  appointmentId: string;
+  row: AppointmentRow;
+  patch: ReturnType<typeof applyDtoPatch>;
+  patient: AppointmentRequestInput["patient"];
+  concern: AppointmentRequestInput["concern"];
+  leadId: string;
+}) => {
+  const { tx, appointmentId, row, patch, patient, concern, leadId } = args;
+  const patientId = getPatientId(patient);
+  const resolvedCaseId = await resolveCaseContext({
+    tx,
+    appointmentKind: patch.appointmentKind,
+    caseId: patch.caseId ?? undefined,
+    organisationId: row.organisationId,
+    patientId,
+    parentId: patient.parent?.id,
+    concern,
+  });
+
+  await assertEncounterMatchesAppointmentContext({
+    tx,
+    encounterId: patch.encounterId ?? undefined,
+    caseId: resolvedCaseId,
+    organisationId: row.organisationId,
+    patientId,
+  });
+
+  await upsertAppointmentOccupancy({
+    tx,
+    appointmentId,
+    organisationId: row.organisationId,
+    leadId,
+    startTime: patch.startTime,
+    endTime: patch.endTime,
+  });
+
+  return tx.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      ...patch,
+      caseId: resolvedCaseId ?? null,
+      updatedAt: new Date(),
+    },
+  });
+};
+
 export const AppointmentPrismaService = {
   async createRequestedFromMobile(dto: AppointmentRequestDTO) {
     return createAppointment(dto, "REQUESTED");
@@ -959,12 +1509,47 @@ export const AppointmentPrismaService = {
 
   async createAppointmentFromPms(
     dto: AppointmentRequestDTO,
-    _createPayment = false,
-    _paymentCollectionMethod?: string,
+    createPayment = false,
+    paymentCollectionMethod?: string,
   ) {
-    void _createPayment;
-    void _paymentCollectionMethod;
-    return createAppointment(dto, "UPCOMING");
+    const resolvedPaymentCollectionMethod =
+      resolvePaymentCollectionMethod(paymentCollectionMethod, (message) => {
+        return new AppointmentPrismaServiceError(message, 400);
+      }) ?? "PAYMENT_LINK";
+
+    if (
+      resolvedPaymentCollectionMethod === "PAYMENT_AT_CLINIC" &&
+      createPayment
+    ) {
+      throw new AppointmentPrismaServiceError(
+        "Cannot create online payment for in-clinic collection.",
+        400,
+      );
+    }
+
+    const appointment = await createAppointment(dto, "UPCOMING");
+    const appointmentId =
+      typeof appointment.id === "string" ? appointment.id : undefined;
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError(
+        "Appointment ID is required",
+        500,
+      );
+    }
+    const invoice = await InvoiceService.bootstrapForAppointment(
+      appointmentId,
+      resolvedPaymentCollectionMethod,
+    );
+
+    if (createPayment && invoice.id) {
+      if (resolvedPaymentCollectionMethod === "PAYMENT_LINK") {
+        await InvoiceService.createCheckoutSessionAndEmailParent(invoice.id);
+      } else if (resolvedPaymentCollectionMethod === "PAYMENT_INTENT") {
+        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id);
+      }
+    }
+
+    return AppointmentPrismaService.getById(appointmentId);
   },
 
   async approveRequestedFromPms(
@@ -989,7 +1574,8 @@ export const AppointmentPrismaService = {
     );
 
     const input = fromAppointmentRequestDTO(dto);
-    if (!input.lead?.id) {
+    const leadId = input.lead?.id;
+    if (!leadId) {
       throw new AppointmentPrismaServiceError(
         "Lead vet is required to approve an appointment.",
         400,
@@ -997,44 +1583,17 @@ export const AppointmentPrismaService = {
     }
 
     const patch = applyDtoPatch(row, dto, "UPCOMING");
-    const updated = await prisma.$transaction(async (tx) => {
-      const patientId = getPatientId(input.patient);
-      const resolvedCaseId = await resolveCaseContext({
-        tx,
-        appointmentKind: patch.appointmentKind,
-        caseId: patch.caseId ?? undefined,
-        organisationId: row.organisationId,
-        patientId,
-        parentId: input.patient.parent?.id,
-        concern: input.concern,
-      });
-
-      await assertEncounterMatchesAppointmentContext({
-        tx,
-        encounterId: patch.encounterId ?? undefined,
-        caseId: resolvedCaseId,
-        organisationId: row.organisationId,
-        patientId,
-      });
-
-      await upsertAppointmentOccupancy({
+    const updated = await prisma.$transaction((tx) =>
+      approveRequestedFromPmsInTransaction({
         tx,
         appointmentId,
-        organisationId: row.organisationId,
-        leadId: input.lead?.id,
-        startTime: patch.startTime,
-        endTime: patch.endTime,
-      });
-
-      return tx.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          ...patch,
-          caseId: resolvedCaseId ?? null,
-          updatedAt: new Date(),
-        },
-      });
-    });
+        row,
+        patch,
+        patient: input.patient,
+        concern: input.concern,
+        leadId,
+      }),
+    );
 
     return toResponse(updated as AppointmentRow);
   },
@@ -1148,6 +1707,144 @@ export const AppointmentPrismaService = {
     await InvoiceService.markAppointmentReadyForBilling(appointmentId);
 
     return toResponse(updated as AppointmentRow);
+  },
+
+  async admitAppointmentToInpatient(
+    appointmentId: string,
+    input?: AdmitRequestInput,
+  ) {
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+
+    const admittedAt = input?.admittedAt ?? new Date();
+    if (Number.isNaN(admittedAt.getTime())) {
+      throw new AppointmentPrismaServiceError("Invalid admittedAt.", 400);
+    }
+
+    if (
+      input?.expectedStayDays !== undefined &&
+      (!Number.isInteger(input.expectedStayDays) || input.expectedStayDays < 0)
+    ) {
+      throw new AppointmentPrismaServiceError(
+        "expectedStayDays must be a non-negative integer.",
+        400,
+      );
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const current = await tx.appointment.findUnique({
+        where: { id: appointmentId },
+      });
+      const row = assertExists(
+        current as AppointmentRow | null,
+        "Appointment not found",
+      );
+
+      const rowEncounterId = normalizeOptionalString(row.encounterId);
+      if (!rowEncounterId) {
+        throw new AppointmentPrismaServiceError(
+          "Appointment must be checked in before admitting.",
+          400,
+        );
+      }
+
+      const encounter = await resolveEncounterForAdmission({
+        tx,
+        encounterId: rowEncounterId,
+        appointment: row,
+      });
+
+      const admissionDelegate = (
+        tx as unknown as { admission: AdmissionUpsertDelegate }
+      ).admission;
+      const admission = await admissionDelegate.findUnique({
+        where: { encounterId: rowEncounterId },
+      });
+
+      const { encounterId, nextCaseId } = assertInpatientAdmissionCanProceed({
+        row,
+        encounterId: rowEncounterId,
+        encounter,
+        admission,
+      });
+      const { nextLead, nextSupportStaff, nextRoom } =
+        resolveInpatientAdmissionFields(row, input);
+
+      await tx.encounter.update({
+        where: { id: encounterId },
+        data: {
+          appointmentKind: "INPATIENT",
+          encounterClass: "IMP",
+          periodStart: encounter.periodStart ?? admittedAt,
+          status:
+            encounter.status === "arrived" ? "in-progress" : encounter.status,
+        },
+      });
+
+      await admissionDelegate.upsert({
+        where: { encounterId },
+        update: {},
+        create: {
+          encounterId,
+          organisationId: row.organisationId,
+          patientId: getPatientId(row.patient),
+          admittedAt,
+          expectedStayDays: input?.expectedStayDays ?? null,
+        },
+      });
+
+      const companion = await tx.patient.findUnique({
+        where: { id: encounter.patientId },
+      });
+
+      const unitAssignment = input?.roomUnitId
+        ? await admitInpatientRoomUnit({
+            tx,
+            row,
+            encounterId,
+            companion,
+            input,
+            admittedAt,
+            admissionDelegate,
+          })
+        : undefined;
+
+      const appointment = await tx.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          appointmentKind: "INPATIENT",
+          caseId: nextCaseId,
+          encounterId,
+          lead: nextLead,
+          supportStaff: nextSupportStaff,
+          room: nextRoom,
+          updatedAt: new Date(),
+        },
+      });
+
+      const finalAdmission = await admissionDelegate.findUnique({
+        where: { encounterId },
+      });
+      if (!finalAdmission) {
+        throw new AppointmentPrismaServiceError(
+          "Admission could not be resolved after admit.",
+          500,
+        );
+      }
+
+      return {
+        appointment,
+        admission: finalAdmission,
+        unitAssignment,
+      };
+    });
+
+    return {
+      appointment: await toResponse(updated.appointment as AppointmentRow),
+      admission: updated.admission,
+      unitAssignment: updated.unitAssignment,
+    } satisfies AdmitResponse;
   },
 
   async rescheduleFromParent(
@@ -1351,12 +2048,7 @@ export const AppointmentPrismaService = {
     return toResponse(updated as AppointmentRow);
   },
 
-  async cancelAppointmentFromParent(
-    appointmentId: string,
-    parentId: string,
-    _reason?: string,
-  ) {
-    void _reason;
+  async cancelAppointmentFromParent(appointmentId: string, parentId: string) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
@@ -1371,13 +2063,7 @@ export const AppointmentPrismaService = {
       current as AppointmentRow | null,
       "Appointment not found",
     );
-    const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
-    if (ownerId !== parentId) {
-      throw new AppointmentPrismaServiceError(
-        "You are not allowed to modify this appointment.",
-        403,
-      );
-    }
+    assertParentOwnsAppointment(row, parentId);
 
     assertAppointmentTransition(
       row.status,
@@ -1403,8 +2089,7 @@ export const AppointmentPrismaService = {
     return toResponse(updated as AppointmentRow);
   },
 
-  async cancelAppointment(appointmentId: string, _reason?: string) {
-    void _reason;
+  async cancelAppointment(appointmentId: string) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
@@ -1436,7 +2121,11 @@ export const AppointmentPrismaService = {
     return toResponse(updated as AppointmentRow);
   },
 
-  async getById(appointmentId: string): Promise<AppointmentResponseDTO> {
+  async getById(
+    appointmentId: string,
+    organisationId?: string,
+    actorId?: string,
+  ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError(
         "Appointment ID is required",
@@ -1444,11 +2133,22 @@ export const AppointmentPrismaService = {
       );
     }
 
-    const row = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
+    const row = organisationId
+      ? await prisma.appointment.findFirst({
+          where: { id: appointmentId, organisationId },
+        })
+      : await prisma.appointment.findUnique({
+          where: { id: appointmentId },
+        });
     if (!row) {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
+    }
+
+    if (actorId && !canViewOwnAppointment(row as AppointmentRow, actorId)) {
+      throw new AppointmentPrismaServiceError(
+        "Forbidden – insufficient permissions",
+        403,
+      );
     }
 
     return toResponse(row as AppointmentRow);

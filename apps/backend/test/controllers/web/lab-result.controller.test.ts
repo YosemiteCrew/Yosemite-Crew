@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Request, Response } from "express";
+import { PDFDocument } from "pdf-lib";
 import { LabResultController } from "../../../src/controllers/web/lab-result.controller";
 import {
   LabResultService,
@@ -316,6 +317,71 @@ describe("LabResultController", () => {
         limit: 5,
       });
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+  });
+
+  describe("getCombinedPdf", () => {
+    const makePdfBytes = async (): Promise<Uint8Array> => {
+      const doc = await PDFDocument.create();
+      doc.addPage([200, 200]);
+      return doc.save();
+    };
+
+    it("merges every result's PDF into one and returns it", async () => {
+      req.query = { resultIds: "r1, r2" };
+      mockedLabResultService.getByResultId.mockResolvedValue({ id: "stored" });
+      mockedIdexxResultsQueryService.getResultPdf
+        .mockResolvedValueOnce({ data: await makePdfBytes(), headers: {} })
+        .mockResolvedValueOnce({ data: await makePdfBytes(), headers: {} });
+
+      await LabResultController.getCombinedPdf(req as Request, res);
+
+      expect(
+        mockedIdexxResultsQueryService.getResultPdf,
+      ).toHaveBeenNthCalledWith(1, "r1");
+      expect(
+        mockedIdexxResultsQueryService.getResultPdf,
+      ).toHaveBeenNthCalledWith(2, "r2");
+      expect(setHeaderMock).toHaveBeenCalledWith(
+        "Content-Type",
+        "application/pdf",
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+      const sent = sendMock.mock.calls[0][0] as Buffer;
+      expect(sent.subarray(0, 5).toString("utf8")).toBe("%PDF-");
+    });
+
+    it("returns 400 when no resultIds are provided", async () => {
+      req.query = {};
+
+      await LabResultController.getCombinedPdf(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(
+        mockedIdexxResultsQueryService.getResultPdf,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("returns 502 when a result PDF is unavailable", async () => {
+      req.query = { resultIds: "r1" };
+      mockedLabResultService.getByResultId.mockResolvedValue({ id: "stored" });
+      mockedIdexxResultsQueryService.getResultPdf.mockResolvedValueOnce(null);
+
+      await LabResultController.getCombinedPdf(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(502);
+    });
+
+    it("returns 404 and skips the PDF fetch when a result is not stored for the org", async () => {
+      req.query = { resultIds: "r1" };
+      mockedLabResultService.getByResultId.mockResolvedValue(null);
+
+      await LabResultController.getCombinedPdf(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(
+        mockedIdexxResultsQueryService.getResultPdf,
+      ).not.toHaveBeenCalled();
     });
   });
 });

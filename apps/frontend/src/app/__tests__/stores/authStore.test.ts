@@ -435,7 +435,7 @@ describe('authStore', () => {
       await useAuthStore.getState().signout();
 
       expect(warnSpy).toHaveBeenCalledWith(
-        'Failed to clear org store on signout',
+        'Failed to clear session-scoped stores on signout',
         expect.any(Error)
       );
     });

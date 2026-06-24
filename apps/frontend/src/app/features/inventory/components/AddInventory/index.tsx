@@ -9,12 +9,12 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 
 const labels: { key: InventorySectionKey; name: string }[] = [
-  { key: 'basicInfo', name: 'Basic Information' },
-  { key: 'classification', name: 'Classification attribute' },
+  { key: 'basicInfo', name: 'Basic Details' },
+  { key: 'classification', name: 'Clinical Details' },
+  { key: 'stock', name: 'Stock Control' },
+  { key: 'batch', name: 'Batch and expiry' },
   { key: 'pricing', name: 'Pricing' },
   { key: 'vendor', name: 'Vendor details' },
-  { key: 'stock', name: 'Stock and quantity details' },
-  { key: 'batch', name: 'Batch / Lot details' },
 ];
 
 const emptyInventoryItem: InventoryItem = {
@@ -25,6 +25,9 @@ const emptyInventoryItem: InventoryItem = {
     department: '',
     description: '',
     status: 'Active',
+    brand: '',
+    imageUrl: '',
+    visibleInInventory: true,
 
     // Hospital
     itemType: undefined,
@@ -51,6 +54,12 @@ const emptyInventoryItem: InventoryItem = {
     unitofMeasure: '',
     species: [],
     administration: '',
+    itemType: 'Drug',
+    drugSchedule: '',
+    storageCondition: '',
+    controlledSubstance: 'false',
+    prescriptionRequired: 'false',
+    reportableToGovernment: 'false',
     therapeuticClass: undefined,
     strength: undefined,
     dosageForm: undefined,
@@ -88,16 +97,22 @@ const emptyInventoryItem: InventoryItem = {
     current: '',
     allocated: '',
     available: '',
+    maxStock: '',
     reorderLevel: '',
     reorderQuantity: '',
     stockLocation: '',
+    abcClass: '',
+    withdrawlPeriod: '',
     stockType: undefined,
+    unitQnt: '',
     minStockAlert: undefined,
   },
   batch: {
     batch: '',
     manufactureDate: '',
     expiryDate: '',
+    expiryWarningBefore: '',
+    barcode: '',
     serial: undefined,
     tracking: undefined,
     litterId: undefined,
@@ -114,12 +129,25 @@ const logValidationFailure = (section: InventorySectionKey, details: Record<stri
   }
 };
 
+const nonDrugClassificationDefaults = {
+  genericName: '',
+  drugSchedule: '',
+  form: '',
+  administration: '',
+  strength: '',
+  unitofMeasure: '',
+  controlledSubstance: 'false',
+  prescriptionRequired: 'false',
+  reportableToGovernment: 'false',
+};
+
 type AddInventoryProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   businessType: BusinessType;
   onSubmit: (data: InventoryItem) => Promise<void>;
   stockLocationOptions?: string[];
+  organisationId?: string;
 };
 
 const AddInventory = ({
@@ -128,6 +156,7 @@ const AddInventory = ({
   businessType,
   onSubmit,
   stockLocationOptions,
+  organisationId,
 }: AddInventoryProps) => {
   const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(labels[0].key);
   const [formData, setFormData] = useState<InventoryItem>(emptyInventoryItem);
@@ -162,18 +191,64 @@ const AddInventory = ({
       });
       return;
     }
-    setFormData((prev) => ({
-      ...prev,
-      [section]: { ...prev[section], ...patch },
-    }));
+
+    if (section === 'classification') {
+      setFormData((prev) => ({
+        ...prev,
+        classification: {
+          ...prev.classification,
+          ...patch,
+          ...(patch.itemType === 'Non-drug' ? nonDrugClassificationDefaults : {}),
+        },
+      }));
+      return;
+    }
+
+    if (section === 'stock') {
+      setFormData((prev) => ({
+        ...prev,
+        stock: {
+          ...prev.stock,
+          ...patch,
+          available: String(
+            Math.max(
+              0,
+              Number(patch.current ?? prev.stock.current ?? 0) -
+                Number(patch.allocated ?? prev.stock.allocated ?? 0)
+            )
+          ),
+        },
+      }));
+      return;
+    }
+
+    setFormData((prev) => {
+      const nextSection = { ...prev[section], ...patch };
+      // Changing the category invalidates any previously-picked subcategory, which
+      // belongs to a different category's list — clear it so the dropdown reopens
+      // scoped to the new category.
+      if (
+        'category' in patch &&
+        (prev[section] as Record<string, unknown>)?.category !== patch.category
+      ) {
+        (nextSection as Record<string, unknown>).subCategory = '';
+      }
+      return {
+        ...prev,
+        [section]: nextSection,
+      };
+    });
   };
 
   const validateBasicInfo = (): Partial<Record<keyof typeof formData.basicInfo, string>> => {
     const basic = formData.basicInfo;
     const errors: Partial<Record<keyof typeof formData.basicInfo, string>> = {};
-    if (!basic.name) errors.name = 'Name is required';
-    if (!basic.category) errors.category = 'Category is required';
-    if (!basic.subCategory) errors.subCategory = 'Sub category is required';
+    if (!basic.name.trim()) {
+      errors.name = 'Item name cannot be empty';
+    } else if (basic.name.trim().length > 100) {
+      errors.name = 'Item name must be under 100 characters';
+    }
+    if (!basic.category) errors.category = 'Select Category';
     return errors;
   };
 
@@ -209,6 +284,22 @@ const AddInventory = ({
     return errors;
   };
 
+  const validateClassification = (): Partial<
+    Record<keyof typeof formData.classification, string>
+  > => {
+    const classification = formData.classification;
+    const nextErrors: Partial<Record<keyof typeof formData.classification, string>> = {};
+    const isMedicalItem =
+      businessType === 'HOSPITAL' &&
+      String(classification.itemType ?? '').toLowerCase() !== 'non-drug';
+
+    if (isMedicalItem && !String(classification.genericName ?? '').trim()) {
+      nextErrors.genericName = 'Generic name is required';
+    }
+
+    return nextErrors;
+  };
+
   const validateSection = (section: InventorySectionKey): boolean => {
     const nextErrors: InventoryErrors = { ...errors };
     const updateStatus = (valid: boolean) => {
@@ -234,6 +325,14 @@ const AddInventory = ({
     }
 
     if (section === 'classification') {
+      const sectionErrors = validateClassification();
+      if (Object.keys(sectionErrors).length > 0) {
+        nextErrors.classification = sectionErrors;
+        setErrors(nextErrors);
+        logValidationFailure(section, sectionErrors as Record<string, string>);
+        updateStatus(false);
+        return false;
+      }
       delete nextErrors.classification;
       setErrors(nextErrors);
       updateStatus(true);
@@ -352,12 +451,9 @@ const AddInventory = ({
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add Inventory</div>
+        <div className="flex items-center justify-between border-b border-card-border pb-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="text-body-1 text-text-primary">Add item</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
@@ -374,6 +470,46 @@ const AddInventory = ({
             businessType={businessType}
             sectionKey={activeLabel}
             sectionTitle={labels.find((l) => l.key === activeLabel)?.name || 'Section'}
+            headerSlot={
+              activeLabel === 'basicInfo' ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-body-4-emphasis text-text-primary">
+                    Visible in Inventory
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.basicInfo.visibleInInventory !== false}
+                    aria-label="Visible in Inventory"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        basicInfo: {
+                          ...prev.basicInfo,
+                          visibleInInventory: prev.basicInfo.visibleInInventory === false,
+                        },
+                      }))
+                    }
+                    className="inline-flex h-8 w-14 shrink-0 items-center rounded-full p-1 transition-colors"
+                    style={{
+                      backgroundColor:
+                        formData.basicInfo.visibleInInventory === false
+                          ? 'var(--color-neutral-300)'
+                          : 'var(--color-blue-sky)',
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`block size-6 rounded-full bg-white shadow-sm transition-transform ${
+                        formData.basicInfo.visibleInInventory === false
+                          ? 'translate-x-0'
+                          : 'translate-x-6'
+                      }`}
+                    />
+                  </button>
+                </div>
+              ) : undefined
+            }
             formData={formData}
             errors={errors}
             onFieldChange={(section, name, value, index) =>
@@ -433,6 +569,7 @@ const AddInventory = ({
               })
             }
             stockLocationOptions={stockLocationOptions}
+            organisationId={organisationId}
           />
         </div>
       </div>

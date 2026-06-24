@@ -79,6 +79,31 @@ Full rule set in `.claude/skills/frontend-sonar/SKILL.md`. Summary of the most c
 - Prefer `.at(-1)` over `arr[arr.length - 1]`. Avoid `else { if (...) { } }` — collapse to `else if`.
 - Remove empty object spreads. Use canonical Tailwind class names (e.g. `h-25` not `h-[100px]`, `z-5000` not `z-[5000]`).
 
+### Repeating Sonar Patterns From Recent Audits
+
+- Nested ternaries in JSX or prop values should become named helpers or extracted statements.
+- Functions over cognitive complexity 15 should be split before you patch local branches.
+- Deep callback logic inside `onChange`, `.map()`, or `setState` updaters should move into named helpers.
+- Negated guards and `else { if (...) }` chains should be rewritten as direct positive branches.
+- Arrays used only for membership checks should become `Set` lookups.
+- Bare `window` access should become `globalThis.window`; optional-chain fallbacks should use `??`.
+- Redundant assertions, duplicate imports, and dead imports should be removed in the same cleanup.
+- ARIA listbox/option shims should be replaced with native controls when feasible.
+- Inline text next to JSX siblings should be wrapped in `{"..."}` to avoid ambiguous spacing warnings.
+- Empty spreads and other no-op expressions should be deleted, not left as-is.
+
+### Latest batch (rows 145–166) — specific fixes + test fallout
+
+- `role="option"` on a rich-content button (`S6819`) → use `aria-pressed` (toggle button) for multi-select; single-select options become plain `<button>`. **Update the matching test query in the same change:** `getByRole('option', …)` → `getByRole('button', { name, pressed })` or `getByRole('button', { name })`.
+- `Do not pass function directly to .reduce(…)` (`S7060`) → wrap as `(acc, item) => fn(acc, item)`; if that wrapper then breaks nesting > 4 inside a promise chain, hoist a module-level `mapXToY` helper and call it from a flat `.then`.
+- Arrow function with > 7 params (`S107`) → convert to a single typed props object; update the call site to an object literal.
+- "Conditional returns the same value either way" (`S3923`) is a **Bug**, not a smell — both branches are identical; collapse to one expression.
+- Inline `Pick<T, 'a' | 'b'>` param type flagged as a union → extract a named `type` alias above the function.
+- `[object Object]` guards must preserve prior falsy behaviour: a `typeof === 'string' | 'number'` guard does not treat `''`/`0` as empty like `if (value)` did — add an explicit empty check so tests still get `[]`.
+- Component-body cognitive complexity driven by JSX → extract the conditional subtree into its own component + a `getXClassName` helper, and move keyboard/active-index logic into a custom hook.
+- Store updaters built from repeated `x && x.length > 0 ? x : enc.x` → collapse with a generic `preferNonEmpty(next, current)` helper (covers the inverted `documents` case too).
+- **Portal dropdowns (`LabelDropdown`/`MultiSelectDropdown`) do not render their option panel in jsdom** (portalStyle stays null). Tests selecting an option must mock the dropdown to render options/placeholder inline — never `findByRole` a real portal option. Watch placeholder renames flowing into those mocks.
+
 After any change: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
 
 ---

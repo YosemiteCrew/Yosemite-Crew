@@ -4,6 +4,8 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import { BillingSubscriptionInterval } from '@/app/features/billing/types/billing';
 import { getUpgradeLink } from '@/app/features/billing/services/billingService';
 import Close from '@/app/ui/primitives/Icons/Close';
+import { getSafeStripeRedirectUrl } from '@/app/lib/urls';
+import { logger } from '@/app/lib/logger';
 
 const Upgrade = () => {
   const [selectPopup, setSelectPopup] = useState(false);
@@ -14,12 +16,16 @@ const Upgrade = () => {
     setLoadingUpgrade(selectedLabel);
     try {
       const url = await getUpgradeLink(selectedLabel);
+      const safeUrl = getSafeStripeRedirectUrl(url);
+      if (!safeUrl) {
+        throw new Error('Received an unexpected upgrade URL.');
+      }
       setSelectPopup(false);
       setTimeout(() => {
-        globalThis.location.href = url;
+        globalThis.location.href = safeUrl;
       }, 500);
     } catch (e: any) {
-      console.log(e);
+      logger.error('Failed to start upgrade checkout', e);
     } finally {
       setLoadingUpgrade(null);
     }

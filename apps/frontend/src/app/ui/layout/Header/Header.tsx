@@ -1,27 +1,65 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import GuestHeader from '@/app/ui/layout/Header/GuestHeader/GuestHeader';
 import UserHeader from '@/app/ui/layout/Header/UserHeader/UserHeader';
+import './Header.css';
+
+const getFirstSectionDockPoint = () => {
+  // Keyed off .yc-public-page — the wrapper shared by BOTH public shells
+  // ((public)/layout.tsx and PublicShell), so the dock trigger is identical on
+  // every public page. Its first child is the page's first/hero section.
+  const publicPage = document.querySelector('.yc-public-page');
+  const firstPublicSection = publicPage?.firstElementChild;
+  if (!firstPublicSection) return globalThis.window.innerHeight;
+
+  return firstPublicSection.getBoundingClientRect().bottom + globalThis.window.scrollY;
+};
 
 const Header = ({ user = false }: { user?: boolean }) => {
-  return (
-    <header
-      className={`
-        flex items-center justify-center w-full
-        fixed top-0 left-0 z-997
-        lg:relative
-        ${
-          user
-            ? 'yc-user-header-shell'
-            : `bg-(--whitebg) border-b-2 border-transparent
-        [border-image-source:linear-gradient(90deg,rgba(255,255,255,0)_0%,#7d7d7d_50%,rgba(255,255,255,0)_100%)]
-        [border-image-slice:1]`
-        }
-      `}
-    >
-      {user ? <UserHeader /> : <GuestHeader />}
-    </header>
-  );
+  const [dockPublicHeader, setDockPublicHeader] = useState(false);
+  const [scrollBehaviorReady, setScrollBehaviorReady] = useState(false);
+  const tickingRef = useRef(false);
+
+  useEffect(() => {
+    if (user) {
+      setScrollBehaviorReady(false);
+      return;
+    }
+
+    const updateHeaderState = () => {
+      const currentScrollY = Math.max(globalThis.window.scrollY, 0);
+      setDockPublicHeader(currentScrollY >= getFirstSectionDockPoint());
+      tickingRef.current = false;
+    };
+
+    const handleScroll = () => {
+      if (tickingRef.current) return;
+      tickingRef.current = true;
+      globalThis.window.requestAnimationFrame(updateHeaderState);
+    };
+
+    updateHeaderState();
+    setScrollBehaviorReady(true);
+    globalThis.window.addEventListener('scroll', handleScroll, { passive: true });
+    globalThis.window.addEventListener('resize', handleScroll);
+
+    return () => {
+      globalThis.window.removeEventListener('scroll', handleScroll);
+      globalThis.window.removeEventListener('resize', handleScroll);
+    };
+  }, [user]);
+
+  const publicHeaderDocked = scrollBehaviorReady && dockPublicHeader;
+  const headerClassName = [
+    'yc-liquid-header-shell flex items-center justify-center w-full',
+    'sticky top-0 left-0 z-997',
+    user ? 'yc-user-header-shell' : 'yc-guest-header-shell',
+    publicHeaderDocked ? 'yc-public-header-docked' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return <header className={headerClassName}>{user ? <UserHeader /> : <GuestHeader />}</header>;
 };
 
 export default Header;

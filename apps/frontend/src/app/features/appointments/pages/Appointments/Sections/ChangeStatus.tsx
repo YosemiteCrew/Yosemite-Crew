@@ -1,11 +1,16 @@
 import React from 'react';
 import { Appointment } from '@yosemite-crew/types';
-import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
+import {
+  changeAppointmentStatus,
+  getSlotsForServiceAndDateForPrimaryOrg,
+} from '@/app/features/appointments/services/appointmentService';
 import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import {
   AppointmentStatus,
   AppointmentStatusOptions,
+  Slot,
 } from '@/app/features/appointments/types/appointments';
 import {
   canTransitionAppointmentStatus,
@@ -30,6 +35,48 @@ const createNextLead = (
   const profileUrl = existingLead?.profileUrl;
   if (profileUrl) return { id, name, profileUrl };
   return { id, name };
+};
+
+const getSelectedSupportIds = (supportStaff: Appointment['supportStaff']) =>
+  (supportStaff ?? [])
+    .map((staff) => normalizeId(staff?.id))
+    .filter((id): id is string => Boolean(id));
+
+const getAvailableLeadOptions = (
+  availableVetIds: string[] | null,
+  leadOptions: Array<{ value: string; label: string }>,
+  currentLeadId: string | undefined
+) => {
+  if (availableVetIds === null) return leadOptions;
+  const allowed = new Set(availableVetIds);
+  const activeLeadId = normalizeId(currentLeadId);
+  return leadOptions.filter((option) => allowed.has(option.value) || option.value === activeLeadId);
+};
+
+const getNextAppointmentForStatus = (
+  appointment: Appointment,
+  selectedLeadId: string,
+  selectedSupportIds: string[],
+  leadOptions: Array<{ value: string; label: string }>,
+  currentStatus: AppointmentStatus,
+  newStatus: AppointmentStatus
+) => {
+  if (!(currentStatus === 'REQUESTED' && newStatus === 'UPCOMING')) {
+    return appointment;
+  }
+  const selectedLeadName =
+    leadOptions.find((option) => option.value === selectedLeadId)?.label ??
+    appointment.lead?.name ??
+    'Assigned vet';
+  const nextLead = createNextLead(appointment.lead, selectedLeadId, selectedLeadName);
+  const nextSupportStaff = selectedSupportIds.map((id) => ({
+    id,
+    name: leadOptions.find((option) => option.value === id)?.label ?? id,
+  }));
+  const nextAppointment = structuredClone(appointment);
+  nextAppointment.lead = nextLead;
+  nextAppointment.supportStaff = nextSupportStaff;
+  return nextAppointment;
 };
 
 type ChangeStatusProps = {
@@ -61,12 +108,69 @@ const ChangeStatus = ({
         .filter((item): item is { value: string; label: string } => item !== null),
     [teams]
   );
+
+  // ── Slot-scoped lead availability ─────────────────────────────────────────────
+  // When accepting a requested appointment we only offer leads that the bookable-slots
+  // API reports as available for this service + slot. `null` = availability not yet
+  // resolved (fall back to all leads); an array = the resolved set of available vet ids.
+  const [availableVetIds, setAvailableVetIds] = React.useState<string[] | null>(null);
+  const [isLoadingAvailability, setIsLoadingAvailability] = React.useState(false);
+  const serviceId = normalizeId(activeAppointment.appointmentType?.id);
+  const availabilityKey = `${showModal ? 'open' : 'closed'}:${currentStatus}:${serviceId}:${activeAppointment.startTime}`;
+  const previousAvailabilityKeyRef = React.useRef(availabilityKey);
+  if (previousAvailabilityKeyRef.current !== availabilityKey) {
+    previousAvailabilityKeyRef.current = availabilityKey;
+    setAvailableVetIds(null);
+    setIsLoadingAvailability(false);
+  }
+
+  React.useEffect(() => {
+    if (!showModal || currentStatus !== 'REQUESTED' || !serviceId) {
+      return;
+    }
+    let cancelled = false;
+    const appointmentStart = new Date(activeAppointment.startTime).getTime();
+    setIsLoadingAvailability(true);
+    setAvailableVetIds(null);
+    getSlotsForServiceAndDateForPrimaryOrg(serviceId, new Date(activeAppointment.startTime))
+      .then((slots: Slot[]) => {
+        if (cancelled) return;
+        const matchingSlot = slots.find(
+          (slot) => new Date(slot.startTime).getTime() === appointmentStart
+        );
+        const vetIds = (matchingSlot?.vetIds ?? [])
+          .map((vetId) => normalizeId(vetId))
+          .filter(Boolean);
+        setAvailableVetIds(vetIds);
+      })
+      .catch(() => {
+        // On failure leave availability unresolved so all leads remain selectable.
+        if (!cancelled) setAvailableVetIds(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingAvailability(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showModal, currentStatus, serviceId, activeAppointment.startTime]);
+
+  // Leads to actually offer: filtered to the available set once resolved, but the
+  // currently-assigned lead is always kept so an existing assignment never disappears.
+  const availableLeadOptions = React.useMemo(
+    () => getAvailableLeadOptions(availableVetIds, leadOptions, activeAppointment.lead?.id),
+    [availableVetIds, leadOptions, activeAppointment.lead?.id]
+  );
   const [selectedLeadId, setSelectedLeadId] = React.useState<string>(() =>
     normalizeId(activeAppointment.lead?.id)
+  );
+  const [selectedSupportIds, setSelectedSupportIds] = React.useState<string[]>(() =>
+    getSelectedSupportIds(activeAppointment.supportStaff)
   );
 
   React.useEffect(() => {
     if (!showModal) return;
+    setSelectedSupportIds(getSelectedSupportIds(activeAppointment.supportStaff));
     const activeLeadId = normalizeId(activeAppointment.lead?.id);
     if (activeLeadId) {
       setSelectedLeadId(activeLeadId);
@@ -77,7 +181,23 @@ const ChangeStatus = ({
       return;
     }
     setSelectedLeadId('');
-  }, [activeAppointment.id, activeAppointment.lead?.id, leadOptions, showModal]);
+  }, [
+    activeAppointment.id,
+    activeAppointment.lead?.id,
+    activeAppointment.supportStaff,
+    leadOptions,
+    showModal,
+  ]);
+
+  const handleLeadSelect = (option: { value: string }) => {
+    setSelectedLeadId(option.value);
+    setSelectedSupportIds((prev) => prev.filter((id) => id !== option.value));
+  };
+
+  const supportOptions = React.useMemo(
+    () => leadOptions.filter((option) => option.value !== normalizeId(selectedLeadId)),
+    [leadOptions, selectedLeadId]
+  );
 
   const availableStatusOptions = React.useMemo(() => {
     const transitions = getAllowedAppointmentStatusTransitions(currentStatus);
@@ -102,36 +222,57 @@ const ChangeStatus = ({
       validateBeforeSave={(newStatus) => {
         const needsLeadSelection = currentStatus === 'REQUESTED' && newStatus === 'UPCOMING';
         if (!needsLeadSelection) return null;
-        if (normalizeId(selectedLeadId)) return null;
-        return 'Select a lead before accepting this appointment.';
+        if (isLoadingAvailability) return 'Checking lead availability for this slot…';
+        if (availableVetIds !== null && availableLeadOptions.length === 0) {
+          return 'No lead is available for this slot. Reschedule the appointment to accept it.';
+        }
+        const leadId = normalizeId(selectedLeadId);
+        if (!leadId) return 'Select a lead before accepting this appointment.';
+        if (!availableLeadOptions.some((option) => option.value === leadId)) {
+          return 'Selected lead is not available for this slot.';
+        }
+        return null;
       }}
       renderExtraContent={({ selectedStatus, saving }) => {
         const showLeadPicker = currentStatus === 'REQUESTED' && selectedStatus === 'UPCOMING';
         if (!showLeadPicker) return null;
+        const noLeadsAvailable = availableVetIds !== null && availableLeadOptions.length === 0;
         return (
-          <div className={saving ? 'pointer-events-none opacity-60' : ''}>
+          <div
+            className={
+              saving ? 'pointer-events-none opacity-60 flex flex-col gap-3' : 'flex flex-col gap-3'
+            }
+          >
             <LabelDropdown
-              placeholder="Select lead"
-              options={leadOptions}
+              placeholder={isLoadingAvailability ? 'Checking availability…' : 'Select lead'}
+              options={availableLeadOptions}
               defaultOption={selectedLeadId}
-              onSelect={(option) => setSelectedLeadId(option.value)}
+              onSelect={handleLeadSelect}
+              noOptionsMessage={noLeadsAvailable ? 'No lead is available for this slot' : undefined}
+            />
+            {noLeadsAvailable ? (
+              <p className="px-4 text-caption-2 text-text-error">
+                No lead is available for this slot. Reschedule the appointment to accept it.
+              </p>
+            ) : null}
+            <MultiSelectDropdown
+              placeholder="Select support staff (optional)"
+              options={supportOptions}
+              value={selectedSupportIds}
+              onChange={setSelectedSupportIds}
             />
           </div>
         );
       }}
       onSave={async (newStatus) => {
-        const selectedLeadName =
-          leadOptions.find((option) => option.value === selectedLeadId)?.label ??
-          activeAppointment.lead?.name ??
-          'Assigned vet';
-        const nextLead = createNextLead(activeAppointment.lead, selectedLeadId, selectedLeadName);
-        const shouldSetLead = currentStatus === 'REQUESTED' && newStatus === 'UPCOMING';
-        if (!shouldSetLead) {
-          await changeAppointmentStatus(activeAppointment, newStatus);
-          return;
-        }
-        const nextAppointment = structuredClone(activeAppointment);
-        nextAppointment.lead = nextLead;
+        const nextAppointment = getNextAppointmentForStatus(
+          activeAppointment,
+          selectedLeadId,
+          selectedSupportIds,
+          leadOptions,
+          currentStatus,
+          newStatus
+        );
         await changeAppointmentStatus(nextAppointment, newStatus);
       }}
     />

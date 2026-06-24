@@ -230,6 +230,14 @@ describe('AppointmentCalendar', () => {
     renderCalendar();
 
     expect(dayCalendarSpy).toHaveBeenCalledTimes(1);
+    expect(dayCalendarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        events: expect.arrayContaining([
+          expect.objectContaining({ id: 'a1' }),
+          expect.objectContaining({ id: 'a2' }),
+        ]),
+      })
+    );
     expect(headerSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         activeCalendar: 'day',
@@ -463,13 +471,27 @@ describe('AppointmentCalendar', () => {
     });
   });
 
-  it('renders week calendar with current-user filtered appointments in week mode', () => {
-    renderCalendar({ activeCalendar: 'week' });
+  it('renders week calendar with all filtered appointments in week mode', () => {
+    const weekAppointments = appointments.map((appointment, index) => ({
+      ...appointment,
+      startTime: new Date(`2025-01-0${6 + index}T10:00:00Z`),
+      endTime: new Date(`2025-01-0${6 + index}T10:30:00Z`),
+      appointmentDate: new Date(`2025-01-0${6 + index}T10:00:00Z`),
+    }));
+    renderCalendar({
+      activeCalendar: 'week',
+      filteredList: weekAppointments as any,
+      allAppointments: weekAppointments as any,
+      weekStart: new Date('2025-01-06T00:00:00Z'),
+    });
 
     expect(weekCalendarSpy).toHaveBeenCalledTimes(1);
     expect(weekCalendarSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        events: [],
+        events: expect.arrayContaining([
+          expect.objectContaining({ id: 'a1' }),
+          expect.objectContaining({ id: 'a2' }),
+        ]),
       })
     );
   });

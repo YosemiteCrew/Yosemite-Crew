@@ -10,7 +10,7 @@ type SpecialitiesCardProps = {
 
 const SpecialitiesCard = ({ speciality, handleViewSpeciality }: SpecialitiesCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="w-full h-full rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-body-3-emphasis text-text-primary">{speciality.name}</div>
       </div>

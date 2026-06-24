@@ -24,7 +24,7 @@ describe('<InventoryCard />', () => {
       current: '3',
       allocated: '',
       available: '',
-      reorderLevel: '',
+      reorderLevel: '5',
       reorderQuantity: '',
       stockLocation: 'Pharmacy',
       stockType: '',
@@ -33,7 +33,7 @@ describe('<InventoryCard />', () => {
     batch: {
       batch: '',
       manufactureDate: '',
-      expiryDate: '2025-02-01',
+      expiryDate: '2030-02-01',
       serial: '',
       tracking: '',
       litterId: '',
@@ -50,7 +50,7 @@ describe('<InventoryCard />', () => {
     expect(screen.getByText('3 units')).toBeInTheDocument();
     expect(screen.getByText('$ 12')).toBeInTheDocument();
     expect(screen.getByText('$ 15')).toBeInTheDocument();
-    expect(screen.getByText('Feb 1, 2025')).toBeInTheDocument();
+    expect(screen.getByText('Feb 1, 2030')).toBeInTheDocument();
     expect(screen.getByText('Pharmacy')).toBeInTheDocument();
     expect(screen.getByText('Low stock')).toBeInTheDocument();
   });

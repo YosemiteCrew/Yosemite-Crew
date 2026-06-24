@@ -59,6 +59,58 @@ const ensureObjectId = (id: string | Types.ObjectId, field: string) =>
 
 type LegacyAppointmentStatus = AppointmentStatus | "NO_PAYMENT";
 
+type ParentCancelableAppointment = {
+  id: string;
+  status: AppointmentStatus;
+  organisationId: string;
+  patient: Prisma.JsonValue;
+  lead: Prisma.JsonValue | null;
+  supportStaff: Prisma.JsonValue | null;
+  room: Prisma.JsonValue | null;
+  appointmentType: Prisma.JsonValue | null;
+  appointmentDate: Date;
+  startTime: Date;
+  timeSlot: string;
+  durationMinutes: number;
+  endTime: Date;
+  isEmergency: boolean;
+  concern: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  attachments: Prisma.JsonValue | null;
+  formIds: string[];
+};
+
+type ParentCancelableAppointmentDocument = AppointmentDocument & {
+  patient?: Prisma.JsonValue | null;
+  lead?: Prisma.JsonValue | null;
+  concern?: string | null;
+  organisationId: string;
+  status: LegacyAppointmentStatus;
+};
+
+const getNestedId = (value: Prisma.JsonValue | null | undefined) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const id = (value as { id?: unknown }).id;
+  return typeof id === "string" ? id : undefined;
+};
+
+const getParentId = (patient: Prisma.JsonValue | null | undefined) => {
+  if (!patient || typeof patient !== "object" || Array.isArray(patient)) {
+    return undefined;
+  }
+
+  return getNestedId((patient as { parent?: Prisma.JsonValue | null }).parent);
+};
+
+const getAppointmentPatientId = (appointment: {
+  patient?: Prisma.JsonValue | null;
+  companion?: Prisma.JsonValue | null;
+}) => getNestedId(appointment.patient) ?? getNestedId(appointment.companion);
+
 const normalizeAppointmentStatus = (
   status: LegacyAppointmentStatus,
 ): AppointmentStatus => (status === "NO_PAYMENT" ? "REQUESTED" : status);
@@ -294,6 +346,123 @@ export const resolveCatalogSelectionSafe = async (
   }
 };
 
+const assertParentCanCancelAppointment = (params: {
+  appointment:
+    | ParentCancelableAppointment
+    | ParentCancelableAppointmentDocument;
+  parentId: string;
+  context: string;
+}) => {
+  const { appointment, parentId, context } = params;
+
+  if (getParentId(appointment.patient) !== parentId) {
+    throw new AppointmentServiceError("Not your appointment", 403);
+  }
+
+  const normalizedStatus = normalizeAppointmentStatus(appointment.status);
+  if (!["REQUESTED", "UPCOMING"].includes(normalizedStatus)) {
+    throw new AppointmentServiceError(
+      "Only requested or upcoming appointments can be cancelled",
+      400,
+    );
+  }
+
+  assertAppointmentStatusTransition(appointment.status, "CANCELLED", context);
+};
+
+const cancelAppointmentFromParentPrisma = async (params: {
+  appointment: ParentCancelableAppointment;
+  parentId: string;
+  reason: string;
+}) => {
+  const { appointment, parentId, reason } = params;
+
+  const result = await InvoiceService.handleAppointmentCancellation(
+    appointment.id,
+    reason,
+  );
+
+  if (!result) {
+    throw new AppointmentServiceError("Not able to cancle appointment", 400);
+  }
+
+  const updated = (await prisma.appointment.update({
+    where: { id: appointment.id },
+    data: { status: "CANCELLED", updatedAt: new Date() },
+  })) as ParentCancelableAppointment;
+  const patientId = getAppointmentPatientId(updated) ?? parentId;
+
+  await AuditTrailService.recordSafely({
+    organisationId: updated.organisationId,
+    patientId,
+    eventType: "APPOINTMENT_CANCELLED",
+    actorType: "PARENT",
+    actorId: parentId,
+    entityType: "APPOINTMENT",
+    entityId: updated.id,
+    metadata: {
+      status: updated.status,
+      reason,
+    },
+  });
+
+  if (getNestedId(appointment.lead)) {
+    await prisma.occupancy.deleteMany({
+      where: {
+        referenceId: appointment.id,
+        sourceType: "APPOINTMENT",
+      },
+    });
+  }
+
+  return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
+};
+
+const cancelAppointmentFromParentMongo = async (params: {
+  appointment: ParentCancelableAppointmentDocument;
+  parentId: string;
+  reason: string;
+}) => {
+  const { appointment, parentId, reason } = params;
+  const patientId = getAppointmentPatientId(appointment) ?? parentId;
+
+  const result = await InvoiceService.handleAppointmentCancellation(
+    appointment._id.toString(),
+    reason,
+  );
+
+  if (!result) {
+    throw new AppointmentServiceError("Not able to cancle appointment", 400);
+  }
+
+  appointment.status = "CANCELLED";
+  await appointment.save();
+  await syncAppointmentToPostgres(appointment);
+
+  await AuditTrailService.recordSafely({
+    organisationId: appointment.organisationId,
+    patientId,
+    eventType: "APPOINTMENT_CANCELLED",
+    actorType: "PARENT",
+    actorId: parentId,
+    entityType: "APPOINTMENT",
+    entityId: appointment._id.toString(),
+    metadata: {
+      status: appointment.status,
+      reason,
+    },
+  });
+
+  if (getNestedId(appointment.lead)) {
+    await OccupancyModel.deleteMany({
+      referenceId: appointment._id.toString(),
+      sourceType: "APPOINTMENT",
+    });
+  }
+
+  return toAppointmentResponseDTOWithPaymentStatus(appointment);
+};
+
 export const requireBaseAppointmentInput = (
   input: AppointmentRequestInput,
   messages: {
@@ -493,11 +662,14 @@ const buildPmsUpdatePlanFromPrisma = (args: {
   const nextEndTime = args.parsed.endTimeFromDto ?? args.appointment.endTime;
 
   const timesProvided =
-    args.parsed.startTimeFromDto != null || args.parsed.endTimeFromDto != null;
-  const sameSlot = !timesProvided
-    ? true
-    : args.appointment.startTime.getTime() === nextStartTime.getTime() &&
+    args.parsed.startTimeFromDto !== undefined ||
+    args.parsed.endTimeFromDto !== undefined;
+  let sameSlot = true;
+  if (timesProvided) {
+    sameSlot =
+      args.appointment.startTime.getTime() === nextStartTime.getTime() &&
       args.appointment.endTime.getTime() === nextEndTime.getTime();
+  }
 
   const nextDurationMinutes =
     args.parsed.durationMinutesFromDto ??
@@ -1660,12 +1832,48 @@ const buildAppointmentFromInput = (
   updatedAt: new Date(),
 });
 
+// Batch-load the inpatient ward/unit for a set of appointment rows so the
+// appointments list can show "Room / Unit" without opening the workspace. The
+// link is Appointment.encounterId -> Encounter.admission -> RoomUnit.
+const buildInpatientUnitMapForAppointments = async (
+  rows: Array<{ id: string }>,
+): Promise<Map<string, { id: string; displayName: string; code: string }>> => {
+  const encounterIds = Array.from(
+    new Set(
+      rows
+        .map((row) => (row as { encounterId?: string | null }).encounterId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const unitByEncounter = new Map<
+    string,
+    { id: string; displayName: string; code: string }
+  >();
+  if (encounterIds.length === 0) {
+    return unitByEncounter;
+  }
+  const admissions = await prisma.admission.findMany({
+    where: { encounterId: { in: encounterIds } },
+    select: {
+      encounterId: true,
+      currentUnit: { select: { id: true, displayName: true, code: true } },
+    },
+  });
+  for (const admission of admissions) {
+    if (admission.currentUnit) {
+      unitByEncounter.set(admission.encounterId, admission.currentUnit);
+    }
+  }
+  return unitByEncounter;
+};
+
 const mapAppointmentsFromPrisma = async (
   rows: Array<{ id: string }>,
 ): Promise<AppointmentResponseDTO[]> => {
-  const paymentStatusMap = await buildPaymentStatusMapForAppointments(
-    rows.map((row) => row.id),
-  );
+  const [paymentStatusMap, unitByEncounter] = await Promise.all([
+    buildPaymentStatusMapForAppointments(rows.map((row) => row.id)),
+    buildInpatientUnitMapForAppointments(rows),
+  ]);
 
   return rows.map((row) => {
     const domain = attachPaymentStatus(
@@ -1674,7 +1882,26 @@ const mapAppointmentsFromPrisma = async (
       ),
       paymentStatusMap.get(row.id) ?? "UNPAID",
     );
-    return toAppointmentResponseDTO(domain);
+    const encounterId = (row as { encounterId?: string | null }).encounterId;
+    const unit = encounterId ? unitByEncounter.get(encounterId) : undefined;
+    const withUnit =
+      unit && domain.room
+        ? {
+            ...domain,
+            room: {
+              ...domain.room,
+              unitId: unit.id,
+              unitName: unit.displayName,
+              unit: {
+                id: unit.id,
+                name: unit.displayName,
+                displayName: unit.displayName,
+                code: unit.code,
+              },
+            },
+          }
+        : domain;
+    return toAppointmentResponseDTO(withUnit);
   });
 };
 
@@ -1704,15 +1931,18 @@ export const attachPaymentStatus = (
   return appointment;
 };
 
-export const buildPaymentStatusMapForDocs = async (
-  docs: AppointmentMongo[],
-): Promise<Map<string, AppointmentPaymentStatus>> => {
-  const appointmentIds = docs
+const extractAppointmentIdsFromDocs = (docs: AppointmentMongo[]) =>
+  docs
     .map((doc) => (doc as AppointmentMongo & { _id?: Types.ObjectId })._id)
     .filter((id): id is Types.ObjectId => Boolean(id))
     .map((id) => id.toString());
 
-  return resolvePaymentStatusByAppointmentIds(appointmentIds);
+export const buildPaymentStatusMapForDocs = async (
+  docs: AppointmentMongo[],
+): Promise<Map<string, AppointmentPaymentStatus>> => {
+  return resolvePaymentStatusByAppointmentIds(
+    extractAppointmentIdsFromDocs(docs),
+  );
 };
 
 export const buildPaymentStatusMapForAppointments = async (
@@ -2475,23 +2705,20 @@ export const AppointmentService = {
         { session },
       );
 
-      const invoice = await InvoiceService.createDraftForAppointment(
-        {
-          appointmentId: doc._id.toString(),
-          parentId: appointment.patient.parent.id,
-          patientId: appointment.patient.id,
-          organisationId: appointment.organisationId,
-          items: catalogSelection
-            ? mapCatalogSelectionToDraftItems(catalogSelection)
-            : mapLegacyServiceToDraftItems(
-                service as LegacyServiceBridge,
-                appointment.appointmentType?.name,
-              ),
-          notes: appointment.concern,
-          paymentCollectionMethod: resolvedPaymentCollectionMethod,
-        },
-        session,
-      );
+      const invoice = await InvoiceService.createDraftForAppointment({
+        appointmentId: doc._id.toString(),
+        parentId: appointment.patient.parent.id,
+        patientId: appointment.patient.id,
+        organisationId: appointment.organisationId,
+        items: catalogSelection
+          ? mapCatalogSelectionToDraftItems(catalogSelection)
+          : mapLegacyServiceToDraftItems(
+              service as LegacyServiceBridge,
+              appointment.appointmentType?.name,
+            ),
+        notes: appointment.concern,
+        paymentCollectionMethod: resolvedPaymentCollectionMethod,
+      });
 
       let checkout;
 
@@ -2550,7 +2777,10 @@ export const AppointmentService = {
       );
 
       // Send notification to parent
-      const parentId = appointment.patient.parent.id;
+      const parentId = getParentId(appointment.patient);
+      if (!parentId) {
+        throw new AppointmentServiceError("Appointment not found", 404);
+      }
       await NotificationService.sendToUser(parentId, notificationPayload);
 
       const organisationName = await getOrganisationName(
@@ -2822,9 +3052,9 @@ export const AppointmentService = {
 
   async cancelAppointment(appointmentId: string, reason?: string) {
     if (isReadFromPostgres()) {
-      const appointment = await prisma.appointment.findUnique({
+      const appointment = (await prisma.appointment.findUnique({
         where: { id: appointmentId },
-      });
+      })) as ParentCancelableAppointment | null;
       if (!appointment) {
         throw new AppointmentServiceError("Appointment not found", 404);
       }
@@ -2844,19 +3074,16 @@ export const AppointmentService = {
         "cancelAppointment",
       );
 
-      const updated = await prisma.appointment.update({
+      const updated = (await prisma.appointment.update({
         where: { id: appointment.id },
         data: {
           status: "CANCELLED",
           concern: reason ?? appointment.concern ?? undefined,
           updatedAt: new Date(),
         },
-      });
+      })) as ParentCancelableAppointment;
 
-      const leadId =
-        typeof appointment.lead === "object" && appointment.lead
-          ? (appointment.lead as { id?: string }).id
-          : undefined;
+      const leadId = getNestedId(appointment.lead);
       if (leadId) {
         await prisma.occupancy.deleteMany({
           where: {
@@ -2971,77 +3198,23 @@ export const AppointmentService = {
     reason: string,
   ) {
     if (isReadFromPostgres()) {
-      const appointment = await prisma.appointment.findUnique({
+      const appointment = (await prisma.appointment.findUnique({
         where: { id: appointmentId },
-      });
+      })) as ParentCancelableAppointment | null;
       if (!appointment) {
         throw new AppointmentServiceError("Appointment not found", 404);
       }
-
-      const appointmentDomain = toDomainFromPrisma(appointment);
-
-      if (appointmentDomain.patient.parent.id !== parentId) {
-        throw new AppointmentServiceError("Not your appointment", 403);
-      }
-
-      const normalizedStatus = normalizeAppointmentStatus(appointment.status);
-      if (!["REQUESTED", "UPCOMING"].includes(normalizedStatus)) {
-        throw new AppointmentServiceError(
-          "Only requested or upcoming appointments can be cancelled",
-          400,
-        );
-      }
-      assertAppointmentStatusTransition(
-        appointment.status,
-        "CANCELLED",
-        "cancelAppointmentFromParent",
-      );
-
-      const result = await InvoiceService.handleAppointmentCancellation(
-        appointment.id,
-        reason ?? "Cancelled",
-      );
-
-      if (!result) {
-        throw new AppointmentServiceError(
-          "Not able to cancle appointment",
-          400,
-        );
-      }
-
-      const updated = await prisma.appointment.update({
-        where: { id: appointment.id },
-        data: { status: "CANCELLED", updatedAt: new Date() },
+      assertParentCanCancelAppointment({
+        appointment,
+        parentId,
+        context: "cancelAppointmentFromParent",
       });
 
-      await AuditTrailService.recordSafely({
-        organisationId: updated.organisationId,
-        patientId: (updated.patient as { id: string }).id,
-        eventType: "APPOINTMENT_CANCELLED",
-        actorType: "PARENT",
-        actorId: parentId,
-        entityType: "APPOINTMENT",
-        entityId: updated.id,
-        metadata: {
-          status: updated.status,
-          reason,
-        },
+      return cancelAppointmentFromParentPrisma({
+        appointment,
+        parentId,
+        reason: reason ?? "Cancelled",
       });
-
-      const leadId =
-        typeof appointment.lead === "object" && appointment.lead
-          ? (appointment.lead as { id?: string }).id
-          : undefined;
-      if (leadId) {
-        await prisma.occupancy.deleteMany({
-          where: {
-            referenceId: appointment.id,
-            sourceType: "APPOINTMENT",
-          },
-        });
-      }
-
-      return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
     }
 
     const appointment = await AppointmentModel.findById(appointmentId);
@@ -3049,63 +3222,17 @@ export const AppointmentService = {
       throw new AppointmentServiceError("Appointment not found", 404);
     }
 
-    // Verify parent is owner of companion
-    if (appointment.patient.parent.id !== parentId) {
-      throw new AppointmentServiceError("Not your appointment", 403);
-    }
-
-    // Only these statuses can be cancelled from mobile
-    const normalizedStatus = normalizeAppointmentStatus(appointment.status);
-    if (!["REQUESTED", "UPCOMING"].includes(normalizedStatus)) {
-      throw new AppointmentServiceError(
-        "Only requested or upcoming appointments can be cancelled",
-        400,
-      );
-    }
-    assertAppointmentStatusTransition(
-      appointment.status,
-      "CANCELLED",
-      "cancelAppointmentFromParent",
-    );
-
-    // Cancel invoice and refund
-    const result = await InvoiceService.handleAppointmentCancellation(
-      appointment._id.toString(),
-      reason ?? "Cancelled",
-    );
-
-    if (!result) {
-      throw new AppointmentServiceError("Not able to cancle appointment", 400);
-    }
-
-    // Mark appointment cancelled
-    appointment.status = "CANCELLED";
-    await appointment.save();
-    await syncAppointmentToPostgres(appointment);
-
-    await AuditTrailService.recordSafely({
-      organisationId: appointment.organisationId,
-      patientId: appointment.patient.id,
-      eventType: "APPOINTMENT_CANCELLED",
-      actorType: "PARENT",
-      actorId: parentId,
-      entityType: "APPOINTMENT",
-      entityId: appointment._id.toString(),
-      metadata: {
-        status: appointment.status,
-        reason,
-      },
+    assertParentCanCancelAppointment({
+      appointment,
+      parentId,
+      context: "cancelAppointmentFromParent",
     });
 
-    // Remove occupancy (only if vet was assigned)
-    if (appointment.lead?.id) {
-      await OccupancyModel.deleteMany({
-        referenceId: appointment._id.toString(),
-        sourceType: "APPOINTMENT",
-      });
-    }
-
-    return toAppointmentResponseDTOWithPaymentStatus(appointment);
+    return cancelAppointmentFromParentMongo({
+      appointment,
+      parentId,
+      reason: reason ?? "Cancelled",
+    });
   },
 
   // PMS Rejects appointment request
@@ -3222,7 +3349,10 @@ export const AppointmentService = {
     );
 
     // Send notification to parent
-    const parentId = appointment.patient.parent.id;
+    const parentId = getParentId(appointment.patient);
+    if (!parentId) {
+      throw new AppointmentServiceError("Not your appointment", 403);
+    }
     await NotificationService.sendToUser(parentId, notificationPayload);
 
     return toAppointmentResponseDTOWithPaymentStatus(appointment);

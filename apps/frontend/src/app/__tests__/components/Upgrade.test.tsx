@@ -32,6 +32,12 @@ jest.mock('@/app/features/billing/services/billingService', () => ({
   getUpgradeLink: jest.fn(),
 }));
 
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+}));
+
+import { logger } from '@/app/lib/logger';
+
 describe('Upgrade widget', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -44,7 +50,9 @@ describe('Upgrade widget', () => {
   });
 
   it('opens modal, selects yearly plan, and redirects on success', async () => {
-    (getUpgradeLink as jest.Mock).mockResolvedValue('https://billing.yc/checkout');
+    (getUpgradeLink as jest.Mock).mockResolvedValue(
+      'https://checkout.stripe.com/c/pay/cs_test_123'
+    );
     const timeoutSpy = jest.spyOn(globalThis, 'setTimeout');
 
     render(<Upgrade />);
@@ -66,7 +74,6 @@ describe('Upgrade widget', () => {
   });
 
   it('logs errors and clears loading when upgrade fetch fails', async () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     (getUpgradeLink as jest.Mock).mockRejectedValue(new Error('upgrade failed'));
 
     render(<Upgrade />);
@@ -75,10 +82,8 @@ describe('Upgrade widget', () => {
     fireEvent.click(screen.getAllByText('Upgrade')[1]);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
     });
     expect(screen.getAllByText('Upgrade').length).toBeGreaterThan(0);
-
-    consoleSpy.mockRestore();
   });
 });

@@ -4,6 +4,7 @@ const MockMapView = React.forwardRef((props, ref) => {
   React.useImperativeHandle(ref, () => ({
     animateToRegion: jest.fn(),
     animateCamera: jest.fn(),
+    fitToCoordinates: jest.fn(),
   }));
   return React.createElement('View', {testID: 'map-view', ...props});
 });

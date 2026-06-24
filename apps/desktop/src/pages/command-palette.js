@@ -1,10 +1,10 @@
 (function () {
   const yc = globalThis.ycDesktop;
-  const searchEl = document.getElementById("search");
-  const resultsEl = document.getElementById("results");
+  const searchEl = document.getElementById('search');
+  const resultsEl = document.getElementById('results');
   let selectedIndex = -1;
   let results = [];
-  let currentQuery = "";
+  let currentQuery = '';
   let recentsCache = [];
   let actionMap = {};
   let ACTIONS = [];
@@ -45,9 +45,7 @@
     if (!q) return { results: [], isRecents: true };
     const scored = [];
     ACTIONS.forEach(function (item) {
-      const texts = [item.label, item.description]
-        .concat(item.keywords || [])
-        .filter(Boolean);
+      const texts = [item.label, item.description].concat(item.keywords || []).filter(Boolean);
       let best = 0;
       texts.forEach(function (t) {
         const s = scoreFuzzy(q, t);
@@ -58,12 +56,7 @@
           return re.id === item.id;
         });
         const boost =
-          r.length > 0
-            ? Math.min(
-                15,
-                Math.max(0, 15 - (Date.now() - r[0].visitedAt) / 60000),
-              )
-            : 0;
+          r.length > 0 ? Math.min(15, Math.max(0, 15 - (Date.now() - r[0].visitedAt) / 60000)) : 0;
         scored.push({ item: item, score: best + boost });
       }
     });
@@ -74,13 +67,13 @@
   }
 
   function escapeHtml(value) {
-    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
       return {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
       }[c];
     });
   }
@@ -98,14 +91,10 @@
       }
     }
     if (indices.length === 0) return escapeHtml(label);
-    let result = "";
+    let result = '';
     let lastIdx = 0;
     indices.forEach(function (idx) {
-      result +=
-        escapeHtml(l.slice(lastIdx, idx)) +
-        "<mark>" +
-        escapeHtml(l[idx]) +
-        "</mark>";
+      result += escapeHtml(l.slice(lastIdx, idx)) + '<mark>' + escapeHtml(l[idx]) + '</mark>';
       lastIdx = idx + 1;
     });
     result += escapeHtml(l.slice(lastIdx));
@@ -115,7 +104,7 @@
   function render(query) {
     currentQuery = query;
     const data = search(query, recentsCache);
-    let html = "";
+    let html = '';
     results = [];
     selectedIndex = -1;
 
@@ -124,7 +113,7 @@
       recentsCache.forEach(function (r) {
         const a = actionMap[r.id];
         if (!a) return;
-        const icon = a.icon || "\u2022";
+        const icon = a.icon || '\u2022';
         results.push(a);
         html +=
           '<div class="item" data-index="' +
@@ -132,20 +121,18 @@
           '">' +
           '<div class="item-icon recents-clock">' +
           escapeHtml(icon) +
-          "</div>" +
+          '</div>' +
           '<div class="item-label">' +
           escapeHtml(a.label) +
-          "</div>" +
-          (a.description
-            ? '<div class="item-desc">' + escapeHtml(a.description) + "</div>"
-            : "") +
-          "</div>";
+          '</div>' +
+          (a.description ? '<div class="item-desc">' + escapeHtml(a.description) + '</div>' : '') +
+          '</div>';
       });
       if (results.length === 0) html += '<div id="empty">No recents yet</div>';
     } else if (data.results.length > 0) {
       data.results.forEach(function (r, i) {
         const a = r.item;
-        const icon = a.icon || "\u2022";
+        const icon = a.icon || '\u2022';
         results.push(a);
         html +=
           '<div class="item" data-index="' +
@@ -153,30 +140,29 @@
           '">' +
           '<div class="item-icon">' +
           escapeHtml(icon) +
-          "</div>" +
+          '</div>' +
           '<div class="item-label">' +
           highlightLabel(a.label, query) +
-          "</div>" +
+          '</div>' +
           '<div class="item-type">' +
           escapeHtml(a.type) +
-          "</div>" +
-          "</div>";
+          '</div>' +
+          '</div>';
       });
     } else if (query.trim()) {
-      html +=
-        '<div id="empty">No results for "' + escapeHtml(query) + '"</div>';
+      html += '<div id="empty">No results for "' + escapeHtml(query) + '"</div>';
     } else {
       html += '<div id="empty">Type to search commands</div>';
     }
 
     resultsEl.innerHTML = html;
 
-    resultsEl.querySelectorAll(".item").forEach(function (el) {
-      el.addEventListener("click", function () {
+    resultsEl.querySelectorAll('.item').forEach(function (el) {
+      el.addEventListener('click', function () {
         const idx = Number.parseInt(el.dataset.index, 10);
         selectItem(idx);
       });
-      el.addEventListener("mousemove", function () {
+      el.addEventListener('mousemove', function () {
         const idx = Number.parseInt(el.dataset.index, 10);
         if (selectedIndex !== idx) {
           setSelected(idx);
@@ -190,19 +176,15 @@
 
   function setSelected(idx) {
     if (selectedIndex >= 0) {
-      const prev = resultsEl.querySelector(
-        '.item[data-index="' + selectedIndex + '"]',
-      );
-      if (prev) prev.classList.remove("selected");
+      const prev = resultsEl.querySelector('.item[data-index="' + selectedIndex + '"]');
+      if (prev) prev.classList.remove('selected');
     }
     selectedIndex = idx;
     if (selectedIndex >= 0) {
-      const next = resultsEl.querySelector(
-        '.item[data-index="' + selectedIndex + '"]',
-      );
+      const next = resultsEl.querySelector('.item[data-index="' + selectedIndex + '"]');
       if (next) {
-        next.classList.add("selected");
-        next.scrollIntoView({ block: "nearest" });
+        next.classList.add('selected');
+        next.scrollIntoView({ block: 'nearest' });
       }
     }
   }
@@ -210,29 +192,29 @@
   function selectItem(idx) {
     const item = results[idx];
     if (!item) return;
-    if (yc && typeof yc.executeCommand === "function") {
+    if (yc && typeof yc.executeCommand === 'function') {
       yc.executeCommand(item.id);
     }
   }
 
-  searchEl.addEventListener("input", function () {
+  searchEl.addEventListener('input', function () {
     render(this.value);
   });
 
-  searchEl.addEventListener("keydown", function (e) {
-    if (e.key === "ArrowDown") {
+  searchEl.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelected(Math.min(results.length - 1, selectedIndex + 1));
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelected(Math.max(0, selectedIndex - 1));
-    } else if (e.key === "Enter") {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       if (selectedIndex >= 0 && selectedIndex < results.length) {
         selectItem(selectedIndex);
       }
-    } else if (e.key === "Escape") {
-      if (yc && typeof yc.closePalette === "function") {
+    } else if (e.key === 'Escape') {
+      if (yc && typeof yc.closePalette === 'function') {
         yc.closePalette();
       }
     }
@@ -241,13 +223,13 @@
   // Actions come from an async IPC call so the HTML and TS share one source of truth.
   // Load them first, then load recents, then render.
   function loadActionsAndRecents() {
-    if (yc && typeof yc.getPaletteActions === "function") {
+    if (yc && typeof yc.getPaletteActions === 'function') {
       Promise.resolve(yc.getPaletteActions())
         .then(function (r) {
           if (r?.ok && r.actions) {
             buildActionMap(r.actions);
           }
-          return yc && typeof yc.getPaletteRecents === "function"
+          return yc && typeof yc.getPaletteRecents === 'function'
             ? Promise.resolve(yc.getPaletteRecents())
             : Promise.resolve({ recents: [] });
         })
@@ -268,15 +250,15 @@
       // Fallback: use minimal built-in actions if IPC unavailable
       buildActionMap([
         {
-          id: "open-settings",
-          label: "Open settings",
-          description: "Application preferences",
-          keywords: ["preferences", "config", "options"],
-          type: "action",
-          icon: "\u2699",
+          id: 'open-settings',
+          label: 'Open settings',
+          description: 'Application preferences',
+          keywords: ['preferences', 'config', 'options'],
+          type: 'action',
+          icon: '\u2699',
         },
       ]);
-      render("");
+      render('');
     }
   }
 

@@ -33,9 +33,9 @@ describe("fhir-template.mapper", () => {
               title: "Subjective",
               fields: [
                 {
-                  key: "chiefComplaint",
-                  label: "Chief complaint",
-                  type: "text",
+                  key: "subjective",
+                  label: "Subjective",
+                  type: "richText",
                 },
               ],
             },
@@ -65,7 +65,7 @@ describe("fhir-template.mapper", () => {
       ]),
     );
     expect(questionnaire.item?.[0]?.linkId).toBe("subjective");
-    expect(questionnaire.item?.[0]?.item?.[0]?.linkId).toBe("chiefComplaint");
+    expect(questionnaire.item?.[0]?.item?.[0]?.linkId).toBe("subjective");
   });
 
   it("renders workflow templates as FHIR PlanDefinition resources", () => {
@@ -91,7 +91,7 @@ describe("fhir-template.mapper", () => {
       templateVersion: 1,
       organisationId: "org-1",
       status: "COMPLETED",
-      data: { chiefComplaint: "Cough" },
+      data: { subjective: "Cough" },
       authorId: "user-1",
       createdAt: new Date("2026-01-03T00:00:00.000Z"),
       updatedAt: new Date("2026-01-04T00:00:00.000Z"),

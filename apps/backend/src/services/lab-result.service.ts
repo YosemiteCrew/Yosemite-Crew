@@ -1,8 +1,4 @@
-import LabResultModel from "src/models/lab-result";
-import LabOrderModel from "src/models/lab-order";
-import { Types } from "mongoose";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 export class LabResultServiceError extends Error {
   constructor(
@@ -14,6 +10,35 @@ export class LabResultServiceError extends Error {
   }
 }
 
+const normalizeOptionalString = (value: unknown) =>
+  typeof value === "string" && value.trim() ? value.trim() : undefined;
+
+const resolvePatientFilter = async (patientId?: string) => {
+  if (!patientId) {
+    return undefined;
+  }
+
+  if (!patientId.trim()) {
+    throw new LabResultServiceError("Invalid patientId", 400);
+  }
+
+  const orders = await prisma.labOrder.findMany({
+    where: { patientId },
+    select: { idexxOrderId: true },
+  });
+
+  const orderIds = orders
+    .map((order) => order.idexxOrderId)
+    .filter(Boolean) as string[];
+
+  return {
+    OR: [
+      { patientId },
+      ...(orderIds.length ? [{ orderId: { in: orderIds } }] : []),
+    ],
+  };
+};
+
 export const LabResultService = {
   async list(params: {
     organisationId?: string;
@@ -22,89 +47,28 @@ export const LabResultService = {
     patientId?: string;
     limit?: number;
   }) {
-    const filter: Record<string, unknown> = {};
-    const safeOrganisationId =
-      typeof params.organisationId === "string" && params.organisationId.trim()
-        ? params.organisationId
-        : undefined;
-    const safeProvider =
-      typeof params.provider === "string" && params.provider.trim()
-        ? params.provider
-        : undefined;
-    const safeOrderId =
-      typeof params.orderId === "string" && params.orderId.trim()
-        ? params.orderId
-        : undefined;
+    const safeOrganisationId = normalizeOptionalString(params.organisationId);
+    const safeProvider = normalizeOptionalString(params.provider);
+    const safeOrderId = normalizeOptionalString(params.orderId);
     const safeLimit =
       typeof params.limit === "number" && Number.isFinite(params.limit)
         ? Math.floor(params.limit)
         : undefined;
 
-    if (isReadFromPostgres()) {
-      const where: Record<string, unknown> = {};
-      if (safeOrganisationId) where.organisationId = safeOrganisationId;
-      if (safeProvider) where.provider = safeProvider;
-      if (safeOrderId) where.orderId = safeOrderId;
-
-      if (params.patientId) {
-        if (!Types.ObjectId.isValid(params.patientId)) {
-          throw new LabResultServiceError("Invalid patientId", 400);
-        }
-        const orders = await prisma.labOrder.findMany({
-          where: { patientId: params.patientId },
-          select: { idexxOrderId: true },
-        });
-        const orderIds = orders
-          .map((o) => o.idexxOrderId)
-          .filter(Boolean) as string[];
-        if (!orderIds.length) {
-          return [];
-        }
-        where.orderId = { in: orderIds };
-      }
-
-      return prisma.labResult.findMany({
-        where,
-        orderBy: { updatedAt: "desc" },
-        take: safeLimit && safeLimit > 0 ? safeLimit : undefined,
-      });
+    const where: Record<string, unknown> = {};
+    if (safeOrganisationId) where.organisationId = safeOrganisationId;
+    if (safeProvider) where.provider = safeProvider;
+    if (safeOrderId) where.orderId = safeOrderId;
+    const patientFilter = await resolvePatientFilter(params.patientId);
+    if (patientFilter) {
+      where.OR = patientFilter.OR;
     }
 
-    if (safeOrganisationId) filter.organisationId = safeOrganisationId;
-    if (safeProvider) filter.provider = safeProvider;
-    if (safeOrderId) filter.orderId = safeOrderId;
-
-    if (params.patientId) {
-      if (!Types.ObjectId.isValid(params.patientId)) {
-        throw new LabResultServiceError("Invalid patientId", 400);
-      }
-      const orders = (await LabOrderModel.find(
-        { patientId: params.patientId },
-        { idexxOrderId: 1 },
-      )
-        .setOptions({ sanitizeFilter: true })
-        .lean()) as unknown as Array<{ idexxOrderId?: string | null }>;
-      const orderIds = orders
-        .map((o) => o.idexxOrderId)
-        .filter(Boolean) as string[];
-      if (!orderIds.length) {
-        return [];
-      }
-      filter.orderId = { $in: orderIds };
-    }
-
-    const query = LabResultModel.find(filter).sort({ updatedAt: -1 });
-    const shouldSanitize =
-      filter.orderId == null || typeof filter.orderId === "string";
-    if (shouldSanitize) {
-      query.setOptions({ sanitizeFilter: true });
-    }
-
-    if (safeLimit && safeLimit > 0) {
-      query.limit(safeLimit);
-    }
-
-    return query.lean();
+    return prisma.labResult.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take: safeLimit && safeLimit > 0 ? safeLimit : undefined,
+    });
   },
 
   async getByResultId(
@@ -112,35 +76,21 @@ export const LabResultService = {
     provider: string,
     resultId: string,
   ) {
-    const safeOrganisationId =
-      typeof organisationId === "string" && organisationId.trim()
-        ? organisationId
-        : null;
-    const safeProvider =
-      typeof provider === "string" && provider.trim() ? provider : null;
-    const safeResultId =
-      typeof resultId === "string" && resultId.trim() ? resultId : null;
+    const safeOrganisationId = normalizeOptionalString(organisationId);
+    const safeProvider = normalizeOptionalString(provider);
+    const safeResultId = normalizeOptionalString(resultId);
     if (!safeOrganisationId || !safeProvider || !safeResultId) {
       throw new LabResultServiceError(
         "Invalid organisationId, provider or resultId",
         400,
       );
     }
-    if (isReadFromPostgres()) {
-      return prisma.labResult.findFirst({
-        where: {
-          organisationId: safeOrganisationId,
-          provider: safeProvider,
-          resultId: safeResultId,
-        },
-      });
-    }
-    return LabResultModel.findOne({
-      organisationId: safeOrganisationId,
-      provider: safeProvider,
-      resultId: safeResultId,
-    })
-      .setOptions({ sanitizeFilter: true })
-      .lean();
+    return prisma.labResult.findFirst({
+      where: {
+        organisationId: safeOrganisationId,
+        provider: safeProvider,
+        resultId: safeResultId,
+      },
+    });
   },
 };

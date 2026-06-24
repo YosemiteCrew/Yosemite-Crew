@@ -271,7 +271,7 @@ export const createAppMenu = (actions: MenuActions): void => {
           label: 'Generate DEA Biennial Report…',
           click: actions.generateDeaReportAction,
         },
-        { label: 'PMP Submission Status', click: actions.showPmpStatus },
+        { label: 'PMP Reporting…', click: actions.showPmpStatus },
       ],
     },
     {

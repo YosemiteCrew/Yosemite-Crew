@@ -102,6 +102,8 @@ describe("OrganizationService", () => {
     type: "HOSPITAL",
     taxId: "TAX-123",
     imageURL: "https://example.com/image.jpg",
+    appointmentLockWindowOutpatientMinutes: 30,
+    appointmentLockWindowInpatientMinutes: 60,
   };
 
   const baseOrg = {
@@ -129,6 +131,8 @@ describe("OrganizationService", () => {
     ratingCount: null,
     appointmentCheckInBufferMinutes: 5,
     appointmentCheckInRadiusMeters: 200,
+    appointmentLockWindowOutpatientMinutes: 30,
+    appointmentLockWindowInpatientMinutes: 60,
     createdAt: new Date("2024-01-01T00:00:00.000Z"),
     updatedAt: new Date("2024-01-01T00:00:00.000Z"),
     address: null,
@@ -163,6 +167,14 @@ describe("OrganizationService", () => {
       expect(prisma.organizationBilling.create).toHaveBeenCalledWith({
         data: { orgId },
       });
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            appointmentLockWindowOutpatientMinutes: 30,
+            appointmentLockWindowInpatientMinutes: 60,
+          }),
+        }),
+      );
       expect(prisma.organizationUsageCounter.create).toHaveBeenCalledWith({
         data: { orgId },
       });
@@ -185,6 +197,13 @@ describe("OrganizationService", () => {
       );
       expect(result.created).toBe(true);
       expect(result.response.name).toBe("Test Hospital");
+      expect(TypesPkg.toOrganizationResponseDTO).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appointmentLockWindowOutpatientMinutes: 30,
+          appointmentLockWindowInpatientMinutes: 60,
+        }),
+        undefined,
+      );
     });
 
     it("uploads a local image URL during create", async () => {
@@ -238,6 +257,10 @@ describe("OrganizationService", () => {
       expect(prisma.organization.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: orgId },
+          data: expect.objectContaining({
+            appointmentLockWindowOutpatientMinutes: 30,
+            appointmentLockWindowInpatientMinutes: 60,
+          }),
         }),
       );
       expect(result.created).toBe(false);

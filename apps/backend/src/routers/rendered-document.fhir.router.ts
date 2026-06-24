@@ -13,6 +13,23 @@ router.get(
   (req, res) => RenderedDocumentFhirController.getRenderedDocument(req, res),
 );
 
+router.get(
+  "/organisation/:organisationId/:renderedDocumentId/pdf",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any", "prescription:view:any"]),
+  (req, res) => RenderedDocumentFhirController.getRenderedDocumentPdf(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/:renderedDocumentId/rerender-pdf",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["forms:edit:any", "prescription:edit:any"]),
+  (req, res) =>
+    RenderedDocumentFhirController.rerenderRenderedDocumentPdf(req, res),
+);
+
 router.post(
   "/organisation/:organisationId/:renderedDocumentId/sign",
   authorizeCognito,

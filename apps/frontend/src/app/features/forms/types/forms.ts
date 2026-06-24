@@ -4,6 +4,15 @@ import type {
   Form as BackendForm,
   FormField as BackendFormField,
   Organisation,
+  TemplateFieldDefinition,
+  TemplateKind,
+  TemplateOwnershipType,
+  TemplateSchemaSnapshot,
+} from '@yosemite-crew/types';
+import {
+  CANONICAL_DISCHARGE_STRUCTURE,
+  CANONICAL_SOAP_STRUCTURE,
+  CANONICAL_VITALS_STRUCTURE,
 } from '@yosemite-crew/types';
 
 const formsCategories = [
@@ -11,6 +20,10 @@ const formsCategories = [
   'Prescription',
   'SOAP',
   'Discharge Form',
+  'Vitals',
+  'Prescription Template',
+  'Inpatient Schedule',
+  'Task Template',
   'Boarder - Boarding Checklist',
   'Boarder - Dietary Plan',
   'Boarder - Medication Details',
@@ -92,6 +105,11 @@ export type FormsProps = {
   lastUpdated: string;
   status?: FormsStatus;
   schema: FormField[];
+  templateId?: string;
+  templateKind?: TemplateKind;
+  templateSource?: TemplateOwnershipType;
+  templateVersion?: number;
+  isTemplateBacked?: boolean;
 };
 
 const makeOption = (label: string, value?: string): FieldOption => ({
@@ -181,6 +199,50 @@ const textAreaField = (
   placeholder = '',
   extra?: Partial<FormField>
 ): FormField => createField(id, label, 'textarea', undefined, { placeholder, ...extra });
+
+const richTextField = (
+  id: string,
+  label: string,
+  placeholder = '',
+  extra?: Partial<FormField>
+): FormField => createField(id, label, 'richtext', undefined, { placeholder, ...extra });
+
+/**
+ * Build a builder field-list group from the shared canonical clinical structure so the
+ * SOAP/Discharge/Vitals builder, the resolver blueprint, and the workspace editors stay
+ * single-sourced. Rich-text canonical fields become rich-text builder blocks; vitals units
+ * (canonical `rules.unit`) are carried onto field meta for the workspace display.
+ */
+const canonicalFieldToFormField = (field: TemplateFieldDefinition): FormField => {
+  const unit = (field.rules as { unit?: string } | undefined)?.unit;
+  const extra: Partial<FormField> = { required: field.required };
+  if (unit) {
+    (extra as { meta?: unknown }).meta = { unit };
+  }
+  switch (field.type) {
+    case 'richText':
+      return richTextField(field.key, field.label, '', extra);
+    case 'number':
+      return numberField(field.key, field.label, '', extra);
+    case 'date':
+      return dateField(field.key, field.label, '', extra);
+    case 'signature':
+      return signatureField(field.key, field.label, extra);
+    default:
+      return textInputField(field.key, field.label, '', extra);
+  }
+};
+
+const canonicalToCategoryFields = (structure: TemplateSchemaSnapshot): FormField[] =>
+  structure.sections.map((section) =>
+    // Suffix the builder group id so it never collides with a leaf field key that shares
+    // the section id (e.g. the `subjective` section contains the `subjective` field).
+    groupField(
+      `${section.id}_section`,
+      section.title,
+      section.fields.map(canonicalFieldToFormField)
+    )
+  );
 
 const dateField = (
   id: string,
@@ -308,6 +370,17 @@ const buildServicesGroup = (): FormField => ({
 
 export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
   Custom: [],
+  'Prescription Template': [],
+  'Inpatient Schedule': [],
+  'Task Template': [
+    {
+      id: 'tasks_group',
+      type: 'group',
+      label: 'Tasks',
+      meta: { taskGroup: true } as any,
+      fields: [],
+    },
+  ],
   'Consent form': [
     textInputField('pet_name', 'Companion name', 'Enter Companion name', { required: true }),
     textInputField('owner_name', 'Pet parent name', 'Enter pet parent name', { required: true }),
@@ -339,75 +412,12 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     ),
     signatureField('signature', 'Signature'),
   ],
-  SOAP: [
-    groupField('subjective_section', 'Subjective', [
-      textAreaField(
-        'subjective_history',
-        'Subjective (history)',
-        'Describe presenting concerns and history',
-        { required: true }
-      ),
-    ]),
-    groupField('objective_section', 'Objective', [
-      textAreaField('general_behavior', 'General behavior', 'General behavior notes'),
-      groupField('vitals', 'Vitals', [
-        numberField('temperature', 'Temperature'),
-        textInputField('pulse', 'Pulse', 'Enter pulse'),
-        numberField('respiration', 'Respiration'),
-        textInputField('mucous_membrane_color', 'Mucous membrane color', 'Enter color'),
-        textInputField('blood_pressure', 'Blood pressure', 'Enter blood pressure'),
-        textInputField('body_weight', 'Body weight', 'Enter weight'),
-        textInputField('hydration_status', 'Hydration status', 'Describe hydration'),
-        textInputField('behavior_secondary', 'General behavior', 'Enter behavior'),
-      ]),
-      textAreaField('musculoskeletal_exam', 'Musculoskeletal Exam', 'Document findings'),
-      textAreaField('neuro', 'Neuro', 'Document findings'),
-      textAreaField('pain_score', 'Pain Score', 'Enter pain score details'),
-    ]),
-    groupField('assessment_section', 'Assessment', [
-      textAreaField('tentative_diagnosis', 'Tentative diagnosis', 'Enter tentative diagnosis'),
-      textAreaField(
-        'differential_diagnosis',
-        'Differential diagnosis',
-        'List differential diagnoses'
-      ),
-      textAreaField('prognosis', 'Prognosis', 'Enter prognosis'),
-    ]),
-    groupField('treatment_plan', 'Plan', [
-      textAreaField(
-        'additional_notes',
-        'Additional notes',
-        'Add observations and pet parent instructions'
-      ),
-      textAreaField(
-        'important_notes',
-        'Important notes',
-        'Highlight critical follow-up instructions'
-      ),
-    ]),
-    signatureField('signature', 'Signature'),
-  ],
-  'Discharge Form': [
-    groupField('discharge_section', 'Discharge summary', [
-      textAreaField(
-        'discharge_summary',
-        'Discharge summary',
-        'Summarize visit, findings and treatments provided.'
-      ),
-      textAreaField(
-        'home_care',
-        'Home care instructions',
-        'Explain wound care, diet, activity restriction.'
-      ),
-      textAreaField(
-        'discharge_medications',
-        'Medications',
-        'List medications, dosage, route, and schedule.'
-      ),
-      dateField('follow_up', 'Follow-up date', 'Select next visit date'),
-    ]),
-    signatureField('signature', 'Signature'),
-  ],
+  // Single-sourced from the shared canonical clinical structures (rich-text S/O/A/P,
+  // rich-text discharge body/home-care/medications, structured vitals) so the builder,
+  // resolver blueprint, and workspace editors never diverge.
+  SOAP: canonicalToCategoryFields(CANONICAL_SOAP_STRUCTURE),
+  'Discharge Form': canonicalToCategoryFields(CANONICAL_DISCHARGE_STRUCTURE),
+  Vitals: canonicalToCategoryFields(CANONICAL_VITALS_STRUCTURE),
   'Boarder - Boarding Checklist': [
     {
       id: 'temperature_and_pulse_records',
@@ -982,3 +992,12 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
 };
 
 export type BackendFormStatus = BackendForm['status'];
+
+// Organisation-wide form-assignment contract (shared with the backend so the
+// read-model has a single source of truth).
+export type {
+  FormAssignmentLifecycleStatus,
+  FormAssignmentSignedDocumentLike,
+  FormAssignmentListItem,
+  FormAssignmentListFilters,
+} from '@yosemite-crew/types';

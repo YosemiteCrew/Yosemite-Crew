@@ -10,6 +10,10 @@ import {
   fromOrganisationRoomRequestDTO,
   toOrganisationRoomResponseDTO,
   OrganisationRoom,
+  fromFHIRRoomUnitGroup,
+  fromFHIRRoomUnit,
+  toFHIRRoomUnitGroup,
+  toFHIRRoomUnit,
 } from '@yosemite-crew/types';
 
 // --- Mocks ---
@@ -27,16 +31,29 @@ jest.mock('@/app/stores/roomStore', () => ({
 }));
 
 jest.mock('@yosemite-crew/types', () => ({
+  ...jest.requireActual('@yosemite-crew/types'),
   fromOrganisationRoomRequestDTO: jest.fn(),
   toOrganisationRoomResponseDTO: jest.fn(),
+  fromFHIRRoomUnitGroup: jest.fn(),
+  fromFHIRRoomUnit: jest.fn(),
+  toFHIRRoomUnitGroup: jest.fn(),
+  toFHIRRoomUnit: jest.fn(),
 }));
 const mockedFromDTO = fromOrganisationRoomRequestDTO as jest.Mock;
 const mockedToDTO = toOrganisationRoomResponseDTO as jest.Mock;
+const mockedFromFHIRRoomUnitGroup = fromFHIRRoomUnitGroup as jest.Mock;
+const mockedFromFHIRRoomUnit = fromFHIRRoomUnit as jest.Mock;
+const mockedToFHIRRoomUnitGroup = toFHIRRoomUnitGroup as jest.Mock;
+const mockedToFHIRRoomUnit = toFHIRRoomUnit as jest.Mock;
 
 describe('Room Service', () => {
   const mockRoomStoreStartLoading = jest.fn();
   const mockRoomStoreSetRoomsForOrg = jest.fn();
   const mockRoomStoreUpsertRoom = jest.fn();
+  const mockSetRoomUnitGroupsForOrg = jest.fn();
+  const mockSetRoomUnitsForOrg = jest.fn();
+  const mockSetRoomUnitGroupsForRoom = jest.fn();
+  const mockSetRoomUnitsForRoom = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -50,7 +67,15 @@ describe('Room Service', () => {
       startLoading: mockRoomStoreStartLoading,
       setRoomsForOrg: mockRoomStoreSetRoomsForOrg,
       upsertRoom: mockRoomStoreUpsertRoom,
+      setRoomUnitGroupsForOrg: mockSetRoomUnitGroupsForOrg,
+      setRoomUnitsForOrg: mockSetRoomUnitsForOrg,
+      setRoomUnitGroupsForRoom: mockSetRoomUnitGroupsForRoom,
+      setRoomUnitsForRoom: mockSetRoomUnitsForRoom,
     });
+    mockedFromFHIRRoomUnitGroup.mockImplementation((value) => value);
+    mockedFromFHIRRoomUnit.mockImplementation((value) => value);
+    mockedToFHIRRoomUnitGroup.mockImplementation((value) => value);
+    mockedToFHIRRoomUnit.mockImplementation((value) => value);
   });
 
   // --- Section 1: loadRoomsForOrgPrimaryOrg ---
@@ -72,6 +97,7 @@ describe('Room Service', () => {
       (useOrganisationRoomStore.getState as jest.Mock).mockReturnValue({
         status: 'loaded',
         startLoading: mockRoomStoreStartLoading,
+        roomIdsByOrgId: { 'org-123': ['room-1'] },
       });
 
       await loadRoomsForOrgPrimaryOrg();
@@ -84,6 +110,8 @@ describe('Room Service', () => {
         status: 'loaded',
         startLoading: mockRoomStoreStartLoading,
         setRoomsForOrg: mockRoomStoreSetRoomsForOrg,
+        setRoomUnitGroupsForOrg: mockSetRoomUnitGroupsForOrg,
+        setRoomUnitsForOrg: mockSetRoomUnitsForOrg,
       });
       mockedGetData.mockResolvedValue({ data: [] });
 
@@ -96,19 +124,30 @@ describe('Room Service', () => {
       const mockApiData = [{ resourceType: 'Location', id: 'raw-1' }];
       const mockTransformedRoom = { id: 'room-1', name: 'Room 1' };
 
-      mockedGetData.mockResolvedValue({ data: mockApiData });
+      mockedGetData
+        .mockResolvedValueOnce({ data: mockApiData })
+        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValueOnce({ data: [] });
       mockedFromDTO.mockReturnValue(mockTransformedRoom);
 
       await loadRoomsForOrgPrimaryOrg();
 
       expect(mockRoomStoreStartLoading).toHaveBeenCalled();
       expect(mockedGetData).toHaveBeenCalledWith('/fhir/v1/organisation-room/organization/org-123');
+      expect(mockedGetData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group?organizationId=org-123&isActive=true'
+      );
+      expect(mockedGetData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit?organizationId=org-123&isActive=true'
+      );
 
       // FIX: Implementation code is: res.data.map((fhirRoom) => from...(fhirRoom))
       // This drops the index and array arguments.
       expect(mockedFromDTO).toHaveBeenCalledWith(mockApiData[0]);
 
       expect(mockRoomStoreSetRoomsForOrg).toHaveBeenCalledWith('org-123', [mockTransformedRoom]);
+      expect(mockSetRoomUnitGroupsForOrg).toHaveBeenCalledWith('org-123', []);
+      expect(mockSetRoomUnitsForOrg).toHaveBeenCalledWith('org-123', []);
     });
 
     it('suppresses loading state if silent option is true', async () => {
@@ -132,7 +171,7 @@ describe('Room Service', () => {
 
   // --- Section 2: createRoom ---
   describe('createRoom', () => {
-    const mockRoomInput = { name: 'New Room', code: '' } as OrganisationRoom;
+    const mockRoomInput = { name: 'New Room' } as OrganisationRoom;
 
     it('returns early if no primaryOrgId is selected', async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
@@ -162,12 +201,104 @@ describe('Room Service', () => {
         expect.objectContaining({
           ...mockRoomInput,
           organisationId: 'org-123',
+          code: expect.stringMatching(/^NEW-ROOM-[A-Z0-9]+$/),
         })
       );
 
       expect(mockedPostData).toHaveBeenCalledWith('/fhir/v1/organisation-room', mockDTO);
       expect(mockedFromDTO).toHaveBeenCalledWith(mockResponseData);
-      expect(mockRoomStoreUpsertRoom).toHaveBeenCalledWith(mockFinalRoom);
+      expect(mockRoomStoreUpsertRoom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...mockFinalRoom,
+          organisationId: 'org-123',
+        })
+      );
+    });
+
+    it('uses a provided custom room code as-is', async () => {
+      const mockDTO = { resourceType: 'Location' };
+      const mockResponseData = { resourceType: 'Location', id: 'new-1' };
+      const mockFinalRoom = {
+        id: 'room-new',
+        name: 'Custom Room',
+        code: 'CR-01',
+        organisationId: 'org-123',
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPostData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+
+      await createRoom({ name: 'Custom Room', code: ' CR-01 ' } as OrganisationRoom);
+
+      expect(mockedToDTO).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'CR-01',
+        })
+      );
+    });
+
+    it('creates a default unit group from total units for unit-capable rooms', async () => {
+      const roomInput = {
+        id: 'draft-room',
+        name: 'Ward A',
+        code: '',
+        type: 'INPATIENT',
+        availability: {
+          species: ['CANINE', 'AVIAN', 'FELINE'],
+          totalUnits: 2,
+        },
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+      };
+      const mockDTO = { resourceType: 'Location' };
+      const roomResponse = { resourceType: 'Location', id: 'room-1' };
+      const createdRoom = {
+        id: 'room-1',
+        name: 'Ward A',
+        organisationId: 'org-123',
+        type: 'INPATIENT',
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPostData
+        .mockResolvedValueOnce({ data: roomResponse })
+        .mockImplementation(async (_url, payload) => ({ data: payload }));
+      mockedFromDTO.mockReturnValue(createdRoom);
+      mockedGetData.mockResolvedValue({ data: [] });
+
+      await createRoom(roomInput);
+
+      expect(mockedToDTO).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: expect.stringMatching(/^WARD-A-[A-Z0-9]+$/),
+        })
+      );
+
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group',
+        expect.objectContaining({
+          name: 'Units',
+          unitCount: 2,
+          speciesConstraints: ['CANINE', 'FELINE'],
+        })
+      );
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit',
+        expect.objectContaining({
+          displayName: 'Units 1',
+          code: 'UNITS-1',
+        })
+      );
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit',
+        expect.objectContaining({
+          displayName: 'Units 2',
+          code: 'UNITS-2',
+        })
+      );
+      expect(mockSetRoomUnitGroupsForRoom).toHaveBeenCalled();
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalled();
     });
 
     it('logs error and rethrows on failure', async () => {
@@ -210,10 +341,21 @@ describe('Room Service', () => {
 
       await updateRoom(mockUpdateInput);
 
-      expect(mockedToDTO).toHaveBeenCalledWith(mockUpdateInput);
+      expect(mockedToDTO).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'room-1',
+          name: 'Updated Room',
+          organisationId: 'org-123',
+        })
+      );
       expect(mockedPutData).toHaveBeenCalledWith('/fhir/v1/organisation-room/room-1', mockDTO);
       expect(mockedFromDTO).toHaveBeenCalledWith(mockResponseData);
-      expect(mockRoomStoreUpsertRoom).toHaveBeenCalledWith(mockFinalRoom);
+      expect(mockRoomStoreUpsertRoom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...mockFinalRoom,
+          organisationId: 'org-123',
+        })
+      );
     });
 
     it('logs error and rethrows on failure', async () => {

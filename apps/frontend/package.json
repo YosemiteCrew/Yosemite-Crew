@@ -30,16 +30,21 @@
     "e2e:headed": "pnpm run test:a11y && playwright test --headed",
     "e2e:ui": "playwright test --ui",
     "check:bundle-budgets": "node ./scripts/check-bundle-budgets.mjs",
-    "report:build-routes": "node ./scripts/export-build-report.mjs"
+    "report:build-routes": "node ./scripts/export-build-report.mjs",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@calcom/embed-react": "^1.5.3",
     "@stripe/connect-js": "^3.3.31",
     "@stripe/react-connect-js": "^3.3.31",
     "@testing-library/user-event": "^14.6.1",
+    "@tiptap/extension-underline": "^3.24.0",
+    "@tiptap/react": "^3.24.0",
+    "@tiptap/starter-kit": "^3.24.0",
     "amazon-cognito-identity-js": "^6.3.15",
-    "axios": "^1.15.0",
+    "axios": "1.17.0",
     "classnames": "^2.5.1",
+    "dompurify": "^3.4.11",
     "framer-motion": "^12.18.1",
     "libphonenumber-js": "^1.12.31",
     "next": "15.5.18",

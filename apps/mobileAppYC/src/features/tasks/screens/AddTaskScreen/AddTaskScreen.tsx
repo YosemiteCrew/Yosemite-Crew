@@ -167,6 +167,7 @@ export const AddTaskScreen: React.FC = () => {
   );
   const hasPrefilledRef = useRef(false);
   const hasAppliedDatePrefillRef = useRef(false);
+  const isSavingRef = useRef(false);
 
   const currentUser = useSelector(selectAuthUser);
   const coParents = useSelector(selectAcceptedCoParents);
@@ -232,12 +233,14 @@ export const AddTaskScreen: React.FC = () => {
   }, [prefillDate, reuseTaskId, updateField]);
 
   const handleSave = async () => {
+    if (isSavingRef.current) return;
     if (!validateForm(formData, taskTypeSelection)) return;
     if (!selectedCompanionId) {
       showErrorAlert('Error', new Error('Please select a companion'));
       return;
     }
 
+    isSavingRef.current = true;
     try {
       let preparedAttachments = formData.attachments;
       if (preparedAttachments.length > 0) {
@@ -320,6 +323,8 @@ export const AddTaskScreen: React.FC = () => {
       });
     } catch (error) {
       showErrorAlert('Unable to add task', error);
+    } finally {
+      isSavingRef.current = false;
     }
   };
 

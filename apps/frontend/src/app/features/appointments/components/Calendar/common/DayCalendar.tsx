@@ -58,9 +58,11 @@ type DayCalendarProps = {
   zoomMode?: CalendarZoomMode;
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   handleDetailAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
+  handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeRoomAppointment?: (appointment: Appointment) => void;
+  handleAcceptAppointment?: (appointment: Appointment) => void;
   canEditAppointments: boolean;
   draggedAppointmentId?: string | null;
   draggedAppointmentLabel?: string | null;
@@ -183,8 +185,10 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   zoomMode = 'in',
   handleViewAppointment,
   handleDetailAppointment,
+  handleOpenWorkspace,
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
+  handleAcceptAppointment,
   canEditAppointments,
   setCurrentDate,
   draggedAppointmentId,
@@ -496,7 +500,8 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
     clearPendingMarkerClick();
     setContextMenu(null);
     setActivePopoverKey(null);
-    handleDetailAppointment(appointment);
+    if (handleOpenWorkspace) handleOpenWorkspace(appointment);
+    else handleDetailAppointment(appointment);
   };
 
   const handleMarkerContextMenu = (
@@ -823,10 +828,9 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
             popoverId={appointmentPopoverId}
             popoverDialogRef={popoverDialogRef}
             popoverStyle={popoverStyle}
-            handleViewAppointment={handleViewAppointment}
-            handleDetailAppointment={handleDetailAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
             handleChangeRoomAppointment={handleChangeRoomAppointment}
+            handleAcceptAppointment={handleAcceptAppointment}
             onClose={() => setActivePopoverKey(null)}
             registerAnchorEl={registerAnchorEl}
           />,
@@ -842,7 +846,6 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
             menuRef={contextMenuRef}
             menuStyle={contextMenuStyle}
             handleViewAppointment={handleViewAppointment}
-            handleDetailAppointment={handleDetailAppointment}
             handleRescheduleAppointment={handleRescheduleAppointment}
             onClose={() => setContextMenu(null)}
           />,

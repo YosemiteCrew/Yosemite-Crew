@@ -23,6 +23,7 @@ import {
 import { templateMapper } from "src/services/fhir-template.mapper";
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
+import logger from "src/utils/logger";
 import AppointmentModel from "src/models/appointment";
 import OrganizationModel from "src/models/organization";
 import { DocumensoService } from "./documenso.service";
@@ -944,6 +945,11 @@ const buildTemplateAppointmentFormItems = async (params: {
     return null;
   }
 
+  await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
+    organisationId: params.organisationId,
+    appointmentId: params.appointmentId,
+  });
+
   const assignments = await FormAssignmentService.listForAppointment(
     params.organisationId,
     params.appointmentId,
@@ -1637,6 +1643,17 @@ export const FormService = {
     const signing = buildDefaultSubmissionSigning(resolvedSchema);
 
     const formIdString = String(submission.formId);
+    const formOrganisation = isReadFromPostgres()
+      ? await prisma.form.findUnique({
+          where: { id: formIdString },
+          select: { orgId: true },
+        })
+      : await FormModel.findById(submission.formId).select({ orgId: 1 }).lean();
+
+    if (!formOrganisation) {
+      throw new FormServiceError("Form not found", 404);
+    }
+
     if (isReadFromPostgres()) {
       const created = await prisma.formSubmission.create({
         data: {
@@ -1666,6 +1683,25 @@ export const FormService = {
           appointmentId: submission.appointmentId,
           formId: formIdString,
           submissionId: created.id,
+        });
+      }
+
+      try {
+        await FormAssignmentService.markSubmittedFromSubmission({
+          organisationId: String(formOrganisation.orgId),
+          templateId: formIdString,
+          templateVersion: submission.formVersion,
+          appointmentId: submission.appointmentId ?? undefined,
+          companionId:
+            submission.patientId ?? submission.companionId ?? undefined,
+          parentId: submission.parentId ?? undefined,
+          submittedAt: submission.submittedAt,
+        });
+      } catch (error) {
+        logger.warn("Failed to sync form assignment submission status", {
+          error,
+          formId: formIdString,
+          appointmentId: submission.appointmentId ?? null,
         });
       }
 
@@ -1735,6 +1771,25 @@ export const FormService = {
         appointmentId: submission.appointmentId,
         formId: formIdString,
         submissionId: created._id.toString(),
+      });
+    }
+
+    try {
+      await FormAssignmentService.markSubmittedFromSubmission({
+        organisationId: String(formOrganisation.orgId),
+        templateId: formIdString,
+        templateVersion: submission.formVersion,
+        appointmentId: submission.appointmentId ?? undefined,
+        companionId:
+          submission.patientId ?? submission.companionId ?? undefined,
+        parentId: submission.parentId ?? undefined,
+        submittedAt: submission.submittedAt,
+      });
+    } catch (error) {
+      logger.warn("Failed to sync form assignment submission status", {
+        error,
+        formId: formIdString,
+        appointmentId: submission.appointmentId ?? null,
       });
     }
 
@@ -2294,6 +2349,18 @@ export const FormService = {
         appointmentParentId !== params.viewerParentId
       ) {
         throw new FormServiceError("Forbidden", 403);
+      }
+
+      try {
+        await FormAssignmentService.markViewedForAppointment({
+          organisationId: appointment.organisationId,
+          appointmentId: appointmentId,
+        });
+      } catch (error) {
+        logger.warn("Failed to sync form assignment viewed status", {
+          error,
+          appointmentId,
+        });
       }
     }
 

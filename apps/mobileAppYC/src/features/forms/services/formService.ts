@@ -118,11 +118,9 @@ export const formApi = {
   async startSigning({
     submissionId,
     accessToken,
-    userId,
   }: {
     submissionId: string;
     accessToken: string;
-    userId?: string | null;
   }): Promise<{documentId?: string | number; signingUrl?: string | null}> {
     const {data} = await apiClient.post<{
       documentId?: string | number;
@@ -131,10 +129,7 @@ export const formApi = {
       `/fhir/v1/form/mobile/form-submissions/${submissionId}/sign`,
       {},
       {
-        headers: withAuthHeaders(
-          accessToken,
-          userId ? {'x-user-id': userId} : undefined,
-        ),
+        headers: withAuthHeaders(accessToken),
       },
     );
     return data;

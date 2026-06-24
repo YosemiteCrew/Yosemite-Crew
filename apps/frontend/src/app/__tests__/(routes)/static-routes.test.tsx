@@ -75,6 +75,11 @@ jest.mock('@/app/features/legal/pages/TermsAndConditions', () => ({
   default: () => <div data-testid="route-terms" />,
 }));
 
+jest.mock('@/app/features/legal/pages/DmcaCopyrightPolicy', () => ({
+  __esModule: true,
+  default: () => <div data-testid="route-dmca" />,
+}));
+
 jest.mock('@/app/ui/widgets/Footer/Footer', () => ({
   __esModule: true,
   default: () => <footer data-testid="route-footer" />,
@@ -97,6 +102,7 @@ import PmsRoute, * as PmsModule from '@/app/(routes)/(public)/pms/page';
 import PricingRoute, * as PricingModule from '@/app/(routes)/(public)/pricing/page';
 import PrivacyPolicyRoute, * as PrivacyPolicyModule from '@/app/(routes)/(public)/privacy-policy/page';
 import TermsRoute, * as TermsModule from '@/app/(routes)/(public)/terms-and-conditions/page';
+import DmcaRoute, * as DmcaModule from '@/app/(routes)/(public)/dmca/page';
 import TeamOnboardingRoute, * as TeamOnboardingModule from '@/app/(routes)/(app)/team-onboarding/page';
 
 type RouteCase = {
@@ -178,6 +184,12 @@ const routeCases: RouteCase[] = [
     RouteComponent: TermsRoute,
     Module: TermsModule,
     expectedTestIds: ['route-terms', 'route-footer'],
+  },
+  {
+    name: 'DMCA',
+    RouteComponent: DmcaRoute,
+    Module: DmcaModule,
+    expectedTestIds: ['route-dmca', 'route-footer'],
   },
   {
     name: 'Team Onboarding',

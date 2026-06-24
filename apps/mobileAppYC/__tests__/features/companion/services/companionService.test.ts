@@ -1,14 +1,11 @@
-import { companionApi } from '../../../../src/features/companion/services/companionService';
+import {companionApi} from '../../../../src/features/companion/services/companionService';
 import apiClient from '../../../../src/shared/services/apiClient';
 import {
   requestCompanionProfileUploadUrl,
   uploadFileToPresignedUrl,
 } from '../../../../src/shared/services/uploadService';
-import { preparePhotoPayload } from '../../../../src/features/account/utils/profilePhoto';
-import {
-  toFHIRCompanion,
-  fromCompanionRequestDTO,
-} from '@yosemite-crew/types';
+import {preparePhotoPayload} from '../../../../src/features/account/utils/profilePhoto';
+import {toFHIRCompanion, fromCompanionRequestDTO} from '@yosemite-crew/types';
 
 // --- Mocks ---
 
@@ -39,15 +36,21 @@ jest.mock('../../../../src/shared/utils/imageUri', () => ({
 }));
 
 // Mock JSON Data
-jest.mock('@/features/companion/data/catBreeds.json', () => [
-  { breedId: 1, breedName: 'Persian' },
-], { virtual: true });
-jest.mock('@/features/companion/data/dogBreeds.json', () => [
-  { breedId: 2, breedName: 'Labrador' },
-], { virtual: true });
-jest.mock('@/features/companion/data/horseBreeds.json', () => [
-  { breedId: 3, breedName: 'Arabian' },
-], { virtual: true });
+jest.mock(
+  '@/features/companion/data/catBreeds.json',
+  () => [{breedId: 1, breedName: 'Persian'}],
+  {virtual: true},
+);
+jest.mock(
+  '@/features/companion/data/dogBreeds.json',
+  () => [{breedId: 2, breedName: 'Labrador'}],
+  {virtual: true},
+);
+jest.mock(
+  '@/features/companion/data/horseBreeds.json',
+  () => [{breedId: 3, breedName: 'Arabian'}],
+  {virtual: true},
+);
 
 describe('companionService', () => {
   const MOCK_TOKEN = 'token-123';
@@ -83,60 +86,88 @@ describe('companionService', () => {
     };
 
     it('should throw if category is missing', async () => {
-      await expect(companionApi.create({
-        parentId: MOCK_PARENT_ID,
-        accessToken: MOCK_TOKEN,
-        payload: { ...validPayload, category: null }
-      })).rejects.toThrow('Companion category is required.');
+      await expect(
+        companionApi.create({
+          parentId: MOCK_PARENT_ID,
+          accessToken: MOCK_TOKEN,
+          payload: {...validPayload, category: null},
+        }),
+      ).rejects.toThrow('Companion category is required.');
     });
 
     it('should throw if gender is missing', async () => {
-      await expect(companionApi.create({
-        parentId: MOCK_PARENT_ID,
-        accessToken: MOCK_TOKEN,
-        payload: { ...validPayload, gender: null }
-      })).rejects.toThrow('Companion gender is required.');
+      await expect(
+        companionApi.create({
+          parentId: MOCK_PARENT_ID,
+          accessToken: MOCK_TOKEN,
+          payload: {...validPayload, gender: null},
+        }),
+      ).rejects.toThrow('Companion gender is required.');
     });
 
     it('should throw if dateOfBirth is missing', async () => {
-      await expect(companionApi.create({
-        parentId: MOCK_PARENT_ID,
-        accessToken: MOCK_TOKEN,
-        payload: { ...validPayload, dateOfBirth: null }
-      })).rejects.toThrow('Companion date of birth is required.');
+      await expect(
+        companionApi.create({
+          parentId: MOCK_PARENT_ID,
+          accessToken: MOCK_TOKEN,
+          payload: {...validPayload, dateOfBirth: null},
+        }),
+      ).rejects.toThrow('Companion date of birth is required.');
     });
 
     it('should throw if dateOfBirth is invalid string', async () => {
-      await expect(companionApi.create({
-        parentId: MOCK_PARENT_ID,
-        accessToken: MOCK_TOKEN,
-        payload: { ...validPayload, dateOfBirth: 'not-a-date' }
-      })).rejects.toThrow('Invalid companion date of birth.');
+      await expect(
+        companionApi.create({
+          parentId: MOCK_PARENT_ID,
+          accessToken: MOCK_TOKEN,
+          payload: {...validPayload, dateOfBirth: 'not-a-date'},
+        }),
+      ).rejects.toThrow('Invalid companion date of birth.');
     });
 
     it('should throw if origin is missing', async () => {
-      await expect(companionApi.create({
-        parentId: MOCK_PARENT_ID,
-        accessToken: MOCK_TOKEN,
-        payload: { ...validPayload, origin: null }
-      })).rejects.toThrow('Companion origin is required.');
+      await expect(
+        companionApi.create({
+          parentId: MOCK_PARENT_ID,
+          accessToken: MOCK_TOKEN,
+          payload: {...validPayload, origin: null},
+        }),
+      ).rejects.toThrow('Companion origin is required.');
     });
 
     it('should map category correctly for backend', async () => {
-      mockApiClient.post.mockResolvedValue({ status: 201, data: {} });
+      mockApiClient.post.mockResolvedValue({status: 201, data: {}});
       mockFromDTO.mockReturnValue({});
 
       // Cat
-      await companionApi.create({ parentId: MOCK_PARENT_ID, accessToken: MOCK_TOKEN, payload: { ...validPayload, category: 'cat' } });
-      expect(mockToFHIR).toHaveBeenCalledWith(expect.objectContaining({ type: 'cat' }));
+      await companionApi.create({
+        parentId: MOCK_PARENT_ID,
+        accessToken: MOCK_TOKEN,
+        payload: {...validPayload, category: 'cat'},
+      });
+      expect(mockToFHIR).toHaveBeenCalledWith(
+        expect.objectContaining({type: 'cat'}),
+      );
 
       // Horse
-      await companionApi.create({ parentId: MOCK_PARENT_ID, accessToken: MOCK_TOKEN, payload: { ...validPayload, category: 'horse' } });
-      expect(mockToFHIR).toHaveBeenCalledWith(expect.objectContaining({ type: 'horse' }));
+      await companionApi.create({
+        parentId: MOCK_PARENT_ID,
+        accessToken: MOCK_TOKEN,
+        payload: {...validPayload, category: 'horse'},
+      });
+      expect(mockToFHIR).toHaveBeenCalledWith(
+        expect.objectContaining({type: 'horse'}),
+      );
 
       // Default/Other (Cast to force unknown)
-      await companionApi.create({ parentId: MOCK_PARENT_ID, accessToken: MOCK_TOKEN, payload: { ...validPayload, category: 'bird' as any } });
-      expect(mockToFHIR).toHaveBeenCalledWith(expect.objectContaining({ type: 'other' }));
+      await companionApi.create({
+        parentId: MOCK_PARENT_ID,
+        accessToken: MOCK_TOKEN,
+        payload: {...validPayload, category: 'bird' as any},
+      });
+      expect(mockToFHIR).toHaveBeenCalledWith(
+        expect.objectContaining({type: 'other'}),
+      );
     });
   });
 
@@ -148,7 +179,7 @@ describe('companionService', () => {
     const createPayload: any = {
       category: 'dog',
       name: 'Buddy',
-      breed: { breedId: 2, breedName: 'Labrador' },
+      breed: {breedId: 2, breedName: 'Labrador'},
       dateOfBirth: new Date('2020-01-01'), // Test Date object input
       gender: 'male',
       origin: 'breeder',
@@ -162,13 +193,13 @@ describe('companionService', () => {
     it('should upload local image then create companion', async () => {
       // Setup image upload mock
       mockPreparePhotoPayload.mockResolvedValue({
-        localFile: { path: 'path', mimeType: 'image/png' },
+        localFile: {path: 'path', mimeType: 'image/png'},
       });
-      mockRequestUploadUrl.mockResolvedValue({ url: 's3-url', key: 's3-key' });
+      mockRequestUploadUrl.mockResolvedValue({url: 's3-url', key: 's3-key'});
 
-      mockToFHIR.mockReturnValue({ resourceType: 'Patient' });
-      mockApiClient.post.mockResolvedValue({ status: 201, data: { id: 'new-id' } });
-      mockFromDTO.mockReturnValue({ name: 'Buddy' });
+      mockToFHIR.mockReturnValue({resourceType: 'Patient'});
+      mockApiClient.post.mockResolvedValue({status: 201, data: {id: 'new-id'}});
+      mockFromDTO.mockReturnValue({name: 'Buddy'});
 
       await companionApi.create({
         parentId: MOCK_PARENT_ID,
@@ -179,30 +210,40 @@ describe('companionService', () => {
       expect(mockRequestUploadUrl).toHaveBeenCalled();
       expect(mockUploadFile).toHaveBeenCalled();
       // Verify FHIR payload construction
-      expect(mockToFHIR).toHaveBeenCalledWith(expect.objectContaining({
-        photoUrl: 's3-key',
-        isneutered: true,
-        isInsured: true,
-        insurance: { isInsured: true, companyName: 'PetInsure', policyNumber: 'POL-1' }
-      }));
+      expect(mockToFHIR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          photoUrl: 's3-key',
+          isneutered: true,
+          isInsured: true,
+          insurance: {
+            isInsured: true,
+            companyName: 'PetInsure',
+            policyNumber: 'POL-1',
+          },
+        }),
+      );
     });
 
     it('should handle creation error logging and rethrow', async () => {
       mockApiClient.post.mockRejectedValue(new Error('Create Failed'));
-      await expect(companionApi.create({
-        parentId: MOCK_PARENT_ID,
-        payload: { ...createPayload, profileImage: null },
-        accessToken: MOCK_TOKEN,
-      })).rejects.toThrow('Create Failed');
+      await expect(
+        companionApi.create({
+          parentId: MOCK_PARENT_ID,
+          payload: {...createPayload, profileImage: null},
+          accessToken: MOCK_TOKEN,
+        }),
+      ).rejects.toThrow('Create Failed');
     });
 
     it('should handle creation error with unknown error object', async () => {
       mockApiClient.post.mockRejectedValue('String Error');
-      await expect(companionApi.create({
-        parentId: MOCK_PARENT_ID,
-        payload: { ...createPayload, profileImage: null },
-        accessToken: MOCK_TOKEN,
-      })).rejects.toEqual('String Error');
+      await expect(
+        companionApi.create({
+          parentId: MOCK_PARENT_ID,
+          payload: {...createPayload, profileImage: null},
+          accessToken: MOCK_TOKEN,
+        }),
+      ).rejects.toEqual('String Error');
     });
   });
 
@@ -222,15 +263,17 @@ describe('companionService', () => {
     };
 
     it('should throw if id is missing', async () => {
-       await expect(companionApi.update({
-         companion: { ...updateCompanion, id: undefined },
-         accessToken: MOCK_TOKEN,
-       })).rejects.toThrow('A companion ID is required to update.');
+      await expect(
+        companionApi.update({
+          companion: {...updateCompanion, id: undefined},
+          accessToken: MOCK_TOKEN,
+        }),
+      ).rejects.toThrow('A companion ID is required to update.');
     });
 
     it('should update successfully with existing image', async () => {
-      mockPreparePhotoPayload.mockResolvedValue({ remoteUrl: 'http://img.com' });
-      mockApiClient.put.mockResolvedValue({ status: 200, data: {} });
+      mockPreparePhotoPayload.mockResolvedValue({remoteUrl: 'http://img.com'});
+      mockApiClient.put.mockResolvedValue({status: 200, data: {}});
       mockFromDTO.mockReturnValue({});
 
       await companionApi.update({
@@ -239,25 +282,77 @@ describe('companionService', () => {
       });
 
       expect(mockApiClient.put).toHaveBeenCalled();
-      expect(mockToFHIR).toHaveBeenCalledWith(expect.objectContaining({
-        photoUrl: 'http://img.com'
-      }));
+      expect(mockToFHIR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          photoUrl: 'http://img.com',
+        }),
+      );
+    });
+
+    it('should keep current Yosemite extension URLs in update payload', async () => {
+      const countryExtensionUrl =
+        'https://yosemitecrew.com/fhir/StructureDefinition/companion-country-of-origin';
+      const sourceExtensionUrl =
+        'https://yosemitecrew.com/fhir/StructureDefinition/companion-source';
+      const weightExtensionUrl =
+        'https://yosemitecrew.com/fhir/StructureDefinition/companion-weight';
+
+      const fhirPayload = {
+        resourceType: 'Patient',
+        extension: [
+          {url: countryExtensionUrl, valueString: 'Angola'},
+          {url: sourceExtensionUrl, valueString: 'shop'},
+          {url: weightExtensionUrl, valueDecimal: 12.5},
+        ],
+      };
+
+      mockToFHIR.mockReturnValue(fhirPayload);
+      mockApiClient.put.mockResolvedValue({
+        status: 200,
+        data: {id: MOCK_COMPANION_ID},
+      });
+      mockFromDTO.mockReturnValue({});
+
+      await companionApi.update({
+        companion: {
+          ...updateCompanion,
+          countryOfOrigin: 'Angola',
+          currentWeight: 12.5,
+        },
+        accessToken: MOCK_TOKEN,
+      });
+
+      const [, body] = mockApiClient.put.mock.calls[0];
+      const sentPayload = (body as {payload: typeof fhirPayload}).payload;
+
+      expect(sentPayload.extension?.map(extension => extension.url)).toEqual([
+        countryExtensionUrl,
+        sourceExtensionUrl,
+        weightExtensionUrl,
+      ]);
+      expect(JSON.stringify(sentPayload)).not.toContain(
+        'http://example.org/fhir/StructureDefinition',
+      );
     });
 
     it('should handle update error logging', async () => {
       mockApiClient.put.mockRejectedValue(new Error('Update Failed'));
-      await expect(companionApi.update({
-        companion: updateCompanion,
-        accessToken: MOCK_TOKEN,
-      })).rejects.toThrow('Update Failed');
+      await expect(
+        companionApi.update({
+          companion: updateCompanion,
+          accessToken: MOCK_TOKEN,
+        }),
+      ).rejects.toThrow('Update Failed');
     });
 
     it('should handle update unknown error', async () => {
       mockApiClient.put.mockRejectedValue('Err');
-      await expect(companionApi.update({
-        companion: updateCompanion,
-        accessToken: MOCK_TOKEN,
-      })).rejects.toEqual('Err');
+      await expect(
+        companionApi.update({
+          companion: updateCompanion,
+          accessToken: MOCK_TOKEN,
+        }),
+      ).rejects.toEqual('Err');
     });
   });
 
@@ -269,16 +364,18 @@ describe('companionService', () => {
     it('should fetch and map complex fields (insurance, breed, unknown types)', async () => {
       const mockResponse = {
         id: MOCK_COMPANION_ID,
-        extension: [{
-          url: 'http://example.org/fhir/StructureDefinition/companion-insurance',
-          extension: [
-            { url: 'companyName', valueString: 'InsCo' },
-            { url: 'policyNumber', valueString: 'P-99' },
-          ]
-        }]
+        extension: [
+          {
+            url: 'http://example.org/fhir/StructureDefinition/companion-insurance',
+            extension: [
+              {url: 'companyName', valueString: 'InsCo'},
+              {url: 'policyNumber', valueString: 'P-99'},
+            ],
+          },
+        ],
       };
 
-      mockApiClient.get.mockResolvedValue({ status: 200, data: mockResponse });
+      mockApiClient.get.mockResolvedValue({status: 200, data: mockResponse});
 
       // Extensive DTO return to cover all mapping lines
       mockFromDTO.mockReturnValue({
@@ -315,7 +412,10 @@ describe('companionService', () => {
     });
 
     it('should handle missing fields and fallbacks', async () => {
-      mockApiClient.get.mockResolvedValue({ status: 200, data: { id: 'remote-id' } });
+      mockApiClient.get.mockResolvedValue({
+        status: 200,
+        data: {id: 'remote-id'},
+      });
 
       // Return bare minimum to force fallbacks to persisted
       mockFromDTO.mockReturnValue({});
@@ -323,7 +423,7 @@ describe('companionService', () => {
       const persisted: any = {
         id: 'persisted-id',
         name: 'Old Name',
-        breed: { breedName: 'Old Breed' },
+        breed: {breedName: 'Old Breed'},
         gender: 'female',
         currentWeight: 5,
         color: 'White',
@@ -354,10 +454,14 @@ describe('companionService', () => {
     });
 
     it('should map unknown/custom breeds correctly', async () => {
-      mockApiClient.get.mockResolvedValue({ status: 200, data: {} });
-      mockFromDTO.mockReturnValue({ type: 'cat', breed: 'SuperRareCat' }); // Not in mock json
+      mockApiClient.get.mockResolvedValue({status: 200, data: {}});
+      mockFromDTO.mockReturnValue({type: 'cat', breed: 'SuperRareCat'}); // Not in mock json
 
-      const result = await companionApi.getById({ companionId: '1', userId: 'u', accessToken: 't' });
+      const result = await companionApi.getById({
+        companionId: '1',
+        userId: 'u',
+        accessToken: 't',
+      });
       expect(result.breed).toEqual({
         speciesId: 0,
         speciesName: 'Cat',
@@ -367,35 +471,51 @@ describe('companionService', () => {
     });
 
     it('should map unknown source to "unknown"', async () => {
-        mockApiClient.get.mockResolvedValue({ status: 200, data: {} });
-        mockFromDTO.mockReturnValue({ source: undefined });
-        const result = await companionApi.getById({ companionId: '1', userId: 'u', accessToken: 't' });
-        expect(result.origin).toBe('unknown');
+      mockApiClient.get.mockResolvedValue({status: 200, data: {}});
+      mockFromDTO.mockReturnValue({source: undefined});
+      const result = await companionApi.getById({
+        companionId: '1',
+        userId: 'u',
+        accessToken: 't',
+      });
+      expect(result.origin).toBe('unknown');
     });
 
     it('should map mapSourceToOrigin correctly for specific source', async () => {
-        mockApiClient.get.mockResolvedValue({ status: 200, data: {} });
-        mockFromDTO.mockReturnValue({ source: 'friends_family' });
-        const result = await companionApi.getById({ companionId: '1', userId: 'u', accessToken: 't' });
-        expect(result.origin).toBe('friends-family');
+      mockApiClient.get.mockResolvedValue({status: 200, data: {}});
+      mockFromDTO.mockReturnValue({source: 'friends_family'});
+      const result = await companionApi.getById({
+        companionId: '1',
+        userId: 'u',
+        accessToken: 't',
+      });
+      expect(result.origin).toBe('friends-family');
     });
 
     // Coverage for mapTypeToCategory fallback
     it('should fallback category to dog if unknown', async () => {
-         mockApiClient.get.mockResolvedValue({ status: 200, data: {} });
-         mockFromDTO.mockReturnValue({ type: 'alien' });
-         const result = await companionApi.getById({ companionId: '1', userId: 'u', accessToken: 't' });
-         expect(result.category).toBe('dog');
+      mockApiClient.get.mockResolvedValue({status: 200, data: {}});
+      mockFromDTO.mockReturnValue({type: 'alien'});
+      const result = await companionApi.getById({
+        companionId: '1',
+        userId: 'u',
+        accessToken: 't',
+      });
+      expect(result.category).toBe('dog');
     });
 
     it('should handle get error', async () => {
       mockApiClient.get.mockRejectedValue(new Error('Get Failed'));
-      await expect(companionApi.getById({ companionId: '1', userId: 'u', accessToken: 't' })).rejects.toThrow('Get Failed');
+      await expect(
+        companionApi.getById({companionId: '1', userId: 'u', accessToken: 't'}),
+      ).rejects.toThrow('Get Failed');
     });
 
     it('should handle get unknown error', async () => {
-        mockApiClient.get.mockRejectedValue('Err');
-        await expect(companionApi.getById({ companionId: '1', userId: 'u', accessToken: 't' })).rejects.toEqual('Err');
+      mockApiClient.get.mockRejectedValue('Err');
+      await expect(
+        companionApi.getById({companionId: '1', userId: 'u', accessToken: 't'}),
+      ).rejects.toEqual('Err');
     });
   });
 
@@ -405,54 +525,88 @@ describe('companionService', () => {
 
   describe('listByParent', () => {
     it('should handle array payload', async () => {
-      mockApiClient.get.mockResolvedValue({ status: 200, data: [{ id: '1' }] });
-      mockFromDTO.mockReturnValue({ name: 'C1' });
-      const res = await companionApi.listByParent({ parentId: 'p', accessToken: 't' });
+      mockApiClient.get.mockResolvedValue({status: 200, data: [{id: '1'}]});
+      mockFromDTO.mockReturnValue({name: 'C1'});
+      const res = await companionApi.listByParent({
+        parentId: 'p',
+        accessToken: 't',
+      });
       expect(res).toHaveLength(1);
     });
 
     it('should handle { companions: [] } payload', async () => {
-        mockApiClient.get.mockResolvedValue({ status: 200, data: { companions: [{ id: '1' }] } });
-        mockFromDTO.mockReturnValue({ name: 'C1' });
-        const res = await companionApi.listByParent({ parentId: 'p', accessToken: 't' });
-        expect(res).toHaveLength(1);
+      mockApiClient.get.mockResolvedValue({
+        status: 200,
+        data: {companions: [{id: '1'}]},
+      });
+      mockFromDTO.mockReturnValue({name: 'C1'});
+      const res = await companionApi.listByParent({
+        parentId: 'p',
+        accessToken: 't',
+      });
+      expect(res).toHaveLength(1);
     });
 
     it('should handle { data: [] } payload', async () => {
-        mockApiClient.get.mockResolvedValue({ status: 200, data: { data: [{ id: '1' }] } });
-        mockFromDTO.mockReturnValue({ name: 'C1' });
-        const res = await companionApi.listByParent({ parentId: 'p', accessToken: 't' });
-        expect(res).toHaveLength(1);
+      mockApiClient.get.mockResolvedValue({
+        status: 200,
+        data: {data: [{id: '1'}]},
+      });
+      mockFromDTO.mockReturnValue({name: 'C1'});
+      const res = await companionApi.listByParent({
+        parentId: 'p',
+        accessToken: 't',
+      });
+      expect(res).toHaveLength(1);
     });
 
     it('should handle { data: { companions: [] } } payload', async () => {
-        mockApiClient.get.mockResolvedValue({ status: 200, data: { data: { companions: [{ id: '1' }] } } });
-        mockFromDTO.mockReturnValue({ name: 'C1' });
-        const res = await companionApi.listByParent({ parentId: 'p', accessToken: 't' });
-        expect(res).toHaveLength(1);
+      mockApiClient.get.mockResolvedValue({
+        status: 200,
+        data: {data: {companions: [{id: '1'}]}},
+      });
+      mockFromDTO.mockReturnValue({name: 'C1'});
+      const res = await companionApi.listByParent({
+        parentId: 'p',
+        accessToken: 't',
+      });
+      expect(res).toHaveLength(1);
     });
 
     it('should handle { results: [] } payload', async () => {
-        mockApiClient.get.mockResolvedValue({ status: 200, data: { results: [{ id: '1' }] } });
-        mockFromDTO.mockReturnValue({ name: 'C1' });
-        const res = await companionApi.listByParent({ parentId: 'p', accessToken: 't' });
-        expect(res).toHaveLength(1);
+      mockApiClient.get.mockResolvedValue({
+        status: 200,
+        data: {results: [{id: '1'}]},
+      });
+      mockFromDTO.mockReturnValue({name: 'C1'});
+      const res = await companionApi.listByParent({
+        parentId: 'p',
+        accessToken: 't',
+      });
+      expect(res).toHaveLength(1);
     });
 
     it('should return empty if no array found', async () => {
-        mockApiClient.get.mockResolvedValue({ status: 200, data: { random: 'obj' } });
-        const res = await companionApi.listByParent({ parentId: 'p', accessToken: 't' });
-        expect(res).toEqual([]);
+      mockApiClient.get.mockResolvedValue({status: 200, data: {random: 'obj'}});
+      const res = await companionApi.listByParent({
+        parentId: 'p',
+        accessToken: 't',
+      });
+      expect(res).toEqual([]);
     });
 
     it('should handle list error', async () => {
-        mockApiClient.get.mockRejectedValue(new Error('List Err'));
-        await expect(companionApi.listByParent({ parentId: 'p', accessToken: 't' })).rejects.toThrow('List Err');
+      mockApiClient.get.mockRejectedValue(new Error('List Err'));
+      await expect(
+        companionApi.listByParent({parentId: 'p', accessToken: 't'}),
+      ).rejects.toThrow('List Err');
     });
 
-     it('should handle list unknown error', async () => {
-        mockApiClient.get.mockRejectedValue('Err');
-        await expect(companionApi.listByParent({ parentId: 'p', accessToken: 't' })).rejects.toEqual('Err');
+    it('should handle list unknown error', async () => {
+      mockApiClient.get.mockRejectedValue('Err');
+      await expect(
+        companionApi.listByParent({parentId: 'p', accessToken: 't'}),
+      ).rejects.toEqual('Err');
     });
   });
 
@@ -462,23 +616,32 @@ describe('companionService', () => {
 
   describe('remove', () => {
     it('should delete successfully', async () => {
-      mockApiClient.delete.mockResolvedValue({ status: 204 });
-      await companionApi.remove({ companionId: 'c1', accessToken: 't' });
-      expect(mockApiClient.delete).toHaveBeenCalledWith(expect.stringContaining('c1'), expect.anything());
+      mockApiClient.delete.mockResolvedValue({status: 204});
+      await companionApi.remove({companionId: 'c1', accessToken: 't'});
+      expect(mockApiClient.delete).toHaveBeenCalledWith(
+        expect.stringContaining('c1'),
+        expect.anything(),
+      );
     });
 
     it('should throw if id is missing', async () => {
-      await expect(companionApi.remove({ companionId: '', accessToken: 't' })).rejects.toThrow('Companion identifier is required');
+      await expect(
+        companionApi.remove({companionId: '', accessToken: 't'}),
+      ).rejects.toThrow('Companion identifier is required');
     });
 
     it('should handle delete error', async () => {
-        mockApiClient.delete.mockRejectedValue(new Error('Del Err'));
-        await expect(companionApi.remove({ companionId: 'c1', accessToken: 't' })).rejects.toThrow('Del Err');
+      mockApiClient.delete.mockRejectedValue(new Error('Del Err'));
+      await expect(
+        companionApi.remove({companionId: 'c1', accessToken: 't'}),
+      ).rejects.toThrow('Del Err');
     });
 
     it('should handle delete unknown error', async () => {
-        mockApiClient.delete.mockRejectedValue('Err');
-        await expect(companionApi.remove({ companionId: 'c1', accessToken: 't' })).rejects.toEqual('Err');
+      mockApiClient.delete.mockRejectedValue('Err');
+      await expect(
+        companionApi.remove({companionId: 'c1', accessToken: 't'}),
+      ).rejects.toEqual('Err');
     });
   });
 
@@ -486,28 +649,38 @@ describe('companionService', () => {
   // 7. Extract Insurance Details (Specific Branching)
   // ===========================================================================
   describe('Insurance Extraction Edge Cases', () => {
-      it('should handle missing insurance extension gracefully', async () => {
-          mockApiClient.get.mockResolvedValue({ status: 200, data: { extension: [] } }); // No insurance ext
-          mockFromDTO.mockReturnValue({});
+    it('should handle missing insurance extension gracefully', async () => {
+      mockApiClient.get.mockResolvedValue({status: 200, data: {extension: []}}); // No insurance ext
+      mockFromDTO.mockReturnValue({});
 
-          const result = await companionApi.getById({ companionId: '1', userId: 'u', accessToken: 't' });
-          expect(result.insuranceCompany).toBeNull();
+      const result = await companionApi.getById({
+        companionId: '1',
+        userId: 'u',
+        accessToken: 't',
       });
+      expect(result.insuranceCompany).toBeNull();
+    });
 
-      it('should handle insurance extension with empty nested array', async () => {
-          mockApiClient.get.mockResolvedValue({
-              status: 200,
-              data: {
-                  extension: [{
-                      url: 'http://example.org/fhir/StructureDefinition/companion-insurance',
-                      extension: []
-                  }]
-              }
-          });
-          mockFromDTO.mockReturnValue({});
-
-          const result = await companionApi.getById({ companionId: '1', userId: 'u', accessToken: 't' });
-          expect(result.insuranceCompany).toBeNull();
+    it('should handle insurance extension with empty nested array', async () => {
+      mockApiClient.get.mockResolvedValue({
+        status: 200,
+        data: {
+          extension: [
+            {
+              url: 'http://example.org/fhir/StructureDefinition/companion-insurance',
+              extension: [],
+            },
+          ],
+        },
       });
+      mockFromDTO.mockReturnValue({});
+
+      const result = await companionApi.getById({
+        companionId: '1',
+        userId: 'u',
+        accessToken: 't',
+      });
+      expect(result.insuranceCompany).toBeNull();
+    });
   });
 });

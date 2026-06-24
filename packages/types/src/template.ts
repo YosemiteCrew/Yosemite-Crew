@@ -113,6 +113,207 @@ export interface TemplateAppliesTo {
   defaultForKind?: boolean;
 }
 
+/**
+ * Canonical clinical template structures — the single source of truth shared by the
+ * frontend forms builder (CategoryTemplates), the frontend/backend clinical blueprints,
+ * the appointment-workspace editors, and the backend resolver default library seed.
+ *
+ * Field keys MUST match the appointment-workspace editor keys (SoapStep / SummaryStep /
+ * VitalsForm) so authored rich-text content round-trips losslessly between the builder and
+ * the workspace. SOAP/Discharge free-text fields are rich text; vitals are measurements.
+ *
+ * Do not fork these shapes — derive every builder/blueprint/seed from these constants so the
+ * "one contract on both sides" guarantee holds.
+ */
+export const CANONICAL_SOAP_STRUCTURE: TemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: 'subjective',
+      title: 'Subjective',
+      order: 1,
+      fields: [
+        { key: 'subjective', label: 'Subjective', type: 'richText', required: true, order: 1 },
+      ],
+    },
+    {
+      id: 'objective',
+      title: 'Objective',
+      order: 2,
+      fields: [
+        { key: 'objective', label: 'Objective', type: 'richText', required: true, order: 1 },
+      ],
+    },
+    {
+      id: 'assessment',
+      title: 'Assessment',
+      order: 3,
+      fields: [
+        { key: 'assessment', label: 'Assessment', type: 'richText', required: true, order: 1 },
+      ],
+    },
+    {
+      id: 'plan',
+      title: 'Plan',
+      order: 4,
+      fields: [{ key: 'plan', label: 'Plan', type: 'richText', required: true, order: 1 }],
+    },
+  ],
+};
+
+export const CANONICAL_DISCHARGE_STRUCTURE: TemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: 'summary',
+      title: 'Discharge summary',
+      order: 1,
+      fields: [
+        {
+          key: 'summaryText',
+          label: 'Discharge summary',
+          type: 'richText',
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: 'home_care',
+      title: 'Home care instructions',
+      order: 2,
+      fields: [{ key: 'homeCare', label: 'Home care instructions', type: 'richText', order: 1 }],
+    },
+    {
+      id: 'medications',
+      title: 'Medications',
+      order: 3,
+      fields: [{ key: 'dischargeMedications', label: 'Medications', type: 'richText', order: 1 }],
+    },
+    {
+      id: 'follow_up',
+      title: 'Follow up',
+      order: 4,
+      fields: [
+        {
+          key: 'followUpInDays',
+          label: 'Follow-up in days',
+          type: 'number',
+          order: 1,
+          rules: { unit: 'days' },
+        },
+      ],
+    },
+    {
+      id: 'signature',
+      title: 'Signature',
+      order: 5,
+      fields: [{ key: 'signature', label: 'Signature', type: 'signature', order: 1 }],
+    },
+  ],
+};
+
+export const CANONICAL_PRESCRIPTION_STRUCTURE: TemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: 'medications',
+      title: 'Medications',
+      order: 1,
+      fields: [
+        {
+          key: 'medicationLine',
+          label: 'Medication lines',
+          type: 'medicationLine',
+          repeatable: true,
+          required: true,
+          order: 1,
+          rules: {
+            columns: [
+              'inventoryItemId',
+              'dosage',
+              'frequency',
+              'durationDays',
+              'instructions',
+              'qty',
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: 'instructions',
+      title: 'Instructions',
+      order: 2,
+      fields: [
+        {
+          key: 'usageInstructions',
+          label: 'Usage instructions',
+          type: 'instructionBlock',
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: 'notes',
+      title: 'Notes',
+      order: 3,
+      fields: [
+        {
+          key: 'clinicalNotes',
+          label: 'Clinical notes',
+          type: 'richText',
+          order: 1,
+        },
+      ],
+    },
+  ],
+};
+
+export const CANONICAL_VITALS_STRUCTURE: TemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: 'vitals',
+      title: 'Vitals',
+      order: 1,
+      fields: [
+        { key: 'weightLbs', label: 'Weight', type: 'number', order: 1, rules: { unit: 'lbs' } },
+        { key: 'tempF', label: 'Temperature', type: 'number', order: 2, rules: { unit: '°F' } },
+        {
+          key: 'heartRateBpm',
+          label: 'Heart rate',
+          type: 'number',
+          order: 3,
+          rules: { unit: 'bpm' },
+        },
+        {
+          key: 'respRateBpm',
+          label: 'Respiratory rate',
+          type: 'number',
+          order: 4,
+          rules: { unit: 'bpm' },
+        },
+        { key: 'crtSec', label: 'CRT', type: 'text', order: 5, rules: { unit: 'sec' } },
+        { key: 'mucousMembrane', label: 'Mucous membrane', type: 'text', order: 6 },
+        {
+          key: 'painScore',
+          label: 'Pain score',
+          type: 'number',
+          order: 7,
+          rules: { unit: '/ 10' },
+        },
+        { key: 'bcs', label: 'BCS', type: 'number', order: 8, rules: { unit: '/ 9' } },
+      ],
+    },
+    {
+      id: 'notes',
+      title: 'Notes',
+      order: 2,
+      fields: [{ key: 'notes', label: 'Notes', type: 'richText', order: 1 }],
+    },
+  ],
+};
+
+/** Ordered workspace SOAP editor keys (the four S/O/A/P rich-text fields). */
+export const CANONICAL_SOAP_FIELD_KEYS = ['subjective', 'objective', 'assessment', 'plan'] as const;
+
 export interface TemplateVersionLike {
   id: string;
   version: number;
@@ -385,7 +586,13 @@ const fieldToFormField = (field: TemplateFieldDefinition): FormField => {
     return { ...base, type: 'number' } as FormField;
   }
 
-  if (field.type === 'textarea' || field.type === 'richText') {
+  if (field.type === 'richText') {
+    // RichTextBuilder reads the prefill HTML from the top-level `defaultValue`
+    // (not meta), so surface it here or the editor loses its content on reload.
+    return { ...base, type: 'richtext', defaultValue: field.defaultValue } as FormField;
+  }
+
+  if (field.type === 'textarea') {
     return { ...base, type: 'textarea' } as FormField;
   }
 
@@ -414,7 +621,9 @@ const formFieldToTemplateField = (field: FormField): TemplateFieldDefinition => 
           ? 'select'
           : field.type === 'group'
             ? 'repeater'
-            : (field.type as TemplateFieldType),
+            : field.type === 'richtext'
+              ? 'richText'
+              : (field.type as TemplateFieldType),
     required: field.required,
     repeatable:
       'multiple' in field ? Boolean((field as { multiple?: boolean }).multiple) : undefined,
@@ -444,7 +653,7 @@ const formFieldsToSchema = (fields: FormField[]): TemplateSchemaSnapshot => ({
   ),
 });
 
-const templateSchemaToFormFields = (snapshot: TemplateSchemaSnapshot): FormField[] =>
+export const templateSchemaToFormFields = (snapshot: TemplateSchemaSnapshot): FormField[] =>
   snapshot.sections.map(sectionToFormField);
 
 const templateToForm = (template: TemplateLike): Form => ({

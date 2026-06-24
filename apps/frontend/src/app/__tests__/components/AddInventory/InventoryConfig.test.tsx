@@ -1,4 +1,8 @@
 import { InventoryFormConfig } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
+import {
+  CategoryOptionsByBusiness,
+  SubCategoryOptions,
+} from '@/app/features/inventory/pages/Inventory/types';
 import { BusinessType } from '@/app/features/organization/types/org';
 
 describe('InventoryFormConfig', () => {
@@ -37,29 +41,67 @@ describe('InventoryFormConfig', () => {
       const basicInfoFields = extractFieldNames(config.basicInfo!);
       const expectedFields = [
         'name',
+        'brand',
+        'skuCode',
         'category',
         'subCategory',
-        'itemType',
-        'department',
-        'prescriptionRequired',
-        'regulationType',
-        'storageCondition',
         'description',
+        'imageUrl',
       ];
       expect(basicInfoFields).toEqual(expectedFields);
+    });
+
+    it('uses the current hospital inventory category taxonomy', () => {
+      expect(CategoryOptionsByBusiness.HOSPITAL).toEqual([
+        'Medicine',
+        'Vaccine',
+        'Consumable',
+        'Surgical supply',
+        'IV / Fluid therapy',
+        'Diagnostic kit',
+        'Laboratory',
+        'Food',
+        'Supplement',
+        'Equipment',
+        'Cleaning supply',
+        'Imaging consumable',
+        'Wound care',
+      ]);
+      expect(SubCategoryOptions).toEqual(
+        expect.arrayContaining([
+          'Antibiotic',
+          'NSAID',
+          'Core vaccine',
+          'IV catheter',
+          'Suture',
+          'Fluid bag',
+          'Rapid test',
+          'Sample tube',
+          'Prescription diet',
+          'Joint support',
+          'Reusable instrument',
+          'Surface cleaner',
+          'Ultrasound gel',
+          'Wound spray',
+        ])
+      );
     });
 
     it('should have the correct field structure in the classification section', () => {
       const classificationFields = extractFieldNames(config.classification!);
       const expectedFields = [
-        'therapeuticClass',
-        'form',
-        'strength',
-        'dosageForm',
+        'genericName',
+        'itemType',
+        'drugSchedule',
         'species',
+        'storageCondition',
+        'form',
         'administration',
+        'strength',
         'unitofMeasure',
-        'withdrawlPeriod',
+        'controlledSubstance',
+        'prescriptionRequired',
+        'reportableToGovernment',
       ];
       expect(classificationFields).toEqual(expectedFields);
     });
@@ -72,14 +114,7 @@ describe('InventoryFormConfig', () => {
 
     it('should have the correct field structure in the vendor section', () => {
       const vendorFields = extractFieldNames(config.vendor!);
-      const expectedFields = [
-        'supplierName',
-        'brand',
-        'vendor',
-        'license',
-        'paymentTerms',
-        'leadTime',
-      ];
+      const expectedFields = ['vendor', 'supplierName', 'license', 'paymentTerms'];
       expect(vendorFields).toEqual(expectedFields);
     });
 
@@ -88,12 +123,15 @@ describe('InventoryFormConfig', () => {
       const expectedFields = [
         'current',
         'allocated',
-        'available',
+        'maxStock',
+        'stockLocation',
         'reorderLevel',
         'reorderQuantity',
-        'stockLocation',
+        'abcClass',
+        'withdrawlPeriod',
+        'available',
         'stockType',
-        'minStockAlert',
+        'unitQnt',
       ];
       expect(stockFields).toEqual(expectedFields);
     });
@@ -102,14 +140,13 @@ describe('InventoryFormConfig', () => {
     it('should have the correct field structure in the batch section', () => {
       const batchFields = extractFieldNames(config.batch!);
       const expectedFields = [
-        'serial',
         'batch',
-        'tracking',
-        'quantity', // <-- ADDED
-        'allocated', // <-- ADDED
+        'quantity',
         'manufactureDate',
         'expiryDate',
-        'nextRefillDate',
+        'expiryWarningBefore',
+        'barcode',
+        'tracking',
       ];
       expect(batchFields).toEqual(expectedFields);
     });
@@ -170,7 +207,7 @@ describe('InventoryFormConfig', () => {
 
     it('should have the correct field structure in the vendor section', () => {
       const vendorFields = extractFieldNames(config.vendor!);
-      const expectedFields = ['supplierName', 'brand', 'vendor', 'paymentTerms', 'leadTime'];
+      const expectedFields = ['vendor', 'supplierName', 'paymentTerms'];
       expect(vendorFields).toEqual(expectedFields);
     });
 
@@ -179,11 +216,13 @@ describe('InventoryFormConfig', () => {
       const expectedFields = [
         'current',
         'allocated',
-        'available',
+        'maxStock',
+        'stockLocation',
         'reorderLevel',
         'reorderQuantity',
-        'stockLocation',
-        'minStockAlert',
+        'abcClass',
+        'withdrawlPeriod',
+        'available',
       ];
       expect(stockFields).toEqual(expectedFields);
     });
@@ -193,11 +232,12 @@ describe('InventoryFormConfig', () => {
       const batchFields = extractFieldNames(config.batch!);
       const expectedFields = [
         'batch',
-        'quantity', // <-- ADDED
-        'allocated', // <-- ADDED
+        'quantity',
         'manufactureDate',
         'expiryDate',
-        'nextRefillDate',
+        'expiryWarningBefore',
+        'barcode',
+        'tracking',
       ];
       expect(batchFields).toEqual(expectedFields);
     });
@@ -246,14 +286,7 @@ describe('InventoryFormConfig', () => {
     // FIX 4: Removed 'leadTime' because the test output showed it was not received.
     it('should have the correct field structure in the vendor section', () => {
       const vendorFields = extractFieldNames(config.vendor!);
-      const expectedFields = [
-        'supplierName',
-        'brand',
-        'vendor',
-        'license',
-        'paymentTerms',
-        // "leadTime", <-- REMOVED
-      ];
+      const expectedFields = ['supplierName', 'brand', 'vendor', 'license', 'paymentTerms'];
       expect(vendorFields).toEqual(expectedFields);
     });
 
@@ -262,11 +295,13 @@ describe('InventoryFormConfig', () => {
       const expectedFields = [
         'current',
         'allocated',
-        'available',
+        'maxStock',
+        'stockLocation',
         'reorderLevel',
         'reorderQuantity',
-        'stockLocation',
-        'minStockAlert',
+        'abcClass',
+        'withdrawlPeriod',
+        'available',
       ];
       expect(stockFields).toEqual(expectedFields);
     });
@@ -298,11 +333,11 @@ describe('InventoryFormConfig', () => {
       expect(firstItem.field.name).toBe('name');
     }
 
-    const secondItem = hospitalBasicInfo[1];
-    expect(secondItem.kind).toBe('row');
-    if (secondItem.kind === 'row') {
-      expect(secondItem.fields.length).toBe(2);
-      expect(secondItem.fields[0].name).toBe('category');
+    const categoryRow = hospitalBasicInfo[3];
+    expect(categoryRow.kind).toBe('row');
+    if (categoryRow.kind === 'row') {
+      expect(categoryRow.fields.length).toBe(2);
+      expect(categoryRow.fields[0].name).toBe('category');
     }
   });
 });

@@ -101,7 +101,7 @@ describe('HistoryDocumentUpload', () => {
       target: { value: 'HEALTH' },
     });
     fireEvent.change(screen.getByTestId('Sub-category'), {
-      target: { value: 'VACCINATION_AND_PARASITE_PREVENTION' },
+      target: { value: 'VACCINATION' },
     });
     fireEvent.change(screen.getByTestId('Visit type'), {
       target: { value: 'HOSPITAL' },
@@ -118,7 +118,7 @@ describe('HistoryDocumentUpload', () => {
         expect.objectContaining({
           title: 'Rabies Certificate',
           category: 'HEALTH',
-          subcategory: 'VACCINATION_AND_PARASITE_PREVENTION',
+          subcategory: 'VACCINATION',
           visitType: 'HOSPITAL',
           issuingBusinessName: 'Yosemite Vet',
           attachments: [

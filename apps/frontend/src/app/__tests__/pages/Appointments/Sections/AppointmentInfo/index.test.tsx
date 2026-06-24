@@ -14,6 +14,7 @@ import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIn
 
 const labelsSpy = jest.fn();
 let labelsRenderCount = 0;
+const mockRouterPush = jest.fn();
 
 const appointmentInfoSectionSpy = jest.fn();
 const historySectionSpy = jest.fn();
@@ -47,6 +48,15 @@ jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
+}));
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
+}));
+
+jest.mock('@/app/features/appointments/components/AppointmentStatusPill', () => ({
+  __esModule: true,
+  default: ({ appointment }: any) => <div>Status: {appointment.status}</div>,
 }));
 
 jest.mock('@/app/ui/widgets/Labels/Labels', () => ({
@@ -361,6 +371,7 @@ describe('AppointmentInfo modal', () => {
     },
     organisationId: 'org-1',
     appointmentType: { id: 'svc-1' },
+    status: 'UPCOMING',
   };
 
   beforeEach(() => {
@@ -369,6 +380,7 @@ describe('AppointmentInfo modal', () => {
     labelsSpy.mockClear();
     labelsRenderCount = 0;
     setShowModal.mockClear();
+    mockRouterPush.mockClear();
     formsStoreState.formsById['form-1'].requiredSigner = '';
     (fetchSubmissions as jest.Mock).mockResolvedValue({
       soapNotes: {
@@ -388,7 +400,7 @@ describe('AppointmentInfo modal', () => {
     (useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockReturnValue({ isEnabled: false });
   });
 
-  it('fetches submissions and renders header', async () => {
+  it('renders header without fetching SOAP submissions by default', () => {
     render(
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
@@ -396,11 +408,10 @@ describe('AppointmentInfo modal', () => {
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.getByText('Buddy')).toBeInTheDocument();
     expect(screen.getByText('Labrador')).toBeInTheDocument();
+    expect(screen.getByText('Status: UPCOMING')).toBeInTheDocument();
+    expect(screen.getByText(/Upcoming:/)).toBeInTheDocument();
     expect(screen.getByText('appointment-info-section')).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(fetchSubmissions).toHaveBeenCalledWith('appt-1');
-    });
+    expect(fetchSubmissions).not.toHaveBeenCalled();
   });
 
   it('shows companion profile photo in the modal header when available', () => {
@@ -442,7 +453,7 @@ describe('AppointmentInfo modal', () => {
     expect(headerImage?.getAttribute('data-src')).toContain('/avatar/cat.png');
   });
 
-  it('switches to prescription templates section', () => {
+  it('switches to prescription templates section', async () => {
     render(
       <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
     );
@@ -451,6 +462,9 @@ describe('AppointmentInfo modal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
 
     expect(screen.getByText(/loading forms/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchSubmissions).toHaveBeenCalledWith('appt-1');
+    });
   });
 
   it('includes SOAP category templates in hospital medical records search', async () => {
@@ -478,6 +492,45 @@ describe('AppointmentInfo modal', () => {
     expect(appointmentInfoSectionSpy).toHaveBeenCalledWith(
       expect.objectContaining({ canEdit: false })
     );
+    expect(screen.getByText(/Completed:/)).toBeInTheDocument();
+  });
+
+  it('shows no-show and cancelled state messages in the modal header', () => {
+    const { rerender } = render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'NO_SHOW' }}
+      />
+    );
+
+    expect(screen.getByText(/No show:/)).toBeInTheDocument();
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'CANCELLED' }}
+      />
+    );
+
+    expect(screen.getByText(/Cancelled:/)).toBeInTheDocument();
+  });
+
+  it('routes modal quick actions to the matching workspace step', () => {
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open medical records in workspace' }));
+    expect(mockRouterPush).toHaveBeenCalledWith('/appointments/appt-1/workspace?step=SOAP');
+    expect(setShowModal).toHaveBeenCalledWith(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open finance in workspace' }));
+    expect(mockRouterPush).toHaveBeenCalledWith('/appointments/appt-1/workspace?step=INVOICE');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open labs in workspace' }));
+    expect(mockRouterPush).toHaveBeenCalledWith('/appointments/appt-1/workspace?step=DIAGNOSTICS');
   });
 
   it('keeps finance summary tab available', () => {

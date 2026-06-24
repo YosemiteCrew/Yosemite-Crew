@@ -462,6 +462,52 @@ const applyTemplateMetadata = <
 const normalizeResolverMode = (value?: string) =>
   value === "INPATIENT" || value === "OUTPATIENT" ? value : undefined;
 
+const resolveTemplateModeFromContext = async (
+  input: TemplateResolveInput,
+): Promise<"INPATIENT" | "OUTPATIENT" | undefined> => {
+  if (input.mode) {
+    return input.mode;
+  }
+
+  const contextClauses: Prisma.AppointmentWhereInput[] = [];
+  if (input.appointmentId) {
+    contextClauses.push({ id: input.appointmentId });
+  }
+  if (input.encounterId) {
+    contextClauses.push({ encounterId: input.encounterId });
+  }
+
+  if (contextClauses.length === 0) {
+    return undefined;
+  }
+
+  const appointment = await prisma.appointment.findFirst({
+    where: {
+      OR: contextClauses,
+    },
+    select: {
+      appointmentKind: true,
+      encounterId: true,
+    },
+  });
+
+  if (appointment?.appointmentKind === "INPATIENT") {
+    return "INPATIENT";
+  }
+
+  const encounterId = appointment?.encounterId ?? input.encounterId;
+  if (!encounterId) {
+    return undefined;
+  }
+
+  const admission = await prisma.admission.findUnique({
+    where: { encounterId },
+    select: { admittedAt: true },
+  });
+
+  return admission ? "INPATIENT" : "OUTPATIENT";
+};
+
 const normalizeResolverKind = (kind: TemplateContractKind): TemplateKind[] => {
   switch (kind) {
     case "CONSENT":
@@ -528,11 +574,18 @@ const templateMatchesResolverInput = (
   const linked =
     serviceMatches || packageMatches || speciesMatches || modeMatches;
   const defaultForKind = Boolean(appliesTo?.defaultForKind);
+  const matchScore = [
+    serviceMatches,
+    packageMatches,
+    speciesMatches,
+    modeMatches,
+  ].filter(Boolean).length;
 
   return {
     linked,
     defaultForKind,
     appliesTo,
+    matchScore,
   };
 };
 
@@ -701,6 +754,25 @@ const resolveCandidateReason = (
     default:
       return `Matched YC library default template for kind (${linkReason}).`;
   }
+};
+
+const compareResolverMatches = (
+  left: ReturnType<typeof templateMatchesResolverInput> & { score: number },
+  right: ReturnType<typeof templateMatchesResolverInput> & { score: number },
+) => {
+  if (right.score !== left.score) {
+    return right.score - left.score;
+  }
+
+  if (right.matchScore !== left.matchScore) {
+    return right.matchScore - left.matchScore;
+  }
+
+  if (right.linked !== left.linked) {
+    return Number(right.linked) - Number(left.linked);
+  }
+
+  return Number(right.defaultForKind) - Number(left.defaultForKind);
 };
 
 export const TemplateService = {
@@ -1008,8 +1080,10 @@ export const TemplateService = {
       kind?: TemplateKind | TemplateContractKind;
       status?: TemplateStatus;
       scope?: TemplateScope;
+      search?: string;
     },
   ) {
+    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         organisationId: ensureId(organisationId, "organisationId"),
@@ -1017,6 +1091,24 @@ export const TemplateService = {
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
+        ...(search
+          ? {
+              OR: [
+                {
+                  name: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  description: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
@@ -1029,13 +1121,33 @@ export const TemplateService = {
     kind?: TemplateKind | TemplateContractKind;
     status?: TemplateStatus;
     scope?: TemplateScope;
+    search?: string;
   }) {
+    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         ownership: "YC_LIBRARY",
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
+        ...(search
+          ? {
+              OR: [
+                {
+                  name: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  description: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
@@ -1051,8 +1163,10 @@ export const TemplateService = {
       kind?: TemplateKind | TemplateContractKind;
       status?: TemplateStatus;
       scope?: TemplateScope;
+      search?: string;
     },
   ) {
+    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         organisationId: ensureId(organisationId, "organisationId"),
@@ -1061,6 +1175,24 @@ export const TemplateService = {
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
+        ...(search
+          ? {
+              OR: [
+                {
+                  name: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  description: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
@@ -1086,6 +1218,11 @@ export const TemplateService = {
 
   async resolve(input: ResolveTemplateInput) {
     const parsed = resolveTemplateSchema.parse(input);
+    const resolvedMode = await resolveTemplateModeFromContext(parsed);
+    const matchingInput = {
+      ...parsed,
+      mode: resolvedMode ?? parsed.mode,
+    };
     const prismaKinds = normalizeResolverKind(parsed.kind);
     const filters = {
       kind: prismaKinds[0],
@@ -1103,22 +1240,46 @@ export const TemplateService = {
         | "YC_DEFAULT",
       requireLinked: boolean,
     ) => {
+      const matches: Array<{
+        template: (typeof templates)[number];
+        matched: ReturnType<typeof templateMatchesResolverInput> & {
+          score: number;
+        };
+      }> = [];
+
       for (const template of templates) {
-        const matched = templateMatchesResolverInput(template, parsed);
+        const matched = templateMatchesResolverInput(template, matchingInput);
         if (requireLinked ? matched.linked : matched.defaultForKind) {
-          const version = await resolveTemplateVersion(template);
-          return toResolveResponse(
-            template as NonNullable<
-              Awaited<ReturnType<typeof prisma.template.findFirst>>
-            >,
-            version,
-            parsed,
-            resolveCandidateReason(bucket, matched),
-          );
+          matches.push({
+            template,
+            matched: {
+              ...matched,
+              score:
+                (requireLinked ? 100 : 0) +
+                (matched.defaultForKind ? 10 : 0) +
+                matched.matchScore,
+            },
+          });
         }
       }
 
-      return null;
+      const bestMatch = matches.sort((left, right) =>
+        compareResolverMatches(left.matched, right.matched),
+      )[0];
+
+      if (!bestMatch) {
+        return null;
+      }
+
+      const version = await resolveTemplateVersion(bestMatch.template);
+      return toResolveResponse(
+        bestMatch.template as NonNullable<
+          Awaited<ReturnType<typeof prisma.template.findFirst>>
+        >,
+        version,
+        matchingInput,
+        resolveCandidateReason(bucket, bestMatch.matched),
+      );
     };
 
     if (parsed.ownerUserId) {

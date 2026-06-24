@@ -6,6 +6,7 @@ import type {
   PaymentStatus as PrismaPaymentStatus,
   RefundStatus as PrismaRefundStatus,
   SettlementChannel as PrismaSettlementChannel,
+  TaxBehavior as PrismaTaxBehavior,
 } from "@prisma/client";
 import Stripe from "stripe";
 import { prisma } from "src/config/prisma";
@@ -178,6 +179,110 @@ const getOutstandingBalance = async (
   };
 };
 
+const applyCheckoutSessionTaxToInvoice = async (
+  invoice: {
+    id: string;
+    currency: string;
+    totalAmount: number;
+    taxSnapshot?: { taxBehavior?: PrismaTaxBehavior | null } | null;
+  },
+  input: {
+    sessionId: string;
+    amountSubtotal?: number | null;
+    amountTotal?: number | null;
+    amountTax?: number | null;
+    automaticTaxStatus?: string | null;
+    rawProviderPayload?: Prisma.InputJsonValue | null;
+  },
+) => {
+  const subtotal = roundMoney(input.amountSubtotal ?? invoice.totalAmount);
+  const taxAmount = roundMoney(
+    input.amountTax ??
+      Math.max(
+        0,
+        roundMoney((input.amountTotal ?? invoice.totalAmount) - subtotal),
+      ),
+  );
+  const totalAmount = roundMoney(input.amountTotal ?? subtotal + taxAmount);
+  const taxPercent =
+    subtotal > 0 ? roundMoney((taxAmount / subtotal) * 100) : 0;
+
+  return prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      taxProvider: "STRIPE",
+      subtotal,
+      taxTotal: taxAmount,
+      taxPercent,
+      totalAmount,
+      taxSnapshot: {
+        upsert: {
+          create: {
+            provider: "STRIPE",
+            providerReferenceId: input.sessionId,
+            jurisdictionCountry: null,
+            jurisdictionState: null,
+            taxBehavior: invoice.taxSnapshot?.taxBehavior ?? null,
+            taxableSubtotal: subtotal,
+            taxAmount,
+            taxBreakdown: {
+              subtotal,
+              taxableSubtotal: subtotal,
+              taxTotal: taxAmount,
+              totalAmount,
+              sessionId: input.sessionId,
+              amountSubtotal: input.amountSubtotal ?? null,
+              amountTotal: input.amountTotal ?? null,
+              amountTax: input.amountTax ?? null,
+              automaticTaxStatus: input.automaticTaxStatus ?? null,
+            } as unknown as Prisma.InputJsonValue,
+            rawProviderPayload:
+              input.rawProviderPayload ??
+              ({
+                sessionId: input.sessionId,
+                amountSubtotal: input.amountSubtotal ?? null,
+                amountTotal: input.amountTotal ?? null,
+                amountTax: input.amountTax ?? null,
+                automaticTaxStatus: input.automaticTaxStatus ?? null,
+              } as Prisma.InputJsonValue),
+            calculatedAt: new Date(),
+          },
+          update: {
+            provider: "STRIPE",
+            providerReferenceId: input.sessionId,
+            jurisdictionCountry: null,
+            jurisdictionState: null,
+            taxBehavior: invoice.taxSnapshot?.taxBehavior ?? null,
+            taxableSubtotal: subtotal,
+            taxAmount,
+            taxBreakdown: {
+              subtotal,
+              taxableSubtotal: subtotal,
+              taxTotal: taxAmount,
+              totalAmount,
+              sessionId: input.sessionId,
+              amountSubtotal: input.amountSubtotal ?? null,
+              amountTotal: input.amountTotal ?? null,
+              amountTax: input.amountTax ?? null,
+              automaticTaxStatus: input.automaticTaxStatus ?? null,
+            } as unknown as Prisma.InputJsonValue,
+            rawProviderPayload:
+              input.rawProviderPayload ??
+              ({
+                sessionId: input.sessionId,
+                amountSubtotal: input.amountSubtotal ?? null,
+                amountTotal: input.amountTotal ?? null,
+                amountTax: input.amountTax ?? null,
+                automaticTaxStatus: input.automaticTaxStatus ?? null,
+              } as Prisma.InputJsonValue),
+            calculatedAt: new Date(),
+          },
+        },
+      },
+    },
+  });
+};
+
 const createPaymentAttempt = async (
   invoiceId: string,
   input: PaymentAttemptInput,
@@ -201,6 +306,74 @@ const createPaymentAttempt = async (
       rawProviderPayload: input.rawProviderPayload ?? undefined,
     },
   });
+
+const updateInvoiceAfterPayment = async (params: {
+  invoice: Prisma.InvoiceGetPayload<{
+    include: { payments: { where: { status: "SUCCEEDED" } } };
+  }>;
+  invoiceId: string;
+  appliedAmount: number;
+  balance: number;
+  receivedAt: Date;
+  input: InvoicePaymentInput;
+}) => {
+  const { invoice, invoiceId, appliedAmount, balance, receivedAt, input } =
+    params;
+  const isDepositPayment =
+    input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
+    input.settlementChannel === "DEPOSIT" ||
+    invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
+
+  const nextDepositCollectedAmount = isDepositPayment
+    ? roundMoney(
+        invoice.depositTargetAmount > 0
+          ? Math.min(
+              (invoice.depositCollectedAmount ?? 0) + appliedAmount,
+              invoice.depositTargetAmount,
+            )
+          : (invoice.depositCollectedAmount ?? 0) + appliedAmount,
+      )
+    : roundMoney(invoice.depositCollectedAmount ?? 0);
+
+  if (appliedAmount >= balance) {
+    return prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: "PAID",
+        paidAt: receivedAt,
+        visitBillingStage: "SETTLED",
+        depositCollectedAmount: nextDepositCollectedAmount,
+        ...(isDepositPayment
+          ? {
+              billingCollectionMode: "DEPOSIT_THEN_SETTLE",
+            }
+          : {}),
+      },
+    });
+  }
+
+  if (isDepositPayment) {
+    return prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        depositCollectedAmount: nextDepositCollectedAmount,
+        billingCollectionMode: "DEPOSIT_THEN_SETTLE",
+        visitBillingStage:
+          invoice.visitBillingStage === "SETTLED"
+            ? "SETTLED"
+            : "READY_FOR_BILLING",
+        ...(invoice.readyForBillingAt
+          ? {}
+          : {
+              readyForBillingAt: receivedAt,
+              readyForBillingActorId: "SYSTEM",
+            }),
+      },
+    });
+  }
+
+  return invoice;
+};
 
 const readJsonRecord = (value: Prisma.JsonValue | null | undefined) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -345,6 +518,7 @@ export const FinancePaymentService = {
         invoiceId,
         provider: "STRIPE",
         providerPaymentIntentId: { not: null },
+        status: { not: "CANCELED" },
       },
       select: { id: true },
     });
@@ -357,6 +531,7 @@ export const FinancePaymentService = {
         invoiceId,
         provider: "STRIPE",
         providerCheckoutSessionId: { not: null },
+        status: { not: "CANCELED" },
       },
       orderBy: { createdAt: "desc" },
       select: {
@@ -404,24 +579,42 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice items are missing", 400);
     }
 
-    const rawItemTotal = roundMoney(
+    // Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
+    // UNLESS we must charge a remaining/adjusted balance instead: when a prior
+    // payment or credit has been applied, or when an invoice-level adjustment makes
+    // the (discount-adjusted) item sum differ from the invoice's pre-tax total. In
+    // those cases we charge a single, tax-inclusive balance line with automatic tax
+    // disabled so the balance is never taxed twice. Comparing against the PRE-TAX
+    // total (not the balance) is what stops a plain tax line from dropping itemisation.
+    const discountedItemSum = roundMoney(
       items.reduce((sum: number, item) => {
+        const typed = item as {
+          total?: number;
+          unitPrice?: number;
+          quantity?: number;
+          discountPercent?: number;
+        };
+        if (typeof typed.total === "number") {
+          return sum + typed.total;
+        }
         const unitPrice =
-          typeof (item as { unitPrice?: unknown }).unitPrice === "number"
-            ? (item as { unitPrice: number }).unitPrice
-            : 0;
+          typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
         const quantity =
-          typeof (item as { quantity?: unknown }).quantity === "number"
-            ? (item as { quantity: number }).quantity
-            : 0;
-        return sum + unitPrice * quantity;
+          typeof typed.quantity === "number" ? typed.quantity : 0;
+        const discountPercent =
+          typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
+        return sum + unitPrice * quantity * (1 - discountPercent / 100);
       }, 0),
     );
-    const useBalanceLineItem =
-      rawItemTotal !== roundMoney(summary.balance) ||
+    const preTaxInvoiceTotal = roundMoney(
+      invoice.totalAmount -
+        (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
+    );
+    const useBalanceLine =
       summary.paid > 0 ||
-      summary.credited > 0;
-    const lineItems = useBalanceLineItem
+      summary.credited > 0 ||
+      discountedItemSum !== preTaxInvoiceTotal;
+    const lineItems = useBalanceLine
       ? [
           {
             price_data: {
@@ -434,26 +627,47 @@ export const FinancePaymentService = {
             quantity: 1,
           },
         ]
-      : items.map((item) => ({
-          price_data: {
-            currency: invoiceCurrency,
-            product_data: {
-              name: (item as { name?: string }).name ?? "Service",
-              description:
-                (item as { description?: string }).description ?? undefined,
+      : items.map((item) => {
+          const typed = item as {
+            name?: string;
+            description?: string;
+            quantity?: number;
+            unitPrice?: number;
+            discountPercent?: number;
+          };
+          const unitPrice =
+            typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
+          const discountPercent =
+            typeof typed.discountPercent === "number"
+              ? typed.discountPercent
+              : 0;
+          const effectiveUnitAmount = Math.round(
+            roundMoney(unitPrice * (1 - discountPercent / 100)) * 100,
+          );
+          return {
+            price_data: {
+              currency: invoiceCurrency,
+              product_data: {
+                name: typed.name ?? typed.description ?? "Service",
+                description: typed.description ?? undefined,
+              },
+              unit_amount: effectiveUnitAmount,
             },
-            unit_amount: Math.round(
-              (item as { unitPrice: number }).unitPrice * 100,
-            ),
-          },
-          quantity: (item as { quantity: number }).quantity,
-        }));
+            quantity:
+              typeof typed.quantity === "number" && typed.quantity > 0
+                ? typed.quantity
+                : 1,
+          };
+        });
 
     const stripe = getStripeClient();
     const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      automatic_tax: {
+        enabled: !useBalanceLine,
+      },
       line_items: lineItems,
       metadata: {
         type: "INVOICE_PAYMENT",
@@ -1074,50 +1288,14 @@ export const FinancePaymentService = {
       },
     });
 
-    const isDepositPayment =
-      input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
-      input.settlementChannel === "DEPOSIT" ||
-      invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
-    const nextDepositCollectedAmount = isDepositPayment
-      ? roundMoney(
-          invoice.depositTargetAmount > 0
-            ? Math.min(
-                (invoice.depositCollectedAmount ?? 0) + appliedAmount,
-                invoice.depositTargetAmount,
-              )
-            : (invoice.depositCollectedAmount ?? 0) + appliedAmount,
-        )
-      : roundMoney(invoice.depositCollectedAmount ?? 0);
-
-    const updatedInvoice =
-      appliedAmount >= balance
-        ? await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: {
-              status: "PAID",
-              paidAt: receivedAt,
-              visitBillingStage: "SETTLED",
-              depositCollectedAmount: nextDepositCollectedAmount,
-              ...(isDepositPayment
-                ? {
-                    billingCollectionMode: "DEPOSIT_THEN_SETTLE",
-                  }
-                : {}),
-            },
-          })
-        : isDepositPayment
-          ? await prisma.invoice.update({
-              where: { id: invoiceId },
-              data: {
-                depositCollectedAmount: nextDepositCollectedAmount,
-                billingCollectionMode: "DEPOSIT_THEN_SETTLE",
-                visitBillingStage:
-                  invoice.visitBillingStage === "SETTLED"
-                    ? "SETTLED"
-                    : "READY_FOR_BILLING",
-              },
-            })
-          : invoice;
+    const updatedInvoice = await updateInvoiceAfterPayment({
+      invoice,
+      invoiceId,
+      appliedAmount,
+      balance,
+      receivedAt,
+      input,
+    });
 
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,
@@ -1215,6 +1393,10 @@ export const FinancePaymentService = {
     chargeId?: string | null;
     receiptUrl?: string | null;
     currency?: string | null;
+    amountSubtotal?: number | null;
+    amountTotal?: number | null;
+    amountTax?: number | null;
+    automaticTaxStatus?: string | null;
     rawProviderPayload?: Prisma.InputJsonValue | null;
   }) {
     const invoice = input.invoiceId
@@ -1248,15 +1430,32 @@ export const FinancePaymentService = {
       select: { id: true },
     });
 
+    const invoiceWithTax = await applyCheckoutSessionTaxToInvoice(invoice, {
+      sessionId: input.sessionId,
+      amountSubtotal: input.amountSubtotal,
+      amountTotal: input.amountTotal,
+      amountTax: input.amountTax,
+      automaticTaxStatus: input.automaticTaxStatus,
+      rawProviderPayload: input.rawProviderPayload ?? undefined,
+    });
+
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
-      amount: invoice.totalAmount,
-      currency: input.currency ?? invoice.currency,
+      amount: invoiceWithTax.totalAmount,
+      currency: input.currency ?? invoiceWithTax.currency,
       settlementChannel: "STRIPE",
       providerPaymentId: input.paymentIntentId ?? null,
       paymentAttemptId: paymentAttempt?.id ?? null,
       reference: input.receiptUrl ?? undefined,
-      rawProviderPayload: input.rawProviderPayload ?? undefined,
+      rawProviderPayload:
+        input.rawProviderPayload ??
+        ({
+          sessionId: input.sessionId,
+          amountSubtotal: input.amountSubtotal ?? null,
+          amountTotal: input.amountTotal ?? null,
+          amountTax: input.amountTax ?? null,
+          automaticTaxStatus: input.automaticTaxStatus ?? null,
+        } as Prisma.InputJsonValue),
     });
 
     return { action: "PAID" as const, ...applied };
