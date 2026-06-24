@@ -148,7 +148,7 @@ describe('InvoicePaymentActions', () => {
       />
     );
 
-    expect(canAnyMock).toHaveBeenCalledWith(['billing:edit:any', 'billing:edit:limited'], 'org-1');
+    expect(canAnyMock).toHaveBeenCalledWith(['billing:edit:any'], 'org-1');
     expect(screen.queryByText('Pay in cash')).not.toBeInTheDocument();
     expect(screen.queryByText('Generate & Mail link')).not.toBeInTheDocument();
     expect(screen.queryByText('Collect cash')).not.toBeInTheDocument();

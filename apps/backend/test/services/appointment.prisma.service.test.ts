@@ -620,6 +620,25 @@ describe("AppointmentPrismaService", () => {
 
       expect(result).toMatchObject({ id: "appt_1" });
     });
+
+    it("own-scope: returns the appointment when the actor is assigned support staff (not lead)", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({
+          organisationId: "org_1",
+          lead: { id: "other_vet", name: "Other" },
+          supportStaff: [{ id: "staff_1", name: "Assistant" }],
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById(
+        "appt_1",
+        "org_1",
+        "staff_1",
+      );
+
+      expect(result.id).toBe("appt_1");
+    });
   });
 
   it("shows booking payment as paid while the final invoice remains unpaid", async () => {
