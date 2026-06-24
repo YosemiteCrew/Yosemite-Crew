@@ -4,6 +4,7 @@ import {
   generateClinicalPdf,
   generateClinicalPdfWithMetadata,
   generateCombinedClinicalPdfWithMetadata,
+  generatePdf,
   generateResolvedTemplatePdfWithMetadata,
   type ClinicalDocumentType,
   type CombinedClinicalDocumentInput,
@@ -11,6 +12,7 @@ import {
   type DischargeSummaryDocumentData,
   type DocumentSignature,
   type OrganizationBranding,
+  type InvoiceDocumentData,
   type PrescriptionDocumentData,
   type PrescriptionItem,
   type PrescriptionLabelDocumentData,
@@ -255,6 +257,58 @@ const buildOrganizationBranding = (
   };
 };
 
+type TaskScheduleDocumentSource = {
+  id: string;
+  organisationId: string;
+  templateId: string;
+  templateVersion: number;
+  templateKind: string;
+  status: string;
+  createdBy: string;
+  activatedBy: string | null;
+  activatedAt: Date | null;
+  completedAt: Date | null;
+  lastMaterializedAt: Date | null;
+  scheduleInput: Prisma.JsonValue;
+  materializedSeeds: Prisma.JsonValue;
+  generatedTaskIds: Prisma.JsonValue;
+  metadata: Prisma.JsonValue | null;
+};
+
+type InvoiceDocumentSource = {
+  invoice: {
+    id: string;
+    organisationId: string;
+    appointmentId: string | null;
+    patientId: string | null;
+    parentId: string | null;
+    currency: string;
+    items: Prisma.JsonValue;
+    subtotal: number;
+    discountTotal: number;
+    invoiceDiscountTotal: number;
+    taxTotal: number;
+    totalAmount: number;
+    depositCollectedAmount: number;
+    paidAt: Date | null;
+    finalizedAt: Date | null;
+    metadata: Prisma.JsonValue | null;
+    createdAt: Date;
+    updatedAt: Date;
+    payments: Array<{
+      id: string;
+      provider: string;
+      settlementChannel: string | null;
+      amount: number;
+      currency: string;
+      receiptUrl: string | null;
+      paidAt: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+  };
+};
+
 const buildSharedOrganizationBranding = (
   organization: OrganizationBrand,
 ): OrganizationBranding => {
@@ -450,6 +504,40 @@ const loadFormSubmissionDocument = async (
   };
 };
 
+const loadTaskScheduleDocument = async (
+  source: RenderedDocumentSource,
+): Promise<TaskScheduleDocumentSource> => {
+  const record = await prisma.taskSchedule.findUnique({
+    where: { id: source.sourceId },
+  });
+
+  if (!record) {
+    throw new Error("Task schedule not found");
+  }
+
+  if (record.organisationId !== source.organisationId) {
+    throw new Error("Task schedule does not belong to organisation");
+  }
+
+  return {
+    id: record.id,
+    organisationId: record.organisationId,
+    templateId: record.templateId,
+    templateVersion: record.templateVersion,
+    templateKind: record.templateKind,
+    status: record.status,
+    createdBy: record.createdBy,
+    activatedBy: record.activatedBy ?? null,
+    activatedAt: record.activatedAt ?? null,
+    completedAt: record.completedAt ?? null,
+    lastMaterializedAt: record.lastMaterializedAt ?? null,
+    scheduleInput: record.scheduleInput,
+    materializedSeeds: record.materializedSeeds,
+    generatedTaskIds: record.generatedTaskIds,
+    metadata: record.metadata ?? null,
+  };
+};
+
 const loadOrganizationBrand = async (
   organisationId: string,
 ): Promise<OrganizationBrand> => {
@@ -478,6 +566,314 @@ const loadOrganizationBrand = async (
   }
 
   return organization;
+};
+
+const stringifyScheduleValue = (value: unknown): string => {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "[unserializable]";
+  }
+};
+
+const buildScheduleSeedRows = (value: unknown): string[][] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((seed, index) => {
+    const record = isRecord(seed) ? seed : {};
+    return [
+      stringifyScheduleValue(record.name) || `Task ${index + 1}`,
+      stringifyScheduleValue(record.category) || "—",
+      stringifyScheduleValue(record.assignedTo) || "—",
+      stringifyScheduleValue(record.audience) || "—",
+      stringifyScheduleValue(record.dueAt) || "—",
+      stringifyScheduleValue(record.source) || "—",
+    ];
+  });
+};
+
+const buildScheduleMetadataGroups = (record: TaskScheduleDocumentSource) => [
+  [
+    { label: "Schedule ID", value: record.id },
+    { label: "Template ID", value: record.templateId },
+    { label: "Template Version", value: String(record.templateVersion) },
+    { label: "Template Kind", value: record.templateKind },
+    { label: "Status", value: record.status },
+  ],
+  [
+    { label: "Created By", value: record.createdBy },
+    { label: "Activated By", value: record.activatedBy ?? "—" },
+    { label: "Activated At", value: record.activatedAt?.toISOString() ?? "—" },
+    { label: "Completed At", value: record.completedAt?.toISOString() ?? "—" },
+    {
+      label: "Last Materialized At",
+      value: record.lastMaterializedAt?.toISOString() ?? "—",
+    },
+  ],
+];
+
+const buildTaskSchedulePdf = async (
+  input: RenderedDocumentPdfSource,
+  record: TaskScheduleDocumentSource,
+  organization: OrganizationBrand,
+) =>
+  generatePdf({
+    documentType: "inpatient-schedule",
+    title: input.title,
+    organization: buildSharedOrganizationBranding(organization),
+    metadataGroups: buildScheduleMetadataGroups(record),
+    sections: [
+      {
+        title: "Schedule Summary",
+        content: [
+          {
+            type: "paragraph",
+            text: "This inpatient schedule is rendered from the schedule template and materialized task seeds.",
+          },
+        ],
+      },
+      {
+        title: "Materialized Seeds",
+        content: buildScheduleSeedRows(record.materializedSeeds).length
+          ? [
+              {
+                type: "table",
+                columns: [
+                  { header: "Task", width: 0.24 },
+                  { header: "Category", width: 0.18 },
+                  { header: "Assigned To", width: 0.2 },
+                  { header: "Audience", width: 0.16 },
+                  { header: "Due At", width: 0.14 },
+                  { header: "Source", width: 0.08 },
+                ],
+                rows: buildScheduleSeedRows(record.materializedSeeds),
+              },
+            ]
+          : [
+              {
+                type: "paragraph",
+                text: "No materialized seeds are recorded for this schedule.",
+              },
+            ],
+      },
+      {
+        title: "Generated Task IDs",
+        content:
+          Array.isArray(record.generatedTaskIds) &&
+          record.generatedTaskIds.length > 0
+            ? [
+                {
+                  type: "table",
+                  columns: [{ header: "Task ID", width: 1 }],
+                  rows: record.generatedTaskIds
+                    .filter(
+                      (value): value is string => typeof value === "string",
+                    )
+                    .map((taskId) => [taskId]),
+                },
+              ]
+            : [
+                {
+                  type: "paragraph",
+                  text: "No generated task ids are recorded yet.",
+                },
+              ],
+      },
+    ],
+  });
+
+const loadInvoiceDocument = async (
+  source: RenderedDocumentSource,
+): Promise<InvoiceDocumentSource> => {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: source.sourceId },
+    include: {
+      payments: {
+        where: { status: "SUCCEEDED" },
+        orderBy: [{ createdAt: "asc" }, { updatedAt: "asc" }],
+      },
+    },
+  });
+
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+
+  if (invoice.organisationId !== source.organisationId) {
+    throw new Error("Invoice does not belong to organisation");
+  }
+
+  return {
+    invoice: {
+      id: invoice.id,
+      organisationId: invoice.organisationId,
+      appointmentId: invoice.appointmentId ?? null,
+      patientId: invoice.patientId ?? null,
+      parentId: invoice.parentId ?? null,
+      currency: invoice.currency,
+      items: invoice.items,
+      subtotal: invoice.subtotal,
+      discountTotal: invoice.discountTotal ?? 0,
+      invoiceDiscountTotal: invoice.invoiceDiscountTotal ?? 0,
+      taxTotal: invoice.taxTotal ?? 0,
+      totalAmount: invoice.totalAmount,
+      depositCollectedAmount: invoice.depositCollectedAmount ?? 0,
+      paidAt: invoice.paidAt ?? null,
+      finalizedAt: invoice.finalizedAt ?? null,
+      metadata: invoice.metadata ?? null,
+      createdAt: invoice.createdAt,
+      updatedAt: invoice.updatedAt,
+      payments: invoice.payments.map((payment) => ({
+        id: payment.id,
+        provider: payment.provider,
+        settlementChannel: payment.settlementChannel ?? null,
+        amount: payment.amount,
+        currency: payment.currency,
+        receiptUrl: payment.receiptUrl ?? null,
+        paidAt: payment.paidAt ?? null,
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt,
+      })),
+    },
+  };
+};
+
+const normalizeInvoiceItems = (
+  value: Prisma.JsonValue,
+): InvoiceDocumentData["items"] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item, index) => {
+    const record = isRecord(item) ? item : {};
+    const quantity = readNumber(record.quantity) ?? 1;
+    const unitPrice = readNumber(record.unitPrice) ?? 0;
+    const total =
+      readNumber(record.total) ?? roundMoneyValue(quantity * unitPrice);
+
+    return {
+      name:
+        readFirstString(record, ["name", "description", "label"]) ??
+        `Item ${index + 1}`,
+      description: readFirstString(record, ["description", "details", "note"]),
+      quantity,
+      unitPrice,
+      total,
+    };
+  });
+};
+
+const buildInvoicePaymentNotes = (record: InvoiceDocumentSource["invoice"]) => {
+  const paymentCount = record.payments.length;
+  if (!paymentCount) {
+    return readFirstString(isRecord(record.metadata) ? record.metadata : {}, [
+      "paymentNotes",
+      "notes",
+      "invoiceNotes",
+    ]);
+  }
+
+  const receiptLines = record.payments
+    .filter((payment) => Boolean(payment.receiptUrl))
+    .map((payment) => `Receipt: ${payment.receiptUrl}`);
+
+  return [`Payments recorded: ${paymentCount}`, ...receiptLines].join("\n");
+};
+
+const buildInvoicePdf = async (
+  input: RenderedDocumentPdfSource,
+  record: InvoiceDocumentSource,
+  organization: OrganizationBrand,
+) => {
+  const appointmentHeader = await loadAppointmentClinicalHeader(
+    record.invoice.appointmentId,
+  );
+  const metadata = readMetadata(record.invoice.metadata);
+  const paymentsTotal = roundMoneyValue(
+    record.invoice.payments.reduce(
+      (total, payment) => total + payment.amount,
+      0,
+    ),
+  );
+  const invoiceNumber =
+    readFirstString(metadata, ["invoiceNumber", "invoiceNo", "number"]) ??
+    record.invoice.id;
+  const clientName =
+    appointmentHeader.clientName ??
+    readFirstString(metadata, ["clientName", "ownerName", "customerName"]) ??
+    record.invoice.parentId ??
+    "—";
+  const clientId =
+    appointmentHeader.clientId ??
+    readFirstString(metadata, ["clientId", "ownerId", "customerId"]) ??
+    record.invoice.parentId ??
+    undefined;
+  const patientName =
+    appointmentHeader.patientName ??
+    readFirstString(metadata, ["patientName", "patient"]) ??
+    record.invoice.patientId ??
+    undefined;
+  const doctorName =
+    appointmentHeader.leadName ??
+    readFirstString(metadata, ["doctorName", "leadName", "providerName"]) ??
+    undefined;
+
+  const rendered = await generateClinicalPdfWithMetadata({
+    documentType: "INVOICE",
+    organization: buildSharedOrganizationBranding(organization),
+    data: {
+      title: input.title,
+      invoiceNumber,
+      currency: record.invoice.currency,
+      date:
+        record.invoice.finalizedAt ??
+        record.invoice.paidAt ??
+        record.invoice.createdAt,
+      clientName,
+      clientId,
+      patientName,
+      doctorName,
+      items: normalizeInvoiceItems(record.invoice.items),
+      subtotal: record.invoice.subtotal,
+      discount: roundMoneyValue(record.invoice.discountTotal ?? 0),
+      tax: roundMoneyValue(record.invoice.taxTotal ?? 0),
+      grandTotal: record.invoice.totalAmount,
+      amountPaid: paymentsTotal,
+      balanceDue: roundMoneyValue(
+        Math.max(0, record.invoice.totalAmount - paymentsTotal),
+      ),
+      paymentNotes: buildInvoicePaymentNotes(record.invoice) ?? undefined,
+    },
+  });
+
+  return {
+    pdf: rendered.pdf,
+    pageCount: rendered.pageCount,
+    signaturePlacement: rendered.signaturePlacement,
+  };
 };
 
 const buildResolvedTemplatePdfInput = (
@@ -545,6 +941,22 @@ const readString = (value: unknown): string | undefined => {
 
   return stringifyValue(value) || undefined;
 };
+
+const readNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+};
+
+const roundMoneyValue = (value: number): number =>
+  Math.round((value + Number.EPSILON) * 100) / 100;
 
 const readStringList = (value: unknown): string[] => {
   if (value === undefined || value === null) {
@@ -1607,6 +2019,26 @@ export const renderRenderedDocumentPdfWithMetadata = async (
         signaturePlacement: DEFAULT_SIGNATURE_PLACEMENT,
       };
     }
+    case "TASK_SCHEDULE": {
+      const record = await loadTaskScheduleDocument(input.source);
+      const organization = await loadOrganizationBrand(
+        input.source.organisationId,
+      );
+
+      return {
+        pdf: await buildTaskSchedulePdf(input, record, organization),
+        pageCount: 1,
+        signaturePlacement: DEFAULT_SIGNATURE_PLACEMENT,
+      };
+    }
+    case "INVOICE": {
+      const record = await loadInvoiceDocument(input.source);
+      const organization = await loadOrganizationBrand(
+        input.source.organisationId,
+      );
+
+      return await buildInvoicePdf(input, record, organization);
+    }
     case "CLINICAL_ARTIFACT": {
       const record = await loadClinicalArtifactDocument(input.source);
       const organization = await loadOrganizationBrand(
@@ -1889,6 +2321,7 @@ export const renderCombinedClinicalPacketPdf = async (
 };
 
 type PrescriptionItemRow = {
+  sourceLineKey: string | null;
   medication: string;
   strength: string | null;
   dosage: string | null;
@@ -1897,6 +2330,14 @@ type PrescriptionItemRow = {
   duration: string | null;
   quantity: string | null;
   instructions: string | null;
+  refill: string | null;
+  inventoryItemId: string | null;
+  inventoryItemSku: string | null;
+  batchId: string | null;
+  batchNumber: string | null;
+  lotNumber: string | null;
+  expiryDate: Date | null;
+  metadata: Prisma.JsonValue | null;
   sortOrder: number;
 };
 
@@ -1922,7 +2363,15 @@ const PRESCRIPTION_LABEL_DEFAULT_TITLE = "Prescription Label";
 const readInventoryItemId = (line: unknown): string | undefined =>
   isRecord(line) ? readString(line.inventoryItemId) : undefined;
 
-const collectMedicationInventoryIds = (medications: unknown): string[] => {
+const collectMedicationInventoryIds = (
+  rows: PrescriptionItemRow[],
+  medications: unknown,
+): string[] => {
+  const rowIds = rows.map((row) => row.inventoryItemId ?? "");
+  if (rowIds.some((id) => id.length > 0)) {
+    return rowIds;
+  }
+
   if (!Array.isArray(medications)) {
     return [];
   }
@@ -1959,7 +2408,8 @@ const buildPrescriptionLabelItems = (
     .slice()
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((row, index) => {
-      const inventoryItemId = inventoryIdsByIndex[index] ?? "";
+      const inventoryItemId =
+        row.inventoryItemId ?? inventoryIdsByIndex[index] ?? "";
       const controlled =
         inventoryItemId.length > 0
           ? (controlledFlags.get(inventoryItemId) ?? false)
@@ -2022,7 +2472,10 @@ export const buildPrescriptionLabelPdfInput = async (
   const metadata = readMetadata(record.metadata);
   const header = await loadAppointmentClinicalHeader(record.appointmentId);
 
-  const inventoryIdsByIndex = collectMedicationInventoryIds(record.medications);
+  const inventoryIdsByIndex = collectMedicationInventoryIds(
+    record.items,
+    record.medications,
+  );
   const controlledFlags = await loadControlledItemFlags(
     input.organisationId,
     inventoryIdsByIndex,

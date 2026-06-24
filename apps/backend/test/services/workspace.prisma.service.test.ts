@@ -4,7 +4,9 @@ import { ClinicalArtifactService } from "src/services/clinical-artifact.service"
 import {
   WorkspaceService,
   WorkspaceServiceError,
+  dedupeTreatmentItemsByPrescription,
 } from "../../src/services/workspace.prisma.service";
+import { InvoiceService } from "src/services/invoice.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -21,7 +23,11 @@ jest.mock("src/config/prisma", () => ({
     taskSchedule: { findMany: jest.fn() },
     templateInstance: { findMany: jest.fn() },
     document: { findMany: jest.fn() },
-    renderedDocument: { findMany: jest.fn() },
+    renderedDocument: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
     prescriptionDispenseRequest: { findMany: jest.fn() },
     workspaceTreatmentItem: {
       findMany: jest.fn(),
@@ -32,12 +38,32 @@ jest.mock("src/config/prisma", () => ({
     },
     labOrder: { findMany: jest.fn() },
     labResult: { findMany: jest.fn() },
+    financeEvent: { findFirst: jest.fn() },
+    user: { findUnique: jest.fn() },
   },
 }));
 
 jest.mock("src/services/form-assignment.service", () => ({
   FormAssignmentService: {
+    syncLinkedTemplateAssignmentsForAppointment: jest.fn(),
     listAppointmentFormSummaries: jest.fn(),
+  },
+}));
+
+jest.mock("src/services/invoice.service", () => ({
+  __esModule: true,
+  InvoiceService: {
+    findOpenInvoiceForAppointment: jest.fn(),
+    addItemsToInvoice: jest.fn(),
+  },
+  InvoiceServiceError: class InvoiceServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "InvoiceServiceError";
+    }
   },
 }));
 
@@ -69,7 +95,11 @@ describe("WorkspaceService", () => {
     taskSchedule: { findMany: jest.Mock };
     templateInstance: { findMany: jest.Mock };
     document: { findMany: jest.Mock };
-    renderedDocument: { findMany: jest.Mock };
+    renderedDocument: {
+      findMany: jest.Mock;
+      findFirst: jest.Mock;
+      create: jest.Mock;
+    };
     prescriptionDispenseRequest: { findMany: jest.Mock };
     workspaceTreatmentItem: {
       findMany: jest.Mock;
@@ -80,9 +110,16 @@ describe("WorkspaceService", () => {
     };
     labOrder: { findMany: jest.Mock };
     labResult: { findMany: jest.Mock };
+    financeEvent: { findFirst: jest.Mock };
+    user: { findUnique: jest.Mock };
   };
   const mockedFormService = FormAssignmentService as unknown as {
+    syncLinkedTemplateAssignmentsForAppointment: jest.Mock;
     listAppointmentFormSummaries: jest.Mock;
+  };
+  const mockedInvoiceService = InvoiceService as unknown as {
+    findOpenInvoiceForAppointment: jest.Mock;
+    addItemsToInvoice: jest.Mock;
   };
   const mockedClinicalArtifactService = ClinicalArtifactService as unknown as {
     listSoapNotesForAppointment: jest.Mock;
@@ -112,6 +149,10 @@ describe("WorkspaceService", () => {
     mockedPrisma.templateInstance.findMany.mockResolvedValue([]);
     mockedPrisma.document.findMany.mockResolvedValue([]);
     mockedPrisma.renderedDocument.findMany.mockResolvedValue([]);
+    mockedPrisma.renderedDocument.findFirst.mockResolvedValue(null);
+    mockedPrisma.renderedDocument.create.mockResolvedValue({
+      id: "rendered-schedule-1",
+    });
     mockedPrisma.prescriptionDispenseRequest.findMany.mockResolvedValue([]);
     mockedPrisma.productItem.findMany.mockResolvedValue([]);
     mockedPrisma.workspaceTreatmentItem.findMany.mockResolvedValue([]);
@@ -119,6 +160,8 @@ describe("WorkspaceService", () => {
     mockedPrisma.encounter.findMany.mockResolvedValue([]);
     mockedPrisma.labOrder.findMany.mockResolvedValue([]);
     mockedPrisma.labResult.findMany.mockResolvedValue([]);
+    mockedInvoiceService.findOpenInvoiceForAppointment.mockResolvedValue(null);
+    mockedInvoiceService.addItemsToInvoice.mockResolvedValue(null);
 
     mockedFormService.listAppointmentFormSummaries.mockResolvedValue([
       {
@@ -151,6 +194,9 @@ describe("WorkspaceService", () => {
         updatedAt: new Date("2026-06-14T10:00:00.000Z"),
       },
     ]);
+    mockedFormService.syncLinkedTemplateAssignmentsForAppointment.mockResolvedValue(
+      undefined,
+    );
 
     mockedClinicalArtifactService.listSoapNotesForAppointment.mockResolvedValue(
       [],
@@ -255,6 +301,13 @@ describe("WorkspaceService", () => {
     mockedPrisma.invoice.findFirst.mockResolvedValue({
       id: "invoice-1",
       visitBillingStage: "READY_FOR_BILLING",
+      readyForBillingAt: new Date("2026-06-15T12:00:00.000Z"),
+      readyForBillingActorId: "user-1",
+    });
+    mockedPrisma.user.findUnique.mockResolvedValue({
+      firstName: "Dr",
+      lastName: "Ready",
+      email: "ready@example.com",
     });
     mockedPrisma.organization.findUnique.mockResolvedValue({
       appointmentLockWindowOutpatientMinutes: 30,
@@ -433,7 +486,10 @@ describe("WorkspaceService", () => {
         invoice: expect.objectContaining({
           id: "invoice-1",
           visitBillingStage: "READY_FOR_BILLING",
+          readyForBillingAt: new Date("2026-06-15T12:00:00.000Z"),
+          readyForBillingActorId: "user-1",
         }),
+        readyForBillingByName: "Dr Ready",
       }),
     );
     expect(result.diagnosticQueue).toEqual(
@@ -451,6 +507,12 @@ describe("WorkspaceService", () => {
       "org-1",
       "appt-1",
     );
+    expect(
+      mockedFormService.syncLinkedTemplateAssignmentsForAppointment,
+    ).toHaveBeenCalledWith({
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+    });
   });
 
   it("manages persisted treatment items", async () => {
@@ -547,6 +609,104 @@ describe("WorkspaceService", () => {
     expect(mockedPrisma.workspaceTreatmentItem.delete).toHaveBeenCalledWith({
       where: { id: "ti-2" },
     });
+  });
+
+  it("syncs a treatment item into the active invoice and marks it billed", async () => {
+    mockedInvoiceService.findOpenInvoiceForAppointment.mockResolvedValueOnce({
+      id: "invoice-1",
+    });
+    mockedPrisma.workspaceTreatmentItem.create.mockResolvedValueOnce({
+      id: "ti-sync",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      productId: "prod-sync",
+      productVersion: null,
+      productSnapshot: { name: "Procedure" },
+      servicePackageKind: "PROCEDURE",
+      quantity: 2,
+      priceSnapshot: {
+        name: "Procedure",
+        grossAmount: 40,
+        finalAmount: 36,
+        discountPercent: 10,
+        unitPrice: 20,
+      },
+      billingStatus: "UNBILLED",
+      invoiceRowId: null,
+      lockState: null,
+      prescriptionId: null,
+      createdAt: new Date("2026-06-15T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T00:00:00.000Z"),
+    });
+    mockedPrisma.workspaceTreatmentItem.update.mockResolvedValueOnce({
+      id: "ti-sync",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      productId: "prod-sync",
+      productVersion: null,
+      productSnapshot: { name: "Procedure" },
+      servicePackageKind: "PROCEDURE",
+      quantity: 2,
+      priceSnapshot: {
+        name: "Procedure",
+        grossAmount: 40,
+        finalAmount: 36,
+        discountPercent: 10,
+        unitPrice: 20,
+      },
+      billingStatus: "BILLED",
+      invoiceRowId: "ti-sync",
+      lockState: null,
+      prescriptionId: null,
+      createdAt: new Date("2026-06-15T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T01:00:00.000Z"),
+    });
+    mockedInvoiceService.addItemsToInvoice.mockResolvedValueOnce({
+      id: "invoice-1",
+    });
+
+    const created = await WorkspaceService.createEncounterTreatmentItem({
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      productId: "prod-sync",
+      productSnapshot: { name: "Procedure" },
+      servicePackageKind: "PROCEDURE",
+      quantity: 2,
+      priceSnapshot: {
+        name: "Procedure",
+        grossAmount: 40,
+        finalAmount: 36,
+        discountPercent: 10,
+        unitPrice: 20,
+      },
+    });
+
+    expect(
+      mockedInvoiceService.findOpenInvoiceForAppointment,
+    ).toHaveBeenCalledWith("appt-1", "org-1");
+    expect(mockedInvoiceService.addItemsToInvoice).toHaveBeenCalledWith(
+      "invoice-1",
+      [
+        expect.objectContaining({
+          id: "ti-sync",
+          quantity: 2,
+          unitPrice: 20,
+          total: 36,
+        }),
+      ],
+    );
+    expect(mockedPrisma.workspaceTreatmentItem.update).toHaveBeenCalledWith({
+      where: { id: "ti-sync" },
+      data: {
+        billingStatus: "BILLED",
+        invoiceRowId: "ti-sync",
+      },
+    });
+    expect(created.billingStatus).toBe("BILLED");
+    expect(created.invoiceRowId).toBe("ti-sync");
   });
 
   it("builds the encounter bootstrap even when no linked appointment is resolved", async () => {
@@ -665,6 +825,7 @@ describe("WorkspaceService", () => {
       organisationId: "org-3",
       patientId: "patient-3",
       unitId: "unit-1",
+      admittedAt: new Date("2026-06-14T10:00:00.000Z"),
       dischargedAt: null,
     });
 
@@ -681,6 +842,59 @@ describe("WorkspaceService", () => {
         inpatientRoomAdmissionReady: true,
       }),
     );
+    // The assigned unit must round-trip on the bootstrap encounter so it is
+    // retained after a refresh (read by the workspace + appointment views).
+    expect(result.encounter?.admission?.unitId).toBe("unit-1");
+  });
+
+  it("returns the actor display name for a ready-for-discharge encounter", async () => {
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      id: "enc-4",
+      organisationId: "org-4",
+      caseId: "case-4",
+      patientId: "patient-4",
+      parentId: null,
+      status: "onleave",
+      encounterClass: "IMP",
+      appointmentKind: "INPATIENT",
+      title: "Inpatient stay",
+      reason: "Admit",
+      periodStart: null,
+      periodEnd: null,
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.case.findFirst.mockResolvedValue({
+      id: "case-4",
+      organisationId: "org-4",
+      patientId: "patient-4",
+      parentId: null,
+      status: "active",
+      appointmentKind: "INPATIENT",
+      title: "Episode",
+      description: null,
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.patient.findFirst.mockResolvedValue({
+      id: "patient-4",
+      name: "Milo",
+      type: "PET",
+      status: "ACTIVE",
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.financeEvent.findFirst.mockResolvedValue({
+      payload: { actorUserId: "user-1", actorName: "Dr Harshit" },
+    });
+
+    const result = await WorkspaceService.getEncounterBootstrap(
+      { organisationId: "org-4", encounterId: "enc-4" },
+      [],
+    );
+
+    expect(result.readyForDischarge).toBe(true);
+    expect(result.readyForDischargeByName).toBe("Dr Harshit");
   });
 
   it("does not let labs from another visit for the same companion block finalization", async () => {
@@ -841,6 +1055,12 @@ describe("WorkspaceService", () => {
       "org-2",
       "appt-enc-1",
     );
+    expect(
+      mockedFormService.syncLinkedTemplateAssignmentsForAppointment,
+    ).toHaveBeenCalledWith({
+      organisationId: "org-2",
+      appointmentId: "appt-enc-1",
+    });
   });
 
   it("throws a not found error when the appointment is missing", async () => {
@@ -1065,5 +1285,38 @@ describe("WorkspaceService", () => {
         kind: "SOAP_NOTE",
       }),
     ]);
+  });
+});
+
+describe("dedupeTreatmentItemsByPrescription", () => {
+  it("drops the virtual item when a persisted row has the same prescriptionId", () => {
+    const fromPrescriptions = [
+      { id: "rx-1", prescriptionId: "rx-1", label: "virtual" },
+      { id: "rx-2", prescriptionId: "rx-2", label: "virtual-only" },
+    ];
+    const fromTable = [
+      { id: "ti-1", prescriptionId: "rx-1", label: "persisted" },
+    ];
+
+    const result = dedupeTreatmentItemsByPrescription(
+      fromPrescriptions,
+      fromTable,
+    );
+
+    // rx-1 collapses to the persisted row; rx-2 (no persisted row) stays.
+    expect(result).toHaveLength(2);
+    expect(result.filter((i) => i.prescriptionId === "rx-1")).toEqual([
+      { id: "ti-1", prescriptionId: "rx-1", label: "persisted" },
+    ]);
+    expect(result.some((i) => i.prescriptionId === "rx-2")).toBe(true);
+  });
+
+  it("keeps virtual items that have no prescriptionId", () => {
+    const result = dedupeTreatmentItemsByPrescription(
+      [{ id: "v-1", prescriptionId: null }],
+      [{ id: "t-1", prescriptionId: "rx-9" }],
+    );
+
+    expect(result).toHaveLength(2);
   });
 });

@@ -259,6 +259,7 @@ describe("AppointmentPrismaController", () => {
 
   it("marks appointments ready for billing from PMS", async () => {
     req.params = { appointmentId: "appt_1" };
+    (req as any).userId = "user-1";
     mockedInvoiceService.markAppointmentReadyForBilling.mockResolvedValue(
       null as any,
     );
@@ -270,7 +271,7 @@ describe("AppointmentPrismaController", () => {
 
     expect(
       mockedInvoiceService.markAppointmentReadyForBilling,
-    ).toHaveBeenCalledWith("appt_1");
+    ).toHaveBeenCalledWith("appt_1", "user-1");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: "Appointment marked ready for billing",
@@ -302,6 +303,7 @@ describe("AppointmentPrismaController", () => {
     ] as any);
 
     (req as any).userId = "user_1";
+    (req as any).userPermissions = ["appointments:view:any"];
     mockedAuth.getByProviderUserId.mockResolvedValue({
       parentId: "parent_1",
     } as any);
@@ -351,6 +353,21 @@ describe("AppointmentPrismaController", () => {
       "parent_1",
     );
     expect(mockedService.getAppointmentsForLead).toHaveBeenCalledWith("lead_1");
+  });
+
+  it("binds own-scope appointment reads to the actor and organisation", async () => {
+    req.params = { appointmentId: "appt_1", organisationId: "org_1" };
+    (req as any).userId = "lead_1";
+    (req as any).userPermissions = ["appointments:view:own"];
+    mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
+
+    await AppointmentController.getById(req as any, res as any);
+
+    expect(mockedService.getById).toHaveBeenCalledWith(
+      "appt_1",
+      "org_1",
+      "lead_1",
+    );
   });
 
   it("handles mobile auth and upload validation errors", async () => {

@@ -1666,6 +1666,7 @@ describe("CatalogService", () => {
       kinds: ["CONSULTATION", "PACKAGE"],
       active: false,
       search: "cardio",
+      supportsInpatient: true,
     });
 
     expect(prisma.productItem.findMany).toHaveBeenCalledWith(
@@ -1675,6 +1676,11 @@ describe("CatalogService", () => {
           specialityId: "spec_1",
           kind: { in: ["CONSULTATION", "PACKAGE"] },
           isActive: false,
+          bookable: {
+            is: {
+              supportsInpatient: true,
+            },
+          },
           OR: expect.arrayContaining([
             expect.objectContaining({
               name: expect.objectContaining({ contains: "cardio" }),

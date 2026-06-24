@@ -1280,6 +1280,19 @@ const getLeadIdFromRow = (row: AppointmentRow): string | undefined => {
   return typeof lead?.id === "string" && lead.id.trim() ? lead.id : undefined;
 };
 
+const getSupportStaffIdsFromRow = (row: AppointmentRow): string[] => {
+  const supportStaff = row.supportStaff as Array<{ id?: string }> | null;
+  if (!Array.isArray(supportStaff)) return [];
+
+  return supportStaff
+    .map((member) => (typeof member?.id === "string" ? member.id.trim() : ""))
+    .filter((id): id is string => Boolean(id));
+};
+
+const canViewOwnAppointment = (row: AppointmentRow, actorId: string): boolean =>
+  getLeadIdFromRow(row) === actorId ||
+  getSupportStaffIdsFromRow(row).includes(actorId);
+
 const getParentIdFromRow = (row: AppointmentRow): string | undefined => {
   const patient = row.patient as { parent?: { id?: string } } | null;
   const parentId = patient?.parent?.id;

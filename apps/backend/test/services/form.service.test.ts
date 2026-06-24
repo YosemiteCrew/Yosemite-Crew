@@ -92,6 +92,7 @@ jest.mock("../../src/services/template.service", () => ({
 
 jest.mock("../../src/services/form-assignment.service", () => ({
   FormAssignmentService: {
+    syncLinkedTemplateAssignmentsForAppointment: jest.fn(),
     listForAppointment: jest.fn(),
     markViewedForAppointment: jest.fn(),
     markSubmittedFromSubmission: jest.fn(),
@@ -238,6 +239,9 @@ describe("FormService", () => {
     (FormSubmissionModel.aggregate as jest.Mock).mockReset();
 
     (FormAssignmentService.listForAppointment as jest.Mock).mockReset();
+    (
+      FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment as jest.Mock
+    ).mockReset();
     (TemplateService.getById as jest.Mock).mockReset();
     (templateMapper.templateToQuestionnaire as jest.Mock).mockReset();
     (

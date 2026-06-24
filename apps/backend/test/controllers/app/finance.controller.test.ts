@@ -24,6 +24,7 @@ jest.mock("../../../src/services/invoice.service", () => ({
     finalizeTaxForInvoice: jest.fn(),
     previewTaxForInvoice: jest.fn(),
     markAppointmentReadyForBilling: jest.fn(),
+    settleInvoiceAtCloseout: jest.fn(),
     handleInvoiceCancellation: jest.fn(),
   },
 }));
@@ -228,5 +229,35 @@ describe("FinanceController", () => {
 
       expect(statusMock).toHaveBeenCalledWith(400);
     });
+  });
+
+  it("settles an invoice at visit closeout", async () => {
+    req.params = { invoiceId: "inv-closeout" };
+    req.body = {
+      settlementChannel: "CASH",
+      reference: "front-desk",
+      receivedAt: "2026-06-24T10:15:00.000Z",
+    };
+    (req as unknown as { organisationId: string }).organisationId = "org-1";
+    jest.mocked(InvoiceService).settleInvoiceAtCloseout.mockResolvedValueOnce({
+      id: "inv-closeout",
+      status: "PAID",
+    } as never);
+
+    await FinanceController.settleInvoiceAtCloseout(
+      req as Request,
+      res as Response,
+    );
+
+    expect(InvoiceService.settleInvoiceAtCloseout).toHaveBeenCalledWith(
+      "inv-closeout",
+      "org-1",
+      expect.objectContaining({
+        settlementChannel: "CASH",
+        reference: "front-desk",
+        receivedAt: new Date("2026-06-24T10:15:00.000Z"),
+      }),
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
   });
 });

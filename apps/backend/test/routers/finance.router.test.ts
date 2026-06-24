@@ -44,6 +44,7 @@ const FinanceController = {
   listInvoicesForParent: jest.fn(),
   bootstrapInvoiceForAppointment: jest.fn(),
   finalizeInvoice: jest.fn(),
+  settleInvoiceAtCloseout: jest.fn(),
   previewInvoiceTax: jest.fn(),
   voidInvoice: jest.fn(),
   supplementInvoice: jest.fn(),
@@ -277,5 +278,10 @@ describe("finance.router", () => {
         "post",
       )?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.markAppointmentReadyForBilling);
+    expect(
+      findRoute("/invoices/:invoiceId/closeout", "post")?.stack.map(
+        (layer) => layer.handle,
+      ),
+    ).toContain(FinanceController.settleInvoiceAtCloseout);
   });
 });

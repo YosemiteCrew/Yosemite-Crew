@@ -372,6 +372,7 @@ export const EncounterController = {
       lifecycleOperationSchema.parse(req.body ?? {});
       const updated = await CaseEncounterService.markEncounterReadyForDischarge(
         req.params.id,
+        resolveUserIdFromRequest(req),
       );
 
       return res.status(200).json(toEncounterResponseDTO(updated));

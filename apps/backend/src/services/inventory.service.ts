@@ -57,6 +57,11 @@ const syncInventoryBatchToPostgres = async (_doc: unknown) => undefined;
 const syncInventoryVendorToPostgres = async (_doc: unknown) => undefined;
 const syncInventoryMetaFieldToPostgres = async (_doc: unknown) => undefined;
 
+const resolveStockUnitType = (
+  stockUnitType?: string | null,
+  unitOfMeasure?: string | null,
+) => (stockUnitType !== undefined ? stockUnitType : unitOfMeasure);
+
 type InventoryItemMongo = PrismaInventoryItem;
 type InventoryBatchMongo = PrismaInventoryBatch;
 type InventoryVendorMongo = Prisma.InventoryVendorGetPayload<
@@ -351,6 +356,7 @@ export interface CreateInventoryItemInput {
   storageInstructions?: string;
   expiryTrackingRequired?: boolean;
   unitOfMeasure?: string;
+  stockUnitType?: string;
   packageQuantity?: number;
   storageLocation?: string;
 
@@ -396,6 +402,7 @@ export interface UpdateInventoryItemInput {
   storageInstructions?: string | null;
   expiryTrackingRequired?: boolean | null;
   unitOfMeasure?: string | null;
+  stockUnitType?: string | null;
   packageQuantity?: number | null;
   storageLocation?: string | null;
 
@@ -1011,6 +1018,10 @@ const createInventoryItemInPostgres = async (
     unitCost,
     attachments,
   } = validated;
+  const stockUnitType = resolveStockUnitType(
+    input.stockUnitType,
+    input.unitOfMeasure,
+  );
 
   const item = await prisma.inventoryItem.create({
     data: {
@@ -1034,7 +1045,8 @@ const createInventoryItemInPostgres = async (
       controlledItem: input.controlledItem ?? false,
       storageInstructions: input.storageInstructions ?? undefined,
       expiryTrackingRequired: input.expiryTrackingRequired ?? false,
-      unitOfMeasure: input.unitOfMeasure ?? undefined,
+      unitOfMeasure: stockUnitType ?? undefined,
+      stockUnitType: stockUnitType ?? undefined,
       packageQuantity: input.packageQuantity ?? undefined,
       storageLocation: input.storageLocation ?? undefined,
       unitCost,
@@ -1105,6 +1117,10 @@ const createInventoryItemInLegacyStore = async (
     unitCost,
     attachments,
   } = validated;
+  const stockUnitType = resolveStockUnitType(
+    input.stockUnitType,
+    input.unitOfMeasure,
+  );
 
   const item = await InventoryItemModel.create({
     organisationId,
@@ -1127,7 +1143,8 @@ const createInventoryItemInLegacyStore = async (
     controlledItem: input.controlledItem ?? false,
     storageInstructions: input.storageInstructions,
     expiryTrackingRequired: input.expiryTrackingRequired ?? false,
-    unitOfMeasure: input.unitOfMeasure,
+    unitOfMeasure: stockUnitType,
+    stockUnitType,
     packageQuantity: input.packageQuantity,
     storageLocation: input.storageLocation,
     unitCost,
@@ -1295,6 +1312,10 @@ const applyLegacyInventoryItemUpdates = async (params: {
   nextItemType: InventoryItemType;
 }) => {
   const { item, input, nextCategory, nextSubCategory, nextItemType } = params;
+  const stockUnitType = resolveStockUnitType(
+    input.stockUnitType,
+    input.unitOfMeasure,
+  );
 
   if (input.name !== undefined) item.name = input.name;
   if (input.sku !== undefined) item.sku = input.sku;
@@ -1334,8 +1355,9 @@ const applyLegacyInventoryItemUpdates = async (params: {
   if (input.expiryTrackingRequired !== undefined) {
     item.expiryTrackingRequired = input.expiryTrackingRequired ?? false;
   }
-  if (input.unitOfMeasure !== undefined) {
-    item.unitOfMeasure = input.unitOfMeasure ?? null;
+  if (stockUnitType !== undefined) {
+    item.stockUnitType = stockUnitType ?? null;
+    item.unitOfMeasure = stockUnitType ?? null;
   }
   if (input.packageQuantity !== undefined) {
     item.packageQuantity = input.packageQuantity ?? null;
@@ -1520,8 +1542,13 @@ export const InventoryService = {
       if (input.expiryTrackingRequired !== undefined) {
         data.expiryTrackingRequired = input.expiryTrackingRequired ?? false;
       }
-      if (input.unitOfMeasure !== undefined) {
-        data.unitOfMeasure = input.unitOfMeasure ?? null;
+      const stockUnitType = resolveStockUnitType(
+        input.stockUnitType,
+        input.unitOfMeasure,
+      );
+      if (stockUnitType !== undefined) {
+        data.stockUnitType = stockUnitType ?? null;
+        data.unitOfMeasure = stockUnitType ?? null;
       }
       if (input.packageQuantity !== undefined) {
         data.packageQuantity = input.packageQuantity ?? null;
@@ -1844,6 +1871,7 @@ export const InventoryService = {
         minimumStock: item.minimumStock ?? null,
         emergencyStockLevel: item.emergencyStockLevel ?? null,
         unitOfMeasure: item.unitOfMeasure ?? null,
+        stockUnitType: item.stockUnitType ?? item.unitOfMeasure ?? null,
         costPrice: item.unitCost ?? null,
         grossProfit: pricing.grossProfit,
         marginPercentage: pricing.marginPercentage,
@@ -1855,6 +1883,7 @@ export const InventoryService = {
         minimumStock: number | null;
         emergencyStockLevel: number | null;
         unitOfMeasure: string | null;
+        stockUnitType: string | null;
         costPrice: number | null;
         grossProfit: number;
         marginPercentage: number | null;
@@ -2016,6 +2045,7 @@ export const InventoryService = {
           minimumStock: item.minimumStock ?? null,
           emergencyStockLevel: item.emergencyStockLevel ?? null,
           unitOfMeasure: item.unitOfMeasure ?? null,
+          stockUnitType: item.stockUnitType ?? item.unitOfMeasure ?? null,
           costPrice: item.unitCost ?? null,
           grossProfit: pricing.grossProfit,
           marginPercentage: pricing.marginPercentage,
@@ -2027,6 +2057,7 @@ export const InventoryService = {
           minimumStock: number | null;
           emergencyStockLevel: number | null;
           unitOfMeasure: string | null;
+          stockUnitType: string | null;
           costPrice: number | null;
           grossProfit: number;
           marginPercentage: number | null;

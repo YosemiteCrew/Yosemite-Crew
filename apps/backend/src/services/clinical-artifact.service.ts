@@ -155,6 +155,7 @@ type PrescriptionItemInput = {
   duration?: string;
   quantity?: number;
   instructions?: string;
+  refill?: string;
   inventoryItemId?: string;
   inventoryItemSku?: string;
   batchId?: string;
@@ -225,6 +226,7 @@ const normalizePrescriptionItemInputs = (
       medication:
         readPrescriptionItemString(item, [
           "medication",
+          "medicineName",
           "name",
           "drug",
           "product",
@@ -237,7 +239,12 @@ const normalizePrescriptionItemInputs = (
         "administrationRoute",
       ]),
       frequency: readPrescriptionItemString(item, ["frequency", "freq"]),
-      duration: readPrescriptionItemString(item, ["duration", "days"]),
+      duration: readPrescriptionItemString(item, [
+        "duration",
+        "durationDays",
+        "days",
+      ]),
+      refill: readPrescriptionItemString(item, ["refill"]),
       quantity: readPrescriptionItemQuantity(item, [
         "quantity",
         "qty",
@@ -255,33 +262,23 @@ const normalizePrescriptionItemInputs = (
         "inventoryItemSku",
         "sku",
       ]),
-      batchId: readPrescriptionItemString(item, ["batchId"]),
+      batchId: readPrescriptionItemString(item, [
+        "batchId",
+        "inventoryBatchId",
+      ]),
       batchNumber: readPrescriptionItemString(item, ["batchNumber"]),
       lotNumber: readPrescriptionItemString(item, ["lotNumber"]),
       expiryDate:
         item.expiryDate instanceof Date || typeof item.expiryDate === "string"
           ? item.expiryDate
           : undefined,
-      metadata: isRecord(item.metadata) ? item.metadata : null,
+      metadata: item.metadata === undefined ? undefined : item.metadata,
       sortOrder: index,
     } as PrescriptionItemInput;
   });
 };
 
 const prescriptionItemRowsToCreate = (items: PrescriptionItemInput[]) =>
-  items.map((item) => ({
-    medication: item.medication,
-    strength: item.strength,
-    dosage: item.dosage,
-    route: item.route,
-    frequency: item.frequency,
-    duration: item.duration,
-    quantity: item.quantity === undefined ? undefined : String(item.quantity),
-    instructions: item.instructions,
-    sortOrder: item.sortOrder,
-  }));
-
-const prescriptionItemsToJson = (items: PrescriptionItemInput[]) =>
   items.map((item) => ({
     sourceLineKey: item.sourceLineKey,
     medication: item.medication,
@@ -290,18 +287,48 @@ const prescriptionItemsToJson = (items: PrescriptionItemInput[]) =>
     route: item.route,
     frequency: item.frequency,
     duration: item.duration,
-    quantity: item.quantity,
+    quantity: item.quantity === undefined ? undefined : String(item.quantity),
     instructions: item.instructions,
+    refill: item.refill,
     inventoryItemId: item.inventoryItemId,
     inventoryItemSku: item.inventoryItemSku,
     batchId: item.batchId,
     batchNumber: item.batchNumber,
     lotNumber: item.lotNumber,
-    expiryDate:
-      item.expiryDate instanceof Date
-        ? item.expiryDate.toISOString()
-        : item.expiryDate,
-    metadata: item.metadata ?? undefined,
+    expiryDate: (() => {
+      if (item.expiryDate instanceof Date) return item.expiryDate;
+      if (typeof item.expiryDate === "string") {
+        const parsed = new Date(item.expiryDate);
+        return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+      }
+      return undefined;
+    })(),
+    metadata:
+      item.metadata === undefined
+        ? undefined
+        : (item.metadata as Prisma.InputJsonValue),
+    sortOrder: item.sortOrder,
+  }));
+
+const prescriptionItemRowsToJson = (items: PrescriptionItemModel[]) =>
+  items.map((item) => ({
+    sourceLineKey: item.sourceLineKey ?? undefined,
+    medication: item.medication,
+    strength: item.strength,
+    dosage: item.dosage,
+    route: item.route,
+    frequency: item.frequency,
+    duration: item.duration,
+    quantity: item.quantity === null ? undefined : Number(item.quantity),
+    instructions: item.instructions,
+    refill: item.refill ?? undefined,
+    inventoryItemId: item.inventoryItemId ?? undefined,
+    inventoryItemSku: item.inventoryItemSku ?? undefined,
+    batchId: item.batchId ?? undefined,
+    batchNumber: item.batchNumber ?? undefined,
+    lotNumber: item.lotNumber ?? undefined,
+    expiryDate: item.expiryDate ? item.expiryDate.toISOString() : undefined,
+    metadata: item.metadata === undefined ? undefined : item.metadata,
   }));
 
 export type SoapNoteInput = ClinicalArtifactBaseInput & {
@@ -749,12 +776,33 @@ const toClinicalArtifactKind = <TKind extends ClinicalArtifactKind>(
   kind,
 });
 
+const prescriptionMedicationsFromItems = (
+  prescription: Pick<PrescriptionModel, "items" | "medications">,
+) => {
+  const items = prescription.items ?? [];
+  if (items.length > 0) {
+    return prescriptionItemRowsToJson(items);
+  }
+
+  return prescription.medications;
+};
+
 const buildPrescriptionRecord = (
   artifact: SoapNoteRecord["artifact"],
   prescription: PrescriptionModel,
 ): PrescriptionRecord => ({
   artifact: toClinicalArtifactKind(artifact, "PRESCRIPTION"),
-  prescription,
+  prescription: {
+    id: prescription.id,
+    artifactId: prescription.artifactId,
+    items: prescription.items ?? [],
+    medications: prescriptionMedicationsFromItems(prescription),
+    instructions: prescription.instructions,
+    notes: prescription.notes,
+    metadata: prescription.metadata,
+    createdAt: prescription.createdAt,
+    updatedAt: prescription.updatedAt,
+  },
 });
 
 const toPrescriptionRecord = (
@@ -771,6 +819,112 @@ const toPrescriptionRecord = (
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   });
+
+type InventoryMedicationFields = {
+  id: string;
+  name: string;
+  genericName: string | null;
+  strength: string | null;
+  dosageForm: string | null;
+  controlledItem: boolean;
+};
+
+const firstNonEmptyString = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() ? value : undefined;
+
+// Prescription medications keep an `inventoryItemId` reference; their display
+// fields (medication name, strength, generic name, form, controlled flag) can be
+// missing when the item was added by id without the full snapshot. Fill the gaps
+// from the InventoryItem so the encounter/workspace shows complete prescriptions.
+export const hydrateMedications = (
+  medications: Prisma.JsonValue | null,
+  inventoryById: Map<string, InventoryMedicationFields>,
+): Prisma.JsonValue | null => {
+  if (!Array.isArray(medications)) {
+    return medications;
+  }
+  return medications.map((med) => {
+    if (!isRecord(med)) {
+      return med;
+    }
+    const inventoryItemId = firstNonEmptyString(med.inventoryItemId);
+    const inv = inventoryItemId
+      ? inventoryById.get(inventoryItemId)
+      : undefined;
+    if (!inv) {
+      return med;
+    }
+    return {
+      ...med,
+      medication: firstNonEmptyString(med.medication) ?? inv.name,
+      strength: firstNonEmptyString(med.strength) ?? inv.strength ?? undefined,
+      genericName:
+        firstNonEmptyString(med.genericName) ?? inv.genericName ?? undefined,
+      dosageForm:
+        firstNonEmptyString(med.dosageForm) ?? inv.dosageForm ?? undefined,
+      controlledItem:
+        typeof med.controlledItem === "boolean"
+          ? med.controlledItem
+          : inv.controlledItem,
+    };
+  }) as Prisma.JsonValue;
+};
+
+const hydratePrescriptionRecords = async (
+  records: PrescriptionWithArtifact[],
+): Promise<PrescriptionRecord[]> => {
+  const inventoryItemIds = new Set<string>();
+  for (const record of records) {
+    const items = Array.isArray(record.items) ? record.items : [];
+    for (const item of items) {
+      const id = firstNonEmptyString(item.inventoryItemId);
+      if (id) {
+        inventoryItemIds.add(id);
+      }
+    }
+
+    if (inventoryItemIds.size > 0) {
+      continue;
+    }
+
+    if (!Array.isArray(record.medications)) {
+      continue;
+    }
+    for (const med of record.medications) {
+      const id = isRecord(med)
+        ? firstNonEmptyString(med.inventoryItemId)
+        : undefined;
+      if (id) {
+        inventoryItemIds.add(id);
+      }
+    }
+  }
+
+  const inventoryById = new Map<string, InventoryMedicationFields>();
+  if (inventoryItemIds.size > 0) {
+    const items = await prisma.inventoryItem.findMany({
+      where: { id: { in: [...inventoryItemIds] } },
+      select: {
+        id: true,
+        name: true,
+        genericName: true,
+        strength: true,
+        dosageForm: true,
+        controlledItem: true,
+      },
+    });
+    for (const item of items) {
+      inventoryById.set(item.id, item);
+    }
+  }
+
+  return records.map((record) =>
+    toPrescriptionRecord({
+      ...record,
+      medications: hydrateMedications(record.medications, inventoryById),
+    }),
+  );
+};
 
 const buildDischargeSummaryRecord = (
   artifact: SoapNoteRecord["artifact"],
@@ -1189,6 +1343,9 @@ export const ClinicalArtifactService = {
     input: PrescriptionInput,
   ): Promise<PrescriptionRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
+    const prescriptionItems = normalizePrescriptionItemInputs(
+      input.items ?? input.medications,
+    );
     const artifact = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
       const createdArtifact = await txPrisma.clinicalArtifact.create({
@@ -1210,15 +1367,8 @@ export const ClinicalArtifactService = {
       const createdPrescription = await txPrisma.prescription.create({
         data: {
           artifactId: createdArtifact.id,
-          medications: toNullableJsonInput(
-            prescriptionItemsToJson(
-              normalizePrescriptionItemInputs(input.items ?? input.medications),
-            ),
-          ),
           items: {
-            create: prescriptionItemRowsToCreate(
-              normalizePrescriptionItemInputs(input.items ?? input.medications),
-            ),
+            create: prescriptionItemRowsToCreate(prescriptionItems),
           },
           instructions: toNullableJsonInput(input.instructions),
           notes: toNullableJsonInput(input.notes),
@@ -1262,6 +1412,10 @@ export const ClinicalArtifactService = {
           | Prisma.InputJsonValue
           | undefined,
         requestedBy: artifact.artifact.authorId,
+        context: {
+          appointmentId: artifact.artifact.appointmentId,
+          encounterId: artifact.artifact.encounterId,
+        },
       });
     }
 
@@ -1294,6 +1448,11 @@ export const ClinicalArtifactService = {
 
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
+      const hasPrescriptionItemUpdates =
+        input.items !== undefined || input.medications !== undefined;
+      const prescriptionItems = hasPrescriptionItemUpdates
+        ? normalizePrescriptionItemInputs(input.items ?? input.medications)
+        : [];
       const artifact = await txPrisma.clinicalArtifact.update({
         where: { id: record.artifact.id },
         data: {
@@ -1308,27 +1467,12 @@ export const ClinicalArtifactService = {
       const prescription = await txPrisma.prescription.update({
         where: { id: record.id },
         data: {
-          medications:
-            input.items === undefined && input.medications === undefined
-              ? toNullableJsonInput(record.medications)
-              : toNullableJsonInput(
-                  prescriptionItemsToJson(
-                    normalizePrescriptionItemInputs(
-                      input.items ?? input.medications,
-                    ),
-                  ),
-                ),
-          items:
-            input.items === undefined && input.medications === undefined
-              ? undefined
-              : {
-                  deleteMany: {},
-                  create: prescriptionItemRowsToCreate(
-                    normalizePrescriptionItemInputs(
-                      input.items ?? input.medications,
-                    ),
-                  ),
-                },
+          items: hasPrescriptionItemUpdates
+            ? {
+                deleteMany: {},
+                create: prescriptionItemRowsToCreate(prescriptionItems),
+              }
+            : undefined,
           instructions:
             input.instructions === undefined
               ? toNullableJsonInput(record.instructions)
@@ -1367,6 +1511,10 @@ export const ClinicalArtifactService = {
           | Prisma.InputJsonValue
           | undefined,
         requestedBy: updated.artifact.authorId,
+        context: {
+          appointmentId: updated.artifact.appointmentId,
+          encounterId: updated.artifact.encounterId,
+        },
       });
     } else if (wasPendingDispenseRequest && !isPendingDispenseRequest) {
       await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed(
@@ -1414,7 +1562,7 @@ export const ClinicalArtifactService = {
       orderBy: { createdAt: "desc" },
     });
 
-    return records.map(toPrescriptionRecord);
+    return hydratePrescriptionRecords(records);
   },
 
   async listPrescriptionsForAppointment(
@@ -1433,7 +1581,7 @@ export const ClinicalArtifactService = {
       orderBy: { createdAt: "desc" },
     });
 
-    return records.map(toPrescriptionRecord);
+    return hydratePrescriptionRecords(records);
   },
 
   async createDischargeSummary(

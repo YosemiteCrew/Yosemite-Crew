@@ -3,6 +3,7 @@ import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
 import { AuditTrailService } from "./audit-trail.service";
 import { WorkspaceService } from "./workspace.prisma.service";
+import { FinanceEventService } from "./finance/events";
 import type {
   Admission as AdmissionDomain,
   AppointmentKind,
@@ -1716,6 +1717,7 @@ export const CaseEncounterService = {
 
   async markEncounterReadyForDischarge(
     encounterId: string,
+    actorUserId?: string,
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
 
@@ -1736,6 +1738,14 @@ export const CaseEncounterService = {
           status: "onleave",
         },
       })) as EncounterRow;
+    });
+
+    await FinanceEventService.recordReadinessEvent({
+      organisationId: updatedEncounter.organisationId,
+      eventType: "ENCOUNTER_READY_FOR_DISCHARGE",
+      entityType: "ENCOUNTER",
+      entityId: id,
+      actorUserId,
     });
 
     return (

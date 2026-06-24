@@ -198,6 +198,8 @@ describe("FinancePaymentService", () => {
           billingCollectionMode: "DEPOSIT_THEN_SETTLE",
           visitBillingStage: "READY_FOR_BILLING",
           depositCollectedAmount: 25,
+          readyForBillingActorId: "SYSTEM",
+          readyForBillingAt: new Date("2026-06-18T10:00:00.000Z"),
         }),
       }),
     );
@@ -312,8 +314,10 @@ describe("FinancePaymentService", () => {
     expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: "payment",
+        // A prior credit means we charge the (tax-inclusive) remaining balance as a
+        // single line, so automatic tax must be OFF to avoid taxing the balance twice.
         automatic_tax: {
-          enabled: true,
+          enabled: false,
         },
         line_items: [
           expect.objectContaining({
@@ -349,6 +353,76 @@ describe("FinancePaymentService", () => {
     );
     expect(result.sessionId).toBe("cs_1");
     expect(result.paymentAttemptId).toBe("pa_6");
+  });
+
+  it("itemises every line (discount-adjusted) with automatic tax for a fresh, unsettled invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_multi",
+      totalAmount: 190,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: "parent_1",
+      items: [
+        {
+          name: "Consult",
+          description: "Consultation",
+          unitPrice: 100,
+          quantity: 1,
+        },
+        {
+          name: "Vaccine",
+          description: "Vaccine",
+          unitPrice: 50,
+          quantity: 2,
+          discountPercent: 10,
+        },
+      ],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_multi",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_multi",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_multi");
+
+    expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // No prior payment/credit -> itemise every line and let Stripe add tax.
+        automatic_tax: { enabled: true },
+        line_items: [
+          expect.objectContaining({
+            quantity: 1,
+            price_data: expect.objectContaining({
+              unit_amount: 10000,
+              product_data: expect.objectContaining({ name: "Consult" }),
+            }),
+          }),
+          expect.objectContaining({
+            quantity: 2,
+            price_data: expect.objectContaining({
+              unit_amount: 4500,
+              product_data: expect.objectContaining({ name: "Vaccine" }),
+            }),
+          }),
+        ],
+      }),
+    );
   });
 
   it("creates a payment intent and records a payment attempt for payable invoices", async () => {
@@ -1121,8 +1195,10 @@ describe("FinancePaymentService", () => {
 
     expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        // An invoice-level discount makes the item sum differ from the balance, so we
+        // charge the tax-inclusive balance as one line with automatic tax disabled.
         automatic_tax: {
-          enabled: true,
+          enabled: false,
         },
         line_items: [
           expect.objectContaining({

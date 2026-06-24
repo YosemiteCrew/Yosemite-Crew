@@ -169,7 +169,7 @@ describe('Forms Data and Utility Functions', () => {
       expect(flat.find((f: any) => f.id === 'painScore')?.meta?.unit).toBe('/ 10');
     });
 
-    it('should verify Discharge Form template has rich-text body sections and a single signature', () => {
+    it('should verify Discharge Form template has rich-text body sections, follow-up days and a single signature', () => {
       const template = CategoryTemplates['Discharge Form'];
       expect(template.map((f: any) => f.label)).toEqual([
         'Discharge summary',
@@ -182,7 +182,8 @@ describe('Forms Data and Utility Functions', () => {
         fields.flatMap((f) => (f.type === 'group' ? [f, ...flatten(f.fields ?? [])] : [f]));
       const flat = flatten(template as any[]);
       expect(flat.find((f: any) => f.id === 'summaryText')?.type).toBe('richtext');
-      expect(flat.find((f: any) => f.id === 'followUpDate')?.type).toBe('date');
+      expect(flat.find((f: any) => f.id === 'followUpInDays')?.type).toBe('number');
+      expect(flat.find((f: any) => f.id === 'followUpInDays')?.meta?.unit).toBe('days');
       const signatureFields = flat.filter((f: any) => f.type === 'signature');
       expect(signatureFields).toHaveLength(1);
     });

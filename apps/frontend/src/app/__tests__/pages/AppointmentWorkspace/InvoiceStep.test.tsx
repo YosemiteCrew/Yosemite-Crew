@@ -932,4 +932,182 @@ describe('InvoiceStep', () => {
 
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  // Bug 9: saved Treatment items (Services/Packages + in-house prescriptions) are
+  // auto-added to the Total Bill so they can be billed/paid without re-adding by search.
+  describe('auto-seeds saved treatment items into the Total Bill', () => {
+    // Subscribe to the store so an auto-seed write (or a manual remove) re-renders
+    // the step with the fresh encounter, matching production.
+    const StoreBoundInvoice = ({ organisationId }: { organisationId?: string }) => {
+      const encounter = useAppointmentWorkspaceStore((s) => s.encountersById[APPT]);
+      return (
+        <InvoiceStep
+          appointmentId={APPT}
+          encounter={encounter as AppointmentEncounter}
+          organisationId={organisationId}
+          onOpenSummary={jest.fn()}
+        />
+      );
+    };
+
+    const seedFor = (overrides: Partial<AppointmentEncounter>) => {
+      seedAndGet();
+      useAppointmentWorkspaceStore.setState((state) => ({
+        encountersById: {
+          ...state.encountersById,
+          [APPT]: {
+            ...state.encountersById[APPT],
+            services: [],
+            prescription: [],
+            invoiceLineItems: [],
+            pastInvoices: [],
+            ...overrides,
+          },
+        },
+      }));
+    };
+
+    it('preserves qty and unit price (lossless map, not qty 1)', async () => {
+      seedFor({
+        services: [
+          {
+            id: 's1',
+            refId: 'r1',
+            kind: 'SERVICE',
+            name: 'Ultrasound',
+            qty: 3,
+            unitPriceCents: 500,
+            amountCents: 1500,
+          },
+        ],
+      });
+      render(<StoreBoundInvoice organisationId="org-1" />);
+
+      await waitFor(() =>
+        expect(getEnc().invoiceLineItems.some((i) => i.name === 'Ultrasound')).toBe(true)
+      );
+      const line = getEnc().invoiceLineItems.find((i) => i.name === 'Ultrasound')!;
+      expect(line.unitPriceCents).toBe(500);
+      expect(line.qty).toBe(3);
+      expect(line.grossCents).toBe(1500);
+      expect(line.amountCents).toBe(1500);
+    });
+
+    it('does not double-add a service already on the bill (name dedup)', async () => {
+      seedFor({
+        services: [
+          {
+            id: 's1',
+            refId: 'r1',
+            kind: 'SERVICE',
+            name: 'Bandage change',
+            qty: 1,
+            unitPriceCents: 6000,
+            amountCents: 6000,
+          },
+        ],
+        invoiceLineItems: [
+          {
+            id: 'inv-x',
+            name: 'Bandage change',
+            unitPriceCents: 6000,
+            qty: 1,
+            grossCents: 6000,
+            discountCents: 0,
+            amountCents: 6000,
+          },
+        ],
+      });
+      render(<StoreBoundInvoice organisationId="org-1" />);
+
+      await waitFor(() => expect(mockLoadAppointmentBilling).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(getEnc().invoiceLineItems.filter((i) => i.name === 'Bandage change')).toHaveLength(1)
+      );
+    });
+
+    it('excludes already-billed services', async () => {
+      seedFor({
+        services: [
+          {
+            id: 's1',
+            refId: 'r1',
+            kind: 'SERVICE',
+            name: 'Old service',
+            qty: 1,
+            unitPriceCents: 3000,
+            amountCents: 3000,
+            billed: true,
+          },
+          {
+            id: 's2',
+            refId: 'r2',
+            kind: 'SERVICE',
+            name: 'New service',
+            qty: 1,
+            unitPriceCents: 4000,
+            amountCents: 4000,
+          },
+        ],
+      });
+      render(<StoreBoundInvoice organisationId="org-1" />);
+
+      await waitFor(() =>
+        expect(getEnc().invoiceLineItems.some((i) => i.name === 'New service')).toBe(true)
+      );
+      expect(getEnc().invoiceLineItems.some((i) => i.name === 'Old service')).toBe(false);
+    });
+
+    it('seeds priced in-house prescriptions only (not prescription-only or zero-price)', async () => {
+      seedFor({
+        prescription: [
+          { id: 'p1', medicineName: 'Amoxicillin', fulfillment: 'IN_HOUSE', priceCents: 800 },
+          {
+            id: 'p2',
+            medicineName: 'Take-home Rx',
+            fulfillment: 'PRESCRIPTION_ONLY',
+            priceCents: 900,
+          },
+          { id: 'p3', medicineName: 'Zero price', fulfillment: 'IN_HOUSE', priceCents: 0 },
+        ],
+      });
+      render(<StoreBoundInvoice organisationId="org-1" />);
+
+      await waitFor(() =>
+        expect(getEnc().invoiceLineItems.some((i) => i.name === 'Amoxicillin')).toBe(true)
+      );
+      const names = getEnc().invoiceLineItems.map((i) => i.name);
+      expect(names).not.toContain('Take-home Rx');
+      expect(names).not.toContain('Zero price');
+    });
+
+    it('does not re-seed a line the clinician removed', async () => {
+      seedFor({
+        services: [
+          {
+            id: 's1',
+            refId: 'r1',
+            kind: 'SERVICE',
+            name: 'Removable',
+            qty: 1,
+            unitPriceCents: 1000,
+            amountCents: 1000,
+          },
+        ],
+      });
+      render(<StoreBoundInvoice organisationId="org-1" />);
+
+      await waitFor(() =>
+        expect(getEnc().invoiceLineItems.some((i) => i.name === 'Removable')).toBe(true)
+      );
+      const id = getEnc().invoiceLineItems.find((i) => i.name === 'Removable')!.id;
+      act(() => {
+        useAppointmentWorkspaceStore.getState().removeInvoiceLineItem(APPT, id);
+      });
+      // The re-render must not snap the removed line back in.
+      await waitFor(() =>
+        expect(getEnc().invoiceLineItems.some((i) => i.name === 'Removable')).toBe(false)
+      );
+    });
+  });
 });

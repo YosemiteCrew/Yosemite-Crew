@@ -368,6 +368,32 @@ describe("PrescriptionController", () => {
     expect(sendMock).toHaveBeenCalledWith(pdf);
   });
 
+  it("streams a prescription label PDF via the labels endpoint alias", async () => {
+    const pdf = Buffer.from("%PDF-label");
+    mockedRenderLabelPdf.mockResolvedValueOnce(pdf);
+
+    await PrescriptionController.generateLabels(
+      req as Request,
+      res as Response,
+    );
+
+    expect(mockedRenderLabelPdf).toHaveBeenCalledWith({
+      organisationId: "org-1",
+      prescriptionId: "rx-1",
+    });
+    expect(setHeaderMock).toHaveBeenCalledWith(
+      "Content-Type",
+      "application/pdf",
+    );
+    expect(setHeaderMock).toHaveBeenCalledWith("Cache-Control", "no-store");
+    expect(setHeaderMock).toHaveBeenCalledWith(
+      "Content-Disposition",
+      'inline; filename="prescription-label-rx-1.pdf"',
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(sendMock).toHaveBeenCalledWith(pdf);
+  });
+
   it("returns 404 when the prescription label is not found", async () => {
     mockedRenderLabelPdf.mockRejectedValueOnce(
       new Error("Prescription not found"),

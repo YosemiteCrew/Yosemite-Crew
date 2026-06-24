@@ -8,6 +8,7 @@ const PrescriptionController = {
   listDispenseRequests: jest.fn(),
   getDispenseRequest: jest.fn(),
   generateLabelPdf: jest.fn(),
+  generateLabels: jest.fn(),
   finalize: jest.fn(),
   reserve: jest.fn(),
   notDispensed: jest.fn(),
@@ -114,6 +115,15 @@ describe("prescription.router", () => {
       ),
     ).toBeDefined();
     expect(requirePermission).toHaveBeenCalledWith(["prescription:view:any"]);
+  });
+
+  it("exposes the prescription label POST route for workspace-style PDF generation", () => {
+    expect(
+      findRoute(
+        "/organisations/:organisationId/:prescriptionId/labels",
+        "post",
+      ),
+    ).toBeDefined();
   });
 
   it("does not shadow the action routes with the label route", () => {

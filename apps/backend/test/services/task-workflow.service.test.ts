@@ -257,6 +257,7 @@ describe("TaskWorkflowService", () => {
       taskSchedule: null,
     });
     mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+      appointmentKind: "OUTPATIENT",
       patient: { parent: { id: "parent-1" } },
       lead: { id: "lead-1" },
       supportStaff: [{ id: "staff-1" }],
@@ -308,6 +309,50 @@ describe("TaskWorkflowService", () => {
         notify: false,
       }),
     );
+  });
+
+  it("rejects care pathway launches outside an inpatient context", async () => {
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-inpatient",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: null,
+      templateId: "template-inpatient",
+      templateVersion: 1,
+      authorId: "creator-1",
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T08:00:00.000Z"),
+      data: {},
+      template: {
+        id: "template-inpatient",
+        kind: "CARE_PATHWAY",
+        ownership: "ORG_TEMPLATE",
+      },
+      taskSchedule: null,
+    });
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+      appointmentKind: "OUTPATIENT",
+      patient: { parent: { id: "parent-1" } },
+      lead: { id: "lead-1" },
+      supportStaff: [{ id: "staff-1" }],
+      startTime: new Date("2026-01-01T08:00:00.000Z"),
+      encounterId: null,
+    });
+
+    await expect(
+      TaskWorkflowService.launchFromTemplateInstance(
+        "instance-inpatient",
+        "org-1",
+        "creator-1",
+        { client: prisma, notify: false },
+      ),
+    ).rejects.toMatchObject({
+      message:
+        "Care pathway schedules require an inpatient appointment or admission",
+      statusCode: 400,
+    });
   });
 
   it("returns an existing generated schedule without duplicating tasks", async () => {

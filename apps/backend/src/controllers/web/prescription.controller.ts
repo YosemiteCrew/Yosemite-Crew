@@ -70,28 +70,61 @@ const respondWithAction = (
     inventoryEvents,
   });
 
+const sendPrescriptionLabelPdf = async (
+  req: Request,
+  res: Response,
+  dispositionName: string,
+) => {
+  const params = labelParamsSchema.parse({
+    organisationId: req.params.organisationId,
+    prescriptionId: req.params.prescriptionId,
+  });
+
+  const pdf = await renderPrescriptionLabelPdf({
+    organisationId: params.organisationId,
+    prescriptionId: params.prescriptionId,
+  });
+
+  res.setHeader("Content-Type", "application/pdf");
+  // Match the workspace packet response shape: a direct inline PDF buffer with a
+  // stable filename so the client can open or print it immediately.
+  res.setHeader(
+    "Content-Disposition",
+    `inline; filename="${dispositionName}-${params.prescriptionId}.pdf"`,
+  );
+  res.setHeader("Cache-Control", "no-store");
+  return res.status(200).send(pdf);
+};
+
 export const PrescriptionController = {
+  async generateLabels(req: Request, res: Response) {
+    try {
+      return await sendPrescriptionLabelPdf(req, res, "prescription-label");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid prescription label request." });
+      }
+
+      if (
+        error instanceof Error &&
+        (error.message === "Prescription not found" ||
+          error.message === "Organisation not found")
+      ) {
+        return res.status(404).json({ message: error.message });
+      }
+
+      logger.error("Failed to generate prescription label PDF", { error });
+      return res
+        .status(500)
+        .json({ message: "Failed to generate prescription label PDF." });
+    }
+  },
+
   async generateLabelPdf(req: Request, res: Response) {
     try {
-      const params = labelParamsSchema.parse({
-        organisationId: req.params.organisationId,
-        prescriptionId: req.params.prescriptionId,
-      });
-
-      const pdf = await renderPrescriptionLabelPdf({
-        organisationId: params.organisationId,
-        prescriptionId: params.prescriptionId,
-      });
-
-      res.setHeader("Content-Type", "application/pdf");
-      // The label embeds patient/client/prescriber and controlled-substance details, so the
-      // response must never be cached by browsers or shared proxies (sensitive health data).
-      res.setHeader("Cache-Control", "no-store");
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename="prescription-label-${params.prescriptionId}.pdf"`,
-      );
-      return res.status(200).send(pdf);
+      return await sendPrescriptionLabelPdf(req, res, "prescription-label");
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res

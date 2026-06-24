@@ -362,6 +362,12 @@ const updateInvoiceAfterPayment = async (params: {
           invoice.visitBillingStage === "SETTLED"
             ? "SETTLED"
             : "READY_FOR_BILLING",
+        ...(invoice.readyForBillingAt
+          ? {}
+          : {
+              readyForBillingAt: receivedAt,
+              readyForBillingActorId: "SYSTEM",
+            }),
       },
     });
   }
@@ -512,6 +518,7 @@ export const FinancePaymentService = {
         invoiceId,
         provider: "STRIPE",
         providerPaymentIntentId: { not: null },
+        status: { not: "CANCELED" },
       },
       select: { id: true },
     });
@@ -524,6 +531,7 @@ export const FinancePaymentService = {
         invoiceId,
         provider: "STRIPE",
         providerCheckoutSessionId: { not: null },
+        status: { not: "CANCELED" },
       },
       orderBy: { createdAt: "desc" },
       select: {
@@ -571,24 +579,42 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice items are missing", 400);
     }
 
-    const rawItemTotal = roundMoney(
+    // Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
+    // UNLESS we must charge a remaining/adjusted balance instead: when a prior
+    // payment or credit has been applied, or when an invoice-level adjustment makes
+    // the (discount-adjusted) item sum differ from the invoice's pre-tax total. In
+    // those cases we charge a single, tax-inclusive balance line with automatic tax
+    // disabled so the balance is never taxed twice. Comparing against the PRE-TAX
+    // total (not the balance) is what stops a plain tax line from dropping itemisation.
+    const discountedItemSum = roundMoney(
       items.reduce((sum: number, item) => {
+        const typed = item as {
+          total?: number;
+          unitPrice?: number;
+          quantity?: number;
+          discountPercent?: number;
+        };
+        if (typeof typed.total === "number") {
+          return sum + typed.total;
+        }
         const unitPrice =
-          typeof (item as { unitPrice?: unknown }).unitPrice === "number"
-            ? (item as { unitPrice: number }).unitPrice
-            : 0;
+          typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
         const quantity =
-          typeof (item as { quantity?: unknown }).quantity === "number"
-            ? (item as { quantity: number }).quantity
-            : 0;
-        return sum + unitPrice * quantity;
+          typeof typed.quantity === "number" ? typed.quantity : 0;
+        const discountPercent =
+          typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
+        return sum + unitPrice * quantity * (1 - discountPercent / 100);
       }, 0),
     );
-    const useBalanceLineItem =
-      rawItemTotal !== roundMoney(summary.balance) ||
+    const preTaxInvoiceTotal = roundMoney(
+      invoice.totalAmount -
+        (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
+    );
+    const useBalanceLine =
       summary.paid > 0 ||
-      summary.credited > 0;
-    const lineItems = useBalanceLineItem
+      summary.credited > 0 ||
+      discountedItemSum !== preTaxInvoiceTotal;
+    const lineItems = useBalanceLine
       ? [
           {
             price_data: {
@@ -601,20 +627,38 @@ export const FinancePaymentService = {
             quantity: 1,
           },
         ]
-      : items.map((item) => ({
-          price_data: {
-            currency: invoiceCurrency,
-            product_data: {
-              name: (item as { name?: string }).name ?? "Service",
-              description:
-                (item as { description?: string }).description ?? undefined,
+      : items.map((item) => {
+          const typed = item as {
+            name?: string;
+            description?: string;
+            quantity?: number;
+            unitPrice?: number;
+            discountPercent?: number;
+          };
+          const unitPrice =
+            typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
+          const discountPercent =
+            typeof typed.discountPercent === "number"
+              ? typed.discountPercent
+              : 0;
+          const effectiveUnitAmount = Math.round(
+            roundMoney(unitPrice * (1 - discountPercent / 100)) * 100,
+          );
+          return {
+            price_data: {
+              currency: invoiceCurrency,
+              product_data: {
+                name: typed.name ?? typed.description ?? "Service",
+                description: typed.description ?? undefined,
+              },
+              unit_amount: effectiveUnitAmount,
             },
-            unit_amount: Math.round(
-              (item as { unitPrice: number }).unitPrice * 100,
-            ),
-          },
-          quantity: (item as { quantity: number }).quantity,
-        }));
+            quantity:
+              typeof typed.quantity === "number" && typed.quantity > 0
+                ? typed.quantity
+                : 1,
+          };
+        });
 
     const stripe = getStripeClient();
     const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
@@ -622,7 +666,7 @@ export const FinancePaymentService = {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       automatic_tax: {
-        enabled: true,
+        enabled: !useBalanceLine,
       },
       line_items: lineItems,
       metadata: {

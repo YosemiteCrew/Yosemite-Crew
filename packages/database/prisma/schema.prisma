@@ -1375,6 +1375,7 @@ enum TemplateKind {
   DISCHARGE_SUMMARY
   TASK_TEMPLATE
   CARE_PATHWAY
+  INVOICE
 }
 
 enum RenderedDocumentStatus {
@@ -1386,6 +1387,8 @@ enum RenderedDocumentSourceKind {
   TEMPLATE_INSTANCE
   CLINICAL_ARTIFACT
   FORM_SUBMISSION
+  TASK_SCHEDULE
+  INVOICE
 }
 
 enum DocumentSignatureSignerType {
@@ -2059,6 +2062,7 @@ model Prescription {
 model PrescriptionItem {
   id             String       @id @default(uuid())
   prescriptionId String
+  sourceLineKey  String?
   medication     String
   strength       String?
   dosage         String?
@@ -2067,6 +2071,14 @@ model PrescriptionItem {
   duration       String?
   quantity       String?
   instructions   String?
+  refill         String?
+  inventoryItemId String?
+  inventoryItemSku String?
+  batchId        String?
+  batchNumber    String?
+  lotNumber      String?
+  expiryDate     DateTime?
+  metadata       Json?
   sortOrder      Int          @default(0)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -2330,6 +2342,7 @@ model TaskTemplate {
   description                 String?
   kind                        TaskKind
   defaultRole                 TaskTemplateRole
+  inpatientOnly               Boolean         @default(false)
   defaultMedication           Json?
   defaultObservationToolId    String?
   defaultRecurrence           Json?
@@ -2427,6 +2440,7 @@ model InventoryItem {
   subCategory               String?
   description               String?
   imageUrl                  String?
+  stockUnitType             String?
   attachments               Json?
   attributes                Json                 @default("{}")
   genericName               String?
@@ -2777,6 +2791,8 @@ model Invoice {
   paymentCollectionMethod  PaymentCollectionMethod  @default(PAYMENT_INTENT)
   billingCollectionMode    BillingCollectionMode    @default(PREPAY_AT_BOOKING)
   visitBillingStage        InvoiceVisitBillingStage  @default(DRAFT)
+  readyForBillingAt        DateTime?
+  readyForBillingActorId   String?
   depositTargetAmount      Float                    @default(0)
   depositCollectedAmount   Float                    @default(0)
   status                   InvoiceStatus            @default(PENDING)
@@ -2798,6 +2814,7 @@ model Invoice {
   @@index([paymentCollectionMethod])
   @@index([billingCollectionMode])
   @@index([visitBillingStage])
+  @@index([readyForBillingAt])
   @@index([taxProvider])
 }
 

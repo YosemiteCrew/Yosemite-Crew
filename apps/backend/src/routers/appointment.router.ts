@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { AppointmentController } from "../controllers/web/appointment.prisma.controller";
 import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
-import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+import {
+  requirePermission,
+  withAppointmentOrgPermissions,
+  withOrgPermissions,
+} from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -164,7 +168,7 @@ router.patch(
 router.get(
   "/pms/:organisationId/:appointmentId",
   authorizeCognito,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission([
     "appointments:view:any",
     "appointments:view:own", // vets can see if assigned

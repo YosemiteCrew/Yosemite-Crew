@@ -57,6 +57,12 @@ jest.mock("../../src/config/prisma", () => ({
       findMany: jest.fn(),
       update: jest.fn(),
     },
+    financeEvent: {
+      create: jest.fn(),
+    },
+    user: {
+      findUnique: jest.fn(),
+    },
     roomUnit: {
       findUnique: jest.fn(),
     },

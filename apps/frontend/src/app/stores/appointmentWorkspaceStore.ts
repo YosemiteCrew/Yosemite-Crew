@@ -774,8 +774,22 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
         paidFromDeposit,
         items: enc.invoiceLineItems.map((item) => ({ ...item })),
       };
+      // Mark the matching saved treatment rows as billed so the Total Bill auto-seed
+      // (InvoiceStep) does not re-add them after invoiceLineItems is cleared below.
+      const paidNames = new Set(enc.invoiceLineItems.map((item) => item.name.trim().toLowerCase()));
+      const billedAt = nowIso();
       return {
         ...enc,
+        services: enc.services.map((service) =>
+          paidNames.has(service.name.trim().toLowerCase())
+            ? { ...service, billed: true, billedAt, billedByName: payment.byName }
+            : service
+        ),
+        prescription: enc.prescription.map((rx) =>
+          paidNames.has(rx.medicineName.trim().toLowerCase())
+            ? { ...rx, billed: true, billedAt, billedByName: payment.byName }
+            : rx
+        ),
         pastInvoices: [invoice, ...enc.pastInvoices],
         invoiceLineItems: [],
         depositCents: paidFromDeposit

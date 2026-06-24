@@ -132,8 +132,7 @@ export const CANONICAL_SOAP_STRUCTURE: TemplateSchemaSnapshot = {
       title: 'Subjective',
       order: 1,
       fields: [
-        { key: 'chiefComplaint', label: 'Chief complaint', type: 'text', order: 1 },
-        { key: 'subjective', label: 'Subjective', type: 'richText', required: true, order: 2 },
+        { key: 'subjective', label: 'Subjective', type: 'richText', required: true, order: 1 },
       ],
     },
     {
@@ -193,13 +192,77 @@ export const CANONICAL_DISCHARGE_STRUCTURE: TemplateSchemaSnapshot = {
       id: 'follow_up',
       title: 'Follow up',
       order: 4,
-      fields: [{ key: 'followUpDate', label: 'Follow-up date', type: 'date', order: 1 }],
+      fields: [
+        {
+          key: 'followUpInDays',
+          label: 'Follow-up in days',
+          type: 'number',
+          order: 1,
+          rules: { unit: 'days' },
+        },
+      ],
     },
     {
       id: 'signature',
       title: 'Signature',
       order: 5,
       fields: [{ key: 'signature', label: 'Signature', type: 'signature', order: 1 }],
+    },
+  ],
+};
+
+export const CANONICAL_PRESCRIPTION_STRUCTURE: TemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: 'medications',
+      title: 'Medications',
+      order: 1,
+      fields: [
+        {
+          key: 'medicationLine',
+          label: 'Medication lines',
+          type: 'medicationLine',
+          repeatable: true,
+          required: true,
+          order: 1,
+          rules: {
+            columns: [
+              'inventoryItemId',
+              'dosage',
+              'frequency',
+              'durationDays',
+              'instructions',
+              'qty',
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: 'instructions',
+      title: 'Instructions',
+      order: 2,
+      fields: [
+        {
+          key: 'usageInstructions',
+          label: 'Usage instructions',
+          type: 'instructionBlock',
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: 'notes',
+      title: 'Notes',
+      order: 3,
+      fields: [
+        {
+          key: 'clinicalNotes',
+          label: 'Clinical notes',
+          type: 'richText',
+          order: 1,
+        },
+      ],
     },
   ],
 };
@@ -248,14 +311,8 @@ export const CANONICAL_VITALS_STRUCTURE: TemplateSchemaSnapshot = {
   ],
 };
 
-/** Ordered workspace SOAP editor keys (chief complaint + the four S/O/A/P rich-text fields). */
-export const CANONICAL_SOAP_FIELD_KEYS = [
-  'chiefComplaint',
-  'subjective',
-  'objective',
-  'assessment',
-  'plan',
-] as const;
+/** Ordered workspace SOAP editor keys (the four S/O/A/P rich-text fields). */
+export const CANONICAL_SOAP_FIELD_KEYS = ['subjective', 'objective', 'assessment', 'plan'] as const;
 
 export interface TemplateVersionLike {
   id: string;

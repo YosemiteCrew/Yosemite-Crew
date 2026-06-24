@@ -3,8 +3,14 @@ import type { Router } from "express";
 const authorizeCognito = jest.fn((_req, _res, next) => next());
 const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
 const orgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
+const appointmentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
+  next(),
+);
 const permissionMiddleware = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => orgPermissionsMiddleware);
+const withAppointmentOrgPermissions = jest.fn(
+  () => appointmentOrgPermissionsMiddleware,
+);
 const requirePermission = jest.fn(() => permissionMiddleware);
 
 const AppointmentController = {
@@ -40,6 +46,7 @@ jest.mock("../../src/middlewares/auth", () => ({
 
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions,
+  withAppointmentOrgPermissions,
   requirePermission,
 }));
 
@@ -89,5 +96,14 @@ describe("appointment.router", () => {
     );
     expect(AppointmentController.admitFromPMS).toHaveBeenCalledTimes(0);
     expect(requirePermission).toHaveBeenCalledWith("appointments:edit:any");
+  });
+
+  it("binds appointment detail reads through appointment org permissions", () => {
+    const detailRoute = findRoute("/pms/:organisationId/:appointmentId", "get");
+
+    expect(detailRoute).toBeDefined();
+    expect(detailRoute?.stack.map((layer) => layer.handle)).toContain(
+      appointmentOrgPermissionsMiddleware,
+    );
   });
 });

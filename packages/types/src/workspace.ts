@@ -224,6 +224,10 @@ export interface WorkspaceBootstrapResponse {
   permissions: WorkspacePermissionSnapshot;
   finalizationGate: WorkspaceFinalizationGate;
   primaryAction: WorkspacePrimaryAction;
+  readyForBilling?: boolean;
+  readyForDischarge?: boolean;
+  readyForBillingByName?: string | null;
+  readyForDischargeByName?: string | null;
 }
 
 export type WorkspaceBootstrapAggregate = WorkspaceBootstrapResponse;

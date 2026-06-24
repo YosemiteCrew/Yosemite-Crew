@@ -183,6 +183,14 @@ router.post(
 );
 
 router.post(
+  "/invoices/:invoiceId/closeout",
+  authorizeCognito,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.settleInvoiceAtCloseout,
+);
+
+router.post(
   "/invoices/:invoiceId/tax/preview",
   authorizeCognito,
   withInvoiceOrgPermissions(),

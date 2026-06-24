@@ -367,6 +367,7 @@ describe("CaseEncounterController", () => {
   it("marks an encounter ready for discharge", async () => {
     req.params = { id: "enc_1" };
     req.body = { resourceType: "Parameters" };
+    (req as any).userId = "user-1";
     mockedService.markEncounterReadyForDischarge.mockResolvedValue({
       id: "enc_1",
       caseId: "case_1",
@@ -381,6 +382,7 @@ describe("CaseEncounterController", () => {
 
     expect(mockedService.markEncounterReadyForDischarge).toHaveBeenCalledWith(
       "enc_1",
+      "user-1",
     );
     expect(res.status).toHaveBeenCalledWith(200);
   });

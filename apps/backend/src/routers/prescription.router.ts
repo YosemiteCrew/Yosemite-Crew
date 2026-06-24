@@ -30,6 +30,14 @@ router.get(
 );
 
 router.post(
+  "/organisations/:organisationId/:prescriptionId/labels",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission(["prescription:view:any"]),
+  (req, res) => PrescriptionController.generateLabels(req, res),
+);
+
+router.post(
   String.raw`/organisations/:organisationId/:prescriptionId/\$finalize`,
   authorizeCognito,
   withOrgPermissions(),

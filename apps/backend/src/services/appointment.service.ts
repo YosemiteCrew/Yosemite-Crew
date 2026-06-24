@@ -1832,12 +1832,48 @@ const buildAppointmentFromInput = (
   updatedAt: new Date(),
 });
 
+// Batch-load the inpatient ward/unit for a set of appointment rows so the
+// appointments list can show "Room / Unit" without opening the workspace. The
+// link is Appointment.encounterId -> Encounter.admission -> RoomUnit.
+const buildInpatientUnitMapForAppointments = async (
+  rows: Array<{ id: string }>,
+): Promise<Map<string, { id: string; displayName: string; code: string }>> => {
+  const encounterIds = Array.from(
+    new Set(
+      rows
+        .map((row) => (row as { encounterId?: string | null }).encounterId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const unitByEncounter = new Map<
+    string,
+    { id: string; displayName: string; code: string }
+  >();
+  if (encounterIds.length === 0) {
+    return unitByEncounter;
+  }
+  const admissions = await prisma.admission.findMany({
+    where: { encounterId: { in: encounterIds } },
+    select: {
+      encounterId: true,
+      currentUnit: { select: { id: true, displayName: true, code: true } },
+    },
+  });
+  for (const admission of admissions) {
+    if (admission.currentUnit) {
+      unitByEncounter.set(admission.encounterId, admission.currentUnit);
+    }
+  }
+  return unitByEncounter;
+};
+
 const mapAppointmentsFromPrisma = async (
   rows: Array<{ id: string }>,
 ): Promise<AppointmentResponseDTO[]> => {
-  const paymentStatusMap = await buildPaymentStatusMapForAppointments(
-    rows.map((row) => row.id),
-  );
+  const [paymentStatusMap, unitByEncounter] = await Promise.all([
+    buildPaymentStatusMapForAppointments(rows.map((row) => row.id)),
+    buildInpatientUnitMapForAppointments(rows),
+  ]);
 
   return rows.map((row) => {
     const domain = attachPaymentStatus(
@@ -1846,7 +1882,26 @@ const mapAppointmentsFromPrisma = async (
       ),
       paymentStatusMap.get(row.id) ?? "UNPAID",
     );
-    return toAppointmentResponseDTO(domain);
+    const encounterId = (row as { encounterId?: string | null }).encounterId;
+    const unit = encounterId ? unitByEncounter.get(encounterId) : undefined;
+    const withUnit =
+      unit && domain.room
+        ? {
+            ...domain,
+            room: {
+              ...domain.room,
+              unitId: unit.id,
+              unitName: unit.displayName,
+              unit: {
+                id: unit.id,
+                name: unit.displayName,
+                displayName: unit.displayName,
+                code: unit.code,
+              },
+            },
+          }
+        : domain;
+    return toAppointmentResponseDTO(withUnit);
   });
 };
 

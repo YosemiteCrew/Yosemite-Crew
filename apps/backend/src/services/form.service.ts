@@ -945,6 +945,11 @@ const buildTemplateAppointmentFormItems = async (params: {
     return null;
   }
 
+  await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
+    organisationId: params.organisationId,
+    appointmentId: params.appointmentId,
+  });
+
   const assignments = await FormAssignmentService.listForAppointment(
     params.organisationId,
     params.appointmentId,

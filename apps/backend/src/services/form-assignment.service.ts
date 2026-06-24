@@ -5,6 +5,7 @@ import {
 } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
+import { TemplateService } from "src/services/template.service";
 import type {
   FormAssignmentCreateInput,
   FormAssignmentLike,
@@ -50,6 +51,8 @@ type AppointmentRow = {
   id: string;
   organisationId: string;
   encounterId: string | null;
+  productItemId: string | null;
+  appointmentKind: string | null;
   patient: unknown;
 };
 
@@ -111,6 +114,11 @@ const getNestedString = (
 
 const resolvePatientId = (patient: unknown): string | undefined =>
   getNestedString(patient, ["id"]);
+
+const resolvePatientSpecies = (patient: unknown): string | undefined =>
+  getNestedString(patient, ["species"]) ??
+  getNestedString(patient, ["speciesName"]) ??
+  getNestedString(patient, ["type"]);
 
 const resolveAppointmentParent = (patient: unknown) => ({
   parentId: getNestedString(patient, ["parent", "id"]) ?? null,
@@ -471,6 +479,8 @@ const loadAppointment = async (
       id: true,
       organisationId: true,
       encounterId: true,
+      productItemId: true,
+      appointmentKind: true,
       patient: true,
     },
   })) as AppointmentRow | null;
@@ -537,7 +547,69 @@ const isSubmittableAssignmentStatus = (status: FormAssignmentDbStatus) =>
 const isSignableAssignmentStatus = (status: FormAssignmentDbStatus) =>
   status === "SENT" || status === "VIEWED" || status === "SUBMITTED";
 
+const AUTO_ASSIGN_TEMPLATE_KINDS: Array<"FORM" | "CONSENT"> = [
+  "FORM",
+  "CONSENT",
+];
+
+const syncLinkedTemplateAssignmentsForAppointment = async (params: {
+  organisationId: string;
+  appointmentId: string;
+}) => {
+  const appointment = await loadAppointment(
+    params.organisationId,
+    params.appointmentId,
+  );
+
+  if (!appointment.productItemId) {
+    return;
+  }
+
+  const species = resolvePatientSpecies(appointment.patient);
+  const resolveInput = {
+    organisationId: params.organisationId,
+    appointmentId: appointment.id,
+    encounterId: appointment.encounterId ?? undefined,
+    serviceId: appointment.productItemId,
+    species,
+  };
+
+  for (const kind of AUTO_ASSIGN_TEMPLATE_KINDS) {
+    try {
+      const resolved = await TemplateService.resolve({
+        ...resolveInput,
+        kind,
+      });
+
+      const existing = await prisma.formAssignment.findFirst({
+        where: {
+          organisationId: params.organisationId,
+          appointmentId: appointment.id,
+          templateId: resolved.templateId,
+        },
+        select: { id: true },
+      });
+
+      if (existing) {
+        continue;
+      }
+
+      await FormAssignmentService.createForAppointment({
+        organisationId: params.organisationId,
+        appointmentId: appointment.id,
+        templateId: resolved.templateId,
+        templateVersion: resolved.templateVersion,
+        createdBy: "SYSTEM",
+      });
+    } catch {
+      continue;
+    }
+  }
+};
+
 export const FormAssignmentService = {
+  syncLinkedTemplateAssignmentsForAppointment:
+    syncLinkedTemplateAssignmentsForAppointment,
   async createForAppointment(input: FormAssignmentCreateInput) {
     const parsed = createFormAssignmentSchema.parse(input);
     const version = await ensureTemplate(

@@ -188,6 +188,12 @@ const RecordInvoicePaymentBodySchema = z.object({
   receivedAt: z.string().datetime().optional(),
 });
 
+const CloseoutInvoiceBodySchema = z.object({
+  settlementChannel: z.string().trim().min(1).optional(),
+  reference: z.string().trim().min(1).optional(),
+  receivedAt: z.string().datetime().optional(),
+});
+
 const RefundPaymentBodySchema = z.object({
   amount: z.number().positive(),
   reason: z.string().trim().min(1).optional(),
@@ -516,6 +522,60 @@ export const FinanceController = {
           : "Internal server error";
 
       logger.error("Error finalizing invoice", error);
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async settleInvoiceAtCloseout(this: void, req: Request, res: Response) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const body = CloseoutInvoiceBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const invoice = await InvoiceService.settleInvoiceAtCloseout(
+        invoiceId,
+        organisationId,
+        {
+          settlementChannel: body.data.settlementChannel as
+            | "CASH"
+            | "BANK_TRANSFER"
+            | "CARD_PRESENT"
+            | "DEPOSIT"
+            | "OTHER"
+            | undefined,
+          reference: body.data.reference,
+          receivedAt: body.data.receivedAt
+            ? new Date(body.data.receivedAt)
+            : undefined,
+        },
+      );
+
+      return res.status(200).json(toFinanceSuccess(invoice));
+    } catch (error) {
+      const statusCode =
+        error instanceof InvoiceServiceError
+          ? error.statusCode
+          : error instanceof FinancePaymentError
+            ? error.statusCode
+            : 500;
+      const message =
+        error instanceof InvoiceServiceError ||
+        error instanceof FinancePaymentError
+          ? error.message
+          : "Internal server error";
+
+      logger.error("Error settling invoice at closeout", error);
       return res.status(statusCode).json({ message });
     }
   },

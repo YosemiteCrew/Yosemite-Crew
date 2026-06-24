@@ -13,6 +13,7 @@ import type {
 import { savePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
 import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
+import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
 import {
   getAppointmentWorkspaceBootstrap,
   normalizeWorkspaceBootstrapForEncounter,
@@ -61,10 +62,6 @@ type TreatmentStepProps = {
   authorId?: string;
   encounter: AppointmentEncounter;
   onOpenInvoice: () => void;
-};
-
-const handlePrint = () => {
-  globalThis.window.print();
 };
 
 const PRESCRIPTION_INVENTORY_CATEGORIES = new Set([
@@ -196,6 +193,7 @@ const TreatmentStep = ({
   const loadSpecialityCatalog = useRevampCatalogStore((s) => s.loadSpecialityCatalog);
   const hydratePackageDetail = useRevampCatalogStore((s) => s.hydratePackageDetail);
   const [prescriptionError, setPrescriptionError] = useState<string | null>(null);
+  const [printingLabels, setPrintingLabels] = useState(false);
   const [scheduleTemplates, setScheduleTemplates] = useState<TemplateLike[]>([]);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [treatmentSaveError, setTreatmentSaveError] = useState<string | null>(null);
@@ -588,6 +586,36 @@ const TreatmentStep = ({
     onOpenInvoice();
   };
 
+  // Print the dispensary-style label PDF for each saved prescription item, mirroring
+  // the dispensary modal (GET .../prescriptions/.../:prescriptionId/label.pdf as a blob).
+  // Only persisted items (with an id) have a printable label.
+  const handlePrintPrescriptionLabels = async () => {
+    if (printingLabels || !organisationId) return;
+    const printable = encounter.prescription.filter((rx) => rx.id);
+    if (printable.length === 0) {
+      setPrescriptionError('Save the treatment before printing prescription labels.');
+      return;
+    }
+    setPrescriptionError(null);
+    setPrintingLabels(true);
+    try {
+      const blobs = await Promise.all(
+        printable.map((rx) => fetchPrescriptionLabelPdf(organisationId, rx.id))
+      );
+      blobs.forEach((blob) => {
+        const url = URL.createObjectURL(blob);
+        const win = globalThis.window.open(url, '_blank');
+        win?.focus();
+        globalThis.window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      });
+    } catch (error) {
+      console.error('Failed to print prescription labels:', error);
+      setPrescriptionError('Unable to print prescription labels. Please try again.');
+    } finally {
+      setPrintingLabels(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5">
       {isInpatient && (
@@ -631,7 +659,7 @@ const TreatmentStep = ({
         onAddItem={handleAddPrescription}
         onUpdateItem={(id, patch) => updatePrescription(appointmentId, id, patch)}
         onRemoveItem={(id) => removePrescription(appointmentId, id)}
-        onPrint={handlePrint}
+        onPrint={() => void handlePrintPrescriptionLabels()}
       />
       {prescriptionError && <p className="text-caption-1 text-red-600">{prescriptionError}</p>}
 
@@ -643,9 +671,10 @@ const TreatmentStep = ({
 
       <div className="flex flex-wrap justify-between gap-3">
         <Secondary
-          text="Prescription"
+          text={printingLabels ? 'Printing…' : 'Prescription'}
           icon={<LuPrinter aria-hidden="true" />}
-          onClick={handlePrint}
+          onClick={() => void handlePrintPrescriptionLabels()}
+          isDisabled={printingLabels}
         />
         <Primary
           text={isSavingTreatment ? 'Saving…' : 'Save treatment'}

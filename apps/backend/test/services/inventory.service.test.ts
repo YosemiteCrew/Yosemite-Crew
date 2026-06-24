@@ -125,10 +125,18 @@ describe("Inventory service", () => {
       category: "Consumables",
       businessType: "HOSPITAL",
       initialOnHand: 2,
+      stockUnitType: "bottle",
       batches: [{ quantity: 3 }],
     });
 
-    expect(prisma.inventoryItem.create).toHaveBeenCalled();
+    expect(prisma.inventoryItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          stockUnitType: "bottle",
+          unitOfMeasure: "bottle",
+        }),
+      }),
+    );
     expect(result.item.id).toBe("item-1");
     expect(result.batches).toHaveLength(1);
   });
@@ -167,11 +175,18 @@ describe("Inventory service", () => {
 
     const result = await InventoryService.updateItem(
       "item-1",
-      { name: "Updated" },
+      { name: "Updated", stockUnitType: "bottle" },
       "org-1",
     );
 
-    expect(prisma.inventoryItem.update).toHaveBeenCalled();
+    expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          stockUnitType: "bottle",
+          unitOfMeasure: "bottle",
+        }),
+      }),
+    );
     expect(result.item.name).toBe("Updated");
   });
 

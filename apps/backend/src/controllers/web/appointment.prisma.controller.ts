@@ -307,6 +307,7 @@ export const AppointmentController = {
     try {
       await InvoiceService.markAppointmentReadyForBilling(
         req.params.appointmentId,
+        resolveUserIdFromRequest(req),
       );
       return res
         .status(200)

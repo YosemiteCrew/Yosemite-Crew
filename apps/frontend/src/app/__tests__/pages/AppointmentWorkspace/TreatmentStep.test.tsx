@@ -9,6 +9,7 @@ import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import { savePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
 import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
+import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
 import {
   applyInpatientScheduleTemplate,
   createWorkspaceTemplateInstance,
@@ -24,6 +25,10 @@ import {
 
 jest.mock('@/app/features/inventory/services/inventoryService', () => ({
   fetchInventoryItems: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('@/app/features/inventory/services/dispensaryService', () => ({
+  fetchPrescriptionLabelPdf: jest.fn(),
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceAggregateService', () => ({
@@ -545,21 +550,97 @@ describe('TreatmentStep', () => {
     );
   });
 
-  it('prints prescriptions and saves treatment to invoice', () => {
-    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+  it('prints a label PDF for each saved prescription', async () => {
+    const labelBlob = new Blob(['pdf'], { type: 'application/pdf' });
+    (fetchPrescriptionLabelPdf as jest.Mock).mockResolvedValue(labelBlob);
+    const openSpy = jest
+      .spyOn(window, 'open')
+      .mockReturnValue({ focus: jest.fn() } as unknown as Window);
+    window.URL.createObjectURL = jest.fn().mockReturnValue('blob:label');
+    window.URL.revokeObjectURL = jest.fn();
+    const enc = seedAndGet();
+    const printableIds = enc.prescription.filter((rx) => rx.id).map((rx) => rx.id);
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
+
+    await waitFor(() =>
+      expect(fetchPrescriptionLabelPdf).toHaveBeenCalledTimes(printableIds.length)
+    );
+    printableIds.forEach((id) => expect(fetchPrescriptionLabelPdf).toHaveBeenCalledWith(ORG, id));
+    expect(openSpy).toHaveBeenCalledWith('blob:label', '_blank');
+
+    openSpy.mockRestore();
+  });
+
+  it('shows an error when there are no saved prescriptions to print', async () => {
+    const enc = { ...seedAndGet(), prescription: [] };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
+
+    expect(await screen.findByText(/save the treatment before printing/i)).toBeInTheDocument();
+    expect(fetchPrescriptionLabelPdf).not.toHaveBeenCalled();
+  });
+
+  it('completes treatment and opens the invoice', () => {
     const onOpenInvoice = jest.fn();
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={onOpenInvoice} />);
 
-    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
-    expect(printSpy).toHaveBeenCalled();
     expect(onOpenInvoice).toHaveBeenCalled();
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
       'COMPLETED'
     );
-    printSpy.mockRestore();
+  });
+
+  it('does not fetch a label when no organisation is available', () => {
+    const enc = seedAndGet();
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
+
+    expect(fetchPrescriptionLabelPdf).not.toHaveBeenCalled();
+  });
+
+  it('surfaces an error when label printing fails', async () => {
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (fetchPrescriptionLabelPdf as jest.Mock).mockRejectedValue(new Error('boom'));
+    window.URL.createObjectURL = jest.fn().mockReturnValue('blob:err');
+    window.URL.revokeObjectURL = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
+
+    expect(await screen.findByText(/unable to print prescription labels/i)).toBeInTheDocument();
+    errSpy.mockRestore();
   });
 
   it('persists staged treatment items, rehydrates, then opens the invoice', async () => {
@@ -918,15 +999,31 @@ describe('TreatmentStep', () => {
     expect(screen.getByText('No prescription items added yet.')).toBeInTheDocument();
   });
 
-  it('prints from the prescription print icon', () => {
-    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+  it('prints labels from the bottom Prescription button', async () => {
+    (fetchPrescriptionLabelPdf as jest.Mock).mockResolvedValue(
+      new Blob(['pdf'], { type: 'application/pdf' })
+    );
+    const openSpy = jest
+      .spyOn(window, 'open')
+      .mockReturnValue({ focus: jest.fn() } as unknown as Window);
+    window.URL.createObjectURL = jest.fn().mockReturnValue('blob:icon');
+    window.URL.revokeObjectURL = jest.fn();
     const enc = seedAndGet();
-    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
 
-    // The prescription print icon (top of the section) triggers print.
-    fireEvent.click(screen.getByRole('button', { name: 'Print prescription' }));
-    expect(printSpy).toHaveBeenCalled();
-    printSpy.mockRestore();
+    // The bottom "Prescription" button shares the label-print handler.
+    const buttons = screen.getAllByRole('button', { name: /prescription/i });
+    fireEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() => expect(fetchPrescriptionLabelPdf).toHaveBeenCalledWith(ORG, 'rx-1'));
+    openSpy.mockRestore();
   });
 
   it('renders read-only treatment sections without editing affordances', () => {

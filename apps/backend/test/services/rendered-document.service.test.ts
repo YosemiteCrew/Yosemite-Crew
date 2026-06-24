@@ -125,6 +125,23 @@ describe("rendered-document service", () => {
     expect(draft.pdf).toBeNull();
   });
 
+  it("builds a rendered document draft for an invoice source", () => {
+    const draft = buildRenderedDocumentDraft({
+      title: "Final Invoice",
+      source: {
+        sourceKind: "INVOICE",
+        sourceId: "invoice-1",
+        organisationId: "org-123",
+        templateKind: "INVOICE",
+      },
+    });
+
+    expect(draft.kind).toBe("INVOICE");
+    expect(draft.signable).toBe(false);
+    expect(draft.source.sourceKind).toBe("INVOICE");
+    expect(draft.source.templateKind).toBe("INVOICE");
+  });
+
   it("builds a rendered document pdf snapshot", () => {
     const draft = buildRenderedDocumentDraft({
       title: "Intake Consent",
@@ -460,6 +477,72 @@ describe("rendered-document service", () => {
         pdf: Buffer.from("pdf"),
       }),
     );
+  });
+
+  it("persists a rendered invoice document draft", async () => {
+    mockedPrisma.renderedDocument.create.mockResolvedValueOnce({
+      id: "invoice-doc-1",
+      organisationId: "org-123",
+      sourceKind: "INVOICE",
+      sourceId: "invoice-123",
+      templateInstanceId: null,
+      clinicalArtifactId: null,
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      kind: "INVOICE",
+      version: 1,
+      title: "Final Invoice",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: false,
+      pdfUrl: null,
+      pdf: {
+        version: 1,
+        renderer: "rendered-document-renderer.service",
+        renderedAt: "2026-06-13T00:00:00.000Z",
+        title: "Final Invoice",
+        mimeType: "application/pdf",
+        documentKind: "INVOICE",
+        source: {
+          sourceKind: "INVOICE",
+          sourceId: "invoice-123",
+          organisationId: "org-123",
+          templateKind: "INVOICE",
+        },
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-13T00:00:00.000Z"),
+      signature: null,
+    });
+
+    const result = await createRenderedDocumentRecord({
+      title: "Final Invoice",
+      source: {
+        sourceKind: "INVOICE",
+        sourceId: "invoice-123",
+        organisationId: "org-123",
+        templateKind: "INVOICE",
+      },
+    });
+
+    expect(mockedPrisma.renderedDocument.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sourceKind: "INVOICE",
+          sourceId: "invoice-123",
+          kind: "INVOICE",
+          title: "Final Invoice",
+          signable: false,
+        }),
+        include: { signature: true },
+      }),
+    );
+    expect(result.kind).toBe("INVOICE");
+    expect(result.sourceKind).toBe("INVOICE");
+    expect(result.sourceId).toBe("invoice-123");
   });
 
   it("uses the stored pdfUrl for clinical documents", async () => {

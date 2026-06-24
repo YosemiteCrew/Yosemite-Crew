@@ -77,6 +77,7 @@ export type CatalogProductListFilters = {
   includeInactive?: boolean;
   active?: boolean;
   search?: string;
+  supportsInpatient?: boolean;
 };
 
 export type CatalogProductView = {
@@ -2118,6 +2119,15 @@ export const CatalogService = {
                   },
                 },
               ],
+            }
+          : {}),
+        ...(typeof filters.supportsInpatient === "boolean"
+          ? {
+              bookable: {
+                is: {
+                  supportsInpatient: filters.supportsInpatient,
+                },
+              },
             }
           : {}),
       },

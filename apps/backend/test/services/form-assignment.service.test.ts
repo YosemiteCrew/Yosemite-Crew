@@ -3,6 +3,13 @@ import {
   FormAssignmentService,
   FormAssignmentServiceError,
 } from "../../src/services/form-assignment.service";
+import { TemplateService } from "src/services/template.service";
+
+jest.mock("src/services/template.service", () => ({
+  TemplateService: {
+    resolve: jest.fn(),
+  },
+}));
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -40,6 +47,9 @@ describe("FormAssignmentService", () => {
     parent: { findMany: jest.Mock };
     templateInstance: { findMany: jest.Mock };
   };
+  const mockedTemplateService = TemplateService as unknown as {
+    resolve: jest.Mock;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -48,6 +58,7 @@ describe("FormAssignmentService", () => {
     mockedPrisma.templateVersion.findFirst.mockReset();
     mockedPrisma.appointment.findFirst.mockReset();
     mockedPrisma.formSubmission.findMany.mockReset();
+    mockedTemplateService.resolve.mockReset();
     mockedPrisma.formAssignment.create.mockReset();
     mockedPrisma.formAssignment.findFirst.mockReset();
     mockedPrisma.formAssignment.findMany.mockReset();
@@ -67,6 +78,8 @@ describe("FormAssignmentService", () => {
       id: "appt-1",
       organisationId: "org-1",
       encounterId: "enc-1",
+      productItemId: "svc-1",
+      appointmentKind: "OUTPATIENT",
       patient: { id: "comp-1" },
     });
     mockedPrisma.formAssignment.create.mockResolvedValue({
@@ -127,6 +140,20 @@ describe("FormAssignmentService", () => {
     );
     mockedPrisma.formAssignment.updateMany.mockResolvedValue({ count: 0 });
     mockedPrisma.formSubmission.findMany.mockResolvedValue([]);
+    mockedTemplateService.resolve.mockResolvedValue({
+      templateId: "template-1",
+      templateVersion: 2,
+      templateVersionId: "template-version-1",
+      source: "ORGANISATION",
+      ownerUserId: null,
+      kind: "FORM",
+      name: "Consent",
+      schemaSnapshot: { sections: [] },
+      renderConfigSnapshot: null,
+      validationSnapshot: null,
+      appliesTo: null,
+      reason: "linked",
+    });
   });
 
   it("creates a sent assignment from a template-backed form", async () => {
@@ -185,6 +212,35 @@ describe("FormAssignmentService", () => {
           templateId: "template-1",
           version: 2,
         },
+      }),
+    );
+  });
+
+  it("syncs linked templates once per appointment", async () => {
+    mockedPrisma.formAssignment.findFirst.mockResolvedValueOnce(null);
+
+    await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+    });
+
+    expect(mockedTemplateService.resolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organisationId: "org-1",
+        appointmentId: "appt-1",
+        encounterId: "enc-1",
+        serviceId: "svc-1",
+        species: undefined,
+        kind: "FORM",
+      }),
+    );
+    expect(mockedPrisma.formAssignment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          createdBy: "SYSTEM",
+          templateId: "template-1",
+          templateVersion: 2,
+        }),
       }),
     );
   });

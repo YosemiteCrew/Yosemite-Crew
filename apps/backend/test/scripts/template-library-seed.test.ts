@@ -51,22 +51,56 @@ describe("template-library-seed", () => {
     const fieldKeys = soap?.schemaSnapshot.sections.flatMap((section) =>
       section.fields.map((field) => field.key),
     );
-    expect(fieldKeys).toEqual(
-      expect.arrayContaining([
-        "chiefComplaint",
-        "subjective",
-        "objective",
-        "assessment",
-        "plan",
-      ]),
-    );
+    expect(fieldKeys).toEqual([
+      "subjective",
+      "objective",
+      "assessment",
+      "plan",
+    ]);
     const soapBodyFields = soap?.schemaSnapshot.sections
       .flatMap((section) => section.fields)
-      .filter((field) =>
-        ["subjective", "objective", "assessment", "plan"].includes(field.key),
-      );
+      .filter((field) => field.key !== undefined);
     expect(soapBodyFields?.every((field) => field.type === "richText")).toBe(
       true,
+    );
+
+    const discharge = DEFAULT_LIBRARY_TEMPLATE_SEEDS.find(
+      (seed) => seed.kind === "DISCHARGE_SUMMARY",
+    );
+    expect(discharge?.schemaSnapshot.sections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "follow_up",
+          fields: [
+            expect.objectContaining({
+              key: "followUpInDays",
+              type: "number",
+              rules: { unit: "days" },
+            }),
+          ],
+        }),
+      ]),
+    );
+
+    const prescription = DEFAULT_LIBRARY_TEMPLATE_SEEDS.find(
+      (seed) => seed.kind === "PRESCRIPTION",
+    );
+    expect(prescription?.schemaSnapshot.sections[0].fields[0]).toEqual(
+      expect.objectContaining({
+        key: "medicationLine",
+        type: "medicationLine",
+        repeatable: true,
+        rules: {
+          columns: [
+            "inventoryItemId",
+            "dosage",
+            "frequency",
+            "durationDays",
+            "instructions",
+            "qty",
+          ],
+        },
+      }),
     );
   });
 });

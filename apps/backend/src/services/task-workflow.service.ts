@@ -1,4 +1,4 @@
-import { Prisma, TemplateKind } from "@prisma/client";
+import { AppointmentKind, Prisma, TemplateKind } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import {
   materializeTaskWorkflowSeeds,
@@ -50,6 +50,7 @@ type AppointmentContext = {
   supportStaffIds: string[];
   anchorAt: Date;
   admissionAt: Date;
+  isInpatient: boolean;
 };
 
 const toTaskScheduleLike = (row: TaskScheduleRow): TaskScheduleLike => ({
@@ -250,6 +251,7 @@ const loadAppointmentContext = async (
     ? await client.appointment.findFirst({
         where: { id: templateInstance.appointmentId },
         select: {
+          appointmentKind: true,
           patient: true,
           lead: true,
           supportStaff: true,
@@ -273,6 +275,9 @@ const loadAppointmentContext = async (
     templateInstance.signedAt ??
     templateInstance.createdAt;
   const admissionAt = admission?.admittedAt ?? anchorAt;
+  const isInpatient =
+    appointment?.appointmentKind === AppointmentKind.INPATIENT ||
+    admission !== null;
 
   return {
     patientId: getAppointmentCompanionId(appointment?.patient),
@@ -281,6 +286,7 @@ const loadAppointmentContext = async (
     supportStaffIds: getSupportStaffIds(appointment?.supportStaff),
     anchorAt,
     admissionAt,
+    isInpatient,
   };
 };
 
@@ -370,6 +376,17 @@ const launchWorkflowInstance = async (
   }
 
   const context = await loadAppointmentContext(client, instance);
+
+  if (
+    instance.template.kind === TemplateKind.CARE_PATHWAY &&
+    !context.isInpatient
+  ) {
+    throw new TaskWorkflowServiceError(
+      "Care pathway schedules require an inpatient appointment or admission",
+      400,
+    );
+  }
+
   const source = resolveSource(instance.template.ownership);
   const seeds = materializeTaskWorkflowSeeds(
     instance.template.kind,

@@ -15,6 +15,11 @@ describe("clinical template blueprints", () => {
       "assessment",
       "plan",
     ]);
+    expect(
+      snapshot.sections.flatMap((section) =>
+        section.fields.map((field) => field.key),
+      ),
+    ).toEqual(["subjective", "objective", "assessment", "plan"]);
   });
 
   it("accepts a valid SOAP note schema snapshot", () => {
@@ -38,6 +43,38 @@ describe("clinical template blueprints", () => {
       "notes",
     ]);
     expect(blueprint.sections[0].fields[0].type).toBe("medicationLine");
+    expect(blueprint.sections[0].fields[0].key).toBe("medicationLine");
+    expect(blueprint.sections[0].fields[0].rules).toEqual({
+      columns: [
+        "inventoryItemId",
+        "dosage",
+        "frequency",
+        "durationDays",
+        "instructions",
+        "qty",
+      ],
+    });
+    expect(blueprint.sections[2].fields[0]).toEqual(
+      expect.objectContaining({
+        key: "clinicalNotes",
+        type: "richText",
+      }),
+    );
+  });
+
+  it("returns a discharge blueprint using follow-up days rather than a date", () => {
+    const blueprint = getClinicalTemplateBlueprint("DISCHARGE_SUMMARY");
+    const followUpSection = blueprint.sections.find(
+      (section) => section.id === "follow_up",
+    );
+
+    expect(followUpSection?.fields[0]).toEqual(
+      expect.objectContaining({
+        key: "followUpInDays",
+        type: "number",
+        rules: { unit: "days" },
+      }),
+    );
   });
 
   it("accepts a valid vital-record schema and rejects missing sections", () => {

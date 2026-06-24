@@ -55,6 +55,7 @@ const toSearchResult = (item: Record<string, unknown>) => ({
   controlledItem: Boolean(item.controlledItem),
   expiryTrackingRequired: Boolean(item.expiryTrackingRequired),
   unitOfMeasure: asString(item.unitOfMeasure),
+  stockUnitType: asString(item.stockUnitType) ?? asString(item.unitOfMeasure),
   packageQuantity:
     typeof item.packageQuantity === "number" ? item.packageQuantity : null,
   onHand: typeof item.onHand === "number" ? item.onHand : 0,

@@ -1,9 +1,4 @@
 import { TemplateKind } from "@prisma/client";
-import {
-  CANONICAL_SOAP_STRUCTURE,
-  CANONICAL_DISCHARGE_STRUCTURE,
-  CANONICAL_VITALS_STRUCTURE,
-} from "@yosemite-crew/types";
 
 type BlueprintFieldType =
   | "text"
@@ -79,63 +74,277 @@ type SnapshotSection = {
   fields?: SnapshotField[];
 };
 
+const SOAP_NOTE_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: "subjective",
+      title: "Subjective",
+      order: 1,
+      fields: [
+        {
+          key: "subjective",
+          label: "Subjective",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "objective",
+      title: "Objective",
+      order: 2,
+      fields: [
+        {
+          key: "objective",
+          label: "Objective",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "assessment",
+      title: "Assessment",
+      order: 3,
+      fields: [
+        {
+          key: "assessment",
+          label: "Assessment",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "plan",
+      title: "Plan",
+      order: 4,
+      fields: [
+        {
+          key: "plan",
+          label: "Plan",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+  ],
+};
+
+const PRESCRIPTION_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: "medications",
+      title: "Medications",
+      order: 1,
+      fields: [
+        {
+          key: "medicationLine",
+          label: "Medication lines",
+          type: "medicationLine",
+          repeatable: true,
+          required: true,
+          order: 1,
+          rules: {
+            columns: [
+              "inventoryItemId",
+              "dosage",
+              "frequency",
+              "durationDays",
+              "instructions",
+              "qty",
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "instructions",
+      title: "Instructions",
+      order: 2,
+      fields: [
+        {
+          key: "usageInstructions",
+          label: "Usage instructions",
+          type: "instructionBlock",
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "notes",
+      title: "Notes",
+      order: 3,
+      fields: [
+        {
+          key: "clinicalNotes",
+          label: "Clinical notes",
+          type: "richText",
+          order: 1,
+        },
+      ],
+    },
+  ],
+};
+
+const DISCHARGE_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: "summary",
+      title: "Discharge summary",
+      order: 1,
+      fields: [
+        {
+          key: "summaryText",
+          label: "Discharge summary",
+          type: "richText",
+          required: true,
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "home_care",
+      title: "Home care instructions",
+      order: 2,
+      fields: [
+        {
+          key: "homeCare",
+          label: "Home care instructions",
+          type: "richText",
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "medications",
+      title: "Medications",
+      order: 3,
+      fields: [
+        {
+          key: "dischargeMedications",
+          label: "Medications",
+          type: "richText",
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "follow_up",
+      title: "Follow up",
+      order: 4,
+      fields: [
+        {
+          key: "followUpInDays",
+          label: "Follow-up in days",
+          type: "number",
+          order: 1,
+          rules: { unit: "days" },
+        },
+      ],
+    },
+    {
+      id: "signature",
+      title: "Signature",
+      order: 5,
+      fields: [
+        {
+          key: "signature",
+          label: "Signature",
+          type: "signature",
+          order: 1,
+        },
+      ],
+    },
+  ],
+};
+
+const VITALS_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
+  sections: [
+    {
+      id: "vitals",
+      title: "Vitals",
+      order: 1,
+      fields: [
+        {
+          key: "weightLbs",
+          label: "Weight",
+          type: "number",
+          order: 1,
+          rules: { unit: "lbs" },
+        },
+        {
+          key: "tempF",
+          label: "Temperature",
+          type: "number",
+          order: 2,
+          rules: { unit: "°F" },
+        },
+        {
+          key: "heartRateBpm",
+          label: "Heart rate",
+          type: "number",
+          order: 3,
+          rules: { unit: "bpm" },
+        },
+        {
+          key: "respRateBpm",
+          label: "Respiratory rate",
+          type: "number",
+          order: 4,
+          rules: { unit: "bpm" },
+        },
+        {
+          key: "crtSec",
+          label: "CRT",
+          type: "text",
+          order: 5,
+          rules: { unit: "sec" },
+        },
+        {
+          key: "mucousMembrane",
+          label: "Mucous membrane",
+          type: "text",
+          order: 6,
+        },
+        {
+          key: "painScore",
+          label: "Pain score",
+          type: "number",
+          order: 7,
+          rules: { unit: "/ 10" },
+        },
+        {
+          key: "bcs",
+          label: "BCS",
+          type: "number",
+          order: 8,
+          rules: { unit: "/ 9" },
+        },
+      ],
+    },
+    {
+      id: "notes",
+      title: "Notes",
+      order: 2,
+      fields: [{ key: "notes", label: "Notes", type: "richText", order: 1 }],
+    },
+  ],
+};
+
 const clinicalBlueprints: Record<
   ClinicalTemplateKind,
   ClinicalTemplateSchemaSnapshot
 > = {
-  // Single-sourced from @yosemite-crew/types so the builder, workspace editors,
-  // resolver seed, and this validation blueprint all agree on keys + field types.
-  SOAP_NOTE: CANONICAL_SOAP_STRUCTURE as ClinicalTemplateSchemaSnapshot,
-  PRESCRIPTION: {
-    sections: [
-      {
-        id: "medications",
-        title: "Medications",
-        order: 1,
-        fields: [
-          {
-            key: "prescribedItems",
-            label: "Prescribed items",
-            type: "medicationLine",
-            repeatable: true,
-            order: 1,
-            rules: {
-              columns: ["drug", "dose", "frequency", "duration"],
-            },
-          },
-        ],
-      },
-      {
-        id: "instructions",
-        title: "Instructions",
-        order: 2,
-        fields: [
-          {
-            key: "usageInstructions",
-            label: "Usage instructions",
-            type: "instructionBlock",
-            order: 1,
-          },
-        ],
-      },
-      {
-        id: "notes",
-        title: "Notes",
-        order: 3,
-        fields: [
-          {
-            key: "clinicalNotes",
-            label: "Clinical notes",
-            type: "richText",
-            order: 1,
-          },
-        ],
-      },
-    ],
-  },
-  DISCHARGE_SUMMARY:
-    CANONICAL_DISCHARGE_STRUCTURE as ClinicalTemplateSchemaSnapshot,
-  VITAL_RECORD: CANONICAL_VITALS_STRUCTURE as ClinicalTemplateSchemaSnapshot,
+  // Single-sourced inside the backend so the builder/seed/validation layer stays in lock-step.
+  SOAP_NOTE: SOAP_NOTE_BLUEPRINT,
+  PRESCRIPTION: PRESCRIPTION_BLUEPRINT,
+  DISCHARGE_SUMMARY: DISCHARGE_BLUEPRINT,
+  VITAL_RECORD: VITALS_BLUEPRINT,
 };
 
 const kindToRequiredSectionIds: Record<ClinicalTemplateKind, string[]> = {
@@ -257,12 +466,12 @@ export const buildClinicalTemplateSchemaSnapshot = (
   })),
 });
 
-// FE-consumable default SOAP seed: four S/O/A/P sections (mapped by field key in the
-// workspace) + a chief-complaint field, single-sourced from the canonical structure.
+// FE-consumable default SOAP seed: four S/O/A/P sections, single-sourced from the backend
+// canonical structure.
 export const buildDefaultSoapNoteSchemaSnapshot =
   (): ClinicalTemplateSchemaSnapshot =>
     ({
-      sections: CANONICAL_SOAP_STRUCTURE.sections.map((section) => ({
+      sections: SOAP_NOTE_BLUEPRINT.sections.map((section) => ({
         ...section,
         fields: section.fields.map((field) => ({ ...field })),
       })),

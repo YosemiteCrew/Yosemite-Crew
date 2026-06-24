@@ -161,7 +161,7 @@ const handleError = (error: unknown, res: Response) => {
 };
 
 const resolveUserId = (
-  req: Request<unknown, unknown, unknown, unknown>,
+  req: Request<ParamsDictionary, unknown, unknown, Record<string, unknown>>,
 ): string => {
   const authReq = req as AuthenticatedRequest;
   return typeof authReq.userId === "string" ? authReq.userId : "";
@@ -468,6 +468,12 @@ export const TaskController = {
     res: Response,
   ) => {
     try {
+      const actorId = resolveUserId(req);
+      const canViewAny = hasPermission(req as OrgRequest, "tasks:view:any");
+      if (!canViewAny && !actorId) {
+        return res.status(403).json({ message: "Account not found" });
+      }
+
       const organisationId =
         (req as OrgRequest).organisationId ?? req.params.organisationId;
 
@@ -669,16 +675,26 @@ export const TaskTemplateController = {
       { organisationId: string },
       unknown,
       unknown,
-      { kind?: string }
+      { kind?: string; inpatientOnly?: string; search?: string }
     >,
     res: Response,
   ) => {
     try {
       const organisationId = req.params.organisationId;
       const kind = parseTaskKind(req.query.kind);
+      const inpatientOnly =
+        req.query.inpatientOnly === "true"
+          ? true
+          : req.query.inpatientOnly === "false"
+            ? false
+            : undefined;
       const docs = await TaskTemplateService.listForOrganisation(
         organisationId,
         kind,
+        {
+          inpatientOnly,
+          search: req.query.search,
+        },
       );
       res.json(docs);
     } catch (error) {

@@ -794,4 +794,79 @@ describe('appointmentWorkspaceStore', () => {
     getStore().setLead('missing', 'u', 'n');
     expect(getStore().getEncounter('missing')).toBeUndefined();
   });
+
+  it('marks matching saved treatment rows billed and clears the bill on payment', () => {
+    seed();
+    useAppointmentWorkspaceStore.setState((state) => ({
+      encountersById: {
+        ...state.encountersById,
+        [APPT]: {
+          ...state.encountersById[APPT],
+          services: [
+            {
+              id: 's1',
+              refId: 'r1',
+              kind: 'SERVICE' as const,
+              name: 'Dental cleaning',
+              qty: 1,
+              unitPriceCents: 5000,
+              amountCents: 5000,
+            },
+            {
+              id: 's2',
+              refId: 'r2',
+              kind: 'SERVICE' as const,
+              name: 'Nail trim',
+              qty: 1,
+              unitPriceCents: 2000,
+              amountCents: 2000,
+            },
+          ],
+          prescription: [
+            {
+              id: 'p1',
+              medicineName: 'Amoxicillin',
+              fulfillment: 'IN_HOUSE' as const,
+              priceCents: 800,
+            },
+          ],
+          invoiceLineItems: [
+            {
+              id: 'inv-1',
+              name: 'Dental cleaning',
+              unitPriceCents: 5000,
+              qty: 1,
+              grossCents: 5000,
+              discountCents: 0,
+              amountCents: 5000,
+            },
+            {
+              id: 'inv-2',
+              name: 'Amoxicillin',
+              unitPriceCents: 800,
+              qty: 1,
+              grossCents: 800,
+              discountCents: 0,
+              amountCents: 800,
+            },
+          ],
+        },
+      },
+    }));
+
+    getStore().recordInvoicePayment(APPT, { method: 'CASH', byName: 'Dr Patel' });
+
+    const enc = getStore().getEncounter(APPT)!;
+    // The editable bill is cleared (the paid lines move to pastInvoices).
+    expect(enc.invoiceLineItems).toEqual([]);
+    // The matching saved service + prescription are flipped to billed so the
+    // Total Bill auto-seed cannot re-add them.
+    const dental = enc.services.find((s) => s.name === 'Dental cleaning')!;
+    expect(dental.billed).toBe(true);
+    expect(dental.billedByName).toBe('Dr Patel');
+    expect(dental.billedAt).toBeTruthy();
+    expect(enc.prescription[0].billed).toBe(true);
+    // A saved service that was NOT on the paid bill stays unbilled/billable.
+    expect(enc.services.find((s) => s.name === 'Nail trim')!.billed).toBeFalsy();
+  });
 });

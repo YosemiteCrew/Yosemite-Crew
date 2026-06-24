@@ -22,6 +22,7 @@ import type {
   BillableKind,
   InvoiceLineItem,
   InvoiceStatus,
+  LineItem,
   PastInvoice,
   PaymentMethod,
   PrescriptionItem,
@@ -166,6 +167,34 @@ const toInvoiceCandidate = (
   amountCents,
   kind,
 });
+
+// Lossless map of a saved Service/Package treatment row into a Total Bill line —
+// preserves unit price AND quantity (unlike toInvoiceCandidate, which collapses to
+// qty 1 / unitPrice=amountCents and would misprice any qty>1 line).
+const serviceLineItemToInvoiceLine = (item: LineItem): Omit<InvoiceLineItem, 'id'> => {
+  const grossCents = Math.max(0, item.unitPriceCents * item.qty);
+  return {
+    name: item.name,
+    unitPriceCents: item.unitPriceCents,
+    qty: item.qty,
+    grossCents,
+    discountCents: 0,
+    amountCents: grossCents,
+  };
+};
+
+// Map an in-house prescription row into a Total Bill line (priced per line).
+const prescriptionToInvoiceLine = (rx: PrescriptionItem): Omit<InvoiceLineItem, 'id'> => {
+  const amountCents = Math.max(0, rx.priceCents ?? 0);
+  return {
+    name: rx.medicineName,
+    unitPriceCents: amountCents,
+    qty: 1,
+    grossCents: amountCents,
+    discountCents: 0,
+    amountCents,
+  };
+};
 
 const moneyToCents = (amount: number): number => Math.max(0, Math.round(amount * 100));
 
@@ -817,6 +846,24 @@ const InvoiceStep = ({
     [catalogPackages, catalogServices, encounter, inventoryItems, organisationId]
   );
 
+  // Saved (persisted) Service/Package + in-house prescription lines for this visit
+  // that are not yet billed, mapped into Total Bill lines. These are auto-added to
+  // the bill (below) so a clinician doesn't have to re-add each saved item by search.
+  // Catalog/inventory candidates stay opt-in (search only).
+  const autoSeedCandidates = useMemo<Omit<InvoiceLineItem, 'id'>[]>(
+    () => [
+      ...encounter.services
+        .filter((item) => !item.billed && item.amountCents > 0)
+        .map(serviceLineItemToInvoiceLine),
+      ...encounter.prescription
+        .filter(
+          (item) => !item.billed && item.fulfillment === 'IN_HOUSE' && (item.priceCents ?? 0) > 0
+        )
+        .map(prescriptionToInvoiceLine),
+    ],
+    [encounter.services, encounter.prescription]
+  );
+
   // Load inventory so drugs/consumables are searchable in the bill builder.
   useEffect(() => {
     if (!organisationId || inventoryIds.length > 0) return undefined;
@@ -835,6 +882,9 @@ const InvoiceStep = ({
   // once per appointment. Hydration mutates the store, which re-renders this step
   // with a fresh `encounter` prop; without this guard the load would re-fire in a
   // loop and hammer the finance API.
+  // True once finance hydration has run, so the saved-treatment auto-seed (below)
+  // waits for any open server-invoice lines to be seeded first and dedupes against them.
+  const [billingHydrated, setBillingHydrated] = useState(false);
   const billingLoadedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!organisationId || !appointmentId) return undefined;
@@ -852,6 +902,7 @@ const InvoiceStep = ({
           depositCents: billing.depositCents,
           currency: billing.currency,
         });
+        setBillingHydrated(true);
       })
       .catch((error) => {
         // Allow a later retry if the load failed.
@@ -877,6 +928,34 @@ const InvoiceStep = ({
       console.error('Failed to refresh appointment billing:', error);
     }
   }, [appointmentId, hydrateInvoiceBilling, organisationId]);
+
+  // Auto-add saved treatment items (services/packages + in-house prescriptions) to
+  // the editable Total Bill once finance hydration has run, so a clinician doesn't
+  // have to re-add each saved item by search. Each name seeds at most once per mount
+  // (so a manually removed line doesn't snap back), lines already on the bill are
+  // skipped, and billed/paid items are excluded upstream by the !billed filter.
+  const seededBillNamesRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!canBuildBill || !billingHydrated) return;
+    const existing = new Set(
+      encounter.invoiceLineItems.map((item) => item.name.trim().toLowerCase())
+    );
+    autoSeedCandidates.forEach((line) => {
+      const key = line.name.trim().toLowerCase();
+      if (!key || seededBillNamesRef.current.has(key)) return;
+      seededBillNamesRef.current.add(key);
+      if (!existing.has(key)) {
+        addInvoiceLineItem(appointmentId, line);
+      }
+    });
+  }, [
+    addInvoiceLineItem,
+    appointmentId,
+    autoSeedCandidates,
+    billingHydrated,
+    canBuildBill,
+    encounter.invoiceLineItems,
+  ]);
 
   // The id of an open (still-outstanding) invoice already loaded from the finance
   // service into the workspace encounter. The deposit-id fallback in hydration uses

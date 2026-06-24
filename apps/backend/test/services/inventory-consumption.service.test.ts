@@ -18,7 +18,17 @@ jest.mock("src/config/prisma", () => ({
     },
     inventoryItem: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
+    },
+    appointment: {
+      findFirst: jest.fn(),
+    },
+    encounter: {
+      findFirst: jest.fn(),
+    },
+    patient: {
+      findFirst: jest.fn(),
     },
     inventoryBatch: {
       findMany: jest.fn(),
@@ -54,7 +64,17 @@ type MockedPrisma = typeof prisma & {
   };
   inventoryItem: {
     findFirst: jest.Mock;
+    findMany: jest.Mock;
     update: jest.Mock;
+  };
+  appointment: {
+    findFirst: jest.Mock;
+  };
+  encounter: {
+    findFirst: jest.Mock;
+  };
+  patient: {
+    findFirst: jest.Mock;
   };
   inventoryBatch: {
     findMany: jest.Mock;
@@ -92,6 +112,10 @@ describe("InventoryConsumptionService", () => {
     mockedPrisma.inventoryBatch.findFirst.mockResolvedValue(null);
     mockedPrisma.prescriptionDispenseRequest.findMany.mockResolvedValue([]);
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValue(null);
+    mockedPrisma.inventoryItem.findMany.mockResolvedValue([]);
+    mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+    mockedPrisma.encounter.findFirst.mockResolvedValue(null);
+    mockedPrisma.patient.findFirst.mockResolvedValue(null);
   });
 
   it("upserts normalized mapping rules", async () => {
@@ -328,6 +352,86 @@ describe("InventoryConsumptionService", () => {
           status: "PENDING",
           requestedBy: "user-2",
           reviewedBy: null,
+        }),
+      }),
+    );
+  });
+
+  it("enriches dispense requests with pet and stock snapshots", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+      patient: {
+        type: "dog",
+        dateOfBirth: new Date("2022-01-15T00:00:00.000Z"),
+        gender: "male",
+        isNeutered: true,
+        currentWeight: 12.5,
+        photoUrl: "https://cdn.example/patient.png",
+      },
+    });
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+      {
+        id: "item-1",
+        sku: "sku-1",
+        stockUnitType: "bottle",
+        unitOfMeasure: "tablet",
+        packageQuantity: 30,
+      },
+    ]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-enriched-1",
+      prescriptionId: "rx-enriched-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [],
+      metadata: null,
+      requestedBy: "user-1",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-enriched-1",
+      medications: [
+        { inventoryItemId: "item-1", quantity: 2, sourceLineKey: "line-1" },
+      ],
+      metadata: { source: "finalize" },
+      requestedBy: "user-1",
+      context: {
+        appointmentId: "appt-1",
+      },
+    });
+
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.create,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          medications: [
+            expect.objectContaining({
+              inventoryItemId: "item-1",
+              quantity: 2,
+              sourceLineKey: "line-1",
+              stockUnitType: "bottle",
+              stockUnitQuantity: 30,
+            }),
+          ],
+          metadata: expect.objectContaining({
+            source: "finalize",
+            petAge: expect.any(String),
+            petSpecies: "Canine",
+            petSex: "Male",
+            petReproductiveStatus: "Neutered",
+            patientImageUrl: "https://cdn.example/patient.png",
+            petWeight: 12.5,
+            petWeightUnit: "lbs",
+          }),
         }),
       }),
     );
