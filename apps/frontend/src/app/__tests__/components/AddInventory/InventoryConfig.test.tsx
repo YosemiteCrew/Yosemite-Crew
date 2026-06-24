@@ -131,6 +131,7 @@ describe('InventoryFormConfig', () => {
         'withdrawlPeriod',
         'available',
         'stockType',
+        'unitQnt',
       ];
       expect(stockFields).toEqual(expectedFields);
     });

@@ -438,6 +438,32 @@ describe('Inventory Utils', () => {
       expect(result.stock.available).toBe('100');
     });
 
+    it('prefers item-level allocated and derived available over batch values for edit flow', () => {
+      const item = {
+        ...mockApiItem,
+        onHand: 7,
+        allocated: 12,
+        attributes: {
+          ...mockApiItem.attributes,
+          available: 7,
+        },
+        batches: [
+          {
+            _id: 'b1',
+            batchNumber: 'BATCH-1',
+            quantity: 7,
+            allocated: 0,
+          },
+        ],
+      } as unknown as InventoryApiItem;
+
+      const result = mapApiItemToInventoryItem(item);
+
+      expect(result.stock.allocated).toBe('12');
+      expect(result.stock.available).toBe('-5');
+      expect(result.batch.allocated).toBe('0');
+    });
+
     // ------------------------------------------------------------------------
     // Testing `normalizeStringOrArray` internal helper
     // ------------------------------------------------------------------------
@@ -616,10 +642,34 @@ describe('Inventory Utils', () => {
         expect(payload.batches).toHaveLength(2);
         // Calculated totals
         expect(payload.onHand).toBe(100); // 50 + 50
-        expect(payload.allocated).toBe(5); // 5 + undefined(0)
+        expect(payload.allocated).toBe(10);
+        expect(payload.initialAllocated).toBe(10);
         // Check attributes cleaning
         expect(payload.attributes?.stockLocation).toBe('Loc A');
         expect(payload.attributes?.species).toEqual(['Dog']);
+      });
+
+      it('prefers stock control allocated over batch totals when batches exist', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            stock: {
+              ...mockInventoryItem.stock,
+              allocated: '30',
+            },
+            batches: [
+              {
+                ...mockInventoryItem.batches![0],
+                allocated: '0',
+              },
+            ] as any,
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        expect(payload.allocated).toBe(30);
+        expect(payload.initialAllocated).toBe(30);
       });
 
       it('maps medical clinical fields to top-level API keys', () => {

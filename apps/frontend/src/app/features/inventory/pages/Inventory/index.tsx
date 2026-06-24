@@ -1,5 +1,14 @@
 'use client';
-import React, { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, {
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -39,6 +48,8 @@ import { dispensePrescription } from '@/app/features/appointments/services/presc
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import Modal from '@/app/ui/overlays/Modal';
+import Filters from '@/app/ui/filters/Filters';
+import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import {
   FiCheck,
@@ -52,6 +63,7 @@ import {
 } from 'react-icons/fi';
 import { TbLayoutGrid, TbPill } from 'react-icons/tb';
 import { LuFileText } from 'react-icons/lu';
+import { FaCaretDown } from 'react-icons/fa6';
 
 const INVENTORY_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -85,12 +97,6 @@ const toggleArrayValue = (values: string[], value: string) =>
   values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 
 type SortMode = 'name' | 'expiry' | 'stock';
-
-const getNextSortMode = (current: SortMode): SortMode => {
-  if (current === 'name') return 'expiry';
-  if (current === 'expiry') return 'stock';
-  return 'name';
-};
 
 const compareInventoryRows = (a: InventoryItem, b: InventoryItem, sortMode: SortMode): number => {
   if (sortMode === 'expiry') {
@@ -194,14 +200,30 @@ const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryRecord =
     paymentStatus: req.paymentStatus ?? undefined,
     timeDispensed: req.reviewedAt ?? undefined,
     items: req.medications.map((m) => ({
-      name: m.medicineName ?? req.prescription.artifact.summary ?? m.inventoryItemId,
-      quantity: String(m.quantity ?? 1),
+      name:
+        m.inventoryItemName ??
+        m.medication ??
+        m.medicineName ??
+        req.prescription.artifact.summary ??
+        m.inventoryItemId,
+      quantity: m.quantity ?? 1,
       priceCents: m.priceCents ?? 0,
+      isRx: m.isRx,
+      isControlled: m.isControlled,
+      doseQty: m.doseQty,
+      doseUnit: m.doseUnit,
+      frequency: m.frequency,
+      frequencyPerDay: m.frequencyPerDay,
+      durationDays: m.durationDays,
+      refillsRemaining: m.refillsRemaining,
+      stockUnitQty:
+        m.stockUnitQty ?? m.stockUnitQuantity ?? m.packageQuantity ?? m.unitQuantity ?? undefined,
+      stockUnitType: m.stockUnitType ?? undefined,
       prescription: {
         dose: m.dosage ?? '',
         freq: m.frequency ?? '',
-        duration: '',
-        refill: '',
+        duration: m.durationDays == null ? '' : `${m.durationDays} days`,
+        refill: m.refillsRemaining == null ? '' : String(m.refillsRemaining),
         route: m.route ?? '',
       },
     })),
@@ -214,21 +236,22 @@ const getVisibilityLabel = (vis: 'ALL' | 'ACTIVE' | 'HIDDEN'): string => {
   return 'Hidden';
 };
 
-const getDispensaryRequestTypeLabel = (type: DispensaryRequestType): string => {
-  if (type === 'ALL') return 'All requests';
-  if (type === 'PATIENT') return 'Patient';
-  return 'Inhouse';
-};
-
 type SelectedFilterChip = {
   id: string;
   label: string;
   onRemove: () => void;
 };
 
+const SORT_OPTIONS: { key: SortMode; label: string }[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'expiry', label: 'Expiry date' },
+  { key: 'stock', label: 'Stock level' },
+];
+
 type InventoryFilterBarProps = {
   filters: InventoryFiltersState;
   selectedFilterChips: SelectedFilterChip[];
+  sortMode: SortMode;
   setFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setFilters: React.Dispatch<React.SetStateAction<InventoryFiltersState>>;
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
@@ -237,125 +260,215 @@ type InventoryFilterBarProps = {
 const InventoryFilterBar = ({
   filters,
   selectedFilterChips,
+  sortMode,
   setFilterOpen,
   setFilters,
   setSortMode,
-}: InventoryFilterBarProps) => (
-  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-    <div className="flex items-center gap-2">
-      {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((vis) => {
-        const label = getVisibilityLabel(vis);
-        const active = filters.visibility === vis;
-        return (
-          <button
-            key={vis}
-            type="button"
-            onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
-            className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-white'}`}
-          >
-            {label}
-          </button>
-        );
-      })}
-    </div>
-    <div className="flex flex-wrap items-center gap-3">
-      <button
-        type="button"
-        onClick={() => setFilterOpen(true)}
-        className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
-      >
-        <FiSliders size={18} aria-hidden="true" />
-        <span>Filter</span>
-        {selectedFilterChips.length > 0 ? (
-          <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
-            {selectedFilterChips.length}
-          </span>
-        ) : (
-          <FiChevronDown size={16} aria-hidden="true" className="text-text-secondary" />
-        )}
-      </button>
-      <button
-        type="button"
-        onClick={() => setSortMode((prev) => getNextSortMode(prev))}
-        className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
-      >
-        <FiFilter size={18} aria-hidden="true" />
-        <span>Sort by</span>
-      </button>
-      <div className="relative w-full sm:w-auto sm:min-w-72">
-        <FiSearch
-          size={18}
-          aria-hidden="true"
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
-        />
-        <input
-          aria-label="Search inventory"
-          value={filters.search}
-          onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-          placeholder="Search by item name, category, batch..."
-          className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
-        />
+}: InventoryFilterBarProps) => {
+  const [sortOpen, setSortOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const positionPanel = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 6,
+      right: window.innerWidth - rect.right,
+      minWidth: rect.width,
+      zIndex: 9999,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (sortOpen) positionPanel();
+  }, [sortOpen, positionPanel]);
+
+  useEffect(() => {
+    if (!sortOpen) return;
+    const handleClose = (e: MouseEvent) => {
+      if (
+        triggerRef.current?.contains(e.target as Node) ||
+        panelRef.current?.contains(e.target as Node)
+      )
+        return;
+      setSortOpen(false);
+    };
+    const handleScroll = () => setSortOpen(false);
+    document.addEventListener('mousedown', handleClose);
+    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClose);
+      window.removeEventListener('scroll', handleScroll, { capture: true });
+    };
+  }, [sortOpen]);
+
+  return (
+    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex items-center gap-2">
+        {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((vis) => {
+          const label = getVisibilityLabel(vis);
+          const active = filters.visibility === vis;
+          return (
+            <button
+              key={vis}
+              type="button"
+              onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
+              className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-white'}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setFilterOpen(true)}
+          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
+        >
+          <FiSliders size={18} aria-hidden="true" />
+          <span>Filter</span>
+          {selectedFilterChips.length > 0 ? (
+            <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
+              {selectedFilterChips.length}
+            </span>
+          ) : (
+            <FiChevronDown size={16} aria-hidden="true" className="text-text-secondary" />
+          )}
+        </button>
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setSortOpen((v) => !v)}
+          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
+        >
+          <FiFilter size={18} aria-hidden="true" />
+          <span>Sort by</span>
+          <FaCaretDown
+            size={13}
+            aria-hidden="true"
+            className={`text-text-secondary transition-transform ${sortOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {sortOpen &&
+          createPortal(
+            <div
+              ref={panelRef}
+              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              style={dropdownStyle}
+            >
+              {SORT_OPTIONS.map((option) => {
+                const isActive = option.key === sortMode;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => {
+                      setSortMode(option.key);
+                      setSortOpen(false);
+                    }}
+                    className={`w-full flex items-center px-3 py-2.5 text-body-4 text-left transition-colors ${isActive ? 'font-medium text-text-primary' : 'text-text-secondary hover:bg-card-hover'}`}
+                  >
+                    {option.label}
+                    {isActive && <span className="ml-auto font-semibold">✓</span>}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body
+          )}
+        <div className="relative w-full sm:w-auto sm:min-w-72">
+          <FiSearch
+            size={18}
+            aria-hidden="true"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+          />
+          <input
+            aria-label="Search inventory"
+            value={filters.search}
+            onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
+            placeholder="Search by item name, category, batch..."
+            className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
+          />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
+
+const DISPENSARY_STATUS_FILTERS: StatusOption[] = [
+  status(
+    'All',
+    'ALL',
+    'var(--color-pill-neutral-bg)',
+    'var(--color-pill-neutral-text)',
+    'var(--color-pill-neutral-border)',
+    'var(--color-pill-neutral-text)'
+  ),
+  status(
+    'Pending',
+    'PENDING',
+    'var(--color-pill-warning-bg)',
+    'var(--color-pill-warning-text)',
+    'var(--color-pill-warning-border)',
+    'var(--color-pill-warning-text)'
+  ),
+  status(
+    'Dispensed',
+    'DISPENSED',
+    'var(--color-pill-success-bg)',
+    'var(--color-pill-success-text)',
+    'var(--color-pill-success-border)',
+    'var(--color-pill-success-text)'
+  ),
+  status(
+    'Not dispensed',
+    'NOT_DISPENSED',
+    'var(--color-danger-100)',
+    'var(--color-danger-600)',
+    'var(--color-danger-400)',
+    'var(--color-danger-600)'
+  ),
+];
 
 type DispensaryFilterBarProps = {
-  dispensaryRequestType: DispensaryRequestType;
   dispensarySearch: string;
-  setDispensaryRequestType: React.Dispatch<React.SetStateAction<DispensaryRequestType>>;
-  setDispensaryFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  dispensaryStatusFilter: DispensaryStatus | 'ALL';
+  setDispensaryStatusFilter: React.Dispatch<React.SetStateAction<DispensaryStatus | 'ALL'>>;
   setDispensarySearch: React.Dispatch<React.SetStateAction<string>>;
 };
 
 const DispensaryFilterBar = ({
-  dispensaryRequestType,
   dispensarySearch,
-  setDispensaryRequestType,
-  setDispensaryFilterOpen,
+  dispensaryStatusFilter,
+  setDispensaryStatusFilter,
   setDispensarySearch,
 }: DispensaryFilterBarProps) => (
-  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-    <div className="flex items-center gap-2">
-      {(['ALL', 'PATIENT', 'IN_HOUSE'] as const).map((type) => {
-        const label = getDispensaryRequestTypeLabel(type);
-        const active = dispensaryRequestType === type;
-        return (
-          <button
-            key={type}
-            type="button"
-            onClick={() => setDispensaryRequestType(type)}
-            className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-white'}`}
-          >
-            {label}
-          </button>
-        );
-      })}
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex items-center gap-2 shrink-0">
+      <Filters
+        statusOptions={DISPENSARY_STATUS_FILTERS}
+        activeStatus={dispensaryStatusFilter}
+        setActiveStatus={(v) => setDispensaryStatusFilter(v as DispensaryStatus | 'ALL')}
+        className="!w-auto shrink-0"
+      />
     </div>
-    <div className="flex flex-wrap items-center gap-3">
-      <button
-        type="button"
-        onClick={() => setDispensaryFilterOpen(true)}
-        className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
-      >
-        <FiSliders size={18} aria-hidden="true" />
-        <span>Filter</span>
-        <FiChevronDown size={16} aria-hidden="true" className="text-text-secondary" />
-      </button>
-      <div className="relative w-full sm:w-auto sm:min-w-72">
-        <FiSearch
-          size={18}
-          aria-hidden="true"
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
-        />
-        <input
-          aria-label="Search dispensary"
-          value={dispensarySearch}
-          onChange={(event) => setDispensarySearch(event.target.value)}
-          placeholder="Search by item name, category, batch..."
-          className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
-        />
-      </div>
+    <div className="relative w-full sm:w-auto sm:min-w-72">
+      <FiSearch
+        size={18}
+        aria-hidden="true"
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+      />
+      <input
+        aria-label="Search dispensary"
+        value={dispensarySearch}
+        onChange={(event) => setDispensarySearch(event.target.value)}
+        placeholder="Search by patient, medication, lead..."
+        className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
+      />
     </div>
   </div>
 );
@@ -364,13 +477,13 @@ type ActiveFilterBarProps = {
   activeView: InventoryView;
   filters: InventoryFiltersState;
   selectedFilterChips: SelectedFilterChip[];
+  sortMode: SortMode;
   setFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setFilters: React.Dispatch<React.SetStateAction<InventoryFiltersState>>;
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
-  dispensaryRequestType: DispensaryRequestType;
   dispensarySearch: string;
-  setDispensaryRequestType: React.Dispatch<React.SetStateAction<DispensaryRequestType>>;
-  setDispensaryFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  dispensaryStatusFilter: DispensaryStatus | 'ALL';
+  setDispensaryStatusFilter: React.Dispatch<React.SetStateAction<DispensaryStatus | 'ALL'>>;
   setDispensarySearch: React.Dispatch<React.SetStateAction<string>>;
 };
 
@@ -380,6 +493,7 @@ const ActiveFilterBar = (props: ActiveFilterBarProps) => {
       <InventoryFilterBar
         filters={props.filters}
         selectedFilterChips={props.selectedFilterChips}
+        sortMode={props.sortMode}
         setFilterOpen={props.setFilterOpen}
         setFilters={props.setFilters}
         setSortMode={props.setSortMode}
@@ -390,10 +504,9 @@ const ActiveFilterBar = (props: ActiveFilterBarProps) => {
   if (props.activeView === 'turnover') {
     return (
       <DispensaryFilterBar
-        dispensaryRequestType={props.dispensaryRequestType}
         dispensarySearch={props.dispensarySearch}
-        setDispensaryRequestType={props.setDispensaryRequestType}
-        setDispensaryFilterOpen={props.setDispensaryFilterOpen}
+        dispensaryStatusFilter={props.dispensaryStatusFilter}
+        setDispensaryStatusFilter={props.setDispensaryStatusFilter}
         setDispensarySearch={props.setDispensarySearch}
       />
     );
@@ -416,7 +529,9 @@ const filterDispensaryRecords = (
     const searchMatch =
       normalizedSearch === '' ||
       record.patient.name.toLowerCase().includes(normalizedSearch) ||
-      record.prescriptionItems.some((item) => item.toLowerCase().includes(normalizedSearch));
+      (record.lead || '').toLowerCase().includes(normalizedSearch) ||
+      (record.location || '').toLowerCase().includes(normalizedSearch) ||
+      (record.items ?? []).some((item) => item.name.toLowerCase().includes(normalizedSearch));
 
     return typeMatch && statusMatch && searchMatch;
   });
@@ -1466,7 +1581,7 @@ const Inventory = () => {
               onClick={() => setActiveView('inventory')}
               className="inline-flex h-11 items-center justify-center rounded-2xl border border-text-primary bg-white px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors"
             >
-              Stock
+              Inventory
             </button>
           ) : (
             <GlassTooltip content="Turnover analytics" side="bottom">
@@ -1532,13 +1647,13 @@ const Inventory = () => {
               activeView={activeView}
               filters={filters}
               selectedFilterChips={selectedFilterChips}
+              sortMode={sortMode}
               setFilterOpen={setFilterOpen}
               setFilters={setFilters}
               setSortMode={setSortMode}
-              dispensaryRequestType={dispensaryRequestType}
               dispensarySearch={dispensarySearch}
-              setDispensaryRequestType={setDispensaryRequestType}
-              setDispensaryFilterOpen={setDispensaryFilterOpen}
+              dispensaryStatusFilter={dispensaryStatusFilter}
+              setDispensaryStatusFilter={setDispensaryStatusFilter}
               setDispensarySearch={setDispensarySearch}
             />
           </div>

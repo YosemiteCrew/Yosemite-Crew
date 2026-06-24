@@ -94,17 +94,24 @@ const PricingSummary = ({ formData }: { formData: InventoryItem }) => (
         {formatPercentValue(getMarginPercent(formData))}
       </span>
     </div>
-    <FormInput
-      intype="text"
-      inname="stockValue"
-      value={formatCurrencyValue(getStockValue(formData), formData.currency)}
-      inlabel="Total stock value"
-      readonly
-    />
+    <div className="relative rounded-2xl border border-input-border-default px-6 py-3 min-h-12">
+      <span className="absolute left-4 -top-[11px] bg-white px-1.5 text-xs text-input-text-placeholder">
+        Total stock value
+      </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-body-4 text-text-primary">
+          {formatCurrencyValue(getStockValue(formData), formData.currency)}
+        </span>
+        <span className="text-caption-1 text-text-extra whitespace-nowrap">
+          on-hand stock x unit cost
+        </span>
+      </div>
+    </div>
   </div>
 );
 
 const drugOnlyClassificationFields = new Set([
+  'genericName',
   'drugSchedule',
   'form',
   'administration',
@@ -114,6 +121,22 @@ const drugOnlyClassificationFields = new Set([
   'prescriptionRequired',
   'reportableToGovernment',
 ]);
+
+const drugOnlyBatchFields = new Set(['tracking']);
+
+const drugOnlyStockFields = new Set(['withdrawlPeriod']);
+
+const isDrugOnlyField = (
+  sectionKey: InventorySectionKey,
+  isNonDrug: boolean,
+  fieldName: string
+): boolean => {
+  if (!isNonDrug) return false;
+  if (sectionKey === 'classification') return drugOnlyClassificationFields.has(fieldName);
+  if (sectionKey === 'batch') return drugOnlyBatchFields.has(fieldName);
+  if (sectionKey === 'stock') return drugOnlyStockFields.has(fieldName);
+  return false;
+};
 
 const FormSection: React.FC<FormSectionProps> = ({
   businessType,
@@ -213,29 +236,35 @@ const FormSection: React.FC<FormSectionProps> = ({
       : (sectionData?.[field.name] ?? '');
     const error = sectionErrors?.[field.name];
 
-    if (
-      sectionKey === 'classification' &&
-      String(formData.classification?.itemType ?? '').toLowerCase() === 'non-drug' &&
-      drugOnlyClassificationFields.has(String(field.name))
-    ) {
-      return null;
-    }
+    const isNonDrug = String(formData.classification?.itemType ?? '').toLowerCase() === 'non-drug';
+
+    if (isDrugOnlyField(sectionKey, isNonDrug, String(field.name))) return null;
 
     if (component === 'text') {
       const isReadOnlyAvailable = sectionKey === 'stock' && field.name === 'available';
-      const resolvedValue = isReadOnlyAvailable
-        ? String(getAvailableStock(formData) ?? toNumberSafe(value) ?? '')
-        : value;
+      if (isReadOnlyAvailable) {
+        const availableValue = String(getAvailableStock(formData) ?? toNumberSafe(value) ?? '0');
+        return (
+          <div
+            key={key ?? field.name}
+            className="flex items-center gap-2 px-2 text-body-4 text-text-primary"
+          >
+            <span>Available stock :</span>
+            <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+              {availableValue}
+            </span>
+          </div>
+        );
+      }
       return (
         <FormInput
           key={key ?? field.name}
           intype="text"
           inname={field.name}
-          value={resolvedValue}
+          value={value}
           inlabel={placeholder || ''}
           onChange={(e) => handleChange(field, e.target.value, index)}
           error={error}
-          readonly={isReadOnlyAvailable}
           className="min-h-12!"
         />
       );

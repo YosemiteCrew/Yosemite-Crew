@@ -595,7 +595,16 @@ export const StockLocationOptions = [
   'Treatment room',
   'Isolation ward',
 ];
-export const StockTypeOptions = ['Central store', 'Pharmacy', 'Surgery', 'Lab', 'Cold storage'];
+export const StockTypeOptions = [
+  'Bottle',
+  'Strip',
+  'Box',
+  'Pair',
+  'Kit',
+  'Piece',
+  'Pack of',
+  'Custom',
+];
 export const AbcClassOptions = ['Class A', 'Class B', 'Class C'];
 export const WithdrawalPeriodOptions = [
   'Not applicable',
@@ -621,6 +630,7 @@ export type StockValues = {
 
   // Hospital
   stockType?: string;
+  unitQnt?: string;
 };
 
 // Batch Values
@@ -695,10 +705,18 @@ export type DispensaryStatus = 'PENDING' | 'DISPENSED' | 'NOT_DISPENSED';
 
 export interface DispensaryItem {
   name: string;
-  quantity: string;
+  quantity: number;
   priceCents: number;
   isRx?: boolean;
   isControlled?: boolean;
+  doseQty?: number;
+  doseUnit?: string;
+  frequency?: string;
+  frequencyPerDay?: number;
+  durationDays?: number;
+  refillsRemaining?: number;
+  stockUnitQty?: number;
+  stockUnitType?: string;
   prescription?: {
     dose: string;
     freq: string;

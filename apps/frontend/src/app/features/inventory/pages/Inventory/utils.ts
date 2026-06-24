@@ -288,14 +288,15 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
     toNumberSafe(attributes.available)
   );
   const allocatedVal = firstDefined(
-    batchTotals.allocated,
     toNumberSafe(apiItem.allocated),
+    batchTotals.allocated,
     toNumberSafe(attributes.allocated)
   );
   const available = firstDefined(
+    onHandVal !== undefined && allocatedVal !== undefined ? onHandVal - allocatedVal : onHandVal,
+    toNumberSafe(apiItem.onHand),
     batchTotals.available,
-    toNumberSafe(attributes.available),
-    onHandVal !== undefined && allocatedVal !== undefined ? onHandVal - allocatedVal : onHandVal
+    toNumberSafe(attributes.available)
   );
 
   const primaryBatch = selectPrimaryBatch(batches);
@@ -403,6 +404,7 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
       abcClass: toStringSafe(attributes.abcClass),
       withdrawlPeriod: toStringSafe(attributes.withdrawlPeriod),
       stockType: toStringSafe(attributes.stockType),
+      unitQnt: toStringSafe(attributes.unitQnt),
       minStockAlert: toStringSafe(apiItem.minimumStock ?? attributes.minStockAlert),
     },
     batch: {
@@ -533,7 +535,8 @@ export const buildInventoryPayload = (
   const unitOfMeasure = Array.isArray(unitOfMeasureValue)
     ? unitOfMeasureValue[0]
     : unitOfMeasureValue?.trim() || undefined;
-  const packageQuantity = toNumberSafe(formData.classification.packSize);
+  const packageQuantity =
+    toNumberSafe(formData.classification.packSize) ?? toNumberSafe(formData.stock.unitQnt);
   const storageLocation = formData.stock.stockLocation?.trim() || undefined;
   const minimumStock = toNumberSafe(formData.stock.minStockAlert);
   const statusForApi = normalizeStatusForApi(formData.status ?? formData.basicInfo.status);
@@ -577,6 +580,7 @@ export const buildInventoryPayload = (
     leadTime: formData.vendor.leadTime,
     stockLocation: formData.stock.stockLocation,
     stockType: formData.stock.stockType,
+    unitQnt: formData.stock.unitQnt,
     maxStock: formData.stock.maxStock,
     abcClass: formData.stock.abcClass,
     withdrawlPeriod: formData.stock.withdrawlPeriod ?? formData.classification.withdrawlPeriod,
@@ -618,11 +622,11 @@ export const buildInventoryPayload = (
       unitofMeasure: formData.classification.unitofMeasure,
     },
     onHand: batchTotals.onHand ?? toNumberSafe(formData.stock.current),
-    allocated: batchTotals.allocated ?? toNumberSafe(formData.stock.allocated),
+    allocated: toNumberSafe(formData.stock.allocated),
     // Backend create reads initialOnHand/initialAllocated for items without batches;
     // when batches exist the server recomputes these from the batch quantities.
     initialOnHand: batchTotals.onHand ?? toNumberSafe(formData.stock.current),
-    initialAllocated: batchTotals.allocated ?? toNumberSafe(formData.stock.allocated),
+    initialAllocated: toNumberSafe(formData.stock.allocated),
     reorderLevel: toNumberSafe(formData.stock.reorderLevel),
     unitCost: toNumberSafe(formData.pricing.purchaseCost),
     sellingPrice: toNumberSafe(formData.pricing.selling),

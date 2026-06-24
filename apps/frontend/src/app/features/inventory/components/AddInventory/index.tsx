@@ -104,6 +104,7 @@ const emptyInventoryItem: InventoryItem = {
     abcClass: '',
     withdrawlPeriod: '',
     stockType: undefined,
+    unitQnt: '',
     minStockAlert: undefined,
   },
   batch: {

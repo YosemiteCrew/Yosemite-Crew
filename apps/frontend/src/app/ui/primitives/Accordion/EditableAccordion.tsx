@@ -38,6 +38,12 @@ type EditableAccordionProps = {
   compactInlineActions?: boolean;
   onEditingChange?: (isEditing: boolean) => void;
   footer?: React.ReactNode;
+  fieldFilter?: (key: string, formValues: FormValues) => boolean;
+  dynamicFooter?: (formValues: FormValues) => React.ReactNode;
+  optionsResolver?: (
+    key: string,
+    formValues: FormValues
+  ) => Array<string | { label: string; value: string }> | undefined;
   onRegisterActions?: (
     actions: {
       save: () => Promise<void>;
@@ -529,6 +535,9 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   compactInlineActions = false,
   onEditingChange,
   footer,
+  fieldFilter,
+  dynamicFooter,
+  optionsResolver,
   onRegisterActions,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -638,27 +647,34 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         onDeleteClick={onDelete}
       >
         <div className={`flex flex-col`}>
-          {fields.map((field) => {
-            const canEditThisField = !readOnly && effectiveEditing && isFieldEditable(field);
-            return (
-              <div key={field.key}>
-                {canEditThisField ? (
-                  <div className="flex-1 mb-3">
-                    <EditableField
-                      field={field}
-                      value={formValues[field.key]}
-                      error={formValuesErrors[field.key]}
-                      onChange={(value) => handleChange(field.key, value)}
-                      onMultiChange={handleMultiChange}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex-1">{RenderValue(field, displayValues)}</div>
-                )}
-              </div>
-            );
-          })}
+          {fields
+            .filter((field) => !fieldFilter || fieldFilter(field.key, formValues))
+            .map((field) => {
+              const resolvedOptions = optionsResolver?.(field.key, formValues);
+              const resolvedField = resolvedOptions
+                ? { ...field, options: resolvedOptions }
+                : field;
+              const canEditThisField = !readOnly && effectiveEditing && isFieldEditable(field);
+              return (
+                <div key={field.key}>
+                  {canEditThisField ? (
+                    <div className="flex-1 mb-3">
+                      <EditableField
+                        field={resolvedField}
+                        value={formValues[field.key]}
+                        error={formValuesErrors[field.key]}
+                        onChange={(value) => handleChange(field.key, value)}
+                        onMultiChange={handleMultiChange}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex-1">{RenderValue(field, displayValues)}</div>
+                  )}
+                </div>
+              );
+            })}
           {footer && <div className="mt-3">{footer}</div>}
+          {dynamicFooter && <div className="mt-3">{dynamicFooter(formValues)}</div>}
         </div>
       </Accordion>
 

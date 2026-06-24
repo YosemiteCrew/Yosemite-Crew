@@ -28,6 +28,8 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 
+const drugOnlyBatchFieldNames = new Set(['tracking']);
+
 const emptyBatch: BatchValues = {
   batch: '',
   manufactureDate: '',
@@ -202,9 +204,15 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   }, [inventory, onEditingChange]);
 
   const configForBusiness = InventoryFormConfig[businessType] || {};
+  const isNonDrug = String(inventory.classification?.itemType ?? '').toLowerCase() === 'non-drug';
   const sectionConfig = useMemo<ConfigItem<any>[]>(
-    () => configForBusiness.batch || [],
-    [configForBusiness.batch]
+    () =>
+      (configForBusiness.batch || []).filter((item) => {
+        if (!isNonDrug) return true;
+        const names = item.kind === 'row' ? item.fields.map((f: any) => f.name) : [item.field.name];
+        return names.every((n: string) => !drugOnlyBatchFieldNames.has(n));
+      }),
+    [configForBusiness.batch, isNonDrug]
   );
 
   const beginEditing = useCallback(() => {
@@ -622,13 +630,19 @@ const PricingCurrencySummary = ({ inventory }: { inventory: InventoryItem }) => 
           {formatPercentValue(getMarginPercent(inventory))}
         </span>
       </div>
-      <FormInput
-        intype="text"
-        inname="stockValue"
-        value={formatCurrencyValue(getStockValue(inventory), currency)}
-        inlabel="Total stock value"
-        readonly
-      />
+      <div className="relative rounded-2xl border border-input-border-default px-6 py-3 min-h-12">
+        <span className="absolute left-4 -top-[11px] bg-white px-1.5 text-xs text-input-text-placeholder">
+          Total stock value
+        </span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-body-4 text-text-primary">
+            {formatCurrencyValue(getStockValue(inventory), currency)}
+          </span>
+          <span className="text-caption-1 text-text-extra whitespace-nowrap">
+            on-hand stock x unit cost
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

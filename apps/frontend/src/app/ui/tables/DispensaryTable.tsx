@@ -1,6 +1,5 @@
 'use client';
 import React from 'react';
-import Image from 'next/image';
 import { IoEye } from 'react-icons/io5';
 import { FiCheck } from 'react-icons/fi';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
@@ -68,31 +67,20 @@ const DispensaryTable = ({ filteredList, onView, onDispense }: DispensaryTablePr
       label: 'Request type',
       key: 'patient',
       width: '170px',
-      render: (record) => (
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-card-hover">
-            {record.patient.imageUrl ? (
-              <Image
-                src={record.patient.imageUrl}
-                alt=""
-                width={40}
-                height={40}
-                className="size-full object-cover"
-              />
-            ) : (
-              <span className="text-body-4 text-text-secondary font-semibold">
-                {record.patient.name === '—' ? '?' : record.patient.name.charAt(0)}
-              </span>
-            )}
+      render: (record) => {
+        const displayName = record.patient.petBreed
+          ? `${record.patient.name} · ${record.patient.petBreed}`
+          : record.patient.name;
+        return (
+          <div className="appointment-profile">
+            <div className="appointment-profile-two">
+              <div className="appointment-profile-title" title={displayName}>
+                {displayName}
+              </div>
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="appointment-profile-title leading-tight">{record.patient.name}</div>
-            {record.patient.petBreed && (
-              <div className="text-caption-1 text-text-secondary">{record.patient.petBreed}</div>
-            )}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       label: 'Status',

@@ -127,7 +127,17 @@ const commonStockFields = (includesStockType: boolean = false): SectionConfig<'s
   field('withdrawlPeriod', 'Withdrawal period (optional)', 'dropdown', WithdrawalPeriodOptions),
   readonlyField('available', 'Available stock', 'text'),
   ...(includesStockType
-    ? [field<'stock'>('stockType', 'Stock type', 'dropdown', StockTypeOptions)]
+    ? [
+        row<'stock'>(
+          {
+            name: 'stockType',
+            placeholder: 'Stock unit type',
+            component: 'dropdown',
+            options: StockTypeOptions,
+          },
+          { name: 'unitQnt', placeholder: 'Unit qnt', component: 'text' }
+        ),
+      ]
     : []),
 ];
 

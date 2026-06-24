@@ -6,16 +6,38 @@ export interface DispenseRequestMedication {
   inventoryItemId: string;
   quantity?: number;
   sourceLineKey?: string;
+  /** Display name — prefer inventoryItemName, fall back to medication */
   medicineName?: string;
+  inventoryItemName?: string;
+  medication?: string;
   priceCents?: number;
   fulfillment?: 'IN_HOUSE' | 'PATIENT';
+  // enriched prescription fields
   frequency?: string;
-  dosage?: string;
-  route?: string;
+  frequencyPerDay?: number;
+  durationDays?: number;
+  doseQty?: number;
+  doseUnit?: string;
+  refillsRemaining?: number;
+  isRx?: boolean;
+  isControlled?: boolean;
+  // stock unit fields
+  stockUnitQty?: number | null;
+  stockUnitQuantity?: number | null;
+  packageQuantity?: number | null;
+  unitQuantity?: number | null;
+  stockUnitType?: string | null;
+  // legacy / misc
+  dosage?: string | null;
+  route?: string | null;
+  duration?: string | null;
+  strength?: string | null;
+  instructions?: string | null;
+  metadata?: Record<string, unknown> | null;
   lowStock?: boolean;
   stockQty?: number;
+  batchId?: string;
   inventoryBatchId?: string;
-  medication?: string;
 }
 
 export interface DispenseRequestPrescription {

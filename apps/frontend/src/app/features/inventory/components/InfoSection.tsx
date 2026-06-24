@@ -3,7 +3,10 @@ import React from 'react';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import ImageUploadField from '@/app/features/inventory/components/AddInventory/ImageUploadField';
 
-import { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
+import {
+  InventoryItem,
+  getSubCategoryOptions,
+} from '@/app/features/inventory/pages/Inventory/types';
 import { BusinessType } from '@/app/features/organization/types/org';
 import {
   InventoryFormConfig,
@@ -11,6 +14,20 @@ import {
   ConfigItem,
   FieldDef,
 } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
+
+const renderAvailableStockFooter = (formValues: Record<string, any>): React.ReactNode => {
+  const current = Number(formValues['current'] ?? 0);
+  const allocated = Number(formValues['allocated'] ?? 0);
+  const available = Math.max(0, current - allocated);
+  return (
+    <div className="flex items-center gap-2 px-2 text-body-4 text-text-primary">
+      <span>Available stock :</span>
+      <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+        {String(available)}
+      </span>
+    </div>
+  );
+};
 
 type InfoSectionProps = {
   businessType: BusinessType;
@@ -77,9 +94,34 @@ const InfoSection: React.FC<InfoSectionProps> = ({
     return result;
   };
 
-  const allFields = flattenFields(sectionConfig);
+  const isNonDrug = String(inventory.classification?.itemType ?? '').toLowerCase() === 'non-drug';
+
+  const drugOnlyBySection: Partial<Record<InventorySectionKey, Set<string>>> = {
+    classification: new Set([
+      'genericName',
+      'drugSchedule',
+      'form',
+      'administration',
+      'strength',
+      'unitofMeasure',
+      'controlledSubstance',
+      'prescriptionRequired',
+      'reportableToGovernment',
+    ]),
+    batch: new Set(['tracking']),
+    stock: new Set(['withdrawlPeriod']),
+  };
+
+  const allFields = flattenFields(sectionConfig).filter((f) => {
+    // classification section is handled fully by inventoryFieldFilter (dynamic)
+    if (sectionKey === 'classification') return true;
+    if (!isNonDrug) return true;
+    return !drugOnlyBySection[sectionKey]?.has(String(f.name));
+  });
   const uploadFields = allFields.filter((f) => f.component === 'upload');
-  const nonUploadFields = allFields.filter((f) => f.component !== 'upload');
+  const nonUploadFields = allFields.filter(
+    (f) => f.component !== 'upload' && f.name !== 'available'
+  );
 
   const toEditableField = (field: FieldDef<any>): EditableField => {
     const label = field.label || field.placeholder || field.name;
@@ -115,6 +157,19 @@ const InfoSection: React.FC<InfoSectionProps> = ({
     };
   };
 
+  const sectionDrugOnlyKeys = drugOnlyBySection[sectionKey];
+
+  const inventoryFieldFilter = sectionDrugOnlyKeys
+    ? (key: string, formValues: Record<string, any>) => {
+        const currentItemType =
+          sectionKey === 'classification'
+            ? String(formValues['itemType'] ?? '').toLowerCase()
+            : String(inventory.classification?.itemType ?? '').toLowerCase();
+        if (currentItemType !== 'non-drug') return true;
+        return !sectionDrugOnlyKeys.has(key);
+      }
+    : undefined;
+
   const accordionFields = nonUploadFields.map(toEditableField);
 
   return (
@@ -132,23 +187,36 @@ const InfoSection: React.FC<InfoSectionProps> = ({
           onSave={(values) => onSaveSection?.(sectionKey, values)}
           hideInlineActions
           onEditingChange={onEditingChange}
+          fieldFilter={inventoryFieldFilter}
+          optionsResolver={
+            sectionKey === 'basicInfo'
+              ? (key, formValues) => {
+                  if (key !== 'subCategory') return undefined;
+                  const category = String(formValues['category'] ?? '');
+                  return getSubCategoryOptions(category);
+                }
+              : undefined
+          }
           onRegisterActions={onRegisterActions}
+          dynamicFooter={sectionKey === 'stock' ? renderAvailableStockFooter : undefined}
           footer={
-            uploadFields.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {uploadFields.map((field) => (
-                  <ImageUploadField
-                    key={field.name}
-                    label={field.placeholder || field.label}
-                    value={data?.[field.name] ?? ''}
-                    organisationId={organisationId}
-                    onChange={(url) =>
-                      !disableEditing && onSaveSection?.(sectionKey, { [field.name]: url })
-                    }
-                  />
-                ))}
-              </div>
-            ) : undefined
+            <>
+              {uploadFields.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {uploadFields.map((field) => (
+                    <ImageUploadField
+                      key={field.name}
+                      label={field.placeholder || field.label}
+                      value={data?.[field.name] ?? ''}
+                      organisationId={organisationId}
+                      onChange={(url) =>
+                        !disableEditing && onSaveSection?.(sectionKey, { [field.name]: url })
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           }
         />
       )}
