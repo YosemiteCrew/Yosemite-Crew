@@ -1630,6 +1630,7 @@ export const TaskService = {
   async listForEmployee(params: {
     organisationId: string;
     userId?: string;
+    ownerId?: string;
     patientId?: string;
     companionId?: string;
     clientId?: string;
@@ -1677,8 +1678,21 @@ export const TaskService = {
       includeCompleted: params.includeCompleted,
     });
 
+    // Own-scope: restrict to tasks the actor created OR is assigned to. This
+    // mirrors the per-task detail ownership check (createdBy === actor) so a
+    // tasks:view:own caller still sees tasks they created for someone else.
+    const ownerId = asNonEmptyString(params.ownerId);
+    const scopedWhere: Prisma.TaskWhereInput = ownerId
+      ? {
+          AND: [
+            where,
+            { OR: [{ createdBy: ownerId }, { assignedTo: ownerId }] },
+          ],
+        }
+      : where;
+
     const tasks = await prisma.task.findMany({
-      where,
+      where: scopedWhere,
       orderBy: { dueAt: "asc" },
     });
     return tasks.map(toTaskLike);

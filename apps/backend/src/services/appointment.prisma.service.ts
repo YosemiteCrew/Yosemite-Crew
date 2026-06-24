@@ -2146,10 +2146,11 @@ export const AppointmentPrismaService = {
 
     // Own-scope enforcement: when the caller is restricted to appointments
     // assigned to them, an appointment not assigned to that actor is
-    // indistinguishable from not-found.
+    // indistinguishable from not-found. Assignment covers the lead vet AND any
+    // support staff on the appointment.
     if (
       restrictToAssignedActorId &&
-      getLeadIdFromRow(row as AppointmentRow) !== restrictToAssignedActorId
+      !canViewOwnAppointment(row as AppointmentRow, restrictToAssignedActorId)
     ) {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }

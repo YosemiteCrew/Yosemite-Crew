@@ -463,15 +463,33 @@ describe("FormController", () => {
   });
 
   describe("submitFormFromPMS", () => {
-    it("should return 201 on successful submission", async () => {
+    it("should return 201 and stamp submittedBy from the verified token", async () => {
       req.body = { answers: {} };
       (FormService.submitFHIR as jest.Mock).mockResolvedValue({ id: "sub1" });
 
       await FormController.submitFormFromPMS(req, res);
 
-      expect(FormService.submitFHIR).toHaveBeenCalledWith(req.body);
+      // submittedBy is derived from the authenticated token (3rd arg override),
+      // not the client body, so the signing guard can later confirm
+      // initiator === submitter.
+      expect(FormService.submitFHIR).toHaveBeenCalledWith(
+        { answers: {} },
+        undefined,
+        "auth_user_123",
+      );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "sub1" });
+    });
+
+    it("should return 401 when no authenticated user id is present", async () => {
+      req.userId = undefined;
+      req.headers = {};
+      req.body = { answers: {} };
+
+      await FormController.submitFormFromPMS(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(FormService.submitFHIR).not.toHaveBeenCalled();
     });
 
     it("should handle FormServiceError and generic errors", async () => {

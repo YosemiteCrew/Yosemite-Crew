@@ -1623,6 +1623,7 @@ export const FormService = {
   async submitFHIR(
     response: FormSubmissionRequestDTO,
     schema?: FormField[],
+    submittedByOverride?: string,
   ): Promise<FormSubmission> {
     const initialSubmission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
@@ -1637,6 +1638,13 @@ export const FormService = {
     const submission: FormSubmission = resolvedSchema
       ? fromFormSubmissionRequestDTO(response, resolvedSchema)
       : initialSubmission;
+
+    // For server-initiated (PMS) submissions the submitter is the authenticated
+    // user from the verified token, which takes precedence over any client FHIR
+    // submitted-by extension so the signing guard can match initiator===submitter.
+    if (submittedByOverride) {
+      submission.submittedBy = submittedByOverride;
+    }
 
     // Never trust signing metadata from client-submitted FHIR extensions.
     // Signed state and document IDs must be written by server-side signing flows.

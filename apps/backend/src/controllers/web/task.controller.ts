@@ -478,12 +478,13 @@ export const TaskController = {
         (req as OrgRequest).organisationId ?? req.params.organisationId;
 
       // Own-scope enforcement: callers without tasks:view:any may only list
-      // tasks assigned to themselves. The client-supplied userId/assignedTo is
-      // ignored for these callers and forced to the authenticated actor.
-      const canViewAny = hasPermission(req, "tasks:view:any");
+      // their OWN tasks — those they created OR are assigned to (mirrors the
+      // per-task detail check and the parent list). The client-supplied
+      // userId/assignedTo is ignored for these callers.
       const assignedTo = canViewAny
         ? (req.query.assignedTo ?? req.query.userId)
-        : resolveUserId(req);
+        : undefined;
+      const ownerId = canViewAny ? undefined : actorId;
       const audience =
         parseAudience(req.query.audience) ??
         parseAudience(req.query.assignedRole);
@@ -492,6 +493,7 @@ export const TaskController = {
         organisationId,
         userId: assignedTo,
         assignedTo,
+        ownerId,
         patientId:
           req.query.patientId ?? req.query.companionId ?? req.query.clientId,
         companionId: req.query.companionId,

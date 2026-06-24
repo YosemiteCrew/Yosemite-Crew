@@ -138,7 +138,11 @@ const InvoicePaymentActions = ({
 }: InvoicePaymentActionsProps) => {
   const { notify } = useNotify();
   const { canAny } = usePermissions(activeAppointment?.organisationId);
-  const canEditBilling = canAny([PERMISSIONS.BILLING_EDIT_ANY, PERMISSIONS.BILLING_EDIT_LIMITED]);
+  // The payment mutations behind these actions (POST /invoices/:id/payments and
+  // /payments/sessions) require billing:edit:any on the backend, so only surface
+  // them to that permission — otherwise billing:edit:limited users see actions
+  // that can only fail with 403.
+  const canEditBilling = canAny([PERMISSIONS.BILLING_EDIT_ANY]);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [showCashConfirmation, setShowCashConfirmation] = useState(false);
   const [settingCashCollectionMethod, setSettingCashCollectionMethod] = useState(false);

@@ -189,16 +189,21 @@ describe("TaskController", () => {
 
       await TaskController.listEmployeeTasks(req as Request, res);
 
+      // Own-scope passes an ownerId (created OR assigned), never the
+      // client-supplied assignedTo, so the spoofed victim id is ignored.
       expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
         expect.objectContaining({
           organisationId: "org-1",
-          userId: "auth-user-id",
-          assignedTo: "auth-user-id",
+          ownerId: "auth-user-id",
         }),
       );
+      const callArg = mockedTaskService.listForEmployee.mock.calls[0][0] as {
+        assignedTo?: string;
+      };
+      expect(callArg.assignedTo).not.toBe("victim-user-id");
     });
 
-    it("forces own-scope even when no assignedTo is supplied", async () => {
+    it("forces own-scope (created or assigned) when no assignedTo is supplied", async () => {
       req.userId = "auth-user-id";
       req.organisationId = "org-1";
       req.userPermissions = ["tasks:view:own"];
@@ -208,8 +213,7 @@ describe("TaskController", () => {
 
       expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
         expect.objectContaining({
-          assignedTo: "auth-user-id",
-          userId: "auth-user-id",
+          ownerId: "auth-user-id",
         }),
       );
     });

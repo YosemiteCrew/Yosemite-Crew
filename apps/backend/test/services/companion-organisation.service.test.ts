@@ -114,6 +114,32 @@ describe("CompanionOrganisationService", () => {
       expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
     });
 
+    it("rejects a parent without an ACTIVE companion link (e.g. PENDING co-parent)", async () => {
+      // Ownership now requires an ACTIVE parent-patient link; a PENDING
+      // (not-yet-accepted) link must not confer organisation-link rights.
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        CompanionOrganisationService.linkByParent({
+          parentId,
+          patientId,
+          organisationId,
+          organisationType: "HOSPITAL",
+        }),
+      ).rejects.toMatchObject({ statusCode: 403 });
+
+      expect(prisma.parentPatient.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            parentId,
+            patientId,
+            status: "ACTIVE",
+          }),
+        }),
+      );
+      expect(prisma.patientOrganisation.create).not.toHaveBeenCalled();
+    });
+
     it("returns an existing pending PMS link without creating another one", async () => {
       (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
         {
@@ -414,7 +440,7 @@ describe("CompanionOrganisationService", () => {
           where: expect.objectContaining({
             parentId,
             patientId,
-            status: { in: ["ACTIVE", "PENDING"] },
+            status: "ACTIVE",
           }),
         }),
       );
@@ -489,7 +515,7 @@ describe("CompanionOrganisationService", () => {
           where: expect.objectContaining({
             parentId,
             patientId,
-            status: { in: ["ACTIVE", "PENDING"] },
+            status: "ACTIVE",
           }),
         }),
       );
@@ -542,7 +568,7 @@ describe("CompanionOrganisationService", () => {
           where: expect.objectContaining({
             parentId,
             patientId,
-            status: { in: ["ACTIVE", "PENDING"] },
+            status: "ACTIVE",
           }),
         }),
       );

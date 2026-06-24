@@ -81,11 +81,14 @@ const assertParentOwnsCompanion = async (
   parentId: string,
   patientId: string,
 ): Promise<void> => {
+  // Only an ACTIVE (accepted) parent-companion link confers management rights.
+  // A PENDING link (e.g. a not-yet-accepted co-parent) must not be able to
+  // link/invite/approve/deny/list/revoke organisation access for the companion.
   const link = await prisma.parentPatient.findFirst({
     where: {
       parentId,
       patientId,
-      status: { in: ["ACTIVE", "PENDING"] },
+      status: PatientOrganisationStatus.ACTIVE,
     },
     select: { id: true },
   });
