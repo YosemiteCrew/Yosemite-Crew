@@ -25,6 +25,8 @@ export type DocumentSignature = {
   signerName?: string;
   signerRole?: string;
   signerDegree?: string;
+  signerEmail?: string;
+  authMethod?: string;
   signedAt?: Date;
   label?: string;
 };
@@ -171,6 +173,7 @@ export type VitalRecordDocumentData = BaseClinicalDocumentData & {
   date: Date;
   appointmentId?: string;
   recordedBy?: string;
+  recordedAt?: string;
   patientName: string;
   speciesBreed?: string;
   ageSex?: string;

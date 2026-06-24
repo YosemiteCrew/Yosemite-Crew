@@ -34,8 +34,12 @@ export { BasePdfTemplate } from './BasePdfTemplate.js';
 export {
   generateClinicalPdf,
   generateClinicalPdfWithMetadata,
+  generateCombinedClinicalPdf,
+  generateCombinedClinicalPdfWithMetadata,
   createClinicalPdfContext,
   clinicalPdfTheme,
+  type CombinedClinicalSection,
+  type CombinedClinicalDocumentInput,
 } from './PdfEngine.js';
 export { generatePdf, generatePdfWithMetadata } from './GenericPdfEngine.js';
 export {

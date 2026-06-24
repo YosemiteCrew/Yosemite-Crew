@@ -17,12 +17,15 @@ const EXTERNAL_AUTH_SECRET =
 
 const documensoClients = new Map<string, Documenso>();
 
+// Documenso positions fields as percentages (0–100) of the page from the
+// top-left, not PDF points. Last-resort fallback when a caller provides no
+// placement; real placements come from the PDF renderers as percentages.
 const DEFAULT_SIGNATURE_PLACEMENT: ClinicalPdfSignaturePlacement = {
   pageNumber: 1,
-  pageX: 330,
-  pageY: 700,
-  width: 220,
-  height: 96,
+  pageX: 55.44,
+  pageY: 83.15,
+  width: 36.96,
+  height: 11.4,
 };
 
 const getBaseUrl = () => {

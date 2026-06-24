@@ -604,6 +604,7 @@ model Admission {
   unitId            String?
   expectedStayDays  Int?
   admittedAt        DateTime
+  admittedBy        String?
   dischargedAt      DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

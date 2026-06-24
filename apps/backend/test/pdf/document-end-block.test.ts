@@ -38,7 +38,7 @@ describe("renderDocumentEndBlock", () => {
       pageX: 59.6639,
       pageY: 64.0143,
       width: 36.9748,
-      height: 4.7506,
+      height: 2.8504,
     });
   });
 });

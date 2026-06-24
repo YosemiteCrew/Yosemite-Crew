@@ -40,8 +40,17 @@ describe("buildMergedClinicalPacketPdf", () => {
     // 2 + 1 source pages + 1 appended attestation/signature page
     expect(result.pageCount).toBe(4);
     expect(result.signaturePlacement.pageNumber).toBe(4);
-    expect(result.signaturePlacement.width).toBeGreaterThan(0);
-    expect(result.signaturePlacement.height).toBeGreaterThan(0);
+    // Documenso uses percentage coordinates (0–100), not PDF points — guard
+    // against a regression to point values (which land the field off-page).
+    const placement = result.signaturePlacement;
+    expect(placement.pageX).toBeGreaterThan(0);
+    expect(placement.pageX).toBeLessThanOrEqual(100);
+    expect(placement.pageY).toBeGreaterThan(0);
+    expect(placement.pageY).toBeLessThanOrEqual(100);
+    expect(placement.width).toBeGreaterThan(0);
+    expect(placement.height).toBeGreaterThan(0);
+    expect(placement.pageX + placement.width).toBeLessThanOrEqual(100);
+    expect(placement.pageY + placement.height).toBeLessThanOrEqual(100);
     expect(result.pdf.subarray(0, 5).toString("utf8")).toBe("%PDF-");
 
     // Loader called once per document with the org id

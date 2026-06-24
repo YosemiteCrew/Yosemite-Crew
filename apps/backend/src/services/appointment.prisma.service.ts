@@ -90,6 +90,7 @@ type AdmissionUpsertDelegate = {
       organisationId: string;
       patientId: string;
       admittedAt: Date;
+      admittedBy?: string | null;
       expectedStayDays?: number | null;
     };
   }): Promise<unknown>;
@@ -209,6 +210,7 @@ type AdmitSupportStaffInput = {
 };
 type AdmitRequestInput = {
   admittedAt?: Date;
+  admittedBy?: string;
   expectedStayDays?: number;
   lead?: AdmitLeadInput;
   supportStaff?: AdmitSupportStaffInput[];
@@ -802,6 +804,7 @@ const admitInpatientRoomUnit = async (params: {
       organisationId: row.organisationId,
       patientId: getPatientId(row.patient),
       admittedAt,
+      admittedBy: normalizeOptionalString(input?.admittedBy) ?? null,
       expectedStayDays: input?.expectedStayDays ?? null,
     },
   });

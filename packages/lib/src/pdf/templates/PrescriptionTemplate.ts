@@ -7,29 +7,11 @@ import { renderRichText } from '../sections/RichText.js';
 import type { ClinicalPdfSignaturePlacement, PrescriptionDocumentData } from '../types.js';
 import { buildClinicalHeaderKeyValue } from './shared.js';
 
-export const renderPrescriptionTemplate = (
+// Content sections only (no title, metadata or signature) for combined packets.
+export const renderPrescriptionContent = (
   ctx: PdfContext,
   data: PrescriptionDocumentData
-): ClinicalPdfSignaturePlacement => {
-  renderDocumentTitle(ctx, data.title);
-  renderKeyValueGrid(
-    ctx,
-    buildClinicalHeaderKeyValue({
-      date: data.date,
-      appointmentId: data.appointmentId,
-      leadLabel: 'Lead',
-      leadName: data.leadName,
-      patientName: data.patientName,
-      clientName: data.clientName,
-      clientId: data.clientId,
-      clientContact: data.clientContact,
-      speciesBreed: data.speciesBreed,
-      ageSex: data.ageSex,
-    }),
-    { columns: 3 }
-  );
-  renderSpacer(ctx, ctx.theme.spacing.sectionGap);
-
+): void => {
   renderSectionTitle(ctx, 'Medication Details');
   renderTable(ctx, {
     columns: [
@@ -56,8 +38,37 @@ export const renderPrescriptionTemplate = (
     renderSectionTitle(ctx, 'Notes');
     renderRichText(ctx, data.notes);
   }
+};
 
+// Title + metadata + content, without the signature end block.
+export const renderPrescriptionBody = (ctx: PdfContext, data: PrescriptionDocumentData): void => {
+  renderDocumentTitle(ctx, data.title);
+  renderKeyValueGrid(
+    ctx,
+    buildClinicalHeaderKeyValue({
+      date: data.date,
+      appointmentId: data.appointmentId,
+      leadLabel: 'Lead',
+      leadName: data.leadName,
+      patientName: data.patientName,
+      clientName: data.clientName,
+      clientId: data.clientId,
+      clientContact: data.clientContact,
+      speciesBreed: data.speciesBreed,
+      ageSex: data.ageSex,
+    }),
+    { columns: 3 }
+  );
   renderSpacer(ctx, ctx.theme.spacing.sectionGap);
+  renderPrescriptionContent(ctx, data);
+  renderSpacer(ctx, ctx.theme.spacing.sectionGap);
+};
+
+export const renderPrescriptionTemplate = (
+  ctx: PdfContext,
+  data: PrescriptionDocumentData
+): ClinicalPdfSignaturePlacement => {
+  renderPrescriptionBody(ctx, data);
   return renderDocumentEndBlock(ctx, {
     printedBy: data.printedBy,
     signature: data.signature,

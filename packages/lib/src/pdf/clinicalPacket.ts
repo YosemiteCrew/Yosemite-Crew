@@ -66,6 +66,12 @@ const SIGNATURE_FIELD = {
   height: 96,
 };
 
+// Documenso expects field coordinates as percentages (0–100) of the page, not
+// PDF points. SIGNATURE_FIELD is kept in top-left points (matching Documenso's
+// origin) for drawing the visible box; convert to percentages for the field.
+const toFieldPercent = (value: number, total: number): number =>
+  Number(((value / total) * 100).toFixed(4));
+
 const humanizeKind = (kind: string): string =>
   kind
     .toLowerCase()
@@ -225,10 +231,10 @@ export const buildMergedClinicalPacketPdf = async (
     pageCount,
     signaturePlacement: {
       pageNumber: pageCount,
-      pageX: SIGNATURE_FIELD.pageX,
-      pageY: SIGNATURE_FIELD.pageY,
-      width: SIGNATURE_FIELD.width,
-      height: SIGNATURE_FIELD.height,
+      pageX: toFieldPercent(SIGNATURE_FIELD.pageX, A4_WIDTH),
+      pageY: toFieldPercent(SIGNATURE_FIELD.pageY, A4_HEIGHT),
+      width: toFieldPercent(SIGNATURE_FIELD.width, A4_WIDTH),
+      height: toFieldPercent(SIGNATURE_FIELD.height, A4_HEIGHT),
     },
   };
 };

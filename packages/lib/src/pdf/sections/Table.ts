@@ -9,7 +9,10 @@ const resolveColumnWidths = (ctx: PdfContext, columns: TableRenderInput['columns
   const explicitTotal = explicitWidths.reduce((sum, width) => sum + width, 0);
 
   if (explicitTotal > 0 && explicitTotal <= 1.01) {
-    return explicitWidths.map((width) => ctx.contentWidth * width);
+    // Normalize the fractional widths so the table always spans the full
+    // content width — columns summing to e.g. 0.86 are scaled up to fill the
+    // row and stay flush with the section rules, instead of stopping short.
+    return explicitWidths.map((width) => (ctx.contentWidth * width) / explicitTotal);
   }
 
   const unspecifiedCount = columns.filter((column) => column.width === undefined).length;
@@ -97,4 +100,9 @@ export const renderTable = (ctx: PdfContext, input: TableRenderInput): void => {
     ctx.document.restore();
     ctx.moveDown(rowHeight);
   }
+
+  // Trailing gap so following content (a section heading's own leading gap adds
+  // to this, or totals/text that have none) clears the table's bottom border
+  // instead of sitting flush against it.
+  ctx.moveDown(PDF_SPACING.sectionGap - PDF_SPACING.paragraphGap);
 };

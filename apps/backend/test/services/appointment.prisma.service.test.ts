@@ -820,6 +820,7 @@ describe("AppointmentPrismaService", () => {
         organisationId: "org_1",
         patientId: "comp_1",
         admittedAt: new Date("2026-06-11T12:00:00.000Z"),
+        admittedBy: null,
         expectedStayDays: 5,
       },
     });

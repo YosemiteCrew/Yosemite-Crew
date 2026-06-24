@@ -6,6 +6,7 @@ import {
 } from "src/services/workspace.prisma.service";
 import { DocumensoService } from "src/services/documenso.service";
 import { buildMergedClinicalPacketPdf } from "src/services/clinical-packet-pdf.service";
+import { renderCombinedClinicalPacketPdf } from "src/services/rendered-document-renderer.service";
 import { rerenderPersistedClinicalRenderedDocumentPdf } from "src/services/rendered-document.service";
 import logger from "src/utils/logger";
 import type {
@@ -146,6 +147,21 @@ const CANONICAL_MERGE_ORDER = [
 const MERGE_ORDER_RANK = new Map(
   CANONICAL_MERGE_ORDER.map((kind, index) => [kind, index]),
 );
+
+/**
+ * The four clinical-artifact kinds that the combined renderer can emit as
+ * content-only sections under one shared header (invoices are not packet
+ * members). A packet whose docs are all of these AND all CLINICAL_ARTIFACT
+ * sourced renders as ONE continuous PDF; anything else falls back to the merge.
+ */
+const CLINICAL_KINDS = new Set(CANONICAL_MERGE_ORDER);
+
+const isAllClinicalArtifacts = (docs: WorkspaceDocumentRow[]): boolean =>
+  docs.length > 0 &&
+  docs.every(
+    (doc) =>
+      doc.sourceKind === "CLINICAL_ARTIFACT" && CLINICAL_KINDS.has(doc.kind),
+  );
 
 const mergeOrderRank = (kind: string): number =>
   MERGE_ORDER_RANK.get(kind) ?? CANONICAL_MERGE_ORDER.length;
@@ -335,16 +351,36 @@ export const WorkspaceDocumentPacketService = {
       mergeableDocuments,
     );
 
-    const merged = await buildMergedClinicalPacketPdf({
-      organisationId: packet.organisationId,
-      title,
-      signerName: input.signerName ?? null,
-      documents: mergeableDocuments.map((doc) => ({
-        documentId: doc.documentId,
-        title: doc.title,
-        kind: doc.kind,
-      })),
-    });
+    let merged;
+    if (isAllClinicalArtifacts(mergeableDocuments)) {
+      logger.info(
+        `[WorkspaceDocumentPacket] Signing packet ${packet.id} as a combined clinical PDF (${mergeableDocuments.length} clinical artifact(s)).`,
+      );
+      merged = await renderCombinedClinicalPacketPdf({
+        organisationId: packet.organisationId,
+        signerName: input.signerName ?? null,
+        documents: mergeableDocuments.map((doc) => ({
+          documentId: doc.documentId,
+          sourceId: doc.sourceId,
+          kind: doc.kind,
+          title: doc.title,
+        })),
+      });
+    } else {
+      logger.info(
+        `[WorkspaceDocumentPacket] Signing packet ${packet.id} via PDF merge (mixed/non-clinical packet, ${mergeableDocuments.length} document(s)).`,
+      );
+      merged = await buildMergedClinicalPacketPdf({
+        organisationId: packet.organisationId,
+        title,
+        signerName: input.signerName ?? null,
+        documents: mergeableDocuments.map((doc) => ({
+          documentId: doc.documentId,
+          title: doc.title,
+          kind: doc.kind,
+        })),
+      });
+    }
 
     const doc = await DocumensoService.createDocument({
       pdf: merged.pdf,
@@ -556,15 +592,34 @@ export const WorkspaceDocumentPacketService = {
 
     await ensureClinicalArtifactsRendered(organisationId, documents);
 
-    const merged = await buildMergedClinicalPacketPdf({
-      organisationId,
-      title: `Clinical Packet ${encounterId}`,
-      documents: documents.map((doc) => ({
-        documentId: doc.documentId,
-        title: doc.title,
-        kind: doc.kind,
-      })),
-    });
+    let merged;
+    if (isAllClinicalArtifacts(documents)) {
+      logger.info(
+        `[WorkspaceDocumentPacket] Building encounter ${encounterId} packet PDF as a combined clinical PDF (${documents.length} clinical artifact(s)).`,
+      );
+      merged = await renderCombinedClinicalPacketPdf({
+        organisationId,
+        documents: documents.map((doc) => ({
+          documentId: doc.documentId,
+          sourceId: doc.sourceId,
+          kind: doc.kind,
+          title: doc.title,
+        })),
+      });
+    } else {
+      logger.info(
+        `[WorkspaceDocumentPacket] Building encounter ${encounterId} packet PDF via PDF merge (mixed/non-clinical packet, ${documents.length} document(s)).`,
+      );
+      merged = await buildMergedClinicalPacketPdf({
+        organisationId,
+        title: `Clinical Packet ${encounterId}`,
+        documents: documents.map((doc) => ({
+          documentId: doc.documentId,
+          title: doc.title,
+          kind: doc.kind,
+        })),
+      });
+    }
 
     return merged.pdf;
   },

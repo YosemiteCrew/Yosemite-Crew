@@ -11,15 +11,40 @@ import type {
   BaseClinicalDocumentData,
   ClinicalDocumentType,
   ClinicalPdfRenderResult,
+  DischargeSummaryDocumentData,
+  DocumentSignature,
+  OrganizationBranding,
   PdfGenerationInput,
+  PrescriptionDocumentData,
   PdfTheme,
+  SoapNoteDocumentData,
+  VitalRecordDocumentData,
 } from './types.js';
-import { renderDischargeSummaryTemplate } from './templates/DischargeSummaryTemplate.js';
+import {
+  renderDischargeSummaryContent,
+  renderDischargeSummaryTemplate,
+} from './templates/DischargeSummaryTemplate.js';
 import { renderInvoiceTemplate } from './templates/InvoiceTemplate.js';
 import { renderPrescriptionLabelTemplate } from './templates/PrescriptionLabelTemplate.js';
-import { renderPrescriptionTemplate } from './templates/PrescriptionTemplate.js';
-import { renderSoapNoteTemplate } from './templates/SoapNoteTemplate.js';
-import { renderVitalRecordTemplate } from './templates/VitalRecordTemplate.js';
+import {
+  renderPrescriptionContent,
+  renderPrescriptionTemplate,
+} from './templates/PrescriptionTemplate.js';
+import { renderSoapNoteContent, renderSoapNoteTemplate } from './templates/SoapNoteTemplate.js';
+import {
+  renderVitalRecordContent,
+  renderVitalRecordTemplate,
+} from './templates/VitalRecordTemplate.js';
+import { buildClinicalHeaderKeyValue } from './templates/shared.js';
+import { renderDocumentEndBlock } from './sections/DocumentEndBlock.js';
+import { renderKeyValueGrid } from './sections/KeyValueGrid.js';
+import {
+  renderDivider,
+  renderDocumentTitle,
+  renderParagraph,
+  renderSpacer,
+} from './sections/Text.js';
+import { addPageBreak } from './Pagination.js';
 
 const buildTheme = (fonts: PdfFontFamilies): PdfTheme => ({
   colors: {
@@ -187,6 +212,189 @@ export const generateClinicalPdfWithMetadata = async <TData extends BaseClinical
 export const generateClinicalPdf = async <TData extends BaseClinicalDocumentData>(
   input: PdfGenerationInput<TData>
 ): Promise<Buffer> => (await generateClinicalPdfWithMetadata(input)).pdf;
+
+// One section of a combined clinical document. Each carries the typed data its
+// matching template body renders. INVOICE is intentionally excluded — invoices
+// are issued as their own standalone PDF.
+export type CombinedClinicalSection =
+  | { documentType: 'SOAP_NOTE'; data: SoapNoteDocumentData }
+  | { documentType: 'VITAL_RECORD'; data: VitalRecordDocumentData }
+  | { documentType: 'PRESCRIPTION'; data: PrescriptionDocumentData }
+  | { documentType: 'DISCHARGE_SUMMARY'; data: DischargeSummaryDocumentData };
+
+export type CombinedClinicalDocumentInput = {
+  organization: OrganizationBranding;
+  // Shared patient/encounter metadata, rendered once at the top of the record.
+  header: {
+    date: Date;
+    appointmentId?: string;
+    doctorName?: string;
+    patientName?: string;
+    clientName?: string;
+    clientId?: string;
+    clientContact?: string;
+    speciesBreed?: string;
+    ageSex?: string;
+    roomName?: string;
+    unitName?: string;
+    admittedAt?: string;
+    admittedBy?: string;
+  };
+  sections: CombinedClinicalSection[];
+  printedBy?: string;
+  signature?: DocumentSignature;
+};
+
+const COMBINED_SECTION_LABELS: Record<CombinedClinicalSection['documentType'], string> = {
+  SOAP_NOTE: 'SOAP Note',
+  VITAL_RECORD: 'Vital Record',
+  PRESCRIPTION: 'Prescription',
+  DISCHARGE_SUMMARY: 'Discharge Summary',
+};
+
+// Each section: a heading (the document title) then its content only — the
+// shared patient header is rendered once for the whole record.
+const renderCombinedSection = (ctx: PdfContext, section: CombinedClinicalSection): void => {
+  renderDocumentTitle(ctx, section.data.title);
+  renderSpacer(ctx, ctx.theme.spacing.itemGap);
+  switch (section.documentType) {
+    case 'SOAP_NOTE':
+      renderSoapNoteContent(ctx, section.data);
+      return;
+    case 'VITAL_RECORD':
+      renderVitalRecordContent(ctx, section.data);
+      return;
+    case 'PRESCRIPTION':
+      renderPrescriptionContent(ctx, section.data);
+      return;
+    case 'DISCHARGE_SUMMARY':
+      renderDischargeSummaryContent(ctx, section.data);
+      return;
+    default: {
+      const exhaustiveCheck: never = section;
+      throw new Error(`Unsupported combined clinical section: ${JSON.stringify(exhaustiveCheck)}`);
+    }
+  }
+};
+
+const renderAttestationPage = (ctx: PdfContext, sections: CombinedClinicalSection[]): void => {
+  renderDocumentTitle(ctx, 'Clinical Document Packet');
+  renderParagraph(
+    ctx,
+    'This record combines the documents listed below, signed together as a single, complete clinical record:'
+  );
+  renderSpacer(ctx, ctx.theme.spacing.itemGap);
+  sections.forEach((section, index) => {
+    const label = COMBINED_SECTION_LABELS[section.documentType];
+    const title = section.data.title?.trim() || label;
+    const line =
+      title.toLowerCase() === label.toLowerCase()
+        ? `${index + 1}. ${title}`
+        : `${index + 1}. ${title}  (${label})`;
+    renderParagraph(ctx, line);
+  });
+  renderSpacer(ctx, ctx.theme.spacing.sectionGap);
+  renderParagraph(
+    ctx,
+    'By signing below I confirm that I have reviewed the documents listed above and that they form a single, complete clinical record.'
+  );
+  renderSpacer(ctx, ctx.theme.spacing.sectionGap);
+};
+
+// Renders SOAP, Vital, Prescription and Discharge sections into ONE continuous
+// PDF with a single signature on a final attestation page. Used for combined
+// clinical packets so the signer signs the whole record once (invoices stay
+// separate). Standalone single-document rendering is unchanged.
+export const generateCombinedClinicalPdfWithMetadata = async (
+  input: CombinedClinicalDocumentInput
+): Promise<ClinicalPdfRenderResult> => {
+  if (input.sections.length === 0) {
+    throw new Error('Cannot render a combined clinical document with no sections');
+  }
+
+  const document = createDocument();
+  const { fonts, theme } = resolveThemeAndFonts(document);
+  const logoSource = await resolveLogoSource(input.organization.logoUrl ?? null);
+  const ctx = new PdfContext({
+    document,
+    organization: input.organization,
+    theme,
+    fonts,
+    logoSource,
+  });
+
+  const output = collectPdfBuffer(document);
+
+  try {
+    renderHeader(ctx);
+
+    // Single documents place a title above the header rule and metadata just
+    // below it; the combined record has no per-document title, so start the
+    // shared header in the body zone to clear the header separator cleanly.
+    ctx.cursorY = ctx.bodyStartY;
+    // One shared patient/encounter header for the whole combined record.
+    renderKeyValueGrid(
+      ctx,
+      buildClinicalHeaderKeyValue({
+        date: input.header.date,
+        appointmentId: input.header.appointmentId,
+        leadLabel: 'Doctor',
+        leadName: input.header.doctorName,
+        patientName: input.header.patientName,
+        clientName: input.header.clientName,
+        clientId: input.header.clientId,
+        clientContact: input.header.clientContact,
+        speciesBreed: input.header.speciesBreed,
+        ageSex: input.header.ageSex,
+        roomName: input.header.roomName,
+        unitName: input.header.unitName,
+        admittedAt: input.header.admittedAt,
+        admittedBy: input.header.admittedBy,
+      }),
+      { columns: 3 }
+    );
+    renderSpacer(ctx, ctx.theme.spacing.sectionGap);
+
+    input.sections.forEach((section, index) => {
+      if (index > 0) {
+        renderDivider(ctx);
+        renderSpacer(ctx, ctx.theme.spacing.itemGap);
+      }
+      renderCombinedSection(ctx, section);
+    });
+
+    // The single signature lives on its own attestation page at the very end.
+    addPageBreak(ctx);
+    renderAttestationPage(ctx, input.sections);
+    const signaturePlacement = renderDocumentEndBlock(ctx, {
+      printedBy: input.printedBy,
+      signature: input.signature,
+    });
+
+    const pageRange = document.bufferedPageRange();
+    for (let index = pageRange.start; index < pageRange.start + pageRange.count; index += 1) {
+      document.switchToPage(index);
+      renderFooter(ctx, index + 1, pageRange.count, ctx.generatedAt);
+    }
+    document.end();
+
+    const pdf = await output.promise;
+
+    return {
+      pdf,
+      pageCount: pageRange.count,
+      signaturePlacement,
+    };
+  } catch (error) {
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    output.reject(normalizedError);
+    throw normalizedError;
+  }
+};
+
+export const generateCombinedClinicalPdf = async (
+  input: CombinedClinicalDocumentInput
+): Promise<Buffer> => (await generateCombinedClinicalPdfWithMetadata(input)).pdf;
 
 export const createClinicalPdfContext = (
   document: PdfDocumentInstance,

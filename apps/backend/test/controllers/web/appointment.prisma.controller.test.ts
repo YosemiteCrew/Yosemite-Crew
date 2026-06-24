@@ -220,6 +220,7 @@ describe("AppointmentPrismaController", () => {
       req as any,
       res as any,
     );
+    (req as { userId?: string }).userId = "actor-1";
     await AppointmentController.admitFromPMS(req as any, res as any);
     await AppointmentController.updateFromPms(req as any, res as any);
 
@@ -228,6 +229,7 @@ describe("AppointmentPrismaController", () => {
       "appt_1",
       expect.objectContaining({
         admittedAt: new Date("2026-06-11T12:00:00.000Z"),
+        admittedBy: "actor-1",
         expectedStayDays: 3,
         lead: {
           id: "lead_1",

@@ -11,7 +11,9 @@ const estimateSignatureHeight = (signature?: DocumentEndBlockInput['signature'])
   const detailsLines = [
     signature.signerName,
     [signature.signerRole, signature.signerDegree].filter(Boolean).join(' '),
+    signature.signerEmail,
     signature.signedAt ? signature.signedAt.toISOString() : undefined,
+    signature.authMethod,
   ].filter(Boolean).length;
 
   return 104 + detailsLines * 10;
@@ -112,7 +114,9 @@ export const renderDocumentEndBlock = (
    * details text below the line.
    */
   const signatureFieldY = lineY;
-  const signatureFieldHeight = 40;
+  // 24 == the underline offset (drawn at lineY + 24 below) so the field bottom
+  // rests exactly on the signature line, above the signer-detail text.
+  const signatureFieldHeight = 24;
 
   ctx.document
     .moveTo(signatureX, lineY + 24)
@@ -134,10 +138,18 @@ export const renderDocumentEndBlock = (
       details.push(role);
     }
 
+    if (signature.signerEmail) {
+      details.push(signature.signerEmail);
+    }
+
     const signedAt = formatSignedAt(signature.signedAt);
 
     if (signedAt) {
       details.push(`Signed ${signedAt}`);
+    }
+
+    if (signature.authMethod) {
+      details.push(`Authenticated via ${signature.authMethod}`);
     }
   } else {
     details.push('Pending signature');

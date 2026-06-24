@@ -2,6 +2,7 @@ import { prisma } from "src/config/prisma";
 import { WorkspaceService } from "src/services/workspace.prisma.service";
 import { DocumensoService } from "../../src/services/documenso.service";
 import { buildMergedClinicalPacketPdf } from "../../src/services/clinical-packet-pdf.service";
+import { renderCombinedClinicalPacketPdf } from "../../src/services/rendered-document-renderer.service";
 import { rerenderPersistedClinicalRenderedDocumentPdf } from "../../src/services/rendered-document.service";
 import { WorkspaceDocumentPacketService } from "../../src/services/workspace-document-packet.service";
 
@@ -46,6 +47,10 @@ jest.mock("../../src/services/clinical-packet-pdf.service", () => ({
   buildMergedClinicalPacketPdf: jest.fn(),
 }));
 
+jest.mock("../../src/services/rendered-document-renderer.service", () => ({
+  renderCombinedClinicalPacketPdf: jest.fn(),
+}));
+
 jest.mock("../../src/services/rendered-document.service", () => ({
   rerenderPersistedClinicalRenderedDocumentPdf: jest.fn(),
 }));
@@ -77,8 +82,22 @@ const mockedDocumenso = DocumensoService as unknown as {
 };
 const mockedBuildPacketPdf =
   buildMergedClinicalPacketPdf as unknown as jest.Mock;
+const mockedRenderCombinedPacketPdf =
+  renderCombinedClinicalPacketPdf as unknown as jest.Mock;
 const mockedRerenderClinicalArtifact =
   rerenderPersistedClinicalRenderedDocumentPdf as unknown as jest.Mock;
+
+const combinedPdfResult = () => ({
+  pdf: Buffer.from("combined-pdf"),
+  pageCount: 2,
+  signaturePlacement: {
+    pageNumber: 2,
+    pageX: 80,
+    pageY: 690,
+    width: 240,
+    height: 96,
+  },
+});
 
 const docRow = (id: string, kind = "SOAP_NOTE") => ({
   documentId: id,
@@ -167,6 +186,24 @@ describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
     expect(packet.packetId).toBe("packet-1");
     expect(packet.signing).toBeNull();
   });
+
+  it("treats a signing blob without a string status as no signing", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        id: "packet-1",
+        documents: [],
+        // Object but `status` is not a string → parseSigning returns null.
+        signing: { documentId: "123", status: 42 },
+      }),
+    );
+
+    const packet = await WorkspaceDocumentPacketService.getById(
+      "org-1",
+      "packet-1",
+    );
+
+    expect(packet.signing).toBeNull();
+  });
 });
 
 describe("WorkspaceDocumentPacketService.sign", () => {
@@ -192,6 +229,7 @@ describe("WorkspaceDocumentPacketService.sign", () => {
         height: 96,
       },
     });
+    mockedRenderCombinedPacketPdf.mockResolvedValue(combinedPdfResult());
     mockedDocumenso.createDocument.mockResolvedValue({
       id: 123,
       recipients: [{ token: "tok-1" }],
@@ -205,6 +243,15 @@ describe("WorkspaceDocumentPacketService.sign", () => {
 
   it("builds a merged packet, sends it to Documenso, and stores IN_PROGRESS signing", async () => {
     arrange();
+    // Mixed packet (a non-clinical FORM is present) → the merge fallback runs.
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        documents: [
+          docRow("d1", "SOAP_NOTE"),
+          { ...docRow("d2", "FORM"), sourceKind: "FORM_SUBMISSION" },
+        ],
+      }),
+    );
 
     const result = await WorkspaceDocumentPacketService.sign({
       organisationId: "org-1",
@@ -213,6 +260,7 @@ describe("WorkspaceDocumentPacketService.sign", () => {
       signerName: "Dr Jane",
     });
 
+    expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
     expect(mockedBuildPacketPdf).toHaveBeenCalledWith(
       expect.objectContaining({
         organisationId: "org-1",
@@ -327,7 +375,10 @@ describe("WorkspaceDocumentPacketService.sign", () => {
       signerId: "user-1",
     });
 
-    const buildArg = mockedBuildPacketPdf.mock.calls[0][0];
+    // All four docs are clinical artifacts → the combined renderer is used and
+    // receives them in the canonical clinical order.
+    expect(mockedBuildPacketPdf).not.toHaveBeenCalled();
+    const buildArg = mockedRenderCombinedPacketPdf.mock.calls[0][0];
     expect(buildArg.documents.map((d: { kind: string }) => d.kind)).toEqual([
       "SOAP_NOTE",
       "VITAL_RECORD",
@@ -358,6 +409,90 @@ describe("WorkspaceDocumentPacketService.sign", () => {
     expect(
       buildArg.documents.map((d: { documentId: string }) => d.documentId),
     ).toEqual(["soap", "misc-a", "misc-b"]);
+  });
+
+  it("renders a combined clinical PDF (not a merge) when every doc is a clinical artifact", async () => {
+    arrange();
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        documents: [docRow("d1", "SOAP_NOTE"), docRow("d2", "PRESCRIPTION")],
+      }),
+    );
+
+    await WorkspaceDocumentPacketService.sign({
+      organisationId: "org-1",
+      packetId: "pkt-1",
+      signerId: "user-1",
+      signerName: "Dr Jane",
+    });
+
+    expect(mockedBuildPacketPdf).not.toHaveBeenCalled();
+    expect(mockedRenderCombinedPacketPdf).toHaveBeenCalledWith({
+      organisationId: "org-1",
+      signerName: "Dr Jane",
+      documents: [
+        expect.objectContaining({
+          documentId: "d1",
+          sourceId: "src-d1",
+          kind: "SOAP_NOTE",
+          title: "Doc d1",
+        }),
+        expect.objectContaining({
+          documentId: "d2",
+          sourceId: "src-d2",
+          kind: "PRESCRIPTION",
+        }),
+      ],
+    });
+    expect(mockedDocumenso.createDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signaturePlacement: expect.objectContaining({ pageNumber: 2 }),
+      }),
+    );
+  });
+
+  it("falls back to the PDF merge when the packet mixes in a non-clinical doc", async () => {
+    arrange();
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        documents: [
+          docRow("d1", "SOAP_NOTE"),
+          { ...docRow("d2", "FORM"), sourceKind: "TEMPLATE_INSTANCE" },
+        ],
+      }),
+    );
+
+    await WorkspaceDocumentPacketService.sign({
+      organisationId: "org-1",
+      packetId: "pkt-1",
+      signerId: "user-1",
+    });
+
+    expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
+    expect(mockedBuildPacketPdf).toHaveBeenCalledWith(
+      expect.objectContaining({ organisationId: "org-1" }),
+    );
+  });
+
+  it("falls back to the merge when a clinical kind is not a CLINICAL_ARTIFACT source", async () => {
+    arrange();
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        documents: [
+          docRow("d1", "SOAP_NOTE"),
+          { ...docRow("d2", "PRESCRIPTION"), sourceKind: "TEMPLATE_INSTANCE" },
+        ],
+      }),
+    );
+
+    await WorkspaceDocumentPacketService.sign({
+      organisationId: "org-1",
+      packetId: "pkt-1",
+      signerId: "user-1",
+    });
+
+    expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
+    expect(mockedBuildPacketPdf).toHaveBeenCalled();
   });
 
   it("rejects when the packet is already FINAL", async () => {
@@ -400,6 +535,45 @@ describe("WorkspaceDocumentPacketService.sign", () => {
         signerId: "user-1",
       }),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("rejects with 409 when every document is a non-rendered upload", async () => {
+    arrange();
+    // All docs are direct uploads (sourceKind: "DOCUMENT") → selectMergeable
+    // filters them all out (logging the skip) → no rendered docs remain.
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        documents: [
+          { ...docRow("d1", "FORM"), sourceKind: "DOCUMENT" },
+          { ...docRow("d2", "FORM"), sourceKind: "DOCUMENT" },
+        ],
+      }),
+    );
+
+    await expect(
+      WorkspaceDocumentPacketService.sign({
+        organisationId: "org-1",
+        packetId: "pkt-1",
+        signerId: "user-1",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Document packet has no rendered documents to sign",
+    });
+    expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
+    expect(mockedBuildPacketPdf).not.toHaveBeenCalled();
+  });
+
+  it("rejects with 404 when the packet cannot be found", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceDocumentPacketService.sign({
+        organisationId: "org-1",
+        packetId: "pkt-missing",
+        signerId: "user-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("rejects when the signer email cannot be resolved", async () => {
@@ -515,6 +689,91 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
     expect(mockedDocumenso.downloadSignedDocument).not.toHaveBeenCalled();
     expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
   });
+
+  it("returns the packet untouched when no signing has been initiated", async () => {
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({ signing: null }),
+    );
+
+    const result =
+      await WorkspaceDocumentPacketService.completeSigning("pkt-1");
+
+    expect(result?.packetId).toBe("pkt-1");
+    expect(mockedDocumenso.downloadSignedDocument).not.toHaveBeenCalled();
+    expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects with 400 when the Documenso document id is missing", async () => {
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: { status: "IN_PROGRESS", documentIds: [] },
+      }),
+    );
+
+    await expect(
+      WorkspaceDocumentPacketService.completeSigning("pkt-1"),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejects with 400 when the organisation has no Documenso API key", async () => {
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: { status: "IN_PROGRESS", documentId: "123", documentIds: [] },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceDocumentPacketService.completeSigning("pkt-1"),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejects with 502 when the signed packet cannot be downloaded", async () => {
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: { status: "IN_PROGRESS", documentId: "123", documentIds: [] },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceDocumentPacketService.completeSigning("pkt-1"),
+    ).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("swallows per-document errors while finalising the packet", async () => {
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: {
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          signerName: "Dr Jane",
+          documentIds: ["d1"],
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
+    });
+    mockedPrisma.workspaceDocumentPacket.update.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) =>
+        basePacket({ status: data.status, signing: data.signing }),
+    );
+    // The child rendered-document update throws → the catch logs and the
+    // packet still finalises successfully.
+    mockedPrisma.renderedDocument.update.mockRejectedValue(
+      new Error("child update failed"),
+    );
+
+    const result =
+      await WorkspaceDocumentPacketService.completeSigning("pkt-1");
+
+    expect(result?.status).toBe("FINAL");
+    expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
+  });
 });
 
 describe("WorkspaceDocumentPacketService.resetSigning", () => {
@@ -542,6 +801,14 @@ describe("WorkspaceDocumentPacketService.resetSigning", () => {
 
     expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
   });
+
+  it("is a no-op when the packet cannot be found", async () => {
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(null);
+
+    await WorkspaceDocumentPacketService.resetSigning("pkt-missing");
+
+    expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
@@ -562,9 +829,10 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
         height: 96,
       },
     });
+    mockedRenderCombinedPacketPdf.mockResolvedValue(combinedPdfResult());
   };
 
-  it("merges the encounter documents into a single PDF for print", async () => {
+  it("renders the encounter clinical artifacts into a single combined PDF for print", async () => {
     mockedWorkspaceService.getEncounterBootstrap.mockResolvedValue({
       appointment: null,
       encounter: { id: "enc-1" },
@@ -583,6 +851,39 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
 
     expect(pdf).toBeInstanceOf(Buffer);
     expect(mockedRerenderClinicalArtifact).not.toHaveBeenCalled();
+    expect(mockedBuildPacketPdf).not.toHaveBeenCalled();
+    expect(mockedRenderCombinedPacketPdf).toHaveBeenCalledWith({
+      organisationId: "org-1",
+      documents: [
+        expect.objectContaining({ documentId: "d1", sourceId: "src-d1" }),
+        expect.objectContaining({ documentId: "d2", sourceId: "src-d2" }),
+      ],
+    });
+  });
+
+  it("merges the encounter documents into a single PDF for print when a non-clinical doc is present", async () => {
+    mockedWorkspaceService.getEncounterBootstrap.mockResolvedValue({
+      appointment: null,
+      encounter: { id: "enc-1" },
+      companion: null,
+      documents: [
+        { ...docRow("d1"), pdfUrl: "https://cdn/d1.pdf" },
+        {
+          ...docRow("d2", "FORM"),
+          sourceKind: "FORM_SUBMISSION",
+          pdfUrl: "https://cdn/d2.pdf",
+        },
+      ],
+    });
+    arrangePrintBuild();
+
+    const pdf = await WorkspaceDocumentPacketService.buildEncounterPacketPdf(
+      "org-1",
+      "enc-1",
+    );
+
+    expect(pdf).toBeInstanceOf(Buffer);
+    expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
     expect(mockedBuildPacketPdf).toHaveBeenCalledWith(
       expect.objectContaining({
         organisationId: "org-1",
@@ -614,7 +915,7 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
     expect(mockedRerenderClinicalArtifact).toHaveBeenCalledWith("d2", "org-1");
   });
 
-  it("merges print documents in the canonical clinical order", async () => {
+  it("orders print documents in the canonical clinical order for the combined PDF", async () => {
     mockedWorkspaceService.getEncounterBootstrap.mockResolvedValue({
       appointment: null,
       encounter: { id: "enc-1" },
@@ -633,7 +934,8 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
       "enc-1",
     );
 
-    const buildArg = mockedBuildPacketPdf.mock.calls[0][0];
+    expect(mockedBuildPacketPdf).not.toHaveBeenCalled();
+    const buildArg = mockedRenderCombinedPacketPdf.mock.calls[0][0];
     expect(buildArg.documents.map((d: { kind: string }) => d.kind)).toEqual([
       "SOAP_NOTE",
       "VITAL_RECORD",

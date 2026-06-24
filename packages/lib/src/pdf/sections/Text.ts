@@ -147,6 +147,9 @@ export const renderDocumentTitle = (ctx: PdfContext, title: string): void => {
 export const renderSectionTitle = (ctx: PdfContext, title: string): void => {
   const fontSize = PDF_FONT_SIZES.sectionTitle;
   const height = Math.ceil(fontSize * 1.35 + 2);
+  // Leading gap so each section heading has consistent breathing room above it,
+  // regardless of whether the previous block was text, bullets or a table.
+  ctx.moveDown(PDF_SPACING.paragraphGap);
   ensureSpace(ctx, height + 12);
 
   ctx.document

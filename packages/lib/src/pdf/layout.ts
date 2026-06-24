@@ -5,20 +5,25 @@ export const PDF_PAGE_SIZE = {
 
 export const PDF_LAYOUT = {
   marginX: 20,
+  // Logo left edge aligns with marginX so the letterhead lines up with the
+  // header rule, metadata, tables and footer (all at marginX).
   headerLogo: {
-    x: 12,
+    x: 20,
     y: 12,
-    width: 64,
-    height: 48,
+    width: 44,
+    height: 44,
   },
-  headerOrgX: 84,
+  headerOrgX: 78,
   headerOrgY: 16,
   headerContactX: 481,
   headerContactY: 16,
-  headerSeparatorY: 160,
-  titleY: 89,
-  metadataY: 111,
-  bodyStartY: 184,
+  // The header rule sits just below the org letterhead (logo ends at y60), so it
+  // never cuts through the document title/metadata. Body content begins right
+  // below it on every page — including continuation pages (no large top gap).
+  headerSeparatorY: 70,
+  titleY: 88,
+  metadataY: 110,
+  bodyStartY: 88,
   footerSeparatorY: 781,
   footerTextY: 793,
   footerTimestampY: 819,
