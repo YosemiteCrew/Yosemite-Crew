@@ -440,8 +440,7 @@ describe("Task Controllers", () => {
         expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
           expect.objectContaining({
             organisationId: "org-from-rbac",
-            userId: "me",
-            assignedTo: "me",
+            ownerId: "me",
           }),
         );
       });
@@ -518,8 +517,7 @@ describe("Task Controllers", () => {
         expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
           expect.objectContaining({
             organisationId: "org-from-rbac",
-            userId: "u-own",
-            assignedTo: "u-own",
+            ownerId: "u-own",
           }),
         );
       });
