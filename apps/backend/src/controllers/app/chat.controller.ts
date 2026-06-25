@@ -7,6 +7,8 @@ import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import { SharedChatEntityService } from "src/services/sharedChatEntity.service";
+import { z } from "zod";
 
 const getObjectBody = (req: Request): Record<string, unknown> =>
   typeof req.body === "object" && req.body
@@ -18,6 +20,21 @@ const isStringArray = (value: unknown): value is string[] =>
 
 const getStringArray = (value: unknown): string[] | undefined =>
   isStringArray(value) ? value : undefined;
+
+const shareEntitySchema = z.object({
+  channelId: z.string().min(1),
+  entityType: z.enum([
+    "COMPANION",
+    "APPOINTMENT",
+    "INVOICE",
+    "FORM",
+    "PRESCRIPTION",
+    "DOCUMENT",
+  ]),
+  entityId: z.string().min(1),
+  title: z.string().trim().min(1).optional(),
+  snapshot: z.record(z.unknown()).optional(),
+});
 
 export const ChatController = {
   async generateToken(req: Request, res: Response) {
@@ -56,6 +73,87 @@ export const ChatController = {
     } catch (err) {
       logger.error("Generate PMS token failed", err);
       return res.status(500).json({ message: "Token generation failed" });
+    }
+  },
+
+  async shareEntityToChannel(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const parsed = shareEntitySchema.safeParse(getObjectBody(req));
+      if (!parsed.success) {
+        return res
+          .status(400)
+          .json({ message: "Invalid payload", errors: parsed.error.flatten() });
+      }
+
+      const record = await SharedChatEntityService.shareEntity({
+        userId,
+        ...parsed.data,
+      });
+      return res.status(201).json(record);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Share entity to chat failed", err);
+      return res.status(500).json({ message: "Failed to share entity" });
+    }
+  },
+
+  async listSharedEntities(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const channelId = req.params.channelId;
+      if (!channelId) {
+        return res.status(400).json({ message: "channelId is required" });
+      }
+
+      const items = await SharedChatEntityService.listForChannel(
+        channelId,
+        userId,
+      );
+      return res.status(200).json(items);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("List shared entities failed", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to list shared entities" });
+    }
+  },
+
+  async revokeSharedEntity(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const id = req.params.id;
+      if (!id) {
+        return res.status(400).json({ message: "id is required" });
+      }
+
+      const record = await SharedChatEntityService.revoke(id, userId);
+      return res.status(200).json(record);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Revoke shared entity failed", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to revoke shared entity" });
     }
   },
 
