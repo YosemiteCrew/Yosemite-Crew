@@ -372,7 +372,7 @@ describe('ChatContainer', () => {
     });
   });
 
-  it('validates create-group form before submit', async () => {
+  it('keeps create-group submit inert until the form is valid', async () => {
     await act(async () => {
       render(<ChatContainer scope="groups" />);
     });
@@ -385,7 +385,6 @@ describe('ChatContainer', () => {
       fireEvent.click(createBtns.at(-1)!);
     });
 
-    expect(globalThis.alert).toHaveBeenCalledWith('Add a group title and at least one member.');
     expect(chatService.createOrgGroupChat).not.toHaveBeenCalled();
   });
 

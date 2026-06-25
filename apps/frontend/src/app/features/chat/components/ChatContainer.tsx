@@ -331,10 +331,7 @@ const GroupModal: FC<GroupModalProps> = ({
   }
 
   const handleCreate = async () => {
-    if (!title.trim() || members.length === 0) {
-      alert('Add a group title and at least one member.');
-      return;
-    }
+    if (!title.trim() || members.length === 0) return;
     await onCreate(title.trim(), members);
   };
 
@@ -362,10 +359,7 @@ const GroupModal: FC<GroupModalProps> = ({
   return (
     <Modal showModal={open} setShowModal={() => undefined} onClose={handleClose}>
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
+        <div className="flex items-center justify-between">
           <div className="text-body-1 text-text-primary">
             {mode === 'create' ? 'Create group' : 'Group info'}
           </div>
@@ -404,19 +398,10 @@ const GroupModal: FC<GroupModalProps> = ({
                   {memberDetails.map((m) => (
                     <div
                       key={m.id}
-                      className="flex justify-between items-center p-3 border border-grey-light rounded-2xl bg-white"
+                      className="flex justify-between items-center p-3 border border-card-border rounded-2xl bg-chat-surface"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="size-8 rounded-full bg-card-hover flex items-center justify-center">
-                          <span className="font-satoshi text-black-text text-sm font-medium">
-                            {(m.name || '?')
-                              .split(' ')
-                              .map((p) => p[0])
-                              .join('')
-                              .slice(0, 2)
-                              .toUpperCase()}
-                          </span>
-                        </div>
+                        <ChatAvatar name={m.name} size="sm" />
                         <div className="flex flex-col">
                           <span className="text-body-4 text-text-primary">{m.name}</span>
                           {m.email && (
@@ -425,17 +410,13 @@ const GroupModal: FC<GroupModalProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {mode === 'edit' && m.id === ownerId && (
-                          <span className="text-caption-1 text-text-brand px-2 py-1 bg-blue-50 rounded-lg">
-                            Owner
-                          </span>
-                        )}
+                        {mode === 'edit' && m.id === ownerId && <Badge tone="brand">Owner</Badge>}
                         {isCreator && m.id !== ownerId && (
                           <button
                             type="button"
                             onClick={() => handleRemoveMemberClick(m.id)}
                             disabled={busy}
-                            className={`p-1.5 rounded-lg hover:bg-red-50 transition-all duration-200 ${
+                            className={`p-1.5 rounded-lg hover:bg-chat-surface-soft transition-all duration-200 ${
                               busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                             }`}
                             title="Remove member"
@@ -486,19 +467,10 @@ const GroupModal: FC<GroupModalProps> = ({
                     availableUsers.map((u) => (
                       <div
                         key={u.keyId}
-                        className="flex justify-between items-center p-3 border border-grey-light rounded-2xl bg-white hover:border-input-border-active transition-all duration-200"
+                        className="flex justify-between items-center p-3 border border-card-border rounded-2xl bg-chat-surface hover:border-input-border-active transition-all duration-200"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-full bg-card-hover flex items-center justify-center">
-                            <span className="font-satoshi text-black-text text-sm font-medium">
-                              {(u.name || u.email || '?')
-                                .split(' ')
-                                .map((p) => p[0])
-                                .join('')
-                                .slice(0, 2)
-                                .toUpperCase()}
-                            </span>
-                          </div>
+                          <ChatAvatar name={u.name || u.email || '?'} size="sm" />
                           <div className="flex flex-col">
                             <span className="text-body-4 text-text-primary">{u.name}</span>
                             {u.email && (
@@ -510,7 +482,7 @@ const GroupModal: FC<GroupModalProps> = ({
                           type="button"
                           onClick={() => handleAddMemberClick(u.keyId)}
                           disabled={busy}
-                          className={`p-1.5 rounded-lg hover:bg-green-50 transition-all duration-200 ${
+                          className={`p-1.5 rounded-lg hover:bg-chat-surface-soft transition-all duration-200 ${
                             busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                           }`}
                           title="Add member"
@@ -524,8 +496,8 @@ const GroupModal: FC<GroupModalProps> = ({
             )}
 
             {!isCreator && mode === 'edit' && (
-              <div className="px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-2xl">
-                <span className="text-caption-1 text-yellow-700">
+              <div className="rounded-2xl border border-card-border bg-chat-surface px-4 py-3">
+                <span className="text-caption-1 text-text-secondary">
                   Only the group creator can modify this group.
                 </span>
               </div>
@@ -537,7 +509,7 @@ const GroupModal: FC<GroupModalProps> = ({
               <Primary
                 text={busy ? 'Creating...' : 'Create Group'}
                 onClick={handleCreate}
-                isDisabled={busy}
+                isDisabled={busy || !title.trim() || members.length === 0}
               />
             )}
             {mode === 'edit' && isCreator && (
@@ -2019,18 +1991,10 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         showEmpty={showEmptyPlaceholder}
         channelListHeader={
           <>
-            <div className="flex items-center justify-between px-3 pt-3">
+            <div className="flex items-center px-3 pt-3">
               <Text as="h2" variant="heading-3" className="text-neutral-900">
                 Messages
               </Text>
-              <button
-                type="button"
-                aria-label="New conversation"
-                onClick={openCreateGroupModal}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-neutral-0 transition-colors hover:bg-primary-600"
-              >
-                <LuMessageSquarePlus className="h-4 w-4" />
-              </button>
             </div>
             <div className="px-3 pt-2">
               <fieldset
