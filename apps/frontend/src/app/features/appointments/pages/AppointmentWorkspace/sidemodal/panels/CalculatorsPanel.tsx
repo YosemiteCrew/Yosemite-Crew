@@ -34,12 +34,11 @@ const CalculatorsPanel = ({ appointment }: CalculatorsPanelProps) => {
   const weightKg = weightLbs == null ? undefined : lbsToKg(weightLbs);
   const initialValues = weightKg == null ? undefined : { weightKg: String(weightKg) };
 
+  const speciesSuffix = speciesSupported ? `, ${speciesLabel}` : '';
   const prefillNote =
     weightKg == null
       ? null
-      : `Pre-filled from ${companion.name}: ${weightLbs} lbs (${weightKg} kg)${
-          speciesSupported ? `, ${speciesLabel}` : ''
-        }. Edit any value as needed.`;
+      : `Pre-filled from ${companion.name}: ${weightLbs} lbs (${weightKg} kg)${speciesSuffix}. Edit any value as needed.`;
 
   const unsupportedNote =
     companionType != null && !speciesSupported

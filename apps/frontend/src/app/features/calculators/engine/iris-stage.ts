@@ -11,7 +11,7 @@ export const calculateIrisStage = (input: IrisStageInput): IrisStageResult => {
     stage = 1;
   } else if (input.creatinineMgDl <= 2.8) {
     stage = 2;
-  } else if (input.creatinineMgDl <= 5.0) {
+  } else if (input.creatinineMgDl <= 5) {
     stage = 3;
   } else {
     stage = 4;

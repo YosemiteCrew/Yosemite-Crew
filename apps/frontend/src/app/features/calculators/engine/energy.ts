@@ -25,7 +25,7 @@ export const calculateEnergyRequirement = (input: EnergyInput): EnergyResult => 
   const rer = 70 * input.weightKg ** 0.75;
   const mer = rer * factor;
   const gramsPerDay =
-    input.dietKcalPer100g !== undefined ? roundTo(mer / (input.dietKcalPer100g / 100), 0) : null;
+    input.dietKcalPer100g === undefined ? null : roundTo(mer / (input.dietKcalPer100g / 100), 0);
 
   return {
     rerKcalPerDay: roundTo(rer, 0),

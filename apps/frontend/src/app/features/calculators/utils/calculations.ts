@@ -121,7 +121,7 @@ export const calculateDrugDose = (input: DrugDoseInput): DrugDoseResult => {
 
 export const BSA_K_FACTOR: Record<CalculatorSpecies, number> = {
   dog: 10.1,
-  cat: 10.0,
+  cat: 10,
 };
 
 export type BodySurfaceAreaInput = {
