@@ -33,6 +33,22 @@ const VaccinationBodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
+const TreatmentBodySchema = z.object({
+  treatmentType: z.enum(["ECHINOCOCCUS", "TICK", "FLEA", "OTHER"]),
+  productName: z.string().min(1).max(200),
+  manufacturer: z.string().max(200).optional(),
+  treatedAt: z.string().min(1),
+  administeringVetName: z.string().max(200).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+const TitrationBodySchema = z.object({
+  approvedLab: z.string().min(1).max(200),
+  sampleDate: z.string().min(1),
+  resultIuMl: z.number(),
+  reportUrl: z.string().max(2048).optional(),
+});
+
 const permissionsLoaded = (req: OrgRequest, res: Response): boolean => {
   if (req.userPermissions) return true;
   res.status(500).json({
@@ -94,6 +110,102 @@ export const PetPassportController = {
       return res.status(200).json({ vaccinations });
     } catch (err) {
       return handleError(err, res, "Vaccination listing failed");
+    }
+  },
+
+  recordParasiteTreatment: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = TreatmentBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const treatment = await PetPassportService.recordParasiteTreatment({
+        patientId: params.data.patientId,
+        organisationId: params.data.organisationId,
+        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        input: body.data,
+      });
+      return res.status(201).json(treatment);
+    } catch (err) {
+      return handleError(err, res, "Parasite treatment recording failed");
+    }
+  },
+
+  listParasiteTreatments: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const treatments = await PetPassportService.listParasiteTreatments(
+        params.data.patientId,
+        params.data.organisationId,
+      );
+      return res.status(200).json({ treatments });
+    } catch (err) {
+      return handleError(err, res, "Parasite treatment listing failed");
+    }
+  },
+
+  recordRabiesTitration: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = TitrationBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const titration = await PetPassportService.recordRabiesTitration({
+        patientId: params.data.patientId,
+        organisationId: params.data.organisationId,
+        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        input: body.data,
+      });
+      return res.status(201).json(titration);
+    } catch (err) {
+      return handleError(err, res, "Rabies titration recording failed");
+    }
+  },
+
+  listRabiesTitrations: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const titrations = await PetPassportService.listRabiesTitrations(
+        params.data.patientId,
+        params.data.organisationId,
+      );
+      return res.status(200).json({ titrations });
+    } catch (err) {
+      return handleError(err, res, "Rabies titration listing failed");
     }
   },
 

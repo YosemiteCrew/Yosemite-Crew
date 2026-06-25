@@ -7,6 +7,10 @@ const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const PetPassportController = {
   recordVaccination: jest.fn(),
   listVaccinations: jest.fn(),
+  recordParasiteTreatment: jest.fn(),
+  listParasiteTreatments: jest.fn(),
+  recordRabiesTitration: jest.fn(),
+  listRabiesTitrations: jest.fn(),
   getPassport: jest.fn(),
 };
 
@@ -60,5 +64,20 @@ describe("pet-passport.router", () => {
       "/pms/organisation/:organisationId/companion/:patientId/passport";
     expect(findRoute(passportPath, "get")).toBeDefined();
     expect(findRoute(passportPath, "get")?.stack).toHaveLength(4);
+  });
+
+  it("registers treatment and titration record/list routes", () => {
+    const treatments =
+      "/pms/organisation/:organisationId/companion/:patientId/treatments";
+    const titrations =
+      "/pms/organisation/:organisationId/companion/:patientId/titrations";
+    expect(findRoute(treatments, "post")).toBeDefined();
+    expect(findRoute(treatments, "get")).toBeDefined();
+    expect(findRoute(titrations, "post")).toBeDefined();
+    expect(findRoute(titrations, "get")).toBeDefined();
+  });
+
+  it("guards treatment and titration writes with passport:edit:any", () => {
+    expect(requirePermission).toHaveBeenCalledWith("passport:edit:any");
   });
 });

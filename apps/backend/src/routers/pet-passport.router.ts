@@ -21,6 +21,38 @@ router.get(
   PetPassportController.listVaccinations,
 );
 
+router.post(
+  "/pms/organisation/:organisationId/companion/:patientId/treatments",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("passport:edit:any"),
+  PetPassportController.recordParasiteTreatment,
+);
+
+router.get(
+  "/pms/organisation/:organisationId/companion/:patientId/treatments",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  PetPassportController.listParasiteTreatments,
+);
+
+router.post(
+  "/pms/organisation/:organisationId/companion/:patientId/titrations",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("passport:edit:any"),
+  PetPassportController.recordRabiesTitration,
+);
+
+router.get(
+  "/pms/organisation/:organisationId/companion/:patientId/titrations",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  PetPassportController.listRabiesTitrations,
+);
+
 router.get(
   "/pms/organisation/:organisationId/companion/:patientId/passport",
   authorizeCognito,

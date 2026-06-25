@@ -53,7 +53,9 @@ export type AuditEventType =
   | "COMPANION_CARD_SHARE_ISSUED"
   | "COMPANION_CARD_VIEWED"
   | "COMPANION_CARD_SHARE_REVOKED"
-  | "VACCINATION_RECORDED";
+  | "VACCINATION_RECORDED"
+  | "TREATMENT_RECORDED"
+  | "TITRATION_RECORDED";
 
 export interface AuditTrailMongo {
   organisationId: string;

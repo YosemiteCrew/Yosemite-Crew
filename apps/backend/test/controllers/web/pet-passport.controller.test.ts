@@ -12,6 +12,10 @@ jest.mock("../../../src/services/pet-passport.service", () => {
     PetPassportService: {
       recordVaccination: jest.fn(),
       listVaccinations: jest.fn(),
+      recordParasiteTreatment: jest.fn(),
+      listParasiteTreatments: jest.fn(),
+      recordRabiesTitration: jest.fn(),
+      listRabiesTitrations: jest.fn(),
       getPassport: jest.fn(),
     },
   };
@@ -113,6 +117,17 @@ describe("PetPassportController", () => {
       );
       expect(statusMock).toHaveBeenCalledWith(500);
     });
+
+    it("defaults the actor id to null when the user id is absent", async () => {
+      service.recordVaccination.mockResolvedValue({ id: "vac-1" } as never);
+      await PetPassportController.recordVaccination(
+        authed({ body: validBody, userId: undefined }),
+        res as Response,
+      );
+      expect(service.recordVaccination).toHaveBeenCalledWith(
+        expect.objectContaining({ actor: { type: "PMS_USER", id: null } }),
+      );
+    });
   });
 
   describe("listVaccinations", () => {
@@ -181,6 +196,157 @@ describe("PetPassportController", () => {
       );
       await PetPassportController.getPassport(authed(), res as Response);
       expect(statusMock).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe("treatments and titrations", () => {
+    const treatmentBody = {
+      treatmentType: "ECHINOCOCCUS",
+      productName: "Milbemax",
+      treatedAt: "2024-06-20T14:00:00.000Z",
+    };
+    const titrationBody = {
+      approvedLab: "EU Lab",
+      sampleDate: "2024-05-01T00:00:00.000Z",
+      resultIuMl: 0.8,
+    };
+
+    it("201s recording a parasite treatment", async () => {
+      service.recordParasiteTreatment.mockResolvedValue({ id: "t1" } as never);
+      await PetPassportController.recordParasiteTreatment(
+        authed({ body: treatmentBody }),
+        res as Response,
+      );
+      expect(service.recordParasiteTreatment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patientId: "pat-1",
+          input: expect.objectContaining({ productName: "Milbemax" }),
+        }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("400s an invalid treatment body", async () => {
+      await PetPassportController.recordParasiteTreatment(
+        authed({ body: { treatmentType: "ECHINOCOCCUS" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(service.recordParasiteTreatment).not.toHaveBeenCalled();
+    });
+
+    it("500s a treatment record when permissions were not loaded", async () => {
+      await PetPassportController.recordParasiteTreatment(
+        { params: orgParams, body: treatmentBody } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("maps a treatment service error", async () => {
+      service.recordParasiteTreatment.mockRejectedValue(
+        new PetPassportServiceError("Companion not found.", 404),
+      );
+      await PetPassportController.recordParasiteTreatment(
+        authed({ body: treatmentBody }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(404);
+    });
+
+    it("400s and then 200s listing treatments", async () => {
+      await PetPassportController.listParasiteTreatments(
+        authed({ params: { organisationId: "", patientId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      service.listParasiteTreatments.mockResolvedValue([{ id: "t1" }] as never);
+      await PetPassportController.listParasiteTreatments(
+        authed(),
+        res as Response,
+      );
+      expect(jsonMock).toHaveBeenCalledWith({ treatments: [{ id: "t1" }] });
+    });
+
+    it("500s treatment listing on an unexpected error", async () => {
+      service.listParasiteTreatments.mockRejectedValue(new Error("boom"));
+      await PetPassportController.listParasiteTreatments(
+        authed(),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("201s recording a titration", async () => {
+      service.recordRabiesTitration.mockResolvedValue({ id: "s1" } as never);
+      await PetPassportController.recordRabiesTitration(
+        authed({ body: titrationBody }),
+        res as Response,
+      );
+      expect(service.recordRabiesTitration).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ approvedLab: "EU Lab" }),
+        }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("400s an invalid titration body", async () => {
+      await PetPassportController.recordRabiesTitration(
+        authed({ body: { approvedLab: "L" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("500s a titration record on an unexpected error", async () => {
+      service.recordRabiesTitration.mockRejectedValue(new Error("boom"));
+      await PetPassportController.recordRabiesTitration(
+        authed({ body: titrationBody }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("500s and then 200s listing titrations", async () => {
+      await PetPassportController.listRabiesTitrations(
+        { params: orgParams } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      service.listRabiesTitrations.mockResolvedValue([{ id: "s1" }] as never);
+      await PetPassportController.listRabiesTitrations(
+        authed(),
+        res as Response,
+      );
+      expect(jsonMock).toHaveBeenCalledWith({ titrations: [{ id: "s1" }] });
+    });
+
+    it("400s titration listing on invalid params", async () => {
+      await PetPassportController.listRabiesTitrations(
+        authed({ params: { organisationId: "", patientId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("defaults the actor id to null when the user id is absent", async () => {
+      service.recordParasiteTreatment.mockResolvedValue({ id: "t1" } as never);
+      service.recordRabiesTitration.mockResolvedValue({ id: "s1" } as never);
+      await PetPassportController.recordParasiteTreatment(
+        authed({ body: treatmentBody, userId: undefined }),
+        res as Response,
+      );
+      expect(service.recordParasiteTreatment).toHaveBeenCalledWith(
+        expect.objectContaining({ actor: { type: "PMS_USER", id: null } }),
+      );
+      await PetPassportController.recordRabiesTitration(
+        authed({ body: titrationBody, userId: undefined }),
+        res as Response,
+      );
+      expect(service.recordRabiesTitration).toHaveBeenCalledWith(
+        expect.objectContaining({ actor: { type: "PMS_USER", id: null } }),
+      );
     });
   });
 });

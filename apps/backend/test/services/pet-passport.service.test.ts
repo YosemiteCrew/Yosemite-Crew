@@ -10,6 +10,8 @@ jest.mock("src/config/prisma", () => ({
     patient: { findUnique: jest.fn() },
     patientOrganisation: { findFirst: jest.fn() },
     vaccination: { create: jest.fn(), findMany: jest.fn() },
+    parasiteTreatment: { create: jest.fn(), findMany: jest.fn() },
+    rabiesTitration: { create: jest.fn(), findMany: jest.fn() },
   },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
@@ -20,6 +22,8 @@ const prismaMock = prisma as unknown as {
   patient: { findUnique: jest.Mock };
   patientOrganisation: { findFirst: jest.Mock };
   vaccination: { create: jest.Mock; findMany: jest.Mock };
+  parasiteTreatment: { create: jest.Mock; findMany: jest.Mock };
+  rabiesTitration: { create: jest.Mock; findMany: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 
@@ -32,7 +36,7 @@ const PATIENT = {
 };
 
 // Echo the created row back as the persisted record (Date round-trip).
-const echoCreate = () =>
+const echoCreate = () => {
   prismaMock.vaccination.create.mockImplementation(({ data }) =>
     Promise.resolve({
       id: "vac-1",
@@ -51,11 +55,33 @@ const echoCreate = () =>
       ...data,
     }),
   );
+  prismaMock.parasiteTreatment.create.mockImplementation(({ data }) =>
+    Promise.resolve({
+      id: "trt-1",
+      createdAt: new Date("2024-04-02T00:00:00.000Z"),
+      manufacturer: null,
+      administeringVetName: null,
+      notes: null,
+      ...data,
+    }),
+  );
+  prismaMock.rabiesTitration.create.mockImplementation(({ data }) =>
+    Promise.resolve({
+      id: "tit-1",
+      createdAt: new Date("2024-04-02T00:00:00.000Z"),
+      reportUrl: null,
+      ...data,
+    }),
+  );
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
   prismaMock.patientOrganisation.findFirst.mockResolvedValue({ id: "link-1" });
   prismaMock.patient.findUnique.mockResolvedValue(PATIENT);
+  prismaMock.vaccination.findMany.mockResolvedValue([]);
+  prismaMock.parasiteTreatment.findMany.mockResolvedValue([]);
+  prismaMock.rabiesTitration.findMany.mockResolvedValue([]);
   echoCreate();
 });
 
@@ -322,5 +348,208 @@ describe("PetPassportService.getPassport", () => {
     await expect(
       PetPassportService.getPassport("pat-1", "org-1"),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("PetPassportService treatments and titrations", () => {
+  it("records a parasite treatment and maps optional fields", async () => {
+    const dto = await PetPassportService.recordParasiteTreatment({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      actor: ACTOR,
+      input: {
+        treatmentType: "ECHINOCOCCUS",
+        productName: "Milbemax",
+        manufacturer: "Elanco",
+        treatedAt: "2024-06-20T14:00:00.000Z",
+        administeringVetName: "Dr A",
+        notes: "no reaction",
+      },
+    });
+    expect(dto).toMatchObject({
+      id: "trt-1",
+      productName: "Milbemax",
+      treatmentType: "ECHINOCOCCUS",
+      manufacturer: "Elanco",
+      administeringVetName: "Dr A",
+      notes: "no reaction",
+    });
+    expect(dto.treatedAt).toBe("2024-06-20T14:00:00.000Z");
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "TREATMENT_RECORDED" }),
+    );
+  });
+
+  it("rejects an invalid treatment date", async () => {
+    await expect(
+      PetPassportService.recordParasiteTreatment({
+        patientId: "pat-1",
+        organisationId: "org-1",
+        actor: ACTOR,
+        input: { treatmentType: "TICK", productName: "X", treatedAt: "nope" },
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("404s a treatment for a companion outside the caller's org", async () => {
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+    await expect(
+      PetPassportService.recordParasiteTreatment({
+        patientId: "pat-1",
+        organisationId: "org-1",
+        actor: ACTOR,
+        input: {
+          treatmentType: "FLEA",
+          productName: "X",
+          treatedAt: "2024-06-20T00:00:00.000Z",
+        },
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("lists parasite treatments newest-first", async () => {
+    prismaMock.parasiteTreatment.findMany.mockResolvedValue([
+      {
+        id: "t1",
+        patientId: "pat-1",
+        treatmentType: "OTHER",
+        productName: "X",
+        manufacturer: null,
+        treatedAt: new Date("2024-06-20T00:00:00.000Z"),
+        administeringVetName: null,
+        notes: null,
+        createdAt: new Date("2024-06-21T00:00:00.000Z"),
+      },
+    ]);
+    const list = await PetPassportService.listParasiteTreatments(
+      "pat-1",
+      "org-1",
+    );
+    expect(list).toHaveLength(1);
+    expect(prismaMock.parasiteTreatment.findMany).toHaveBeenCalledWith({
+      where: { patientId: "pat-1", organisationId: "org-1" },
+      orderBy: { treatedAt: "desc" },
+    });
+  });
+
+  it("records a rabies titration", async () => {
+    const dto = await PetPassportService.recordRabiesTitration({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      actor: ACTOR,
+      input: {
+        approvedLab: "EU Lab",
+        sampleDate: "2024-05-01T00:00:00.000Z",
+        resultIuMl: 0.8,
+        reportUrl: "http://report",
+      },
+    });
+    expect(dto).toMatchObject({
+      id: "tit-1",
+      approvedLab: "EU Lab",
+      resultIuMl: 0.8,
+      reportUrl: "http://report",
+    });
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "TITRATION_RECORDED" }),
+    );
+  });
+
+  it("rejects a negative titration result", async () => {
+    await expect(
+      PetPassportService.recordRabiesTitration({
+        patientId: "pat-1",
+        organisationId: "org-1",
+        actor: ACTOR,
+        input: {
+          approvedLab: "L",
+          sampleDate: "2024-05-01T00:00:00.000Z",
+          resultIuMl: -1,
+        },
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejects an invalid titration sample date", async () => {
+    await expect(
+      PetPassportService.recordRabiesTitration({
+        patientId: "pat-1",
+        organisationId: "org-1",
+        actor: ACTOR,
+        input: { approvedLab: "L", sampleDate: "nope", resultIuMl: 0.8 },
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("lists rabies titrations", async () => {
+    prismaMock.rabiesTitration.findMany.mockResolvedValue([
+      {
+        id: "s1",
+        patientId: "pat-1",
+        approvedLab: "L",
+        sampleDate: new Date("2024-05-01T00:00:00.000Z"),
+        resultIuMl: 0.8,
+        reportUrl: null,
+        createdAt: new Date("2024-05-02T00:00:00.000Z"),
+      },
+    ]);
+    const list = await PetPassportService.listRabiesTitrations(
+      "pat-1",
+      "org-1",
+    );
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ approvedLab: "L", resultIuMl: 0.8 });
+  });
+
+  it("getPassport includes parasite treatments and rabies titrations", async () => {
+    prismaMock.patient.findUnique.mockResolvedValue({
+      id: "pat-1",
+      name: "Doggy",
+      type: "dog",
+      breed: "Rottweiler",
+      gender: "male",
+      colour: null,
+      photoUrl: null,
+      dateOfBirth: new Date("2024-01-01T00:00:00.000Z"),
+      microchipNumber: null,
+      microchipImplantedAt: null,
+      microchipLocation: null,
+      passportNumber: null,
+    });
+    prismaMock.parasiteTreatment.findMany.mockResolvedValue([
+      {
+        id: "t1",
+        patientId: "pat-1",
+        treatmentType: "ECHINOCOCCUS",
+        productName: "Milbemax",
+        manufacturer: null,
+        treatedAt: new Date("2024-06-20T14:00:00.000Z"),
+        administeringVetName: null,
+        notes: null,
+        createdAt: new Date("2024-06-20T14:00:00.000Z"),
+      },
+    ]);
+    prismaMock.rabiesTitration.findMany.mockResolvedValue([
+      {
+        id: "s1",
+        patientId: "pat-1",
+        approvedLab: "EU Lab",
+        sampleDate: new Date("2024-05-01T00:00:00.000Z"),
+        resultIuMl: 0.8,
+        reportUrl: null,
+        createdAt: new Date("2024-05-02T00:00:00.000Z"),
+      },
+    ]);
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.parasiteTreatments).toHaveLength(1);
+    expect(passport.parasiteTreatments[0]).toMatchObject({
+      productName: "Milbemax",
+      treatmentType: "ECHINOCOCCUS",
+    });
+    expect(passport.rabiesTitrations).toHaveLength(1);
+    expect(passport.rabiesTitrations[0]).toMatchObject({
+      approvedLab: "EU Lab",
+      resultIuMl: 0.8,
+    });
   });
 });

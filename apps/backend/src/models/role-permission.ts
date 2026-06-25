@@ -13,6 +13,8 @@ export type Permission =
   | "companions:share:own"
   | "vaccinations:edit:any"
   | "vaccinations:edit:own"
+  | "passport:edit:any"
+  | "passport:edit:own"
   // Task
   | "tasks:view:any"
   | "tasks:edit:any"
@@ -97,6 +99,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "companions:edit:any",
     "companions:share:any",
     "vaccinations:edit:any",
+    "passport:edit:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -164,6 +167,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "companions:edit:any",
     "companions:share:any",
     "vaccinations:edit:any",
+    "passport:edit:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -228,6 +232,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "companions:edit:any",
     "companions:share:any",
     "vaccinations:edit:any",
+    "passport:edit:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -285,6 +290,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "companions:edit:any",
     "companions:share:any",
     "vaccinations:edit:any",
+    "passport:edit:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -337,6 +343,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "companions:edit:any",
     "companions:share:any",
     "vaccinations:edit:any",
+    "passport:edit:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -386,6 +393,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "companions:edit:any",
     "companions:share:any",
     "vaccinations:edit:any",
+    "passport:edit:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -431,6 +439,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "companions:edit:any",
     "companions:share:any",
     "vaccinations:edit:any",
+    "passport:edit:any",
 
     "tasks:view:any",
     "tasks:view:own",
