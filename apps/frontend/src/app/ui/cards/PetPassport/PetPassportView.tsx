@@ -148,6 +148,15 @@ const PetPassportView = ({ passport }: PetPassportViewProps) => {
         </Section>
       )}
 
+      {passport.issuance && (
+        <Section title="Issued by">
+          <Row label="Issuing vet" value={passport.issuance.issuingVetName} />
+          <Row label="Authority" value={passport.issuance.issuingAuthority} />
+          <Row label="Country" value={passport.issuance.issuingCountry} />
+          <Row label="Issue date" value={dateLabel(passport.issuance.issueDate)} />
+        </Section>
+      )}
+
       <span className="text-caption-1 text-text-extra">
         Digital health record. Not a legal substitute for the official EU pet passport, UK Animal
         Health Certificate, or USDA/CDC certificate required for international travel.

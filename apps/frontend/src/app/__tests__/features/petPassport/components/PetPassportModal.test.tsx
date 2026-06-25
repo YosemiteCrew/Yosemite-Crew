@@ -82,4 +82,43 @@ describe('PetPassportModal', () => {
     fireEvent.click(screen.getByText('dismiss'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('ignores a resolved fetch after unmount', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    mockedFetch.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
+    const { unmount } = render(
+      <PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />
+    );
+    unmount();
+    resolve({ identity: { name: 'Doggy' } });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByTestId('passport')).not.toBeInTheDocument();
+  });
+
+  it('ignores a rejected fetch after unmount', async () => {
+    let reject: (e: unknown) => void = () => {};
+    mockedFetch.mockReturnValue(
+      new Promise((_, r) => {
+        reject = r;
+      })
+    );
+    const { unmount } = render(
+      <PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />
+    );
+    unmount();
+    reject(new Error('x'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the full name when there is no leading word', async () => {
+    mockedFetch.mockResolvedValue({ identity: { name: 'X' } });
+    render(<PetPassportModal open companionId="p1" companionName=" Solo" onClose={jest.fn()} />);
+    expect(screen.getByRole('heading', { name: "Solo's passport" })).toBeInTheDocument();
+    await screen.findByTestId('passport');
+  });
 });
