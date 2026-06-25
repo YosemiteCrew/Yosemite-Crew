@@ -649,6 +649,41 @@ model ChatSession {
   @@index([vetId])
 }
 
+enum SharedChatEntityType {
+  COMPANION
+  APPOINTMENT
+  INVOICE
+  FORM
+  PRESCRIPTION
+  DOCUMENT
+}
+
+/// A PIMS record (companion, appointment, invoice, etc.) shared into a chat
+/// channel as a structured card. The row is also the immutable audit trail for
+/// the share: who shared it (sharedById), when (createdAt), into which channel,
+/// and whether/when it was revoked (revokedAt / revokedById).
+model SharedChatEntity {
+  id             String               @id @default(uuid())
+  organisationId String
+  channelId      String
+  sessionId      String?
+  messageId      String?
+  entityType     SharedChatEntityType
+  entityId       String
+  title          String?
+  snapshot       Json?
+  sharedById     String
+  revokedAt      DateTime?
+  revokedById    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([organisationId])
+  @@index([channelId])
+  @@index([entityType, entityId])
+  @@index([sharedById])
+}
+
 model Parent {
   id               String            @id @default(uuid())
   firstName        String
