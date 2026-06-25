@@ -227,3 +227,100 @@ describe("PetPassportService.listVaccinations", () => {
     });
   });
 });
+
+describe("PetPassportService.getPassport", () => {
+  const FULL_PATIENT = {
+    id: "pat-1",
+    name: "Doggy",
+    type: "dog",
+    breed: "Rottweiler",
+    gender: "male",
+    colour: "black",
+    photoUrl: "http://img/doggy.png",
+    dateOfBirth: new Date("2024-01-01T00:00:00.000Z"),
+    microchipNumber: "985141000123456",
+    microchipImplantedAt: new Date("2024-02-01T00:00:00.000Z"),
+    microchipLocation: "left neck",
+    passportNumber: "GB-YC-1",
+  };
+
+  const vaccRow = (over: Record<string, unknown> = {}) => ({
+    id: "vac-1",
+    patientId: "pat-1",
+    vaccineType: "RABIES",
+    vaccineName: "Nobivac Rabies",
+    manufacturer: null,
+    batchNumber: null,
+    lotNumber: null,
+    dateAdministered: new Date("2024-04-01T00:00:00.000Z"),
+    validFrom: new Date("2024-04-22T00:00:00.000Z"),
+    validUntil: null,
+    nextDueDate: null,
+    administeringVetName: null,
+    vetLicenseNumber: null,
+    site: null,
+    route: null,
+    notes: null,
+    createdAt: new Date("2024-04-02T00:00:00.000Z"),
+    ...over,
+  });
+
+  it("assembles identity, microchip, rabies and other vaccinations", async () => {
+    prismaMock.patient.findUnique.mockResolvedValue(FULL_PATIENT);
+    prismaMock.vaccination.findMany.mockResolvedValue([
+      vaccRow(),
+      vaccRow({ id: "vac-2", vaccineType: "CORE", vaccineName: "DHPP" }),
+    ]);
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.identity).toMatchObject({
+      id: "pat-1",
+      name: "Doggy",
+      species: "dog",
+      sex: "male",
+      colour: "black",
+      dateOfBirth: "2024-01-01T00:00:00.000Z",
+    });
+    expect(passport.microchip).toEqual({
+      number: "985141000123456",
+      implantedAt: "2024-02-01T00:00:00.000Z",
+      location: "left neck",
+    });
+    expect(passport.passportNumber).toBe("GB-YC-1");
+    expect(passport.rabies?.vaccineName).toBe("Nobivac Rabies");
+    expect(passport.vaccinations).toHaveLength(1);
+    expect(passport.vaccinations[0].vaccineName).toBe("DHPP");
+  });
+
+  it("handles missing optional identity and microchip detail", async () => {
+    prismaMock.patient.findUnique.mockResolvedValue({
+      ...FULL_PATIENT,
+      colour: null,
+      photoUrl: null,
+      passportNumber: null,
+      microchipImplantedAt: null,
+      microchipLocation: null,
+    });
+    prismaMock.vaccination.findMany.mockResolvedValue([]);
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.identity.colour).toBeUndefined();
+    expect(passport.identity.photoUrl).toBeUndefined();
+    expect(passport.passportNumber).toBeUndefined();
+    expect(passport.microchip).toEqual({ number: "985141000123456" });
+    expect(passport.rabies).toBeUndefined();
+    expect(passport.vaccinations).toEqual([]);
+  });
+
+  it("404s when the companion does not exist", async () => {
+    prismaMock.patient.findUnique.mockResolvedValue(null);
+    await expect(
+      PetPassportService.getPassport("pat-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("404s when the companion is not in the caller's org", async () => {
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+    await expect(
+      PetPassportService.getPassport("pat-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});

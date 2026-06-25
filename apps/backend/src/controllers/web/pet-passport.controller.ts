@@ -96,4 +96,22 @@ export const PetPassportController = {
       return handleError(err, res, "Vaccination listing failed");
     }
   },
+
+  getPassport: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const passport = await PetPassportService.getPassport(
+        params.data.patientId,
+        params.data.organisationId,
+      );
+      return res.status(200).json(passport);
+    } catch (err) {
+      return handleError(err, res, "Pet passport assembly failed");
+    }
+  },
 };

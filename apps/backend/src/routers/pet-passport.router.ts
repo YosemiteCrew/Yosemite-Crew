@@ -21,4 +21,12 @@ router.get(
   PetPassportController.listVaccinations,
 );
 
+router.get(
+  "/pms/organisation/:organisationId/companion/:patientId/passport",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  PetPassportController.getPassport,
+);
+
 export default router;

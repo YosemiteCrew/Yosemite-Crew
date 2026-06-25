@@ -7,6 +7,7 @@ const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const PetPassportController = {
   recordVaccination: jest.fn(),
   listVaccinations: jest.fn(),
+  getPassport: jest.fn(),
 };
 
 jest.mock("../../src/middlewares/auth", () => ({ authorizeCognito }));
@@ -52,5 +53,12 @@ describe("pet-passport.router", () => {
   it("applies cognito auth and org permissions on each route", () => {
     expect(findRoute(VACC_PATH, "post")?.stack).toHaveLength(4);
     expect(findRoute(VACC_PATH, "get")?.stack).toHaveLength(4);
+  });
+
+  it("registers the assembled passport route (get), org-guarded", () => {
+    const passportPath =
+      "/pms/organisation/:organisationId/companion/:patientId/passport";
+    expect(findRoute(passportPath, "get")).toBeDefined();
+    expect(findRoute(passportPath, "get")?.stack).toHaveLength(4);
   });
 });

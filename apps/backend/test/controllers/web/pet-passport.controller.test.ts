@@ -12,6 +12,7 @@ jest.mock("../../../src/services/pet-passport.service", () => {
     PetPassportService: {
       recordVaccination: jest.fn(),
       listVaccinations: jest.fn(),
+      getPassport: jest.fn(),
     },
   };
 });
@@ -145,6 +146,41 @@ describe("PetPassportController", () => {
       service.listVaccinations.mockRejectedValue(new Error("boom"));
       await PetPassportController.listVaccinations(authed(), res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("getPassport", () => {
+    it("200s with the assembled passport", async () => {
+      service.getPassport.mockResolvedValue({
+        identity: { name: "Doggy" },
+      } as never);
+      await PetPassportController.getPassport(authed(), res as Response);
+      expect(service.getPassport).toHaveBeenCalledWith("pat-1", "org-1");
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("400s on invalid parameters", async () => {
+      await PetPassportController.getPassport(
+        authed({ params: { organisationId: "", patientId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("500s when permissions were not loaded", async () => {
+      await PetPassportController.getPassport(
+        { params: orgParams } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("maps a service error to its status code", async () => {
+      service.getPassport.mockRejectedValue(
+        new PetPassportServiceError("Companion not found.", 404),
+      );
+      await PetPassportController.getPassport(authed(), res as Response);
+      expect(statusMock).toHaveBeenCalledWith(404);
     });
   });
 });

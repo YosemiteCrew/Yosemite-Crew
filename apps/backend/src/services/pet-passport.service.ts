@@ -2,6 +2,7 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
+  PetPassportDTO,
   RecordVaccinationRequestDTO,
   VaccinationDTO,
   VaccineType,
@@ -202,5 +203,66 @@ export const PetPassportService = {
       orderBy: { dateAdministered: "desc" },
     });
     return rows.map(toVaccinationDTO);
+  },
+
+  // Assemble the multi-section passport from the source-of-truth Patient and its
+  // vaccination rows. The latest rabies dose is surfaced separately (it drives
+  // validity); the rest are listed together.
+  async getPassport(
+    patientId: string,
+    organisationId: string,
+  ): Promise<PetPassportDTO> {
+    await assertOrgMembership(patientId, organisationId);
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        breed: true,
+        gender: true,
+        colour: true,
+        photoUrl: true,
+        dateOfBirth: true,
+        microchipNumber: true,
+        microchipImplantedAt: true,
+        microchipLocation: true,
+        passportNumber: true,
+      },
+    });
+    if (!patient) {
+      throw new PetPassportServiceError("Companion not found.", 404);
+    }
+
+    const rows = await prisma.vaccination.findMany({
+      where: { patientId, organisationId },
+      orderBy: { dateAdministered: "desc" },
+    });
+    const vaccinations = rows.map(toVaccinationDTO);
+    const rabies = vaccinations.find((v) => v.vaccineType === "RABIES");
+    const others = vaccinations.filter((v) => v.vaccineType !== "RABIES");
+
+    return {
+      identity: {
+        id: patient.id,
+        name: patient.name,
+        species: patient.type,
+        breed: patient.breed,
+        sex: patient.gender,
+        dateOfBirth: patient.dateOfBirth.toISOString(),
+        colour: patient.colour ?? undefined,
+        photoUrl: patient.photoUrl ?? undefined,
+      },
+      microchip: patient.microchipNumber
+        ? {
+            number: patient.microchipNumber,
+            implantedAt: patient.microchipImplantedAt?.toISOString(),
+            location: patient.microchipLocation ?? undefined,
+          }
+        : undefined,
+      passportNumber: patient.passportNumber ?? undefined,
+      rabies,
+      vaccinations: others,
+    };
   },
 };
