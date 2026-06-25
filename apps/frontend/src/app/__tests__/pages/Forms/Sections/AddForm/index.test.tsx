@@ -155,9 +155,11 @@ describe('AddForm modal', () => {
 
     fireEvent.click(screen.getByText('Publish'));
 
+    // New forms default to YC-default (template-backed), so publishing routes through the
+    // template API rather than the legacy FHIR form service.
     await waitFor(() => {
-      expect(formService.saveFormDraft).toHaveBeenCalled();
-      expect(formService.publishForm).toHaveBeenCalledWith('form-1');
+      expect(templateFormsService.saveTemplateFormDraft).toHaveBeenCalled();
+      expect(templateFormsService.publishTemplateForm).toHaveBeenCalled();
     });
   });
 
@@ -169,7 +171,7 @@ describe('AddForm modal', () => {
     fireEvent.click(screen.getByText('Save Draft'));
 
     await waitFor(() => {
-      expect(formService.saveFormDraft).toHaveBeenCalled();
+      expect(templateFormsService.saveTemplateFormDraft).toHaveBeenCalled();
     });
   });
 

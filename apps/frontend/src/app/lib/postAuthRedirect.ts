@@ -1,7 +1,6 @@
 import { loadOrgs } from '@/app/features/organization/services/orgService';
 import { loadProfiles } from '@/app/features/organization/services/profileService';
 import { loadAvailability } from '@/app/features/organization/services/availabilityService';
-import { loadSpecialitiesForOrg } from '@/app/features/organization/services/specialityService';
 import { loadInvites } from '@/app/features/organization/services/teamService';
 import {
   resolveDefaultOpenScreenRoute,
@@ -12,7 +11,6 @@ import { computeOrgOnboardingStep } from '@/app/lib/orgOnboarding';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
-import { useSpecialityStore } from '@/app/stores/specialityStore';
 
 const normalizeRole = (role?: string | null) =>
   String(role ?? '')
@@ -48,15 +46,8 @@ export const resolveOrgScopedRedirect = async ({
   const effectiveRole = membership.roleDisplay ?? membership.roleCode ?? fallbackRole;
 
   if (!org.isVerified && isOwnerRole(effectiveRole)) {
-    try {
-      await loadSpecialitiesForOrg({ silent: true, force: true, orgId });
-    } catch {
-      // Ignore speciality refresh failures and use cached state.
-    }
-
-    const specialities = useSpecialityStore.getState().getSpecialitiesByOrgId(orgId);
-    const orgStep = computeOrgOnboardingStep(org, specialities);
-    if (orgStep < 3) {
+    const orgStep = computeOrgOnboardingStep(org);
+    if (orgStep < 2) {
       return `/create-org?orgId=${orgId}`;
     }
   }

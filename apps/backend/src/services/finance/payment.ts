@@ -142,6 +142,7 @@ export type PaymentIntentResult = {
 export const getInvoiceFinancialSummary = async (
   invoiceId: string,
   totalAmount: number,
+  depositCollectedAmount = 0,
 ): Promise<InvoiceFinancialSummary> => {
   const [payments, creditNotes] = await Promise.all([
     prisma.payment.findMany({
@@ -160,19 +161,27 @@ export const getInvoiceFinancialSummary = async (
   const credited = roundMoney(
     creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
   );
+  const effectivePaid = roundMoney(
+    Math.max(paid, roundMoney(depositCollectedAmount)),
+  );
 
   return {
-    paid,
+    paid: effectivePaid,
     credited,
-    balance: roundMoney(Math.max(0, totalAmount - paid - credited)),
+    balance: roundMoney(Math.max(0, totalAmount - effectivePaid - credited)),
   };
 };
 
 const getOutstandingBalance = async (
   invoiceId: string,
   totalAmount: number,
+  depositCollectedAmount = 0,
 ) => {
-  const summary = await getInvoiceFinancialSummary(invoiceId, totalAmount);
+  const summary = await getInvoiceFinancialSummary(
+    invoiceId,
+    totalAmount,
+    depositCollectedAmount,
+  );
   return {
     paid: summary.paid,
     balance: summary.balance,
@@ -358,16 +367,6 @@ const updateInvoiceAfterPayment = async (params: {
       data: {
         depositCollectedAmount: nextDepositCollectedAmount,
         billingCollectionMode: "DEPOSIT_THEN_SETTLE",
-        visitBillingStage:
-          invoice.visitBillingStage === "SETTLED"
-            ? "SETTLED"
-            : "READY_FOR_BILLING",
-        ...(invoice.readyForBillingAt
-          ? {}
-          : {
-              readyForBillingAt: receivedAt,
-              readyForBillingActorId: "SYSTEM",
-            }),
       },
     });
   }
@@ -556,6 +555,7 @@ export const FinancePaymentService = {
     const summary = await getInvoiceFinancialSummary(
       invoiceId,
       invoice.totalAmount,
+      invoice.depositCollectedAmount ?? 0,
     );
     if (summary.balance <= 0) {
       throw new FinancePaymentError("Invoice has no outstanding balance", 409);
@@ -777,6 +777,7 @@ export const FinancePaymentService = {
       const summary = await getInvoiceFinancialSummary(
         invoiceId,
         invoice.totalAmount,
+        invoice.depositCollectedAmount ?? 0,
       );
       return {
         paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
@@ -789,6 +790,7 @@ export const FinancePaymentService = {
     const summary = await getInvoiceFinancialSummary(
       invoiceId,
       invoice.totalAmount,
+      invoice.depositCollectedAmount ?? 0,
     );
     if (summary.balance <= 0) {
       throw new FinancePaymentError("Invoice has no outstanding balance", 409);
@@ -1184,6 +1186,7 @@ export const FinancePaymentService = {
     const { balance } = await getOutstandingBalance(
       invoiceId,
       invoice.totalAmount,
+      invoice.depositCollectedAmount ?? 0,
     );
     const amount = balance;
     return this.recordInvoicePayment(invoiceId, {
@@ -1210,9 +1213,22 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice cannot accept payment", 409);
     }
 
+    const isDepositPayment =
+      input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
+      input.settlementChannel === "DEPOSIT" ||
+      invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
+
+    if (isDepositPayment && invoice.visitBillingStage === "READY_FOR_BILLING") {
+      throw new FinancePaymentError(
+        "Deposit payments are not allowed after the invoice is ready for billing",
+        409,
+      );
+    }
+
     const { paid, balance } = await getOutstandingBalance(
       invoiceId,
       invoice.totalAmount,
+      invoice.depositCollectedAmount ?? 0,
     );
 
     if (balance <= 0) {
@@ -1318,6 +1334,7 @@ export const FinancePaymentService = {
     const summary = await getOutstandingBalance(
       invoiceId,
       updatedInvoice.totalAmount,
+      updatedInvoice.depositCollectedAmount ?? 0,
     );
 
     return {

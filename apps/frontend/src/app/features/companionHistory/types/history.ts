@@ -24,7 +24,8 @@ export type HistoryEntry = {
     kind: string;
     id: string;
     appointmentId?: string;
-    companionId: string;
+    patientId?: string;
+    companionId?: string;
   };
   source: string;
   payload: Record<string, unknown>;

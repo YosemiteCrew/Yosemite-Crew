@@ -58,11 +58,13 @@ const BaseButton = ({
       {iconPosition === 'right' && iconNode}
     </>
   );
+  const normalizedHref = href?.trim();
+  const isLink = normalizedHref !== undefined && normalizedHref !== '' && normalizedHref !== '#';
 
-  if (href) {
+  if (isLink) {
     return (
       <Link
-        href={href}
+        href={normalizedHref}
         aria-disabled={isDisabled}
         tabIndex={isDisabled ? -1 : undefined}
         aria-label={ariaLabel}

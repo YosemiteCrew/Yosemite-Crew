@@ -25,6 +25,12 @@ const BuilderWrapper: React.FC<{
   onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging?: boolean;
   compact?: boolean;
+  /**
+   * When true, this item is content (e.g. a medication or task the author added to a YC-default
+   * template) rather than structure, so its delete control stays available even while the template
+   * structure is locked. Move/reorder controls remain hidden when locked.
+   */
+  contentDeletable?: boolean;
   children: React.ReactNode;
 }> = ({
   field,
@@ -40,6 +46,7 @@ const BuilderWrapper: React.FC<{
   onDragEnd,
   isDragging,
   compact = false,
+  contentDeletable = false,
   children,
 }) => {
   const structureLocked = React.useContext(StructureLockContext);
@@ -120,9 +127,10 @@ const BuilderWrapper: React.FC<{
             {title}
           </div>
         </div>
-        {!structureLocked && (
+        {(!structureLocked || contentDeletable) && (
           <div className="flex items-center gap-2">
-            {onMoveUp && (
+            {/* Move/reorder is a structural change — hidden while the structure is locked. */}
+            {!structureLocked && onMoveUp && (
               <button
                 type="button"
                 onClick={onMoveUp}
@@ -133,7 +141,7 @@ const BuilderWrapper: React.FC<{
                 <IoMdArrowUp size={20} color="var(--color-neutral-900)" />
               </button>
             )}
-            {onMoveDown && (
+            {!structureLocked && onMoveDown && (
               <button
                 type="button"
                 onClick={onMoveDown}
@@ -144,6 +152,7 @@ const BuilderWrapper: React.FC<{
                 <IoMdArrowDown size={20} color="var(--color-neutral-900)" />
               </button>
             )}
+            {/* Delete stays available for content items (medications/tasks) even when locked. */}
             <button type="button" onClick={onDelete} className="hover:bg-red-50 rounded p-1">
               <MdDeleteForever size={20} color="var(--color-danger-600)" />
             </button>

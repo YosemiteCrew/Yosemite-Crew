@@ -102,6 +102,7 @@ const Forms = () => {
           name: String(service.name ?? '').trim(),
           specialityId: service.specialityId,
           badge: 'Service' as const,
+          isInpatient: service.isInpatientPreferred === true,
         })),
       ...packages
         .filter((pkg) => pkg.status === 'ACTIVE')
@@ -110,6 +111,7 @@ const Forms = () => {
           name: String(pkg.name ?? '').trim(),
           specialityId: pkg.specialityId,
           badge: 'Package' as const,
+          isInpatient: pkg.isInpatientPreferred === true,
         })),
     ];
 
@@ -130,6 +132,7 @@ const Forms = () => {
           label: duplicateName ? `${specialityLabel} / ${item.name}` : item.name,
           value: item.id,
           badge: item.badge,
+          isInpatient: item.isInpatient,
         };
       });
   }, [services, packages, orgSpecialities]);

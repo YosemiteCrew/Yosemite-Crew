@@ -628,6 +628,63 @@ describe("AppointmentPrismaService", () => {
     expect((result as any).encounterId).toBe("enc_1");
   });
 
+  it("creates an outpatient case on check-in when one does not exist", async () => {
+    mockedPrisma.appointment.findUnique.mockResolvedValue(
+      makeRow({
+        status: "UPCOMING",
+        appointmentKind: "OUTPATIENT",
+        caseId: null,
+        encounterId: null,
+      }),
+    );
+    mockedPrisma.case.create.mockResolvedValue({ id: "case_out_1" } as any);
+    mockedPrisma.encounter.create.mockResolvedValue({ id: "enc_out_1" } as any);
+    mockedPrisma.appointment.update
+      .mockResolvedValueOnce({ id: "appt_1" } as any)
+      .mockResolvedValueOnce(
+        makeRow({
+          status: "CHECKED_IN",
+          appointmentKind: "OUTPATIENT",
+          caseId: "case_out_1",
+          encounterId: "enc_out_1",
+        }),
+      );
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+    const result = await AppointmentPrismaService.checkInAppointment("appt_1");
+
+    expect(mockedPrisma.case.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        organisationId: "org_1",
+        patientId: "comp_1",
+        status: "active",
+        appointmentKind: "OUTPATIENT",
+        title: "Outpatient case",
+      }),
+      select: { id: true },
+    });
+    expect(mockedPrisma.encounter.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          caseId: "case_out_1",
+          organisationId: "org_1",
+          patientId: "comp_1",
+          status: "arrived",
+          encounterClass: "AMB",
+        }),
+      }),
+    );
+    expect(mockedPrisma.appointment.update).toHaveBeenNthCalledWith(1, {
+      where: { id: "appt_1" },
+      data: {
+        caseId: "case_out_1",
+        encounterId: "enc_out_1",
+      },
+    });
+    expect((result as any).caseId).toBe("case_out_1");
+    expect((result as any).encounterId).toBe("enc_out_1");
+  });
+
   it("admits a checked-in outpatient appointment into inpatient care", async () => {
     mockedPrisma.appointment.findUnique.mockResolvedValue(
       makeRow({

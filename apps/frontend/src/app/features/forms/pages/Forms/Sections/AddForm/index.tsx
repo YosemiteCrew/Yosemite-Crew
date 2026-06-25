@@ -70,6 +70,10 @@ const defaultForm = (): FormsProps => {
     status: 'Draft',
     schema: [],
     businessType: primaryOrg?.type,
+    // New templates default to the YC-default (structure-locked) type so the builder lands on
+    // the curated, content-only presets; switching to "Custom" unlocks full structural editing.
+    templateSource: 'YC_LIBRARY',
+    isTemplateBacked: true,
   };
 };
 

@@ -16,6 +16,8 @@ import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
+import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveActorDisplayName } from "src/services/finance/events";
 
 const CreateInvoicePaymentSessionBodySchema = z.object({
   provider: z.string().trim().min(1).optional(),
@@ -837,6 +839,9 @@ export const FinanceController = {
         return res.status(404).json({ message: "Invoice not found" });
       }
 
+      const actorUserId = resolveUserIdFromRequest(req);
+      const actorName = await resolveActorDisplayName(actorUserId);
+
       await FinanceEventService.recordEvent({
         organisationId: (req as OrgRequest).organisationId ?? null,
         eventType: "APPOINTMENT_READY_FOR_BILLING",
@@ -845,6 +850,51 @@ export const FinanceController = {
         payload: {
           visitId: body.data.visitId ?? null,
           notes: body.data.notes ?? null,
+          invoiceId: invoice.id,
+          billingState: invoice.visitBillingStage,
+          collectionMode: invoice.billingCollectionMode ?? null,
+          actorUserId: actorUserId ?? null,
+          actorName,
+        },
+      });
+
+      return res.status(200).json(
+        toFinanceSuccess({
+          appointmentId,
+          billingState: invoice.visitBillingStage,
+          invoiceId: invoice.id,
+          collectionMode: invoice.billingCollectionMode ?? null,
+        }),
+      );
+    } catch (error) {
+      logger.error("Error marking appointment ready for billing", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async reverseAppointmentReadyForBilling(
+    this: void,
+    req: Request,
+    res: Response,
+  ) {
+    try {
+      const appointmentId = req.params.appointmentId;
+      if (!appointmentId) {
+        return res.status(400).json({ message: "Appointment Id is required" });
+      }
+
+      const invoice =
+        await InvoiceService.reverseAppointmentReadyForBilling(appointmentId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      await FinanceEventService.recordEvent({
+        organisationId: (req as OrgRequest).organisationId ?? null,
+        eventType: "APPOINTMENT_READY_FOR_BILLING_REVERSED",
+        entityType: "APPOINTMENT",
+        entityId: appointmentId,
+        payload: {
           invoiceId: invoice.id,
           billingState: invoice.visitBillingStage,
           collectionMode: invoice.billingCollectionMode ?? null,
@@ -860,8 +910,14 @@ export const FinanceController = {
         }),
       );
     } catch (error) {
-      logger.error("Error marking appointment ready for billing", error);
-      return res.status(500).json({ message: "Internal server error" });
+      logger.error("Error reversing appointment ready for billing", error);
+      const statusCode =
+        error instanceof InvoiceServiceError ? error.statusCode : 500;
+      const message =
+        error instanceof InvoiceServiceError
+          ? error.message
+          : "Internal server error";
+      return res.status(statusCode).json({ message });
     }
   },
 

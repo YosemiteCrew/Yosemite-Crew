@@ -56,6 +56,7 @@ jest.mock('@/app/features/appointments/services/workspaceTemplateService', () =>
   resumeInpatientScheduleTemplate: jest.fn().mockResolvedValue({ resourceType: 'Task' }),
   cancelInpatientScheduleTemplate: jest.fn().mockResolvedValue({ resourceType: 'Task' }),
   regenerateInpatientScheduleTemplate: jest.fn().mockResolvedValue({ resourceType: 'Task' }),
+  resolvePrescriptionTemplate: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock('@/app/features/tasks/services/taskService', () => ({
@@ -500,10 +501,15 @@ describe('TreatmentStep', () => {
       target: { value: 'gabapentin' },
     });
     fireEvent.click(screen.getByRole('button', { name: /gabapentin/i }));
-    await waitFor(() => expect(savePrescriptionArtifact).toHaveBeenCalled());
-    expect(
-      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription.at(-1)?.medicineName
-    ).toBe('Gabapentin');
+    // Adding stages the row locally only — it must NOT persist on add (that previously dropped
+    // dosage/route/qty before the clinician filled them). Persisting happens on Save treatment.
+    await waitFor(() =>
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription.at(-1)
+          ?.medicineName
+      ).toBe('Gabapentin')
+    );
+    expect(savePrescriptionArtifact).not.toHaveBeenCalled();
 
     // Fulfillment is a compact pill dropdown: open it, then pick the option.
     fireEvent.change(screen.getAllByRole('combobox', { name: /fulfillment/i })[0], {
@@ -534,7 +540,7 @@ describe('TreatmentStep', () => {
     expect(screen.getByText(/Minimal med/)).toBeInTheDocument();
     // The editable cells (dose/route/freq/duration/refill/instructions) render as
     // empty floating-label input boxes for a row that has no values yet.
-    expect((screen.getByLabelText('Dose') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Strength') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Duration') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Instructions') as HTMLInputElement).value).toBe('');
   });
@@ -543,7 +549,7 @@ describe('TreatmentStep', () => {
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    const dosageInputs = screen.getAllByLabelText('Dose');
+    const dosageInputs = screen.getAllByLabelText('Strength');
     fireEvent.change(dosageInputs[0], { target: { value: '250mg' } });
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0].dosage).toBe(
       '250mg'
@@ -570,7 +576,7 @@ describe('TreatmentStep', () => {
       />
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
 
     await waitFor(() =>
       expect(fetchPrescriptionLabelPdf).toHaveBeenCalledTimes(printableIds.length)
@@ -593,7 +599,7 @@ describe('TreatmentStep', () => {
       />
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
 
     expect(await screen.findByText(/save the treatment before printing/i)).toBeInTheDocument();
     expect(fetchPrescriptionLabelPdf).not.toHaveBeenCalled();
@@ -616,7 +622,7 @@ describe('TreatmentStep', () => {
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
 
     expect(fetchPrescriptionLabelPdf).not.toHaveBeenCalled();
   });
@@ -637,7 +643,7 @@ describe('TreatmentStep', () => {
       />
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
 
     expect(await screen.findByText(/unable to print prescription labels/i)).toBeInTheDocument();
     errSpy.mockRestore();
@@ -1019,8 +1025,8 @@ describe('TreatmentStep', () => {
       />
     );
 
-    // The bottom "Prescription" button shares the label-print handler.
-    const buttons = screen.getAllByRole('button', { name: /prescription/i });
+    // The bottom "Print Labels" button shares the label-print handler.
+    const buttons = screen.getAllByRole('button', { name: /print labels/i });
     fireEvent.click(buttons[buttons.length - 1]);
     await waitFor(() => expect(fetchPrescriptionLabelPdf).toHaveBeenCalledWith(ORG, 'rx-1'));
     openSpy.mockRestore();
@@ -1034,7 +1040,7 @@ describe('TreatmentStep', () => {
     expect(screen.queryByText(/click to search and add service/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/click to search and add medication/i)).not.toBeInTheDocument();
     // Prescription fields keep the floating-label input style but are read-only.
-    const dosage = screen.getAllByLabelText('Dose')[0] as HTMLInputElement;
+    const dosage = screen.getAllByLabelText('Strength')[0] as HTMLInputElement;
     expect(dosage).toHaveAttribute('readonly');
     expect(dosage.value).toBe('1 tab');
     // Schedule Add control and the breakdown Record button are disabled.

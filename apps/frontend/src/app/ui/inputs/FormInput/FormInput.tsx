@@ -32,6 +32,10 @@ const FormInput = ({
 }: Readonly<FormInputProps>) => {
   const uid = useId();
   const errorId = error ? `${uid}-error` : undefined;
+  const hasValue = String(value ?? '').length > 0;
+  const valueFloatingClass = hasValue
+    ? 'px-1.5 max-w-none -top-[11px] translate-y-0 text-xs! bg-(--whitebg)'
+    : '';
 
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     onClick?.(e);
@@ -86,6 +90,7 @@ const FormInput = ({
             peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
             peer-not-placeholder-shown:text-xs!
             peer-not-placeholder-shown:bg-(--whitebg)
+            ${valueFloatingClass}
           `}
         >
           {inlabel}

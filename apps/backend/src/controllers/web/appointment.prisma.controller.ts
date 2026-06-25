@@ -322,6 +322,31 @@ export const AppointmentController = {
     }
   },
 
+  reverseReadyForBillingForPMS: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const invoice = await InvoiceService.reverseAppointmentReadyForBilling(
+        req.params.appointmentId,
+        resolveUserIdFromRequest(req),
+      );
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      return res.status(200).json({
+        message: "Appointment billing readiness reversed",
+      });
+    } catch (err: unknown) {
+      logger.error("Appointment billing readiness reversal error", err);
+      return sendAppointmentError(
+        res,
+        err,
+        "Failed to reverse appointment ready for billing",
+      );
+    }
+  },
+
   updateFromPms: async (
     req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
     res: Response,

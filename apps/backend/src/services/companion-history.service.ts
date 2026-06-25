@@ -598,6 +598,7 @@ const appendLabResultHistoryEntries = async (params: {
         patientName: result.patientName ?? undefined,
         status: result.status ?? undefined,
         accessionId: result.accessionId ?? undefined,
+        pdfUrl: order?.pdfUrl ?? undefined,
         pdfAvailable: Boolean(order?.pdfUrl ?? result.rawPayload),
       },
     });

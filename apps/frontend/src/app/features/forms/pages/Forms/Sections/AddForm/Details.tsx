@@ -26,7 +26,7 @@ type DetailsProps = {
   formData: FormsProps;
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
   onNext: () => void;
-  serviceOptions: { label: string; value: string; badge?: string }[];
+  serviceOptions: { label: string; value: string; badge?: string; isInpatient?: boolean }[];
   registerValidator?: (fn: () => boolean) => void;
 };
 
@@ -37,6 +37,9 @@ const YC_DEFAULT_CATEGORIES = new Set<FormsCategory>([
   'Discharge Form',
   'Consent form',
 ]);
+
+const getTemplateTypeOption = (templateSource?: FormsProps['templateSource']) =>
+  templateSource === 'YC_LIBRARY' ? 'YC_LIBRARY' : 'CUSTOM';
 
 const Details = ({
   formData,
@@ -94,6 +97,18 @@ const Details = ({
     }
     return FormsCategoryOptions;
   }, [effectiveOrgType, isYcDefault]);
+
+  // Task / Inpatient-Schedule templates only apply to in-patient services & packages, so the
+  // service/package picker is filtered to inpatient-preferred catalog items for those categories.
+  const isInpatientOnlyCategory =
+    formData.category === 'Task Template' || formData.category === 'Inpatient Schedule';
+  const effectiveServiceOptions = useMemo(
+    () =>
+      isInpatientOnlyCategory
+        ? serviceOptions.filter((option) => option.isInpatient)
+        : serviceOptions,
+    [isInpatientOnlyCategory, serviceOptions]
+  );
 
   const handleOwnershipChange = (value: string) => {
     if (value === 'YC_LIBRARY') {
@@ -166,7 +181,7 @@ const Details = ({
     }
     // Service is required for all categories except "Custom"
     if (formData.category !== 'Custom' && (!formData.services || formData.services.length === 0)) {
-      errors.services = 'Service is required for this form category';
+      errors.services = 'Services / Packages is required for this form category';
     }
     setFormDataErrors(errors);
     return Object.keys(errors).length === 0;
@@ -222,7 +237,7 @@ const Details = ({
             />
             <LabelDropdown
               placeholder="Template type"
-              defaultOption={isYcDefault ? 'YC_LIBRARY' : 'CUSTOM'}
+              defaultOption={getTemplateTypeOption(formData.templateSource)}
               onSelect={(option) => handleOwnershipChange(option.value)}
               options={[
                 { label: 'YC default (locked structure)', value: 'YC_LIBRARY' },
@@ -306,15 +321,24 @@ const Details = ({
               />
             )}
             <MultiSelectDropdown
-              placeholder={formData.category === 'Custom' ? 'Service (Optional)' : 'Service'}
+              placeholder={
+                formData.category === 'Custom'
+                  ? 'Services / Packages (Optional)'
+                  : 'Services / Packages'
+              }
               value={formData.services || []}
               error={formDataErrors.services}
               onChange={(e) => {
                 setFormData({ ...formData, services: e });
                 setFormDataErrors((prev) => ({ ...prev, services: undefined }));
               }}
-              options={serviceOptions}
+              options={effectiveServiceOptions}
             />
+            {isInpatientOnlyCategory && (
+              <p className="text-caption-2 text-text-secondary">
+                Task templates apply to in-patient services / packages only.
+              </p>
+            )}
             <MultiSelectDropdown
               placeholder="Species"
               value={formData.species || []}

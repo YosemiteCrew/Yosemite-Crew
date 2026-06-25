@@ -13,6 +13,7 @@ import {
   canEnterAppointmentWorkspace,
   getWorkspaceBlockedMessage,
 } from '@/app/lib/appointmentWorkspace';
+import { startRouteLoader } from '@/app/lib/routeLoader';
 
 type WorkspaceRouteProps = {
   appointmentId: string;
@@ -54,7 +55,10 @@ const WorkspaceRoute = ({ appointmentId }: WorkspaceRouteProps) => {
         </p>
         <button
           type="button"
-          onClick={() => router.push('/appointments')}
+          onClick={() => {
+            startRouteLoader();
+            router.push('/appointments');
+          }}
           className="rounded-2xl border border-neutral-300 px-4 py-2 text-body-4 font-medium text-text-primary hover:bg-neutral-100"
         >
           Back to appointments
@@ -76,7 +80,10 @@ const WorkspaceRoute = ({ appointmentId }: WorkspaceRouteProps) => {
       <p className="text-body-2 text-text-primary">Appointment not found.</p>
       <button
         type="button"
-        onClick={() => router.push('/appointments')}
+        onClick={() => {
+          startRouteLoader();
+          router.push('/appointments');
+        }}
         className="rounded-2xl border border-neutral-300 px-4 py-2 text-body-4 font-medium text-text-primary hover:bg-neutral-100"
       >
         Back to appointments

@@ -1,31 +1,33 @@
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { FormField } from "@/app/features/forms/types/forms";
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { FormField } from '@/app/features/forms/types/forms';
 
 const DropdownBuilder: React.FC<{
-  field: FormField & { type: "dropdown" | "radio" | "checkbox" };
+  field: FormField & { type: 'dropdown' | 'radio' | 'checkbox' };
   onChange: (f: FormField) => void;
 }> = ({ field, onChange }) => {
   const options = field.options ?? [];
   const isReadOnly = (field as any).meta?.readonly;
   const defaultValue = (field as any).defaultValue;
+  const isTaskBlockField = Boolean((field as any).meta?.taskBlockKey);
 
   if (isReadOnly) {
-    // For readonly dropdowns, show both label and value as readonly (from inventory)
+    const label = isTaskBlockField ? 'Fixed setting' : 'Label (from inventory)';
+    const valueLabel = isTaskBlockField ? 'Fixed value' : 'Value (from inventory)';
     return (
       <div className="flex flex-col gap-3">
         <FormInput
           intype="text"
           inname="Label"
-          value={field.label || ""}
-          inlabel="Label (from inventory)"
+          value={field.label || ''}
+          inlabel={label}
           readonly={true}
           className="min-h-12!"
         />
         <FormInput
           intype="text"
           inname="value"
-          value={defaultValue || ""}
-          inlabel="Value (from inventory)"
+          value={defaultValue || ''}
+          inlabel={valueLabel}
           readonly={true}
           className="min-h-12!"
         />
@@ -45,10 +47,7 @@ const DropdownBuilder: React.FC<{
   const addOption = () =>
     onChange({
       ...field,
-      options: [
-        ...options,
-        { label: `Option ${options.length + 1}`, value: crypto.randomUUID() },
-      ],
+      options: [...options, { label: `Option ${options.length + 1}`, value: crypto.randomUUID() }],
     });
 
   const removeOption = (idx: number) =>
@@ -62,7 +61,7 @@ const DropdownBuilder: React.FC<{
       <FormInput
         intype="text"
         inname="Label"
-        value={field.label || ""}
+        value={field.label || ''}
         inlabel="Label"
         onChange={(e) => onChange({ ...field, label: e.target.value })}
         className="min-h-12!"
@@ -74,15 +73,11 @@ const DropdownBuilder: React.FC<{
             intype="text"
             inname="dropdown"
             value={opt.label}
-            inlabel={"Dropdown option " + i}
+            inlabel={'Dropdown option ' + i}
             onChange={(e) => updateOption(i, e.target.value)}
             className="min-h-12!"
           />
-          <button
-            type="button"
-            onClick={() => removeOption(i)}
-            className="absolute right-4 top-3"
-          >
+          <button type="button" onClick={() => removeOption(i)} className="absolute right-4 top-3">
             ✕
           </button>
         </div>
@@ -90,6 +85,16 @@ const DropdownBuilder: React.FC<{
       <button type="button" onClick={addOption} className="mb-3">
         + Add option
       </button>
+      {isTaskBlockField && (
+        <FormInput
+          intype="text"
+          inname="defaultValue"
+          value={typeof defaultValue === 'string' ? defaultValue : ''}
+          inlabel="Default value (prefilled in schedule)"
+          onChange={(e) => onChange({ ...field, defaultValue: e.target.value })}
+          className="min-h-12!"
+        />
+      )}
     </div>
   );
 };

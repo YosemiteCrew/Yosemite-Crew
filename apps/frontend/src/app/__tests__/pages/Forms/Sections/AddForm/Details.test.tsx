@@ -135,7 +135,7 @@ describe('Details Component', () => {
     expect(screen.getByTestId('dropdown-Signed by')).toBeInTheDocument();
     expect(screen.getByTestId('accordion-Usage and visibility')).toBeInTheDocument();
     expect(screen.getByTestId('dropdown-Visibility type')).toBeInTheDocument();
-    expect(screen.getByTestId('multi-Service (Optional)')).toBeInTheDocument();
+    expect(screen.getByTestId('multi-Services / Packages (Optional)')).toBeInTheDocument();
     expect(screen.getByTestId('multi-Species')).toBeInTheDocument();
     expect(screen.getByTestId('next-btn')).toBeInTheDocument();
     // Ownership selector lives above Category; Custom is the default and shows
@@ -310,7 +310,7 @@ describe('Details Component', () => {
     );
 
     // Services (Direct update)
-    fireEvent.click(screen.getByTestId('multi-select-Service (Optional)'));
+    fireEvent.click(screen.getByTestId('multi-select-Services / Packages (Optional)'));
     expect(mockSetFormData).toHaveBeenCalledWith(
       expect.objectContaining({ services: ['SelectedOption'] })
     );

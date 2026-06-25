@@ -14,6 +14,7 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
@@ -46,6 +47,7 @@ import { fetchInventoryItems } from '@/app/features/inventory/services/inventory
 import { mapApiItemToInventoryItem } from '@/app/features/inventory/pages/Inventory/utils';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import { inventoryToPrescriptionItem } from '@/app/features/appointments/lib/inventoryPrescription';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type InvoiceStepProps = {
   appointmentId: string;
@@ -84,10 +86,181 @@ export type BillableCandidate = Omit<InvoiceLineItem, 'id'> & {
 };
 
 const DEFAULT_CURRENCY = 'USD';
+const PAYMENT_POLL_INTERVAL_MS = 3000;
+const PAYMENT_POLL_TIMEOUT_MS = 120000;
+
+type PaymentProgressState = {
+  invoiceId: string;
+  checkoutUrl?: string;
+  startedAt: number;
+  status: 'checking' | 'confirmed' | 'delayed';
+};
+
+type PersistInvoiceFn = (options?: { finalize?: boolean }) => Promise<{ id?: string } | undefined>;
+
+type RecordInvoicePaymentFn = (
+  appointmentId: string,
+  payload: {
+    method: PaymentMethod;
+    byName: string;
+  }
+) => void;
+
+type RecordDepositCollectionFn = (
+  appointmentId: string,
+  payload: {
+    amountCents: number;
+    method: PaymentMethod;
+    byName: string;
+  }
+) => void;
+
+type HandleCollectContext = {
+  appointmentId: string;
+  encounter: AppointmentEncounter;
+  currency: string;
+  financeCurrency: string;
+  hasItems: boolean;
+  persistCurrentInvoice: PersistInvoiceFn;
+  reloadBilling: () => Promise<unknown>;
+  recordInvoicePayment: RecordInvoicePaymentFn;
+  startPaymentProgress: (invoiceId: string, checkoutUrl: string) => void;
+  setConfirmation: (message: string) => void;
+  setConfirmationLink: (link: string | null) => void;
+  setDepositPaymentLink: (link: string | null) => void;
+  setErrorMessage: (message: string | null) => void;
+  setIsDepositModalOpen: (open: boolean) => void;
+  setIsProcessingPayment: (processing: boolean) => void;
+};
+
+type HandleDepositContext = HandleCollectContext & {
+  organisationId?: string;
+  parentId?: string;
+  patientId?: string;
+  recordDepositCollection: RecordDepositCollectionFn;
+};
+
+const runOnlineCollection = async ({
+  persistCurrentInvoice,
+  reloadBilling,
+  startPaymentProgress,
+  setConfirmation,
+  setConfirmationLink,
+}: Pick<
+  HandleCollectContext,
+  | 'persistCurrentInvoice'
+  | 'reloadBilling'
+  | 'startPaymentProgress'
+  | 'setConfirmation'
+  | 'setConfirmationLink'
+>): Promise<void> => {
+  setConfirmationLink(null);
+  const invoice = await persistCurrentInvoice({ finalize: false });
+  if (invoice?.id) {
+    const url = await getPaymentLink(invoice.id);
+    if (url) {
+      startPaymentProgress(invoice.id, url);
+      openCheckoutUrl(url);
+      setConfirmation('Payment link generated:');
+      setConfirmationLink(url);
+    } else {
+      setConfirmation('Payment link generated');
+      await reloadBilling();
+    }
+    return;
+  }
+
+  setConfirmation('Invoice prepared for online payment');
+  await reloadBilling();
+};
+
+const runManualCollection = async ({
+  appointmentId,
+  encounter,
+  financeCurrency,
+  method,
+  persistCurrentInvoice,
+  reloadBilling,
+  recordInvoicePayment,
+}: Pick<
+  HandleCollectContext,
+  | 'appointmentId'
+  | 'encounter'
+  | 'financeCurrency'
+  | 'persistCurrentInvoice'
+  | 'reloadBilling'
+  | 'recordInvoicePayment'
+> & {
+  method: PaymentMethod;
+}): Promise<void> => {
+  const invoice = await persistCurrentInvoice({ finalize: true });
+  if (invoice?.id) {
+    await recordManualInvoicePayment(invoice.id, {
+      provider: 'MANUAL',
+      settlementChannel: 'CASH',
+      amount: centsToMajor(computeInvoiceTotalCents(encounter)),
+      currency: financeCurrency,
+      receivedAt: new Date().toISOString(),
+    });
+  }
+  recordInvoicePayment(appointmentId, {
+    method,
+    byName: encounter.leadName ?? 'Front desk',
+  });
+  await reloadBilling();
+};
+
+const handleDepositOnlineCollection = async ({
+  appointmentId,
+  amountCents,
+  encounter,
+  persistCurrentInvoice,
+  startPaymentProgress,
+  reloadBilling,
+  setConfirmation,
+  setDepositPaymentLink,
+  recordDepositCollection,
+}: Pick<
+  HandleDepositContext,
+  | 'appointmentId'
+  | 'encounter'
+  | 'persistCurrentInvoice'
+  | 'startPaymentProgress'
+  | 'reloadBilling'
+  | 'setConfirmation'
+  | 'setDepositPaymentLink'
+  | 'recordDepositCollection'
+> & { amountCents: number }): Promise<void> => {
+  const invoiceToCollectAgainst = await persistCurrentInvoice({ finalize: false });
+  if (!invoiceToCollectAgainst?.id) return;
+
+  const checkoutUrl = await getPaymentLink(invoiceToCollectAgainst.id);
+  setDepositPaymentLink(checkoutUrl ?? null);
+  if (checkoutUrl) {
+    startPaymentProgress(invoiceToCollectAgainst.id, checkoutUrl);
+    openCheckoutUrl(checkoutUrl);
+  }
+  recordDepositCollection(appointmentId, {
+    amountCents,
+    method: 'ONLINE',
+    byName: encounter.leadName ?? 'Front desk',
+  });
+  setConfirmation(
+    checkoutUrl
+      ? `Payment link generated for the appointment invoice: ${checkoutUrl}`
+      : 'Payment link generated for the appointment invoice'
+  );
+  if (!checkoutUrl) await reloadBilling();
+};
 
 // Open a Stripe checkout URL in a new tab. `noopener` prevents the opened page
 // from accessing this window; guarded for SSR / non-browser contexts.
 const openCheckoutUrl = (url: string): void => {
+  if (globalThis.window === undefined) return;
+  globalThis.window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const openDocumentUrl = (url: string): void => {
   if (globalThis.window === undefined) return;
   globalThis.window.open(url, '_blank', 'noopener,noreferrer');
 };
@@ -382,6 +555,79 @@ const StatusPill = ({ status }: { status: InvoiceStatus }) => (
   </span>
 );
 
+const isInvoiceSettled = (invoice: PastInvoice | undefined): boolean =>
+  Boolean(invoice && (invoice.status === 'PAID_FULL' || invoice.outstandingCents <= 0));
+
+const findInvoiceById = (invoices: PastInvoice[], invoiceId: string): PastInvoice | undefined =>
+  invoices.find((invoice) => invoice.id === invoiceId);
+
+const getPaymentProgressDescription = (status: PaymentProgressState['status']): string => {
+  if (status === 'checking') {
+    return 'Stripe checkout is open. Keep this window open while we confirm the payment status.';
+  }
+  if (status === 'confirmed') {
+    return 'Stripe has confirmed the payment and the invoice status is now up to date.';
+  }
+  return 'We have not received the final payment confirmation yet. You can keep checking or continue editing and this page will refresh again when you return.';
+};
+
+const PaymentProgressOverlay = ({
+  state,
+  onCheckAgain,
+  onContinue,
+}: {
+  state: PaymentProgressState | null;
+  onCheckAgain: () => void;
+  onContinue: () => void;
+}) => {
+  if (!state) return null;
+  const isChecking = state.status === 'checking';
+  const isConfirmed = state.status === 'confirmed';
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-neutral-900/48 px-4">
+      <section
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="payment-progress-title"
+        aria-describedby="payment-progress-description"
+        className="flex w-full max-w-115 flex-col items-center gap-4 rounded-3xl border border-card-border bg-white p-6 text-center shadow-[0_24px_60px_rgba(0,0,0,0.22)]"
+      >
+        {isChecking ? (
+          <YosemiteLoader size={64} testId="invoice-payment-progress-loader" />
+        ) : (
+          <span className="flex size-14 items-center justify-center rounded-full bg-success-100 text-success-600">
+            <LuCheck size={26} aria-hidden="true" />
+          </span>
+        )}
+        <div className="flex flex-col gap-2">
+          <h2 id="payment-progress-title" className="text-yc-20-b-primary">
+            {isConfirmed ? 'Payment confirmed' : 'Payment in progress'}
+          </h2>
+          <p id="payment-progress-description" className="text-body-4 text-text-secondary">
+            {getPaymentProgressDescription(state.status)}
+          </p>
+        </div>
+        {state.checkoutUrl && (
+          <a
+            href={state.checkoutUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="max-w-full break-all text-body-4 text-text-brand underline"
+          >
+            Reopen Stripe checkout
+          </a>
+        )}
+        {!isChecking && (
+          <div className="flex flex-wrap justify-center gap-3">
+            <Secondary text="Continue editing" onClick={onContinue} />
+            <Primary text="Check again" onClick={onCheckAgain} />
+          </div>
+        )}
+      </section>
+    </div>
+  );
+};
+
 /** Green confirmation badge in the breakdown footer; copy reflects the scenario. */
 const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
   const label = invoice.paidFromDeposit ? 'Withdrawn from Deposit' : 'Invoice Paid';
@@ -430,6 +676,37 @@ const InvoiceBreakdown = ({ invoice, currency }: { invoice: PastInvoice; currenc
         <span className="text-yc-20-b-primary">{formatCents(invoice.totalCents, currency)}</span>
         <SettledBadge invoice={invoice} />
       </div>
+      {invoice.payments && invoice.payments.length > 0 && (
+        <div className="mt-2 flex flex-col gap-1.5 border-t border-card-border pt-3">
+          <span className="text-caption-2 font-medium tracking-wide text-text-secondary uppercase">
+            Payments
+          </span>
+          {invoice.payments.map((payment) => (
+            <div
+              key={payment.id}
+              className="flex flex-wrap items-center justify-between gap-2 text-body-4 text-text-primary"
+            >
+              <span className="text-text-secondary">
+                {[payment.method, payment.provider].filter(Boolean).join(' · ') || 'Payment'}
+                {payment.paidAt ? ` — ${formatStampDate(payment.paidAt)}` : ''}
+              </span>
+              <span className="flex items-center gap-3">
+                <span className="font-medium">{formatCents(payment.amountCents, currency)}</span>
+                {payment.receiptUrl && (
+                  <a
+                    href={payment.receiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-pill-success-text underline"
+                  >
+                    Receipt
+                  </a>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   </SectionContainer>
 );
@@ -781,8 +1058,10 @@ const InvoiceStep = ({
   const [confirmationLink, setConfirmationLink] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentProgress, setPaymentProgress] = useState<PaymentProgressState | null>(null);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [depositPaymentLink, setDepositPaymentLink] = useState<string | null>(null);
+  const { notify } = useNotify();
   const readOnly = encounter.viewOnly;
   const isInpatient = encounter.mode === 'INPATIENT';
   const hasItems = encounter.invoiceLineItems.length > 0;
@@ -916,7 +1195,7 @@ const InvoiceStep = ({
   // the backend so the bill, payment status, and deposit summary reflect server
   // truth after a payment action rather than only the optimistic store write.
   const reloadBilling = useCallback(async () => {
-    if (!organisationId || !appointmentId) return;
+    if (!organisationId || !appointmentId) return undefined;
     try {
       const billing = await loadAppointmentBilling(organisationId, appointmentId);
       hydrateInvoiceBilling(appointmentId, {
@@ -924,8 +1203,10 @@ const InvoiceStep = ({
         depositCents: billing.depositCents,
         currency: billing.currency,
       });
+      return billing;
     } catch (error) {
       console.error('Failed to refresh appointment billing:', error);
+      return undefined;
     }
   }, [appointmentId, hydrateInvoiceBilling, organisationId]);
 
@@ -957,6 +1238,66 @@ const InvoiceStep = ({
     encounter.invoiceLineItems,
   ]);
 
+  const refreshPaymentProgress = useCallback(
+    async (invoiceId?: string) => {
+      const targetInvoiceId = invoiceId ?? paymentProgress?.invoiceId;
+      if (!targetInvoiceId) return;
+      const billing = await reloadBilling();
+      if (!billing) return;
+      if (isInvoiceSettled(findInvoiceById(billing.pastInvoices, targetInvoiceId))) {
+        setPaymentProgress((current) =>
+          current?.invoiceId === targetInvoiceId ? { ...current, status: 'confirmed' } : current
+        );
+        setConfirmationLink(null);
+        setConfirmation('Online payment confirmed');
+      }
+    },
+    [paymentProgress?.invoiceId, reloadBilling]
+  );
+
+  const startPaymentProgress = useCallback(
+    (invoiceId: string, checkoutUrl?: string) => {
+      setPaymentProgress({
+        invoiceId,
+        checkoutUrl,
+        startedAt: Date.now(),
+        status: 'checking',
+      });
+      void refreshPaymentProgress(invoiceId);
+    },
+    [refreshPaymentProgress]
+  );
+
+  useEffect(() => {
+    if (paymentProgress?.status !== 'checking') return undefined;
+
+    const poll = () => {
+      if (Date.now() - paymentProgress.startedAt > PAYMENT_POLL_TIMEOUT_MS) {
+        setPaymentProgress((current) => {
+          if (current?.invoiceId !== paymentProgress.invoiceId) return current;
+          return { ...current, status: 'delayed' };
+        });
+        return;
+      }
+      void refreshPaymentProgress(paymentProgress.invoiceId);
+    };
+
+    const intervalId = globalThis.window.setInterval(poll, PAYMENT_POLL_INTERVAL_MS);
+    const handleFocus = () => poll();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') poll();
+    };
+
+    globalThis.window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      globalThis.window.clearInterval(intervalId);
+      globalThis.window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [paymentProgress, refreshPaymentProgress]);
+
   // The id of an open (still-outstanding) invoice already loaded from the finance
   // service into the workspace encounter. The deposit-id fallback in hydration uses
   // appointmentId when an invoice has no id, so reject that sentinel here.
@@ -965,7 +1306,11 @@ const InvoiceStep = ({
       (invoice) => invoice.id && invoice.id !== appointmentId && invoice.outstandingCents > 0
     )?.id;
 
-  const persistCurrentInvoice = async () => {
+  // Persist the current bill lines onto the single open appointment invoice. By default this does
+  // NOT finalize — the bill stays editable until the visit is actually closing, so later treatment
+  // additions can still be appended (finance gap doc Gap 1). Pass `{ finalize: true }` only at the
+  // explicit end-of-visit settlement.
+  const persistCurrentInvoice = async ({ finalize = false }: { finalize?: boolean } = {}) => {
     if (!organisationId) return undefined;
     const lineItems = toFinanceLineItems(encounter.invoiceLineItems);
     // Prefer an existing OPEN invoice for this appointment and append new lines to
@@ -992,7 +1337,7 @@ const InvoiceStep = ({
         items: lineItems,
       });
     }
-    if (invoice?.id) {
+    if (invoice?.id && finalize) {
       await finalizeFinanceInvoice(invoice.id);
     }
     return invoice;
@@ -1005,86 +1350,40 @@ const InvoiceStep = ({
       return;
     }
     if (!hasItems) return;
+    if (!encounter.readyForBilling.value && (method === 'CASH' || method === 'ONLINE')) {
+      notify('warning', {
+        title: 'Mark ready for billing first',
+        text: 'Set the visit to Ready for billing before collecting cash or sending the invoice online.',
+      });
+    }
     setErrorMessage(null);
     setIsProcessingPayment(true);
     try {
-      const invoice = await persistCurrentInvoice();
       if (method === 'ONLINE') {
-        setConfirmationLink(null);
-        if (invoice?.id) {
-          const url = await getPaymentLink(invoice.id);
-          if (url) {
-            // Open the Stripe checkout so the client can pay immediately; also
-            // keep the link visible (as a wrapping anchor) for copy/share.
-            openCheckoutUrl(url);
-            setConfirmation('Payment link generated:');
-            setConfirmationLink(url);
-          } else {
-            setConfirmation('Payment link generated');
-          }
-        } else {
-          setConfirmation('Invoice prepared for online payment');
-        }
-        await reloadBilling();
-        return;
-      }
-      if (invoice?.id) {
-        await recordManualInvoicePayment(invoice.id, {
-          provider: 'MANUAL',
-          settlementChannel: 'CASH',
-          amount: centsToMajor(computeInvoiceTotalCents(encounter)),
-          currency: financeCurrency,
-          receivedAt: new Date().toISOString(),
+        await runOnlineCollection({
+          persistCurrentInvoice,
+          reloadBilling,
+          startPaymentProgress,
+          setConfirmation,
+          setConfirmationLink,
+        });
+      } else {
+        await runManualCollection({
+          appointmentId,
+          encounter,
+          financeCurrency,
+          method,
+          persistCurrentInvoice,
+          reloadBilling,
+          recordInvoicePayment,
         });
       }
-      recordInvoicePayment(appointmentId, {
-        method,
-        byName: encounter.leadName ?? 'Front desk',
-      });
       setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
-      await reloadBilling();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to process payment.');
     } finally {
       setIsProcessingPayment(false);
     }
-  };
-
-  const createDepositInvoice = async (
-    input: { amount: number; method: PaymentMethod; reference: string; notes: string },
-    orgId: string
-  ): Promise<string | undefined> => {
-    const invoice = await createFinanceInvoice({
-      appointmentId,
-      parentId,
-      patientId,
-      organisationId: orgId,
-      paymentCollectionMethod: input.method === 'ONLINE' ? 'PAYMENT_LINK' : 'PAYMENT_AT_CLINIC',
-      items: [
-        {
-          name: 'Visit deposit',
-          description: 'Upfront visit deposit',
-          quantity: 1,
-          unitPrice: input.amount,
-          total: input.amount,
-        },
-      ],
-      notes: input.notes || 'Visit deposit',
-    });
-    if (!invoice.id) return undefined;
-    if (input.method === 'ONLINE') {
-      return getPaymentLink(invoice.id);
-    }
-    await recordManualInvoicePayment(invoice.id, {
-      provider: 'MANUAL',
-      settlementChannel: 'CASH',
-      amount: input.amount,
-      currency: financeCurrency,
-      reference: input.reference || undefined,
-      receivedAt: new Date().toISOString(),
-      notes: input.notes || undefined,
-    });
-    return undefined;
   };
 
   const handleDepositSubmit = async (input: {
@@ -1097,17 +1396,40 @@ const InvoiceStep = ({
     setErrorMessage(null);
     setIsProcessingPayment(true);
     try {
-      const checkoutUrl = organisationId
-        ? await createDepositInvoice(input, organisationId)
-        : undefined;
-      if (input.method === 'ONLINE') {
-        setDepositPaymentLink(checkoutUrl ?? null);
-        if (checkoutUrl) openCheckoutUrl(checkoutUrl);
-        setConfirmation(
-          checkoutUrl
-            ? `Deposit payment link generated: ${checkoutUrl}`
-            : 'Deposit payment link generated'
-        );
+      const invoiceToCollectAgainst =
+        organisationId && hasItems ? await persistCurrentInvoice({ finalize: false }) : undefined;
+      if (invoiceToCollectAgainst?.id) {
+        if (input.method === 'ONLINE') {
+          await handleDepositOnlineCollection({
+            appointmentId,
+            amountCents,
+            encounter,
+            persistCurrentInvoice,
+            startPaymentProgress,
+            reloadBilling,
+            setConfirmation,
+            setDepositPaymentLink,
+            recordDepositCollection,
+          });
+          return;
+        }
+
+        await recordManualInvoicePayment(invoiceToCollectAgainst.id, {
+          provider: 'MANUAL',
+          settlementChannel: 'DEPOSIT',
+          amount: input.amount,
+          currency: financeCurrency,
+          reference: input.reference || undefined,
+          receivedAt: new Date().toISOString(),
+          notes: input.notes || undefined,
+        });
+        recordDepositCollection(appointmentId, {
+          amountCents,
+          method: input.method,
+          byName: encounter.leadName ?? 'Front desk',
+        });
+        setConfirmation(`${PAYMENT_LABELS[input.method]} recorded on the appointment invoice`);
+        setIsDepositModalOpen(false);
         await reloadBilling();
         return;
       }
@@ -1116,7 +1438,7 @@ const InvoiceStep = ({
         method: input.method,
         byName: encounter.leadName ?? 'Front desk',
       });
-      setConfirmation(`${PAYMENT_LABELS[input.method]} deposit recorded`);
+      setConfirmation(`${PAYMENT_LABELS[input.method]} recorded on the appointment invoice`);
       setIsDepositModalOpen(false);
       await reloadBilling();
     } catch (error) {
@@ -1130,9 +1452,23 @@ const InvoiceStep = ({
     await handleCollect('ONLINE');
   };
 
-  // Download = render the invoice and open the print dialog (print-to-PDF); there
-  // is no backend invoice-PDF endpoint to preview yet.
+  const handlePaymentCheckAgain = () => {
+    setPaymentProgress((current) =>
+      current ? { ...current, startedAt: Date.now(), status: 'checking' } : current
+    );
+    void refreshPaymentProgress();
+  };
+
+  const handleContinueAfterPaymentDelay = () => {
+    setPaymentProgress(null);
+    void reloadBilling();
+  };
+
   const handleDownloadInvoice = (invoice: PastInvoice) => {
+    if (invoice.pdfUrl) {
+      openDocumentUrl(invoice.pdfUrl);
+      return;
+    }
     printInvoice(invoice, currency);
   };
 
@@ -1251,6 +1587,12 @@ const InvoiceStep = ({
         generatedLink={depositPaymentLink}
         onClose={() => setIsDepositModalOpen(false)}
         onSubmit={handleDepositSubmit}
+      />
+
+      <PaymentProgressOverlay
+        state={paymentProgress}
+        onCheckAgain={handlePaymentCheckAgain}
+        onContinue={handleContinueAfterPaymentDelay}
       />
 
       <InvoicesSection

@@ -18,6 +18,7 @@ import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { useNotify } from '@/app/hooks/useNotify';
+import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
 
 type SlotProps = {
   slotEvents: Appointment[];
@@ -409,8 +410,11 @@ const SlotComponent: React.FC<SlotProps> = ({
     clearPendingMarkerClick();
     setContextMenu(null);
     setActivePopoverKey(null);
-    if (handleOpenWorkspace) handleOpenWorkspace(appointment);
-    else (handleDetailAppointment ?? handleViewAppointment)(appointment);
+    if (handleOpenWorkspace && canEnterAppointmentWorkspace(appointment.status)) {
+      handleOpenWorkspace(appointment);
+      return;
+    }
+    (handleDetailAppointment ?? handleViewAppointment)(appointment);
   };
 
   const handleMarkerContextMenu = (

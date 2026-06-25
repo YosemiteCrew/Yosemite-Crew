@@ -5,20 +5,28 @@ import {
   LuCheck,
   LuChevronDown,
   LuClipboardCheck,
-  LuDownload,
   LuExternalLink,
   LuEye,
   LuEyeOff,
   LuFileText,
   LuFlaskConical,
   LuListFilter,
-  LuPencil,
-  LuSlidersHorizontal,
+  LuLoader,
   LuStethoscope,
   LuWalletCards,
   LuX,
 } from 'react-icons/lu';
+import type { Appointment } from '@yosemite-crew/types';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
+import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
+import { useLoadAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
+import { useAppointmentStore } from '@/app/stores/appointmentStore';
+import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
+import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import { useLoadTasksForPrimaryOrg } from '@/app/hooks/useTask';
+import { useTaskStore } from '@/app/stores/taskStore';
+import { getIdexxResultPdfBlob } from '@/app/features/integrations/services/idexxService';
 import { useOrgStore } from '@/app/stores/orgStore';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -45,6 +53,19 @@ import Search from '@/app/ui/inputs/Search';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import { AppointmentLabels, TaskLabels, getStatusStyle } from '@/app/config/statusConfig';
+import {
+  canTransitionAppointmentStatus,
+  getAllowedAppointmentStatusTransitions,
+  getInvalidAppointmentStatusTransitionMessage,
+  normalizeAppointmentStatus,
+} from '@/app/lib/appointments';
+import {
+  canTransitionTaskStatus,
+  getAllowedTaskStatusTransitions,
+  getInvalidTaskStatusTransitionMessage,
+  normalizeTaskStatus,
+} from '@/app/lib/tasks';
+import { useNotify } from '@/app/hooks/useNotify';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import {
   formatCurrency,
@@ -65,7 +86,6 @@ type CompanionHistoryTimelineProps = {
 };
 
 type SortKey = 'newest' | 'oldest';
-type StatusFilter = 'all' | 'active' | 'completed' | 'requested' | 'billing';
 type MoneyTone = 'neutral' | 'success' | 'danger' | 'warning';
 type StatusOverrides = Record<string, string>;
 type PdfPreviewState = {
@@ -78,16 +98,6 @@ type DetailPair = {
   value: string;
 };
 
-type InvoiceBreakdownItem = {
-  id: string;
-  name: string;
-  unitPrice: string;
-  quantity: string;
-  gross: string;
-  discount: string;
-  amount: string;
-};
-
 type TimelineBodyProps = {
   activeFilter: HistoryFilterKey;
   loading: boolean;
@@ -98,10 +108,13 @@ type TimelineBodyProps = {
   filteredEntries: HistoryEntry[];
   statusOverrides: StatusOverrides;
   expandedId: string | null;
-  onStatusChange: (entryId: string, nextStatus: string) => void;
+  onStatusChange: (entry: HistoryEntry, nextStatus: string) => void;
+  canEditStatus: (entry: HistoryEntry) => boolean;
   onToggle: (entryId: string) => void;
   onOpen: (entry: HistoryEntry) => void;
   onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
+  onOpenResultPdf: (entry: HistoryEntry) => void;
+  pdfLoadingId: string | null;
 };
 
 const getTimelineBody = ({
@@ -115,9 +128,12 @@ const getTimelineBody = ({
   statusOverrides,
   expandedId,
   onStatusChange,
+  canEditStatus,
   onToggle,
   onOpen,
   onPreviewPdf,
+  onOpenResultPdf,
+  pdfLoadingId,
 }: TimelineBodyProps) => {
   if (activeFilter === 'AUDIT_TRAIL') {
     return <AuditTimeline loading={auditLoading} error={auditError} entries={auditEntries} />;
@@ -135,11 +151,41 @@ const getTimelineBody = ({
       statusOverrides={statusOverrides}
       expandedId={expandedId}
       onStatusChange={onStatusChange}
+      canEditStatus={canEditStatus}
       onToggle={onToggle}
       onOpen={onOpen}
       onPreviewPdf={onPreviewPdf}
+      onOpenResultPdf={onOpenResultPdf}
+      pdfLoadingId={pdfLoadingId}
     />
   );
+};
+
+const getTimelineActionIcon = (loadingPdf: boolean, expanded: boolean): React.ReactNode => {
+  if (loadingPdf) return <LoadingIcon />;
+  if (expanded) return <LuEyeOff aria-hidden="true" />;
+  return <LuEye aria-hidden="true" />;
+};
+
+const getTimelineActionLabel = (
+  loadingPdf: boolean,
+  expanded: boolean,
+  entryTitle: string,
+  entry: HistoryEntry
+): string => {
+  if (loadingPdf) return `Loading ${entryTitle}`;
+  if (expanded) return `Hide ${entryTitle}`;
+  return getPrimaryActionLabel(entry);
+};
+
+const getPersistStatusAction = (
+  entryType: HistoryEntry['type'],
+  persistAppointmentStatus: (entry: HistoryEntry, nextStatus: string) => Promise<void>,
+  persistTaskStatus: (entry: HistoryEntry, nextStatus: string) => Promise<void>
+): ((entry: HistoryEntry, nextStatus: string) => Promise<void>) | null => {
+  if (entryType === 'APPOINTMENT') return persistAppointmentStatus;
+  if (entryType === 'TASK') return persistTaskStatus;
+  return null;
 };
 
 const DEFAULT_FILTER: HistoryFilterKey = 'APPOINTMENT';
@@ -155,23 +201,86 @@ const TAB_ICONS: Record<HistoryFilterKey, React.ReactNode> = {
   AUDIT_TRAIL: <LuListFilter size={15} aria-hidden="true" />,
 };
 
-const STATUS_FILTERS: Array<{ key: StatusFilter; label: string }> = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'requested', label: 'Requested' },
-  { key: 'billing', label: 'Payment due' },
-];
-
-const STATUS_FILTER_OPTIONS = STATUS_FILTERS.map((filter) => ({
-  label: filter.label,
-  value: filter.key,
-}));
-
 const SORT_OPTIONS: Array<{ label: string; value: SortKey }> = [
   { label: 'Sort by newest', value: 'newest' },
   { label: 'Sort by oldest', value: 'oldest' },
 ];
+
+const STATUS_FILTER_ALL = 'all';
+
+// Per-section status filter options. Each option lists the normalized
+// (UPPER_SNAKE) status tokens it should match, sourced from the real statuses
+// each section emits (frontend AppointmentLabels/TaskLabels and the backend
+// HistoryEntryStatus / InvoiceStatus unions).
+type StatusFilterOption = { label: string; value: string; match: string[] };
+
+const ALL_STATUS_OPTION: StatusFilterOption = {
+  label: 'All statuses',
+  value: STATUS_FILTER_ALL,
+  match: [],
+};
+
+const APPOINTMENT_STATUS_FILTERS: StatusFilterOption[] = [
+  { label: 'Requested', value: 'requested', match: ['REQUESTED'] },
+  { label: 'Upcoming', value: 'upcoming', match: ['UPCOMING'] },
+  { label: 'Checked-in', value: 'checked_in', match: ['CHECKED_IN'] },
+  { label: 'In progress', value: 'in_progress', match: ['IN_PROGRESS'] },
+  { label: 'Completed', value: 'completed', match: ['COMPLETED'] },
+  { label: 'Cancelled', value: 'cancelled', match: ['CANCELLED'] },
+  { label: 'No show', value: 'no_show', match: ['NO_SHOW'] },
+];
+
+const TASK_STATUS_FILTERS: StatusFilterOption[] = [
+  { label: 'Pending', value: 'pending', match: ['PENDING'] },
+  { label: 'In progress', value: 'in_progress', match: ['IN_PROGRESS'] },
+  { label: 'Completed', value: 'completed', match: ['COMPLETED'] },
+  { label: 'Cancelled', value: 'cancelled', match: ['CANCELLED'] },
+];
+
+const LAB_STATUS_FILTERS: StatusFilterOption[] = [
+  { label: 'Completed', value: 'completed', match: ['COMPLETED'] },
+  { label: 'Pending', value: 'pending', match: ['PENDING'] },
+];
+
+const MEDICAL_RECORD_STATUS_FILTERS: StatusFilterOption[] = [
+  { label: 'Signed', value: 'signed', match: ['SIGNED'] },
+  { label: 'Completed', value: 'completed', match: ['COMPLETED'] },
+];
+
+const BILLING_STATUS_FILTERS: StatusFilterOption[] = [
+  { label: 'Paid', value: 'paid', match: ['PAID'] },
+  { label: 'Awaiting payment', value: 'awaiting_payment', match: ['AWAITING_PAYMENT', 'PENDING'] },
+  { label: 'Failed', value: 'failed', match: ['FAILED'] },
+  { label: 'Cancelled', value: 'cancelled', match: ['CANCELLED', 'REFUNDED'] },
+];
+
+const STATUS_FILTERS_BY_TAB: Partial<Record<HistoryFilterKey, StatusFilterOption[]>> = {
+  APPOINTMENT: APPOINTMENT_STATUS_FILTERS,
+  TASK: TASK_STATUS_FILTERS,
+  LAB_RESULT: LAB_STATUS_FILTERS,
+  MEDICAL_RECORDS: MEDICAL_RECORD_STATUS_FILTERS,
+  INVOICE: BILLING_STATUS_FILTERS,
+};
+
+const getStatusFilterOptions = (activeFilter: HistoryFilterKey): StatusFilterOption[] => {
+  const sectionOptions = STATUS_FILTERS_BY_TAB[activeFilter];
+  if (!sectionOptions) return [];
+  return [ALL_STATUS_OPTION, ...sectionOptions];
+};
+
+const matchesStatusFilter = (
+  entry: HistoryEntry,
+  activeFilter: HistoryFilterKey,
+  statusFilter: string
+): boolean => {
+  if (statusFilter === STATUS_FILTER_ALL) return true;
+  const option = STATUS_FILTERS_BY_TAB[activeFilter]?.find((item) => item.value === statusFilter);
+  if (!option) return true;
+  const status = String(entry.status ?? getPayloadString(entry.payload, ['status']) ?? '')
+    .trim()
+    .toUpperCase();
+  return option.match.includes(status);
+};
 
 const LAB_STATUS_OPTIONS = [
   { name: 'Created', key: 'created' },
@@ -186,6 +295,19 @@ const BILLING_STATUS_OPTIONS = [
   { name: 'Paid full', key: 'completed' },
   { name: 'Cancelled', key: 'cancelled' },
 ];
+
+// Surface the backend's message (e.g. "caseId could not be resolved for
+// check-in.") when a status PATCH fails, instead of a generic retry prompt.
+const getStatusErrorMessage = (error: unknown): string => {
+  const fallback = 'Please try again.';
+  if (!error || typeof error !== 'object') return fallback;
+  const response = (error as { response?: { data?: { message?: unknown } } }).response;
+  const serverMessage = response?.data?.message;
+  if (typeof serverMessage === 'string' && serverMessage.trim()) return serverMessage.trim();
+  const message = (error as { message?: unknown }).message;
+  if (typeof message === 'string' && message.trim()) return message.trim();
+  return fallback;
+};
 
 const buildAppointmentsLink = (
   appointmentId: string,
@@ -241,6 +363,12 @@ const formatStatusLabel = (status?: string | null): string => {
     .join(' ');
 };
 
+const formatCompactStatusLabel = (status?: string | null): string => {
+  const label = formatStatusLabel(status);
+  if (label.toLowerCase() === 'awaiting payment') return 'Awaiting';
+  return label;
+};
+
 const statusPillStyle = (status?: string | null): React.CSSProperties => {
   const normalized = String(status ?? '')
     .trim()
@@ -253,10 +381,15 @@ const statusPillStyle = (status?: string | null): React.CSSProperties => {
   };
 };
 
-const LOCKED_STATUS_KEYS = new Set(['completed']);
-
-const isStatusLocked = (status: string): boolean => LOCKED_STATUS_KEYS.has(status);
 const isRequestedStatus = (status: string): boolean => status === 'REQUESTED';
+
+// A status is "locked" (read-only pill, no dropdown) when there are no valid
+// transitions out of it — e.g. completed / cancelled / no-show appointments,
+// completed / cancelled tasks.
+const isAppointmentStatusLocked = (status?: string | null): boolean =>
+  getAllowedAppointmentStatusTransitions(normalizeStatusKey(String(status ?? ''))).length === 0;
+const isTaskStatusLocked = (status?: string | null): boolean =>
+  getAllowedTaskStatusTransitions(normalizeStatusKey(String(status ?? ''))).length === 0;
 const getRequestedButtonLabel = (status: string): string =>
   status === 'CHECKED_IN' ? 'Start' : 'Open';
 
@@ -264,25 +397,40 @@ const StatusPillSelect = ({
   status,
   options,
   onChange,
+  disabled = false,
+  locked = false,
+  allowedKeys,
 }: {
   status?: string | null;
   options: Array<{ name: string; key: string }>;
   onChange: (status: string) => void;
+  disabled?: boolean;
+  locked?: boolean;
+  // When provided, the menu only offers these status keys (the valid next
+  // transitions). Keys are matched case-insensitively against option.key.
+  allowedKeys?: string[];
 }) => {
   const [open, setOpen] = useState(false);
   const normalizedStatus = String(status ?? 'pending')
     .trim()
     .toLowerCase();
-  const label =
-    options.find((option) => option.key === normalizedStatus)?.name ?? formatStatusLabel(status);
+  const optionLabel = options.find((option) => option.key === normalizedStatus)?.name;
+  const label = formatCompactStatusLabel(optionLabel ?? status);
+  const allowedSet = allowedKeys
+    ? new Set(allowedKeys.map((key) => key.trim().toLowerCase()))
+    : null;
+  const menuOptions = allowedSet
+    ? options.filter((option) => allowedSet.has(option.key.trim().toLowerCase()))
+    : options;
 
-  if (isStatusLocked(normalizedStatus)) {
+  if (locked || disabled || menuOptions.length === 0) {
     return (
       <span
-        className="inline-flex h-8 w-30 items-center justify-center rounded-2xl border px-3 text-caption-1 font-medium"
+        className="inline-flex h-8 w-30 items-center justify-center rounded-2xl border px-2 text-caption-1 font-medium"
         style={statusPillStyle(normalizedStatus)}
+        title={formatStatusLabel(status)}
       >
-        {label}
+        <span className="truncate whitespace-nowrap">{label}</span>
       </span>
     );
   }
@@ -296,10 +444,11 @@ const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         onBlur={() => setOpen(false)}
-        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-2xl border px-3 text-caption-1 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-2xl border px-2 text-caption-1 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         style={statusPillStyle(normalizedStatus)}
+        title={formatStatusLabel(status)}
       >
-        {label}
+        <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
         <LuChevronDown
           size={12}
           aria-hidden="true"
@@ -311,7 +460,7 @@ const StatusPillSelect = ({
           role="menu"
           className="absolute left-0 top-full z-20 mt-1 min-w-36 overflow-hidden rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_3px_1px_rgba(0,0,0,0.15)]"
         >
-          {options.map((option) => {
+          {menuOptions.map((option) => {
             const optionStyle = getStatusStyle(option.key);
             return (
               <button
@@ -403,6 +552,8 @@ const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => {
   return <span className={`font-bold ${classNameByTone[tone]}`}>{value}</span>;
 };
 
+const LoadingIcon = () => <LuLoader className="animate-spin" aria-hidden="true" />;
+
 const TimelineMarker = ({ active }: { active: boolean }) => {
   const ring = active ? 'border-text-brand' : 'border-neutral-300';
   const dot = active ? 'bg-text-brand' : 'bg-neutral-300';
@@ -435,13 +586,28 @@ const getLinkedId = (
   return null;
 };
 
+const getLinkedAppointmentId = (entry: HistoryEntry): string | null =>
+  getLinkedId(entry, ['appointmentId'], 'appointment') ?? resolveEntryAppointmentId(entry);
+
+const normalizeStatusKey = (status: string): string => status.trim().toUpperCase();
+
+const toAppointmentStatus = (status: string): AppointmentStatus | null =>
+  normalizeAppointmentStatus(normalizeStatusKey(status));
+
+const toTaskStatus = (status: string): TaskStatus | null =>
+  normalizeTaskStatus(normalizeStatusKey(status));
+
 const resolveFallbackUrl = (entry: HistoryEntry): string | null => {
-  const payloadUrl = entry.payload.pdfUrl;
-  if (typeof payloadUrl === 'string' && payloadUrl.trim()) return payloadUrl;
-  const secondaryUrl = entry.payload.url;
-  if (typeof secondaryUrl === 'string' && secondaryUrl.trim()) return secondaryUrl;
+  const urlKeys = ['pdfUrl', 'url', 'downloadUrl', 'receiptUrl', 'stripeReceiptUrl'];
+  for (const key of urlKeys) {
+    const payloadUrl = entry.payload[key];
+    if (typeof payloadUrl === 'string' && payloadUrl.trim()) return payloadUrl.trim();
+  }
   return null;
 };
+
+const resolveLabResultId = (entry: HistoryEntry): string | null =>
+  getPayloadString(entry.payload, ['resultId']) || getLinkedId(entry, ['resultId'], 'lab_result');
 
 const getLinkedEntryIntent = (
   type: HistoryEntry['type']
@@ -482,19 +648,6 @@ const getSearchableText = (entry: HistoryEntry): string => {
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
-};
-
-const matchesStatusFilter = (entry: HistoryEntry, filter: StatusFilter): boolean => {
-  if (filter === 'all') return true;
-  const status = String(entry.status ?? getPayloadString(entry.payload, ['status']) ?? '')
-    .trim()
-    .toUpperCase();
-  if (filter === 'active')
-    return ['IN_PROGRESS', 'CHECKED_IN', 'UPCOMING', 'CREATED', 'SUBMITTED'].includes(status);
-  if (filter === 'completed')
-    return ['COMPLETED', 'COMPLETE', 'PAID', 'PAID_FULL', 'DONE', 'SIGNED'].includes(status);
-  if (filter === 'requested') return ['REQUESTED', 'PENDING_APPROVAL'].includes(status);
-  return ['UNPAID', 'AWAITING_PAYMENT', 'PARTIAL', 'PARTIALLY_PAID', 'OVERDUE'].includes(status);
 };
 
 const getRecordCategory = (entry: HistoryEntry): string => {
@@ -611,25 +764,6 @@ const StructuredResultsPanel = ({
   </div>
 );
 
-const getInvoiceBreakdown = (entry: HistoryEntry): InvoiceBreakdownItem[] => {
-  const rows = getRecordArray(entry.payload, ['items', 'lineItems', 'breakdown']);
-  return rows.slice(0, 8).map((row, index) => {
-    const currency = getPayloadString(entry.payload, ['currency']);
-    const money = (keys: string[]) => formatCurrency(getPayloadNumber(row, keys), currency) || '-';
-    return {
-      id: getPayloadString(row, ['id', 'itemId']) || `${entry.id}-${index}`,
-      name: getPayloadString(row, ['name', 'itemName', 'description']) || `Item ${index + 1}`,
-      unitPrice: money(['unitPrice', 'unitPriceAmount']),
-      quantity:
-        getPayloadString(row, ['quantity', 'qty']) ||
-        String(getPayloadNumber(row, ['quantity', 'qty']) ?? '-'),
-      gross: money(['grossAmount', 'gross']),
-      discount: money(['discountAmount', 'discount']),
-      amount: money(['amount', 'totalAmount', 'lineTotal']),
-    };
-  });
-};
-
 type RowActionProps = {
   entry: HistoryEntry;
   expanded: boolean;
@@ -659,15 +793,19 @@ const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionP
 
 const RequestedAppointmentActions = ({
   entry,
+  canEdit,
+  onStatusChange,
   onOpen,
 }: {
   entry: HistoryEntry;
+  canEdit: boolean;
+  onStatusChange: (entry: HistoryEntry, status: string) => void;
   onOpen: (entry: HistoryEntry) => void;
 }) => {
   const status = String(entry.status ?? '')
     .trim()
     .toUpperCase();
-  if (!isRequestedStatus(status)) {
+  if (!isRequestedStatus(status) || !canEdit) {
     return (
       <div className="flex justify-end">
         <Primary
@@ -685,13 +823,13 @@ const RequestedAppointmentActions = ({
         icon={<LuCheck aria-hidden="true" />}
         label={`Accept ${entry.title}`}
         variant="dark"
-        onClick={() => onOpen(entry)}
+        onClick={() => onStatusChange(entry, 'upcoming')}
       />
       <CircleIconButton
         icon={<LuX aria-hidden="true" />}
         label={`Reject ${entry.title}`}
         variant="danger"
-        onClick={() => onOpen(entry)}
+        onClick={() => onStatusChange(entry, 'cancelled')}
       />
     </div>
   );
@@ -701,11 +839,13 @@ const AppointmentRows = ({
   entries,
   statusOverrides,
   onStatusChange,
+  canEditStatus,
   onOpen,
 }: {
   entries: HistoryEntry[];
   statusOverrides: StatusOverrides;
-  onStatusChange: (entryId: string, status: string) => void;
+  onStatusChange: (entry: HistoryEntry, status: string) => void;
+  canEditStatus: (entry: HistoryEntry) => boolean;
   onOpen: (entry: HistoryEntry) => void;
 }) => (
   <div className="w-full min-w-[1100px]">
@@ -735,7 +875,12 @@ const AppointmentRows = ({
           <StatusPillSelect
             status={effectiveStatus}
             options={AppointmentLabels}
-            onChange={(status) => onStatusChange(entry.id, status)}
+            disabled={!canEditStatus(entry)}
+            locked={isAppointmentStatusLocked(effectiveStatus)}
+            allowedKeys={getAllowedAppointmentStatusTransitions(
+              normalizeStatusKey(String(effectiveStatus))
+            )}
+            onChange={(status) => onStatusChange(entry, status)}
           />
           <div className="whitespace-normal break-words text-body-4 text-neutral-900">
             {getPayloadString(entry.payload, ['specialityName', 'specialtyName']) || '-'}
@@ -757,6 +902,8 @@ const AppointmentRows = ({
           </div>
           <RequestedAppointmentActions
             entry={{ ...entry, status: effectiveStatus }}
+            canEdit={canEditStatus(entry)}
+            onStatusChange={onStatusChange}
             onOpen={onOpen}
           />
         </div>
@@ -769,16 +916,20 @@ const DiagnosticsRows = ({
   entries,
   statusOverrides,
   expandedId,
-  onStatusChange,
   onToggle,
   onOpen,
+  onPreviewPdf,
+  onOpenResultPdf,
+  pdfLoadingId,
 }: {
   entries: HistoryEntry[];
   statusOverrides: StatusOverrides;
   expandedId: string | null;
-  onStatusChange: (entryId: string, status: string) => void;
   onToggle: (id: string) => void;
   onOpen: (entry: HistoryEntry) => void;
+  onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
+  onOpenResultPdf: (entry: HistoryEntry) => void;
+  pdfLoadingId: string | null;
 }) => (
   <div className="w-full min-w-[1180px]">
     <div className={`grid ${DIAGNOSTICS_GRID} items-center gap-3 border-b border-card-border p-4`}>
@@ -793,6 +944,9 @@ const DiagnosticsRows = ({
     </div>
     {entries.map((entry, index) => {
       const results = getLabResults(entry);
+      const acknowledgementPdfUrl = resolveFallbackUrl(entry);
+      const resultId = resolveLabResultId(entry);
+      const loadingPdf = pdfLoadingId === entry.id;
       const expanded = expandedId === entry.id;
       const effectiveStatus = getEffectiveStatus(entry, statusOverrides);
       return (
@@ -812,20 +966,25 @@ const DiagnosticsRows = ({
             <StatusPillSelect
               status={effectiveStatus}
               options={LAB_STATUS_OPTIONS}
-              onChange={(status) => onStatusChange(entry.id, status)}
+              disabled
+              onChange={() => undefined}
             />
             <div className="flex items-center justify-end gap-2">
-              <Secondary
-                text="Follow up"
-                icon={<LuExternalLink aria-hidden="true" />}
-                iconPosition="right"
-                onClick={() => onOpen(entry)}
-              />
-              <Secondary
-                text="Acknowledgment"
-                icon={<LuEye aria-hidden="true" />}
-                onClick={() => onOpen(entry)}
-              />
+              {resultId ? (
+                <Secondary
+                  text={loadingPdf ? 'Loading…' : 'Result PDF'}
+                  icon={loadingPdf ? <LoadingIcon /> : <LuEye aria-hidden="true" />}
+                  isDisabled={loadingPdf}
+                  onClick={() => onOpenResultPdf(entry)}
+                />
+              ) : null}
+              {acknowledgementPdfUrl ? (
+                <Secondary
+                  text="Acknowledgment PDF"
+                  icon={<LuEye aria-hidden="true" />}
+                  onClick={() => onPreviewPdf(entry, acknowledgementPdfUrl)}
+                />
+              ) : null}
               <RowActions
                 entry={entry}
                 expanded={expanded}
@@ -850,12 +1009,14 @@ const MedicalRecordRows = ({
   onToggle,
   onOpen,
   onPreviewPdf,
+  pdfLoadingId,
 }: {
   entries: HistoryEntry[];
   expandedId: string | null;
   onToggle: (id: string) => void;
   onOpen: (entry: HistoryEntry) => void;
   onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
+  pdfLoadingId: string | null;
 }) => (
   <div className="w-full min-w-[1140px]">
     <div
@@ -874,7 +1035,9 @@ const MedicalRecordRows = ({
       const results = getLabResults(entry);
       const pdfUrl = resolveFallbackUrl(entry);
       const expanded = expandedId === entry.id;
+      const loadingPdf = pdfLoadingId === entry.id;
       const handlePrimaryAction = () => {
+        if (loadingPdf) return;
         if (results.length > 0) {
           onToggle(entry.id);
           return;
@@ -912,24 +1075,12 @@ const MedicalRecordRows = ({
             </div>
             <div className="flex justify-end gap-2">
               <CircleIconButton
-                icon={expanded ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />}
-                label={expanded ? `Hide ${entry.title}` : getPrimaryActionLabel(entry)}
+                icon={getTimelineActionIcon(loadingPdf, expanded)}
+                label={getTimelineActionLabel(loadingPdf, expanded, entry.title, entry)}
                 variant="dark"
+                disabled={loadingPdf}
                 onClick={handlePrimaryAction}
               />
-              {entry.type === 'DOCUMENT' ? (
-                <CircleIconButton
-                  icon={<LuDownload aria-hidden="true" />}
-                  label={`Download ${entry.title}`}
-                  onClick={() => onOpen(entry)}
-                />
-              ) : (
-                <CircleIconButton
-                  icon={<LuPencil aria-hidden="true" />}
-                  label={`Edit ${entry.title}`}
-                  onClick={() => onOpen(entry)}
-                />
-              )}
             </div>
           </div>
           {expanded && results.length > 0 ? (
@@ -945,11 +1096,13 @@ const TaskRows = ({
   entries,
   statusOverrides,
   onStatusChange,
+  canEditStatus,
   onOpen,
 }: {
   entries: HistoryEntry[];
   statusOverrides: StatusOverrides;
-  onStatusChange: (entryId: string, status: string) => void;
+  onStatusChange: (entry: HistoryEntry, status: string) => void;
+  canEditStatus: (entry: HistoryEntry) => boolean;
   onOpen: (entry: HistoryEntry) => void;
 }) => (
   <div className="w-full min-w-[900px]">
@@ -989,7 +1142,12 @@ const TaskRows = ({
           <StatusPillSelect
             status={effectiveStatus}
             options={TaskLabels}
-            onChange={(status) => onStatusChange(entry.id, status)}
+            disabled={!canEditStatus(entry)}
+            locked={isTaskStatusLocked(effectiveStatus)}
+            allowedKeys={getAllowedTaskStatusTransitions(
+              normalizeStatusKey(String(effectiveStatus))
+            )}
+            onChange={(status) => onStatusChange(entry, status)}
           />
           <RowActions
             entry={entry}
@@ -1004,63 +1162,23 @@ const TaskRows = ({
   </div>
 );
 
-const InvoiceBreakdown = ({ entry }: { entry: HistoryEntry }) => {
-  const items = getInvoiceBreakdown(entry);
-  if (items.length === 0) {
-    return (
-      <div className="mt-4 rounded-2xl border border-card-border px-6 py-4 text-body-4 text-text-secondary">
-        No invoice breakdown available.
-      </div>
-    );
-  }
-  return (
-    <div className="mt-4 rounded-2xl border border-card-border px-6 py-4">
-      <div className="grid grid-cols-[minmax(180px,1fr)_120px_80px_120px_120px_120px] gap-4 text-caption-1 font-bold text-text-secondary">
-        <span>Item Name</span>
-        <span>Unit Price</span>
-        <span>Qnt.</span>
-        <span>Gross Amt.</span>
-        <span>Discount</span>
-        <span>Amount</span>
-      </div>
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="grid grid-cols-[minmax(180px,1fr)_120px_80px_120px_120px_120px] gap-4 py-1.5 text-body-4 text-neutral-900"
-        >
-          <span className="font-bold">{item.name}</span>
-          <span>{item.unitPrice}</span>
-          <span>x {item.quantity}</span>
-          <span>{item.gross}</span>
-          <span>- {item.discount}</span>
-          <span className="font-bold">{item.amount}</span>
-        </div>
-      ))}
-      <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-card-border pt-3">
-        <span className="text-body-4 text-neutral-900">Total</span>
-        <span className="text-yc-20-b-primary">{getEntryAmount(entry)}</span>
-        <span className="rounded-3xl bg-pill-success-text px-3 py-1 text-caption-1 font-bold text-neutral-0">
-          {getPayloadString(entry.payload, ['settlementLabel']) || 'Withdrawn from Deposit'}
-        </span>
-      </div>
-    </div>
-  );
+const isPaidInvoice = (entry: HistoryEntry): boolean => {
+  const status = String(entry.status ?? getPayloadString(entry.payload, ['status']) ?? '')
+    .trim()
+    .toUpperCase();
+  return ['PAID', 'PAID_FULL', 'COMPLETED'].includes(status);
 };
 
 const BillingRows = ({
   entries,
   statusOverrides,
-  expandedId,
-  onStatusChange,
-  onToggle,
   onOpen,
+  onPreviewPdf,
 }: {
   entries: HistoryEntry[];
   statusOverrides: StatusOverrides;
-  expandedId: string | null;
-  onStatusChange: (entryId: string, status: string) => void;
-  onToggle: (id: string) => void;
   onOpen: (entry: HistoryEntry) => void;
+  onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
 }) => (
   <div className="w-full min-w-[1120px]">
     <div className={`grid ${BILLING_GRID} items-center gap-3 border-b border-card-border p-4`}>
@@ -1076,8 +1194,8 @@ const BillingRows = ({
       </TableHeading>
     </div>
     {entries.map((entry, index) => {
-      const expanded = expandedId === entry.id;
       const effectiveStatus = getEffectiveStatus(entry, statusOverrides);
+      const pdfUrl = resolveFallbackUrl(entry);
       const outstanding =
         formatCurrency(
           getPayloadNumber(entry.payload, ['outstandingAmount']),
@@ -1103,17 +1221,26 @@ const BillingRows = ({
             <StatusPillSelect
               status={effectiveStatus}
               options={BILLING_STATUS_OPTIONS}
-              onChange={(status) => onStatusChange(entry.id, status)}
+              disabled
+              onChange={() => undefined}
             />
-            <RowActions
-              entry={entry}
-              expanded={expanded}
-              canExpand
-              onOpen={onOpen}
-              onToggle={onToggle}
-            />
+            <div className="flex items-center justify-end gap-2">
+              {isPaidInvoice(entry) && pdfUrl ? (
+                <CircleIconButton
+                  icon={<LuEye aria-hidden="true" />}
+                  label={`Preview ${entry.title}`}
+                  variant="dark"
+                  onClick={() => onPreviewPdf(entry, pdfUrl)}
+                />
+              ) : null}
+              <CircleIconButton
+                icon={<LuExternalLink aria-hidden="true" />}
+                label={getPrimaryActionLabel(entry)}
+                variant={isPaidInvoice(entry) && pdfUrl ? 'outline' : 'dark'}
+                onClick={() => onOpen(entry)}
+              />
+            </div>
           </div>
-          {expanded ? <InvoiceBreakdown entry={entry} /> : null}
         </div>
       );
     })}
@@ -1195,18 +1322,24 @@ const EmptyOrRows = ({
   statusOverrides,
   expandedId,
   onStatusChange,
+  canEditStatus,
   onToggle,
   onOpen,
   onPreviewPdf,
+  onOpenResultPdf,
+  pdfLoadingId,
 }: {
   activeFilter: HistoryFilterKey;
   entries: HistoryEntry[];
   statusOverrides: StatusOverrides;
   expandedId: string | null;
-  onStatusChange: (entryId: string, status: string) => void;
+  onStatusChange: (entry: HistoryEntry, status: string) => void;
+  canEditStatus: (entry: HistoryEntry) => boolean;
   onToggle: (id: string) => void;
   onOpen: (entry: HistoryEntry) => void;
   onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
+  onOpenResultPdf: (entry: HistoryEntry) => void;
+  pdfLoadingId: string | null;
 }) => {
   if (entries.length === 0) return <HistoryEmptyState />;
   if (activeFilter === 'APPOINTMENT') {
@@ -1215,6 +1348,7 @@ const EmptyOrRows = ({
         entries={entries}
         statusOverrides={statusOverrides}
         onStatusChange={onStatusChange}
+        canEditStatus={canEditStatus}
         onOpen={onOpen}
       />
     );
@@ -1225,9 +1359,11 @@ const EmptyOrRows = ({
         entries={entries}
         statusOverrides={statusOverrides}
         expandedId={expandedId}
-        onStatusChange={onStatusChange}
         onToggle={onToggle}
         onOpen={onOpen}
+        onPreviewPdf={onPreviewPdf}
+        onOpenResultPdf={onOpenResultPdf}
+        pdfLoadingId={pdfLoadingId}
       />
     );
   }
@@ -1239,6 +1375,7 @@ const EmptyOrRows = ({
         onToggle={onToggle}
         onOpen={onOpen}
         onPreviewPdf={onPreviewPdf}
+        pdfLoadingId={pdfLoadingId}
       />
     );
   }
@@ -1248,6 +1385,7 @@ const EmptyOrRows = ({
         entries={entries}
         statusOverrides={statusOverrides}
         onStatusChange={onStatusChange}
+        canEditStatus={canEditStatus}
         onOpen={onOpen}
       />
     );
@@ -1256,10 +1394,8 @@ const EmptyOrRows = ({
     <BillingRows
       entries={entries}
       statusOverrides={statusOverrides}
-      expandedId={expandedId}
-      onStatusChange={onStatusChange}
-      onToggle={onToggle}
       onOpen={onOpen}
+      onPreviewPdf={onPreviewPdf}
     />
   );
 };
@@ -1272,11 +1408,16 @@ const CompanionHistoryTimeline = ({
   compact = false,
   fullPageHref,
 }: CompanionHistoryTimelineProps) => {
+  useLoadAppointmentsForPrimaryOrg();
+  useLoadTasksForPrimaryOrg();
   const organisationId = useOrgStore((state) => state.primaryOrgId);
   const orgType = useOrgStore((state) => {
     if (!state.primaryOrgId) return undefined;
     return state.orgsById?.[state.primaryOrgId]?.type;
   });
+  const appointmentsById = useAppointmentStore((state) => state.appointmentsById);
+  const tasksById = useTaskStore((state) => state.tasksById);
+  const { notify } = useNotify();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [auditEntries, setAuditEntries] = useState<AuditTrail[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1288,11 +1429,13 @@ const CompanionHistoryTimeline = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [statusOverrides, setStatusOverrides] = useState<StatusOverrides>({});
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const historyFilters = useMemo(() => getHistoryFilters(orgType), [orgType]);
+  const statusFilterOptions = useMemo(() => getStatusFilterOptions(activeFilter), [activeFilter]);
 
   const requestedTypes = useMemo<HistoryEntryType[] | undefined>(() => {
     if (activeFilter === 'AUDIT_TRAIL') return undefined;
@@ -1338,7 +1481,6 @@ const CompanionHistoryTimeline = ({
   useLayoutEffect(() => {
     setActiveFilter(DEFAULT_FILTER);
     setQuery('');
-    setStatusFilter('all');
     setExpandedId(null);
     setStatusOverrides({});
   }, [companionId, organisationId]);
@@ -1401,7 +1543,7 @@ const CompanionHistoryTimeline = ({
       status: getEffectiveStatus(entry, statusOverrides),
     }));
     const byStatus = withStatusOverrides.filter((entry) =>
-      matchesStatusFilter(entry, statusFilter)
+      matchesStatusFilter(entry, activeFilter, statusFilter)
     );
     const sorted = byStatus.toSorted((a, b) => {
       const delta = new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime();
@@ -1419,17 +1561,36 @@ const CompanionHistoryTimeline = ({
     statusOverrides,
   ]);
 
-  const openDocument = useCallback(async (entry: HistoryEntry) => {
-    const payloadDocumentId = entry.payload.documentId;
-    const entryDocumentId =
-      typeof payloadDocumentId === 'string' && payloadDocumentId.trim()
-        ? payloadDocumentId
-        : entry.link.id;
-    const urls = await loadDocumentDownloadURL(entryDocumentId);
-    if (urls.length > 0 && urls[0]?.url && globalThis.window) {
-      globalThis.window.open(urls[0].url, '_blank', 'noopener,noreferrer');
-    }
-  }, []);
+  const openDocument = useCallback(
+    async (entry: HistoryEntry) => {
+      const payloadDocumentId = entry.payload.documentId;
+      const entryDocumentId =
+        typeof payloadDocumentId === 'string' && payloadDocumentId.trim()
+          ? payloadDocumentId
+          : entry.link.id;
+      setPdfLoadingId(entry.id);
+      try {
+        const urls = await loadDocumentDownloadURL(entryDocumentId);
+        const pdfUrl = urls.find((item) => typeof item?.url === 'string' && item.url.trim())?.url;
+        if (!pdfUrl) {
+          notify('error', {
+            title: 'Document unavailable',
+            text: 'No preview URL is available for this document.',
+          });
+          return;
+        }
+        setPdfPreview((current) => {
+          if (current?.url.startsWith('blob:')) {
+            URL.revokeObjectURL(current.url);
+          }
+          return { title: entry.title || 'Medical record preview', url: pdfUrl };
+        });
+      } finally {
+        setPdfLoadingId((current) => (current === entry.id ? null : current));
+      }
+    },
+    [notify]
+  );
 
   const openLabResult = useCallback(
     (entry: HistoryEntry) => {
@@ -1536,34 +1697,162 @@ const CompanionHistoryTimeline = ({
 
   const handleToggleExpanded = (id: string) =>
     setExpandedId((current) => (current === id ? null : id));
-  const handleStatusChange = (entryId: string, status: string) => {
-    setStatusOverrides((current) => ({ ...current, [entryId]: status }));
-  };
+
+  const canEditStatus = useCallback(
+    (entry: HistoryEntry): boolean => {
+      if (entry.type === 'APPOINTMENT') {
+        const appointmentId = getLinkedAppointmentId(entry);
+        return Boolean(appointmentId && appointmentsById[appointmentId]);
+      }
+      if (entry.type === 'TASK') {
+        const taskId = getLinkedId(entry, ['taskId'], 'task');
+        return Boolean(taskId && tasksById[taskId]);
+      }
+      return false;
+    },
+    [appointmentsById, tasksById]
+  );
+
+  const persistAppointmentStatus = useCallback(
+    async (entry: HistoryEntry, status: string) => {
+      const nextStatus = toAppointmentStatus(status);
+      const appointmentId = getLinkedAppointmentId(entry);
+      const appointment = appointmentId ? appointmentsById[appointmentId] : undefined;
+      if (!nextStatus || !appointment) {
+        notify('error', {
+          title: 'Open appointment to change status',
+          text: 'This appointment needs to be loaded before its status can be changed here.',
+        });
+        return;
+      }
+      if (!canTransitionAppointmentStatus(appointment.status, nextStatus)) {
+        notify('error', {
+          title: 'Status cannot be changed',
+          text: getInvalidAppointmentStatusTransitionMessage(appointment.status, nextStatus),
+        });
+        return;
+      }
+      await changeAppointmentStatus(appointment as Appointment, nextStatus);
+      setStatusOverrides((current) => ({ ...current, [entry.id]: nextStatus }));
+      notify('success', { title: 'Appointment status updated', text: 'Status has been saved.' });
+    },
+    [appointmentsById, notify]
+  );
+
+  const persistTaskStatus = useCallback(
+    async (entry: HistoryEntry, status: string) => {
+      const nextStatus = toTaskStatus(status);
+      const taskId = getLinkedId(entry, ['taskId'], 'task');
+      const task = taskId ? tasksById[taskId] : undefined;
+      if (!nextStatus || !task) {
+        notify('error', {
+          title: 'Open task to change status',
+          text: 'This task needs to be loaded before its status can be changed here.',
+        });
+        return;
+      }
+      if (!canTransitionTaskStatus(task.status, nextStatus)) {
+        notify('error', {
+          title: 'Status cannot be changed',
+          text: getInvalidTaskStatusTransitionMessage(task.status, nextStatus),
+        });
+        return;
+      }
+      await changeTaskStatus({ ...(task as Task), status: nextStatus });
+      setStatusOverrides((current) => ({ ...current, [entry.id]: nextStatus }));
+      notify('success', { title: 'Task status updated', text: 'Status has been saved.' });
+    },
+    [notify, tasksById]
+  );
+
+  const handleStatusChange = useCallback(
+    (entry: HistoryEntry, status: string) => {
+      const persistStatus = getPersistStatusAction(
+        entry.type,
+        persistAppointmentStatus,
+        persistTaskStatus
+      );
+      if (!persistStatus) return;
+      persistStatus(entry, status).catch((statusError) => {
+        console.error('Failed to update history row status:', statusError);
+        notify('error', {
+          title: 'Status update failed',
+          text: getStatusErrorMessage(statusError),
+        });
+      });
+    },
+    [notify, persistAppointmentStatus, persistTaskStatus]
+  );
   const handlePreviewPdf = (entry: HistoryEntry, url: string) => {
+    if (pdfPreview?.url.startsWith('blob:')) {
+      URL.revokeObjectURL(pdfPreview.url);
+    }
     setPdfPreview({ title: entry.title || 'Medical record preview', url });
   };
+
+  const handleOpenResultPdf = useCallback(
+    (entry: HistoryEntry) => {
+      const resultId = resolveLabResultId(entry);
+      if (!organisationId || !resultId) {
+        handleOpenEntry(entry);
+        return;
+      }
+      setPdfLoadingId(entry.id);
+      getIdexxResultPdfBlob({ organisationId, resultId })
+        .then((pdfBlob) => {
+          const objectUrl = URL.createObjectURL(pdfBlob);
+          setPdfPreview((current) => {
+            if (current?.url.startsWith('blob:')) {
+              URL.revokeObjectURL(current.url);
+            }
+            return {
+              title: `IDEXX Result PDF #${resultId}`,
+              url: objectUrl,
+            };
+          });
+        })
+        .catch((resultPdfError) => {
+          console.error('Failed to open lab result PDF:', resultPdfError);
+          notify('error', {
+            title: 'Result PDF unavailable',
+            text: 'Open Diagnostics to refresh or view this result.',
+          });
+        })
+        .finally(() => {
+          setPdfLoadingId((current) => (current === entry.id ? null : current));
+        });
+    },
+    [handleOpenEntry, notify, organisationId]
+  );
+
+  const handleClosePdfPreview = useCallback(() => {
+    setPdfPreview((current) => {
+      if (current?.url.startsWith('blob:')) {
+        URL.revokeObjectURL(current.url);
+      }
+      return null;
+    });
+  }, []);
 
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
       <div className="flex w-full flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex shrink-0 flex-wrap items-center gap-3">
-            <div className="w-44">
-              <LabelDropdown
-                placeholder="Status"
-                options={STATUS_FILTER_OPTIONS}
-                defaultOption={statusFilter === 'all' ? undefined : statusFilter}
-                searchable={false}
-                onSelect={(option) => setStatusFilter(option.value as StatusFilter)}
-              />
-            </div>
-            <button
-              type="button"
-              className="inline-flex h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-neutral-0 px-4 text-body-4 text-neutral-900 transition-colors hover:border-input-border-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-            >
-              <LuSlidersHorizontal size={16} aria-hidden="true" />
-              Filter
-            </button>
+            {statusFilterOptions.length > 0 ? (
+              <div className="w-44">
+                <LabelDropdown
+                  placeholder="Status"
+                  options={statusFilterOptions.map((option) => ({
+                    label: option.label,
+                    value: option.value,
+                  }))}
+                  defaultOption={statusFilter}
+                  searchable={false}
+                  onSelect={(option) => setStatusFilter(option.value)}
+                />
+              </div>
+            ) : null}
             <div className="w-42">
               <LabelDropdown
                 placeholder="Sort by"
@@ -1593,7 +1882,10 @@ const CompanionHistoryTimeline = ({
                   type="button"
                   role="tab"
                   aria-selected={active}
-                  onClick={() => setActiveFilter(filter.key)}
+                  onClick={() => {
+                    setActiveFilter(filter.key);
+                    setStatusFilter(STATUS_FILTER_ALL);
+                  }}
                   className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-4 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
                     active
                       ? 'border-text-brand text-yc-14-b-primary'
@@ -1638,9 +1930,12 @@ const CompanionHistoryTimeline = ({
               statusOverrides,
               expandedId,
               onStatusChange: handleStatusChange,
+              canEditStatus,
               onToggle: handleToggleExpanded,
               onOpen: handleOpenEntry,
               onPreviewPdf: handlePreviewPdf,
+              onOpenResultPdf: handleOpenResultPdf,
+              pdfLoadingId,
             })}
           </div>
         </div>
@@ -1671,7 +1966,7 @@ const CompanionHistoryTimeline = ({
           open={Boolean(pdfPreview)}
           pdfUrl={pdfPreview?.url ?? null}
           title={pdfPreview?.title ?? 'Medical record preview'}
-          onClose={() => setPdfPreview(null)}
+          onClose={handleClosePdfPreview}
         />
       </div>
     </PermissionGate>

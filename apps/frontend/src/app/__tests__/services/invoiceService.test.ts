@@ -126,6 +126,19 @@ describe('invoiceService', () => {
             currency: 'usd',
             visitBillingStage: 'DRAFT',
             status: 'AWAITING_PAYMENT',
+            payments: [
+              {
+                id: 'pay-1',
+                amount: 100,
+                settlementChannel: 'CARD_PRESENT',
+                provider: 'MANUAL',
+                status: 'PAID',
+                paidAt: '2026-06-22T18:12:30.000Z',
+                receiptUrl: 'https://files.test/receipt.pdf',
+              },
+            ],
+            pdfUrl: 'https://files.test/invoice.pdf',
+            renderedDocumentId: 'rd-invoice-1',
             createdAt: '2026-06-22T18:11:58.870Z',
             updatedAt: '2026-06-22T18:12:00.073Z',
           },
@@ -140,19 +153,31 @@ describe('invoiceService', () => {
     expect(billing.pastInvoices).toHaveLength(1);
     expect(billing.pastInvoices[0]).toMatchObject({
       id: '672e7254-ae36-4658-b567-62e88ab4ecb7',
-      status: 'UNPAID',
+      status: 'PARTIAL',
       totalCents: 27232,
+      pdfUrl: 'https://files.test/invoice.pdf',
+      renderedDocumentId: 'rd-invoice-1',
     });
+    expect(billing.pastInvoices[0].payments).toEqual([
+      {
+        id: 'pay-1',
+        amountCents: 10000,
+        method: 'CARD_PRESENT',
+        provider: 'MANUAL',
+        status: 'PAID',
+        paidAt: '2026-06-22T18:12:30.000Z',
+        receiptUrl: 'https://files.test/receipt.pdf',
+      },
+    ]);
     expect(billing.pastInvoices[0].items[0]).toMatchObject({
       name: 'Sample testing package',
     });
     expect(billing.currency).toBe('USD');
   });
 
-  it('counts a paid deposit invoice toward the deposit balance', async () => {
-    // The backend records the deposit as a separate PAID invoice with the amount
-    // in totalAmount (depositCollectedAmount stays 0). It must still feed the
-    // deposit balance so it persists across a refresh.
+  it('counts a deposit payment toward the deposit balance', async () => {
+    // The backend now records the deposit on the same invoice, so the payment
+    // ledger should be the source of truth when depositCollectedAmount is still 0.
     (getData as jest.Mock).mockResolvedValue({
       data: {
         data: [
@@ -160,14 +185,23 @@ describe('invoiceService', () => {
             id: 'inv-deposit',
             organisationId: 'org-1',
             appointmentId: 'appt-1',
-            items: [{ name: 'Upfront visit deposit', total: 100, quantity: 1, unitPrice: 100 }],
+            items: [{ name: 'Consult', total: 100, quantity: 1, unitPrice: 100 }],
             totalAmount: 100,
             currency: 'usd',
-            billingCollectionMode: 'PREPAY_AT_BOOKING',
-            visitBillingStage: 'SETTLED',
+            billingCollectionMode: 'DEPOSIT_THEN_SETTLE',
+            visitBillingStage: 'READY_FOR_BILLING',
             depositCollectedAmount: 0,
-            status: 'PAID',
-            paidAt: '2026-06-22T19:54:43.986Z',
+            status: 'AWAITING_PAYMENT',
+            payments: [
+              {
+                id: 'pay-deposit',
+                amount: 100,
+                settlementChannel: 'DEPOSIT',
+                provider: 'MANUAL',
+                status: 'SUCCEEDED',
+                paidAt: '2026-06-22T19:54:43.986Z',
+              },
+            ],
             createdAt: '2026-06-22T19:51:52.106Z',
           },
         ],
@@ -179,6 +213,85 @@ describe('invoiceService', () => {
     const billing = await loadAppointmentBilling('org-1', 'appt-1');
 
     expect(billing.depositCents).toBe(10000);
+    expect(billing.pastInvoices[0]).toMatchObject({
+      outstandingCents: 0,
+      status: 'PAID_FULL',
+    });
+  });
+
+  it('marks an invoice as partially paid when the payment ledger covers only part of the total', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-partial',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [{ name: 'Consult', total: 100, quantity: 1, unitPrice: 100 }],
+            totalAmount: 100,
+            currency: 'usd',
+            status: 'AWAITING_PAYMENT',
+            payments: [
+              {
+                id: 'pay-partial',
+                amount: 25,
+                settlementChannel: 'CARD_PRESENT',
+                provider: 'MANUAL',
+                status: 'SUCCEEDED',
+                paidAt: '2026-06-22T19:54:43.986Z',
+              },
+            ],
+            createdAt: '2026-06-22T19:51:52.106Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.pastInvoices[0]).toMatchObject({
+      outstandingCents: 7500,
+      status: 'PARTIAL',
+    });
+  });
+
+  it('prefers explicit depositCollectedAmount over payment ledger fallback', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-deposit-explicit',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [{ name: 'Consult', total: 100, quantity: 1, unitPrice: 100 }],
+            totalAmount: 100,
+            currency: 'usd',
+            billingCollectionMode: 'DEPOSIT_THEN_SETTLE',
+            visitBillingStage: 'READY_FOR_BILLING',
+            depositCollectedAmount: 25,
+            payments: [
+              {
+                id: 'pay-deposit',
+                amount: 100,
+                settlementChannel: 'DEPOSIT',
+                provider: 'MANUAL',
+                status: 'SUCCEEDED',
+                paidAt: '2026-06-22T19:54:43.986Z',
+              },
+            ],
+            createdAt: '2026-06-22T19:51:52.106Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.depositCents).toBe(2500);
   });
 
   it('skips loading when already loading', async () => {

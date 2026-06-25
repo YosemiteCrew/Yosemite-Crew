@@ -145,6 +145,14 @@ router.patch(
   AppointmentController.markReadyForBillingForPMS,
 );
 
+router.delete(
+  "/pms/:organisationId/:appointmentId/ready-for-billing",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.reverseReadyForBillingForPMS,
+);
+
 router.post(
   "/pms/:organisationId/:appointmentId/forms",
   authorizeCognito,

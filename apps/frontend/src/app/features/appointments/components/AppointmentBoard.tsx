@@ -682,19 +682,21 @@ const AppointmentBoardComponent = ({
                         )}
                         {!isRequestedLikeStatus(appointment.status) && (
                           <div className="relative z-10 mt-2 flex items-center gap-1.5 flex-wrap max-w-[184px]">
-                            <GlassTooltip content="View appointment" side="bottom">
-                              <button
-                                type="button"
-                                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  openAppointment(appointment);
-                                }}
-                              >
-                                <IoEyeOutline size={16} color="var(--color-neutral-900)" />
-                              </button>
-                            </GlassTooltip>
+                            {canEnterAppointmentWorkspace(appointment.status) && (
+                              <GlassTooltip content="View appointment" side="bottom">
+                                <button
+                                  type="button"
+                                  className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    openAppointment(appointment);
+                                  }}
+                                >
+                                  <IoEyeOutline size={16} color="var(--color-neutral-900)" />
+                                </button>
+                              </GlassTooltip>
+                            )}
                             <GlassTooltip content="Overview" side="bottom">
                               <button
                                 type="button"

@@ -61,6 +61,7 @@ jest.mock("../../../src/services/finance/events", () => ({
   FinanceEventService: {
     recordEvent: jest.fn(),
   },
+  resolveActorDisplayName: jest.fn(),
 }));
 
 jest.mock("../../../src/services/authUserMobile.service", () => ({

@@ -37,17 +37,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Check frontend security headers
         run: pnpm --filter frontend run test -- --testPathPattern='config/securityHeaders.test.ts'
@@ -63,26 +54,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Cache Jest transform cache
         uses: actions/cache@v4
         with:
           path: apps/frontend/.jest-cache
-          key: jest-${{ runner.os }}-${{ hashFiles('apps/frontend/jest.config.ts', 'apps/frontend/package.json') }}-${{ github.sha }}
+          key: jest-frontend-${{ runner.os }}-${{ hashFiles('apps/frontend/jest.config.ts', 'apps/frontend/package.json', 'pnpm-lock.yaml') }}
           restore-keys: |
-            jest-${{ runner.os }}-${{ hashFiles('apps/frontend/jest.config.ts', 'apps/frontend/package.json') }}-
-            jest-${{ runner.os }}-
+            jest-frontend-${{ runner.os }}-
 
       - name: Build shared packages
         run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
@@ -103,36 +84,20 @@ jobs:
           name: frontend-coverage
           path: apps/frontend/coverage/
 
-  react-doctor:
-    name: React Doctor health check (score ≥ 70)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      # Consumed by sonar-cloud-analysis.yml on internal PRs so it can reuse this
+      # coverage run instead of executing the full frontend suite a second time.
+      # (Fork PRs skip Sonar entirely, and this job still runs for them as the gate.)
+      - name: Upload frontend lcov for Sonar
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          node-version: '20'
+          name: frontend-lcov
+          path: apps/frontend/coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 1
 
-      - name: Run React Doctor and enforce minimum score
-        run: |
-          OUTPUT=$(npx react-doctor@latest apps/frontend --no-interactive 2>&1 || true)
-          echo "$OUTPUT"
-          SCORE=$(echo "$OUTPUT" | grep -oP '(?<=│ • • │  )\d+(?= / 100)' || echo "")
-          if [ -z "$SCORE" ]; then
-            SCORE=$(echo "$OUTPUT" | grep -oP '\d+(?= / 100)' | head -1 || echo "0")
-          fi
-          echo "React Doctor score: $SCORE"
-          if [ "$SCORE" -lt 70 ]; then
-            echo "❌ React Doctor score $SCORE is below the minimum of 70"
-            exit 1
-          fi
-          echo "✅ React Doctor score $SCORE meets the minimum of 70"
+  # React Doctor runs in its own workflow (.github/workflows/react-doctor.yml)
+  # via the millionco/react-doctor action — do not duplicate it here.
 
   build-quality:
     name: Frontend build, bundle budgets, Lighthouse
@@ -145,17 +110,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup
+        uses: ./.github/actions/setup
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          path: apps/frontend/.next/cache
+          key: next-build-${{ runner.os }}-${{ hashFiles('apps/frontend/package.json', 'apps/frontend/next.config.*', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            next-build-${{ runner.os }}-
 
       - name: Build shared packages
         run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
@@ -187,7 +151,7 @@ jobs:
       - name: Wait for frontend server
         run: |
           for attempt in {1..60}; do
-            if curl --fail --silent --show-error http://127.0.0.1:3001/pms > /dev/null; then
+            if curl --fail --silent --show-error http://127.0.0.1:3001/pet-businesses > /dev/null; then
               exit 0
             fi
             sleep 2
@@ -197,7 +161,7 @@ jobs:
           exit 1
 
       - name: Run Lighthouse CI
-        uses: treosh/lighthouse-ci-action@v12
+        uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # v12
         with:
           configPath: apps/frontend/lighthouserc.json
           uploadArtifacts: true

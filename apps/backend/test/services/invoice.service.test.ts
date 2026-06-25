@@ -36,6 +36,9 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
       update: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+    },
     renderedDocument: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -109,6 +112,7 @@ describe("InvoiceService", () => {
     (CatalogService.resolveSelection as jest.Mock).mockResolvedValue(null);
     (getOrgBillingCurrency as jest.Mock).mockResolvedValue("usd");
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
   });
 
   it("creates a draft invoice and persists invoice-level discounts", async () => {
@@ -355,6 +359,120 @@ describe("InvoiceService", () => {
     expect(getOrgBillingCurrency).toHaveBeenCalledWith(organisationId);
   });
 
+  it("bootstraps the canonical invoice instead of creating a second invoice when adding charges", async () => {
+    const draftInvoice = {
+      id: "inv_draft",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      items: [],
+      subtotal: 0,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 0,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const addItemsSpy = jest
+      .spyOn(InvoiceService, "addItemsToInvoice")
+      .mockResolvedValueOnce(draftInvoice as never);
+    const bootstrapSpy = jest
+      .spyOn(InvoiceService, "bootstrapForAppointment")
+      .mockResolvedValueOnce(draftInvoice as never);
+    const extraSpy = jest.spyOn(
+      InvoiceService,
+      "createExtraInvoiceForAppointment",
+    );
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const result = await InvoiceService.addChargesToAppointment(appointmentId, [
+      {
+        name: "Medication",
+        description: "Medication",
+        quantity: 1,
+        unitPrice: 25,
+        total: 25,
+      },
+    ]);
+
+    expect(bootstrapSpy).toHaveBeenCalledWith(appointmentId);
+    expect(addItemsSpy).toHaveBeenCalledWith("inv_draft", [
+      {
+        name: "Medication",
+        description: "Medication",
+        quantity: 1,
+        unitPrice: 25,
+        total: 25,
+      },
+    ]);
+    expect(extraSpy).not.toHaveBeenCalled();
+    expect((result as { id: string }).id).toBe("inv_draft");
+
+    bootstrapSpy.mockRestore();
+    addItemsSpy.mockRestore();
+    extraSpy.mockRestore();
+  });
+
+  it("rejects charge additions when only a settled invoice exists for the appointment", async () => {
+    const paidInvoice = {
+      id: "inv_paid",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency: "usd",
+      status: "PAID",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      items: [],
+      subtotal: 0,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 0,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const bootstrapSpy = jest
+      .spyOn(InvoiceService, "bootstrapForAppointment")
+      .mockResolvedValueOnce(paidInvoice as never);
+    const addItemsSpy = jest.spyOn(InvoiceService, "addItemsToInvoice");
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      InvoiceService.addChargesToAppointment(appointmentId, [
+        {
+          name: "Medication",
+          description: "Medication",
+          quantity: 1,
+          unitPrice: 25,
+          total: 25,
+        },
+      ]),
+    ).rejects.toMatchObject({
+      message: "Invoice is not open for appointment",
+      statusCode: 409,
+    });
+
+    expect(bootstrapSpy).toHaveBeenCalledWith(appointmentId);
+    expect(addItemsSpy).not.toHaveBeenCalled();
+
+    bootstrapSpy.mockRestore();
+    addItemsSpy.mockRestore();
+  });
+
   it("marks visit-based invoices ready for billing and leaves prepay invoices alone", async () => {
     (prisma.invoice.findFirst as jest.Mock)
       .mockResolvedValueOnce({
@@ -481,6 +599,151 @@ describe("InvoiceService", () => {
     expect(skipped?.billingCollectionMode).toBe("PREPAY_AT_BOOKING");
   });
 
+  it("reverses ready-for-billing back to draft when no payments were applied", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_visit",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      status: "AWAITING_PAYMENT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+      visitBillingStage: "READY_FOR_BILLING",
+      depositTargetAmount: 0,
+      depositCollectedAmount: 0,
+      totalAmount: 118,
+      currency: "usd",
+      paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountTotal: 0,
+      taxTotal: 18,
+      taxPercent: 18,
+      taxProvider: "STRIPE",
+      finalizedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      taxSnapshot: { provider: "STRIPE" },
+    });
+    (getInvoiceFinancialSummary as jest.Mock).mockResolvedValueOnce({
+      paid: 0,
+      credited: 0,
+      balance: 118,
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_visit",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      status: "AWAITING_PAYMENT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+      visitBillingStage: "DRAFT",
+      depositTargetAmount: 0,
+      depositCollectedAmount: 0,
+      totalAmount: 118,
+      currency: "usd",
+      paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountTotal: 0,
+      taxTotal: 18,
+      taxPercent: 18,
+      taxProvider: "STRIPE",
+      finalizedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      readyForBillingAt: null,
+      readyForBillingActorId: null,
+    });
+
+    const updated = await InvoiceService.reverseAppointmentReadyForBilling(
+      appointmentId,
+      "user-1",
+    );
+
+    expect(getInvoiceFinancialSummary).toHaveBeenCalledWith(
+      "inv_visit",
+      118,
+      0,
+    );
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "inv_visit" },
+        data: expect.objectContaining({
+          visitBillingStage: "DRAFT",
+          readyForBillingAt: null,
+          readyForBillingActorId: null,
+        }),
+      }),
+    );
+    expect(prisma.financeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: "INVOICE_READY_FOR_BILLING_REVERSED",
+          entityType: "INVOICE",
+          entityId: "inv_visit",
+        }),
+      }),
+    );
+    expect(updated?.visitBillingStage).toBe("DRAFT");
+  });
+
+  it("returns null when the appointment invoice is not marked ready for billing", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const updated =
+      await InvoiceService.reverseAppointmentReadyForBilling(appointmentId);
+
+    expect(updated).toBeNull();
+    expect(getInvoiceFinancialSummary).not.toHaveBeenCalled();
+    expect(prisma.invoice.update).not.toHaveBeenCalled();
+    expect(prisma.financeEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects reversing ready-for-billing when payments already exist", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_visit",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      status: "AWAITING_PAYMENT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+      visitBillingStage: "READY_FOR_BILLING",
+      depositTargetAmount: 0,
+      depositCollectedAmount: 0,
+      totalAmount: 118,
+      currency: "usd",
+      paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountTotal: 0,
+      taxTotal: 18,
+      taxPercent: 18,
+      taxProvider: "STRIPE",
+      finalizedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      taxSnapshot: { provider: "STRIPE" },
+    });
+    (getInvoiceFinancialSummary as jest.Mock).mockResolvedValueOnce({
+      paid: 10,
+      credited: 0,
+      balance: 108,
+    });
+
+    await expect(
+      InvoiceService.reverseAppointmentReadyForBilling(appointmentId),
+    ).rejects.toMatchObject({
+      message: "Invoice already has payments applied and cannot be reverted",
+      statusCode: 409,
+    });
+
+    expect(prisma.invoice.update).not.toHaveBeenCalled();
+    expect(prisma.financeEvent.create).not.toHaveBeenCalled();
+  });
+
   it("sets deposit targets explicitly on invoices", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_deposit",
@@ -517,14 +780,15 @@ describe("InvoiceService", () => {
         where: { id: "inv_deposit" },
         data: expect.objectContaining({
           billingCollectionMode: "DEPOSIT_THEN_SETTLE",
-          visitBillingStage: "READY_FOR_BILLING",
           depositTargetAmount: 20,
           depositCollectedAmount: 12,
-          readyForBillingActorId: "SYSTEM",
-          readyForBillingAt: expect.any(Date),
         }),
       }),
     );
+    const updateArgs = (prisma.invoice.update as jest.Mock).mock.calls[0][0];
+    expect(updateArgs.data).not.toHaveProperty("visitBillingStage");
+    expect(updateArgs.data).not.toHaveProperty("readyForBillingAt");
+    expect(updateArgs.data).not.toHaveProperty("readyForBillingActorId");
     expect(updated?.depositTargetAmount).toBe(20);
   });
 
@@ -1748,6 +2012,11 @@ describe("InvoiceService", () => {
       FinancePaymentService.createCheckoutSessionForInvoice as jest.Mock
     ).mockResolvedValue({
       url: "https://checkout",
+    });
+    (getInvoiceFinancialSummary as jest.Mock).mockResolvedValueOnce({
+      paid: 30,
+      credited: 0,
+      balance: 60,
     });
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_8",

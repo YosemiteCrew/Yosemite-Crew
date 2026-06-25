@@ -25,6 +25,28 @@ describe('RichTextEditor', () => {
     expect(screen.getByText('Type here')).toBeInTheDocument();
   });
 
+  it('hides the placeholder when external template content is applied after mount', () => {
+    const { rerender } = render(
+      <RichTextEditor value="" onChange={jest.fn()} ariaLabel="Notes" placeholder="Type here" />
+    );
+
+    expect(screen.getByText('Type here')).toBeInTheDocument();
+
+    rerender(
+      <RichTextEditor
+        value="<p>Template prefilled content</p>"
+        onChange={jest.fn()}
+        ariaLabel="Notes"
+        placeholder="Type here"
+      />
+    );
+
+    expect(screen.queryByText('Type here')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Notes' })).toHaveTextContent(
+      'Template prefilled content'
+    );
+  });
+
   it('renders the inset toolbar with the pill surface and a padded placeholder', () => {
     render(
       <RichTextEditor

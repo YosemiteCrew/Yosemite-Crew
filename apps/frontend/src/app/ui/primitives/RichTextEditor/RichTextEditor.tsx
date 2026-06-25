@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useId } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -39,6 +39,7 @@ const RichTextEditor = ({
   toolbarPlacement = 'title',
 }: RichTextEditorProps) => {
   const labelId = useId();
+  const [editorIsEmpty, setEditorIsEmpty] = useState(() => !value);
 
   const isInset = toolbarPlacement === 'inset';
   // Inset toolbar sits inside the top-right corner — reserve right room on the
@@ -60,6 +61,7 @@ const RichTextEditor = ({
       },
     },
     onUpdate: ({ editor: instance }) => {
+      setEditorIsEmpty(instance.isEmpty);
       onChange(sanitizeRichText(instance.getHTML()));
     },
   });
@@ -77,9 +79,10 @@ const RichTextEditor = ({
     if (incoming !== editor.getHTML()) {
       editor.commands.setContent(incoming, { emitUpdate: false });
     }
+    setEditorIsEmpty(editor.isEmpty);
   }, [editor, value]);
 
-  const showPlaceholder = !readOnly && placeholder && editor?.isEmpty;
+  const showPlaceholder = !readOnly && placeholder && editorIsEmpty;
   // `title` overlaps the section title row (no reserved space); `inline` keeps
   // the toolbar inside the editor and reserves room above the first text line;
   // `inset` pins the pill toolbar to the top-right of the editor's content area

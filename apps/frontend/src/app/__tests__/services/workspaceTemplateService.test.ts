@@ -3,6 +3,8 @@ import {
   applyInpatientScheduleTemplate,
   cancelInpatientScheduleTemplate,
   createWorkspaceTemplateInstance,
+  extractFollowUpInDays,
+  schemaSnapshotToPrescriptionItems,
   getWorkspaceTemplateById,
   getInpatientScheduleForEncounter,
   listDischargeSummaryTemplates,
@@ -433,5 +435,93 @@ describe('workspaceTemplateService', () => {
       '/fhir/v1/task-schedule/organisation/org-1/encounter/enc-1'
     );
     expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  describe('extractFollowUpInDays', () => {
+    const withFollowUp = (defaultValue: unknown) => ({
+      sections: [
+        {
+          id: 'follow_up',
+          title: 'Follow up',
+          fields: [
+            { key: 'followUpInDays', label: 'Follow up in (days)', type: 'number', defaultValue },
+          ],
+        },
+      ],
+    });
+
+    it('reads a positive numeric follow-up value', () => {
+      expect(extractFollowUpInDays(withFollowUp(7) as never)).toBe(7);
+    });
+
+    it('coerces a numeric string', () => {
+      expect(extractFollowUpInDays(withFollowUp('14') as never)).toBe(14);
+    });
+
+    it('returns undefined for missing, zero, or non-numeric values', () => {
+      expect(extractFollowUpInDays(undefined)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp(0) as never)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp('soon') as never)).toBeUndefined();
+      expect(extractFollowUpInDays({ sections: [] } as never)).toBeUndefined();
+    });
+  });
+
+  describe('schemaSnapshotToPrescriptionItems', () => {
+    const medField = (key: string, inventoryItemId: string, defaultValue?: unknown) => ({
+      key,
+      label: key,
+      type: 'text',
+      defaultValue,
+      rules: { inventoryItemId },
+    });
+
+    it('groups medication fields by inventory id and maps role-by-key-suffix with defaults', () => {
+      const snapshot = {
+        sections: [
+          {
+            id: 'medications',
+            title: 'Medications',
+            fields: [
+              medField('g_med_1_name', 'inv-1', 'Gabapentin'),
+              medField('g_med_1_dosage', 'inv-1', '100mg'),
+              medField('g_med_1_route', 'inv-1', 'Oral'),
+              medField('g_med_1_frequency', 'inv-1', '2x daily'),
+              medField('g_med_1_duration', 'inv-1', '7'),
+              medField('g_med_1_remark', 'inv-1', 'With food'),
+            ],
+          },
+        ],
+      };
+
+      expect(schemaSnapshotToPrescriptionItems(snapshot as never)).toEqual([
+        {
+          medicineName: 'Gabapentin',
+          dosage: '100mg',
+          route: 'Oral',
+          frequency: '2x daily',
+          durationDays: '7',
+          instructions: 'With food',
+          fulfillment: 'IN_HOUSE',
+          inventoryItemId: 'inv-1',
+        },
+      ]);
+    });
+
+    it('ignores fields without an inventory id and rows without a name', () => {
+      const snapshot = {
+        sections: [
+          {
+            id: 'medications',
+            title: 'Medications',
+            fields: [
+              { key: 'note', label: 'Note', type: 'text', defaultValue: 'x' },
+              medField('g_med_1_dosage', 'inv-2', '50mg'),
+            ],
+          },
+        ],
+      };
+      expect(schemaSnapshotToPrescriptionItems(snapshot as never)).toEqual([]);
+      expect(schemaSnapshotToPrescriptionItems(undefined)).toEqual([]);
+    });
   });
 });

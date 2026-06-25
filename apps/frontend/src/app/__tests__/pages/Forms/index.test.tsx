@@ -440,10 +440,20 @@ describe('Forms Page', () => {
     const serviceOptions = JSON.parse(screen.getByTestId('service-options').textContent ?? '[]');
 
     expect(serviceOptions).toEqual([
-      { label: 'General Practice / General Consult', value: 'srv-1', badge: 'Service' },
-      { label: 'Emergency Care / General Consult', value: 'srv-2', badge: 'Service' },
-      { label: 'Vaccination', value: 'srv-3', badge: 'Service' },
-      { label: 'Wellness Package', value: 'pkg-1', badge: 'Package' },
+      {
+        label: 'General Practice / General Consult',
+        value: 'srv-1',
+        badge: 'Service',
+        isInpatient: false,
+      },
+      {
+        label: 'Emergency Care / General Consult',
+        value: 'srv-2',
+        badge: 'Service',
+        isInpatient: false,
+      },
+      { label: 'Vaccination', value: 'srv-3', badge: 'Service', isInpatient: false },
+      { label: 'Wellness Package', value: 'pkg-1', badge: 'Package', isInpatient: false },
     ]);
   });
 });

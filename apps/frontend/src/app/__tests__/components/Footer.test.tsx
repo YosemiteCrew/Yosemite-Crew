@@ -97,7 +97,7 @@ describe('Footer Component', () => {
 
     const aboutUsLink = screen.getByRole('link', { name: 'About us' });
     expect(aboutUsLink).toBeInTheDocument();
-    expect(aboutUsLink).toHaveAttribute('href', '/about');
+    expect(aboutUsLink).toHaveAttribute('href', '/about-us');
 
     const dmcaLink = screen.getByRole('link', { name: 'DMCA' });
     expect(dmcaLink).toBeInTheDocument();

@@ -221,6 +221,9 @@ export type PrescriptionItem = {
   route?: string;
   frequency?: string;
   durationDays?: string;
+  /** Quantity to dispense from inventory (units). Definable in the template and editable in the
+   * workspace; drives stock decrement and billing. */
+  qty?: string;
   /** Number of refills allowed for this medication. */
   refill?: string;
   instructions?: string;
@@ -320,6 +323,26 @@ export type PastInvoice = {
   /** True when the balance was cleared from the patient deposit. */
   paidFromDeposit?: boolean;
   items: InvoiceLineItem[];
+  /**
+   * Payment ledger for this invoice — deposits and settlements with provider metadata and the
+   * downloadable receipt URL (finance gap doc Gap 6). Populated from the richer invoice response
+   * once the backend exposes it (handoff §5); empty/absent until then.
+   */
+  payments?: PastInvoicePayment[];
+  /** Backend-rendered finalized invoice PDF, when exposed as a document artifact. */
+  pdfUrl?: string;
+  /** Rendered-document id for finalized invoice output when the URL must be resolved elsewhere. */
+  renderedDocumentId?: string;
+};
+
+export type PastInvoicePayment = {
+  id: string;
+  amountCents: number;
+  method?: string;
+  provider?: string;
+  status?: string;
+  paidAt?: string;
+  receiptUrl?: string;
 };
 
 export type WorkspaceDocumentCategory =

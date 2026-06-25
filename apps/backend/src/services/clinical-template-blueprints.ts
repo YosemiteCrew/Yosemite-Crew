@@ -162,32 +162,6 @@ const PRESCRIPTION_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
         },
       ],
     },
-    {
-      id: "instructions",
-      title: "Instructions",
-      order: 2,
-      fields: [
-        {
-          key: "usageInstructions",
-          label: "Usage instructions",
-          type: "instructionBlock",
-          order: 1,
-        },
-      ],
-    },
-    {
-      id: "notes",
-      title: "Notes",
-      order: 3,
-      fields: [
-        {
-          key: "clinicalNotes",
-          label: "Clinical notes",
-          type: "richText",
-          order: 1,
-        },
-      ],
-    },
   ],
 };
 
@@ -208,55 +182,16 @@ const DISCHARGE_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
       ],
     },
     {
-      id: "home_care",
-      title: "Home care instructions",
+      id: "follow_up",
+      title: "Follow up",
       order: 2,
       fields: [
         {
-          key: "homeCare",
-          label: "Home care instructions",
-          type: "richText",
-          order: 1,
-        },
-      ],
-    },
-    {
-      id: "medications",
-      title: "Medications",
-      order: 3,
-      fields: [
-        {
-          key: "dischargeMedications",
-          label: "Medications",
-          type: "richText",
-          order: 1,
-        },
-      ],
-    },
-    {
-      id: "follow_up",
-      title: "Follow up",
-      order: 4,
-      fields: [
-        {
           key: "followUpInDays",
-          label: "Follow-up in days",
+          label: "Follow up in (days)",
           type: "number",
           order: 1,
           rules: { unit: "days" },
-        },
-      ],
-    },
-    {
-      id: "signature",
-      title: "Signature",
-      order: 5,
-      fields: [
-        {
-          key: "signature",
-          label: "Signature",
-          type: "signature",
-          order: 1,
         },
       ],
     },

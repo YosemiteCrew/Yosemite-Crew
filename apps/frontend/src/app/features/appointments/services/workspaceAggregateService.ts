@@ -376,7 +376,7 @@ const applyEncounterReadiness = (
       billingFallback,
       ['readyForBillingAt', 'billingReadyAt', 'updatedAt', 'createdAt'],
       ['readyForBillingByName', 'billingReadyByName', 'updatedByName', 'updatedBy'],
-      ['readyForBillingByUserId', 'billingReadyByUserId', 'updatedById']
+      ['readyForBillingActorId', 'readyForBillingByUserId', 'billingReadyByUserId', 'updatedById']
     );
   }
 };

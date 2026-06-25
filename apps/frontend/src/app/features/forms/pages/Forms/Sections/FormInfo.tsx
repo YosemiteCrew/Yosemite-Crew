@@ -120,13 +120,36 @@ const FormInfo = ({
   const [unpublishLoading, setUnpublishLoading] = React.useState(false);
   const [archiveLoading, setArchiveLoading] = React.useState(false);
   const actionLoading = publishLoading || unpublishLoading || archiveLoading;
-  const canMutateLegacyForm =
-    canEdit && (!activeForm.isTemplateBacked || activeForm.templateSource !== 'YC_LIBRARY');
-  const modalTitle = getModalTitle(activeForm, canMutateLegacyForm);
+  const canEditTemplateStructure = canEdit;
+  const canMutateTemplateState = canEdit && Boolean(activeForm._id);
+  const modalTitle = getModalTitle(activeForm, canEditTemplateStructure);
+  const usageData = React.useMemo(
+    () => ({
+      ...activeForm,
+      templateSource: activeForm.templateSource === 'YC_LIBRARY' ? 'YC_LIBRARY' : 'CUSTOM',
+    }),
+    [activeForm]
+  );
+  const detailsData = React.useMemo(
+    () => ({
+      ...activeForm,
+      templateSource: activeForm.templateSource === 'YC_LIBRARY' ? 'YC_LIBRARY' : 'CUSTOM',
+    }),
+    [activeForm]
+  );
   const detailsFields = React.useMemo(
     () => [
       baseDetailsFields[0],
       baseDetailsFields[1],
+      {
+        label: 'Template type',
+        key: 'templateSource',
+        type: 'dropdown',
+        options: [
+          { label: 'YC default (locked structure)', value: 'YC_LIBRARY' },
+          { label: 'Custom', value: 'CUSTOM' },
+        ],
+      },
       {
         label: 'Category',
         key: 'category',
@@ -298,7 +321,7 @@ const FormInfo = ({
               key={`details-${activeForm._id || activeForm.name}`}
               title="Form details"
               fields={detailsFields}
-              data={activeForm}
+              data={detailsData}
               defaultOpen={true}
               showEditIcon={false}
               readOnly
@@ -311,7 +334,7 @@ const FormInfo = ({
                 { ...UsageFields[1], options: serviceOptions },
                 ...UsageFields.slice(2),
               ]}
-              data={activeForm}
+              data={usageData}
               defaultOpen={true}
               showEditIcon={false}
               readOnly
@@ -328,8 +351,8 @@ const FormInfo = ({
             )}
           </div>
           <div className="flex flex-col gap-3 px-3 pb-3">
-            {canMutateLegacyForm && renderActions()}
-            {canMutateLegacyForm ? (
+            {canMutateTemplateState && renderActions()}
+            {canEditTemplateStructure ? (
               <Secondary
                 href="#"
                 text="Edit form"

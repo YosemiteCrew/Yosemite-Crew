@@ -35,12 +35,17 @@ const FULFILLMENT_LABELS: Record<PrescriptionFulfillment, string> = {
 const FULFILLMENT_OPTIONS = Object.keys(FULFILLMENT_LABELS) as PrescriptionFulfillment[];
 const EMPTY_CATALOG_ITEMS: Omit<PrescriptionItem, 'id'>[] = [];
 
-/** Compact editable fields (shared floating input) — Dose / Route / Freq. / Duration / Refill. */
+/**
+ * Compact editable fields (shared floating input). Strength comes from the inventory item; Qty is
+ * the number of units to dispense (definable in the template, editable here). The remaining
+ * prescribing fields are filled by the clinician when not preset by the template.
+ */
 const EDITABLE_FIELDS: { key: keyof PrescriptionItem; label: string; width: string }[] = [
-  { key: 'dosage', label: 'Dose', width: 'w-full sm:w-28' },
+  { key: 'dosage', label: 'Strength', width: 'w-full sm:w-28' },
   { key: 'route', label: 'Route', width: 'w-full sm:w-28' },
   { key: 'frequency', label: 'Freq.', width: 'w-full sm:w-24' },
   { key: 'durationDays', label: 'Duration', width: 'w-full sm:w-28' },
+  { key: 'qty', label: 'Qty', width: 'w-full sm:w-20' },
   { key: 'refill', label: 'Refill', width: 'w-full sm:w-24' },
 ];
 
@@ -254,7 +259,7 @@ const PrescriptionEditor = ({
       <div className="relative z-50 flex items-center justify-end gap-3">
         <CircleIconButton
           icon={<LuPrinter aria-hidden="true" />}
-          label="Print prescription"
+          label="Print Labels"
           onClick={onPrint}
         />
         <div ref={searchRef} className="relative w-full sm:max-w-90">

@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           run_install: false
 
@@ -124,7 +124,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           run_install: false
 
@@ -152,7 +152,7 @@ jobs:
       - name: Generate Prisma Client
         if: matrix.workspace == 'backend' || matrix.workspace == '@yosemite-crew/database'
         run: pnpm --filter @yosemite-crew/database run prisma:generate
-      
+
       - name: Validate workspace exists
         run: |
           if ! pnpm --filter "${{ matrix.workspace }}" exec true 2>/dev/null; then
@@ -169,7 +169,10 @@ jobs:
       - name: Build
         run: pnpm run build --filter "${{ matrix.workspace }}"
 
+      # PRs: fast run without coverage. main/dev: single run WITH coverage (below).
+      # Splitting on ref avoids running the whole suite twice on pushes to main/dev.
       - name: Test
+        if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/dev'
         shell: bash
         run: |
           if [ "${{ matrix.workspace }}" = "@yosemite-crew/database" ]; then

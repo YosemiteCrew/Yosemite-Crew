@@ -56,26 +56,6 @@ type SnapshotSection = {
   fields?: SnapshotField[];
 };
 
-const taskKindOptions = [
-  { label: "Medication", value: "MEDICATION" },
-  { label: "Observation tool", value: "OBSERVATION_TOOL" },
-  { label: "Hygiene", value: "HYGIENE" },
-  { label: "Diet", value: "DIET" },
-  { label: "Custom", value: "CUSTOM" },
-];
-
-const audienceOptions = [
-  { label: "Employee task", value: "EMPLOYEE_TASK" },
-  { label: "Parent task", value: "PARENT_TASK" },
-];
-
-const recurrenceOptions = [
-  { label: "Once", value: "ONCE" },
-  { label: "Daily", value: "DAILY" },
-  { label: "Weekly", value: "WEEKLY" },
-  { label: "Custom", value: "CUSTOM" },
-];
-
 const workflowBlueprints: Record<
   TaskWorkflowTemplateKind,
   TaskWorkflowTemplateSchemaSnapshot
@@ -90,10 +70,8 @@ const workflowBlueprints: Record<
           {
             key: "taskKind",
             label: "Task kind",
-            type: "select",
+            type: "text",
             required: true,
-            options: taskKindOptions,
-            rules: { allowCustom: false },
           },
           {
             key: "category",
@@ -122,17 +100,13 @@ const workflowBlueprints: Record<
           {
             key: "audience",
             label: "Audience",
-            type: "select",
+            type: "text",
             required: true,
-            options: audienceOptions,
-            rules: { allowCustom: false },
           },
           {
             key: "defaultAssigneeRole",
             label: "Default assignee role",
-            type: "select",
-            options: audienceOptions,
-            rules: { allowCustom: false },
+            type: "text",
           },
           {
             key: "syncWithCalendar",
@@ -160,9 +134,7 @@ const workflowBlueprints: Record<
           {
             key: "recurrence",
             label: "Recurrence",
-            type: "select",
-            options: recurrenceOptions,
-            rules: { allowCustom: false },
+            type: "text",
           },
         ],
       },

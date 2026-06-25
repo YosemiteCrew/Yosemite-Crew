@@ -81,7 +81,7 @@ const TaskFormFields = ({
           libraryTaskId: undefined,
           name: '',
           description: '',
-          category: 'CUSTOM',
+          category: formData.category || 'CUSTOM',
         });
       }}
       defaultOption={formData.source}

@@ -156,7 +156,7 @@ describe('SignUp page', () => {
 
   test('validates inputs before submitting', () => {
     render(<SignUp />);
-    fireEvent.click(screen.getByRole('link', { name: 'Sign up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
     expect(authStoreMock.signUp).not.toHaveBeenCalled();
     expect(screen.getByText('First name is required')).toBeInTheDocument();
     expect(screen.getByText('Last name is required')).toBeInTheDocument();
@@ -169,7 +169,7 @@ describe('SignUp page', () => {
   test('clears first and last name errors as the user updates those fields', () => {
     render(<SignUp />);
 
-    fireEvent.click(screen.getByRole('link', { name: 'Sign up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
     expect(screen.getByText('First name is required')).toBeInTheDocument();
     expect(screen.getByText('Last name is required')).toBeInTheDocument();
 
@@ -189,7 +189,7 @@ describe('SignUp page', () => {
     setFieldValue('Set up password', 'Secret!23');
     setFieldValue('Confirm password', 'Secret!23');
     checkTermsBox();
-    fireEvent.click(screen.getByRole('link', { name: 'Sign up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
 
     expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
     expect(authStoreMock.signUp).not.toHaveBeenCalled();
@@ -205,7 +205,7 @@ describe('SignUp page', () => {
     setFieldValue('Set up password', 'Secret!23');
     setFieldValue('Confirm password', 'Secret!23');
     checkTermsBox();
-    fireEvent.click(screen.getByRole('link', { name: 'Sign up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
     await waitFor(() =>
       expect(authStoreMock.signUp).toHaveBeenCalledWith(
         'jane@example.com',
@@ -233,10 +233,10 @@ describe('SignUp page', () => {
     setFieldValue('Set up password', 'Secret!23');
     setFieldValue('Confirm password', 'Secret!23');
     checkTermsBox();
-    fireEvent.click(screen.getByRole('link', { name: 'Sign up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
 
     expect(screen.getByTestId('signup-loader')).toHaveTextContent('Creating your account...');
-    expect(screen.getByRole('link', { name: 'Creating account...' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Creating account...' })).toHaveAttribute(
       'aria-disabled',
       'true'
     );
@@ -260,7 +260,7 @@ describe('SignUp page', () => {
     setFieldValue('Set up password', 'Secret!23');
     setFieldValue('Confirm password', 'Secret!23');
     checkTermsBox();
-    fireEvent.click(screen.getByRole('link', { name: 'Sign up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
     await waitFor(() => expect(showErrorTostMock).toHaveBeenCalled());
     expect(latestOtpModalProps?.showVerifyModal).toBeFalsy();
   });

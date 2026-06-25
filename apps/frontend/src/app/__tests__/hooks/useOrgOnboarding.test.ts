@@ -109,13 +109,7 @@ describe('useOrgOnboarding Hook', () => {
     expect(result.current.org).toEqual(mockOrgState.orgsById['org-1']);
     expect(result.current.specialities).toHaveLength(2);
     // Utility called?
-    expect(computeOrgOnboardingStep).toHaveBeenCalledWith(
-      mockOrgState.orgsById['org-1'],
-      expect.arrayContaining([
-        expect.objectContaining({ _id: 'spec-1' }),
-        expect.objectContaining({ _id: 'spec-2' }),
-      ])
-    );
+    expect(computeOrgOnboardingStep).toHaveBeenCalledWith(mockOrgState.orgsById['org-1']);
     expect(result.current.step).toBe(2); // From mock
     expect(result.current.isReady).toBe(true);
   });
@@ -165,9 +159,6 @@ describe('useOrgOnboarding Hook', () => {
     const { result } = renderHook(() => useOrgOnboarding('org-1'));
 
     expect(result.current.specialities).toEqual([]);
-    expect(computeOrgOnboardingStep).toHaveBeenCalledWith(
-      expect.anything(),
-      [] // Empty array passed to calculator
-    );
+    expect(computeOrgOnboardingStep).toHaveBeenCalledWith(expect.anything());
   });
 });

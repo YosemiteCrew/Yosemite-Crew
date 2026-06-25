@@ -180,6 +180,7 @@ export const createTemplateSchema = z
 export const updateTemplateSchema = z.object({
   name: z.string().trim().min(1).optional(),
   description: z.string().trim().min(1).nullable().optional(),
+  ownership: z.nativeEnum(TemplateOwnershipType).optional(),
   scope: z.nativeEnum(TemplateScope).optional(),
   status: z.nativeEnum(TemplateStatus).optional(),
   rules: z.record(z.unknown()).nullable().optional(),
@@ -831,6 +832,19 @@ export const TemplateService = {
     const template = await loadTemplateOrThrow(templateId, organisationId);
     const { createNewVersion, targetVersion } = resolveVersionPayload(template);
 
+    const nextOwnership = parsed.ownership ?? template.ownership;
+    const nextOrganisationId =
+      nextOwnership === "YC_LIBRARY"
+        ? null
+        : parsed.ownership === "ORG_TEMPLATE"
+          ? template.organisationId
+          : template.organisationId;
+    const nextOwnerUserId =
+      nextOwnership === "YC_LIBRARY"
+        ? null
+        : nextOwnership === "USER_TEMPLATE"
+          ? template.ownerUserId
+          : template.ownerUserId;
     const nextUpdatedBy = parsed.updatedBy ?? template.updatedBy;
     const nextName = parsed.name ?? template.name;
     const nextDescription =
@@ -863,6 +877,9 @@ export const TemplateService = {
         await tx.template.update({
           where: { id: template.id },
           data: {
+            ownership: nextOwnership,
+            organisationId: nextOrganisationId,
+            ownerUserId: nextOwnerUserId,
             name: nextName,
             description: nextDescription,
             scope: nextScope,
@@ -921,6 +938,9 @@ export const TemplateService = {
     await prisma.template.update({
       where: { id: template.id },
       data: {
+        ownership: nextOwnership,
+        organisationId: nextOrganisationId,
+        ownerUserId: nextOwnerUserId,
         name: nextName,
         description: nextDescription,
         scope: nextScope,

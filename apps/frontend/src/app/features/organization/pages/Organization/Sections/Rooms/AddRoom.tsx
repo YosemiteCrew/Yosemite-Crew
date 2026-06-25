@@ -80,6 +80,23 @@ const buildRoomId = () => `room-${Date.now()}`;
 const getTotalUnits = (units: RoomUnitDraft[], fallback: number) =>
   units.length ? units.reduce((total, unit) => total + unit.count, 0) : fallback;
 
+const distributeUnitCounts = (units: RoomUnitDraft[], totalUnits: number) => {
+  if (!units.length) return units;
+
+  const safeTotal = Math.max(0, Math.floor(totalUnits));
+  const baseCount = Math.floor(safeTotal / units.length);
+  let remainder = safeTotal % units.length;
+
+  return units.map((unit) => {
+    const nextCount = baseCount + (remainder > 0 ? 1 : 0);
+    remainder -= 1;
+    return {
+      ...unit,
+      count: nextCount,
+    };
+  });
+};
+
 const isUnitCapableRoomType = (type: OrganisationRoom['type']) =>
   UnitCapableRoomTypes.includes(type as (typeof UnitCapableRoomTypes)[number]);
 
@@ -226,6 +243,12 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
         ...prev.availability,
         ...patch,
       },
+      units:
+        patch.totalUnits === undefined
+          ? prev.units
+          : distributeUnitCounts(prev.units, patch.totalUnits),
+      unitCount:
+        patch.totalUnits === undefined ? prev.unitCount : Math.max(0, Math.floor(patch.totalUnits)),
     }));
   };
 
@@ -251,6 +274,23 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
     setFormData((prev) => ({
       ...prev,
       units: prev.units.map((unit) => (unit.id === id ? { ...unit, ...patch } : unit)),
+      availability:
+        patch.count === undefined
+          ? prev.availability
+          : {
+              ...prev.availability,
+              totalUnits: getTotalUnits(
+                prev.units.map((unit) => (unit.id === id ? { ...unit, ...patch } : unit)),
+                prev.availability.totalUnits
+              ),
+            },
+      unitCount:
+        patch.count === undefined
+          ? prev.unitCount
+          : getTotalUnits(
+              prev.units.map((unit) => (unit.id === id ? { ...unit, ...patch } : unit)),
+              prev.availability.totalUnits
+            ),
     }));
   };
 
@@ -274,6 +314,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
       ...prev,
       type,
       units: nextSupportsUnits ? prev.units : [],
+      unitCount: nextSupportsUnits ? prev.unitCount : 0,
       availability: {
         ...prev.availability,
         totalUnits: nextSupportsUnits ? prev.availability.totalUnits : 0,
@@ -389,7 +430,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                       options={SpecialitiesOptions}
                     />
                   </div>
-                  <div className="sm:col-span-2 rounded-2xl border border-orange-400 px-3 py-2 text-caption-1 text-orange-600">
+                  <div className="sm:col-span-2 rounded-2xl border border-card-border bg-card-subtle px-3 py-2 text-caption-1 text-text-secondary">
                     Assign a specialty if this room is dedicated to a specific speciality or
                     service.
                   </div>

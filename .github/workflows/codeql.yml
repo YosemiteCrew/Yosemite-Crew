@@ -13,7 +13,9 @@ name: 'CodeQL Advanced'
 
 on:
   push:
+    branches: [main, dev]
   pull_request:
+    branches: [main, dev]
   schedule:
     - cron: '21 10 * * 5'
 
@@ -68,7 +70,7 @@ jobs:
       #   uses: actions/setup-example@v1
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           run_install: false
       - uses: actions/setup-node@v4

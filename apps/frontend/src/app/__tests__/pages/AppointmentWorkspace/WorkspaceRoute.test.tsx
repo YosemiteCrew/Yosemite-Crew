@@ -13,6 +13,7 @@ import {
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+const mockStartRouteLoader = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
@@ -25,6 +26,10 @@ jest.mock('@/app/lib/featureFlags', () => ({
 jest.mock('@/app/hooks/useAppointments', () => ({
   useAppointmentsForPrimaryOrg: jest.fn(),
   useLoadAppointmentsForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock('@/app/lib/routeLoader', () => ({
+  startRouteLoader: () => mockStartRouteLoader(),
 }));
 
 jest.mock('@/app/features/appointments/pages/AppointmentWorkspace', () => ({
@@ -125,6 +130,7 @@ describe('WorkspaceRoute', () => {
     expect(screen.getByText('Appointment not found.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /back to appointments/i }));
 
+    expect(mockStartRouteLoader).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith('/appointments');
   });
 });

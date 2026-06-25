@@ -23,6 +23,7 @@ import {
 jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
   listDischargeSummaryTemplates: jest.fn(),
   resolveDischargeTemplate: jest.fn(),
+  extractFollowUpInDays: jest.fn(() => undefined),
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
@@ -304,19 +305,20 @@ describe('SummaryStep', () => {
 
   it('falls back to the browser print dialog without encounter context', () => {
     const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
-    renderSummary(seedAndGet());
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    renderSummary(enc);
 
-    fireEvent.click(screen.getByRole('button', { name: /^print$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
 
     expect(printSpy).toHaveBeenCalled();
     printSpy.mockRestore();
   });
 
   it('opens the merged packet PDF when printing with encounter context', async () => {
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /^print$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
 
     const preview = await screen.findByTestId('pdf-preview');
     expect(preview).toHaveTextContent('Clinical packet');
@@ -325,13 +327,14 @@ describe('SummaryStep', () => {
   });
 
   it('refreshes documents and encounter after the signing overlay closes', async () => {
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     await act(async () => {
       render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
     });
 
-    // Start signing and wait until the signing URL is set (the point at which the
-    // post-sign refresh is armed), not merely until the overlay opens.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument()
+    );
     fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
     await waitFor(() =>
       expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
@@ -476,7 +479,7 @@ describe('SummaryStep', () => {
     // The follow-up picker is wrapped in a non-interactive (aria-disabled) shell.
     const followUpButton = screen.getByRole('button', { name: /follow up date/i });
     expect(followUpButton.closest('[aria-disabled="true"]')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^sign$/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
   });
 
   it('has no axe accessibility violations', async () => {
@@ -510,12 +513,12 @@ describe('SummaryStep', () => {
   });
 
   it('does not render the terminal Complete button inside the summary body', () => {
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     render(<SummaryStep appointmentId={APPT} encounter={enc} />);
 
-    expect(screen.queryByRole('button', { name: /discharge/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^edit discharge summary$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^complete$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^print$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^print all$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument();
   });
 
@@ -534,7 +537,7 @@ describe('SummaryStep', () => {
       id: APPT,
       organisationId: 'org-1',
     } as any;
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     await act(async () => {
       render(
         <SummaryStep

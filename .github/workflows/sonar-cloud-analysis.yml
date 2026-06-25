@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 0
       - name: Filter paths
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
         with:
           filters: |
             frontend:
@@ -145,7 +145,7 @@ jobs:
         with:
           fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           run_install: false
 
@@ -156,14 +156,32 @@ jobs:
 
       - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
 
-      - name: Cache Jest transform cache
+      # On PRs the frontend coverage is already produced by frontend-quality.yml
+      # (which runs for every PR, forks included). Reuse that lcov here instead of
+      # running the full frontend suite a second time — this was the bulk of the
+      # ~13 min. If the artifact is missing we fall back to running tests below.
+      - name: Reuse frontend coverage from Frontend Quality (PRs)
+        id: fe-lcov
+        if: matrix.app == 'frontend' && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
+        with:
+          workflow: frontend-quality.yml
+          commit: ${{ github.event.pull_request.head.sha }}
+          name: frontend-lcov
+          path: ${{ matrix.dir }}/coverage
+
+      # Per-app Jest transform cache. Keyed without github.sha so it actually
+      # restores across commits (the previous backend-only key never hit on the
+      # frontend leg, so every frontend Sonar run recompiled from cold).
+      - name: Per-app Jest transform cache
+        if: steps.fe-lcov.outcome != 'success'
         uses: actions/cache@v4
         with:
-          path: apps/backend/.jest-cache
-          key: jest-backend-${{ runner.os }}-${{ hashFiles('apps/backend/jest.config.cjs', 'apps/backend/package.json', 'pnpm-lock.yaml') }}-${{ github.sha }}
+          path: ${{ matrix.dir }}/.jest-cache
+          key: jest-${{ matrix.app }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            jest-backend-${{ runner.os }}-${{ hashFiles('apps/backend/jest.config.cjs', 'apps/backend/package.json', 'pnpm-lock.yaml') }}-
-            jest-backend-${{ runner.os }}-
+            jest-${{ matrix.app }}-${{ runner.os }}-
 
       - uses: actions/cache@v4
         with:
@@ -179,12 +197,14 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: pnpm prisma:generate
 
+      # Skipped for the frontend leg when the shared lcov was reused above.
       - name: Run tests with coverage
+        if: steps.fe-lcov.outcome != 'success'
         working-directory: ${{ matrix.dir }}
-        run: pnpm run test --coverage --ci --maxWorkers=2 --cacheDirectory=.jest-cache
+        run: pnpm run test --coverage --ci --maxWorkers=4 --cacheDirectory=.jest-cache
 
       - name: Sonar Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
         with:
           projectBaseDir: ${{ matrix.dir }}
         env:

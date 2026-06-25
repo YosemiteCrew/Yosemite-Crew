@@ -21,11 +21,13 @@
   background: linear-gradient(355.06deg, #ffffff 64.22%, #eaeef6 95.67%);
 }
 .DownlodeSec {
-  min-height: min(720px, calc(100vh - 80px));
+  /* The nav offset (padding-top) is applied to the .DownlodeBody wrapper by the
+     shared .yc-public-page first-child rule, so the hero itself only needs to
+     fill the remaining viewport and centre its content — no extra top padding. */
+  min-height: min(720px, calc(100vh - var(--yc-public-nav-offset, 88px)));
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 96px;
 }
 .Downlode_Data {
   display: flex;
@@ -72,7 +74,6 @@
 @media screen and (max-width: 1024px) {
   .DownlodeSec {
     min-height: auto;
-    padding-top: 88px;
   }
   .PetToolkitSec {
     min-height: auto;
@@ -102,10 +103,6 @@
   }
 }
 @media screen and (max-width: 768px) {
-  .DownlodeSec {
-    padding-top: 80px;
-  }
-
   .downlodetext {
     gap: 8px;
     align-items: center;
@@ -133,7 +130,11 @@
   gap: 24px;
   width: 100%;
 }
-.ToolkitHead > div {
+.ToolkitHead {
+  text-align: center;
+}
+.ToolkitHead > div,
+.ToolkitHead > h2 {
   margin: 0;
   text-align: center;
 }

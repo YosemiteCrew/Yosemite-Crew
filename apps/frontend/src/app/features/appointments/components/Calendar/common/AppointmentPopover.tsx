@@ -447,20 +447,21 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
             </GlassTooltip>
           </div>
         )}
-        <button
-          type="button"
-          title={primaryActionLabel}
-          disabled={!canOpenWorkspace}
-          className="yc-primary-button text-yc-16-m-white flex h-12 w-50 shrink-0 items-center justify-end gap-2 rounded-2xl! px-4"
-          onPointerDown={updatePrimaryActionGlowPosition}
-          onPointerMove={updatePrimaryActionGlowPosition}
-          onClick={() => {
-            openWorkspace(appointment.status === 'UPCOMING' ? clinicalNotesIntent : undefined);
-          }}
-        >
-          <span className="whitespace-nowrap">{primaryActionLabel}</span>
-          <IoArrowForward size={18} className="shrink-0" />
-        </button>
+        {canOpenWorkspace && (
+          <button
+            type="button"
+            title={primaryActionLabel}
+            className="yc-primary-button text-yc-16-m-white flex h-12 w-50 shrink-0 items-center justify-end gap-2 rounded-2xl! px-4"
+            onPointerDown={updatePrimaryActionGlowPosition}
+            onPointerMove={updatePrimaryActionGlowPosition}
+            onClick={() => {
+              openWorkspace(appointment.status === 'UPCOMING' ? clinicalNotesIntent : undefined);
+            }}
+          >
+            <span className="whitespace-nowrap">{primaryActionLabel}</span>
+            <IoArrowForward size={18} className="shrink-0" />
+          </button>
+        )}
       </div>
     </dialog>
   );

@@ -207,6 +207,10 @@ describe('Build form step', () => {
   beforeEach(() => {
     capturedValidator = undefined;
     jest.clearAllMocks();
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: undefined })
+    );
+    (fetchInventoryItems as jest.Mock).mockResolvedValue([]);
 
     let counter = 0;
     jest.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => {
@@ -280,7 +284,7 @@ describe('Build form step', () => {
   it('adds a service group with a generated checkbox field', () => {
     renderBuild(baseFormData());
 
-    selectAddOption('Services');
+    selectAddOption('Services / Packages');
 
     const schema = readSchema();
     expect(schema).toHaveLength(1);
@@ -344,7 +348,7 @@ describe('Build form step', () => {
   it('updates selected services inside service-group metadata and checkbox options', () => {
     renderBuild(baseFormData());
 
-    selectAddOption('Services');
+    selectAddOption('Services / Packages');
     fireEvent.click(screen.getByText('Checkup'));
 
     const schema = readSchema();
@@ -365,8 +369,11 @@ describe('Build form step', () => {
       {
         _id: 'med-1',
         name: 'Amoxicillin',
+        itemType: 'DRUG',
+        strength: '250 mg',
+        dosageForm: 'Tablet',
+        routeOfAdministration: 'Oral',
         sellingPrice: 25,
-        attributes: { strength: '250mg', administration: 'Oral' },
       },
     ]);
 
@@ -381,11 +388,13 @@ describe('Build form step', () => {
     renderBuild(baseFormData({ schema: [medicationGroup] }));
 
     await waitFor(() => {
-      expect(fetchInventoryItems).toHaveBeenCalledWith('org-1', { category: 'Medicine' });
+      expect(fetchInventoryItems).toHaveBeenCalledWith('org-1');
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: 'Amoxicillin' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('option', { name: 'Amoxicillin (250 mg • Oral)' })
+      ).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByTestId('medicine-dropdown'), { target: { value: 'med-1' } });
@@ -395,8 +404,52 @@ describe('Build form step', () => {
       const updated = schema[0] as any;
       expect(updated.fields).toHaveLength(1);
       expect(updated.fields[0].label).toBe('Amoxicillin');
-      expect(updated.fields[0].fields).toHaveLength(7);
+      // name, dosage, route, frequency, duration, qty, price, remark
+      expect(updated.fields[0].fields).toHaveLength(8);
+      expect(updated.fields[0].fields[0].defaultValue).toBe('Amoxicillin');
+      expect(updated.fields[0].fields[1].defaultValue).toBe('250 mg');
+      expect(updated.fields[0].fields[2].defaultValue).toBe('Oral');
     });
+  });
+
+  it('keeps Drug inventory items available in the medicine picker', async () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-1' })
+    );
+    (fetchInventoryItems as jest.Mock).mockResolvedValue([
+      {
+        _id: 'drug-1',
+        name: 'Prednisone',
+        itemType: 'Drug',
+        strength: '10 mg',
+        dosageForm: 'Tablet',
+        routeOfAdministration: 'Oral',
+        sellingPrice: 12,
+      },
+      {
+        _id: 'supply-1',
+        name: 'Gauze',
+        itemType: 'NON_MEDICAL',
+        category: 'Consumable',
+        sellingPrice: 2,
+      },
+    ]);
+
+    const medicationGroup: FormField = {
+      id: 'mg-1',
+      type: 'group',
+      label: 'Medication',
+      meta: { medicationGroup: true } as any,
+      fields: [],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [medicationGroup] }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Prednisone/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Gauze/)).not.toBeInTheDocument();
+    expect(fetchInventoryItems).toHaveBeenCalledWith('org-1');
   });
 
   describe('YC-default structure lock', () => {
@@ -420,8 +473,9 @@ describe('Build form step', () => {
       // Top-level + nested add dropdowns and the bottom Add Field button are hidden.
       expect(screen.queryAllByRole('button', { name: 'toggle-add-field' })).toHaveLength(0);
       expect(screen.queryByText('Add Field')).not.toBeInTheDocument();
-      // The medication picker (structure mutation) is hidden; content stays editable.
-      expect(screen.queryByTestId('medicine-dropdown')).not.toBeInTheDocument();
+      // The medication picker stays available even when locked — choosing which medicines the
+      // template prefills is content, not structure.
+      expect(screen.getByTestId('medicine-dropdown')).toBeInTheDocument();
     });
 
     it('shows structure-add controls for custom (non-YC-default) templates', () => {
@@ -436,6 +490,38 @@ describe('Build form step', () => {
       expect(screen.getAllByRole('button', { name: 'toggle-add-field' }).length).toBeGreaterThan(0);
       expect(screen.getByText('Add Field')).toBeInTheDocument();
       expect(screen.getByTestId('medicine-dropdown')).toBeInTheDocument();
+    });
+
+    it('lets YC-default task templates add schedule task blocks as content', () => {
+      const taskGroup: FormField = {
+        id: 'task_blocks',
+        type: 'group',
+        label: 'Schedule tasks',
+        meta: { taskGroup: true } as any,
+        fields: [],
+      } as FormField;
+
+      renderBuild(
+        baseFormData({
+          templateSource: 'YC_LIBRARY',
+          category: 'Task Template',
+          schema: [taskGroup],
+        })
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
+
+      const schema = readSchema();
+      const updatedTaskGroup = schema[0] as FormField & { fields?: FormField[] };
+      const taskBlock = updatedTaskGroup.fields?.[0] as FormField & { fields?: FormField[] };
+      expect(taskBlock.meta?.taskBlock).toBe(true);
+      expect(taskBlock.fields?.map((field) => field.meta?.taskBlockKey)).toEqual([
+        'name',
+        'dayOffset',
+        'timeOfDay',
+        'reminderOffsetMinutes',
+        'additionalNotes',
+      ]);
     });
   });
 });

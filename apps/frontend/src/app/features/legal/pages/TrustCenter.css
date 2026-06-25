@@ -5,10 +5,17 @@
   color: var(--black-text);
 }
 
+/* Cancel the shared first-child nav offset so the gradient hero runs flush to
+   the top of the viewport (behind the floating nav, no white gap). The hero's
+   own top padding below keeps its content clear of the floating pill. */
+.yc-public-page > .TrustPageWrapper:first-child {
+  padding-top: 0;
+}
+
 .TrustHeroSec {
   position: relative;
   background: linear-gradient(135deg, var(--color-brand-300) 0%, var(--color-brand-100) 100%);
-  padding: 112px 0 48px;
+  padding: calc(var(--yc-public-nav-offset, 88px) + 48px) 0 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -705,7 +712,7 @@ select.FormInput {
 
 @media screen and (max-width: 900px) {
   .TrustHeroSec {
-    padding: 96px 0 40px;
+    padding: calc(var(--yc-public-nav-offset, 80px) + 32px) 0 40px;
   }
 
   .TrustHeroSplit {

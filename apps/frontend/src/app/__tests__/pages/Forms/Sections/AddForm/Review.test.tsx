@@ -132,6 +132,37 @@ describe('Review Component', () => {
     expect(values['group_1']).toBeUndefined(); // Groups themselves store no value
   });
 
+  it('preserves discharge follow-up days in review values', () => {
+    const formDataWithSchema = {
+      ...baseFormData,
+      category: 'Discharge Form' as FormsProps['category'],
+      schema: [
+        {
+          id: 'summaryText',
+          type: 'richtext',
+          defaultValue: '<p>Recovery instructions</p>',
+        } as any,
+        {
+          id: 'followUpInDays',
+          type: 'number',
+          defaultValue: 7,
+        } as any,
+      ],
+    };
+
+    render(
+      <Review
+        formData={formDataWithSchema}
+        onPublish={mockOnPublish}
+        onSaveDraft={mockOnSaveDraft}
+        serviceOptions={serviceOptions}
+      />
+    );
+
+    const values = JSON.parse(screen.getByTestId('renderer-values').textContent || '{}');
+    expect(values.followUpInDays).toBe(7);
+  });
+
   // --- 2. Interactions & State Updates ---
 
   it('handles button clicks', () => {

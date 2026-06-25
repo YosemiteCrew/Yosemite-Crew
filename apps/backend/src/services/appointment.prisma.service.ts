@@ -869,6 +869,31 @@ const resolveCaseContext = async (args: {
   return created.id;
 };
 
+const createCaseForCheckIn = async (args: {
+  tx: TransactionClient;
+  current: AppointmentRow;
+  appointmentKind: AppointmentKind;
+  patientId: string;
+}) => {
+  const created = await args.tx.case.create({
+    data: {
+      organisationId: args.current.organisationId,
+      patientId: args.patientId,
+      parentId: getParentIdFromPatient(args.current.patient) ?? null,
+      status: "active",
+      appointmentKind: args.appointmentKind,
+      title:
+        args.appointmentKind === "INPATIENT"
+          ? "Inpatient case"
+          : "Outpatient case",
+      description: args.current.concern ?? null,
+    },
+    select: { id: true },
+  });
+
+  return created.id;
+};
+
 const resolveEncounterForAdmission = async (args: {
   tx: TransactionClient;
   encounterId: string;
@@ -959,15 +984,24 @@ const ensureEncounterOnCheckIn = async (args: {
   }
 
   const patientId = getPatientId(args.current.patient);
+  const appointmentKind = normalizeAppointmentKind(
+    args.current.appointmentKind,
+  );
   const caseId =
     normalizeOptionalString(args.current.caseId) ??
     (await resolveCaseContext({
       tx: args.tx,
-      appointmentKind: normalizeAppointmentKind(args.current.appointmentKind),
+      appointmentKind,
       organisationId: args.current.organisationId,
       patientId,
       parentId: getParentIdFromPatient(args.current.patient),
       concern: args.current.concern ?? undefined,
+    })) ??
+    (await createCaseForCheckIn({
+      tx: args.tx,
+      current: args.current,
+      appointmentKind,
+      patientId,
     }));
 
   if (!caseId) {

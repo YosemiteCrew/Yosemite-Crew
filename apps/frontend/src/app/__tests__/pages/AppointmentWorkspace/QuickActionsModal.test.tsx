@@ -771,7 +771,7 @@ describe('DocumentsPanel', () => {
     await waitFor(() =>
       expect(createEncounterDocumentPacket).toHaveBeenCalledWith('org-1', 'enc-1')
     );
-    fireEvent.click(screen.getByRole('button', { name: /^print$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
     await waitFor(() =>
       expect(getEncounterDocumentPacketPdfUrl).toHaveBeenCalledWith('org-1', 'enc-1')
     );
@@ -798,6 +798,41 @@ describe('DocumentsPanel', () => {
     await waitFor(() =>
       expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/packet')
     );
+  });
+
+  it('refreshes the packet state after the signing overlay closes', async () => {
+    (createEncounterDocumentPacket as jest.Mock)
+      .mockResolvedValueOnce({
+        packetId: 'packet-1',
+        status: 'DRAFT',
+        signing: { status: 'NOT_STARTED' },
+      })
+      .mockResolvedValueOnce({
+        packetId: 'packet-1',
+        status: 'FINAL',
+        signing: { status: 'SIGNED' },
+      });
+
+    render(
+      <DocumentsPanel
+        appointmentId={APPT}
+        companionId="comp-9"
+        organisationId="org-1"
+        encounterId="enc-1"
+      />
+    );
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(signWorkspaceDocumentPacket).toHaveBeenCalledWith('org-1', 'packet-1')
+    );
+
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument();
   });
 
   it('renders the NOT_STARTED packet matrix as plain-label badges with Sign enabled', async () => {
@@ -880,7 +915,7 @@ describe('DocumentsPanel', () => {
     // No org/encounter → the packet is never fetched and the actions are disabled.
     expect(createEncounterDocumentPacket).not.toHaveBeenCalled();
     expect(screen.getByText(/open this from an encounter to print or sign/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^print$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^print all$/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^sign$/i })).toBeDisabled();
   });
 });

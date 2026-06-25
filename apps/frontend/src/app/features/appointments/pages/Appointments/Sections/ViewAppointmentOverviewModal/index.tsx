@@ -5,6 +5,8 @@ import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useServiceStore } from '@/app/stores/serviceStore';
+import { useParentStore } from '@/app/stores/parentStore';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   canAssignAppointmentRoom,
   getClinicalNotesIntent,
@@ -46,6 +48,38 @@ type OverviewRowProps = {
   label: string;
   value: React.ReactNode;
 };
+
+type ParentImageFields = {
+  profileImageUrl?: string | null;
+  profileUrl?: string | null;
+  photoUrl?: string | null;
+  image?: string | null;
+};
+
+const getFirstText = (...values: Array<string | null | undefined>): string | undefined =>
+  values.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim();
+
+const normalizePersonId = (value?: string | null): string =>
+  String(value ?? '')
+    .trim()
+    .split('/')
+    .pop()
+    ?.toLowerCase() ?? '';
+
+const getParentPhotoUrl = (
+  appointmentParent: ParentImageFields | undefined,
+  storedParent: ParentImageFields | undefined
+): string | undefined =>
+  getFirstText(
+    storedParent?.profileImageUrl,
+    storedParent?.profileUrl,
+    storedParent?.photoUrl,
+    storedParent?.image,
+    appointmentParent?.profileImageUrl,
+    appointmentParent?.profileUrl,
+    appointmentParent?.photoUrl,
+    appointmentParent?.image
+  );
 
 const OverviewRow = ({ label, value }: OverviewRowProps) => (
   <div className="flex items-center justify-between py-2 border-b border-card-border last:border-0">
@@ -148,6 +182,11 @@ const ViewAppointmentOverviewModal = ({
   const roomUnitIdsByRoomId = useOrganisationRoomStore((s) => s.roomUnitIdsByRoomId);
   const invoices = useInvoicesForPrimaryOrg();
   const orgsById = useOrgStore((s) => s.orgsById);
+  const companion = getAppointmentCompanion(activeAppointment);
+  const parentRecord = useParentStore((s) =>
+    companion.parent?.id ? s.parentsById[companion.parent.id] : undefined
+  );
+  const team = useTeamForPrimaryOrg();
   const getServicesBySpecialityId = useServiceStore.getState().getServicesBySpecialityId;
   const initEncounter = useAppointmentWorkspaceStore((s) => s.initEncounter);
   const setRoomUnit = useAppointmentWorkspaceStore((s) => s.setRoomUnit);
@@ -156,8 +195,20 @@ const ViewAppointmentOverviewModal = ({
   );
 
   const [savingRoom, setSavingRoom] = useState(false);
-  const companion = getAppointmentCompanion(activeAppointment);
   const isInpatient = activeAppointment.appointmentKind === 'INPATIENT';
+  const appointmentParent = companion.parent as
+    | (typeof companion.parent & ParentImageFields)
+    | undefined;
+  const leadPhotoUrl = useMemo(() => {
+    const appointmentLeadId = normalizePersonId(activeAppointment.lead?.id);
+    const teamLead = team.find((member) => {
+      const practitionerId = normalizePersonId(member.practionerId);
+      const memberId = normalizePersonId(member._id);
+      return practitionerId === appointmentLeadId || memberId === appointmentLeadId;
+    });
+    return getFirstText(activeAppointment.lead?.profileUrl, teamLead?.image);
+  }, [activeAppointment.lead?.id, activeAppointment.lead?.profileUrl, team]);
+  const clientPhotoUrl = getParentPhotoUrl(appointmentParent, parentRecord);
 
   const orgType =
     (activeAppointment.organisationId && orgsById[activeAppointment.organisationId]?.type) ||
@@ -340,7 +391,7 @@ const ViewAppointmentOverviewModal = ({
           {/* Client */}
           {companion.parent?.name && (
             <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
-              <AppointmentAvatar name={companion.parent.name} />
+              <AppointmentAvatar name={companion.parent.name} photoUrl={clientPhotoUrl} />
               <div className="min-w-0">
                 <div className="text-sm text-text-extra">Client</div>
                 <div className="font-satoshi text-base text-text-primary truncate">
@@ -353,10 +404,7 @@ const ViewAppointmentOverviewModal = ({
           {/* Lead */}
           {activeAppointment.lead && (
             <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
-              <AppointmentAvatar
-                name={activeAppointment.lead.name ?? ''}
-                photoUrl={activeAppointment.lead.profileUrl}
-              />
+              <AppointmentAvatar name={activeAppointment.lead.name ?? ''} photoUrl={leadPhotoUrl} />
               <div className="min-w-0">
                 <div className="text-sm text-text-extra">Lead</div>
                 <div className="font-satoshi text-base text-text-primary truncate">

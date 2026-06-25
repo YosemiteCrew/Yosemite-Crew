@@ -100,6 +100,7 @@ const encounter = {
   prescription: [],
   documents: [],
   dischargeSummary: '',
+  dischargeSavedAt: '2026-04-20T10:00:00Z',
   viewOnly: false,
   leadName: 'Dr Jane',
 } as unknown as Parameters<typeof SummaryStep>[0]['encounter'];
@@ -114,6 +115,11 @@ const renderStep = () =>
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(console, 'error').mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe('SummaryStep packet signing', () => {
@@ -125,7 +131,7 @@ describe('SummaryStep packet signing', () => {
     });
 
     renderStep();
-    fireEvent.click(screen.getByText('Sign'));
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
 
     await waitFor(() => expect(mockedSign).toHaveBeenCalled());
     expect(mockedCreate).toHaveBeenCalledWith('org-1', 'enc-1');
@@ -139,7 +145,7 @@ describe('SummaryStep packet signing', () => {
     mockedCreate.mockRejectedValue(new Error('packet boom'));
 
     renderStep();
-    fireEvent.click(screen.getByText('Sign'));
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(screen.getByRole('alert')).toHaveTextContent('packet boom');
@@ -153,10 +159,31 @@ describe('SummaryStep packet signing', () => {
     mockedSign.mockResolvedValue({ packetId: 'pkt-1', signing: { status: 'IN_PROGRESS' } });
 
     renderStep();
-    fireEvent.click(screen.getByText('Sign'));
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(setUrl).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalled();
+  });
+
+  it('hides print and sign until the discharge summary is saved', async () => {
+    render(
+      <SummaryStep
+        appointmentId="appt-1"
+        appointment={appointment}
+        encounter={{ ...encounter, dischargeSavedAt: undefined }}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^print$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
+  });
+
+  it('shows Print All once the discharge summary is saved', async () => {
+    renderStep();
+
+    expect(screen.getByRole('button', { name: /^print all$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument();
   });
 });

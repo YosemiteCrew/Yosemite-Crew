@@ -168,7 +168,7 @@ describe('Forms Utils', () => {
     it('maps template kinds to user-facing form categories', () => {
       expect(templateKindToCategory('SOAP_NOTE')).toBe('SOAP');
       expect(templateKindToCategory('VITAL_RECORD')).toBe('Vitals');
-      expect(templateKindToCategory('PRESCRIPTION')).toBe('Prescription Template');
+      expect(templateKindToCategory('PRESCRIPTION')).toBe('Prescription');
       expect(templateKindToCategory('DISCHARGE_SUMMARY')).toBe('Discharge Form');
       expect(templateKindToCategory('TASK_ASSIGNMENT')).toBe('Task Template');
       expect(templateKindToCategory('INPATIENT_SCHEDULE')).toBe('Inpatient Schedule');
@@ -178,6 +178,7 @@ describe('Forms Utils', () => {
     it('maps form categories back to backend template kinds', () => {
       expect(categoryToTemplateKind('SOAP')).toBe('SOAP_NOTE');
       expect(categoryToTemplateKind('Vitals')).toBe('VITAL_RECORD');
+      expect(categoryToTemplateKind('Prescription')).toBe('PRESCRIPTION');
       expect(categoryToTemplateKind('Prescription Template')).toBe('PRESCRIPTION');
       expect(categoryToTemplateKind('Discharge Form')).toBe('DISCHARGE_SUMMARY');
       expect(categoryToTemplateKind('Task Template')).toBe('TASK_ASSIGNMENT');
@@ -360,6 +361,94 @@ describe('Forms Utils', () => {
       );
     });
 
+    it('normalizes string timestamps into dates for template metadata', () => {
+      const result = mapTemplateToUI({
+        id: 'tpl-string-dates',
+        organisationId: 'org-1',
+        ownerUserId: null,
+        ownership: 'ORG_TEMPLATE',
+        kind: 'FORM',
+        name: 'String dates',
+        description: 'String timestamps',
+        status: 'PUBLISHED',
+        scope: 'ORGANISATION',
+        rules: null,
+        latestVersion: 1,
+        publishedVersion: 1,
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        createdAt: '2026-01-01T00:00:00.000Z' as never,
+        updatedAt: '2026-01-02T00:00:00.000Z' as never,
+        versions: [],
+      });
+
+      expect(result.templateId).toBe('tpl-string-dates');
+      expect(result.name).toBe('String dates');
+      expect(result.category).toBe('Custom');
+    });
+
+    it('hydrates versioned SOAP template defaults into form schema', () => {
+      const result = mapTemplateToUI({
+        id: 'tpl-soap',
+        organisationId: 'org-1',
+        ownerUserId: null,
+        ownership: 'ORG_TEMPLATE',
+        kind: 'SOAP_NOTE',
+        name: 'SOAP',
+        description: 'SOAP template',
+        status: 'PUBLISHED',
+        scope: 'ORGANISATION',
+        rules: null,
+        latestVersion: 1,
+        publishedVersion: 1,
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        versions: [
+          {
+            id: 'ver-1',
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'subjective',
+                  title: 'Subjective',
+                  fields: [
+                    {
+                      key: 'subjective',
+                      label: 'Subjective',
+                      type: 'richText',
+                      defaultValue: '<p>Loaded SOAP content</p>',
+                    },
+                  ],
+                },
+              ],
+            },
+            renderConfigSnapshot: {},
+            validationSnapshot: {},
+            createdBy: 'user-1',
+          },
+        ],
+      });
+
+      expect(result.schema).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'subjective',
+            type: 'group',
+            fields: [
+              expect.objectContaining({
+                id: 'subjective',
+                type: 'richtext',
+                defaultValue: '<p>Loaded SOAP content</p>',
+              }),
+            ],
+          }),
+        ])
+      );
+    });
+
     it('maps care pathway templates to inpatient schedule rows', () => {
       const result = mapTemplateToUI({
         id: 'tpl-care',
@@ -384,6 +473,54 @@ describe('Forms Utils', () => {
       expect(result.category).toBe('Inpatient Schedule');
       expect(result.status).toBe('Draft');
       expect(result.templateVersion).toBe(1);
+    });
+
+    it('copies template species from rules into the UI model', () => {
+      const result = mapTemplateToUI({
+        id: 'tpl-species',
+        organisationId: 'org-1',
+        ownerUserId: null,
+        ownership: 'ORG_TEMPLATE',
+        kind: 'SOAP_NOTE',
+        name: 'Species template',
+        description: null,
+        status: 'DRAFT',
+        scope: 'ORGANISATION',
+        rules: { appliesTo: { species: ['CANINE', 'FELINE'] } },
+        latestVersion: 1,
+        publishedVersion: null,
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        versions: [],
+      });
+
+      expect(result.species).toEqual(['Canine', 'Feline']);
+    });
+
+    it('normalizes lowercase template species into UI labels', () => {
+      const result = mapTemplateToUI({
+        id: 'tpl-species-lower',
+        organisationId: 'org-1',
+        ownerUserId: null,
+        ownership: 'ORG_TEMPLATE',
+        kind: 'SOAP_NOTE',
+        name: 'Species template',
+        description: null,
+        status: 'DRAFT',
+        scope: 'ORGANISATION',
+        rules: { appliesTo: { species: ['canine', 'feline', 'equine'] } },
+        latestVersion: 1,
+        publishedVersion: null,
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        versions: [],
+      });
+
+      expect(result.species).toEqual(['Canine', 'Feline', 'Equine']);
     });
 
     it('builds backend-compatible clinical template schemas with custom fields appended', () => {
@@ -433,6 +570,140 @@ describe('Forms Utils', () => {
       );
       expect(payload.schemaSnapshot.sections.map((section) => section.id)).toEqual(
         expect.arrayContaining(['vitals', 'notes'])
+      );
+    });
+
+    it('preserves SOAP rich-text defaults in the template payload', () => {
+      const payload = buildTemplatePayload(
+        {
+          name: 'SOAP',
+          description: 'SOAP template',
+          category: 'SOAP',
+          usage: 'Internal',
+          requiredSigner: '',
+          species: ['Canine'],
+          services: ['srv-1'],
+          updatedBy: 'user-1',
+          lastUpdated: '',
+          schema: [
+            {
+              id: 'subjective',
+              type: 'richtext',
+              label: 'Subjective',
+              defaultValue: '<p>SOAP content</p>',
+            },
+            {
+              id: 'objective',
+              type: 'richtext',
+              label: 'Objective',
+              defaultValue: '<p>Objective content</p>',
+            },
+          ] as any,
+        } as any,
+        'org-1'
+      );
+
+      const subjective = payload.schemaSnapshot.sections.find(
+        (section) => section.id === 'subjective'
+      );
+      const objective = payload.schemaSnapshot.sections.find(
+        (section) => section.id === 'objective'
+      );
+
+      expect(subjective?.fields[0]).toEqual(
+        expect.objectContaining({ key: 'subjective', defaultValue: '<p>SOAP content</p>' })
+      );
+      expect(objective?.fields[0]).toEqual(
+        expect.objectContaining({ key: 'objective', defaultValue: '<p>Objective content</p>' })
+      );
+      expect(payload.kind).toBe('SOAP_NOTE');
+      expect(payload.ownership).toBe('ORG_TEMPLATE');
+    });
+
+    it('pulls nested SOAP defaults from grouped authored fields', () => {
+      const payload = buildTemplatePayload(
+        {
+          name: 'SOAP',
+          description: 'SOAP template',
+          category: 'SOAP',
+          usage: 'Internal',
+          requiredSigner: '',
+          species: ['Canine'],
+          services: ['srv-1'],
+          updatedBy: 'user-1',
+          lastUpdated: '',
+          schema: [
+            {
+              id: 'subjective',
+              type: 'group',
+              label: 'Subjective',
+              fields: [
+                {
+                  id: 'subjective',
+                  type: 'richtext',
+                  label: 'Subjective',
+                  defaultValue: '<p>Nested SOAP content</p>',
+                },
+              ] as any,
+            },
+            {
+              id: 'objective',
+              type: 'group',
+              label: 'Objective',
+              fields: [
+                {
+                  id: 'objective',
+                  type: 'richtext',
+                  label: 'Objective',
+                  defaultValue: '<p>Nested Objective content</p>',
+                },
+              ] as any,
+            },
+          ] as any,
+        } as any,
+        'org-1'
+      );
+
+      const subjective = payload.schemaSnapshot.sections.find(
+        (section) => section.id === 'subjective'
+      );
+      const objective = payload.schemaSnapshot.sections.find(
+        (section) => section.id === 'objective'
+      );
+
+      expect(subjective?.fields[0]).toEqual(
+        expect.objectContaining({ defaultValue: '<p>Nested SOAP content</p>' })
+      );
+      expect(objective?.fields[0]).toEqual(
+        expect.objectContaining({ defaultValue: '<p>Nested Objective content</p>' })
+      );
+    });
+
+    it('builds task template payloads with the task assignment kind', () => {
+      const payload = buildTemplatePayload(
+        {
+          name: 'Task template',
+          description: 'Task template',
+          category: 'Task Template',
+          usage: 'Internal',
+          requiredSigner: '',
+          species: ['Canine'],
+          services: ['svc-1'],
+          updatedBy: 'user-1',
+          lastUpdated: '',
+          schema: [],
+        } as any,
+        'org-1'
+      );
+
+      expect(payload.kind).toBe('TASK_ASSIGNMENT');
+      expect(payload.scope).toBe('INPATIENT');
+      expect(payload.rules).toEqual(
+        expect.objectContaining({
+          appliesTo: expect.objectContaining({
+            encounterModes: ['INPATIENT'],
+          }),
+        })
       );
     });
   });

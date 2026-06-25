@@ -11,9 +11,11 @@ updates:
     labels:
       - dependencies
       - automerge-candidate
+    # Use a conventional type(scope) the PR-title gate accepts. A bare 'chore'
+    # with include:scope yields 'chore(deps): …', and 'deps' is not an allowed
+    # scope, so those PRs would fail pr-governance. 'repo' is the catch-all scope.
     commit-message:
-      prefix: 'chore'
-      include: 'scope'
+      prefix: 'chore(repo)'
     groups:
       typescript-eslint:
         patterns:
@@ -40,6 +42,8 @@ updates:
       time: '05:30'
       timezone: 'UTC'
     open-pull-requests-limit: 10
+    commit-message:
+      prefix: 'ci'
     labels:
       - dependencies
       - github-actions

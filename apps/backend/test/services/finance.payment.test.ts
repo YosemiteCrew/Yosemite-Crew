@@ -196,13 +196,14 @@ describe("FinancePaymentService", () => {
         where: { id: "inv_2d" },
         data: expect.objectContaining({
           billingCollectionMode: "DEPOSIT_THEN_SETTLE",
-          visitBillingStage: "READY_FOR_BILLING",
           depositCollectedAmount: 25,
-          readyForBillingActorId: "SYSTEM",
-          readyForBillingAt: new Date("2026-06-18T10:00:00.000Z"),
         }),
       }),
     );
+    const updateArgs = (prisma.invoice.update as jest.Mock).mock.calls[0][0];
+    expect(updateArgs.data).not.toHaveProperty("visitBillingStage");
+    expect(updateArgs.data).not.toHaveProperty("readyForBillingAt");
+    expect(updateArgs.data).not.toHaveProperty("readyForBillingActorId");
     expect(result.balanceAfterPayment).toBe(75);
     expect(result.appliedAmount).toBe(25);
   });
@@ -214,7 +215,7 @@ describe("FinancePaymentService", () => {
       currency: "usd",
       status: "AWAITING_PAYMENT",
       billingCollectionMode: "PAY_AT_VISIT_END",
-      visitBillingStage: "READY_FOR_BILLING",
+      visitBillingStage: "DRAFT",
       depositTargetAmount: 50,
       depositCollectedAmount: 25,
     });
@@ -264,6 +265,36 @@ describe("FinancePaymentService", () => {
     );
     expect(result.invoice.status).toBe("PAID");
     expect(result.balanceAfterPayment).toBe(0);
+  });
+
+  it("rejects deposit payments once the invoice is ready for billing", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_ready",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      billingCollectionMode: "DEPOSIT_THEN_SETTLE",
+      visitBillingStage: "READY_FOR_BILLING",
+      depositTargetAmount: 50,
+      depositCollectedAmount: 25,
+    });
+
+    await expect(
+      FinancePaymentService.recordInvoicePayment("inv_ready", {
+        provider: "MANUAL",
+        amount: 25,
+        settlementChannel: "DEPOSIT",
+        collectionMode: "DEPOSIT_THEN_SETTLE",
+        currency: "usd",
+        receivedAt: new Date("2026-06-18T10:00:00.000Z"),
+      }),
+    ).rejects.toThrow(
+      "Deposit payments are not allowed after the invoice is ready for billing",
+    );
+
+    expect(prisma.paymentAttempt.create).not.toHaveBeenCalled();
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+    expect(prisma.invoice.update).not.toHaveBeenCalled();
   });
 
   it("creates a checkout session and payment attempt for payable invoices", async () => {
@@ -353,6 +384,74 @@ describe("FinancePaymentService", () => {
     );
     expect(result.sessionId).toBe("cs_1");
     expect(result.paymentAttemptId).toBe("pa_6");
+  });
+
+  it("uses collected deposit amounts when pricing the remaining checkout balance", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_dep",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: "parent_1",
+      depositCollectedAmount: 25,
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          unitPrice: 100,
+          quantity: 1,
+        },
+      ],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_dep",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_dep",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      count: 1,
+    });
+
+    const result =
+      await FinancePaymentService.createCheckoutSessionForInvoice("inv_dep");
+
+    expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        automatic_tax: {
+          enabled: false,
+        },
+        line_items: [
+          expect.objectContaining({
+            quantity: 1,
+            price_data: expect.objectContaining({
+              unit_amount: 7500,
+            }),
+          }),
+        ],
+      }),
+    );
+    expect(prisma.paymentAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amountRequested: 75,
+        }),
+      }),
+    );
+    expect(result.paymentAttemptId).toBe("pa_dep");
   });
 
   it("itemises every line (discount-adjusted) with automatic tax for a fresh, unsettled invoice", async () => {

@@ -35,6 +35,12 @@ const sanitizeTaskKind = (value: unknown): TaskKind | undefined =>
     ? (value as TaskKind)
     : undefined;
 
+const resolveTaskKind = (input: {
+  kind?: unknown;
+  category?: unknown;
+}): TaskKind | undefined =>
+  sanitizeTaskKind(input.kind) ?? sanitizeTaskKind(input.category);
+
 const ensureId = (value: string, field: string) => {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -120,7 +126,7 @@ export const TaskTemplateService = {
         name: input.name,
         description: input.description ?? undefined,
         kind: (() => {
-          const kind = sanitizeTaskKind(input.kind);
+          const kind = resolveTaskKind(input);
           if (!kind) {
             throw new TaskTemplateServiceError("Invalid kind", 400);
           }

@@ -158,6 +158,7 @@ describe('taskForm utilities', () => {
       expect(template.description).toBe('Test description');
       expect(template.defaultRole).toBe('EMPLOYEE');
       expect(template.isActive).toBe(true);
+      expect(template.kind).toBe('MEDICATION');
     });
 
     it('builds template from task with COMPANION_TASK audience', () => {
@@ -230,6 +231,7 @@ describe('taskForm utilities', () => {
       expect(result.name).toBe('Template Name');
       expect(result.description).toBe('Template description');
       expect(result.category).toBe('DIET');
+      expect(result.source).toBe('ORG_TEMPLATE');
       expect(result.assignedTo).toBe('user-1');
     });
 
@@ -250,6 +252,7 @@ describe('taskForm utilities', () => {
       expect(result.name).toBe('Library Task');
       expect(result.description).toBe('Library default description');
       expect(result.category).toBe('HYGIENE');
+      expect(result.source).toBe('YC_LIBRARY');
     });
 
     it('handles template with empty name', () => {

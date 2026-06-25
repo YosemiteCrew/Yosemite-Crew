@@ -132,6 +132,9 @@ export const CANONICAL_SOAP_STRUCTURE: TemplateSchemaSnapshot = {
       title: 'Subjective',
       order: 1,
       fields: [
+        // Chief complaint is sourced from the appointment reason in the workspace and is
+        // intentionally NOT part of the SOAP template structure. A YC-default SOAP template is
+        // exactly the four S/O/A/P rich-text areas.
         { key: 'subjective', label: 'Subjective', type: 'richText', required: true, order: 1 },
       ],
     },
@@ -160,6 +163,12 @@ export const CANONICAL_SOAP_STRUCTURE: TemplateSchemaSnapshot = {
   ],
 };
 
+/**
+ * A YC-default discharge template is intentionally minimal: a single rich-text discharge summary
+ * that preloads into the workspace, plus "follow up in N days" used to prefill the workspace
+ * follow-up date. No home-care / medications / signature sections — those are not part of the
+ * discharge template contract.
+ */
 export const CANONICAL_DISCHARGE_STRUCTURE: TemplateSchemaSnapshot = {
   sections: [
     {
@@ -177,36 +186,21 @@ export const CANONICAL_DISCHARGE_STRUCTURE: TemplateSchemaSnapshot = {
       ],
     },
     {
-      id: 'home_care',
-      title: 'Home care instructions',
-      order: 2,
-      fields: [{ key: 'homeCare', label: 'Home care instructions', type: 'richText', order: 1 }],
-    },
-    {
-      id: 'medications',
-      title: 'Medications',
-      order: 3,
-      fields: [{ key: 'dischargeMedications', label: 'Medications', type: 'richText', order: 1 }],
-    },
-    {
       id: 'follow_up',
       title: 'Follow up',
-      order: 4,
+      order: 2,
+      // Discharge templates capture "follow up in N days" rather than an absolute date. The
+      // workspace computes the actual follow-up date as (encounter/discharge date + N days),
+      // prefilled but editable by the clinician.
       fields: [
         {
           key: 'followUpInDays',
-          label: 'Follow-up in days',
+          label: 'Follow up in (days)',
           type: 'number',
           order: 1,
           rules: { unit: 'days' },
         },
       ],
-    },
-    {
-      id: 'signature',
-      title: 'Signature',
-      order: 5,
-      fields: [{ key: 'signature', label: 'Signature', type: 'signature', order: 1 }],
     },
   ],
 };
@@ -226,6 +220,7 @@ export const CANONICAL_PRESCRIPTION_STRUCTURE: TemplateSchemaSnapshot = {
           required: true,
           order: 1,
           rules: {
+            inventoryItemKind: 'MEDICAL',
             columns: [
               'inventoryItemId',
               'dosage',
@@ -234,33 +229,16 @@ export const CANONICAL_PRESCRIPTION_STRUCTURE: TemplateSchemaSnapshot = {
               'instructions',
               'qty',
             ],
+            rowKeys: [
+              'inventoryItemId',
+              'dosage',
+              'frequency',
+              'durationDays',
+              'qty',
+              'instructions',
+            ],
+            editableInWorkspace: ['qty', 'frequency', 'durationDays', 'instructions'],
           },
-        },
-      ],
-    },
-    {
-      id: 'instructions',
-      title: 'Instructions',
-      order: 2,
-      fields: [
-        {
-          key: 'usageInstructions',
-          label: 'Usage instructions',
-          type: 'instructionBlock',
-          order: 1,
-        },
-      ],
-    },
-    {
-      id: 'notes',
-      title: 'Notes',
-      order: 3,
-      fields: [
-        {
-          key: 'clinicalNotes',
-          label: 'Clinical notes',
-          type: 'richText',
-          order: 1,
         },
       ],
     },
@@ -313,6 +291,16 @@ export const CANONICAL_VITALS_STRUCTURE: TemplateSchemaSnapshot = {
 
 /** Ordered workspace SOAP editor keys (the four S/O/A/P rich-text fields). */
 export const CANONICAL_SOAP_FIELD_KEYS = ['subjective', 'objective', 'assessment', 'plan'] as const;
+
+/** Ordered prescription medication row keys authored in the template. */
+export const CANONICAL_PRESCRIPTION_ROW_KEYS = [
+  'inventoryItemId',
+  'dosage',
+  'frequency',
+  'durationDays',
+  'qty',
+  'instructions',
+] as const;
 
 export interface TemplateVersionLike {
   id: string;
@@ -561,6 +549,30 @@ const fieldToFormField = (field: TemplateFieldDefinition): FormField => {
     },
   };
 
+  if (field.type === 'medicationLine') {
+    const rows = Array.isArray(field.defaultValue) ? field.defaultValue : [];
+    return {
+      ...base,
+      type: 'group',
+      meta: { ...base.meta, medicationGroup: true },
+      fields: rows
+        .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+        .map((row, index) => medicationRowToFormField(row, index)),
+    } as FormField;
+  }
+
+  if (field.type === 'repeater' && field.key === 'taskBlocks') {
+    const rows = Array.isArray(field.defaultValue) ? field.defaultValue : [];
+    return {
+      ...base,
+      type: 'group',
+      meta: { ...base.meta, taskGroup: true },
+      fields: rows
+        .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+        .map((row, index) => taskBlockRowToFormField(row, index)),
+    } as FormField;
+  }
+
   if (field.type === 'multiSelect' || field.type === 'select') {
     return {
       ...base,
@@ -592,12 +604,219 @@ const fieldToFormField = (field: TemplateFieldDefinition): FormField => {
     return { ...base, type: 'richtext', defaultValue: field.defaultValue } as FormField;
   }
 
+  if (field.type === 'instructionBlock') {
+    return { ...base, type: 'textarea', defaultValue: field.defaultValue } as FormField;
+  }
+
   if (field.type === 'textarea') {
     return { ...base, type: 'textarea' } as FormField;
   }
 
   return { ...base, type: 'input' } as FormField;
 };
+
+const medicationFieldDefault = (field: FormField): unknown => {
+  const defaultValue = (field as FormField & { defaultValue?: unknown }).defaultValue;
+  if (defaultValue !== undefined && defaultValue !== '') return defaultValue;
+  return field.placeholder;
+};
+
+const medicationRowToFormField = (row: Record<string, unknown>, index: number): FormField => {
+  const inventoryItemId = typeof row.inventoryItemId === 'string' ? row.inventoryItemId : undefined;
+  const medicineId = typeof row.medicineId === 'string' ? row.medicineId : inventoryItemId;
+  const medicineName =
+    typeof row.medicineName === 'string' && row.medicineName.trim().length > 0
+      ? row.medicineName
+      : `Medication ${index + 1}`;
+  const prefix = inventoryItemId ?? medicineId ?? `med_${index + 1}`;
+  return {
+    id: `${prefix}_group`,
+    type: 'group',
+    label: medicineName,
+    meta: {
+      medicationGroup: true,
+      medicineId,
+      inventoryItemId,
+      medicineName,
+    },
+    fields: [
+      {
+        id: `${prefix}_name`,
+        type: 'input',
+        label: 'Name',
+        placeholder: medicineName,
+        defaultValue: typeof row.medicineName === 'string' ? row.medicineName : undefined,
+        meta: { readonly: true, inventoryItemId },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_dosage`,
+        type: 'input',
+        label: 'Strength',
+        placeholder: typeof row.dosage === 'string' ? row.dosage : 'Strength from inventory',
+        defaultValue: row.dosage,
+        meta: { readonly: true, inventoryItemId },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_route`,
+        type: 'input',
+        label: 'Route',
+        placeholder: typeof row.route === 'string' ? row.route : 'Route from inventory',
+        defaultValue: row.route,
+        meta: { readonly: true, inventoryItemId },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_frequency`,
+        type: 'input',
+        label: 'Frequency',
+        placeholder: 'Enter frequency',
+        defaultValue: row.frequency,
+        meta: { inventoryItemId, templateDefault: true },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_duration`,
+        type: 'input',
+        label: 'Duration',
+        placeholder: 'Enter duration',
+        defaultValue: row.durationDays,
+        meta: { inventoryItemId, templateDefault: true },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_qty`,
+        type: 'number',
+        label: 'Quantity',
+        placeholder: 'Units to dispense',
+        defaultValue: row.qty,
+        meta: { inventoryItemId, templateDefault: true },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_price`,
+        type: 'input',
+        label: 'Price',
+        placeholder: typeof row.price === 'string' ? row.price : '',
+        defaultValue: row.price,
+        meta: { readonly: true, inventoryItemId },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_remark`,
+        type: 'textarea',
+        label: 'Instructions',
+        placeholder: 'Add instructions',
+        defaultValue: row.instructions,
+        meta: { inventoryItemId, templateDefault: true },
+      } as unknown as FormField,
+    ],
+  } as unknown as FormField;
+};
+
+const medicationRowGroupToTemplateRow = (
+  group: FormField & { fields?: FormField[] }
+): Record<string, unknown> => {
+  const row: Record<string, unknown> = {
+    inventoryItemId: (group.meta?.inventoryItemId as string | undefined) ?? group.meta?.medicineId,
+    medicineId: (group.meta?.medicineId as string | undefined) ?? group.meta?.inventoryItemId,
+    medicineName: (group.meta?.medicineName as string | undefined) ?? group.label,
+  };
+
+  for (const field of group.fields ?? []) {
+    const value = medicationFieldDefault(field);
+    if (value === undefined || value === '') continue;
+    if (field.id.endsWith('_name')) row.medicineName = value;
+    else if (field.id.endsWith('_dosage')) row.dosage = value;
+    else if (field.id.endsWith('_route')) row.route = value;
+    else if (field.id.endsWith('_frequency')) row.frequency = value;
+    else if (field.id.endsWith('_duration')) row.durationDays = value;
+    else if (field.id.endsWith('_qty')) row.qty = value;
+    else if (field.id.endsWith('_price')) row.price = value;
+    else if (field.id.endsWith('_remark') || field.id.endsWith('_instructions')) {
+      row.instructions = value;
+    }
+  }
+
+  return row;
+};
+
+function taskBlockRowToFormField(row: Record<string, unknown>, index: number): FormField {
+  const prefix = `task_${index + 1}`;
+  const name =
+    typeof row.name === 'string' && row.name.trim().length > 0 ? row.name : `Task ${index + 1}`;
+
+  return {
+    id: `${prefix}_group`,
+    type: 'group',
+    label: name,
+    meta: { taskBlock: true },
+    fields: [
+      {
+        id: `${prefix}_name`,
+        type: 'input',
+        label: 'Task name',
+        placeholder: 'Task name',
+        defaultValue: typeof row.name === 'string' ? row.name : undefined,
+        meta: { taskBlockKey: 'name' },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_dayOffset`,
+        type: 'number',
+        label: 'Day after start',
+        placeholder: '0',
+        defaultValue: row.dayOffset,
+        meta: { taskBlockKey: 'dayOffset' },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_timeOfDay`,
+        type: 'input',
+        label: 'Time',
+        placeholder: '09:00',
+        defaultValue: row.timeOfDay,
+        meta: { taskBlockKey: 'timeOfDay' },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_reminderOffsetMinutes`,
+        type: 'number',
+        label: 'Reminder before (minutes)',
+        placeholder: '15',
+        defaultValue: row.reminderOffsetMinutes,
+        meta: { taskBlockKey: 'reminderOffsetMinutes' },
+      } as unknown as FormField,
+      {
+        id: `${prefix}_additionalNotes`,
+        type: 'textarea',
+        label: 'Instructions',
+        placeholder: 'What should be done for this task',
+        defaultValue: row.additionalNotes,
+        meta: { taskBlockKey: 'additionalNotes' },
+      } as unknown as FormField,
+    ],
+  } as unknown as FormField;
+}
+
+function taskBlockGroupToTemplateRow(
+  group: FormField & { fields?: FormField[] }
+): Record<string, unknown> {
+  const row: Record<string, unknown> = {
+    id: group.id,
+    dayOffset: 0,
+    timeOfDay: '09:00',
+    taskKind: 'CUSTOM',
+    category: 'CARE',
+    name: group.label,
+    audience: 'EMPLOYEE_TASK',
+  };
+
+  for (const field of group.fields ?? []) {
+    const key = (field.meta as { taskBlockKey?: string } | undefined)?.taskBlockKey;
+    const defaultValue = (field as FormField & { defaultValue?: unknown }).defaultValue;
+    const value =
+      defaultValue !== undefined && defaultValue !== '' ? defaultValue : field.placeholder;
+    if (!key || value === undefined || value === '') continue;
+    if (key === 'dayOffset') row.dayOffset = Number(value) || 0;
+    else if (key === 'reminderOffsetMinutes') row.reminderOffsetMinutes = Number(value) || 0;
+    else if (key === 'additionalNotes') row.additionalNotes = value;
+    else if (key in row) row[key] = value;
+  }
+
+  return row;
+}
 
 const sectionToFormField = (section: TemplateSection): FormField => ({
   id: section.id,
@@ -610,6 +829,64 @@ const formFieldToTemplateField = (field: FormField): TemplateFieldDefinition => 
   const meta = field.meta ?? {};
   const options =
     'options' in field ? ((field as { options?: TemplateFieldOption[] }).options ?? []) : [];
+
+  if (
+    field.type === 'group' &&
+    Boolean((field.meta as { medicationGroup?: boolean } | undefined)?.medicationGroup)
+  ) {
+    const rows = (field.fields ?? [])
+      .filter(
+        (nested): nested is FormField & { type: 'group'; fields?: FormField[] } =>
+          nested.type === 'group'
+      )
+      .map(medicationRowGroupToTemplateRow);
+
+    return {
+      key: 'medicationLine',
+      label: field.label,
+      type: 'medicationLine',
+      required: field.required,
+      repeatable: true,
+      section: field.group,
+      order: field.order,
+      defaultValue: rows,
+      options: undefined,
+      rules: {
+        columns: ['inventoryItemId', 'dosage', 'frequency', 'durationDays', 'instructions', 'qty'],
+      },
+      visibilityConditions: meta.visibilityConditions,
+      source: meta.source,
+    };
+  }
+
+  if (
+    field.type === 'group' &&
+    Boolean((field.meta as { taskGroup?: boolean } | undefined)?.taskGroup)
+  ) {
+    const rows = (field.fields ?? [])
+      .filter(
+        (nested): nested is FormField & { type: 'group'; fields?: FormField[] } =>
+          nested.type === 'group'
+      )
+      .map(taskBlockGroupToTemplateRow);
+
+    return {
+      key: 'taskBlocks',
+      label: field.label,
+      type: 'repeater',
+      required: field.required,
+      repeatable: true,
+      section: field.group,
+      order: field.order,
+      defaultValue: rows,
+      options: undefined,
+      rules: {
+        columns: ['dayOffset', 'timeOfDay', 'taskKind', 'category', 'name', 'audience'],
+      },
+      visibilityConditions: meta.visibilityConditions,
+      source: meta.source,
+    };
+  }
 
   return {
     key: field.id,
@@ -933,6 +1210,15 @@ const addTemplateExtensions = <T extends Questionnaire | PlanDefinition>(
     extension: [...(resource.extension ?? []), ...buildTemplateExtensions(template)],
   }) as T;
 
+const asDate = (value: unknown): Date => {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date();
+};
+
 const templateToQuestionnaire = (template: TemplateLike): Questionnaire =>
   addTemplateExtensions(
     {
@@ -967,7 +1253,7 @@ const templateToPlanDefinition = (template: TemplateLike): PlanDefinition => {
       { url: TEMPLATE_SCHEMA_EXTENSION_URL, valueString: JSON.stringify(schema) },
     ],
     meta: {
-      lastUpdated: template.updatedAt.toISOString(),
+      lastUpdated: asDate(template.updatedAt).toISOString(),
     },
     action: schema.sections.map((section) => ({
       id: section.id,

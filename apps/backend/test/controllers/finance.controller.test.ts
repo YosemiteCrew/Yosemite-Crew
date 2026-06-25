@@ -39,6 +39,7 @@ jest.mock("../../src/services/invoice.service", () => ({
     addItemsToInvoice: jest.fn(),
     addChargesToAppointment: jest.fn(),
     markAppointmentReadyForBilling: jest.fn(),
+    reverseAppointmentReadyForBilling: jest.fn(),
   },
 }));
 
@@ -56,6 +57,7 @@ jest.mock("../../src/services/finance/events", () => ({
   FinanceEventService: {
     recordEvent: jest.fn(),
   },
+  resolveActorDisplayName: jest.fn(),
 }));
 
 jest.mock("../../src/services/authUserMobile.service", () => ({
@@ -696,6 +698,53 @@ describe("FinanceController", () => {
       }),
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("reverses an appointment ready-for-billing state from the finance route", async () => {
+    (
+      InvoiceService.reverseAppointmentReadyForBilling as jest.Mock
+    ).mockResolvedValueOnce({
+      id: "inv_ready",
+      visitBillingStage: "DRAFT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+    });
+    (FinanceEventService.recordEvent as jest.Mock).mockResolvedValueOnce({});
+
+    const req = {
+      params: { appointmentId: "appt_1" },
+      organisationId: "org_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.reverseAppointmentReadyForBilling(req, res);
+
+    expect(
+      InvoiceService.reverseAppointmentReadyForBilling,
+    ).toHaveBeenCalledWith("appt_1");
+    expect(FinanceEventService.recordEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organisationId: "org_1",
+        eventType: "APPOINTMENT_READY_FOR_BILLING_REVERSED",
+        payload: expect.objectContaining({
+          invoiceId: "inv_ready",
+          billingState: "DRAFT",
+        }),
+      }),
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          appointmentId: "appt_1",
+          billingState: "DRAFT",
+          invoiceId: "inv_ready",
+          collectionMode: "PAY_AT_VISIT_END",
+        }),
+      }),
+    );
   });
 
   it("records a visit milestone and auto-readies billing when requested", async () => {

@@ -907,6 +907,6 @@ describe('AppointmentWorkspace container', () => {
     expect(screen.getByText('Discharge date & time')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Discharge date' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Discharge time' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /confirm discharge/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /confirm discharge/i })).toBeInTheDocument();
   });
 });

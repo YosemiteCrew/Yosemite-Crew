@@ -71,6 +71,19 @@ const getInitialsStatic = (name: string) =>
     .map((part) => part.charAt(0).toUpperCase())
     .join('') || '--';
 
+const getColumnBadgeStyle = (status: BoardStatus) => {
+  switch (status) {
+    case 'COMPLETED':
+      return { backgroundColor: 'rgba(16, 185, 129, 0.18)', color: 'rgb(6, 95, 70)' };
+    case 'CANCELLED':
+      return { backgroundColor: 'rgba(239, 68, 68, 0.16)', color: 'rgb(153, 27, 27)' };
+    case 'IN_PROGRESS':
+      return { backgroundColor: 'rgba(59, 130, 246, 0.18)', color: 'rgb(30, 64, 175)' };
+    default:
+      return { backgroundColor: 'rgba(245, 158, 11, 0.18)', color: 'rgb(146, 64, 14)' };
+  }
+};
+
 const TaskCard = ({
   task,
   columnLabel,
@@ -108,8 +121,11 @@ const TaskCard = ({
         {task.name || '-'}
       </div>
       <div
-        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-        style={{ backgroundColor: columnStyle.backgroundColor, color: columnStyle.color }}
+        className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+        style={{
+          ...getColumnBadgeStyle(task.status),
+          borderColor: columnStyle.color,
+        }}
       >
         {columnLabel}
       </div>

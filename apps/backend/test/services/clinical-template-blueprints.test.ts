@@ -39,8 +39,6 @@ describe("clinical template blueprints", () => {
 
     expect(blueprint.sections.map((section) => section.id)).toEqual([
       "medications",
-      "instructions",
-      "notes",
     ]);
     expect(blueprint.sections[0].fields[0].type).toBe("medicationLine");
     expect(blueprint.sections[0].fields[0].key).toBe("medicationLine");
@@ -54,10 +52,10 @@ describe("clinical template blueprints", () => {
         "qty",
       ],
     });
-    expect(blueprint.sections[2].fields[0]).toEqual(
+    expect(blueprint.sections[0].fields[0]).toEqual(
       expect.objectContaining({
-        key: "clinicalNotes",
-        type: "richText",
+        key: "medicationLine",
+        type: "medicationLine",
       }),
     );
   });
@@ -101,16 +99,16 @@ describe("clinical template blueprints", () => {
 
   it("detects invalid field types within a clinical section", () => {
     const snapshot = buildClinicalTemplateSchemaSnapshot("PRESCRIPTION");
-    const instructionsSection = snapshot.sections.find(
-      (section) => section.id === "instructions",
+    const medicationsSection = snapshot.sections.find(
+      (section) => section.id === "medications",
     );
 
-    if (!instructionsSection) {
-      throw new Error("Missing instructions section");
+    if (!medicationsSection) {
+      throw new Error("Missing medications section");
     }
 
-    instructionsSection.fields[0] = {
-      ...instructionsSection.fields[0],
+    medicationsSection.fields[0] = {
+      ...medicationsSection.fields[0],
       type: "text",
     };
 
@@ -120,7 +118,7 @@ describe("clinical template blueprints", () => {
     );
 
     expect(result.invalidFieldPaths).toContain(
-      "PRESCRIPTION.instructions.usageInstructions.type",
+      "PRESCRIPTION.medications.medicationLine.type",
     );
   });
 

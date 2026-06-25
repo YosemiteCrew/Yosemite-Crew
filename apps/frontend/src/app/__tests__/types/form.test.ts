@@ -77,13 +77,14 @@ describe('Forms Data and Utility Functions', () => {
       const prefix = 'prescription';
       const fields = buildMedicationFields(prefix);
 
-      expect(fields.length).toBe(7);
+      expect(fields.length).toBe(8);
       expect(fields.map((f) => f.id)).toEqual([
         'prescription_name',
         'prescription_dosage',
         'prescription_route',
         'prescription_frequency',
         'prescription_duration',
+        'prescription_qty',
         'prescription_price',
         'prescription_remark',
       ]);
@@ -93,13 +94,14 @@ describe('Forms Data and Utility Functions', () => {
       const prefix = 'meds';
       const fields = buildMedicationFields(prefix, '-');
 
-      expect(fields.length).toBe(7);
+      expect(fields.length).toBe(8);
       expect(fields.map((f) => f.id)).toEqual([
         'meds-name',
         'meds-dosage',
         'meds-route',
         'meds-frequency',
         'meds-duration',
+        'meds-qty',
         'meds-price',
         'meds-remark',
       ]);
@@ -123,20 +125,11 @@ describe('Forms Data and Utility Functions', () => {
 
     it('should verify Prescription template has Medications, Services, notes and single signature', () => {
       const template = CategoryTemplates['Prescription'];
-      expect(template.map((f: any) => f.label)).toEqual([
-        'Medications',
-        'Services',
-        'Additional notes',
-        'Important notes',
-        'Signature',
-      ]);
+      expect(template.map((f: any) => f.label)).toEqual(['Medications']);
       const medicationsGroup = template.find((f: any) => f.label === 'Medications');
       expect(medicationsGroup?.meta?.medicationGroup).toBe(true);
-      const servicesGroup = template.find((f: any) => f.label === 'Services');
-      expect(servicesGroup?.meta?.serviceGroup).toBe(true);
       const signatureFields = template.filter((f: any) => f.type === 'signature');
-      expect(signatureFields).toHaveLength(1);
-      expect(signatureFields[0].id).toBe('signature');
+      expect(signatureFields).toHaveLength(0);
     });
 
     it('should verify SOAP template has Subjective, Objective, Assessment and Plan without signature', () => {
@@ -171,13 +164,7 @@ describe('Forms Data and Utility Functions', () => {
 
     it('should verify Discharge Form template has rich-text body sections, follow-up days and a single signature', () => {
       const template = CategoryTemplates['Discharge Form'];
-      expect(template.map((f: any) => f.label)).toEqual([
-        'Discharge summary',
-        'Home care instructions',
-        'Medications',
-        'Follow up',
-        'Signature',
-      ]);
+      expect(template.map((f: any) => f.label)).toEqual(['Discharge summary', 'Follow up']);
       const flatten = (fields: any[]): any[] =>
         fields.flatMap((f) => (f.type === 'group' ? [f, ...flatten(f.fields ?? [])] : [f]));
       const flat = flatten(template as any[]);
@@ -185,7 +172,7 @@ describe('Forms Data and Utility Functions', () => {
       expect(flat.find((f: any) => f.id === 'followUpInDays')?.type).toBe('number');
       expect(flat.find((f: any) => f.id === 'followUpInDays')?.meta?.unit).toBe('days');
       const signatureFields = flat.filter((f: any) => f.type === 'signature');
-      expect(signatureFields).toHaveLength(1);
+      expect(signatureFields).toHaveLength(0);
     });
   });
 });

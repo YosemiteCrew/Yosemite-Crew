@@ -27,6 +27,38 @@ jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn((selector) => selector({ orgsById: { 'org-1': { type: 'HOSPITAL' } } })),
 }));
 
+jest.mock('@/app/stores/parentStore', () => ({
+  useParentStore: jest.fn((selector) =>
+    selector({
+      parentsById: {
+        'parent-1': {
+          id: 'parent-1',
+          firstName: 'John',
+          lastName: 'Doe',
+          profileImageUrl: 'https://cdn.example.com/client.jpg',
+        },
+      },
+    })
+  ),
+}));
+
+jest.mock('@/app/hooks/useTeam', () => ({
+  useTeamForPrimaryOrg: jest.fn(() => [
+    {
+      _id: 'team-1',
+      practionerId: 'lead-1',
+      name: 'Dr. Smith',
+      image: 'https://cdn.example.com/lead.jpg',
+      role: 'VETERINARIAN',
+      speciality: [],
+      status: 'Available',
+      revokedPermissions: [],
+      effectivePermissions: [],
+      extraPerissions: [],
+    },
+  ]),
+}));
+
 jest.mock('@/app/stores/serviceStore', () => ({
   useServiceStore: {
     getState: () => ({
@@ -182,6 +214,19 @@ describe('ViewAppointmentOverviewModal', () => {
   it('renders lead name', () => {
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
     expect(screen.getByText('Dr. Smith')).toBeInTheDocument();
+  });
+
+  it('renders client and lead profile photos from store records', () => {
+    render(<ViewAppointmentOverviewModal {...defaultProps} />);
+
+    expect(screen.getByRole('img', { name: 'John Doe' })).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/client.jpg'
+    );
+    expect(screen.getByRole('img', { name: 'Dr. Smith' })).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/lead.jpg'
+    );
   });
 
   it('renders speciality and service', () => {

@@ -128,4 +128,37 @@ describe('SignatureActions', () => {
       );
     });
   });
+
+  it('refreshes signing state after the overlay closes and hides Sign once signed', async () => {
+    (useSigningOverlayStore as unknown as jest.Mock).mockImplementationOnce(() => ({
+      openOverlay,
+      setUrl,
+      open: true,
+      submissionId: 'submission-1',
+    }));
+    const { rerender } = render(
+      <SignatureActions submission={baseSubmission} onStatusChange={onStatusChange} />
+    );
+
+    (useSigningOverlayStore as unknown as jest.Mock).mockImplementationOnce(() => ({
+      openOverlay,
+      setUrl,
+      open: false,
+      submissionId: null,
+    }));
+    rerender(<SignatureActions submission={baseSubmission} onStatusChange={onStatusChange} />);
+
+    await waitFor(() => expect(fetchSignedDocumentIfReady).toHaveBeenCalledWith('submission-1'));
+    expect(onStatusChange).toHaveBeenCalledWith(
+      'submission-1',
+      expect.objectContaining({
+        signing: expect.objectContaining({
+          status: 'SIGNED',
+          pdf: { url: 'https://signed.example/doc-1.pdf' },
+        }),
+      })
+    );
+    expect(screen.getByText('Signing in progress')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign' })).toBeInTheDocument();
+  });
 });

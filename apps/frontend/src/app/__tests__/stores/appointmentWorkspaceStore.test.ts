@@ -460,13 +460,12 @@ describe('appointmentWorkspaceStore', () => {
 
   it('hydrates invoice billing while preserving locally recorded invoices', () => {
     seed();
-    // A locally recorded (session-only) invoice that finance has not returned yet.
+    // A locally recorded deposit that finance has not returned yet.
     getStore().recordDepositCollection(APPT, {
       amountCents: 5000,
       method: 'CASH',
       byName: 'Front desk',
     });
-    const localId = getStore().getEncounter(APPT)!.pastInvoices[0].id;
 
     getStore().hydrateInvoiceBilling(APPT, {
       depositCents: 12000,
@@ -484,7 +483,7 @@ describe('appointmentWorkspaceStore', () => {
 
     const enc = getStore().getEncounter(APPT)!;
     expect(enc.depositCents).toBe(12000);
-    expect(enc.pastInvoices.map((invoice) => invoice.id)).toEqual(['finance-inv-1', localId]);
+    expect(enc.pastInvoices.map((invoice) => invoice.id)).toEqual(['finance-inv-1']);
   });
 
   it('seeds the editable bill from the latest open invoice while keeping it in history', () => {
@@ -690,7 +689,7 @@ describe('appointmentWorkspaceStore', () => {
     expect(capped.amountCents).toBe(8000);
   });
 
-  it('records an invoice payment, clearing the bill and prepending a paid invoice', () => {
+  it('records an invoice payment, clearing the bill without creating a synthetic invoice', () => {
     seed();
     getStore().addInvoiceLineItem(APPT, {
       name: 'Initial Consultation',
@@ -707,12 +706,7 @@ describe('appointmentWorkspaceStore', () => {
 
     const after = getStore().getEncounter(APPT)!;
     expect(after.invoiceLineItems).toHaveLength(0);
-    expect(after.pastInvoices).toHaveLength(pastCount + 1);
-    const newest = after.pastInvoices[0];
-    expect(newest.status).toBe('PAID_FULL');
-    expect(newest.paymentMethod).toBe('CASH');
-    expect(newest.paidByName).toBe('Front desk');
-    expect(newest.outstandingCents).toBe(0);
+    expect(after.pastInvoices).toHaveLength(pastCount);
   });
 
   it('reduces the deposit when payment is from the deposit', () => {
@@ -732,12 +726,28 @@ describe('appointmentWorkspaceStore', () => {
       },
     }));
     const start = getStore().getEncounter(APPT)!.depositCents;
+    const pastCount = getStore().getEncounter(APPT)!.pastInvoices.length;
 
     getStore().recordInvoicePayment(APPT, { method: 'DEPOSIT' });
 
     const after = getStore().getEncounter(APPT)!;
-    expect(after.pastInvoices[0].paidFromDeposit).toBe(true);
     expect(after.depositCents).toBeLessThan(start);
+    expect(after.pastInvoices).toHaveLength(pastCount);
+  });
+
+  it('records a deposit balance without creating a synthetic invoice', () => {
+    seed();
+    const before = getStore().getEncounter(APPT)!;
+
+    getStore().recordDepositCollection(APPT, {
+      amountCents: 5000,
+      method: 'CASH',
+      byName: 'Front desk',
+    });
+
+    const after = getStore().getEncounter(APPT)!;
+    expect(after.depositCents).toBe(before.depositCents + 5000);
+    expect(after.pastInvoices).toHaveLength(before.pastInvoices.length);
   });
 
   it('no-ops recording a payment when there are no line items', () => {

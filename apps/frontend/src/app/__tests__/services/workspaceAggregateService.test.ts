@@ -315,11 +315,13 @@ describe('workspaceAggregateService', () => {
       invoice: {
         visitBillingStage: 'READY_FOR_BILLING',
         readyForBillingByName: 'Front Desk',
+        readyForBillingActorId: 'system',
         readyForBillingAt: '2026-06-18T11:05:00.000Z',
       },
     });
     expect(patch.readyForBilling?.value).toBe(true);
     expect(patch.readyForBilling?.byName).toBe('Front Desk');
+    expect(patch.readyForBilling?.byUserId).toBe('system');
     expect(patch.readyForBilling?.at).toBe('2026-06-18T11:05:00.000Z');
     // Discharge is not implied by billing.
     expect(patch.readyForDischarge).toBeUndefined();

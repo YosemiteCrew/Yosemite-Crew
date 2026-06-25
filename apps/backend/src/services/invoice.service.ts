@@ -1256,7 +1256,11 @@ export const InvoiceService = {
       return toInvoiceRecord(doc);
     }
 
-    const summary = await getInvoiceFinancialSummary(doc.id, doc.totalAmount);
+    const summary = await getInvoiceFinancialSummary(
+      doc.id,
+      doc.totalAmount,
+      doc.depositCollectedAmount ?? 0,
+    );
     if (summary.balance <= 0) {
       const settled = await recordInvoicePaidState(
         doc,
@@ -1539,6 +1543,56 @@ export const InvoiceService = {
     return toInvoiceRecord(updated);
   },
 
+  async reverseAppointmentReadyForBilling(
+    appointmentId: string,
+    actorUserId?: string,
+  ) {
+    const readyInvoice = await prisma.invoice.findFirst({
+      where: {
+        appointmentId,
+        status: { in: ["AWAITING_PAYMENT", "PENDING"] },
+        visitBillingStage: "READY_FOR_BILLING",
+      },
+      orderBy: { createdAt: "desc" },
+      include: { taxSnapshot: true },
+    });
+
+    if (!readyInvoice) {
+      return null;
+    }
+
+    const summary = await getInvoiceFinancialSummary(
+      readyInvoice.id,
+      readyInvoice.totalAmount,
+      readyInvoice.depositCollectedAmount ?? 0,
+    );
+    if (summary.paid > 0 || summary.credited > 0) {
+      throw new InvoiceServiceError(
+        "Invoice already has payments applied and cannot be reverted",
+        409,
+      );
+    }
+
+    const updated = await prisma.invoice.update({
+      where: { id: readyInvoice.id },
+      data: {
+        visitBillingStage: "DRAFT",
+        readyForBillingAt: null,
+        readyForBillingActorId: null,
+      },
+    });
+
+    await FinanceEventService.recordReadinessEvent({
+      organisationId: updated.organisationId,
+      eventType: "INVOICE_READY_FOR_BILLING_REVERSED",
+      entityType: "INVOICE",
+      entityId: updated.id,
+      actorUserId,
+    });
+
+    return toInvoiceRecord(updated);
+  },
+
   async setInvoiceDepositTarget(
     invoiceId: string,
     depositTargetAmount: number,
@@ -1550,8 +1604,6 @@ export const InvoiceService = {
       where: { id: invoiceId },
       data: {
         billingCollectionMode: "DEPOSIT_THEN_SETTLE",
-        visitBillingStage: "READY_FOR_BILLING",
-        ...buildReadyForBillingFields("SYSTEM"),
         depositTargetAmount: targetAmount,
         depositCollectedAmount: resolveInvoiceDepositCollectedAmount(
           invoice,
@@ -1573,7 +1625,12 @@ export const InvoiceService = {
       orderBy: { createdAt: "desc" },
     });
 
-    return docs.map((d) => toInvoiceRecord(d));
+    return Promise.all(
+      docs.map(async (doc) => ({
+        ...toInvoiceRecord(doc),
+        ...(await loadInvoiceFinancialDetails(doc.id)),
+      })),
+    );
   },
 
   async bootstrapForAppointment(
@@ -1916,7 +1973,20 @@ export const InvoiceService = {
       organisationId,
     );
     if (!invoice) {
-      return this.createExtraInvoiceForAppointment({ appointmentId, items });
+      const bootstrappedInvoice =
+        await this.bootstrapForAppointment(appointmentId);
+
+      if (
+        !bootstrappedInvoice.id ||
+        !["AWAITING_PAYMENT", "PENDING"].includes(bootstrappedInvoice.status)
+      ) {
+        throw new InvoiceServiceError(
+          "Invoice is not open for appointment",
+          409,
+        );
+      }
+
+      return this.addItemsToInvoice(bootstrappedInvoice.id, items);
     }
 
     return this.addItemsToInvoice(invoice.id, items);
@@ -2075,6 +2145,11 @@ export const InvoiceService = {
 
     let emailSent = false;
     if (checkout?.url && invoice.parentId) {
+      const summary = await getInvoiceFinancialSummary(
+        invoice.id,
+        invoice.totalAmount,
+        invoice.depositCollectedAmount ?? 0,
+      );
       const parent = await prisma.parent.findUnique({
         where: { id: invoice.parentId },
         select: { email: true, firstName: true, lastName: true },
@@ -2089,8 +2164,8 @@ export const InvoiceService = {
         ? [parent.firstName, parent.lastName].filter(Boolean).join(" ")
         : undefined;
       const amountText =
-        typeof invoice.totalAmount === "number" && invoice.currency
-          ? `${invoice.currency.toUpperCase()} ${invoice.totalAmount.toFixed(2)}`
+        typeof summary.balance === "number" && invoice.currency
+          ? `${invoice.currency.toUpperCase()} ${summary.balance.toFixed(2)}`
           : undefined;
 
       if (parent?.email) {

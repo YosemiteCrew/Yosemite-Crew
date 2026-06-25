@@ -154,6 +154,7 @@ const ClinicalPacketSection = ({
   const openSigningOverlay = useSigningOverlayStore((s) => s.openOverlay);
   const setSigningUrl = useSigningOverlayStore((s) => s.setUrl);
   const closeSigningOverlay = useSigningOverlayStore((s) => s.close);
+  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
   const [packet, setPacket] = useState<PacketState | null>(null);
   const [isSigning, setIsSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
@@ -185,6 +186,14 @@ const ClinicalPacketSection = ({
   useEffect(() => {
     void refreshPacket();
   }, [refreshPacket]);
+
+  const signingInitiatedRef = useRef(false);
+
+  useEffect(() => {
+    if (signingOverlayOpen || !signingInitiatedRef.current) return;
+    signingInitiatedRef.current = false;
+    void refreshPacket();
+  }, [refreshPacket, signingOverlayOpen]);
 
   const isSigned = packet?.signingStatus === 'SIGNED';
   const isInProgress = packet?.signingStatus === 'IN_PROGRESS';
@@ -228,6 +237,7 @@ const ClinicalPacketSection = ({
         status: signed?.status ?? created?.status,
         signingStatus: signed?.signing?.status ?? 'IN_PROGRESS',
       });
+      signingInitiatedRef.current = true;
     } catch (error) {
       setSignError(error instanceof Error ? error.message : 'Unable to start signing.');
       closeSigningOverlay();
@@ -300,7 +310,7 @@ const ClinicalPacketSection = ({
       )}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Secondary
-          text={isPrinting ? 'Preparing…' : 'Print'}
+          text={isPrinting ? 'Preparing…' : 'Print All'}
           icon={<LuPrinter aria-hidden="true" />}
           onClick={() => void handlePrint()}
           isDisabled={!hasContext || isPrinting}

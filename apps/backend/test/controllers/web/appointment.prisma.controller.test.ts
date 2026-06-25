@@ -278,6 +278,29 @@ describe("AppointmentPrismaController", () => {
     });
   });
 
+  it("reverses appointments ready for billing from PMS", async () => {
+    req.params = { appointmentId: "appt_1" };
+    (req as any).userId = "user-1";
+    mockedInvoiceService.reverseAppointmentReadyForBilling.mockResolvedValue({
+      id: "inv_1",
+      visitBillingStage: "DRAFT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+    } as any);
+
+    await AppointmentController.reverseReadyForBillingForPMS(
+      req as any,
+      res as any,
+    );
+
+    expect(
+      mockedInvoiceService.reverseAppointmentReadyForBilling,
+    ).toHaveBeenCalledWith("appt_1", "user-1");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Appointment billing readiness reversed",
+    });
+  });
+
   it("attaches forms, cancels, and fetches appointments", async () => {
     req.params = { appointmentId: "appt_1" };
     req.body = { formIds: ["form_1", "form_2"] };

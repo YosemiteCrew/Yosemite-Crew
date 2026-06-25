@@ -53,7 +53,11 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
 
 jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   __esModule: true,
-  default: ({ title }: any) => <div>{title}</div>,
+  default: ({ title, data }: any) => (
+    <div data-testid={`editable-${title}`}>
+      {title}:{data?.templateSource ?? 'none'}
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
@@ -150,10 +154,11 @@ describe('FormInfo', () => {
     );
 
     expect(screen.getByText('View template')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Unpublish' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit form' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.getByTestId('editable-Usage & visibility')).toHaveTextContent('YC_LIBRARY');
+    expect(screen.getByRole('button', { name: 'Unpublish' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'close' })).toHaveLength(2);
   });
 
   it('uses form view copy for non-editable legacy forms', () => {

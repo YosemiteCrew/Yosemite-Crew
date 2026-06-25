@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import SoapStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SoapStep';
@@ -140,6 +140,45 @@ describe('SoapStep', () => {
     expect(screen.getByText('All SOAP notes')).toBeInTheDocument();
     expect(screen.getByText(/By Dr\. Tim Apple/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save & Next' })).not.toBeDisabled();
+  });
+
+  it('uses the current author name for the optimistic signed SOAP note', async () => {
+    onSaveAndNext.mockClear();
+    seedAndGet();
+    useAppointmentWorkspaceStore.getState().upsertSoap(APPT, { subjective: '<p>history</p>' });
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    const { rerender } = render(
+      <SoapStep
+        appointmentId={APPT}
+        organisationId="org-1"
+        appointmentReason={APPOINTMENT_REASON}
+        encounter={enc}
+        authorId="current-user"
+        authorName="Dr Current User"
+        onRecordVitals={onRecordVitals}
+        onSaveAndNext={onSaveAndNext}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
+
+    await waitFor(() => expect(onSaveAndNext).toHaveBeenCalledTimes(1));
+    const updated = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    rerender(
+      <SoapStep
+        appointmentId={APPT}
+        organisationId="org-1"
+        appointmentReason={APPOINTMENT_REASON}
+        encounter={updated}
+        authorId="current-user"
+        authorName="Dr Current User"
+        onRecordVitals={onRecordVitals}
+        onSaveAndNext={onSaveAndNext}
+      />
+    );
+
+    expect(screen.getByText(/By Dr Current User/)).toBeInTheDocument();
+    expect(screen.queryByText(/By Dr\. Tim Apple/)).not.toBeInTheDocument();
   });
 
   it('starts a fresh draft after a note is signed', () => {

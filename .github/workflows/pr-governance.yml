@@ -13,37 +13,33 @@ jobs:
     name: Validate PR title
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Single source of truth: derive the allowed types/scopes from
+      # commitlint.config.cjs so the PR-title gate can never drift from the
+      # commit-message gate (commit-messages job below runs the same config).
+      - name: Read allowed types and scopes from commitlint config
+        id: enums
+        run: |
+          node -e '
+            const c = require("./commitlint.config.cjs");
+            const r = c.rules || {};
+            const list = (rule) => (rule && rule[2] ? rule[2] : []).join("\n");
+            const fs = require("fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              `types<<EOF\n${list(r["type-enum"])}\nEOF\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              `scopes<<EOF\n${list(r["scope-enum"])}\nEOF\n`);
+          '
+
       - name: Check semantic PR title
-        uses: amannn/action-semantic-pull-request@v5
+        uses: amannn/action-semantic-pull-request@e32d7e603df1aa1ba07e981f2a23455dee596825 # v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          types: |
-            feat
-            fix
-            docs
-            style
-            refactor
-            perf
-            test
-            build
-            ci
-            chore
-            revert
-          scopes: |
-            backend
-            frontend
-            mobile
-            desktop
-            dev-docs
-            types
-            fhir
-            database
-            lib
-            auth
-            repo
-            ci
-            docs
+          types: ${{ steps.enums.outputs.types }}
+          scopes: ${{ steps.enums.outputs.scopes }}
           requireScope: true
 
   commit-messages:
@@ -56,7 +52,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           run_install: false
 

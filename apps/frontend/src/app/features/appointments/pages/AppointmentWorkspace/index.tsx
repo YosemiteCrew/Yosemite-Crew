@@ -12,6 +12,7 @@ import {
   resolveEncounterMode,
   resolveLandingStep,
 } from '@/app/lib/appointmentWorkspace';
+import { startRouteLoader } from '@/app/lib/routeLoader';
 import {
   WORKSPACE_STEPS,
   type AppointmentEncounter,
@@ -1142,7 +1143,10 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           companionName={companion.name}
           alerts={displayedPatientAlerts}
           clientAlerts={displayedClientAlerts}
-          onBack={() => router.push('/appointments')}
+          onBack={() => {
+            startRouteLoader();
+            router.push('/appointments');
+          }}
           onQuickActions={() => setActiveSideAction('RECORD')}
           onHospitalize={() => setIsHospitalizeOpen(true)}
           canAdmit={encounterMode === 'INPATIENT' && !hasAdmission && !effectiveEncounter.viewOnly}

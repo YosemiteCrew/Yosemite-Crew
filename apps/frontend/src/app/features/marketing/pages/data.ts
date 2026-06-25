@@ -15,7 +15,7 @@ export const InfoCards: InfoCard[] = [
     description:
       'Yosemite Crew helps veterinary practices optimise their operations, boost efficiency, and provide outstanding care, ensuring that pet parents receive the best services possible, whether on mobile or desktop.',
     image: MEDIA_SOURCES.landing.infoPms,
-    href: '/pms',
+    href: '/pet-businesses',
     background: '#f5f8fd',
   },
   {
@@ -24,7 +24,7 @@ export const InfoCards: InfoCard[] = [
     description:
       'Curated essential tools for your companions, whether they are cats, horses, or dogs, in one place. Our app enhances communication with groomers, boarders, sitters, vets, and clinics, streamlining appointments, tasks, medical records, and educational resources for high-quality care.',
     image: MEDIA_SOURCES.landing.infoApp,
-    href: '/application',
+    href: '/pet-parents',
     background: '#e9f2fd',
   },
   {

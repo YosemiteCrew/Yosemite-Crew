@@ -388,6 +388,7 @@ describe("CompanionHistoryService", () => {
     expect(result.entries[0].payload).toEqual(
       expect.objectContaining({
         pdfAvailable: true,
+        pdfUrl: "pdf",
         orderId: "order-1",
       }),
     );

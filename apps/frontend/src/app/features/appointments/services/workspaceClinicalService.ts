@@ -865,6 +865,23 @@ export const getPrescriptionArtifact = async (organisationId: string, prescripti
   return res.data;
 };
 
+/**
+ * Generate a label-format PDF for a prescription (pharmacy dispensing labels: medication, strength,
+ * dosage, frequency, route, instructions, patient/owner, clinic, date). Returns the rendered PDF
+ * URL. Backed by the new backend label endpoint (handoff §3); until that ships this resolves the
+ * URL from the standard rendered-document response shape.
+ */
+export const generatePrescriptionLabels = async (
+  organisationId: string,
+  prescriptionId: string
+): Promise<string | undefined> => {
+  const res = await postData<{ url?: string; pdfUrl?: string; renderedDocumentId?: string }>(
+    `/fhir/v1/clinical-artifact/organisation/${organisationId}/prescription/${prescriptionId}/labels`,
+    {}
+  );
+  return res.data?.url ?? res.data?.pdfUrl;
+};
+
 export const finalizePrescriptionArtifact = (organisationId: string, prescriptionId: string) =>
   clinicalArtifactAction<MedicationRequest>(
     organisationId,

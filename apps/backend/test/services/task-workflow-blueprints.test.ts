@@ -27,7 +27,7 @@ describe("task workflow blueprints", () => {
     expect(result.invalidFieldPaths).toHaveLength(0);
   });
 
-  it("rejects invalid task template select options", () => {
+  it("uses fixed text fields for task template controls", () => {
     const snapshot = buildTaskWorkflowTemplateSchemaSnapshot("TASK_TEMPLATE");
     const assignmentSection = snapshot.sections.find(
       (section) => section.id === "assignment",
@@ -45,16 +45,14 @@ describe("task workflow blueprints", () => {
       throw new Error("Missing audience field");
     }
 
-    audienceField.options = [{ label: "Doctor", value: "DOCTOR" }];
-
     const result = validateTaskWorkflowTemplateBlueprint(
       TemplateKind.TASK_TEMPLATE,
       snapshot,
     );
 
-    expect(result.invalidFieldPaths).toContain(
-      "TASK_TEMPLATE.assignment.audience.options",
-    );
+    expect(audienceField.type).toBe("text");
+    expect(audienceField.options).toBeUndefined();
+    expect(result.invalidFieldPaths).toHaveLength(0);
   });
 
   it("rejects missing care pathway schedule sections", () => {

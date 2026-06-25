@@ -761,19 +761,6 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       if (enc.invoiceLineItems.length === 0) return enc;
       const totals = computeInvoiceTotals(enc);
       const paidFromDeposit = payment.method === 'DEPOSIT' || enc.withdrawDeposit;
-      const invoice: PastInvoice = {
-        id: nextId('inv-paid'),
-        createdAt: nowIso(),
-        totalCents: totals.estimatedTotalCents,
-        outstandingCents: 0,
-        status: 'PAID_FULL',
-        byName: payment.byName,
-        paidByName: payment.byName,
-        paidAt: nowIso(),
-        paymentMethod: payment.method,
-        paidFromDeposit,
-        items: enc.invoiceLineItems.map((item) => ({ ...item })),
-      };
       // Mark the matching saved treatment rows as billed so the Total Bill auto-seed
       // (InvoiceStep) does not re-add them after invoiceLineItems is cleared below.
       const paidNames = new Set(enc.invoiceLineItems.map((item) => item.name.trim().toLowerCase()));
@@ -790,7 +777,6 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
             ? { ...rx, billed: true, billedAt, billedByName: payment.byName }
             : rx
         ),
-        pastInvoices: [invoice, ...enc.pastInvoices],
         invoiceLineItems: [],
         depositCents: paidFromDeposit
           ? Math.max(0, enc.depositCents - totals.estimatedTotalCents)
@@ -802,31 +788,9 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
     patchEnc(set, appointmentId, (enc) => {
       const amountCents = Math.max(0, Math.round(deposit.amountCents));
       if (amountCents <= 0) return enc;
-      const lineItem: InvoiceLineItem = {
-        id: nextId('deposit-line'),
-        name: 'Visit deposit',
-        unitPriceCents: amountCents,
-        qty: 1,
-        grossCents: amountCents,
-        discountCents: 0,
-        amountCents,
-      };
-      const invoice: PastInvoice = {
-        id: nextId('deposit'),
-        createdAt: nowIso(),
-        totalCents: amountCents,
-        outstandingCents: 0,
-        status: 'PAID_FULL',
-        byName: deposit.byName,
-        paidByName: deposit.byName,
-        paidAt: nowIso(),
-        paymentMethod: deposit.method,
-        items: [lineItem],
-      };
       return {
         ...enc,
         depositCents: enc.depositCents + amountCents,
-        pastInvoices: [invoice, ...enc.pastInvoices],
       };
     }),
 

@@ -38,7 +38,7 @@ describe('RootLayout', () => {
     expect(metadata).toEqual(
       expect.objectContaining({
         title: 'Yosemite Crew',
-        description: 'Get Yosemite Crew PMS for your pet business',
+        description: 'Get Yosemite Crew for your pet business',
         manifest: '/site.webmanifest',
       })
     );

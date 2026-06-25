@@ -602,7 +602,7 @@ const TrustCenter = () => {
                 </p>
               </div>
               <div className="helpbtn">
-                <Link href="/contact">Contact support</Link>
+                <Link href="/contact-us">Contact support</Link>
               </div>
             </div>
           </div>
