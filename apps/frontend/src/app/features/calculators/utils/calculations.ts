@@ -3,57 +3,16 @@
 // side-effect free so they can be unit-tested in isolation and later promoted to
 // a shared package for backend persistence (see issue #1661).
 
-export type CalculatorSpecies = 'dog' | 'cat';
+import {
+  assertInRange,
+  assertNonNegative,
+  assertPositive,
+  roundTo,
+  type CalculatorSpecies,
+} from '@/app/features/calculators/utils/shared';
 
-// Thrown when an input fails validation. `field` lets the UI bind the message
-// to the offending input.
-export class CalculatorInputError extends Error {
-  readonly field: string;
-
-  constructor(field: string, message: string) {
-    super(message);
-    this.name = 'CalculatorInputError';
-    this.field = field;
-  }
-}
-
-const assertFinite = (value: number, field: string, label: string): void => {
-  if (!Number.isFinite(value)) {
-    throw new CalculatorInputError(field, `${label} is required.`);
-  }
-};
-
-const assertPositive = (value: number, field: string, label: string): void => {
-  assertFinite(value, field, label);
-  if (value <= 0) {
-    throw new CalculatorInputError(field, `${label} must be greater than 0.`);
-  }
-};
-
-const assertNonNegative = (value: number, field: string, label: string): void => {
-  assertFinite(value, field, label);
-  if (value < 0) {
-    throw new CalculatorInputError(field, `${label} cannot be negative.`);
-  }
-};
-
-const assertInRange = (
-  value: number,
-  field: string,
-  label: string,
-  min: number,
-  max: number
-): void => {
-  assertFinite(value, field, label);
-  if (value < min || value > max) {
-    throw new CalculatorInputError(field, `${label} must be between ${min} and ${max}.`);
-  }
-};
-
-const roundTo = (value: number, decimals: number): number => {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
-};
+export { CalculatorInputError } from '@/app/features/calculators/utils/shared';
+export type { CalculatorSpecies } from '@/app/features/calculators/utils/shared';
 
 // ---------------------------------------------------------------------------
 // Fluid rate (maintenance + dehydration deficit)

@@ -3,19 +3,24 @@
 import { useState } from 'react';
 import { Card, Text } from '@/app/ui';
 import { SelectLabel } from '@/app/ui/inputs';
-import { CALCULATOR_TABS, type CalculatorKey } from '@/app/features/calculators/constants';
-import FluidRateCalculator from '@/app/features/calculators/components/FluidRateCalculator';
-import DrugDoseCalculator from '@/app/features/calculators/components/DrugDoseCalculator';
-import BodySurfaceAreaCalculator from '@/app/features/calculators/components/BodySurfaceAreaCalculator';
+import {
+  CALCULATORS,
+  CALCULATOR_CATEGORIES,
+  calculatorsInCategory,
+} from '@/app/features/calculators/registry';
+import CalculatorForm from '@/app/features/calculators/components/CalculatorForm';
 
 const Calculators = () => {
-  const [activeTab, setActiveTab] = useState<CalculatorKey>('fluid-rate');
+  const [category, setCategory] = useState(CALCULATOR_CATEGORIES[0]);
+  const [activeKey, setActiveKey] = useState(CALCULATORS[0].key);
 
-  const renderActiveCalculator = () => {
-    if (activeTab === 'fluid-rate') return <FluidRateCalculator />;
-    if (activeTab === 'drug-dose') return <DrugDoseCalculator />;
-    return <BodySurfaceAreaCalculator />;
+  const handleCategory = (next: string) => {
+    setCategory(next);
+    setActiveKey(calculatorsInCategory(next)[0].key);
   };
+
+  const calculators = calculatorsInCategory(category);
+  const active = CALCULATORS.find((calc) => calc.key === activeKey) ?? calculators[0];
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
@@ -24,19 +29,27 @@ const Calculators = () => {
           Veterinary calculators
         </Text>
         <Text as="p" variant="body-3" className="text-text-secondary">
-          Quick clinical calculators for fluid therapy, drug dosing, and body surface area.
+          Clinical calculators for fluids, dosing, electrolytes, nutrition, and more.
         </Text>
       </div>
 
       <SelectLabel
+        title="Category"
+        type="coloumn"
+        options={CALCULATOR_CATEGORIES.map((name) => ({ label: name, value: name }))}
+        activeOption={category}
+        setOption={handleCategory}
+      />
+      <SelectLabel
         title="Calculator"
-        options={[...CALCULATOR_TABS]}
-        activeOption={activeTab}
-        setOption={(value) => setActiveTab(value as CalculatorKey)}
+        type="coloumn"
+        options={calculators.map((calc) => ({ label: calc.label, value: calc.key }))}
+        activeOption={activeKey}
+        setOption={setActiveKey}
       />
 
       <Card variant="bordered" className="p-6">
-        {renderActiveCalculator()}
+        <CalculatorForm key={active.key} config={active} />
       </Card>
     </div>
   );
