@@ -13,7 +13,7 @@ The platform takes no fee and is never the financial principal. For every custom
 - Stripe: Standard Connect accounts with direct charges. The charge is created in the clinic's account context, so the processing fee, the statement descriptor, and dispute liability all sit with the clinic, and negative-balance liability stays with the clinic and Stripe rather than the platform. The platform takes no application fee.
 - Adyen: the clinic is the sub-merchant and merchant of record, settling to the clinic's balance account and bearing fees and chargebacks. The platform takes no split.
 
-There is no platform fee, take-rate, or split on either provider. This supersedes any earlier framing of destination transfers and platform fees. The current Stripe flow uses destination charges, which makes the platform the merchant of record; migrating it to direct charges is a prerequisite for the Stripe adapter to match this model and is tracked in its own issue.
+There is no platform fee, take-rate, or split on either provider. This supersedes any earlier framing of destination transfers and platform fees. The current Stripe flow uses destination charges, which makes the platform the merchant of record; migrating it to direct charges is a prerequisite for the Stripe adapter to match this model and is tracked in #1678.
 
 ## Goals
 
@@ -33,7 +33,7 @@ The persistence layer is already provider-aware; the orchestration layer is not.
 - `OrganizationBilling` (mapped to `OrgBilling`) holds account-readiness state under Stripe-shaped field names.
 - `FinanceProviderLink` and `IntegrationAccount` are existing per-organisation, per-provider precedents (the latter with a service, store, and settings UI for IDEXX and Merck).
 - The gateway gap: `apps/backend/src/services/stripe.service.ts` is a concrete object that builds the Stripe client directly, and finance and webhook code call it by name. `apps/backend/src/services/finance/payment.ts` does provider-neutral database work but is invoked from inside Stripe-specific webhook handlers, so there is no seam to route a different provider through it.
-- Clinic-facing charges are currently created as destination charges on the platform account (`transfer_data.destination`), which makes the platform the merchant of record. This contradicts the settlement model above and is corrected by the destination-to-direct migration (its own issue).
+- Clinic-facing charges are currently created as destination charges on the platform account (`transfer_data.destination`), which makes the platform the merchant of record. This contradicts the settlement model above and is corrected by the destination-to-direct migration (#1678).
 - The web client and mobile client are hosted-redirect: the backend returns a URL and the client navigates to it. There is no client-side card collection to replace. The only embedded provider SDK on the web is the connected-account onboarding component.
 
 ## Target architecture
@@ -143,7 +143,7 @@ The implementation must satisfy the following. Each is a named test in the test 
 
 ## Phased delivery
 
-- Phase 0: provider port, registry, the prerequisite hardening (idempotency and de-duplication store, currency-exponent helper, asynchronous refund and capture lifecycle, race-safe reconciliation, clinic-context refund settlement, distinct return URLs), and the Stripe adapter as a behaviour-preserving refactor on top of the direct-charge model. The direct-charge migration is its own issue and lands first. The largest and most valuable single piece even if the second provider never ships.
+- Phase 0: provider port, registry, the prerequisite hardening (idempotency and de-duplication store, currency-exponent helper, asynchronous refund and capture lifecycle, race-safe reconciliation, clinic-context refund settlement, distinct return URLs), and the Stripe adapter as a behaviour-preserving refactor on top of the direct-charge model. The direct-charge migration (#1678) lands first. The largest and most valuable single piece even if the second provider never ships.
 - Phase 1: second-provider payments (no payouts) in a sandbox merchant account, redirect client flow on web and mobile, behind a global enable flag and a per-organisation provider-config status, on one pilot organisation.
 - Phase 2: second-provider connected accounts (onboarding, sub-merchant settlement, payout reconciliation).
 - Phase 3: rollout, settings UI mirroring the existing Integrations page, per-organisation toggle, and operational dashboards.
@@ -220,4 +220,4 @@ Every correctness requirement above maps to a named test, so completeness is enf
 
 - No platform fee, take-rate, or split on either provider.
 - The clinic is the merchant of record and bears processing fees and chargebacks; the platform is software and governance only.
-- Stripe uses Standard Connect with direct charges; Adyen uses the clinic as sub-merchant. The Stripe destination-to-direct migration is tracked in its own issue.
+- Stripe uses Standard Connect with direct charges; Adyen uses the clinic as sub-merchant. The Stripe destination-to-direct migration is tracked in #1678.
