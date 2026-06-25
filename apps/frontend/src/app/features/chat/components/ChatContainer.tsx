@@ -16,13 +16,11 @@ import {
 import {
   Chat,
   Channel,
-  ChannelHeader,
   ChannelList,
   MessageInput,
   MessageList,
   Thread,
   Window,
-  ChannelPreviewMessenger,
   useChannelStateContext,
   useChatContext,
   ComponentProvider,
@@ -32,9 +30,19 @@ import type { Channel as StreamChannel } from 'stream-chat';
 import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-chat-react';
 import { MdDeleteForever } from 'react-icons/md';
 import { IoIosAddCircleOutline } from 'react-icons/io';
+import { LuSearch, LuCommand, LuMessageSquarePlus } from 'react-icons/lu';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 import Text from '@/app/ui/Text';
+import { Badge } from '@/app/ui';
+import ConversationRow from './ConversationRow';
+import { ChatAvatar } from './ChatAvatar';
+import { ChatHeaderContext } from './ChatHeaderContext';
+import ChatMessage from './ChatMessage';
+import ChatComposer from './ChatComposer';
+import ChatCommandPalette from './ChatCommandPalette';
+import ShareEntityModal from './ShareEntityModal';
+import { ChatShareContext } from './chatShareContext';
 
 import 'stream-chat-react/dist/css/v2/index.css';
 import './ChatContainer.css';
@@ -61,6 +69,9 @@ import {
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useAppointmentStore } from '@/app/stores/appointmentStore';
+import { useCompanionStore } from '@/app/stores/companionStore';
+import { useRouter } from 'next/navigation';
 import Modal from '@/app/ui/overlays/Modal';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -701,6 +712,12 @@ const ChannelHeaderWithCounterpart: FC<{
 
   const appointmentId = (channel?.data as any)?.appointmentId;
   const backendStatus = appointmentId ? statusByAppointmentId[appointmentId] : undefined;
+  const patientId = (channel?.data as any)?.patientId as string | undefined;
+  const appointment = useAppointmentStore((s) =>
+    appointmentId ? s.appointmentsById[appointmentId] : undefined
+  );
+  const companion = useCompanionStore((s) => (patientId ? s.companionsById[patientId] : undefined));
+  const router = useRouter();
 
   // Check if session is already closed
   useEffect(() => {
@@ -748,36 +765,95 @@ const ChannelHeaderWithCounterpart: FC<{
   };
 
   const hasSessionClosed = sessionClosed;
+  const online = isCounterpartOnline(channel, currentUserId);
+  const statusText = isGroupChat
+    ? `${channelMemberCount} members`
+    : hasSessionClosed
+      ? 'Chat closed'
+      : online
+        ? 'Active now'
+        : 'Offline';
+
+  const handleApptAction = (action: string) => {
+    router.push(action === 'Send form' ? '/forms' : '/appointments');
+  };
 
   return (
-    <div className="chat-header-bar">
-      <ChannelHeader title={title} />
-      <div className="flex items-center gap-3">
-        {isGroupChat && (
-          <Primary
-            text="Group Info"
-            onClick={() => {
-              if (channel) {
-                groupModalCtx.openEdit?.(channel);
-              }
-            }}
-          />
-        )}
-        {isClientChat && hasSessionClosed && (
-          <div className="px-3 py-1.5 bg-grey-light border border-grey-border rounded-lg">
-            <p className="text-caption-1 text-text-secondary font-medium m-0">Session Closed</p>
-          </div>
-        )}
-        {isClientChat && !hasSessionClosed && (
-          <Primary
-            text={closingSession ? 'Closing...' : 'Close Session'}
-            onClick={handleCloseSession}
-            isDisabled={closingSession}
-          />
-        )}
-      </div>
-    </div>
+    <>
+      <header className="flex shrink-0 items-center gap-3 border-b border-chat-divider bg-neutral-0 px-4 py-3">
+        <ChatAvatar
+          name={title}
+          online={!isGroupChat && !hasSessionClosed && online}
+          group={isGroupChat}
+          size="sm"
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="flex items-center gap-2">
+            <Text as="span" variant="body-3-emphasis" className="min-w-0 truncate text-neutral-900">
+              {title}
+            </Text>
+            {/* "Pet parent" is the fixed owner term and is NOT subject to the animal-terminology rewrite. */}
+            {isClientChat && <Badge tone="warning">Pet parent</Badge>}
+          </span>
+          <Text as="span" variant="caption-2" className="truncate text-neutral-500">
+            {statusText}
+          </Text>
+        </div>
+        {/* No phone/video calling in chat. */}
+        <div className="flex shrink-0 items-center gap-2">
+          {isGroupChat && (
+            <Primary
+              text="Group Info"
+              onClick={() => {
+                if (channel) {
+                  groupModalCtx.openEdit?.(channel);
+                }
+              }}
+            />
+          )}
+          {isClientChat && hasSessionClosed && <Badge tone="neutral">Session closed</Badge>}
+          {isClientChat && !hasSessionClosed && (
+            <Primary
+              text={closingSession ? 'Closing…' : 'Close session'}
+              onClick={handleCloseSession}
+              isDisabled={closingSession}
+            />
+          )}
+        </div>
+      </header>
+      {isClientChat && (
+        <ChatHeaderContext
+          allergy={companion?.allergy?.trim() || undefined}
+          alerts={companion?.alerts}
+          appointment={appointment}
+          onAction={handleApptAction}
+        />
+      )}
+    </>
   );
+};
+
+const formatRowTime = (value?: Date | string | null): string => {
+  if (!value) return '';
+  const date = typeof value === 'string' ? new Date(value) : value;
+  const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (diffMins < 1) return 'now';
+  if (diffMins < 60) return `${diffMins}m`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return date.toLocaleDateString(undefined, { weekday: 'short' });
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+const isCounterpartOnline = (
+  channel: StreamChannel | null | undefined,
+  currentUserId?: string | null
+): boolean => {
+  const members = channel?.state?.members ? Object.values(channel.state.members) : [];
+  const counterpart = members.find((member) => member.user?.id !== currentUserId);
+  return Boolean(counterpart?.user?.online);
 };
 
 const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
@@ -786,18 +862,48 @@ const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
   ...previewProps
 }) => {
   const wasActiveRef = useRef(false);
+  const channel = previewProps.channel;
 
   useEffect(() => {
     const isActive = Boolean(previewProps.active);
     if (isActive && !wasActiveRef.current) {
-      onPreviewSelect?.(previewProps.channel ?? null);
+      onPreviewSelect?.(channel ?? null);
     }
     wasActiveRef.current = isActive;
-  }, [previewProps.active, previewProps.channel, onPreviewSelect]);
+  }, [previewProps.active, channel, onPreviewSelect]);
 
-  const { title, image } = getChannelDisplayInfo(previewProps.channel ?? null, currentUserId);
+  const { title } = getChannelDisplayInfo(channel ?? null, currentUserId);
+  const scope = channel ? resolveChannelScope(channel) : 'colleagues';
+  const lastText = previewProps.lastMessage?.text?.trim();
+  const lastAt = channel?.state?.last_message_at ?? undefined;
+  const muted = (() => {
+    try {
+      return Boolean(channel?.muteStatus?.().muted);
+    } catch {
+      return false;
+    }
+  })();
 
-  return <ChannelPreviewMessenger {...previewProps} displayTitle={title} displayImage={image} />;
+  return (
+    <ConversationRow
+      name={title}
+      preview={lastText || 'No messages yet'}
+      time={formatRowTime(lastAt)}
+      unread={previewProps.unread}
+      online={isCounterpartOnline(channel, currentUserId)}
+      group={scope === 'groups'}
+      muted={muted}
+      active={previewProps.active}
+      onClick={(event) => {
+        if (previewProps.onSelect) previewProps.onSelect(event);
+        else previewProps.setActiveChannel?.(channel, previewProps.watchers);
+      }}
+      onMute={channel ? () => void channel.mute() : undefined}
+      onUnmute={channel ? () => void channel.unmute() : undefined}
+      onSnooze={channel ? (durationMs) => void channel.mute({ expiration: durationMs }) : undefined}
+      onArchive={channel ? () => void channel.hide() : undefined}
+    />
+  );
 };
 
 const createPreviewComponent = (
@@ -905,7 +1011,7 @@ const ChannelWindowContent: FC<ChannelWindowContentProps> = ({
         {isClosed ? (
           <ChatClosedFooter closedAt={channelState.closedAt || channelState.updatedAt} />
         ) : (
-          <MessageInput />
+          <MessageInput Input={ChatComposer} />
         )}
       </Window>
     </div>
@@ -921,6 +1027,20 @@ const RegularChannelWindow: FC<{ currentUserId?: string | null }> = ({ currentUs
   />
 );
 
+const ChatEmptyThread: FC = () => (
+  <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+    <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-primary-600">
+      <LuMessageSquarePlus className="h-6 w-6" />
+    </span>
+    <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
+      No messages yet
+    </Text>
+    <Text as="p" variant="caption-1" className="text-neutral-500">
+      Send the first message to start the conversation.
+    </Text>
+  </div>
+);
+
 const ChatWindow: FC<ChatWindowProps> = ({ showBackButton, onBack, currentUserId }) => {
   const shouldShowBackButton = showBackButton;
 
@@ -931,7 +1051,7 @@ const ChatWindow: FC<ChatWindowProps> = ({ showBackButton, onBack, currentUserId
           ← Back
         </button>
       )}
-      <Channel>
+      <Channel Message={ChatMessage} EmptyStateIndicator={ChatEmptyThread}>
         <RegularChannelWindow currentUserId={currentUserId} />
         <Thread />
       </Channel>
@@ -1111,6 +1231,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
     Record<string, 'active' | 'ended'>
   >({});
   const [directSearch, setDirectSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [shareChannelId, setShareChannelId] = useState<string | null>(null);
   const [creatingChat, setCreatingChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [directListHover, setDirectListHover] = useState(false);
@@ -1414,8 +1536,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
 
   const channelFilter = useCallback<NonNullable<ChannelListProps['channelRenderFilterFn']>>(
     (channels) => {
-      if (!scope) return channels;
-      return channels.filter((chan) => {
+      const scopeMatches = (chan: StreamChannel) => {
+        if (!scope) return true;
         // Allow team/direct org channels regardless of missing chatCategory
         const type = (chan.type || '').toLowerCase();
         const resolvedScope = resolveChannelScope(chan);
@@ -1438,9 +1560,24 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         }
         // fallback to standard category resolution
         return resolvedScope === scope;
-      });
+      };
+      const q = searchTerm.trim().toLowerCase();
+      const searchMatches = (chan: StreamChannel) => {
+        if (!q) return true;
+        const name = ((chan.data as { name?: string } | undefined)?.name || '').toLowerCase();
+        const members = Object.values(chan.state?.members ?? {})
+          .map((m) => (m.user?.name || '').toLowerCase())
+          .join(' ');
+        return name.includes(q) || members.includes(q);
+      };
+      return channels.filter((chan) => scopeMatches(chan) && searchMatches(chan));
     },
-    [scope]
+    [scope, searchTerm]
+  );
+
+  const shareContextValue = useMemo(
+    () => ({ openShare: (id: string) => setShareChannelId(id) }),
+    []
   );
 
   const activateChannelById = useCallback(
@@ -1849,183 +1986,215 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   };
 
   const chatContent = (
-    <ChatLayout
-      filters={filters}
-      sort={CHAT_SORT}
-      options={CHAT_OPTIONS}
-      isMobile={isMobile}
-      isChannelSelected={isChannelSelected}
-      previewComponent={previewComponent}
-      onBack={() => {
-        setIsChannelSelected(false);
-        setShowEmptyPlaceholder(true);
-      }}
-      currentUserId={client.userID}
-      channelFilter={channelFilter}
-      showEmpty={showEmptyPlaceholder}
-      channelListHeader={
-        (scope === 'colleagues' || scope === 'groups') && (
-          <div className="p-3 border-b border-grey-light flex flex-col gap-3">
-            {scope === 'colleagues' && (
-              <div className="flex flex-col gap-2">
-                <FormInput
-                  intype="text"
-                  inname="colleagueSearch"
-                  inlabel="Search teammate to chat"
-                  value={directSearch}
-                  onFocus={() => {
-                    if (directBlurTimeout.current) {
-                      clearTimeout(directBlurTimeout.current);
-                      directBlurTimeout.current = null;
-                    }
-                    setSearchFocused(true);
-                  }}
-                  onBlur={() => {
-                    directBlurTimeout.current = setTimeout(() => {
-                      if (!directListHover) {
-                        setSearchFocused(false);
-                      }
-                    }, 120);
-                  }}
-                  onChange={(e) => setDirectSearch(e.target.value)}
+    <>
+      <ChatLayout
+        filters={filters}
+        sort={CHAT_SORT}
+        options={CHAT_OPTIONS}
+        isMobile={isMobile}
+        isChannelSelected={isChannelSelected}
+        previewComponent={previewComponent}
+        onBack={() => {
+          setIsChannelSelected(false);
+          setShowEmptyPlaceholder(true);
+        }}
+        currentUserId={client.userID}
+        channelFilter={channelFilter}
+        showEmpty={showEmptyPlaceholder}
+        channelListHeader={
+          <>
+            <div className="border-b border-chat-divider p-3">
+              <div className="flex items-center gap-2 rounded-full border border-input-border bg-chat-surface px-3 py-2 focus-within:border-input-border-active">
+                <LuSearch className="h-4 w-4 shrink-0 text-neutral-400" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search conversations…"
+                  aria-label="Search conversations"
+                  className="w-full bg-transparent font-satoshi text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
                 />
-                <ul
-                  className="max-h-40 overflow-y-auto flex flex-col gap-2 list-none p-0 m-0"
-                  onMouseEnter={() => setDirectListHover(true)}
-                  onMouseLeave={() => {
-                    setDirectListHover(false);
-                    if (!searchFocused) setSearchFocused(false);
-                  }}
-                >
-                  {orgUsersLoading && (
-                    <span className="text-caption-1 text-text-secondary">Loading teammates…</span>
-                  )}
-                  {!orgUsersLoading &&
-                    (searchFocused || directListHover) &&
-                    (() => {
-                      const dlower = directSearch.toLowerCase();
-                      const results: (OrgUserOption & { keyId: string | undefined })[] = [];
-                      for (const u of orgUsers) {
-                        if (
-                          !(u.name + (u.email ?? '') + (u.role ?? ''))
-                            .toLowerCase()
-                            .includes(dlower)
-                        )
-                          continue;
-                        const keyId = u.userId ?? u.id;
-                        if (keyId === client.userID) continue;
-                        results.push({ ...u, keyId });
-                        if (results.length === 8) break;
-                      }
-                      return results;
-                    })().map((u) => (
-                      <button
-                        key={u.keyId}
-                        type="button"
-                        onClick={() =>
-                          handleStartDirectChat({
-                            ...u,
-                            id: u.id,
-                            userId: u.userId,
-                            practitionerId: u.practitionerId,
-                          })
+                <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400 sm:flex">
+                  <LuCommand className="h-3 w-3" />K
+                </span>
+              </div>
+            </div>
+            {(scope === 'colleagues' || scope === 'groups') && (
+              <div className="p-3 border-b border-grey-light flex flex-col gap-3">
+                {scope === 'colleagues' && (
+                  <div className="flex flex-col gap-2">
+                    <FormInput
+                      intype="text"
+                      inname="colleagueSearch"
+                      inlabel="Search teammate to chat"
+                      value={directSearch}
+                      onFocus={() => {
+                        if (directBlurTimeout.current) {
+                          clearTimeout(directBlurTimeout.current);
+                          directBlurTimeout.current = null;
                         }
-                        disabled={creatingChat}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-2xl! border border-grey-light bg-white cursor-pointer text-left hover:border-input-border-active transition-all duration-200 overflow-hidden"
-                      >
-                        <div className="size-8 rounded-full bg-card-hover flex items-center justify-center">
-                          <span className="font-satoshi text-black-text text-sm font-medium">
-                            {(u.name || u.email || '?')
-                              .split(' ')
-                              .map((p) => p[0])
-                              .join('')
-                              .slice(0, 2)
-                              .toUpperCase()}
+                        setSearchFocused(true);
+                      }}
+                      onBlur={() => {
+                        directBlurTimeout.current = setTimeout(() => {
+                          if (!directListHover) {
+                            setSearchFocused(false);
+                          }
+                        }, 120);
+                      }}
+                      onChange={(e) => setDirectSearch(e.target.value)}
+                    />
+                    <ul
+                      className="max-h-40 overflow-y-auto flex flex-col gap-2 list-none p-0 m-0"
+                      onMouseEnter={() => setDirectListHover(true)}
+                      onMouseLeave={() => {
+                        setDirectListHover(false);
+                        if (!searchFocused) setSearchFocused(false);
+                      }}
+                    >
+                      {orgUsersLoading && (
+                        <span className="text-caption-1 text-text-secondary">
+                          Loading teammates…
+                        </span>
+                      )}
+                      {!orgUsersLoading &&
+                        (searchFocused || directListHover) &&
+                        (() => {
+                          const dlower = directSearch.toLowerCase();
+                          const results: (OrgUserOption & { keyId: string | undefined })[] = [];
+                          for (const u of orgUsers) {
+                            if (
+                              !(u.name + (u.email ?? '') + (u.role ?? ''))
+                                .toLowerCase()
+                                .includes(dlower)
+                            )
+                              continue;
+                            const keyId = u.userId ?? u.id;
+                            if (keyId === client.userID) continue;
+                            results.push({ ...u, keyId });
+                            if (results.length === 8) break;
+                          }
+                          return results;
+                        })().map((u) => (
+                          <button
+                            key={u.keyId}
+                            type="button"
+                            onClick={() =>
+                              handleStartDirectChat({
+                                ...u,
+                                id: u.id,
+                                userId: u.userId,
+                                practitionerId: u.practitionerId,
+                              })
+                            }
+                            disabled={creatingChat}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl! border border-grey-light bg-white cursor-pointer text-left hover:border-input-border-active transition-all duration-200 overflow-hidden"
+                          >
+                            <div className="size-8 rounded-full bg-card-hover flex items-center justify-center">
+                              <span className="font-satoshi text-black-text text-sm font-medium">
+                                {(u.name || u.email || '?')
+                                  .split(' ')
+                                  .map((p) => p[0])
+                                  .join('')
+                                  .slice(0, 2)
+                                  .toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-body-4 text-text-primary font-medium">
+                                {u.name}
+                              </span>
+                              {u.email && (
+                                <span className="text-caption-2 text-text-secondary">
+                                  {u.email}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      {!orgUsersLoading &&
+                        searchFocused &&
+                        directSearch.trim().length > 0 &&
+                        !orgUsers.some((u) =>
+                          (u.name + (u.email ?? '') + (u.role ?? ''))
+                            .toLowerCase()
+                            .includes(directSearch.toLowerCase())
+                        ) && (
+                          <span className="text-caption-1 text-text-secondary">
+                            No teammates found. Adjust your search.
                           </span>
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-body-4 text-text-primary font-medium">
-                            {u.name}
-                          </span>
-                          {u.email && (
-                            <span className="text-caption-2 text-text-secondary">{u.email}</span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  {!orgUsersLoading &&
-                    searchFocused &&
-                    directSearch.trim().length > 0 &&
-                    !orgUsers.some((u) =>
-                      (u.name + (u.email ?? '') + (u.role ?? ''))
-                        .toLowerCase()
-                        .includes(directSearch.toLowerCase())
-                    ) && (
-                      <span className="text-caption-1 text-text-secondary">
-                        No teammates found. Adjust your search.
-                      </span>
-                    )}
-                </ul>
+                        )}
+                    </ul>
+                  </div>
+                )}
+
+                {scope === 'groups' && (
+                  <Primary text="Create Group" onClick={openCreateGroupModal} className="w-fit" />
+                )}
               </div>
             )}
-
-            {scope === 'groups' && (
-              <Primary text="Create Group" onClick={openCreateGroupModal} className="w-fit" />
-            )}
-          </div>
-        )
-      }
-    />
+          </>
+        }
+      />
+      <ChatCommandPalette client={client} filters={filters} onJump={activateChannelById} />
+    </>
   );
 
   return (
     <ChatSessionStatusContext.Provider value={chatSessionStatusContextValue}>
       <GroupModalContext.Provider value={groupModalContextValue}>
-        <div className={className}>
-          <Chat
-            key={appointmentId ? `appointment-${appointmentId}` : `scope-${scope}`}
-            client={client}
-            theme="str-chat__theme-light"
-          >
-            <AppointmentChannelInitializer
-              appointmentId={appointmentId}
-              onActivated={(channel) => {
-                setIsChannelSelected(true);
-                setShowEmptyPlaceholder(false);
-                onChannelSelect?.(channel);
-              }}
-              onCleared={() => {
-                setIsChannelSelected(false);
-                setShowEmptyPlaceholder(true);
-                onChannelSelect?.(null);
-              }}
+        <ChatShareContext.Provider value={shareContextValue}>
+          <div className={className}>
+            <Chat
+              key={appointmentId ? `appointment-${appointmentId}` : `scope-${scope}`}
+              client={client}
+              theme="str-chat__theme-light"
+            >
+              <AppointmentChannelInitializer
+                appointmentId={appointmentId}
+                onActivated={(channel) => {
+                  setIsChannelSelected(true);
+                  setShowEmptyPlaceholder(false);
+                  onChannelSelect?.(channel);
+                }}
+                onCleared={() => {
+                  setIsChannelSelected(false);
+                  setShowEmptyPlaceholder(true);
+                  onChannelSelect?.(null);
+                }}
+              />
+              {chatContent}
+            </Chat>
+            <GroupModal
+              open={groupModalOpen}
+              mode={groupModalMode}
+              title={groupModalTitle}
+              placeholder={groupModalPlaceholder}
+              members={groupModalMembers}
+              ownerId={groupModalOwnerRef.current}
+              currentUserId={client.userID}
+              search={groupModalSearch}
+              busy={groupModalBusy}
+              orgUsers={orgUsers}
+              orgUsersLoading={orgUsersLoading}
+              channel={groupModalChannel}
+              onClose={() => setGroupModalOpen(false)}
+              onTitleChange={setGroupModalTitle}
+              onSearchChange={setGroupModalSearch}
+              onMembersChange={setGroupModalMembers}
+              onCreate={handleModalCreate}
+              onUpdateTitle={handleModalUpdateTitle}
+              onAddMember={handleModalAddMember}
+              onRemoveMember={handleModalRemoveMember}
+              onDelete={handleModalDelete}
             />
-            {chatContent}
-          </Chat>
-          <GroupModal
-            open={groupModalOpen}
-            mode={groupModalMode}
-            title={groupModalTitle}
-            placeholder={groupModalPlaceholder}
-            members={groupModalMembers}
-            ownerId={groupModalOwnerRef.current}
-            currentUserId={client.userID}
-            search={groupModalSearch}
-            busy={groupModalBusy}
-            orgUsers={orgUsers}
-            orgUsersLoading={orgUsersLoading}
-            channel={groupModalChannel}
-            onClose={() => setGroupModalOpen(false)}
-            onTitleChange={setGroupModalTitle}
-            onSearchChange={setGroupModalSearch}
-            onMembersChange={setGroupModalMembers}
-            onCreate={handleModalCreate}
-            onUpdateTitle={handleModalUpdateTitle}
-            onAddMember={handleModalAddMember}
-            onRemoveMember={handleModalRemoveMember}
-            onDelete={handleModalDelete}
-          />
-        </div>
+            {shareChannelId && (
+              <ShareEntityModal
+                channelId={shareChannelId}
+                onClose={() => setShareChannelId(null)}
+              />
+            )}
+          </div>
+        </ChatShareContext.Provider>
       </GroupModalContext.Provider>
     </ChatSessionStatusContext.Provider>
   );

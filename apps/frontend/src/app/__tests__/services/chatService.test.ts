@@ -85,12 +85,12 @@ describe('Chat Service', () => {
     });
 
     it('throws generic error on unknown failure', async () => {
-        (axiosService.postData as jest.Mock).mockRejectedValue('Err');
+      (axiosService.postData as jest.Mock).mockRejectedValue('Err');
 
-        await expect(chatService.createChatSession('appt-1')).rejects.toThrow(
-          'Failed to create chat session for appointment: appt-1'
-        );
-      });
+      await expect(chatService.createChatSession('appt-1')).rejects.toThrow(
+        'Failed to create chat session for appointment: appt-1'
+      );
+    });
   });
 
   describe('getChatSessions', () => {
@@ -100,10 +100,7 @@ describe('Chat Service', () => {
 
       const result = await chatService.getChatSessions('org-1');
 
-      expect(axiosService.getData).toHaveBeenCalledWith(
-        '/v1/chat/pms/sessions/org-1',
-        {}
-      );
+      expect(axiosService.getData).toHaveBeenCalledWith('/v1/chat/pms/sessions/org-1', {});
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -152,12 +149,12 @@ describe('Chat Service', () => {
     });
 
     it('throws generic error on unknown failure', async () => {
-        (axiosService.postData as jest.Mock).mockRejectedValue('Err');
+      (axiosService.postData as jest.Mock).mockRejectedValue('Err');
 
-        await expect(chatService.getChatSession('appt-1')).rejects.toThrow(
-          'Failed to retrieve chat session for appointment: appt-1'
-        );
-      });
+      await expect(chatService.getChatSession('appt-1')).rejects.toThrow(
+        'Failed to retrieve chat session for appointment: appt-1'
+      );
+    });
   });
 
   describe('closeChatSession', () => {
@@ -172,9 +169,7 @@ describe('Chat Service', () => {
     });
 
     it('throws validation error if ID missing', async () => {
-      await expect(chatService.closeChatSession('')).rejects.toThrow(
-        'Invalid session ID provided'
-      );
+      await expect(chatService.closeChatSession('')).rejects.toThrow('Invalid session ID provided');
     });
 
     it('throws error on failure', async () => {
@@ -187,12 +182,12 @@ describe('Chat Service', () => {
     });
 
     it('throws generic error on unknown failure', async () => {
-        (axiosService.postData as jest.Mock).mockRejectedValue('Err');
+      (axiosService.postData as jest.Mock).mockRejectedValue('Err');
 
-        await expect(chatService.closeChatSession('s1')).rejects.toThrow(
-          'Failed to close chat session: s1'
-        );
-      });
+      await expect(chatService.closeChatSession('s1')).rejects.toThrow(
+        'Failed to close chat session: s1'
+      );
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -207,10 +202,7 @@ describe('Chat Service', () => {
 
       const result = await chatService.createOrgDirectChat(mockPayload);
 
-      expect(axiosService.postData).toHaveBeenCalledWith(
-        '/v1/chat/pms/org/direct',
-        mockPayload
-      );
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/org/direct', mockPayload);
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -231,10 +223,7 @@ describe('Chat Service', () => {
 
       const result = await chatService.createOrgGroupChat(mockPayload);
 
-      expect(axiosService.postData).toHaveBeenCalledWith(
-        '/v1/chat/pms/org/group',
-        mockPayload
-      );
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/org/group', mockPayload);
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -277,10 +266,9 @@ describe('Chat Service', () => {
 
       await chatService.addGroupMembers('g1', ['m1']);
 
-      expect(axiosService.postData).toHaveBeenCalledWith(
-        '/v1/chat/pms/groups/g1/members/add',
-        { memberIds: ['m1'] }
-      );
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/groups/g1/members/add', {
+        memberIds: ['m1'],
+      });
     });
 
     it('returns early if groupId missing', async () => {
@@ -300,10 +288,9 @@ describe('Chat Service', () => {
 
       await chatService.removeGroupMembers('g1', ['m1']);
 
-      expect(axiosService.postData).toHaveBeenCalledWith(
-        '/v1/chat/pms/groups/g1/members/remove',
-        { memberIds: ['m1'] }
-      );
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/groups/g1/members/remove', {
+        memberIds: ['m1'],
+      });
     });
 
     it('returns early if validation fails', async () => {
@@ -319,10 +306,9 @@ describe('Chat Service', () => {
 
       const result = await chatService.updateGroup('g1', { title: 'New' });
 
-      expect(axiosService.patchData).toHaveBeenCalledWith(
-        '/v1/chat/pms/groups/g1',
-        { title: 'New' }
-      );
+      expect(axiosService.patchData).toHaveBeenCalledWith('/v1/chat/pms/groups/g1', {
+        title: 'New',
+      });
       expect(result).toEqual(mockResponse.data);
     });
   });
@@ -382,68 +368,136 @@ describe('Chat Service', () => {
     });
 
     it('handles fallback mapping fields correctly', async () => {
-        // Test fallbacks when primary fields are missing
-        const apiData = [
-          {
-            // id mapping: entry.id fallback
-            id: 'fallback-id',
-            // userId mapping: userOrganisation.userId fallback
-            userOrganisation: {
-                userId: 'fallback-user-id',
-                name: 'Fallback Name',
-                roleCode: 'NURSE'
-            },
-            // name fallback via userOrganisation.name
-            // role fallback via userOrganisation.roleCode
-            // speciality fallback via entry.speciality string
-            speciality: 'General',
-          },
-        ];
-        (axiosService.getData as jest.Mock).mockResolvedValue({ data: apiData });
-
-        const result = await chatService.fetchOrgUsers('org-1');
-
-        expect(result[0]).toEqual({
+      // Test fallbacks when primary fields are missing
+      const apiData = [
+        {
+          // id mapping: entry.id fallback
           id: 'fallback-id',
-          userId: 'fallback-user-id',
-          practitionerId: undefined,
-          name: 'Fallback Name',
-          email: undefined,
-          image: undefined,
-          role: 'NURSE',
-          speciality: 'General',
-        });
-      });
-
-      it('handles third-tier fallbacks', async () => {
-        const apiData = [
-          {
-            // id fallback to entry.userId if others fail
-            userId: 'direct-user-id',
-            userOrganisation: {
-                userReference: 'ref-user-id'
-            },
-            // role fallback to entry.role
-            role: 'ADMIN'
+          // userId mapping: userOrganisation.userId fallback
+          userOrganisation: {
+            userId: 'fallback-user-id',
+            name: 'Fallback Name',
+            roleCode: 'NURSE',
           },
-        ];
-        (axiosService.getData as jest.Mock).mockResolvedValue({ data: apiData });
+          // name fallback via userOrganisation.name
+          // role fallback via userOrganisation.roleCode
+          // speciality fallback via entry.speciality string
+          speciality: 'General',
+        },
+      ];
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: apiData });
 
-        const result = await chatService.fetchOrgUsers('org-1');
+      const result = await chatService.fetchOrgUsers('org-1');
 
-        // id logic: practitioner ref -> entry.userId -> entry.id
-        // Here practitioner is missing, so it picks entry.userId ('direct-user-id')
-        // userId logic: entry.userId ('direct-user-id')
-        expect(result[0].id).toBe('direct-user-id');
-        expect(result[0].userId).toBe('direct-user-id');
-        expect(result[0].role).toBe('ADMIN');
+      expect(result[0]).toEqual({
+        id: 'fallback-id',
+        userId: 'fallback-user-id',
+        practitionerId: undefined,
+        name: 'Fallback Name',
+        email: undefined,
+        image: undefined,
+        role: 'NURSE',
+        speciality: 'General',
       });
+    });
+
+    it('handles third-tier fallbacks', async () => {
+      const apiData = [
+        {
+          // id fallback to entry.userId if others fail
+          userId: 'direct-user-id',
+          userOrganisation: {
+            userReference: 'ref-user-id',
+          },
+          // role fallback to entry.role
+          role: 'ADMIN',
+        },
+      ];
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: apiData });
+
+      const result = await chatService.fetchOrgUsers('org-1');
+
+      // id logic: practitioner ref -> entry.userId -> entry.id
+      // Here practitioner is missing, so it picks entry.userId ('direct-user-id')
+      // userId logic: entry.userId ('direct-user-id')
+      expect(result[0].id).toBe('direct-user-id');
+      expect(result[0].userId).toBe('direct-user-id');
+      expect(result[0].role).toBe('ADMIN');
+    });
 
     it('logs and rethrows error on fetch failure', async () => {
       const error = new Error('Fetch failed');
       (axiosService.getData as jest.Mock).mockRejectedValue(error);
 
       await expect(chatService.fetchOrgUsers('org-1')).rejects.toThrow(error);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('shareEntityToChannel', () => {
+    it('posts the share payload and returns the record', async () => {
+      const record = { id: 'share1', channelId: 'ch1' };
+      (axiosService.postData as jest.Mock).mockResolvedValue({ data: record });
+      const payload = {
+        channelId: 'ch1',
+        entityType: 'COMPANION' as const,
+        entityId: 'c1',
+        title: 'Bella',
+      };
+
+      const result = await chatService.shareEntityToChannel(payload);
+
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/share', payload);
+      expect(result).toEqual(record);
+    });
+
+    it('logs and rethrows on failure', async () => {
+      const error = new Error('share failed');
+      (axiosService.postData as jest.Mock).mockRejectedValue(error);
+
+      await expect(
+        chatService.shareEntityToChannel({ channelId: 'ch1', entityType: 'FORM', entityId: 'f1' })
+      ).rejects.toThrow(error);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('listSharedEntities', () => {
+    it('fetches shared entities for a channel', async () => {
+      const items = [{ id: 's1' }];
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: items });
+
+      const result = await chatService.listSharedEntities('ch1');
+
+      expect(axiosService.getData).toHaveBeenCalledWith('/v1/chat/pms/share/ch1');
+      expect(result).toEqual(items);
+    });
+
+    it('logs and rethrows on failure', async () => {
+      const error = new Error('list failed');
+      (axiosService.getData as jest.Mock).mockRejectedValue(error);
+
+      await expect(chatService.listSharedEntities('ch1')).rejects.toThrow(error);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('revokeSharedEntity', () => {
+    it('revokes a shared entity by id', async () => {
+      const record = { id: 's1', revokedAt: 'now' };
+      (axiosService.postData as jest.Mock).mockResolvedValue({ data: record });
+
+      const result = await chatService.revokeSharedEntity('s1');
+
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/share/s1/revoke');
+      expect(result).toEqual(record);
+    });
+
+    it('logs and rethrows on failure', async () => {
+      const error = new Error('revoke failed');
+      (axiosService.postData as jest.Mock).mockRejectedValue(error);
+
+      await expect(chatService.revokeSharedEntity('s1')).rejects.toThrow(error);
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
   });

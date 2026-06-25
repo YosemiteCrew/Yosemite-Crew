@@ -290,3 +290,76 @@ export const fetchOrgUsers = async (organisationId: string): Promise<OrgUser[]> 
     throw error;
   }
 };
+
+export type SharedEntityType =
+  | 'COMPANION'
+  | 'APPOINTMENT'
+  | 'INVOICE'
+  | 'FORM'
+  | 'PRESCRIPTION'
+  | 'DOCUMENT';
+
+export type ShareEntityPayload = {
+  channelId: string;
+  entityType: SharedEntityType;
+  entityId: string;
+  title?: string;
+  snapshot?: Record<string, unknown>;
+};
+
+export type SharedChatEntity = {
+  id: string;
+  organisationId: string;
+  channelId: string;
+  entityType: SharedEntityType;
+  entityId: string;
+  title?: string | null;
+  snapshot?: Record<string, unknown> | null;
+  messageId?: string | null;
+  sharedById: string;
+  revokedAt?: string | null;
+  createdAt: string;
+};
+
+/**
+ * Share a PIMS record (companion, appointment, invoice, etc.) into a chat
+ * channel. The backend validates membership, records the share (audit), and
+ * posts the structured card message to Stream.
+ */
+export const shareEntityToChannel = async (
+  payload: ShareEntityPayload
+): Promise<SharedChatEntity> => {
+  try {
+    const response = await postData<SharedChatEntity>('/v1/chat/pms/share', payload);
+    return response.data;
+  } catch (error) {
+    logError('shareEntityToChannel - Failed to share entity into chat', error, { payload });
+    throw error;
+  }
+};
+
+/**
+ * List the (non-revoked) entities shared into a channel.
+ */
+export const listSharedEntities = async (channelId: string): Promise<SharedChatEntity[]> => {
+  try {
+    const response = await getData<SharedChatEntity[]>(`/v1/chat/pms/share/${channelId}`);
+    return response.data;
+  } catch (error) {
+    logError('listSharedEntities - Failed to list shared entities', error, { channelId });
+    throw error;
+  }
+};
+
+/**
+ * Revoke a previously shared entity (soft-revoke + remove the Stream message).
+ */
+export const revokeSharedEntity = async (id: string): Promise<SharedChatEntity> => {
+  try {
+    const response = await postData<SharedChatEntity>(`/v1/chat/pms/share/${id}/revoke`);
+    return response.data;
+  } catch (error) {
+    logError('revokeSharedEntity - Failed to revoke shared entity', error, { id });
+    throw error;
+  }
+};

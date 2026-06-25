@@ -92,8 +92,11 @@ describe('streamChatService', () => {
 
       expect(mockClient.connectUser).toHaveBeenCalledWith(
         { id: 'user-1', name: 'User One' },
-        'test-token'
+        expect.any(Function)
       );
+      // The token provider resolves to the backend token (enables auto-refresh).
+      const tokenProvider = mockClient.connectUser.mock.calls[0][1] as () => Promise<string>;
+      await expect(tokenProvider()).resolves.toBe('test-token');
     });
 
     it('connects a new user with image', async () => {
@@ -101,7 +104,7 @@ describe('streamChatService', () => {
 
       expect(mockClient.connectUser).toHaveBeenCalledWith(
         { id: 'user-1', name: 'User One', image: 'image-url' },
-        'test-token'
+        expect.any(Function)
       );
     });
 
@@ -122,7 +125,7 @@ describe('streamChatService', () => {
       expect(mockClient.disconnectUser).toHaveBeenCalled();
       expect(mockClient.connectUser).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'new-user' }),
-        expect.any(String)
+        expect.any(Function)
       );
     });
 

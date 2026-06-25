@@ -538,7 +538,7 @@ describe('ChatContainer', () => {
   });
 
   it('handles closing session', async () => {
-    // Force context to be client chat so "Close Session" appears
+    // Force context to be client chat so "Close session" appears
     const clientChannel = {
       ...defaultMockChannel,
       data: { appointmentId: '123', chatCategory: 'clients' },
@@ -551,10 +551,10 @@ describe('ChatContainer', () => {
       render(<ChatContainer appointmentId="123" />);
     });
 
-    await waitFor(() => expect(screen.getByText('Close Session')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Close session')).toBeInTheDocument());
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Close Session'));
+      fireEvent.click(screen.getByText('Close session'));
     });
 
     await waitFor(() => {
@@ -578,7 +578,7 @@ describe('ChatContainer', () => {
       render(<ChatContainer appointmentId="123" />);
     });
 
-    const closeBtn = await screen.findByText('Close Session');
+    const closeBtn = await screen.findByText('Close session');
     await act(async () => {
       fireEvent.click(closeBtn);
     });
