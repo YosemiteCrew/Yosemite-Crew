@@ -1,16 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Text } from '@/app/ui';
+import { Card } from '@/app/ui';
 import { SelectLabel } from '@/app/ui/inputs';
 import {
   CALCULATORS,
   CALCULATOR_CATEGORIES,
   calculatorsInCategory,
 } from '@/app/features/calculators/registry';
+import { type CalculatorSpecies } from '@/app/features/calculators/utils/shared';
 import CalculatorForm from '@/app/features/calculators/components/CalculatorForm';
 
-const Calculators = () => {
+type CalculatorBrowserProps = {
+  initialValues?: Record<string, string>;
+  initialSpecies?: CalculatorSpecies;
+};
+
+const CalculatorBrowser = ({ initialValues, initialSpecies }: CalculatorBrowserProps) => {
   const [category, setCategory] = useState(CALCULATOR_CATEGORIES[0]);
   const [activeKey, setActiveKey] = useState(CALCULATORS[0].key);
 
@@ -23,16 +29,7 @@ const Calculators = () => {
   const active = CALCULATORS.find((calc) => calc.key === activeKey) ?? calculators[0];
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
-      <div className="flex flex-col gap-2">
-        <Text as="h1" variant="heading-1" className="text-text-primary">
-          Veterinary calculators
-        </Text>
-        <Text as="p" variant="body-3" className="text-text-secondary">
-          Clinical calculators for fluids, dosing, electrolytes, nutrition, and more.
-        </Text>
-      </div>
-
+    <div className="flex flex-col gap-4">
       <SelectLabel
         title="Category"
         type="coloumn"
@@ -47,12 +44,16 @@ const Calculators = () => {
         activeOption={activeKey}
         setOption={setActiveKey}
       />
-
-      <Card variant="bordered" className="p-6">
-        <CalculatorForm key={active.key} config={active} />
+      <Card variant="bordered" className="p-5">
+        <CalculatorForm
+          key={active.key}
+          config={active}
+          initialValues={initialValues}
+          initialSpecies={initialSpecies}
+        />
       </Card>
     </div>
   );
 };
 
-export default Calculators;
+export default CalculatorBrowser;

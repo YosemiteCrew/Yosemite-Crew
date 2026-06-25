@@ -44,6 +44,10 @@ jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch',
   () => ({ __esModule: true, default: () => <div>MerckStub</div> })
 );
+jest.mock(
+  '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/CalculatorsPanel',
+  () => ({ __esModule: true, default: () => <div>CalculatorsStub</div> })
+);
 jest.mock('@/app/features/documents/components/CompanionDocumentsSection', () => ({
   __esModule: true,
   default: ({ companionId }: { companionId: string }) => <div>Records for {companionId}</div>,
@@ -227,9 +231,9 @@ describe('QuickActionsModal shell', () => {
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
   });
 
-  it('renders all six nav items and routes between panels', () => {
+  it('renders all seven nav items and routes between panels', () => {
     const { onChangeAction } = renderModal('RECORD');
-    ['Record', 'Tasks', 'Documents', 'Chat', 'Activity', 'MSD'].forEach((label) => {
+    ['Record', 'Tasks', 'Documents', 'Chat', 'Activity', 'MSD', 'Calculators'].forEach((label) => {
       expect(screen.getByText(label)).toBeInTheDocument();
     });
     const msdNav = screen.getByText('MSD').closest('button');
@@ -241,6 +245,13 @@ describe('QuickActionsModal shell', () => {
     expect(onChangeAction).toHaveBeenCalledWith('TASKS');
     fireEvent.click(screen.getByText('MSD'));
     expect(onChangeAction).toHaveBeenCalledWith('MSD');
+    fireEvent.click(screen.getByText('Calculators'));
+    expect(onChangeAction).toHaveBeenCalledWith('CALCULATORS');
+  });
+
+  it('renders the calculators panel when selected', () => {
+    renderModal('CALCULATORS');
+    expect(screen.getByText('CalculatorsStub')).toBeInTheDocument();
   });
 
   it('marks the active nav item as pressed', () => {

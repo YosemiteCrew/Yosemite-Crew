@@ -46,7 +46,6 @@ export const appRoutes: RouteItem[] = [
     verify: true,
     requiredAnyPermissions: [PERMISSIONS.COMPANIONS_VIEW_ANY],
   },
-  { name: 'Calculators', href: '/calculators', verify: false },
   {
     name: 'Inventory',
     href: '/inventory',

@@ -14,7 +14,6 @@ import {
   IoWalletOutline,
 } from 'react-icons/io5';
 import {
-  MdCalculate,
   MdDashboard,
   MdInventory2,
   MdOutlineChecklist,
@@ -50,7 +49,6 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Chat: IoChatbubbleEllipsesOutline,
   Finance: IoWalletOutline,
   Companions: FaPaw,
-  Calculators: MdCalculate,
   Inventory: MdInventory2,
   Integrations: IoGitNetworkOutline,
   Templates: IoBookOutline,
@@ -63,7 +61,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
 const APP_ROUTE_GROUPS = [
   { label: 'Overview', routeNames: ['Dashboard'] },
   { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
-  { label: 'Clients & Records', routeNames: ['Companions', 'Calculators', 'Templates'] },
+  { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
   { label: 'Business', routeNames: ['Finance', 'Inventory'] },
   { label: 'Administration', routeNames: ['Organization', 'Integrations'] },
 ] as const;

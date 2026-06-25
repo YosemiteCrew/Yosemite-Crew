@@ -16,12 +16,16 @@ import { type CalculatorConfig } from '@/app/features/calculators/registry';
 
 type CalculatorFormProps = {
   config: CalculatorConfig;
+  initialValues?: Record<string, string>;
+  initialSpecies?: CalculatorSpecies;
 };
 
-const CalculatorForm = ({ config }: CalculatorFormProps) => {
-  const [species, setSpecies] = useState<CalculatorSpecies>('dog');
+const CalculatorForm = ({ config, initialValues, initialSpecies }: CalculatorFormProps) => {
+  const [species, setSpecies] = useState<CalculatorSpecies>(initialSpecies ?? 'dog');
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(config.fields.map((field) => [field.name, '']))
+    Object.fromEntries(
+      config.fields.map((field) => [field.name, initialValues?.[field.name] ?? ''])
+    )
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [rows, setRows] = useState<ResultRow[] | null>(null);

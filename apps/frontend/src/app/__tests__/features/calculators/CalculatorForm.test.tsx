@@ -52,6 +52,27 @@ describe('CalculatorForm', () => {
     expect(screen.getByLabelText('Breeding date')).toHaveAttribute('type', 'date');
   });
 
+  it('pre-fills field values and species when provided', async () => {
+    const user = userEvent.setup();
+    render(
+      <CalculatorForm
+        config={config('fluid-rate')}
+        initialValues={{ weightKg: '6.8' }}
+        initialSpecies="cat"
+      />
+    );
+
+    expect(screen.getByLabelText('Weight (kg)')).toHaveValue(6.8);
+
+    await user.type(screen.getByLabelText('Dehydration (%)'), '5');
+    await user.click(screen.getByRole('button', { name: 'Calculate' }));
+
+    // Cat maintenance factor (50) x 6.8 kg = 340 mL/day confirms the species pre-fill
+    // (distinct from the 680 mL/day total).
+    expect(screen.getByText('340 mL/day')).toBeInTheDocument();
+    expect(screen.getByText('680 mL/day')).toBeInTheDocument();
+  });
+
   it('omits the species selector for a non-species calculator', async () => {
     const user = userEvent.setup();
     render(<CalculatorForm config={config('corrected-sodium')} />);
