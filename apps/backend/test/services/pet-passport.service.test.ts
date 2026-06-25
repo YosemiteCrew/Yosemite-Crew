@@ -662,3 +662,23 @@ describe("PetPassportService.issuePassport", () => {
     expect(passport.passportNumber).toBe("ISSUED-NO");
   });
 });
+
+describe("PetPassportService.getPublicPassport", () => {
+  it("resolves the issuing org and assembles the passport", async () => {
+    prismaMock.petPassport.findFirst
+      .mockResolvedValueOnce({ organisationId: "org-1" })
+      .mockResolvedValueOnce(null);
+    const passport = await PetPassportService.getPublicPassport("pat-1");
+    expect(passport.identity.id).toBe("pat-1");
+    expect(prismaMock.petPassport.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { patientId: "pat-1" } }),
+    );
+  });
+
+  it("404s when the companion has no issued passport", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      PetPassportService.getPublicPassport("pat-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});

@@ -3,6 +3,7 @@ import {
   downloadApplePass,
   getGoogleWalletUrl,
   getPetPassport,
+  getPublicPassport,
 } from '@/app/features/petPassport/services/petPassport.service';
 import { useOrgStore } from '@/app/stores/orgStore';
 
@@ -83,5 +84,34 @@ describe('getGoogleWalletUrl', () => {
   it('throws when no organisation is selected', async () => {
     (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
     await expect(getGoogleWalletUrl('pat-1')).rejects.toThrow('No active organisation selected.');
+  });
+});
+
+describe('getPublicPassport', () => {
+  const originalFetch = global.fetch;
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_BASE_URL = 'https://api.example.com';
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('fetches the public passport over the unauthenticated endpoint', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ identity: { id: 'p1' } }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const res = await getPublicPassport('p1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/public/pet-passport/p1',
+      expect.objectContaining({ headers: { Accept: 'application/json' } })
+    );
+    expect(res).toEqual({ identity: { id: 'p1' } });
+  });
+
+  it('throws when the passport is not found', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+    await expect(getPublicPassport('p1')).rejects.toThrow('Passport not found.');
   });
 });

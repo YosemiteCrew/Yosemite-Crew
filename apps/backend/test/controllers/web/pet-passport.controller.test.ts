@@ -19,6 +19,7 @@ jest.mock("../../../src/services/pet-passport.service", () => {
       listRabiesTitrations: jest.fn(),
       issuePassport: jest.fn(),
       getPassport: jest.fn(),
+      getPublicPassport: jest.fn(),
     },
   };
 });
@@ -560,6 +561,41 @@ describe("PetPassportController", () => {
       });
       await PetPassportController.getGooglePass(authed(), res as Response);
       expect(statusMock).toHaveBeenCalledWith(501);
+    });
+  });
+
+  describe("getPublicPassport", () => {
+    it("200s with the assembled public passport", async () => {
+      service.getPublicPassport.mockResolvedValue({
+        identity: { id: "pat-1" },
+      } as never);
+      await PetPassportController.getPublicPassport(
+        { params: { patientId: "pat-1" } } as unknown as Request,
+        res as Response,
+      );
+      expect(service.getPublicPassport).toHaveBeenCalledWith("pat-1");
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("maps a service error to its status code", async () => {
+      service.getPublicPassport.mockRejectedValue(
+        new PetPassportServiceError("Passport not found.", 404),
+      );
+      await PetPassportController.getPublicPassport(
+        { params: { patientId: "x" } } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(404);
+    });
+
+    it("404s on an unexpected error and a missing param", async () => {
+      service.getPublicPassport.mockRejectedValueOnce(new Error("boom"));
+      await PetPassportController.getPublicPassport(
+        { params: {} } as unknown as Request,
+        res as Response,
+      );
+      expect(service.getPublicPassport).toHaveBeenCalledWith("");
+      expect(statusMock).toHaveBeenCalledWith(404);
     });
   });
 });

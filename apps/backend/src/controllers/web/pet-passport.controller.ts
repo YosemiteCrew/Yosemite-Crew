@@ -310,4 +310,21 @@ export const PetPassportController = {
       return handleError(err, res, "Google Wallet pass generation failed");
     }
   },
+
+  // Public, unauthenticated QR verification. No org scope on the request; a
+  // uniform 404 for anything unresolved keeps the surface unprobeable.
+  getPublicPassport: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const patientId =
+        typeof req.params.patientId === "string" ? req.params.patientId : "";
+      const passport = await PetPassportService.getPublicPassport(patientId);
+      return res.status(200).json(passport);
+    } catch (err) {
+      if (err instanceof PetPassportServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Public pet passport resolve failed", err);
+      return res.status(404).json({ message: "Passport not found." });
+    }
+  },
 };

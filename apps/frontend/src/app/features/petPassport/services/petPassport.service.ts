@@ -46,3 +46,17 @@ export const getGoogleWalletUrl = async (companionId: string): Promise<string> =
   );
   return res.data.saveUrl;
 };
+
+// Public, unauthenticated verification (the wallet-pass QR target). No org
+// scope and no auth header: the backend resolves the issuing org from the
+// passport row and returns an owner-free record.
+export const getPublicPassport = async (companionId: string): Promise<PetPassportDTO> => {
+  const root = (process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
+  const res = await fetch(`${root}/public/pet-passport/${encodeURIComponent(companionId)}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error('Passport not found.');
+  }
+  return (await res.json()) as PetPassportDTO;
+};

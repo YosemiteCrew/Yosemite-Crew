@@ -180,6 +180,96 @@ const toIssuanceDTO = (row: {
   status: row.status ?? undefined,
 });
 
+// Assembles the full passport for a (patient, organisation). Shared by the
+// authenticated getPassport and the public verification path.
+const assemblePassport = async (
+  patientId: string,
+  organisationId: string,
+): Promise<PetPassportDTO> => {
+  const patient = await prisma.patient.findUnique({
+    where: { id: patientId },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      breed: true,
+      gender: true,
+      colour: true,
+      photoUrl: true,
+      dateOfBirth: true,
+      microchipNumber: true,
+      microchipImplantedAt: true,
+      microchipLocation: true,
+      passportNumber: true,
+    },
+  });
+  if (!patient) {
+    throw new PetPassportServiceError("Companion not found.", 404);
+  }
+
+  const [
+    vaccinationRows,
+    treatmentRows,
+    titrationRows,
+    passportRow,
+    organisation,
+  ] = await Promise.all([
+    prisma.vaccination.findMany({
+      where: { patientId, organisationId },
+      orderBy: { dateAdministered: "desc" },
+    }),
+    prisma.parasiteTreatment.findMany({
+      where: { patientId, organisationId },
+      orderBy: { treatedAt: "desc" },
+    }),
+    prisma.rabiesTitration.findMany({
+      where: { patientId, organisationId },
+      orderBy: { sampleDate: "desc" },
+    }),
+    prisma.petPassport.findFirst({
+      where: { patientId, organisationId },
+      orderBy: { issueDate: "desc" },
+    }),
+    prisma.organization.findUnique({
+      where: { id: organisationId },
+      select: { name: true },
+    }),
+  ]);
+  const issuance = passportRow
+    ? { ...toIssuanceDTO(passportRow), issuingPractice: organisation?.name }
+    : undefined;
+  const vaccinations = vaccinationRows.map(toVaccinationDTO);
+  const rabies = vaccinations.find((v) => v.vaccineType === "RABIES");
+  const others = vaccinations.filter((v) => v.vaccineType !== "RABIES");
+
+  return {
+    identity: {
+      id: patient.id,
+      name: patient.name,
+      species: patient.type,
+      breed: patient.breed,
+      sex: patient.gender,
+      dateOfBirth: patient.dateOfBirth.toISOString(),
+      colour: patient.colour ?? undefined,
+      photoUrl: patient.photoUrl ?? undefined,
+    },
+    microchip: patient.microchipNumber
+      ? {
+          number: patient.microchipNumber,
+          implantedAt: patient.microchipImplantedAt?.toISOString(),
+          location: patient.microchipLocation ?? undefined,
+        }
+      : undefined,
+    passportNumber:
+      issuance?.passportNumber ?? patient.passportNumber ?? undefined,
+    rabies,
+    vaccinations: others,
+    parasiteTreatments: treatmentRows.map(toTreatmentDTO),
+    rabiesTitrations: titrationRows.map(toTitrationDTO),
+    issuance,
+  };
+};
+
 export const PetPassportService = {
   async recordVaccination(params: {
     patientId: string;
@@ -420,88 +510,21 @@ export const PetPassportService = {
     organisationId: string,
   ): Promise<PetPassportDTO> {
     await assertOrgMembership(patientId, organisationId);
-    const patient = await prisma.patient.findUnique({
-      where: { id: patientId },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        breed: true,
-        gender: true,
-        colour: true,
-        photoUrl: true,
-        dateOfBirth: true,
-        microchipNumber: true,
-        microchipImplantedAt: true,
-        microchipLocation: true,
-        passportNumber: true,
-      },
+    return assemblePassport(patientId, organisationId);
+  },
+
+  // Public, unauthenticated verification. Only formally-issued passports are
+  // exposed: the issuing organisation is resolved from the latest passport row,
+  // and the assembled DTO carries no owner/contact data.
+  async getPublicPassport(patientId: string): Promise<PetPassportDTO> {
+    const row = await prisma.petPassport.findFirst({
+      where: { patientId },
+      orderBy: { issueDate: "desc" },
+      select: { organisationId: true },
     });
-    if (!patient) {
-      throw new PetPassportServiceError("Companion not found.", 404);
+    if (!row) {
+      throw new PetPassportServiceError("Passport not found.", 404);
     }
-
-    const [
-      vaccinationRows,
-      treatmentRows,
-      titrationRows,
-      passportRow,
-      organisation,
-    ] = await Promise.all([
-      prisma.vaccination.findMany({
-        where: { patientId, organisationId },
-        orderBy: { dateAdministered: "desc" },
-      }),
-      prisma.parasiteTreatment.findMany({
-        where: { patientId, organisationId },
-        orderBy: { treatedAt: "desc" },
-      }),
-      prisma.rabiesTitration.findMany({
-        where: { patientId, organisationId },
-        orderBy: { sampleDate: "desc" },
-      }),
-      prisma.petPassport.findFirst({
-        where: { patientId, organisationId },
-        orderBy: { issueDate: "desc" },
-      }),
-      prisma.organization.findUnique({
-        where: { id: organisationId },
-        select: { name: true },
-      }),
-    ]);
-    // The issuing practice/clinic is the organisation that issued the pass.
-    const issuance = passportRow
-      ? { ...toIssuanceDTO(passportRow), issuingPractice: organisation?.name }
-      : undefined;
-    const vaccinations = vaccinationRows.map(toVaccinationDTO);
-    const rabies = vaccinations.find((v) => v.vaccineType === "RABIES");
-    const others = vaccinations.filter((v) => v.vaccineType !== "RABIES");
-
-    return {
-      identity: {
-        id: patient.id,
-        name: patient.name,
-        species: patient.type,
-        breed: patient.breed,
-        sex: patient.gender,
-        dateOfBirth: patient.dateOfBirth.toISOString(),
-        colour: patient.colour ?? undefined,
-        photoUrl: patient.photoUrl ?? undefined,
-      },
-      microchip: patient.microchipNumber
-        ? {
-            number: patient.microchipNumber,
-            implantedAt: patient.microchipImplantedAt?.toISOString(),
-            location: patient.microchipLocation ?? undefined,
-          }
-        : undefined,
-      passportNumber:
-        issuance?.passportNumber ?? patient.passportNumber ?? undefined,
-      rabies,
-      vaccinations: others,
-      parasiteTreatments: treatmentRows.map(toTreatmentDTO),
-      rabiesTitrations: titrationRows.map(toTitrationDTO),
-      issuance,
-    };
+    return assemblePassport(patientId, row.organisationId);
   },
 };
