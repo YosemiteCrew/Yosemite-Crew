@@ -87,7 +87,7 @@ const CompanionIdCard = ({ card }: CompanionIdCardProps) => {
         <DetailRow label="Date of birth" value={dobLabel(card.dateOfBirth)} />
         <DetailRow label="Allergies" value={medical?.allergy} />
         <DetailRow label="Blood group" value={medical?.bloodGroup} />
-        <DetailRow label="Weight (kg)" value={medical?.currentWeight} />
+        <DetailRow label="Weight (lbs)" value={medical?.currentWeight} />
         <DetailRow label="Neutered" value={neuteredLabel(medical?.isNeutered)} />
         <DetailRow label="Insurance" value={insuranceLabel(insurance)} />
         <DetailRow label="Latest visit" value={latestVisit?.status} />

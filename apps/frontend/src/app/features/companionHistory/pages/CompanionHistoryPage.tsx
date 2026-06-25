@@ -32,6 +32,7 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useNotify } from '@/app/hooks/useNotify';
 import ShareCompanionCardModal from '@/app/features/companionCard/components/ShareCompanionCardModal';
+import { buildStaffCard } from '@/app/features/companionCard/lib/buildStaffCard';
 import type {
   CompanionParent,
   StoredParent,
@@ -477,6 +478,7 @@ const CompanionHistoryPageInner = () => {
           {activeCompanion ? (
             <ShareCompanionCardModal
               open={shareOpen}
+              card={buildStaffCard(activeCompanion)}
               companionId={activeCompanion.companion.id}
               companionName={activeCompanion.companion.name}
               onClose={() => setShareOpen(false)}
