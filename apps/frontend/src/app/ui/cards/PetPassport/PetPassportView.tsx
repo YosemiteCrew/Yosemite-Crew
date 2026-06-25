@@ -1,0 +1,115 @@
+import Image from 'next/image';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { formatDisplayDate } from '@/app/lib/date';
+import type { PetPassportDTO, VaccinationDTO } from '@yosemite-crew/types';
+
+const SPECIES_LABEL: Record<string, string> = {
+  dog: 'Canine',
+  cat: 'Feline',
+  horse: 'Equine',
+  other: 'Other',
+};
+
+const dateLabel = (iso?: string): string | undefined => (iso ? formatDisplayDate(iso) : undefined);
+
+type RowProps = { label: string; value?: string | number };
+const Row = ({ label, value }: RowProps) => {
+  if (value === undefined || value === '') return null;
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-caption-1 text-text-extra">{label}</span>
+      <span className="text-caption-1 text-text-primary text-right">{value}</span>
+    </div>
+  );
+};
+
+type SectionProps = { title: string; children: React.ReactNode };
+const Section = ({ title, children }: SectionProps) => (
+  <div className="flex flex-col gap-2">
+    <span className="text-caption-1 font-medium text-text-secondary">{title}</span>
+    {children}
+  </div>
+);
+
+const VaccinationItem = ({ vaccination }: { vaccination: VaccinationDTO }) => {
+  const given = dateLabel(vaccination.dateAdministered);
+  const batch = vaccination.batchNumber ? ` · Batch ${vaccination.batchNumber}` : '';
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border border-card-border p-3">
+      <div className="flex justify-between gap-3">
+        <span className="text-caption-1 text-text-primary">{vaccination.vaccineName}</span>
+        {vaccination.validUntil && (
+          <span className="text-caption-1 text-text-secondary">
+            {`Valid to ${formatDisplayDate(vaccination.validUntil)}`}
+          </span>
+        )}
+      </div>
+      <span className="text-caption-1 text-text-extra">{`Given ${given}${batch}`}</span>
+    </div>
+  );
+};
+
+type PetPassportViewProps = { passport: PetPassportDTO };
+
+const PetPassportView = ({ passport }: PetPassportViewProps) => {
+  const { identity, microchip, rabies, vaccinations } = passport;
+  const species = SPECIES_LABEL[identity.species] ?? 'Other';
+
+  return (
+    <div className="flex flex-col gap-5 rounded-2xl border border-card-border bg-white p-5">
+      <div className="flex items-center gap-3">
+        <Image
+          alt={identity.name}
+          src={getSafeImageUrl(identity.photoUrl, identity.species as ImageType)}
+          height={56}
+          width={56}
+          className="size-14 rounded-full object-cover"
+        />
+        <div className="flex flex-col">
+          <span className="text-body-3-emphasis text-text-primary">{identity.name}</span>
+          <span className="text-caption-1 text-text-secondary">
+            {`${identity.breed} / ${species}`}
+          </span>
+        </div>
+      </div>
+
+      <Section title="Description">
+        <Row label="Sex" value={identity.sex} />
+        <Row label="Date of birth" value={dateLabel(identity.dateOfBirth)} />
+        <Row label="Colour" value={identity.colour} />
+        <Row label="Passport no." value={passport.passportNumber} />
+      </Section>
+
+      {microchip && (
+        <Section title="Identification">
+          <Row label="Microchip" value={microchip.number} />
+          <Row label="Implanted" value={dateLabel(microchip.implantedAt)} />
+          <Row label="Location" value={microchip.location} />
+        </Section>
+      )}
+
+      {rabies && (
+        <Section title="Rabies vaccination">
+          <VaccinationItem vaccination={rabies} />
+        </Section>
+      )}
+
+      {vaccinations.length > 0 && (
+        <Section title="Other vaccinations">
+          <div className="flex flex-col gap-2">
+            {vaccinations.map((vaccination) => (
+              <VaccinationItem key={vaccination.id} vaccination={vaccination} />
+            ))}
+          </div>
+        </Section>
+      )}
+
+      <span className="text-caption-1 text-text-extra">
+        Digital health record. Not a legal substitute for the official EU pet passport, UK Animal
+        Health Certificate, or USDA/CDC certificate required for international travel.
+      </span>
+    </div>
+  );
+};
+
+export default PetPassportView;

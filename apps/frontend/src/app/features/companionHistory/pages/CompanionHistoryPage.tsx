@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { IoIosArrowBack } from 'react-icons/io';
-import { LuCheck, LuPlus, LuShare2 } from 'react-icons/lu';
+import { LuBookMarked, LuCheck, LuPlus, LuShare2 } from 'react-icons/lu';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -33,6 +33,7 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useNotify } from '@/app/hooks/useNotify';
 import ShareCompanionCardModal from '@/app/features/companionCard/components/ShareCompanionCardModal';
 import { buildStaffCard } from '@/app/features/companionCard/lib/buildStaffCard';
+import PetPassportModal from '@/app/features/petPassport/components/PetPassportModal';
 import type {
   CompanionParent,
   StoredParent,
@@ -248,6 +249,7 @@ const CompanionHistoryPageInner = () => {
   }, []);
   const [alertTarget, setAlertTarget] = useState<'companion' | 'client' | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [passportOpen, setPassportOpen] = useState(false);
 
   const companionId = String(searchParams.get('companionId') ?? '').trim();
   const source = String(searchParams.get('source') ?? '')
@@ -423,6 +425,18 @@ const CompanionHistoryPageInner = () => {
                     </button>
                   </GlassTooltip>
                 ) : null}
+                {activeCompanion ? (
+                  <GlassTooltip content="Pet passport" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Open pet passport"
+                      onClick={() => setPassportOpen(true)}
+                      className="flex size-10 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+                    >
+                      <LuBookMarked size={18} aria-hidden="true" />
+                    </button>
+                  </GlassTooltip>
+                ) : null}
                 <Primary
                   icon={<LuPlus size={18} aria-hidden="true" />}
                   text="Add appointment"
@@ -482,6 +496,15 @@ const CompanionHistoryPageInner = () => {
               companionId={activeCompanion.companion.id}
               companionName={activeCompanion.companion.name}
               onClose={() => setShareOpen(false)}
+            />
+          ) : null}
+
+          {activeCompanion ? (
+            <PetPassportModal
+              open={passportOpen}
+              companionId={activeCompanion.companion.id}
+              companionName={activeCompanion.companion.name}
+              onClose={() => setPassportOpen(false)}
             />
           ) : null}
         </div>
