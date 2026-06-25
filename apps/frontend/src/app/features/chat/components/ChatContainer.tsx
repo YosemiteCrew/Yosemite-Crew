@@ -2,7 +2,6 @@
 
 import {
   createContext,
-  startTransition,
   use,
   useCallback,
   useEffect,
@@ -115,9 +114,11 @@ const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string; slider: string 
 
 /**
  * Self-contained audience switcher. The active pill is driven by LOCAL state so
- * the slide paints immediately on click; the heavier scope change is handed to
- * the parent through startTransition so re-filtering the channel list never
- * blocks the animation. Motion mirrors the Calendar/Board/Table view switcher.
+ * it paints and starts sliding immediately on click; the heavier scope change is
+ * deferred to the parent on the next macrotask so re-filtering the channel list
+ * never blocks the animation. (startTransition is intentionally avoided: it can
+ * commit the final state without an intermediate paint, cancelling the CSS
+ * transition.) Motion mirrors the Calendar/Board/Table view switcher.
  */
 function ChatScopeSwitcher({
   scope,
@@ -154,7 +155,7 @@ function ChatScopeSwitcher({
             type="button"
             onClick={() => {
               setIndex(i);
-              startTransition(() => onScopeChange?.(t.key));
+              setTimeout(() => onScopeChange?.(t.key), 0);
             }}
             aria-pressed={isActive}
             className={clsx(
