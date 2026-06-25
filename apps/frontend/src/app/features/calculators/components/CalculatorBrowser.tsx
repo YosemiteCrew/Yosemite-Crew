@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Card } from '@/app/ui';
-import { SelectLabel } from '@/app/ui/inputs';
+import { LabelDropdown } from '@/app/ui/inputs';
 import {
   CALCULATORS,
   CALCULATOR_CATEGORIES,
@@ -30,19 +30,17 @@ const CalculatorBrowser = ({ initialValues, initialSpecies }: CalculatorBrowserP
 
   return (
     <div className="flex flex-col gap-4">
-      <SelectLabel
-        title="Category"
-        type="coloumn"
+      <LabelDropdown
+        placeholder="Category"
         options={CALCULATOR_CATEGORIES.map((name) => ({ label: name, value: name }))}
-        activeOption={category}
-        setOption={handleCategory}
+        defaultOption={category}
+        onSelect={(option) => handleCategory(option.value)}
       />
-      <SelectLabel
-        title="Calculator"
-        type="coloumn"
+      <LabelDropdown
+        placeholder="Calculator"
         options={calculators.map((calc) => ({ label: calc.label, value: calc.key }))}
-        activeOption={activeKey}
-        setOption={setActiveKey}
+        defaultOption={activeKey}
+        onSelect={(option) => setActiveKey(option.value)}
       />
       <Card variant="bordered" className="p-5">
         <CalculatorForm
