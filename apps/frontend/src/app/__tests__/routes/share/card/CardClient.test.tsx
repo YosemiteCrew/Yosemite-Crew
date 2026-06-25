@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import CardClient from '@/app/(routes)/(public)/card/[token]/CardClient';
+import CardClient from '@/app/(routes)/(share)/card/[token]/CardClient';
 import { getPublicCompanionCard } from '@/app/features/companionCard/services/companionCard.service';
 import type { CompanionCardDTO } from '@yosemite-crew/types';
 

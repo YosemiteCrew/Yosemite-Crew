@@ -30,7 +30,11 @@ const CardClient = ({ token }: CardClientProps) => {
   }, [token]);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 p-6">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 p-6"
+    >
       {state === 'loading' && (
         <Text variant="caption-1" className="text-text-secondary">
           Loading companion card...
