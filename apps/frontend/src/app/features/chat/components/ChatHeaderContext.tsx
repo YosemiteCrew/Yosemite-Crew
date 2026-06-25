@@ -78,7 +78,7 @@ export function ChatHeaderContext({
                 key={a}
                 type="button"
                 onClick={() => onAction(a)}
-                className="rounded-full border border-chat-panel-border bg-neutral-0 px-3 py-1 text-xs font-semibold text-primary-700 transition-colors hover:bg-chat-surface-soft"
+                className="rounded-full border border-text-primary bg-neutral-0 px-4 py-[11px] text-body-3-emphasis text-text-primary transition-all duration-300 ease-in-out hover:border-text-brand hover:text-text-brand"
               >
                 {a}
               </button>
