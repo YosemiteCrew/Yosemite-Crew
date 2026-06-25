@@ -99,6 +99,7 @@ export type {
   PetPassportIssuanceDTO,
   PetPassportIdentity,
   PetPassportMicrochip,
+  PetPassportOwner,
   PetPassportDTO,
 } from './pet-passport';
 export type {

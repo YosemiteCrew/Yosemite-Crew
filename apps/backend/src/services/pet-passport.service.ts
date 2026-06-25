@@ -6,6 +6,7 @@ import type {
   ParasiteTreatmentDTO,
   ParasiteTreatmentType,
   PetPassportDTO,
+  PetPassportOwner,
   PetPassportIssuanceDTO,
   RabiesTitrationDTO,
   RecordParasiteTreatmentRequestDTO,
@@ -180,12 +181,39 @@ const toIssuanceDTO = (row: {
   status: row.status ?? undefined,
 });
 
+// The registered primary owner/holder. Authenticated views only.
+const loadPassportOwner = async (
+  patientId: string,
+): Promise<PetPassportOwner | undefined> => {
+  const link = await prisma.parentPatient.findFirst({
+    where: { patientId, role: "PRIMARY", status: "ACTIVE" },
+    select: { parentId: true },
+  });
+  if (!link) return undefined;
+  const parent = await prisma.parent.findUnique({
+    where: { id: link.parentId },
+    select: { firstName: true, lastName: true, email: true, phoneNumber: true },
+  });
+  if (!parent) return undefined;
+  const name = [parent.firstName, parent.lastName]
+    .filter((part): part is string => Boolean(part))
+    .join(" ");
+  return {
+    name,
+    email: parent.email ?? undefined,
+    phone: parent.phoneNumber ?? undefined,
+  };
+};
+
 // Assembles the full passport for a (patient, organisation). Shared by the
-// authenticated getPassport and the public verification path.
+// authenticated getPassport and the public verification path. Owner data is
+// included only for authenticated callers (the public record is owner-free).
 const assemblePassport = async (
   patientId: string,
   organisationId: string,
+  includeOwner = false,
 ): Promise<PetPassportDTO> => {
+  const owner = includeOwner ? await loadPassportOwner(patientId) : undefined;
   const patient = await prisma.patient.findUnique({
     where: { id: patientId },
     select: {
@@ -267,6 +295,7 @@ const assemblePassport = async (
     parasiteTreatments: treatmentRows.map(toTreatmentDTO),
     rabiesTitrations: titrationRows.map(toTitrationDTO),
     issuance,
+    owner,
   };
 };
 
@@ -510,7 +539,7 @@ export const PetPassportService = {
     organisationId: string,
   ): Promise<PetPassportDTO> {
     await assertOrgMembership(patientId, organisationId);
-    return assemblePassport(patientId, organisationId);
+    return assemblePassport(patientId, organisationId, true);
   },
 
   // Public, unauthenticated verification. Only formally-issued passports are

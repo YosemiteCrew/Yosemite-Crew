@@ -81,6 +81,14 @@ const PetPassportView = ({ passport }: PetPassportViewProps) => {
         </div>
       </div>
 
+      {passport.owner && (
+        <Section title="Owner">
+          <Row label="Name" value={passport.owner.name} />
+          <Row label="Email" value={passport.owner.email} />
+          <Row label="Phone" value={passport.owner.phone} />
+        </Section>
+      )}
+
       <Section title="Description">
         <Row label="Sex" value={identity.sex} />
         <Row label="Date of birth" value={dateLabel(identity.dateOfBirth)} />

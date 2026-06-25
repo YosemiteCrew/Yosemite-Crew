@@ -88,8 +88,16 @@ export interface PetPassportMicrochip {
 // The assembled, multi-section pet passport, built server-side from the
 // source-of-truth Patient and Vaccination rows. Rabies is surfaced separately
 // because it drives passport validity; other vaccinations are listed together.
+export interface PetPassportOwner {
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
 export interface PetPassportDTO {
   identity: PetPassportIdentity;
+  /** Registered owner/holder. Authenticated views only; omitted from public. */
+  owner?: PetPassportOwner;
   microchip?: PetPassportMicrochip;
   passportNumber?: string;
   rabies?: VaccinationDTO;

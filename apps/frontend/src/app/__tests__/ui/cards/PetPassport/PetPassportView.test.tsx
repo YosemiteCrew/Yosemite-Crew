@@ -33,6 +33,7 @@ const full: PetPassportDTO = {
     implantedAt: '2024-02-01T00:00:00.000Z',
     location: 'left neck',
   },
+  owner: { name: 'Sam Lee', email: 'sam@example.com', phone: '123' },
   passportNumber: 'GB-YC-1',
   rabies: {
     id: 'v1',
@@ -101,6 +102,7 @@ describe('PetPassportView', () => {
     expect(screen.getByText('Tapeworm · D(2024-06-20T14:00:00.000Z)')).toBeInTheDocument();
     expect(screen.getByText('EU Lab')).toBeInTheDocument();
     expect(screen.getByText('0.8 IU/ml · D(2024-05-01T00:00:00.000Z)')).toBeInTheDocument();
+    expect(screen.getByText('Sam Lee')).toBeInTheDocument();
     expect(screen.getByText('Dr A')).toBeInTheDocument();
     expect(screen.getByText('Yosemite Vet Clinic')).toBeInTheDocument();
     expect(screen.getByText('RCVS')).toBeInTheDocument();

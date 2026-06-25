@@ -14,6 +14,8 @@ jest.mock("src/config/prisma", () => ({
     rabiesTitration: { create: jest.fn(), findMany: jest.fn() },
     petPassport: { create: jest.fn(), findFirst: jest.fn() },
     organization: { findUnique: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
+    parent: { findUnique: jest.fn() },
   },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
@@ -28,6 +30,8 @@ const prismaMock = prisma as unknown as {
   rabiesTitration: { create: jest.Mock; findMany: jest.Mock };
   petPassport: { create: jest.Mock; findFirst: jest.Mock };
   organization: { findUnique: jest.Mock };
+  parentPatient: { findFirst: jest.Mock };
+  parent: { findUnique: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 
@@ -98,6 +102,7 @@ beforeEach(() => {
   prismaMock.organization.findUnique.mockResolvedValue({
     name: "Yosemite Vet Clinic",
   });
+  prismaMock.parentPatient.findFirst.mockResolvedValue(null);
   prismaMock.vaccination.findMany.mockResolvedValue([]);
   prismaMock.parasiteTreatment.findMany.mockResolvedValue([]);
   prismaMock.rabiesTitration.findMany.mockResolvedValue([]);
@@ -680,5 +685,51 @@ describe("PetPassportService.getPublicPassport", () => {
     await expect(
       PetPassportService.getPublicPassport("pat-1"),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("PetPassportService owner section", () => {
+  it("includes the owner for an authenticated getPassport caller", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
+    prismaMock.parent.findUnique.mockResolvedValue({
+      firstName: "Sam",
+      lastName: "Lee",
+      email: "sam@example.com",
+      phoneNumber: "123",
+    });
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.owner).toEqual({
+      name: "Sam Lee",
+      email: "sam@example.com",
+      phone: "123",
+    });
+  });
+
+  it("omits the owner when the parent record is missing", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
+    prismaMock.parent.findUnique.mockResolvedValue(null);
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.owner).toBeUndefined();
+  });
+
+  it("maps absent owner surname and contact to undefined", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
+    prismaMock.parent.findUnique.mockResolvedValue({
+      firstName: "Sam",
+      lastName: null,
+      email: null,
+      phoneNumber: null,
+    });
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.owner).toEqual({ name: "Sam" });
+  });
+
+  it("never loads the owner for the public passport", async () => {
+    prismaMock.petPassport.findFirst
+      .mockResolvedValueOnce({ organisationId: "org-1" })
+      .mockResolvedValueOnce(null);
+    const passport = await PetPassportService.getPublicPassport("pat-1");
+    expect(passport.owner).toBeUndefined();
+    expect(prismaMock.parentPatient.findFirst).not.toHaveBeenCalled();
   });
 });
