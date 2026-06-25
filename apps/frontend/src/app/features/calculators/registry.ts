@@ -472,49 +472,80 @@ export const CALCULATOR_CATEGORIES: string[] = CALCULATORS.reduce<string[]>((acc
 export const calculatorsInCategory = (category: string): CalculatorConfig[] =>
   CALCULATORS.filter((calc) => calc.category === category);
 
-// Source credit shown in each calculator's description. Vetcalculators (by
-// LifeLearn, Inc.) is the referenced calculator suite; formulas backed by a
-// distinct clinical authority (IRIS, ACVIM) credit that body directly.
-export type CalculatorReference = { source: string; url: string };
-
-const VETCALCULATORS = 'Vetcalculators (LifeLearn, Inc.)';
-const VETCALCULATORS_URL = 'https://www.vetcalculators.com';
+// Source attribution shown in each calculator's description, citing the clinical
+// origin of the formula. Where a calculator follows a distinct authority (IRIS,
+// ACVIM, Katz, WSAVA) that body is named; the rest cite the standard veterinary
+// reference work the formula appears in. These are the formulas' own sources and
+// are NOT taken from any third-party calculator suite.
+export type CalculatorReference = { source: string; url?: string };
 
 export const CALCULATOR_REFERENCES: Record<string, CalculatorReference> = {
-  'fluid-rate': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
-  cri: { source: VETCALCULATORS, url: VETCALCULATORS_URL },
-  'shock-bolus': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
-  transfusion: { source: VETCALCULATORS, url: VETCALCULATORS_URL },
-  'drip-rate': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
-  'free-water-deficit': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'fluid-rate': {
+    source:
+      'Maintenance fluids and dehydration deficit: DiBartola, Fluid, Electrolyte and Acid-Base Disorders in Small Animal Practice.',
+  },
+  cri: {
+    source: "Constant rate infusion calculation: Plumb's Veterinary Drug Handbook.",
+  },
+  'shock-bolus': {
+    source:
+      'Shock-dose crystalloid resuscitation: Silverstein & Hopper, Small Animal Critical Care Medicine.',
+  },
+  transfusion: {
+    source:
+      'Transfusion volume formula: BSAVA Manual of Canine and Feline Haematology and Transfusion Medicine.',
+  },
+  'drip-rate': {
+    source: 'Standard IV infusion drip-rate calculation (drops/min = rate x drop factor / 60).',
+  },
+  'free-water-deficit': {
+    source:
+      'Free water deficit and safe sodium correction rate: DiBartola, Fluid, Electrolyte and Acid-Base Disorders in Small Animal Practice.',
+  },
   'drug-dose': {
-    source: `${VETCALCULATORS} - Emergency Drug Calculator`,
-    url: 'https://www.vetcalculators.com/emergency.html',
+    source: "Body-weight dosing (mg/kg): Plumb's Veterinary Drug Handbook.",
   },
-  'body-surface-area': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'body-surface-area': {
+    source:
+      "Body surface area for dose normalisation (K = 10.1 dog, 10.0 cat): Withrow & MacEwen's Small Animal Clinical Oncology.",
+  },
   concentration: {
-    source: `${VETCALCULATORS} - Unit Conversion`,
-    url: 'https://www.vetcalculators.com/convert.html',
+    source: 'Percent solution to mg/mL conversion (1% = 10 mg/mL): standard pharmacology.',
   },
-  'corrected-sodium': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
-  'corrected-calcium': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
-  'anion-gap': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
-  osmolality: { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'corrected-sodium': {
+    source:
+      'Sodium correction for hyperglycemia (1.6 mEq/L per 100 mg/dL glucose above normal): Katz, N Engl J Med 1973.',
+  },
+  'corrected-calcium': {
+    source:
+      'Albumin-adjusted calcium (canine). Note: correction formulas have limited reliability in dogs - confirm with ionized calcium (Schenck & Chew, J Vet Intern Med).',
+  },
+  'anion-gap': {
+    source:
+      'Anion gap = (Na + K) - (Cl + HCO3): DiBartola, Fluid, Electrolyte and Acid-Base Disorders in Small Animal Practice.',
+  },
+  osmolality: {
+    source:
+      'Calculated osmolality = 2(Na + K) + glucose/18 + BUN/2.8: standard clinical chemistry.',
+  },
   energy: {
-    source: `${VETCALCULATORS} - Calorie Requirements`,
-    url: 'https://www.vetcalculators.com/calories.html',
+    source:
+      'Resting energy requirement RER = 70 x BW(kg)^0.75: WSAVA Global Nutrition Committee guidelines.',
   },
   'iris-stage': {
-    source: 'IRIS CKD Staging Guidelines (International Renal Interest Society)',
+    source: 'IRIS CKD Staging Guidelines (International Renal Interest Society).',
     url: 'https://www.iris-kidney.com',
   },
   'blood-pressure': {
-    source: 'ACVIM Consensus Statement on Systemic Hypertension (2018)',
-    url: VETCALCULATORS_URL,
+    source:
+      'ACVIM Consensus Statement on systemic hypertension in dogs and cats (Acierno et al., J Vet Intern Med 2018).',
   },
-  gestation: { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  gestation: {
+    source:
+      'Average gestation length (dog ~63 days from ovulation; cat ~63-65 days): Feldman & Nelson, Canine and Feline Endocrinology and Reproduction.',
+  },
   'oxygen-flow': {
-    source: `${VETCALCULATORS} - Anesthetic Drug Calculator`,
-    url: 'https://www.vetcalculators.com/anesthetic.html',
+    source:
+      'Oxygen flow for non-rebreathing systems (mL/kg/min x BW): veterinary anesthesia references (e.g., AAHA Anesthesia Guidelines).',
   },
 };

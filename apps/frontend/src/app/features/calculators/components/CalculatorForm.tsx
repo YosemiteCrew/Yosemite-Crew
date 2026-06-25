@@ -45,6 +45,8 @@ const CalculatorForm = ({ config, initialValues, initialSpecies }: CalculatorFor
     }
   };
 
+  const reference = CALCULATOR_REFERENCES[config.key];
+
   return (
     <div className="flex flex-col gap-5">
       <Text as="p" variant="body-4" className="text-text-secondary">
@@ -80,14 +82,18 @@ const CalculatorForm = ({ config, initialValues, initialSpecies }: CalculatorFor
 
       <Text as="p" variant="caption-2" className="text-text-secondary">
         Reference:{' '}
-        <a
-          href={CALCULATOR_REFERENCES[config.key].url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-text underline"
-        >
-          {CALCULATOR_REFERENCES[config.key].source}
-        </a>
+        {reference.url ? (
+          <a
+            href={reference.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-text underline"
+          >
+            {reference.source}
+          </a>
+        ) : (
+          reference.source
+        )}
       </Text>
     </div>
   );

@@ -120,18 +120,27 @@ describe('calculator registry', () => {
 });
 
 describe('calculator references', () => {
-  it('credits a source with an https link for every calculator', () => {
+  it('attributes a non-empty formula source for every calculator', () => {
     CALCULATORS.forEach((calc) => {
       const ref = CALCULATOR_REFERENCES[calc.key];
       expect(ref).toBeDefined();
       expect(ref.source.length).toBeGreaterThan(0);
-      expect(ref.url).toMatch(/^https:\/\//);
+      if (ref.url) expect(ref.url).toMatch(/^https:\/\//);
     });
   });
 
-  it('credits the clinical authority for guideline-based calculators', () => {
+  it('credits the genuine clinical source per formula', () => {
     expect(CALCULATOR_REFERENCES['iris-stage'].source).toMatch(/IRIS/);
+    expect(CALCULATOR_REFERENCES['iris-stage'].url).toBe('https://www.iris-kidney.com');
     expect(CALCULATOR_REFERENCES['blood-pressure'].source).toMatch(/ACVIM/);
-    expect(CALCULATOR_REFERENCES['fluid-rate'].source).toMatch(/Vetcalculators/);
+    expect(CALCULATOR_REFERENCES['corrected-sodium'].source).toMatch(/Katz/);
+    expect(CALCULATOR_REFERENCES['energy'].source).toMatch(/WSAVA/);
+    expect(CALCULATOR_REFERENCES['fluid-rate'].source).toMatch(/DiBartola/);
+  });
+
+  it('does not attribute any calculator to a third-party calculator suite', () => {
+    CALCULATORS.forEach((calc) => {
+      expect(CALCULATOR_REFERENCES[calc.key].source).not.toMatch(/Vetcalculators/i);
+    });
   });
 });

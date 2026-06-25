@@ -46,11 +46,18 @@ describe('CalculatorForm', () => {
     expect(screen.getByText('500 mL/day')).toBeInTheDocument();
   });
 
-  it('shows a reference credit link for the calculator', () => {
+  it('shows the formula source as plain text when there is no link', () => {
     render(<CalculatorForm config={config('fluid-rate')} />);
 
-    const link = screen.getByRole('link', { name: /Vetcalculators/i });
-    expect(link).toHaveAttribute('href', 'https://www.vetcalculators.com');
+    expect(screen.getByText(/DiBartola/)).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('shows the source as a link when a reference URL is available', () => {
+    render(<CalculatorForm config={config('iris-stage')} />);
+
+    const link = screen.getByRole('link', { name: /IRIS/i });
+    expect(link).toHaveAttribute('href', 'https://www.iris-kidney.com');
     expect(link).toHaveAttribute('target', '_blank');
   });
 
