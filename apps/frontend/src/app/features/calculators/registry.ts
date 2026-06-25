@@ -472,80 +472,98 @@ export const CALCULATOR_CATEGORIES: string[] = CALCULATORS.reduce<string[]>((acc
 export const calculatorsInCategory = (category: string): CalculatorConfig[] =>
   CALCULATORS.filter((calc) => calc.category === category);
 
-// Source attribution shown in each calculator's description, citing the clinical
-// origin of the formula. Where a calculator follows a distinct authority (IRIS,
-// ACVIM, Katz, WSAVA) that body is named; the rest cite the standard veterinary
-// reference work the formula appears in. These are the formulas' own sources and
-// are NOT taken from any third-party calculator suite.
+// Source attribution shown in each calculator's description: the exact, verified
+// clinical citation for the formula (PubMed / DOI / official guideline where one
+// exists). Universal arithmetic formulas (drip rate, drug dose) have no single
+// primary source and are labelled as such. These are the formulas' own sources
+// and are NOT taken from any third-party calculator suite.
 export type CalculatorReference = { source: string; url?: string };
 
 export const CALCULATOR_REFERENCES: Record<string, CalculatorReference> = {
   'fluid-rate': {
     source:
-      'Maintenance fluids and dehydration deficit: DiBartola, Fluid, Electrolyte and Acid-Base Disorders in Small Animal Practice.',
+      'Maintenance fluids and dehydration deficit: 2024 AAHA Fluid Therapy Guidelines for Dogs and Cats (Pardo et al., J Am Anim Hosp Assoc 2024;60(4):131-163).',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/38885492/',
   },
   cri: {
-    source: "Constant rate infusion calculation: Plumb's Veterinary Drug Handbook.",
+    source:
+      "Constant rate infusion - standard unit-conversion arithmetic (no single primary source); see Macintire & Tefend, Constant-Rate Infusions: Practical Use, Clinician's Brief 2004.",
+    url: 'https://www.cliniciansbrief.com/article/constant-rate-infusions-practical-use',
   },
   'shock-bolus': {
     source:
-      'Shock-dose crystalloid resuscitation: Silverstein & Hopper, Small Animal Critical Care Medicine.',
+      'Shock-dose crystalloid resuscitation (standard practice): Silverstein & Hopper, Small Animal Critical Care Medicine, 3rd ed., Elsevier 2023.',
+    url: 'https://shop.elsevier.com/books/small-animal-critical-care-medicine/silverstein/978-0-323-76469-8',
   },
   transfusion: {
     source:
-      'Transfusion volume formula: BSAVA Manual of Canine and Feline Haematology and Transfusion Medicine.',
+      'Transfusion volume (standard practice): Day & Kohn, BSAVA Manual of Canine and Feline Haematology and Transfusion Medicine, 2nd ed., 2012.',
+    url: 'https://www.bsavalibrary.com/content/book/10.22233/9781905319732',
   },
   'drip-rate': {
-    source: 'Standard IV infusion drip-rate calculation (drops/min = rate x drop factor / 60).',
+    source:
+      'Standard IV infusion arithmetic: drops/min = rate(mL/hr) x drop factor(gtt/mL) / 60. No single primary source.',
   },
   'free-water-deficit': {
     source:
-      'Free water deficit and safe sodium correction rate: DiBartola, Fluid, Electrolyte and Acid-Base Disorders in Small Animal Practice.',
+      'Free water deficit: Adrogué & Madias, Hypernatremia, N Engl J Med 2000;342(20):1493-1499.',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/10816188/',
   },
   'drug-dose': {
-    source: "Body-weight dosing (mg/kg): Plumb's Veterinary Drug Handbook.",
+    source: 'Universal weight-based dosing (dose mg = mg/kg x kg). No single primary source.',
   },
   'body-surface-area': {
     source:
-      "Body surface area for dose normalisation (K = 10.1 dog, 10.0 cat): Withrow & MacEwen's Small Animal Clinical Oncology.",
+      "Body surface area dose-normalisation (K = 10.1 dog, 10.0 cat): Withrow & MacEwen's Small Animal Clinical Oncology, 6th ed., 2019; constants critiqued in Price & Frazier, J Vet Intern Med 1998;12(4):267-271.",
+    url: 'https://doi.org/10.1111/j.1939-1676.1998.tb02121.x',
   },
   concentration: {
-    source: 'Percent solution to mg/mL conversion (1% = 10 mg/mL): standard pharmacology.',
+    source:
+      'Percent (w/v) to mg/mL (1% = 10 mg/mL): standard pharmacology arithmetic (no single primary source); definition in StatPearls, Pharmacy Calculations.',
+    url: 'https://www.ncbi.nlm.nih.gov/books/NBK560924/',
   },
   'corrected-sodium': {
     source:
-      'Sodium correction for hyperglycemia (1.6 mEq/L per 100 mg/dL glucose above normal): Katz, N Engl J Med 1973.',
+      'Sodium correction for hyperglycemia (1.6 mEq/L per 100 mg/dL glucose): Katz, N Engl J Med 1973;289(16):843-844.',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/4763428/',
   },
   'corrected-calcium': {
     source:
-      'Albumin-adjusted calcium (canine). Note: correction formulas have limited reliability in dogs - confirm with ionized calcium (Schenck & Chew, J Vet Intern Med).',
+      'Albumin-adjusted calcium (canine). Note: adjustment is NOT recommended in dogs (worsens discordance vs ionized calcium) - Schenck & Chew, Am J Vet Res 2005;66(8):1330-1336.',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/16173474/',
   },
   'anion-gap': {
     source:
-      'Anion gap = (Na + K) - (Cl + HCO3): DiBartola, Fluid, Electrolyte and Acid-Base Disorders in Small Animal Practice.',
+      'Anion gap = (Na + K) - (Cl + HCO3); foundational reference Oh & Carroll, The Anion Gap, N Engl J Med 1977;297(15):814-817 (a standard identity with lab-dependent variants).',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/895822/',
   },
   osmolality: {
     source:
-      'Calculated osmolality = 2(Na + K) + glucose/18 + BUN/2.8: standard clinical chemistry.',
+      'Calculated osmolality = 2(Na + K) + glucose/18 + BUN/2.8: standard clinical chemistry (no single primary source for this variant; cf. Dorwart & Chalmers, Clin Chem 1975;21(2):190-194).',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/1112025/',
   },
   energy: {
     source:
-      'Resting energy requirement RER = 70 x BW(kg)^0.75: WSAVA Global Nutrition Committee guidelines.',
+      'Resting energy requirement RER = 70 x BW(kg)^0.75 (allometric): NRC, Nutrient Requirements of Dogs and Cats, 2006; WSAVA Global Nutrition Toolkit.',
+    url: 'https://doi.org/10.17226/10668',
   },
   'iris-stage': {
-    source: 'IRIS CKD Staging Guidelines (International Renal Interest Society).',
-    url: 'https://www.iris-kidney.com',
+    source: 'IRIS Staging of CKD (modified 2023), International Renal Interest Society.',
+    url: 'https://www.iris-kidney.com/iris-guidelines-1',
   },
   'blood-pressure': {
     source:
-      'ACVIM Consensus Statement on systemic hypertension in dogs and cats (Acierno et al., J Vet Intern Med 2018).',
+      'ACVIM Consensus Statement on systemic hypertension in dogs and cats (Acierno et al., J Vet Intern Med 2018;32(6):1803-1822).',
+    url: 'https://doi.org/10.1111/jvim.15331',
   },
   gestation: {
     source:
-      'Average gestation length (dog ~63 days from ovulation; cat ~63-65 days): Feldman & Nelson, Canine and Feline Endocrinology and Reproduction.',
+      'Canine gestation length: Concannon et al., Am J Vet Res 1983;44(10):1819-1821 (65 +/- 1 days from LH peak; ~63 days from ovulation).',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/6685444/',
   },
   'oxygen-flow': {
     source:
-      'Oxygen flow for non-rebreathing systems (mL/kg/min x BW): veterinary anesthesia references (e.g., AAHA Anesthesia Guidelines).',
+      'Oxygen flow per kg: 2020 AAHA Anesthesia and Monitoring Guidelines (Grubb et al., J Am Anim Hosp Assoc 2020;56(2):59-82).',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/32078360/',
   },
 };

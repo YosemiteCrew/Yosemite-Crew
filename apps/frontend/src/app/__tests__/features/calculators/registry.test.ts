@@ -131,11 +131,24 @@ describe('calculator references', () => {
 
   it('credits the genuine clinical source per formula', () => {
     expect(CALCULATOR_REFERENCES['iris-stage'].source).toMatch(/IRIS/);
-    expect(CALCULATOR_REFERENCES['iris-stage'].url).toBe('https://www.iris-kidney.com');
+    expect(CALCULATOR_REFERENCES['iris-stage'].url).toMatch(/iris-kidney\.com/);
     expect(CALCULATOR_REFERENCES['blood-pressure'].source).toMatch(/ACVIM/);
     expect(CALCULATOR_REFERENCES['corrected-sodium'].source).toMatch(/Katz/);
+    expect(CALCULATOR_REFERENCES['free-water-deficit'].source).toMatch(/Madias/);
     expect(CALCULATOR_REFERENCES['energy'].source).toMatch(/WSAVA/);
-    expect(CALCULATOR_REFERENCES['fluid-rate'].source).toMatch(/DiBartola/);
+    expect(CALCULATOR_REFERENCES['fluid-rate'].source).toMatch(/AAHA/);
+  });
+
+  it('provides a verifiable URL for the high-confidence primary citations', () => {
+    [
+      'corrected-sodium',
+      'free-water-deficit',
+      'corrected-calcium',
+      'blood-pressure',
+      'gestation',
+    ].forEach((key) => {
+      expect(CALCULATOR_REFERENCES[key].url).toMatch(/^https:\/\//);
+    });
   });
 
   it('does not attribute any calculator to a third-party calculator suite', () => {

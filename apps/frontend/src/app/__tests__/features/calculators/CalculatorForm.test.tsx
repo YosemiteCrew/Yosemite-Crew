@@ -47,9 +47,9 @@ describe('CalculatorForm', () => {
   });
 
   it('shows the formula source as plain text when there is no link', () => {
-    render(<CalculatorForm config={config('fluid-rate')} />);
+    render(<CalculatorForm config={config('drug-dose')} />);
 
-    expect(screen.getByText(/DiBartola/)).toBeInTheDocument();
+    expect(screen.getByText(/weight-based dosing/i)).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
@@ -57,7 +57,7 @@ describe('CalculatorForm', () => {
     render(<CalculatorForm config={config('iris-stage')} />);
 
     const link = screen.getByRole('link', { name: /IRIS/i });
-    expect(link).toHaveAttribute('href', 'https://www.iris-kidney.com');
+    expect(link).toHaveAttribute('href', 'https://www.iris-kidney.com/iris-guidelines-1');
     expect(link).toHaveAttribute('target', '_blank');
   });
 

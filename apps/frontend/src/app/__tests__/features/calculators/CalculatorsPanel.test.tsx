@@ -37,6 +37,15 @@ describe('CalculatorsPanel', () => {
     expect(screen.getByLabelText('Weight (kg)')).toHaveValue(null);
   });
 
+  it('flags an unsupported species and omits it from the pre-fill note', () => {
+    mockCompanion({ type: 'horse', currentWeight: 1000 });
+    render(<CalculatorsPanel appointment={appointment} />);
+
+    expect(screen.getByText(/Pre-filled from Doggy: 1000 lbs/)).toBeInTheDocument();
+    expect(screen.getByText(/Calculators support dog and cat only/)).toBeInTheDocument();
+    expect(screen.getByText(/recorded as horse/)).toBeInTheDocument();
+  });
+
   it('falls back gracefully when no companion record is loaded', () => {
     mockCompanion(undefined);
     render(<CalculatorsPanel appointment={appointment} />);
