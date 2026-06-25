@@ -3,6 +3,7 @@
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
   LuGlobe,
+  LuSmartphone,
   LuBellOff,
   LuBell,
   LuMoreVertical,
@@ -30,6 +31,7 @@ export type ConversationRowProps = Readonly<{
   online?: boolean;
   group?: boolean;
   network?: boolean;
+  viaApp?: boolean;
   muted?: boolean;
   active?: boolean;
   onClick?: (event: MouseEvent) => void;
@@ -68,6 +70,7 @@ export function ConversationRow({
   online,
   group,
   network,
+  viaApp,
   muted,
   active,
   onClick,
@@ -103,6 +106,12 @@ export function ConversationRow({
             >
               {name}
             </Text>
+            {viaApp && (
+              <LuSmartphone
+                aria-label="Messages via pet parent app"
+                className="h-3.5 w-3.5 shrink-0 text-neutral-400"
+              />
+            )}
             {network && (
               <LuGlobe
                 aria-label="Across the network"

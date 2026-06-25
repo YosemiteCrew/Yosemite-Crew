@@ -32,6 +32,16 @@ describe('ConversationRow', () => {
     expect(screen.queryByLabelText('Across the network')).not.toBeInTheDocument();
   });
 
+  it('renders the via-app glyph when viaApp is true', () => {
+    render(<ConversationRow {...base} viaApp />);
+    expect(screen.getByLabelText('Messages via pet parent app')).toBeInTheDocument();
+  });
+
+  it('does not render the via-app glyph by default', () => {
+    render(<ConversationRow {...base} />);
+    expect(screen.queryByLabelText('Messages via pet parent app')).not.toBeInTheDocument();
+  });
+
   it('renders the muted icon when muted is true', () => {
     render(<ConversationRow {...base} muted onUnmute={jest.fn()} />);
     expect(screen.getByLabelText('Muted')).toBeInTheDocument();

@@ -776,13 +776,15 @@ const ChannelHeaderWithCounterpart: FC<{
 
   const hasSessionClosed = sessionClosed;
   const online = isCounterpartOnline(channel, currentUserId);
-  const statusText = isGroupChat
+  const baseStatus = isGroupChat
     ? `${channelMemberCount} members`
     : hasSessionClosed
       ? 'Chat closed'
       : online
         ? 'Active now'
         : 'Offline';
+  const statusText =
+    isClientChat && !hasSessionClosed ? `${baseStatus} · via pet parent app` : baseStatus;
 
   const handleApptAction = (action: string) => {
     router.push(action === 'Send form' ? '/forms' : '/appointments');
@@ -902,6 +904,7 @@ const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
       unread={previewProps.unread}
       online={isCounterpartOnline(channel, currentUserId)}
       group={scope === 'groups'}
+      viaApp={scope === 'clients'}
       muted={muted}
       active={previewProps.active}
       onClick={(event) => {
