@@ -56,7 +56,11 @@ type PassField = { key: string; label: string; value: string };
 
 type AppleIds = { passTypeId: string; teamId: string };
 
-const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
+const stripTrailingSlash = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && value.charAt(end - 1) === "/") end -= 1;
+  return value.slice(0, end);
+};
 
 // The QR on the pass points at the public, verifiable passport view so a
 // border officer or boarding facility can confirm the pass against the issuer.
@@ -303,8 +307,11 @@ const extractCertAndKey = (
   return { cert, key };
 };
 
+// Apple's PassKit manifest format mandates SHA-1 file digests. This is a
+// non-sensitive integrity manifest (not password/credential hashing), and the
+// pass will not validate on-device with any other algorithm.
 const sha1Hex = (buf: Buffer): string =>
-  createHash("sha1").update(buf).digest("hex");
+  createHash("sha1").update(buf).digest("hex"); // NOSONAR: PassKit requires SHA-1
 
 const buildManifest = (files: Record<string, Buffer>): Buffer => {
   const manifest: Record<string, string> = {};
@@ -429,7 +436,7 @@ const readGoogleConfig = (): GoogleConfig => {
   const saEmail = process.env.GOOGLE_WALLET_SA_EMAIL;
   // Private keys stored in env keep literal "\n"; restore real newlines.
   const privateKey = process.env.GOOGLE_WALLET_SA_PRIVATE_KEY?.replaceAll(
-    "\\n",
+    String.raw`\n`,
     "\n",
   );
   if (!issuerId || !saEmail || !privateKey) {
