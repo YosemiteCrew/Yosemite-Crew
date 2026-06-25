@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "AuditEventType" ADD VALUE 'PASSPORT_ISSUED';
+
