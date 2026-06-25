@@ -60,6 +60,7 @@ import roomUnitRouter from "./room-unit.router";
 import roomUnitGroupRouter from "./room-unit-group.router";
 import companionCardRouter from "./companion-card.router";
 import companionCardPublicRouter from "./companion-card-public.router";
+import petPassportRouter from "./pet-passport.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -117,6 +118,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/companion-history`, companionHistoryRouter);
   app.use(`/v1/companion-card`, companionCardRouter);
   app.use(`/public/companion-card`, companionCardPublicRouter);
+  app.use(`/v1/pet-passport`, petPassportRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
