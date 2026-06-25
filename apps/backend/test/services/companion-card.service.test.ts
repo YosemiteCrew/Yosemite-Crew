@@ -152,6 +152,8 @@ describe("CompanionCardService audience redaction", () => {
     expect(card.insurance).toBeUndefined();
     expect(card.latestVisit).toBeUndefined();
     expect(card.ownerContact).toBeUndefined();
+    expect(card.identity.microchipNumber).toBeUndefined();
+    expect(card.identity.name).toBe("Doggy");
     // safety-only alerts: the low-severity "Diet note" is dropped.
     expect(card.alerts).toEqual([
       { title: "Aggressive", severity: "critical" },
@@ -176,6 +178,7 @@ describe("CompanionCardService audience redaction", () => {
     const card = await resolveAs("REFERRAL_CLINIC");
     expect(card.insurance).toEqual({ isInsured: true, companyName: "PetCo" });
     expect(card.insurance).not.toHaveProperty("policyNumber");
+    expect(card.identity.microchipNumber).toBe("1234");
     expect(card.latestVisit).toEqual({ status: "fulfilled" });
     expect(card.ownerContact).toMatchObject({ phoneNumber: "+15550001" });
     expect(card.ownerContact).not.toHaveProperty("email");

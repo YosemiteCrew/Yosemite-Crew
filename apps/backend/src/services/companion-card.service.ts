@@ -48,6 +48,7 @@ const TTL_MAX_SECONDS: Record<CompanionCardAudience, number | null> = {
 // see. A whitelist (build only what the policy permits) so a new field defaults
 // to hidden rather than leaked.
 type FieldPolicy = {
+  microchip: boolean;
   passport: boolean;
   dateOfBirth: boolean;
   alerts: "all" | "safety" | "none";
@@ -59,6 +60,7 @@ type FieldPolicy = {
 
 const POLICY: Record<CompanionCardAudience, FieldPolicy> = {
   STAFF: {
+    microchip: true,
     passport: true,
     dateOfBirth: true,
     alerts: "all",
@@ -68,6 +70,7 @@ const POLICY: Record<CompanionCardAudience, FieldPolicy> = {
     latestVisit: "full",
   },
   OWNER: {
+    microchip: true,
     passport: true,
     dateOfBirth: true,
     alerts: "all",
@@ -77,6 +80,7 @@ const POLICY: Record<CompanionCardAudience, FieldPolicy> = {
     latestVisit: "full",
   },
   REFERRAL_CLINIC: {
+    microchip: true,
     passport: true,
     dateOfBirth: true,
     alerts: "all",
@@ -86,6 +90,7 @@ const POLICY: Record<CompanionCardAudience, FieldPolicy> = {
     latestVisit: "statusOnly",
   },
   PUBLIC: {
+    microchip: false,
     passport: false,
     dateOfBirth: false,
     alerts: "safety",
@@ -239,9 +244,14 @@ const buildCard = (
       breed: patient.breed,
       colour: patient.colour ?? undefined,
       photoUrl: patient.photoUrl ?? undefined,
-      microchipNumber: patient.microchipNumber ?? undefined,
     },
   };
+
+  // A microchip number is a permanent unique identifier, so it is withheld from
+  // the unauthenticated PUBLIC card and surfaced only to trusted audiences.
+  if (policy.microchip && patient.microchipNumber) {
+    card.identity.microchipNumber = patient.microchipNumber;
+  }
 
   if (policy.passport && patient.passportNumber) {
     card.passportNumber = patient.passportNumber;
