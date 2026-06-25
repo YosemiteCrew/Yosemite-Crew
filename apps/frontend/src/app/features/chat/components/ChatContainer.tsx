@@ -103,7 +103,9 @@ interface ChatContainerProps {
 }
 
 const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string }> = [
-  { key: 'clients', label: 'Clients' },
+  // "Pet parents" is the designated owner term (matches the per-chat badge);
+  // avoids the old "Clients" tab vs "Pet parent" badge collision on this screen.
+  { key: 'clients', label: 'Pet parents' },
   { key: 'colleagues', label: 'Colleagues' },
   { key: 'groups', label: 'Groups' },
 ];

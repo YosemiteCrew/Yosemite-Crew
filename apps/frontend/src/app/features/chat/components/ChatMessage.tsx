@@ -84,11 +84,19 @@ export function ChatMessage() {
     );
   }
 
+  // Stream v13 aggregates reactions in `reaction_groups`; older payloads use
+  // `reaction_counts`. Read groups first so reactions actually render.
+  const groups = (message as unknown as { reaction_groups?: Record<string, { count?: number }> })
+    .reaction_groups;
   const counts = (message.reaction_counts ?? {}) as Record<string, number>;
   const ownTypes = new Set(
     ((message.own_reactions ?? []) as { type?: string }[]).map((r) => r.type)
   );
-  const reactions = Object.entries(counts)
+  const reactionEntries: Array<[string, number]> =
+    groups && Object.keys(groups).length > 0
+      ? Object.entries(groups).map(([emoji, g]) => [emoji, g.count ?? 0])
+      : Object.entries(counts);
+  const reactions = reactionEntries
     .filter(([, c]) => c > 0)
     .map(([emoji, count]) => ({ emoji, count, mine: ownTypes.has(emoji) }));
 
