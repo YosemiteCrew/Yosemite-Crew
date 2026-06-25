@@ -1384,6 +1384,32 @@ const applyLegacyInventoryItemUpdates = async (params: {
   if (input.status !== undefined) item.status = input.status;
 };
 
+// FIFO consumption plan shared by the Postgres and Mongo consumeStock branches:
+// walks batches (earliest expiry first) and returns the new quantity for each
+// batch that is drawn down. Throws if the requested quantity cannot be fully met.
+const planFifoConsumption = (
+  batches: ReadonlyArray<{ quantity?: number | null }>,
+  quantity: number,
+): Array<{ index: number; newQuantity: number }> => {
+  let remaining = quantity;
+  const plan: Array<{ index: number; newQuantity: number }> = [];
+  for (let i = 0; i < batches.length; i++) {
+    if (remaining <= 0) break;
+    const available = batches[i].quantity ?? 0;
+    if (available <= 0) continue;
+    const consume = Math.min(available, remaining);
+    remaining -= consume;
+    plan.push({ index: i, newQuantity: available - consume });
+  }
+  if (remaining > 0) {
+    throw new InventoryServiceError(
+      "Failed to consume full requested quantity",
+      500,
+    );
+  }
+  return plan;
+};
+
 export const InventoryService = {
   // ─────────────────────────────────────────────
   // CREATE ITEM (optionally with initial batches)
@@ -2593,29 +2619,17 @@ export const InventoryService = {
         throw new InventoryServiceError("Insufficient stock", 400);
       }
 
-      let remaining = input.quantity;
       const batches = await prisma.inventoryBatch.findMany({
         where: { itemId: safeItemId },
         orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
       });
 
-      for (const batch of batches) {
-        if (remaining <= 0) break;
-        const availableInBatch = batch.quantity ?? 0;
-        if (availableInBatch <= 0) continue;
-        const consume = Math.min(availableInBatch, remaining);
-        remaining -= consume;
+      const plan = planFifoConsumption(batches, input.quantity);
+      for (const { index, newQuantity } of plan) {
         await prisma.inventoryBatch.update({
-          where: { id: batch.id },
-          data: { quantity: availableInBatch - consume },
+          where: { id: batches[index].id },
+          data: { quantity: newQuantity },
         });
-      }
-
-      if (remaining > 0) {
-        throw new InventoryServiceError(
-          "Failed to consume full requested quantity",
-          500,
-        );
       }
 
       const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
@@ -2642,33 +2656,18 @@ export const InventoryService = {
       throw new InventoryServiceError("Insufficient stock", 400);
     }
 
-    let remaining = input.quantity;
-
     const batches = await InventoryBatchModel.find({
       itemId: safeItemId,
     })
       .sort({ expiryDate: 1, _id: 1 }) // earliest expiry first
       .exec();
 
-    for (const batch of batches) {
-      if (remaining <= 0) break;
-
-      const availableInBatch = batch.quantity ?? 0;
-      if (availableInBatch <= 0) continue;
-
-      const consume = Math.min(availableInBatch, remaining);
-      batch.quantity = availableInBatch - consume;
-      remaining -= consume;
+    const plan = planFifoConsumption(batches, input.quantity);
+    for (const { index, newQuantity } of plan) {
+      const batch = batches[index];
+      batch.quantity = newQuantity;
       await batch.save();
       await syncInventoryBatchToPostgres(batch);
-    }
-
-    if (remaining > 0) {
-      // Shouldn't happen if checks are correct, but safety:
-      throw new InventoryServiceError(
-        "Failed to consume full requested quantity",
-        500,
-      );
     }
 
     const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
