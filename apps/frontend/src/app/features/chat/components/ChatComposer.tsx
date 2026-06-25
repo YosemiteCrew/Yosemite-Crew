@@ -18,15 +18,7 @@ import {
   TextareaComposer,
   AttachmentPreviewList,
 } from 'stream-chat-react';
-import {
-  LuPlus,
-  LuImage,
-  LuFileText,
-  LuSmile,
-  LuZap,
-  LuSendHorizonal,
-  LuShare2,
-} from 'react-icons/lu';
+import { LuPlus, LuImage, LuFileText, LuSmile, LuSendHorizonal, LuShare2 } from 'react-icons/lu';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { useChatShare } from './chatShareContext';
@@ -34,11 +26,14 @@ import { useChatShare } from './chatShareContext';
 const EMOJIS = ['👍', '🙏', '❤️', '😊', '🎉', '✅', '⏰', '🐾', '💊', '📎'];
 
 const TEMPLATES = [
-  'Thanks for your message — we will get back to you shortly.',
-  'Your appointment is confirmed.',
-  'Please arrive 10 minutes early for your visit.',
-  'Your results are ready — let us discuss them.',
-  'Could you share a photo so we can take a look?',
+  { label: 'Appointment confirmed', text: 'Your appointment is confirmed.' },
+  { label: 'Arrive 10 min early', text: 'Please arrive 10 minutes early for your visit.' },
+  { label: 'Results ready', text: 'Your results are ready — let us discuss them.' },
+  { label: 'Share a photo', text: 'Could you share a photo so we can take a look?' },
+  {
+    label: 'We will reply soon',
+    text: 'Thanks for your message — we will get back to you shortly.',
+  },
 ];
 
 function ComposerIconButton({
@@ -71,14 +66,12 @@ export function ChatComposer() {
   const { openShare } = useChatShare();
   const [attachOpen, setAttachOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [templateOpen, setTemplateOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const closeAll = () => {
     setAttachOpen(false);
     setEmojiOpen(false);
-    setTemplateOpen(false);
   };
 
   const insert = (text: string) => composer.textComposer.insertText({ text });
@@ -98,6 +91,18 @@ export function ChatComposer() {
   return (
     <div className="border-t border-chat-divider bg-neutral-0 px-3 py-3">
       <AttachmentPreviewList />
+      <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+        {TEMPLATES.map((t) => (
+          <button
+            key={t.label}
+            type="button"
+            onClick={() => insert(t.text)}
+            className="shrink-0 whitespace-nowrap rounded-full border border-chat-divider bg-chat-surface px-3 py-1 text-xs font-medium text-neutral-600 transition-colors hover:border-primary-300 hover:bg-chat-panel hover:text-primary-700"
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
       <div className="flex items-end gap-1.5">
         <div className="relative">
           <ComposerIconButton
@@ -165,46 +170,6 @@ export function ChatComposer() {
             className="w-full resize-none bg-transparent font-satoshi text-sm leading-relaxed text-neutral-900 outline-none placeholder:text-neutral-400"
             containerClassName="flex-1"
           />
-        </div>
-
-        <div className="relative">
-          <ComposerIconButton
-            label="Quick replies"
-            active={templateOpen}
-            onClick={() => {
-              closeAll();
-              setTemplateOpen((o) => !o);
-            }}
-          >
-            <LuZap className="h-5 w-5" />
-          </ComposerIconButton>
-          {templateOpen && (
-            <>
-              <button
-                type="button"
-                aria-label="Close menu"
-                className="fixed inset-0 z-10 cursor-default"
-                onClick={() => setTemplateOpen(false)}
-              />
-              <div className="absolute bottom-11 right-0 z-20 w-72 rounded-2xl border border-chat-divider bg-neutral-0 p-1.5 shadow-lg">
-                {TEMPLATES.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      insert(t);
-                      setTemplateOpen(false);
-                    }}
-                    className="flex w-full rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
-                  >
-                    <Text as="span" variant="body-4" className="text-neutral-700">
-                      {t}
-                    </Text>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
         </div>
 
         <div className="relative">

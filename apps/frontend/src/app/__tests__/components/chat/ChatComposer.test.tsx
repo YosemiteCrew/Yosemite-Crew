@@ -68,10 +68,9 @@ describe('ChatComposer', () => {
     expect(mockInsertText).toHaveBeenCalledWith({ text: '🎉' });
   });
 
-  it('inserts a quick-reply template', () => {
+  it('inserts a quick-reply chip', () => {
     render(<ChatComposer />);
-    fireEvent.click(screen.getByLabelText('Quick replies'));
-    fireEvent.click(screen.getByText('Your appointment is confirmed.'));
+    fireEvent.click(screen.getByText('Appointment confirmed'));
     expect(mockInsertText).toHaveBeenCalledWith({ text: 'Your appointment is confirmed.' });
   });
 
@@ -92,14 +91,11 @@ describe('ChatComposer', () => {
     expect(screen.queryByText('Photo')).not.toBeInTheDocument();
   });
 
-  it('closes the emoji and template menus via the backdrop', () => {
+  it('closes the emoji menu via the backdrop', () => {
     render(<ChatComposer />);
     fireEvent.click(screen.getByLabelText('Emoji'));
     fireEvent.click(screen.getByLabelText('Close menu'));
     expect(screen.queryByText('🎉')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Quick replies'));
-    fireEvent.click(screen.getByLabelText('Close menu'));
-    expect(screen.queryByText('Your appointment is confirmed.')).not.toBeInTheDocument();
   });
 
   it('does nothing on send when there is no channel id', () => {

@@ -2014,7 +2014,20 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         showEmpty={showEmptyPlaceholder}
         channelListHeader={
           <>
-            <div className="px-3 pt-3">
+            <div className="flex items-center justify-between px-3 pt-3">
+              <Text as="h2" variant="heading-3" className="text-neutral-900">
+                Messages
+              </Text>
+              <button
+                type="button"
+                aria-label="New conversation"
+                onClick={openCreateGroupModal}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-neutral-0 transition-colors hover:bg-primary-600"
+              >
+                <LuMessageSquarePlus className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-3 pt-2">
               <div className="flex gap-1 rounded-full bg-chat-surface p-1">
                 {SCOPE_TABS.map((t) => (
                   <button
