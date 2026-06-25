@@ -514,7 +514,7 @@ export const CALCULATOR_REFERENCES: Record<string, CalculatorReference> = {
   },
   'body-surface-area': {
     source:
-      "Body surface area dose-normalisation (K = 10.1 dog, 10.0 cat): Withrow & MacEwen's Small Animal Clinical Oncology, 6th ed., 2019; constants critiqued in Price & Frazier, J Vet Intern Med 1998;12(4):267-271.",
+      "Body surface area dose-normalisation (K = 10.1 canine, 10.0 feline). Peer-reviewed: Price & Frazier, J Vet Intern Med 1998;12(4):267-271 (cautions on BSA-based dosing); formula also tabulated in Withrow & MacEwen's Small Animal Clinical Oncology, 6th ed., 2019.",
     url: 'https://doi.org/10.1111/j.1939-1676.1998.tb02121.x',
   },
   concentration: {
