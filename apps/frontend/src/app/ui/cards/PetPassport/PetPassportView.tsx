@@ -151,6 +151,7 @@ const PetPassportView = ({ passport }: PetPassportViewProps) => {
       {passport.issuance && (
         <Section title="Issued by">
           <Row label="Issuing vet" value={passport.issuance.issuingVetName} />
+          <Row label="Practice" value={passport.issuance.issuingPractice} />
           <Row label="Authority" value={passport.issuance.issuingAuthority} />
           <Row label="Country" value={passport.issuance.issuingCountry} />
           <Row label="Issue date" value={dateLabel(passport.issuance.issueDate)} />

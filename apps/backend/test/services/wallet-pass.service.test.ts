@@ -42,6 +42,7 @@ const PASSPORT: PetPassportDTO = {
   issuance: {
     passportNumber: "GB-YC-1",
     issuingVetName: "Dr A",
+    issuingPractice: "Yosemite Vet Clinic",
     issuingAuthority: "RCVS",
     issuingCountry: "GB",
     issueDate: "2024-06-24T00:00:00.000Z",
@@ -178,7 +179,7 @@ describe("buildApplePassJson", () => {
         }),
         expect.objectContaining({
           key: "issuer",
-          value: "Dr A · RCVS · GB · 2024-06-24",
+          value: "Dr A · Yosemite Vet Clinic · RCVS · GB · 2024-06-24",
         }),
         expect.objectContaining({ key: "disclaimer" }),
       ]),

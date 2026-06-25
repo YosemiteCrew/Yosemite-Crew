@@ -441,26 +441,38 @@ export const PetPassportService = {
       throw new PetPassportServiceError("Companion not found.", 404);
     }
 
-    const [vaccinationRows, treatmentRows, titrationRows, passportRow] =
-      await Promise.all([
-        prisma.vaccination.findMany({
-          where: { patientId, organisationId },
-          orderBy: { dateAdministered: "desc" },
-        }),
-        prisma.parasiteTreatment.findMany({
-          where: { patientId, organisationId },
-          orderBy: { treatedAt: "desc" },
-        }),
-        prisma.rabiesTitration.findMany({
-          where: { patientId, organisationId },
-          orderBy: { sampleDate: "desc" },
-        }),
-        prisma.petPassport.findFirst({
-          where: { patientId, organisationId },
-          orderBy: { issueDate: "desc" },
-        }),
-      ]);
-    const issuance = passportRow ? toIssuanceDTO(passportRow) : undefined;
+    const [
+      vaccinationRows,
+      treatmentRows,
+      titrationRows,
+      passportRow,
+      organisation,
+    ] = await Promise.all([
+      prisma.vaccination.findMany({
+        where: { patientId, organisationId },
+        orderBy: { dateAdministered: "desc" },
+      }),
+      prisma.parasiteTreatment.findMany({
+        where: { patientId, organisationId },
+        orderBy: { treatedAt: "desc" },
+      }),
+      prisma.rabiesTitration.findMany({
+        where: { patientId, organisationId },
+        orderBy: { sampleDate: "desc" },
+      }),
+      prisma.petPassport.findFirst({
+        where: { patientId, organisationId },
+        orderBy: { issueDate: "desc" },
+      }),
+      prisma.organization.findUnique({
+        where: { id: organisationId },
+        select: { name: true },
+      }),
+    ]);
+    // The issuing practice/clinic is the organisation that issued the pass.
+    const issuance = passportRow
+      ? { ...toIssuanceDTO(passportRow), issuingPractice: organisation?.name }
+      : undefined;
     const vaccinations = vaccinationRows.map(toVaccinationDTO);
     const rabies = vaccinations.find((v) => v.vaccineType === "RABIES");
     const others = vaccinations.filter((v) => v.vaccineType !== "RABIES");

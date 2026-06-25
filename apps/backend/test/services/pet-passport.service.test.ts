@@ -13,6 +13,7 @@ jest.mock("src/config/prisma", () => ({
     parasiteTreatment: { create: jest.fn(), findMany: jest.fn() },
     rabiesTitration: { create: jest.fn(), findMany: jest.fn() },
     petPassport: { create: jest.fn(), findFirst: jest.fn() },
+    organization: { findUnique: jest.fn() },
   },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
@@ -26,6 +27,7 @@ const prismaMock = prisma as unknown as {
   parasiteTreatment: { create: jest.Mock; findMany: jest.Mock };
   rabiesTitration: { create: jest.Mock; findMany: jest.Mock };
   petPassport: { create: jest.Mock; findFirst: jest.Mock };
+  organization: { findUnique: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 
@@ -93,6 +95,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   prismaMock.patientOrganisation.findFirst.mockResolvedValue({ id: "link-1" });
   prismaMock.patient.findUnique.mockResolvedValue(PATIENT);
+  prismaMock.organization.findUnique.mockResolvedValue({
+    name: "Yosemite Vet Clinic",
+  });
   prismaMock.vaccination.findMany.mockResolvedValue([]);
   prismaMock.parasiteTreatment.findMany.mockResolvedValue([]);
   prismaMock.rabiesTitration.findMany.mockResolvedValue([]);
@@ -652,6 +657,7 @@ describe("PetPassportService.issuePassport", () => {
     expect(passport.issuance).toMatchObject({
       passportNumber: "ISSUED-NO",
       issuingVetName: "Dr A",
+      issuingPractice: "Yosemite Vet Clinic",
     });
     expect(passport.passportNumber).toBe("ISSUED-NO");
   });

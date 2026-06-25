@@ -60,6 +60,8 @@ export interface PetPassportIssuanceDTO {
   passportNumber: string;
   issuingCountry?: string;
   issuingAuthority?: string;
+  /** Issuing veterinary practice / clinic / hospital (the organisation name). */
+  issuingPractice?: string;
   issuingVetName?: string;
   issuingVetLicense?: string;
   issueDate: string;

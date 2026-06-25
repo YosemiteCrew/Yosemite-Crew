@@ -116,6 +116,7 @@ const issuerLine = (passport: PetPassportDTO): string | undefined => {
   if (!issuance) return undefined;
   return [
     issuance.issuingVetName,
+    issuance.issuingPractice,
     issuance.issuingAuthority,
     issuance.issuingCountry,
     dateOnly(issuance.issueDate),

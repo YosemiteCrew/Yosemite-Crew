@@ -77,6 +77,7 @@ const full: PetPassportDTO = {
   issuance: {
     passportNumber: 'GB-YC-1',
     issuingVetName: 'Dr A',
+    issuingPractice: 'Yosemite Vet Clinic',
     issuingAuthority: 'RCVS',
     issuingCountry: 'GB',
     issueDate: '2024-06-24T00:00:00.000Z',
@@ -101,6 +102,7 @@ describe('PetPassportView', () => {
     expect(screen.getByText('EU Lab')).toBeInTheDocument();
     expect(screen.getByText('0.8 IU/ml · D(2024-05-01T00:00:00.000Z)')).toBeInTheDocument();
     expect(screen.getByText('Dr A')).toBeInTheDocument();
+    expect(screen.getByText('Yosemite Vet Clinic')).toBeInTheDocument();
     expect(screen.getByText('RCVS')).toBeInTheDocument();
     expect(screen.getByText(/Not a legal substitute/)).toBeInTheDocument();
   });
