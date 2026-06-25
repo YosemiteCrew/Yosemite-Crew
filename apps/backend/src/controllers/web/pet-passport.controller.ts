@@ -291,4 +291,23 @@ export const PetPassportController = {
       return handleError(err, res, "Apple Wallet pass generation failed");
     }
   },
+
+  getGooglePass: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const passport = await PetPassportService.getPassport(
+        params.data.patientId,
+        params.data.organisationId,
+      );
+      const saveUrl = WalletPassService.buildGoogleSaveUrl(passport);
+      return res.status(200).json({ saveUrl });
+    } catch (err) {
+      return handleError(err, res, "Google Wallet pass generation failed");
+    }
+  },
 };

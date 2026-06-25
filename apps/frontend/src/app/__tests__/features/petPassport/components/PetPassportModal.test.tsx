@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import PetPassportModal from '@/app/features/petPassport/components/PetPassportModal';
 import {
   downloadApplePass,
+  getGoogleWalletUrl,
   getPetPassport,
 } from '@/app/features/petPassport/services/petPassport.service';
 import type { PetPassportDTO } from '@yosemite-crew/types';
@@ -9,6 +10,7 @@ import type { PetPassportDTO } from '@yosemite-crew/types';
 jest.mock('@/app/features/petPassport/services/petPassport.service', () => ({
   getPetPassport: jest.fn(),
   downloadApplePass: jest.fn(),
+  getGoogleWalletUrl: jest.fn(),
 }));
 jest.mock('@/app/ui/cards/PetPassport/PetPassportView', () => ({
   __esModule: true,
@@ -45,6 +47,7 @@ jest.mock('@/app/hooks/useNotify', () => ({ useNotify: () => ({ notify: notifyMo
 
 const mockedFetch = getPetPassport as jest.Mock;
 const mockedDownload = downloadApplePass as jest.Mock;
+const mockedGoogle = getGoogleWalletUrl as jest.Mock;
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -162,6 +165,34 @@ describe('PetPassportModal', () => {
     mockedDownload.mockRejectedValue(new Error('501'));
     render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Add to Apple Wallet' }));
+    await waitFor(() =>
+      expect(notifyMock).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Wallet pass unavailable' })
+      )
+    );
+  });
+
+  it('opens the Google Wallet save url on button click', async () => {
+    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedGoogle.mockResolvedValue('https://pay.google.com/gp/v/save/tok');
+    const openSpy = jest.spyOn(globalThis.window, 'open').mockImplementation(() => null);
+    render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to Google Wallet' }));
+    await waitFor(() => expect(mockedGoogle).toHaveBeenCalledWith('p1'));
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://pay.google.com/gp/v/save/tok',
+      '_blank',
+      'noopener'
+    );
+    openSpy.mockRestore();
+  });
+
+  it('notifies when the Google Wallet url cannot be built', async () => {
+    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedGoogle.mockRejectedValue(new Error('501'));
+    render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to Google Wallet' }));
     await waitFor(() =>
       expect(notifyMock).toHaveBeenCalledWith(
         'error',

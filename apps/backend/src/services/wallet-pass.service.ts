@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import AdmZip from "adm-zip";
 import forge from "node-forge";
+import jwt from "jsonwebtoken";
 import type { PetPassportDTO } from "@yosemite-crew/types";
 
 // Thrown when the Apple Wallet signing material is not present in the
@@ -284,6 +285,88 @@ const packageApplePass = (passport: PetPassportDTO): Buffer => {
   return zip.toBuffer();
 };
 
+// --- Google Wallet ----------------------------------------------------------
+// Google object/class ids must be `<issuerId>.<suffix>` where the suffix is
+// limited to alphanumerics, '.', '_' and '-'.
+const sanitizeId = (value: string): string =>
+  value.replaceAll(/[^a-zA-Z0-9._-]/g, "-");
+
+type GoogleTextModule = { id: string; header: string; body: string };
+
+const buildGoogleTextModules = (
+  passport: PetPassportDTO,
+): GoogleTextModule[] => {
+  const modules: GoogleTextModule[] = [];
+  const add = (id: string, header: string, body?: string): void => {
+    if (body) modules.push({ id, header, body });
+  };
+  add(
+    "species",
+    "Species",
+    SPECIES_LABEL[passport.identity.species] ?? "Animal",
+  );
+  add("breed", "Breed", passport.identity.breed);
+  add("dob", "Date of birth", dateOnly(passport.identity.dateOfBirth));
+  add("microchip", "Microchip", passport.microchip?.number);
+  add("passport", "Passport number", passport.passportNumber);
+  if (passport.rabies) {
+    const validUntil = dateOnly(passport.rabies.validUntil);
+    const suffix = validUntil ? ` (valid to ${validUntil})` : "";
+    add(
+      "rabies",
+      "Rabies vaccination",
+      `${passport.rabies.vaccineName}${suffix}`,
+    );
+  }
+  add("issuer", "Issued by", passport.issuance?.issuingVetName);
+  return modules;
+};
+
+// Pure: the genericClasses/genericObjects payload embedded in the save JWT.
+// Exported for unit testing without any signing material.
+export const buildGooglePayload = (
+  passport: PetPassportDTO,
+  issuerId: string,
+): Record<string, unknown> => {
+  const classId = `${issuerId}.petpassport`;
+  const objectId = `${issuerId}.${sanitizeId(passport.identity.id)}`;
+  return {
+    genericClasses: [{ id: classId }],
+    genericObjects: [
+      {
+        id: objectId,
+        classId,
+        state: "ACTIVE",
+        cardTitle: {
+          defaultValue: { language: "en", value: "Digital Pet Passport" },
+        },
+        header: {
+          defaultValue: { language: "en", value: passport.identity.name },
+        },
+        hexBackgroundColor: "#222F5B",
+        textModulesData: buildGoogleTextModules(passport),
+        barcode: { type: "QR_CODE", value: verifyUrl(passport) },
+      },
+    ],
+  };
+};
+
+type GoogleConfig = { issuerId: string; saEmail: string; privateKey: string };
+
+const readGoogleConfig = (): GoogleConfig => {
+  const issuerId = process.env.GOOGLE_WALLET_ISSUER_ID;
+  const saEmail = process.env.GOOGLE_WALLET_SA_EMAIL;
+  // Private keys stored in env keep literal "\n"; restore real newlines.
+  const privateKey = process.env.GOOGLE_WALLET_SA_PRIVATE_KEY?.replaceAll(
+    "\\n",
+    "\n",
+  );
+  if (!issuerId || !saEmail || !privateKey) {
+    throw new WalletNotConfiguredError("Google Wallet is not configured.");
+  }
+  return { issuerId, saEmail, privateKey };
+};
+
 export const WalletPassService = {
   // Produces a signed .pkpass for the passport. Rejects with
   // WalletNotConfiguredError (501) when no Pass Type ID certificate is
@@ -293,5 +376,21 @@ export const WalletPassService = {
     return new Promise<Buffer>((resolve) =>
       resolve(packageApplePass(passport)),
     );
+  },
+
+  // Returns an "Add to Google Wallet" save URL: a JWT (RS256, signed with the
+  // service-account key) carrying the pass payload. Throws
+  // WalletNotConfiguredError (501) when the issuer/service account is unset.
+  buildGoogleSaveUrl(passport: PetPassportDTO): string {
+    const { issuerId, saEmail, privateKey } = readGoogleConfig();
+    const claims = {
+      iss: saEmail,
+      aud: "google",
+      typ: "savetowallet",
+      origins: [] as string[],
+      payload: buildGooglePayload(passport, issuerId),
+    };
+    const token = jwt.sign(claims, privateKey, { algorithm: "RS256" });
+    return `https://pay.google.com/gp/v/save/${token}`;
   },
 };

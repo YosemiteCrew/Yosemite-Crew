@@ -1,6 +1,7 @@
 import api, { getData } from '@/app/services/axios';
 import {
   downloadApplePass,
+  getGoogleWalletUrl,
   getPetPassport,
 } from '@/app/features/petPassport/services/petPassport.service';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -64,5 +65,23 @@ describe('downloadApplePass', () => {
     await expect(downloadApplePass('pat-1', 'Doggy')).rejects.toThrow(
       'No active organisation selected.'
     );
+  });
+});
+
+describe('getGoogleWalletUrl', () => {
+  it('returns the save url from the org-scoped endpoint', async () => {
+    mockedGet.mockResolvedValue({
+      data: { saveUrl: 'https://pay.google.com/gp/v/save/tok' },
+    });
+    const url = await getGoogleWalletUrl('pat-1');
+    expect(mockedGet).toHaveBeenCalledWith(
+      '/v1/pet-passport/pms/organisation/org-1/companion/pat-1/wallet/google'
+    );
+    expect(url).toBe('https://pay.google.com/gp/v/save/tok');
+  });
+
+  it('throws when no organisation is selected', async () => {
+    (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+    await expect(getGoogleWalletUrl('pat-1')).rejects.toThrow('No active organisation selected.');
   });
 });

@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import AdmZip from "adm-zip";
 import forge from "node-forge";
+import jwt from "jsonwebtoken";
 import type { PetPassportDTO } from "@yosemite-crew/types";
 import {
   buildApplePassJson,
+  buildGooglePayload,
   WalletPassService,
   WalletNotConfiguredError,
 } from "../../src/services/wallet-pass.service";
@@ -67,9 +69,10 @@ const IDS = {
 let p12Base64 = "";
 let certDerBase64 = "";
 let certObj: forge.pki.Certificate;
+let saPrivateKeyPem = "";
 
 beforeAll(() => {
-  const keys = forge.pki.rsa.generateKeyPair(1024);
+  const keys = forge.pki.rsa.generateKeyPair(2048);
   const cert = forge.pki.createCertificate();
   certObj = cert;
   cert.publicKey = keys.publicKey;
@@ -87,7 +90,8 @@ beforeAll(() => {
   certDerBase64 = forge.util.encode64(
     forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(),
   );
-});
+  saPrivateKeyPem = forge.pki.privateKeyToPem(keys.privateKey);
+}, 30000);
 
 const ENV_KEYS = [
   "APPLE_PASS_TYPE_ID",
@@ -97,6 +101,9 @@ const ENV_KEYS = [
   "APPLE_WWDR_BASE64",
   "PUBLIC_PASSPORT_BASE_URL",
   "PUBLIC_CARD_BASE_URL",
+  "GOOGLE_WALLET_ISSUER_ID",
+  "GOOGLE_WALLET_SA_EMAIL",
+  "GOOGLE_WALLET_SA_PRIVATE_KEY",
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -254,5 +261,95 @@ describe("WalletPassService.buildApplePass", () => {
     ).rejects.toMatchObject({
       statusCode: 500,
     });
+  });
+});
+
+const ISSUER = "3388000000023162791";
+const SA_EMAIL = "sa@project.iam.gserviceaccount.com";
+
+type GooglePayloadShape = {
+  genericClasses: Array<{ id: string }>;
+  genericObjects: Array<{
+    id: string;
+    classId: string;
+    header: { defaultValue: { value: string } };
+    barcode: { type: string; value: string };
+    textModulesData: Array<{ id: string }>;
+  }>;
+};
+
+describe("buildGooglePayload", () => {
+  it("maps the pass into a generic class/object with a QR to the verify url", () => {
+    process.env.PUBLIC_PASSPORT_BASE_URL = "https://app.example.com";
+    const payload = buildGooglePayload(
+      PASSPORT,
+      ISSUER,
+    ) as unknown as GooglePayloadShape;
+
+    expect(payload.genericClasses[0].id).toBe(`${ISSUER}.petpassport`);
+    const obj = payload.genericObjects[0];
+    expect(obj.id).toBe(`${ISSUER}.p1`);
+    expect(obj.classId).toBe(`${ISSUER}.petpassport`);
+    expect(obj.header.defaultValue.value).toBe("Doggy");
+    expect(obj.barcode).toEqual({
+      type: "QR_CODE",
+      value: "https://app.example.com/passport/p1",
+    });
+    const moduleIds = obj.textModulesData.map((m) => m.id);
+    expect(moduleIds).toEqual(
+      expect.arrayContaining(["microchip", "passport", "rabies", "issuer"]),
+    );
+  });
+
+  it("sanitises a non-conforming companion id into the object id", () => {
+    const payload = buildGooglePayload(
+      { ...MINIMAL, identity: { ...MINIMAL.identity, id: "abc/12 3" } },
+      ISSUER,
+    ) as unknown as GooglePayloadShape;
+    expect(payload.genericObjects[0].id).toBe(`${ISSUER}.abc-12-3`);
+  });
+});
+
+describe("WalletPassService.buildGoogleSaveUrl", () => {
+  const SAVE_PREFIX = "https://pay.google.com/gp/v/save/";
+  const configureGoogle = (): void => {
+    process.env.GOOGLE_WALLET_ISSUER_ID = ISSUER;
+    process.env.GOOGLE_WALLET_SA_EMAIL = SA_EMAIL;
+    // stored the way a JSON key lands in env: real newlines escaped to "\n"
+    process.env.GOOGLE_WALLET_SA_PRIVATE_KEY = saPrivateKeyPem.replaceAll(
+      "\n",
+      "\\n",
+    );
+  };
+
+  it("throws WalletNotConfiguredError (501) when unset", () => {
+    expect(() => WalletPassService.buildGoogleSaveUrl(PASSPORT)).toThrow(
+      WalletNotConfiguredError,
+    );
+  });
+
+  it("signs a save JWT verifiable against the service-account key", () => {
+    configureGoogle();
+    const url = WalletPassService.buildGoogleSaveUrl(PASSPORT);
+    expect(url.startsWith(SAVE_PREFIX)).toBe(true);
+
+    const token = url.slice(SAVE_PREFIX.length);
+    const decoded = jwt.decode(token) as unknown as {
+      iss: string;
+      aud: string;
+      typ: string;
+      payload: { genericObjects: Array<{ id: string }> };
+    };
+    expect(decoded.iss).toBe(SA_EMAIL);
+    expect(decoded.aud).toBe("google");
+    expect(decoded.typ).toBe("savetowallet");
+    expect(decoded.payload.genericObjects[0].id).toBe(`${ISSUER}.p1`);
+
+    const publicKeyPem = forge.pki.publicKeyToPem(
+      certObj.publicKey as forge.pki.rsa.PublicKey,
+    );
+    expect(() =>
+      jwt.verify(token, publicKeyPem, { algorithms: ["RS256"] }),
+    ).not.toThrow();
   });
 });

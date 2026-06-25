@@ -37,3 +37,12 @@ export const downloadApplePass = async (companionId: string, petName: string): P
   link.remove();
   URL.revokeObjectURL(url);
 };
+
+// Fetch the "Add to Google Wallet" save URL (a signed JWT the backend mints).
+// The caller opens it; Android offers to save the pass to Google Wallet.
+export const getGoogleWalletUrl = async (companionId: string): Promise<string> => {
+  const res = await getData<{ saveUrl: string }>(
+    `/v1/pet-passport/pms/organisation/${requireOrgId()}/companion/${companionId}/wallet/google`
+  );
+  return res.data.saveUrl;
+};

@@ -14,6 +14,7 @@ const PetPassportController = {
   issuePassport: jest.fn(),
   getPassport: jest.fn(),
   getApplePass: jest.fn(),
+  getGooglePass: jest.fn(),
 };
 
 jest.mock("../../src/middlewares/auth", () => ({ authorizeCognito }));
@@ -96,5 +97,12 @@ describe("pet-passport.router", () => {
     expect(findRoute(walletPath, "get")).toBeDefined();
     expect(findRoute(walletPath, "get")?.stack).toHaveLength(4);
     expect(requirePermission).toHaveBeenCalledWith("companions:view:any");
+  });
+
+  it("registers the Google Wallet route (get), org-guarded", () => {
+    const walletPath =
+      "/pms/organisation/:organisationId/companion/:patientId/wallet/google";
+    expect(findRoute(walletPath, "get")).toBeDefined();
+    expect(findRoute(walletPath, "get")?.stack).toHaveLength(4);
   });
 });

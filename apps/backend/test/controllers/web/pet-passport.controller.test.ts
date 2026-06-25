@@ -27,7 +27,13 @@ jest.mock("../../../src/services/wallet-pass.service", () => {
   const actual = jest.requireActual(
     "../../../src/services/wallet-pass.service",
   ) as any;
-  return { ...actual, WalletPassService: { buildApplePass: jest.fn() } };
+  return {
+    ...actual,
+    WalletPassService: {
+      buildApplePass: jest.fn(),
+      buildGoogleSaveUrl: jest.fn(),
+    },
+  };
 });
 jest.mock("../../../src/utils/logger");
 
@@ -482,6 +488,47 @@ describe("PetPassportController", () => {
         "Content-Disposition",
         'attachment; filename="Rex-O-Malley-.pkpass"',
       );
+    });
+  });
+
+  describe("getGooglePass", () => {
+    const passport = { identity: { id: "pat-1", name: "Doggy" } } as never;
+
+    it("500s when permissions were not loaded", async () => {
+      await PetPassportController.getGooglePass(
+        { params: orgParams } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("400s on invalid route parameters", async () => {
+      await PetPassportController.getGooglePass(
+        authed({ params: { organisationId: "", patientId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("returns the add-to-wallet save url", async () => {
+      service.getPassport.mockResolvedValue(passport);
+      wallet.buildGoogleSaveUrl.mockReturnValue(
+        "https://pay.google.com/gp/v/save/tok",
+      );
+      await PetPassportController.getGooglePass(authed(), res as Response);
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({
+        saveUrl: "https://pay.google.com/gp/v/save/tok",
+      });
+    });
+
+    it("501s when wallet signing is not configured", async () => {
+      service.getPassport.mockResolvedValue(passport);
+      wallet.buildGoogleSaveUrl.mockImplementation(() => {
+        throw new WalletNotConfiguredError("Google Wallet is not configured.");
+      });
+      await PetPassportController.getGooglePass(authed(), res as Response);
+      expect(statusMock).toHaveBeenCalledWith(501);
     });
   });
 });

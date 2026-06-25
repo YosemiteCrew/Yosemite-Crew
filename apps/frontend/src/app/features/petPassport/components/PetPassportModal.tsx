@@ -7,6 +7,7 @@ import { Button, Text } from '@/app/ui';
 import PetPassportView from '@/app/ui/cards/PetPassport/PetPassportView';
 import {
   downloadApplePass,
+  getGoogleWalletUrl,
   getPetPassport,
 } from '@/app/features/petPassport/services/petPassport.service';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -20,11 +21,12 @@ type PetPassportModalProps = {
 };
 
 type LoadState = 'loading' | 'ready' | 'error';
+type WalletTarget = 'apple' | 'google' | null;
 
 const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPassportModalProps) => {
   const [passport, setPassport] = useState<PetPassportDTO | null>(null);
   const [state, setState] = useState<LoadState>('loading');
-  const [downloading, setDownloading] = useState(false);
+  const [busy, setBusy] = useState<WalletTarget>(null);
   const { notify } = useNotify();
   const notifyRef = useRef(notify);
   notifyRef.current = notify;
@@ -56,8 +58,8 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
 
   const petName = companionName.split(' ')[0] || companionName;
 
-  const handleAddToWallet = () => {
-    setDownloading(true);
+  const handleAddToApple = () => {
+    setBusy('apple');
     downloadApplePass(companionId, petName)
       .catch(() => {
         notifyRef.current('error', {
@@ -65,7 +67,22 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
           text: 'This pet passport could not be added to Apple Wallet yet.',
         });
       })
-      .finally(() => setDownloading(false));
+      .finally(() => setBusy(null));
+  };
+
+  const handleAddToGoogle = () => {
+    setBusy('google');
+    getGoogleWalletUrl(companionId)
+      .then((url) => {
+        globalThis.window.open(url, '_blank', 'noopener');
+      })
+      .catch(() => {
+        notifyRef.current('error', {
+          title: 'Wallet pass unavailable',
+          text: 'This pet passport could not be added to Google Wallet yet.',
+        });
+      })
+      .finally(() => setBusy(null));
   };
 
   return (
@@ -85,12 +102,20 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
         {state === 'ready' && passport && (
           <>
             <PetPassportView passport={passport} />
-            <Button
-              variant="primary"
-              text={downloading ? 'Adding to Apple Wallet...' : 'Add to Apple Wallet'}
-              onClick={handleAddToWallet}
-              isDisabled={downloading}
-            />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="primary"
+                text={busy === 'apple' ? 'Adding to Apple Wallet...' : 'Add to Apple Wallet'}
+                onClick={handleAddToApple}
+                isDisabled={busy !== null}
+              />
+              <Button
+                variant="secondary"
+                text={busy === 'google' ? 'Adding to Google Wallet...' : 'Add to Google Wallet'}
+                onClick={handleAddToGoogle}
+                isDisabled={busy !== null}
+              />
+            </div>
           </>
         )}
       </div>
