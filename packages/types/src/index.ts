@@ -90,7 +90,14 @@ export type {
   ShareTokenResponseDTO,
   IssueShareTokenResultDTO,
 } from './dto/companion-card.dto';
-export type { VaccineType, ParasiteTreatmentType, VaccinationDTO } from './pet-passport';
+export type {
+  VaccineType,
+  ParasiteTreatmentType,
+  VaccinationDTO,
+  PetPassportIdentity,
+  PetPassportMicrochip,
+  PetPassportDTO,
+} from './pet-passport';
 export type { RecordVaccinationRequestDTO } from './dto/pet-passport.dto';
 
 export type { Organization, Organisation, ToFHIROrganizationOptions } from './organization';
