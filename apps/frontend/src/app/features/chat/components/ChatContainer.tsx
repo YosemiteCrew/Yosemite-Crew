@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  startTransition,
   use,
   useCallback,
   useEffect,
@@ -111,6 +112,65 @@ const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string; slider: string 
   { key: 'colleagues', label: 'Colleagues', slider: 'bg-success-700' },
   { key: 'groups', label: 'Groups', slider: 'bg-text-primary' },
 ];
+
+/**
+ * Self-contained audience switcher. The active pill is driven by LOCAL state so
+ * the slide paints immediately on click; the heavier scope change is handed to
+ * the parent through startTransition so re-filtering the channel list never
+ * blocks the animation. Motion mirrors the Calendar/Board/Table view switcher.
+ */
+function ChatScopeSwitcher({
+  scope,
+  onScopeChange,
+}: Readonly<{ scope?: ChatScope; onScopeChange?: (next: ChatScope) => void }>) {
+  const activeIndex = Math.max(
+    0,
+    SCOPE_TABS.findIndex((t) => t.key === scope)
+  );
+  const [index, setIndex] = useState(activeIndex);
+  useEffect(() => {
+    setIndex(activeIndex);
+  }, [activeIndex]);
+
+  return (
+    <fieldset
+      aria-label="Chat audience"
+      className="relative m-0 flex h-10 w-full items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white p-0"
+    >
+      <legend className="sr-only">Chat audience</legend>
+      <div
+        aria-hidden
+        className={clsx(
+          'absolute top-0 bottom-0 w-1/3 rounded-[999px]! transition-all duration-300 ease-in-out',
+          SCOPE_TABS[index].slider
+        )}
+        style={{ transform: `translateX(${index * 100}%)` }}
+      />
+      {SCOPE_TABS.map((t, i) => {
+        const isActive = index === i;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => {
+              setIndex(i);
+              startTransition(() => onScopeChange?.(t.key));
+            }}
+            aria-pressed={isActive}
+            className={clsx(
+              'relative z-10 flex w-1/3 items-center justify-center gap-1.5 text-body-4 transition-colors',
+              isActive
+                ? 'text-neutral-0 duration-150 delay-150'
+                : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
+            )}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </fieldset>
+  );
+}
 
 interface ChannelPreviewWrapperProps extends ChannelPreviewUIComponentProps {
   onPreviewSelect?: (channel: StreamChannel | null) => void;
@@ -1997,51 +2057,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
               </Text>
             </div>
             <div className="px-3 pt-2">
-              <fieldset
-                aria-label="Chat audience"
-                className="relative m-0 flex h-10 w-full items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white p-0"
-              >
-                <legend className="sr-only">Chat audience</legend>
-                <div
-                  aria-hidden
-                  className={clsx(
-                    'absolute top-0 bottom-0 w-1/3 rounded-[999px]! transition-all duration-300 ease-in-out',
-                    SCOPE_TABS[
-                      Math.max(
-                        0,
-                        SCOPE_TABS.findIndex((t) => t.key === scope)
-                      )
-                    ].slider
-                  )}
-                  style={{
-                    transform: `translateX(${
-                      Math.max(
-                        0,
-                        SCOPE_TABS.findIndex((t) => t.key === scope)
-                      ) * 100
-                    }%)`,
-                  }}
-                />
-                {SCOPE_TABS.map((t) => {
-                  const isActive = scope === t.key;
-                  return (
-                    <button
-                      key={t.key}
-                      type="button"
-                      onClick={() => onScopeChange?.(t.key)}
-                      aria-pressed={isActive}
-                      className={clsx(
-                        'relative z-10 flex w-1/3 items-center justify-center gap-1.5 text-body-4 transition-colors',
-                        isActive
-                          ? 'text-neutral-0 duration-150 delay-150'
-                          : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
-                      )}
-                    >
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </fieldset>
+              <ChatScopeSwitcher scope={scope} onScopeChange={onScopeChange} />
             </div>
             <div className="border-b border-chat-divider p-3">
               <div className="flex items-center gap-2 rounded-full border border-input-border bg-chat-surface px-3 py-2 focus-within:border-input-border-active">
@@ -2185,7 +2201,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         <ChatShareContext.Provider value={shareContextValue}>
           <div className={className}>
             <Chat
-              key={appointmentId ? `appointment-${appointmentId}` : `scope-${scope}`}
+              key={appointmentId ? `appointment-${appointmentId}` : 'chat-scopes'}
               client={client}
               theme="str-chat__theme-light"
             >
