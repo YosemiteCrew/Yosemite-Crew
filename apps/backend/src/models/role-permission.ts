@@ -9,6 +9,8 @@ export type Permission =
   // Companions / Medical Records
   | "companions:view:any"
   | "companions:edit:any"
+  | "companions:share:any"
+  | "companions:share:own"
   // Task
   | "tasks:view:any"
   | "tasks:edit:any"
@@ -91,6 +93,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "companions:view:any",
     "companions:edit:any",
+    "companions:share:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -156,6 +159,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "companions:view:any",
     "companions:edit:any",
+    "companions:share:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -218,6 +222,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "companions:view:any",
     "companions:edit:any",
+    "companions:share:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -273,6 +278,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "companions:view:any",
     "companions:edit:any",
+    "companions:share:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -323,6 +329,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "companions:view:any",
     "companions:edit:any",
+    "companions:share:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -370,6 +377,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "companions:view:any",
     "companions:edit:any",
+    "companions:share:any",
 
     "tasks:view:any",
     "tasks:view:own",
@@ -413,6 +421,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "companions:view:any",
     "companions:edit:any",
+    "companions:share:any",
 
     "tasks:view:any",
     "tasks:view:own",
