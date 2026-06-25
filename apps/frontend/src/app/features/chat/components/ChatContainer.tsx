@@ -2031,24 +2031,43 @@ export const ChatContainer: FC<ChatContainerProps> = ({
               </button>
             </div>
             <div className="px-3 pt-2">
-              <div className="flex gap-1 rounded-full bg-chat-surface p-1">
-                {SCOPE_TABS.map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => onScopeChange?.(t.key)}
-                    aria-pressed={scope === t.key}
-                    className={clsx(
-                      'flex-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors',
-                      scope === t.key
-                        ? 'bg-neutral-0 text-neutral-900 shadow-sm'
-                        : 'text-neutral-500 hover:text-neutral-900'
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <fieldset
+                aria-label="Chat audience"
+                className="relative m-0 flex h-10 w-full items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white p-0"
+              >
+                <legend className="sr-only">Chat audience</legend>
+                <div
+                  aria-hidden
+                  className="absolute top-0 bottom-0 w-1/3 rounded-[999px]! bg-(--color-primary-700) transition-all duration-300 ease-in-out"
+                  style={{
+                    transform: `translateX(${
+                      Math.max(
+                        0,
+                        SCOPE_TABS.findIndex((t) => t.key === scope)
+                      ) * 100
+                    }%)`,
+                  }}
+                />
+                {SCOPE_TABS.map((t) => {
+                  const isActive = scope === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => onScopeChange?.(t.key)}
+                      aria-pressed={isActive}
+                      className={clsx(
+                        'relative z-10 flex w-1/3 items-center justify-center gap-1.5 text-body-4 transition-colors',
+                        isActive
+                          ? 'text-neutral-0 duration-150 delay-150'
+                          : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </fieldset>
             </div>
             <div className="border-b border-chat-divider p-3">
               <div className="flex items-center gap-2 rounded-full border border-input-border bg-chat-surface px-3 py-2 focus-within:border-input-border-active">
