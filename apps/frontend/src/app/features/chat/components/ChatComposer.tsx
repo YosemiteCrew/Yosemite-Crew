@@ -78,7 +78,7 @@ export function ChatComposer() {
 
   const onFiles = (e: ChangeEvent<HTMLInputElement>) => {
     const { files } = e.target;
-    if (files && files.length) void composer.attachmentManager.uploadFiles(files);
+    if (files?.length) void composer.attachmentManager.uploadFiles(files);
     e.target.value = '';
     setAttachOpen(false);
   };

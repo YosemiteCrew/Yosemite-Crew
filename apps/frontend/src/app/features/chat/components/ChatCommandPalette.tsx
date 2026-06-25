@@ -47,8 +47,8 @@ export function ChatCommandPalette({
         setOpen(false);
       }
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    globalThis.addEventListener('keydown', onKey, true);
+    return () => globalThis.removeEventListener('keydown', onKey, true);
   }, []);
 
   useEffect(() => {
@@ -86,10 +86,9 @@ export function ChatCommandPalette({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-neutral-900/30 p-4 pt-24"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      open
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-start justify-center border-0 bg-neutral-900/30 p-4 pt-24"
       aria-label="Jump to conversation"
     >
       <button
@@ -149,7 +148,7 @@ export function ChatCommandPalette({
           )}
         </ul>
       </div>
-    </div>
+    </dialog>
   );
 }
 

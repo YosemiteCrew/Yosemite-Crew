@@ -20,7 +20,7 @@ const AVATAR_ACCENTS = [
 export const accentFor = (seed: string): string => {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+    hash = (hash * 31 + (seed.codePointAt(i) ?? 0)) >>> 0;
   }
   return AVATAR_ACCENTS[hash % AVATAR_ACCENTS.length];
 };
@@ -28,7 +28,7 @@ export const accentFor = (seed: string): string => {
 /** Up to two uppercase initials, ignoring any "(owner)" suffix. */
 export const initialsOf = (name: string): string => {
   const initials = name
-    .replace(/\(.*\)/, '')
+    .replace(/\([^)]*\)/, '')
     .trim()
     .split(/\s+/)
     .filter(Boolean)

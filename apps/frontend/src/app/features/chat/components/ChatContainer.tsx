@@ -811,13 +811,10 @@ const ChannelHeaderWithCounterpart: FC<{
 
   const hasSessionClosed = sessionClosed;
   const online = isCounterpartOnline(channel, currentUserId);
-  const baseStatus = isGroupChat
-    ? `${channelMemberCount} members`
-    : hasSessionClosed
-      ? 'Chat closed'
-      : online
-        ? 'Active now'
-        : 'Offline';
+  let baseStatus: string;
+  if (isGroupChat) baseStatus = `${channelMemberCount} members`;
+  else if (hasSessionClosed) baseStatus = 'Chat closed';
+  else baseStatus = online ? 'Active now' : 'Offline';
   const statusText =
     isClientChat && !hasSessionClosed ? `${baseStatus} · via pet parent app` : baseStatus;
 
