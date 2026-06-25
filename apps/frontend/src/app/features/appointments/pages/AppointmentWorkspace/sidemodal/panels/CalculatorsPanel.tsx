@@ -34,19 +34,33 @@ const CalculatorsPanel = ({ appointment }: CalculatorsPanelProps) => {
   const weightKg = weightLbs == null ? undefined : lbsToKg(weightLbs);
   const initialValues = weightKg == null ? undefined : { weightKg: String(weightKg) };
 
+  const prefillNote =
+    weightKg == null
+      ? null
+      : `Pre-filled from ${companion.name}: ${weightLbs} lbs (${weightKg} kg)${
+          speciesSupported ? `, ${speciesLabel}` : ''
+        }. Edit any value as needed.`;
+
+  const unsupportedNote =
+    companionType != null && !speciesSupported
+      ? `Calculators support canine and feline only; ${companion.name} is recorded as ${speciesLabel}. Confirm the species before using a result.`
+      : null;
+
   return (
-    <div className="flex flex-col gap-3">
-      {weightKg != null && (
-        <Text variant="caption-1" className="text-text-secondary">
-          Pre-filled from {companion.name}: {weightLbs} lbs ({weightKg} kg)
-          {speciesSupported ? `, ${speciesLabel}` : ''}. Edit any value as needed.
-        </Text>
+    <div className="flex flex-col gap-5">
+      {prefillNote && (
+        <div className="rounded-2xl bg-card-bg px-4 py-3">
+          <Text variant="caption-1" className="text-text-secondary">
+            {prefillNote}
+          </Text>
+        </div>
       )}
-      {companionType != null && !speciesSupported && (
-        <Text variant="caption-1" className="text-warning-700">
-          Calculators support canine and feline only; {companion.name} is recorded as {speciesLabel}
-          . Confirm the species before using a result.
-        </Text>
+      {unsupportedNote && (
+        <div className="rounded-2xl bg-warning-100 px-4 py-3">
+          <Text variant="caption-1" className="text-warning-700">
+            {unsupportedNote}
+          </Text>
+        </div>
       )}
       <CalculatorBrowser initialValues={initialValues} initialSpecies={species} />
     </div>
