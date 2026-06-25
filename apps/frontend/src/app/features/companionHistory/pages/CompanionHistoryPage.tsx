@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { IoIosArrowBack } from 'react-icons/io';
-import { LuCheck, LuPlus } from 'react-icons/lu';
+import { LuCheck, LuPlus, LuShare2 } from 'react-icons/lu';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -31,6 +31,7 @@ import { updateCompanion, updateParent } from '@/app/features/companions/service
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useNotify } from '@/app/hooks/useNotify';
+import ShareCompanionCardModal from '@/app/features/companionCard/components/ShareCompanionCardModal';
 import type {
   CompanionParent,
   StoredParent,
@@ -245,6 +246,7 @@ const CompanionHistoryPageInner = () => {
       typeof value === 'function' ? value(appointmentStatusStateRef.current) : value;
   }, []);
   const [alertTarget, setAlertTarget] = useState<'companion' | 'client' | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const companionId = String(searchParams.get('companionId') ?? '').trim();
   const source = String(searchParams.get('source') ?? '')
@@ -408,6 +410,18 @@ const CompanionHistoryPageInner = () => {
               </div>
 
               <div className="flex items-center gap-3">
+                {activeCompanion ? (
+                  <GlassTooltip content="Share companion card" side="bottom">
+                    <button
+                      type="button"
+                      aria-label="Share companion card"
+                      onClick={() => setShareOpen(true)}
+                      className="flex size-10 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+                    >
+                      <LuShare2 size={18} aria-hidden="true" />
+                    </button>
+                  </GlassTooltip>
+                ) : null}
                 <Primary
                   icon={<LuPlus size={18} aria-hidden="true" />}
                   text="Add appointment"
@@ -459,6 +473,15 @@ const CompanionHistoryPageInner = () => {
             onClose={() => setAlertTarget(null)}
             onAdd={handleAddAlert}
           />
+
+          {activeCompanion ? (
+            <ShareCompanionCardModal
+              open={shareOpen}
+              companionId={activeCompanion.companion.id}
+              companionName={activeCompanion.companion.name}
+              onClose={() => setShareOpen(false)}
+            />
+          ) : null}
         </div>
       </OrgGuard>
     </ProtectedRoute>
