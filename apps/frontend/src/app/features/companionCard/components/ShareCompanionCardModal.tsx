@@ -112,6 +112,10 @@ const ShareCompanionCardModal = ({
 
   const liveTokens = tokens.filter((token) => !token.revokedAt);
 
+  // Render nothing when closed so the card content is not mounted (and duplicated)
+  // in the page DOM behind the overlay.
+  if (!open) return null;
+
   return (
     <CenterModal showModal={open} setShowModal={() => onClose()} onClose={onClose}>
       <ModalHeader title={`Share ${firstName(companionName)}'s card`} onClose={onClose} />
