@@ -39,3 +39,12 @@ export interface RecordRabiesTitrationRequestDTO {
   resultIuMl: number;
   reportUrl?: string;
 }
+
+// Request to issue (or re-issue) the passport for a companion.
+export interface IssuePassportRequestDTO {
+  passportNumber: string;
+  issuingCountry?: string;
+  issuingAuthority?: string;
+  issuingVetName?: string;
+  issuingVetLicense?: string;
+}

@@ -54,6 +54,18 @@ export interface RabiesTitrationDTO {
   createdAt: string;
 }
 
+// The passport-issuance record: which authorised vet/clinic issued the passport,
+// when, and under which authority. Surfaced in the passport's "Issuing" section.
+export interface PetPassportIssuanceDTO {
+  passportNumber: string;
+  issuingCountry?: string;
+  issuingAuthority?: string;
+  issuingVetName?: string;
+  issuingVetLicense?: string;
+  issueDate: string;
+  status?: string;
+}
+
 export interface PetPassportIdentity {
   id: string;
   name: string;
@@ -82,4 +94,5 @@ export interface PetPassportDTO {
   vaccinations: VaccinationDTO[];
   parasiteTreatments: ParasiteTreatmentDTO[];
   rabiesTitrations: RabiesTitrationDTO[];
+  issuance?: PetPassportIssuanceDTO;
 }
