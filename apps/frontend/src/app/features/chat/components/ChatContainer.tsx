@@ -43,6 +43,7 @@ import ChatComposer from './ChatComposer';
 import ChatCommandPalette from './ChatCommandPalette';
 import ShareEntityModal from './ShareEntityModal';
 import { ChatShareContext } from './chatShareContext';
+import clsx from 'clsx';
 
 import 'stream-chat-react/dist/css/v2/index.css';
 import './ChatContainer.css';
@@ -98,7 +99,14 @@ interface ChatContainerProps {
   onChannelSelect?: (channel: StreamChannel | null) => void;
   className?: string;
   scope?: ChatScope;
+  onScopeChange?: (scope: ChatScope) => void;
 }
+
+const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string }> = [
+  { key: 'clients', label: 'Clients' },
+  { key: 'colleagues', label: 'Colleagues' },
+  { key: 'groups', label: 'Groups' },
+];
 
 interface ChannelPreviewWrapperProps extends ChannelPreviewUIComponentProps {
   onPreviewSelect?: (channel: StreamChannel | null) => void;
@@ -1210,6 +1218,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   onChannelSelect,
   className = '',
   scope = 'clients',
+  onScopeChange,
 }) => {
   const attributes = useAuthStore((state) => state.attributes);
   const authStatus = useAuthStore((state) => state.status);
@@ -2003,6 +2012,26 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         showEmpty={showEmptyPlaceholder}
         channelListHeader={
           <>
+            <div className="px-3 pt-3">
+              <div className="flex gap-1 rounded-full bg-chat-surface p-1">
+                {SCOPE_TABS.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => onScopeChange?.(t.key)}
+                    aria-pressed={scope === t.key}
+                    className={clsx(
+                      'flex-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors',
+                      scope === t.key
+                        ? 'bg-neutral-0 text-neutral-900 shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-900'
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="border-b border-chat-divider p-3">
               <div className="flex items-center gap-2 rounded-full border border-input-border bg-chat-surface px-3 py-2 focus-within:border-input-border-active">
                 <LuSearch className="h-4 w-4 shrink-0 text-neutral-400" />
