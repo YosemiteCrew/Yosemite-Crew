@@ -16,6 +16,7 @@ jest.mock("../../../src/services/pet-passport.service", () => {
       listParasiteTreatments: jest.fn(),
       recordRabiesTitration: jest.fn(),
       listRabiesTitrations: jest.fn(),
+      issuePassport: jest.fn(),
       getPassport: jest.fn(),
     },
   };
@@ -347,6 +348,65 @@ describe("PetPassportController", () => {
       expect(service.recordRabiesTitration).toHaveBeenCalledWith(
         expect.objectContaining({ actor: { type: "PMS_USER", id: null } }),
       );
+    });
+  });
+
+  describe("issuePassport", () => {
+    const issuanceBody = { passportNumber: "GB-YC-1" };
+
+    it("201s issuing a passport", async () => {
+      service.issuePassport.mockResolvedValue({
+        passportNumber: "GB-YC-1",
+      } as never);
+      await PetPassportController.issuePassport(
+        authed({ body: issuanceBody }),
+        res as Response,
+      );
+      expect(service.issuePassport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ passportNumber: "GB-YC-1" }),
+        }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("400s an invalid issuance body", async () => {
+      await PetPassportController.issuePassport(
+        authed({ body: {} }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(service.issuePassport).not.toHaveBeenCalled();
+    });
+
+    it("400s on invalid params", async () => {
+      await PetPassportController.issuePassport(
+        authed({
+          params: { organisationId: "", patientId: "" },
+          body: issuanceBody,
+        }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("500s when permissions were not loaded", async () => {
+      await PetPassportController.issuePassport(
+        { params: orgParams, body: issuanceBody } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("maps a service error to its status code", async () => {
+      service.issuePassport.mockRejectedValue(
+        new PetPassportServiceError("Companion not found.", 404),
+      );
+      await PetPassportController.issuePassport(
+        authed({ body: issuanceBody }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(404);
     });
   });
 });

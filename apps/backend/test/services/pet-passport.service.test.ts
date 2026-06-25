@@ -12,6 +12,7 @@ jest.mock("src/config/prisma", () => ({
     vaccination: { create: jest.fn(), findMany: jest.fn() },
     parasiteTreatment: { create: jest.fn(), findMany: jest.fn() },
     rabiesTitration: { create: jest.fn(), findMany: jest.fn() },
+    petPassport: { create: jest.fn(), findFirst: jest.fn() },
   },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
@@ -24,6 +25,7 @@ const prismaMock = prisma as unknown as {
   vaccination: { create: jest.Mock; findMany: jest.Mock };
   parasiteTreatment: { create: jest.Mock; findMany: jest.Mock };
   rabiesTitration: { create: jest.Mock; findMany: jest.Mock };
+  petPassport: { create: jest.Mock; findFirst: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 
@@ -73,6 +75,18 @@ const echoCreate = () => {
       ...data,
     }),
   );
+  prismaMock.petPassport.create.mockImplementation(({ data }) =>
+    Promise.resolve({
+      id: "pp-1",
+      issueDate: new Date("2024-06-24T00:00:00.000Z"),
+      issuingCountry: null,
+      issuingAuthority: null,
+      issuingVetName: null,
+      issuingVetLicense: null,
+      status: null,
+      ...data,
+    }),
+  );
 };
 
 beforeEach(() => {
@@ -82,6 +96,7 @@ beforeEach(() => {
   prismaMock.vaccination.findMany.mockResolvedValue([]);
   prismaMock.parasiteTreatment.findMany.mockResolvedValue([]);
   prismaMock.rabiesTitration.findMany.mockResolvedValue([]);
+  prismaMock.petPassport.findFirst.mockResolvedValue(null);
   echoCreate();
 });
 
@@ -551,5 +566,93 @@ describe("PetPassportService treatments and titrations", () => {
       approvedLab: "EU Lab",
       resultIuMl: 0.8,
     });
+  });
+});
+
+describe("PetPassportService.issuePassport", () => {
+  it("issues a passport with all fields and audits", async () => {
+    const dto = await PetPassportService.issuePassport({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      actor: ACTOR,
+      input: {
+        passportNumber: "GB-YC-1",
+        issuingCountry: "GB",
+        issuingAuthority: "RCVS",
+        issuingVetName: "Dr A",
+        issuingVetLicense: "RCVS-1",
+      },
+    });
+    expect(dto).toMatchObject({
+      passportNumber: "GB-YC-1",
+      issuingCountry: "GB",
+      issuingAuthority: "RCVS",
+      issuingVetName: "Dr A",
+      issuingVetLicense: "RCVS-1",
+    });
+    expect(dto.issueDate).toBe("2024-06-24T00:00:00.000Z");
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "PASSPORT_ISSUED",
+        entityId: "pp-1",
+      }),
+    );
+  });
+
+  it("maps optional issuance fields to undefined when absent", async () => {
+    const dto = await PetPassportService.issuePassport({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      actor: { type: "SYSTEM" },
+      input: { passportNumber: "GB-YC-2" },
+    });
+    expect(dto).toMatchObject({ passportNumber: "GB-YC-2" });
+    expect(dto.issuingCountry).toBeUndefined();
+    expect(dto.issuingVetName).toBeUndefined();
+    expect(dto.status).toBeUndefined();
+  });
+
+  it("404s issuing for a companion outside the caller's org", async () => {
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+    await expect(
+      PetPassportService.issuePassport({
+        patientId: "pat-1",
+        organisationId: "org-1",
+        actor: ACTOR,
+        input: { passportNumber: "X" },
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("getPassport includes the latest issuance and prefers its passport number", async () => {
+    prismaMock.patient.findUnique.mockResolvedValue({
+      id: "pat-1",
+      name: "Doggy",
+      type: "dog",
+      breed: "Rottweiler",
+      gender: "male",
+      colour: null,
+      photoUrl: null,
+      dateOfBirth: new Date("2024-01-01T00:00:00.000Z"),
+      microchipNumber: null,
+      microchipImplantedAt: null,
+      microchipLocation: null,
+      passportNumber: "PATIENT-NO",
+    });
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      passportNumber: "ISSUED-NO",
+      issuingCountry: "GB",
+      issuingAuthority: "RCVS",
+      issuingVetName: "Dr A",
+      issuingVetLicense: "RCVS-1",
+      issueDate: new Date("2024-06-24T00:00:00.000Z"),
+      status: null,
+    });
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.issuance).toMatchObject({
+      passportNumber: "ISSUED-NO",
+      issuingVetName: "Dr A",
+    });
+    expect(passport.passportNumber).toBe("ISSUED-NO");
   });
 });

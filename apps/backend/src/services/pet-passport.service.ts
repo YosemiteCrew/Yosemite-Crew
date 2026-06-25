@@ -2,9 +2,11 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
+  IssuePassportRequestDTO,
   ParasiteTreatmentDTO,
   ParasiteTreatmentType,
   PetPassportDTO,
+  PetPassportIssuanceDTO,
   RabiesTitrationDTO,
   RecordParasiteTreatmentRequestDTO,
   RecordRabiesTitrationRequestDTO,
@@ -158,6 +160,24 @@ const toTitrationDTO = (row: {
   resultIuMl: row.resultIuMl,
   reportUrl: row.reportUrl ?? undefined,
   createdAt: row.createdAt.toISOString(),
+});
+
+const toIssuanceDTO = (row: {
+  passportNumber: string;
+  issuingCountry: string | null;
+  issuingAuthority: string | null;
+  issuingVetName: string | null;
+  issuingVetLicense: string | null;
+  issueDate: Date;
+  status: string | null;
+}): PetPassportIssuanceDTO => ({
+  passportNumber: row.passportNumber,
+  issuingCountry: row.issuingCountry ?? undefined,
+  issuingAuthority: row.issuingAuthority ?? undefined,
+  issuingVetName: row.issuingVetName ?? undefined,
+  issuingVetLicense: row.issuingVetLicense ?? undefined,
+  issueDate: row.issueDate.toISOString(),
+  status: row.status ?? undefined,
 });
 
 export const PetPassportService = {
@@ -356,6 +376,42 @@ export const PetPassportService = {
     return rows.map(toTitrationDTO);
   },
 
+  async issuePassport(params: {
+    patientId: string;
+    organisationId: string;
+    actor: PassportActor;
+    input: IssuePassportRequestDTO;
+  }): Promise<PetPassportIssuanceDTO> {
+    const { patientId, organisationId, actor, input } = params;
+    await assertOrgMembership(patientId, organisationId);
+
+    const row = await prisma.petPassport.create({
+      data: {
+        patientId,
+        organisationId,
+        passportNumber: input.passportNumber,
+        issuingCountry: input.issuingCountry ?? null,
+        issuingAuthority: input.issuingAuthority ?? null,
+        issuingVetId: actor.id ?? null,
+        issuingVetName: input.issuingVetName ?? null,
+        issuingVetLicense: input.issuingVetLicense ?? null,
+      },
+    });
+
+    await AuditTrailService.recordSafely({
+      organisationId,
+      patientId,
+      eventType: "PASSPORT_ISSUED",
+      actorType: actor.type,
+      actorId: actor.id ?? null,
+      entityType: "COMPANION",
+      entityId: row.id,
+      metadata: { passportNumber: input.passportNumber },
+    });
+
+    return toIssuanceDTO(row);
+  },
+
   // Assemble the multi-section passport from the source-of-truth Patient and its
   // vaccination rows. The latest rabies dose is surfaced separately (it drives
   // validity); the rest are listed together.
@@ -385,20 +441,26 @@ export const PetPassportService = {
       throw new PetPassportServiceError("Companion not found.", 404);
     }
 
-    const [vaccinationRows, treatmentRows, titrationRows] = await Promise.all([
-      prisma.vaccination.findMany({
-        where: { patientId, organisationId },
-        orderBy: { dateAdministered: "desc" },
-      }),
-      prisma.parasiteTreatment.findMany({
-        where: { patientId, organisationId },
-        orderBy: { treatedAt: "desc" },
-      }),
-      prisma.rabiesTitration.findMany({
-        where: { patientId, organisationId },
-        orderBy: { sampleDate: "desc" },
-      }),
-    ]);
+    const [vaccinationRows, treatmentRows, titrationRows, passportRow] =
+      await Promise.all([
+        prisma.vaccination.findMany({
+          where: { patientId, organisationId },
+          orderBy: { dateAdministered: "desc" },
+        }),
+        prisma.parasiteTreatment.findMany({
+          where: { patientId, organisationId },
+          orderBy: { treatedAt: "desc" },
+        }),
+        prisma.rabiesTitration.findMany({
+          where: { patientId, organisationId },
+          orderBy: { sampleDate: "desc" },
+        }),
+        prisma.petPassport.findFirst({
+          where: { patientId, organisationId },
+          orderBy: { issueDate: "desc" },
+        }),
+      ]);
+    const issuance = passportRow ? toIssuanceDTO(passportRow) : undefined;
     const vaccinations = vaccinationRows.map(toVaccinationDTO);
     const rabies = vaccinations.find((v) => v.vaccineType === "RABIES");
     const others = vaccinations.filter((v) => v.vaccineType !== "RABIES");
@@ -421,11 +483,13 @@ export const PetPassportService = {
             location: patient.microchipLocation ?? undefined,
           }
         : undefined,
-      passportNumber: patient.passportNumber ?? undefined,
+      passportNumber:
+        issuance?.passportNumber ?? patient.passportNumber ?? undefined,
       rabies,
       vaccinations: others,
       parasiteTreatments: treatmentRows.map(toTreatmentDTO),
       rabiesTitrations: titrationRows.map(toTitrationDTO),
+      issuance,
     };
   },
 };

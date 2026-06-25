@@ -49,6 +49,14 @@ const TitrationBodySchema = z.object({
   reportUrl: z.string().max(2048).optional(),
 });
 
+const IssuanceBodySchema = z.object({
+  passportNumber: z.string().min(1).max(100),
+  issuingCountry: z.string().max(100).optional(),
+  issuingAuthority: z.string().max(200).optional(),
+  issuingVetName: z.string().max(200).optional(),
+  issuingVetLicense: z.string().max(100).optional(),
+});
+
 const permissionsLoaded = (req: OrgRequest, res: Response): boolean => {
   if (req.userPermissions) return true;
   res.status(500).json({
@@ -206,6 +214,30 @@ export const PetPassportController = {
       return res.status(200).json({ titrations });
     } catch (err) {
       return handleError(err, res, "Rabies titration listing failed");
+    }
+  },
+
+  issuePassport: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = IssuanceBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const issuance = await PetPassportService.issuePassport({
+        patientId: params.data.patientId,
+        organisationId: params.data.organisationId,
+        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        input: body.data,
+      });
+      return res.status(201).json(issuance);
+    } catch (err) {
+      return handleError(err, res, "Pet passport issuance failed");
     }
   },
 

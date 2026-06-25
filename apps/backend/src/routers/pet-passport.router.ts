@@ -53,6 +53,14 @@ router.get(
   PetPassportController.listRabiesTitrations,
 );
 
+router.post(
+  "/pms/organisation/:organisationId/companion/:patientId/issue",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("passport:edit:any"),
+  PetPassportController.issuePassport,
+);
+
 router.get(
   "/pms/organisation/:organisationId/companion/:patientId/passport",
   authorizeCognito,
