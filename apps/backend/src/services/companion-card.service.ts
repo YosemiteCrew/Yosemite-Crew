@@ -409,16 +409,6 @@ const notifyOwnerSafely = async (
 };
 
 export const CompanionCardService = {
-  // Authenticated staff render. Org-scoped to prevent cross-tenant leakage.
-  async getStaffCard(
-    patientId: string,
-    organisationId: string,
-  ): Promise<CompanionCardDTO> {
-    await assertOrgMembership(patientId, organisationId);
-    const source = await loadSource(patientId, organisationId, "STAFF");
-    return buildCard("STAFF", source, false);
-  },
-
   async issueShareToken(params: {
     patientId: string;
     organisationId: string;

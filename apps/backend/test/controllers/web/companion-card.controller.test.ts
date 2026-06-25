@@ -10,7 +10,6 @@ jest.mock("../../../src/services/companion-card.service", () => {
   return {
     ...actual,
     CompanionCardService: {
-      getStaffCard: jest.fn(),
       issueShareToken: jest.fn(),
       listTokens: jest.fn(),
       revokeToken: jest.fn(),
@@ -49,42 +48,35 @@ describe("CompanionCardController", () => {
     res = { status: statusMock } as Partial<Response>;
   });
 
-  describe("getCard", () => {
-    it("returns the staff card on success", async () => {
-      service.getStaffCard.mockResolvedValue({ audience: "STAFF" } as never);
-      await CompanionCardController.getCard(authed(), res as Response);
-      expect(service.getStaffCard).toHaveBeenCalledWith("pat-1", "org-1");
-      expect(statusMock).toHaveBeenCalledWith(200);
-      expect(jsonMock).toHaveBeenCalledWith({ audience: "STAFF" });
-    });
-
+  describe("shared controller behaviour", () => {
     it("500s when permissions were not loaded", async () => {
-      await CompanionCardController.getCard(
-        { params: orgParams } as unknown as Request,
+      await CompanionCardController.issueShareToken(
+        {
+          params: orgParams,
+          body: { audience: "PUBLIC" },
+        } as unknown as Request,
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(500);
     });
 
-    it("400s on invalid params", async () => {
-      await CompanionCardController.getCard(
-        authed({ params: { organisationId: "", patientId: "" } }),
-        res as Response,
-      );
-      expect(statusMock).toHaveBeenCalledWith(400);
-    });
-
     it("maps a service error to its status code", async () => {
-      service.getStaffCard.mockRejectedValue(
+      service.issueShareToken.mockRejectedValue(
         new CompanionCardServiceError("Companion not found.", 404),
       );
-      await CompanionCardController.getCard(authed(), res as Response);
+      await CompanionCardController.issueShareToken(
+        authed({ body: { audience: "PUBLIC" } }),
+        res as Response,
+      );
       expect(statusMock).toHaveBeenCalledWith(404);
     });
 
     it("500s on an unexpected error", async () => {
-      service.getStaffCard.mockRejectedValue(new Error("boom"));
-      await CompanionCardController.getCard(authed(), res as Response);
+      service.issueShareToken.mockRejectedValue(new Error("boom"));
+      await CompanionCardController.issueShareToken(
+        authed({ body: { audience: "PUBLIC" } }),
+        res as Response,
+      );
       expect(statusMock).toHaveBeenCalledWith(500);
     });
   });

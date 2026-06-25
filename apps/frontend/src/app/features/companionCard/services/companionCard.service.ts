@@ -16,12 +16,6 @@ const requireOrgId = (): string => {
 const companionBase = (patientId: string): string =>
   `/v1/companion-card/pms/organisation/${requireOrgId()}/companion/${patientId}`;
 
-// Authenticated staff render of the full card.
-export const getCompanionCard = async (patientId: string): Promise<CompanionCardDTO> => {
-  const res = await getData<CompanionCardDTO>(`${companionBase(patientId)}/card`);
-  return res.data;
-};
-
 export const issueShareToken = async (
   patientId: string,
   body: IssueShareTokenRequestDTO

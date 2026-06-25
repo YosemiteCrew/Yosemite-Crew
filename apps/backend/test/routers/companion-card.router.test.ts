@@ -5,7 +5,6 @@ const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const CompanionCardController = {
-  getCard: jest.fn(),
   issueShareToken: jest.fn(),
   listTokens: jest.fn(),
   revokeToken: jest.fn(),
@@ -38,16 +37,6 @@ const findRoute = (path: string, method: string) =>
   )?.route;
 
 describe("companion-card.router", () => {
-  it("guards the card render with companions:view:any", () => {
-    expect(
-      findRoute(
-        "/pms/organisation/:organisationId/companion/:patientId/card",
-        "get",
-      ),
-    ).toBeDefined();
-    expect(requirePermission).toHaveBeenCalledWith("companions:view:any");
-  });
-
   it("guards share issue, list and revoke with companions:share:any", () => {
     expect(
       findRoute(
@@ -67,10 +56,10 @@ describe("companion-card.router", () => {
     expect(requirePermission).toHaveBeenCalledWith("companions:share:any");
   });
 
-  it("requires Cognito auth on the card route", () => {
+  it("requires Cognito auth on the share route", () => {
     const route = findRoute(
-      "/pms/organisation/:organisationId/companion/:patientId/card",
-      "get",
+      "/pms/organisation/:organisationId/companion/:patientId/share",
+      "post",
     );
     const handles = route?.stack.map((layer) => layer.handle) ?? [];
     expect(handles).toContain(authorizeCognito);

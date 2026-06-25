@@ -124,7 +124,7 @@ const resolveAs = (audience: string, showOwnerPhone = false) => {
 
 describe("CompanionCardService audience redaction", () => {
   it("STAFF card exposes identity, medical, insurance summary, owner and latest visit", async () => {
-    const card = await CompanionCardService.getStaffCard("pat-1", "org-1");
+    const card = await resolveAs("STAFF");
     expect(card.identity).toMatchObject({
       name: "Doggy",
       microchipNumber: "1234",
@@ -181,10 +181,15 @@ describe("CompanionCardService audience redaction", () => {
     expect(card.ownerContact).not.toHaveProperty("email");
   });
 
-  it("rejects a staff card for a companion not linked to the caller's org", async () => {
+  it("rejects issuing a share for a companion not linked to the caller's org", async () => {
     prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
     await expect(
-      CompanionCardService.getStaffCard("pat-1", "org-1"),
+      CompanionCardService.issueShareToken({
+        patientId: "pat-1",
+        organisationId: "org-1",
+        audience: "PUBLIC",
+        actor: { type: "PMS_USER", id: "user-1" },
+      }),
     ).rejects.toThrow(CompanionCardServiceError);
   });
 });
@@ -350,19 +355,19 @@ describe("CompanionCardService token lifecycle", () => {
 describe("CompanionCardService resilience and edge cases", () => {
   it("omits latest visit when the appointment lookup fails", async () => {
     apptMock.mockRejectedValue(new Error("boom"));
-    const card = await CompanionCardService.getStaffCard("pat-1", "org-1");
+    const card = await resolveAs("STAFF");
     expect(card.latestVisit).toBeUndefined();
   });
 
   it("omits latest visit when the companion has no appointments", async () => {
     apptMock.mockResolvedValue([]);
-    const card = await CompanionCardService.getStaffCard("pat-1", "org-1");
+    const card = await resolveAs("STAFF");
     expect(card.latestVisit).toBeUndefined();
   });
 
   it("omits owner contact when there is no primary owner link", async () => {
     prismaMock.parentPatient.findFirst.mockResolvedValue(null);
-    const card = await CompanionCardService.getStaffCard("pat-1", "org-1");
+    const card = await resolveAs("STAFF");
     expect(card.ownerContact).toBeUndefined();
   });
 
@@ -401,7 +406,7 @@ describe("CompanionCardService resilience and edge cases", () => {
       ...PATIENT,
       insurance: null,
     });
-    const card = await CompanionCardService.getStaffCard("pat-1", "org-1");
+    const card = await resolveAs("STAFF");
     expect(card.insurance).toEqual({ isInsured: true, companyName: undefined });
   });
 
@@ -453,7 +458,7 @@ describe("CompanionCardService resilience and edge cases", () => {
       email: "sam@example.com",
       linkedUserId: null,
     });
-    const card = await CompanionCardService.getStaffCard("pat-2", "org-1");
+    const card = await resolveAs("STAFF");
     expect(card.identity).toEqual({
       id: "pat-2",
       name: "Min",
@@ -499,7 +504,7 @@ describe("CompanionCardService resilience and edge cases", () => {
       ...PATIENT,
       insurance: { companyName: 123 },
     });
-    const card = await CompanionCardService.getStaffCard("pat-1", "org-1");
+    const card = await resolveAs("STAFF");
     expect(card.insurance).toEqual({ isInsured: true });
   });
 });

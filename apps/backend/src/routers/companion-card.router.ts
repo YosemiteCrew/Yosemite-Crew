@@ -5,14 +5,6 @@ import { CompanionCardController } from "src/controllers/web/companion-card.cont
 
 const router = Router();
 
-router.get(
-  "/pms/organisation/:organisationId/companion/:patientId/card",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("companions:view:any"),
-  CompanionCardController.getCard,
-);
-
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/share",
   authorizeCognito,

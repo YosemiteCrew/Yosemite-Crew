@@ -51,24 +51,6 @@ const handleError = (
 };
 
 export const CompanionCardController = {
-  getCard: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const card = await CompanionCardService.getStaffCard(
-        params.data.patientId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(card);
-    } catch (err) {
-      return handleError(err, res, "Companion card render failed");
-    }
-  },
-
   issueShareToken: async (req: Request, res: Response): Promise<Response> => {
     try {
       const typedReq = req as OrgRequest;
