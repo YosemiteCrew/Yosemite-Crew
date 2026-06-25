@@ -121,7 +121,7 @@ export const CALCULATORS: CalculatorConfig[] = [
     key: 'shock-bolus',
     category: 'Fluids & emergency',
     label: 'Shock fluid bolus',
-    intro: 'Resuscitation bolus and infusion rate (typical dog 10-20 mL/kg, cat 5-10 mL/kg).',
+    intro: 'Resuscitation bolus and infusion rate (typical canine 10-20 mL/kg, feline 5-10 mL/kg).',
     fields: [
       { name: 'weightKg', label: 'Weight (kg)' },
       { name: 'doseMlPerKg', label: 'Bolus dose (mL/kg)' },
@@ -304,7 +304,7 @@ export const CALCULATORS: CalculatorConfig[] = [
   {
     key: 'corrected-calcium',
     category: 'Electrolytes & metabolic',
-    label: 'Corrected calcium (dog)',
+    label: 'Corrected calcium (canine)',
     intro: 'Albumin-corrected calcium. Canine formula only.',
     fields: [
       { name: 'totalCalciumMgDl', label: 'Total calcium (mg/dL)' },

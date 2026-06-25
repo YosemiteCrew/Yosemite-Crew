@@ -12,6 +12,14 @@ type CalculatorsPanelProps = {
   appointment: Appointment;
 };
 
+// The app uses the clinical species terms (canine/feline/equine), not dog/cat/horse.
+const SPECIES_LABEL: Record<CompanionType, string> = {
+  dog: 'canine',
+  cat: 'feline',
+  horse: 'equine',
+  other: 'other',
+};
+
 const CalculatorsPanel = ({ appointment }: CalculatorsPanelProps) => {
   const companion = getAppointmentCompanion(appointment);
   const companionRecord = useCompanionStore((s) => s.companionsById[companion.id]);
@@ -19,6 +27,7 @@ const CalculatorsPanel = ({ appointment }: CalculatorsPanelProps) => {
   const companionType: CompanionType | undefined = companionRecord?.type;
   const speciesSupported = companionType === 'dog' || companionType === 'cat';
   const species: CalculatorSpecies = companionType === 'cat' ? 'cat' : 'dog';
+  const speciesLabel = companionType ? SPECIES_LABEL[companionType] : '';
 
   // currentWeight is recorded in pounds in the workspace; convert for the calculators.
   const weightLbs = companionRecord?.currentWeight;
@@ -30,13 +39,13 @@ const CalculatorsPanel = ({ appointment }: CalculatorsPanelProps) => {
       {weightKg != null && (
         <Text variant="caption-1" className="text-text-secondary">
           Pre-filled from {companion.name}: {weightLbs} lbs ({weightKg} kg)
-          {speciesSupported ? `, ${species}` : ''}. Edit any value as needed.
+          {speciesSupported ? `, ${speciesLabel}` : ''}. Edit any value as needed.
         </Text>
       )}
       {companionType != null && !speciesSupported && (
         <Text variant="caption-1" className="text-warning-700">
-          Calculators support dog and cat only; {companion.name} is recorded as {companionType}.
-          Confirm the species before using a result.
+          Calculators support canine and feline only; {companion.name} is recorded as {speciesLabel}
+          . Confirm the species before using a result.
         </Text>
       )}
       <CalculatorBrowser initialValues={initialValues} initialSpecies={species} />

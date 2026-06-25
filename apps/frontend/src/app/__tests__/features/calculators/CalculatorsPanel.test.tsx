@@ -25,7 +25,9 @@ describe('CalculatorsPanel', () => {
     mockCompanion({ type: 'dog', currentWeight: 15 });
     render(<CalculatorsPanel appointment={appointment} />);
 
-    expect(screen.getByText(/Pre-filled from Doggy: 15 lbs \(6\.8 kg\), dog/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Pre-filled from Doggy: 15 lbs \(6\.8 kg\), canine/i)
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Weight (kg)')).toHaveValue(6.8);
   });
 
@@ -42,8 +44,8 @@ describe('CalculatorsPanel', () => {
     render(<CalculatorsPanel appointment={appointment} />);
 
     expect(screen.getByText(/Pre-filled from Doggy: 1000 lbs/)).toBeInTheDocument();
-    expect(screen.getByText(/Calculators support dog and cat only/)).toBeInTheDocument();
-    expect(screen.getByText(/recorded as horse/)).toBeInTheDocument();
+    expect(screen.getByText(/Calculators support canine and feline only/)).toBeInTheDocument();
+    expect(screen.getByText(/recorded as equine/)).toBeInTheDocument();
   });
 
   it('falls back gracefully when no companion record is loaded', () => {

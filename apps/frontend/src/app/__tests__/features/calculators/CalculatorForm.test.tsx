@@ -38,7 +38,7 @@ describe('CalculatorForm', () => {
     const user = userEvent.setup();
     render(<CalculatorForm config={config('fluid-rate')} />);
 
-    await user.click(screen.getByRole('button', { name: 'Cat' }));
+    await user.click(screen.getByRole('button', { name: 'Feline' }));
     await user.type(screen.getByLabelText('Weight (kg)'), '10');
     await user.type(screen.getByLabelText('Dehydration (%)'), '5');
     await user.click(screen.getByRole('button', { name: 'Calculate' }));
@@ -92,7 +92,7 @@ describe('CalculatorForm', () => {
     const user = userEvent.setup();
     render(<CalculatorForm config={config('corrected-sodium')} />);
 
-    expect(screen.queryByRole('button', { name: 'Dog' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Canine' })).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Measured sodium (mEq/L)'), '140');
     await user.type(screen.getByLabelText('Glucose (mg/dL)'), '600');
