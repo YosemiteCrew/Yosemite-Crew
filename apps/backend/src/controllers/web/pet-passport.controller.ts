@@ -5,6 +5,10 @@ import {
   PetPassportService,
   PetPassportServiceError,
 } from "src/services/pet-passport.service";
+import {
+  WalletPassService,
+  WalletNotConfiguredError,
+} from "src/services/wallet-pass.service";
 import { OrgRequest } from "src/middlewares/rbac";
 
 // Ids may be Mongo ObjectIds or Postgres UUIDs (dual-write), so validate
@@ -71,7 +75,10 @@ const handleError = (
   res: Response,
   context: string,
 ): Response => {
-  if (err instanceof PetPassportServiceError) {
+  if (
+    err instanceof PetPassportServiceError ||
+    err instanceof WalletNotConfiguredError
+  ) {
     return res.status(err.statusCode).json({ message: err.message });
   }
   logger.error(context, err);
@@ -256,6 +263,32 @@ export const PetPassportController = {
       return res.status(200).json(passport);
     } catch (err) {
       return handleError(err, res, "Pet passport assembly failed");
+    }
+  },
+
+  getApplePass: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const passport = await PetPassportService.getPassport(
+        params.data.patientId,
+        params.data.organisationId,
+      );
+      const pkpass = await WalletPassService.buildApplePass(passport);
+      const safeName =
+        passport.identity.name.replaceAll(/[^a-z0-9]+/gi, "-") || "passport";
+      res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${safeName}.pkpass"`,
+      );
+      return res.status(200).send(pkpass);
+    } catch (err) {
+      return handleError(err, res, "Apple Wallet pass generation failed");
     }
   },
 };

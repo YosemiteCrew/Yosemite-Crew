@@ -120,6 +120,9 @@ importers:
       '@yosemite-crew/lib':
         specifier: workspace:^
         version: link:../../packages/lib
+      adm-zip:
+        specifier: ^0.5.17
+        version: 0.5.17
       aws-sdk:
         specifier: 2.1692.0
         version: 2.1692.0
@@ -235,6 +238,9 @@ importers:
       '@eslint/js':
         specifier: ^9.21.0
         version: 9.39.2
+      '@types/adm-zip':
+        specifier: ^0.5.8
+        version: 0.5.8
       '@types/aws-sdk':
         specifier: ^2.7.4
         version: 2.7.4
@@ -274,6 +280,9 @@ importers:
       '@types/node':
         specifier: ^22.15.21
         version: 22.19.8
+      '@types/node-forge':
+        specifier: ^1.3.14
+        version: 1.3.14
       '@types/socket.io':
         specifier: ^3.0.2
         version: 3.0.2
@@ -19457,6 +19466,12 @@ packages:
       '@types/express': 5.0.6
     dev: true
 
+  /@types/node-forge@1.3.14:
+    resolution: {integrity: sha512-mhVF2BnD4BO+jtOp7z1CdzaK4mbuK0LLQYAvdOLqHTavxFNq4zA1EmYkpnFjP8HOUzedfQkRnp0E2ulSAYSzAw==}
+    dependencies:
+      '@types/node': 22.19.8
+    dev: true
+
   /@types/node@17.0.45:
     resolution: {integrity: sha512-w+tIMs3rq2afQdsPJlODhoUEKzFP1ayaoyl1CcnwtIlsVe7K7bA1NGm4s3PraqTLlXnbIN84zuBlxBWo1u9BLw==}
     dev: false
@@ -20846,7 +20861,6 @@ packages:
   /adm-zip@0.5.17:
     resolution: {integrity: sha512-+Ut8d9LLqwEvHHJl1+PIHqoyDxFgVN847JTVM3Izi3xHDWPE4UtzzXysMZQs64DMcrJfBeS/uoEP4AD3HQHnQQ==}
     engines: {node: '>=12.0'}
-    dev: true
 
   /agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
@@ -28801,7 +28815,7 @@ packages:
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@20.19.31)(typescript@5.9.3)
+      ts-node: 10.9.2(@types/node@22.19.8)(typescript@5.0.4)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color

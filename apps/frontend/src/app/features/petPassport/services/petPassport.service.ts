@@ -1,4 +1,4 @@
-import { getData } from '@/app/services/axios';
+import api, { getData } from '@/app/services/axios';
 import { useOrgStore } from '@/app/stores/orgStore';
 import type { PetPassportDTO } from '@yosemite-crew/types';
 
@@ -17,4 +17,23 @@ export const getPetPassport = async (companionId: string): Promise<PetPassportDT
     `/v1/pet-passport/pms/organisation/${requireOrgId()}/companion/${companionId}/passport`
   );
   return res.data as PetPassportDTO;
+};
+
+// Fetch the signed .pkpass over the authenticated channel and trigger a
+// download. On Apple devices the .pkpass opens straight into Wallet; elsewhere
+// it saves the file. Auth headers are required, so this goes through the api
+// instance rather than a bare link.
+export const downloadApplePass = async (companionId: string, petName: string): Promise<void> => {
+  const res = await api.get<Blob>(
+    `/v1/pet-passport/pms/organisation/${requireOrgId()}/companion/${companionId}/wallet/apple`,
+    { responseType: 'blob' }
+  );
+  const url = URL.createObjectURL(res.data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${petName}.pkpass`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 };

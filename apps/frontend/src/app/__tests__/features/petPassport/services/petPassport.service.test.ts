@@ -1,11 +1,19 @@
-import { getPetPassport } from '@/app/features/petPassport/services/petPassport.service';
-import { getData } from '@/app/services/axios';
+import api, { getData } from '@/app/services/axios';
+import {
+  downloadApplePass,
+  getPetPassport,
+} from '@/app/features/petPassport/services/petPassport.service';
 import { useOrgStore } from '@/app/stores/orgStore';
 
-jest.mock('@/app/services/axios', () => ({ getData: jest.fn() }));
+jest.mock('@/app/services/axios', () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
+  getData: jest.fn(),
+}));
 jest.mock('@/app/stores/orgStore', () => ({ useOrgStore: { getState: jest.fn() } }));
 
 const mockedGet = getData as jest.Mock;
+const mockedApiGet = api.get as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -25,5 +33,36 @@ describe('getPetPassport', () => {
   it('throws when no organisation is selected', async () => {
     (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
     await expect(getPetPassport('pat-1')).rejects.toThrow('No active organisation selected.');
+  });
+});
+
+describe('downloadApplePass', () => {
+  beforeEach(() => {
+    (URL.createObjectURL as unknown) = jest.fn(() => 'blob:url');
+    (URL.revokeObjectURL as unknown) = jest.fn();
+  });
+
+  it('fetches the signed pkpass over the authed channel and triggers a download', async () => {
+    const blob = new Blob(['pk']);
+    mockedApiGet.mockResolvedValue({ data: blob });
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    await downloadApplePass('pat-1', 'Doggy');
+
+    expect(mockedApiGet).toHaveBeenCalledWith(
+      '/v1/pet-passport/pms/organisation/org-1/companion/pat-1/wallet/apple',
+      { responseType: 'blob' }
+    );
+    expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+    expect(clickSpy).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:url');
+    clickSpy.mockRestore();
+  });
+
+  it('throws when no organisation is selected', async () => {
+    (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+    await expect(downloadApplePass('pat-1', 'Doggy')).rejects.toThrow(
+      'No active organisation selected.'
+    );
   });
 });

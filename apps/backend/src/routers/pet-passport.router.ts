@@ -69,4 +69,12 @@ router.get(
   PetPassportController.getPassport,
 );
 
+router.get(
+  "/pms/organisation/:organisationId/companion/:patientId/wallet/apple",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  PetPassportController.getApplePass,
+);
+
 export default router;

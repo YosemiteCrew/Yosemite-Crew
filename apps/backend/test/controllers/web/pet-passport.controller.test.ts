@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PetPassportController } from "../../../src/controllers/web/pet-passport.controller";
 import { PetPassportService } from "../../../src/services/pet-passport.service";
+import { WalletPassService } from "../../../src/services/wallet-pass.service";
 
 jest.mock("../../../src/services/pet-passport.service", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,19 +22,33 @@ jest.mock("../../../src/services/pet-passport.service", () => {
     },
   };
 });
+jest.mock("../../../src/services/wallet-pass.service", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const actual = jest.requireActual(
+    "../../../src/services/wallet-pass.service",
+  ) as any;
+  return { ...actual, WalletPassService: { buildApplePass: jest.fn() } };
+});
 jest.mock("../../../src/utils/logger");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const { PetPassportServiceError } = jest.requireActual(
   "../../../src/services/pet-passport.service",
 ) as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const { WalletNotConfiguredError } = jest.requireActual(
+  "../../../src/services/wallet-pass.service",
+) as any;
 
 const service = jest.mocked(PetPassportService);
+const wallet = jest.mocked(WalletPassService);
 
 describe("PetPassportController", () => {
   let res: Partial<Response>;
   let jsonMock: jest.Mock;
   let statusMock: jest.Mock;
+  let sendMock: jest.Mock;
+  let setHeaderMock: jest.Mock;
 
   const orgParams = { organisationId: "org-1", patientId: "pat-1" };
   const validBody = {
@@ -52,8 +67,10 @@ describe("PetPassportController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jsonMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
-    res = { status: statusMock } as Partial<Response>;
+    sendMock = jest.fn();
+    setHeaderMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
+    res = { status: statusMock, setHeader: setHeaderMock } as Partial<Response>;
   });
 
   describe("recordVaccination", () => {
@@ -407,6 +424,64 @@ describe("PetPassportController", () => {
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe("getApplePass", () => {
+    const passport = { identity: { id: "pat-1", name: "Doggy" } } as never;
+
+    it("500s when permissions were not loaded", async () => {
+      await PetPassportController.getApplePass(
+        { params: orgParams } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("400s on invalid route parameters", async () => {
+      await PetPassportController.getApplePass(
+        authed({ params: { organisationId: "", patientId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("streams a signed .pkpass with wallet headers", async () => {
+      service.getPassport.mockResolvedValue(passport);
+      const buffer = Buffer.from("PK-pass-bytes");
+      wallet.buildApplePass.mockResolvedValue(buffer);
+
+      await PetPassportController.getApplePass(authed(), res as Response);
+
+      expect(setHeaderMock).toHaveBeenCalledWith(
+        "Content-Type",
+        "application/vnd.apple.pkpass",
+      );
+      expect(setHeaderMock).toHaveBeenCalledWith(
+        "Content-Disposition",
+        'attachment; filename="Doggy.pkpass"',
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(sendMock).toHaveBeenCalledWith(buffer);
+    });
+
+    it("501s when wallet signing is not configured", async () => {
+      service.getPassport.mockResolvedValue(passport);
+      wallet.buildApplePass.mockRejectedValue(new WalletNotConfiguredError());
+      await PetPassportController.getApplePass(authed(), res as Response);
+      expect(statusMock).toHaveBeenCalledWith(501);
+    });
+
+    it("sanitises an awkward companion name into the filename", async () => {
+      service.getPassport.mockResolvedValue({
+        identity: { id: "pat-1", name: "Rex / O'Malley!" },
+      } as never);
+      wallet.buildApplePass.mockResolvedValue(Buffer.from("x"));
+      await PetPassportController.getApplePass(authed(), res as Response);
+      expect(setHeaderMock).toHaveBeenCalledWith(
+        "Content-Disposition",
+        'attachment; filename="Rex-O-Malley-.pkpass"',
+      );
     });
   });
 });

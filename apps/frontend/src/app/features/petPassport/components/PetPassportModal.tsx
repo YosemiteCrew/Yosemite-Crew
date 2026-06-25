@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
-import { Text } from '@/app/ui';
+import { Button, Text } from '@/app/ui';
 import PetPassportView from '@/app/ui/cards/PetPassport/PetPassportView';
-import { getPetPassport } from '@/app/features/petPassport/services/petPassport.service';
+import {
+  downloadApplePass,
+  getPetPassport,
+} from '@/app/features/petPassport/services/petPassport.service';
 import { useNotify } from '@/app/hooks/useNotify';
 import type { PetPassportDTO } from '@yosemite-crew/types';
 
@@ -21,6 +24,7 @@ type LoadState = 'loading' | 'ready' | 'error';
 const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPassportModalProps) => {
   const [passport, setPassport] = useState<PetPassportDTO | null>(null);
   const [state, setState] = useState<LoadState>('loading');
+  const [downloading, setDownloading] = useState(false);
   const { notify } = useNotify();
   const notifyRef = useRef(notify);
   notifyRef.current = notify;
@@ -52,6 +56,18 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
 
   const petName = companionName.split(' ')[0] || companionName;
 
+  const handleAddToWallet = () => {
+    setDownloading(true);
+    downloadApplePass(companionId, petName)
+      .catch(() => {
+        notifyRef.current('error', {
+          title: 'Wallet pass unavailable',
+          text: 'This pet passport could not be added to Apple Wallet yet.',
+        });
+      })
+      .finally(() => setDownloading(false));
+  };
+
   return (
     <CenterModal showModal={open} setShowModal={() => onClose()} onClose={onClose}>
       <ModalHeader title={`${petName}'s passport`} onClose={onClose} />
@@ -66,7 +82,17 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
             This passport could not be loaded.
           </Text>
         )}
-        {state === 'ready' && passport && <PetPassportView passport={passport} />}
+        {state === 'ready' && passport && (
+          <>
+            <PetPassportView passport={passport} />
+            <Button
+              variant="primary"
+              text={downloading ? 'Adding to Apple Wallet...' : 'Add to Apple Wallet'}
+              onClick={handleAddToWallet}
+              isDisabled={downloading}
+            />
+          </>
+        )}
       </div>
     </CenterModal>
   );

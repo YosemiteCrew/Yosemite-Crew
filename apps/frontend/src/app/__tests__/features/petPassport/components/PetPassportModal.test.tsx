@@ -1,10 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import PetPassportModal from '@/app/features/petPassport/components/PetPassportModal';
-import { getPetPassport } from '@/app/features/petPassport/services/petPassport.service';
+import {
+  downloadApplePass,
+  getPetPassport,
+} from '@/app/features/petPassport/services/petPassport.service';
 import type { PetPassportDTO } from '@yosemite-crew/types';
 
 jest.mock('@/app/features/petPassport/services/petPassport.service', () => ({
   getPetPassport: jest.fn(),
+  downloadApplePass: jest.fn(),
 }));
 jest.mock('@/app/ui/cards/PetPassport/PetPassportView', () => ({
   __esModule: true,
@@ -40,6 +44,7 @@ const notifyMock = jest.fn();
 jest.mock('@/app/hooks/useNotify', () => ({ useNotify: () => ({ notify: notifyMock }) }));
 
 const mockedFetch = getPetPassport as jest.Mock;
+const mockedDownload = downloadApplePass as jest.Mock;
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -120,5 +125,48 @@ describe('PetPassportModal', () => {
     render(<PetPassportModal open companionId="p1" companionName=" Solo" onClose={jest.fn()} />);
     expect(screen.getByRole('heading', { name: "Solo's passport" })).toBeInTheDocument();
     await screen.findByTestId('passport');
+  });
+
+  it('adds the passport to Apple Wallet, passing the pet name', async () => {
+    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedDownload.mockResolvedValue(undefined);
+    render(
+      <PetPassportModal open companionId="p1" companionName="Doggy Wandhare" onClose={jest.fn()} />
+    );
+    const button = await screen.findByRole('button', { name: 'Add to Apple Wallet' });
+    fireEvent.click(button);
+    await waitFor(() => expect(mockedDownload).toHaveBeenCalledWith('p1', 'Doggy'));
+  });
+
+  it('shows a busy label while the pass is generated', async () => {
+    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    let resolve: () => void = () => {};
+    mockedDownload.mockReturnValue(
+      new Promise<void>((r) => {
+        resolve = r;
+      })
+    );
+    render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to Apple Wallet' }));
+    expect(
+      await screen.findByRole('button', { name: 'Adding to Apple Wallet...' })
+    ).toBeInTheDocument();
+    resolve();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add to Apple Wallet' })).toBeInTheDocument()
+    );
+  });
+
+  it('notifies when the wallet download fails', async () => {
+    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedDownload.mockRejectedValue(new Error('501'));
+    render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Add to Apple Wallet' }));
+    await waitFor(() =>
+      expect(notifyMock).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Wallet pass unavailable' })
+      )
+    );
   });
 });

@@ -13,6 +13,7 @@ const PetPassportController = {
   listRabiesTitrations: jest.fn(),
   issuePassport: jest.fn(),
   getPassport: jest.fn(),
+  getApplePass: jest.fn(),
 };
 
 jest.mock("../../src/middlewares/auth", () => ({ authorizeCognito }));
@@ -87,5 +88,13 @@ describe("pet-passport.router", () => {
       "/pms/organisation/:organisationId/companion/:patientId/issue";
     expect(findRoute(issuePath, "post")).toBeDefined();
     expect(findRoute(issuePath, "post")?.stack).toHaveLength(4);
+  });
+
+  it("registers the Apple Wallet route (get), org-guarded by companions:view:any", () => {
+    const walletPath =
+      "/pms/organisation/:organisationId/companion/:patientId/wallet/apple";
+    expect(findRoute(walletPath, "get")).toBeDefined();
+    expect(findRoute(walletPath, "get")?.stack).toHaveLength(4);
+    expect(requirePermission).toHaveBeenCalledWith("companions:view:any");
   });
 });
