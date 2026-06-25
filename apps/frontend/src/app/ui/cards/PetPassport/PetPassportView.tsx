@@ -12,6 +12,13 @@ const SPECIES_LABEL: Record<string, string> = {
 
 const dateLabel = (iso?: string): string | undefined => (iso ? formatDisplayDate(iso) : undefined);
 
+const TREATMENT_LABEL: Record<string, string> = {
+  ECHINOCOCCUS: 'Tapeworm',
+  TICK: 'Tick',
+  FLEA: 'Flea',
+  OTHER: 'Other',
+};
+
 type RowProps = { label: string; value?: string | number };
 const Row = ({ label, value }: RowProps) => {
   if (value === undefined || value === '') return null;
@@ -52,7 +59,8 @@ const VaccinationItem = ({ vaccination }: { vaccination: VaccinationDTO }) => {
 type PetPassportViewProps = { passport: PetPassportDTO };
 
 const PetPassportView = ({ passport }: PetPassportViewProps) => {
-  const { identity, microchip, rabies, vaccinations } = passport;
+  const { identity, microchip, rabies, vaccinations, parasiteTreatments, rabiesTitrations } =
+    passport;
   const species = SPECIES_LABEL[identity.species] ?? 'Other';
 
   return (
@@ -99,6 +107,42 @@ const PetPassportView = ({ passport }: PetPassportViewProps) => {
           <div className="flex flex-col gap-2">
             {vaccinations.map((vaccination) => (
               <VaccinationItem key={vaccination.id} vaccination={vaccination} />
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {parasiteTreatments.length > 0 && (
+        <Section title="Parasite treatments">
+          <div className="flex flex-col gap-2">
+            {parasiteTreatments.map((treatment) => (
+              <div
+                key={treatment.id}
+                className="flex flex-col gap-1 rounded-xl border border-card-border p-3"
+              >
+                <span className="text-caption-1 text-text-primary">{treatment.productName}</span>
+                <span className="text-caption-1 text-text-extra">
+                  {`${TREATMENT_LABEL[treatment.treatmentType] ?? treatment.treatmentType} · ${formatDisplayDate(treatment.treatedAt)}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {rabiesTitrations.length > 0 && (
+        <Section title="Rabies titration">
+          <div className="flex flex-col gap-2">
+            {rabiesTitrations.map((titration) => (
+              <div
+                key={titration.id}
+                className="flex justify-between gap-3 rounded-xl border border-card-border p-3"
+              >
+                <span className="text-caption-1 text-text-primary">{titration.approvedLab}</span>
+                <span className="text-caption-1 text-text-secondary">
+                  {`${titration.resultIuMl} IU/ml · ${formatDisplayDate(titration.sampleDate)}`}
+                </span>
+              </div>
             ))}
           </div>
         </Section>

@@ -54,6 +54,26 @@ const full: PetPassportDTO = {
       createdAt: '2024-03-16T00:00:00.000Z',
     },
   ],
+  parasiteTreatments: [
+    {
+      id: 't1',
+      patientId: 'p1',
+      treatmentType: 'ECHINOCOCCUS',
+      productName: 'Milbemax',
+      treatedAt: '2024-06-20T14:00:00.000Z',
+      createdAt: '2024-06-20T14:00:00.000Z',
+    },
+  ],
+  rabiesTitrations: [
+    {
+      id: 's1',
+      patientId: 'p1',
+      approvedLab: 'EU Lab',
+      sampleDate: '2024-05-01T00:00:00.000Z',
+      resultIuMl: 0.8,
+      createdAt: '2024-05-02T00:00:00.000Z',
+    },
+  ],
 };
 
 describe('PetPassportView', () => {
@@ -69,6 +89,10 @@ describe('PetPassportView', () => {
     expect(screen.getByText('Valid to D(2027-03-14T00:00:00.000Z)')).toBeInTheDocument();
     expect(screen.getByText('Given D(2024-04-01T00:00:00.000Z) · Batch A234B')).toBeInTheDocument();
     expect(screen.getByText('DHPP')).toBeInTheDocument();
+    expect(screen.getByText('Milbemax')).toBeInTheDocument();
+    expect(screen.getByText('Tapeworm · D(2024-06-20T14:00:00.000Z)')).toBeInTheDocument();
+    expect(screen.getByText('EU Lab')).toBeInTheDocument();
+    expect(screen.getByText('0.8 IU/ml · D(2024-05-01T00:00:00.000Z)')).toBeInTheDocument();
     expect(screen.getByText(/Not a legal substitute/)).toBeInTheDocument();
   });
 
@@ -76,12 +100,16 @@ describe('PetPassportView', () => {
     const minimal: PetPassportDTO = {
       identity: { id: 'p', name: 'X', species: 'cat', breed: 'DSH', sex: 'female' },
       vaccinations: [],
+      parasiteTreatments: [],
+      rabiesTitrations: [],
     };
     render(<PetPassportView passport={minimal} />);
     expect(screen.getByText('DSH / Feline')).toBeInTheDocument();
     expect(screen.queryByText('Identification')).not.toBeInTheDocument();
     expect(screen.queryByText('Rabies vaccination')).not.toBeInTheDocument();
     expect(screen.queryByText('Other vaccinations')).not.toBeInTheDocument();
+    expect(screen.queryByText('Parasite treatments')).not.toBeInTheDocument();
+    expect(screen.queryByText('Rabies titration')).not.toBeInTheDocument();
   });
 
   it('falls back to Other for an unmapped species', () => {
@@ -94,6 +122,8 @@ describe('PetPassportView', () => {
         sex: 'unknown',
       },
       vaccinations: [],
+      parasiteTreatments: [],
+      rabiesTitrations: [],
     };
     render(<PetPassportView passport={card} />);
     expect(screen.getByText('Y / Other')).toBeInTheDocument();
