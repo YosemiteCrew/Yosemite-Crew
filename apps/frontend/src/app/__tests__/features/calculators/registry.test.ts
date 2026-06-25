@@ -117,6 +117,21 @@ describe('calculator registry', () => {
   it('surfaces engine validation errors', () => {
     expect(() => byKey('fluid-rate').compute({}, 'dog')).toThrow('Weight is required.');
   });
+
+  it('rejects a body water fraction outside the physiologic range', () => {
+    expect(() =>
+      byKey('free-water-deficit').compute(
+        { weightKg: '20', currentNa: '170', targetNa: '150', bodyWaterFraction: '60' },
+        'dog'
+      )
+    ).toThrow('Body water fraction must be between 0.4 and 0.8.');
+  });
+
+  it('rejects a corrected calcium that would be physiologically negative', () => {
+    expect(() =>
+      byKey('corrected-calcium').compute({ totalCalciumMgDl: '8', albuminGdl: '14' }, 'dog')
+    ).toThrow('Albumin is too high for the calcium entered; check the values.');
+  });
 });
 
 describe('calculator references', () => {

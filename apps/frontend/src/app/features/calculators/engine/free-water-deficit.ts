@@ -22,7 +22,7 @@ export const calculateFreeWaterDeficit = (input: FreeWaterDeficitInput): FreeWat
   assertInRange(input.currentNa, 'currentNa', 'Current sodium', 100, 200);
   assertInRange(input.targetNa, 'targetNa', 'Target sodium', 100, 200);
   if (input.bodyWaterFraction !== undefined) {
-    assertPositive(input.bodyWaterFraction, 'bodyWaterFraction', 'Body water fraction');
+    assertInRange(input.bodyWaterFraction, 'bodyWaterFraction', 'Body water fraction', 0.4, 0.8);
   }
   if (input.targetNa >= input.currentNa) {
     throw new CalculatorInputError('targetNa', 'Target sodium must be below current sodium.');
