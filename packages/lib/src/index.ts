@@ -13,6 +13,7 @@ export type { JsonObject, JsonPrimitive, JsonValue, Nullable, Optional } from '.
 export { addCachedPromise, type CachedPromise } from './utils/cached-promise-cache.js';
 export { mapAxiosError, type ExternalHttpError } from './utils/external-error.js';
 export { buildGeoPoint, type GeoPoint } from './utils/geojson.js';
+export { fromMinorUnits, getCurrencyExponent, toMinorUnits } from './money/minor-units.js';
 export {
   resolvePaymentCollectionMethod,
   type PaymentCollectionMethodValue,
