@@ -1,6 +1,7 @@
 import {
   CALCULATORS,
   CALCULATOR_CATEGORIES,
+  CALCULATOR_REFERENCES,
   calculatorsInCategory,
   type CalculatorConfig,
 } from '@/app/features/calculators/registry';
@@ -115,5 +116,22 @@ describe('calculator registry', () => {
 
   it('surfaces engine validation errors', () => {
     expect(() => byKey('fluid-rate').compute({}, 'dog')).toThrow('Weight is required.');
+  });
+});
+
+describe('calculator references', () => {
+  it('credits a source with an https link for every calculator', () => {
+    CALCULATORS.forEach((calc) => {
+      const ref = CALCULATOR_REFERENCES[calc.key];
+      expect(ref).toBeDefined();
+      expect(ref.source.length).toBeGreaterThan(0);
+      expect(ref.url).toMatch(/^https:\/\//);
+    });
+  });
+
+  it('credits the clinical authority for guideline-based calculators', () => {
+    expect(CALCULATOR_REFERENCES['iris-stage'].source).toMatch(/IRIS/);
+    expect(CALCULATOR_REFERENCES['blood-pressure'].source).toMatch(/ACVIM/);
+    expect(CALCULATOR_REFERENCES['fluid-rate'].source).toMatch(/Vetcalculators/);
   });
 });

@@ -46,6 +46,14 @@ describe('CalculatorForm', () => {
     expect(screen.getByText('500 mL/day')).toBeInTheDocument();
   });
 
+  it('shows a reference credit link for the calculator', () => {
+    render(<CalculatorForm config={config('fluid-rate')} />);
+
+    const link = screen.getByRole('link', { name: /Vetcalculators/i });
+    expect(link).toHaveAttribute('href', 'https://www.vetcalculators.com');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
   it('renders a date field for date-typed inputs', () => {
     render(<CalculatorForm config={config('gestation')} />);
 

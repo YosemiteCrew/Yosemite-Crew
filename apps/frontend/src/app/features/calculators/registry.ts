@@ -471,3 +471,50 @@ export const CALCULATOR_CATEGORIES: string[] = CALCULATORS.reduce<string[]>((acc
 
 export const calculatorsInCategory = (category: string): CalculatorConfig[] =>
   CALCULATORS.filter((calc) => calc.category === category);
+
+// Source credit shown in each calculator's description. Vetcalculators (by
+// LifeLearn, Inc.) is the referenced calculator suite; formulas backed by a
+// distinct clinical authority (IRIS, ACVIM) credit that body directly.
+export type CalculatorReference = { source: string; url: string };
+
+const VETCALCULATORS = 'Vetcalculators (LifeLearn, Inc.)';
+const VETCALCULATORS_URL = 'https://www.vetcalculators.com';
+
+export const CALCULATOR_REFERENCES: Record<string, CalculatorReference> = {
+  'fluid-rate': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  cri: { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'shock-bolus': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  transfusion: { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'drip-rate': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'free-water-deficit': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'drug-dose': {
+    source: `${VETCALCULATORS} - Emergency Drug Calculator`,
+    url: 'https://www.vetcalculators.com/emergency.html',
+  },
+  'body-surface-area': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  concentration: {
+    source: `${VETCALCULATORS} - Unit Conversion`,
+    url: 'https://www.vetcalculators.com/convert.html',
+  },
+  'corrected-sodium': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'corrected-calcium': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'anion-gap': { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  osmolality: { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  energy: {
+    source: `${VETCALCULATORS} - Calorie Requirements`,
+    url: 'https://www.vetcalculators.com/calories.html',
+  },
+  'iris-stage': {
+    source: 'IRIS CKD Staging Guidelines (International Renal Interest Society)',
+    url: 'https://www.iris-kidney.com',
+  },
+  'blood-pressure': {
+    source: 'ACVIM Consensus Statement on Systemic Hypertension (2018)',
+    url: VETCALCULATORS_URL,
+  },
+  gestation: { source: VETCALCULATORS, url: VETCALCULATORS_URL },
+  'oxygen-flow': {
+    source: `${VETCALCULATORS} - Anesthetic Drug Calculator`,
+    url: 'https://www.vetcalculators.com/anesthetic.html',
+  },
+};

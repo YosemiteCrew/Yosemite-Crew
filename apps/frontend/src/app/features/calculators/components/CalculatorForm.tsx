@@ -12,7 +12,7 @@ import CalculatorResult, {
   type ResultRow,
 } from '@/app/features/calculators/components/CalculatorResult';
 import Disclaimer from '@/app/features/calculators/components/Disclaimer';
-import { type CalculatorConfig } from '@/app/features/calculators/registry';
+import { CALCULATOR_REFERENCES, type CalculatorConfig } from '@/app/features/calculators/registry';
 
 type CalculatorFormProps = {
   config: CalculatorConfig;
@@ -77,6 +77,18 @@ const CalculatorForm = ({ config, initialValues, initialSpecies }: CalculatorFor
       {rows && <CalculatorResult rows={rows} />}
 
       <Disclaimer text={CLINICAL_DISCLAIMER} />
+
+      <Text as="p" variant="caption-2" className="text-text-secondary">
+        Reference:{' '}
+        <a
+          href={CALCULATOR_REFERENCES[config.key].url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-text underline"
+        >
+          {CALCULATOR_REFERENCES[config.key].source}
+        </a>
+      </Text>
     </div>
   );
 };
