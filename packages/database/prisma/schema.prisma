@@ -419,6 +419,7 @@ model Patient {
   formAssignments   FormAssignment[]
   organisations     PatientOrganisation[]
   parentLinks       ParentPatient[]
+  companionShareTokens CompanionShareToken[]
 
   @@index([type])
   @@index([status])
@@ -505,6 +506,45 @@ model ParentPatient {
   @@unique([parentId, patientId])
   @@index([parentId])
   @@index([patientId])
+}
+
+enum CompanionCardAudience {
+  PUBLIC
+  OWNER
+  REFERRAL_CLINIC
+  STAFF
+}
+
+// Tokenized, audience-scoped, revocable share grant for a Companion Card.
+// Persists only share/token state - a hash of the raw token, never the token
+// itself. Patient remains the single identity source of truth; no identity
+// field is duplicated here. The audience drives the field-redaction policy in
+// CompanionCardService.
+model CompanionShareToken {
+  id                      String                @id @default(uuid())
+  patientId               String
+  organisationId          String
+  tokenHash               String                @unique
+  audience                CompanionCardAudience
+  issuedByType            AuditActorType?
+  issuedById              String?
+  issuedForOrganisationId String?
+  showOwnerPhone          Boolean               @default(false)
+  expiresAt               DateTime?
+  revokedAt               DateTime?
+  revokedById             String?
+  lastViewedAt            DateTime?
+  viewCount               Int                   @default(0)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  patient                 Patient               @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([organisationId])
+  @@index([organisationId, patientId])
+  @@index([patientId, audience])
+  @@index([expiresAt])
 }
 
 model Appointment {
@@ -1580,6 +1620,9 @@ enum AuditEventType {
   COMPANION_ALERT_CREATED
   COMPANION_ALERT_UPDATED
   COMPANION_ALERT_DELETED
+  COMPANION_CARD_SHARE_ISSUED
+  COMPANION_CARD_VIEWED
+  COMPANION_CARD_SHARE_REVOKED
 }
 
 enum WithdrawalStatus {
