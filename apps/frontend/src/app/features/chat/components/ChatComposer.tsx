@@ -96,7 +96,7 @@ export function ChatComposer() {
           <button
             key={t.label}
             type="button"
-            onClick={() => insert(t.text)}
+            onClick={() => composer.textComposer.setText(t.text)}
             className="shrink-0 whitespace-nowrap rounded-full border border-chat-divider bg-chat-surface px-3 py-1 text-xs font-medium text-neutral-600 transition-colors hover:border-primary-300 hover:bg-chat-panel hover:text-primary-700"
           >
             {t.label}

@@ -4,6 +4,7 @@ import { ChatComposer } from '@/app/features/chat/components/ChatComposer';
 
 const mockHandleSubmit = jest.fn();
 const mockInsertText = jest.fn();
+const mockSetText = jest.fn();
 const mockUploadFiles = jest.fn();
 const mockOpenShare = jest.fn();
 let mockCooldown = 0;
@@ -14,7 +15,7 @@ jest.mock('stream-chat-react', () => ({
     cooldownRemaining: mockCooldown,
   }),
   useMessageComposer: () => ({
-    textComposer: { insertText: mockInsertText },
+    textComposer: { insertText: mockInsertText, setText: mockSetText },
     attachmentManager: { uploadFiles: mockUploadFiles },
   }),
   useChannelStateContext: () => ({ channel: { id: 'ch1' } }),
@@ -68,10 +69,10 @@ describe('ChatComposer', () => {
     expect(mockInsertText).toHaveBeenCalledWith({ text: '🎉' });
   });
 
-  it('inserts a quick-reply chip', () => {
+  it('fills the composer from a quick-reply chip (replaces, not appends)', () => {
     render(<ChatComposer />);
     fireEvent.click(screen.getByText('Appointment confirmed'));
-    expect(mockInsertText).toHaveBeenCalledWith({ text: 'Your appointment is confirmed.' });
+    expect(mockSetText).toHaveBeenCalledWith('Your appointment is confirmed.');
   });
 
   it('uploads selected files through the attachment manager', () => {

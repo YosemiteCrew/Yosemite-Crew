@@ -102,12 +102,14 @@ interface ChatContainerProps {
   onScopeChange?: (scope: ChatScope) => void;
 }
 
-const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string }> = [
+// Active-pill colour per position mirrors the Calendar / Board / Table view
+// switcher (TitleCalendar): primary, success, then the dark text colour.
+const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string; slider: string }> = [
   // "Pet parents" is the designated owner term (matches the per-chat badge);
   // avoids the old "Clients" tab vs "Pet parent" badge collision on this screen.
-  { key: 'clients', label: 'Pet parents' },
-  { key: 'colleagues', label: 'Colleagues' },
-  { key: 'groups', label: 'Groups' },
+  { key: 'clients', label: 'Pet parents', slider: 'bg-(--color-primary-700)' },
+  { key: 'colleagues', label: 'Colleagues', slider: 'bg-success-700' },
+  { key: 'groups', label: 'Groups', slider: 'bg-text-primary' },
 ];
 
 interface ChannelPreviewWrapperProps extends ChannelPreviewUIComponentProps {
@@ -2038,7 +2040,15 @@ export const ChatContainer: FC<ChatContainerProps> = ({
                 <legend className="sr-only">Chat audience</legend>
                 <div
                   aria-hidden
-                  className="absolute top-0 bottom-0 w-1/3 rounded-[999px]! bg-(--color-primary-700) transition-all duration-300 ease-in-out"
+                  className={clsx(
+                    'absolute top-0 bottom-0 w-1/3 rounded-[999px]! transition-all duration-300 ease-in-out',
+                    SCOPE_TABS[
+                      Math.max(
+                        0,
+                        SCOPE_TABS.findIndex((t) => t.key === scope)
+                      )
+                    ].slider
+                  )}
                   style={{
                     transform: `translateX(${
                       Math.max(
