@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
@@ -39,6 +39,10 @@ const ShareCompanionCardModal = ({
   onClose,
 }: ShareCompanionCardModalProps) => {
   const { notify } = useNotify();
+  // useNotify returns a fresh `notify` each render; keep it in a ref so the load
+  // callback stays stable and the effect does not re-fire fetches in a loop.
+  const notifyRef = useRef(notify);
+  notifyRef.current = notify;
   const [card, setCard] = useState<CompanionCardDTO | null>(null);
   const [tokens, setTokens] = useState<ShareTokenResponseDTO[]>([]);
   const [issued, setIssued] = useState<IssueShareTokenResultDTO | null>(null);
@@ -55,11 +59,14 @@ const ShareCompanionCardModal = ({
       setCard(cardData);
       setTokens(tokenList);
     } catch {
-      notify('error', { title: 'Card unavailable', text: 'Could not load the companion card.' });
+      notifyRef.current('error', {
+        title: 'Card unavailable',
+        text: 'Could not load the companion card.',
+      });
     } finally {
       setLoading(false);
     }
-  }, [companionId, notify]);
+  }, [companionId]);
 
   useEffect(() => {
     if (!open) return;
