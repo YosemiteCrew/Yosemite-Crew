@@ -289,3 +289,41 @@
     padding: 8px 12px;
   }
 }
+
+/* Empty / welcome state shown when no conversation is selected */
+.chat-empty-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px 24px;
+  text-align: center;
+  background: var(--color-chat-surface);
+}
+
+.chat-empty-state__art {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 9999px;
+  background: var(--color-chat-surface-soft);
+  color: var(--color-chat-panel-border);
+}
+
+.chat-empty-state__art svg {
+  width: 44px;
+  height: 44px;
+}
+
+.chat-empty-state__title {
+  color: var(--color-neutral-900);
+}
+
+.chat-empty-state__subtitle {
+  max-width: 360px;
+  color: var(--color-neutral-600);
+}

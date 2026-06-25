@@ -259,7 +259,7 @@ describe('ChatContainer', () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByText('Select a conversation to start chatting')).toBeInTheDocument()
+      expect(screen.getByText('Your conversations live here')).toBeInTheDocument()
     );
   });
 

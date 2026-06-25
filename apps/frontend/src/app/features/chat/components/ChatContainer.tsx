@@ -34,6 +34,7 @@ import { MdDeleteForever } from 'react-icons/md';
 import { IoIosAddCircleOutline } from 'react-icons/io';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
+import Text from '@/app/ui/Text';
 
 import 'stream-chat-react/dist/css/v2/index.css';
 import './ChatContainer.css';
@@ -958,15 +959,26 @@ const ChatMainPanel: FC<ChatMainPanelProps> = ({
       }}
     >
       {showEmpty ? (
-        <div className="flex flex-1 items-center justify-center bg-chat-surface text-neutral-700 font-satoshi p-6 text-center">
-          <div>
-            <p style={{ margin: 0, fontWeight: 600, fontSize: '16px' }}>
-              Select a conversation to start chatting
-            </p>
-            <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--color-neutral-600)' }}>
-              Choose a channel from the list to load messages here.
-            </p>
-          </div>
+        <div className="chat-empty-state">
+          <span className="chat-empty-state__art" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+          </span>
+          <Text as="h2" variant="heading-3" className="chat-empty-state__title">
+            Your conversations live here
+          </Text>
+          <Text as="p" variant="body-3" className="chat-empty-state__subtitle">
+            Pick a chat from the list to read and reply, or start a new one to message a client or a
+            colleague.
+          </Text>
         </div>
       ) : (
         <ChatWindow
