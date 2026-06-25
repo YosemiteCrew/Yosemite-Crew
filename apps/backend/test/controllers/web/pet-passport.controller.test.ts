@@ -372,6 +372,37 @@ describe("PetPassportController", () => {
         expect.objectContaining({ actor: { type: "PMS_USER", id: null } }),
       );
     });
+
+    it("400s a treatment record on invalid route params", async () => {
+      await PetPassportController.recordParasiteTreatment(
+        authed({
+          params: { organisationId: "", patientId: "" },
+          body: treatmentBody,
+        }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("400s a titration record on invalid route params", async () => {
+      await PetPassportController.recordRabiesTitration(
+        authed({
+          params: { organisationId: "", patientId: "" },
+          body: titrationBody,
+        }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("500s titration listing on an unexpected error", async () => {
+      service.listRabiesTitrations.mockRejectedValue(new Error("boom"));
+      await PetPassportController.listRabiesTitrations(
+        authed(),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
   });
 
   describe("issuePassport", () => {

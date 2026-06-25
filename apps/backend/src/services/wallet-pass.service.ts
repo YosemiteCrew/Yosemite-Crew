@@ -25,6 +25,33 @@ const SPECIES_LABEL: Record<string, string> = {
   other: "Animal",
 };
 
+// Brand styling shared by both wallets (design-system --color-primary-500).
+const WALLET_BRAND_HEX = "#007CF5";
+const WALLET_BRAND_RGB = "rgb(0, 124, 245)";
+const BRAND_R = 0;
+const BRAND_G = 124;
+const BRAND_B = 245;
+
+// Optional brand imagery. Google fetches these public HTTPS URLs itself; the
+// Apple pass fetches the logo at build time and bundles it.
+const walletImageUrl = (
+  key: "PUBLIC_WALLET_LOGO_URL" | "PUBLIC_WALLET_HERO_URL",
+): string | undefined => {
+  const value = process.env[key];
+  return value && value.length > 0 ? value : undefined;
+};
+
+const fetchImage = async (url?: string): Promise<Buffer | null> => {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+};
+
 type PassField = { key: string; label: string; value: string };
 
 type AppleIds = { passTypeId: string; teamId: string };
@@ -53,8 +80,65 @@ const pushField = (
   if (value) fields.push({ key, label, value });
 };
 
+// Shared passport-line builders, reused by both the Apple and Google passes so
+// the two stay consistent and each pass builder stays small.
+const isNonEmpty = (part: string | undefined): part is string => Boolean(part);
+
+const microchipLine = (passport: PetPassportDTO): string | undefined => {
+  const chip = passport.microchip;
+  if (!chip?.number) return undefined;
+  const implanted = dateOnly(chip.implantedAt);
+  return [chip.number, chip.location, implanted && `implanted ${implanted}`]
+    .filter(isNonEmpty)
+    .join(" · ");
+};
+
+const rabiesLine = (passport: PetPassportDTO): string | undefined => {
+  const rabies = passport.rabies;
+  if (!rabies) return undefined;
+  const given = dateOnly(rabies.dateAdministered);
+  const validUntil = dateOnly(rabies.validUntil);
+  return [
+    rabies.vaccineName,
+    given && `given ${given}`,
+    validUntil && `valid to ${validUntil}`,
+  ]
+    .filter(isNonEmpty)
+    .join(" · ");
+};
+
+const issuerLine = (passport: PetPassportDTO): string | undefined => {
+  const issuance = passport.issuance;
+  if (!issuance) return undefined;
+  return [
+    issuance.issuingVetName,
+    issuance.issuingAuthority,
+    issuance.issuingCountry,
+    dateOnly(issuance.issueDate),
+  ]
+    .filter(isNonEmpty)
+    .join(" · ");
+};
+
+const descriptionLine = (passport: PetPassportDTO): string => {
+  const species = SPECIES_LABEL[passport.identity.species] ?? "Animal";
+  return [species, passport.identity.breed, passport.identity.sex]
+    .filter(isNonEmpty)
+    .join(" · ");
+};
+
+const DISCLAIMER =
+  "Digital record issued by the pet's veterinary practice. Not a legal substitute for an official government pet passport or health certificate for travel.";
+
 const buildBackFields = (passport: PetPassportDTO): PassField[] => {
   const fields: PassField[] = [];
+  pushField(
+    fields,
+    "passportNumber",
+    "Passport number",
+    passport.passportNumber,
+  );
+  pushField(fields, "microchip", "Microchip", microchipLine(passport));
   pushField(
     fields,
     "dob",
@@ -62,30 +146,9 @@ const buildBackFields = (passport: PetPassportDTO): PassField[] => {
     dateOnly(passport.identity.dateOfBirth),
   );
   pushField(fields, "colour", "Colour", passport.identity.colour);
-  pushField(fields, "microchip", "Microchip", passport.microchip?.number);
-  pushField(
-    fields,
-    "passportNumber",
-    "Passport number",
-    passport.passportNumber,
-  );
-  if (passport.rabies) {
-    const validUntil = dateOnly(passport.rabies.validUntil);
-    const suffix = validUntil ? ` (valid to ${validUntil})` : "";
-    pushField(
-      fields,
-      "rabies",
-      "Rabies vaccination",
-      `${passport.rabies.vaccineName}${suffix}`,
-    );
-  }
-  pushField(fields, "issuer", "Issued by", passport.issuance?.issuingVetName);
-  fields.push({
-    key: "disclaimer",
-    label: "Notice",
-    value:
-      "Digital record issued by the pet's veterinary practice. Not a legal substitute for an official government pet passport or health certificate for travel.",
-  });
+  pushField(fields, "rabies", "Rabies vaccination", rabiesLine(passport));
+  pushField(fields, "issuer", "Issued by", issuerLine(passport));
+  fields.push({ key: "disclaimer", label: "Notice", value: DISCLAIMER });
   return fields;
 };
 
@@ -99,12 +162,17 @@ export const buildApplePassJson = (
   const species = SPECIES_LABEL[identity.species] ?? "Animal";
 
   const secondaryFields: PassField[] = [];
+  pushField(
+    secondaryFields,
+    "passportNumber",
+    "Passport No.",
+    passport.passportNumber,
+  );
   pushField(secondaryFields, "species", "Species", species);
-  pushField(secondaryFields, "breed", "Breed", identity.breed);
 
   const auxiliaryFields: PassField[] = [];
+  pushField(auxiliaryFields, "breed", "Breed", identity.breed);
   pushField(auxiliaryFields, "sex", "Sex", identity.sex);
-  pushField(auxiliaryFields, "dob", "Born", dateOnly(identity.dateOfBirth));
 
   return {
     formatVersion: 1,
@@ -115,8 +183,8 @@ export const buildApplePassJson = (
     serialNumber: identity.id,
     logoText: "Pet Passport",
     foregroundColor: "rgb(255, 255, 255)",
-    backgroundColor: "rgb(34, 47, 91)",
-    labelColor: "rgb(176, 190, 230)",
+    backgroundColor: WALLET_BRAND_RGB,
+    labelColor: "rgb(214, 234, 255)",
     barcodes: [
       {
         format: "PKBarcodeFormatQR",
@@ -266,15 +334,20 @@ const signManifest = (manifest: Buffer, config: AppleSigningConfig): Buffer => {
   return Buffer.from(der, "binary");
 };
 
-const packageApplePass = (passport: PetPassportDTO): Buffer => {
+const packageApplePass = async (passport: PetPassportDTO): Promise<Buffer> => {
   const config = readAppleConfig();
+  const logo = await fetchImage(walletImageUrl("PUBLIC_WALLET_LOGO_URL"));
   const files: Record<string, Buffer> = {
     "pass.json": Buffer.from(
       JSON.stringify(buildApplePassJson(passport, config)),
     ),
-    "icon.png": solidPng(29, 34, 47, 91),
-    "icon@2x.png": solidPng(58, 34, 47, 91),
+    "icon.png": logo ?? solidPng(29, BRAND_R, BRAND_G, BRAND_B),
+    "icon@2x.png": logo ?? solidPng(58, BRAND_R, BRAND_G, BRAND_B),
   };
+  if (logo) {
+    files["logo.png"] = logo;
+    files["logo@2x.png"] = logo;
+  }
   const manifest = buildManifest(files);
   const signature = signManifest(manifest, config);
 
@@ -300,25 +373,12 @@ const buildGoogleTextModules = (
   const add = (id: string, header: string, body?: string): void => {
     if (body) modules.push({ id, header, body });
   };
-  add(
-    "species",
-    "Species",
-    SPECIES_LABEL[passport.identity.species] ?? "Animal",
-  );
-  add("breed", "Breed", passport.identity.breed);
+  add("passportNumber", "Passport No.", passport.passportNumber);
+  add("microchip", "Microchip", microchipLine(passport));
   add("dob", "Date of birth", dateOnly(passport.identity.dateOfBirth));
-  add("microchip", "Microchip", passport.microchip?.number);
-  add("passport", "Passport number", passport.passportNumber);
-  if (passport.rabies) {
-    const validUntil = dateOnly(passport.rabies.validUntil);
-    const suffix = validUntil ? ` (valid to ${validUntil})` : "";
-    add(
-      "rabies",
-      "Rabies vaccination",
-      `${passport.rabies.vaccineName}${suffix}`,
-    );
-  }
-  add("issuer", "Issued by", passport.issuance?.issuingVetName);
+  add("colour", "Colour", passport.identity.colour);
+  add("rabies", "Rabies vaccination", rabiesLine(passport));
+  add("issuer", "Issued by", issuerLine(passport));
   return modules;
 };
 
@@ -330,25 +390,36 @@ export const buildGooglePayload = (
 ): Record<string, unknown> => {
   const classId = `${issuerId}.petpassport`;
   const objectId = `${issuerId}.${sanitizeId(passport.identity.id)}`;
-  return {
-    genericClasses: [{ id: classId }],
-    genericObjects: [
-      {
-        id: objectId,
-        classId,
-        state: "ACTIVE",
-        cardTitle: {
-          defaultValue: { language: "en", value: "Digital Pet Passport" },
-        },
-        header: {
-          defaultValue: { language: "en", value: passport.identity.name },
-        },
-        hexBackgroundColor: "#222F5B",
-        textModulesData: buildGoogleTextModules(passport),
-        barcode: { type: "QR_CODE", value: verifyUrl(passport) },
-      },
-    ],
+  const logoUri = walletImageUrl("PUBLIC_WALLET_LOGO_URL");
+  const heroUri = walletImageUrl("PUBLIC_WALLET_HERO_URL");
+  const localized = (value: string) => ({
+    defaultValue: { language: "en", value },
+  });
+
+  const genericObject: Record<string, unknown> = {
+    id: objectId,
+    classId,
+    state: "ACTIVE",
+    cardTitle: localized("Digital Pet Passport"),
+    header: localized(passport.identity.name),
+    subheader: localized(descriptionLine(passport)),
+    hexBackgroundColor: WALLET_BRAND_HEX,
+    textModulesData: buildGoogleTextModules(passport),
+    barcode: {
+      type: "QR_CODE",
+      value: verifyUrl(passport),
+      alternateText: passport.passportNumber ?? "Verify",
+    },
   };
+  if (logoUri) {
+    genericObject.logo = {
+      sourceUri: { uri: logoUri },
+      contentDescription: localized("Yosemite Crew"),
+    };
+  }
+  if (heroUri) genericObject.heroImage = { sourceUri: { uri: heroUri } };
+
+  return { genericClasses: [{ id: classId }], genericObjects: [genericObject] };
 };
 
 type GoogleConfig = { issuerId: string; saEmail: string; privateKey: string };
@@ -370,12 +441,9 @@ const readGoogleConfig = (): GoogleConfig => {
 export const WalletPassService = {
   // Produces a signed .pkpass for the passport. Rejects with
   // WalletNotConfiguredError (501) when no Pass Type ID certificate is
-  // provisioned. Signing is CPU-bound and synchronous, so it is wrapped in a
-  // promise to keep an async-friendly contract for callers.
+  // provisioned.
   buildApplePass(passport: PetPassportDTO): Promise<Buffer> {
-    return new Promise<Buffer>((resolve) =>
-      resolve(packageApplePass(passport)),
-    );
+    return packageApplePass(passport);
   },
 
   // Returns an "Add to Google Wallet" save URL: a JWT (RS256, signed with the

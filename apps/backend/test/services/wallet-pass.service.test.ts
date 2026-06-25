@@ -42,6 +42,8 @@ const PASSPORT: PetPassportDTO = {
   issuance: {
     passportNumber: "GB-YC-1",
     issuingVetName: "Dr A",
+    issuingAuthority: "RCVS",
+    issuingCountry: "GB",
     issueDate: "2024-06-24T00:00:00.000Z",
   },
 };
@@ -104,6 +106,8 @@ const ENV_KEYS = [
   "GOOGLE_WALLET_ISSUER_ID",
   "GOOGLE_WALLET_SA_EMAIL",
   "GOOGLE_WALLET_SA_PRIVATE_KEY",
+  "PUBLIC_WALLET_LOGO_URL",
+  "PUBLIC_WALLET_HERO_URL",
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -142,27 +146,40 @@ describe("buildApplePassJson", () => {
       string,
       Array<{ key: string; value: string }>
     >;
+    expect(pass.backgroundColor).toBe("rgb(0, 124, 245)");
     expect(generic.primaryFields[0]).toMatchObject({
       key: "name",
       value: "Doggy",
     });
     expect(generic.secondaryFields).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ key: "passportNumber", value: "GB-YC-1" }),
         expect.objectContaining({ key: "species", value: "Dog" }),
+      ]),
+    );
+    expect(generic.auxiliaryFields).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({ key: "breed", value: "Rottweiler" }),
+        expect.objectContaining({ key: "sex", value: "male" }),
       ]),
     );
 
     const back = generic.backFields;
     expect(back).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: "microchip", value: "985141000123456" }),
+        expect.objectContaining({
+          key: "microchip",
+          value: "985141000123456 · left neck · implanted 2024-02-01",
+        }),
         expect.objectContaining({ key: "passportNumber", value: "GB-YC-1" }),
         expect.objectContaining({
           key: "rabies",
-          value: "Nobivac Rabies (valid to 2027-03-14)",
+          value: "Nobivac Rabies · given 2024-04-01 · valid to 2027-03-14",
         }),
-        expect.objectContaining({ key: "issuer", value: "Dr A" }),
+        expect.objectContaining({
+          key: "issuer",
+          value: "Dr A · RCVS · GB · 2024-06-24",
+        }),
         expect.objectContaining({ key: "disclaimer" }),
       ]),
     );
@@ -176,11 +193,14 @@ describe("buildApplePassJson", () => {
     const generic = pass.generic as Record<string, Array<{ key: string }>>;
     expect(generic.secondaryFields).toEqual([
       expect.objectContaining({ key: "species", value: "Animal" }),
-      expect.objectContaining({ key: "breed" }),
     ]);
+    expect(generic.auxiliaryFields).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: "breed" })]),
+    );
     const keys = generic.backFields.map((f) => f.key);
     expect(keys).not.toContain("microchip");
     expect(keys).not.toContain("rabies");
+    expect(keys).not.toContain("passportNumber");
     expect(keys).toContain("disclaimer");
   });
 
@@ -262,6 +282,42 @@ describe("WalletPassService.buildApplePass", () => {
       statusCode: 500,
     });
   });
+
+  it("bundles a hosted brand logo as logo.png when configured", async () => {
+    configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
+    const image = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => image.buffer,
+    } as Response);
+    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
+    expect(names).toEqual(expect.arrayContaining(["logo.png", "logo@2x.png"]));
+    expect(fetchSpy).toHaveBeenCalledWith("https://cdn.example.com/logo.png");
+    fetchSpy.mockRestore();
+  });
+
+  it("falls back to the generated icon when the logo response is not ok", async () => {
+    configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue({ ok: false } as Response);
+    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
+    expect(names).not.toContain("logo.png");
+    fetchSpy.mockRestore();
+  });
+
+  it("falls back to the generated icon when the logo fetch throws", async () => {
+    configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("network"));
+    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
+    expect(names).not.toContain("logo.png");
+    fetchSpy.mockRestore();
+  });
 });
 
 const ISSUER = "3388000000023162791";
@@ -273,8 +329,12 @@ type GooglePayloadShape = {
     id: string;
     classId: string;
     header: { defaultValue: { value: string } };
-    barcode: { type: string; value: string };
+    subheader: { defaultValue: { value: string } };
+    hexBackgroundColor: string;
+    barcode: { type: string; value: string; alternateText: string };
     textModulesData: Array<{ id: string }>;
+    logo?: { sourceUri: { uri: string } };
+    heroImage?: { sourceUri: { uri: string } };
   }>;
 };
 
@@ -291,14 +351,24 @@ describe("buildGooglePayload", () => {
     expect(obj.id).toBe(`${ISSUER}.p1`);
     expect(obj.classId).toBe(`${ISSUER}.petpassport`);
     expect(obj.header.defaultValue.value).toBe("Doggy");
+    expect(obj.subheader.defaultValue.value).toBe("Dog · Rottweiler · male");
+    expect(obj.hexBackgroundColor).toBe("#007CF5");
     expect(obj.barcode).toEqual({
       type: "QR_CODE",
       value: "https://app.example.com/passport/p1",
+      alternateText: "GB-YC-1",
     });
     const moduleIds = obj.textModulesData.map((m) => m.id);
     expect(moduleIds).toEqual(
-      expect.arrayContaining(["microchip", "passport", "rabies", "issuer"]),
+      expect.arrayContaining([
+        "passportNumber",
+        "microchip",
+        "rabies",
+        "issuer",
+      ]),
     );
+    expect(obj.logo).toBeUndefined();
+    expect(obj.heroImage).toBeUndefined();
   });
 
   it("sanitises a non-conforming companion id into the object id", () => {
@@ -307,6 +377,22 @@ describe("buildGooglePayload", () => {
       ISSUER,
     ) as unknown as GooglePayloadShape;
     expect(payload.genericObjects[0].id).toBe(`${ISSUER}.abc-12-3`);
+    // MINIMAL has no passport number, so the QR carries the "Verify" fallback.
+    expect(payload.genericObjects[0].barcode.alternateText).toBe("Verify");
+  });
+
+  it("includes brand logo and hero image when their URLs are configured", () => {
+    process.env.PUBLIC_WALLET_LOGO_URL = "https://cdn.example.com/logo.png";
+    process.env.PUBLIC_WALLET_HERO_URL = "https://cdn.example.com/hero.png";
+    const payload = buildGooglePayload(
+      PASSPORT,
+      ISSUER,
+    ) as unknown as GooglePayloadShape;
+    const obj = payload.genericObjects[0];
+    expect(obj.logo?.sourceUri.uri).toBe("https://cdn.example.com/logo.png");
+    expect(obj.heroImage?.sourceUri.uri).toBe(
+      "https://cdn.example.com/hero.png",
+    );
   });
 });
 
