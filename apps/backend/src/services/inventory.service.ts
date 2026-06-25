@@ -1058,6 +1058,34 @@ const createInventoryItemInPostgres = async (
   };
 };
 
+const planFifoConsumption = (
+  batches: ReadonlyArray<{ quantity?: number | null }>,
+  quantity: number,
+): Array<{ index: number; newQuantity: number }> => {
+  let remaining = quantity;
+  const plan: Array<{ index: number; newQuantity: number }> = [];
+
+  for (let index = 0; index < batches.length; index += 1) {
+    if (remaining <= 0) break;
+
+    const available = batches[index].quantity ?? 0;
+    if (available <= 0) continue;
+
+    const consumed = Math.min(available, remaining);
+    remaining -= consumed;
+    plan.push({ index, newQuantity: available - consumed });
+  }
+
+  if (remaining > 0) {
+    throw new InventoryServiceError(
+      "Failed to consume full requested quantity",
+      500,
+    );
+  }
+
+  return plan;
+};
+
 export const InventoryService = {
   // ─────────────────────────────────────────────
   // CREATE ITEM (optionally with initial batches)
@@ -1867,35 +1895,24 @@ export const InventoryService = {
       throw new InventoryServiceError("Insufficient stock", 400);
     }
 
-    let remaining = input.quantity;
     const batches = await prisma.inventoryBatch.findMany({
       where: { itemId: safeItemId },
       orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
     });
 
-    for (const batch of batches) {
-      if (remaining <= 0) break;
-      const availableInBatch = batch.quantity ?? 0;
-      if (availableInBatch <= 0) continue;
-      const consume = Math.min(availableInBatch, remaining);
-      remaining -= consume;
+    const plan = planFifoConsumption(batches, input.quantity);
+    for (const { index, newQuantity } of plan) {
+      const batch = batches[index];
       await prisma.inventoryBatch.update({
         where: { id: batch.id },
-        data: { quantity: availableInBatch - consume },
+        data: { quantity: newQuantity },
       });
     }
 
-    if (remaining > 0) {
-      throw new InventoryServiceError(
-        "Failed to consume full requested quantity",
-        500,
-      );
-    }
-
-    const { onHand } = await recomputeStockFromBatches(safeItemId);
+    const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
     const updated = await prisma.inventoryItem.update({
       where: { id: safeItemId },
-      data: { onHand },
+      data: { onHand, allocated },
     });
 
     return {

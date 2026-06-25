@@ -58,6 +58,15 @@ const normalizeMobileSubmissionRequest = (
   return normalized as unknown as FormSubmissionRequestDTO;
 };
 
+const parseAppointmentFormQuery = (body: unknown) => {
+  const { serviceId, species, isPMS } = (body as Record<string, unknown>) ?? {};
+  return {
+    serviceId: typeof serviceId === "string" ? serviceId : undefined,
+    species: typeof species === "string" ? species : undefined,
+    isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
+  };
+};
+
 export const FormController = {
   createForm: async (req: Request, res: Response) => {
     try {
@@ -377,8 +386,7 @@ export const FormController = {
   getFormsForAppointment: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
-      const { serviceId, species, isPMS } =
-        (req.body as Record<string, unknown>) ?? {};
+      const { serviceId, species, isPMS } = parseAppointmentFormQuery(req.body);
       const isMobileRequest =
         typeof req.path === "string" && req.path.includes("/mobile/");
 
@@ -412,9 +420,9 @@ export const FormController = {
 
       const result = await FormService.getFormsForAppointment({
         appointmentId,
-        serviceId: typeof serviceId === "string" ? serviceId : undefined,
-        species: typeof species === "string" ? species : undefined,
-        isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
+        serviceId,
+        species,
+        isPMS,
         viewerParentId,
         requesterOrgId,
       });
