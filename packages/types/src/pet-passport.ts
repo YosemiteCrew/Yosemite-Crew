@@ -28,6 +28,32 @@ export interface VaccinationDTO {
   createdAt: string;
 }
 
+// An anti-parasite treatment - notably the echinococcus/tapeworm dose required
+// (with its date AND time) for entry to protected destinations.
+export interface ParasiteTreatmentDTO {
+  id: string;
+  patientId: string;
+  treatmentType: ParasiteTreatmentType;
+  productName: string;
+  manufacturer?: string;
+  treatedAt: string;
+  administeringVetName?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// A rabies antibody titration result (required from certain non-listed
+// countries; must be at least 0.5 IU/ml from an approved laboratory).
+export interface RabiesTitrationDTO {
+  id: string;
+  patientId: string;
+  approvedLab: string;
+  sampleDate: string;
+  resultIuMl: number;
+  reportUrl?: string;
+  createdAt: string;
+}
+
 export interface PetPassportIdentity {
   id: string;
   name: string;
@@ -54,4 +80,6 @@ export interface PetPassportDTO {
   passportNumber?: string;
   rabies?: VaccinationDTO;
   vaccinations: VaccinationDTO[];
+  parasiteTreatments: ParasiteTreatmentDTO[];
+  rabiesTitrations: RabiesTitrationDTO[];
 }

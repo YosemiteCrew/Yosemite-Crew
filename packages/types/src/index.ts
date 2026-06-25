@@ -94,11 +94,17 @@ export type {
   VaccineType,
   ParasiteTreatmentType,
   VaccinationDTO,
+  ParasiteTreatmentDTO,
+  RabiesTitrationDTO,
   PetPassportIdentity,
   PetPassportMicrochip,
   PetPassportDTO,
 } from './pet-passport';
-export type { RecordVaccinationRequestDTO } from './dto/pet-passport.dto';
+export type {
+  RecordVaccinationRequestDTO,
+  RecordParasiteTreatmentRequestDTO,
+  RecordRabiesTitrationRequestDTO,
+} from './dto/pet-passport.dto';
 
 export type { Organization, Organisation, ToFHIROrganizationOptions } from './organization';
 export type { OrganisationRoom, RoomReferenceMapping } from './organisationRoom';

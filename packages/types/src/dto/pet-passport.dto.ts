@@ -1,4 +1,4 @@
-import type { VaccineType } from '../pet-passport';
+import type { ParasiteTreatmentType, VaccineType } from '../pet-passport';
 
 // Request to record an administered vaccination. The service applies the EU pet
 // passport validity rules for rabies doses (animal at least 12 weeks old, the
@@ -19,4 +19,23 @@ export interface RecordVaccinationRequestDTO {
   site?: string;
   route?: string;
   notes?: string;
+}
+
+// Request to record an anti-parasite (e.g. tapeworm) treatment. treatedAt carries
+// both date and time, as the echinococcus rule requires.
+export interface RecordParasiteTreatmentRequestDTO {
+  treatmentType: ParasiteTreatmentType;
+  productName: string;
+  manufacturer?: string;
+  treatedAt: string;
+  administeringVetName?: string;
+  notes?: string;
+}
+
+// Request to record a rabies antibody titration result.
+export interface RecordRabiesTitrationRequestDTO {
+  approvedLab: string;
+  sampleDate: string;
+  resultIuMl: number;
+  reportUrl?: string;
 }
