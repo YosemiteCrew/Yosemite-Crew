@@ -401,6 +401,8 @@ model Patient {
   isNeutered       Boolean?
   ageWhenNeutered  String?
   microchipNumber  String?
+  microchipImplantedAt DateTime?
+  microchipLocation String?
   passportNumber   String?
   isInsured        Boolean       @default(false)
   insurance        Json?
@@ -420,6 +422,10 @@ model Patient {
   organisations     PatientOrganisation[]
   parentLinks       ParentPatient[]
   companionShareTokens CompanionShareToken[]
+  vaccinations         Vaccination[]
+  parasiteTreatments   ParasiteTreatment[]
+  rabiesTitrations     RabiesTitration[]
+  petPassports         PetPassport[]
 
   @@index([type])
   @@index([status])
@@ -545,6 +551,114 @@ model CompanionShareToken {
   @@index([organisationId, patientId])
   @@index([patientId, audience])
   @@index([expiresAt])
+}
+
+// --- Digital Pet Passport: structured veterinary records (issue #1648) ---
+// Patient stays the source of truth for identity; these models add the
+// vaccination, parasite-treatment, rabies-titration, and passport-issuance
+// records a pet passport requires (none of which existed in the schema before).
+
+enum VaccineType {
+  RABIES
+  CORE
+  NON_CORE
+  OTHER
+}
+
+enum ParasiteTreatmentType {
+  ECHINOCOCCUS
+  TICK
+  FLEA
+  OTHER
+}
+
+model Vaccination {
+  id                   String      @id @default(uuid())
+  patientId            String
+  organisationId       String
+  vaccineType          VaccineType @default(OTHER)
+  vaccineName          String
+  manufacturer         String?
+  batchNumber          String?
+  lotNumber            String?
+  dateAdministered     DateTime
+  validFrom            DateTime?
+  validUntil           DateTime?
+  nextDueDate          DateTime?
+  administeringVetId   String?
+  administeringVetName String?
+  vetLicenseNumber     String?
+  site                 String?
+  route                String?
+  notes                String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  patient              Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([organisationId])
+  @@index([patientId, vaccineType])
+  @@index([validUntil])
+}
+
+model ParasiteTreatment {
+  id                   String                @id @default(uuid())
+  patientId            String
+  organisationId       String
+  treatmentType        ParasiteTreatmentType @default(OTHER)
+  productName          String
+  manufacturer         String?
+  treatedAt            DateTime
+  administeringVetId   String?
+  administeringVetName String?
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  patient              Patient               @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([organisationId])
+  @@index([patientId, treatmentType])
+}
+
+model RabiesTitration {
+  id             String   @id @default(uuid())
+  patientId      String
+  organisationId String
+  approvedLab    String
+  sampleDate     DateTime
+  resultIuMl     Float
+  reportUrl      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([organisationId])
+}
+
+model PetPassport {
+  id                String        @id @default(uuid())
+  patientId         String
+  organisationId    String
+  passportNumber    String        @unique
+  issuingCountry    String?
+  issuingAuthority  String?
+  issuingVetId      String?
+  issuingVetName    String?
+  issuingVetLicense String?
+  issueDate         DateTime      @default(now())
+  status            RecordStatus?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  patient           Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([organisationId])
 }
 
 model Appointment {
