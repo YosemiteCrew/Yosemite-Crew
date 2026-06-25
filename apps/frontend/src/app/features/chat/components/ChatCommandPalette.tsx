@@ -37,13 +37,18 @@ export function ChatCommandPalette({
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        // Win over the app-wide UniversalSearch Cmd+K while chat is mounted, so
+        // Cmd+K here jumps between conversations (which the global palette can't
+        // search). This capture-phase listener fires before the global one's
+        // document-level bubble listener; stopping it prevents both opening.
+        e.stopImmediatePropagation();
         setOpen((o) => !o);
       } else if (e.key === 'Escape') {
         setOpen(false);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, []);
 
   useEffect(() => {
