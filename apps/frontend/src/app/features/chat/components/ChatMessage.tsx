@@ -61,7 +61,7 @@ function MsgIconButton({
   );
 }
 
-export function ChatMessage() {
+export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean }>) {
   const { message, isMyMessage, handleReaction, handleOpenThread, readBy } = useMessageContext();
   const { editMessage, deleteMessage } = useChannelActionContext();
   const mine = isMyMessage();
@@ -233,7 +233,12 @@ export function ChatMessage() {
         mine ? 'justify-end' : 'justify-start'
       )}
     >
-      {!mine && <ChatAvatar name={counterpartName} size="sm" />}
+      {!mine &&
+        (firstOfGroup === false ? (
+          <span className="w-9 shrink-0" aria-hidden="true" />
+        ) : (
+          <ChatAvatar name={counterpartName} size="sm" />
+        ))}
       <div
         className={clsx(
           'flex max-w-[80%] flex-col gap-1 sm:max-w-md',

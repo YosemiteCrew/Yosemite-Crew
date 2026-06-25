@@ -20,6 +20,7 @@ type MsgOverrides = {
   message?: Record<string, unknown>;
   isMyMessage?: boolean;
   readBy?: unknown[];
+  firstOfGroup?: boolean;
 };
 
 const baseMessage = {
@@ -45,7 +46,7 @@ const setup = (over: MsgOverrides = {}) => {
     readBy: over.readBy ?? [],
   });
   mockUseChannelActionContext.mockReturnValue({ editMessage, deleteMessage });
-  const utils = render(<ChatMessage />);
+  const utils = render(<ChatMessage firstOfGroup={over.firstOfGroup} />);
   return { handleReaction, handleOpenThread, editMessage, deleteMessage, ...utils };
 };
 
@@ -54,6 +55,11 @@ describe('ChatMessage', () => {
 
   it('renders an incoming text message', () => {
     setup();
+    expect(screen.getByText('Hello there')).toBeInTheDocument();
+  });
+
+  it('renders a grouped (non-first) incoming message without its own avatar', () => {
+    setup({ firstOfGroup: false });
     expect(screen.getByText('Hello there')).toBeInTheDocument();
   });
 
