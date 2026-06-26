@@ -14,6 +14,9 @@ jest.mock("stream-chat", () => ({
 jest.mock("src/config/prisma", () => ({
   prisma: {
     chatSession: { findFirst: jest.fn() },
+    appointment: { findFirst: jest.fn() },
+    invoice: { findFirst: jest.fn() },
+    patientOrganisation: { findFirst: jest.fn() },
     sharedChatEntity: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -41,6 +44,9 @@ import { SharedChatEntityType } from "@prisma/client";
 
 const mockedPrisma = prisma as unknown as {
   chatSession: { findFirst: jest.Mock };
+  appointment: { findFirst: jest.Mock };
+  invoice: { findFirst: jest.Mock };
+  patientOrganisation: { findFirst: jest.Mock };
   sharedChatEntity: {
     create: jest.Mock;
     findMany: jest.Mock;
@@ -66,6 +72,7 @@ beforeEach(() => {
 describe("SharedChatEntityService.shareEntity", () => {
   it("posts a Stream card and records the share for a member", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+    mockedPrisma.appointment.findFirst.mockResolvedValue({ id: "a1" });
     mockedPrisma.sharedChatEntity.create.mockResolvedValue({ id: "share1" });
 
     const res = await SharedChatEntityService.shareEntity({
@@ -99,6 +106,7 @@ describe("SharedChatEntityService.shareEntity", () => {
       ...openSession,
       type: "ORG_GROUP",
     });
+    mockedPrisma.invoice.findFirst.mockResolvedValue({ id: "i1" });
     mockedPrisma.sharedChatEntity.create.mockResolvedValue({ id: "share2" });
 
     await SharedChatEntityService.shareEntity({
@@ -159,17 +167,118 @@ describe("SharedChatEntityService.shareEntity", () => {
 
   it("surfaces a 502 and does not record when Stream posting fails", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+    mockedPrisma.appointment.findFirst.mockResolvedValue({ id: "a1" });
     mockSendMessage.mockRejectedValue(new Error("stream down"));
 
     await expect(
       SharedChatEntityService.shareEntity({
         channelId: "ch1",
         userId: "u1",
-        entityType: SharedChatEntityType.FORM,
-        entityId: "f1",
+        entityType: SharedChatEntityType.APPOINTMENT,
+        entityId: "a1",
       }),
     ).rejects.toMatchObject({ statusCode: 502 });
     expect(mockedPrisma.sharedChatEntity.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects with 403 when the appointment belongs to another org", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+    mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+    await expect(
+      SharedChatEntityService.shareEntity({
+        channelId: "ch1",
+        userId: "u1",
+        entityType: SharedChatEntityType.APPOINTMENT,
+        entityId: "foreign-appt",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+      where: { id: "foreign-appt", organisationId: "org1" },
+      select: { id: true },
+    });
+  });
+
+  it("shares a companion that is linked to the organisation", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+      id: "link1",
+    });
+    mockedPrisma.sharedChatEntity.create.mockResolvedValue({ id: "share3" });
+
+    await SharedChatEntityService.shareEntity({
+      channelId: "ch1",
+      userId: "u1",
+      entityType: SharedChatEntityType.COMPANION,
+      entityId: "pet1",
+    });
+
+    expect(mockedPrisma.patientOrganisation.findFirst).toHaveBeenCalledWith({
+      where: {
+        organisationId: "org1",
+        patientId: "pet1",
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { id: true },
+    });
+    expect(mockedPrisma.sharedChatEntity.create).toHaveBeenCalled();
+  });
+
+  it("rejects with 403 when the companion is not linked to the organisation", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
+
+    await expect(
+      SharedChatEntityService.shareEntity({
+        channelId: "ch1",
+        userId: "u1",
+        entityType: SharedChatEntityType.COMPANION,
+        entityId: "foreign-pet",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("rejects with 403 when the invoice belongs to another org", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+    mockedPrisma.invoice.findFirst.mockResolvedValue(null);
+
+    await expect(
+      SharedChatEntityService.shareEntity({
+        channelId: "ch1",
+        userId: "u1",
+        entityType: SharedChatEntityType.INVOICE,
+        entityId: "foreign-invoice",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("rejects with 400 for entity types not supported for sharing", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+
+    await expect(
+      SharedChatEntityService.shareEntity({
+        channelId: "ch1",
+        userId: "u1",
+        entityType: SharedChatEntityType.DOCUMENT,
+        entityId: "d1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("rejects with 400 when the entity id is blank", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+
+    await expect(
+      SharedChatEntityService.shareEntity({
+        channelId: "ch1",
+        userId: "u1",
+        entityType: SharedChatEntityType.APPOINTMENT,
+        entityId: "   ",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
   });
 });
 

@@ -48,10 +48,71 @@ const loadAuthorisedSession = async (channelId: string, userId: string) => {
   return session;
 };
 
+/**
+ * Verify the entity being shared actually belongs to the session's organisation,
+ * so a member of one clinic's chat cannot plant a reference to (or a forged card
+ * for) another clinic's record. Only the entity types the product surfaces for
+ * sharing are accepted; anything else is rejected rather than stored unverified.
+ */
+const assertEntityBelongsToOrg = async (
+  entityType: SharedChatEntityType,
+  entityId: string,
+  organisationId: string,
+): Promise<void> => {
+  const id = entityId.trim();
+  if (!id) {
+    throw new ChatServiceError("Invalid entity id", 400);
+  }
+
+  const notInOrg = () =>
+    new ChatServiceError("Entity does not belong to this organisation", 403);
+
+  switch (entityType) {
+    case SharedChatEntityType.APPOINTMENT: {
+      const found = await prisma.appointment.findFirst({
+        where: { id, organisationId },
+        select: { id: true },
+      });
+      if (!found) throw notInOrg();
+      return;
+    }
+    case SharedChatEntityType.INVOICE: {
+      const found = await prisma.invoice.findFirst({
+        where: { id, organisationId },
+        select: { id: true },
+      });
+      if (!found) throw notInOrg();
+      return;
+    }
+    case SharedChatEntityType.COMPANION: {
+      const link = await prisma.patientOrganisation.findFirst({
+        where: {
+          organisationId,
+          patientId: id,
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+        select: { id: true },
+      });
+      if (!link) throw notInOrg();
+      return;
+    }
+    default:
+      throw new ChatServiceError(
+        `Sharing is not supported for ${entityType.toLowerCase()} entities`,
+        400,
+      );
+  }
+};
+
 export const SharedChatEntityService = {
   async shareEntity(input: ShareEntityInput) {
     const { channelId, userId, entityType, entityId, title, snapshot } = input;
     const session = await loadAuthorisedSession(channelId, userId);
+    await assertEntityBelongsToOrg(
+      entityType,
+      entityId,
+      session.organisationId,
+    );
 
     const channel = streamServer.channel(
       channelTypeForSession(session.type),
