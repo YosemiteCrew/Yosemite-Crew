@@ -533,6 +533,10 @@ const sanitizeBusinessAttributes = (
     dto.appointmentLockWindowInpatientMinutes,
     "Appointment lock window inpatient minutes",
   );
+  const crossOrgMessagingEnabled =
+    dto.crossOrgMessagingEnabled === undefined
+      ? undefined
+      : Boolean(dto.crossOrgMessagingEnabled);
   const checkInConfig = resolveCheckInConfig({
     appointmentCheckInBufferMinutes,
     appointmentCheckInRadiusMeters,
@@ -563,6 +567,7 @@ const sanitizeBusinessAttributes = (
       checkInConfig.appointmentCheckInRadiusMeters,
     appointmentLockWindowOutpatientMinutes,
     appointmentLockWindowInpatientMinutes,
+    crossOrgMessagingEnabled,
   };
 };
 
@@ -584,6 +589,7 @@ const buildFHIRResponseFromPrisma = (
       organisation.appointmentLockWindowOutpatientMinutes ?? undefined,
     appointmentLockWindowInpatientMinutes:
       organisation.appointmentLockWindowInpatientMinutes ?? undefined,
+    crossOrgMessagingEnabled: organisation.crossOrgMessagingEnabled ?? false,
     _id: organisation.fhirId ?? organisation.id,
     name: organisation.name,
     taxId: organisation.taxId ?? "",
@@ -705,6 +711,7 @@ export const OrganizationService = {
         persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
       appointmentLockWindowInpatientMinutes:
         persistable.appointmentLockWindowInpatientMinutes ?? undefined,
+      crossOrgMessagingEnabled: persistable.crossOrgMessagingEnabled ?? false,
     };
 
     const organisation = existing
@@ -896,6 +903,7 @@ export const OrganizationService = {
           persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
         appointmentLockWindowInpatientMinutes:
           persistable.appointmentLockWindowInpatientMinutes ?? undefined,
+        crossOrgMessagingEnabled: persistable.crossOrgMessagingEnabled ?? false,
       },
     });
 

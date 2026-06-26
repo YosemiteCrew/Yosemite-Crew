@@ -624,6 +624,7 @@ model ChatSession {
   appointmentId   String?
   channelId       String
   organisationId  String
+  counterpartOrganisationId String?
   patientId     String?
   parentId        String?
   vetId           String?
@@ -750,6 +751,7 @@ model Organization {
   appointmentCheckInRadiusMeters  Int          @default(200)
   appointmentLockWindowOutpatientMinutes Int?
   appointmentLockWindowInpatientMinutes   Int?
+  crossOrgMessagingEnabled    Boolean          @default(false)
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 
