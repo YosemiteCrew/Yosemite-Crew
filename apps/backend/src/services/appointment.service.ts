@@ -200,53 +200,44 @@ export const resolvePaymentStatusByAppointmentIds = async (
 export const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
-  const statusMap = new Map<string, AppointmentPaymentStatus>();
   const invoices = await prisma.invoice.findMany({
     where: {
       appointmentId: { in: appointmentIds },
-      status: {
-        in: ["PAID", "PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"],
-      },
     },
     select: {
       appointmentId: true,
       status: true,
+      payments: {
+        where: { status: "SUCCEEDED" },
+        select: { id: true },
+      },
     },
   });
 
-  const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
-
-  for (const invoice of invoices) {
-    if (!invoice.appointmentId) continue;
-    const entry = tracker.get(invoice.appointmentId) ?? {
-      hasPaid: false,
-      hasUnpaid: false,
-    };
-
-    if (invoice.status === "PAID") {
-      entry.hasPaid = true;
-    } else if (
-      ["PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"].includes(
-        invoice.status,
-      )
-    ) {
-      entry.hasUnpaid = true;
-    }
-
-    tracker.set(invoice.appointmentId, entry);
-  }
-
-  for (const [appointmentId, entry] of tracker) {
-    const paid = entry.hasPaid && !entry.hasUnpaid;
-    statusMap.set(appointmentId, paid ? "PAID" : "UNPAID");
-  }
-
-  return statusMap;
+  return buildAppointmentPaymentStatusMap(invoices);
 };
 
 export const resolvePaymentStatusByAppointmentIdsFromMongo = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
+  const postgresInvoices = await prisma.invoice.findMany({
+    where: {
+      appointmentId: { in: appointmentIds },
+    },
+    select: {
+      appointmentId: true,
+      status: true,
+      payments: {
+        where: { status: "SUCCEEDED" },
+        select: { id: true },
+      },
+    },
+  });
+
+  if (postgresInvoices.length > 0) {
+    return buildAppointmentPaymentStatusMap(postgresInvoices);
+  }
+
   const statusMap = new Map<string, AppointmentPaymentStatus>();
   const results: Array<{
     _id: string;
@@ -283,6 +274,53 @@ export const resolvePaymentStatusByAppointmentIdsFromMongo = async (
   for (const row of results) {
     const paid = row.hasPaid === 1 && row.hasUnpaid === 0;
     statusMap.set(row._id, paid ? "PAID" : "UNPAID");
+  }
+
+  return statusMap;
+};
+
+const buildAppointmentPaymentStatusMap = (
+  invoices: Array<{
+    appointmentId: string | null;
+    status: string;
+    payments: Array<{ id: string }>;
+  }>,
+) => {
+  const statusMap = new Map<string, AppointmentPaymentStatus>();
+  const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
+  const unpaidStatuses = new Set([
+    "PENDING",
+    "AWAITING_PAYMENT",
+    "FAILED",
+    "REFUNDED",
+  ]);
+
+  for (const invoice of invoices) {
+    if (!invoice.appointmentId) continue;
+    const entry = tracker.get(invoice.appointmentId) ?? {
+      hasPaid: false,
+      hasUnpaid: false,
+    };
+
+    const hasSuccessfulPayment = (invoice.payments?.length ?? 0) > 0;
+    const isPaid = invoice.status === "PAID" || hasSuccessfulPayment;
+    const isUnpaid = !isPaid && unpaidStatuses.has(invoice.status);
+
+    if (isPaid) {
+      entry.hasPaid = true;
+    }
+    if (isUnpaid) {
+      entry.hasUnpaid = true;
+    }
+
+    tracker.set(invoice.appointmentId, entry);
+  }
+
+  for (const [appointmentId, entry] of tracker) {
+    statusMap.set(
+      appointmentId,
+      entry.hasPaid && !entry.hasUnpaid ? "PAID" : "UNPAID",
+    );
   }
 
   return statusMap;

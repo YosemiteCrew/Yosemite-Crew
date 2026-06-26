@@ -327,6 +327,7 @@ describe("AppointmentService", () => {
     (prisma.$transaction as jest.Mock).mockImplementation(
       async (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
     );
+    (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   it("covers appointment helper validation and status branches", async () => {
@@ -1178,6 +1179,23 @@ describe("AppointmentService", () => {
 
       const res = await AppointmentService.getById("appt_2");
       expect((res as any).paymentStatus).toBe("UNPAID");
+    });
+
+    it("returns PAID when a successful payment exists but the invoice status is stale", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ id: "appt_3", status: "REQUESTED" }),
+      );
+      (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          appointmentId: "appt_3",
+          status: "AWAITING_PAYMENT",
+          payments: [{ id: "pay_1" }],
+        },
+      ]);
+
+      const res = await AppointmentService.getById("appt_3");
+      expect((res as any).paymentStatus).toBe("PAID");
     });
 
     it("returns empty list without invoice lookup when no rows (postgres)", async () => {

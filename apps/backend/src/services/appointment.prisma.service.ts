@@ -250,13 +250,12 @@ type AppointmentListFilters = {
 };
 
 const DEFAULT_KIND: AppointmentKind = "OUTPATIENT";
-const BOOKABLE_INVOICE_STATUSES = [
-  "PAID",
+const UNPAID_INVOICE_STATUSES = new Set([
   "PENDING",
   "AWAITING_PAYMENT",
   "FAILED",
   "REFUNDED",
-] as const;
+]);
 
 const toDate = (value: string | Date) =>
   value instanceof Date ? value : new Date(value);
@@ -1186,11 +1185,14 @@ const resolvePaymentStatusMap = async (
   const invoices = await prisma.invoice.findMany({
     where: {
       appointmentId: { in: uniqueIds },
-      status: { in: [...BOOKABLE_INVOICE_STATUSES] },
     },
     select: {
       appointmentId: true,
       status: true,
+      payments: {
+        where: { status: "SUCCEEDED" },
+        select: { id: true },
+      },
     },
   });
 
@@ -1203,9 +1205,14 @@ const resolvePaymentStatusMap = async (
       hasUnpaid: false,
     };
 
-    if (invoice.status === "PAID") {
+    const hasSuccessfulPayment = (invoice.payments?.length ?? 0) > 0;
+    const isPaid = invoice.status === "PAID" || hasSuccessfulPayment;
+    const isUnpaid = !isPaid && UNPAID_INVOICE_STATUSES.has(invoice.status);
+
+    if (isPaid) {
       entry.hasPaid = true;
-    } else {
+    }
+    if (isUnpaid) {
       entry.hasUnpaid = true;
     }
 
