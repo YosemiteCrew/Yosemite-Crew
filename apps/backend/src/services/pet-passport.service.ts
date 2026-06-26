@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { PassportConsentService } from "./passport-consent.service";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
   ClinicalExamDTO,
@@ -225,6 +226,7 @@ const assemblePassport = async (
   patientId: string,
   organisationId: string,
   includeOwner = false,
+  scope: "practice" | "owner" = "practice",
 ): Promise<PetPassportDTO> => {
   const owner = includeOwner ? await loadPassportOwner(patientId) : undefined;
   const patient = await prisma.patient.findUnique({
@@ -257,10 +259,36 @@ const assemblePassport = async (
       ? physical.markings
       : undefined;
 
-  // ClinicalArtifact has no patientId; resolve the patient's encounters in this
-  // org, then read the clinical-record artifacts hung off them.
+  // ClinicalArtifact has no patientId. The same physical pet may have records in
+  // several practices (keyed by microchip), so resolve every patient row for the
+  // chip, then read the SIGNED artifacts hung off their encounters. A practice
+  // sees its own records plus those it has been granted cross-practice consent
+  // for; the owner / public view sees every practice's records.
+  const chipPatientIds = patient.microchipNumber
+    ? (
+        await prisma.patient.findMany({
+          where: { microchipNumber: patient.microchipNumber },
+          select: { id: true },
+        })
+      ).map((p) => p.id)
+    : [patientId];
+
+  let orgFilter: { in: string[] } | undefined;
+  if (scope === "practice") {
+    const granted = patient.microchipNumber
+      ? await PassportConsentService.grantedOwnerOrgs(
+          patient.microchipNumber,
+          organisationId,
+        )
+      : [];
+    orgFilter = { in: [organisationId, ...granted] };
+  }
+
   const encounters = await prisma.encounter.findMany({
-    where: { patientId, organisationId },
+    where: {
+      patientId: { in: chipPatientIds },
+      ...(orgFilter ? { organisationId: orgFilter } : {}),
+    },
     select: { id: true },
   });
   const encounterIds = encounters.map((e) => e.id);
@@ -417,6 +445,8 @@ export const PetPassportService = {
     if (!row) {
       throw new PetPassportServiceError("Passport not found.", 404);
     }
-    return assemblePassport(patientId, row.organisationId);
+    // The public QR is owner-initiated, so it shows the pet's full record across
+    // every practice (no per-practice consent gate).
+    return assemblePassport(patientId, row.organisationId, false, "owner");
   },
 };

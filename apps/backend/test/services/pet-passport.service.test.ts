@@ -7,8 +7,9 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    patient: { findUnique: jest.fn() },
+    patient: { findUnique: jest.fn(), findMany: jest.fn() },
     patientOrganisation: { findFirst: jest.fn() },
+    passportShareConsent: { findMany: jest.fn() },
     encounter: { findMany: jest.fn() },
     immunization: { findMany: jest.fn() },
     parasiteTreatment: { findMany: jest.fn() },
@@ -25,8 +26,9 @@ jest.mock("src/services/audit-trail.service", () => ({
 }));
 
 const prismaMock = prisma as unknown as {
-  patient: { findUnique: jest.Mock };
+  patient: { findUnique: jest.Mock; findMany: jest.Mock };
   patientOrganisation: { findFirst: jest.Mock };
+  passportShareConsent: { findMany: jest.Mock };
   encounter: { findMany: jest.Mock };
   immunization: { findMany: jest.Mock };
   parasiteTreatment: { findMany: jest.Mock };
@@ -71,6 +73,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   prismaMock.patientOrganisation.findFirst.mockResolvedValue({ id: "link-1" });
   prismaMock.patient.findUnique.mockResolvedValue(PATIENT);
+  prismaMock.patient.findMany.mockResolvedValue([{ id: "pat-1" }]);
+  prismaMock.passportShareConsent.findMany.mockResolvedValue([]);
   prismaMock.organization.findUnique.mockResolvedValue({
     name: "Yosemite Vet Clinic",
   });
@@ -285,6 +289,25 @@ describe("PetPassportService.getPassport", () => {
       passportNumber: "GB-YC-1",
       issuingPractice: "Yosemite Vet Clinic",
     });
+  });
+
+  it("aggregates records from practices granted cross-practice consent", async () => {
+    prismaMock.passportShareConsent.findMany.mockResolvedValue([
+      { ownerOrganisationId: "org-2" },
+    ]);
+    prismaMock.patient.findMany.mockResolvedValue([
+      { id: "pat-1" },
+      { id: "pat-1b" },
+    ]);
+    await PetPassportService.getPassport("pat-1", "org-1");
+    expect(prismaMock.encounter.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          patientId: { in: ["pat-1", "pat-1b"] },
+          organisationId: { in: ["org-1", "org-2"] },
+        }),
+      }),
+    );
   });
 
   it("skips clinical reads when the patient has no encounters", async () => {
