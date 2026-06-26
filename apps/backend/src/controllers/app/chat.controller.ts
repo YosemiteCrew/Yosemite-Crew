@@ -275,19 +275,21 @@ export const ChatController = {
         return res.status(400).json({ message: "organisationId required" });
       }
 
+      const includeClosed = req.query.includeClosed === "true";
+
       const sessions = isReadFromPostgres()
         ? await prisma.chatSession.findMany({
             where: {
               organisationId,
               members: { has: userId },
-              status: { not: "CLOSED" },
+              ...(includeClosed ? {} : { status: { not: "CLOSED" } }),
             },
             orderBy: { updatedAt: "desc" },
           })
         : await ChatSessionModel.find({
             organisationId,
             members: userId,
-            status: { $ne: "CLOSED" },
+            ...(includeClosed ? {} : { status: { $ne: "CLOSED" } }),
           })
             .sort({ updatedAt: -1 })
             .lean();

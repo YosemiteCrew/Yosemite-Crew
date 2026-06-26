@@ -68,6 +68,7 @@ const makeReq = (over: Record<string, unknown> = {}) =>
     body: {},
     params: {},
     headers: {},
+    query: {},
     ...over,
   }) as unknown as Request;
 
@@ -349,6 +350,21 @@ describe("ChatController.listMySessions", () => {
     expect(findMany).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith([{ id: "s1" }]);
+  });
+
+  it("includes closed sessions when includeClosed=true", async () => {
+    readPg.mockReturnValue(true);
+    findMany.mockResolvedValue([{ id: "s1" }]);
+    const res = makeRes();
+    await ChatController.listMySessions(
+      makeReq({
+        params: { organisationId: "o1" },
+        query: { includeClosed: "true" },
+      }),
+      res,
+    );
+    expect(findMany.mock.calls[0][0].where).not.toHaveProperty("status");
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("reads from mongo when the read switch is off", async () => {
