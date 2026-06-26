@@ -11,6 +11,8 @@ const PetPassportController = {
   listParasiteTreatments: jest.fn(),
   recordRabiesTitration: jest.fn(),
   listRabiesTitrations: jest.fn(),
+  recordClinicalExam: jest.fn(),
+  listClinicalExams: jest.fn(),
   issuePassport: jest.fn(),
   getPassport: jest.fn(),
   getApplePass: jest.fn(),
@@ -82,6 +84,15 @@ describe("pet-passport.router", () => {
 
   it("guards treatment and titration writes with passport:edit:any", () => {
     expect(requirePermission).toHaveBeenCalledWith("passport:edit:any");
+  });
+
+  it("registers clinical exam record/list routes, org-guarded", () => {
+    const exams =
+      "/pms/organisation/:organisationId/companion/:patientId/clinical-exams";
+    expect(findRoute(exams, "post")).toBeDefined();
+    expect(findRoute(exams, "get")).toBeDefined();
+    expect(findRoute(exams, "post")?.stack).toHaveLength(4);
+    expect(findRoute(exams, "get")?.stack).toHaveLength(4);
   });
 
   it("registers the passport issue route (post), org-guarded", () => {

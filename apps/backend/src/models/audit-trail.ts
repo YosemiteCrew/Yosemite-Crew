@@ -56,7 +56,8 @@ export type AuditEventType =
   | "VACCINATION_RECORDED"
   | "TREATMENT_RECORDED"
   | "TITRATION_RECORDED"
-  | "PASSPORT_ISSUED";
+  | "PASSPORT_ISSUED"
+  | "EXAM_RECORDED";
 
 export interface AuditTrailMongo {
   organisationId: string;

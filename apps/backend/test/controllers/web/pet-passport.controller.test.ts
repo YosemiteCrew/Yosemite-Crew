@@ -17,6 +17,8 @@ jest.mock("../../../src/services/pet-passport.service", () => {
       listParasiteTreatments: jest.fn(),
       recordRabiesTitration: jest.fn(),
       listRabiesTitrations: jest.fn(),
+      recordClinicalExam: jest.fn(),
+      listClinicalExams: jest.fn(),
       issuePassport: jest.fn(),
       getPassport: jest.fn(),
       getPublicPassport: jest.fn(),
@@ -402,6 +404,101 @@ describe("PetPassportController", () => {
         authed(),
         res as Response,
       );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("clinical exams", () => {
+    const examBody = {
+      examinedAt: "2024-06-23T00:00:00.000Z",
+      fitForTravel: true,
+      weightKg: 32.4,
+    };
+
+    it("201s recording a clinical exam with the authed actor", async () => {
+      service.recordClinicalExam.mockResolvedValue({ id: "e1" } as never);
+      await PetPassportController.recordClinicalExam(
+        authed({ body: examBody }),
+        res as Response,
+      );
+      expect(service.recordClinicalExam).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ fitForTravel: true }),
+          actor: { type: "PMS_USER", id: "user-1" },
+        }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("500s a clinical exam record without permissions", async () => {
+      await PetPassportController.recordClinicalExam(
+        { params: orgParams, body: examBody } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("defaults the clinical exam actor id to null when user id is absent", async () => {
+      service.recordClinicalExam.mockResolvedValue({ id: "e1" } as never);
+      await PetPassportController.recordClinicalExam(
+        authed({ body: examBody, userId: undefined }),
+        res as Response,
+      );
+      expect(service.recordClinicalExam).toHaveBeenCalledWith(
+        expect.objectContaining({ actor: { type: "PMS_USER", id: null } }),
+      );
+    });
+
+    it("400s an invalid clinical exam body", async () => {
+      await PetPassportController.recordClinicalExam(
+        authed({ body: { examinedAt: "2024-06-23T00:00:00.000Z" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("400s a clinical exam record on invalid route params", async () => {
+      await PetPassportController.recordClinicalExam(
+        authed({
+          params: { organisationId: "", patientId: "" },
+          body: examBody,
+        }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("500s a clinical exam record on an unexpected error", async () => {
+      service.recordClinicalExam.mockRejectedValue(new Error("boom"));
+      await PetPassportController.recordClinicalExam(
+        authed({ body: examBody }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("500s without permissions, then 200s listing clinical exams", async () => {
+      await PetPassportController.listClinicalExams(
+        { params: orgParams } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      service.listClinicalExams.mockResolvedValue([{ id: "e1" }] as never);
+      await PetPassportController.listClinicalExams(authed(), res as Response);
+      expect(jsonMock).toHaveBeenCalledWith({ exams: [{ id: "e1" }] });
+    });
+
+    it("400s clinical exam listing on invalid params", async () => {
+      await PetPassportController.listClinicalExams(
+        authed({ params: { organisationId: "", patientId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("500s clinical exam listing on an unexpected error", async () => {
+      service.listClinicalExams.mockRejectedValue(new Error("boom"));
+      await PetPassportController.listClinicalExams(authed(), res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
     });
   });

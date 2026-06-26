@@ -61,6 +61,16 @@ const IssuanceBodySchema = z.object({
   issuingVetLicense: z.string().max(100).optional(),
 });
 
+const ClinicalExamBodySchema = z.object({
+  examinedAt: z.string().min(1),
+  examiningVetName: z.string().max(200).optional(),
+  vetLicenseNumber: z.string().max(100).optional(),
+  fitForTravel: z.boolean(),
+  weightKg: z.number().optional(),
+  temperatureC: z.number().optional(),
+  findings: z.string().max(2000).optional(),
+});
+
 const permissionsLoaded = (req: OrgRequest, res: Response): boolean => {
   if (req.userPermissions) return true;
   res.status(500).json({
@@ -221,6 +231,51 @@ export const PetPassportController = {
       return res.status(200).json({ titrations });
     } catch (err) {
       return handleError(err, res, "Rabies titration listing failed");
+    }
+  },
+
+  recordClinicalExam: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = ClinicalExamBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const exam = await PetPassportService.recordClinicalExam({
+        patientId: params.data.patientId,
+        organisationId: params.data.organisationId,
+        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        input: body.data,
+      });
+      return res.status(201).json(exam);
+    } catch (err) {
+      return handleError(err, res, "Clinical exam recording failed");
+    }
+  },
+
+  listClinicalExams: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const exams = await PetPassportService.listClinicalExams(
+        params.data.patientId,
+        params.data.organisationId,
+      );
+      return res.status(200).json({ exams });
+    } catch (err) {
+      return handleError(err, res, "Clinical exam listing failed");
     }
   },
 

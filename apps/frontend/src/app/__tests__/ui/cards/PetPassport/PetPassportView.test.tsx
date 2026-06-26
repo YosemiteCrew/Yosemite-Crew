@@ -76,6 +76,25 @@ const full: PetPassportDTO = {
       createdAt: '2024-05-02T00:00:00.000Z',
     },
   ],
+  clinicalExams: [
+    {
+      id: 'e1',
+      patientId: 'p1',
+      examinedAt: '2024-06-23T00:00:00.000Z',
+      examiningVetName: 'Dr Vet',
+      fitForTravel: true,
+      weightKg: 32.4,
+      temperatureC: 38.5,
+      createdAt: '2024-06-23T00:00:00.000Z',
+    },
+    {
+      id: 'e2',
+      patientId: 'p1',
+      examinedAt: '2024-01-05T00:00:00.000Z',
+      fitForTravel: false,
+      createdAt: '2024-01-05T00:00:00.000Z',
+    },
+  ],
   issuance: {
     passportNumber: 'GB-YC-1',
     issuingVetName: 'Dr A',
@@ -104,6 +123,9 @@ describe('PetPassportView', () => {
     expect(screen.getByText('EU Lab')).toBeInTheDocument();
     expect(screen.getByText('0.8 IU/ml · D(2024-05-01T00:00:00.000Z)')).toBeInTheDocument();
     expect(screen.getByText('white chest blaze')).toBeInTheDocument();
+    expect(screen.getByText('Fit to travel')).toBeInTheDocument();
+    expect(screen.getByText('Not fit to travel')).toBeInTheDocument();
+    expect(screen.getByText('Dr Vet · 32.4 kg · 38.5°C')).toBeInTheDocument();
     expect(screen.getByText('Sam Lee')).toBeInTheDocument();
     expect(screen.getByText('Dr A')).toBeInTheDocument();
     expect(screen.getByText('Yosemite Vet Clinic')).toBeInTheDocument();
@@ -117,6 +139,7 @@ describe('PetPassportView', () => {
       vaccinations: [],
       parasiteTreatments: [],
       rabiesTitrations: [],
+      clinicalExams: [],
     };
     render(<PetPassportView passport={minimal} />);
     expect(screen.getByText('DSH / Feline')).toBeInTheDocument();
@@ -125,6 +148,7 @@ describe('PetPassportView', () => {
     expect(screen.queryByText('Other vaccinations')).not.toBeInTheDocument();
     expect(screen.queryByText('Parasite treatments')).not.toBeInTheDocument();
     expect(screen.queryByText('Rabies titration')).not.toBeInTheDocument();
+    expect(screen.queryByText('Clinical examination')).not.toBeInTheDocument();
   });
 
   it('falls back to Other for an unmapped species', () => {
@@ -139,6 +163,7 @@ describe('PetPassportView', () => {
       vaccinations: [],
       parasiteTreatments: [],
       rabiesTitrations: [],
+      clinicalExams: [],
     };
     render(<PetPassportView passport={card} />);
     expect(screen.getByText('Y / Other')).toBeInTheDocument();

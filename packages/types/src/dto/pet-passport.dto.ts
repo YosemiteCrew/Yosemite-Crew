@@ -40,6 +40,18 @@ export interface RecordRabiesTitrationRequestDTO {
   reportUrl?: string;
 }
 
+// Request to record a pre-travel clinical examination. fitForTravel is the vet's
+// attestation that the animal showed no signs of disease and is fit to travel.
+export interface RecordClinicalExamRequestDTO {
+  examinedAt: string;
+  examiningVetName?: string;
+  vetLicenseNumber?: string;
+  fitForTravel: boolean;
+  weightKg?: number;
+  temperatureC?: number;
+  findings?: string;
+}
+
 // Request to issue (or re-issue) the passport for a companion.
 export interface IssuePassportRequestDTO {
   passportNumber: string;

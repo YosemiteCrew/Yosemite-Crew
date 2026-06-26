@@ -1,6 +1,10 @@
 import api, { getData } from '@/app/services/axios';
 import { useOrgStore } from '@/app/stores/orgStore';
-import type { PetPassportDTO } from '@yosemite-crew/types';
+import type {
+  ClinicalExamDTO,
+  PetPassportDTO,
+  RecordClinicalExamRequestDTO,
+} from '@yosemite-crew/types';
 
 const requireOrgId = (): string => {
   const orgId = useOrgStore.getState().primaryOrgId;
@@ -45,6 +49,20 @@ export const getGoogleWalletUrl = async (companionId: string): Promise<string> =
     `/v1/pet-passport/pms/organisation/${requireOrgId()}/companion/${companionId}/wallet/google`
   );
   return res.data.saveUrl;
+};
+
+// Record a pre-travel clinical examination for a companion. The backend stamps
+// the examining vet from the authenticated user and writes an audit event; the
+// new exam then appears in the passport's "Clinical examination" section.
+export const recordClinicalExam = async (
+  companionId: string,
+  input: RecordClinicalExamRequestDTO
+): Promise<ClinicalExamDTO> => {
+  const res = await api.post<ClinicalExamDTO>(
+    `/v1/pet-passport/pms/organisation/${requireOrgId()}/companion/${companionId}/clinical-exams`,
+    input
+  );
+  return res.data;
 };
 
 // Public, unauthenticated verification (the wallet-pass QR target). No org
