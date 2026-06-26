@@ -36,6 +36,12 @@ jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
 }));
 
+// Mock toast notifications
+const mockNotify = jest.fn();
+jest.mock('@/app/hooks/useNotify', () => ({
+  useNotify: () => ({ notify: mockNotify }),
+}));
+
 // Mock Services
 jest.mock('@/app/features/chat/services/streamChatService', () => ({
   getChatClient: jest.fn(),
@@ -430,7 +436,10 @@ describe('ChatContainer', () => {
     });
 
     await waitFor(() => {
-      expect(globalThis.alert).toHaveBeenCalledWith('Unable to create group. Please try again.');
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ text: 'Unable to create group. Please try again.' })
+      );
     });
   });
 

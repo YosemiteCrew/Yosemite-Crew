@@ -70,6 +70,7 @@ import {
   listOrgChatSessions,
 } from '@/app/features/chat/services/chatService';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
+import { useNotify } from '@/app/hooks/useNotify';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
@@ -434,6 +435,7 @@ const ChannelHeaderWithCounterpart: FC<{
   const chatSessionStatusCtx = use(ChatSessionStatusContext);
   const { statusByAppointmentId } = chatSessionStatusCtx;
   const groupModalCtx = use(GroupModalContext);
+  const { notify } = useNotify();
   const [closingSession, setClosingSession] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
   const { title } = getChannelDisplayInfo(channel, currentUserId);
@@ -497,11 +499,17 @@ const ChannelHeaderWithCounterpart: FC<{
         await endChatChannel(sessionId);
         chatSessionStatusCtx.refreshStatuses();
         setSessionClosed(true);
-        alert('Chat session closed successfully');
+        notify('success', {
+          title: 'Chat session closed',
+          text: 'Chat session closed successfully',
+        });
       }
     } catch (error) {
       console.error('Failed to close chat session:', error);
-      alert('Failed to close chat session. Please try again.');
+      notify('error', {
+        title: 'Couldn’t close chat session',
+        text: 'Please try again.',
+      });
     } finally {
       setClosingSession(false);
     }
@@ -1007,6 +1015,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const [groupModalBusy, setGroupModalBusy] = useState(false);
   const groupModalOwnerRef = useRef<string | undefined>(undefined);
 
+  const { notify } = useNotify();
+
   const directBlurTimeout = useRef<NodeJS.Timeout | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
@@ -1337,7 +1347,10 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         new Set([user.userId, user.practitionerId, user.id].filter(Boolean))
       ) as string[];
       if (!candidateIds.length) {
-        alert('No valid user identifier found for this teammate.');
+        notify('error', {
+          title: 'Can’t start chat',
+          text: 'No valid user identifier found for this teammate.',
+        });
         return;
       }
       setCreatingChat(true);
@@ -1481,11 +1494,14 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         }
       }
       if (!success) {
-        alert('Unable to start chat. Please try again.');
+        notify('error', {
+          title: 'Couldn’t start chat',
+          text: 'Unable to start chat. Please try again.',
+        });
       }
       setCreatingChat(false);
     },
-    [primaryOrgId, client, activateChannelById, onChannelSelect]
+    [primaryOrgId, client, activateChannelById, onChannelSelect, notify]
   );
 
   const handleNetworkChatStarted = useCallback(
@@ -1557,21 +1573,25 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalOpen(false);
       } catch (err) {
         console.error('Failed to create group', err);
-        alert('Unable to create group. Please try again.');
+        notify('error', {
+          title: 'Couldn’t create group',
+          text: 'Unable to create group. Please try again.',
+        });
       } finally {
         setGroupModalBusy(false);
       }
     },
-    [primaryOrgId, client, activateChannelById, onChannelSelect]
+    [primaryOrgId, client, activateChannelById, onChannelSelect, notify]
   );
 
   const handleModalUpdateTitle = useCallback(
     async (title: string) => {
       if (!groupModalBackendId) {
         console.error('Group ID not available. groupModalBackendId:', groupModalBackendId);
-        alert(
-          'This group was created before the new system. Please create a new group to use this feature.'
-        );
+        notify('warning', {
+          title: 'Action unavailable',
+          text: 'This group was created before the new system. Please create a new group to use this feature.',
+        });
         return;
       }
       setGroupModalBusy(true);
@@ -1584,12 +1604,15 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalTitle('');
       } catch (err) {
         console.error('Failed to update group title', err);
-        alert('Unable to update title. Please try again.');
+        notify('error', {
+          title: 'Couldn’t update title',
+          text: 'Unable to update title. Please try again.',
+        });
       } finally {
         setGroupModalBusy(false);
       }
     },
-    [groupModalBackendId, groupModalChannel]
+    [groupModalBackendId, groupModalChannel, notify]
   );
 
   const handleModalAddMember = useCallback(
@@ -1599,9 +1622,10 @@ export const ChatContainer: FC<ChatContainerProps> = ({
           'Group ID not available for add member. groupModalBackendId:',
           groupModalBackendId
         );
-        alert(
-          'This group was created before the new system. Please create a new group to use this feature.'
-        );
+        notify('warning', {
+          title: 'Action unavailable',
+          text: 'This group was created before the new system. Please create a new group to use this feature.',
+        });
         return;
       }
       setGroupModalBusy(true);
@@ -1613,12 +1637,15 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalMembers((prev) => [...prev, userId]);
       } catch (err) {
         console.error('Failed to add member', err);
-        alert('Unable to add member. Please try again.');
+        notify('error', {
+          title: 'Couldn’t add member',
+          text: 'Unable to add member. Please try again.',
+        });
       } finally {
         setGroupModalBusy(false);
       }
     },
-    [groupModalBackendId, groupModalChannel]
+    [groupModalBackendId, groupModalChannel, notify]
   );
 
   const handleModalRemoveMember = useCallback(
@@ -1628,9 +1655,10 @@ export const ChatContainer: FC<ChatContainerProps> = ({
           'Group ID not available for remove member. groupModalBackendId:',
           groupModalBackendId
         );
-        alert(
-          'This group was created before the new system. Please create a new group to use this feature.'
-        );
+        notify('warning', {
+          title: 'Action unavailable',
+          text: 'This group was created before the new system. Please create a new group to use this feature.',
+        });
         return;
       }
       setGroupModalBusy(true);
@@ -1642,17 +1670,23 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalMembers((prev) => prev.filter((id) => id !== userId));
       } catch (err) {
         console.error('Failed to remove member', err);
-        alert('Unable to remove member. Please try again.');
+        notify('error', {
+          title: 'Couldn’t remove member',
+          text: 'Unable to remove member. Please try again.',
+        });
       } finally {
         setGroupModalBusy(false);
       }
     },
-    [groupModalBackendId, groupModalChannel]
+    [groupModalBackendId, groupModalChannel, notify]
   );
 
   const handleModalDelete = useCallback(async () => {
     if (!groupModalBackendId) {
-      alert('Group id not available.');
+      notify('error', {
+        title: 'Can’t delete group',
+        text: 'Group id not available.',
+      });
       return;
     }
     const confirmed = confirm('Delete this group? This cannot be undone.');
@@ -1672,14 +1706,20 @@ export const ChatContainer: FC<ChatContainerProps> = ({
       setIsChannelSelected(false);
       setShowEmptyPlaceholder(true);
       onChannelSelect?.(null);
-      alert('Group deleted successfully');
+      notify('success', {
+        title: 'Group deleted',
+        text: 'Group deleted successfully',
+      });
     } catch (err) {
       console.error('Failed to delete group', err);
-      alert('Unable to delete group. Please try again.');
+      notify('error', {
+        title: 'Couldn’t delete group',
+        text: 'Unable to delete group. Please try again.',
+      });
     } finally {
       setGroupModalBusy(false);
     }
-  }, [groupModalBackendId, groupModalChannel, onChannelSelect]);
+  }, [groupModalBackendId, groupModalChannel, onChannelSelect, notify]);
 
   const groupModalContextValue = useMemo(
     () => ({
