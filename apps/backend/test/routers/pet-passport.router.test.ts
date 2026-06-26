@@ -5,12 +5,6 @@ const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const PetPassportController = {
-  recordVaccination: jest.fn(),
-  listVaccinations: jest.fn(),
-  recordParasiteTreatment: jest.fn(),
-  listParasiteTreatments: jest.fn(),
-  recordRabiesTitration: jest.fn(),
-  listRabiesTitrations: jest.fn(),
   issuePassport: jest.fn(),
   getPassport: jest.fn(),
   getApplePass: jest.fn(),
@@ -43,66 +37,32 @@ const findRoute = (path: string, method: string) =>
       entry.route?.path === path && Boolean(entry.route?.methods?.[method]),
   )?.route;
 
-const VACC_PATH =
-  "/pms/organisation/:organisationId/companion/:patientId/vaccinations";
+const BASE = "/pms/organisation/:organisationId/companion/:patientId";
 
 describe("pet-passport.router", () => {
-  it("registers record (post) and list (get) vaccination routes", () => {
-    expect(findRoute(VACC_PATH, "post")).toBeDefined();
-    expect(findRoute(VACC_PATH, "get")).toBeDefined();
-  });
-
-  it("guards recording with vaccinations:edit:any and listing with companions:view:any", () => {
-    expect(requirePermission).toHaveBeenCalledWith("vaccinations:edit:any");
-    expect(requirePermission).toHaveBeenCalledWith("companions:view:any");
-  });
-
-  it("applies cognito auth and org permissions on each route", () => {
-    expect(findRoute(VACC_PATH, "post")?.stack).toHaveLength(4);
-    expect(findRoute(VACC_PATH, "get")?.stack).toHaveLength(4);
+  it("registers the passport issue route (post), org-guarded", () => {
+    expect(findRoute(`${BASE}/issue`, "post")).toBeDefined();
+    expect(findRoute(`${BASE}/issue`, "post")?.stack).toHaveLength(4);
   });
 
   it("registers the assembled passport route (get), org-guarded", () => {
-    const passportPath =
-      "/pms/organisation/:organisationId/companion/:patientId/passport";
-    expect(findRoute(passportPath, "get")).toBeDefined();
-    expect(findRoute(passportPath, "get")?.stack).toHaveLength(4);
+    expect(findRoute(`${BASE}/passport`, "get")).toBeDefined();
+    expect(findRoute(`${BASE}/passport`, "get")?.stack).toHaveLength(4);
   });
 
-  it("registers treatment and titration record/list routes", () => {
-    const treatments =
-      "/pms/organisation/:organisationId/companion/:patientId/treatments";
-    const titrations =
-      "/pms/organisation/:organisationId/companion/:patientId/titrations";
-    expect(findRoute(treatments, "post")).toBeDefined();
-    expect(findRoute(treatments, "get")).toBeDefined();
-    expect(findRoute(titrations, "post")).toBeDefined();
-    expect(findRoute(titrations, "get")).toBeDefined();
+  it("registers the Apple and Google Wallet routes (get), org-guarded", () => {
+    expect(findRoute(`${BASE}/wallet/apple`, "get")?.stack).toHaveLength(4);
+    expect(findRoute(`${BASE}/wallet/google`, "get")?.stack).toHaveLength(4);
   });
 
-  it("guards treatment and titration writes with passport:edit:any", () => {
+  it("guards issuance with passport:edit:any and reads with companions:view:any", () => {
     expect(requirePermission).toHaveBeenCalledWith("passport:edit:any");
-  });
-
-  it("registers the passport issue route (post), org-guarded", () => {
-    const issuePath =
-      "/pms/organisation/:organisationId/companion/:patientId/issue";
-    expect(findRoute(issuePath, "post")).toBeDefined();
-    expect(findRoute(issuePath, "post")?.stack).toHaveLength(4);
-  });
-
-  it("registers the Apple Wallet route (get), org-guarded by companions:view:any", () => {
-    const walletPath =
-      "/pms/organisation/:organisationId/companion/:patientId/wallet/apple";
-    expect(findRoute(walletPath, "get")).toBeDefined();
-    expect(findRoute(walletPath, "get")?.stack).toHaveLength(4);
     expect(requirePermission).toHaveBeenCalledWith("companions:view:any");
   });
 
-  it("registers the Google Wallet route (get), org-guarded", () => {
-    const walletPath =
-      "/pms/organisation/:organisationId/companion/:patientId/wallet/google";
-    expect(findRoute(walletPath, "get")).toBeDefined();
-    expect(findRoute(walletPath, "get")?.stack).toHaveLength(4);
+  it("no longer exposes the legacy clinical-record write routes", () => {
+    expect(findRoute(`${BASE}/vaccinations`, "post")).toBeUndefined();
+    expect(findRoute(`${BASE}/treatments`, "post")).toBeUndefined();
+    expect(findRoute(`${BASE}/titrations`, "post")).toBeUndefined();
   });
 });

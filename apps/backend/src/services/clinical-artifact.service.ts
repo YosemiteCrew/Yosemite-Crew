@@ -646,6 +646,15 @@ const hydrateVitalRecord = async (
   });
 };
 
+// The clinical kinds rendered to a signable document. Only these reach the
+// rendered-document pipeline; the passport kinds (Immunization / RabiesTitration /
+// ParasiteTreatment) are not document-backed yet, so they never flow here.
+type RenderableClinicalKind =
+  | "SOAP_NOTE"
+  | "PRESCRIPTION"
+  | "DISCHARGE_SUMMARY"
+  | "VITAL_RECORD";
+
 const DOCUMENT_BACKED_CLINICAL_KINDS = new Set<ClinicalArtifactKind>([
   "SOAP_NOTE",
   "PRESCRIPTION",
@@ -658,6 +667,9 @@ const clinicalArtifactTitleByKind: Record<ClinicalArtifactKind, string> = {
   PRESCRIPTION: "Prescription",
   DISCHARGE_SUMMARY: "Discharge summary",
   VITAL_RECORD: "Vital record",
+  IMMUNIZATION: "Vaccination record",
+  RABIES_TITRATION: "Rabies titration",
+  PARASITE_TREATMENT: "Parasite treatment",
 };
 
 const buildClinicalArtifactRenderedDocumentInput = (artifact: {
@@ -673,7 +685,7 @@ const buildClinicalArtifactRenderedDocumentInput = (artifact: {
     sourceKind: "CLINICAL_ARTIFACT",
     sourceId: artifact.id,
     organisationId: artifact.organisationId,
-    templateKind: artifact.kind,
+    templateKind: artifact.kind as RenderableClinicalKind,
     templateId: artifact.templateId ?? undefined,
     templateVersion: artifact.templateVersion ?? undefined,
     templateVersionId: artifact.templateVersionId ?? undefined,
@@ -698,7 +710,7 @@ const persistClinicalArtifactRenderedDocumentPdf = async (
       sourceKind: renderedDocument.sourceKind,
       sourceId: renderedDocument.sourceId,
       organisationId: renderedDocument.organisationId,
-      templateKind: renderedDocument.kind as ClinicalArtifactKind,
+      templateKind: renderedDocument.kind as RenderableClinicalKind,
       templateId: renderedDocument.templateId,
       templateVersion: renderedDocument.templateVersion,
       templateVersionId: renderedDocument.templateVersionId,
@@ -727,7 +739,7 @@ const persistClinicalArtifactRenderedDocumentPdf = async (
               sourceKind: renderedDocument.sourceKind,
               sourceId: renderedDocument.sourceId,
               organisationId: renderedDocument.organisationId,
-              templateKind: renderedDocument.kind as ClinicalArtifactKind,
+              templateKind: renderedDocument.kind as RenderableClinicalKind,
               templateId: renderedDocument.templateId,
               templateVersion: renderedDocument.templateVersion,
               templateVersionId: renderedDocument.templateVersionId,

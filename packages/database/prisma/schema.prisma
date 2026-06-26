@@ -422,9 +422,6 @@ model Patient {
   organisations     PatientOrganisation[]
   parentLinks       ParentPatient[]
   companionShareTokens CompanionShareToken[]
-  vaccinations         Vaccination[]
-  parasiteTreatments   ParasiteTreatment[]
-  rabiesTitrations     RabiesTitration[]
   petPassports         PetPassport[]
 
   @@index([type])
@@ -570,74 +567,6 @@ enum ParasiteTreatmentType {
   TICK
   FLEA
   OTHER
-}
-
-model Vaccination {
-  id                   String      @id @default(uuid())
-  patientId            String
-  organisationId       String
-  vaccineType          VaccineType @default(OTHER)
-  vaccineName          String
-  manufacturer         String?
-  batchNumber          String?
-  lotNumber            String?
-  dateAdministered     DateTime
-  validFrom            DateTime?
-  validUntil           DateTime?
-  nextDueDate          DateTime?
-  administeringVetId   String?
-  administeringVetName String?
-  vetLicenseNumber     String?
-  site                 String?
-  route                String?
-  notes                String?
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
-
-  patient              Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@index([organisationId])
-  @@index([patientId, vaccineType])
-  @@index([validUntil])
-}
-
-model ParasiteTreatment {
-  id                   String                @id @default(uuid())
-  patientId            String
-  organisationId       String
-  treatmentType        ParasiteTreatmentType @default(OTHER)
-  productName          String
-  manufacturer         String?
-  treatedAt            DateTime
-  administeringVetId   String?
-  administeringVetName String?
-  notes                String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-
-  patient              Patient               @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@index([organisationId])
-  @@index([patientId, treatmentType])
-}
-
-model RabiesTitration {
-  id             String   @id @default(uuid())
-  patientId      String
-  organisationId String
-  approvedLab    String
-  sampleDate     DateTime
-  resultIuMl     Float
-  reportUrl      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@index([organisationId])
 }
 
 model PetPassport {
@@ -1598,6 +1527,9 @@ enum ClinicalArtifactKind {
   PRESCRIPTION
   DISCHARGE_SUMMARY
   VITAL_RECORD
+  IMMUNIZATION
+  RABIES_TITRATION
+  PARASITE_TREATMENT
 }
 
 enum ClinicalArtifactStatus {
@@ -2175,6 +2107,10 @@ model ClinicalArtifact {
   prescription    Prescription?
   dischargeSummary DischargeSummary?
   vitalRecord     VitalRecord?
+  immunization    Immunization?
+  rabiesTitration RabiesTitration?
+  parasiteTreatment ParasiteTreatment?
+  attestation     ClinicalArtifactAttestation?
   templateVersionRecord TemplateVersion?   @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
   renderedDocuments RenderedDocument[]
 
@@ -2301,6 +2237,97 @@ model VitalRecord {
 
   @@index([artifactId])
   @@index([measuredAt])
+}
+
+// Pet-passport clinical records, modelled as ClinicalArtifact children (FHIR
+// Immunization / Observation / Procedure). The administering/verifying vet and
+// the legally-binding signature live on ClinicalArtifactAttestation, not here.
+model Immunization {
+  id               String           @id @default(uuid())
+  artifactId       String           @unique
+  vaccineType      VaccineType      @default(OTHER)
+  vaccineName      String
+  manufacturer     String?
+  batchNumber      String?
+  lotNumber        String?
+  dateAdministered DateTime
+  validFrom        DateTime?
+  validUntil       DateTime?
+  nextDueDate      DateTime?
+  site             String?
+  route            String?
+  notes            String?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  artifact         ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+  @@index([validUntil])
+}
+
+model RabiesTitration {
+  id          String           @id @default(uuid())
+  artifactId  String           @unique
+  approvedLab String
+  sampleDate  DateTime
+  resultIuMl  Float
+  reportUrl   String?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  artifact    ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+}
+
+model ParasiteTreatment {
+  id            String                @id @default(uuid())
+  artifactId    String                @unique
+  treatmentType ParasiteTreatmentType @default(OTHER)
+  productName   String
+  manufacturer  String?
+  treatedAt     DateTime
+  notes         String?
+  metadata      Json?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  artifact      ClinicalArtifact      @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+}
+
+// The attestation / provenance primitive: who signed (verified vet + licence),
+// the basis (primarySource = administered-in-system vs verified-from-upload),
+// the source document for uploads, and the Documenso-signed PDF that is the
+// legally-binding notary record. A SIGNED artifact is immutable; corrections
+// supersede and revocations propagate to the wallet pass + public page.
+model ClinicalArtifactAttestation {
+  id                  String           @id @default(uuid())
+  artifactId          String           @unique
+  primarySource       Boolean          @default(true)
+  signatoryUserId     String?
+  signatoryName       String?
+  signatoryLicence    String?
+  sourceDocumentId    String?
+  documensoDocumentId String?
+  signingStatus       String?
+  signedPdfUrl        String?
+  signedAt            DateTime?
+  revokedAt           DateTime?
+  revokedReason       String?
+  supersededById      String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  artifact            ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+  @@index([signatoryUserId])
+  @@index([sourceDocumentId])
 }
 
 model Service {

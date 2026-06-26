@@ -5,54 +5,9 @@ import { PetPassportController } from "src/controllers/web/pet-passport.controll
 
 const router = Router();
 
-router.post(
-  "/pms/organisation/:organisationId/companion/:patientId/vaccinations",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("vaccinations:edit:any"),
-  PetPassportController.recordVaccination,
-);
-
-router.get(
-  "/pms/organisation/:organisationId/companion/:patientId/vaccinations",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("companions:view:any"),
-  PetPassportController.listVaccinations,
-);
-
-router.post(
-  "/pms/organisation/:organisationId/companion/:patientId/treatments",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("passport:edit:any"),
-  PetPassportController.recordParasiteTreatment,
-);
-
-router.get(
-  "/pms/organisation/:organisationId/companion/:patientId/treatments",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("companions:view:any"),
-  PetPassportController.listParasiteTreatments,
-);
-
-router.post(
-  "/pms/organisation/:organisationId/companion/:patientId/titrations",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("passport:edit:any"),
-  PetPassportController.recordRabiesTitration,
-);
-
-router.get(
-  "/pms/organisation/:organisationId/companion/:patientId/titrations",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("companions:view:any"),
-  PetPassportController.listRabiesTitrations,
-);
-
+// Clinical records (vaccinations, titrations, parasite treatments) are written
+// through the clinical-artifact workflow now, not here. This router only issues
+// passports and reads the assembled passport + wallet passes.
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/issue",
   authorizeCognito,

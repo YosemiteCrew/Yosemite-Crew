@@ -9,9 +9,6 @@ import type {
   PetPassportOwner,
   PetPassportIssuanceDTO,
   RabiesTitrationDTO,
-  RecordParasiteTreatmentRequestDTO,
-  RecordRabiesTitrationRequestDTO,
-  RecordVaccinationRequestDTO,
   VaccinationDTO,
   VaccineType,
 } from "@yosemite-crew/types";
@@ -28,48 +25,6 @@ export class PetPassportServiceError extends Error {
 
 export type PassportActor = { type: AuditActorType; id?: string | null };
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const MIN_RABIES_AGE_WEEKS = 12; // EU: animal at least 12 weeks at vaccination.
-const RABIES_VALIDITY_START_DAYS = 21; // EU: valid from 21 days after a primary dose.
-
-const addDays = (date: Date, days: number): Date =>
-  new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
-
-const parseDate = (value: string, field: string): Date => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new PetPassportServiceError(`Invalid ${field}.`, 400);
-  }
-  return date;
-};
-
-// EU pet passport rabies rules (Annex III, Reg 576/2013): the animal must be at
-// least 12 weeks old, and the dose cannot pre-date the microchip - a vaccination
-// applied before marking cannot be attributed to the animal.
-const assertRabiesEligibility = (
-  patient: { dateOfBirth: Date; microchipImplantedAt: Date | null },
-  administeredAt: Date,
-): void => {
-  if (
-    administeredAt.getTime() - patient.dateOfBirth.getTime() <
-    MIN_RABIES_AGE_WEEKS * WEEK_MS
-  ) {
-    throw new PetPassportServiceError(
-      "A rabies vaccination requires the animal to be at least 12 weeks old.",
-      400,
-    );
-  }
-  if (
-    patient.microchipImplantedAt &&
-    administeredAt.getTime() < patient.microchipImplantedAt.getTime()
-  ) {
-    throw new PetPassportServiceError(
-      "A rabies vaccination cannot pre-date the microchip implant.",
-      400,
-    );
-  }
-};
-
 // Patient reads are not org-scoped, so a write must confirm the companion belongs
 // to the caller's org or it leaks across tenants.
 const assertOrgMembership = async (
@@ -85,27 +40,43 @@ const assertOrgMembership = async (
   }
 };
 
-const toVaccinationDTO = (row: {
-  id: string;
-  patientId: string;
-  vaccineType: VaccineType;
-  vaccineName: string;
-  manufacturer: string | null;
-  batchNumber: string | null;
-  lotNumber: string | null;
-  dateAdministered: Date;
-  validFrom: Date | null;
-  validUntil: Date | null;
-  nextDueDate: Date | null;
-  administeringVetName: string | null;
-  vetLicenseNumber: string | null;
-  site: string | null;
-  route: string | null;
-  notes: string | null;
-  createdAt: Date;
-}): VaccinationDTO => ({
+// Clinical records now live as signed ClinicalArtifact children (Immunization /
+// RabiesTitration / ParasiteTreatment); the attesting vet + licence come from the
+// artifact's attestation. The records are written through the clinical-artifact
+// workflow (appointment capture or pet-parent upload + vet verification), so this
+// service only READS and assembles them onto the passport.
+// TODO(passport): surface only attested (signed) artifacts and aggregate across
+// practices by microchip once the attestation + cross-org read land.
+type AttestationRef = {
+  artifact: {
+    attestation: {
+      signatoryName: string | null;
+      signatoryLicence: string | null;
+    } | null;
+  };
+};
+
+const toVaccinationDTO = (
+  patientId: string,
+  row: {
+    id: string;
+    vaccineType: VaccineType;
+    vaccineName: string;
+    manufacturer: string | null;
+    batchNumber: string | null;
+    lotNumber: string | null;
+    dateAdministered: Date;
+    validFrom: Date | null;
+    validUntil: Date | null;
+    nextDueDate: Date | null;
+    site: string | null;
+    route: string | null;
+    notes: string | null;
+    createdAt: Date;
+  } & AttestationRef,
+): VaccinationDTO => ({
   id: row.id,
-  patientId: row.patientId,
+  patientId,
   vaccineType: row.vaccineType,
   vaccineName: row.vaccineName,
   manufacturer: row.manufacturer ?? undefined,
@@ -115,47 +86,50 @@ const toVaccinationDTO = (row: {
   validFrom: row.validFrom?.toISOString(),
   validUntil: row.validUntil?.toISOString(),
   nextDueDate: row.nextDueDate?.toISOString(),
-  administeringVetName: row.administeringVetName ?? undefined,
-  vetLicenseNumber: row.vetLicenseNumber ?? undefined,
+  administeringVetName: row.artifact.attestation?.signatoryName ?? undefined,
+  vetLicenseNumber: row.artifact.attestation?.signatoryLicence ?? undefined,
   site: row.site ?? undefined,
   route: row.route ?? undefined,
   notes: row.notes ?? undefined,
   createdAt: row.createdAt.toISOString(),
 });
 
-const toTreatmentDTO = (row: {
-  id: string;
-  patientId: string;
-  treatmentType: ParasiteTreatmentType;
-  productName: string;
-  manufacturer: string | null;
-  treatedAt: Date;
-  administeringVetName: string | null;
-  notes: string | null;
-  createdAt: Date;
-}): ParasiteTreatmentDTO => ({
+const toTreatmentDTO = (
+  patientId: string,
+  row: {
+    id: string;
+    treatmentType: ParasiteTreatmentType;
+    productName: string;
+    manufacturer: string | null;
+    treatedAt: Date;
+    notes: string | null;
+    createdAt: Date;
+  } & AttestationRef,
+): ParasiteTreatmentDTO => ({
   id: row.id,
-  patientId: row.patientId,
+  patientId,
   treatmentType: row.treatmentType,
   productName: row.productName,
   manufacturer: row.manufacturer ?? undefined,
   treatedAt: row.treatedAt.toISOString(),
-  administeringVetName: row.administeringVetName ?? undefined,
+  administeringVetName: row.artifact.attestation?.signatoryName ?? undefined,
   notes: row.notes ?? undefined,
   createdAt: row.createdAt.toISOString(),
 });
 
-const toTitrationDTO = (row: {
-  id: string;
-  patientId: string;
-  approvedLab: string;
-  sampleDate: Date;
-  resultIuMl: number;
-  reportUrl: string | null;
-  createdAt: Date;
-}): RabiesTitrationDTO => ({
+const toTitrationDTO = (
+  patientId: string,
+  row: {
+    id: string;
+    approvedLab: string;
+    sampleDate: Date;
+    resultIuMl: number;
+    reportUrl: string | null;
+    createdAt: Date;
+  },
+): RabiesTitrationDTO => ({
   id: row.id,
-  patientId: row.patientId,
+  patientId,
   approvedLab: row.approvedLab,
   sampleDate: row.sampleDate.toISOString(),
   resultIuMl: row.resultIuMl,
@@ -205,9 +179,23 @@ const loadPassportOwner = async (
   };
 };
 
+const withAttestation = {
+  include: {
+    artifact: {
+      select: {
+        attestation: {
+          select: { signatoryName: true, signatoryLicence: true },
+        },
+      },
+    },
+  },
+} as const;
+
 // Assembles the full passport for a (patient, organisation). Shared by the
-// authenticated getPassport and the public verification path. Owner data is
-// included only for authenticated callers (the public record is owner-free).
+// authenticated getPassport and the public verification path. Clinical records
+// are read from the ClinicalArtifact children linked to the patient's encounters;
+// owner data is included only for authenticated callers (the public record is
+// owner-free).
 const assemblePassport = async (
   patientId: string,
   organisationId: string,
@@ -244,25 +232,42 @@ const assemblePassport = async (
       ? physical.markings
       : undefined;
 
+  // ClinicalArtifact has no patientId; resolve the patient's encounters in this
+  // org, then read the clinical-record artifacts hung off them.
+  const encounters = await prisma.encounter.findMany({
+    where: { patientId, organisationId },
+    select: { id: true },
+  });
+  const encounterIds = encounters.map((e) => e.id);
+  const artifactWhere = { artifact: { encounterId: { in: encounterIds } } };
+
   const [
-    vaccinationRows,
+    immunizationRows,
     treatmentRows,
     titrationRows,
     passportRow,
     organisation,
   ] = await Promise.all([
-    prisma.vaccination.findMany({
-      where: { patientId, organisationId },
-      orderBy: { dateAdministered: "desc" },
-    }),
-    prisma.parasiteTreatment.findMany({
-      where: { patientId, organisationId },
-      orderBy: { treatedAt: "desc" },
-    }),
-    prisma.rabiesTitration.findMany({
-      where: { patientId, organisationId },
-      orderBy: { sampleDate: "desc" },
-    }),
+    encounterIds.length
+      ? prisma.immunization.findMany({
+          where: artifactWhere,
+          orderBy: { dateAdministered: "desc" },
+          ...withAttestation,
+        })
+      : Promise.resolve([]),
+    encounterIds.length
+      ? prisma.parasiteTreatment.findMany({
+          where: artifactWhere,
+          orderBy: { treatedAt: "desc" },
+          ...withAttestation,
+        })
+      : Promise.resolve([]),
+    encounterIds.length
+      ? prisma.rabiesTitration.findMany({
+          where: artifactWhere,
+          orderBy: { sampleDate: "desc" },
+        })
+      : Promise.resolve([]),
     prisma.petPassport.findFirst({
       where: { patientId, organisationId },
       orderBy: { issueDate: "desc" },
@@ -275,7 +280,9 @@ const assemblePassport = async (
   const issuance = passportRow
     ? { ...toIssuanceDTO(passportRow), issuingPractice: organisation?.name }
     : undefined;
-  const vaccinations = vaccinationRows.map(toVaccinationDTO);
+  const vaccinations = immunizationRows.map((row) =>
+    toVaccinationDTO(patientId, row),
+  );
   const rabies = vaccinations.find((v) => v.vaccineType === "RABIES");
   const others = vaccinations.filter((v) => v.vaccineType !== "RABIES");
 
@@ -302,209 +309,18 @@ const assemblePassport = async (
       issuance?.passportNumber ?? patient.passportNumber ?? undefined,
     rabies,
     vaccinations: others,
-    parasiteTreatments: treatmentRows.map(toTreatmentDTO),
-    rabiesTitrations: titrationRows.map(toTitrationDTO),
+    parasiteTreatments: treatmentRows.map((row) =>
+      toTreatmentDTO(patientId, row),
+    ),
+    rabiesTitrations: titrationRows.map((row) =>
+      toTitrationDTO(patientId, row),
+    ),
     issuance,
     owner,
   };
 };
 
 export const PetPassportService = {
-  async recordVaccination(params: {
-    patientId: string;
-    organisationId: string;
-    actor: PassportActor;
-    input: RecordVaccinationRequestDTO;
-  }): Promise<VaccinationDTO> {
-    const { patientId, organisationId, actor, input } = params;
-
-    await assertOrgMembership(patientId, organisationId);
-
-    const patient = await prisma.patient.findUnique({
-      where: { id: patientId },
-      select: { id: true, dateOfBirth: true, microchipImplantedAt: true },
-    });
-    if (!patient) {
-      throw new PetPassportServiceError("Companion not found.", 404);
-    }
-
-    const administeredAt = parseDate(
-      input.dateAdministered,
-      "dateAdministered",
-    );
-    if (input.vaccineType === "RABIES") {
-      assertRabiesEligibility(patient, administeredAt);
-    }
-
-    // A rabies primary dose is valid from 21 days after administration; default
-    // that window when the caller has not supplied an explicit validFrom.
-    let validFrom: Date | null = null;
-    if (input.validFrom) {
-      validFrom = parseDate(input.validFrom, "validFrom");
-    } else if (input.vaccineType === "RABIES") {
-      validFrom = addDays(administeredAt, RABIES_VALIDITY_START_DAYS);
-    }
-
-    const row = await prisma.vaccination.create({
-      data: {
-        patientId,
-        organisationId,
-        vaccineType: input.vaccineType,
-        vaccineName: input.vaccineName,
-        manufacturer: input.manufacturer ?? null,
-        batchNumber: input.batchNumber ?? null,
-        lotNumber: input.lotNumber ?? null,
-        dateAdministered: administeredAt,
-        validFrom,
-        validUntil: input.validUntil
-          ? parseDate(input.validUntil, "validUntil")
-          : null,
-        nextDueDate: input.nextDueDate
-          ? parseDate(input.nextDueDate, "nextDueDate")
-          : null,
-        administeringVetId: actor.id ?? null,
-        administeringVetName: input.administeringVetName ?? null,
-        vetLicenseNumber: input.vetLicenseNumber ?? null,
-        site: input.site ?? null,
-        route: input.route ?? null,
-        notes: input.notes ?? null,
-      },
-    });
-
-    await AuditTrailService.recordSafely({
-      organisationId,
-      patientId,
-      eventType: "VACCINATION_RECORDED",
-      actorType: actor.type,
-      actorId: actor.id ?? null,
-      entityType: "COMPANION",
-      entityId: row.id,
-      metadata: {
-        vaccineType: input.vaccineType,
-        vaccineName: input.vaccineName,
-      },
-    });
-
-    return toVaccinationDTO(row);
-  },
-
-  async listVaccinations(
-    patientId: string,
-    organisationId: string,
-  ): Promise<VaccinationDTO[]> {
-    const rows = await prisma.vaccination.findMany({
-      where: { patientId, organisationId },
-      orderBy: { dateAdministered: "desc" },
-    });
-    return rows.map(toVaccinationDTO);
-  },
-
-  async recordParasiteTreatment(params: {
-    patientId: string;
-    organisationId: string;
-    actor: PassportActor;
-    input: RecordParasiteTreatmentRequestDTO;
-  }): Promise<ParasiteTreatmentDTO> {
-    const { patientId, organisationId, actor, input } = params;
-    await assertOrgMembership(patientId, organisationId);
-
-    const row = await prisma.parasiteTreatment.create({
-      data: {
-        patientId,
-        organisationId,
-        treatmentType: input.treatmentType,
-        productName: input.productName,
-        manufacturer: input.manufacturer ?? null,
-        treatedAt: parseDate(input.treatedAt, "treatedAt"),
-        administeringVetId: actor.id ?? null,
-        administeringVetName: input.administeringVetName ?? null,
-        notes: input.notes ?? null,
-      },
-    });
-
-    await AuditTrailService.recordSafely({
-      organisationId,
-      patientId,
-      eventType: "TREATMENT_RECORDED",
-      actorType: actor.type,
-      actorId: actor.id ?? null,
-      entityType: "COMPANION",
-      entityId: row.id,
-      metadata: {
-        treatmentType: input.treatmentType,
-        productName: input.productName,
-      },
-    });
-
-    return toTreatmentDTO(row);
-  },
-
-  async listParasiteTreatments(
-    patientId: string,
-    organisationId: string,
-  ): Promise<ParasiteTreatmentDTO[]> {
-    const rows = await prisma.parasiteTreatment.findMany({
-      where: { patientId, organisationId },
-      orderBy: { treatedAt: "desc" },
-    });
-    return rows.map(toTreatmentDTO);
-  },
-
-  async recordRabiesTitration(params: {
-    patientId: string;
-    organisationId: string;
-    actor: PassportActor;
-    input: RecordRabiesTitrationRequestDTO;
-  }): Promise<RabiesTitrationDTO> {
-    const { patientId, organisationId, actor, input } = params;
-    await assertOrgMembership(patientId, organisationId);
-
-    if (input.resultIuMl < 0) {
-      throw new PetPassportServiceError(
-        "A titration result cannot be negative.",
-        400,
-      );
-    }
-
-    const row = await prisma.rabiesTitration.create({
-      data: {
-        patientId,
-        organisationId,
-        approvedLab: input.approvedLab,
-        sampleDate: parseDate(input.sampleDate, "sampleDate"),
-        resultIuMl: input.resultIuMl,
-        reportUrl: input.reportUrl ?? null,
-      },
-    });
-
-    await AuditTrailService.recordSafely({
-      organisationId,
-      patientId,
-      eventType: "TITRATION_RECORDED",
-      actorType: actor.type,
-      actorId: actor.id ?? null,
-      entityType: "COMPANION",
-      entityId: row.id,
-      metadata: {
-        approvedLab: input.approvedLab,
-        resultIuMl: input.resultIuMl,
-      },
-    });
-
-    return toTitrationDTO(row);
-  },
-
-  async listRabiesTitrations(
-    patientId: string,
-    organisationId: string,
-  ): Promise<RabiesTitrationDTO[]> {
-    const rows = await prisma.rabiesTitration.findMany({
-      where: { patientId, organisationId },
-      orderBy: { sampleDate: "desc" },
-    });
-    return rows.map(toTitrationDTO);
-  },
-
   async issuePassport(params: {
     patientId: string;
     organisationId: string;
@@ -541,9 +357,9 @@ export const PetPassportService = {
     return toIssuanceDTO(row);
   },
 
-  // Assemble the multi-section passport from the source-of-truth Patient and its
-  // vaccination rows. The latest rabies dose is surfaced separately (it drives
-  // validity); the rest are listed together.
+  // Assemble the multi-section passport from the source-of-truth Patient and the
+  // attested clinical-record artifacts. The latest rabies dose is surfaced
+  // separately (it drives validity); the rest are listed together.
   async getPassport(
     patientId: string,
     organisationId: string,

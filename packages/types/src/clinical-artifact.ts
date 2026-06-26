@@ -12,7 +12,10 @@ export type ClinicalArtifactKind =
   | 'SOAP_NOTE'
   | 'PRESCRIPTION'
   | 'DISCHARGE_SUMMARY'
-  | 'VITAL_RECORD';
+  | 'VITAL_RECORD'
+  | 'IMMUNIZATION'
+  | 'RABIES_TITRATION'
+  | 'PARASITE_TREATMENT';
 
 export type ClinicalArtifactStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'SIGNED' | 'VOID';
 
