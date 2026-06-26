@@ -697,6 +697,28 @@ describe('ChatContainer', () => {
       expect(result).toContain(clientCh);
       expect(result).not.toContain(groupCh);
     });
+
+    it('keeps a small team channel on the colleagues scope', async () => {
+      const filter = await renderForScope('colleagues');
+      const teamSmall = {
+        ...defaultMockChannel,
+        type: 'team',
+        data: {},
+        state: { members: { a: {}, b: {} } },
+      };
+      expect(filter([teamSmall])).toContain(teamSmall);
+    });
+
+    it('keeps a large team channel on the groups scope', async () => {
+      const filter = await renderForScope('groups');
+      const teamBig = {
+        ...defaultMockChannel,
+        type: 'team',
+        data: {},
+        state: { members: { a: {}, b: {}, c: {} } },
+      };
+      expect(filter([teamBig])).toContain(teamBig);
+    });
   });
 });
 
