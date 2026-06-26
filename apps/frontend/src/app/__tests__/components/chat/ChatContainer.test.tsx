@@ -604,6 +604,47 @@ describe('ChatContainer', () => {
     expect(screen.getByTestId('protected-route')).toBeInTheDocument();
     expect(screen.getByTestId('org-guard')).toBeInTheDocument();
   });
+
+  describe('channel filtering by scope', () => {
+    type FilterFn = (channels: unknown[]) => unknown[];
+    const getFilter = () =>
+      (globalThis as unknown as { __testChannelFilter?: FilterFn }).__testChannelFilter;
+
+    const renderForScope = async (scope: 'clients' | 'colleagues' | 'groups') => {
+      await act(async () => {
+        render(<ChatContainer scope={scope} />);
+      });
+      await waitFor(() => expect(getFilter()).toBeDefined());
+      return getFilter() as FilterFn;
+    };
+
+    const groupCh = {
+      ...defaultMockChannel,
+      type: 'messaging',
+      data: { chatCategory: 'group' },
+      state: { members: { a: {}, b: {}, c: {} } },
+    };
+    const clientCh = {
+      ...defaultMockChannel,
+      type: 'messaging',
+      data: { appointmentId: 'a1' },
+      state: { members: {} },
+    };
+
+    it('keeps only group channels on the groups scope', async () => {
+      const filter = await renderForScope('groups');
+      const result = filter([groupCh, clientCh]);
+      expect(result).toContain(groupCh);
+      expect(result).not.toContain(clientCh);
+    });
+
+    it('keeps only client channels on the pet-parents scope', async () => {
+      const filter = await renderForScope('clients');
+      const result = filter([groupCh, clientCh]);
+      expect(result).toContain(clientCh);
+      expect(result).not.toContain(groupCh);
+    });
+  });
 });
 
 describe('ChatContainer pure helpers', () => {
