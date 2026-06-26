@@ -1813,14 +1813,14 @@ export const InvoiceService = {
       throw new InvoiceServiceError("Invoice not found", 404);
     }
 
-    if (invoice.status === "PAID") {
-      throw new InvoiceServiceError("Cannot modify a paid invoice", 409);
+    if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
+      throw new InvoiceServiceError("Cannot modify a closed invoice", 409);
     }
 
-    // A finalized but UNPAID invoice can still be edited (e.g. to add line items
-    // and re-issue the payment link); only PAID invoices are locked (checked above).
-    // We re-open it below so it can be re-priced and a fresh payment link generated.
+    // A finalized or previously paid invoice can receive new charges. Re-open it
+    // so existing payments remain recorded while the new balance is collectible.
     const wasFinalized = Boolean(invoice.finalizedAt);
+    const wasPaid = invoice.status === "PAID";
 
     const existingItems = Array.isArray(invoice.items)
       ? (invoice.items as unknown as DraftInvoiceItemInput[])
@@ -1860,7 +1860,10 @@ export const InvoiceService = {
         taxTotal: totals.taxTotal,
         taxPercent: totals.taxPercent,
         totalAmount: totals.totalAmount,
-        finalizedAt: wasFinalized ? null : undefined,
+        status: wasPaid ? "AWAITING_PAYMENT" : undefined,
+        paidAt: wasPaid ? null : undefined,
+        visitBillingStage: wasPaid ? "DRAFT" : undefined,
+        finalizedAt: wasFinalized || wasPaid ? null : undefined,
         taxSnapshot: {
           upsert: {
             create: totals.taxSnapshot!,
@@ -2015,7 +2018,9 @@ export const InvoiceService = {
 
       if (
         !bootstrappedInvoice.id ||
-        !["AWAITING_PAYMENT", "PENDING"].includes(bootstrappedInvoice.status)
+        !["AWAITING_PAYMENT", "PENDING", "PAID"].includes(
+          bootstrappedInvoice.status,
+        )
       ) {
         throw new InvoiceServiceError(
           "Invoice is not open for appointment",

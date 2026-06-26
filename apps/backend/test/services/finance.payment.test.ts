@@ -1462,6 +1462,7 @@ describe("FinancePaymentService", () => {
       .mockResolvedValueOnce({
         id: "pa_existing_intent",
         providerPaymentIntentId: "pi_existing",
+        amountRequested: 100,
       })
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
@@ -1499,6 +1500,70 @@ describe("FinancePaymentService", () => {
     ).rejects.toMatchObject({
       message: "Organisation does not have a Stripe connected account",
       statusCode: 409,
+    });
+  });
+
+  it("creates a new payment intent for a reopened invoice with prior succeeded payment", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_reopened",
+      totalAmount: 125,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: "parent_1",
+      patientId: "patient_1",
+      items: [],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { amount: 100 },
+    ]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_10",
+    });
+    (stripeClient.paymentIntents.create as jest.Mock).mockResolvedValueOnce({
+      id: "pi_new_balance",
+      client_secret: "cs_new_balance",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_new_balance",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_reopened",
+    });
+
+    const result =
+      await FinancePaymentService.createPaymentIntentForInvoice("inv_reopened");
+
+    expect(prisma.paymentAttempt.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          providerPaymentIntentId: { not: null },
+          status: { notIn: ["SUCCEEDED", "CANCELED"] },
+        }),
+      }),
+    );
+    expect(stripeClient.paymentIntents.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 2500,
+        currency: "usd",
+      }),
+      { stripeAccount: "acct_10" },
+    );
+    expect(result).toEqual({
+      paymentIntentId: "pi_new_balance",
+      clientSecret: "cs_new_balance",
+      amount: 25,
+      currency: "usd",
     });
   });
 

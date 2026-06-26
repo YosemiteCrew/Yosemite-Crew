@@ -454,7 +454,7 @@ describe("InvoiceService", () => {
     extraSpy.mockRestore();
   });
 
-  it("rejects charge additions when only a settled invoice exists for the appointment", async () => {
+  it("reopens a paid appointment invoice when adding new charges", async () => {
     const paidInvoice = {
       id: "inv_paid",
       appointmentId,
@@ -480,26 +480,32 @@ describe("InvoiceService", () => {
     const bootstrapSpy = jest
       .spyOn(InvoiceService, "bootstrapForAppointment")
       .mockResolvedValueOnce(paidInvoice as never);
-    const addItemsSpy = jest.spyOn(InvoiceService, "addItemsToInvoice");
+    const addItemsSpy = jest
+      .spyOn(InvoiceService, "addItemsToInvoice")
+      .mockResolvedValueOnce({
+        ...paidInvoice,
+        status: "AWAITING_PAYMENT",
+        totalAmount: 25,
+      } as never);
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
-    await expect(
-      InvoiceService.addChargesToAppointment(appointmentId, [
-        {
-          name: "Medication",
-          description: "Medication",
-          quantity: 1,
-          unitPrice: 25,
-          total: 25,
-        },
-      ]),
-    ).rejects.toMatchObject({
-      message: "Invoice is not open for appointment",
-      statusCode: 409,
-    });
+    const items = [
+      {
+        name: "Medication",
+        description: "Medication",
+        quantity: 1,
+        unitPrice: 25,
+        total: 25,
+      },
+    ];
+    const result = await InvoiceService.addChargesToAppointment(
+      appointmentId,
+      items,
+    );
 
     expect(bootstrapSpy).toHaveBeenCalledWith(appointmentId);
-    expect(addItemsSpy).not.toHaveBeenCalled();
+    expect(addItemsSpy).toHaveBeenCalledWith("inv_paid", items);
+    expect(result.status).toBe("AWAITING_PAYMENT");
 
     bootstrapSpy.mockRestore();
     addItemsSpy.mockRestore();
@@ -1319,6 +1325,116 @@ describe("InvoiceService", () => {
         data: { status: "CANCELED" },
       }),
     );
+  });
+
+  it("moves paid invoices back to awaiting payment when new items are added", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_paid_extra",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency: "usd",
+      status: "PAID",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          quantity: 1,
+          unitPrice: 100,
+          total: 100,
+        },
+      ],
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      taxSnapshot: {
+        provider: "STRIPE",
+        taxBehavior: "EXCLUSIVE",
+      },
+      finalizedAt: null,
+      paidAt: new Date("2026-06-26T06:30:00.000Z"),
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_paid_extra",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [],
+      subtotal: 125,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 125,
+      finalizedAt: null,
+      paidAt: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await InvoiceService.addItemsToInvoice("inv_paid_extra", [
+      {
+        description: "Lab",
+        name: "Lab",
+        quantity: 1,
+        unitPrice: 25,
+        total: 25,
+      },
+    ]);
+
+    expect(result.status).toBe("AWAITING_PAYMENT");
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "inv_paid_extra" },
+        data: expect.objectContaining({
+          status: "AWAITING_PAYMENT",
+          paidAt: null,
+          visitBillingStage: "DRAFT",
+          finalizedAt: null,
+          totalAmount: 125,
+        }),
+      }),
+    );
+  });
+
+  it("keeps cancelled and refunded invoices closed when adding new items", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_closed",
+      status: "CANCELLED",
+      items: [],
+      taxSnapshot: null,
+    });
+
+    await expect(
+      InvoiceService.addItemsToInvoice("inv_closed", [
+        {
+          description: "Lab",
+          name: "Lab",
+          quantity: 1,
+          unitPrice: 25,
+          total: 25,
+        },
+      ]),
+    ).rejects.toMatchObject({
+      message: "Cannot modify a closed invoice",
+      statusCode: 409,
+    });
   });
 
   it("upserts invoice lines by stable id so treatment sync can update the same row", async () => {

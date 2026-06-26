@@ -800,10 +800,14 @@ export const FinancePaymentService = {
         invoiceId,
         provider: "STRIPE",
         providerPaymentIntentId: { not: null },
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
       },
       select: {
+        id: true,
+        amountRequested: true,
         providerPaymentIntentId: true,
       },
+      orderBy: { createdAt: "desc" },
     });
 
     if (existingPaymentIntentAttempt?.providerPaymentIntentId) {
@@ -812,12 +816,22 @@ export const FinancePaymentService = {
         invoice.totalAmount,
         invoice.depositCollectedAmount ?? 0,
       );
-      return {
-        paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
-        clientSecret: null,
-        amount: summary.balance,
-        currency: invoice.currency,
-      };
+      if (
+        roundMoney(existingPaymentIntentAttempt.amountRequested ?? 0) ===
+        summary.balance
+      ) {
+        return {
+          paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
+          clientSecret: null,
+          amount: summary.balance,
+          currency: invoice.currency,
+        };
+      }
+
+      await prisma.paymentAttempt.update({
+        where: { id: existingPaymentIntentAttempt.id },
+        data: { status: "CANCELED" },
+      });
     }
 
     const summary = await getInvoiceFinancialSummary(
