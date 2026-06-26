@@ -129,14 +129,22 @@ export const configureStreamUploadPolicy = async (): Promise<void> => {
     size_limit: MAX_UPLOAD_SIZE_BYTES,
   };
 
+  // Opt-in: when a public webhook URL is set, route Stream events to the
+  // attachment malware scanner. Left unset by default so an existing webhook
+  // configuration is never clobbered.
+  const webhookUrl = process.env.STREAM_WEBHOOK_URL;
+
   try {
     const client = StreamChat.getInstance(key, secret);
     await client.updateAppSettings({
       file_upload_config: uploadConfig,
       image_upload_config: uploadConfig,
+      ...(webhookUrl ? { webhook_url: webhookUrl } : {}),
     });
     logger.info(
-      "Stream chat upload policy applied: malware-prone types blocked",
+      webhookUrl
+        ? "Stream chat upload policy + malware-scan webhook configured"
+        : "Stream chat upload policy applied: malware-prone types blocked",
     );
   } catch (err) {
     logger.error("Failed to apply Stream chat upload policy", err);

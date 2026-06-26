@@ -6,6 +6,7 @@ import { StripeController } from "./controllers/web/stripe.controller";
 import { FinanceController } from "./controllers/app/finance.controller";
 import cors from "cors";
 import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
+import { ChatWebhookController } from "./controllers/app/chatWebhook.controller";
 import mongoSanitize from "express-mongo-sanitize";
 import {
   initSuperTokens,
@@ -63,6 +64,12 @@ export function createApp() {
     "/v1/finance/webhooks/:provider",
     express.raw({ type: "application/json" }),
     (req, res) => FinanceController.webhook(req, res),
+  );
+
+  app.post(
+    "/v1/chat/webhooks/stream",
+    express.raw({ type: "application/json" }),
+    (req, res) => ChatWebhookController.handleStreamEvent(req, res),
   );
 
   app.use(fileUpload());
