@@ -75,12 +75,31 @@ describe('ChatComposer', () => {
     expect(mockSetText).toHaveBeenCalledWith('Your appointment is confirmed.');
   });
 
-  it('uploads selected files through the attachment manager', () => {
+  it('uploads safe selected files through the attachment manager', () => {
     const { container } = render(<ChatComposer />);
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['x'], 'photo.png', { type: 'image/png' });
     fireEvent.change(fileInput, { target: { files: [file] } });
-    expect(mockUploadFiles).toHaveBeenCalled();
+    expect(mockUploadFiles).toHaveBeenCalledWith([file]);
+  });
+
+  it('blocks an executable file and warns instead of uploading', () => {
+    const { container } = render(<ChatComposer />);
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['x'], 'malware.exe', { type: 'application/octet-stream' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    expect(mockUploadFiles).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't attach 1 file/);
+  });
+
+  it('uploads safe files and warns about blocked ones in a mixed selection', () => {
+    const { container } = render(<ChatComposer />);
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const ok = new File(['x'], 'scan.pdf', { type: 'application/pdf' });
+    const bad = new File(['x'], 'run.sh', { type: 'text/x-sh' });
+    fireEvent.change(fileInput, { target: { files: [ok, bad] } });
+    expect(mockUploadFiles).toHaveBeenCalledWith([ok]);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
   it('triggers the photo and document pickers and closes the menu via the backdrop', () => {

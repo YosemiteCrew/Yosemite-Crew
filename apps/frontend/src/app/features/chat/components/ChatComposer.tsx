@@ -22,6 +22,7 @@ import { LuPlus, LuImage, LuFileText, LuSmile, LuSendHorizonal, LuShare2 } from 
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { useChatShare } from './chatShareContext';
+import { partitionUploadFiles } from '../lib/uploadSafety';
 
 const EMOJIS = ['👍', '🙏', '❤️', '😊', '🎉', '✅', '⏰', '🐾', '💊', '📎'];
 
@@ -66,6 +67,7 @@ export function ChatComposer() {
   const { openShare } = useChatShare();
   const [attachOpen, setAttachOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -78,7 +80,15 @@ export function ChatComposer() {
 
   const onFiles = (e: ChangeEvent<HTMLInputElement>) => {
     const { files } = e.target;
-    if (files?.length) void composer.attachmentManager.uploadFiles(files);
+    if (files?.length) {
+      const { allowed, rejected } = partitionUploadFiles(files);
+      setUploadError(
+        rejected.length > 0
+          ? `Couldn't attach ${rejected.length} file${rejected.length > 1 ? 's' : ''}: unsupported type or over 25 MB.`
+          : null
+      );
+      if (allowed.length) void composer.attachmentManager.uploadFiles(allowed);
+    }
     e.target.value = '';
     setAttachOpen(false);
   };
@@ -91,6 +101,13 @@ export function ChatComposer() {
   return (
     <div className="border-t border-chat-divider bg-neutral-0 px-3 py-3">
       <AttachmentPreviewList />
+      {uploadError && (
+        <div role="alert" className="mb-2">
+          <Text as="p" variant="caption-1" className="text-danger-600">
+            {uploadError}
+          </Text>
+        </div>
+      )}
       <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
         {TEMPLATES.map((t) => (
           <button
@@ -234,6 +251,7 @@ export function ChatComposer() {
       <input
         ref={fileInputRef}
         type="file"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,application/pdf"
         multiple
         hidden
         onChange={onFiles}
