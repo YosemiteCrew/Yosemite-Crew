@@ -41,6 +41,7 @@ import ChatComposer from './ChatComposer';
 import ChatCommandPalette from './ChatCommandPalette';
 import ShareEntityModal from './ShareEntityModal';
 import { GroupModal, type OrgUserOption } from './GroupModal';
+import { useChatNotifications } from '../hooks/useChatNotifications';
 import { ChatShareContext } from './chatShareContext';
 import clsx from 'clsx';
 
@@ -999,6 +1000,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const groupModalOwnerRef = useRef<string | undefined>(undefined);
 
   const directBlurTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  useChatNotifications(client);
 
   const getSessionChannels = useCallback((payload: any) => {
     if (Array.isArray(payload?.channels)) return payload.channels;
