@@ -49,6 +49,12 @@ jest.mock("../../../src/config/prisma", () => ({
     workspaceDocumentPacket: {
       findFirst: jest.fn(),
     },
+    clinicalArtifactAttestation: {
+      findFirst: jest.fn(),
+    },
+    clinicalArtifact: {
+      update: jest.fn(),
+    },
   },
 }));
 jest.mock("../../../src/config/read-switch", () => ({
@@ -116,6 +122,52 @@ describe("DocumensoWebhookController", () => {
     );
     expect(statusMock).toHaveBeenCalledWith(400);
     expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid payload" });
+  });
+
+  it("completes a passport clinical record when its document signs", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-pass-1" },
+        }),
+      ),
+    };
+    const mockedPrisma = prisma as any;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-1",
+      artifactId: "art-1",
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({ id: "art-1" });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "art-1" },
+        data: expect.objectContaining({ status: "SIGNED" }),
+      }),
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("ignores non-completion events for passport records", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_DELETED",
+          payload: { id: "doc-x" },
+        }),
+      ),
+    };
+    const mockedPrisma = prisma as any;
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
   });
 
   it("syncs signed form assignments when a document completes", async () => {

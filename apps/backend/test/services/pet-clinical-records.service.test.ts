@@ -4,6 +4,8 @@ import {
 } from "src/services/pet-clinical-records.service";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "src/services/audit-trail.service";
+import { DocumensoService } from "src/services/documenso.service";
+import { buildPassportRecordPdf } from "src/services/passport-record-pdf";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -13,11 +15,30 @@ jest.mock("src/config/prisma", () => ({
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    user: { findFirst: jest.fn() },
+    patient: { findUnique: jest.fn() },
   },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
   AuditTrailService: { recordSafely: jest.fn() },
 }));
+jest.mock("src/services/documenso.service", () => ({
+  DocumensoService: {
+    resolveOrganisationApiKey: jest.fn(),
+    createDocument: jest.fn(),
+    distributeDocument: jest.fn(),
+  },
+}));
+jest.mock("src/services/passport-record-pdf", () => ({
+  buildPassportRecordPdf: jest.fn(),
+}));
+
+const documensoMock = DocumensoService as unknown as {
+  resolveOrganisationApiKey: jest.Mock;
+  createDocument: jest.Mock;
+  distributeDocument: jest.Mock;
+};
+const buildPdfMock = buildPassportRecordPdf as jest.Mock;
 
 const prismaMock = prisma as unknown as {
   encounter: { findFirst: jest.Mock };
@@ -26,6 +47,8 @@ const prismaMock = prisma as unknown as {
     findFirst: jest.Mock;
     update: jest.Mock;
   };
+  user: { findFirst: jest.Mock };
+  patient: { findUnique: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 
@@ -76,8 +99,28 @@ beforeEach(() => {
   prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
     id: "art-1",
     status: "DRAFT",
+    immunization: {
+      vaccineName: "Nobivac Rabies",
+      vaccineType: "RABIES",
+      manufacturer: null,
+      batchNumber: "A234B",
+      dateAdministered: new Date("2024-04-01T00:00:00.000Z"),
+      validUntil: new Date("2027-03-14T00:00:00.000Z"),
+    },
+    rabiesTitration: null,
+    parasiteTreatment: null,
+    clinicalExamination: null,
   });
   prismaMock.clinicalArtifact.update.mockResolvedValue({ id: "art-1" });
+  prismaMock.user.findFirst.mockResolvedValue({ email: "vet@example.com" });
+  prismaMock.patient.findUnique.mockResolvedValue({
+    name: "Doggy",
+    microchipNumber: "985141000123456",
+  });
+  documensoMock.resolveOrganisationApiKey.mockResolvedValue("api-key");
+  documensoMock.createDocument.mockResolvedValue({ id: 42 });
+  documensoMock.distributeDocument.mockResolvedValue({});
+  buildPdfMock.mockResolvedValue(Buffer.from("%PDF-1.4"));
 });
 
 describe("PetClinicalRecordService.recordImmunization", () => {
@@ -293,6 +336,15 @@ describe("PetClinicalRecordService.recordClinicalExam", () => {
     ).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  it("handles a null actor id", async () => {
+    await PetClinicalRecordService.recordClinicalExam(CTX_NULL, input);
+    expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ authorId: null }),
+      }),
+    );
+  });
+
   it("500s when the exam row fails to persist", async () => {
     prismaMock.clinicalArtifact.create.mockResolvedValue({
       id: "art-1",
@@ -380,5 +432,158 @@ describe("PetClinicalRecordService.revokeRecord", () => {
     await expect(
       PetClinicalRecordService.revokeRecord(base),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("PetClinicalRecordService.requestRecordSignature", () => {
+  const args = {
+    artifactId: "art-1",
+    patientId: "pat-1",
+    organisationId: "org-1",
+    actor: CTX.actor,
+    signatoryName: "Dr Vet",
+  };
+
+  const artifactWith = (over: Record<string, unknown>) => ({
+    id: "art-1",
+    status: "DRAFT",
+    immunization: null,
+    rabiesTitration: null,
+    parasiteTreatment: null,
+    clinicalExamination: null,
+    ...over,
+  });
+
+  it("renders a PDF, sends it to Documenso and marks IN_PROGRESS", async () => {
+    const result = await PetClinicalRecordService.requestRecordSignature(args);
+    expect(buildPdfMock).toHaveBeenCalled();
+    expect(documensoMock.createDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signerEmail: "vet@example.com",
+        apiKey: "api-key",
+      }),
+    );
+    expect(documensoMock.distributeDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ documentId: 42 }),
+    );
+    expect(result).toMatchObject({
+      status: "IN_PROGRESS",
+      documensoDocumentId: "42",
+    });
+    expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "IN_PROGRESS" }),
+      }),
+    );
+  });
+
+  it("renders titration, parasite and exam records too", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce(
+      artifactWith({
+        rabiesTitration: {
+          approvedLab: "EU Lab",
+          sampleDate: new Date("2024-05-01T00:00:00.000Z"),
+          resultIuMl: 0.8,
+        },
+      }),
+    );
+    await PetClinicalRecordService.requestRecordSignature(args);
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce(
+      artifactWith({
+        parasiteTreatment: {
+          treatmentType: "ECHINOCOCCUS",
+          productName: "Milbemax",
+          treatedAt: new Date("2024-06-20T14:00:00.000Z"),
+        },
+      }),
+    );
+    await PetClinicalRecordService.requestRecordSignature(args);
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce(
+      artifactWith({
+        clinicalExamination: {
+          examinedAt: new Date("2024-06-23T00:00:00.000Z"),
+          fitForTravel: true,
+          weightKg: 32.4,
+          temperatureC: 38.5,
+        },
+      }),
+    );
+    await PetClinicalRecordService.requestRecordSignature(args);
+    expect(documensoMock.createDocument).toHaveBeenCalledTimes(3);
+  });
+
+  it("404s unknown, 409s already-signed", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      PetClinicalRecordService.requestRecordSignature(args),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce({
+      id: "art-1",
+      status: "SIGNED",
+    });
+    await expect(
+      PetClinicalRecordService.requestRecordSignature(args),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("400s when Documenso, the signer email or the actor is missing", async () => {
+    documensoMock.resolveOrganisationApiKey.mockResolvedValueOnce(null);
+    await expect(
+      PetClinicalRecordService.requestRecordSignature(args),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    prismaMock.user.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      PetClinicalRecordService.requestRecordSignature(args),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    await expect(
+      PetClinicalRecordService.requestRecordSignature({
+        ...args,
+        actor: { type: "PMS_USER", id: null },
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("502s when the signing document cannot be created", async () => {
+    documensoMock.createDocument.mockResolvedValueOnce(undefined);
+    await expect(
+      PetClinicalRecordService.requestRecordSignature(args),
+    ).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("falls back to a default pet name when the patient is missing", async () => {
+    prismaMock.patient.findUnique.mockResolvedValueOnce(null);
+    const result = await PetClinicalRecordService.requestRecordSignature(args);
+    expect(result.status).toBe("IN_PROGRESS");
+  });
+
+  it("covers absent optional fields and a missing signatory name", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce(
+      artifactWith({
+        immunization: {
+          vaccineName: "Lepto",
+          vaccineType: "CORE",
+          manufacturer: null,
+          batchNumber: null,
+          dateAdministered: new Date("2024-04-01T00:00:00.000Z"),
+          validUntil: null,
+        },
+      }),
+    );
+    await PetClinicalRecordService.requestRecordSignature({
+      ...args,
+      signatoryName: undefined,
+    });
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce(
+      artifactWith({
+        clinicalExamination: {
+          examinedAt: new Date("2024-06-23T00:00:00.000Z"),
+          fitForTravel: false,
+          weightKg: null,
+          temperatureC: null,
+        },
+      }),
+    );
+    await PetClinicalRecordService.requestRecordSignature(args);
+    expect(documensoMock.createDocument).toHaveBeenCalled();
   });
 });

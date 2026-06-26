@@ -16,6 +16,7 @@ jest.mock("../../../src/services/pet-clinical-records.service", () => {
       recordParasiteTreatment: jest.fn(),
       recordRabiesTitration: jest.fn(),
       recordClinicalExam: jest.fn(),
+      requestRecordSignature: jest.fn(),
       attestRecord: jest.fn(),
       revokeRecord: jest.fn(),
     },
@@ -296,6 +297,54 @@ describe("PetPassportController", () => {
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("signRecord", () => {
+    const recordParams = { ...orgParams, recordId: "art-1" };
+    const recAuthed = (extra: Record<string, unknown> = {}) =>
+      ({
+        params: recordParams,
+        userPermissions: ["passport:edit:any"],
+        userId: "user-1",
+        ...extra,
+      }) as unknown as Request;
+
+    it("202s requesting a signature with the capture context", async () => {
+      clinical.requestRecordSignature.mockResolvedValue({
+        status: "IN_PROGRESS",
+      } as never);
+      await PetPassportController.signRecord(
+        recAuthed({ body: { signatoryName: "Dr Vet" } }),
+        res as Response,
+      );
+      expect(clinical.requestRecordSignature).toHaveBeenCalledWith(
+        expect.objectContaining({ artifactId: "art-1", patientId: "pat-1" }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(202);
+    });
+
+    it("500s without permissions, 400s bad params + body, maps a service error", async () => {
+      await PetPassportController.signRecord(
+        { params: recordParams } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      await PetPassportController.signRecord(
+        recAuthed({ params: { ...recordParams, recordId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      await PetPassportController.signRecord(
+        recAuthed({ body: { signatoryName: 123 } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      clinical.requestRecordSignature.mockRejectedValue(
+        new PetClinicalRecordError("nope", 502),
+      );
+      await PetPassportController.signRecord(recAuthed(), res as Response);
+      expect(statusMock).toHaveBeenCalledWith(502);
     });
   });
 

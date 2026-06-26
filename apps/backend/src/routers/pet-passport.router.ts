@@ -44,6 +44,14 @@ router.post(
 // Attestation: a verified vet signs a recorded clinical artifact (-> SIGNED, the
 // state the passport surfaces) or revokes it.
 router.post(
+  "/pms/organisation/:organisationId/companion/:patientId/records/:recordId/sign",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("passport:edit:any"),
+  PetPassportController.signRecord,
+);
+
+router.post(
   "/pms/organisation/:organisationId/companion/:patientId/records/:recordId/attest",
   authorizeCognito,
   withOrgPermissions(),

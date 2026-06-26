@@ -1,5 +1,10 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { DocumensoService } from "./documenso.service";
+import {
+  buildPassportRecordPdf,
+  type RecordPdfField,
+} from "./passport-record-pdf";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
   ClinicalExamDTO,
@@ -114,6 +119,108 @@ const audit = async (
     entityId,
     metadata,
   });
+};
+
+const resolveSignerEmail = async (signerId: string): Promise<string | null> => {
+  const user = await prisma.user.findFirst({
+    where: { userId: signerId },
+    select: { email: true },
+  });
+  return user?.email ?? null;
+};
+
+const dateOnly = (value: Date | null | undefined): string | undefined =>
+  value ? value.toISOString().slice(0, 10) : undefined;
+
+// Builds the PDF title + fields for an attested record so it can be e-signed.
+const recordPdfContent = (
+  artifact: {
+    immunization: {
+      vaccineName: string;
+      vaccineType: string;
+      manufacturer: string | null;
+      batchNumber: string | null;
+      dateAdministered: Date;
+      validUntil: Date | null;
+    } | null;
+    rabiesTitration: {
+      approvedLab: string;
+      sampleDate: Date;
+      resultIuMl: number;
+    } | null;
+    parasiteTreatment: {
+      treatmentType: string;
+      productName: string;
+      treatedAt: Date;
+    } | null;
+    clinicalExamination: {
+      examinedAt: Date;
+      fitForTravel: boolean;
+      weightKg: number | null;
+      temperatureC: number | null;
+    } | null;
+  },
+  pet: { name: string; microchipNumber: string | null },
+): { title: string; subtitle: string; fields: RecordPdfField[] } => {
+  const subtitle = pet.microchipNumber
+    ? `${pet.name} · microchip ${pet.microchipNumber}`
+    : pet.name;
+  const field = (label: string, value: string | undefined): RecordPdfField[] =>
+    value ? [{ label, value }] : [];
+
+  if (artifact.immunization) {
+    const v = artifact.immunization;
+    return {
+      title: "Vaccination record",
+      subtitle,
+      fields: [
+        { label: "Vaccine", value: v.vaccineName },
+        ...field("Type", v.vaccineType),
+        ...field("Manufacturer", v.manufacturer ?? undefined),
+        ...field("Batch", v.batchNumber ?? undefined),
+        ...field("Administered", dateOnly(v.dateAdministered)),
+        ...field("Valid until", dateOnly(v.validUntil)),
+      ],
+    };
+  }
+  if (artifact.rabiesTitration) {
+    const t = artifact.rabiesTitration;
+    return {
+      title: "Rabies antibody titration",
+      subtitle,
+      fields: [
+        { label: "Laboratory", value: t.approvedLab },
+        { label: "Result", value: `${t.resultIuMl} IU/ml` },
+        ...field("Sample date", dateOnly(t.sampleDate)),
+      ],
+    };
+  }
+  if (artifact.parasiteTreatment) {
+    const p = artifact.parasiteTreatment;
+    return {
+      title: "Anti-parasite treatment",
+      subtitle,
+      fields: [
+        { label: "Product", value: p.productName },
+        { label: "Type", value: p.treatmentType },
+        ...field("Treated", dateOnly(p.treatedAt)),
+      ],
+    };
+  }
+  const e = artifact.clinicalExamination;
+  return {
+    title: "Clinical examination",
+    subtitle,
+    fields: [
+      { label: "Fit to travel", value: e?.fitForTravel ? "Yes" : "No" },
+      ...field("Examined", dateOnly(e?.examinedAt)),
+      ...field("Weight", e?.weightKg ? `${e.weightKg} kg` : undefined),
+      ...field(
+        "Temperature",
+        e?.temperatureC ? `${e.temperatureC}°C` : undefined,
+      ),
+    ],
+  };
 };
 
 export const PetClinicalRecordService = {
@@ -416,5 +523,103 @@ export const PetClinicalRecordService = {
       },
     });
     return { artifactId, status: "VOID" };
+  },
+
+  // Initiate a Documenso e-signature for a recorded clinical artifact: render it
+  // to a PDF and send it to the practice's Documenso instance for the vet to
+  // sign. The record stays IN_PROGRESS until the Documenso webhook reports it
+  // complete (which flips it to SIGNED, the state the passport surfaces).
+  async requestRecordSignature(params: {
+    artifactId: string;
+    patientId: string;
+    organisationId: string;
+    actor: Actor;
+    signatoryName?: string;
+    signatoryLicence?: string;
+  }): Promise<{
+    artifactId: string;
+    status: "IN_PROGRESS";
+    documensoDocumentId: string;
+  }> {
+    const { artifactId, patientId, organisationId, actor } = params;
+    const artifact = await prisma.clinicalArtifact.findFirst({
+      where: {
+        id: artifactId,
+        organisationId,
+        kind: { in: [...PASSPORT_RECORD_KINDS] },
+      },
+      include: {
+        immunization: true,
+        rabiesTitration: true,
+        parasiteTreatment: true,
+        clinicalExamination: true,
+      },
+    });
+    if (!artifact) {
+      throw new PetClinicalRecordError("Clinical record not found.", 404);
+    }
+    if (artifact.status === "SIGNED") {
+      throw new PetClinicalRecordError(
+        "Clinical record is already attested.",
+        409,
+      );
+    }
+    const apiKey =
+      await DocumensoService.resolveOrganisationApiKey(organisationId);
+    const signerId = actor.id ?? null;
+    const signerEmail = signerId ? await resolveSignerEmail(signerId) : null;
+    if (!apiKey || !signerId || !signerEmail) {
+      throw new PetClinicalRecordError(
+        "Documenso signing is not configured for this practice or signer.",
+        400,
+      );
+    }
+    const pet = await prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { name: true, microchipNumber: true },
+    });
+    const content = recordPdfContent(
+      artifact,
+      pet ?? { name: "Companion", microchipNumber: null },
+    );
+    const pdf = await buildPassportRecordPdf(content);
+    const document = await DocumensoService.createDocument({
+      pdf,
+      signerEmail,
+      signerName: params.signatoryName,
+      apiKey,
+      title: content.title,
+    });
+    if (!document?.id) {
+      throw new PetClinicalRecordError(
+        "Failed to create the signing document.",
+        502,
+      );
+    }
+    await DocumensoService.distributeDocument({
+      documentId: Number(document.id),
+      apiKey,
+    });
+    const documensoDocumentId = String(document.id);
+    const attestationData = {
+      primarySource: true,
+      signatoryUserId: signerId,
+      signatoryName: params.signatoryName ?? null,
+      signatoryLicence: params.signatoryLicence ?? null,
+      signingStatus: "IN_PROGRESS",
+      documensoDocumentId,
+      revokedAt: null,
+      revokedReason: null,
+    };
+    await prisma.clinicalArtifact.update({
+      where: { id: artifactId },
+      data: {
+        status: "IN_PROGRESS",
+        attestation: {
+          upsert: { create: attestationData, update: attestationData },
+        },
+      },
+    });
+    return { artifactId, status: "IN_PROGRESS", documensoDocumentId };
   },
 };

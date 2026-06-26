@@ -279,6 +279,30 @@ const resolveDocumensoRedirectMapping = async (
       ).lean();
 };
 
+// Passport clinical records store the Documenso document id on their attestation.
+// A completed signing flips the artifact to SIGNED (the state the passport reads).
+async function handlePassportRecordEvent(
+  eventType: string,
+  documentId: string,
+): Promise<boolean> {
+  if (eventType !== "DOCUMENT_COMPLETED") return false;
+  const attestation = await prisma.clinicalArtifactAttestation.findFirst({
+    where: { documensoDocumentId: documentId },
+    select: { id: true, artifactId: true },
+  });
+  if (!attestation) return false;
+  const signedAt = new Date();
+  await prisma.clinicalArtifact.update({
+    where: { id: attestation.artifactId },
+    data: {
+      status: "SIGNED",
+      signedAt,
+      attestation: { update: { signingStatus: "SIGNED", signedAt } },
+    },
+  });
+  return true;
+}
+
 export const DocumensoWebhookController = {
   async handle(req: Request, res: Response) {
     try {
@@ -296,6 +320,10 @@ export const DocumensoWebhookController = {
       if (!event) {
         logger.error("[DocumensoWebhook] Invalid payload");
         return res.status(400).json({ message: "Invalid payload" });
+      }
+
+      if (await handlePassportRecordEvent(event.eventType, event.documentId)) {
+        return res.status(200).json({ received: true });
       }
 
       const submission = await findWebhookSubmission(event.documentId);

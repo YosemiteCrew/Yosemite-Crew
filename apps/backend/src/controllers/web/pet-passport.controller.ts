@@ -240,6 +240,32 @@ export const PetPassportController = {
     }
   },
 
+  signRecord: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = RecordParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = AttestBodySchema.safeParse(req.body ?? {});
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const result = await PetClinicalRecordService.requestRecordSignature({
+        artifactId: params.data.recordId,
+        patientId: params.data.patientId,
+        organisationId: params.data.organisationId,
+        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        signatoryName: body.data.signatoryName,
+        signatoryLicence: body.data.signatoryLicence,
+      });
+      return res.status(202).json(result);
+    } catch (err) {
+      return handleError(err, res, "Clinical record signature request failed");
+    }
+  },
+
   attestRecord: async (req: Request, res: Response): Promise<Response> => {
     try {
       const typedReq = req as OrgRequest;
