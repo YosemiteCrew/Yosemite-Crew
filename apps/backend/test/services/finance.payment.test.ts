@@ -208,6 +208,78 @@ describe("FinancePaymentService", () => {
     expect(result.appliedAmount).toBe(25);
   });
 
+  it("finalizes a succeeded booking payment even when the invoice is still payment-link based", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_booking_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_booking_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 50 }]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_booking_1",
+      settlementChannel: "STRIPE",
+      collectionMode: null,
+    });
+    (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
+      id: "pa_booking_1",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_booking_1",
+      amount: 50,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_booking_1",
+      status: "PAID",
+      totalAmount: 50,
+      currency: "usd",
+      parentId: "parent_booking_1",
+      payments: [],
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_booking_1",
+        paymentIntentId: "pi_booking_1",
+        chargeId: "ch_booking_1",
+        receiptUrl: "https://receipt",
+        currency: "usd",
+      });
+
+    expect(prisma.paymentAttempt.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "pa_booking_1" },
+        data: expect.objectContaining({
+          providerPaymentIntentId: "pi_booking_1",
+          status: "SUCCEEDED",
+        }),
+      }),
+    );
+    expect(prisma.payment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          receiptUrl: "https://receipt",
+        }),
+      }),
+    );
+    expect(result.action).toBe("PAID");
+  });
+
   it("marks deposit invoices settled when fully paid", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_2f",
@@ -1931,6 +2003,16 @@ describe("FinancePaymentService", () => {
     (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
       invoiceId: "inv_pi_lookup",
     });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_pi_lookup",
+      status: "PENDING",
+      paymentCollectionMethod: "MANUAL",
+      metadata: {},
+      payments: [],
+    });
     (prisma.invoice.findUnique as jest.Mock)
       .mockResolvedValueOnce({
         id: "inv_pi_lookup",
@@ -1956,6 +2038,7 @@ describe("FinancePaymentService", () => {
 
     await expect(
       FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_pi_lookup",
         paymentIntentId: "pi_lookup",
       }),
     ).resolves.toMatchObject({ action: "REFUNDED" });

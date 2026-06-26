@@ -1491,15 +1491,6 @@ export const FinancePaymentService = {
       return { action: "ALREADY_PAID" as const, invoice };
     }
 
-    if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
-      return { action: "IGNORED" as const, invoice };
-    }
-
-    if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {
-      await this.refundPaymentIntent(input.paymentIntentId);
-      return { action: "REFUNDED" as const, invoice };
-    }
-
     const paymentAttempt = await prisma.paymentAttempt.findFirst({
       where: {
         invoiceId: invoice.id,
@@ -1507,6 +1498,18 @@ export const FinancePaymentService = {
       },
       select: { id: true, collectionMode: true, settlementChannel: true },
     });
+
+    if (invoice.paymentCollectionMethod === "PAYMENT_LINK" && !paymentAttempt) {
+      return { action: "IGNORED" as const, invoice };
+    }
+
+    if (
+      invoice.paymentCollectionMethod !== "PAYMENT_INTENT" &&
+      !paymentAttempt
+    ) {
+      await this.refundPaymentIntent(input.paymentIntentId);
+      return { action: "REFUNDED" as const, invoice };
+    }
 
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
