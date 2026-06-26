@@ -17,6 +17,13 @@ const PetPassportController = {
   getGooglePass: jest.fn(),
 };
 
+const PassportConsentController = {
+  requestConsent: jest.fn(),
+  grantConsent: jest.fn(),
+  revokeConsent: jest.fn(),
+  listConsents: jest.fn(),
+};
+
 jest.mock("../../src/middlewares/auth", () => ({ authorizeCognito }));
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions,
@@ -24,6 +31,9 @@ jest.mock("../../src/middlewares/rbac", () => ({
 }));
 jest.mock("../../src/controllers/web/pet-passport.controller", () => ({
   PetPassportController,
+}));
+jest.mock("../../src/controllers/web/passport-consent.controller", () => ({
+  PassportConsentController,
 }));
 
 const router = jest.requireActual("../../src/routers/pet-passport.router")
@@ -80,6 +90,18 @@ describe("pet-passport.router", () => {
     ).toHaveLength(4);
     expect(
       findRoute(`${BASE}/records/:recordId/revoke`, "post")?.stack,
+    ).toHaveLength(4);
+  });
+
+  it("registers the cross-practice consent routes, org-guarded", () => {
+    const ORG = "/pms/organisation/:organisationId";
+    expect(findRoute(`${BASE}/consents`, "post")?.stack).toHaveLength(4);
+    expect(findRoute(`${ORG}/consents`, "get")?.stack).toHaveLength(4);
+    expect(
+      findRoute(`${ORG}/consents/:consentId/grant`, "post")?.stack,
+    ).toHaveLength(4);
+    expect(
+      findRoute(`${ORG}/consents/:consentId/revoke`, "post")?.stack,
     ).toHaveLength(4);
   });
 

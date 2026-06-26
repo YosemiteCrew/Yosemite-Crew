@@ -590,6 +590,45 @@ model PetPassport {
   @@index([organisationId])
 }
 
+enum PassportConsentStatus {
+  PENDING
+  GRANTED
+  REVOKED
+}
+
+enum PassportConsentMethod {
+  MOBILE
+  EMAIL
+}
+
+// Cross-practice sharing consent for a pet's attested passport records. A record
+// is owned by the practice that signed it; another practice sees it only when a
+// GRANTED consent exists for that pet (by microchip) from the owning practice to
+// the recipient practice, AND the pet parent has consented (mobile/email). The
+// pet parent (owner) sees their pet's full record without a consent gate.
+model PassportShareConsent {
+  id                      String                 @id @default(uuid())
+  microchipNumber         String
+  patientId               String
+  ownerOrganisationId     String
+  recipientOrganisationId String
+  status                  PassportConsentStatus  @default(PENDING)
+  purpose                 String?
+  requestedBy             String?
+  parentId                String?
+  consentMethod           PassportConsentMethod?
+  consentedAt             DateTime?
+  revokedAt               DateTime?
+  revokedReason           String?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  @@unique([microchipNumber, ownerOrganisationId, recipientOrganisationId])
+  @@index([microchipNumber, status])
+  @@index([recipientOrganisationId, status])
+  @@index([ownerOrganisationId])
+}
+
 model Appointment {
   id                String            @id @default(uuid())
   patient         Json

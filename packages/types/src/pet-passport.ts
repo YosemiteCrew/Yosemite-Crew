@@ -54,6 +54,25 @@ export interface RabiesTitrationDTO {
   createdAt: string;
 }
 
+// Cross-practice sharing consent (per recipient practice). Keyed to the pet by
+// microchip; valid only when GRANTED with the pet parent's consent recorded.
+export type PassportConsentStatus = 'PENDING' | 'GRANTED' | 'REVOKED';
+export type PassportConsentMethod = 'MOBILE' | 'EMAIL';
+
+export interface PassportConsentDTO {
+  id: string;
+  microchipNumber: string;
+  patientId: string;
+  ownerOrganisationId: string;
+  recipientOrganisationId: string;
+  status: PassportConsentStatus;
+  purpose?: string;
+  parentId?: string;
+  consentMethod?: PassportConsentMethod;
+  consentedAt?: string;
+  createdAt: string;
+}
+
 // A pre-travel clinical examination ("fit to travel" attestation) by the vet.
 export interface ClinicalExamDTO {
   id: string;

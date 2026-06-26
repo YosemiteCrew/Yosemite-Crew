@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authorizeCognito } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { PetPassportController } from "src/controllers/web/pet-passport.controller";
+import { PassportConsentController } from "src/controllers/web/passport-consent.controller";
 
 const router = Router();
 
@@ -56,6 +57,40 @@ router.post(
   withOrgPermissions(),
   requirePermission("passport:edit:any"),
   PetPassportController.revokeRecord,
+);
+
+// Cross-practice sharing consent (per recipient practice; pet-parent consent
+// recorded). The owning practice requests; the parent grants via mobile/email.
+router.post(
+  "/pms/organisation/:organisationId/companion/:patientId/consents",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("passport:edit:any"),
+  PassportConsentController.requestConsent,
+);
+
+router.get(
+  "/pms/organisation/:organisationId/consents",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  PassportConsentController.listConsents,
+);
+
+router.post(
+  "/pms/organisation/:organisationId/consents/:consentId/grant",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("passport:edit:any"),
+  PassportConsentController.grantConsent,
+);
+
+router.post(
+  "/pms/organisation/:organisationId/consents/:consentId/revoke",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("passport:edit:any"),
+  PassportConsentController.revokeConsent,
 );
 
 router.post(
