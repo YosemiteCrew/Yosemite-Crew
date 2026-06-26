@@ -13,6 +13,8 @@ import ProtectedChatContainer, {
   formatRowTime,
   isCounterpartOnline,
   formatClosedTime,
+  ChannelPreviewWrapper,
+  ChatClosedFooter,
 } from '@/app/features/chat/components/ChatContainer';
 import type { Channel as StreamChannel } from 'stream-chat';
 import * as streamChatService from '@/app/features/chat/services/streamChatService';
@@ -863,5 +865,71 @@ describe('ChatContainer pure helpers', () => {
       expect(formatClosedTime(iso(3 * 24 * 60 * 60 * 1000))).toBe('3 days ago');
       expect(typeof formatClosedTime(iso(30 * 24 * 60 * 60 * 1000))).toBe('string');
     });
+  });
+});
+
+describe('ChannelPreviewWrapper + ChatClosedFooter', () => {
+  const previewChannel = {
+    id: 'ch-prev',
+    cid: 'messaging:ch-prev',
+    type: 'messaging',
+    data: { name: 'Preview Chat' },
+    state: {
+      members: {
+        me: { user: { id: 'me' } },
+        u2: { user: { id: 'u2', name: 'Other', online: true } },
+      },
+      last_message_at: new Date(),
+    },
+    muteStatus: () => ({ muted: false }),
+    mute: jest.fn().mockResolvedValue({}),
+    unmute: jest.fn().mockResolvedValue({}),
+    hide: jest.fn().mockResolvedValue({}),
+  };
+
+  const renderPreview = (over: Record<string, unknown> = {}) => {
+    const props = {
+      channel: previewChannel,
+      onPreviewSelect: jest.fn(),
+      currentUserId: 'me',
+      active: false,
+      unread: 2,
+      lastMessage: { text: 'Hello there' },
+      setActiveChannel: jest.fn(),
+      ...over,
+    } as unknown as React.ComponentProps<typeof ChannelPreviewWrapper>;
+    render(<ChannelPreviewWrapper {...props} />);
+    return props;
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('renders the conversation row from channel data', () => {
+    renderPreview();
+    expect(screen.getByText('Preview Chat')).toBeInTheDocument();
+    expect(screen.getByText('Hello there')).toBeInTheDocument();
+  });
+
+  it('notifies selection when it becomes active', () => {
+    const props = renderPreview({ active: true });
+    expect(props.onPreviewSelect).toHaveBeenCalledWith(previewChannel);
+  });
+
+  it('mutes the channel from the triage menu', () => {
+    renderPreview();
+    fireEvent.click(screen.getByLabelText('Conversation actions'));
+    fireEvent.click(screen.getByText('Mute'));
+    expect(previewChannel.mute).toHaveBeenCalled();
+  });
+
+  it('renders the closed-session footer without a timestamp', () => {
+    render(<ChatClosedFooter />);
+    expect(screen.getByText('Chat session closed')).toBeInTheDocument();
+  });
+
+  it('renders the closed-session footer with a relative time', () => {
+    render(<ChatClosedFooter closedAt={new Date(Date.now() - 5 * 60 * 1000).toISOString()} />);
+    expect(screen.getByText('Chat session closed')).toBeInTheDocument();
+    expect(screen.getByText('5 minutes ago')).toBeInTheDocument();
   });
 });

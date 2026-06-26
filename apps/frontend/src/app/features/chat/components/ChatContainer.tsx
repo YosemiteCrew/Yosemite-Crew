@@ -1969,6 +1969,8 @@ export {
   formatRowTime,
   isCounterpartOnline,
   formatClosedTime,
+  ChannelPreviewWrapper,
+  ChatClosedFooter,
 };
 
 export default ProtectedChatContainer;
