@@ -40,6 +40,7 @@ import ChatMessage from './ChatMessage';
 import ChatComposer from './ChatComposer';
 import ChatCommandPalette from './ChatCommandPalette';
 import ShareEntityModal from './ShareEntityModal';
+import MessageSearch from './MessageSearch';
 import { GroupModal, type OrgUserOption } from './GroupModal';
 import { useChatNotifications } from '../hooks/useChatNotifications';
 import { ChatShareContext } from './chatShareContext';
@@ -549,6 +550,7 @@ const ChannelHeaderWithCounterpart: FC<{
         </div>
         {/* No phone/video calling in chat. */}
         <div className="flex shrink-0 items-center gap-2">
+          <MessageSearch />
           {isGroupChat && (
             <Primary
               text="Group Info"

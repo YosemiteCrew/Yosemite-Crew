@@ -115,6 +115,7 @@ jest.mock('stream-chat-react', () => {
     ComponentProvider: ({ children }: any) => <>{children}</>,
     useChannelStateContext: jest.fn(),
     useChatContext: jest.fn(),
+    useChannelActionContext: jest.fn(() => ({ jumpToMessage: jest.fn() })),
   };
 });
 
