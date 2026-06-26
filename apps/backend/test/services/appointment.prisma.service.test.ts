@@ -556,6 +556,28 @@ describe("AppointmentPrismaService", () => {
     expect((result as any).bookingPaymentStatus).toBe("PAID");
   });
 
+  it("treats a succeeded payment attempt as a booking payment signal", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
+      makeRow({
+        organisationId: "org_2",
+      }),
+    );
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      {
+        appointmentId: "appt_1",
+        status: "AWAITING_PAYMENT",
+        depositCollectedAmount: 0,
+        paymentAttempts: [{ id: "attempt_1" }],
+        payments: [],
+      },
+    ]);
+
+    const result = await AppointmentPrismaService.getById("appt_1", "org_2");
+
+    expect((result as any).paymentStatus).toBe("UNPAID");
+    expect((result as any).bookingPaymentStatus).toBe("PAID");
+  });
+
   it("reschedules and resets UPCOMING appointments back to requested", async () => {
     mockedPrisma.appointment.findUnique.mockResolvedValue(
       makeRow({ status: "UPCOMING" }),

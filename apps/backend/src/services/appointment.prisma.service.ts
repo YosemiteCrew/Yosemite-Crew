@@ -1200,6 +1200,10 @@ const resolveAppointmentPaymentStateMaps = async (
       appointmentId: true,
       status: true,
       depositCollectedAmount: true,
+      paymentAttempts: {
+        where: { status: "SUCCEEDED" },
+        select: { id: true },
+      },
       payments: {
         where: { status: "SUCCEEDED" },
         select: { id: true },
@@ -1224,7 +1228,9 @@ const resolveAppointmentPaymentStateMaps = async (
       hasBookingPayment: false,
     };
 
-    const hasSuccessfulPayment = (invoice.payments?.length ?? 0) > 0;
+    const hasSuccessfulPayment =
+      (invoice.payments?.length ?? 0) > 0 ||
+      (invoice.paymentAttempts?.length ?? 0) > 0;
     const hasBookingPayment =
       hasSuccessfulPayment || (invoice.depositCollectedAmount ?? 0) > 0;
     const isPaid = invoice.status === "PAID";
