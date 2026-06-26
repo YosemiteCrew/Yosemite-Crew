@@ -535,44 +535,4 @@ describe('Chat Service', () => {
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
   });
-
-  describe('listSharedEntities', () => {
-    it('fetches shared entities for a channel', async () => {
-      const items = [{ id: 's1' }];
-      (axiosService.getData as jest.Mock).mockResolvedValue({ data: items });
-
-      const result = await chatService.listSharedEntities('ch1');
-
-      expect(axiosService.getData).toHaveBeenCalledWith('/v1/chat/pms/share/ch1');
-      expect(result).toEqual(items);
-    });
-
-    it('logs and rethrows on failure', async () => {
-      const error = new Error('list failed');
-      (axiosService.getData as jest.Mock).mockRejectedValue(error);
-
-      await expect(chatService.listSharedEntities('ch1')).rejects.toThrow(error);
-      expect(consoleErrorSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('revokeSharedEntity', () => {
-    it('revokes a shared entity by id', async () => {
-      const record = { id: 's1', revokedAt: 'now' };
-      (axiosService.postData as jest.Mock).mockResolvedValue({ data: record });
-
-      const result = await chatService.revokeSharedEntity('s1');
-
-      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/share/s1/revoke');
-      expect(result).toEqual(record);
-    });
-
-    it('logs and rethrows on failure', async () => {
-      const error = new Error('revoke failed');
-      (axiosService.postData as jest.Mock).mockRejectedValue(error);
-
-      await expect(chatService.revokeSharedEntity('s1')).rejects.toThrow(error);
-      expect(consoleErrorSpy).toHaveBeenCalled();
-    });
-  });
 });

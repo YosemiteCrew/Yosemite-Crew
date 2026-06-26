@@ -395,29 +395,3 @@ export const shareEntityToChannel = async (
     throw error;
   }
 };
-
-/**
- * List the (non-revoked) entities shared into a channel.
- */
-export const listSharedEntities = async (channelId: string): Promise<SharedChatEntity[]> => {
-  try {
-    const response = await getData<SharedChatEntity[]>(`/v1/chat/pms/share/${channelId}`);
-    return response.data;
-  } catch (error) {
-    logError('listSharedEntities - Failed to list shared entities', error, { channelId });
-    throw error;
-  }
-};
-
-/**
- * Revoke a previously shared entity (soft-revoke + remove the Stream message).
- */
-export const revokeSharedEntity = async (id: string): Promise<SharedChatEntity> => {
-  try {
-    const response = await postData<SharedChatEntity>(`/v1/chat/pms/share/${id}/revoke`);
-    return response.data;
-  } catch (error) {
-    logError('revokeSharedEntity - Failed to revoke shared entity', error, { id });
-    throw error;
-  }
-};

@@ -5,7 +5,7 @@
  * and channel management for the PMS web application.
  */
 
-import { StreamChat, OwnUserResponse } from 'stream-chat';
+import { StreamChat } from 'stream-chat';
 import {
   getChatToken,
   createChatSession,
@@ -160,28 +160,6 @@ export const connectStreamUser = async (
 };
 
 /**
- * Disconnect user from Stream Chat
- *
- * Call this when user logs out
- */
-export const disconnectStreamUser = async (): Promise<void> => {
-  if (!chatClient?.userID) {
-    return; // No user to disconnect
-  }
-
-  try {
-    await chatClient.disconnectUser();
-  } catch (error) {
-    const context = 'disconnectStreamUser - Error during user disconnection';
-    logError(context, error, {
-      userId: chatClient.userID,
-    });
-    // Log the error but don't throw - disconnection failure shouldn't block logout
-    throw new Error('Failed to properly disconnect from chat service');
-  }
-};
-
-/**
  * Get or create a channel for an appointment
  *
  * @param appointmentId - Unique appointment ID
@@ -225,89 +203,6 @@ export const getAppointmentChannel = async (appointmentId: string) => {
 };
 
 /**
- * Mark all messages in a channel as read
- *
- * @param channelId - Channel ID to mark as read
- */
-export const markChannelAsRead = async (channelId: string): Promise<void> => {
-  if (!channelId || typeof channelId !== 'string') {
-    throw new Error('Invalid channel ID provided');
-  }
-
-  try {
-    const client = getChatClient();
-    const channel = client.channel('messaging', channelId);
-    await channel.markRead();
-  } catch (error) {
-    const context = 'markChannelAsRead - Failed to mark channel as read';
-    logError(context, error, { channelId });
-
-    // Don't throw - read marking failure shouldn't break the user experience
-    throw new Error('Failed to mark messages as read');
-  }
-};
-
-/**
- * Get unread message count for all channels
- *
- * @returns Promise<number> - Total unread count
- */
-export const getUnreadCount = async (): Promise<number> => {
-  try {
-    const client = getChatClient();
-    if (!client.userID) {
-      return 0;
-    }
-
-    const unreadCount = (client.user as OwnUserResponse | undefined)?.total_unread_count || 0;
-    return unreadCount;
-  } catch (error) {
-    const context = 'getUnreadCount - Failed to get unread message count';
-    logError(context, error);
-
-    // Return 0 as fallback, but log the error for debugging
-    return 0;
-  }
-};
-
-/**
- * Send a message to a channel
- *
- * @param channelId - Channel ID
- * @param text - Message text
- * @returns Promise<void>
- */
-export const sendMessage = async (channelId: string, text: string): Promise<void> => {
-  if (!channelId || typeof channelId !== 'string') {
-    throw new Error('Invalid channel ID provided');
-  }
-  if (!text || typeof text !== 'string' || text.trim().length === 0) {
-    throw new Error('Message text cannot be empty');
-  }
-
-  try {
-    const client = getChatClient();
-    const channel = client.channel('messaging', channelId);
-
-    await channel.sendMessage({
-      text: text.trim(),
-    });
-  } catch (error) {
-    const context = 'sendMessage - Failed to send message to channel';
-    logError(context, error, {
-      channelId,
-      messageLength: text.length,
-      userId: chatClient?.userID,
-    });
-
-    if (error instanceof Error) {
-      throw new Error(`Failed to send message: ${error.message}`);
-    }
-    throw new Error('Failed to send message due to an unknown error');
-  }
-};
-
-/**
  * End a chat channel (PMS only)
  *
  * @param sessionId - Session ID to end
@@ -333,22 +228,4 @@ export const endChatChannel = async (sessionId: string): Promise<void> => {
     }
     throw new Error('Failed to end chat session due to an unknown error');
   }
-};
-
-/**
- * Check if client is connected
- *
- * @returns boolean - True if client is connected
- */
-export const isClientConnected = (): boolean => {
-  return chatClient?.userID !== undefined && chatClient?.userID !== null;
-};
-
-/**
- * Get current connected user ID
- *
- * @returns string | undefined - Current user ID or undefined if not connected
- */
-export const getCurrentUserId = (): string | undefined => {
-  return chatClient?.userID;
 };
