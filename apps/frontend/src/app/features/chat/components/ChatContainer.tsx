@@ -29,7 +29,7 @@ import {
 import { StreamChat } from 'stream-chat';
 import type { Channel as StreamChannel } from 'stream-chat';
 import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-chat-react';
-import { LuSearch, LuCommand, LuMessageSquarePlus } from 'react-icons/lu';
+import { LuSearch, LuCommand, LuMessageSquarePlus, LuArchive } from 'react-icons/lu';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Text from '@/app/ui/Text';
 import { Badge } from '@/app/ui';
@@ -174,6 +174,7 @@ function ChatScopeSwitcher({
 interface ChannelPreviewWrapperProps extends ChannelPreviewUIComponentProps {
   onPreviewSelect?: (channel: StreamChannel | null) => void;
   currentUserId?: string | null;
+  archived?: boolean;
 }
 
 interface ChatLayoutProps {
@@ -606,6 +607,7 @@ const isCounterpartOnline = (
 const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
   onPreviewSelect,
   currentUserId,
+  archived,
   ...previewProps
 }) => {
   const wasActiveRef = useRef(false);
@@ -649,20 +651,23 @@ const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
       onMute={channel ? () => void channel.mute() : undefined}
       onUnmute={channel ? () => void channel.unmute() : undefined}
       onSnooze={channel ? (durationMs) => void channel.mute({ expiration: durationMs }) : undefined}
-      onArchive={channel ? () => void channel.hide() : undefined}
+      onArchive={channel && !archived ? () => void channel.hide() : undefined}
+      onUnarchive={channel && archived ? () => void channel.show() : undefined}
     />
   );
 };
 
 const createPreviewComponent = (
   onPreviewSelect: (channel: StreamChannel | null) => void,
-  currentUserId?: string | null
+  currentUserId?: string | null,
+  archived = false
 ): ComponentType<ChannelPreviewUIComponentProps> => {
   const PreviewComponent: FC<ChannelPreviewUIComponentProps> = (props) => (
     <ChannelPreviewWrapper
       {...props}
       onPreviewSelect={onPreviewSelect}
       currentUserId={currentUserId}
+      archived={archived}
     />
   );
 
@@ -1000,6 +1005,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const groupModalOwnerRef = useRef<string | undefined>(undefined);
 
   const directBlurTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   useChatNotifications(client);
 
@@ -1284,8 +1290,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   );
 
   const previewComponent = useMemo(
-    () => createPreviewComponent(handlePreviewSelect, client?.userID),
-    [handlePreviewSelect, client?.userID]
+    () => createPreviewComponent(handlePreviewSelect, client?.userID, showArchived),
+    [handlePreviewSelect, client?.userID, showArchived]
   );
 
   const channelFilter = useCallback<NonNullable<ChannelListProps['channelRenderFilterFn']>>(
@@ -1737,6 +1743,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const filters = {
     type: { $in: ['messaging', 'team'] },
     members: { $in: [client.userID!] },
+    ...(showArchived ? { hidden: true } : {}),
   };
 
   const chatContent = (
@@ -1757,10 +1764,24 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         showEmpty={showEmptyPlaceholder}
         channelListHeader={
           <>
-            <div className="flex items-center px-3 pt-3">
+            <div className="flex items-center justify-between px-3 pt-3">
               <Text as="h2" variant="heading-3" className="text-neutral-900">
                 Messages
               </Text>
+              <button
+                type="button"
+                onClick={() => setShowArchived((v) => !v)}
+                aria-pressed={showArchived}
+                className={clsx(
+                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                  showArchived
+                    ? 'border-primary-500 bg-chat-panel text-primary-700'
+                    : 'border-chat-divider text-neutral-500 hover:bg-chat-surface-soft hover:text-neutral-900'
+                )}
+              >
+                <LuArchive className="h-3.5 w-3.5" />
+                Archived
+              </button>
             </div>
             <div className="px-3 pt-2">
               <ChatScopeSwitcher scope={scope} onScopeChange={onScopeChange} />

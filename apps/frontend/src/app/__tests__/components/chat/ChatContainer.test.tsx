@@ -959,6 +959,7 @@ describe('ChannelPreviewWrapper + ChatClosedFooter', () => {
     mute: jest.fn().mockResolvedValue({}),
     unmute: jest.fn().mockResolvedValue({}),
     hide: jest.fn().mockResolvedValue({}),
+    show: jest.fn().mockResolvedValue({}),
   };
 
   const renderPreview = (over: Record<string, unknown> = {}) => {
@@ -994,6 +995,13 @@ describe('ChannelPreviewWrapper + ChatClosedFooter', () => {
     fireEvent.click(screen.getByLabelText('Conversation actions'));
     fireEvent.click(screen.getByText('Mute'));
     expect(previewChannel.mute).toHaveBeenCalled();
+  });
+
+  it('unarchives the channel when shown in the archived view', () => {
+    renderPreview({ archived: true });
+    fireEvent.click(screen.getByLabelText('Conversation actions'));
+    fireEvent.click(screen.getByText('Unarchive'));
+    expect(previewChannel.show).toHaveBeenCalled();
   });
 
   it('renders the closed-session footer without a timestamp', () => {

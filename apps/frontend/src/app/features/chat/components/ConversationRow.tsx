@@ -9,6 +9,7 @@ import {
   LuMoreVertical,
   LuAlarmClock,
   LuArchive,
+  LuArchiveRestore,
 } from 'react-icons/lu';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
@@ -39,6 +40,7 @@ export type ConversationRowProps = Readonly<{
   onUnmute?: () => void;
   onSnooze?: (durationMs: number) => void;
   onArchive?: () => void;
+  onUnarchive?: () => void;
 }>;
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -78,9 +80,10 @@ export function ConversationRow({
   onUnmute,
   onSnooze,
   onArchive,
+  onUnarchive,
 }: ConversationRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const hasActions = Boolean(onMute || onUnmute || onSnooze || onArchive);
+  const hasActions = Boolean(onMute || onUnmute || onSnooze || onArchive || onUnarchive);
   const close = () => setMenuOpen(false);
 
   return (
@@ -214,6 +217,16 @@ export function ConversationRow({
                     label="Archive"
                     onClick={() => {
                       onArchive();
+                      close();
+                    }}
+                  />
+                )}
+                {onUnarchive && (
+                  <MenuItem
+                    icon={<LuArchiveRestore className="h-4 w-4 text-neutral-500" />}
+                    label="Unarchive"
+                    onClick={() => {
+                      onUnarchive();
                       close();
                     }}
                   />

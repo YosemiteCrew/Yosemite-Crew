@@ -118,6 +118,14 @@ describe('ConversationRow', () => {
       expect(h.onArchive).toHaveBeenCalledTimes(1);
     });
 
+    it('clicking Unarchive calls onUnarchive', () => {
+      const onUnarchive = jest.fn();
+      render(<ConversationRow {...base} onUnarchive={onUnarchive} />);
+      fireEvent.click(screen.getByLabelText('Conversation actions'));
+      fireEvent.click(screen.getByText('Unarchive'));
+      expect(onUnarchive).toHaveBeenCalledTimes(1);
+    });
+
     it('closing via the backdrop dismisses the menu', () => {
       render(<ConversationRow {...base} {...handlers()} />);
       fireEvent.click(screen.getByLabelText('Conversation actions'));
