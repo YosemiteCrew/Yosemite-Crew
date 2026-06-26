@@ -511,6 +511,57 @@ describe('ChatContainer', () => {
     expect(chatService.deleteGroup).not.toHaveBeenCalled();
   });
 
+  const openGroupEditModal = async () => {
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([
+      { _id: 'backend-group-id', channelId: 'channel-1', type: 'ORG_GROUP' },
+    ]);
+    const groupChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: 'group', name: 'Group Chat' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: groupChannel });
+    await act(async () => {
+      render(<ChatContainer scope="groups" />);
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Group Info'));
+    });
+    await waitFor(() => expect(screen.getByTestId('group-modal')).toBeInTheDocument());
+  };
+
+  it('saves the group title in edit mode', async () => {
+    await openGroupEditModal();
+    fireEvent.change(screen.getByTestId('input-Group Chat'), { target: { value: 'Renamed' } });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Save Title'));
+    });
+    await waitFor(() =>
+      expect(chatService.updateGroup).toHaveBeenCalledWith('backend-group-id', { title: 'Renamed' })
+    );
+  });
+
+  it('adds and removes members in edit mode', async () => {
+    await openGroupEditModal();
+    const addBtns = await screen.findAllByTitle('Add member');
+    await act(async () => {
+      fireEvent.click(addBtns[0]);
+    });
+    await waitFor(() => expect(chatService.addGroupMembers).toHaveBeenCalled());
+    const removeBtns = await screen.findAllByTitle('Remove member');
+    await act(async () => {
+      fireEvent.click(removeBtns[0]);
+    });
+    await waitFor(() => expect(chatService.removeGroupMembers).toHaveBeenCalled());
+  });
+
+  it('deletes the group from edit mode when confirmed', async () => {
+    await openGroupEditModal();
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Delete Group'));
+    });
+    await waitFor(() => expect(chatService.deleteGroup).toHaveBeenCalledWith('backend-group-id'));
+  });
+
   it('filters channels correctly based on scope', async () => {
     await act(async () => {
       render(<ChatContainer scope="clients" />);
