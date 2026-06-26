@@ -236,11 +236,12 @@ export const removeGroupMembers = async (groupId: string, memberIds: string[]): 
 };
 
 /**
- * Update group metadata (title, privacy, description)
+ * Update group metadata (title, privacy). Note: the backend only persists title
+ * and isPrivate, so description is intentionally not part of this contract.
  */
 export const updateGroup = async (
   groupId: string,
-  payload: Partial<Pick<OrgGroupRequest, 'title' | 'isPrivate' | 'description'>>
+  payload: Partial<Pick<OrgGroupRequest, 'title' | 'isPrivate'>>
 ): Promise<OrgChatSession> => {
   const response = await patchData<OrgChatSession>(`/v1/chat/pms/groups/${groupId}`, payload);
   return response.data;
