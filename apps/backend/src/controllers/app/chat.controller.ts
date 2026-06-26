@@ -1,6 +1,7 @@
 // src/controllers/chat.controller.ts
 import { Request, Response } from "express";
 import { ChatService, ChatServiceError } from "src/services/chat.service";
+import { NetworkChatService } from "src/services/networkChat.service";
 import ChatSessionModel from "src/models/chatSession";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
@@ -203,6 +204,78 @@ export const ChatController = {
         return res.status(err.statusCode).json({ message: err.message });
       }
       logger.error("Create org direct chat failed", err);
+      return res.status(500).json({ message: "Failed to create chat" });
+    }
+  },
+
+  async searchNetworkColleagues(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const query = req.query as Record<string, unknown>;
+      const organisationId =
+        typeof query.organisationId === "string"
+          ? query.organisationId
+          : undefined;
+      const q = typeof query.q === "string" ? query.q : undefined;
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId is required" });
+      }
+
+      const result = await NetworkChatService.searchNetworkColleagues({
+        requesterUserId: userId,
+        requesterOrgId: organisationId,
+        query: q,
+      });
+
+      return res.status(200).json(result);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Search network colleagues failed", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to search network colleagues" });
+    }
+  },
+
+  async createNetworkDirectChat(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const body = getObjectBody(req);
+      const organisationId =
+        typeof body.organisationId === "string"
+          ? body.organisationId
+          : undefined;
+      const otherUserId =
+        typeof body.otherUserId === "string" ? body.otherUserId : undefined;
+      const otherOrganisationId =
+        typeof body.otherOrganisationId === "string"
+          ? body.otherOrganisationId
+          : undefined;
+
+      if (!userId || !organisationId || !otherUserId || !otherOrganisationId) {
+        return res.status(400).json({ message: "Invalid payload" });
+      }
+
+      const session = await NetworkChatService.createNetworkDirectChat({
+        requesterUserId: userId,
+        requesterOrgId: organisationId,
+        otherUserId,
+        otherOrgId: otherOrganisationId,
+      });
+
+      return res.status(201).json(session);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Create network direct chat failed", err);
       return res.status(500).json({ message: "Failed to create chat" });
     }
   },

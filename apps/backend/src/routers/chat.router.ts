@@ -46,6 +46,14 @@ chatRouter.post("/pms/org/group", authorizeCognito, (req, res) =>
   ChatController.createOrgGroupChat(req, res),
 );
 
+chatRouter.get("/pms/network/colleagues", authorizeCognito, (req, res) =>
+  ChatController.searchNetworkColleagues(req, res),
+);
+
+chatRouter.post("/pms/network/direct", authorizeCognito, (req, res) =>
+  ChatController.createNetworkDirectChat(req, res),
+);
+
 chatRouter.post("/pms/sessions/:sessionId/open", authorizeCognito, (req, res) =>
   ChatController.openChat(req, res),
 );

@@ -23,6 +23,13 @@ jest.mock("src/services/chat.service", () => ({
   },
 }));
 
+jest.mock("src/services/networkChat.service", () => ({
+  NetworkChatService: {
+    searchNetworkColleagues: jest.fn(),
+    createNetworkDirectChat: jest.fn(),
+  },
+}));
+
 jest.mock("src/services/sharedChatEntity.service", () => ({
   SharedChatEntityService: {},
 }));
@@ -44,12 +51,14 @@ jest.mock("src/models/chatSession", () => ({
 
 import { ChatController } from "src/controllers/app/chat.controller";
 import { ChatService, ChatServiceError } from "src/services/chat.service";
+import { NetworkChatService } from "src/services/networkChat.service";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { prisma } from "src/config/prisma";
 import ChatSessionModel from "src/models/chatSession";
 
 const svc = ChatService as unknown as Record<string, jest.Mock>;
+const networkSvc = NetworkChatService as unknown as Record<string, jest.Mock>;
 const getByProviderUserId =
   AuthUserMobileService.getByProviderUserId as jest.Mock;
 const readPg = isReadFromPostgres as jest.Mock;
@@ -214,6 +223,131 @@ describe("ChatController.createOrgDirectChat", () => {
     const res = makeRes();
     await ChatController.createOrgDirectChat(
       makeReq({ body: { organisationId: "o1", otherUserId: "u2" } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe("ChatController.searchNetworkColleagues", () => {
+  it("returns 401 when unauthenticated", async () => {
+    const res = makeRes();
+    await ChatController.searchNetworkColleagues(
+      makeReq({ userId: undefined }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it("returns 400 when organisationId is missing", async () => {
+    const res = makeRes();
+    await ChatController.searchNetworkColleagues(
+      makeReq({ query: { q: "jane" } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("returns 200 with the colleagues", async () => {
+    networkSvc.searchNetworkColleagues.mockResolvedValue({ colleagues: [] });
+    const res = makeRes();
+    await ChatController.searchNetworkColleagues(
+      makeReq({ query: { organisationId: "o1", q: "jane" } }),
+      res,
+    );
+    expect(networkSvc.searchNetworkColleagues).toHaveBeenCalledWith({
+      requesterUserId: "u1",
+      requesterOrgId: "o1",
+      query: "jane",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ colleagues: [] });
+  });
+
+  it("maps a ChatServiceError", async () => {
+    networkSvc.searchNetworkColleagues.mockRejectedValue(
+      new ChatServiceError("disabled", 403),
+    );
+    const res = makeRes();
+    await ChatController.searchNetworkColleagues(
+      makeReq({ query: { organisationId: "o1" } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it("returns 500 on an unexpected error", async () => {
+    networkSvc.searchNetworkColleagues.mockRejectedValue(new Error("boom"));
+    const res = makeRes();
+    await ChatController.searchNetworkColleagues(
+      makeReq({ query: { organisationId: "o1" } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe("ChatController.createNetworkDirectChat", () => {
+  it("returns 400 on an invalid payload", async () => {
+    const res = makeRes();
+    await ChatController.createNetworkDirectChat(
+      makeReq({ body: { organisationId: "o1", otherUserId: "u2" } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("returns 201 with the session", async () => {
+    networkSvc.createNetworkDirectChat.mockResolvedValue({ id: "n1" });
+    const res = makeRes();
+    await ChatController.createNetworkDirectChat(
+      makeReq({
+        body: {
+          organisationId: "o1",
+          otherUserId: "u2",
+          otherOrganisationId: "o2",
+        },
+      }),
+      res,
+    );
+    expect(networkSvc.createNetworkDirectChat).toHaveBeenCalledWith({
+      requesterUserId: "u1",
+      requesterOrgId: "o1",
+      otherUserId: "u2",
+      otherOrgId: "o2",
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it("maps a ChatServiceError", async () => {
+    networkSvc.createNetworkDirectChat.mockRejectedValue(
+      new ChatServiceError("No", 403),
+    );
+    const res = makeRes();
+    await ChatController.createNetworkDirectChat(
+      makeReq({
+        body: {
+          organisationId: "o1",
+          otherUserId: "u2",
+          otherOrganisationId: "o2",
+        },
+      }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it("returns 500 on an unexpected error", async () => {
+    networkSvc.createNetworkDirectChat.mockRejectedValue(new Error("boom"));
+    const res = makeRes();
+    await ChatController.createNetworkDirectChat(
+      makeReq({
+        body: {
+          organisationId: "o1",
+          otherUserId: "u2",
+          otherOrganisationId: "o2",
+        },
+      }),
       res,
     );
     expect(res.status).toHaveBeenCalledWith(500);
