@@ -649,6 +649,7 @@ const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
       online={isCounterpartOnline(channel, currentUserId)}
       group={scope === 'groups'}
       viaApp={scope === 'clients'}
+      network={Boolean((channel?.data as Record<string, unknown> | undefined)?.network)}
       muted={muted}
       active={previewProps.active}
       onClick={(event) => {
@@ -1516,7 +1517,10 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         );
         const chan = queried[0] ?? client.channel('team', channelId);
         await chan.watch();
-        await chan.update({ chatCategory: 'colleagues' } as Record<string, unknown>, {});
+        await chan.update(
+          { chatCategory: 'colleagues', network: true } as Record<string, unknown>,
+          {}
+        );
         setIsChannelSelected(true);
         setShowEmptyPlaceholder(false);
         onChannelSelect?.(chan);
