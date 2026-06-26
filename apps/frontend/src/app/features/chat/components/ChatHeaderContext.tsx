@@ -1,6 +1,7 @@
 import { LuShieldAlert, LuCalendar } from 'react-icons/lu';
 import type { Appointment } from '@yosemite-crew/types';
 import Text from '@/app/ui/Text';
+import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 
 /**
  * Clinical context rendered under the chat header for a pet-parent (appointment)
@@ -74,14 +75,7 @@ export function ChatHeaderContext({
           </div>
           <div className="flex flex-wrap gap-2">
             {APPT_ACTIONS.map((a) => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => onAction(a)}
-                className="rounded-full border border-text-primary bg-neutral-0 px-4 py-[11px] text-body-3-emphasis text-text-primary transition-all duration-300 ease-in-out hover:border-text-brand hover:text-text-brand"
-              >
-                {a}
-              </button>
+              <Secondary key={a} text={a} onClick={() => onAction(a)} />
             ))}
           </div>
         </div>
