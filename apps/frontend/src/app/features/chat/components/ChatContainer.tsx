@@ -1957,4 +1957,18 @@ const ProtectedChatContainer = () => {
   );
 };
 
+export {
+  normalizeName,
+  getSessionIdFromChannel,
+  findSessionByStoredId,
+  matchesDirectSession,
+  matchesGroupSession,
+  matchesChannelId,
+  getChannelDisplayInfo,
+  resolveChannelScope,
+  formatRowTime,
+  isCounterpartOnline,
+  formatClosedTime,
+};
+
 export default ProtectedChatContainer;
