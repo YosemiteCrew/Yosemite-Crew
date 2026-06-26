@@ -520,11 +520,7 @@ const ChannelHeaderWithCounterpart: FC<{
       router.push('/forms');
       return;
     }
-    router.push(
-      appointmentId
-        ? `/appointments/${appointmentId}/workspace?action=${encodeURIComponent(action)}`
-        : '/appointments'
-    );
+    router.push(appointmentId ? `/appointments/${appointmentId}/workspace` : '/appointments');
   };
 
   return (
@@ -1068,23 +1064,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         const storedGroupId = (chan.data as any)?.groupId;
         const storedDirectId = (chan.data as any)?.directId;
 
-        console.log(
-          'Resolving group ID for channel:',
-          chan.id,
-          'cid:',
-          chan.cid,
-          'org:',
-          primaryOrgId
-        );
-        console.log(
-          'Stored IDs in channel data - groupId:',
-          storedGroupId,
-          'directId:',
-          storedDirectId
-        );
-
         const sessions = await listOrgChatSessions(primaryOrgId);
-        console.log('Sessions from API:', sessions);
 
         // Get channel members for matching
         const channelMemberIds = chan.state?.members ? Object.keys(chan.state.members) : [];
@@ -1093,12 +1073,10 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         // First, check if the stored groupId/directId matches any session _id
         const matchedGroup = findSessionByStoredId(sessions, storedGroupId);
         if (matchedGroup) {
-          console.log('Matched by stored groupId:', matchedGroup);
           return matchedGroup._id;
         }
         const matchedDirect = findSessionByStoredId(sessions, storedDirectId);
         if (matchedDirect) {
-          console.log('Matched by stored directId:', matchedDirect);
           return matchedDirect._id;
         }
 
@@ -1109,17 +1087,10 @@ export const ChatContainer: FC<ChatContainerProps> = ({
           if (matchesGroupSession(s, channelMemberIds, channelTitle)) return true;
           return false;
         });
-        console.log('Matched session:', matched);
         if (matched?._id) {
           return matched._id;
         }
 
-        console.warn(
-          'No matching session found for channel. Channel members:',
-          channelMemberIds,
-          'Channel title:',
-          channelTitle
-        );
         // Fallback to channel data if no session found
         return getSessionIdFromChannel(chan);
       } catch (err) {
@@ -1665,9 +1636,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
       if (groupModalChannel) {
         try {
           await groupModalChannel.hide?.();
-        } catch (error_) {
+        } catch {
           // Channel might already be deleted on Stream Chat side, ignore this error
-          console.log('Channel hide failed (likely already deleted):', error_);
         }
       }
       setGroupModalOpen(false);
