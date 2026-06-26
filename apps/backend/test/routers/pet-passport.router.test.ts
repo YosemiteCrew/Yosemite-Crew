@@ -8,6 +8,8 @@ const PetPassportController = {
   recordImmunization: jest.fn(),
   recordParasiteTreatment: jest.fn(),
   recordRabiesTitration: jest.fn(),
+  attestRecord: jest.fn(),
+  revokeRecord: jest.fn(),
   issuePassport: jest.fn(),
   getPassport: jest.fn(),
   getApplePass: jest.fn(),
@@ -68,6 +70,15 @@ describe("pet-passport.router", () => {
     expect(findRoute(`${BASE}/treatments`, "post")?.stack).toHaveLength(4);
     expect(findRoute(`${BASE}/titrations`, "post")?.stack).toHaveLength(4);
     expect(requirePermission).toHaveBeenCalledWith("vaccinations:edit:any");
+  });
+
+  it("registers the attest + revoke routes (post), org-guarded", () => {
+    expect(
+      findRoute(`${BASE}/records/:recordId/attest`, "post")?.stack,
+    ).toHaveLength(4);
+    expect(
+      findRoute(`${BASE}/records/:recordId/revoke`, "post")?.stack,
+    ).toHaveLength(4);
   });
 
   it("no longer exposes the legacy list (get) routes", () => {

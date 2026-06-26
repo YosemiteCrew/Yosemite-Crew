@@ -8,7 +8,11 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 jest.mock("src/config/prisma", () => ({
   prisma: {
     encounter: { findFirst: jest.fn() },
-    clinicalArtifact: { create: jest.fn() },
+    clinicalArtifact: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
   },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
@@ -17,7 +21,11 @@ jest.mock("src/services/audit-trail.service", () => ({
 
 const prismaMock = prisma as unknown as {
   encounter: { findFirst: jest.Mock };
-  clinicalArtifact: { create: jest.Mock };
+  clinicalArtifact: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    update: jest.Mock;
+  };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 
@@ -62,6 +70,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   prismaMock.encounter.findFirst.mockResolvedValue({ id: "enc-1" });
   prismaMock.clinicalArtifact.create.mockImplementation(echoArtifact);
+  prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
+    id: "art-1",
+    status: "DRAFT",
+  });
+  prismaMock.clinicalArtifact.update.mockResolvedValue({ id: "art-1" });
 });
 
 describe("PetClinicalRecordService.recordImmunization", () => {
@@ -233,5 +246,83 @@ describe("PetClinicalRecordService.recordRabiesTitration", () => {
 
   it("surfaces the error type for callers", () => {
     expect(new PetClinicalRecordError("x", 400)).toBeInstanceOf(Error);
+  });
+});
+
+describe("PetClinicalRecordService.attestRecord", () => {
+  const args = {
+    artifactId: "art-1",
+    patientId: "pat-1",
+    organisationId: "org-1",
+    actor: CTX.actor,
+    signatoryName: "Dr Vet",
+    signatoryLicence: "RCVS-1",
+  };
+
+  it("marks a draft record SIGNED, upserts the attestation and audits", async () => {
+    const result = await PetClinicalRecordService.attestRecord(args);
+    expect(result.status).toBe("SIGNED");
+    expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "SIGNED" }),
+      }),
+    );
+    expect(auditMock).toHaveBeenCalled();
+  });
+
+  it("404s an unknown or out-of-org record", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue(null);
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("409s a record that is already attested", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
+      id: "art-1",
+      status: "SIGNED",
+    });
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("attests with a null actor and no explicit signatory", async () => {
+    await PetClinicalRecordService.attestRecord({
+      artifactId: "art-1",
+      patientId: "pat-1",
+      organisationId: "org-1",
+      actor: { type: "PMS_USER", id: null },
+    });
+    expect(prismaMock.clinicalArtifact.update).toHaveBeenCalled();
+  });
+});
+
+describe("PetClinicalRecordService.revokeRecord", () => {
+  const base = {
+    artifactId: "art-1",
+    organisationId: "org-1",
+  };
+
+  it("voids a record with and without a reason", async () => {
+    const withReason = await PetClinicalRecordService.revokeRecord({
+      ...base,
+      reason: "error",
+    });
+    expect(withReason.status).toBe("VOID");
+    expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "VOID" }),
+      }),
+    );
+    const withoutReason = await PetClinicalRecordService.revokeRecord(base);
+    expect(withoutReason.status).toBe("VOID");
+  });
+
+  it("404s an unknown record", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue(null);
+    await expect(
+      PetClinicalRecordService.revokeRecord(base),
+    ).rejects.toMatchObject({ statusCode: 404 });
   });
 });

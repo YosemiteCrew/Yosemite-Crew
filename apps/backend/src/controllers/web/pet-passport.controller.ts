@@ -70,6 +70,17 @@ const TitrationBodySchema = z.object({
   reportUrl: z.string().max(2048).optional(),
 });
 
+const RecordParamsSchema = ParamsSchema.extend({ recordId: IdSchema });
+
+const AttestBodySchema = z.object({
+  signatoryName: z.string().max(200).optional(),
+  signatoryLicence: z.string().max(100).optional(),
+});
+
+const RevokeBodySchema = z.object({
+  reason: z.string().max(500).optional(),
+});
+
 const permissionsLoaded = (req: OrgRequest, res: Response): boolean => {
   if (req.userPermissions) return true;
   res.status(500).json({
@@ -186,6 +197,55 @@ export const PetPassportController = {
       return res.status(201).json(record);
     } catch (err) {
       return handleError(err, res, "Rabies titration recording failed");
+    }
+  },
+
+  attestRecord: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = RecordParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = AttestBodySchema.safeParse(req.body ?? {});
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const result = await PetClinicalRecordService.attestRecord({
+        artifactId: params.data.recordId,
+        patientId: params.data.patientId,
+        organisationId: params.data.organisationId,
+        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        signatoryName: body.data.signatoryName,
+        signatoryLicence: body.data.signatoryLicence,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return handleError(err, res, "Clinical record attestation failed");
+    }
+  },
+
+  revokeRecord: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = RecordParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = RevokeBodySchema.safeParse(req.body ?? {});
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const result = await PetClinicalRecordService.revokeRecord({
+        artifactId: params.data.recordId,
+        organisationId: params.data.organisationId,
+        reason: body.data.reason,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return handleError(err, res, "Clinical record revocation failed");
     }
   },
 

@@ -239,7 +239,10 @@ const assemblePassport = async (
     select: { id: true },
   });
   const encounterIds = encounters.map((e) => e.id);
-  const artifactWhere = { artifact: { encounterId: { in: encounterIds } } };
+  // Only vet-attested (SIGNED) records count toward the passport.
+  const artifactWhere = {
+    artifact: { encounterId: { in: encounterIds }, status: "SIGNED" as const },
+  };
 
   const [
     immunizationRows,

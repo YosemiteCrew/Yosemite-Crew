@@ -269,4 +269,104 @@ export const PetClinicalRecordService = {
       createdAt: row.createdAt.toISOString(),
     };
   },
+
+  // A verified vet attests a recorded clinical artifact, which flips it to SIGNED
+  // (the state the passport surfaces). The Documenso e-signature over the rendered
+  // record hardens this later; for now the authenticated vet action is the
+  // attestation and the signatory + licence are captured on the attestation row.
+  async attestRecord(params: {
+    artifactId: string;
+    patientId: string;
+    organisationId: string;
+    actor: Actor;
+    signatoryName?: string;
+    signatoryLicence?: string;
+  }): Promise<{ artifactId: string; status: "SIGNED"; signedAt: string }> {
+    const { artifactId, patientId, organisationId, actor } = params;
+    const artifact = await prisma.clinicalArtifact.findFirst({
+      where: {
+        id: artifactId,
+        organisationId,
+        kind: {
+          in: ["IMMUNIZATION", "RABIES_TITRATION", "PARASITE_TREATMENT"],
+        },
+      },
+      select: { id: true, status: true },
+    });
+    if (!artifact) {
+      throw new PetClinicalRecordError("Clinical record not found.", 404);
+    }
+    if (artifact.status === "SIGNED") {
+      throw new PetClinicalRecordError(
+        "Clinical record is already attested.",
+        409,
+      );
+    }
+    const signedAt = new Date();
+    const attestationData = {
+      primarySource: true,
+      signatoryUserId: actor.id ?? null,
+      signatoryName: params.signatoryName ?? null,
+      signatoryLicence: params.signatoryLicence ?? null,
+      signingStatus: "SIGNED",
+      signedAt,
+      revokedAt: null,
+      revokedReason: null,
+    };
+    await prisma.clinicalArtifact.update({
+      where: { id: artifactId },
+      data: {
+        status: "SIGNED",
+        signedBy: actor.id ?? null,
+        signedAt,
+        attestation: {
+          upsert: { create: attestationData, update: attestationData },
+        },
+      },
+    });
+    await audit(
+      { patientId, organisationId, encounterId: "", actor },
+      "VACCINATION_RECORDED",
+      artifactId,
+      { attested: true },
+    );
+    return { artifactId, status: "SIGNED", signedAt: signedAt.toISOString() };
+  },
+
+  // Revoke an attestation (error, lapsed, fraud). The artifact drops out of the
+  // passport and the wallet / public page reflect it on next read.
+  async revokeRecord(params: {
+    artifactId: string;
+    organisationId: string;
+    reason?: string;
+  }): Promise<{ artifactId: string; status: "VOID" }> {
+    const { artifactId, organisationId } = params;
+    const artifact = await prisma.clinicalArtifact.findFirst({
+      where: {
+        id: artifactId,
+        organisationId,
+        kind: {
+          in: ["IMMUNIZATION", "RABIES_TITRATION", "PARASITE_TREATMENT"],
+        },
+      },
+      select: { id: true },
+    });
+    if (!artifact) {
+      throw new PetClinicalRecordError("Clinical record not found.", 404);
+    }
+    await prisma.clinicalArtifact.update({
+      where: { id: artifactId },
+      data: {
+        status: "VOID",
+        attestation: {
+          update: {
+            signingStatus: "REVOKED",
+            revokedAt: new Date(),
+            revokedReason: params.reason ?? null,
+          },
+        },
+      },
+    });
+    return { artifactId, status: "VOID" };
+  },
 };

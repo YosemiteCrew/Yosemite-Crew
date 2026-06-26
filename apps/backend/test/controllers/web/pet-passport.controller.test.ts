@@ -15,6 +15,8 @@ jest.mock("../../../src/services/pet-clinical-records.service", () => {
       recordImmunization: jest.fn(),
       recordParasiteTreatment: jest.fn(),
       recordRabiesTitration: jest.fn(),
+      attestRecord: jest.fn(),
+      revokeRecord: jest.fn(),
     },
   };
 });
@@ -247,6 +249,99 @@ describe("PetPassportController", () => {
         authed({ body }),
         res as Response,
       );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("attestRecord", () => {
+    const recordParams = { ...orgParams, recordId: "art-1" };
+    const recAuthed = (extra: Record<string, unknown> = {}) =>
+      ({
+        params: recordParams,
+        userPermissions: ["passport:edit:any"],
+        userId: "user-1",
+        ...extra,
+      }) as unknown as Request;
+
+    it("200s attesting a record with the signatory", async () => {
+      clinical.attestRecord.mockResolvedValue({
+        artifactId: "art-1",
+        status: "SIGNED",
+      } as never);
+      await PetPassportController.attestRecord(
+        recAuthed({ body: { signatoryName: "Dr Vet" } }),
+        res as Response,
+      );
+      expect(clinical.attestRecord).toHaveBeenCalledWith(
+        expect.objectContaining({ artifactId: "art-1", patientId: "pat-1" }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("500s without permissions, 400s bad params, maps a service error", async () => {
+      await PetPassportController.attestRecord(
+        { params: recordParams } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      await PetPassportController.attestRecord(
+        recAuthed({ params: { ...recordParams, recordId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      await PetPassportController.attestRecord(
+        recAuthed({ body: { signatoryName: 123 } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      clinical.attestRecord.mockRejectedValue(
+        new PetClinicalRecordError("conflict", 409),
+      );
+      await PetPassportController.attestRecord(recAuthed({}), res as Response);
+      expect(statusMock).toHaveBeenCalledWith(409);
+    });
+  });
+
+  describe("revokeRecord", () => {
+    const recordParams = { ...orgParams, recordId: "art-1" };
+    const recAuthed = (extra: Record<string, unknown> = {}) =>
+      ({
+        params: recordParams,
+        userPermissions: ["passport:edit:any"],
+        userId: "user-1",
+        ...extra,
+      }) as unknown as Request;
+
+    it("200s revoking a record", async () => {
+      clinical.revokeRecord.mockResolvedValue({
+        artifactId: "art-1",
+        status: "VOID",
+      } as never);
+      await PetPassportController.revokeRecord(
+        recAuthed({ body: { reason: "error" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("500s without permissions, 400s bad params, else 500", async () => {
+      await PetPassportController.revokeRecord(
+        { params: recordParams } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      await PetPassportController.revokeRecord(
+        recAuthed({ params: { ...recordParams, recordId: "" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      await PetPassportController.revokeRecord(
+        recAuthed({ body: { reason: 123 } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      clinical.revokeRecord.mockRejectedValue(new Error("boom"));
+      await PetPassportController.revokeRecord(recAuthed({}), res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
     });
   });
