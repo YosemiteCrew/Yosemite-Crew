@@ -392,8 +392,18 @@ describe("ChatController.closeSession", () => {
       makeReq({ params: { sessionId: "s1" } }),
       res,
     );
-    expect(svc.closeSession).toHaveBeenCalledWith("s1");
+    expect(svc.closeSession).toHaveBeenCalledWith("s1", "u1");
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns 400 when the actor is not authenticated", async () => {
+    const res = makeRes();
+    await ChatController.closeSession(
+      makeReq({ params: { sessionId: "s1" }, userId: undefined }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(svc.closeSession).not.toHaveBeenCalled();
   });
 
   it("maps a ChatServiceError", async () => {

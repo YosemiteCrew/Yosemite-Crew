@@ -301,12 +301,13 @@ export const ChatController = {
 
   async closeSession(req: Request, res: Response) {
     try {
+      const userId = resolveUserIdFromRequest(req);
       const { sessionId } = req.params;
-      if (!sessionId) {
+      if (!userId || !sessionId) {
         return res.status(400).json({ message: "sessionId required" });
       }
 
-      await ChatService.closeSession(sessionId);
+      await ChatService.closeSession(sessionId, userId);
       return res.status(200).json({ message: "Chat closed successfully" });
     } catch (err) {
       if (err instanceof ChatServiceError) {

@@ -8,6 +8,7 @@ import ChatSessionModel, {
   ChatSessionType,
 } from "../models/chatSession";
 import AppointmentModel, { AppointmentDocument } from "../models/appointment";
+import UserOrganizationModel from "../models/user-organization";
 import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
 import {
@@ -243,6 +244,72 @@ const assertGroupAdminPrisma = (
   session: { type: string; createdBy: string | null; status: string },
   userId: string,
 ): void => assertGroupAdminCore(session, userId);
+
+const isUserInOrg = async (
+  userId: string,
+  organisationId: string,
+): Promise<boolean> => {
+  if (isReadFromPostgres()) {
+    const mapping = await prisma.userOrganization.findFirst({
+      where: {
+        practitionerReference: userId,
+        OR: [
+          { organizationReference: organisationId },
+          { organizationReference: `Organization/${organisationId}` },
+        ],
+      },
+    });
+    return Boolean(mapping);
+  }
+
+  const mapping = await UserOrganizationModel.findOne({
+    practitionerReference: userId,
+    $or: [
+      { organizationReference: organisationId },
+      { organizationReference: `Organization/${organisationId}` },
+    ],
+  });
+  return Boolean(mapping);
+};
+
+/**
+ * Assert every supplied user is associated with the organisation. Stops a member
+ * of one clinic from creating chats under another org, or pulling users who do
+ * not belong to the org into a channel. Mirrors the rbac membership probe.
+ */
+const assertUsersInOrg = async (
+  userIds: string[],
+  organisationId: string,
+): Promise<void> => {
+  for (const userId of userIds) {
+    const ok = await isUserInOrg(userId, organisationId);
+    if (!ok) {
+      throw new ChatServiceError(
+        "User is not associated with this organisation",
+        403,
+      );
+    }
+  }
+};
+
+const assertCanCloseSession = (
+  session: { type: string; createdBy?: string | null; members: string[] },
+  userId: string,
+) => {
+  if (session.type === "ORG_GROUP") {
+    if (session.createdBy !== userId) {
+      throw new ChatServiceError(
+        "Only the group owner can close this chat",
+        403,
+      );
+    }
+    return;
+  }
+  if (!session.members.includes(userId)) {
+    throw new ChatServiceError("User is not a member of this chat", 403);
+  }
+};
+
 export const ChatService = {
   /* ------------------------------ AUTH ----------------------------------- */
 
@@ -450,6 +517,8 @@ export const ChatService = {
 
     const members = [userA, userB].sort((a, b) => a.localeCompare(b));
 
+    await assertUsersInOrg(members, organisationId);
+
     const existing = await ChatSessionModel.findOne({
       type: "ORG_DIRECT",
       organisationId,
@@ -519,6 +588,8 @@ export const ChatService = {
     if (members.length < 2) {
       throw new ChatServiceError("Group chat needs at least 2 members");
     }
+
+    await assertUsersInOrg(members, organisationId);
 
     // Upsert users in Stream
     for (const userId of members) {
@@ -630,12 +701,14 @@ export const ChatService = {
 
   /* ------------------------------- CLOSE CHAT ----------------------------- */
 
-  async closeSession(sessionId: string) {
+  async closeSession(sessionId: string, actorUserId: string) {
     if (isReadFromPostgres()) {
       const session = await prisma.chatSession.findFirst({
         where: { id: sessionId },
       });
       if (!session) return;
+
+      assertCanCloseSession(session, actorUserId);
 
       const channel = streamServer.channel(
         getStreamChannelType(session.type as ChatSessionType),
@@ -663,6 +736,8 @@ export const ChatService = {
 
     const session = await ChatSessionModel.findById(sessionId);
     if (!session) return;
+
+    assertCanCloseSession(session, actorUserId);
 
     const channel = streamServer.channel(
       getStreamChannelType(session.type),
@@ -708,6 +783,8 @@ export const ChatService = {
       if (newMembers.length === 0)
         return session as unknown as ChatSessionDocument;
 
+      await assertUsersInOrg(newMembers, session.organisationId);
+
       // Upsert users in Stream
       for (const userId of newMembers) {
         const userProfile = await UserProfileService.getByUserId(
@@ -748,6 +825,8 @@ export const ChatService = {
     const newMembers = memberIds.filter((id) => !session.members.includes(id));
 
     if (newMembers.length === 0) return session;
+
+    await assertUsersInOrg(newMembers, session.organisationId);
 
     // Upsert users in Stream
     for (const userId of newMembers) {
