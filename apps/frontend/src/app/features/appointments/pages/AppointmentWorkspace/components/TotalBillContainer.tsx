@@ -6,7 +6,8 @@ import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContai
 import Search from '@/app/ui/inputs/Search';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import type { BillableKind, InvoiceLineItem } from '@/app/features/appointments/types/workspace';
-import { currencySymbol, formatMoney } from '@/app/lib/money';
+import { formatMoney } from '@/app/lib/money';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 export type BillableSearchItem = Omit<InvoiceLineItem, 'id'> & { kind?: BillableKind };
 
@@ -32,6 +33,18 @@ const KindPill = ({ kind }: { kind: BillableKind }) => (
   >
     {KIND_LABELS[kind]}
   </span>
+);
+
+const InfoTooltipIcon = ({ label, content }: { label: string; content: React.ReactNode }) => (
+  <GlassTooltip content={content} side="bottom" maxWidth={320}>
+    <button
+      type="button"
+      aria-label={label}
+      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-pill-warning-text transition-colors hover:bg-pill-warning-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pill-warning-border"
+    >
+      <LuInfo aria-hidden="true" size={14} />
+    </button>
+  </GlassTooltip>
 );
 
 type TotalBillContainerProps = {
@@ -96,7 +109,7 @@ const buildTotals = (
  * column is the only fr track. Every other column is a fixed px width.
  */
 const ROW_GRID =
-  'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_110px_72px_110px_110px_120px_36px] sm:items-center';
+  'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_110px_72px_110px_150px_120px_36px] sm:items-center';
 
 /**
  * Each heading's text starts exactly where its value-box text starts: the value
@@ -157,9 +170,43 @@ const QtyInput = ({
   </div>
 );
 
-/** Editable per-line discount box (dollars) with leading "− $"; re-derives amount.
- *  Honours the catalog's per-line max-discount ceiling: the input is capped and a
- *  "Max $X" hint is shown so the user knows the limit. */
+const formatPercent = (value: number): number => Number(value.toFixed(2));
+
+const getDiscountPercent = (item: InvoiceLineItem): number => {
+  if (item.grossCents <= 0) return 0;
+  return (item.discountCents / item.grossCents) * 100;
+};
+
+const getMaxDiscountPercent = (item: InvoiceLineItem): number | undefined => {
+  if (item.maxDiscountPercent != null) return item.maxDiscountPercent;
+  if (item.maxDiscountCents == null || item.grossCents <= 0) return undefined;
+  return (item.maxDiscountCents / item.grossCents) * 100;
+};
+
+const getPackageTooltipContent = (item: InvoiceLineItem, currency: string) => {
+  const breakdown = item.breakdown ?? [];
+  if (breakdown.length === 0) return null;
+  return (
+    <div className="flex min-w-64 flex-col gap-2 text-left">
+      <span className="text-caption-1 font-semibold text-neutral-0">{item.name} breakdown</span>
+      <ul className="flex flex-col gap-1.5">
+        {breakdown.map((row) => (
+          <li key={row.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-caption-2">
+            <span className="min-w-0">
+              <span className="block truncate text-neutral-0">{row.name}</span>
+              <span className="text-neutral-200">x{row.qty}</span>
+            </span>
+            <span className="text-right font-medium text-neutral-0">
+              {formatCents(row.amountCents, currency)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+/** Editable per-line discount as a percentage; the money value is read-only. */
 const DiscountInput = ({
   item,
   onUpdateItem,
@@ -167,38 +214,53 @@ const DiscountInput = ({
   item: InvoiceLineItem;
   onUpdateItem: (id: string, patch: Partial<InvoiceLineItem>) => void;
 }) => {
-  // Use the org currency symbol (not a hardcoded "$") so discounts read correctly for any org.
-  const symbol = currencySymbol(useCurrency());
-  const maxDollars = item.maxDiscountCents == null ? undefined : item.maxDiscountCents / 100;
+  const currency = useCurrency();
+  const maxPercent = getMaxDiscountPercent(item);
+  const discountPercent = getDiscountPercent(item);
   return (
-    <div className="relative">
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-body-4 text-pill-success-text"
-      >
-        − {symbol}
-      </span>
-      <input
-        type="number"
-        min={0}
-        max={maxDollars}
-        step={0.01}
-        value={item.discountCents / 100}
-        aria-label={`Discount for ${item.name}`}
-        onChange={(e) => {
-          const dollars = Math.max(0, Number.parseFloat(e.target.value) || 0);
-          const capped = maxDollars == null ? dollars : Math.min(dollars, maxDollars);
-          onUpdateItem(item.id, { discountCents: Math.round(capped * 100) });
-        }}
-        className={`${EDITABLE_BOX} pl-12 text-pill-success-text`}
-      />
-      {maxDollars != null && maxDollars > 0 && (
-        <span className="pointer-events-none absolute -bottom-4 left-3 text-caption-2 text-text-secondary">
-          Max {symbol}
-          {maxDollars.toFixed(2)}
+    <div className="flex w-22 flex-col items-center gap-1">
+      <span className="relative inline-flex w-22 items-center">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-body-4 text-pill-success-text"
+        >
+          %
         </span>
-      )}
+        <input
+          type="number"
+          min={0}
+          max={maxPercent}
+          step={0.01}
+          value={formatPercent(discountPercent)}
+          aria-label={`Discount percent for ${item.name}`}
+          onChange={(e) => {
+            const percent = Math.max(0, Number.parseFloat(e.target.value) || 0);
+            const capped = maxPercent == null ? percent : Math.min(percent, maxPercent);
+            onUpdateItem(item.id, { discountCents: Math.round((item.grossCents * capped) / 100) });
+          }}
+          className={`${EDITABLE_BOX} pr-7 pl-3 text-right text-pill-success-text`}
+        />
+      </span>
+      {maxPercent != null && maxPercent > 0 ? (
+        <span className="w-max max-w-40 text-center text-caption-2 text-text-secondary">
+          Max discount {formatPercent(maxPercent)}% /{' '}
+          {formatCents(Math.round((item.grossCents * maxPercent) / 100), currency)}
+        </span>
+      ) : null}
     </div>
+  );
+};
+
+const AmountCell = ({ item, currency }: { item: InvoiceLineItem; currency: string }) => {
+  return (
+    <TextCell className="flex-col! items-start! justify-center font-medium">
+      <span>{formatCents(item.amountCents, currency)}</span>
+      <span className="truncate text-caption-2 text-text-secondary">
+        <span className="text-pill-success-text">
+          − {formatCents(item.discountCents, currency)}
+        </span>
+      </span>
+    </TextCell>
   );
 };
 
@@ -214,19 +276,26 @@ const BillRow = ({
   onRemoveItem: (id: string) => void;
 }) => {
   const currency = useCurrency();
+  const packageTooltipContent = getPackageTooltipContent(item, currency);
   // Rows with a max-discount hint need extra bottom space so the absolutely
   // positioned "Max $X" caption doesn't collide with the next row.
   const hasMaxHint = item.maxDiscountCents != null && item.maxDiscountCents > 0;
+  const hasDiscountMeta = hasMaxHint || item.discountCents > 0;
   return (
-    <li className={`${ROW_GRID} text-body-4 text-text-primary ${hasMaxHint ? 'pb-4' : ''}`}>
+    <li className={`${ROW_GRID} text-body-4 text-text-primary ${hasDiscountMeta ? 'pb-2' : ''}`}>
       <TextCell className="min-w-0">
         <span className="inline-flex min-w-0 items-center gap-1">
           <span className="truncate">{item.name}</span>
+          {packageTooltipContent && (
+            <InfoTooltipIcon
+              label={`View ${item.name} package breakdown`}
+              content={packageTooltipContent}
+            />
+          )}
           {incomplete && (
-            <LuInfo
-              aria-label="Fill information in previous step"
-              title="Fill information in previous step"
-              className="shrink-0 text-pill-warning-text"
+            <InfoTooltipIcon
+              label="Fill information in previous step"
+              content="Fill prescription information in the Treatment step before finalizing this invoice."
             />
           )}
         </span>
@@ -235,7 +304,7 @@ const BillRow = ({
       <QtyInput item={item} onUpdateItem={onUpdateItem} />
       <TextCell>{formatCents(item.grossCents, currency)}</TextCell>
       <DiscountInput item={item} onUpdateItem={onUpdateItem} />
-      <TextCell className="font-medium">{formatCents(item.amountCents, currency)}</TextCell>
+      <AmountCell item={item} currency={currency} />
       <CircleIconButton
         icon={<LuTrash2 aria-hidden="true" />}
         label={`Remove ${item.name}`}

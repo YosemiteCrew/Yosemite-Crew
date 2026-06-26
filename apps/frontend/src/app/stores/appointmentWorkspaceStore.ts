@@ -66,10 +66,20 @@ const recalcInvoiceLine = (item: InvoiceLineItem): InvoiceLineItem => {
   const grossCents = item.unitPriceCents * item.qty;
   // Discount is bounded by the gross and, when the catalog sets one, the per-line
   // max-discount ceiling — so a manual edit can never exceed the allowed discount.
-  const ceiling =
-    item.maxDiscountCents == null ? grossCents : Math.min(item.maxDiscountCents, grossCents);
+  const percentCeiling =
+    item.maxDiscountPercent == null
+      ? undefined
+      : Math.round((grossCents * item.maxDiscountPercent) / 100);
+  const explicitCeiling = item.maxDiscountCents;
+  const ceiling = Math.min(percentCeiling ?? explicitCeiling ?? grossCents, grossCents);
   const discountCents = Math.min(Math.max(0, item.discountCents), ceiling);
-  return { ...item, grossCents, discountCents, amountCents: grossCents - discountCents };
+  return {
+    ...item,
+    grossCents,
+    discountCents,
+    maxDiscountCents: percentCeiling ?? explicitCeiling,
+    amountCents: grossCents - discountCents,
+  };
 };
 
 /** Bill totals shared by the Total Bill view and the payment-recording action. */

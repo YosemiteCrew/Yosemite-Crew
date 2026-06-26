@@ -683,7 +683,7 @@ describe('appointmentWorkspaceStore', () => {
     expect(clamped.amountCents).toBe(0);
   });
 
-  it('caps a line discount at the per-line max-discount ceiling', () => {
+  it('caps a line discount at the per-line max-discount percent ceiling', () => {
     seed();
     getStore().addInvoiceLineItem(APPT, {
       name: 'Ultrasound scan',
@@ -692,17 +692,27 @@ describe('appointmentWorkspaceStore', () => {
       grossCents: 10000,
       discountCents: 1000,
       amountCents: 9000,
+      maxDiscountPercent: 20,
       maxDiscountCents: 2000,
     });
     const item = getStore().getEncounter(APPT)!.invoiceLineItems[0];
 
-    // Try to discount more than the ceiling — it clamps to maxDiscountCents.
+    // Try to discount more than the ceiling — it clamps to maxDiscountPercent.
     getStore().updateInvoiceLineItem(APPT, item.id, { discountCents: 5000 });
     const capped = getStore()
       .getEncounter(APPT)!
       .invoiceLineItems.find((i) => i.id === item.id)!;
     expect(capped.discountCents).toBe(2000);
     expect(capped.amountCents).toBe(8000);
+
+    getStore().updateInvoiceLineItem(APPT, item.id, { qty: 2, discountCents: 5000 });
+    const resized = getStore()
+      .getEncounter(APPT)!
+      .invoiceLineItems.find((i) => i.id === item.id)!;
+    expect(resized.grossCents).toBe(20000);
+    expect(resized.maxDiscountCents).toBe(4000);
+    expect(resized.discountCents).toBe(4000);
+    expect(resized.amountCents).toBe(16000);
   });
 
   it('records an invoice payment, clearing the bill without creating a synthetic invoice', () => {

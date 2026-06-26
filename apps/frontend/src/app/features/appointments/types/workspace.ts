@@ -304,8 +304,12 @@ export type InvoiceLineItem = {
   grossCents: number;
   discountCents: number;
   amountCents: number;
+  /** Catalog max-discount percent; used as the canonical editable discount ceiling. */
+  maxDiscountPercent?: number;
   /** Per-line discount ceiling in cents (from the catalog max-discount %); caps manual edits. */
   maxDiscountCents?: number;
+  /** Component lines included in a package, shown as read-only package detail in the bill. */
+  breakdown?: LineItemBreakdown[];
 };
 
 export type PastInvoice = {

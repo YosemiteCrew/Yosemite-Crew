@@ -40,8 +40,15 @@ import {
   findOpenAppointmentInvoice,
 } from '@/app/features/billing/services/invoiceService';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
-import { computePackageTotals } from '@/app/features/organization/services/catalogCalculations';
-import type { PackageRevamp, ServiceRevamp } from '@/app/features/organization/types/revamp';
+import {
+  computePackageBreakdownItem,
+  computePackageTotals,
+} from '@/app/features/organization/services/catalogCalculations';
+import type {
+  PackageBreakdownItem,
+  PackageRevamp,
+  ServiceRevamp,
+} from '@/app/features/organization/types/revamp';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import { mapApiItemToInventoryItem } from '@/app/features/inventory/pages/Inventory/utils';
@@ -341,11 +348,24 @@ const toInvoiceCandidate = (
   kind,
 });
 
+const discountCentsFromPercent = (grossCents: number, percent: number): number =>
+  Math.min(grossCents, Math.round((grossCents * percent) / 100));
+
 // Lossless map of a saved Service/Package treatment row into a Total Bill line —
 // preserves unit price AND quantity (unlike toInvoiceCandidate, which collapses to
 // qty 1 / unitPrice=amountCents and would misprice any qty>1 line).
-const serviceLineItemToInvoiceLine = (item: LineItem): Omit<InvoiceLineItem, 'id'> => {
+const serviceLineItemToInvoiceLine = (
+  item: LineItem,
+  catalogServices: ServiceRevamp[],
+  catalogPackages: PackageRevamp[]
+): Omit<InvoiceLineItem, 'id'> => {
   const grossCents = Math.max(0, item.unitPriceCents * item.qty);
+  const catalogService = catalogServices.find((service) => service.id === item.refId);
+  const catalogPackage = catalogPackages.find((pkg) => pkg.id === item.refId);
+  const maxDiscountPercent =
+    item.kind === 'PACKAGE'
+      ? (catalogPackage?.additionalDiscount ?? 0)
+      : (catalogService?.maxDiscount ?? 0);
   return {
     name: item.name,
     unitPriceCents: item.unitPriceCents,
@@ -353,6 +373,9 @@ const serviceLineItemToInvoiceLine = (item: LineItem): Omit<InvoiceLineItem, 'id
     grossCents,
     discountCents: 0,
     amountCents: grossCents,
+    maxDiscountPercent,
+    maxDiscountCents: discountCentsFromPercent(grossCents, maxDiscountPercent),
+    breakdown: item.breakdown,
   };
 };
 
@@ -371,6 +394,17 @@ const prescriptionToInvoiceLine = (rx: PrescriptionItem): Omit<InvoiceLineItem, 
 
 const moneyToCents = (amount: number): number => Math.max(0, Math.round(amount * 100));
 
+const breakdownToInvoiceBreakdown = (item: PackageBreakdownItem) => {
+  const { net } = computePackageBreakdownItem(item);
+  return {
+    id: item.id,
+    name: item.name,
+    qty: item.quantity,
+    instructions: item.type,
+    amountCents: moneyToCents(net),
+  };
+};
+
 /**
  * Build a candidate that surfaces the catalog discount on the line: gross is the
  * full price, the default-discount % is applied as the starting line discount, and
@@ -381,7 +415,8 @@ const toDiscountedCandidate = (
   grossDollars: number,
   defaultDiscountPercent: number,
   maxDiscountPercent: number,
-  kind: BillableKind
+  kind: BillableKind,
+  breakdown?: InvoiceLineItem['breakdown']
 ): BillableCandidate => {
   const grossCents = moneyToCents(grossDollars);
   const discountCents = Math.min(
@@ -399,7 +434,9 @@ const toDiscountedCandidate = (
     grossCents,
     discountCents,
     amountCents: grossCents - discountCents,
+    maxDiscountPercent,
     maxDiscountCents,
+    breakdown,
     kind,
   };
 };
@@ -420,7 +457,8 @@ const packageToInvoiceCandidate = (pkg: PackageRevamp) => {
     totalCost,
     0,
     pkg.additionalDiscount ?? 0,
-    'PACKAGE_COMPONENT'
+    'PACKAGE_COMPONENT',
+    pkg.breakdown.map(breakdownToInvoiceBreakdown)
   );
 };
 
@@ -1133,14 +1171,14 @@ const InvoiceStep = ({
     () => [
       ...encounter.services
         .filter((item) => !item.billed && item.amountCents > 0)
-        .map(serviceLineItemToInvoiceLine),
+        .map((item) => serviceLineItemToInvoiceLine(item, catalogServices, catalogPackages)),
       ...encounter.prescription
         .filter(
           (item) => !item.billed && item.fulfillment === 'IN_HOUSE' && (item.priceCents ?? 0) > 0
         )
         .map(prescriptionToInvoiceLine),
     ],
-    [encounter.services, encounter.prescription]
+    [catalogPackages, catalogServices, encounter.services, encounter.prescription]
   );
 
   // Load inventory so drugs/consumables are searchable in the bill builder.
