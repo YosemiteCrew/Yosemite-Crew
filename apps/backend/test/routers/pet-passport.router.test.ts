@@ -5,6 +5,9 @@ const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const PetPassportController = {
+  recordImmunization: jest.fn(),
+  recordParasiteTreatment: jest.fn(),
+  recordRabiesTitration: jest.fn(),
   issuePassport: jest.fn(),
   getPassport: jest.fn(),
   getApplePass: jest.fn(),
@@ -60,9 +63,15 @@ describe("pet-passport.router", () => {
     expect(requirePermission).toHaveBeenCalledWith("companions:view:any");
   });
 
-  it("no longer exposes the legacy clinical-record write routes", () => {
-    expect(findRoute(`${BASE}/vaccinations`, "post")).toBeUndefined();
-    expect(findRoute(`${BASE}/treatments`, "post")).toBeUndefined();
-    expect(findRoute(`${BASE}/titrations`, "post")).toBeUndefined();
+  it("registers the clinical-record capture routes (post), org-guarded", () => {
+    expect(findRoute(`${BASE}/immunizations`, "post")?.stack).toHaveLength(4);
+    expect(findRoute(`${BASE}/treatments`, "post")?.stack).toHaveLength(4);
+    expect(findRoute(`${BASE}/titrations`, "post")?.stack).toHaveLength(4);
+    expect(requirePermission).toHaveBeenCalledWith("vaccinations:edit:any");
+  });
+
+  it("no longer exposes the legacy list (get) routes", () => {
+    expect(findRoute(`${BASE}/vaccinations`, "get")).toBeUndefined();
+    expect(findRoute(`${BASE}/titrations`, "get")).toBeUndefined();
   });
 });

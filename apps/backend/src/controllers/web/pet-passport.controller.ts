@@ -9,6 +9,10 @@ import {
   WalletPassService,
   WalletNotConfiguredError,
 } from "src/services/wallet-pass.service";
+import {
+  PetClinicalRecordService,
+  PetClinicalRecordError,
+} from "src/services/pet-clinical-records.service";
 import { OrgRequest } from "src/middlewares/rbac";
 
 // Ids may be Mongo ObjectIds or Postgres UUIDs (dual-write), so validate
@@ -28,6 +32,44 @@ const IssuanceBodySchema = z.object({
   issuingVetLicense: z.string().max(100).optional(),
 });
 
+// Clinical-record capture: each record is hung off the appointment's encounter,
+// so encounterId is required in the body.
+const ImmunizationBodySchema = z.object({
+  encounterId: IdSchema,
+  vaccineType: z.enum(["RABIES", "CORE", "NON_CORE", "OTHER"]),
+  vaccineName: z.string().min(1).max(200),
+  manufacturer: z.string().max(200).optional(),
+  batchNumber: z.string().max(100).optional(),
+  lotNumber: z.string().max(100).optional(),
+  dateAdministered: z.string().min(1),
+  validFrom: z.string().optional(),
+  validUntil: z.string().optional(),
+  nextDueDate: z.string().optional(),
+  administeringVetName: z.string().max(200).optional(),
+  vetLicenseNumber: z.string().max(100).optional(),
+  site: z.string().max(200).optional(),
+  route: z.string().max(100).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+const TreatmentBodySchema = z.object({
+  encounterId: IdSchema,
+  treatmentType: z.enum(["ECHINOCOCCUS", "TICK", "FLEA", "OTHER"]),
+  productName: z.string().min(1).max(200),
+  manufacturer: z.string().max(200).optional(),
+  treatedAt: z.string().min(1),
+  administeringVetName: z.string().max(200).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+const TitrationBodySchema = z.object({
+  encounterId: IdSchema,
+  approvedLab: z.string().min(1).max(200),
+  sampleDate: z.string().min(1),
+  resultIuMl: z.number(),
+  reportUrl: z.string().max(2048).optional(),
+});
+
 const permissionsLoaded = (req: OrgRequest, res: Response): boolean => {
   if (req.userPermissions) return true;
   res.status(500).json({
@@ -44,6 +86,7 @@ const handleError = (
 ): Response => {
   if (
     err instanceof PetPassportServiceError ||
+    err instanceof PetClinicalRecordError ||
     err instanceof WalletNotConfiguredError
   ) {
     return res.status(err.statusCode).json({ message: err.message });
@@ -53,6 +96,99 @@ const handleError = (
 };
 
 export const PetPassportController = {
+  recordImmunization: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = ImmunizationBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const { encounterId, ...input } = body.data;
+      const record = await PetClinicalRecordService.recordImmunization(
+        {
+          patientId: params.data.patientId,
+          organisationId: params.data.organisationId,
+          encounterId,
+          actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        },
+        input,
+      );
+      return res.status(201).json(record);
+    } catch (err) {
+      return handleError(err, res, "Immunization recording failed");
+    }
+  },
+
+  recordParasiteTreatment: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = TreatmentBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const { encounterId, ...input } = body.data;
+      const record = await PetClinicalRecordService.recordParasiteTreatment(
+        {
+          patientId: params.data.patientId,
+          organisationId: params.data.organisationId,
+          encounterId,
+          actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        },
+        input,
+      );
+      return res.status(201).json(record);
+    } catch (err) {
+      return handleError(err, res, "Parasite treatment recording failed");
+    }
+  },
+
+  recordRabiesTitration: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = TitrationBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const { encounterId, ...input } = body.data;
+      const record = await PetClinicalRecordService.recordRabiesTitration(
+        {
+          patientId: params.data.patientId,
+          organisationId: params.data.organisationId,
+          encounterId,
+          actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        },
+        input,
+      );
+      return res.status(201).json(record);
+    } catch (err) {
+      return handleError(err, res, "Rabies titration recording failed");
+    }
+  },
+
   issuePassport: async (req: Request, res: Response): Promise<Response> => {
     try {
       const typedReq = req as OrgRequest;

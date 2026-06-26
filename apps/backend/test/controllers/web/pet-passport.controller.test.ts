@@ -2,7 +2,22 @@ import { Request, Response } from "express";
 import { PetPassportController } from "../../../src/controllers/web/pet-passport.controller";
 import { PetPassportService } from "../../../src/services/pet-passport.service";
 import { WalletPassService } from "../../../src/services/wallet-pass.service";
+import { PetClinicalRecordService } from "../../../src/services/pet-clinical-records.service";
 
+jest.mock("../../../src/services/pet-clinical-records.service", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const actual = jest.requireActual(
+    "../../../src/services/pet-clinical-records.service",
+  ) as any;
+  return {
+    ...actual,
+    PetClinicalRecordService: {
+      recordImmunization: jest.fn(),
+      recordParasiteTreatment: jest.fn(),
+      recordRabiesTitration: jest.fn(),
+    },
+  };
+});
 jest.mock("../../../src/services/pet-passport.service", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const actual = jest.requireActual(
@@ -41,8 +56,14 @@ const { WalletNotConfiguredError } = jest.requireActual(
   "../../../src/services/wallet-pass.service",
 ) as any;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const { PetClinicalRecordError } = jest.requireActual(
+  "../../../src/services/pet-clinical-records.service",
+) as any;
+
 const service = jest.mocked(PetPassportService);
 const wallet = jest.mocked(WalletPassService);
+const clinical = jest.mocked(PetClinicalRecordService);
 
 describe("PetPassportController", () => {
   let res: Partial<Response>;
@@ -73,6 +94,161 @@ describe("PetPassportController", () => {
     setHeaderMock = jest.fn();
     statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
     res = { status: statusMock, setHeader: setHeaderMock } as Partial<Response>;
+  });
+
+  describe("recordImmunization", () => {
+    const body = {
+      encounterId: "enc-1",
+      vaccineType: "RABIES",
+      vaccineName: "Nobivac Rabies",
+      dateAdministered: "2024-04-01T00:00:00.000Z",
+    };
+
+    it("201s and passes the capture context", async () => {
+      clinical.recordImmunization.mockResolvedValue({ id: "imm-1" } as never);
+      await PetPassportController.recordImmunization(
+        authed({ body }),
+        res as Response,
+      );
+      expect(clinical.recordImmunization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patientId: "pat-1",
+          organisationId: "org-1",
+          encounterId: "enc-1",
+          actor: { type: "PMS_USER", id: "user-1" },
+        }),
+        expect.objectContaining({ vaccineName: "Nobivac Rabies" }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("500s without permissions and 400s a body missing encounterId or bad params", async () => {
+      await PetPassportController.recordImmunization(
+        { params: orgParams, body } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      await PetPassportController.recordImmunization(
+        authed({
+          body: {
+            vaccineType: "RABIES",
+            vaccineName: "X",
+            dateAdministered: "x",
+          },
+        }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      await PetPassportController.recordImmunization(
+        authed({ params: { organisationId: "", patientId: "" }, body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("defaults the actor id to null and maps a clinical-record error", async () => {
+      clinical.recordImmunization.mockResolvedValue({} as never);
+      await PetPassportController.recordImmunization(
+        authed({ body, userId: undefined }),
+        res as Response,
+      );
+      expect(clinical.recordImmunization).toHaveBeenCalledWith(
+        expect.objectContaining({ actor: { type: "PMS_USER", id: null } }),
+        expect.anything(),
+      );
+      clinical.recordImmunization.mockRejectedValue(
+        new PetClinicalRecordError("bad", 404),
+      );
+      await PetPassportController.recordImmunization(
+        authed({ body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe("recordParasiteTreatment", () => {
+    const body = {
+      encounterId: "enc-1",
+      treatmentType: "ECHINOCOCCUS",
+      productName: "Milbemax",
+      treatedAt: "2024-06-20T14:00:00.000Z",
+    };
+
+    it("201s recording a treatment", async () => {
+      clinical.recordParasiteTreatment.mockResolvedValue({} as never);
+      await PetPassportController.recordParasiteTreatment(
+        authed({ body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("500s without permissions and 400s a bad body, else 500", async () => {
+      await PetPassportController.recordParasiteTreatment(
+        { params: orgParams, body } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      await PetPassportController.recordParasiteTreatment(
+        authed({ body: { encounterId: "enc-1" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      await PetPassportController.recordParasiteTreatment(
+        authed({ params: { organisationId: "", patientId: "" }, body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      clinical.recordParasiteTreatment.mockRejectedValue(new Error("boom"));
+      await PetPassportController.recordParasiteTreatment(
+        authed({ body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("recordRabiesTitration", () => {
+    const body = {
+      encounterId: "enc-1",
+      approvedLab: "EU Lab",
+      sampleDate: "2024-05-01T00:00:00.000Z",
+      resultIuMl: 0.8,
+    };
+
+    it("201s recording a titration", async () => {
+      clinical.recordRabiesTitration.mockResolvedValue({} as never);
+      await PetPassportController.recordRabiesTitration(
+        authed({ body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("500s without permissions and 400s a bad body, else 500", async () => {
+      await PetPassportController.recordRabiesTitration(
+        { params: orgParams, body } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      await PetPassportController.recordRabiesTitration(
+        authed({ body: { encounterId: "enc-1" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      await PetPassportController.recordRabiesTitration(
+        authed({ params: { organisationId: "", patientId: "" }, body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      clinical.recordRabiesTitration.mockRejectedValue(new Error("boom"));
+      await PetPassportController.recordRabiesTitration(
+        authed({ body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
   });
 
   describe("issuePassport", () => {
