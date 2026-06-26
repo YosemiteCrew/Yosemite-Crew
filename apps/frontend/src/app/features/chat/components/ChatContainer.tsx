@@ -20,6 +20,7 @@ import {
   MessageInput,
   MessageList,
   Thread,
+  TypingIndicator,
   Window,
   useChannelStateContext,
   useChatContext,
@@ -512,7 +513,15 @@ const ChannelHeaderWithCounterpart: FC<{
     isClientChat && !hasSessionClosed ? `${baseStatus} · via pet parent app` : baseStatus;
 
   const handleApptAction = (action: string) => {
-    router.push(action === 'Send form' ? '/forms' : '/appointments');
+    if (action === 'Send form') {
+      router.push('/forms');
+      return;
+    }
+    router.push(
+      appointmentId
+        ? `/appointments/${appointmentId}/workspace?action=${encodeURIComponent(action)}`
+        : '/appointments'
+    );
   };
 
   return (
@@ -749,7 +758,10 @@ const ChannelWindowContent: FC<ChannelWindowContentProps> = ({
         {isClosed ? (
           <ChatClosedFooter closedAt={channelState.closedAt || channelState.updatedAt} />
         ) : (
-          <MessageInput Input={ChatComposer} />
+          <>
+            <TypingIndicator />
+            <MessageInput Input={ChatComposer} />
+          </>
         )}
       </Window>
     </div>

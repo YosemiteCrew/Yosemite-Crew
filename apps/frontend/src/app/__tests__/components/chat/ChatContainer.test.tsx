@@ -109,6 +109,7 @@ jest.mock('stream-chat-react', () => {
     MessageList: () => <div data-testid="message-list" />,
     MessageInput: () => <div data-testid="message-input" />,
     Thread: () => <div data-testid="thread" />,
+    TypingIndicator: () => <div data-testid="typing-indicator" />,
     Window: ({ children }: any) => <div data-testid="chat-window">{children}</div>,
     ChannelPreviewMessenger: ({ displayTitle }: any) => <div>{displayTitle}</div>,
     ComponentProvider: ({ children }: any) => <>{children}</>,
