@@ -12,7 +12,6 @@ jest.mock("src/config/prisma", () => ({
     vaccination: { create: jest.fn(), findMany: jest.fn() },
     parasiteTreatment: { create: jest.fn(), findMany: jest.fn() },
     rabiesTitration: { create: jest.fn(), findMany: jest.fn() },
-    petClinicalExam: { create: jest.fn(), findMany: jest.fn() },
     petPassport: { create: jest.fn(), findFirst: jest.fn() },
     organization: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
@@ -29,7 +28,6 @@ const prismaMock = prisma as unknown as {
   vaccination: { create: jest.Mock; findMany: jest.Mock };
   parasiteTreatment: { create: jest.Mock; findMany: jest.Mock };
   rabiesTitration: { create: jest.Mock; findMany: jest.Mock };
-  petClinicalExam: { create: jest.Mock; findMany: jest.Mock };
   petPassport: { create: jest.Mock; findFirst: jest.Mock };
   organization: { findUnique: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
@@ -95,18 +93,6 @@ const echoCreate = () => {
       ...data,
     }),
   );
-  prismaMock.petClinicalExam.create.mockImplementation(({ data }) =>
-    Promise.resolve({
-      id: "exam-1",
-      createdAt: new Date("2024-06-23T12:00:00.000Z"),
-      examiningVetName: null,
-      vetLicenseNumber: null,
-      weightKg: null,
-      temperatureC: null,
-      findings: null,
-      ...data,
-    }),
-  );
 };
 
 beforeEach(() => {
@@ -120,7 +106,6 @@ beforeEach(() => {
   prismaMock.vaccination.findMany.mockResolvedValue([]);
   prismaMock.parasiteTreatment.findMany.mockResolvedValue([]);
   prismaMock.rabiesTitration.findMany.mockResolvedValue([]);
-  prismaMock.petClinicalExam.findMany.mockResolvedValue([]);
   prismaMock.petPassport.findFirst.mockResolvedValue(null);
   echoCreate();
 });
@@ -543,102 +528,6 @@ describe("PetPassportService treatments and titrations", () => {
     expect(list[0]).toMatchObject({ approvedLab: "L", resultIuMl: 0.8 });
   });
 
-  it("records a clinical examination", async () => {
-    const dto = await PetPassportService.recordClinicalExam({
-      patientId: "pat-1",
-      organisationId: "org-1",
-      actor: ACTOR,
-      input: {
-        examinedAt: "2024-06-23T00:00:00.000Z",
-        examiningVetName: "Dr Vet",
-        fitForTravel: true,
-        weightKg: 32.4,
-        temperatureC: 38.5,
-      },
-    });
-    expect(dto).toMatchObject({
-      id: "exam-1",
-      examiningVetName: "Dr Vet",
-      fitForTravel: true,
-      weightKg: 32.4,
-      temperatureC: 38.5,
-    });
-    expect(auditMock).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: "EXAM_RECORDED" }),
-    );
-  });
-
-  it("records a clinical exam with only required fields", async () => {
-    const dto = await PetPassportService.recordClinicalExam({
-      patientId: "pat-1",
-      organisationId: "org-1",
-      actor: { type: "PMS_USER", id: null },
-      input: {
-        examinedAt: "2024-06-23T00:00:00.000Z",
-        vetLicenseNumber: "RCVS-9",
-        fitForTravel: false,
-        findings: "All clear",
-      },
-    });
-    expect(dto).toMatchObject({
-      id: "exam-1",
-      vetLicenseNumber: "RCVS-9",
-      fitForTravel: false,
-      findings: "All clear",
-    });
-    expect(dto.weightKg).toBeUndefined();
-    expect(dto.examiningVetName).toBeUndefined();
-  });
-
-  it("rejects a negative exam weight", async () => {
-    await expect(
-      PetPassportService.recordClinicalExam({
-        patientId: "pat-1",
-        organisationId: "org-1",
-        actor: ACTOR,
-        input: {
-          examinedAt: "2024-06-23T00:00:00.000Z",
-          fitForTravel: true,
-          weightKg: -1,
-        },
-      }),
-    ).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it("rejects an invalid exam date", async () => {
-    await expect(
-      PetPassportService.recordClinicalExam({
-        patientId: "pat-1",
-        organisationId: "org-1",
-        actor: ACTOR,
-        input: { examinedAt: "nope", fitForTravel: true },
-      }),
-    ).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it("lists clinical examinations", async () => {
-    prismaMock.petClinicalExam.findMany.mockResolvedValue([
-      {
-        id: "e1",
-        patientId: "pat-1",
-        examinedAt: new Date("2024-06-23T00:00:00.000Z"),
-        examiningVetName: "Dr Vet",
-        vetLicenseNumber: null,
-        fitForTravel: true,
-        weightKg: null,
-        temperatureC: null,
-        findings: null,
-        createdAt: new Date("2024-06-23T12:00:00.000Z"),
-      },
-    ]);
-    const list = await PetPassportService.listClinicalExams("pat-1", "org-1");
-    expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({
-      examiningVetName: "Dr Vet",
-      fitForTravel: true,
-    });
-  });
-
   it("getPassport includes parasite treatments and rabies titrations", async () => {
     prismaMock.patient.findUnique.mockResolvedValue({
       id: "pat-1",
@@ -678,20 +567,6 @@ describe("PetPassportService treatments and titrations", () => {
         createdAt: new Date("2024-05-02T00:00:00.000Z"),
       },
     ]);
-    prismaMock.petClinicalExam.findMany.mockResolvedValue([
-      {
-        id: "e1",
-        patientId: "pat-1",
-        examinedAt: new Date("2024-06-23T00:00:00.000Z"),
-        examiningVetName: "Dr Vet",
-        vetLicenseNumber: null,
-        fitForTravel: true,
-        weightKg: 32.4,
-        temperatureC: 38.5,
-        findings: null,
-        createdAt: new Date("2024-06-23T12:00:00.000Z"),
-      },
-    ]);
     const passport = await PetPassportService.getPassport("pat-1", "org-1");
     expect(passport.parasiteTreatments).toHaveLength(1);
     expect(passport.parasiteTreatments[0]).toMatchObject({
@@ -702,12 +577,6 @@ describe("PetPassportService treatments and titrations", () => {
     expect(passport.rabiesTitrations[0]).toMatchObject({
       approvedLab: "EU Lab",
       resultIuMl: 0.8,
-    });
-    expect(passport.clinicalExams).toHaveLength(1);
-    expect(passport.clinicalExams[0]).toMatchObject({
-      examiningVetName: "Dr Vet",
-      fitForTravel: true,
-      weightKg: 32.4,
     });
   });
 });

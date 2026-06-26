@@ -54,23 +54,6 @@ export interface RabiesTitrationDTO {
   createdAt: string;
 }
 
-// A pre-travel clinical examination: a vet's dated attestation that the animal
-// was examined and found fit for the intended movement. The EU pet passport, the
-// UK Animal Health Certificate, and USDA/APHIS endorsements all require a clinical
-// examination by an authorised vet within a set window before travel.
-export interface ClinicalExamDTO {
-  id: string;
-  patientId: string;
-  examinedAt: string;
-  examiningVetName?: string;
-  vetLicenseNumber?: string;
-  fitForTravel: boolean;
-  weightKg?: number;
-  temperatureC?: number;
-  findings?: string;
-  createdAt: string;
-}
-
 // The passport-issuance record: which authorised vet/clinic issued the passport,
 // when, and under which authority. Surfaced in the passport's "Issuing" section.
 export interface PetPassportIssuanceDTO {
@@ -123,6 +106,5 @@ export interface PetPassportDTO {
   vaccinations: VaccinationDTO[];
   parasiteTreatments: ParasiteTreatmentDTO[];
   rabiesTitrations: RabiesTitrationDTO[];
-  clinicalExams: ClinicalExamDTO[];
   issuance?: PetPassportIssuanceDTO;
 }

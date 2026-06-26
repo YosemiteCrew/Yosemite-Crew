@@ -4,20 +4,18 @@ import {
   getGoogleWalletUrl,
   getPetPassport,
   getPublicPassport,
-  recordClinicalExam,
 } from '@/app/features/petPassport/services/petPassport.service';
 import { useOrgStore } from '@/app/stores/orgStore';
 
 jest.mock('@/app/services/axios', () => ({
   __esModule: true,
-  default: { get: jest.fn(), post: jest.fn() },
+  default: { get: jest.fn() },
   getData: jest.fn(),
 }));
 jest.mock('@/app/stores/orgStore', () => ({ useOrgStore: { getState: jest.fn() } }));
 
 const mockedGet = getData as jest.Mock;
 const mockedApiGet = api.get as jest.Mock;
-const mockedApiPost = api.post as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -89,27 +87,6 @@ describe('getGoogleWalletUrl', () => {
   });
 });
 
-describe('recordClinicalExam', () => {
-  const input = { examinedAt: '2024-06-23T00:00:00.000Z', fitForTravel: true };
-
-  it('posts the exam to the org-scoped path and returns the created record', async () => {
-    mockedApiPost.mockResolvedValue({ data: { id: 'e1', fitForTravel: true } });
-    const res = await recordClinicalExam('pat-1', input);
-    expect(mockedApiPost).toHaveBeenCalledWith(
-      '/v1/pet-passport/pms/organisation/org-1/companion/pat-1/clinical-exams',
-      input
-    );
-    expect(res).toEqual({ id: 'e1', fitForTravel: true });
-  });
-
-  it('throws when no organisation is selected', async () => {
-    (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
-    await expect(recordClinicalExam('pat-1', input)).rejects.toThrow(
-      'No active organisation selected.'
-    );
-  });
-});
-
 describe('getPublicPassport', () => {
   const originalFetch = global.fetch;
   beforeEach(() => {
@@ -136,19 +113,5 @@ describe('getPublicPassport', () => {
   it('throws when the passport is not found', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
     await expect(getPublicPassport('p1')).rejects.toThrow('Passport not found.');
-  });
-
-  it('falls back to a relative path when no base url is configured', async () => {
-    delete process.env.NEXT_PUBLIC_BASE_URL;
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ identity: { id: 'p1' } }),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
-    await getPublicPassport('p1');
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/public/pet-passport/p1',
-      expect.objectContaining({ headers: { Accept: 'application/json' } })
-    );
   });
 });

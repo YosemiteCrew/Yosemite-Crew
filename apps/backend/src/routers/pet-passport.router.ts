@@ -54,22 +54,6 @@ router.get(
 );
 
 router.post(
-  "/pms/organisation/:organisationId/companion/:patientId/clinical-exams",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("passport:edit:any"),
-  PetPassportController.recordClinicalExam,
-);
-
-router.get(
-  "/pms/organisation/:organisationId/companion/:patientId/clinical-exams",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("companions:view:any"),
-  PetPassportController.listClinicalExams,
-);
-
-router.post(
   "/pms/organisation/:organisationId/companion/:patientId/issue",
   authorizeCognito,
   withOrgPermissions(),

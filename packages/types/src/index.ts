@@ -96,7 +96,6 @@ export type {
   VaccinationDTO,
   ParasiteTreatmentDTO,
   RabiesTitrationDTO,
-  ClinicalExamDTO,
   PetPassportIssuanceDTO,
   PetPassportIdentity,
   PetPassportMicrochip,
@@ -107,7 +106,6 @@ export type {
   RecordVaccinationRequestDTO,
   RecordParasiteTreatmentRequestDTO,
   RecordRabiesTitrationRequestDTO,
-  RecordClinicalExamRequestDTO,
   IssuePassportRequestDTO,
 } from './dto/pet-passport.dto';
 

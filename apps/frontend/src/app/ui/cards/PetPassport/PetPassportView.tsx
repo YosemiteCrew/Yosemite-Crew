@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDisplayDate } from '@/app/lib/date';
-import type { ClinicalExamDTO, PetPassportDTO, VaccinationDTO } from '@yosemite-crew/types';
+import type { PetPassportDTO, VaccinationDTO } from '@yosemite-crew/types';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Canine',
@@ -11,16 +11,6 @@ const SPECIES_LABEL: Record<string, string> = {
 };
 
 const dateLabel = (iso?: string): string | undefined => (iso ? formatDisplayDate(iso) : undefined);
-
-const clinicalExamDetail = (exam: ClinicalExamDTO): string =>
-  [
-    exam.examiningVetName,
-    exam.weightKg === undefined ? undefined : `${exam.weightKg} kg`,
-    exam.temperatureC === undefined ? undefined : `${exam.temperatureC}°C`,
-    exam.findings,
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join(' · ');
 
 const TREATMENT_LABEL: Record<string, string> = {
   ECHINOCOCCUS: 'Tapeworm',
@@ -69,15 +59,8 @@ const VaccinationItem = ({ vaccination }: { vaccination: VaccinationDTO }) => {
 type PetPassportViewProps = { passport: PetPassportDTO };
 
 const PetPassportView = ({ passport }: PetPassportViewProps) => {
-  const {
-    identity,
-    microchip,
-    rabies,
-    vaccinations,
-    parasiteTreatments,
-    rabiesTitrations,
-    clinicalExams,
-  } = passport;
+  const { identity, microchip, rabies, vaccinations, parasiteTreatments, rabiesTitrations } =
+    passport;
   const species = SPECIES_LABEL[identity.species] ?? 'Other';
 
   return (
@@ -170,32 +153,6 @@ const PetPassportView = ({ passport }: PetPassportViewProps) => {
                 </span>
               </div>
             ))}
-          </div>
-        </Section>
-      )}
-
-      {clinicalExams.length > 0 && (
-        <Section title="Clinical examination">
-          <div className="flex flex-col gap-2">
-            {clinicalExams.map((exam) => {
-              const detail = clinicalExamDetail(exam);
-              return (
-                <div
-                  key={exam.id}
-                  className="flex flex-col gap-1 rounded-xl border border-card-border p-3"
-                >
-                  <div className="flex justify-between gap-3">
-                    <span className="text-caption-1 text-text-primary">
-                      {exam.fitForTravel ? 'Fit to travel' : 'Not fit to travel'}
-                    </span>
-                    <span className="text-caption-1 text-text-secondary">
-                      {formatDisplayDate(exam.examinedAt)}
-                    </span>
-                  </div>
-                  {detail && <span className="text-caption-1 text-text-extra">{detail}</span>}
-                </div>
-              );
-            })}
           </div>
         </Section>
       )}

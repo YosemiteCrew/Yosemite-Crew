@@ -2,7 +2,6 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
-  ClinicalExamDTO,
   IssuePassportRequestDTO,
   ParasiteTreatmentDTO,
   ParasiteTreatmentType,
@@ -10,7 +9,6 @@ import type {
   PetPassportOwner,
   PetPassportIssuanceDTO,
   RabiesTitrationDTO,
-  RecordClinicalExamRequestDTO,
   RecordParasiteTreatmentRequestDTO,
   RecordRabiesTitrationRequestDTO,
   RecordVaccinationRequestDTO,
@@ -165,30 +163,6 @@ const toTitrationDTO = (row: {
   createdAt: row.createdAt.toISOString(),
 });
 
-const toClinicalExamDTO = (row: {
-  id: string;
-  patientId: string;
-  examinedAt: Date;
-  examiningVetName: string | null;
-  vetLicenseNumber: string | null;
-  fitForTravel: boolean;
-  weightKg: number | null;
-  temperatureC: number | null;
-  findings: string | null;
-  createdAt: Date;
-}): ClinicalExamDTO => ({
-  id: row.id,
-  patientId: row.patientId,
-  examinedAt: row.examinedAt.toISOString(),
-  examiningVetName: row.examiningVetName ?? undefined,
-  vetLicenseNumber: row.vetLicenseNumber ?? undefined,
-  fitForTravel: row.fitForTravel,
-  weightKg: row.weightKg ?? undefined,
-  temperatureC: row.temperatureC ?? undefined,
-  findings: row.findings ?? undefined,
-  createdAt: row.createdAt.toISOString(),
-});
-
 const toIssuanceDTO = (row: {
   passportNumber: string;
   issuingCountry: string | null;
@@ -274,7 +248,6 @@ const assemblePassport = async (
     vaccinationRows,
     treatmentRows,
     titrationRows,
-    clinicalExamRows,
     passportRow,
     organisation,
   ] = await Promise.all([
@@ -289,10 +262,6 @@ const assemblePassport = async (
     prisma.rabiesTitration.findMany({
       where: { patientId, organisationId },
       orderBy: { sampleDate: "desc" },
-    }),
-    prisma.petClinicalExam.findMany({
-      where: { patientId, organisationId },
-      orderBy: { examinedAt: "desc" },
     }),
     prisma.petPassport.findFirst({
       where: { patientId, organisationId },
@@ -335,7 +304,6 @@ const assemblePassport = async (
     vaccinations: others,
     parasiteTreatments: treatmentRows.map(toTreatmentDTO),
     rabiesTitrations: titrationRows.map(toTitrationDTO),
-    clinicalExams: clinicalExamRows.map(toClinicalExamDTO),
     issuance,
     owner,
   };
@@ -535,59 +503,6 @@ export const PetPassportService = {
       orderBy: { sampleDate: "desc" },
     });
     return rows.map(toTitrationDTO);
-  },
-
-  async recordClinicalExam(params: {
-    patientId: string;
-    organisationId: string;
-    actor: PassportActor;
-    input: RecordClinicalExamRequestDTO;
-  }): Promise<ClinicalExamDTO> {
-    const { patientId, organisationId, actor, input } = params;
-    await assertOrgMembership(patientId, organisationId);
-
-    if (input.weightKg !== undefined && input.weightKg < 0) {
-      throw new PetPassportServiceError("A weight cannot be negative.", 400);
-    }
-
-    const row = await prisma.petClinicalExam.create({
-      data: {
-        patientId,
-        organisationId,
-        examinedAt: parseDate(input.examinedAt, "examinedAt"),
-        examiningVetId: actor.id ?? null,
-        examiningVetName: input.examiningVetName ?? null,
-        vetLicenseNumber: input.vetLicenseNumber ?? null,
-        fitForTravel: input.fitForTravel,
-        weightKg: input.weightKg ?? null,
-        temperatureC: input.temperatureC ?? null,
-        findings: input.findings ?? null,
-      },
-    });
-
-    await AuditTrailService.recordSafely({
-      organisationId,
-      patientId,
-      eventType: "EXAM_RECORDED",
-      actorType: actor.type,
-      actorId: actor.id ?? null,
-      entityType: "COMPANION",
-      entityId: row.id,
-      metadata: { fitForTravel: input.fitForTravel },
-    });
-
-    return toClinicalExamDTO(row);
-  },
-
-  async listClinicalExams(
-    patientId: string,
-    organisationId: string,
-  ): Promise<ClinicalExamDTO[]> {
-    const rows = await prisma.petClinicalExam.findMany({
-      where: { patientId, organisationId },
-      orderBy: { examinedAt: "desc" },
-    });
-    return rows.map(toClinicalExamDTO);
   },
 
   async issuePassport(params: {

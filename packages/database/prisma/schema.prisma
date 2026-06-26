@@ -425,7 +425,6 @@ model Patient {
   vaccinations         Vaccination[]
   parasiteTreatments   ParasiteTreatment[]
   rabiesTitrations     RabiesTitration[]
-  clinicalExams        PetClinicalExam[]
   petPassports         PetPassport[]
 
   @@index([type])
@@ -639,28 +638,6 @@ model RabiesTitration {
 
   @@index([patientId])
   @@index([organisationId])
-}
-
-model PetClinicalExam {
-  id               String   @id @default(uuid())
-  patientId        String
-  organisationId   String
-  examinedAt       DateTime
-  examiningVetId   String?
-  examiningVetName String?
-  vetLicenseNumber String?
-  fitForTravel     Boolean  @default(true)
-  weightKg         Float?
-  temperatureC     Float?
-  findings         String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  patient          Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId])
-  @@index([organisationId])
-  @@index([patientId, examinedAt])
 }
 
 model PetPassport {
@@ -1764,7 +1741,6 @@ enum AuditEventType {
   TREATMENT_RECORDED
   TITRATION_RECORDED
   PASSPORT_ISSUED
-  EXAM_RECORDED
 }
 
 enum WithdrawalStatus {
