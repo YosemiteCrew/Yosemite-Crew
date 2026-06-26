@@ -8,6 +8,7 @@ const PetPassportController = {
   recordImmunization: jest.fn(),
   recordParasiteTreatment: jest.fn(),
   recordRabiesTitration: jest.fn(),
+  recordClinicalExam: jest.fn(),
   attestRecord: jest.fn(),
   revokeRecord: jest.fn(),
   issuePassport: jest.fn(),
@@ -69,6 +70,7 @@ describe("pet-passport.router", () => {
     expect(findRoute(`${BASE}/immunizations`, "post")?.stack).toHaveLength(4);
     expect(findRoute(`${BASE}/treatments`, "post")?.stack).toHaveLength(4);
     expect(findRoute(`${BASE}/titrations`, "post")?.stack).toHaveLength(4);
+    expect(findRoute(`${BASE}/clinical-exams`, "post")?.stack).toHaveLength(4);
     expect(requirePermission).toHaveBeenCalledWith("vaccinations:edit:any");
   });
 

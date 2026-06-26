@@ -670,6 +670,7 @@ const clinicalArtifactTitleByKind: Record<ClinicalArtifactKind, string> = {
   IMMUNIZATION: "Vaccination record",
   RABIES_TITRATION: "Rabies titration",
   PARASITE_TREATMENT: "Parasite treatment",
+  CLINICAL_EXAM: "Clinical examination",
 };
 
 const buildClinicalArtifactRenderedDocumentInput = (artifact: {

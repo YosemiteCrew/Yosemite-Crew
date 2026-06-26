@@ -15,7 +15,8 @@ export type ClinicalArtifactKind =
   | 'VITAL_RECORD'
   | 'IMMUNIZATION'
   | 'RABIES_TITRATION'
-  | 'PARASITE_TREATMENT';
+  | 'PARASITE_TREATMENT'
+  | 'CLINICAL_EXAM';
 
 export type ClinicalArtifactStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'SIGNED' | 'VOID';
 

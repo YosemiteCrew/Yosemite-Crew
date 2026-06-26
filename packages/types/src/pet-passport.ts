@@ -54,6 +54,20 @@ export interface RabiesTitrationDTO {
   createdAt: string;
 }
 
+// A pre-travel clinical examination ("fit to travel" attestation) by the vet.
+export interface ClinicalExamDTO {
+  id: string;
+  patientId: string;
+  examinedAt: string;
+  fitForTravel: boolean;
+  findings?: string;
+  weightKg?: number;
+  temperatureC?: number;
+  examiningVetName?: string;
+  vetLicenseNumber?: string;
+  createdAt: string;
+}
+
 // The passport-issuance record: which authorised vet/clinic issued the passport,
 // when, and under which authority. Surfaced in the passport's "Issuing" section.
 export interface PetPassportIssuanceDTO {
@@ -106,5 +120,6 @@ export interface PetPassportDTO {
   vaccinations: VaccinationDTO[];
   parasiteTreatments: ParasiteTreatmentDTO[];
   rabiesTitrations: RabiesTitrationDTO[];
+  clinicalExams: ClinicalExamDTO[];
   issuance?: PetPassportIssuanceDTO;
 }

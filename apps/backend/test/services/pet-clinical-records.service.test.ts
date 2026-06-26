@@ -63,6 +63,9 @@ const echoArtifact = (args: any) => {
     rabiesTitration: data.rabiesTitration?.create
       ? { ...stamp, ...data.rabiesTitration.create }
       : null,
+    clinicalExamination: data.clinicalExamination?.create
+      ? { ...stamp, ...data.clinicalExamination.create }
+      : null,
   });
 };
 
@@ -246,6 +249,59 @@ describe("PetClinicalRecordService.recordRabiesTitration", () => {
 
   it("surfaces the error type for callers", () => {
     expect(new PetClinicalRecordError("x", 400)).toBeInstanceOf(Error);
+  });
+});
+
+describe("PetClinicalRecordService.recordClinicalExam", () => {
+  const input = {
+    examinedAt: "2024-06-23T00:00:00.000Z",
+    fitForTravel: true,
+    weightKg: 32.4,
+    temperatureC: 38.5,
+    findings: "healthy",
+  };
+
+  it("creates an artifact + clinical exam", async () => {
+    const dto = await PetClinicalRecordService.recordClinicalExam(CTX, input);
+    expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ kind: "CLINICAL_EXAM" }),
+      }),
+    );
+    expect(dto).toMatchObject({
+      patientId: "pat-1",
+      fitForTravel: true,
+      weightKg: 32.4,
+      temperatureC: 38.5,
+      findings: "healthy",
+    });
+    expect(dto.examiningVetName).toBeUndefined();
+  });
+
+  it("creates a minimal exam and 400s an invalid date", async () => {
+    const dto = await PetClinicalRecordService.recordClinicalExam(CTX, {
+      examinedAt: "2024-06-23T00:00:00.000Z",
+      fitForTravel: false,
+    });
+    expect(dto.fitForTravel).toBe(false);
+    expect(dto.weightKg).toBeUndefined();
+    await expect(
+      PetClinicalRecordService.recordClinicalExam(CTX, {
+        examinedAt: "nope",
+        fitForTravel: true,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("500s when the exam row fails to persist", async () => {
+    prismaMock.clinicalArtifact.create.mockResolvedValue({
+      id: "art-1",
+      clinicalExamination: null,
+      attestation: null,
+    });
+    await expect(
+      PetClinicalRecordService.recordClinicalExam(CTX, input),
+    ).rejects.toMatchObject({ statusCode: 500 });
   });
 });
 

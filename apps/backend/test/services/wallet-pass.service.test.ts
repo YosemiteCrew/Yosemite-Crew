@@ -39,6 +39,7 @@ const PASSPORT: PetPassportDTO = {
   vaccinations: [],
   parasiteTreatments: [],
   rabiesTitrations: [],
+  clinicalExams: [],
   issuance: {
     passportNumber: "GB-YC-1",
     issuingVetName: "Dr A",
@@ -60,6 +61,7 @@ const MINIMAL: PetPassportDTO = {
   vaccinations: [],
   parasiteTreatments: [],
   rabiesTitrations: [],
+  clinicalExams: [],
 };
 
 const IDS = {

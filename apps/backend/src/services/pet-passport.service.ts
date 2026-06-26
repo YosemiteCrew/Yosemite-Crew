@@ -2,6 +2,7 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
+  ClinicalExamDTO,
   IssuePassportRequestDTO,
   ParasiteTreatmentDTO,
   ParasiteTreatmentType,
@@ -137,6 +138,30 @@ const toTitrationDTO = (
   createdAt: row.createdAt.toISOString(),
 });
 
+const toExamDTO = (
+  patientId: string,
+  row: {
+    id: string;
+    examinedAt: Date;
+    fitForTravel: boolean;
+    findings: string | null;
+    weightKg: number | null;
+    temperatureC: number | null;
+    createdAt: Date;
+  } & AttestationRef,
+): ClinicalExamDTO => ({
+  id: row.id,
+  patientId,
+  examinedAt: row.examinedAt.toISOString(),
+  fitForTravel: row.fitForTravel,
+  findings: row.findings ?? undefined,
+  weightKg: row.weightKg ?? undefined,
+  temperatureC: row.temperatureC ?? undefined,
+  examiningVetName: row.artifact.attestation?.signatoryName ?? undefined,
+  vetLicenseNumber: row.artifact.attestation?.signatoryLicence ?? undefined,
+  createdAt: row.createdAt.toISOString(),
+});
+
 const toIssuanceDTO = (row: {
   passportNumber: string;
   issuingCountry: string | null;
@@ -248,6 +273,7 @@ const assemblePassport = async (
     immunizationRows,
     treatmentRows,
     titrationRows,
+    examRows,
     passportRow,
     organisation,
   ] = await Promise.all([
@@ -269,6 +295,13 @@ const assemblePassport = async (
       ? prisma.rabiesTitration.findMany({
           where: artifactWhere,
           orderBy: { sampleDate: "desc" },
+        })
+      : Promise.resolve([]),
+    encounterIds.length
+      ? prisma.clinicalExamination.findMany({
+          where: artifactWhere,
+          orderBy: { examinedAt: "desc" },
+          ...withAttestation,
         })
       : Promise.resolve([]),
     prisma.petPassport.findFirst({
@@ -318,6 +351,7 @@ const assemblePassport = async (
     rabiesTitrations: titrationRows.map((row) =>
       toTitrationDTO(patientId, row),
     ),
+    clinicalExams: examRows.map((row) => toExamDTO(patientId, row)),
     issuance,
     owner,
   };

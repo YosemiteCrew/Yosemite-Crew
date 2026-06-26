@@ -1530,6 +1530,7 @@ enum ClinicalArtifactKind {
   IMMUNIZATION
   RABIES_TITRATION
   PARASITE_TREATMENT
+  CLINICAL_EXAM
 }
 
 enum ClinicalArtifactStatus {
@@ -2110,6 +2111,7 @@ model ClinicalArtifact {
   immunization    Immunization?
   rabiesTitration RabiesTitration?
   parasiteTreatment ParasiteTreatment?
+  clinicalExamination ClinicalExamination?
   attestation     ClinicalArtifactAttestation?
   templateVersionRecord TemplateVersion?   @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
   renderedDocuments RenderedDocument[]
@@ -2298,6 +2300,26 @@ model ParasiteTreatment {
   artifact      ClinicalArtifact      @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
+}
+
+// Pre-travel clinical examination ("fit to travel" attestation): the EU passport
+// section a vet signs shortly before movement.
+model ClinicalExamination {
+  id           String           @id @default(uuid())
+  artifactId   String           @unique
+  examinedAt   DateTime
+  fitForTravel Boolean          @default(true)
+  findings     String?
+  weightKg     Float?
+  temperatureC Float?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  artifact     ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+  @@index([examinedAt])
 }
 
 // The attestation / provenance primitive: who signed (verified vet + licence),

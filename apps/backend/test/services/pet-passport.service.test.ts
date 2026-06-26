@@ -13,6 +13,7 @@ jest.mock("src/config/prisma", () => ({
     immunization: { findMany: jest.fn() },
     parasiteTreatment: { findMany: jest.fn() },
     rabiesTitration: { findMany: jest.fn() },
+    clinicalExamination: { findMany: jest.fn() },
     petPassport: { create: jest.fn(), findFirst: jest.fn() },
     organization: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
@@ -30,6 +31,7 @@ const prismaMock = prisma as unknown as {
   immunization: { findMany: jest.Mock };
   parasiteTreatment: { findMany: jest.Mock };
   rabiesTitration: { findMany: jest.Mock };
+  clinicalExamination: { findMany: jest.Mock };
   petPassport: { create: jest.Mock; findFirst: jest.Mock };
   organization: { findUnique: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
@@ -77,6 +79,7 @@ beforeEach(() => {
   prismaMock.immunization.findMany.mockResolvedValue([]);
   prismaMock.parasiteTreatment.findMany.mockResolvedValue([]);
   prismaMock.rabiesTitration.findMany.mockResolvedValue([]);
+  prismaMock.clinicalExamination.findMany.mockResolvedValue([]);
   prismaMock.petPassport.findFirst.mockResolvedValue(null);
   prismaMock.petPassport.create.mockImplementation(({ data }) =>
     Promise.resolve({
@@ -228,8 +231,25 @@ describe("PetPassportService.getPassport", () => {
         createdAt: new Date("2024-05-02T00:00:00.000Z"),
       },
     ]);
+    prismaMock.clinicalExamination.findMany.mockResolvedValue([
+      {
+        id: "exam-1",
+        examinedAt: new Date("2024-06-23T00:00:00.000Z"),
+        fitForTravel: true,
+        findings: "healthy",
+        weightKg: 32.4,
+        temperatureC: 38.5,
+        createdAt: new Date("2024-06-23T00:00:00.000Z"),
+        ...vet(),
+      },
+    ]);
 
     const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.clinicalExams[0]).toMatchObject({
+      fitForTravel: true,
+      weightKg: 32.4,
+      examiningVetName: "Dr Vet",
+    });
     expect(passport.identity).toMatchObject({
       name: "Doggy",
       species: "dog",
@@ -341,6 +361,29 @@ describe("PetPassportService.getPassport", () => {
       nextDueDate: "2025-04-01T00:00:00.000Z",
       administeringVetName: undefined,
     });
+  });
+});
+
+describe("PetPassportService.clinicalExams", () => {
+  it("maps a clinical exam with null fields and no attestation", async () => {
+    prismaMock.clinicalExamination.findMany.mockResolvedValue([
+      {
+        id: "exam-2",
+        examinedAt: new Date("2024-06-23T00:00:00.000Z"),
+        fitForTravel: false,
+        findings: null,
+        weightKg: null,
+        temperatureC: null,
+        createdAt: new Date("2024-06-23T00:00:00.000Z"),
+        artifact: { attestation: null },
+      },
+    ]);
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.clinicalExams[0]).toMatchObject({ fitForTravel: false });
+    expect(passport.clinicalExams[0].findings).toBeUndefined();
+    expect(passport.clinicalExams[0].weightKg).toBeUndefined();
+    expect(passport.clinicalExams[0].temperatureC).toBeUndefined();
+    expect(passport.clinicalExams[0].examiningVetName).toBeUndefined();
   });
 });
 

@@ -2,13 +2,22 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
+  ClinicalExamDTO,
   ParasiteTreatmentDTO,
   RabiesTitrationDTO,
+  RecordClinicalExamRequestDTO,
   RecordParasiteTreatmentRequestDTO,
   RecordRabiesTitrationRequestDTO,
   RecordVaccinationRequestDTO,
   VaccinationDTO,
 } from "@yosemite-crew/types";
+
+const PASSPORT_RECORD_KINDS = [
+  "IMMUNIZATION",
+  "RABIES_TITRATION",
+  "PARASITE_TREATMENT",
+  "CLINICAL_EXAM",
+] as const;
 
 // Capture path for the passport's clinical records. Each record is created as a
 // ClinicalArtifact child (Immunization / RabiesTitration / ParasiteTreatment)
@@ -270,6 +279,49 @@ export const PetClinicalRecordService = {
     };
   },
 
+  async recordClinicalExam(
+    ctx: CaptureContext,
+    input: RecordClinicalExamRequestDTO,
+  ): Promise<ClinicalExamDTO> {
+    await assertEncounter(ctx);
+    const artifact = await prisma.clinicalArtifact.create({
+      data: {
+        organisationId: ctx.organisationId,
+        encounterId: ctx.encounterId,
+        kind: "CLINICAL_EXAM",
+        status: "DRAFT",
+        authorId: ctx.actor.id ?? null,
+        clinicalExamination: {
+          create: {
+            examinedAt: parseDate(input.examinedAt, "examinedAt"),
+            fitForTravel: input.fitForTravel,
+            findings: input.findings ?? null,
+            weightKg: input.weightKg ?? null,
+            temperatureC: input.temperatureC ?? null,
+          },
+        },
+        attestation: attestationOf(ctx, undefined, undefined),
+      },
+      include: { clinicalExamination: true, attestation: true },
+    });
+    const row = artifact.clinicalExamination;
+    if (!row) {
+      throw new PetClinicalRecordError("Clinical exam not persisted.", 500);
+    }
+    return {
+      id: row.id,
+      patientId: ctx.patientId,
+      examinedAt: row.examinedAt.toISOString(),
+      fitForTravel: row.fitForTravel,
+      findings: row.findings ?? undefined,
+      weightKg: row.weightKg ?? undefined,
+      temperatureC: row.temperatureC ?? undefined,
+      createdAt: row.createdAt.toISOString(),
+      examiningVetName: artifact.attestation?.signatoryName ?? undefined,
+      vetLicenseNumber: artifact.attestation?.signatoryLicence ?? undefined,
+    };
+  },
+
   // A verified vet attests a recorded clinical artifact, which flips it to SIGNED
   // (the state the passport surfaces). The Documenso e-signature over the rendered
   // record hardens this later; for now the authenticated vet action is the
@@ -287,9 +339,7 @@ export const PetClinicalRecordService = {
       where: {
         id: artifactId,
         organisationId,
-        kind: {
-          in: ["IMMUNIZATION", "RABIES_TITRATION", "PARASITE_TREATMENT"],
-        },
+        kind: { in: [...PASSPORT_RECORD_KINDS] },
       },
       select: { id: true, status: true },
     });
@@ -345,9 +395,7 @@ export const PetClinicalRecordService = {
       where: {
         id: artifactId,
         organisationId,
-        kind: {
-          in: ["IMMUNIZATION", "RABIES_TITRATION", "PARASITE_TREATMENT"],
-        },
+        kind: { in: [...PASSPORT_RECORD_KINDS] },
       },
       select: { id: true },
     });

@@ -15,6 +15,7 @@ jest.mock("../../../src/services/pet-clinical-records.service", () => {
       recordImmunization: jest.fn(),
       recordParasiteTreatment: jest.fn(),
       recordRabiesTitration: jest.fn(),
+      recordClinicalExam: jest.fn(),
       attestRecord: jest.fn(),
       revokeRecord: jest.fn(),
     },
@@ -246,6 +247,51 @@ describe("PetPassportController", () => {
       expect(statusMock).toHaveBeenCalledWith(400);
       clinical.recordRabiesTitration.mockRejectedValue(new Error("boom"));
       await PetPassportController.recordRabiesTitration(
+        authed({ body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("recordClinicalExam", () => {
+    const body = {
+      encounterId: "enc-1",
+      examinedAt: "2024-06-23T00:00:00.000Z",
+      fitForTravel: true,
+    };
+
+    it("201s recording an exam", async () => {
+      clinical.recordClinicalExam.mockResolvedValue({} as never);
+      await PetPassportController.recordClinicalExam(
+        authed({ body }),
+        res as Response,
+      );
+      expect(clinical.recordClinicalExam).toHaveBeenCalledWith(
+        expect.objectContaining({ encounterId: "enc-1" }),
+        expect.objectContaining({ fitForTravel: true }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("500s without permissions, 400s a bad body + params, else 500", async () => {
+      await PetPassportController.recordClinicalExam(
+        { params: orgParams, body } as unknown as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      await PetPassportController.recordClinicalExam(
+        authed({ body: { encounterId: "enc-1" } }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      await PetPassportController.recordClinicalExam(
+        authed({ params: { organisationId: "", patientId: "" }, body }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      clinical.recordClinicalExam.mockRejectedValue(new Error("boom"));
+      await PetPassportController.recordClinicalExam(
         authed({ body }),
         res as Response,
       );

@@ -70,6 +70,15 @@ const TitrationBodySchema = z.object({
   reportUrl: z.string().max(2048).optional(),
 });
 
+const ExamBodySchema = z.object({
+  encounterId: IdSchema,
+  examinedAt: z.string().min(1),
+  fitForTravel: z.boolean(),
+  findings: z.string().max(2000).optional(),
+  weightKg: z.number().optional(),
+  temperatureC: z.number().optional(),
+});
+
 const RecordParamsSchema = ParamsSchema.extend({ recordId: IdSchema });
 
 const AttestBodySchema = z.object({
@@ -197,6 +206,37 @@ export const PetPassportController = {
       return res.status(201).json(record);
     } catch (err) {
       return handleError(err, res, "Rabies titration recording failed");
+    }
+  },
+
+  recordClinicalExam: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const body = ExamBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+      const { encounterId, ...input } = body.data;
+      const record = await PetClinicalRecordService.recordClinicalExam(
+        {
+          patientId: params.data.patientId,
+          organisationId: params.data.organisationId,
+          encounterId,
+          actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        },
+        input,
+      );
+      return res.status(201).json(record);
+    } catch (err) {
+      return handleError(err, res, "Clinical exam recording failed");
     }
   },
 
