@@ -76,6 +76,8 @@ export interface PetPassportIdentity {
   sex: string;
   dateOfBirth?: string;
   colour?: string;
+  /** Distinguishing marks (physicalAttribute.markings) for the description. */
+  distinguishingMarks?: string;
   photoUrl?: string;
 }
 

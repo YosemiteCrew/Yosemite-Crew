@@ -293,6 +293,7 @@ describe("PetPassportService.getPassport", () => {
     microchipImplantedAt: new Date("2024-02-01T00:00:00.000Z"),
     microchipLocation: "left neck",
     passportNumber: "GB-YC-1",
+    physicalAttribute: { markings: "white chest blaze" },
   };
 
   const vaccRow = (over: Record<string, unknown> = {}) => ({
@@ -330,6 +331,7 @@ describe("PetPassportService.getPassport", () => {
       sex: "male",
       colour: "black",
       dateOfBirth: "2024-01-01T00:00:00.000Z",
+      distinguishingMarks: "white chest blaze",
     });
     expect(passport.microchip).toEqual({
       number: "985141000123456",

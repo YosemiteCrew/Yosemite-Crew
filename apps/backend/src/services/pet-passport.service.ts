@@ -229,11 +229,20 @@ const assemblePassport = async (
       microchipImplantedAt: true,
       microchipLocation: true,
       passportNumber: true,
+      physicalAttribute: true,
     },
   });
   if (!patient) {
     throw new PetPassportServiceError("Companion not found.", 404);
   }
+
+  // physicalAttribute is an unstructured Json column; read the markings field
+  // defensively for the description's "distinguishing marks".
+  const physical = patient.physicalAttribute as { markings?: unknown } | null;
+  const distinguishingMarks =
+    typeof physical?.markings === "string" && physical.markings.length > 0
+      ? physical.markings
+      : undefined;
 
   const [
     vaccinationRows,
@@ -279,6 +288,7 @@ const assemblePassport = async (
       sex: patient.gender,
       dateOfBirth: patient.dateOfBirth.toISOString(),
       colour: patient.colour ?? undefined,
+      distinguishingMarks,
       photoUrl: patient.photoUrl ?? undefined,
     },
     microchip: patient.microchipNumber

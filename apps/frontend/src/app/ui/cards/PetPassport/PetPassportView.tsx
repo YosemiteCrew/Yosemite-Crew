@@ -93,6 +93,7 @@ const PetPassportView = ({ passport }: PetPassportViewProps) => {
         <Row label="Sex" value={identity.sex} />
         <Row label="Date of birth" value={dateLabel(identity.dateOfBirth)} />
         <Row label="Colour" value={identity.colour} />
+        <Row label="Distinguishing marks" value={identity.distinguishingMarks} />
         <Row label="Passport no." value={passport.passportNumber} />
       </Section>
 
