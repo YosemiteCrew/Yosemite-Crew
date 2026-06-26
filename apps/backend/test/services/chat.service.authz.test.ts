@@ -54,6 +54,7 @@ import { ChatService } from "src/services/chat.service";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import UserOrganizationModel from "src/models/user-organization";
+import ChatSessionModel from "src/models/chatSession";
 
 const mockedPrisma = prisma as unknown as {
   userOrganization: { findFirst: jest.Mock };
@@ -62,6 +63,9 @@ const mockedPrisma = prisma as unknown as {
 const mockedReadSwitch = isReadFromPostgres as unknown as jest.Mock;
 const mockedUserOrgModel = UserOrganizationModel as unknown as {
   findOne: jest.Mock;
+};
+const mockedChatSessionModel = ChatSessionModel as unknown as {
+  findById: jest.Mock;
 };
 
 beforeEach(() => {
@@ -103,6 +107,23 @@ describe("ChatService org-membership enforcement", () => {
     ).rejects.toMatchObject({ statusCode: 403 });
     expect(mockedUserOrgModel.findOne).toHaveBeenCalled();
     expect(mockedPrisma.userOrganization.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects an outsider added through the Mongo path", async () => {
+    mockedReadSwitch.mockReturnValue(false);
+    mockedChatSessionModel.findById.mockResolvedValue({
+      type: "ORG_GROUP",
+      createdBy: "owner",
+      status: "ACTIVE",
+      members: ["owner"],
+      organisationId: "org1",
+      channelId: "ch1",
+    });
+    mockedUserOrgModel.findOne.mockResolvedValue(null);
+
+    await expect(
+      ChatService.addMembersToGroup("s1", "owner", ["outsider"]),
+    ).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it("addMembersToGroup rejects adding a user who is not in the org", async () => {
@@ -179,6 +200,15 @@ describe("ChatService.closeSession authorization", () => {
       ChatService.closeSession("s1", "member2"),
     ).rejects.toMatchObject({ statusCode: 403 });
     expect(mockedPrisma.chatSession.update).not.toHaveBeenCalled();
+  });
+
+  it("authorizes the actor through the Mongo path too", async () => {
+    mockedReadSwitch.mockReturnValue(false);
+    mockedChatSessionModel.findById.mockResolvedValue(appointmentSession);
+
+    await expect(
+      ChatService.closeSession("s1", "intruder"),
+    ).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it("is a no-op when the session does not exist", async () => {
