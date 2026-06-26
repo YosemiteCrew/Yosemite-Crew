@@ -30,6 +30,7 @@ const AppointmentController = {
   updateFromPms: jest.fn(),
   attachFormsToAppointment: jest.fn(),
   getById: jest.fn(),
+  getByIdMobile: jest.fn(),
   listByCompanion: jest.fn(),
   listByCompanionForOrganisation: jest.fn(),
   listByParent: jest.fn(),
@@ -126,6 +127,18 @@ describe("appointment.router", () => {
     expect(detailRoute).toBeDefined();
     expect(detailRoute?.stack.map((layer) => layer.handle)).toContain(
       appointmentOrgPermissionsMiddleware,
+    );
+  });
+
+  it("binds mobile appointment detail reads to the mobile controller", () => {
+    const mobileRoute = findRoute("/mobile/:appointmentId", "get");
+
+    expect(mobileRoute).toBeDefined();
+    expect(mobileRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognitoMobile,
+    );
+    expect(mobileRoute?.stack.map((layer) => layer.handle)).toContain(
+      AppointmentController.getByIdMobile,
     );
   });
 });

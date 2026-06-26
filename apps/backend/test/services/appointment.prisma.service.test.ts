@@ -510,6 +510,30 @@ describe("AppointmentPrismaService", () => {
     });
   });
 
+  it("allows the linked parent to read the appointment", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
+      makeRow({
+        organisationId: "org_2",
+        patient: {
+          id: "comp_1",
+          name: "Buddy",
+          species: "Dog",
+          breed: "Labrador",
+          parent: { id: "parent_1", name: "Parent One" },
+        },
+      }),
+    );
+
+    const result = await AppointmentPrismaService.getById(
+      "appt_1",
+      "org_2",
+      undefined,
+      "parent_1",
+    );
+
+    expect(result).toMatchObject({ id: "appt_1" });
+  });
+
   it("reschedules and resets UPCOMING appointments back to requested", async () => {
     mockedPrisma.appointment.findUnique.mockResolvedValue(
       makeRow({ status: "UPCOMING" }),

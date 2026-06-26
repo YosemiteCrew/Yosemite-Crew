@@ -2142,6 +2142,7 @@ export const AppointmentPrismaService = {
     appointmentId: string,
     organisationId?: string,
     actorId?: string,
+    parentId?: string,
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError(
@@ -2161,7 +2162,12 @@ export const AppointmentPrismaService = {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }
 
-    if (actorId && !canViewOwnAppointment(row as AppointmentRow, actorId)) {
+    const canViewAsActor =
+      actorId && canViewOwnAppointment(row as AppointmentRow, actorId);
+    const canViewAsParent =
+      parentId && getParentIdFromRow(row as AppointmentRow) === parentId;
+
+    if ((actorId || parentId) && !canViewAsActor && !canViewAsParent) {
       throw new AppointmentPrismaServiceError(
         "Forbidden – insufficient permissions",
         403,
