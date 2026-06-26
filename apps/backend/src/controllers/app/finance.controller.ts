@@ -1449,8 +1449,13 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invoice Id is required" });
       }
 
-      const result =
-        await FinancePaymentService.createPaymentIntentForInvoice(invoiceId);
+      const result = await FinancePaymentService.createPaymentIntentForInvoice(
+        invoiceId,
+        {
+          collectionMode: "DEPOSIT_THEN_SETTLE",
+          settlementChannel: "DEPOSIT",
+        },
+      );
 
       return res.status(201).json({
         data: result,
