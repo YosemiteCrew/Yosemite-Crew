@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import { Prisma } from "@prisma/client";
 import {
   Appointment as AppointmentDomain,
+  AppointmentBookingPaymentStatus,
   AppointmentKind,
   AppointmentPaymentStatus,
   AppointmentRequestDTO,
@@ -1172,14 +1173,23 @@ const buildWhereFromFilters = (
   return where;
 };
 
-const resolvePaymentStatusMap = async (
+type AppointmentPaymentStateMaps = {
+  paymentStatusMap: Map<string, AppointmentPaymentStatus>;
+  bookingPaymentStatusMap: Map<string, AppointmentBookingPaymentStatus>;
+};
+
+const resolveAppointmentPaymentStateMaps = async (
   appointmentIds: string[],
-): Promise<Map<string, AppointmentPaymentStatus>> => {
+): Promise<AppointmentPaymentStateMaps> => {
   const uniqueIds = [...new Set(appointmentIds.filter(Boolean))];
   const paymentStatusMap = new Map<string, AppointmentPaymentStatus>();
+  const bookingPaymentStatusMap = new Map<
+    string,
+    AppointmentBookingPaymentStatus
+  >();
 
   if (!uniqueIds.length) {
-    return paymentStatusMap;
+    return { paymentStatusMap, bookingPaymentStatusMap };
   }
 
   const invoices = await prisma.invoice.findMany({
@@ -1189,6 +1199,7 @@ const resolvePaymentStatusMap = async (
     select: {
       appointmentId: true,
       status: true,
+      depositCollectedAmount: true,
       payments: {
         where: { status: "SUCCEEDED" },
         select: { id: true },
@@ -1196,24 +1207,37 @@ const resolvePaymentStatusMap = async (
     },
   });
 
-  const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
+  const tracker = new Map<
+    string,
+    {
+      hasPaid: boolean;
+      hasUnpaid: boolean;
+      hasBookingPayment: boolean;
+    }
+  >();
 
   for (const invoice of invoices) {
     if (!invoice.appointmentId) continue;
     const entry = tracker.get(invoice.appointmentId) ?? {
       hasPaid: false,
       hasUnpaid: false,
+      hasBookingPayment: false,
     };
 
     const hasSuccessfulPayment = (invoice.payments?.length ?? 0) > 0;
-    const isPaid = invoice.status === "PAID" || hasSuccessfulPayment;
-    const isUnpaid = !isPaid && UNPAID_INVOICE_STATUSES.has(invoice.status);
+    const hasBookingPayment =
+      hasSuccessfulPayment || (invoice.depositCollectedAmount ?? 0) > 0;
+    const isPaid = invoice.status === "PAID";
+    const isUnpaid = UNPAID_INVOICE_STATUSES.has(invoice.status);
 
     if (isPaid) {
       entry.hasPaid = true;
     }
     if (isUnpaid) {
       entry.hasUnpaid = true;
+    }
+    if (hasBookingPayment) {
+      entry.hasBookingPayment = true;
     }
 
     tracker.set(invoice.appointmentId, entry);
@@ -1224,14 +1248,19 @@ const resolvePaymentStatusMap = async (
       appointmentId,
       entry.hasPaid && !entry.hasUnpaid ? "PAID" : "UNPAID",
     );
+    bookingPaymentStatusMap.set(
+      appointmentId,
+      entry.hasBookingPayment ? "PAID" : "UNPAID",
+    );
   }
 
-  return paymentStatusMap;
+  return { paymentStatusMap, bookingPaymentStatusMap };
 };
 
 const toDomain = (
   row: AppointmentRow,
   paymentStatus?: AppointmentPaymentStatus,
+  bookingPaymentStatus?: AppointmentBookingPaymentStatus,
 ): AppointmentDomain => {
   const appointmentTypeWithTemplates = row.appointmentType as
     | (AppointmentDomain["appointmentType"] & {
@@ -1263,6 +1292,7 @@ const toDomain = (
     endTime: new Date(row.endTime),
     status: row.status,
     paymentStatus,
+    bookingPaymentStatus,
     isEmergency: row.isEmergency,
     concern: row.concern ?? undefined,
     createdAt: new Date(row.createdAt),
@@ -1278,9 +1308,14 @@ const toDomain = (
 const toResponse = async (
   row: AppointmentRow,
 ): Promise<AppointmentResponseDTO> => {
-  const paymentStatusMap = await resolvePaymentStatusMap([row.id]);
+  const { paymentStatusMap, bookingPaymentStatusMap } =
+    await resolveAppointmentPaymentStateMaps([row.id]);
   return toAppointmentResponseDTO(
-    toDomain(row, paymentStatusMap.get(row.id) ?? "UNPAID"),
+    toDomain(
+      row,
+      paymentStatusMap.get(row.id) ?? "UNPAID",
+      bookingPaymentStatusMap.get(row.id) ?? "UNPAID",
+    ),
   );
 };
 
@@ -1289,12 +1324,15 @@ const toResponseList = async (
 ): Promise<AppointmentResponseDTO[]> => {
   if (!rows.length) return [];
 
-  const paymentStatusMap = await resolvePaymentStatusMap(
-    rows.map((row) => row.id),
-  );
+  const { paymentStatusMap, bookingPaymentStatusMap } =
+    await resolveAppointmentPaymentStateMaps(rows.map((row) => row.id));
   return rows.map((row) =>
     toAppointmentResponseDTO(
-      toDomain(row, paymentStatusMap.get(row.id) ?? "UNPAID"),
+      toDomain(
+        row,
+        paymentStatusMap.get(row.id) ?? "UNPAID",
+        bookingPaymentStatusMap.get(row.id) ?? "UNPAID",
+      ),
     ),
   );
 };

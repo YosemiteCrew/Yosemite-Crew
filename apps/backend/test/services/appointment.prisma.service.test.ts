@@ -535,7 +535,7 @@ describe("AppointmentPrismaService", () => {
     expect(result).toMatchObject({ id: "appt_1" });
   });
 
-  it("treats a successful payment as paid even if the invoice status is stale", async () => {
+  it("shows booking payment as paid while the final invoice remains unpaid", async () => {
     mockedPrisma.appointment.findFirst.mockResolvedValue(
       makeRow({
         organisationId: "org_2",
@@ -545,13 +545,15 @@ describe("AppointmentPrismaService", () => {
       {
         appointmentId: "appt_1",
         status: "AWAITING_PAYMENT",
+        depositCollectedAmount: 25,
         payments: [{ id: "pay_1" }],
       },
     ]);
 
     const result = await AppointmentPrismaService.getById("appt_1", "org_2");
 
-    expect((result as any).paymentStatus).toBe("PAID");
+    expect((result as any).paymentStatus).toBe("UNPAID");
+    expect((result as any).bookingPaymentStatus).toBe("PAID");
   });
 
   it("reschedules and resets UPCOMING appointments back to requested", async () => {

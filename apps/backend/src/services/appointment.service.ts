@@ -207,10 +207,6 @@ export const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
     select: {
       appointmentId: true,
       status: true,
-      payments: {
-        where: { status: "SUCCEEDED" },
-        select: { id: true },
-      },
     },
   });
 
@@ -220,24 +216,6 @@ export const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
 export const resolvePaymentStatusByAppointmentIdsFromMongo = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
-  const postgresInvoices = await prisma.invoice.findMany({
-    where: {
-      appointmentId: { in: appointmentIds },
-    },
-    select: {
-      appointmentId: true,
-      status: true,
-      payments: {
-        where: { status: "SUCCEEDED" },
-        select: { id: true },
-      },
-    },
-  });
-
-  if (postgresInvoices.length > 0) {
-    return buildAppointmentPaymentStatusMap(postgresInvoices);
-  }
-
   const statusMap = new Map<string, AppointmentPaymentStatus>();
   const results: Array<{
     _id: string;
@@ -283,17 +261,10 @@ const buildAppointmentPaymentStatusMap = (
   invoices: Array<{
     appointmentId: string | null;
     status: string;
-    payments: Array<{ id: string }>;
   }>,
 ) => {
   const statusMap = new Map<string, AppointmentPaymentStatus>();
   const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
-  const unpaidStatuses = new Set([
-    "PENDING",
-    "AWAITING_PAYMENT",
-    "FAILED",
-    "REFUNDED",
-  ]);
 
   for (const invoice of invoices) {
     if (!invoice.appointmentId) continue;
@@ -302,14 +273,14 @@ const buildAppointmentPaymentStatusMap = (
       hasUnpaid: false,
     };
 
-    const hasSuccessfulPayment = (invoice.payments?.length ?? 0) > 0;
-    const isPaid = invoice.status === "PAID" || hasSuccessfulPayment;
-    const isUnpaid = !isPaid && unpaidStatuses.has(invoice.status);
-
-    if (isPaid) {
+    if (invoice.status === "PAID") {
       entry.hasPaid = true;
     }
-    if (isUnpaid) {
+    if (
+      ["PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"].includes(
+        invoice.status,
+      )
+    ) {
       entry.hasUnpaid = true;
     }
 
