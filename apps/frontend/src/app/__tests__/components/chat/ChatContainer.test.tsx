@@ -200,6 +200,7 @@ describe('ChatContainer', () => {
       selector({
         primaryOrgId: 'org-1',
         status: 'loaded',
+        getPrimaryOrg: () => ({ crossOrgMessagingEnabled: false }),
       })
     );
 

@@ -434,6 +434,80 @@ describe('Chat Service', () => {
     });
   });
 
+  // --------------------------------------------------------------------------
+  // 6. Network (cross-clinic) directory
+  // --------------------------------------------------------------------------
+
+  describe('searchNetworkColleagues', () => {
+    it('fetches colleagues with both query params and returns the list', async () => {
+      const colleagues = [
+        {
+          userId: 'u2',
+          name: 'Dr. Rivera',
+          role: 'Veterinarian',
+          organisationId: 'org-2',
+          organisationName: 'Riverside Vets',
+        },
+      ];
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: { colleagues } });
+
+      const result = await chatService.searchNetworkColleagues('org-1', 'riv');
+
+      expect(axiosService.getData).toHaveBeenCalledWith('/v1/chat/pms/network/colleagues', {
+        organisationId: 'org-1',
+        q: 'riv',
+      });
+      expect(result).toEqual(colleagues);
+    });
+
+    it('returns an empty array when the payload omits colleagues', async () => {
+      (axiosService.getData as jest.Mock).mockResolvedValue({ data: {} });
+
+      const result = await chatService.searchNetworkColleagues('org-1', 'riv');
+
+      expect(result).toEqual([]);
+    });
+
+    it('logs and rethrows on failure', async () => {
+      const error = new Error('search failed');
+      (axiosService.getData as jest.Mock).mockRejectedValue(error);
+
+      await expect(chatService.searchNetworkColleagues('org-1', 'riv')).rejects.toThrow(error);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('createNetworkDirectChat', () => {
+    it('posts the input and returns the session', async () => {
+      const session = { channelId: 'channel-9', _id: 'sess-1' };
+      (axiosService.postData as jest.Mock).mockResolvedValue({ data: session });
+      const input = {
+        organisationId: 'org-1',
+        otherUserId: 'u2',
+        otherOrganisationId: 'org-2',
+      };
+
+      const result = await chatService.createNetworkDirectChat(input);
+
+      expect(axiosService.postData).toHaveBeenCalledWith('/v1/chat/pms/network/direct', input);
+      expect(result).toEqual(session);
+    });
+
+    it('logs and rethrows on failure', async () => {
+      const error = new Error('direct failed');
+      (axiosService.postData as jest.Mock).mockRejectedValue(error);
+
+      await expect(
+        chatService.createNetworkDirectChat({
+          organisationId: 'org-1',
+          otherUserId: 'u2',
+          otherOrganisationId: 'org-2',
+        })
+      ).rejects.toThrow(error);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
   describe('shareEntityToChannel', () => {
     it('posts the share payload and returns the record', async () => {
       const record = { id: 'share1', channelId: 'ch1' };

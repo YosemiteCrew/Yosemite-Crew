@@ -29,7 +29,7 @@ import {
 import { StreamChat } from 'stream-chat';
 import type { Channel as StreamChannel } from 'stream-chat';
 import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-chat-react';
-import { LuSearch, LuCommand, LuMessageSquarePlus, LuArchive } from 'react-icons/lu';
+import { LuSearch, LuCommand, LuMessageSquarePlus, LuArchive, LuGlobe } from 'react-icons/lu';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Text from '@/app/ui/Text';
 import { Badge } from '@/app/ui';
@@ -41,6 +41,7 @@ import ChatComposer from './ChatComposer';
 import ChatCommandPalette from './ChatCommandPalette';
 import ShareEntityModal from './ShareEntityModal';
 import MessageSearch from './MessageSearch';
+import NetworkDirectoryModal from './NetworkDirectoryModal';
 import { GroupModal, type OrgUserOption } from './GroupModal';
 import { useChatNotifications } from '../hooks/useChatNotifications';
 import { ChatShareContext } from './chatShareContext';
@@ -972,6 +973,9 @@ export const ChatContainer: FC<ChatContainerProps> = ({
 
   const primaryOrgId = useOrgStore((state) => state.primaryOrgId);
   const orgStatus = useOrgStore((state) => state.status);
+  const crossOrgEnabled = useOrgStore((state) =>
+    Boolean(state.getPrimaryOrg()?.crossOrgMessagingEnabled)
+  );
   const [client, setClient] = useState<StreamChat | null>(null);
   const scopeInitialized = useRef(false);
   const [loading, setLoading] = useState(true);
@@ -988,6 +992,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const [directSearch, setDirectSearch] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [shareChannelId, setShareChannelId] = useState<string | null>(null);
+  const [networkModalOpen, setNetworkModalOpen] = useState(false);
   const [creatingChat, setCreatingChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [directListHover, setDirectListHover] = useState(false);
@@ -1483,6 +1488,29 @@ export const ChatContainer: FC<ChatContainerProps> = ({
     [primaryOrgId, client, activateChannelById, onChannelSelect]
   );
 
+  const handleNetworkChatStarted = useCallback(
+    async (channelId: string) => {
+      setNetworkModalOpen(false);
+      if (!client) return;
+      try {
+        const queried = await client.queryChannels(
+          { id: { $eq: channelId } },
+          [{ last_message_at: -1 }],
+          { watch: true, state: true, presence: true, limit: 1 }
+        );
+        const chan = queried[0] ?? client.channel('team', channelId);
+        await chan.watch();
+        await chan.update({ chatCategory: 'colleagues' } as Record<string, unknown>, {});
+        setIsChannelSelected(true);
+        setShowEmptyPlaceholder(false);
+        onChannelSelect?.(chan);
+      } catch (err) {
+        console.error('Failed to open network chat', err);
+      }
+    },
+    [client, onChannelSelect]
+  );
+
   // Modal action handlers
   const handleModalCreate = useCallback(
     async (title: string, memberIds: string[]) => {
@@ -1777,6 +1805,18 @@ export const ChatContainer: FC<ChatContainerProps> = ({
               <div className="p-3 border-b border-grey-light flex flex-col gap-3">
                 {scope === 'colleagues' && (
                   <div className="flex flex-col gap-2">
+                    {crossOrgEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => setNetworkModalOpen(true)}
+                        className="flex items-center gap-2 px-3 py-2.5 rounded-2xl! border border-grey-light bg-white cursor-pointer text-left hover:border-input-border-active transition-all duration-200"
+                      >
+                        <LuGlobe className="size-4 shrink-0 text-primary-600" />
+                        <span className="font-satoshi text-sm text-text-primary">
+                          Message a colleague at another clinic
+                        </span>
+                      </button>
+                    )}
                     <FormInput
                       intype="text"
                       inname="colleagueSearch"
@@ -1946,6 +1986,13 @@ export const ChatContainer: FC<ChatContainerProps> = ({
               <ShareEntityModal
                 channelId={shareChannelId}
                 onClose={() => setShareChannelId(null)}
+              />
+            )}
+            {networkModalOpen && primaryOrgId && (
+              <NetworkDirectoryModal
+                organisationId={primaryOrgId}
+                onClose={() => setNetworkModalOpen(false)}
+                onStarted={handleNetworkChatStarted}
               />
             )}
           </div>
