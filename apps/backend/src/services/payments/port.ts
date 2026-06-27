@@ -13,7 +13,7 @@ import type {
 
 /**
  * The capability surface the rest of finance needs from a payment provider.
- * Every provider (Stripe, Adyen, an in-memory fake) implements this identically,
+ * Every provider (Stripe, CareCredit, Scratchpay, an in-memory fake) implements this identically,
  * so callers resolve an adapter from the registry and never branch on the
  * provider. A single contract test suite runs against every implementation.
  *

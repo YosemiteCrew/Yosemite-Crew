@@ -107,7 +107,7 @@ describe("FinanceController", () => {
   it("rejects unsupported payment providers", async () => {
     const req = {
       params: { invoiceId: "inv_1" },
-      body: { provider: "adyen" },
+      body: { provider: "unknown_provider" },
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -197,7 +197,7 @@ describe("FinanceController", () => {
 
   it("rejects unsupported webhook providers", async () => {
     const req = {
-      params: { provider: "adyen" },
+      params: { provider: "unknown_provider" },
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),

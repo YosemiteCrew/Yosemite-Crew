@@ -11,7 +11,7 @@ import type {
 
 /**
  * A harness binds the provider-agnostic contract to one implementation. Every
- * provider (the fake, and later the Stripe and Adyen adapters) supplies one of
+ * provider (the fake, and later the Stripe, CareCredit, and Scratchpay adapters) supplies one of
  * these, so they all prove identical behaviour against the same assertions.
  */
 export interface ProviderContractHarness {
@@ -51,7 +51,9 @@ export function runPaymentProviderContract(
     });
 
     it("exposes a provider id and a complete capabilities descriptor", () => {
-      expect(["STRIPE", "ADYEN", "MANUAL"]).toContain(gateway.provider);
+      expect(["STRIPE", "CARECREDIT", "SCRATCHPAY", "MANUAL"]).toContain(
+        gateway.provider,
+      );
       const capabilities = gateway.capabilities;
       for (const key of [
         "hostedCheckout",

@@ -9,7 +9,7 @@
  * anywhere in these types. See docs/guide/payment-gateway-multi-provider-plan.md.
  */
 
-export type ProviderId = "STRIPE" | "ADYEN" | "MANUAL";
+export type ProviderId = "STRIPE" | "CARECREDIT" | "SCRATCHPAY" | "MANUAL";
 
 export type PaymentAttemptStatus =
   | "REQUIRES_ACTION"

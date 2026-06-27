@@ -57,7 +57,7 @@ function settle<T>(body: () => T): Promise<T> {
  * Deterministic in-memory payment provider. It is the executable reference for the
  * PaymentProviderPort contract: it models connected accounts, idempotent payments
  * and refunds, refund-over-capture protection, and HMAC-verified webhooks, with no
- * network calls. Real adapters (Stripe, Adyen) must pass the same contract suite.
+ * network calls. Real adapters (Stripe, CareCredit, Scratchpay) must pass the same contract suite.
  */
 export class FakeGateway implements PaymentProviderPort {
   readonly provider: ProviderId;

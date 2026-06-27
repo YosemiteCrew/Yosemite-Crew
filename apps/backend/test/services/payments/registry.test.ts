@@ -16,8 +16,8 @@ describe("PaymentProviderRegistry", () => {
 
   it("throws UnknownProviderError for an unregistered provider", () => {
     const registry = new PaymentProviderRegistry();
-    expect(registry.has("ADYEN")).toBe(false);
-    expect(() => registry.get("ADYEN")).toThrow(UnknownProviderError);
+    expect(registry.has("CARECREDIT")).toBe(false);
+    expect(() => registry.get("CARECREDIT")).toThrow(UnknownProviderError);
   });
 
   it("lists registered providers", () => {
