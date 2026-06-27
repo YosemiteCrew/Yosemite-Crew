@@ -31,7 +31,12 @@ jest.mock("stream-chat", () => ({
 
 jest.mock("src/models/chatSession", () => ({
   __esModule: true,
-  default: { findById: jest.fn(), findOne: jest.fn(), create: jest.fn() },
+  default: {
+    findById: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    deleteOne: jest.fn(),
+  },
 }));
 jest.mock("src/models/appointment", () => ({
   __esModule: true,
@@ -47,9 +52,12 @@ jest.mock("src/services/user-profile.service", () => ({
 jest.mock("src/services/user.service", () => ({
   UserService: { getById: jest.fn() },
 }));
+let mockDualWriteEnabled = false;
 jest.mock("src/utils/dual-write", () => ({
   handleDualWriteError: jest.fn(),
-  shouldDualWrite: false,
+  get shouldDualWrite() {
+    return mockDualWriteEnabled;
+  },
 }));
 jest.mock("src/config/read-switch", () => ({
   isReadFromPostgres: jest.fn(() => true),
@@ -63,6 +71,7 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       create: jest.fn(),
       deleteMany: jest.fn(),
+      upsert: jest.fn(),
     },
     appointment: { findFirst: jest.fn() },
   },
@@ -85,6 +94,7 @@ const mockedPrisma = prisma as unknown as {
     update: jest.Mock;
     create: jest.Mock;
     deleteMany: jest.Mock;
+    upsert: jest.Mock;
   };
   appointment: { findFirst: jest.Mock };
 };
@@ -93,6 +103,7 @@ const mockedChatSessionModel = ChatSessionModel as unknown as {
   findById: jest.Mock;
   findOne: jest.Mock;
   create: jest.Mock;
+  deleteOne: jest.Mock;
 };
 const mockedAppointmentModel = AppointmentModel as unknown as {
   findById: jest.Mock;
@@ -107,6 +118,7 @@ const mockedUserOrgModel = UserOrganizationModel as unknown as {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockDualWriteEnabled = false;
   // default: Postgres read path
   mockedReadSwitch.mockReturnValue(true);
   // org-membership checks pass by default (Postgres + Mongo paths)
@@ -920,5 +932,314 @@ describe("ChatService.deleteGroup", () => {
     await expect(
       ChatService.deleteGroup("s1", "owner"),
     ).resolves.toBeUndefined();
+  });
+
+  it("swallows Stream delete errors (Mongo) and still deletes the document", async () => {
+    mockedReadSwitch.mockReturnValue(false);
+    mockedChatSessionModel.findById.mockResolvedValue(baseGroup);
+    mockDelete.mockRejectedValue(new Error("stream down"));
+    const deleteOne = jest.fn().mockResolvedValue({});
+    (mockedChatSessionModel as unknown as { deleteOne: jest.Mock }).deleteOne =
+      deleteOne;
+
+    await ChatService.deleteGroup("s1", "owner");
+
+    expect(deleteOne).toHaveBeenCalledWith({ _id: "s1" });
+  });
+});
+
+/* ---------------------- openChatBySessionId access guards ------------------ */
+
+describe("ChatService.openChatBySessionId access guards", () => {
+  it("throws 403 (Postgres) when the session is CLOSED", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({
+      id: "s1",
+      type: "ORG_GROUP",
+      status: "CLOSED",
+      members: ["u1"],
+      channelId: "ch1",
+    });
+
+    await expect(
+      ChatService.openChatBySessionId("s1", "u1"),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("throws 403 (Postgres) when the user is not a member", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({
+      id: "s1",
+      type: "ORG_GROUP",
+      status: "ACTIVE",
+      members: ["someoneElse"],
+      channelId: "ch1",
+    });
+
+    await expect(
+      ChatService.openChatBySessionId("s1", "u1"),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("throws 403 (Postgres) when the appointment window has not opened yet", async () => {
+    const now = new Date();
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({
+      id: "s1",
+      type: "APPOINTMENT",
+      status: "ACTIVE",
+      members: ["u1"],
+      channelId: "ch1",
+      appointmentId: "a1",
+      allowedFrom: new Date(now.getTime() + 60000),
+      allowedUntil: new Date(now.getTime() + 120000),
+    });
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      status: "UPCOMING",
+    });
+
+    await expect(
+      ChatService.openChatBySessionId("s1", "u1"),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("throws 403 (Postgres) when the appointment window has already ended", async () => {
+    const now = new Date();
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({
+      id: "s1",
+      type: "APPOINTMENT",
+      status: "ACTIVE",
+      members: ["u1"],
+      channelId: "ch1",
+      appointmentId: "a1",
+      allowedFrom: new Date(now.getTime() - 120000),
+      allowedUntil: new Date(now.getTime() - 60000),
+    });
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      status: "UPCOMING",
+    });
+
+    await expect(
+      ChatService.openChatBySessionId("s1", "u1"),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("throws 404 (Mongo) when the appointment is missing", async () => {
+    mockedReadSwitch.mockReturnValue(false);
+    mockedChatSessionModel.findById.mockResolvedValue({
+      type: "APPOINTMENT",
+      status: "ACTIVE",
+      members: ["u1"],
+      channelId: "ch1",
+      appointmentId: "a1",
+    });
+    mockedAppointmentModel.findById.mockResolvedValue(null);
+
+    await expect(
+      ChatService.openChatBySessionId("s1", "u1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("throws 403 (Mongo) when the appointment window has ended", async () => {
+    mockedReadSwitch.mockReturnValue(false);
+    const now = new Date();
+    mockedChatSessionModel.findById.mockResolvedValue({
+      type: "APPOINTMENT",
+      status: "ACTIVE",
+      members: ["u1"],
+      channelId: "ch1",
+      appointmentId: "a1",
+      allowedFrom: new Date(now.getTime() - 120000),
+      allowedUntil: new Date(now.getTime() - 60000),
+    });
+    mockedAppointmentModel.findById.mockResolvedValue({ status: "UPCOMING" });
+
+    await expect(
+      ChatService.openChatBySessionId("s1", "u1"),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+/* ------------------------- assertGroupAdmin guards ------------------------- */
+
+describe("ChatService assertGroupAdmin guards (via addMembersToGroup)", () => {
+  it("throws 400 when the session is not a group chat", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({
+      id: "s1",
+      type: "APPOINTMENT",
+      createdBy: "owner",
+      status: "ACTIVE",
+      members: ["owner", "m2"],
+      organisationId: "org1",
+      channelId: "ch1",
+    });
+
+    await expect(
+      ChatService.addMembersToGroup("s1", "owner", ["m3"]),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("throws 403 when the actor is not the group owner", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({
+      id: "s1",
+      type: "ORG_GROUP",
+      createdBy: "owner",
+      status: "ACTIVE",
+      members: ["owner", "m2"],
+      organisationId: "org1",
+      channelId: "ch1",
+    });
+
+    await expect(
+      ChatService.addMembersToGroup("s1", "intruder", ["m3"]),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("throws 400 when the group chat is already closed", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({
+      id: "s1",
+      type: "ORG_GROUP",
+      createdBy: "owner",
+      status: "CLOSED",
+      members: ["owner", "m2"],
+      organisationId: "org1",
+      channelId: "ch1",
+    });
+
+    await expect(
+      ChatService.addMembersToGroup("s1", "owner", ["m3"]),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("throws 403 (Mongo) when the actor is not the group owner", async () => {
+    mockedReadSwitch.mockReturnValue(false);
+    mockedChatSessionModel.findById.mockResolvedValue({
+      type: "ORG_GROUP",
+      createdBy: "owner",
+      status: "ACTIVE",
+      members: ["owner", "m2"],
+      organisationId: "org1",
+      channelId: "ch1",
+      save: jest.fn(),
+    });
+
+    await expect(
+      ChatService.addMembersToGroup("s1", "intruder", ["m3"]),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+/* ------------------------------- dual-write -------------------------------- */
+
+describe("ChatService dual-write to Postgres", () => {
+  const dualWriteModule = jest.requireMock("src/utils/dual-write") as {
+    handleDualWriteError: jest.Mock;
+  };
+
+  beforeEach(() => {
+    mockDualWriteEnabled = true;
+    mockedReadSwitch.mockReturnValue(false);
+    mockedPrisma.chatSession.upsert.mockResolvedValue(undefined);
+    mockedPrisma.chatSession.deleteMany.mockResolvedValue({ count: 1 });
+    mockedChatSessionModel.deleteOne.mockResolvedValue({});
+  });
+
+  it("maps a created Mongo doc and upserts it into Postgres", async () => {
+    const created = {
+      toObject: () => ({
+        _id: { toString: () => "s-new" },
+        type: "ORG_GROUP",
+        channelId: "org-group-1",
+        organisationId: "org1",
+        members: ["owner", "member2"],
+        status: "ACTIVE",
+        title: "Team",
+        isPrivate: true,
+      }),
+    };
+    mockedChatSessionModel.create.mockResolvedValue(created);
+
+    const res = await ChatService.createOrgGroupChat({
+      organisationId: "org1",
+      createdBy: "owner",
+      title: "Team",
+      memberIds: ["owner", "member2"],
+    });
+
+    expect(res).toBe(created);
+    expect(mockedPrisma.chatSession.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "s-new" },
+        create: expect.objectContaining({
+          id: "s-new",
+          members: ["owner", "member2"],
+        }),
+      }),
+    );
+    expect(dualWriteModule.handleDualWriteError).not.toHaveBeenCalled();
+  });
+
+  it("routes upsert failures through handleDualWriteError", async () => {
+    mockedChatSessionModel.create.mockResolvedValue({
+      toObject: () => ({
+        _id: { toString: () => "s-new" },
+        type: "ORG_GROUP",
+        channelId: "org-group-1",
+        organisationId: "org1",
+        members: ["owner", "member2"],
+        status: "ACTIVE",
+      }),
+    });
+    mockedPrisma.chatSession.upsert.mockRejectedValueOnce(new Error("pg down"));
+
+    await ChatService.createOrgGroupChat({
+      organisationId: "org1",
+      createdBy: "owner",
+      title: "Team",
+      memberIds: ["owner", "member2"],
+    });
+
+    expect(dualWriteModule.handleDualWriteError).toHaveBeenCalledWith(
+      "ChatSession",
+      expect.any(Error),
+    );
+  });
+
+  it("dual-write deletes from Postgres when deleting a Mongo group", async () => {
+    mockedChatSessionModel.findById.mockResolvedValue({
+      type: "ORG_GROUP",
+      createdBy: "owner",
+      status: "ACTIVE",
+      members: ["owner", "m2"],
+      organisationId: "org1",
+      channelId: "ch1",
+    });
+
+    await ChatService.deleteGroup("s1", "owner");
+
+    expect(mockedChatSessionModel.deleteOne).toHaveBeenCalledWith({
+      _id: "s1",
+    });
+    expect(mockedPrisma.chatSession.deleteMany).toHaveBeenCalledWith({
+      where: { id: "s1" },
+    });
+  });
+
+  it("routes dual-write delete failures through handleDualWriteError", async () => {
+    mockedChatSessionModel.findById.mockResolvedValue({
+      type: "ORG_GROUP",
+      createdBy: "owner",
+      status: "ACTIVE",
+      members: ["owner", "m2"],
+      organisationId: "org1",
+      channelId: "ch1",
+    });
+    mockedPrisma.chatSession.deleteMany.mockRejectedValueOnce(
+      new Error("pg down"),
+    );
+
+    await ChatService.deleteGroup("s1", "owner");
+
+    expect(dualWriteModule.handleDualWriteError).toHaveBeenCalledWith(
+      "ChatSession delete",
+      expect.any(Error),
+    );
   });
 });
