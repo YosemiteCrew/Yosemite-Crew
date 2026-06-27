@@ -729,7 +729,7 @@ const InventoryInfo = ({
       await onUpdate({
         ...activeInventory,
         attributes: {
-          ...(activeInventory.attributes ?? {}),
+          ...activeInventory.attributes,
           ...batchAttributeValues,
         },
         batch: {
