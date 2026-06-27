@@ -1371,7 +1371,7 @@ describe("AppointmentService", () => {
       );
     });
 
-    it("should use catalog billing items and persist productItemId when catalog selection exists", async () => {
+    it("should collapse package catalog selections to a single invoice line and persist productItemId", async () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { prisma } = require("src/config/prisma");
       const startTime = new Date();
@@ -1380,9 +1380,11 @@ describe("AppointmentService", () => {
       (CatalogService.resolveSelection as jest.Mock).mockResolvedValue({
         productItemId: "prod_bundle",
         productKind: "PACKAGE",
+        name: "Dental Bundle",
         legacyServiceId: null,
         isBookable: true,
         appointmentKinds: ["OUTPATIENT"],
+        finalAmount: 317.5,
         billingItems: [
           {
             productItemId: "prod_bundle",
@@ -1471,14 +1473,8 @@ describe("AppointmentService", () => {
             {
               description: "Dental Bundle",
               quantity: 1,
-              unitPrice: 250,
-              discountPercent: 5,
-            },
-            {
-              description: "Dental X-Ray",
-              quantity: 2,
-              unitPrice: 40,
-              discountPercent: undefined,
+              unitPrice: 317.5,
+              total: 317.5,
             },
           ],
         }),

@@ -17,6 +17,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import ServiceModel from "src/models/service";
 import { InvoiceService } from "./invoice.service";
+import { roundMoney } from "./finance/pricing";
 import { StripeService } from "./stripe.service";
 import { OccupancyModel } from "src/models/occupancy";
 import OrganizationModel from "src/models/organization";
@@ -304,6 +305,7 @@ type DraftInvoiceItemInput = {
   quantity: number;
   unitPrice: number;
   discountPercent?: number;
+  total?: number;
 };
 
 type LegacyServiceBridge = {
@@ -315,19 +317,31 @@ type LegacyServiceBridge = {
 };
 
 const mapCatalogSelectionToDraftItems = (selection: {
+  productKind: string;
+  name: string;
   billingItems: Array<{
     name: string;
     quantity: number;
     unitPrice: number;
     defaultDiscountPercent?: number | null;
   }>;
+  finalAmount: number;
 }): DraftInvoiceItemInput[] =>
-  selection.billingItems.map((item) => ({
-    description: item.name,
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    discountPercent: item.defaultDiscountPercent ?? undefined,
-  }));
+  selection.productKind === "PACKAGE"
+    ? [
+        {
+          description: selection.name,
+          quantity: 1,
+          unitPrice: roundMoney(selection.finalAmount),
+          total: roundMoney(selection.finalAmount),
+        },
+      ]
+    : selection.billingItems.map((item) => ({
+        description: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discountPercent: item.defaultDiscountPercent ?? undefined,
+      }));
 
 const mapLegacyServiceToDraftItems = (
   service: Pick<LegacyServiceBridge, "name" | "cost" | "maxDiscount">,
