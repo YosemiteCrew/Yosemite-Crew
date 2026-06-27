@@ -1,11 +1,14 @@
 import {
   PetClinicalRecordService,
   PetClinicalRecordError,
+  notifyOwnerOfPassportUpdate,
 } from "src/services/pet-clinical-records.service";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "src/services/audit-trail.service";
 import { DocumensoService } from "src/services/documenso.service";
 import { buildPassportRecordPdf } from "src/services/passport-record-pdf";
+import { NotificationService } from "src/services/notification.service";
+import { sendEmail } from "src/utils/email";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -17,7 +20,17 @@ jest.mock("src/config/prisma", () => ({
     },
     user: { findFirst: jest.fn() },
     patient: { findUnique: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
+    parent: { findUnique: jest.fn() },
   },
+}));
+jest.mock("src/services/notification.service", () => ({
+  NotificationService: { sendToUser: jest.fn() },
+}));
+jest.mock("src/utils/email", () => ({ sendEmail: jest.fn() }));
+jest.mock("src/utils/logger", () => ({
+  __esModule: true,
+  default: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
   AuditTrailService: { recordSafely: jest.fn() },
@@ -49,8 +62,12 @@ const prismaMock = prisma as unknown as {
   };
   user: { findFirst: jest.Mock };
   patient: { findUnique: jest.Mock };
+  parentPatient: { findFirst: jest.Mock };
+  parent: { findUnique: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
+const sendToUserMock = NotificationService.sendToUser as jest.Mock;
+const sendEmailMock = sendEmail as jest.Mock;
 
 const CTX = {
   patientId: "pat-1",
@@ -117,6 +134,12 @@ beforeEach(() => {
     name: "Doggy",
     microchipNumber: "985141000123456",
   });
+  // Default: no linked owner, so attest/sign flows skip the update notice
+  // unless a test opts in.
+  prismaMock.parentPatient.findFirst.mockResolvedValue(null);
+  prismaMock.parent.findUnique.mockResolvedValue(null);
+  sendToUserMock.mockResolvedValue([]);
+  sendEmailMock.mockResolvedValue(undefined);
   documensoMock.resolveOrganisationApiKey.mockResolvedValue("api-key");
   documensoMock.createDocument.mockResolvedValue({ id: 42 });
   documensoMock.distributeDocument.mockResolvedValue({});
@@ -585,5 +608,89 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
     );
     await PetClinicalRecordService.requestRecordSignature(args);
     expect(documensoMock.createDocument).toHaveBeenCalled();
+  });
+});
+
+describe("notifyOwnerOfPassportUpdate", () => {
+  const wireOwner = (
+    parent: { linkedUserId: string | null; email: string | null } | null,
+  ) => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
+    prismaMock.parent.findUnique.mockResolvedValue(parent);
+    prismaMock.patient.findUnique.mockResolvedValue({ name: "Biscuit" });
+  };
+
+  it("pushes + emails the owner with a passport link", async () => {
+    process.env.PUBLIC_PASSPORT_BASE_URL = "https://app.test/";
+    wireOwner({ linkedUserId: "user-1", email: "owner@test.com" });
+
+    await notifyOwnerOfPassportUpdate("pat-1");
+
+    expect(sendToUserMock).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ title: "Passport updated 🪪" }),
+    );
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "owner@test.com",
+        htmlBody: expect.stringContaining("https://app.test/passport/pat-1"),
+      }),
+    );
+    delete process.env.PUBLIC_PASSPORT_BASE_URL;
+  });
+
+  it("pushes only when the owner has no email", async () => {
+    wireOwner({ linkedUserId: "user-1", email: null });
+    await notifyOwnerOfPassportUpdate("pat-1");
+    expect(sendToUserMock).toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("emails only when the owner has no linked app account", async () => {
+    wireOwner({ linkedUserId: null, email: "owner@test.com" });
+    await notifyOwnerOfPassportUpdate("pat-1");
+    expect(sendToUserMock).not.toHaveBeenCalled();
+    expect(sendEmailMock).toHaveBeenCalled();
+  });
+
+  it("no-ops when there is no owner link or parent record", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValueOnce(null);
+    await notifyOwnerOfPassportUpdate("pat-1");
+
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
+    prismaMock.parent.findUnique.mockResolvedValue(null);
+    prismaMock.patient.findUnique.mockResolvedValue({ name: "Biscuit" });
+    await notifyOwnerOfPassportUpdate("pat-1");
+
+    expect(sendToUserMock).not.toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("swallows push + email failures", async () => {
+    wireOwner({ linkedUserId: "user-1", email: "owner@test.com" });
+    sendToUserMock.mockRejectedValueOnce(new Error("push down"));
+    sendEmailMock.mockRejectedValueOnce(new Error("ses down"));
+    await expect(notifyOwnerOfPassportUpdate("pat-1")).resolves.toBeUndefined();
+  });
+
+  it("swallows a lookup failure", async () => {
+    prismaMock.parentPatient.findFirst.mockRejectedValueOnce(
+      new Error("db down"),
+    );
+    await expect(notifyOwnerOfPassportUpdate("pat-1")).resolves.toBeUndefined();
+  });
+
+  it("is triggered when a vet attests a record", async () => {
+    wireOwner({ linkedUserId: "user-1", email: null });
+    await PetClinicalRecordService.attestRecord({
+      artifactId: "art-1",
+      patientId: "pat-1",
+      organisationId: "org-1",
+      actor: { type: "PMS_USER", id: "vet-1" },
+    });
+    expect(sendToUserMock).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ title: "Passport updated 🪪" }),
+    );
   });
 });

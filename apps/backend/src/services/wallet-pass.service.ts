@@ -32,13 +32,22 @@ const BRAND_R = 0;
 const BRAND_G = 124;
 const BRAND_B = 245;
 
-// Optional brand imagery. Google fetches these public HTTPS URLs itself; the
-// Apple pass fetches the logo at build time and bundles it.
+// The Yosemite heart logo (1024px), committed at
+// apps/mobileAppYC/src/assets/images/yosemite-logo-1024.png and served raw from
+// the public repo. Used as the default so wallet passes carry the brand logo
+// even when PUBLIC_WALLET_LOGO_URL is not configured.
+const DEFAULT_WALLET_LOGO_URL =
+  "https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/main/apps/mobileAppYC/src/assets/images/yosemite-logo-1024.png";
+
+// Brand imagery. Google fetches these public HTTPS URLs itself; the Apple pass
+// fetches the logo at build time and bundles it. The logo defaults to the
+// committed brand asset; the hero image is opt-in via env.
 const walletImageUrl = (
   key: "PUBLIC_WALLET_LOGO_URL" | "PUBLIC_WALLET_HERO_URL",
 ): string | undefined => {
   const value = process.env[key];
-  return value && value.length > 0 ? value : undefined;
+  if (value && value.length > 0) return value;
+  return key === "PUBLIC_WALLET_LOGO_URL" ? DEFAULT_WALLET_LOGO_URL : undefined;
 };
 
 const fetchImage = async (url?: string): Promise<Buffer | null> => {

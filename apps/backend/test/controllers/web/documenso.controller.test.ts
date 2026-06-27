@@ -13,6 +13,7 @@ import { prisma } from "../../../src/config/prisma";
 import { FormAssignmentService } from "../../../src/services/form-assignment.service";
 import { DocumensoService } from "../../../src/services/documenso.service";
 import { WorkspaceDocumentPacketService } from "../../../src/services/workspace-document-packet.service";
+import { notifyOwnerOfPassportUpdate } from "../../../src/services/pet-clinical-records.service";
 import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/utils/logger");
@@ -55,10 +56,16 @@ jest.mock("../../../src/config/prisma", () => ({
     clinicalArtifact: {
       update: jest.fn(),
     },
+    encounter: {
+      findUnique: jest.fn(),
+    },
   },
 }));
 jest.mock("../../../src/config/read-switch", () => ({
   isReadFromPostgres: jest.fn(() => true),
+}));
+jest.mock("../../../src/services/pet-clinical-records.service", () => ({
+  notifyOwnerOfPassportUpdate: jest.fn(),
 }));
 
 const mockedLogger = jest.mocked(logger);
@@ -139,7 +146,12 @@ describe("DocumensoWebhookController", () => {
       id: "att-1",
       artifactId: "art-1",
     });
-    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({ id: "art-1" });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      encounterId: "enc-1",
+    });
+    mockedPrisma.encounter.findUnique.mockResolvedValueOnce({
+      patientId: "pat-1",
+    });
 
     await DocumensoWebhookController.handle(req as Request, res as Response);
 
@@ -149,8 +161,35 @@ describe("DocumensoWebhookController", () => {
         data: expect.objectContaining({ status: "SIGNED" }),
       }),
     );
+    expect(notifyOwnerOfPassportUpdate).toHaveBeenCalledWith("pat-1");
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("completes a passport record with no encounter without notifying", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-pass-2" },
+        }),
+      ),
+    };
+    const mockedPrisma = prisma as any;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-2",
+      artifactId: "art-2",
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      encounterId: null,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.encounter.findUnique).not.toHaveBeenCalled();
+    expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
   });
 
   it("ignores non-completion events for passport records", async () => {

@@ -15,6 +15,7 @@ import {
 } from "src/services/documenso.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
 import { completePersistedRenderedDocumentSigning } from "src/services/rendered-document.service";
+import { notifyOwnerOfPassportUpdate } from "src/services/pet-clinical-records.service";
 import { OrganizationService } from "src/services/organization.service";
 import { WorkspaceDocumentPacketService } from "src/services/workspace-document-packet.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
@@ -292,14 +293,23 @@ async function handlePassportRecordEvent(
   });
   if (!attestation) return false;
   const signedAt = new Date();
-  await prisma.clinicalArtifact.update({
+  const artifact = await prisma.clinicalArtifact.update({
     where: { id: attestation.artifactId },
     data: {
       status: "SIGNED",
       signedAt,
       attestation: { update: { signingStatus: "SIGNED", signedAt } },
     },
+    select: { encounterId: true },
   });
+  // Tell the owner their passport gained a verified record (best-effort).
+  if (artifact.encounterId) {
+    const encounter = await prisma.encounter.findUnique({
+      where: { id: artifact.encounterId },
+      select: { patientId: true },
+    });
+    if (encounter) await notifyOwnerOfPassportUpdate(encounter.patientId);
+  }
   return true;
 }
 

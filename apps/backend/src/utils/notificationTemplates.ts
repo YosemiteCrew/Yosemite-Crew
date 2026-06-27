@@ -117,6 +117,11 @@ export const NotificationTemplates = {
       title: "Medication Reminder 💊",
       body: `Time for ${companionName}'s meds. Healthy companions = happy parents!`,
     }),
+
+    PASSPORT_UPDATED: (companionName: string): NotificationPayload => ({
+      title: "Passport updated 🪪",
+      body: `${companionName}'s digital pet passport has a new verified record. Open it to view or add it to your wallet.`,
+    }),
   },
 
   //

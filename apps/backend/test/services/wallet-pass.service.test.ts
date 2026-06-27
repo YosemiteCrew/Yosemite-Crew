@@ -216,6 +216,20 @@ describe("buildApplePassJson", () => {
 });
 
 describe("WalletPassService.buildApplePass", () => {
+  // The logo now defaults to the committed brand asset, so every build fetches
+  // it. Mock fetch so the suite stays offline + deterministic.
+  const validPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  let fetchSpy: jest.SpyInstance;
+  beforeEach(() => {
+    fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => validPng.buffer,
+    } as Response);
+  });
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
   it("throws WalletNotConfiguredError (501) when no certificate is set", async () => {
     await expect(
       WalletPassService.buildApplePass(PASSPORT),
@@ -288,38 +302,36 @@ describe("WalletPassService.buildApplePass", () => {
 
   it("bundles a hosted brand logo as logo.png when configured", async () => {
     configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
-    const image = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: true,
-      arrayBuffer: async () => image.buffer,
-    } as Response);
     const buffer = await WalletPassService.buildApplePass(PASSPORT);
     const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
     expect(names).toEqual(expect.arrayContaining(["logo.png", "logo@2x.png"]));
     expect(fetchSpy).toHaveBeenCalledWith("https://cdn.example.com/logo.png");
-    fetchSpy.mockRestore();
+  });
+
+  it("bundles the default brand logo when no logo url is configured", async () => {
+    configure();
+    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
+    expect(names).toEqual(expect.arrayContaining(["logo.png", "logo@2x.png"]));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("yosemite-logo-1024.png"),
+    );
   });
 
   it("falls back to the generated icon when the logo response is not ok", async () => {
     configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
-    const fetchSpy = jest
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue({ ok: false } as Response);
+    fetchSpy.mockResolvedValue({ ok: false } as Response);
     const buffer = await WalletPassService.buildApplePass(PASSPORT);
     const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
     expect(names).not.toContain("logo.png");
-    fetchSpy.mockRestore();
   });
 
   it("falls back to the generated icon when the logo fetch throws", async () => {
     configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
-    const fetchSpy = jest
-      .spyOn(globalThis, "fetch")
-      .mockRejectedValue(new Error("network"));
+    fetchSpy.mockRejectedValue(new Error("network"));
     const buffer = await WalletPassService.buildApplePass(PASSPORT);
     const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
     expect(names).not.toContain("logo.png");
-    fetchSpy.mockRestore();
   });
 });
 
@@ -370,7 +382,8 @@ describe("buildGooglePayload", () => {
         "issuer",
       ]),
     );
-    expect(obj.logo).toBeUndefined();
+    // Logo defaults to the committed brand asset; hero stays opt-in.
+    expect(obj.logo?.sourceUri.uri).toContain("yosemite-logo-1024.png");
     expect(obj.heroImage).toBeUndefined();
   });
 
