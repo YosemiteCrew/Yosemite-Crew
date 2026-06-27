@@ -22,6 +22,9 @@ type ServicesPackagesEditorProps = {
 
 const formatCents = (cents: number): string => formatMoney(cents / 100, 'USD');
 
+const discountCentsFromPercent = (grossCents: number, percent: number): number =>
+  Math.min(grossCents, Math.round((grossCents * percent) / 100));
+
 const copyValue = (value?: string) => {
   if (!value || !globalThis.navigator?.clipboard) return;
   globalThis.navigator.clipboard.writeText(value).catch(() => undefined);
@@ -90,7 +93,21 @@ const QtyInput = ({
     aria-label={`Quantity for ${item.name}`}
     onChange={(e) => {
       const qty = Math.max(1, Number.parseInt(e.target.value, 10) || 1);
-      onUpdateItem(item.id, { qty, amountCents: item.unitPriceCents * qty });
+      const grossCents = item.unitPriceCents * qty;
+      const defaultDiscountCents =
+        item.defaultDiscountPercent == null
+          ? (item.defaultDiscountCents ?? 0) * qty
+          : discountCentsFromPercent(grossCents, item.defaultDiscountPercent);
+      const maxDiscountCents =
+        item.maxDiscountPercent == null
+          ? item.maxDiscountCents
+          : discountCentsFromPercent(grossCents, item.maxDiscountPercent);
+      onUpdateItem(item.id, {
+        qty,
+        amountCents: grossCents - defaultDiscountCents,
+        defaultDiscountCents,
+        maxDiscountCents,
+      });
     }}
     className="h-9 w-20 rounded-xl border border-input-border-default bg-transparent px-3 text-body-4 text-text-primary focus-visible:border-input-border-active focus-visible:outline-none"
   />

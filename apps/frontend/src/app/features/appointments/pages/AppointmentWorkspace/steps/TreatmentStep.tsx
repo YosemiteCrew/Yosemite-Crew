@@ -10,17 +10,26 @@ import type {
   ScheduleTask,
   ScheduleTaskStatus,
 } from '@/app/features/appointments/types/workspace';
-import { savePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  deletePrescriptionArtifact,
+  savePrescriptionArtifact,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
 import {
+  deletePrescriptionTreatmentItem,
   getAppointmentWorkspaceBootstrap,
   normalizeWorkspaceBootstrapForEncounter,
   persistTreatmentItems,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import { mapApiItemToInventoryItem } from '@/app/features/inventory/pages/Inventory/utils';
-import { inventoryToPrescriptionItem } from '@/app/features/appointments/lib/inventoryPrescription';
+import {
+  backfillPrescriptionFromInventory,
+  DEFAULT_DURATION_UNIT,
+  getPrescriptionSaveErrors,
+  inventoryToPrescriptionItem,
+} from '@/app/features/appointments/lib/inventoryPrescription';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import { useTaskStore } from '@/app/stores/taskStore';
@@ -53,7 +62,6 @@ import type {
 import {
   computePackageBreakdownItem,
   computePackageTotals,
-  computeServiceTotal,
 } from '@/app/features/organization/services/catalogCalculations';
 
 type TreatmentStepProps = {
@@ -74,42 +82,61 @@ const PRESCRIPTION_INVENTORY_CATEGORIES = new Set([
 
 const moneyToCents = (amount: number): number => Math.max(0, Math.round(amount * 100));
 
+const discountCentsFromPercent = (grossCents: number, percent: number): number =>
+  Math.min(grossCents, Math.round((grossCents * percent) / 100));
+
 const breakdownToLineItem = (item: PackageBreakdownItem) => {
-  const { net } = computePackageBreakdownItem(item);
+  const { gross, discountAmt, net } = computePackageBreakdownItem(item);
   return {
     id: item.id,
     name: item.name,
     qty: item.quantity,
     instructions: item.type,
+    unitPriceCents: moneyToCents(item.unitPrice),
+    grossCents: moneyToCents(gross),
+    discountPercent: item.discount,
+    discountCents: moneyToCents(discountAmt),
     amountCents: moneyToCents(net),
   };
 };
 
 const serviceToLineItem = (service: ServiceRevamp) => {
-  const { total } = computeServiceTotal(service);
-  const amountCents = moneyToCents(total);
+  const grossCents = moneyToCents(service.grossAmount);
+  const defaultDiscountPercent = service.defaultDiscount ?? 0;
+  const maxDiscountPercent = service.maxDiscount ?? 0;
+  const defaultDiscountCents = discountCentsFromPercent(grossCents, defaultDiscountPercent);
   return {
     refId: service.id,
     kind: 'SERVICE' as const,
     name: service.name,
     qty: 1,
     instructions: service.description || service.type,
-    unitPriceCents: amountCents,
-    amountCents,
+    unitPriceCents: grossCents,
+    amountCents: grossCents - defaultDiscountCents,
+    defaultDiscountPercent,
+    defaultDiscountCents,
+    maxDiscountPercent,
+    maxDiscountCents: discountCentsFromPercent(grossCents, maxDiscountPercent),
   };
 };
 
 const packageToLineItem = (pkg: PackageRevamp) => {
-  const { totalCost } = computePackageTotals(pkg);
-  const amountCents = moneyToCents(totalCost);
+  const { additionalDiscountAmt, afterItemDiscounts, totalCost } = computePackageTotals(pkg);
+  const grossCents = moneyToCents(afterItemDiscounts);
+  const defaultDiscountPercent = pkg.additionalDiscount ?? 0;
+  const defaultDiscountCents = moneyToCents(additionalDiscountAmt);
   return {
     refId: pkg.id,
     kind: 'PACKAGE' as const,
     name: pkg.name,
     qty: 1,
     instructions: pkg.description || `Package with ${pkg.breakdown.length} item(s)`,
-    unitPriceCents: amountCents,
-    amountCents,
+    unitPriceCents: grossCents,
+    amountCents: moneyToCents(totalCost),
+    defaultDiscountPercent,
+    defaultDiscountCents,
+    maxDiscountPercent: defaultDiscountPercent,
+    maxDiscountCents: defaultDiscountCents,
     breakdown: pkg.breakdown.map(breakdownToLineItem),
   };
 };
@@ -174,6 +201,7 @@ const TreatmentStep = ({
   const removeLineItem = useAppointmentWorkspaceStore((s) => s.removeLineItem);
   const addPrescription = useAppointmentWorkspaceStore((s) => s.addPrescription);
   const updatePrescription = useAppointmentWorkspaceStore((s) => s.updatePrescription);
+  const setPrescriptions = useAppointmentWorkspaceStore((s) => s.setPrescriptions);
   const removePrescription = useAppointmentWorkspaceStore((s) => s.removePrescription);
   const addScheduleTask = useAppointmentWorkspaceStore((s) => s.addScheduleTask);
   const updateScheduleTask = useAppointmentWorkspaceStore((s) => s.updateScheduleTask);
@@ -288,7 +316,18 @@ const TreatmentStep = ({
     })
       .then((rows) => {
         if (cancelled) return;
-        rows.forEach((row) => addPrescription(appointmentId, row));
+        // Guard against re-adding template rows that already exist (e.g. after navigating back to
+        // this step post-save): skip any row whose inventory item is already on a prescription.
+        const existing = useAppointmentWorkspaceStore
+          .getState()
+          .getEncounter(appointmentId)?.prescription;
+        if (existing && existing.length > 0) return;
+        const seenInventoryIds = new Set<string>();
+        rows.forEach((row) => {
+          if (row.inventoryItemId && seenInventoryIds.has(row.inventoryItemId)) return;
+          if (row.inventoryItemId) seenInventoryIds.add(row.inventoryItemId);
+          addPrescription(appointmentId, row);
+        });
       })
       .catch((error) => console.error('Unable to resolve prescription template:', error));
     return () => {
@@ -449,6 +488,33 @@ const TreatmentStep = ({
     [inventoryById, inventoryIds]
   );
 
+  // Backfill saved/encounter prescription lines with inventory-owned display fields (brand,
+  // generic, strength unit, form, route, controlled flag, live stock, price) that the persisted
+  // record may be missing. Resolve by inventoryItemId first, then SKU. Saved values always win.
+  const inventoryBySku = useMemo(() => {
+    const bySku = new Map<string, InventoryItem>();
+    for (const id of inventoryIds) {
+      const inv = inventoryById[id];
+      const sku = inv?.sku?.trim();
+      if (sku) bySku.set(sku.toLowerCase(), inv);
+    }
+    return bySku;
+  }, [inventoryById, inventoryIds]);
+
+  const prescriptionItems = useMemo(
+    () =>
+      encounter.prescription.map((item) =>
+        backfillPrescriptionFromInventory(item, (line) => {
+          if (line.inventoryItemId && inventoryById[line.inventoryItemId]) {
+            return inventoryById[line.inventoryItemId];
+          }
+          const sku = line.sku?.trim().toLowerCase();
+          return sku ? inventoryBySku.get(sku) : undefined;
+        })
+      ),
+    [encounter.prescription, inventoryById, inventoryBySku]
+  );
+
   const servicePackageCatalogItems = useMemo(() => {
     if (!organisationId) return [];
     const serviceItems = catalogServices
@@ -467,6 +533,41 @@ const TreatmentStep = ({
   const handleAddPrescription = (item: Parameters<typeof addPrescription>[1]) => {
     setPrescriptionError(null);
     addPrescription(appointmentId, item);
+  };
+
+  // Remove a prescription. Billed/paid rows have no delete control, so anything reaching here is
+  // unbilled and may be removed. Staged (local-…) rows are local-only. A persisted row is also
+  // deleted on the backend so it does not reappear on refresh: prefer the linked treatment-item
+  // DELETE (works today), then the canonical prescription DELETE (ready once the backend ships it).
+  // The removal is optimistic; a backend failure restores the row and surfaces an error.
+  const handleRemovePrescription = async (id: string) => {
+    const target = prescriptionItems.find((rx) => rx.id === id);
+    // Hard guard: a billed/paid prescription is read-only and must never be deleted. The card
+    // already hides its delete control, but never trust the UI alone for a destructive action.
+    if (target?.billed) return;
+    setPrescriptionError(null);
+    removePrescription(appointmentId, id);
+
+    const isPersisted = Boolean(id) && !id.startsWith('local-');
+    if (!isPersisted || !organisationId || !target) return;
+
+    try {
+      let deleted = false;
+      if (encounterId) {
+        deleted = await deletePrescriptionTreatmentItem(organisationId, encounterId, {
+          id: target.id,
+          inventoryItemId: target.inventoryItemId,
+        });
+      }
+      if (!deleted) {
+        await deletePrescriptionArtifact(organisationId, id);
+      }
+    } catch (error) {
+      console.error('Failed to delete prescription:', error);
+      // Restore the row so the UI reflects the still-present backend record.
+      addPrescription(appointmentId, target, target.id);
+      setPrescriptionError('Unable to remove the prescription. Please try again.');
+    }
   };
 
   // Persist schedule-task edits. A schedule row comes from one of two sources and
@@ -591,25 +692,63 @@ const TreatmentStep = ({
       onOpenInvoice();
       return;
     }
+    // Normalize before validating/saving: the duration unit defaults to "days" (the value shown
+    // on the card), so a row the clinician left at the default is complete and persists correctly.
+    const normalizedPrescriptions = prescriptionItems.map((rx) => ({
+      ...rx,
+      durationUnit: rx.durationUnit?.trim() || DEFAULT_DURATION_UNIT,
+    }));
+    // Save-time validation gate: never persist an incomplete prescription. Each row must carry
+    // the required clinical instructions (frequency, duration, quantity, route, form) and pass
+    // every number-format rule before anything is sent to the backend.
+    const prescriptionErrors = normalizedPrescriptions.flatMap((rx) =>
+      getPrescriptionSaveErrors(rx)
+    );
+    if (prescriptionErrors.length > 0) {
+      setPrescriptionError(prescriptionErrors[0]);
+      setTreatmentSaveError('Complete all prescription details before saving.');
+      return;
+    }
+    setPrescriptionError(null);
+
     setIsSavingTreatment(true);
+    // Saved prescription ids captured from the create/update responses, so finalize targets the
+    // real artifact id (not the local `local-rx-…` id) and the post-save bootstrap merge — not a
+    // local append — becomes the single source of truth for the list (avoids duplicate rows).
+    const savedInHouseIds: string[] = [];
     try {
       // Persist any staged service/package rows.
       await persistTreatmentItems(organisationId, encounterId, encounter.services);
-      // Persist prescription rows with their fully-entered clinical values (dosage / route /
-      // frequency / quantity). These are staged locally on add — never on add — so the values
-      // the clinician typed are captured here. create-or-update is keyed off the row id.
-      await Promise.all(
-        encounter.prescription.map(async (rx) => {
+      // Persist prescription rows with their fully-entered clinical values (strength / route /
+      // frequency / duration / quantity / refills). We save the inventory-BACKFILLED rows
+      // (`prescriptionItems`), not the raw store rows, so inventory-owned fields the clinician
+      // sees on the card (brand, strength unit, form, route, controlled flag, schedule) are
+      // included in the payload even when the originally-hydrated record was missing them.
+      // create-or-update is keyed off the row id.
+      const reconciledPrescriptions = await Promise.all(
+        normalizedPrescriptions.map(async (rx) => {
           const savedRx = await savePrescriptionArtifact(
             { organisationId, appointmentId, encounterId, authorId },
             rx
           );
-          const savedId = (savedRx as { id?: string } | undefined)?.id;
-          if (savedId && savedId !== rx.id) {
-            addPrescription(appointmentId, rx, savedId);
-          }
+          const savedId = (savedRx as { id?: string } | undefined)?.id ?? rx.id;
+          if (savedId && rx.fulfillment !== 'PRESCRIPTION_ONLY') savedInHouseIds.push(savedId);
+          return { ...rx, id: savedId };
         })
       );
+      // Authoritatively replace the list with exactly the saved rows (deduped by backend id) so
+      // there is never a stale local + persisted duplicate — even before the bootstrap lands or
+      // when the bootstrap returns the still-draft prescription differently.
+      const dedupedById = Array.from(
+        new Map(reconciledPrescriptions.map((rx) => [rx.id, rx])).values()
+      );
+      setPrescriptions(appointmentId, dedupedById);
+      // Finalize in-house prescriptions (triggers inventory dispense) using the real saved ids.
+      await Promise.allSettled(
+        savedInHouseIds.map((id) => finalizePrescription(organisationId, id))
+      );
+      // Re-hydrate from the authoritative server state — replaces the staged local rows so the
+      // saved prescription appears exactly once.
       const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
       mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
     } catch (error) {
@@ -619,14 +758,6 @@ const TreatmentStep = ({
       setTreatmentSaveError('Unable to save treatment items. Please try again.');
       setIsSavingTreatment(false);
       return;
-    }
-    if (organisationId) {
-      const persistedPrescriptions = encounter.prescription.filter(
-        (rx) => rx.id && rx.fulfillment !== 'PRESCRIPTION_ONLY'
-      );
-      await Promise.allSettled(
-        persistedPrescriptions.map((rx) => finalizePrescription(organisationId, rx.id))
-      );
     }
     setStepStatus(appointmentId, 'TREATMENT', 'COMPLETED');
     setIsSavingTreatment(false);
@@ -699,13 +830,13 @@ const TreatmentStep = ({
       />
 
       <PrescriptionEditor
-        items={encounter.prescription}
+        items={prescriptionItems}
         catalogItems={prescriptionCatalogItems}
         readOnly={readOnly}
         deleteLocked={billedTreatmentLocked}
         onAddItem={handleAddPrescription}
         onUpdateItem={(id, patch) => updatePrescription(appointmentId, id, patch)}
-        onRemoveItem={(id) => removePrescription(appointmentId, id)}
+        onRemoveItem={(id) => void handleRemovePrescription(id)}
         onPrint={() => void handlePrintPrescriptionLabels()}
       />
       {prescriptionError && <p className="text-caption-1 text-red-600">{prescriptionError}</p>}

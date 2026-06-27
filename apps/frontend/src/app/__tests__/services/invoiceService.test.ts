@@ -175,6 +175,47 @@ describe('invoiceService', () => {
     expect(billing.currency).toBe('USD');
   });
 
+  it('keeps awaiting-payment invoices unpaid when no payment ledger exists', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-awaiting-payment',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [
+              {
+                name: 'Sample testing package',
+                total: 933.66,
+                quantity: 1,
+                unitPrice: 933.66,
+                description: 'Sample testing package',
+              },
+            ],
+            subtotal: 933.66,
+            totalAmount: 933.66,
+            currency: 'usd',
+            status: 'AWAITING_PAYMENT',
+            payments: [],
+            createdAt: '2026-06-27T09:42:35.064Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.pastInvoices[0]).toMatchObject({
+      id: 'inv-awaiting-payment',
+      totalCents: 93366,
+      outstandingCents: 93366,
+      status: 'UNPAID',
+      payments: [],
+    });
+  });
+
   it('counts a deposit payment toward the deposit balance', async () => {
     // The backend now records the deposit on the same invoice, so the payment
     // ledger should be the source of truth when depositCollectedAmount is still 0.

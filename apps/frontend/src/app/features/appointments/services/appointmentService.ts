@@ -29,8 +29,8 @@ type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CL
 export type AdmitAppointmentInput = {
   admittedAt: string;
   expectedStayDays?: number;
-  lead?: { id?: string; name?: string };
-  supportStaff?: Array<{ id?: string; name?: string }>;
+  lead?: { id: string; name: string; profileUrl?: string };
+  supportStaff?: Array<{ id: string; name: string }>;
   room?: { id: string; name: string };
   roomUnitId?: string;
   assignedAt?: string;

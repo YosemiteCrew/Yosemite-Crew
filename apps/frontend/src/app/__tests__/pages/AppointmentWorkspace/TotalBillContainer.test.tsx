@@ -32,7 +32,11 @@ const baseItem: InvoiceLineItem = {
       name: 'Mobility exam',
       qty: 1,
       instructions: 'CONSULTATION',
-      amountCents: 8500,
+      unitPriceCents: 10000,
+      grossCents: 10000,
+      discountPercent: 10,
+      discountCents: 1000,
+      amountCents: 9000,
     },
   ],
 };
@@ -71,6 +75,7 @@ describe('TotalBillContainer', () => {
 
     expect(screen.getByLabelText('Discount percent for Arthritis care package')).toHaveValue(10);
     expect(screen.getByText(/Max discount 20%/)).toBeInTheDocument();
+    expect(screen.getAllByText('$90').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText((text) => text.trim() === '− $10')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Discount percent for Arthritis care package'), {
@@ -86,9 +91,13 @@ describe('TotalBillContainer', () => {
     expect(
       screen.getByLabelText('View Arthritis care package package breakdown')
     ).toBeInTheDocument();
-    expect(screen.getByText('Arthritis care package breakdown')).toBeInTheDocument();
+    expect(screen.getAllByText('Arthritis care package').length).toBeGreaterThan(1);
+    expect(screen.getByText('Package breakdown')).toBeInTheDocument();
     expect(screen.getByText('Mobility exam')).toBeInTheDocument();
-    expect(screen.getByText('$85')).toBeInTheDocument();
+    expect(screen.getByText('CONSULTATION')).toBeInTheDocument();
+    expect(screen.getByText('10% / -$10')).toBeInTheDocument();
+    expect(screen.getByText('Total')).toBeInTheDocument();
+    expect(screen.getAllByText('$90').length).toBeGreaterThan(1);
 
     expect(screen.getByLabelText('Fill information in previous step')).toBeInTheDocument();
     expect(

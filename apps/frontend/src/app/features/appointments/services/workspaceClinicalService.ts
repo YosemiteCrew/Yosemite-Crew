@@ -1,6 +1,6 @@
 import type { Bundle, Composition, MedicationRequest, Observation } from '@yosemite-crew/fhir';
 import { clinicalArtifactFhirMapper } from '@yosemite-crew/types';
-import { postData, getData, patchData } from '@/app/services/axios';
+import { postData, getData, patchData, deleteData } from '@/app/services/axios';
 import type {
   AppointmentEncounter,
   ObservationRecord,
@@ -756,6 +756,35 @@ export const savePrescriptionArtifact = async (
   context: ClinicalContext,
   prescription: PrescriptionItem | Omit<PrescriptionItem, 'id'>
 ) => {
+  // The backend persists prescription lines into TYPED columns (medication, strength, dosage,
+  // route, frequency, duration, quantity, refill, instructions, inventoryItemId/Sku, batch…) and
+  // stashes anything else in a per-item `metadata` JSON column. So the flat fields below survive as
+  // columns, and the display-only / unit fields that have no column are nested under `metadata`
+  // so they round-trip. `dose` is sent both flat (BE maps it to the `dosage` column) and kept in
+  // metadata for an exact rehydrate.
+  const { id: _id, ...lineFields } = prescription as PrescriptionItem;
+  const medicationLine = {
+    ...lineFields,
+    // BE reads `dosage` from ["dosage","dose"]; send the per-administration amount there.
+    dosage: prescription.dose ?? prescription.dosage,
+    metadata: {
+      brand: prescription.brand,
+      genericName: prescription.genericName,
+      sku: prescription.sku,
+      strengthUnit: prescription.strengthUnit,
+      dose: prescription.dose,
+      doseUnit: prescription.doseUnit,
+      durationUnit: prescription.durationUnit,
+      dosageForm: prescription.dosageForm,
+      fulfillment: prescription.fulfillment,
+      priceCents: prescription.priceCents,
+      stockQty: prescription.stockQty,
+      lowStock: prescription.lowStock,
+      controlledSubstance: prescription.controlledSubstance,
+      drugSchedule: prescription.drugSchedule,
+      prescriptionRequired: prescription.prescriptionRequired,
+    },
+  };
   const body: MedicationRequest & Record<string, unknown> = {
     resourceType: 'MedicationRequest',
     // Saving creates a draft prescription; only $finalize completes it (and triggers
@@ -770,7 +799,7 @@ export const savePrescriptionArtifact = async (
         ? undefined
         : { reference: `Encounter/${context.encounterId}` },
     extension: compactExtensions([
-      jsonExtension(PRESCRIPTION_EXT.medications, [prescription]),
+      jsonExtension(PRESCRIPTION_EXT.medications, [medicationLine]),
       jsonExtension(PRESCRIPTION_EXT.instructions, prescription.instructions),
     ]),
     organisationId: context.organisationId,
@@ -797,27 +826,72 @@ const prescriptionFromMedicationRequest = (
 ): PrescriptionItem => {
   const input = clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(resource, context);
   const medications = Array.isArray(input.medications) ? input.medications : [];
-  const first = medications[0] as Partial<PrescriptionItem> | undefined;
+  // The backend persists the line into TYPED columns (medication/dosage/route/frequency/duration/
+  // quantity/refill/inventoryItemId/inventoryItemSku) and keeps display/unit extras in a nested
+  // `metadata` object. Coalesce both shapes (BE column name ?? our field name ?? metadata) so a
+  // round-tripped prescription rehydrates fully.
+  const raw = (medications[0] ?? {}) as Record<string, unknown>;
+  const meta =
+    raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
+      ? (raw.metadata as Record<string, unknown>)
+      : {};
+  const str = (...keys: string[]): string | undefined => {
+    for (const key of keys) {
+      const value = raw[key] ?? meta[key];
+      if (typeof value === 'string' && value.trim()) return value;
+      if (typeof value === 'number') return String(value);
+    }
+    return undefined;
+  };
+  const bool = (...keys: string[]): boolean | undefined => {
+    for (const key of keys) {
+      const value = raw[key] ?? meta[key];
+      if (typeof value === 'boolean') return value;
+    }
+    return undefined;
+  };
+  const num = (...keys: string[]): number | undefined => {
+    for (const key of keys) {
+      const value = raw[key] ?? meta[key];
+      if (typeof value === 'number') return value;
+    }
+    return undefined;
+  };
+  const fulfillmentValue = str('fulfillment');
   return {
     id: resource.id ?? `rx-${index + 1}`,
     medicineName:
-      first?.medicineName ??
+      str('medication', 'medicineName', 'name') ??
       resource.medicationCodeableConcept?.text ??
       resource.medicationReference?.display ??
       'Medication',
-    dosage: first?.dosage,
-    route: first?.route,
-    frequency: first?.frequency,
-    durationDays: first?.durationDays,
-    refill: first?.refill,
+    brand: str('brand'),
+    genericName: str('genericName'),
+    sku: str('sku', 'inventoryItemSku'),
+    strength: str('strength'),
+    strengthUnit: str('strengthUnit'),
+    dosageForm: str('dosageForm'),
+    dosage: str('dosage'),
+    dose: str('dose', 'dosage'),
+    doseUnit: str('doseUnit'),
+    route: str('route', 'routeOfAdministration'),
+    frequency: str('frequency'),
+    durationDays: str('duration', 'durationDays'),
+    durationUnit: str('durationUnit'),
+    qty: str('quantity', 'qty'),
+    refill: str('refill'),
+    drugSchedule: str('drugSchedule'),
+    prescriptionRequired: bool('prescriptionRequired'),
     instructions:
-      first?.instructions ??
+      str('instructions') ??
       (typeof input.instructions === 'string' ? input.instructions : undefined),
-    fulfillment: first?.fulfillment ?? 'PRESCRIPTION_ONLY',
-    priceCents: first?.priceCents,
-    stockQty: first?.stockQty,
-    lowStock: first?.lowStock,
-    controlledSubstance: first?.controlledSubstance,
+    fulfillment: fulfillmentValue === 'IN_HOUSE' ? 'IN_HOUSE' : 'PRESCRIPTION_ONLY',
+    priceCents: num('priceCents'),
+    stockQty: num('stockQty'),
+    lowStock: bool('lowStock'),
+    controlledSubstance: bool('controlledSubstance', 'controlledItem'),
+    inventoryItemId: str('inventoryItemId'),
+    inventoryBatchId: str('inventoryBatchId', 'batchId'),
   };
 };
 
@@ -837,6 +911,30 @@ export const listPrescriptionsForAppointment = async (
       ...context,
     })
   );
+};
+
+/**
+ * Delete an unbilled prescription artifact. Targets the canonical REST DELETE on the clinical
+ * artifact resource (`DELETE …/prescription/:prescriptionId`). The backend route is pending
+ * (see the prescription-delete handoff); until it ships the caller falls back to deleting the
+ * linked treatment-item row. Returns true on a successful delete, false when the endpoint is not
+ * available yet (404/405) so the caller can fall back without surfacing an error.
+ */
+export const deletePrescriptionArtifact = async (
+  organisationId: string,
+  prescriptionId: string
+): Promise<boolean> => {
+  try {
+    await deleteData(
+      `/fhir/v1/clinical-artifact/organisation/${organisationId}/prescription/${prescriptionId}`
+    );
+    return true;
+  } catch (error) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    // Route not implemented yet → let the caller fall back. Re-throw real failures.
+    if (status === 404 || status === 405 || status === 501) return false;
+    throw error;
+  }
 };
 
 export const listPrescriptionsForEncounter = async (

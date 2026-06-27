@@ -251,45 +251,72 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
 
   const lines = asArray(prescription.items);
   if (lines.length === 0) {
+    const metadata = isRecord(item.metadata) ? item.metadata : {};
     return [
       {
         id: baseId,
         medicineName: fallbackName,
+        strength: asString(item.strength) ?? asString(item.dosage),
+        dosageForm: asString(item.dosageForm) ?? asString(metadata.dosageForm),
         dosage: asString(item.dosage),
         route: asString(item.route),
         frequency: asString(item.frequency),
         durationDays: asString(item.durationDays) ?? asString(item.duration),
+        qty: asString(item.qty) ?? asString(item.quantity),
         refill: asString(item.refill),
         instructions: asString(item.instructions) ?? asString(productSnapshot.instructions),
         fulfillment,
         priceCents,
         inventoryItemId: asString(item.inventoryItemId) ?? asString(item.productId),
+        inventoryBatchId: asString(item.inventoryBatchId) ?? asString(item.batchId),
       },
     ];
   }
-  return lines.map((line, lineIndex) => ({
-    id: asString(line.id) ?? `${baseId}-${lineIndex + 1}`,
-    medicineName: asString(line.medication) ?? fallbackName,
-    dosage: asString(line.dosage),
-    route: asString(line.route),
-    frequency: asString(line.frequency),
-    durationDays: asString(line.durationDays) ?? asString(line.duration),
-    refill: asString(line.refill),
-    instructions: asString(line.instructions) ?? asString(productSnapshot.instructions),
-    fulfillment,
-    priceCents,
-    inventoryItemId:
-      asString(line.inventoryItemId) ?? asString(item.inventoryItemId) ?? asString(item.productId),
-  }));
-};
-
-// The id a prescription envelope is sourced from (artifact/prescription id),
-// used to suppress the medication-kind treatment item the backend expands from
-// the same record — its per-line ids differ, so we match on the source id.
-const prescriptionSourceId = (item: Record<string, unknown>): string | undefined => {
-  const artifact = isRecord(item.artifact) ? item.artifact : item;
-  const prescription = isRecord(item.prescription) ? item.prescription : item;
-  return asString(prescription.id) ?? asString(artifact.id) ?? asString(item.id);
+  return lines.map((line, lineIndex) => {
+    // Display/unit fields (brand, strength unit, form, controlled flag, schedule, price, stock) are
+    // stored in the per-line `metadata` JSON column — read them back so the workspace card shows
+    // the full prescription after refresh, not just the core dispensing fields.
+    const meta = isRecord(line.metadata) ? line.metadata : {};
+    const metaStr = (key: string) => asString(line[key]) ?? asString(meta[key]);
+    const metaBool = (key: string) => {
+      const value = line[key] ?? meta[key];
+      return typeof value === 'boolean' ? value : undefined;
+    };
+    return {
+      id: asString(line.id) ?? `${baseId}-${lineIndex + 1}`,
+      medicineName: asString(line.medication) ?? metaStr('medicineName') ?? fallbackName,
+      brand: metaStr('brand'),
+      genericName: metaStr('genericName'),
+      sku: metaStr('sku') ?? asString(line.inventoryItemSku),
+      strength: asString(line.strength),
+      strengthUnit: metaStr('strengthUnit'),
+      dosageForm: metaStr('dosageForm'),
+      dosage: asString(line.dosage) ?? asString(line.strength),
+      doseUnit: metaStr('doseUnit'),
+      route: asString(line.route) ?? metaStr('route'),
+      frequency: asString(line.frequency),
+      durationDays: asString(line.durationDays) ?? asString(line.duration),
+      durationUnit: metaStr('durationUnit'),
+      qty: asString(line.qty) ?? asString(line.quantity),
+      refill: asString(line.refill),
+      drugSchedule: metaStr('drugSchedule'),
+      prescriptionRequired: metaBool('prescriptionRequired'),
+      controlledSubstance: metaBool('controlledSubstance'),
+      instructions: asString(line.instructions) ?? asString(productSnapshot.instructions),
+      fulfillment,
+      priceCents: asNumber(meta.priceCents) ?? priceCents,
+      stockQty: asNumber(line.stockQty) ?? asNumber(meta.stockQty),
+      lowStock: metaBool('lowStock'),
+      inventoryItemId:
+        asString(line.inventoryItemId) ??
+        asString(item.inventoryItemId) ??
+        asString(item.productId),
+      inventoryBatchId:
+        asString(line.inventoryBatchId) ??
+        asString(line.batchId) ??
+        asString(meta.inventoryBatchId),
+    };
+  });
 };
 
 const normalizePrescriptions = (
@@ -298,17 +325,49 @@ const normalizePrescriptions = (
 ): PrescriptionItem[] => {
   const byId = new Map<string, PrescriptionItem>();
   const sourceIds = new Set<string>();
+
+  // Billed lookup: the medication TREATMENT-ITEM rows carry the `billingStatus`, but the matching
+  // prescription ARTIFACT line does not. Index the billed medication ids (by treatment-item id,
+  // prescriptionId and inventoryItemId) so an artifact-sourced line can be flagged `billed` — that
+  // is what locks the card to its read-only "Billed" view and blocks delete.
+  const billedMedicationIds = new Set<string>();
+  treatmentItems.filter(isMedicationTreatmentItem).forEach((item) => {
+    if (asString(item.billingStatus) !== 'BILLED') return;
+    [asString(item.id), asString(item.prescriptionId), asString(item.productId)]
+      .filter((value): value is string => Boolean(value))
+      .forEach((value) => billedMedicationIds.add(value));
+  });
+  const isLineBilled = (line: PrescriptionItem): boolean =>
+    Boolean(line.billed) ||
+    billedMedicationIds.has(line.id) ||
+    Boolean(line.inventoryItemId && billedMedicationIds.has(line.inventoryItemId));
+
   prescriptions.forEach((item) => {
-    const sourceId = prescriptionSourceId(item);
-    if (sourceId) sourceIds.add(sourceId);
-    prescriptionLinesFromEnvelope(item).forEach((line) => byId.set(line.id, line));
+    // Collect EVERY id that can link a medication treatment item back to this prescription —
+    // the prescription id, the artifact id, and each line's inventory item id — so the backend's
+    // expanded medication-kind treatment item is reliably deduped (its own per-line id differs).
+    const artifact = isRecord(item.artifact) ? item.artifact : item;
+    const prescription = isRecord(item.prescription) ? item.prescription : item;
+    [asString(prescription.id), asString(artifact.id), asString(item.id)]
+      .filter((value): value is string => Boolean(value))
+      .forEach((value) => sourceIds.add(value));
+    prescriptionLinesFromEnvelope(item).forEach((line) => {
+      if (line.inventoryItemId) sourceIds.add(line.inventoryItemId);
+      byId.set(line.id, { ...line, billed: isLineBilled(line) });
+    });
   });
   treatmentItems.filter(isMedicationTreatmentItem).forEach((item, index) => {
     const prescription = medicationTreatmentItemToPrescription(item, index);
-    // The medication-kind treatment item and its prescription artifact share the
-    // same backend id, so skip it when the artifact already produced lines.
-    const linkedId = asString(item.prescriptionId) ?? asString(item.id) ?? prescription.id;
-    if (byId.has(prescription.id) || sourceIds.has(linkedId)) return;
+    // The medication-kind treatment item and its prescription artifact share a link id (prescription
+    // id / artifact id / inventory item id), so skip it when the artifact already produced lines.
+    const linkedIds = [
+      asString(item.prescriptionId),
+      asString(item.id),
+      asString(item.productId),
+      prescription.inventoryItemId,
+      prescription.id,
+    ].filter((value): value is string => Boolean(value));
+    if (byId.has(prescription.id) || linkedIds.some((id) => sourceIds.has(id))) return;
     byId.set(prescription.id, prescription);
   });
   return Array.from(byId.values());
@@ -701,6 +760,53 @@ export const updateEncounterTreatmentItem = async (
 
 export const deleteEncounterTreatmentItem = async (organisationId: string, itemId: string) => {
   await deleteData(`/v1/workspace/organisations/${organisationId}/treatment-items/${itemId}`);
+};
+
+/** True when a treatment-item row is billed/paid and therefore must not be deleted. */
+const isBilledTreatmentRow = (row: Record<string, unknown>): boolean => {
+  const billed = row.billed ?? row.isBilled;
+  if (typeof billed === 'boolean') return billed;
+  const status = asString(row.status)?.toUpperCase();
+  return status === 'BILLED' || status === 'PAID' || status === 'INVOICED';
+};
+
+/**
+ * Delete the backend treatment-item that backs an UNBILLED prescription. There is no dedicated
+ * prescription-delete endpoint, so a saved (in-house) prescription is removed by deleting its
+ * linked treatment-item row — found by matching the prescription/artifact id or the inventory
+ * item id against the encounter's treatment items. Billed/paid rows are never deleted. Returns
+ * true when a backend row was deleted; false when there was nothing persisted to remove.
+ */
+export const deletePrescriptionTreatmentItem = async (
+  organisationId: string,
+  encounterId: string,
+  prescription: { id?: string; inventoryItemId?: string }
+): Promise<boolean> => {
+  const targetIds = new Set(
+    [prescription.id, prescription.inventoryItemId].filter((value): value is string =>
+      Boolean(value)
+    )
+  );
+  if (targetIds.size === 0) return false;
+
+  const rows = await listEncounterTreatmentItems(organisationId, encounterId);
+  const match = rows.find((rawRow) => {
+    const row = isRecord(rawRow) ? rawRow : {};
+    if (isBilledTreatmentRow(row)) return false;
+    const candidateIds = [
+      asString(row.id),
+      asString(row.prescriptionId),
+      asString(row.artifactId),
+      asString(row.inventoryItemId),
+      asString(row.productId),
+    ].filter((value): value is string => Boolean(value));
+    return candidateIds.some((id) => targetIds.has(id));
+  });
+
+  const matchId = match && isRecord(match) ? asString(match.id) : undefined;
+  if (!matchId) return false;
+  await deleteEncounterTreatmentItem(organisationId, matchId);
+  return true;
 };
 
 /** A service/package line item is backend-persisted unless it still carries a local- id. */

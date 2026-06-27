@@ -1,10 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { LuInfo, LuPlus, LuTrash2 } from 'react-icons/lu';
+import { LuPlus, LuTrash2 } from 'react-icons/lu';
+import { AiOutlineInfoCircle } from 'react-icons/ai';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import Search from '@/app/ui/inputs/Search';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
+import PackageBreakdownTooltip from '@/app/features/appointments/pages/AppointmentWorkspace/components/PackageBreakdownTooltip';
 import type { BillableKind, InvoiceLineItem } from '@/app/features/appointments/types/workspace';
 import { formatMoney } from '@/app/lib/money';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
@@ -35,14 +37,22 @@ const KindPill = ({ kind }: { kind: BillableKind }) => (
   </span>
 );
 
-const InfoTooltipIcon = ({ label, content }: { label: string; content: React.ReactNode }) => (
-  <GlassTooltip content={content} side="bottom" maxWidth={320}>
+const InfoTooltipIcon = ({
+  label,
+  content,
+  maxWidth = 320,
+}: {
+  label: string;
+  content: React.ReactNode;
+  maxWidth?: number;
+}) => (
+  <GlassTooltip content={content} side="bottom" maxWidth={maxWidth}>
     <button
       type="button"
       aria-label={label}
-      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-pill-warning-text transition-colors hover:bg-pill-warning-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pill-warning-border"
+      className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
     >
-      <LuInfo aria-hidden="true" size={14} />
+      <AiOutlineInfoCircle aria-hidden="true" size={14} />
     </button>
   </GlassTooltip>
 );
@@ -109,7 +119,7 @@ const buildTotals = (
  * column is the only fr track. Every other column is a fixed px width.
  */
 const ROW_GRID =
-  'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_110px_72px_110px_150px_120px_36px] sm:items-center';
+  'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_110px_72px_130px_150px_120px_36px] sm:items-center';
 
 /**
  * Each heading's text starts exactly where its value-box text starts: the value
@@ -131,8 +141,15 @@ const ColumnHeadings = () => (
 );
 
 /** Plain (non-editable) text cell for line values that the user cannot change. */
-const TextCell = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <span className={`flex h-10 items-center px-3 text-body-4 text-text-primary ${className ?? ''}`}>
+type TextCellProps = React.HTMLAttributes<HTMLSpanElement> & {
+  children?: React.ReactNode;
+};
+
+const TextCell = ({ children, className, ...rest }: TextCellProps) => (
+  <span
+    className={`flex h-10 items-center px-3 text-body-4 text-text-primary ${className ?? ''}`}
+    {...rest}
+  >
     {children}
   </span>
 );
@@ -183,29 +200,6 @@ const getMaxDiscountPercent = (item: InvoiceLineItem): number | undefined => {
   return (item.maxDiscountCents / item.grossCents) * 100;
 };
 
-const getPackageTooltipContent = (item: InvoiceLineItem, currency: string) => {
-  const breakdown = item.breakdown ?? [];
-  if (breakdown.length === 0) return null;
-  return (
-    <div className="flex min-w-64 flex-col gap-2 text-left">
-      <span className="text-caption-1 font-semibold text-neutral-0">{item.name} breakdown</span>
-      <ul className="flex flex-col gap-1.5">
-        {breakdown.map((row) => (
-          <li key={row.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-caption-2">
-            <span className="min-w-0">
-              <span className="block truncate text-neutral-0">{row.name}</span>
-              <span className="text-neutral-200">x{row.qty}</span>
-            </span>
-            <span className="text-right font-medium text-neutral-0">
-              {formatCents(row.amountCents, currency)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
-
 /** Editable per-line discount as a percentage; the money value is read-only. */
 const DiscountInput = ({
   item,
@@ -251,18 +245,22 @@ const DiscountInput = ({
   );
 };
 
-const AmountCell = ({ item, currency }: { item: InvoiceLineItem; currency: string }) => {
+const GrossAmountCell = ({ item, currency }: { item: InvoiceLineItem; currency: string }) => {
   return (
     <TextCell className="flex-col! items-start! justify-center font-medium">
-      <span>{formatCents(item.amountCents, currency)}</span>
-      <span className="truncate text-caption-2 text-text-secondary">
-        <span className="text-pill-success-text">
+      <span>{formatCents(item.grossCents, currency)}</span>
+      {item.discountCents > 0 ? (
+        <span className="truncate text-caption-2 text-pill-success-text">
           − {formatCents(item.discountCents, currency)}
         </span>
-      </span>
+      ) : null}
     </TextCell>
   );
 };
+
+const AmountCell = ({ item, currency }: { item: InvoiceLineItem; currency: string }) => (
+  <TextCell className="self-start font-medium">{formatCents(item.amountCents, currency)}</TextCell>
+);
 
 const BillRow = ({
   item,
@@ -276,7 +274,6 @@ const BillRow = ({
   onRemoveItem: (id: string) => void;
 }) => {
   const currency = useCurrency();
-  const packageTooltipContent = getPackageTooltipContent(item, currency);
   // Rows with a max-discount hint need extra bottom space so the absolutely
   // positioned "Max $X" caption doesn't collide with the next row.
   const hasMaxHint = item.maxDiscountCents != null && item.maxDiscountCents > 0;
@@ -286,12 +283,7 @@ const BillRow = ({
       <TextCell className="min-w-0">
         <span className="inline-flex min-w-0 items-center gap-1">
           <span className="truncate">{item.name}</span>
-          {packageTooltipContent && (
-            <InfoTooltipIcon
-              label={`View ${item.name} package breakdown`}
-              content={packageTooltipContent}
-            />
-          )}
+          <PackageBreakdownTooltip item={item} currency={currency} />
           {incomplete && (
             <InfoTooltipIcon
               label="Fill information in previous step"
@@ -302,7 +294,7 @@ const BillRow = ({
       </TextCell>
       <TextCell>{formatCents(item.unitPriceCents, currency)}</TextCell>
       <QtyInput item={item} onUpdateItem={onUpdateItem} />
-      <TextCell>{formatCents(item.grossCents, currency)}</TextCell>
+      <GrossAmountCell item={item} currency={currency} />
       <DiscountInput item={item} onUpdateItem={onUpdateItem} />
       <AmountCell item={item} currency={currency} />
       <CircleIconButton

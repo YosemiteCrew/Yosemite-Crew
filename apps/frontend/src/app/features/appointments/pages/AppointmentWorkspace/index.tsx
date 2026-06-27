@@ -84,6 +84,31 @@ type WorkspaceRoom = {
   name: string;
 };
 
+type RequiredStaffMember = {
+  id: string;
+  name: string;
+};
+
+const ADMISSIBLE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
+
+const isSameInstant = (left?: string | Date, right?: string | Date): boolean => {
+  if (!left || !right) return false;
+  const leftTime = new Date(left).getTime();
+  const rightTime = new Date(right).getTime();
+  return Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime === rightTime;
+};
+
+const isBareCheckInAdmission = (
+  encounter: AppointmentEncounter | undefined,
+  appointment: Appointment
+): boolean =>
+  Boolean(
+    encounter?.admittedAt &&
+    !encounter.unitId &&
+    !encounter.dischargedAt &&
+    isSameInstant(encounter.admittedAt, appointment.startTime)
+  );
+
 const getRoomUnits = (
   roomId: string | undefined,
   roomUnitsById: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitsById'],
@@ -523,6 +548,10 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     [encounter]
   );
   const isCompletedAppointment = normalizeAppointmentStatus(appointment.status) === 'COMPLETED';
+  const normalizedAppointmentStatus = normalizeAppointmentStatus(appointment.status);
+  const canAdmitAppointmentStatus = ADMISSIBLE_APPOINTMENT_STATUSES.has(
+    normalizedAppointmentStatus ?? ''
+  );
 
   const selectedRoom = useMemo(
     () => rooms.find((room) => room.id === effectiveEncounter?.roomId),
@@ -549,20 +578,25 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       ? [{ label: effectiveEncounter.unitId, value: effectiveEncounter.unitId }]
       : [];
   }, [effectiveEncounter?.unitId, selectedRoomUnits]);
-  const hasAdmission = Boolean(effectiveEncounter?.admittedAt);
+  const hasAdmission = Boolean(
+    effectiveEncounter?.admittedAt && !isBareCheckInAdmission(effectiveEncounter, appointment)
+  );
   const supportOptions = useMemo(() => {
     const seen = new Set<string>();
     const options: { label: string; value: string }[] = [];
-    const add = (name?: string) => {
+    const add = (id?: string, name?: string) => {
+      const trimmedId = (id ?? '').trim();
       const trimmed = (name ?? '').trim();
-      if (!trimmed || seen.has(trimmed)) return;
-      seen.add(trimmed);
-      options.push({ label: trimmed, value: trimmed });
+      if (!trimmedId || !trimmed || seen.has(trimmedId)) return;
+      seen.add(trimmedId);
+      options.push({ label: trimmed, value: trimmedId });
     };
-    add(appointment.lead?.name);
-    (appointment.supportStaff ?? []).forEach((staff) => add(staff.name));
+    (appointment.supportStaff ?? []).forEach((staff) => add(staff.id, staff.name));
+    if (effectiveEncounter?.nurseId && effectiveEncounter.nurseName) {
+      add(effectiveEncounter.nurseId, effectiveEncounter.nurseName);
+    }
     return options;
-  }, [appointment.lead?.name, appointment.supportStaff]);
+  }, [appointment.supportStaff, effectiveEncounter?.nurseId, effectiveEncounter?.nurseName]);
   const hospitalizationServicePackages = useMemo(() => {
     const serviceOptions = catalogServices
       .filter(
@@ -625,11 +659,18 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       options?: {
         admittedAt?: string;
         expectedStayDays?: number;
-        supportName?: string;
+        supportStaffMember?: RequiredStaffMember;
         allowModeConversion?: boolean;
       }
     ) => {
       if (isAdmitting) return false;
+      if (!canAdmitAppointmentStatus) {
+        notify('error', {
+          title: 'Check in required',
+          text: 'Check in the appointment before admitting the patient.',
+        });
+        return false;
+      }
       if (encounterMode !== 'INPATIENT' && !options?.allowModeConversion) {
         notify('error', {
           title: 'Unable to admit',
@@ -642,20 +683,20 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       const resolvedRoomId = roomId ?? effectiveEncounter?.roomId ?? appointment.room?.id;
       const resolvedUnitId = unitId ?? effectiveEncounter?.unitId;
       const leadName = (effectiveEncounter?.leadName ?? appointment.lead?.name ?? '').trim();
-      const leadId = effectiveEncounter?.leadId ?? appointment.lead?.id;
-      const supportStaff: Array<{ id?: string; name?: string }> = (appointment.supportStaff ?? [])
+      const leadId = (effectiveEncounter?.leadId ?? appointment.lead?.id ?? '').trim();
+      const supportStaff: RequiredStaffMember[] = (appointment.supportStaff ?? [])
         .map((staff) => ({
-          id: staff.id,
-          name: staff.name,
+          id: (staff.id ?? '').trim(),
+          name: (staff.name ?? '').trim(),
         }))
-        .filter((staff) => staff.id || staff.name);
+        .filter((staff): staff is RequiredStaffMember => Boolean(staff.id && staff.name));
       if (
-        options?.supportName &&
-        !supportStaff.some((staff) => staff.name === options.supportName)
+        options?.supportStaffMember &&
+        !supportStaff.some((staff) => staff.id === options.supportStaffMember?.id)
       ) {
-        supportStaff.push({ name: options.supportName });
+        supportStaff.push(options.supportStaffMember);
       }
-      if (!supportStaff.length && (effectiveEncounter?.nurseId || effectiveEncounter?.nurseName)) {
+      if (!supportStaff.length && effectiveEncounter?.nurseId && effectiveEncounter.nurseName) {
         supportStaff.push({
           id: effectiveEncounter.nurseId,
           name: effectiveEncounter.nurseName,
@@ -667,7 +708,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         await admitAppointment(appointment.organisationId, appointmentId, {
           admittedAt,
           expectedStayDays: options?.expectedStayDays,
-          lead: leadId || leadName ? { id: leadId, name: leadName || undefined } : undefined,
+          lead: leadId && leadName ? { id: leadId, name: leadName } : undefined,
           supportStaff,
           room: resolvedRoomId
             ? { id: resolvedRoomId, name: getRoomName(rooms, resolvedRoomId) }
@@ -712,6 +753,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       appointment.room?.id,
       appointment.supportStaff,
       appointmentId,
+      canAdmitAppointmentStatus,
       effectiveEncounter?.leadId,
       effectiveEncounter?.leadName,
       effectiveEncounter?.nurseId,
@@ -1148,8 +1190,22 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             router.push('/appointments');
           }}
           onQuickActions={() => setActiveSideAction('RECORD')}
-          onHospitalize={() => setIsHospitalizeOpen(true)}
-          canAdmit={encounterMode === 'INPATIENT' && !hasAdmission && !effectiveEncounter.viewOnly}
+          onHospitalize={() => {
+            if (!canAdmitAppointmentStatus) {
+              notify('error', {
+                title: 'Check in required',
+                text: 'Check in the appointment before admitting the patient.',
+              });
+              return;
+            }
+            setIsHospitalizeOpen(true);
+          }}
+          canAdmit={
+            encounterMode === 'INPATIENT' &&
+            canAdmitAppointmentStatus &&
+            !hasAdmission &&
+            !effectiveEncounter.viewOnly
+          }
           isAdmitting={isAdmitting}
           onAdmit={() => handleAdmit(effectiveEncounter.unitId, effectiveEncounter.roomId)}
           canHospitalize={encounterMode !== 'INPATIENT'}
@@ -1289,7 +1345,24 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         servicePackages={hospitalizationServicePackages}
         defaultRoomId={effectiveEncounter.roomId}
         defaultUnitId={effectiveEncounter.unitId}
-        onConvert={(payload) => {
+        onConvert={async (payload) => {
+          const selectedSupport = supportOptions.find(
+            (option) => option.value === payload.supportStaffId
+          );
+          const supportStaffMember =
+            selectedSupport && payload.supportStaffId
+              ? { id: payload.supportStaffId, name: selectedSupport.label }
+              : undefined;
+          const converted = await handleAdmit(payload.unitId, payload.roomId, {
+            admittedAt: buildAdmissionDateTime(payload.admissionDate, payload.admissionTime),
+            expectedStayDays: calculateExpectedStayDays(
+              payload.admissionDate,
+              payload.dischargeDate
+            ),
+            supportStaffMember,
+            allowModeConversion: true,
+          });
+          if (!converted) return false;
           const selectedServicePackage = hospitalizationServicePackages.find(
             (item) => item.id === payload.servicePackageId
           );
@@ -1308,25 +1381,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           setEncounterMode(appointmentId, 'INPATIENT');
           if (payload.roomId) {
             setRoomUnit(appointmentId, payload.roomId, payload.unitId);
-            return handleAdmit(payload.unitId, payload.roomId, {
-              admittedAt: buildAdmissionDateTime(payload.admissionDate, payload.admissionTime),
-              expectedStayDays: calculateExpectedStayDays(
-                payload.admissionDate,
-                payload.dischargeDate
-              ),
-              supportName: payload.supportName,
-              allowModeConversion: true,
-            });
           }
-          return handleAdmit(undefined, undefined, {
-            admittedAt: buildAdmissionDateTime(payload.admissionDate, payload.admissionTime),
-            expectedStayDays: calculateExpectedStayDays(
-              payload.admissionDate,
-              payload.dischargeDate
-            ),
-            supportName: payload.supportName,
-            allowModeConversion: true,
-          });
+          return true;
         }}
       />
     </div>

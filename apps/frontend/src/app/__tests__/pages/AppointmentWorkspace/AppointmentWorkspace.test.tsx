@@ -548,6 +548,90 @@ describe('AppointmentWorkspace container', () => {
     ).toEqual(expect.any(String));
   });
 
+  it('does not show the inpatient admit action before check-in', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date(), true),
+            encounterId: 'enc-1',
+            status: 'UPCOMING',
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Admit' })).not.toBeInTheDocument();
+  });
+
+  it('keeps admit available for a checked-in inpatient with a legacy bare admission stamp', async () => {
+    const startTime = new Date('2026-06-27T09:00:00.000Z');
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({
+      appointment: { id: 'appt-workspace', kind: 'INPATIENT', status: 'CHECKED_IN' },
+      encounter: {
+        id: 'enc-1',
+        appointmentKind: 'INPATIENT',
+        encounterClass: 'IMP',
+        status: 'arrived',
+        admission: {
+          encounterId: 'enc-1',
+          organisationId: 'org-1',
+          patientId: 'comp-1',
+          admittedAt: startTime.toISOString(),
+        },
+      },
+    });
+
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(startTime, true),
+            encounterId: 'enc-1',
+            status: 'CHECKED_IN',
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Admit' })).toBeInTheDocument();
+  });
+
+  it('sends only backend-valid lead and support members when admitting', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date(), true),
+            encounterId: 'enc-1',
+            lead: { id: 'lead-1', name: 'Dr Lead' },
+            supportStaff: [
+              { id: 'support-1', name: 'Nurse One' },
+              { id: '', name: 'Missing Id' },
+              { id: 'support-2', name: '' },
+            ],
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    await waitFor(() => {
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({
+          lead: { id: 'lead-1', name: 'Dr Lead' },
+          supportStaff: [{ id: 'support-1', name: 'Nurse One' }],
+        })
+      );
+    });
+  });
+
   it('refreshes encounter id before persisting a unit change when appointment prop has no encounter id', async () => {
     (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([{ id: 'room-1', name: 'Ward A' }]);
     useOrganisationRoomStore.setState({

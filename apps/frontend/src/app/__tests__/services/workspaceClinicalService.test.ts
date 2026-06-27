@@ -515,14 +515,19 @@ describe('workspaceClinicalService', () => {
       },
       {
         medicineName: 'Gabapentin',
-        dosage: '100mg',
-        frequency: 'BID',
+        strength: '100mg',
+        dosageForm: 'Capsule',
+        route: 'Oral',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        qty: '14',
         fulfillment: 'IN_HOUSE',
+        inventoryItemId: 'inv-1',
       }
     );
 
-    expect(postDataMock).toHaveBeenCalledWith(
-      '/fhir/v1/clinical-artifact/organisation/org-1/prescription',
+    const [, body] = postDataMock.mock.calls[0];
+    expect(body).toEqual(
       expect.objectContaining({
         resourceType: 'MedicationRequest',
         medicationCodeableConcept: { text: 'Gabapentin' },
@@ -531,6 +536,23 @@ describe('workspaceClinicalService', () => {
         authorId: 'user-1',
       })
     );
+    const medicationsExtension = body.extension.find((entry: { url: string }) =>
+      entry.url.endsWith('/prescription-medications')
+    );
+    expect(JSON.parse(medicationsExtension.valueString)).toEqual([
+      expect.objectContaining({
+        // Flat fields map to the backend's typed columns; strength is no longer clobbered.
+        medicineName: 'Gabapentin',
+        strength: '100mg',
+        route: 'Oral',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        qty: '14',
+        inventoryItemId: 'inv-1',
+        // Display/unit extras with no backend column ride along under metadata so they round-trip.
+        metadata: expect.objectContaining({ dosageForm: 'Capsule', fulfillment: 'IN_HOUSE' }),
+      }),
+    ]);
   });
 
   it('updates a persisted prescription artifact instead of creating a duplicate', async () => {

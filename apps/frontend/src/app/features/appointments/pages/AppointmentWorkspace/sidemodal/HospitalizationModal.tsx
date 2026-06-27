@@ -50,10 +50,10 @@ type HospitalizationModalProps = {
     dischargeDate: Date | null;
     roomId?: string;
     unitId?: string;
-    supportName?: string;
+    supportStaffId?: string;
     servicePackageId?: string;
     notifyChannels: string[];
-  }) => void;
+  }) => boolean | Promise<boolean>;
 };
 
 type NotifyChannel = 'app' | 'sms' | 'email';
@@ -95,11 +95,13 @@ const HospitalizationModal = ({
   const [dischargeDate, setDischargeDate] = useState<Date | null>(addDays(today, 2));
   const [roomId, setRoomId] = useState<string | undefined>(defaultRoomId);
   const [unitId, setUnitId] = useState<string | undefined>(defaultUnitId);
-  const [support, setSupport] = useState<string | undefined>(supportName);
+  const defaultSupportId = supportOptions.find((option) => option.label === supportName)?.value;
+  const [supportStaffId, setSupportStaffId] = useState<string | undefined>(defaultSupportId);
   const [servicePackageId, setServicePackageId] = useState<string | undefined>(
     servicePackages[0]?.id
   );
   const [notifyChannels, setNotifyChannels] = useState<Set<NotifyChannel>>(new Set(['app']));
+  const [isConverting, setIsConverting] = useState(false);
 
   const selectedPackage = servicePackages.find((pkg) => pkg.id === servicePackageId);
 
@@ -116,18 +118,24 @@ const HospitalizationModal = ({
     });
   };
 
-  const handleConvert = () => {
-    onConvert({
-      admissionDate,
-      admissionTime,
-      dischargeDate,
-      roomId,
-      unitId,
-      supportName: support,
-      servicePackageId,
-      notifyChannels: [...notifyChannels],
-    });
-    setShowModal(false);
+  const handleConvert = async () => {
+    if (isConverting) return;
+    setIsConverting(true);
+    try {
+      const converted = await onConvert({
+        admissionDate,
+        admissionTime,
+        dischargeDate,
+        roomId,
+        unitId,
+        supportStaffId,
+        servicePackageId,
+        notifyChannels: [...notifyChannels],
+      });
+      if (converted) setShowModal(false);
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   return (
@@ -184,9 +192,9 @@ const HospitalizationModal = ({
             <LabelDropdown
               placeholder="Assigned Support"
               options={supportOptions}
-              defaultOption={support}
+              defaultOption={supportStaffId}
               icon={<HiUser size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-              onSelect={(option: DropdownOption) => setSupport(option.value)}
+              onSelect={(option: DropdownOption) => setSupportStaffId(option.value)}
             />
             <LabelDropdown
               placeholder="Additional Service / Package"
@@ -222,6 +230,7 @@ const HospitalizationModal = ({
           <button
             type="button"
             onClick={handleConvert}
+            disabled={isConverting}
             className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-2.75 font-satoshi text-base font-medium leading-6 whitespace-nowrap text-white!"
             onPointerDown={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
@@ -235,7 +244,7 @@ const HospitalizationModal = ({
             }}
           >
             <LuCheck aria-hidden="true" />
-            Convert to Inpatient
+            {isConverting ? 'Converting' : 'Convert to Inpatient'}
           </button>
         </div>
       </div>
