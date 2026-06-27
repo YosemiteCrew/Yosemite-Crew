@@ -23,21 +23,6 @@ export type ScanResult = { clean: boolean; threat?: string };
 // Attachments are already capped at 25 MB by the upload policy; guard anyway.
 const MAX_SCAN_BYTES = 30 * 1024 * 1024;
 
-// Only fetch attachment bytes from the Stream CDN. The URL arrives in a webhook
-// payload (attacker-influenceable), so without this allowlist a crafted message
-// could point the scan request at an internal host (SSRF). Override for a
-// self-hosted/custom CDN via STREAM_ATTACHMENT_ALLOWED_HOSTS.
-const DEFAULT_ALLOWED_HOSTS = ["stream-io-cdn.com", "stream-io-api.com"];
-
-const allowedHosts = (): string[] => {
-  const fromEnv = process.env.STREAM_ATTACHMENT_ALLOWED_HOSTS;
-  if (!fromEnv) return DEFAULT_ALLOWED_HOSTS;
-  return fromEnv
-    .split(",")
-    .map((host) => host.trim().toLowerCase())
-    .filter(Boolean);
-};
-
 export const scanAttachmentUrl = async (url: string): Promise<ScanResult> => {
   const apiKey = process.env.VIRUSTOTAL_API_KEY;
   if (!apiKey) {
@@ -45,8 +30,11 @@ export const scanAttachmentUrl = async (url: string): Promise<ScanResult> => {
     return { clean: true };
   }
 
-  // SSRF guard: parse and host-allowlist the URL before issuing any request, so a
-  // crafted webhook attachment URL cannot point the fetch at an internal host.
+  // SSRF guard. The URL comes from a webhook attachment a user can author, so an
+  // arbitrary host here could point the request at an internal service. Only ever
+  // fetch over https from Stream's CDN. The host check is written inline and
+  // directly (no helper / no Array.some) so it sits on the dataflow path to
+  // fetch as a recognised request-forgery barrier.
   let target: URL;
   try {
     target = new URL(url);
@@ -54,11 +42,13 @@ export const scanAttachmentUrl = async (url: string): Promise<ScanResult> => {
     return { clean: true };
   }
   const host = target.hostname.toLowerCase();
-  const hostAllowed = allowedHosts().some(
-    (domain) => host === domain || host.endsWith(`.${domain}`),
-  );
-  if (target.protocol !== "https:" || !hostAllowed) {
-    logger.warn("Attachment scan skipped: URL host is not an allowed CDN");
+  const onStreamCdn =
+    host === "stream-io-cdn.com" ||
+    host.endsWith(".stream-io-cdn.com") ||
+    host === "stream-io-api.com" ||
+    host.endsWith(".stream-io-api.com");
+  if (target.protocol !== "https:" || !onStreamCdn) {
+    logger.warn("Attachment scan skipped: URL host is not the Stream CDN");
     return { clean: true };
   }
 
