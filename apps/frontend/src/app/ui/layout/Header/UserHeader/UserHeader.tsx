@@ -131,14 +131,17 @@ const shouldHideSearch = (pathname: string): boolean =>
   pathname.startsWith('/guides') ||
   (pathname.startsWith('/integrations') && !pathname.startsWith('/integrations/idexx-workspace'));
 
-const getSearchPlaceholder = (pathname: string, terminologyText: (s: string) => string): string => {
+const getSearchPlaceholder = (
+  pathname: string,
+  _terminologyText: (s: string) => string
+): string => {
   if (pathname.startsWith('/appointments/idexx-workspace')) return 'Search result / order';
   if (pathname.startsWith('/appointments')) return 'Search appointments';
   if (pathname.startsWith('/inventory')) return 'Search inventory';
   if (pathname.startsWith('/integrations/idexx-workspace')) return 'Search result / order';
   if (pathname.startsWith('/integrations')) return 'Search integrations';
   if (pathname.startsWith('/forms')) return 'Search forms';
-  if (pathname.startsWith('/companions')) return terminologyText('Search companions');
+  if (pathname.startsWith('/companions')) return 'Search companions';
   if (pathname.startsWith('/tasks')) return 'Search tasks';
   if (pathname.startsWith('/finance')) return 'Search invoices';
   if (pathname.startsWith('/organization/specialities')) return 'Search specialities';

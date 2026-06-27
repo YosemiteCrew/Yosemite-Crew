@@ -327,6 +327,14 @@ describe("StripeService", () => {
         amount: 120,
         currency: "usd",
       });
+      expect(mStripe.paymentIntents.create).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          transfer_data: expect.anything(),
+        }),
+        {
+          stripeAccount: "acct_1",
+        },
+      );
     });
 
     it("should throw if appointment not found", async () => {
@@ -396,6 +404,9 @@ describe("StripeService", () => {
             companionId: "",
           }),
         }),
+        {
+          stripeAccount: "acct_1",
+        },
       );
     });
 
@@ -431,6 +442,9 @@ describe("StripeService", () => {
             companionId: "",
           }),
         }),
+        {
+          stripeAccount: "acct_1",
+        },
       );
     });
   });

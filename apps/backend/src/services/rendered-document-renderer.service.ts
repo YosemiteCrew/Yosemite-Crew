@@ -1686,8 +1686,7 @@ const buildTemplateFreeVitalRecordPdfInput = async (
         record.data.vitals ?? metadata.vitals ?? metadata.vitalRows,
       ),
       notes,
-      metadata:
-        record.data.metadata !== undefined ? record.data.metadata : metadata,
+      metadata: record.data.metadata ?? metadata,
       printedBy: readPrintedByField(record, metadata),
       signature,
     },

@@ -5,11 +5,18 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import SoapStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SoapStep';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { saveSoapNote } from '@/app/features/appointments/services/workspaceClinicalService';
+import { getWorkspaceTemplateById } from '@/app/features/appointments/services/workspaceTemplateService';
 
 expect.extend(toHaveNoViolations);
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
   saveSoapNote: jest.fn(),
+}));
+
+jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
+  getWorkspaceTemplateById: jest.fn(),
+  resolveSoapTemplate: jest.fn().mockResolvedValue(null),
+  templateToSoapTemplate: jest.fn((template) => template),
 }));
 
 const APPT = 'appt-soap';
@@ -51,12 +58,15 @@ describe('SoapStep', () => {
     onRecordVitals.mockClear();
     onSaveAndNext.mockClear();
     (saveSoapNote as jest.Mock).mockResolvedValue({ id: 'soap-saved' });
+    (getWorkspaceTemplateById as jest.Mock).mockReset();
+    (getWorkspaceTemplateById as jest.Mock).mockResolvedValue(undefined);
   });
 
   const renderSoapStep = (encounter = seedAndGet()) =>
     render(
       <SoapStep
         appointmentId={APPT}
+        organisationId="org-1"
         appointmentReason={APPOINTMENT_REASON}
         appointmentService={APPOINTMENT_SERVICE}
         appointmentSpeciality={APPOINTMENT_SPECIALITY}
@@ -67,7 +77,8 @@ describe('SoapStep', () => {
     );
 
   it('renders the four SOAP sections and chief complaint', () => {
-    renderSoapStep();
+    const encounter = seedAndGet();
+    renderSoapStep(encounter);
     expect(screen.getByText('Chief Complaint')).toBeInTheDocument();
     expect(screen.getByText(APPOINTMENT_REASON)).toBeInTheDocument();
     expect(screen.getByText('Service')).toBeInTheDocument();
@@ -82,13 +93,15 @@ describe('SoapStep', () => {
   });
 
   it('shows an empty state when no SOAP notes have been recorded', () => {
-    renderSoapStep();
+    const encounter = seedAndGet();
+    renderSoapStep(encounter);
     expect(screen.getByText('All SOAP notes')).toBeInTheDocument();
     expect(screen.getByText('No SOAP notes recorded yet.')).toBeInTheDocument();
   });
 
   it('keeps SOAP template search between chief complaint and subjective', () => {
-    renderSoapStep();
+    const encounter = seedAndGet();
+    renderSoapStep(encounter);
     const chiefComplaint = screen.getByText('Chief Complaint');
     const search = screen.getByLabelText(/search for soap template/i);
     const subjective = screen.getByText('Subjective (History)');
@@ -97,13 +110,55 @@ describe('SoapStep', () => {
   });
 
   it('searches and applies a SOAP template', () => {
-    renderSoapStep();
+    const encounter = seedAndGet();
+    (getWorkspaceTemplateById as jest.Mock).mockResolvedValue({
+      id: 'tpl-ortho',
+      name: 'Orthopaedic exam',
+      content: {
+        subjective: '<p>Resolved subjective</p>',
+        objective: '<p>Resolved objective</p>',
+        assessment: '<p>Resolved assessment</p>',
+        plan: '<p>Resolved plan</p>',
+      },
+    });
+    renderSoapStep(encounter);
     const search = screen.getByLabelText(/search for soap template/i);
     fireEvent.change(search, { target: { value: 'Ortho' } });
     fireEvent.click(screen.getByText('Orthopaedic exam'));
-    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.templateId).toBe(
-      'tpl-ortho'
-    );
+    return waitFor(() => {
+      expect(getWorkspaceTemplateById).toHaveBeenCalledWith('org-1', 'tpl-ortho');
+      expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.templateId).toBe(
+        'tpl-ortho'
+      );
+    });
+  });
+
+  it('uses the resolved template payload so SOAP content refreshes when selecting a template from search', async () => {
+    const encounter = seedAndGet();
+    (getWorkspaceTemplateById as jest.Mock).mockResolvedValue({
+      id: 'tpl-ortho',
+      name: 'Orthopaedic exam',
+      content: {
+        subjective: '<p>Resolved subjective</p>',
+        objective: '<p>Resolved objective</p>',
+        assessment: '<p>Resolved assessment</p>',
+        plan: '<p>Resolved plan</p>',
+      },
+    });
+    renderSoapStep(encounter);
+    fireEvent.change(screen.getByLabelText(/search for soap template/i), {
+      target: { value: 'Ortho' },
+    });
+    fireEvent.click(screen.getByText('Orthopaedic exam'));
+
+    await waitFor(() => {
+      expect(getWorkspaceTemplateById).toHaveBeenCalledWith('org-1', 'tpl-ortho');
+      const updated = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+      expect(updated.soap[0]?.subjective).toBe('<p>Resolved subjective</p>');
+      expect(updated.soap[0]?.objective).toBe('<p>Resolved objective</p>');
+      expect(updated.soap[0]?.assessment).toBe('<p>Resolved assessment</p>');
+      expect(updated.soap[0]?.plan).toBe('<p>Resolved plan</p>');
+    });
   });
 
   it('records the SOAP note, clears the form, and advances on Save & Next', () => {

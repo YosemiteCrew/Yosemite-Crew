@@ -13,11 +13,25 @@ import {createAllCommonStyles} from '@/shared/utils/screenStyles';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {
-  resolveCategoryLabel,
-  resolveSubcategoryLabel,
-  resolveVisitTypeLabel,
-} from '@/features/expenses/utils/expenseLabels';
+import {DOCUMENT_CATEGORIES, VISIT_TYPES} from '@/features/documents/constants';
+
+const resolveCategoryLabel = (categoryId?: string | null): string =>
+  DOCUMENT_CATEGORIES.find(c => c.id === categoryId)?.label ?? categoryId ?? '';
+
+const resolveSubcategoryLabel = (
+  categoryId?: string | null,
+  subcategoryId?: string | null,
+): string => {
+  const cat = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
+  return (
+    cat?.subcategories.find(s => s.id === subcategoryId)?.label ??
+    subcategoryId ??
+    ''
+  );
+};
+
+const resolveVisitTypeLabel = (visitTypeId?: string | null): string =>
+  VISIT_TYPES.find(v => v.id === visitTypeId)?.label ?? visitTypeId ?? '';
 import {
   DetailsCard,
   type DetailItem,
@@ -39,11 +53,12 @@ export const DocumentPreviewScreen: React.FC = () => {
   const route = useRoute<DocumentPreviewRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
 
-  const {documentId} = route.params;
+  const {documentId, initialDocument} = route.params;
 
-  const document = useSelector((state: RootState) =>
+  const storedDocument = useSelector((state: RootState) =>
     state.documents.documents.find(doc => doc.id === documentId),
   );
+  const document = storedDocument ?? initialDocument;
   const viewLoading = useSelector(
     (state: RootState) => !!state.documents.viewLoading[documentId],
   );
@@ -54,28 +69,30 @@ export const DocumentPreviewScreen: React.FC = () => {
       : null,
   );
 
+  const isViewableUri = React.useCallback(
+    (uri?: string | null) =>
+      typeof uri === 'string' &&
+      /^(https?:\/\/|file:\/\/|content:\/\/)/i.test(uri),
+    [],
+  );
+
   const hasViewableAttachments = React.useMemo(() => {
     if (!document?.files?.length) {
       return false;
     }
     return document.files.some(file => {
       const candidates = [file.viewUrl, file.downloadUrl, file.s3Url, file.uri];
-      return candidates.some(
-        uri => typeof uri === 'string' && /^https?:\/\//i.test(uri),
-      );
+      return candidates.some(uri => isViewableUri(uri));
     });
-  }, [document?.files]);
+  }, [document?.files, isViewableUri]);
 
   React.useEffect(() => {
     if (!document) {
       return;
     }
     const needsFreshUrls = document.files?.some(file => {
-      const hasView =
-        typeof file.viewUrl === 'string' && /^https?:\/\//i.test(file.viewUrl);
-      const hasDownload =
-        typeof file.downloadUrl === 'string' &&
-        /^https?:\/\//i.test(file.downloadUrl);
+      const hasView = isViewableUri(file.viewUrl);
+      const hasDownload = isViewableUri(file.downloadUrl);
       return !(hasView && hasDownload);
     });
 
@@ -86,7 +103,14 @@ export const DocumentPreviewScreen: React.FC = () => {
     if (!hasViewableAttachments || needsFreshUrls) {
       dispatch(fetchDocumentView({documentId}));
     }
-  }, [dispatch, document, documentId, hasViewableAttachments, viewLoading]);
+  }, [
+    dispatch,
+    document,
+    documentId,
+    hasViewableAttachments,
+    isViewableUri,
+    viewLoading,
+  ]);
 
   const formattedIssueDate = React.useMemo(() => {
     if (!document?.issueDate) {

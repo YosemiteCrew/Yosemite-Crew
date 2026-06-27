@@ -293,19 +293,23 @@ export const StripeService = {
     const { parentId, patientId } = extractAppointmentPatientRefs(appointment);
     const companionId = patientId ?? "";
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency,
-      metadata: {
-        type: "APPOINTMENT_BOOKING",
-        appointmentId,
-        organisationId: appointment.organisationId,
-        parentId: parentId ?? "",
-        patientId: companionId,
-        companionId,
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount,
+        currency,
+        metadata: {
+          type: "APPOINTMENT_BOOKING",
+          appointmentId,
+          organisationId: appointment.organisationId,
+          parentId: parentId ?? "",
+          patientId: companionId,
+          companionId,
+        },
       },
-      transfer_data: { destination: organisation.stripeAccountId },
-    });
+      {
+        stripeAccount: organisation.stripeAccountId,
+      },
+    );
 
     return {
       paymentIntentId: paymentIntent.id,

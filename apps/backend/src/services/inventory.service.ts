@@ -57,10 +57,10 @@ const syncInventoryBatchToPostgres = async (_doc: unknown) => undefined;
 const syncInventoryVendorToPostgres = async (_doc: unknown) => undefined;
 const syncInventoryMetaFieldToPostgres = async (_doc: unknown) => undefined;
 
-const resolveStockUnitType = (
-  stockUnitType?: string | null,
-  unitOfMeasure?: string | null,
-) => (stockUnitType !== undefined ? stockUnitType : unitOfMeasure);
+const resolveUnitQuantity = (
+  unitQuantity?: number | null,
+  packageQuantity?: number | null,
+) => (unitQuantity !== undefined ? unitQuantity : packageQuantity);
 
 type InventoryItemMongo = PrismaInventoryItem;
 type InventoryBatchMongo = PrismaInventoryBatch;
@@ -358,6 +358,7 @@ export interface CreateInventoryItemInput {
   unitOfMeasure?: string;
   stockUnitType?: string;
   packageQuantity?: number;
+  unitQuantity?: number;
   storageLocation?: string;
 
   costPrice?: number;
@@ -369,6 +370,7 @@ export interface CreateInventoryItemInput {
   emergencyStockLevel?: number;
   reorderLevel?: number;
 
+  allocated?: number;
   initialOnHand?: number;
   initialAllocated?: number;
 
@@ -404,6 +406,7 @@ export interface UpdateInventoryItemInput {
   unitOfMeasure?: string | null;
   stockUnitType?: string | null;
   packageQuantity?: number | null;
+  unitQuantity?: number | null;
   storageLocation?: string | null;
 
   costPrice?: number | null;
@@ -415,6 +418,7 @@ export interface UpdateInventoryItemInput {
   emergencyStockLevel?: number | null;
   reorderLevel?: number | null;
 
+  allocated?: number;
   vendorId?: string | null;
 
   status?: InventoryStatus;
@@ -938,6 +942,7 @@ const validateCreateInventoryItemInput = async (
 
   for (const [field, value] of [
     ["initialOnHand", input.initialOnHand],
+    ["allocated", input.allocated],
     ["initialAllocated", input.initialAllocated],
     ["minimumStock", input.minimumStock],
     ["emergencyStockLevel", input.emergencyStockLevel],
@@ -945,7 +950,10 @@ const validateCreateInventoryItemInput = async (
     ["unitCost", input.unitCost ?? input.costPrice],
     ["sellingPrice", input.sellingPrice],
     ["taxRate", input.taxRate],
-    ["packageQuantity", input.packageQuantity],
+    [
+      "packageQuantity",
+      resolveUnitQuantity(input.unitQuantity, input.packageQuantity),
+    ],
   ] as const) {
     if (typeof value === "number" && value < 0) {
       throw new InventoryServiceError(`${field} cannot be negative`, 400);
@@ -1018,10 +1026,9 @@ const createInventoryItemInPostgres = async (
     unitCost,
     attachments,
   } = validated;
-  const stockUnitType = resolveStockUnitType(
-    input.stockUnitType,
-    input.unitOfMeasure,
-  );
+  const stockUnitType = input.stockUnitType;
+  const unitOfMeasure = input.unitOfMeasure;
+  const itemAllocated = input.allocated ?? input.initialAllocated ?? 0;
 
   const item = await prisma.inventoryItem.create({
     data: {
@@ -1045,9 +1052,11 @@ const createInventoryItemInPostgres = async (
       controlledItem: input.controlledItem ?? false,
       storageInstructions: input.storageInstructions ?? undefined,
       expiryTrackingRequired: input.expiryTrackingRequired ?? false,
-      unitOfMeasure: stockUnitType ?? undefined,
+      unitOfMeasure: unitOfMeasure ?? undefined,
       stockUnitType: stockUnitType ?? undefined,
-      packageQuantity: input.packageQuantity ?? undefined,
+      packageQuantity:
+        resolveUnitQuantity(input.unitQuantity, input.packageQuantity) ??
+        undefined,
       storageLocation: input.storageLocation ?? undefined,
       unitCost,
       sellingPrice: input.sellingPrice ?? undefined,
@@ -1058,7 +1067,7 @@ const createInventoryItemInPostgres = async (
       reorderLevel: input.reorderLevel ?? undefined,
       vendorId: input.vendorId ?? undefined,
       onHand: input.initialOnHand ?? 0,
-      allocated: input.initialAllocated ?? 0,
+      allocated: itemAllocated,
       status: (input.status ?? "ACTIVE") as InventoryItemStatus,
     },
   });
@@ -1079,11 +1088,12 @@ const createInventoryItemInPostgres = async (
       })),
     });
 
-    const { onHand, allocated } = await recomputeStockFromBatches(item.id);
+    const { onHand } = await recomputeStockFromBatches(item.id);
     await prisma.inventoryItem.update({
       where: { id: item.id },
-      data: { onHand, allocated },
+      data: { onHand },
     });
+    item.onHand = onHand;
   }
 
   const batches = await prisma.inventoryBatch.findMany({
@@ -1117,10 +1127,9 @@ const createInventoryItemInLegacyStore = async (
     unitCost,
     attachments,
   } = validated;
-  const stockUnitType = resolveStockUnitType(
-    input.stockUnitType,
-    input.unitOfMeasure,
-  );
+  const stockUnitType = input.stockUnitType;
+  const unitOfMeasure = input.unitOfMeasure;
+  const itemAllocated = input.allocated ?? input.initialAllocated ?? 0;
 
   const item = await InventoryItemModel.create({
     organisationId,
@@ -1143,9 +1152,12 @@ const createInventoryItemInLegacyStore = async (
     controlledItem: input.controlledItem ?? false,
     storageInstructions: input.storageInstructions,
     expiryTrackingRequired: input.expiryTrackingRequired ?? false,
-    unitOfMeasure: stockUnitType,
+    unitOfMeasure,
     stockUnitType,
-    packageQuantity: input.packageQuantity,
+    packageQuantity: resolveUnitQuantity(
+      input.unitQuantity,
+      input.packageQuantity,
+    ),
     storageLocation: input.storageLocation,
     unitCost,
     sellingPrice: input.sellingPrice ?? undefined,
@@ -1156,7 +1168,7 @@ const createInventoryItemInLegacyStore = async (
     reorderLevel: input.reorderLevel ?? undefined,
     vendorId: input.vendorId ?? undefined,
     onHand: input.initialOnHand ?? 0,
-    allocated: input.initialAllocated ?? 0,
+    allocated: itemAllocated,
     status: input.status ?? "ACTIVE",
   });
   await syncInventoryItemToPostgres(item);
@@ -1200,11 +1212,8 @@ const createInventoryItemInLegacyStore = async (
       }
     }
 
-    const { onHand, allocated } = await recomputeStockFromBatches(
-      item._id.toString(),
-    );
+    const { onHand } = await recomputeStockFromBatches(item._id.toString());
     item.onHand = onHand;
-    item.allocated = allocated;
     await item.save();
     await syncInventoryItemToPostgres(item);
   }
@@ -1280,7 +1289,10 @@ const prepareLegacyInventoryItemUpdate = async (params: {
     ["unitCost", input.unitCost ?? input.costPrice],
     ["sellingPrice", input.sellingPrice],
     ["taxRate", input.taxRate],
-    ["packageQuantity", input.packageQuantity],
+    [
+      "packageQuantity",
+      resolveUnitQuantity(input.unitQuantity, input.packageQuantity),
+    ],
   ] as const) {
     if (typeof value === "number" && value < 0) {
       throw new InventoryServiceError(`${field} cannot be negative`, 400);
@@ -1312,10 +1324,8 @@ const applyLegacyInventoryItemUpdates = async (params: {
   nextItemType: InventoryItemType;
 }) => {
   const { item, input, nextCategory, nextSubCategory, nextItemType } = params;
-  const stockUnitType = resolveStockUnitType(
-    input.stockUnitType,
-    input.unitOfMeasure,
-  );
+  const stockUnitType = input.stockUnitType;
+  const unitOfMeasure = input.unitOfMeasure;
 
   if (input.name !== undefined) item.name = input.name;
   if (input.sku !== undefined) item.sku = input.sku;
@@ -1357,10 +1367,13 @@ const applyLegacyInventoryItemUpdates = async (params: {
   }
   if (stockUnitType !== undefined) {
     item.stockUnitType = stockUnitType ?? null;
-    item.unitOfMeasure = stockUnitType ?? null;
   }
-  if (input.packageQuantity !== undefined) {
-    item.packageQuantity = input.packageQuantity ?? null;
+  if (unitOfMeasure !== undefined) {
+    item.unitOfMeasure = unitOfMeasure ?? null;
+  }
+  if (input.unitQuantity !== undefined || input.packageQuantity !== undefined) {
+    item.packageQuantity =
+      resolveUnitQuantity(input.unitQuantity, input.packageQuantity) ?? null;
   }
   if (input.storageLocation !== undefined) {
     item.storageLocation = input.storageLocation ?? null;
@@ -1380,6 +1393,7 @@ const applyLegacyInventoryItemUpdates = async (params: {
   if (input.reorderLevel !== undefined)
     item.reorderLevel = input.reorderLevel ?? null;
 
+  if (input.allocated !== undefined) item.allocated = input.allocated;
   if (input.vendorId !== undefined) item.vendorId = input.vendorId ?? null;
   if (input.status !== undefined) item.status = input.status;
 };
@@ -1469,7 +1483,11 @@ export const InventoryService = {
         ["unitCost", input.unitCost ?? input.costPrice],
         ["sellingPrice", input.sellingPrice],
         ["taxRate", input.taxRate],
-        ["packageQuantity", input.packageQuantity],
+        [
+          "packageQuantity",
+          resolveUnitQuantity(input.unitQuantity, input.packageQuantity),
+        ],
+        ["allocated", input.allocated],
       ] as const) {
         if (typeof value === "number" && value < 0) {
           throw new InventoryServiceError(`${field} cannot be negative`, 400);
@@ -1542,16 +1560,21 @@ export const InventoryService = {
       if (input.expiryTrackingRequired !== undefined) {
         data.expiryTrackingRequired = input.expiryTrackingRequired ?? false;
       }
-      const stockUnitType = resolveStockUnitType(
-        input.stockUnitType,
-        input.unitOfMeasure,
-      );
+      const stockUnitType = input.stockUnitType;
+      const unitOfMeasure = input.unitOfMeasure;
       if (stockUnitType !== undefined) {
         data.stockUnitType = stockUnitType ?? null;
-        data.unitOfMeasure = stockUnitType ?? null;
       }
-      if (input.packageQuantity !== undefined) {
-        data.packageQuantity = input.packageQuantity ?? null;
+      if (unitOfMeasure !== undefined) {
+        data.unitOfMeasure = unitOfMeasure ?? null;
+      }
+      if (
+        input.unitQuantity !== undefined ||
+        input.packageQuantity !== undefined
+      ) {
+        data.packageQuantity =
+          resolveUnitQuantity(input.unitQuantity, input.packageQuantity) ??
+          null;
       }
       if (input.storageLocation !== undefined) {
         data.storageLocation = input.storageLocation ?? null;
@@ -1575,6 +1598,9 @@ export const InventoryService = {
       }
       if (input.reorderLevel !== undefined) {
         data.reorderLevel = input.reorderLevel ?? null;
+      }
+      if (input.allocated !== undefined) {
+        data.allocated = input.allocated;
       }
       if (input.vendorId !== undefined) data.vendorId = input.vendorId ?? null;
       if (input.status !== undefined) {
@@ -2354,10 +2380,10 @@ export const InventoryService = {
         },
       });
 
-      const { onHand, allocated } = await recomputeStockFromBatches(itemId);
+      const { onHand } = await recomputeStockFromBatches(itemId);
       await prisma.inventoryItem.update({
         where: { id: itemId },
-        data: { onHand, allocated },
+        data: { onHand },
       });
 
       return {
@@ -2383,9 +2409,8 @@ export const InventoryService = {
     });
     await syncInventoryBatchToPostgres(batch);
 
-    const { onHand, allocated } = await recomputeStockFromBatches(itemId);
+    const { onHand } = await recomputeStockFromBatches(itemId);
     item.onHand = onHand;
-    item.allocated = allocated;
     await item.save();
     await syncInventoryItemToPostgres(item);
 
@@ -2430,12 +2455,10 @@ export const InventoryService = {
         data,
       });
 
-      const { onHand, allocated } = await recomputeStockFromBatches(
-        updated.itemId,
-      );
+      const { onHand } = await recomputeStockFromBatches(updated.itemId);
       await prisma.inventoryItem.updateMany({
         where: { id: updated.itemId },
-        data: { onHand, allocated },
+        data: { onHand },
       });
 
       return {
@@ -2465,18 +2488,15 @@ export const InventoryService = {
     await syncInventoryBatchToPostgres(batch);
 
     // recompute stock
-    const { onHand, allocated } = await recomputeStockFromBatches(
-      batch.itemId.toString(),
-    );
+    const { onHand } = await recomputeStockFromBatches(batch.itemId.toString());
     await InventoryItemModel.findByIdAndUpdate(batch.itemId, {
       onHand,
-      allocated,
     }).exec();
     if (shouldDualWrite) {
       try {
         await prisma.inventoryItem.updateMany({
           where: { id: batch.itemId.toString() },
-          data: { onHand, allocated },
+          data: { onHand },
         });
       } catch (err) {
         handleDualWriteError("InventoryItem updateStock", err);
@@ -2499,12 +2519,10 @@ export const InventoryService = {
         where: { id: batchId },
       });
 
-      const { onHand, allocated } = await recomputeStockFromBatches(
-        batch.itemId,
-      );
+      const { onHand } = await recomputeStockFromBatches(batch.itemId);
       await prisma.inventoryItem.updateMany({
         where: { id: batch.itemId },
-        data: { onHand, allocated },
+        data: { onHand },
       });
       return;
     }
@@ -2525,16 +2543,15 @@ export const InventoryService = {
       }
     }
 
-    const { onHand, allocated } = await recomputeStockFromBatches(itemId);
+    const { onHand } = await recomputeStockFromBatches(itemId);
     await InventoryItemModel.findByIdAndUpdate(itemId, {
       onHand,
-      allocated,
     }).exec();
     if (shouldDualWrite) {
       try {
         await prisma.inventoryItem.updateMany({
           where: { id: itemId },
-          data: { onHand, allocated },
+          data: { onHand },
         });
       } catch (err) {
         handleDualWriteError("InventoryItem updateStock", err);
@@ -2588,10 +2605,10 @@ export const InventoryService = {
         );
       }
 
-      const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
+      const { onHand } = await recomputeStockFromBatches(safeItemId);
       const updated = await prisma.inventoryItem.update({
         where: { id: safeItemId },
-        data: { onHand, allocated },
+        data: { onHand },
       });
 
       return {
@@ -2638,9 +2655,8 @@ export const InventoryService = {
       );
     }
 
-    const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
+    const { onHand } = await recomputeStockFromBatches(safeItemId);
     item.onHand = onHand;
-    item.allocated = allocated;
     await item.save();
     await syncInventoryItemToPostgres(item);
 
@@ -2769,10 +2785,10 @@ export const InventoryAdjustmentService = {
         }
       }
 
-      const { onHand, allocated } = await recomputeStockFromBatches(item.id);
+      const { onHand } = await recomputeStockFromBatches(item.id);
       const updated = await prisma.inventoryItem.update({
         where: { id: item.id },
-        data: { onHand, allocated },
+        data: { onHand },
       });
 
       return {
@@ -2839,14 +2855,11 @@ export const InventoryAdjustmentService = {
     // Recompute
     const batches = await InventoryBatchModel.find({ itemId: item._id });
     let onHand = 0;
-    let allocated = 0;
-    batches.forEach((b: { quantity: number; allocated?: number }) => {
+    batches.forEach((b: { quantity: number }) => {
       onHand += b.quantity;
-      allocated += b.allocated ?? 0;
     });
 
     item.onHand = onHand;
-    item.allocated = allocated;
     await item.save();
     await syncInventoryItemToPostgres(item);
 

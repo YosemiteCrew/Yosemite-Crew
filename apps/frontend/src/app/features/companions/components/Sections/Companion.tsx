@@ -304,7 +304,7 @@ const CompanionReadOnlySection = ({
         value={String(companion.companion.ageWhenNeutered || '-')}
       />
     ) : null}
-    <CompanionRow label="Current weight (lbs)" value={companion.companion.currentWeight || '-'} />
+    <CompanionRow label="Current weight (kg)" value={companion.companion.currentWeight || '-'} />
     <CompanionRow label="Color" value={companion.companion.colour || '-'} />
     <CompanionRow label="Blood group" value={companion.companion.bloodGroup || '-'} />
     <CompanionRow label="Country of origin" value={companion.companion.countryOfOrigin || '-'} />
@@ -458,7 +458,7 @@ const CompanionEditSection = ({
       intype="number"
       inname="weight"
       value={formData.currentWeight + ''}
-      inlabel="Current weight (optional) (lbs)"
+      inlabel="Current weight (optional) (kg)"
       onChange={(e) =>
         setFormData((prev) => ({
           ...prev,

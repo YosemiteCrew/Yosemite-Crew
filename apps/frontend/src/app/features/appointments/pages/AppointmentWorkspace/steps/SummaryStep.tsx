@@ -97,28 +97,11 @@ const getTemplateSchemaSnapshot = (template: TemplateLike): TemplateSchemaSnapsh
   return hasTemplateSchemaSnapshot(version?.schemaSnapshot) ? version.schemaSnapshot : undefined;
 };
 
-const schemaSnapshotToDischargeHtml = (snapshot?: TemplateSchemaSnapshot): string => {
-  const sections = snapshot?.sections ?? [];
-  if (sections.length === 0) return '';
-  return sections
-    .map((section) => {
-      const fields = section.fields
-        .map((field) => `<p><strong>${escapeHtml(field.label || field.key)}</strong>: </p>`)
-        .join('');
-      return `<h3>${escapeHtml(section.title)}</h3>${fields}`;
-    })
-    .join('');
-};
+const DISCHARGE_META_FIELD_KEYS = new Set(['followUpInDays', 'followUpDate']);
 
-const templateToDischargeHtml = (template: TemplateLike): string =>
-  schemaSnapshotToDischargeHtml(getTemplateSchemaSnapshot(template));
+const normalizeTemplateLabel = (value: string): string => value.trim().toLowerCase();
 
-/** ISO follow-up timestamp ⇄ the Datepicker's `Date | null` value. */
-const toFollowUpDate = (iso?: string): Date | null => {
-  if (!iso) return null;
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
+type TemplateField = TemplateSchemaSnapshot['sections'][number]['fields'][number];
 
 /** Humanise a backend enum token (e.g. "DISCHARGE_SUMMARY" → "Discharge summary",
  *  "NOT_REQUIRED" → "Not required") so raw enums never reach the table. */
@@ -132,6 +115,75 @@ const humanizeToken = (value?: string | null): string => {
   return words
     .map((word, index) => (index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
     .join(' ');
+};
+
+const htmlFromDefaultValue = (value: unknown): string => {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+};
+
+const fieldDefaultToHtml = (field: TemplateField): string => {
+  if (DISCHARGE_META_FIELD_KEYS.has(field.key)) return '';
+  const defaultValue = htmlFromDefaultValue(field.defaultValue);
+  if (!defaultValue) return '';
+  if (field.type === 'richText') return sanitizeRichText(defaultValue);
+  return `<p><strong>${escapeHtml(field.label || field.key)}:</strong> ${escapeHtml(defaultValue)}</p>`;
+};
+
+const medicationColumnLabels = (field: TemplateField): string[] => {
+  const columns = field.rules?.columns;
+  if (!Array.isArray(columns)) return ['Drug', 'Dose', 'Frequency', 'Duration'];
+  return columns
+    .filter((column): column is string => typeof column === 'string' && column.trim().length > 0)
+    .map(humanizeToken);
+};
+
+const fieldOutlineToHtml = (field: TemplateField): string => {
+  if (DISCHARGE_META_FIELD_KEYS.has(field.key)) return '';
+  if (field.type === 'richText' || field.type === 'instructionBlock') return '<p><br></p>';
+  if (field.type === 'diagnosis') return '<ul><li>Diagnosis: </li></ul>';
+  if (field.type === 'medicationLine') {
+    const labels = medicationColumnLabels(field)
+      .map((label) => `${escapeHtml(label)}: `)
+      .join(' | ');
+    return `<ul><li>${labels}</li></ul>`;
+  }
+  return `<p><strong>${escapeHtml(field.label || field.key)}:</strong> </p>`;
+};
+
+const schemaSnapshotToDischargeHtml = (snapshot?: TemplateSchemaSnapshot): string => {
+  const sections = snapshot?.sections ?? [];
+  if (sections.length === 0) return '';
+  return sections
+    .map((section) => {
+      const defaultFields = section.fields.map(fieldDefaultToHtml).filter(Boolean);
+      if (defaultFields.length > 0) return defaultFields.join('');
+
+      const outlineFields = section.fields
+        .map((field) => ({
+          html: fieldOutlineToHtml(field),
+          label: field.label || field.key,
+        }))
+        .filter((field) => field.html);
+      if (outlineFields.length === 0) return '';
+
+      const duplicatesOnlyField =
+        outlineFields.length === 1 &&
+        normalizeTemplateLabel(outlineFields[0].label) === normalizeTemplateLabel(section.title);
+      const heading = duplicatesOnlyField
+        ? ''
+        : `<p><strong>${escapeHtml(section.title)}</strong></p>`;
+      return `${heading}${outlineFields.map((field) => field.html).join('')}`;
+    })
+    .join('');
+};
+
+/** ISO follow-up timestamp ⇄ the Datepicker's `Date | null` value. */
+const toFollowUpDate = (iso?: string): Date | null => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
 /** The documents read-model types timestamps as `Date` in the contract but they
@@ -425,6 +477,16 @@ const SummaryStep = ({
   const dischargeSummary = encounter.dischargeSummary;
   const encounterMode = encounter.mode;
   const encounterServices = encounter.services;
+  const applyTemplateFollowUpDays = useCallback(
+    (snapshot: TemplateSchemaSnapshot | undefined) => {
+      const followUpInDays = extractFollowUpInDays(snapshot);
+      if (!followUpInDays || encounter.followUpAt) return;
+      const next = new Date();
+      next.setDate(next.getDate() + followUpInDays);
+      setFollowUp(appointmentId, next.toISOString());
+    },
+    [appointmentId, encounter.followUpAt, setFollowUp]
+  );
   useEffect(() => {
     if (signingOverlayOpen || !signingInitiatedRef.current) return;
     signingInitiatedRef.current = false;
@@ -460,12 +522,7 @@ const SummaryStep = ({
         });
         // The discharge template defines "follow up in N days"; prefill the follow-up date as
         // (today + N days) when the clinician has not already set one. It stays editable below.
-        const followUpInDays = extractFollowUpInDays(resolved.schemaSnapshot);
-        if (followUpInDays && !encounter.followUpAt) {
-          const next = new Date();
-          next.setDate(next.getDate() + followUpInDays);
-          setFollowUp(appointmentId, next.toISOString());
-        }
+        applyTemplateFollowUpDays(resolved.schemaSnapshot);
       })
       .catch((error) => {
         console.error('Unable to resolve discharge template:', error);
@@ -485,17 +542,18 @@ const SummaryStep = ({
     encounterMode,
     encounterServices,
     organisationId,
+    applyTemplateFollowUpDays,
     setDischargeSummary,
-    setFollowUp,
-    encounter.followUpAt,
   ]);
 
   const handleTemplateSelect = (template: TemplateLike) => {
-    setDischargeSummary(appointmentId, templateToDischargeHtml(template));
+    const snapshot = getTemplateSchemaSnapshot(template);
+    setDischargeSummary(appointmentId, schemaSnapshotToDischargeHtml(snapshot));
     setDischargeTemplate({
       templateId: template.id,
       templateVersion: template.publishedVersion ?? template.latestVersion,
     });
+    applyTemplateFollowUpDays(snapshot);
     setTemplateQuery('');
   };
 

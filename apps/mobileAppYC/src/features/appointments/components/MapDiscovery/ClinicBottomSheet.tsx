@@ -12,6 +12,7 @@ import BottomSheet, {
   type BottomSheetFlatListMethods,
 } from '@gorhom/bottom-sheet';
 import type {SharedValue} from 'react-native-reanimated';
+import {GestureDetector, Gesture} from 'react-native-gesture-handler';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import type {VetBusiness} from '../../types';
@@ -145,6 +146,8 @@ const ClinicBottomSheet = forwardRef<
 
     const keyExtractor = useCallback((item: VetBusiness) => item.id, []);
 
+    const nativeGesture = useMemo(() => Gesture.Native(), []);
+
     const emptyComponent = useMemo(
       () => (
         <View style={styles.emptyState}>
@@ -177,7 +180,11 @@ const ClinicBottomSheet = forwardRef<
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             filterHeader ? (
-              <View style={styles.filterRow}>{filterHeader}</View>
+              <GestureDetector gesture={nativeGesture}>
+                <View testID="filter-header-gesture" style={styles.filterRow}>
+                  {filterHeader}
+                </View>
+              </GestureDetector>
             ) : null
           }
           ListEmptyComponent={emptyComponent}

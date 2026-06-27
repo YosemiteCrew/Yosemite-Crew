@@ -1,8 +1,15 @@
-import {createAsyncThunk, createSlice, type PayloadAction} from '@reduxjs/toolkit';
+import {
+  createAsyncThunk,
+  createSlice,
+  type PayloadAction,
+} from '@reduxjs/toolkit';
 import type {RootState} from '@/app/store';
 import type {Document, DocumentFile} from '@/features/documents/types';
 import {documentApi} from '@/features/documents/services/documentService';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 
 interface DocumentState {
   documents: Document[];
@@ -76,73 +83,117 @@ export const fetchDocuments = createAsyncThunk<
   },
 );
 
+export const fetchAppointmentDocuments = createAsyncThunk<
+  {appointmentId: string; documents: Document[]},
+  {appointmentId: string; companionId?: string; encounterId?: string | null},
+  {state: RootState; rejectValue: string}
+>(
+  'documents/fetchAppointmentDocuments',
+  async ({appointmentId, companionId, encounterId}, {rejectWithValue}) => {
+    try {
+      if (!appointmentId) {
+        throw new Error('Appointment is required to load documents.');
+      }
+
+      const accessToken = await ensureAccessToken();
+      const documents = await documentApi.listForAppointment({
+        appointmentId,
+        companionId,
+        encounterId,
+        accessToken,
+      });
+      return {appointmentId, documents};
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch appointment documents',
+      );
+    }
+  },
+);
+
+const upsertDocuments = (existing: Document[], incoming: Document[]) => {
+  const byId = new Map(existing.map(doc => [doc.id, doc]));
+  incoming.forEach(doc => {
+    const previous = byId.get(doc.id);
+    byId.set(doc.id, previous ? {...previous, ...doc} : doc);
+  });
+  return Array.from(byId.values());
+};
+
 export const uploadDocumentFiles = createAsyncThunk<
   DocumentFile[],
   {files: DocumentFile[]; companionId: string},
   {rejectValue: string}
->('documents/uploadFiles', async ({files, companionId}, {rejectWithValue, dispatch}) => {
-  try {
-    if (!companionId) {
-      throw new Error('Please select a pet to upload documents.');
-    }
+>(
+  'documents/uploadFiles',
+  async ({files, companionId}, {rejectWithValue, dispatch}) => {
+    try {
+      if (!companionId) {
+        throw new Error('Please select a pet to upload documents.');
+      }
 
-    if (!files.length) {
-      return [];
-    }
+      if (!files.length) {
+        return [];
+      }
 
-    const notReady = files.filter(file => {
-      if (file.key) {
+      const notReady = files.filter(file => {
+        if (file.key) {
+          return false;
+        }
+        if (!file.uri?.trim()) {
+          return true;
+        }
+        if (file.status && file.status !== 'ready') {
+          return true;
+        }
         return false;
+      });
+      if (notReady.length) {
+        throw new Error(
+          'Some files are still preparing or could not be read. Please reselect and try again.',
+        );
       }
-      if (!file.uri?.trim()) {
-        return true;
+
+      const accessToken = await ensureAccessToken();
+      const uploaded: DocumentFile[] = [];
+      let processed = 0;
+
+      for (const file of files) {
+        try {
+          const uploadedFile = await documentApi.uploadAttachment({
+            file,
+            companionId,
+            accessToken,
+          });
+          uploaded.push(uploadedFile);
+        } catch (error) {
+          // Log individual file upload errors but provide context
+          console.error('[uploadDocumentFiles] Error uploading file', {
+            fileName: file.name,
+            fileUri: file.uri,
+            fileSize: file.size,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          throw error; // Re-throw to fail the entire batch
+        }
+        processed += 1;
+        dispatch(
+          setUploadProgress(Math.round((processed / files.length) * 100)),
+        );
       }
-      if (file.status && file.status !== 'ready') {
-        return true;
-      }
-      return false;
-    });
-    if (notReady.length) {
-      throw new Error(
-        'Some files are still preparing or could not be read. Please reselect and try again.',
+
+      dispatch(setUploadProgress(0));
+      return uploaded;
+    } catch (error) {
+      dispatch(setUploadProgress(0));
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to upload files',
       );
     }
-
-    const accessToken = await ensureAccessToken();
-    const uploaded: DocumentFile[] = [];
-    let processed = 0;
-
-    for (const file of files) {
-      try {
-        const uploadedFile = await documentApi.uploadAttachment({
-          file,
-          companionId,
-          accessToken,
-        });
-        uploaded.push(uploadedFile);
-      } catch (error) {
-        // Log individual file upload errors but provide context
-        console.error('[uploadDocumentFiles] Error uploading file', {
-          fileName: file.name,
-          fileUri: file.uri,
-          fileSize: file.size,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        throw error; // Re-throw to fail the entire batch
-      }
-      processed += 1;
-      dispatch(setUploadProgress(Math.round((processed / files.length) * 100)));
-    }
-
-    dispatch(setUploadProgress(0));
-    return uploaded;
-  } catch (error) {
-    dispatch(setUploadProgress(0));
-    return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to upload files',
-    );
-  }
-});
+  },
+);
 
 export const addDocument = createAsyncThunk<
   Document,
@@ -214,41 +265,48 @@ export const fetchDocumentView = createAsyncThunk<
   {documentId: string; files: DocumentFile[]},
   {documentId: string},
   {state: RootState; rejectValue: string}
->('documents/fetchDocumentView', async ({documentId}, {getState, rejectWithValue}) => {
-  try {
-    const accessToken = await ensureAccessToken();
-    const existing =
-      getState().documents.documents.find(doc => doc.id === documentId)?.files ?? [];
-    const files = await documentApi.fetchView({
-      documentId,
-      accessToken,
-      existingFiles: existing,
-    });
-    return {documentId, files};
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to load document',
-    );
-  }
-});
+>(
+  'documents/fetchDocumentView',
+  async ({documentId}, {getState, rejectWithValue}) => {
+    try {
+      const accessToken = await ensureAccessToken();
+      const existing =
+        getState().documents.documents.find(doc => doc.id === documentId)
+          ?.files ?? [];
+      const files = await documentApi.fetchView({
+        documentId,
+        accessToken,
+        existingFiles: existing,
+      });
+      return {documentId, files};
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to load document',
+      );
+    }
+  },
+);
 
 export const searchDocuments = createAsyncThunk<
   Document[],
   {companionId: string; query: string},
   {rejectValue: string}
->('documents/searchDocuments', async ({companionId, query}, {rejectWithValue}) => {
-  try {
-    if (!query.trim()) {
-      return [];
+>(
+  'documents/searchDocuments',
+  async ({companionId, query}, {rejectWithValue}) => {
+    try {
+      if (!query.trim()) {
+        return [];
+      }
+      const accessToken = await ensureAccessToken();
+      return await documentApi.search({companionId, query, accessToken});
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to search documents',
+      );
     }
-    const accessToken = await ensureAccessToken();
-    return await documentApi.search({companionId, query, accessToken});
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to search documents',
-    );
-  }
-});
+  },
+);
 
 const documentSlice = createSlice({
   name: 'documents',
@@ -276,12 +334,33 @@ const documentSlice = createSlice({
       .addCase(fetchDocuments.fulfilled, (state, action) => {
         state.fetching = false;
         const companionId = action.payload.companionId;
-        state.documents = state.documents.filter(doc => doc.companionId !== companionId);
+        state.documents = state.documents.filter(
+          doc => doc.companionId !== companionId,
+        );
         state.documents.push(...action.payload.documents);
       })
       .addCase(fetchDocuments.rejected, (state, action) => {
         state.fetching = false;
-        state.error = (action.payload as string) ?? action.error.message ?? null;
+        state.error =
+          (action.payload as string) ?? action.error.message ?? null;
+      });
+
+    builder
+      .addCase(fetchAppointmentDocuments.pending, state => {
+        state.fetching = true;
+        state.error = null;
+      })
+      .addCase(fetchAppointmentDocuments.fulfilled, (state, action) => {
+        state.fetching = false;
+        const filtered = state.documents.filter(
+          doc => doc.appointmentId !== action.payload.appointmentId,
+        );
+        state.documents = upsertDocuments(filtered, action.payload.documents);
+      })
+      .addCase(fetchAppointmentDocuments.rejected, (state, action) => {
+        state.fetching = false;
+        state.error =
+          (action.payload as string) ?? action.error.message ?? null;
       });
 
     builder
@@ -294,7 +373,8 @@ const documentSlice = createSlice({
       })
       .addCase(uploadDocumentFiles.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) ?? action.error.message ?? null;
+        state.error =
+          (action.payload as string) ?? action.error.message ?? null;
       });
 
     builder
@@ -308,7 +388,8 @@ const documentSlice = createSlice({
       })
       .addCase(addDocument.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) ?? action.error.message ?? null;
+        state.error =
+          (action.payload as string) ?? action.error.message ?? null;
       });
 
     builder
@@ -318,14 +399,18 @@ const documentSlice = createSlice({
       })
       .addCase(updateDocument.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.documents.findIndex(doc => doc.id === action.payload.id);
+        const index = state.documents.findIndex(
+          doc => doc.id === action.payload.id,
+        );
         if (index === -1) {
           state.documents.push(action.payload);
           return;
         }
 
         const existing = state.documents[index];
-        const nextFiles = action.payload.files?.length ? action.payload.files : existing.files;
+        const nextFiles = action.payload.files?.length
+          ? action.payload.files
+          : existing.files;
         state.documents[index] = {
           ...existing,
           ...action.payload,
@@ -334,7 +419,8 @@ const documentSlice = createSlice({
       })
       .addCase(updateDocument.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) ?? action.error.message ?? null;
+        state.error =
+          (action.payload as string) ?? action.error.message ?? null;
       });
 
     builder
@@ -344,11 +430,14 @@ const documentSlice = createSlice({
       })
       .addCase(deleteDocument.fulfilled, (state, action) => {
         state.loading = false;
-        state.documents = state.documents.filter(doc => doc.id !== action.payload);
+        state.documents = state.documents.filter(
+          doc => doc.id !== action.payload,
+        );
       })
       .addCase(deleteDocument.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) ?? action.error.message ?? null;
+        state.error =
+          (action.payload as string) ?? action.error.message ?? null;
       });
 
     builder
@@ -358,7 +447,9 @@ const documentSlice = createSlice({
       })
       .addCase(fetchDocumentView.fulfilled, (state, action) => {
         state.viewLoading[action.payload.documentId] = false;
-        const index = state.documents.findIndex(doc => doc.id === action.payload.documentId);
+        const index = state.documents.findIndex(
+          doc => doc.id === action.payload.documentId,
+        );
         if (index === -1) {
           return;
         }
@@ -369,7 +460,8 @@ const documentSlice = createSlice({
       })
       .addCase(fetchDocumentView.rejected, (state, action) => {
         state.viewLoading[action.meta.arg.documentId] = false;
-        state.error = (action.payload as string) ?? action.error.message ?? null;
+        state.error =
+          (action.payload as string) ?? action.error.message ?? null;
       });
 
     builder
@@ -383,11 +475,16 @@ const documentSlice = createSlice({
       })
       .addCase(searchDocuments.rejected, (state, action) => {
         state.searchLoading = false;
-        state.searchError = (action.payload as string) ?? action.error.message ?? null;
+        state.searchError =
+          (action.payload as string) ?? action.error.message ?? null;
       });
   },
 });
 
-export const {resetDocumentState, setUploadProgress, clearError, clearSearchResults} =
-  documentSlice.actions;
+export const {
+  resetDocumentState,
+  setUploadProgress,
+  clearError,
+  clearSearchResults,
+} = documentSlice.actions;
 export default documentSlice.reducer;

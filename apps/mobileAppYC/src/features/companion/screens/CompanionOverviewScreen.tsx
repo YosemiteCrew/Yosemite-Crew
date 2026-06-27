@@ -88,7 +88,6 @@ import {
   updateCompanionProfile,
 } from '@/features/companion';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
-import {convertWeight} from '@/shared/utils/measurementSystem';
 import {fetchBreedCodeEntries} from '@/features/companion/services/codeEntriesService';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 
@@ -289,13 +288,7 @@ export const CompanionOverviewScreen: React.FC<
       return '';
     }
 
-    // Weight is stored in kg, convert if user prefers lbs
-    let weight = safeCompanion.currentWeight;
-    if (weightUnit === 'lbs') {
-      weight = convertWeight(weight, 'kg', 'lbs');
-    }
-
-    return `${weight.toFixed(1)} ${weightUnit}`;
+    return `${safeCompanion.currentWeight.toFixed(1)} ${weightUnit}`;
   }, [safeCompanion, weightUnit]);
 
   const ageWhenNeuteredDisplay = useMemo(() => {
@@ -473,14 +466,6 @@ export const CompanionOverviewScreen: React.FC<
                         let num = cleaned === '' ? null : Number(cleaned);
 
                         // Convert to kg if user entered in lbs
-                        if (
-                          num !== null &&
-                          !Number.isNaN(num) &&
-                          weightUnit === 'lbs'
-                        ) {
-                          num = convertWeight(num, 'lbs', 'kg');
-                        }
-
                         applyPatch({
                           currentWeight:
                             num === null || Number.isNaN(num) ? null : num,

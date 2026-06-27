@@ -1,7 +1,9 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import LabTests from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+import { useLabTests } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+import type { LabOrder } from '@/app/features/integrations/services/types';
 
 const useIntegrationByProviderForPrimaryOrgMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
@@ -11,6 +13,7 @@ const listIdexxResultsMock = jest.fn();
 const listIdexxOrdersMock = jest.fn();
 const createIdexxLabOrderMock = jest.fn();
 const addPatientToIdexxCensusMock = jest.fn();
+const getIdexxOrderByIdMock = jest.fn();
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -87,7 +90,7 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
   getIdexxResultPdfBlob: jest.fn(),
-  getIdexxOrderById: jest.fn(),
+  getIdexxOrderById: (...args: any[]) => getIdexxOrderByIdMock(...args),
   addPatientToIdexxCensus: (...args: any[]) => addPatientToIdexxCensusMock(...args),
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
   listIdexxTests: (...args: any[]) => listIdexxTestsMock(...args),
@@ -149,6 +152,7 @@ describe('LabTests', () => {
       status: 'CREATED',
       modality: 'REFERENCE_LAB',
       idexxOrderId: '100329789',
+      uiUrl: 'https://idexx.test/order',
       tests: ['9126'],
     };
     createIdexxLabOrderMock.mockResolvedValue(createdOrder);
@@ -176,6 +180,177 @@ describe('LabTests', () => {
     });
 
     expect(screen.getByText('Order 100329789')).toBeInTheDocument();
+  });
+
+  it('refreshes the appointment orders when the IDEXX iframe is closed', async () => {
+    const createdOrder = {
+      _id: 'ord-2',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      companionId: 'patient-1',
+      status: 'CREATED',
+      modality: 'REFERENCE_LAB',
+      idexxOrderId: '100329790',
+      uiUrl: 'https://vetconnectplus.com/order',
+      tests: ['9126'],
+    };
+    listIdexxOrdersMock.mockResolvedValue([createdOrder]);
+
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    const initialOrderRequests = listIdexxOrdersMock.mock.calls.length;
+
+    act(() => {
+      result.current.openOrderIframe('order', 'CREATED', createdOrder as LabOrder);
+    });
+
+    await waitFor(() => {
+      expect(result.current.showOrderIframe).toBe(true);
+    });
+
+    await act(async () => {
+      result.current.closeOrderIframeManually();
+    });
+
+    await waitFor(() => {
+      expect(result.current.showOrderIframe).toBe(false);
+      expect(listIdexxOrdersMock.mock.calls.length).toBe(initialOrderRequests + 1);
+    });
+  });
+
+  it('keeps a follow-up iframe open across polling updates', async () => {
+    jest.useFakeTimers();
+    try {
+      const followupOrder = {
+        _id: 'ord-followup',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'SUBMITTED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: '100329791',
+        uiUrl: 'https://vetconnectplus.com/order',
+        updatedAt: '2026-06-01T10:00:00Z',
+        tests: ['9126'],
+      };
+      listIdexxOrdersMock.mockResolvedValue([followupOrder]);
+      getIdexxOrderByIdMock.mockResolvedValue({
+        ...followupOrder,
+        updatedAt: '2026-06-01T10:10:00Z',
+      });
+
+      const { result } = renderHook(() => useLabTests(appointment));
+
+      act(() => {
+        result.current.openOrderIframe('followup', 'SUBMITTED', followupOrder as LabOrder);
+      });
+
+      await waitFor(() => {
+        expect(result.current.showOrderIframe).toBe(true);
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(8000);
+        await Promise.resolve();
+      });
+
+      expect(result.current.showOrderIframe).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('auto-closes a created order iframe after IDEXX submits the order', async () => {
+    jest.useFakeTimers();
+    try {
+      const createdOrder = {
+        _id: 'ord-created',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'CREATED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: '100329792',
+        uiUrl: 'https://vetconnectplus.com/order',
+        tests: ['9126'],
+      };
+      listIdexxOrdersMock.mockResolvedValue([createdOrder]);
+      getIdexxOrderByIdMock.mockResolvedValue({
+        ...createdOrder,
+        status: 'SUBMITTED',
+        pdfUrl: 'https://vetconnectplus.com/ack.pdf',
+      });
+
+      const { result } = renderHook(() => useLabTests(appointment));
+
+      act(() => {
+        result.current.openOrderIframe('order', 'CREATED', createdOrder as LabOrder);
+      });
+
+      await waitFor(() => {
+        expect(result.current.showOrderIframe).toBe(true);
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(8000);
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        expect(result.current.showOrderIframe).toBe(false);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('auto-closes a follow-up iframe only when IDEXX creates a new order id', async () => {
+    jest.useFakeTimers();
+    try {
+      const followupOrder = {
+        _id: 'ord-followup',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'SUBMITTED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: '100329793',
+        uiUrl: 'https://vetconnectplus.com/order',
+        pdfUrl: 'https://vetconnectplus.com/ack-old.pdf',
+        tests: ['9126'],
+      };
+      const newFollowupOrder = {
+        ...followupOrder,
+        _id: 'ord-followup-new',
+        idexxOrderId: '100329794',
+        pdfUrl: 'https://vetconnectplus.com/ack-new.pdf',
+      };
+      listIdexxOrdersMock
+        .mockResolvedValueOnce([followupOrder])
+        .mockResolvedValueOnce([newFollowupOrder, followupOrder]);
+      getIdexxOrderByIdMock.mockResolvedValue(followupOrder);
+
+      const { result } = renderHook(() => useLabTests(appointment));
+
+      act(() => {
+        result.current.openOrderIframe('followup', 'SUBMITTED', followupOrder as LabOrder);
+      });
+
+      await waitFor(() => {
+        expect(result.current.showOrderIframe).toBe(true);
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(8000);
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        expect(result.current.showOrderIframe).toBe(false);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('uses in-house flow for census only after selecting an IVLS device', async () => {
@@ -453,7 +628,7 @@ describe('LabTests', () => {
       expect(screen.getByText('Order unsafe-1')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('button', { name: 'Resume order placement' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Acknowledgment PDF' })).toBeDisabled();
   });
 
@@ -478,10 +653,36 @@ describe('LabTests', () => {
       expect(screen.getByText('Order safe-1')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Resume order placement' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     const iframe = await screen.findByTitle('IDEXX order UI');
     expect(iframe).toHaveAttribute('src', 'https://integration.vetconnectplus.com/order/123');
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  });
+
+  it('shows manual close guidance for follow-up iframe flows', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'ord-safe-followup',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'SUBMITTED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: 'safe-followup-1',
+        tests: ['9126'],
+        uiUrl: 'https://integration.vetconnectplus.com/order/followup',
+      },
+    ]);
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Order safe-followup-1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Follow up' }));
+
+    expect(await screen.findByText(/If IDEXX shows the order was submitted/i)).toBeInTheDocument();
   });
 });

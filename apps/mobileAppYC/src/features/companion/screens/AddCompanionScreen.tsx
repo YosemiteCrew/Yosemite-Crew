@@ -60,7 +60,6 @@ import type {AppDispatch} from '@/app/store';
 import {addCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
-import {convertWeight} from '@/shared/utils/measurementSystem';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 import {
   fetchBreedCodeEntries,
@@ -609,13 +608,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
     setSubmissionError('');
 
-    // Convert weight to kg (standard storage unit) if user entered in lbs
     let weightInKg = data.currentWeight
       ? Number.parseFloat(data.currentWeight)
       : null;
-    if (weightInKg && weightUnit === 'lbs') {
-      weightInKg = convertWeight(weightInKg, 'lbs', 'kg');
-    }
 
     const companionPayload = {
       category: data.category,

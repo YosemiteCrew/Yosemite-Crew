@@ -1278,7 +1278,7 @@ const AddCompanionCentralModal = ({
                       {vc.colour && <InfoRow label="Color" value={fmt(vc.colour)} />}
                       {vc.bloodGroup && <InfoRow label="Blood group" value={fmt(vc.bloodGroup)} />}
                       {vc.currentWeight != null && (
-                        <InfoRow label="Weight (lbs)" value={fmt(vc.currentWeight)} />
+                        <InfoRow label="Weight (kg)" value={fmt(vc.currentWeight)} />
                       )}
                       {vc.countryOfOrigin && (
                         <InfoRow label="Country of origin" value={fmt(vc.countryOfOrigin)} />
@@ -1551,7 +1551,7 @@ const AddCompanionCentralModal = ({
                               ? ''
                               : String(companionFormData.currentWeight)
                           }
-                          inlabel="Weight (lbs)"
+                          inlabel="Weight (kg)"
                           onChange={(e) =>
                             setCompanionFormData((prev) => ({
                               ...prev,

@@ -696,6 +696,12 @@ const AppointmentCalendar = ({
     setChangeStatusPopup?.(true);
   };
 
+  const handleAcceptAppointment = (appointment: Appointment) => {
+    setActiveAppointment?.(appointment);
+    setChangeStatusPreferredStatus?.('UPCOMING');
+    setChangeStatusPopup?.(true);
+  };
+
   const handleChangeRoomAppointment = (appointment: Appointment) => {
     if (!canAssignAppointmentRoom(appointment.status)) {
       notify('warning', {
@@ -777,6 +783,7 @@ const AppointmentCalendar = ({
           handleOpenWorkspace={onOpenWorkspace}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
+          handleAcceptAppointment={handleAcceptAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
           draggedAppointmentId={draggedAppointmentId}
@@ -842,6 +849,7 @@ const AppointmentCalendar = ({
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
+          handleAcceptAppointment={handleAcceptAppointment}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
@@ -911,6 +919,7 @@ const AppointmentCalendar = ({
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
           handleChangeStatusAppointment={handleChangeStatusAppointment}
+          handleAcceptAppointment={handleAcceptAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
           draggedAppointmentId={draggedAppointmentId}

@@ -391,7 +391,7 @@ const NeedHealp = () => {
     <div className="NeedHelpDiv">
       <div className="Needhelpitem">
         <div className="helpText">
-          <h3>Need Help? We&rsquo;re All Ears!</h3>
+          <h3>Need help? We&rsquo;re all ears!</h3>
           <p>Got questions or need assistance? Just reach out! Our team is here to help.</p>
         </div>
         <div className="helpbtn">

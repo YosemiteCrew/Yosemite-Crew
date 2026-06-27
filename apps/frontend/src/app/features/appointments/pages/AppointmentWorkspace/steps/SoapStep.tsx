@@ -22,7 +22,11 @@ import {
 } from '@/app/lib/appointmentWorkspace';
 import { isRichTextEmpty } from '@/app/lib/richText';
 import { saveSoapNote } from '@/app/features/appointments/services/workspaceClinicalService';
-import { resolveSoapTemplate } from '@/app/features/appointments/services/workspaceTemplateService';
+import {
+  getWorkspaceTemplateById,
+  resolveSoapTemplate,
+  templateToSoapTemplate,
+} from '@/app/features/appointments/services/workspaceTemplateService';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
 import { collectMissingRequiredFields } from '@/app/features/forms/pages/Forms/Sections/AddForm/validationUtils';
 
@@ -127,6 +131,7 @@ const SoapStep = ({
   const signSoap = useAppointmentWorkspaceStore((s) => s.signSoap);
   const [templateQuery, setTemplateQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [persistedDraftId, setPersistedDraftId] = useState<string | undefined>(undefined);
 
@@ -189,6 +194,24 @@ const SoapStep = ({
     if (!q) return [];
     return encounter.soapTemplates.filter((t) => t.name.toLowerCase().includes(q));
   }, [templateQuery, encounter.soapTemplates]);
+
+  const applySelectedTemplate = async (templateId: string): Promise<void> => {
+    if (!organisationId || isApplyingTemplate) return;
+    setIsApplyingTemplate(true);
+    try {
+      const selectedTemplate = encounter.soapTemplates.find((tpl) => tpl.id === templateId);
+      const fullTemplate =
+        selectedTemplate && (selectedTemplate.content || selectedTemplate.customSchema)
+          ? selectedTemplate
+          : templateToSoapTemplate(await getWorkspaceTemplateById(organisationId, templateId));
+      applySoapTemplate(appointmentId, fullTemplate, { replaceContent: true });
+      setTemplateQuery('');
+    } catch (error) {
+      console.error('Unable to apply SOAP template:', error);
+    } finally {
+      setIsApplyingTemplate(false);
+    }
+  };
 
   const pastNotes: SoapNoteListItem[] = useMemo(
     () =>
@@ -309,7 +332,7 @@ const SoapStep = ({
               <Search
                 value={templateQuery}
                 setSearch={setTemplateQuery}
-                placeholder="Search for SOAP Template"
+                placeholder="Search for SOAP template"
                 label="Search for SOAP template"
                 className="w-full!"
               />
@@ -325,8 +348,7 @@ const SoapStep = ({
                       name={tpl.name}
                       leadingIcon={null}
                       onSelect={() => {
-                        applySoapTemplate(appointmentId, tpl);
-                        setTemplateQuery('');
+                        void applySelectedTemplate(tpl.id);
                       }}
                     />
                   ))}

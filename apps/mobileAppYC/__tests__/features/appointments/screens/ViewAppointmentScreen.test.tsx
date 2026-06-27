@@ -273,6 +273,7 @@ jest.mock('../../../../src/features/appointments/appointmentsSlice', () => ({
 
 jest.mock('../../../../src/features/documents/documentSlice', () => ({
   fetchDocuments: jest.fn(() => ({type: 'FETCH_DOCS'})),
+  fetchAppointmentDocuments: jest.fn(() => ({type: 'FETCH_APPOINTMENT_DOCS'})),
 }));
 
 jest.mock('../../../../src/features/linkedBusinesses', () => ({
@@ -344,6 +345,7 @@ describe('ViewAppointmentScreen', () => {
         {
           id: mockAptId,
           businessId: 'biz-1',
+          encounterId: 'enc-1',
           serviceId: 'srv-1',
           companionId: mockCompanionId,
           status: 'UPCOMING',
@@ -896,7 +898,10 @@ describe('ViewAppointmentScreen', () => {
         'Documents',
         expect.objectContaining({
           screen: 'DocumentPreview',
-          params: {documentId: 'doc-1'},
+          params: expect.objectContaining({
+            documentId: 'doc-1',
+            initialDocument: expect.objectContaining({id: 'doc-1'}),
+          }),
         }),
       );
     });
@@ -1746,14 +1751,28 @@ describe('ViewAppointmentScreen', () => {
 
       expect(
         require('../../../../src/features/documents/documentSlice')
-          .fetchDocuments,
-      ).not.toHaveBeenCalled();
+          .fetchAppointmentDocuments,
+      ).toHaveBeenCalled();
       expect(
         require('../../../../src/features/expenses').fetchExpensesForCompanion,
       ).not.toHaveBeenCalled();
       expect(
         require('../../../../src/features/tasks/thunks').fetchTasksForCompanion,
       ).not.toHaveBeenCalled();
+    });
+
+    it('passes encounter id when fetching appointment documents', () => {
+      renderScreen();
+
+      expect(
+        require('../../../../src/features/documents/documentSlice')
+          .fetchAppointmentDocuments,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appointmentId: mockAptId,
+          encounterId: expect.any(String),
+        }),
+      );
     });
   });
 });

@@ -100,7 +100,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   setWeekStart,
   setCurrentDate,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
   canEditAppointments,
@@ -440,9 +439,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             handleOpenWorkspace={handleOpenWorkspace}
                             handleRescheduleAppointment={handleRescheduleAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
-                            handleAcceptAppointment={
-                              handleAcceptAppointment ?? handleChangeStatusAppointment
-                            }
+                            handleAcceptAppointment={handleAcceptAppointment}
                             canEditAppointments={canEditAppointments}
                             length={days.length - 1}
                             draggedAppointmentId={draggedAppointmentId}

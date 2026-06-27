@@ -133,18 +133,18 @@
     "cashCancellationNoticeBody": "This appointment was paid in cash and has been cancelled. If a refund is needed, it must be handled directly by the service provider."
   },
   "mapDiscovery": {
-    "title": "Find a Clinic",
-    "searchPlaceholder": "Search clinics, specialties…",
+    "title": "Browse Businesses",
+    "searchPlaceholder": "Search businesses, specialties…",
     "openNow": "Open Now",
     "filterAll": "All",
     "filterHospital": "Hospital",
     "filterGroomer": "Groomer",
     "filterBreeder": "Breeder",
     "filterBoarder": "Boarder",
-    "emptyClinicsTitle": "No clinics in this area",
+    "emptyClinicsTitle": "No veterinary businesses in this area",
     "emptyClinicsSubtitle": "Pan the map or search to discover nearby providers.",
     "locationPermissionTitle": "Location Access",
-    "locationPermissionMessage": "Allow Yosemite Crew to show clinics near you.",
+    "locationPermissionMessage": "Allow Yosemite Crew to show veterinary businesses near you.",
     "locationPermissionAllow": "Allow",
     "locationPermissionDeny": "Deny"
   }

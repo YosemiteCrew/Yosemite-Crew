@@ -54,6 +54,7 @@ jest.mock("src/services/invoice.service", () => ({
   __esModule: true,
   InvoiceService: {
     findOpenInvoiceForAppointment: jest.fn(),
+    bootstrapForAppointment: jest.fn(),
     addItemsToInvoice: jest.fn(),
   },
   InvoiceServiceError: class InvoiceServiceError extends Error {
@@ -119,6 +120,7 @@ describe("WorkspaceService", () => {
   };
   const mockedInvoiceService = InvoiceService as unknown as {
     findOpenInvoiceForAppointment: jest.Mock;
+    bootstrapForAppointment: jest.Mock;
     addItemsToInvoice: jest.Mock;
   };
   const mockedClinicalArtifactService = ClinicalArtifactService as unknown as {
@@ -161,6 +163,7 @@ describe("WorkspaceService", () => {
     mockedPrisma.labOrder.findMany.mockResolvedValue([]);
     mockedPrisma.labResult.findMany.mockResolvedValue([]);
     mockedInvoiceService.findOpenInvoiceForAppointment.mockResolvedValue(null);
+    mockedInvoiceService.bootstrapForAppointment.mockResolvedValue(null);
     mockedInvoiceService.addItemsToInvoice.mockResolvedValue(null);
 
     mockedFormService.listAppointmentFormSummaries.mockResolvedValue([
@@ -707,6 +710,101 @@ describe("WorkspaceService", () => {
     });
     expect(created.billingStatus).toBe("BILLED");
     expect(created.invoiceRowId).toBe("ti-sync");
+  });
+
+  it("bootstraps an appointment invoice before syncing a treatment item when none is open", async () => {
+    mockedInvoiceService.findOpenInvoiceForAppointment.mockResolvedValueOnce(
+      null,
+    );
+    mockedInvoiceService.bootstrapForAppointment.mockResolvedValueOnce({
+      id: "invoice-bootstrap",
+      status: "AWAITING_PAYMENT",
+    });
+    mockedPrisma.workspaceTreatmentItem.create.mockResolvedValueOnce({
+      id: "ti-bootstrap",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      productId: "prod-bootstrap",
+      productVersion: null,
+      productSnapshot: { name: "Procedure" },
+      servicePackageKind: "PROCEDURE",
+      quantity: 1,
+      priceSnapshot: {
+        name: "Procedure",
+        grossAmount: 40,
+        finalAmount: 36,
+        discountPercent: 10,
+        unitPrice: 40,
+      },
+      billingStatus: "UNBILLED",
+      invoiceRowId: null,
+      lockState: null,
+      prescriptionId: null,
+      createdAt: new Date("2026-06-15T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T00:00:00.000Z"),
+    });
+    mockedPrisma.workspaceTreatmentItem.update.mockResolvedValueOnce({
+      id: "ti-bootstrap",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      productId: "prod-bootstrap",
+      productVersion: null,
+      productSnapshot: { name: "Procedure" },
+      servicePackageKind: "PROCEDURE",
+      quantity: 1,
+      priceSnapshot: {
+        name: "Procedure",
+        grossAmount: 40,
+        finalAmount: 36,
+        discountPercent: 10,
+        unitPrice: 40,
+      },
+      billingStatus: "BILLED",
+      invoiceRowId: "ti-bootstrap",
+      lockState: null,
+      prescriptionId: null,
+      createdAt: new Date("2026-06-15T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T01:00:00.000Z"),
+    });
+    mockedInvoiceService.addItemsToInvoice.mockResolvedValueOnce({
+      id: "invoice-bootstrap",
+    });
+
+    const created = await WorkspaceService.createEncounterTreatmentItem({
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      productId: "prod-bootstrap",
+      productSnapshot: { name: "Procedure" },
+      servicePackageKind: "PROCEDURE",
+      quantity: 1,
+      priceSnapshot: {
+        name: "Procedure",
+        grossAmount: 40,
+        finalAmount: 36,
+        discountPercent: 10,
+        unitPrice: 40,
+      },
+    });
+
+    expect(
+      mockedInvoiceService.findOpenInvoiceForAppointment,
+    ).toHaveBeenCalledWith("appt-1", "org-1");
+    expect(mockedInvoiceService.bootstrapForAppointment).toHaveBeenCalledWith(
+      "appt-1",
+    );
+    expect(mockedInvoiceService.addItemsToInvoice).toHaveBeenCalledWith(
+      "invoice-bootstrap",
+      [
+        expect.objectContaining({
+          id: "ti-bootstrap",
+        }),
+      ],
+    );
+    expect(created.billingStatus).toBe("BILLED");
+    expect(created.invoiceRowId).toBe("ti-bootstrap");
   });
 
   it("builds the encounter bootstrap even when no linked appointment is resolved", async () => {

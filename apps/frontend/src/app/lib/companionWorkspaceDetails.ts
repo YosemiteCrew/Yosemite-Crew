@@ -50,7 +50,10 @@ const formatBreedSpecies = (breed?: string, type?: string): string => {
   );
 };
 
-const formatWeight = (weight?: number): string => (weight == null ? DASH : `${weight} lbs`);
+const WEIGHT_UNIT = 'kg';
+
+const formatWeight = (weight?: number): string =>
+  weight == null ? DASH : `${weight} ${WEIGHT_UNIT}`;
 
 type CompanionFallback = {
   id: string;

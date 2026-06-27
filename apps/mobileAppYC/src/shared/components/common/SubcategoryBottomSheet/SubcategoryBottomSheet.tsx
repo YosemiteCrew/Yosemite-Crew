@@ -20,9 +20,10 @@ interface SubcategoryBottomSheetProps {
   category: string | null;
   selectedSubcategory: string | null;
   onSave: (subcategory: string | null) => void;
+  subcategoryMap?: Record<string, SelectItem[]>;
 }
 
-const SUBCATEGORIES: Record<string, SelectItem[]> = {
+const SHARED_ENTRIES: Record<string, SelectItem[]> = {
   admin: [
     {id: 'passport', label: 'Passport'},
     {
@@ -31,6 +32,17 @@ const SUBCATEGORIES: Record<string, SelectItem[]> = {
     },
     {id: 'insurance', label: 'Insurance'},
   ],
+  'dietary-plans': [{id: 'nutrition-plans', label: 'Nutrition plans'}],
+  others: [
+    {
+      id: 'weight-logs',
+      label: 'Weight logs, behaviour notes, photos of wounds, etc.',
+    },
+  ],
+};
+
+const SUBCATEGORIES: Record<string, SelectItem[]> = {
+  ...SHARED_ENTRIES,
   health: [
     {id: 'surgery-procedure', label: 'Surgery/ Procedure'},
     {id: 'prescription', label: 'Prescription'},
@@ -52,25 +64,38 @@ const SUBCATEGORIES: Record<string, SelectItem[]> = {
     {id: 'anal-gland-expression', label: 'Anal gland expression'},
     {id: 'other', label: 'Other'},
   ],
-  'dietary-plans': [{id: 'nutrition-plans', label: 'Nutrition plans'}],
-  others: [
+};
+
+export const EXPENSE_SUBCATEGORIES: Record<string, SelectItem[]> = {
+  ...SHARED_ENTRIES,
+  health: [
+    {id: 'hospital-visits', label: 'Hospital visits'},
+    {id: 'prescriptions-treatments', label: 'Prescriptions & treatments'},
     {
-      id: 'weight-logs',
-      label: 'Weight logs, behaviour notes, photos of wounds, etc.',
+      id: 'vaccination-parasite',
+      label: 'Vaccination, parasite prevention & chronic condition',
     },
+    {id: 'lab-tests', label: 'Lab tests'},
+  ],
+  'hygiene-maintenance': [
+    {id: 'grooming-visits', label: 'Grooming visits'},
+    {id: 'boarding-records', label: 'Boarding records'},
+    {id: 'training-behaviour', label: 'Training & behaviour reports'},
+    {id: 'breeder-interactions', label: 'Breeder interactions'},
   ],
 };
 
 export const SubcategoryBottomSheet = forwardRef<
   SubcategoryBottomSheetRef,
   SubcategoryBottomSheetProps
->(({category, selectedSubcategory, onSave}, ref) => {
+>(({category, selectedSubcategory, onSave, subcategoryMap}, ref) => {
   const bottomSheetRef = useRef<GenericSelectBottomSheetRef>(null);
+  const activeMap = subcategoryMap ?? SUBCATEGORIES;
 
   const subcategories = useMemo(() => {
     if (!category) return [];
-    return SUBCATEGORIES[category] || [];
-  }, [category]);
+    return activeMap[category] || [];
+  }, [category, activeMap]);
 
   const [tempSubcategory, setTempSubcategory] = useState<SelectItem | null>(
     selectedSubcategory

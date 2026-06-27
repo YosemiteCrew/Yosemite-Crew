@@ -1826,6 +1826,59 @@ describe("CatalogService", () => {
     expect(updated.kind).toBe("CONSULTATION");
   });
 
+  it("regenerates the code when the product kind changes and no code is supplied", async () => {
+    (prisma.productItem.findUnique as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "prod_1",
+        version: 2,
+        organisationId: "org_1",
+        name: "General Consultation",
+        description: null,
+        code: "CS-0007",
+        kind: "CONSULTATION",
+        specialityId: "spec_1",
+        legacyServiceId: null,
+        isActive: true,
+        prices: [],
+        bookable: null,
+        package: null,
+      })
+      .mockResolvedValueOnce({
+        id: "prod_1",
+        organisationId: "org_1",
+        name: "General Consultation",
+        description: null,
+        code: "PR-0008",
+        kind: "PROCEDURE",
+        specialityId: "spec_1",
+        legacyServiceId: null,
+        isActive: true,
+        prices: [],
+        bookable: null,
+        package: null,
+      });
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
+      { code: "PR-0007" },
+    ]);
+    (prisma.productItem.update as jest.Mock).mockResolvedValue({});
+
+    const updated = await CatalogService.updateProduct("prod_1", {
+      kind: "PROCEDURE",
+      expectedVersion: 2,
+    });
+
+    expect(prisma.productItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "PROCEDURE",
+          code: "PR-0008",
+        }),
+      }),
+    );
+    expect(updated.code).toBe("PR-0008");
+    expect(updated.kind).toBe("PROCEDURE");
+  });
+
   it("rejects stale updates when the expected version is outdated", async () => {
     (prisma.productItem.findUnique as jest.Mock).mockResolvedValue({
       id: "prod_1",

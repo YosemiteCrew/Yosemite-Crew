@@ -84,6 +84,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         onSubmitEditing={onSubmitEditing}
         returnKeyType="done"
         keyboardAppearance={keyboardAppearance}
+        multiline={false}
+        numberOfLines={1}
       />
       <TouchableOpacity
         activeOpacity={0.85}

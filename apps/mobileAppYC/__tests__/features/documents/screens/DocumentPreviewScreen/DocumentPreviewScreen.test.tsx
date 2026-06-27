@@ -13,6 +13,10 @@ const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockCanGoBack = jest.fn().mockReturnValue(true);
 const mockDocumentId = 'doc-123';
+let mockRouteParams: any = {
+  documentId: mockDocumentId,
+  initialDocument: undefined,
+};
 
 // 1. Navigation
 jest.mock('@react-navigation/native', () => ({
@@ -21,9 +25,7 @@ jest.mock('@react-navigation/native', () => ({
     goBack: mockGoBack,
     canGoBack: mockCanGoBack,
   }),
-  useRoute: () => ({
-    params: {documentId: mockDocumentId},
-  }),
+  useRoute: () => ({params: mockRouteParams}),
 }));
 
 // 2. Styles
@@ -35,7 +37,12 @@ jest.mock('@/shared/utils/screenStyles', () => ({
     topGlassCard: {},
     topGlassFallback: {},
   }),
-  createAllCommonStyles: () => ({container: {}, contentContainer: {}, errorContainer: {}, errorText: {}}),
+  createAllCommonStyles: () => ({
+    container: {},
+    contentContainer: {},
+    errorContainer: {},
+    errorText: {},
+  }),
 }));
 
 // 3. Theme
@@ -111,7 +118,13 @@ describe('DocumentPreviewScreen', () => {
     companionId: 'comp-1',
     isUserAdded: true,
     uploadedByPmsUserId: null, // Editable
-    files: [{id: 'f1', viewUrl: 'https://example.com/view.pdf'}],
+    files: [
+      {
+        id: 'f1',
+        viewUrl: 'https://example.com/view.pdf',
+        downloadUrl: 'https://example.com/view.pdf',
+      },
+    ],
   };
 
   const mockCompanion = {
@@ -131,6 +144,10 @@ describe('DocumentPreviewScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRouteParams = {
+      documentId: mockDocumentId,
+      initialDocument: undefined,
+    };
   });
 
   const renderWithRedux = (state = initialState) => {
@@ -215,9 +232,49 @@ describe('DocumentPreviewScreen', () => {
       expect(getByText('Document not found')).toBeTruthy();
     });
 
+    it('renders the initial route document when redux refresh drops the entry', () => {
+      mockRouteParams = {
+        documentId: mockDocumentId,
+        initialDocument: mockDoc,
+      };
+      const emptyState = {
+        companion: {companions: [mockCompanion]},
+        documents: {documents: [], viewLoading: {}},
+      };
+
+      const {getAllByText} = renderWithRedux(emptyState);
+      expect(getAllByText('Vaccination Report').length).toBeGreaterThan(0);
+    });
+
     it('renders the attachment viewer', () => {
       const {getByTestId} = renderWithRedux();
       expect(getByTestId('mock-attachment-viewer')).toBeTruthy();
+    });
+
+    it('does not refetch when the document already has a local file uri', () => {
+      const stateWithLocalFile = {
+        ...initialState,
+        documents: {
+          documents: [
+            {
+              ...mockDoc,
+              files: [
+                {
+                  id: 'local-file',
+                  uri: 'file:///tmp/clinical-packet.pdf',
+                  viewUrl: 'file:///tmp/clinical-packet.pdf',
+                  downloadUrl: 'file:///tmp/clinical-packet.pdf',
+                },
+              ],
+            },
+          ],
+          viewLoading: {},
+        },
+      };
+
+      renderWithRedux(stateWithLocalFile);
+
+      expect(fetchDocumentView).not.toHaveBeenCalled();
     });
   });
 
