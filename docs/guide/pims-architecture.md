@@ -1681,7 +1681,7 @@ model Template {
 ```typescript
 // packages/types/src/payment-gateway.ts
 export interface IPaymentGateway {
-  readonly provider: string; // 'STRIPE' | 'RAZORPAY' | 'ADYEN'
+  readonly provider: string; // 'STRIPE' | 'CARECREDIT' | 'SCRATCHPAY' | 'MANUAL'
 
   createCheckoutSession(params: {
     lineItems: { name: string; amountCents: number; quantity: number }[];
@@ -1709,7 +1709,7 @@ export interface IPaymentGateway {
 }
 
 // Stripe implementation: apps/backend/src/payment-gateways/stripe.gateway.ts
-// Future: RazorpayGateway, AdyenGateway, SquareGateway
+// Future: CareCreditGateway, ScratchpayGateway
 ```
 
 ### New Invoice Prisma Schema
