@@ -615,16 +615,7 @@ describe("AppointmentPrismaService", () => {
         }),
       }),
     );
-    expect(mockedPrisma.admission.upsert).toHaveBeenCalledWith({
-      where: { encounterId: "enc_1" },
-      update: {},
-      create: {
-        encounterId: "enc_1",
-        organisationId: "org_1",
-        patientId: "comp_1",
-        admittedAt: baseDomain.startTime,
-      },
-    });
+    expect(mockedPrisma.admission.upsert).not.toHaveBeenCalled();
     expect((result as any).encounterId).toBe("enc_1");
   });
 

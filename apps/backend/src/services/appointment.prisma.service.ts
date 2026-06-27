@@ -1041,23 +1041,6 @@ const ensureEncounterOnCheckIn = async (args: {
     },
   });
 
-  if (normalizeAppointmentKind(args.current.appointmentKind) === "INPATIENT") {
-    const admissionDelegate = (
-      args.tx as unknown as { admission: AdmissionUpsertDelegate }
-    ).admission;
-
-    await admissionDelegate.upsert({
-      where: { encounterId: createdEncounter.id },
-      update: {},
-      create: {
-        encounterId: createdEncounter.id,
-        organisationId: args.current.organisationId,
-        patientId,
-        admittedAt: args.current.startTime,
-      },
-    });
-  }
-
   return createdEncounter.id;
 };
 
