@@ -304,4 +304,341 @@ describe("clinicalArtifactFhirMapper", () => {
       clinicalArtifactFhirMapper.bundles.vitalRecords([vitalRecord]),
     ).toEqual(expect.objectContaining({ total: 1 }));
   });
+
+  const artifact = <
+    K extends
+      | "IMMUNIZATION"
+      | "RABIES_TITRATION"
+      | "PARASITE_TREATMENT"
+      | "CLINICAL_EXAM",
+  >(
+    kind: K,
+    overrides: Partial<{
+      status: "DRAFT" | "IN_PROGRESS" | "COMPLETED" | "SIGNED" | "VOID";
+      encounterId: string | null;
+      appointmentId: string | null;
+      authorId: string | null;
+      summary: string | null;
+    }> = {},
+  ) => ({
+    id: `artifact-${kind}`,
+    organisationId: "org-1",
+    appointmentId: "appt-1",
+    caseId: null,
+    encounterId: "enc-1",
+    kind,
+    status: "SIGNED" as const,
+    templateId: null,
+    templateVersion: null,
+    templateVersionId: null,
+    authorId: "vet-1",
+    signedBy: "vet-1",
+    signedAt: now,
+    summary: null,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  });
+
+  const immunizationFull = {
+    artifact: artifact("IMMUNIZATION"),
+    immunization: {
+      id: "imm-1",
+      artifactId: "artifact-IMMUNIZATION",
+      vaccineType: "RABIES",
+      vaccineName: "Nobivac Rabies",
+      manufacturer: "MSD",
+      batchNumber: "A234B",
+      lotNumber: "LOT9",
+      dateAdministered: now,
+      validFrom: now,
+      validUntil: now,
+      nextDueDate: now,
+      site: "left shoulder",
+      route: "subcutaneous",
+      notes: "no reaction",
+      metadata: { source: "encounter" },
+      createdAt: now,
+      updatedAt: now,
+    },
+  };
+
+  const immunizationBare = {
+    artifact: artifact("IMMUNIZATION", {
+      status: "VOID",
+      encounterId: null,
+      appointmentId: null,
+    }),
+    immunization: {
+      ...immunizationFull.immunization,
+      manufacturer: null,
+      batchNumber: null,
+      lotNumber: null,
+      validFrom: null,
+      validUntil: null,
+      nextDueDate: null,
+      site: null,
+      route: null,
+      notes: null,
+      metadata: null,
+    },
+  };
+
+  it("maps an administered immunization to a FHIR Immunization", () => {
+    const resource =
+      clinicalArtifactFhirMapper.immunizationToImmunization(immunizationFull);
+    expect(resource.resourceType).toBe("Immunization");
+    expect(resource.status).toBe("completed");
+    expect(resource.primarySource).toBe(true);
+    expect(resource.lotNumber).toBe("LOT9");
+    expect(resource.patient.reference).toBe("Encounter/enc-1");
+    expect(resource.vaccineCode.text).toBe("Nobivac Rabies");
+    expect(
+      resource.extension?.some((e) =>
+        e.url.includes("immunization-valid-until"),
+      ),
+    ).toBe(true);
+  });
+
+  it("maps a voided, uploaded immunization (no encounter) with fallbacks", () => {
+    const resource =
+      clinicalArtifactFhirMapper.immunizationToImmunization(immunizationBare);
+    expect(resource.status).toBe("entered-in-error");
+    expect(resource.primarySource).toBe(false);
+    expect(resource.lotNumber).toBeUndefined();
+    expect(resource.manufacturer).toBeUndefined();
+    expect(resource.site).toBeUndefined();
+    expect(resource.patient.reference).toBe(
+      "Immunization/artifact-IMMUNIZATION",
+    );
+    expect(resource.encounter).toBeUndefined();
+  });
+
+  it("maps a rabies titration to an Observation, flagging adequacy", () => {
+    const adequate = clinicalArtifactFhirMapper.rabiesTitrationToObservation({
+      artifact: artifact("RABIES_TITRATION"),
+      rabiesTitration: {
+        id: "tit-1",
+        artifactId: "artifact-RABIES_TITRATION",
+        approvedLab: "APHA Weybridge",
+        sampleDate: now,
+        resultIuMl: 1.8,
+        reportUrl: "https://example.test/report.pdf",
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    expect(adequate.resourceType).toBe("Observation");
+    expect(adequate.valueQuantity?.value).toBe(1.8);
+    expect(adequate.interpretation?.[0]?.coding?.[0]?.code).toBe("ADEQUATE");
+    expect(adequate.performer?.[0]).toEqual({ display: "APHA Weybridge" });
+
+    const inadequate = clinicalArtifactFhirMapper.rabiesTitrationToObservation({
+      artifact: artifact("RABIES_TITRATION", { status: "DRAFT" }),
+      rabiesTitration: {
+        id: "tit-2",
+        artifactId: "artifact-RABIES_TITRATION",
+        approvedLab: "Lab B",
+        sampleDate: now,
+        resultIuMl: 0.2,
+        reportUrl: null,
+        metadata: { note: "low" },
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    expect(inadequate.status).toBe("preliminary");
+    expect(inadequate.interpretation?.[0]?.coding?.[0]?.code).toBe(
+      "INADEQUATE",
+    );
+  });
+
+  it("maps a parasite treatment to a FHIR Procedure", () => {
+    const full = clinicalArtifactFhirMapper.parasiteTreatmentToProcedure({
+      artifact: artifact("PARASITE_TREATMENT", { status: "COMPLETED" }),
+      parasiteTreatment: {
+        id: "par-1",
+        artifactId: "artifact-PARASITE_TREATMENT",
+        treatmentType: "ECHINOCOCCUS",
+        productName: "Milbemax",
+        manufacturer: "Elanco",
+        treatedAt: now,
+        notes: "given orally",
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    expect(full.resourceType).toBe("Procedure");
+    expect(full.status).toBe("completed");
+    expect(full.code?.text).toBe("Milbemax");
+    expect(full.performer?.[0]?.actor.reference).toBe("Practitioner/vet-1");
+    expect(full.note?.[0]?.text).toBe("given orally");
+
+    const bare = clinicalArtifactFhirMapper.parasiteTreatmentToProcedure({
+      artifact: artifact("PARASITE_TREATMENT", {
+        status: "IN_PROGRESS",
+        authorId: null,
+        encounterId: null,
+        appointmentId: null,
+      }),
+      parasiteTreatment: {
+        id: "par-2",
+        artifactId: "artifact-PARASITE_TREATMENT",
+        treatmentType: "FLEA",
+        productName: "Bravecto",
+        manufacturer: null,
+        treatedAt: now,
+        notes: null,
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    expect(bare.status).toBe("in-progress");
+    expect(bare.performer).toBeUndefined();
+    expect(bare.subject.reference).toBe(
+      "Procedure/artifact-PARASITE_TREATMENT",
+    );
+    expect(bare.note).toBeUndefined();
+  });
+
+  it("maps procedure status for voided and default states", () => {
+    const base = {
+      id: "par-3",
+      artifactId: "artifact-PARASITE_TREATMENT",
+      treatmentType: "TICK",
+      productName: "Seresto",
+      manufacturer: null,
+      treatedAt: now,
+      notes: null,
+      metadata: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    expect(
+      clinicalArtifactFhirMapper.parasiteTreatmentToProcedure({
+        artifact: artifact("PARASITE_TREATMENT", { status: "VOID" }),
+        parasiteTreatment: base,
+      }).status,
+    ).toBe("entered-in-error");
+    expect(
+      clinicalArtifactFhirMapper.parasiteTreatmentToProcedure({
+        artifact: artifact("PARASITE_TREATMENT", { status: "DRAFT" }),
+        parasiteTreatment: base,
+      }).status,
+    ).toBe("preparation");
+  });
+
+  it("maps a clinical exam to a Composition with travel fitness", () => {
+    const full = clinicalArtifactFhirMapper.clinicalExamToComposition({
+      artifact: artifact("CLINICAL_EXAM", { summary: "Pre-travel check" }),
+      clinicalExamination: {
+        id: "exam-1",
+        artifactId: "artifact-CLINICAL_EXAM",
+        examinedAt: now,
+        fitForTravel: true,
+        findings: "BAR, no abnormalities",
+        weightKg: 31.4,
+        temperatureC: 38.6,
+        metadata: { source: "encounter" },
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    expect(full.resourceType).toBe("Composition");
+    expect(full.title).toBe("Pre-travel check");
+    expect(full.author?.[0]).toEqual({ reference: "Practitioner/vet-1" });
+    const fit = full.extension?.find((e) =>
+      e.url.includes("clinical-exam-fit-for-travel"),
+    );
+    expect(fit?.valueBoolean).toBe(true);
+    expect(
+      full.extension?.some((e) => e.url.includes("clinical-exam-weight-kg")),
+    ).toBe(true);
+
+    const bare = clinicalArtifactFhirMapper.clinicalExamToComposition({
+      artifact: artifact("CLINICAL_EXAM", { authorId: null }),
+      clinicalExamination: {
+        id: "exam-2",
+        artifactId: "artifact-CLINICAL_EXAM",
+        examinedAt: now,
+        fitForTravel: false,
+        findings: null,
+        weightKg: null,
+        temperatureC: null,
+        metadata: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    expect(bare.title).toBe("Clinical examination");
+    expect(bare.author?.[0]).toEqual({ display: "System" });
+    expect(
+      bare.extension?.some((e) => e.url.includes("clinical-exam-weight-kg")),
+    ).toBe(false);
+  });
+
+  it("builds list bundles for each new passport record kind", () => {
+    expect(
+      clinicalArtifactFhirMapper.bundles.immunizations([immunizationFull]),
+    ).toEqual(expect.objectContaining({ resourceType: "Bundle", total: 1 }));
+    expect(
+      clinicalArtifactFhirMapper.bundles.rabiesTitrations([
+        {
+          artifact: artifact("RABIES_TITRATION"),
+          rabiesTitration: {
+            id: "tit-3",
+            artifactId: "artifact-RABIES_TITRATION",
+            approvedLab: "Lab",
+            sampleDate: now,
+            resultIuMl: 0.9,
+            reportUrl: null,
+            metadata: null,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      ]),
+    ).toEqual(expect.objectContaining({ total: 1 }));
+    expect(
+      clinicalArtifactFhirMapper.bundles.parasiteTreatments([
+        {
+          artifact: artifact("PARASITE_TREATMENT"),
+          parasiteTreatment: {
+            id: "par-4",
+            artifactId: "artifact-PARASITE_TREATMENT",
+            treatmentType: "OTHER",
+            productName: "X",
+            manufacturer: null,
+            treatedAt: now,
+            notes: null,
+            metadata: null,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      ]),
+    ).toEqual(expect.objectContaining({ total: 1 }));
+    expect(
+      clinicalArtifactFhirMapper.bundles.clinicalExaminations([
+        {
+          artifact: artifact("CLINICAL_EXAM"),
+          clinicalExamination: {
+            id: "exam-3",
+            artifactId: "artifact-CLINICAL_EXAM",
+            examinedAt: now,
+            fitForTravel: true,
+            findings: null,
+            weightKg: null,
+            temperatureC: null,
+            metadata: null,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      ]),
+    ).toEqual(expect.objectContaining({ total: 1 }));
+  });
 });

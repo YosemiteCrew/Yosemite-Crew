@@ -11,6 +11,10 @@ export {
   type DischargeSummaryRecord,
   type VitalRecordInput,
   type VitalRecordRecord,
+  type ImmunizationRecord,
+  type RabiesTitrationRecord,
+  type ParasiteTreatmentRecord,
+  type ClinicalExaminationRecord,
   type ClinicalArtifactRecordLike,
   type ClinicalArtifactFhirInputDefaults,
 } from "@yosemite-crew/types";

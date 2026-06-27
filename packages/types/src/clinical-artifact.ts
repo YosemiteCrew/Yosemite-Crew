@@ -3,8 +3,10 @@ import type {
   CodeableConcept,
   Composition,
   Extension,
+  Immunization,
   MedicationRequest,
   Observation,
+  Procedure,
   Reference,
 } from '@yosemite-crew/fhir';
 
@@ -152,11 +154,93 @@ export type VitalRecordRecord = {
   };
 };
 
+export type ImmunizationRecord = {
+  artifact: SoapNoteRecord['artifact'] & {
+    kind: 'IMMUNIZATION';
+  };
+  immunization: {
+    id: string;
+    artifactId: string;
+    vaccineType: string;
+    vaccineName: string;
+    manufacturer: string | null;
+    batchNumber: string | null;
+    lotNumber: string | null;
+    dateAdministered: Date;
+    validFrom: Date | null;
+    validUntil: Date | null;
+    nextDueDate: Date | null;
+    site: string | null;
+    route: string | null;
+    notes: string | null;
+    metadata: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+};
+
+export type RabiesTitrationRecord = {
+  artifact: SoapNoteRecord['artifact'] & {
+    kind: 'RABIES_TITRATION';
+  };
+  rabiesTitration: {
+    id: string;
+    artifactId: string;
+    approvedLab: string;
+    sampleDate: Date;
+    resultIuMl: number;
+    reportUrl: string | null;
+    metadata: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+};
+
+export type ParasiteTreatmentRecord = {
+  artifact: SoapNoteRecord['artifact'] & {
+    kind: 'PARASITE_TREATMENT';
+  };
+  parasiteTreatment: {
+    id: string;
+    artifactId: string;
+    treatmentType: string;
+    productName: string;
+    manufacturer: string | null;
+    treatedAt: Date;
+    notes: string | null;
+    metadata: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+};
+
+export type ClinicalExaminationRecord = {
+  artifact: SoapNoteRecord['artifact'] & {
+    kind: 'CLINICAL_EXAM';
+  };
+  clinicalExamination: {
+    id: string;
+    artifactId: string;
+    examinedAt: Date;
+    fitForTravel: boolean;
+    findings: string | null;
+    weightKg: number | null;
+    temperatureC: number | null;
+    metadata: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+};
+
 export type ClinicalArtifactRecordLike =
   | SoapNoteRecord
   | PrescriptionRecord
   | DischargeSummaryRecord
-  | VitalRecordRecord;
+  | VitalRecordRecord
+  | ImmunizationRecord
+  | RabiesTitrationRecord
+  | ParasiteTreatmentRecord
+  | ClinicalExaminationRecord;
 
 export type ClinicalArtifactFhirInputDefaults = {
   organisationId: string;
@@ -212,6 +296,42 @@ const VITALS_NOTES_EXTENSION_URL =
 const VITALS_METADATA_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/vital-record-metadata';
 
+const IMMUNIZATION_VACCINE_TYPE_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/immunization-vaccine-type';
+const IMMUNIZATION_BATCH_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/immunization-batch-number';
+const IMMUNIZATION_VALID_FROM_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/immunization-valid-from';
+const IMMUNIZATION_VALID_UNTIL_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/immunization-valid-until';
+const IMMUNIZATION_NEXT_DUE_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/immunization-next-due';
+const IMMUNIZATION_METADATA_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/immunization-metadata';
+
+const TITRATION_REPORT_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/rabies-titration-report';
+const TITRATION_METADATA_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/rabies-titration-metadata';
+
+const PARASITE_MANUFACTURER_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/parasite-treatment-manufacturer';
+const PARASITE_METADATA_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/parasite-treatment-metadata';
+
+const EXAM_FIT_FOR_TRAVEL_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/clinical-exam-fit-for-travel';
+const EXAM_FINDINGS_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/clinical-exam-findings';
+const EXAM_WEIGHT_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/clinical-exam-weight-kg';
+const EXAM_TEMPERATURE_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/clinical-exam-temperature-c';
+const EXAM_METADATA_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/clinical-exam-metadata';
+
+const RABIES_TITRE_ADEQUATE_THRESHOLD = 0.5;
+
 const toIso = (value: Date | string | null | undefined) => {
   if (!value) return undefined;
   const date = value instanceof Date ? value : new Date(value);
@@ -266,6 +386,23 @@ const toTaskStatus = (status: string): string => {
       return 'cancelled';
     default:
       return 'draft';
+  }
+};
+
+const toImmunizationStatus = (status: string): string =>
+  status === 'VOID' ? 'entered-in-error' : 'completed';
+
+const toProcedureStatus = (status: string): string => {
+  switch (status) {
+    case 'SIGNED':
+    case 'COMPLETED':
+      return 'completed';
+    case 'IN_PROGRESS':
+      return 'in-progress';
+    case 'VOID':
+      return 'entered-in-error';
+    default:
+      return 'preparation';
   }
 };
 
@@ -672,6 +809,174 @@ const observationToVitalRecordInput = (
   metadata: parseFlexibleJson(getExtensionValue(resource.extension, VITALS_METADATA_EXTENSION_URL)),
 });
 
+const buildKindExtensions = (
+  artifact: {
+    id: string;
+    kind: ClinicalArtifactKind;
+    status: ClinicalArtifactStatus;
+  },
+  fields: Record<string, unknown>,
+  extra: Extension[] = []
+): Extension[] =>
+  Object.entries(fields)
+    .map(([url, value]) => buildJsonExtension(url, value))
+    .filter((value): value is Extension => value !== null)
+    .concat(extra)
+    .concat([
+      {
+        url: 'https://yosemitecrew.com/fhir/StructureDefinition/clinical-artifact-id',
+        valueString: artifact.id,
+      },
+      {
+        url: 'https://yosemitecrew.com/fhir/StructureDefinition/clinical-artifact-kind',
+        valueString: artifact.kind,
+      },
+      {
+        url: 'https://yosemitecrew.com/fhir/StructureDefinition/clinical-artifact-status',
+        valueString: artifact.status,
+      },
+    ]);
+
+const immunizationToImmunization = (record: ImmunizationRecord): Immunization => {
+  const occurrence = toIso(record.immunization.dateAdministered) ?? new Date().toISOString();
+  return {
+    resourceType: 'Immunization',
+    id: record.artifact.id,
+    status: toImmunizationStatus(record.artifact.status),
+    vaccineCode: toCodeableConcept(
+      record.immunization.vaccineType,
+      record.immunization.vaccineName
+    ),
+    patient: {
+      reference: clinicalContextReference(record.artifact) ?? `Immunization/${record.artifact.id}`,
+    },
+    occurrenceDateTime: occurrence,
+    occurrenceString: occurrence,
+    primarySource: Boolean(record.artifact.encounterId),
+    lotNumber: record.immunization.lotNumber ?? record.immunization.batchNumber ?? undefined,
+    manufacturer: record.immunization.manufacturer
+      ? { display: record.immunization.manufacturer }
+      : undefined,
+    site: record.immunization.site
+      ? toCodeableConcept('site', record.immunization.site)
+      : undefined,
+    route: record.immunization.route
+      ? toCodeableConcept('route', record.immunization.route)
+      : undefined,
+    encounter: toReference(clinicalContextReference(record.artifact)),
+    note:
+      typeof record.immunization.notes === 'string'
+        ? [{ text: record.immunization.notes }]
+        : undefined,
+    extension: buildKindExtensions(record.artifact, {
+      [IMMUNIZATION_VACCINE_TYPE_EXTENSION_URL]: record.immunization.vaccineType,
+      [IMMUNIZATION_BATCH_EXTENSION_URL]: record.immunization.batchNumber ?? undefined,
+      [IMMUNIZATION_VALID_FROM_EXTENSION_URL]: toIso(record.immunization.validFrom),
+      [IMMUNIZATION_VALID_UNTIL_EXTENSION_URL]: toIso(record.immunization.validUntil),
+      [IMMUNIZATION_NEXT_DUE_EXTENSION_URL]: toIso(record.immunization.nextDueDate),
+      [IMMUNIZATION_METADATA_EXTENSION_URL]: record.immunization.metadata,
+    }),
+  };
+};
+
+const rabiesTitrationToObservation = (record: RabiesTitrationRecord): Observation => {
+  const adequate = record.rabiesTitration.resultIuMl >= RABIES_TITRE_ADEQUATE_THRESHOLD;
+  return {
+    resourceType: 'Observation',
+    id: record.artifact.id,
+    status: toStatus(record.artifact.status),
+    code: toCodeableConcept('RABIES_TITRATION', 'Rabies antibody titration'),
+    subject: toReference(clinicalContextReference(record.artifact)),
+    encounter: toReference(clinicalContextReference(record.artifact)),
+    effectiveDateTime: toIso(record.rabiesTitration.sampleDate),
+    valueQuantity: {
+      value: record.rabiesTitration.resultIuMl,
+      unit: 'IU/mL',
+      system: 'http://unitsofmeasure.org',
+      code: '[IU]/mL',
+    },
+    interpretation: [
+      toCodeableConcept(
+        adequate ? 'ADEQUATE' : 'INADEQUATE',
+        adequate ? 'Adequate titre (>= 0.5 IU/mL)' : 'Inadequate titre (< 0.5 IU/mL)'
+      ),
+    ],
+    performer: [{ display: record.rabiesTitration.approvedLab }],
+    extension: buildKindExtensions(record.artifact, {
+      [TITRATION_REPORT_EXTENSION_URL]: record.rabiesTitration.reportUrl ?? undefined,
+      [TITRATION_METADATA_EXTENSION_URL]: record.rabiesTitration.metadata,
+    }),
+  };
+};
+
+const parasiteTreatmentToProcedure = (record: ParasiteTreatmentRecord): Procedure => ({
+  resourceType: 'Procedure',
+  id: record.artifact.id,
+  status: toProcedureStatus(record.artifact.status),
+  code: toCodeableConcept(
+    record.parasiteTreatment.treatmentType,
+    record.parasiteTreatment.productName
+  ),
+  subject: {
+    reference: clinicalContextReference(record.artifact) ?? `Procedure/${record.artifact.id}`,
+  },
+  encounter: toReference(clinicalContextReference(record.artifact)),
+  performedDateTime: toIso(record.parasiteTreatment.treatedAt),
+  performer: record.artifact.authorId
+    ? [{ actor: { reference: `Practitioner/${record.artifact.authorId}` } }]
+    : undefined,
+  note:
+    typeof record.parasiteTreatment.notes === 'string'
+      ? [{ text: record.parasiteTreatment.notes }]
+      : undefined,
+  extension: buildKindExtensions(record.artifact, {
+    [PARASITE_MANUFACTURER_EXTENSION_URL]: record.parasiteTreatment.manufacturer ?? undefined,
+    [PARASITE_METADATA_EXTENSION_URL]: record.parasiteTreatment.metadata,
+  }),
+});
+
+const clinicalExamToComposition = (record: ClinicalExaminationRecord): Composition => ({
+  resourceType: 'Composition',
+  id: record.artifact.id,
+  status: toStatus(record.artifact.status),
+  type: toCodeableConcept('CLINICAL_EXAM', 'Pre-travel clinical examination'),
+  title: record.artifact.summary ?? 'Clinical examination',
+  date:
+    toIso(record.clinicalExamination.examinedAt) ??
+    toIso(record.artifact.updatedAt) ??
+    new Date().toISOString(),
+  author: [
+    record.artifact.authorId
+      ? { reference: `Practitioner/${record.artifact.authorId}` }
+      : { display: 'System' },
+  ],
+  encounter: toReference(clinicalContextReference(record.artifact)),
+  extension: buildKindExtensions(
+    record.artifact,
+    {
+      [EXAM_FINDINGS_EXTENSION_URL]: record.clinicalExamination.findings ?? undefined,
+      [EXAM_METADATA_EXTENSION_URL]: record.clinicalExamination.metadata,
+    },
+    [
+      {
+        url: EXAM_FIT_FOR_TRAVEL_EXTENSION_URL,
+        valueBoolean: record.clinicalExamination.fitForTravel,
+      },
+      ...(record.clinicalExamination.weightKg === null
+        ? []
+        : [{ url: EXAM_WEIGHT_EXTENSION_URL, valueDecimal: record.clinicalExamination.weightKg }]),
+      ...(record.clinicalExamination.temperatureC === null
+        ? []
+        : [
+            {
+              url: EXAM_TEMPERATURE_EXTENSION_URL,
+              valueDecimal: record.clinicalExamination.temperatureC,
+            },
+          ]),
+    ]
+  ),
+});
+
 const bundles = {
   soapNotes: (records: SoapNoteRecord[]) => recordBundle(records, soapNoteToComposition),
   prescriptions: (records: PrescriptionRecord[]) =>
@@ -679,6 +984,14 @@ const bundles = {
   dischargeSummaries: (records: DischargeSummaryRecord[]) =>
     recordBundle(records, dischargeSummaryToComposition),
   vitalRecords: (records: VitalRecordRecord[]) => recordBundle(records, vitalRecordToObservation),
+  immunizations: (records: ImmunizationRecord[]) =>
+    recordBundle(records, immunizationToImmunization),
+  rabiesTitrations: (records: RabiesTitrationRecord[]) =>
+    recordBundle(records, rabiesTitrationToObservation),
+  parasiteTreatments: (records: ParasiteTreatmentRecord[]) =>
+    recordBundle(records, parasiteTreatmentToProcedure),
+  clinicalExaminations: (records: ClinicalExaminationRecord[]) =>
+    recordBundle(records, clinicalExamToComposition),
 };
 
 export const clinicalArtifactFhirMapper = {
@@ -690,5 +1003,9 @@ export const clinicalArtifactFhirMapper = {
   compositionToDischargeSummaryInput,
   vitalRecordToObservation,
   observationToVitalRecordInput,
+  immunizationToImmunization,
+  rabiesTitrationToObservation,
+  parasiteTreatmentToProcedure,
+  clinicalExamToComposition,
   bundles,
 };
