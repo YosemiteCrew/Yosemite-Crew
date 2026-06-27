@@ -28,7 +28,9 @@ const vtStats = (stats: Record<string, number>) => ({
 describe("scanAttachmentUrl", () => {
   it("skips (clean) when no API key is configured", async () => {
     delete process.env.VIRUSTOTAL_API_KEY;
-    const res = await scanAttachmentUrl("https://files/x.pdf");
+    const res = await scanAttachmentUrl(
+      "https://us-east.stream-io-cdn.com/x.pdf",
+    );
     expect(res.clean).toBe(true);
     expect(mockFetch).not.toHaveBeenCalled();
   });
@@ -37,14 +39,19 @@ describe("scanAttachmentUrl", () => {
     mockFetch
       .mockResolvedValueOnce(download())
       .mockResolvedValueOnce({ status: 404, ok: false });
-    expect((await scanAttachmentUrl("https://files/x.pdf")).clean).toBe(true);
+    expect(
+      (await scanAttachmentUrl("https://us-east.stream-io-cdn.com/x.pdf"))
+        .clean,
+    ).toBe(true);
   });
 
   it("flags a file VirusTotal marks malicious or suspicious", async () => {
     mockFetch
       .mockResolvedValueOnce(download())
       .mockResolvedValueOnce(vtStats({ malicious: 5, suspicious: 1 }));
-    const res = await scanAttachmentUrl("https://files/evil.pdf");
+    const res = await scanAttachmentUrl(
+      "https://us-east.stream-io-cdn.com/evil.pdf",
+    );
     expect(res.clean).toBe(false);
     expect(res.threat).toMatch(/6 VirusTotal/);
   });
@@ -53,24 +60,36 @@ describe("scanAttachmentUrl", () => {
     mockFetch
       .mockResolvedValueOnce(download())
       .mockResolvedValueOnce(vtStats({ malicious: 0, suspicious: 0 }));
-    expect((await scanAttachmentUrl("https://files/ok.pdf")).clean).toBe(true);
+    expect(
+      (await scanAttachmentUrl("https://us-east.stream-io-cdn.com/ok.pdf"))
+        .clean,
+    ).toBe(true);
   });
 
   it("is clean when the download fails", async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
-    expect((await scanAttachmentUrl("https://files/x.pdf")).clean).toBe(true);
+    expect(
+      (await scanAttachmentUrl("https://us-east.stream-io-cdn.com/x.pdf"))
+        .clean,
+    ).toBe(true);
   });
 
   it("is clean (fail-open) when a network error is thrown", async () => {
     mockFetch.mockRejectedValueOnce(new Error("network"));
-    expect((await scanAttachmentUrl("https://files/x.pdf")).clean).toBe(true);
+    expect(
+      (await scanAttachmentUrl("https://us-east.stream-io-cdn.com/x.pdf"))
+        .clean,
+    ).toBe(true);
   });
 
   it("is clean when the VirusTotal lookup itself errors", async () => {
     mockFetch
       .mockResolvedValueOnce(download())
       .mockResolvedValueOnce({ status: 500, ok: false });
-    expect((await scanAttachmentUrl("https://files/x.pdf")).clean).toBe(true);
+    expect(
+      (await scanAttachmentUrl("https://us-east.stream-io-cdn.com/x.pdf"))
+        .clean,
+    ).toBe(true);
   });
 
   it("skips empty downloads without calling VirusTotal", async () => {
@@ -78,9 +97,38 @@ describe("scanAttachmentUrl", () => {
       ok: true,
       arrayBuffer: async () => Buffer.alloc(0),
     });
-    expect((await scanAttachmentUrl("https://files/empty.pdf")).clean).toBe(
-      true,
-    );
+    expect(
+      (await scanAttachmentUrl("https://us-east.stream-io-cdn.com/empty.pdf"))
+        .clean,
+    ).toBe(true);
     expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fetch a non-allowlisted host (SSRF guard)", async () => {
+    const res = await scanAttachmentUrl("https://evil.example.com/x.pdf");
+    expect(res.clean).toBe(true);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch an internal metadata URL", async () => {
+    const res = await scanAttachmentUrl(
+      "http://169.254.169.254/latest/meta-data/",
+    );
+    expect(res.clean).toBe(true);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch a non-https Stream URL", async () => {
+    const res = await scanAttachmentUrl(
+      "http://us-east.stream-io-cdn.com/x.pdf",
+    );
+    expect(res.clean).toBe(true);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch a malformed URL", async () => {
+    const res = await scanAttachmentUrl("not a url");
+    expect(res.clean).toBe(true);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
