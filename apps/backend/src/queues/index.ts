@@ -5,6 +5,7 @@ import { registerAppointmentSchedulers } from "./appointment.scheduler";
 import { registerIdexxReferenceScheduler } from "./idexx-reference.scheduler";
 import { registerLabStatusScheduler } from "./lab-status.scheduler";
 import { registerLabResultsScheduler } from "./lab-results.scheduler";
+import { registerVaccineReminderScheduler } from "./vaccine.scheduler";
 
 export async function initQueues() {
   await registerTaskSchedulers();
@@ -13,5 +14,6 @@ export async function initQueues() {
   await registerIdexxReferenceScheduler();
   await registerLabStatusScheduler();
   await registerLabResultsScheduler();
+  await registerVaccineReminderScheduler();
   logger.info("📬 BullMQ queues initialized");
 }

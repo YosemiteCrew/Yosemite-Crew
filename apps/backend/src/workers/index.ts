@@ -5,6 +5,7 @@ import "./appointment.worker";
 import "./idexx-reference.worker";
 import "./lab-status.worker";
 import "./lab-results.worker";
+import "./vaccineReminder.worker";
 import logger from "src/utils/logger";
 
 logger.info("👷 BullMQ workers running...");

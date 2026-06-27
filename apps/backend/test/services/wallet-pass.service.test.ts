@@ -442,3 +442,57 @@ describe("WalletPassService.buildGoogleSaveUrl", () => {
     ).not.toThrow();
   });
 });
+
+describe("wallet next-vaccination-due surfacing", () => {
+  const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const past = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const withDue: PetPassportDTO = {
+    ...PASSPORT,
+    vaccinations: [
+      {
+        id: "vd1",
+        patientId: "p1",
+        vaccineType: "CORE",
+        vaccineName: "DHPPi",
+        dateAdministered: "2025-01-01T00:00:00.000Z",
+        nextDueDate: future,
+        createdAt: "2025-01-02T00:00:00.000Z",
+      },
+      {
+        id: "vd2",
+        patientId: "p1",
+        vaccineType: "CORE",
+        vaccineName: "Lepto",
+        dateAdministered: "2024-01-01T00:00:00.000Z",
+        nextDueDate: past,
+        createdAt: "2024-01-02T00:00:00.000Z",
+      },
+    ],
+  };
+
+  it("adds relevantDate + a next-due back field for the soonest upcoming due", () => {
+    const pass = buildApplePassJson(withDue, IDS) as Record<string, unknown>;
+    expect(pass.relevantDate).toBe(future);
+    const generic = pass.generic as {
+      backFields: Array<{ key: string; value: string }>;
+    };
+    const nextDue = generic.backFields.find((f) => f.key === "nextDue");
+    expect(nextDue?.value).toBe(future.slice(0, 10));
+  });
+
+  it("surfaces the next-due text module in the Google payload", () => {
+    const payload = buildGooglePayload(withDue, "issuer-1") as unknown as {
+      genericObjects: Array<{ textModulesData: Array<{ id: string }> }>;
+    };
+    const ids = payload.genericObjects[0].textModulesData.map((m) => m.id);
+    expect(ids).toContain("nextDue");
+  });
+
+  it("omits relevantDate + next-due when there is no upcoming due date", () => {
+    const pass = buildApplePassJson(PASSPORT, IDS) as Record<string, unknown>;
+    expect(pass.relevantDate).toBeUndefined();
+    const generic = pass.generic as { backFields: Array<{ key: string }> };
+    expect(generic.backFields.some((f) => f.key === "nextDue")).toBe(false);
+  });
+});

@@ -111,6 +111,23 @@ const rabiesLine = (passport: PetPassportDTO): string | undefined => {
     .join(" · ");
 };
 
+// The soonest upcoming vaccination due date (ISO). Used to surface the pass
+// near that date (Apple `relevantDate`) and show a "next due" line. Past dates
+// are ignored.
+const soonestNextDueIso = (passport: PetPassportDTO): string | undefined => {
+  const now = Date.now();
+  const upcoming = passport.vaccinations
+    .map((vaccination) => vaccination.nextDueDate)
+    .filter(isNonEmpty)
+    .map((value) => new Date(value))
+    .filter((date) => !Number.isNaN(date.getTime()) && date.getTime() >= now)
+    .sort((a, b) => a.getTime() - b.getTime());
+  return upcoming[0]?.toISOString();
+};
+
+const nextDueLine = (passport: PetPassportDTO): string | undefined =>
+  dateOnly(soonestNextDueIso(passport));
+
 const issuerLine = (passport: PetPassportDTO): string | undefined => {
   const issuance = passport.issuance;
   if (!issuance) return undefined;
@@ -152,6 +169,7 @@ const buildBackFields = (passport: PetPassportDTO): PassField[] => {
   );
   pushField(fields, "colour", "Colour", passport.identity.colour);
   pushField(fields, "rabies", "Rabies vaccination", rabiesLine(passport));
+  pushField(fields, "nextDue", "Next vaccination due", nextDueLine(passport));
   pushField(fields, "issuer", "Issued by", issuerLine(passport));
   fields.push({ key: "disclaimer", label: "Notice", value: DISCLAIMER });
   return fields;
@@ -190,6 +208,7 @@ export const buildApplePassJson = (
     foregroundColor: "rgb(255, 255, 255)",
     backgroundColor: WALLET_BRAND_RGB,
     labelColor: "rgb(214, 234, 255)",
+    relevantDate: soonestNextDueIso(passport),
     barcodes: [
       {
         format: "PKBarcodeFormatQR",
@@ -386,6 +405,7 @@ const buildGoogleTextModules = (
   add("dob", "Date of birth", dateOnly(passport.identity.dateOfBirth));
   add("colour", "Colour", passport.identity.colour);
   add("rabies", "Rabies vaccination", rabiesLine(passport));
+  add("nextDue", "Next vaccination due", nextDueLine(passport));
   add("issuer", "Issued by", issuerLine(passport));
   return modules;
 };

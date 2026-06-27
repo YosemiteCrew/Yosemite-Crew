@@ -53,6 +53,7 @@ const full: PetPassportDTO = {
       vaccineType: 'CORE',
       vaccineName: 'DHPP',
       dateAdministered: '2024-03-15T00:00:00.000Z',
+      nextDueDate: '2025-03-15T00:00:00.000Z',
       createdAt: '2024-03-16T00:00:00.000Z',
     },
   ],
@@ -118,6 +119,7 @@ describe('PetPassportView', () => {
     expect(screen.getByText('Valid to D(2027-03-14T00:00:00.000Z)')).toBeInTheDocument();
     expect(screen.getByText('Given D(2024-04-01T00:00:00.000Z) · Batch A234B')).toBeInTheDocument();
     expect(screen.getByText('DHPP')).toBeInTheDocument();
+    expect(screen.getByText('Next due D(2025-03-15T00:00:00.000Z)')).toBeInTheDocument();
     expect(screen.getByText('Milbemax')).toBeInTheDocument();
     expect(screen.getByText('Tapeworm · D(2024-06-20T14:00:00.000Z)')).toBeInTheDocument();
     expect(screen.getByText('EU Lab')).toBeInTheDocument();

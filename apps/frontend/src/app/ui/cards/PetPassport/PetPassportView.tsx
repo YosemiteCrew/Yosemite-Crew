@@ -62,6 +62,11 @@ const VaccinationItem = ({ vaccination }: { vaccination: VaccinationDTO }) => {
         )}
       </div>
       <span className="text-caption-1 text-text-extra">{`Given ${given}${batch}`}</span>
+      {vaccination.nextDueDate && (
+        <span className="text-caption-1 text-text-brand">
+          {`Next due ${formatDisplayDate(vaccination.nextDueDate)}`}
+        </span>
+      )}
     </div>
   );
 };
