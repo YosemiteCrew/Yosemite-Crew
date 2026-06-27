@@ -39,6 +39,14 @@ const ClinicalArtifactFhirController = {
   finalizeVitalRecord: jest.fn(),
   reopenVitalRecord: jest.fn(),
   amendVitalRecord: jest.fn(),
+  listImmunizationsForAppointment: jest.fn(),
+  listImmunizationsForEncounter: jest.fn(),
+  listRabiesTitrationsForAppointment: jest.fn(),
+  listRabiesTitrationsForEncounter: jest.fn(),
+  listParasiteTreatmentsForAppointment: jest.fn(),
+  listParasiteTreatmentsForEncounter: jest.fn(),
+  listClinicalExaminationsForAppointment: jest.fn(),
+  listClinicalExaminationsForEncounter: jest.fn(),
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
@@ -183,6 +191,38 @@ describe("clinical-artifact.fhir.router", () => {
         "post",
       ],
       ["/organisation/:organisationId/vital-record/:vitalRecordId", "patch"],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/immunizations",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/immunizations",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/rabies-titrations",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/rabies-titrations",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/parasite-treatments",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/parasite-treatments",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/appointment/:appointmentId/clinical-examinations",
+        "post",
+      ],
+      [
+        "/organisation/:organisationId/encounter/:encounterId/clinical-examinations",
+        "post",
+      ],
     ] as const;
 
     for (const [path, method] of protectedRoutes) {

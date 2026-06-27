@@ -638,4 +638,126 @@ export const ClinicalArtifactFhirController = {
       return handleError(error, res);
     }
   },
+
+  // Passport clinical-record kinds, read-only over FHIR (Immunization /
+  // Observation / Procedure / Composition). Captured via the passport flow.
+  async listImmunizationsForAppointment(req: Request, res: Response) {
+    try {
+      const records =
+        await ClinicalArtifactService.listImmunizationsForAppointment(
+          req.params.organisationId,
+          readAppointmentId(req.params.appointmentId),
+        );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.bundles.immunizations(records));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async listImmunizationsForEncounter(req: Request, res: Response) {
+    try {
+      const records =
+        await ClinicalArtifactService.listImmunizationsForEncounter(
+          req.params.organisationId,
+          readEncounterId(req.params.encounterId),
+        );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.bundles.immunizations(records));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async listRabiesTitrationsForAppointment(req: Request, res: Response) {
+    try {
+      const records =
+        await ClinicalArtifactService.listRabiesTitrationsForAppointment(
+          req.params.organisationId,
+          readAppointmentId(req.params.appointmentId),
+        );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.bundles.rabiesTitrations(records));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async listRabiesTitrationsForEncounter(req: Request, res: Response) {
+    try {
+      const records =
+        await ClinicalArtifactService.listRabiesTitrationsForEncounter(
+          req.params.organisationId,
+          readEncounterId(req.params.encounterId),
+        );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.bundles.rabiesTitrations(records));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async listParasiteTreatmentsForAppointment(req: Request, res: Response) {
+    try {
+      const records =
+        await ClinicalArtifactService.listParasiteTreatmentsForAppointment(
+          req.params.organisationId,
+          readAppointmentId(req.params.appointmentId),
+        );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.bundles.parasiteTreatments(records));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async listParasiteTreatmentsForEncounter(req: Request, res: Response) {
+    try {
+      const records =
+        await ClinicalArtifactService.listParasiteTreatmentsForEncounter(
+          req.params.organisationId,
+          readEncounterId(req.params.encounterId),
+        );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.bundles.parasiteTreatments(records));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async listClinicalExaminationsForAppointment(req: Request, res: Response) {
+    try {
+      const records =
+        await ClinicalArtifactService.listClinicalExaminationsForAppointment(
+          req.params.organisationId,
+          readAppointmentId(req.params.appointmentId),
+        );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.bundles.clinicalExaminations(records));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async listClinicalExaminationsForEncounter(req: Request, res: Response) {
+    try {
+      const records =
+        await ClinicalArtifactService.listClinicalExaminationsForEncounter(
+          req.params.organisationId,
+          readEncounterId(req.params.encounterId),
+        );
+      return res
+        .status(200)
+        .json(clinicalArtifactFhirMapper.bundles.clinicalExaminations(records));
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
 };

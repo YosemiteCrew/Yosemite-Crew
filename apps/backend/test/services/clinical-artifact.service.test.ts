@@ -68,6 +68,18 @@ jest.mock("src/config/prisma", () => ({
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
+    immunization: {
+      findMany: jest.fn(),
+    },
+    rabiesTitration: {
+      findMany: jest.fn(),
+    },
+    parasiteTreatment: {
+      findMany: jest.fn(),
+    },
+    clinicalExamination: {
+      findMany: jest.fn(),
+    },
     inventoryItem: {
       findMany: jest.fn(),
     },
@@ -120,6 +132,18 @@ describe("ClinicalArtifactService", () => {
       create: jest.Mock;
       update: jest.Mock;
       findUnique: jest.Mock;
+      findMany: jest.Mock;
+    };
+    immunization: {
+      findMany: jest.Mock;
+    };
+    rabiesTitration: {
+      findMany: jest.Mock;
+    };
+    parasiteTreatment: {
+      findMany: jest.Mock;
+    };
+    clinicalExamination: {
       findMany: jest.Mock;
     };
     inventoryItem: {
@@ -1996,5 +2020,216 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
     expect(mocked.inventoryItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ["item-1"] } } }),
     );
+  });
+
+  describe("passport clinical-record FHIR reads", () => {
+    const mockedReads = prisma as unknown as {
+      immunization: { findMany: jest.Mock };
+      rabiesTitration: { findMany: jest.Mock };
+      parasiteTreatment: { findMany: jest.Mock };
+      clinicalExamination: { findMany: jest.Mock };
+    };
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+    const when = new Date("2026-01-01T00:00:00.000Z");
+    const artifactRow = {
+      id: "art-1",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      kind: "IMMUNIZATION",
+      status: "SIGNED",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: "vet-1",
+      signedBy: "vet-1",
+      signedAt: when,
+      summary: null,
+      createdAt: when,
+      updatedAt: when,
+    };
+
+    it("lists immunizations by encounter and appointment", async () => {
+      mockedReads.immunization.findMany.mockResolvedValue([
+        {
+          id: "imm-1",
+          artifactId: "art-1",
+          vaccineType: "RABIES",
+          vaccineName: "Nobivac",
+          manufacturer: null,
+          batchNumber: null,
+          lotNumber: null,
+          dateAdministered: when,
+          validFrom: null,
+          validUntil: null,
+          nextDueDate: null,
+          site: null,
+          route: null,
+          notes: null,
+          metadata: null,
+          createdAt: when,
+          updatedAt: when,
+          artifact: artifactRow,
+        },
+      ]);
+
+      const byEncounter =
+        await ClinicalArtifactService.listImmunizationsForEncounter(
+          "org-1",
+          "enc-1",
+        );
+      expect(byEncounter[0].artifact.kind).toBe("IMMUNIZATION");
+      expect(byEncounter[0].immunization.vaccineName).toBe("Nobivac");
+      expect(mockedReads.immunization.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              encounterId: "enc-1",
+              kind: "IMMUNIZATION",
+            }),
+          },
+        }),
+      );
+
+      await ClinicalArtifactService.listImmunizationsForAppointment(
+        "org-1",
+        "appt-1",
+      );
+      expect(mockedReads.immunization.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              appointmentId: "appt-1",
+              kind: "IMMUNIZATION",
+            }),
+          },
+        }),
+      );
+    });
+
+    it("lists rabies titrations by encounter and appointment", async () => {
+      mockedReads.rabiesTitration.findMany.mockResolvedValue([
+        {
+          id: "tit-1",
+          artifactId: "art-1",
+          approvedLab: "APHA",
+          sampleDate: when,
+          resultIuMl: 1.5,
+          reportUrl: null,
+          metadata: null,
+          createdAt: when,
+          updatedAt: when,
+          artifact: artifactRow,
+        },
+      ]);
+
+      const byEncounter =
+        await ClinicalArtifactService.listRabiesTitrationsForEncounter(
+          "org-1",
+          "enc-1",
+        );
+      expect(byEncounter[0].artifact.kind).toBe("RABIES_TITRATION");
+      expect(byEncounter[0].rabiesTitration.resultIuMl).toBe(1.5);
+
+      await ClinicalArtifactService.listRabiesTitrationsForAppointment(
+        "org-1",
+        "appt-1",
+      );
+      expect(mockedReads.rabiesTitration.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              appointmentId: "appt-1",
+              kind: "RABIES_TITRATION",
+            }),
+          },
+        }),
+      );
+    });
+
+    it("lists parasite treatments by encounter and appointment", async () => {
+      mockedReads.parasiteTreatment.findMany.mockResolvedValue([
+        {
+          id: "par-1",
+          artifactId: "art-1",
+          treatmentType: "FLEA",
+          productName: "Bravecto",
+          manufacturer: null,
+          treatedAt: when,
+          notes: null,
+          metadata: null,
+          createdAt: when,
+          updatedAt: when,
+          artifact: artifactRow,
+        },
+      ]);
+
+      const byEncounter =
+        await ClinicalArtifactService.listParasiteTreatmentsForEncounter(
+          "org-1",
+          "enc-1",
+        );
+      expect(byEncounter[0].artifact.kind).toBe("PARASITE_TREATMENT");
+      expect(byEncounter[0].parasiteTreatment.productName).toBe("Bravecto");
+
+      await ClinicalArtifactService.listParasiteTreatmentsForAppointment(
+        "org-1",
+        "appt-1",
+      );
+      expect(mockedReads.parasiteTreatment.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              appointmentId: "appt-1",
+              kind: "PARASITE_TREATMENT",
+            }),
+          },
+        }),
+      );
+    });
+
+    it("lists clinical examinations by encounter and appointment", async () => {
+      mockedReads.clinicalExamination.findMany.mockResolvedValue([
+        {
+          id: "exam-1",
+          artifactId: "art-1",
+          examinedAt: when,
+          fitForTravel: true,
+          findings: null,
+          weightKg: null,
+          temperatureC: null,
+          metadata: null,
+          createdAt: when,
+          updatedAt: when,
+          artifact: artifactRow,
+        },
+      ]);
+
+      const byEncounter =
+        await ClinicalArtifactService.listClinicalExaminationsForEncounter(
+          "org-1",
+          "enc-1",
+        );
+      expect(byEncounter[0].artifact.kind).toBe("CLINICAL_EXAM");
+      expect(byEncounter[0].clinicalExamination.fitForTravel).toBe(true);
+
+      await ClinicalArtifactService.listClinicalExaminationsForAppointment(
+        "org-1",
+        "appt-1",
+      );
+      expect(mockedReads.clinicalExamination.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              appointmentId: "appt-1",
+              kind: "CLINICAL_EXAM",
+            }),
+          },
+        }),
+      );
+    });
   });
 });

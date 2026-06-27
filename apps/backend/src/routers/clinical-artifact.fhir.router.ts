@@ -321,4 +321,95 @@ router.patch(
   (req, res) => ClinicalArtifactFhirController.updateVitalRecord(req, res),
 );
 
+// Passport clinical-record kinds, read-only over FHIR. Captured through the
+// passport flow + signed via Documenso, so no FHIR create/update routes here.
+router.post(
+  "/organisation/:organisationId/appointment/:appointmentId/immunizations",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) =>
+    ClinicalArtifactFhirController.listImmunizationsForAppointment(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/encounter/:encounterId/immunizations",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) =>
+    ClinicalArtifactFhirController.listImmunizationsForEncounter(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/appointment/:appointmentId/rabies-titrations",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) =>
+    ClinicalArtifactFhirController.listRabiesTitrationsForAppointment(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/encounter/:encounterId/rabies-titrations",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) =>
+    ClinicalArtifactFhirController.listRabiesTitrationsForEncounter(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/appointment/:appointmentId/parasite-treatments",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) =>
+    ClinicalArtifactFhirController.listParasiteTreatmentsForAppointment(
+      req,
+      res,
+    ),
+);
+
+router.post(
+  "/organisation/:organisationId/encounter/:encounterId/parasite-treatments",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) =>
+    ClinicalArtifactFhirController.listParasiteTreatmentsForEncounter(req, res),
+);
+
+router.post(
+  "/organisation/:organisationId/appointment/:appointmentId/clinical-examinations",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) =>
+    ClinicalArtifactFhirController.listClinicalExaminationsForAppointment(
+      req,
+      res,
+    ),
+);
+
+router.post(
+  "/organisation/:organisationId/encounter/:encounterId/clinical-examinations",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) =>
+    ClinicalArtifactFhirController.listClinicalExaminationsForEncounter(
+      req,
+      res,
+    ),
+);
+
 export default router;

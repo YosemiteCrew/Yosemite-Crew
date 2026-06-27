@@ -42,6 +42,14 @@ jest.mock("../../src/services/clinical-artifact.service", () => {
       listVitalRecordsForEncounter: jest.fn(),
       reopenVitalRecord: jest.fn(),
       amendVitalRecord: jest.fn(),
+      listImmunizationsForAppointment: jest.fn(),
+      listImmunizationsForEncounter: jest.fn(),
+      listRabiesTitrationsForAppointment: jest.fn(),
+      listRabiesTitrationsForEncounter: jest.fn(),
+      listParasiteTreatmentsForAppointment: jest.fn(),
+      listParasiteTreatmentsForEncounter: jest.fn(),
+      listClinicalExaminationsForAppointment: jest.fn(),
+      listClinicalExaminationsForEncounter: jest.fn(),
     },
     ClinicalArtifactServiceError: actual.ClinicalArtifactServiceError,
   };
@@ -62,6 +70,10 @@ jest.mock("../../src/services/fhir-clinical-artifact.mapper", () => ({
       prescriptions: jest.fn(),
       dischargeSummaries: jest.fn(),
       vitalRecords: jest.fn(),
+      immunizations: jest.fn(),
+      rabiesTitrations: jest.fn(),
+      parasiteTreatments: jest.fn(),
+      clinicalExaminations: jest.fn(),
     },
   },
 }));
@@ -409,5 +421,133 @@ describe("ClinicalArtifactFhirController", () => {
       res as Response,
     );
     expect(statusMock).toHaveBeenCalledWith(404);
+  });
+
+  it("handles passport clinical-record FHIR reads for all kinds", async () => {
+    mockedMapper.bundles.immunizations.mockReturnValue({
+      resourceType: "Bundle",
+    } as never);
+    mockedMapper.bundles.rabiesTitrations.mockReturnValue({
+      resourceType: "Bundle",
+    } as never);
+    mockedMapper.bundles.parasiteTreatments.mockReturnValue({
+      resourceType: "Bundle",
+    } as never);
+    mockedMapper.bundles.clinicalExaminations.mockReturnValue({
+      resourceType: "Bundle",
+    } as never);
+    mockedService.listImmunizationsForAppointment.mockResolvedValueOnce([]);
+    mockedService.listImmunizationsForEncounter.mockResolvedValueOnce([]);
+    mockedService.listRabiesTitrationsForAppointment.mockResolvedValueOnce([]);
+    mockedService.listRabiesTitrationsForEncounter.mockResolvedValueOnce([]);
+    mockedService.listParasiteTreatmentsForAppointment.mockResolvedValueOnce(
+      [],
+    );
+    mockedService.listParasiteTreatmentsForEncounter.mockResolvedValueOnce([]);
+    mockedService.listClinicalExaminationsForAppointment.mockResolvedValueOnce(
+      [],
+    );
+    mockedService.listClinicalExaminationsForEncounter.mockResolvedValueOnce(
+      [],
+    );
+
+    await ClinicalArtifactFhirController.listImmunizationsForAppointment(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.listImmunizationsForEncounter(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.listRabiesTitrationsForAppointment(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.listRabiesTitrationsForEncounter(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.listParasiteTreatmentsForAppointment(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.listParasiteTreatmentsForEncounter(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.listClinicalExaminationsForAppointment(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.listClinicalExaminationsForEncounter(
+      req as Request,
+      res as Response,
+    );
+
+    expect(mockedService.listImmunizationsForAppointment).toHaveBeenCalledWith(
+      "org-1",
+      "appt-1",
+    );
+    expect(mockedService.listImmunizationsForEncounter).toHaveBeenCalledWith(
+      "org-1",
+      "enc-1",
+    );
+    expect(
+      mockedService.listClinicalExaminationsForEncounter,
+    ).toHaveBeenCalledWith("org-1", "enc-1");
+    expect(mockedMapper.bundles.immunizations).toHaveBeenCalled();
+    expect(mockedMapper.bundles.rabiesTitrations).toHaveBeenCalled();
+    expect(mockedMapper.bundles.parasiteTreatments).toHaveBeenCalled();
+    expect(mockedMapper.bundles.clinicalExaminations).toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("propagates errors from every passport clinical-record read", async () => {
+    const reads = [
+      [
+        "listImmunizationsForAppointment",
+        ClinicalArtifactFhirController.listImmunizationsForAppointment,
+      ],
+      [
+        "listImmunizationsForEncounter",
+        ClinicalArtifactFhirController.listImmunizationsForEncounter,
+      ],
+      [
+        "listRabiesTitrationsForAppointment",
+        ClinicalArtifactFhirController.listRabiesTitrationsForAppointment,
+      ],
+      [
+        "listRabiesTitrationsForEncounter",
+        ClinicalArtifactFhirController.listRabiesTitrationsForEncounter,
+      ],
+      [
+        "listParasiteTreatmentsForAppointment",
+        ClinicalArtifactFhirController.listParasiteTreatmentsForAppointment,
+      ],
+      [
+        "listParasiteTreatmentsForEncounter",
+        ClinicalArtifactFhirController.listParasiteTreatmentsForEncounter,
+      ],
+      [
+        "listClinicalExaminationsForAppointment",
+        ClinicalArtifactFhirController.listClinicalExaminationsForAppointment,
+      ],
+      [
+        "listClinicalExaminationsForEncounter",
+        ClinicalArtifactFhirController.listClinicalExaminationsForEncounter,
+      ],
+    ] as const;
+
+    for (const [name, handler] of reads) {
+      (mockedService[name] as jest.Mock).mockRejectedValueOnce(
+        new ClinicalArtifactServiceError(
+          "organisationId is required",
+          400,
+        ) as never,
+      );
+      buildResponse();
+      await handler(req as Request, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+    }
   });
 });
