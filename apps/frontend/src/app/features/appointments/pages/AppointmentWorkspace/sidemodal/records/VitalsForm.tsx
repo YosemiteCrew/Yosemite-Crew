@@ -149,18 +149,23 @@ const flattenFormFields = (fields: FormField[] = []): FormField[] =>
     field.type === 'group' ? flattenFormFields(field.fields ?? []) : [field]
   );
 
+const getUnitFromRecord = (value: unknown): string | undefined => {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const unit = (value as { unit?: unknown }).unit;
+  return typeof unit === 'string' ? unit : undefined;
+};
+
+const resolveVitalFieldUnit = (key: keyof DraftVitals, configuredUnit: string | undefined) => {
+  if (key === 'mucousMembrane') return '';
+  return configuredUnit ?? FIELD_FALLBACKS[key].unit;
+};
+
 const defaultVitalFieldsFromFormsSchema = (): Field[] => {
   const fields = flattenFormFields(getCategoryTemplate('Vitals'));
   const mapped = fields.flatMap((field) => {
     const key = resolveDraftKey({ id: field.id, label: field.label });
     if (!key) return [];
-    const metaUnit =
-      typeof field.meta === 'object' &&
-      field.meta !== null &&
-      typeof (field.meta as { unit?: unknown }).unit === 'string'
-        ? (field.meta as { unit: string }).unit
-        : FIELD_FALLBACKS[key].unit;
-    const unit = key === 'mucousMembrane' ? '' : metaUnit;
+    const unit = resolveVitalFieldUnit(key, getUnitFromRecord(field.meta));
     return [
       {
         ...FIELD_FALLBACKS[key],
@@ -178,13 +183,7 @@ const templateToVitalFields = (template: TemplateLike): Field[] => {
   const mapped = fields.flatMap((field: TemplateFieldDefinition) => {
     const key = resolveDraftKey(field);
     if (!key) return [];
-    const rulesUnit =
-      typeof field.rules === 'object' &&
-      field.rules !== null &&
-      typeof (field.rules as { unit?: unknown }).unit === 'string'
-        ? (field.rules as { unit: string }).unit
-        : FIELD_FALLBACKS[key].unit;
-    const unit = key === 'mucousMembrane' ? '' : rulesUnit;
+    const unit = resolveVitalFieldUnit(key, getUnitFromRecord(field.rules));
     return [
       {
         ...FIELD_FALLBACKS[key],
