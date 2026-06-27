@@ -14,6 +14,9 @@ import { LuSearch, LuX } from 'react-icons/lu';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 
+const toMessages = (results: Array<{ message: unknown }>): MessageResponse[] =>
+  results.map((r) => r.message as MessageResponse);
+
 export function MessageSearch() {
   const { channel } = useChannelStateContext();
   const { jumpToMessage } = useChannelActionContext();
@@ -34,7 +37,7 @@ export function MessageSearch() {
       channel
         .search(trimmed)
         .then((res) => {
-          if (active) setResults(res.results.map((r) => r.message as MessageResponse));
+          if (active) setResults(toMessages(res.results));
         })
         .catch(() => {
           if (active) setResults([]);

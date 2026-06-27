@@ -82,11 +82,14 @@ export function ChatComposer() {
     const { files } = e.target;
     if (files?.length) {
       const { allowed, rejected } = partitionUploadFiles(files);
-      setUploadError(
-        rejected.length > 0
-          ? `Couldn't attach ${rejected.length} file${rejected.length > 1 ? 's' : ''}: unsupported type or over 25 MB.`
-          : null
-      );
+      if (rejected.length > 0) {
+        const plural = rejected.length > 1 ? 's' : '';
+        setUploadError(
+          `Couldn't attach ${rejected.length} file${plural}: unsupported type or over 25 MB.`
+        );
+      } else {
+        setUploadError(null);
+      }
       if (allowed.length) void composer.attachmentManager.uploadFiles(allowed);
     }
     e.target.value = '';

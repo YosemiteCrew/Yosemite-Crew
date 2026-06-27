@@ -121,6 +121,51 @@ export type NetworkColleague = {
   organisationName: string;
 };
 
+const orgIdFromReference = (reference: string): string =>
+  reference.startsWith("Organization/")
+    ? reference.slice("Organization/".length)
+    : reference;
+
+type ColleagueMapping = {
+  practitionerReference: string;
+  organizationReference: string;
+  roleCode: string;
+  roleDisplay: string | null;
+};
+
+const buildColleague = async (
+  mapping: ColleagueMapping,
+  orgNameById: Map<string, string>,
+  normalizedQuery: string,
+): Promise<NetworkColleague | null> => {
+  const organisationId = orgIdFromReference(mapping.organizationReference);
+  const organisationName = orgNameById.get(organisationId);
+  if (!organisationName) return null;
+
+  const userId = extractReferenceId(mapping.practitionerReference);
+  const user = await prisma.user.findFirst({
+    where: { userId },
+    select: { firstName: true, lastName: true },
+  });
+
+  const name = [user?.firstName, user?.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (!name) return null;
+  if (normalizedQuery && !name.toLowerCase().includes(normalizedQuery)) {
+    return null;
+  }
+
+  return {
+    userId,
+    name,
+    role: mapping.roleDisplay ?? mapping.roleCode,
+    organisationId,
+    organisationName,
+  };
+};
+
 export const NetworkChatService = {
   async searchNetworkColleagues({
     requesterUserId,
@@ -182,39 +227,13 @@ export const NetworkChatService = {
     const colleagues: NetworkColleague[] = [];
 
     for (const mapping of mappings) {
-      const orgId = mapping.organizationReference.startsWith("Organization/")
-        ? mapping.organizationReference.slice("Organization/".length)
-        : mapping.organizationReference;
-      const organisationName = orgNameById.get(orgId);
-      if (!organisationName) continue;
-
-      const userId = extractReferenceId(mapping.practitionerReference);
-      const user = await prisma.user.findFirst({
-        where: { userId },
-        select: { firstName: true, lastName: true },
-      });
-
-      const name = [user?.firstName, user?.lastName]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-      if (!name) continue;
-
-      if (normalizedQuery && !name.toLowerCase().includes(normalizedQuery)) {
-        continue;
-      }
-
-      colleagues.push({
-        userId,
-        name,
-        role: mapping.roleDisplay ?? mapping.roleCode,
-        organisationId: orgId,
-        organisationName,
-      });
-
-      if (colleagues.length >= MAX_COLLEAGUE_RESULTS) {
-        break;
-      }
+      const colleague = await buildColleague(
+        mapping,
+        orgNameById,
+        normalizedQuery,
+      );
+      if (colleague) colleagues.push(colleague);
+      if (colleagues.length >= MAX_COLLEAGUE_RESULTS) break;
     }
 
     return { colleagues };

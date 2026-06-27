@@ -611,6 +611,36 @@ const isCounterpartOnline = (
   return Boolean(counterpart?.user?.online);
 };
 
+const isChannelMuted = (channel: StreamChannel | null | undefined): boolean => {
+  try {
+    return Boolean(channel?.muteStatus?.().muted);
+  } catch {
+    return false;
+  }
+};
+
+type TriageHandlers = {
+  onMute?: () => void;
+  onUnmute?: () => void;
+  onSnooze?: (durationMs: number) => void;
+  onArchive?: () => void;
+  onUnarchive?: () => void;
+};
+
+const buildTriageHandlers = (
+  channel: StreamChannel | null | undefined,
+  archived: boolean | undefined
+): TriageHandlers => {
+  if (!channel) return {};
+  return {
+    onMute: () => void channel.mute(),
+    onUnmute: () => void channel.unmute(),
+    onSnooze: (durationMs: number) => void channel.mute({ expiration: durationMs }),
+    onArchive: archived ? undefined : () => void channel.hide(),
+    onUnarchive: archived ? () => void channel.show() : undefined,
+  };
+};
+
 const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
   onPreviewSelect,
   currentUserId,
@@ -632,13 +662,8 @@ const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
   const scope = channel ? resolveChannelScope(channel) : 'colleagues';
   const lastText = previewProps.lastMessage?.text?.trim();
   const lastAt = channel?.state?.last_message_at ?? undefined;
-  const muted = (() => {
-    try {
-      return Boolean(channel?.muteStatus?.().muted);
-    } catch {
-      return false;
-    }
-  })();
+  const muted = isChannelMuted(channel);
+  const triage = buildTriageHandlers(channel, archived);
 
   return (
     <ConversationRow
@@ -656,11 +681,7 @@ const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
         if (previewProps.onSelect) previewProps.onSelect(event);
         else previewProps.setActiveChannel?.(channel, previewProps.watchers);
       }}
-      onMute={channel ? () => void channel.mute() : undefined}
-      onUnmute={channel ? () => void channel.unmute() : undefined}
-      onSnooze={channel ? (durationMs) => void channel.mute({ expiration: durationMs }) : undefined}
-      onArchive={channel && !archived ? () => void channel.hide() : undefined}
-      onUnarchive={channel && archived ? () => void channel.show() : undefined}
+      {...triage}
     />
   );
 };

@@ -27,9 +27,12 @@ jest.mock("src/services/user-profile.service", () => ({
 jest.mock("src/services/user.service", () => ({
   UserService: { getById: jest.fn() },
 }));
+let mockDualWriteEnabled = false;
 jest.mock("src/utils/dual-write", () => ({
   handleDualWriteError: jest.fn(),
-  shouldDualWrite: false,
+  get shouldDualWrite() {
+    return mockDualWriteEnabled;
+  },
 }));
 jest.mock("src/config/read-switch", () => ({
   isReadFromPostgres: jest.fn(() => true),
@@ -71,6 +74,7 @@ const mockedUserService = UserService.getById as jest.Mock;
 beforeEach(() => {
   jest.clearAllMocks();
   mockedReadSwitch.mockReturnValue(true);
+  mockDualWriteEnabled = false;
 });
 
 describe("NetworkChatService.searchNetworkColleagues", () => {
@@ -388,5 +392,102 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
     });
     expect(createArgs.channelId).toMatch(/^nd_/);
     expect(result).toBe(created);
+  });
+
+  it("rejects with 400 when a user tries to chat with themselves", async () => {
+    await expect(
+      NetworkChatService.createNetworkDirectChat({
+        requesterUserId: "userA",
+        requesterOrgId: "org1",
+        otherUserId: "userA",
+        otherOrgId: "org2",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockChannel).not.toHaveBeenCalled();
+  });
+
+  it("dual-writes the new session to Postgres when dual-write is enabled", async () => {
+    mockDualWriteEnabled = true;
+    bothOrgsEnabled();
+    mockedChatSessionModel.findOne.mockResolvedValue(null);
+    mockedUserProfile.mockResolvedValue({
+      profile: { personalDetails: { profilePictureUrl: "pic" } },
+    });
+    mockedUserService.mockResolvedValue({
+      firstName: "Test",
+      lastName: "User",
+    });
+    mockedChatSessionModel.create.mockResolvedValue({
+      id: "new",
+      toObject: () => ({
+        _id: { toString: () => "sess-1" },
+        type: "ORG_DIRECT",
+        channelId: "nd_x",
+        organisationId: "org1",
+        counterpartOrganisationId: "org2",
+        createdBy: "userA",
+        isPrivate: true,
+        members: ["userA", "userB"],
+        status: "ACTIVE",
+      }),
+    });
+
+    await NetworkChatService.createNetworkDirectChat({
+      requesterUserId: "userA",
+      requesterOrgId: "org1",
+      otherUserId: "userB",
+      otherOrgId: "org2",
+    });
+
+    expect(mockedPrisma.chatSession.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "sess-1" },
+        create: expect.objectContaining({
+          id: "sess-1",
+          counterpartOrganisationId: "org2",
+          members: ["userA", "userB"],
+        }),
+      }),
+    );
+  });
+
+  it("swallows a Postgres dual-write failure via handleDualWriteError", async () => {
+    mockDualWriteEnabled = true;
+    bothOrgsEnabled();
+    mockedChatSessionModel.findOne.mockResolvedValue(null);
+    mockedUserProfile.mockResolvedValue({ profile: { personalDetails: {} } });
+    mockedUserService.mockResolvedValue({
+      firstName: "Test",
+      lastName: "User",
+    });
+    mockedChatSessionModel.create.mockResolvedValue({
+      id: "new",
+      toObject: () => ({
+        _id: { toString: () => "sess-2" },
+        type: "ORG_DIRECT",
+        channelId: "nd_y",
+        organisationId: "org1",
+        members: ["userA", "userB"],
+        status: "ACTIVE",
+      }),
+    });
+    mockedPrisma.chatSession.upsert.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(
+      NetworkChatService.createNetworkDirectChat({
+        requesterUserId: "userA",
+        requesterOrgId: "org1",
+        otherUserId: "userB",
+        otherOrgId: "org2",
+      }),
+    ).resolves.toBeDefined();
+
+    const dualWrite = jest.requireMock("src/utils/dual-write") as {
+      handleDualWriteError: jest.Mock;
+    };
+    expect(dualWrite.handleDualWriteError).toHaveBeenCalledWith(
+      "ChatSession",
+      expect.any(Error),
+    );
   });
 });

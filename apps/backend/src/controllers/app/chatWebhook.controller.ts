@@ -63,9 +63,7 @@ export const ChatWebhookController = {
     const rawBody = req.body as Buffer | string;
     const bodyString = Buffer.isBuffer(rawBody)
       ? rawBody.toString("utf8")
-      : typeof rawBody === "string"
-        ? rawBody
-        : JSON.stringify(rawBody);
+      : rawBody;
 
     const client = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
     if (!client.verifyWebhook(bodyString, signature)) {

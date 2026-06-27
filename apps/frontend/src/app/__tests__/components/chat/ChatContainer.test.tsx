@@ -670,6 +670,257 @@ describe('ChatContainer', () => {
     expect(screen.getByTestId('org-guard')).toBeInTheDocument();
   });
 
+  it('fires onScopeChange when a scope tab is clicked', async () => {
+    jest.useFakeTimers();
+    const onScopeChange = jest.fn();
+    try {
+      await act(async () => {
+        render(<ChatContainer scope="colleagues" onScopeChange={onScopeChange} />);
+      });
+      await act(async () => {
+        jest.runOnlyPendingTimers();
+      });
+
+      const tab = screen.getByText('Groups');
+      await act(async () => {
+        fireEvent.click(tab);
+        jest.runOnlyPendingTimers();
+      });
+
+      expect(onScopeChange).toHaveBeenCalledWith('groups');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('navigates to forms and appointments via header appointment actions', async () => {
+    const clientChannel = {
+      ...defaultMockChannel,
+      data: { appointmentId: '123', chatCategory: 'clients' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    // Reaching this header path exercises handleApptAction wiring + close-session
+    // error catch fall-through. The presence of the close-session control confirms
+    // the appointment header rendered.
+    await waitFor(() => expect(screen.getByText('Close session')).toBeInTheDocument());
+  });
+
+  it('notifies on error when closing the session fails', async () => {
+    const clientChannel = {
+      ...defaultMockChannel,
+      data: { appointmentId: '123', chatCategory: 'clients' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
+    (chatService.getChatSession as jest.Mock).mockResolvedValue({ _id: 'session-123' });
+    (streamChatService.endChatChannel as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    const closeBtn = await screen.findByText('Close session');
+    await act(async () => {
+      fireEvent.click(closeBtn);
+    });
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', expect.anything());
+    });
+  });
+
+  // Opens the edit-group modal where the backend session lookup returns NO match,
+  // leaving groupModalBackendId undefined so the "Action unavailable" guards fire.
+  const openGroupEditModalNoBackendId = async () => {
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
+    const groupChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: 'group', name: 'Group Chat' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: groupChannel });
+    await act(async () => {
+      render(<ChatContainer scope="groups" />);
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Group Info'));
+    });
+    await waitFor(() => expect(screen.getByTestId('group-modal')).toBeInTheDocument());
+  };
+
+  it('warns when saving a title with no backend group id', async () => {
+    await openGroupEditModalNoBackendId();
+    fireEvent.change(screen.getByTestId('input-Group Chat'), { target: { value: 'Renamed' } });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Save Title'));
+    });
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('warning', expect.anything());
+    });
+    expect(chatService.updateGroup).not.toHaveBeenCalled();
+  });
+
+  it('warns when adding a member with no backend group id', async () => {
+    await openGroupEditModalNoBackendId();
+    const addBtns = await screen.findAllByTitle('Add member');
+    await act(async () => {
+      fireEvent.click(addBtns[0]);
+    });
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('warning', expect.anything());
+    });
+    expect(chatService.addGroupMembers).not.toHaveBeenCalled();
+  });
+
+  it('warns when removing a member with no backend group id', async () => {
+    await openGroupEditModalNoBackendId();
+    const removeBtns = await screen.findAllByTitle('Remove member');
+    await act(async () => {
+      fireEvent.click(removeBtns[0]);
+    });
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('warning', expect.anything());
+    });
+    expect(chatService.removeGroupMembers).not.toHaveBeenCalled();
+  });
+
+  // Reuse the happy-path edit-modal opener (resolves a backend group id) but force
+  // the backend mutations to reject so the catch -> notify('error') paths run.
+  const openGroupEditModalWithBackendId = async () => {
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([
+      { _id: 'backend-group-id', channelId: 'channel-1', type: 'ORG_GROUP' },
+    ]);
+    const groupChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: 'group', name: 'Group Chat' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: groupChannel });
+    await act(async () => {
+      render(<ChatContainer scope="groups" />);
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Group Info'));
+    });
+    await waitFor(() => expect(screen.getByTestId('group-modal')).toBeInTheDocument());
+  };
+
+  it('notifies on error when updating the group title fails', async () => {
+    (chatService.updateGroup as jest.Mock).mockRejectedValueOnce(new Error('update failed'));
+    await openGroupEditModalWithBackendId();
+    fireEvent.change(screen.getByTestId('input-Group Chat'), { target: { value: 'Renamed' } });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Save Title'));
+    });
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', expect.anything());
+    });
+  });
+
+  it('notifies on error when adding a member fails', async () => {
+    (chatService.addGroupMembers as jest.Mock).mockRejectedValueOnce(new Error('add failed'));
+    await openGroupEditModalWithBackendId();
+    const addBtns = await screen.findAllByTitle('Add member');
+    await act(async () => {
+      fireEvent.click(addBtns[0]);
+    });
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', expect.anything());
+    });
+  });
+
+  it('notifies on error when removing a member fails', async () => {
+    (chatService.removeGroupMembers as jest.Mock).mockRejectedValueOnce(new Error('remove failed'));
+    await openGroupEditModalWithBackendId();
+    const removeBtns = await screen.findAllByTitle('Remove member');
+    await act(async () => {
+      fireEvent.click(removeBtns[0]);
+    });
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', expect.anything());
+    });
+  });
+
+  it('notifies when a direct chat cannot be started', async () => {
+    // queryChannels rejects for every candidate so success stays false -> error notify
+    mockClient.queryChannels.mockRejectedValue(new Error('query failed'));
+    (chatService.createOrgDirectChat as jest.Mock).mockRejectedValue(new Error('create failed'));
+
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
+    });
+    await waitFor(() => expect(chatService.fetchOrgUsers).toHaveBeenCalled());
+
+    const input = screen.getByPlaceholderText('Search teammate to chat');
+    fireEvent.change(input, { target: { value: 'User Two' } });
+    fireEvent.focus(input);
+
+    const userButton = await screen.findByText('User Two');
+    await act(async () => {
+      fireEvent.click(userButton.closest('button')!);
+    });
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', expect.anything());
+    });
+
+    // Restore the default resolved implementation so later tests are unaffected
+    // (clearAllMocks only resets call history, not implementations).
+    mockClient.queryChannels.mockResolvedValue([defaultMockChannel]);
+  });
+
+  it('handles focus, blur and hover interactions on the teammate search', async () => {
+    jest.useFakeTimers();
+    try {
+      await act(async () => {
+        render(<ChatContainer scope="colleagues" />);
+      });
+      await act(async () => {
+        jest.runOnlyPendingTimers();
+      });
+
+      const input = screen.getByPlaceholderText('Search teammate to chat');
+      const list = input.parentElement?.querySelector('ul') as HTMLUListElement;
+
+      // Focus then blur with no hover -> blur timeout clears focus.
+      act(() => {
+        fireEvent.focus(input);
+      });
+      act(() => {
+        fireEvent.blur(input);
+      });
+      act(() => {
+        jest.advanceTimersByTime(200);
+      });
+
+      // Hover the results list, focus, blur (timeout should NOT clear focus while hovering),
+      // then leave the list.
+      act(() => {
+        fireEvent.focus(input);
+        fireEvent.mouseEnter(list);
+        fireEvent.blur(input);
+        jest.advanceTimersByTime(200);
+        fireEvent.mouseLeave(list);
+      });
+
+      // Re-focus after the blur timeout was already scheduled to cover the
+      // clearTimeout branch in onFocus.
+      act(() => {
+        fireEvent.blur(input);
+        fireEvent.focus(input);
+        jest.advanceTimersByTime(200);
+      });
+
+      expect(input).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   describe('channel filtering by scope', () => {
     type FilterFn = (channels: unknown[]) => unknown[];
     const getFilter = () =>

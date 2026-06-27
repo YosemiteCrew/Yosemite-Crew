@@ -28,7 +28,7 @@ export const accentFor = (seed: string): string => {
 /** Up to two uppercase initials, ignoring any "(owner)" suffix. */
 export const initialsOf = (name: string): string => {
   const initials = name
-    .replace(/\([^)]*\)/, '')
+    .split('(')[0]
     .trim()
     .split(/\s+/)
     .filter(Boolean)

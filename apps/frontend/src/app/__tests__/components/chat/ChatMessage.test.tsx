@@ -96,6 +96,18 @@ describe('ChatMessage', () => {
     expect(handleReaction).toHaveBeenCalledWith('👍', expect.anything());
   });
 
+  it('prefers Stream v13 reaction_groups over reaction_counts', () => {
+    setup({
+      message: {
+        reaction_groups: { '🎉': { count: 4 } },
+        reaction_counts: { '👍': 99 },
+        own_reactions: [],
+      },
+    });
+    expect(screen.getByLabelText('4 🎉 reaction')).toBeInTheDocument();
+    expect(screen.queryByLabelText('99 👍 reaction')).not.toBeInTheDocument();
+  });
+
   it('opens the reaction picker and adds a reaction', () => {
     const { handleReaction } = setup();
     fireEvent.click(screen.getByLabelText('React'));

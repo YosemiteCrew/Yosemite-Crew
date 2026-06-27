@@ -336,6 +336,26 @@ describe("SharedChatEntityService.revoke", () => {
     expect(res).toMatchObject({ id: "share1" });
   });
 
+  it("still resolves when deleting the Stream message fails", async () => {
+    mockedPrisma.sharedChatEntity.findUnique.mockResolvedValue({
+      id: "share1",
+      channelId: "ch1",
+      messageId: "msg1",
+      revokedAt: null,
+    });
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(openSession);
+    mockedPrisma.sharedChatEntity.update.mockResolvedValue({
+      id: "share1",
+      revokedById: "u1",
+    });
+    mockDeleteMessage.mockRejectedValueOnce(new Error("stream down"));
+
+    const res = await SharedChatEntityService.revoke("share1", "u1");
+
+    expect(mockDeleteMessage).toHaveBeenCalledWith("msg1", true);
+    expect(res).toMatchObject({ id: "share1" });
+  });
+
   it("is idempotent when already revoked", async () => {
     const already = {
       id: "share1",
