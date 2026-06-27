@@ -1,6 +1,7 @@
 import type { Router } from "express";
 
 const authorizeCognito = jest.fn((_req, _res, next) => next());
+const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -18,12 +19,14 @@ const WorkspaceController = {
   deleteTreatmentItem: jest.fn(),
   createDocumentPacket: jest.fn(),
   getEncounterDocumentPacketPdf: jest.fn(),
+  getMobileEncounterDocumentPacketPdf: jest.fn(),
   getDocumentPacket: jest.fn(),
   signDocumentPacket: jest.fn(),
 };
 
 jest.mock("src/middlewares/auth", () => ({
   authorizeCognito,
+  authorizeCognitoMobile,
 }));
 
 jest.mock("src/middlewares/rbac", () => ({
@@ -119,6 +122,10 @@ describe("workspace.router", () => {
       "/organisations/:organisationId/document-packets/:packetId/sign",
       "post",
     );
+    const mobilePacketPdfRoute = findRoute(
+      "/mobile/encounters/:encounterId/document-packet/pdf",
+      "get",
+    );
 
     expect(appointmentRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
@@ -164,6 +171,9 @@ describe("workspace.router", () => {
     );
     expect(packetSignRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
+    );
+    expect(mobilePacketPdfRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognitoMobile,
     );
     expect(withOrgPermissions).toHaveBeenCalledTimes(15);
     expect(requirePermission).toHaveBeenCalled();

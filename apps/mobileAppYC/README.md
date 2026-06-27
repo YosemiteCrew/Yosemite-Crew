@@ -28,19 +28,21 @@ This directory contains the React Native mobile application for the **Yosemite C
 
 Current production releases:
 
-| Platform | Store Version |
-| -------- | ------------- |
-| Android  | v1.0.6        |
-| iOS      | v1.0.3        |
+| Platform | Store Version | Build |
+| -------- | ------------- | ----- |
+| Android  | v1.0.10       | 12    |
+| iOS      | v1.2          |       |
 
 Release history:
 
-| Platform | Version | Notes                                                                                                       |
-| -------- | ------- | ----------------------------------------------------------------------------------------------------------- |
-| Android  | v1.0.6  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing |
-| iOS      | v1.0.3  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing |
-| Android  | v1.0.5  | Initial production release                                                                                  |
-| iOS      | v1.0.2  | Initial production release                                                                                  |
+| Platform | Version | Notes                                                                                                                                                                                                    |
+| -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android  | v1.0.10 | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements |
+| iOS      | v1.2    | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements |
+| Android  | v1.0.6  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                              |
+| iOS      | v1.0.3  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                              |
+| Android  | v1.0.5  | Initial production release                                                                                                                                                                               |
+| iOS      | v1.0.2  | Initial production release                                                                                                                                                                               |
 
 ## 🛠️ Getting Started
 
@@ -246,6 +248,36 @@ Copy and tick off each item before trying to build:
 
 All committed setup templates live under `apps/mobileAppYC/config-templates/`. Files copied out of that folder into `android/`, `ios/`, or the app root are local-only unless this README explicitly says otherwise.
 
+#### Local file inventory
+
+Create these gitignored files when setting up a fresh clone:
+
+| Local file                                                     | Template / source                                                                      |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `apps/mobileAppYC/devamplify_outputs.json`                     | `config-templates/amplify/amplify_outputs.example.json` or your Amplify sandbox output |
+| `apps/mobileAppYC/prodamplify_outputs.json`                    | `config-templates/amplify/amplify_outputs.example.json` or production Amplify output   |
+| `apps/mobileAppYC/src/config/variables.local.ts`               | `config-templates/env/variables.local.example.ts`                                      |
+| `apps/mobileAppYC/android/app/google-services.json`            | `config-templates/android/google-services.example.json` or Firebase Console            |
+| `apps/mobileAppYC/android/app/src/main/res/values/strings.xml` | `config-templates/android/strings.example.xml`                                         |
+| `apps/mobileAppYC/android/gradle.properties`                   | `config-templates/android/gradle.properties.example`                                   |
+| `apps/mobileAppYC/android/local.properties`                    | `config-templates/android/local.properties.example` or Android Studio                  |
+| `apps/mobileAppYC/ios/GoogleService-Info.plist`                | `config-templates/ios/GoogleService-Info.example.plist` or Firebase Console            |
+| `apps/mobileAppYC/ios/mobileAppYC/Info.plist`                  | `config-templates/ios/Info.plist.example`                                              |
+| `apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig`            | `config-templates/ios/Secrets.xcconfig.example`                                        |
+| `apps/mobileAppYC/ios/.xcode.env.local`                        | create manually only if Xcode cannot find Node                                         |
+
+Leave these tracked project files committed and do not replace them with local secret copies:
+
+| Tracked file                                                | Purpose                                                    |
+| ----------------------------------------------------------- | ---------------------------------------------------------- |
+| `apps/mobileAppYC/firebase.json`                            | React Native Firebase build/runtime defaults               |
+| `apps/mobileAppYC/ios/.xcode.env`                           | Shared Xcode Node lookup fallback                          |
+| `apps/mobileAppYC/ios/mobileAppYC/Config.debug.xcconfig`    | Debug build includes for optional local secrets and Pods   |
+| `apps/mobileAppYC/ios/mobileAppYC/Config.release.xcconfig`  | Release build includes for optional local secrets and Pods |
+| `apps/mobileAppYC/ios/mobileAppYC/mobileAppYC.entitlements` | iOS app capabilities/entitlements                          |
+
+The template `config-templates/env/.env.example` is informational only. This app does not load `.env` files.
+
 ---
 
 #### A. Amplify / Cognito (`devamplify_outputs.json` / `prodamplify_outputs.json`)
@@ -280,7 +312,14 @@ Follow Step 3 above to run `npx ampx sandbox`. Copy the generated `amplify_outpu
 
 This file controls which backend environment the app points to and holds optional API keys for JavaScript/API services (Stream Chat, Stripe, Google Places web services, PostHog). It is gitignored and never committed.
 
-The file already exists in the repo as a fully-commented template — open it and read the top section. The only required change for development is the **master environment switch** at the top:
+Create it from the committed template:
+
+```sh
+cp apps/mobileAppYC/config-templates/env/variables.local.example.ts \
+   apps/mobileAppYC/src/config/variables.local.ts
+```
+
+Open the copied file and read the top section. The only required change for development is the **master environment switch** at the top:
 
 ```ts
 // true  → dev Cognito pool + devapi.yosemitecrew.com
@@ -391,6 +430,8 @@ Then add this stub file to the Xcode project the same way. Push notifications wi
    | `YOUR_FACEBOOK_APP_ID`       | Facebook Developer Console → your app → App ID                  |
    | `YOUR_FACEBOOK_CLIENT_TOKEN` | Facebook Developer Console → Settings → Advanced → Client Token |
    | `YOUR_REVERSED_CLIENT_ID`    | `ios/GoogleService-Info.plist` → `REVERSED_CLIENT_ID` value     |
+
+   Keep both location purpose keys from the template (`NSLocationWhenInUseUsageDescription` and `NSLocationAlwaysAndWhenInUseUsageDescription`) even if a library triggers the always-location API indirectly; App Store validation requires the purpose string to be present.
 
    Facebook and Google Sign-In social auth will not work with placeholders, but OTP login and everything else in the app will function normally.
 

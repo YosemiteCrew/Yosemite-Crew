@@ -15,10 +15,7 @@ import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { FaCheckCircle } from 'react-icons/fa';
-import {
-  acceptAppointment,
-  rejectAppointment,
-} from '@/app/features/appointments/services/appointmentService';
+import { rejectAppointment } from '@/app/features/appointments/services/appointmentService';
 import { useOrgStore } from '@/app/stores/orgStore';
 
 type AppointmentCardProps = {
@@ -59,7 +56,7 @@ const AppointmentCard = ({
                 type="button"
                 className="size-10 rounded-full! flex items-center justify-center cursor-pointer"
                 style={{ background: 'var(--color-success-100)' }}
-                onClick={() => void acceptAppointment(appointment)}
+                onClick={() => handleChangeStatusAppointment?.(appointment)}
               >
                 <FaCheckCircle size={22} color="var(--color-success-400)" />
               </button>

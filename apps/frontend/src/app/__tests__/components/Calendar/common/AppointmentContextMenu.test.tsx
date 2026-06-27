@@ -29,6 +29,9 @@ jest.mock('@/app/lib/appointments', () => ({
   ),
   getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
   getClinicalNotesLabel: jest.fn(() => 'Clinical notes'),
+  isRequestedLikeStatus: jest.fn(
+    (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
+  ),
   normalizeAppointmentStatus: jest.fn((status: string) =>
     status === 'NO_PAYMENT' ? 'REQUESTED' : status
   ),
@@ -140,6 +143,22 @@ describe('AppointmentContextMenu', () => {
       expect.objectContaining({ id: 'appt-1' }),
       'CHECKED_IN'
     );
+  });
+
+  it('does not expose inline status changes for requested appointments', () => {
+    render(
+      <AppointmentContextMenu
+        appointment={{ ...baseAppointment, status: 'REQUESTED' }}
+        canEditAppointments
+        menuRef={{ current: null }}
+        menuStyle={{ top: 20, left: 20, width: 280 }}
+        handleViewAppointment={jest.fn()}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('menuitem', { name: /Change status/i })).not.toBeInTheDocument();
   });
 
   it('shows a room submenu and updates the room inline', async () => {

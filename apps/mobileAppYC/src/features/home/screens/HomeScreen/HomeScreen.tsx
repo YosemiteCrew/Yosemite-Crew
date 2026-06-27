@@ -1068,6 +1068,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       theme,
       appointment.status,
       appointment.paymentStatus,
+      appointment.bookingPaymentStatus,
     );
     const statusBadge = isRequested ? (
       <View

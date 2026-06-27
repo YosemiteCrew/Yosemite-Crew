@@ -75,6 +75,19 @@ describe("clinical template blueprints", () => {
     );
   });
 
+  it("accepts the canonical discharge summary schema snapshot", () => {
+    const snapshot = buildClinicalTemplateSchemaSnapshot("DISCHARGE_SUMMARY");
+    const result = validateClinicalTemplateBlueprint(
+      TemplateKind.DISCHARGE_SUMMARY,
+      snapshot,
+    );
+
+    expect(result.requiredSectionIds).toEqual(["summary", "follow_up"]);
+    expect(result.missingSectionIds).toHaveLength(0);
+    expect(result.missingFieldPaths).toHaveLength(0);
+    expect(result.invalidFieldPaths).toHaveLength(0);
+  });
+
   it("accepts a valid vital-record schema and rejects missing sections", () => {
     const valid = validateClinicalTemplateBlueprint(TemplateKind.VITAL_RECORD, {
       sections: [

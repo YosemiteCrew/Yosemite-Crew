@@ -292,6 +292,24 @@ describe('AppointmentCalendar', () => {
     );
   });
 
+  it('opens accept modal for requested appointments even when generic status action is blocked', () => {
+    (canShowStatusChangeAction as jest.Mock).mockReturnValue(false);
+    renderCalendar();
+    const props = dayCalendarSpy.mock.calls[0][0];
+
+    act(() => {
+      props.handleAcceptAppointment(appointments[0]);
+    });
+
+    expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
+    expect(setChangeStatusPreferredStatus).toHaveBeenCalledWith('UPCOMING');
+    expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
+    expect(notifyMock).not.toHaveBeenCalledWith(
+      'warning',
+      expect.objectContaining({ title: 'Status change blocked' })
+    );
+  });
+
   it('blocks room change when appointment status disallows room assignment', () => {
     (canAssignAppointmentRoom as jest.Mock).mockReturnValue(false);
     renderCalendar();

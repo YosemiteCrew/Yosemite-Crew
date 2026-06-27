@@ -2816,6 +2816,7 @@ model Invoice {
   @@index([visitBillingStage])
   @@index([readyForBillingAt])
   @@index([taxProvider])
+  @@unique([appointmentId])
 }
 
 model InvoiceTaxSnapshot {

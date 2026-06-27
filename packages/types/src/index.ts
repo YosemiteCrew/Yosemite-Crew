@@ -275,6 +275,7 @@ export type {
   CreditNoteStatus,
   Invoice,
   InvoiceItem,
+  InvoiceSettlementSummary,
   InvoiceStatus,
   PaymentCollectionMethod,
 } from './invoice';

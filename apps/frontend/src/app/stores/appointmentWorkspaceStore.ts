@@ -161,7 +161,11 @@ type AppointmentWorkspaceState = {
   setRoomUnit: (appointmentId: string, roomId?: string, unitId?: string) => void;
 
   upsertSoap: (appointmentId: string, patch: Partial<SoapNoteEntry>) => void;
-  applySoapTemplate: (appointmentId: string, template: SoapTemplate) => void;
+  applySoapTemplate: (
+    appointmentId: string,
+    template: SoapTemplate,
+    options?: { replaceContent?: boolean }
+  ) => void;
   signSoap: (
     appointmentId: string,
     signedByName: string,
@@ -337,6 +341,15 @@ const mergeEncounterDataPatch = (
   stepStatus: patch.stepStatus ? { ...enc.stepStatus, ...patch.stepStatus } : enc.stepStatus,
 });
 
+const prefillingValue = (
+  current: string,
+  value: string | undefined,
+  replaceContent: boolean
+): string => {
+  if (replaceContent) return value ?? current;
+  return value && isRichTextEmpty(current) ? value : current;
+};
+
 const getNextEncounterModeState = (
   current: AppointmentEncounter | undefined,
   appointmentId: string,
@@ -456,15 +469,14 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       return { ...enc, soap: [created, ...enc.soap] };
     }),
 
-  applySoapTemplate: (appointmentId, template) =>
+  applySoapTemplate: (appointmentId, template, options) =>
     patchEnc(set, appointmentId, (enc) => {
       const content = template.content ?? {};
       const isCustom = Boolean(template.customSchema?.length);
+      const replaceContent = options?.replaceContent ?? false;
       // Only prefill a field the template actually carries content for, and never
       // clobber text the clinician has already typed in that field. This makes
       // selecting a YC-default template hydrate empty S/O/A/P sections without losing edits.
-      const prefill = (current: string, value?: string): string =>
-        value && isRichTextEmpty(current) ? value : current;
       const provenance = {
         templateId: template.id,
         templateVersionId: template.versionId,
@@ -492,11 +504,15 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
               templateVersion: template.version ?? existing.templateVersion,
               customSchema: undefined,
               customAnswers: undefined,
-              chiefComplaint: prefill(existing.chiefComplaint, content.chiefComplaint),
-              subjective: prefill(existing.subjective, content.subjective),
-              objective: prefill(existing.objective, content.objective),
-              assessment: prefill(existing.assessment, content.assessment),
-              plan: prefill(existing.plan, content.plan),
+              chiefComplaint: prefillingValue(
+                existing.chiefComplaint,
+                content.chiefComplaint,
+                replaceContent
+              ),
+              subjective: prefillingValue(existing.subjective, content.subjective, replaceContent),
+              objective: prefillingValue(existing.objective, content.objective, replaceContent),
+              assessment: prefillingValue(existing.assessment, content.assessment, replaceContent),
+              plan: prefillingValue(existing.plan, content.plan, replaceContent),
             };
         return { ...enc, soap };
       }

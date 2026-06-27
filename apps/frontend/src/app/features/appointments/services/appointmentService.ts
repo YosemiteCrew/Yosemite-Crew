@@ -71,7 +71,12 @@ type CalendarPrefillResolutionResponse = {
 };
 
 const normalizeLeadId = (value?: string | null) => {
-  const trimmed = String(value ?? '').trim();
+  const trimmed =
+    String(value ?? '')
+      .trim()
+      .split('/')
+      .pop()
+      ?.trim() ?? '';
   if (!trimmed) return '';
   const lowered = trimmed.toLowerCase();
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
@@ -184,7 +189,7 @@ export const createAppointment = async (appointment: Appointment) => {
     const fhirAppointment = toAppointmentResponseDTO(withCanonicalPatient(payload));
     const res = await postData<{
       data: { appointment: AppointmentResponseDTO };
-    }>('/fhir/v1/appointment/pms?createPayment=true', fhirAppointment);
+    }>('/fhir/v1/appointment/pms', fhirAppointment);
     return upsertFromResponse(res);
   } catch (err) {
     console.error('Failed to create appointment:', err);

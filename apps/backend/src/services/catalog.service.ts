@@ -1873,8 +1873,16 @@ export const CatalogService = {
       });
     }
 
+    const shouldAutoUpdateCode =
+      input.code === undefined &&
+      input.kind !== undefined &&
+      input.kind !== existing.kind;
     const nextCode =
-      input.code === undefined ? existing.code : optionalSafeString(input.code);
+      input.code === undefined
+        ? shouldAutoUpdateCode
+          ? null
+          : existing.code
+        : optionalSafeString(input.code);
     const resolvedCode =
       nextCode ?? (await generateProductCode(nextOrganisationId, nextKind));
     await ensureCodeUniqueness({

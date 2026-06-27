@@ -3,16 +3,13 @@ import {
   ActivityIndicator,
   Image,
   Keyboard,
-  Modal,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import {WebView} from 'react-native-webview';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -134,14 +131,6 @@ const getMerckSubtopicPillColors = (label: string): MerckPillColors => {
   if (normalized.includes('diagnosis')) return MERCK_PILL_COLORS.diagnosis;
   if (normalized.includes('treatment')) return MERCK_PILL_COLORS.treatment;
   return pickPillColorFromLabel(normalized || 'default');
-};
-
-const isReaderNavigationAllowed = (url: string): boolean => {
-  const value = String(url ?? '').trim();
-  if (!value || value === 'about:blank') {
-    return true;
-  }
-  return isAllowedMerckUrl(value);
 };
 
 type MerckStyles = ReturnType<typeof createStyles>;
@@ -322,116 +311,6 @@ const MerckResultsSection: React.FC<MerckResultsSectionProps> = ({
   );
 };
 
-type MerckReaderModalProps = {
-  visible: boolean;
-  readerLoading: boolean;
-  readerTitle: string;
-  readerUrl: string | null;
-  styles: MerckStyles;
-  closeReader: () => void;
-  handleReaderNavigation: (request: {url?: string}) => boolean;
-  setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  setError: React.Dispatch<React.SetStateAction<string | null>>;
-};
-
-const MerckReaderModal: React.FC<MerckReaderModalProps> = ({
-  visible,
-  readerLoading,
-  readerTitle,
-  readerUrl,
-  styles,
-  closeReader,
-  handleReaderNavigation,
-  setReaderLoading,
-  setError,
-}) => {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      presentationStyle="overFullScreen"
-      onRequestClose={closeReader}>
-      <View
-        style={[
-          styles.readerBackdrop,
-          {
-            paddingTop: insets.top + 12,
-            paddingBottom: insets.bottom + 12,
-            paddingLeft: insets.left + 12,
-            paddingRight: insets.right + 12,
-          },
-        ]}>
-        <View style={styles.readerShell}>
-          <View style={styles.readerHeader}>
-            <Text style={styles.readerTitle} numberOfLines={1}>
-              {readerTitle}
-            </Text>
-            <TouchableOpacity
-              style={styles.readerCloseButton}
-              onPress={closeReader}
-              accessibilityRole="button"
-              accessibilityLabel="Close MSD Veterinary Manual reader">
-              <Image source={Images.closeIcon} style={styles.readerCloseIcon} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.readerBody}>
-            {readerLoading ? (
-              <View style={styles.readerLoaderOverlay}>
-                <Image
-                  source={Images.yosemiteLoader}
-                  style={styles.readerLoaderGif}
-                />
-                <Text style={styles.readerLoaderText}>Loading manual...</Text>
-              </View>
-            ) : null}
-            {readerUrl ? (
-              <WebView
-                testID="merck-reader-webview"
-                source={{uri: readerUrl}}
-                originWhitelist={['https://*']}
-                startInLoadingState={false}
-                javaScriptEnabled
-                javaScriptCanOpenWindowsAutomatically={false}
-                domStorageEnabled
-                thirdPartyCookiesEnabled={false}
-                sharedCookiesEnabled={false}
-                setSupportMultipleWindows={false}
-                geolocationEnabled={false}
-                allowFileAccess={false}
-                allowFileAccessFromFileURLs={false}
-                allowUniversalAccessFromFileURLs={false}
-                mixedContentMode="never"
-                allowsLinkPreview={false}
-                mediaPlaybackRequiresUserAction
-                incognito
-                onShouldStartLoadWithRequest={handleReaderNavigation}
-                onLoadStart={() => setReaderLoading(true)}
-                onLoadEnd={() => setReaderLoading(false)}
-                onError={() => {
-                  setReaderLoading(false);
-                  setError(
-                    'Unable to open this MSD Veterinary Manual page right now.',
-                  );
-                }}
-                onHttpError={() => {
-                  setReaderLoading(false);
-                  setError(
-                    'Unable to load this MSD Veterinary Manual page right now.',
-                  );
-                }}
-              />
-            ) : null}
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
 type MerckSearchControllerArgs = {
   organisationId?: string | null;
   compact: boolean;
@@ -439,7 +318,7 @@ type MerckSearchControllerArgs = {
   initialEntries: MerckEntry[];
   initialLanguage: MerckLanguage;
   initialHasSearched: boolean;
-  onOpenFullSearch?: MerckSearchWidgetProps['onOpenFullSearch'];
+  onOpenFullSearch: MerckSearchWidgetProps['onOpenFullSearch'];
 };
 
 const useMerckSearchController = ({
@@ -459,11 +338,6 @@ const useMerckSearchController = ({
   const [entries, setEntries] = React.useState<MerckEntry[]>(initialEntries);
   const [hasSearched, setHasSearched] = React.useState(initialHasSearched);
   const [refineOpen, setRefineOpen] = React.useState(false);
-
-  const [readerOpen, setReaderOpen] = React.useState(false);
-  const [readerLoading, setReaderLoading] = React.useState(false);
-  const [readerUrl, setReaderUrl] = React.useState<string | null>(null);
-  const [readerTitle, setReaderTitle] = React.useState('MSD Veterinary Manual');
 
   React.useEffect(() => {
     setQuery(initialQuery);
@@ -539,39 +413,18 @@ const useMerckSearchController = ({
     }
   }, [language, organisationId, query]);
 
-  const closeReader = React.useCallback(() => {
-    setReaderOpen(false);
-    setReaderLoading(false);
-    setReaderUrl(null);
-  }, []);
-
-  const openInReader = React.useCallback((url: string, manualTitle: string) => {
-    if (!isAllowedMerckUrl(url)) {
-      setError(
-        'Blocked URL: only MSD Veterinary Manual consumer links are allowed.',
-      );
-      return;
-    }
-
-    setReaderTitle(
-      sanitizeTextForDisplay(manualTitle) || 'MSD Veterinary Manual',
-    );
-    setReaderUrl(url);
-    setReaderLoading(true);
-    setReaderOpen(true);
-  }, []);
-
-  const handleReaderNavigation = React.useCallback(
-    (request: {url?: string}) => {
-      const targetUrl = String(request?.url ?? '');
-      if (isReaderNavigationAllowed(targetUrl)) {
-        return true;
+  const openInReader = React.useCallback(
+    (url: string, _manualTitle: string) => {
+      if (!isAllowedMerckUrl(url)) {
+        setError(
+          'Blocked URL: only MSD Veterinary Manual consumer links are allowed.',
+        );
+        return;
       }
 
-      setError(
-        'Blocked URL: only MSD Veterinary Manual consumer links are allowed.',
-      );
-      return false;
+      Linking.openURL(url).catch(() => {
+        setError('Unable to open this MSD Veterinary Manual page right now.');
+      });
     },
     [],
   );
@@ -608,15 +461,8 @@ const useMerckSearchController = ({
     setHasSearched,
     refineOpen,
     setRefineOpen,
-    readerOpen,
-    readerLoading,
-    setReaderLoading,
-    readerUrl,
-    readerTitle,
     executeSearch,
-    closeReader,
     openInReader,
-    handleReaderNavigation,
     visibleEntries,
     showNoResultsState,
     showIdleState,
@@ -630,7 +476,7 @@ type MerckSearchWidgetViewProps = {
   description: string;
   compact: boolean;
   testID: string;
-  onOpenFullSearch?: MerckSearchWidgetProps['onOpenFullSearch'];
+  onOpenFullSearch: MerckSearchWidgetProps['onOpenFullSearch'];
   theme: any;
   styles: MerckStyles;
   controller: ReturnType<typeof useMerckSearchController>;
@@ -948,19 +794,11 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
     setLanguage,
     loading,
     error,
-    setError,
     setHasSearched,
     refineOpen,
     setRefineOpen,
-    readerOpen,
-    readerLoading,
-    setReaderLoading,
-    readerUrl,
-    readerTitle,
     executeSearch,
-    closeReader,
     openInReader,
-    handleReaderNavigation,
     visibleEntries,
     showNoResultsState,
     showIdleState,
@@ -1099,20 +937,6 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
     </View>
   );
 
-  const readerModal = (
-    <MerckReaderModal
-      visible={readerOpen}
-      readerLoading={readerLoading}
-      readerTitle={readerTitle}
-      readerUrl={readerUrl}
-      styles={styles}
-      closeReader={closeReader}
-      handleReaderNavigation={handleReaderNavigation}
-      setReaderLoading={setReaderLoading}
-      setError={setError}
-    />
-  );
-
   if (compact) {
     return (
       <View
@@ -1122,16 +946,12 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
           styles.compactContainerPlain,
         ]}>
         {compactContent}
-        {readerModal}
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, styles.fullContainer]}>
-      {fullContent}
-      {readerModal}
-    </View>
+    <View style={[styles.container, styles.fullContainer]}>{fullContent}</View>
   );
 };
 

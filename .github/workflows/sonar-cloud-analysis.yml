@@ -156,26 +156,10 @@ jobs:
 
       - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
 
-      # On PRs the frontend coverage is already produced by frontend-quality.yml
-      # (which runs for every PR, forks included). Reuse that lcov here instead of
-      # running the full frontend suite a second time — this was the bulk of the
-      # ~13 min. If the artifact is missing we fall back to running tests below.
-      - name: Reuse frontend coverage from Frontend Quality (PRs)
-        id: fe-lcov
-        if: matrix.app == 'frontend' && github.event_name == 'pull_request'
-        continue-on-error: true
-        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
-        with:
-          workflow: frontend-quality.yml
-          commit: ${{ github.event.pull_request.head.sha }}
-          name: frontend-lcov
-          path: ${{ matrix.dir }}/coverage
-
       # Per-app Jest transform cache. Keyed without github.sha so it actually
       # restores across commits (the previous backend-only key never hit on the
       # frontend leg, so every frontend Sonar run recompiled from cold).
       - name: Per-app Jest transform cache
-        if: steps.fe-lcov.outcome != 'success'
         uses: actions/cache@v4
         with:
           path: ${{ matrix.dir }}/.jest-cache
@@ -197,9 +181,7 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: pnpm prisma:generate
 
-      # Skipped for the frontend leg when the shared lcov was reused above.
       - name: Run tests with coverage
-        if: steps.fe-lcov.outcome != 'success'
         working-directory: ${{ matrix.dir }}
         run: pnpm run test --coverage --ci --maxWorkers=4 --cacheDirectory=.jest-cache
 

@@ -63,6 +63,7 @@ import {
   UI_FEATURE_FLAGS,
   DEVELOPMENT_API_BASE_URL,
 } from '@/config/variables';
+import {setResolvedStripePublishableKey} from '@/config/stripeKeyRegistry';
 import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
 import {DEMO_API_MODE_KEY} from '@/features/auth/sessionManager';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
@@ -199,11 +200,11 @@ function mobileConfigReducer(
   }
 }
 
-// const noop = () => {};
-// console.log = noop;
-// console.info = noop;
-// console.debug = noop;
-// console.trace = noop;
+const noop = () => {};
+console.log = noop;
+console.info = noop;
+console.debug = noop;
+console.trace = noop;
 
 const PERSIST_GATE_LOADING = <CustomSplashScreen onAnimationEnd={() => {}} />;
 
@@ -458,6 +459,9 @@ function App(): React.JSX.Element {
       console.warn(
         '[Stripe] Missing publishableKey from mobile config API and local config.',
       );
+    }
+    if (resolvedPublishableKey) {
+      setResolvedStripePublishableKey(resolvedPublishableKey);
     }
   }, [isConfigLoading, resolvedPublishableKey]);
 

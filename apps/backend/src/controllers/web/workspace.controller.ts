@@ -4,6 +4,7 @@ import {
   WorkspaceService,
   WorkspaceServiceError,
 } from "src/services/workspace.prisma.service";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { WorkspaceDocumentPacketService } from "src/services/workspace-document-packet.service";
 import logger from "src/utils/logger";
 import { resolveUserIdFromRequest } from "src/utils/request";
@@ -16,6 +17,10 @@ const appointmentParamsSchema = z.object({
 
 const encounterParamsSchema = z.object({
   organisationId: z.string().min(1),
+  encounterId: z.string().min(1),
+});
+
+const mobileEncounterParamsSchema = z.object({
   encounterId: z.string().min(1),
 });
 
@@ -196,6 +201,39 @@ export const WorkspaceController = {
         params.organisationId,
         params.encounterId,
       );
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="clinical-packet-${params.encounterId}.pdf"`,
+      );
+      return res.status(200).send(pdf);
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async getMobileEncounterDocumentPacketPdf(req: Request, res: Response) {
+    try {
+      const params = mobileEncounterParamsSchema.parse(req.params);
+      const authUserId = resolveUserIdFromRequest(req);
+
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated." });
+      }
+
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+      const parentId = authUser?.parentId?.toString();
+
+      if (!parentId) {
+        return res.status(403).json({ message: "Parent profile not found." });
+      }
+
+      const pdf =
+        await WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent(
+          parentId,
+          params.encounterId,
+        );
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",

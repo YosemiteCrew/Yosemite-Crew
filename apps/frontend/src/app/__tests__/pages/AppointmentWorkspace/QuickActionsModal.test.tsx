@@ -326,16 +326,32 @@ describe('RecordPanel', () => {
   it('records a new vital and lists it', async () => {
     render(<RecordPanel appointmentId={APPT} organisationId="org-1" encounterId="enc-1" />);
     fireEvent.click(screen.getByRole('button', { name: /new vital/i }));
+    fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '55' } });
+    fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '101' } });
     fireEvent.change(screen.getByLabelText('Heart rate'), { target: { value: '88' } });
-    fireEvent.change(screen.getByLabelText('Weight'), { target: { value: 'abc' } });
+    fireEvent.change(screen.getByLabelText('Respiratory rate'), { target: { value: '22' } });
+    fireEvent.change(screen.getByLabelText('Pain score'), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText('BCS'), { target: { value: '5' } });
     fireEvent.click(screen.getByRole('button', { name: /save vitals/i }));
 
     await waitFor(() => expect(saveVitalRecord).toHaveBeenCalled());
     const vitals = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!.vitals;
     expect(vitals[0].heartRateBpm).toBe(88);
-    // Non-numeric weight parses to undefined.
-    expect(vitals[0].weightLbs).toBeUndefined();
+    expect(vitals[0].weightLbs).toBe(55);
     expect(screen.getByText('VT-001')).toBeInTheDocument();
+  });
+
+  it('blocks save when numeric vitals are out of range or invalid', () => {
+    render(<RecordPanel appointmentId={APPT} organisationId="org-1" encounterId="enc-1" />);
+    fireEvent.click(screen.getByRole('button', { name: /new vital/i }));
+    fireEvent.change(screen.getByLabelText('Pain score'), { target: { value: '11' } });
+    fireEvent.change(screen.getByLabelText('BCS'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: /save vitals/i }));
+
+    expect(saveVitalRecord).not.toHaveBeenCalled();
+    expect(screen.getByText('Pain score must be 10 or less.')).toBeInTheDocument();
+    expect(screen.getByText('BCS must be at least 1.')).toBeInTheDocument();
+    expect(screen.getByText(/please fix the highlighted vitals fields/i)).toBeInTheDocument();
   });
 
   it('loads a custom vitals template before recording values', async () => {
@@ -371,6 +387,35 @@ describe('RecordPanel', () => {
     expect(screen.queryByLabelText('Heart rate')).not.toBeInTheDocument();
   });
 
+  it('keeps mucous membrane as plain text without a suffix unit', async () => {
+    (listVitalsTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-vitals-2',
+        name: 'Clinical vitals',
+        schemaSnapshot: {
+          sections: [
+            {
+              id: 'vitals',
+              title: 'Vitals',
+              fields: [{ key: 'mucousMembrane', label: 'Mucous membrane', rules: { unit: 'mm' } }],
+            },
+          ],
+        },
+      },
+    ]);
+    await act(async () => {
+      render(<RecordPanel appointmentId={APPT} organisationId="org-1" encounterId="enc-1" />);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /new vital/i }));
+    fireEvent.change(screen.getByLabelText(/search vitals templates/i), {
+      target: { value: 'clinical' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /clinical vitals/i }));
+
+    const mucousLabel = screen.getByText('Mucous membrane');
+    expect(mucousLabel.parentElement).not.toHaveTextContent('mm');
+  });
+
   it('discards a draft vital without recording', () => {
     render(<RecordPanel appointmentId={APPT} organisationId="org-1" encounterId="enc-1" />);
     fireEvent.click(screen.getByRole('button', { name: /new vital/i }));
@@ -382,7 +427,12 @@ describe('RecordPanel', () => {
   it('expands a recorded vital to show details', async () => {
     render(<RecordPanel appointmentId={APPT} organisationId="org-1" encounterId="enc-1" />);
     fireEvent.click(screen.getByRole('button', { name: /new vital/i }));
+    fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '60' } });
     fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '101' } });
+    fireEvent.change(screen.getByLabelText('Heart rate'), { target: { value: '90' } });
+    fireEvent.change(screen.getByLabelText('Respiratory rate'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('Pain score'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('BCS'), { target: { value: '6' } });
     fireEvent.click(screen.getByRole('button', { name: /save vitals/i }));
     await waitFor(() => expect(saveVitalRecord).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: /view vt-001/i }));

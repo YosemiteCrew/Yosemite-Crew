@@ -7,6 +7,7 @@ import {
   getAllowedAppointmentStatusTransitions,
   getClinicalNotesIntent,
   getClinicalNotesLabel,
+  isRequestedLikeStatus,
   toStatusLabel,
 } from '@/app/lib/appointments';
 import {
@@ -124,7 +125,10 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
   const clinicalNotesLabel = getClinicalNotesLabel(orgType);
   const clinicalNotesIntent = getClinicalNotesIntent(orgType);
   const statusOptions = useMemo(
-    () => getAllowedAppointmentStatusTransitions(appointment.status),
+    () =>
+      isRequestedLikeStatus(appointment.status)
+        ? []
+        : getAllowedAppointmentStatusTransitions(appointment.status),
     [appointment.status]
   );
 

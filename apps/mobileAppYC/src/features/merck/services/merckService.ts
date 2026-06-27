@@ -236,6 +236,10 @@ const toMerckEntryFromRawAtom = (
 const asAllowedUrl = (value: string): string | null => {
   try {
     const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') {
+      return null;
+    }
+
     const host = parsed.hostname.toLowerCase();
     const isAllowed =
       ALLOWED_MERCK_HOSTS.has(host) ||

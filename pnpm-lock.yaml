@@ -687,7 +687,7 @@ importers:
         version: 2.11.2(react-redux@9.2.0)(react@19.1.0)
       '@stripe/stripe-react-native':
         specifier: ^0.57.0
-        version: 0.57.3(react-native-webview@13.16.0)(react-native@0.81.4)(react@19.1.0)
+        version: 0.57.3(react-native@0.81.4)(react@19.1.0)
       '@yosemite-crew/fhir':
         specifier: workspace:*
         version: link:../../packages/fhir
@@ -820,9 +820,6 @@ importers:
       react-native-video:
         specifier: ^6.17.0
         version: 6.19.0(react-native@0.81.4)(react@19.1.0)
-      react-native-webview:
-        specifier: ^13.16.0
-        version: 13.16.0(react-native@0.81.4)(react@19.1.0)
       react-native-worklets:
         specifier: ^0.7.0
         version: 0.7.4(@babel/core@7.29.0)(react-native@0.81.4)(react@19.1.0)
@@ -18161,7 +18158,7 @@ packages:
       react-dom: 19.2.4(react@19.2.4)
     dev: false
 
-  /@stripe/stripe-react-native@0.57.3(react-native-webview@13.16.0)(react-native@0.81.4)(react@19.1.0):
+  /@stripe/stripe-react-native@0.57.3(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-aV85B/9e8o5O2Eo3O/K3jaS1z5uOtaEcLg9hvLjsdKw0276DoT+072Lhv1DxMDaPAunoTm7KF9SwQhiEJSi1aw==}
     peerDependencies:
       expo: '>=46.0.9'
@@ -18176,7 +18173,6 @@ packages:
     dependencies:
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.29.0)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-      react-native-webview: 13.16.0(react-native@0.81.4)(react@19.1.0)
     dev: false
 
   /@svgr/babel-plugin-add-jsx-attribute@8.0.0(@babel/core@7.29.0):
@@ -34955,18 +34951,6 @@ packages:
       react: '*'
       react-native: '*'
     dependencies:
-      react: 19.1.0
-      react-native: 0.81.4(@babel/core@7.29.0)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-    dev: false
-
-  /react-native-webview@13.16.0(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-Nh13xKZWW35C0dbOskD7OX01nQQavOzHbCw9XoZmar4eXCo7AvrYJ0jlUfRVVIJzqINxHlpECYLdmAdFsl9xDA==}
-    peerDependencies:
-      react: '*'
-      react-native: '*'
-    dependencies:
-      escape-string-regexp: 4.0.0
-      invariant: 2.2.4
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.29.0)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
     dev: false

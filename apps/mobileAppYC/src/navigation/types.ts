@@ -89,7 +89,10 @@ export type DocumentStackParamList = {
   DocumentsMain: undefined;
   AddDocument: undefined;
   EditDocument: {documentId: string};
-  DocumentPreview: {documentId: string};
+  DocumentPreview: {
+    documentId: string;
+    initialDocument?: import('@/features/documents/types').Document;
+  };
   CategoryDetail: {categoryId: string};
   DocumentSearch: undefined;
 };

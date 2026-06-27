@@ -242,7 +242,7 @@ describe('CompanionHistoryTimeline', () => {
       expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical records' }));
 
     await waitFor(() => {
       expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe('CompanionHistoryTimeline', () => {
       expect(screen.getByText('Consult')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical records' }));
 
     await waitFor(() => {
       expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
@@ -339,7 +339,7 @@ describe('CompanionHistoryTimeline', () => {
 
     expect(screen.queryByText('history-document-upload-c-1')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical records' }));
 
     await waitFor(() => {
       expect(screen.getByText('history-document-upload-c-1')).toBeInTheDocument();
@@ -427,7 +427,7 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Medical Records' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Medical records' })).toBeInTheDocument();
     });
   });
 
@@ -501,7 +501,7 @@ describe('CompanionHistoryTimeline', () => {
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical records' }));
 
     const openFile = await screen.findByRole('button', { name: 'Open file' });
     fireEvent.click(openFile);
@@ -532,7 +532,7 @@ describe('CompanionHistoryTimeline', () => {
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical records' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open submission' }));
 
     expect(await screen.findByText('Heart rate')).toBeInTheDocument();
@@ -553,7 +553,7 @@ describe('CompanionHistoryTimeline', () => {
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical records' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open file' }));
 
     expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(

@@ -31,6 +31,9 @@ type Field = {
   key: keyof DraftVitals;
   label: string;
   unit: string;
+  inputMode?: 'text' | 'numeric' | 'decimal';
+  min?: number;
+  max?: number;
 };
 
 type DraftVitals = {
@@ -56,14 +59,49 @@ const EMPTY_DRAFT: DraftVitals = {
 };
 
 const FIELD_FALLBACKS: Record<keyof DraftVitals, Field> = {
-  weightLbs: { key: 'weightLbs', label: 'Weight', unit: 'lbs' },
-  tempF: { key: 'tempF', label: 'Temperature', unit: '°F' },
-  heartRateBpm: { key: 'heartRateBpm', label: 'Heart rate', unit: 'bpm' },
-  respRateBpm: { key: 'respRateBpm', label: 'Respiratory rate', unit: 'bpm' },
-  crtSec: { key: 'crtSec', label: 'CRT', unit: 'sec' },
-  mucousMembrane: { key: 'mucousMembrane', label: 'Mucous membrane', unit: '' },
-  painScore: { key: 'painScore', label: 'Pain score', unit: '/ 10' },
-  bcs: { key: 'bcs', label: 'BCS', unit: '/ 9' },
+  weightLbs: {
+    key: 'weightLbs',
+    label: 'Weight',
+    unit: 'lbs',
+    inputMode: 'decimal',
+    min: 0,
+    max: 2000,
+  },
+  tempF: {
+    key: 'tempF',
+    label: 'Temperature',
+    unit: '°F',
+    inputMode: 'decimal',
+    min: 80,
+    max: 110,
+  },
+  heartRateBpm: {
+    key: 'heartRateBpm',
+    label: 'Heart rate',
+    unit: 'bpm',
+    inputMode: 'numeric',
+    min: 0,
+    max: 300,
+  },
+  respRateBpm: {
+    key: 'respRateBpm',
+    label: 'Respiratory rate',
+    unit: 'bpm',
+    inputMode: 'numeric',
+    min: 0,
+    max: 150,
+  },
+  crtSec: { key: 'crtSec', label: 'CRT', unit: 'sec', inputMode: 'text' },
+  mucousMembrane: { key: 'mucousMembrane', label: 'Mucous membrane', unit: '', inputMode: 'text' },
+  painScore: {
+    key: 'painScore',
+    label: 'Pain score',
+    unit: '/ 10',
+    inputMode: 'numeric',
+    min: 0,
+    max: 10,
+  },
+  bcs: { key: 'bcs', label: 'BCS', unit: '/ 9', inputMode: 'numeric', min: 1, max: 9 },
 };
 
 const DEFAULT_FIELDS: Field[] = [
@@ -121,11 +159,13 @@ const defaultVitalFieldsFromFormsSchema = (): Field[] => {
         ...FIELD_FALLBACKS[key],
         label: field.label || FIELD_FALLBACKS[key].label,
         unit:
-          typeof field.meta === 'object' &&
-          field.meta !== null &&
-          typeof (field.meta as { unit?: unknown }).unit === 'string'
-            ? (field.meta as { unit: string }).unit
-            : FIELD_FALLBACKS[key].unit,
+          key === 'mucousMembrane'
+            ? ''
+            : typeof field.meta === 'object' &&
+                field.meta !== null &&
+                typeof (field.meta as { unit?: unknown }).unit === 'string'
+              ? (field.meta as { unit: string }).unit
+              : FIELD_FALLBACKS[key].unit,
       },
     ];
   });
@@ -143,11 +183,13 @@ const templateToVitalFields = (template: TemplateLike): Field[] => {
         ...FIELD_FALLBACKS[key],
         label: field.label || FIELD_FALLBACKS[key].label,
         unit:
-          typeof field.rules === 'object' &&
-          field.rules !== null &&
-          typeof (field.rules as { unit?: unknown }).unit === 'string'
-            ? (field.rules as { unit: string }).unit
-            : FIELD_FALLBACKS[key].unit,
+          key === 'mucousMembrane'
+            ? ''
+            : typeof field.rules === 'object' &&
+                field.rules !== null &&
+                typeof (field.rules as { unit?: unknown }).unit === 'string'
+              ? (field.rules as { unit: string }).unit
+              : FIELD_FALLBACKS[key].unit,
       },
     ];
   });
@@ -167,14 +209,18 @@ const VitalsField = ({
     <span className="text-[12px] font-medium text-neutral-700">{field.label}</span>
     <span className="flex items-stretch overflow-hidden rounded-2xl border border-input-border-default focus-within:border-input-border-active">
       <input
+        type="text"
+        inputMode={field.inputMode ?? 'text'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={field.label}
         className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-body-4 text-text-primary outline-none"
       />
-      <span className="flex items-center bg-neutral-100 px-3 text-body-4 text-neutral-700">
-        {field.unit}
-      </span>
+      {field.unit ? (
+        <span className="flex items-center bg-neutral-100 px-3 text-body-4 text-neutral-700">
+          {field.unit}
+        </span>
+      ) : null}
     </span>
   </label>
 );
@@ -184,6 +230,32 @@ const parseNumber = (value: string): number | undefined => {
   if (!trimmed) return undefined;
   const parsed = Number(trimmed);
   return Number.isNaN(parsed) ? undefined : parsed;
+};
+
+const FIELD_LIMITS: Partial<Record<keyof DraftVitals, { min?: number; max?: number }>> = {
+  weightLbs: { min: 0, max: 2000 },
+  tempF: { min: 80, max: 110 },
+  heartRateBpm: { min: 0, max: 300 },
+  respRateBpm: { min: 0, max: 150 },
+  painScore: { min: 0, max: 10 },
+  bcs: { min: 1, max: 9 },
+};
+
+const validateNumericField = (
+  label: string,
+  rawValue: string,
+  bounds?: { min?: number; max?: number }
+) => {
+  if (!rawValue.trim()) return `${label} is required.`;
+  const value = parseNumber(rawValue);
+  if (value === undefined) return `${label} must be a number.`;
+  if (bounds?.min !== undefined && value < bounds.min) {
+    return `${label} must be at least ${bounds.min}.`;
+  }
+  if (bounds?.max !== undefined && value > bounds.max) {
+    return `${label} must be ${bounds.max} or less.`;
+  }
+  return null;
 };
 
 const VitalRow = ({
@@ -223,7 +295,7 @@ const VitalRow = ({
       </div>
       {open && (
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-2xl border border-card-border p-3 text-body-4 text-text-primary">
-          <span>Weight: {entry.weightLbs ?? '-'} lbs</span>
+          <span>Weight: {entry.weightLbs ?? '-'} kg</span>
           <span>Temp: {entry.tempF ?? '-'} °F</span>
           <span>Heart rate: {entry.heartRateBpm ?? '-'} bpm</span>
           <span>Resp. rate: {entry.respRateBpm ?? '-'} bpm</span>
@@ -290,6 +362,7 @@ const VitalsForm = ({
   const [creating, setCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof DraftVitals, string>>>({});
 
   useEffect(() => {
     if (recorder || recorderOptions.length === 0) return;
@@ -315,10 +388,27 @@ const VitalsForm = ({
     );
   }, [templateQuery, templateState.templates]);
 
-  const updateField = (key: keyof DraftVitals, value: string) =>
+  const updateField = (key: keyof DraftVitals, value: string) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  const validateDraft = () => {
+    const nextErrors: Partial<Record<keyof DraftVitals, string>> = {};
+    (Object.keys(FIELD_LIMITS) as Array<keyof DraftVitals>).forEach((key) => {
+      const field = FIELD_FALLBACKS[key];
+      const error = validateNumericField(field.label, draft[key], FIELD_LIMITS[key]);
+      if (error) nextErrors[key] = error;
+    });
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
   const handleSave = async () => {
+    if (!validateDraft()) {
+      setSaveError('Please fix the highlighted vitals fields.');
+      return;
+    }
     const nextVitals = {
       weightLbs: parseNumber(draft.weightLbs),
       tempF: parseNumber(draft.tempF),
@@ -423,12 +513,16 @@ const VitalsForm = ({
       </div>
       <div className="grid grid-cols-2 gap-3">
         {activeFields.map((field) => (
-          <VitalsField
-            key={field.key}
-            field={field}
-            value={draft[field.key]}
-            onChange={(value) => updateField(field.key, value)}
-          />
+          <div key={field.key} className="flex flex-col gap-1">
+            <VitalsField
+              field={field}
+              value={draft[field.key]}
+              onChange={(value) => updateField(field.key, value)}
+            />
+            {fieldErrors[field.key] ? (
+              <p className="text-caption-1 text-danger-600">{fieldErrors[field.key]}</p>
+            ) : null}
+          </div>
         ))}
       </div>
       <label className="flex flex-col gap-1">
