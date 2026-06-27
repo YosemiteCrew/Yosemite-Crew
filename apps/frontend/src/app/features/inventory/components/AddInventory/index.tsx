@@ -293,8 +293,19 @@ const AddInventory = ({
       businessType === 'HOSPITAL' &&
       String(classification.itemType ?? '').toLowerCase() !== 'non-drug';
 
-    if (isMedicalItem && !String(classification.genericName ?? '').trim()) {
-      nextErrors.genericName = 'Generic name is required';
+    if (isMedicalItem) {
+      if (!String(classification.genericName ?? '').trim()) {
+        nextErrors.genericName = 'Generic name is required';
+      }
+      if (!String(classification.strength ?? '').trim()) {
+        nextErrors.strength = 'Strength is required';
+      }
+      if (!String(classification.form ?? classification.dosageForm ?? '').trim()) {
+        nextErrors.form = 'Form is required';
+      }
+      if (!String(classification.administration ?? '').trim()) {
+        nextErrors.administration = 'Administration route is required';
+      }
     }
 
     return nextErrors;
