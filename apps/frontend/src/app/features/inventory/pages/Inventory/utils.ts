@@ -256,8 +256,10 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
       minShelfLifeAlertDate: toStringSafe(
         b.minShelfLifeAlertDate ?? attributes.minShelfLifeAlertDate
       ),
-      expiryWarningBefore: toStringSafe(attributes.expiryWarningBefore),
-      barcode: toStringSafe(attributes.barcode),
+      expiryWarningBefore: toStringSafe(
+        (b as any).expiryWarningBefore ?? attributes.expiryWarningBefore
+      ),
+      barcode: toStringSafe((b as any).barcode ?? attributes.barcode),
       quantity: toStringSafe(b.quantity),
       allocated: toStringSafe(b.allocated),
       createdAt: toStringSafe(b.createdAt),
@@ -587,9 +589,10 @@ export const buildInventoryPayload = (
     minStockAlert: formData.stock.minStockAlert,
     reorderQuantity: formData.stock.reorderQuantity,
     available: batchTotals.available ?? toNumberSafe(formData.stock.available),
-    expiryWarningBefore: firstBatch?.expiryWarningBefore,
-    barcode: firstBatch?.barcode,
-    serial: firstBatch?.serial ?? firstBatch?.barcode,
+    expiryWarningBefore:
+      formData.attributes?.expiryWarningBefore ?? firstBatch?.expiryWarningBefore,
+    barcode: formData.attributes?.barcode ?? firstBatch?.barcode,
+    serial: firstBatch?.serial ?? formData.attributes?.barcode ?? firstBatch?.barcode,
     tracking: firstBatch?.tracking,
     litterId: firstBatch?.litterId,
     nextRefillDate: firstBatch?.nextRefillDate,

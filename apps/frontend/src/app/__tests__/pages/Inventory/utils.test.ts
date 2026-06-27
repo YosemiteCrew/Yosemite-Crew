@@ -764,6 +764,29 @@ describe('Inventory Utils', () => {
         const payload = buildInventoryPayload(item, 'org-1', 'VETERINARY' as BusinessType);
         expect(payload.attributes?.available).toBe(77);
       });
+
+      it('uses inventory attributes for batch-section item attributes when present', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            attributes: {
+              expiryWarningBefore: '60 days',
+              barcode: 'NEW-BAR',
+            },
+            batch: {
+              ...mockInventoryItem.batch,
+              expiryWarningBefore: '30 days',
+              barcode: 'OLD-BAR',
+            },
+          },
+          'org-1',
+          'VETERINARY' as BusinessType
+        );
+
+        expect(payload.attributes?.expiryWarningBefore).toBe('60 days');
+        expect(payload.attributes?.barcode).toBe('NEW-BAR');
+        expect(payload.attributes?.serial).toBe('NEW-BAR');
+      });
     });
   });
 

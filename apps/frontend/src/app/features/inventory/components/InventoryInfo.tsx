@@ -29,6 +29,7 @@ import Labels from '@/app/ui/widgets/Labels/Labels';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 
 const drugOnlyBatchFieldNames = new Set(['tracking']);
+const itemAttributeBatchFieldNames: (keyof BatchValues)[] = ['expiryWarningBefore', 'barcode'];
 
 const emptyBatch: BatchValues = {
   batch: '',
@@ -163,6 +164,19 @@ const formatFinalValue = (display: string | string[]): string => {
   return '—';
 };
 
+const getBatchAttributeValues = (batches: BatchValues[]): Partial<BatchValues> =>
+  batches.reduce<Partial<BatchValues>>((acc, batch) => {
+    itemAttributeBatchFieldNames.forEach((key) => {
+      if (batch[key] !== undefined) {
+        acc[key] = batch[key];
+      }
+    });
+    return acc;
+  }, {});
+
+const hasBatchAttributeValues = (values: Partial<BatchValues>) =>
+  itemAttributeBatchFieldNames.some((key) => values[key] !== undefined);
+
 type BatchEditorProps = {
   businessType: BusinessType;
   inventory: InventoryItem;
@@ -274,6 +288,8 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
       'batch',
       'manufactureDate',
       'expiryDate',
+      'expiryWarningBefore',
+      'barcode',
       'serial',
       'tracking',
       'litterId',
@@ -708,6 +724,20 @@ const InventoryInfo = ({
       ? (values as any).updatedBatches
       : [];
     if (!activeInventory?.id) return;
+    const batchAttributeValues = getBatchAttributeValues([...updatedBatches, ...newBatches]);
+    if (hasBatchAttributeValues(batchAttributeValues)) {
+      await onUpdate({
+        ...activeInventory,
+        attributes: {
+          ...(activeInventory.attributes ?? {}),
+          ...batchAttributeValues,
+        },
+        batch: {
+          ...activeInventory.batch,
+          ...batchAttributeValues,
+        },
+      });
+    }
     if (updatedBatches.length && onUpdateBatch) {
       await onUpdateBatch(activeInventory.id, updatedBatches);
     }

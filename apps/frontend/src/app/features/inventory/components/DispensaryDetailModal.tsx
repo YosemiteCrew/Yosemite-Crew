@@ -112,7 +112,8 @@ const DispensaryDetailModal = ({
             type="button"
             onClick={() => setShowModal(false)}
             aria-label="Close"
-            className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
+            disabled={actioning}
+            className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors disabled:opacity-40"
           >
             <FiX size={18} />
           </button>
@@ -252,7 +253,7 @@ const DispensaryDetailModal = ({
                       )}
 
                       {/* Fallback for items without enriched fields */}
-                      {!hasCalc && item.prescription && (
+                      {!hasCalc && item.prescription && !item.frequency && !item.durationDays && (
                         <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1">
                           {item.prescription.freq && (
                             <>
