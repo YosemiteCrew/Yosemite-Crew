@@ -1003,10 +1003,29 @@ const syncTreatmentItemInvoice = async (row: TreatmentItemRow) => {
     return row;
   }
 
-  const invoice = await InvoiceService.findOpenInvoiceForAppointment(
-    row.appointmentId,
-    row.organisationId,
-  );
+  let invoice: { id: string } | null =
+    await InvoiceService.findOpenInvoiceForAppointment(
+      row.appointmentId,
+      row.organisationId,
+    );
+  if (!invoice) {
+    try {
+      const bootstrappedInvoice = await InvoiceService.bootstrapForAppointment(
+        row.appointmentId,
+      );
+      if (
+        bootstrappedInvoice &&
+        typeof bootstrappedInvoice.id === "string" &&
+        bootstrappedInvoice.id.trim() &&
+        ["AWAITING_PAYMENT", "PENDING"].includes(bootstrappedInvoice.status)
+      ) {
+        invoice = { id: bootstrappedInvoice.id.trim() };
+      }
+    } catch {
+      return row;
+    }
+  }
+
   if (!invoice) {
     return row;
   }

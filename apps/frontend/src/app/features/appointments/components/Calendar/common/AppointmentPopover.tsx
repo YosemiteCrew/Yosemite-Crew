@@ -120,7 +120,7 @@ const getCompanionWeightLabel = (companion: CompanionWeightSource): string => {
   }
   const numericWeight = typeof weight === 'number' ? weight : Number(weight);
   if (Number.isFinite(numericWeight) && numericWeight > 0) {
-    return `${Number.isInteger(numericWeight) ? numericWeight : numericWeight.toFixed(1)} lbs`;
+    return `${Number.isInteger(numericWeight) ? numericWeight : numericWeight.toFixed(1)} kg`;
   }
   const physicalWeight = companion.physicalAttribute?.weight?.trim();
   return physicalWeight || '';

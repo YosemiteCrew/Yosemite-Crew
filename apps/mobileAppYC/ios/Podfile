@@ -98,6 +98,13 @@ target 'mobileAppYC' do
           config.build_settings['OTHER_CFLAGS'] = '$(inherited) -Wno-error'
           config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
           config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -suppress-warnings'
+          if config.name == 'Release'
+            definitions = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+            definitions = definitions.split(' ') if definitions.is_a?(String)
+            definitions << 'NDEBUG=1' unless definitions.include?('NDEBUG=1') || definitions.include?('NDEBUG')
+            definitions << 'REACT_NATIVE_PRODUCTION=1' unless definitions.any? { |definition| definition.start_with?('REACT_NATIVE_PRODUCTION') }
+            config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = definitions
+          end
         end
       end
     end

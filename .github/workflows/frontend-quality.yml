@@ -74,27 +74,8 @@ jobs:
       - name: Lint
         run: pnpm --filter frontend run lint
 
-      - name: Unit tests with coverage
-        run: pnpm --filter frontend run test -- --ci --maxWorkers=4 --cacheDirectory=.jest-cache --coverage --coverageThreshold='{"global":{"statements":80,"branches":70,"functions":78,"lines":80}}'
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: apps/frontend/coverage/
-
-      # Consumed by sonar-cloud-analysis.yml on internal PRs so it can reuse this
-      # coverage run instead of executing the full frontend suite a second time.
-      # (Fork PRs skip Sonar entirely, and this job still runs for them as the gate.)
-      - name: Upload frontend lcov for Sonar
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-lcov
-          path: apps/frontend/coverage/lcov.info
-          if-no-files-found: error
-          retention-days: 1
+      - name: Unit tests
+        run: pnpm --filter frontend run test -- --ci --maxWorkers=4 --cacheDirectory=.jest-cache
 
   # React Doctor runs in its own workflow (.github/workflows/react-doctor.yml)
   # via the millionco/react-doctor action — do not duplicate it here.

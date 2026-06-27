@@ -33,6 +33,9 @@ describe('merckService', () => {
       isAllowedMerckUrl('https://www.msdmanuals.com/professional/topic'),
     ).toBe(false);
     expect(isAllowedMerckUrl('https://example.com/topic')).toBe(false);
+    expect(isAllowedMerckUrl('http://www.msdvetmanual.com/disease')).toBe(
+      false,
+    );
   });
 
   it('normalizes raw feed payload and keeps consumer-safe links only', () => {

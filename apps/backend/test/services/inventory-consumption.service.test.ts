@@ -210,7 +210,7 @@ describe("InventoryConsumptionService", () => {
     expect(events).toHaveLength(1);
     expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { onHand: 3, allocated: 0 },
+        data: { onHand: 3 },
       }),
     );
     expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledTimes(2);
@@ -367,14 +367,20 @@ describe("InventoryConsumptionService", () => {
         currentWeight: 12.5,
         photoUrl: "https://cdn.example/patient.png",
       },
+      appointmentKind: "INPATIENT",
     });
     mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
       {
         id: "item-1",
         sku: "sku-1",
+        name: "Amoxicillin",
         stockUnitType: "bottle",
         unitOfMeasure: "tablet",
         packageQuantity: 30,
+        sellingPrice: 12.34,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
       },
     ]);
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
@@ -399,7 +405,14 @@ describe("InventoryConsumptionService", () => {
       organisationId: "org-1",
       prescriptionId: "rx-enriched-1",
       medications: [
-        { inventoryItemId: "item-1", quantity: 2, sourceLineKey: "line-1" },
+        {
+          inventoryItemId: "item-1",
+          frequency: "BID",
+          duration: "12 days",
+          dosage: "1 Tablet",
+          refill: "2",
+          sourceLineKey: "line-1",
+        },
       ],
       metadata: { source: "finalize" },
       requestedBy: "user-1",
@@ -416,46 +429,73 @@ describe("InventoryConsumptionService", () => {
           medications: [
             expect.objectContaining({
               inventoryItemId: "item-1",
-              quantity: 2,
+              inventoryItemName: "Amoxicillin",
+              quantity: 24,
               sourceLineKey: "line-1",
+              frequency: "BID",
+              frequencyPerDay: 2,
+              durationDays: 12,
+              doseQty: 1,
+              doseUnit: "Tablet",
+              refillsRemaining: 2,
+              isRx: true,
+              isControlled: false,
               stockUnitType: "bottle",
               stockUnitQuantity: 30,
+              stockUnitQty: 30,
+              unitQuantity: 30,
+              priceCents: 1234,
             }),
           ],
           metadata: expect.objectContaining({
             source: "finalize",
+            appointmentKind: "INPATIENT",
+            dispenseStockSource: "ALLOCATED",
             petAge: expect.any(String),
             petSpecies: "Canine",
             petSex: "Male",
             petReproductiveStatus: "Neutered",
             patientImageUrl: "https://cdn.example/patient.png",
             petWeight: 12.5,
-            petWeightUnit: "lbs",
+            petWeightUnit: "kg",
           }),
         }),
       }),
     );
   });
 
-  it("approves a pending dispense request and consumes inventory", async () => {
+  it("approves an outpatient dispense request from normal stock", async () => {
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
       id: "request-approve-1",
       prescriptionId: "rx-approve-1",
       organisationId: "org-1",
       status: "PENDING",
+      medications: [
+        {
+          inventoryItemId: "item-approve-1",
+          quantity: 24,
+          stockUnitQuantity: 10,
+          stockUnitQty: 10,
+          sourceLineKey: "line-1",
+        },
+      ],
+      metadata: {
+        appointmentKind: "OUTPATIENT",
+        dispenseStockSource: "NORMAL",
+      },
     });
     mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
       id: "item-approve-1",
       organisationId: "org-1",
-      onHand: 4,
-      allocated: 0,
+      onHand: 10,
+      allocated: 4,
     });
     mockedPrisma.inventoryBatch.findMany
       .mockResolvedValueOnce([
-        { id: "batch-approve-1", quantity: 4, allocated: 0 },
+        { id: "batch-approve-1", quantity: 10, allocated: 0 },
       ])
       .mockResolvedValueOnce([
-        { id: "batch-approve-1", quantity: 2, allocated: 0 },
+        { id: "batch-approve-1", quantity: 7, allocated: 0 },
       ]);
     mockedPrisma.inventoryBatch.update.mockResolvedValue({});
     mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
@@ -476,13 +516,7 @@ describe("InventoryConsumptionService", () => {
       await InventoryConsumptionService.approvePrescriptionDispenseRequest({
         organisationId: "org-1",
         prescriptionId: "rx-approve-1",
-        medications: [
-          {
-            inventoryItemId: "item-approve-1",
-            quantity: 2,
-            sourceLineKey: "line-1",
-          },
-        ],
+        medications: [],
         reviewedBy: "user-1",
       });
 
@@ -500,7 +534,76 @@ describe("InventoryConsumptionService", () => {
     );
     expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { onHand: 2, allocated: 0 },
+        data: { onHand: 7 },
+      }),
+    );
+  });
+
+  it("approves an inpatient dispense request from allocated stock", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-approve-2",
+      prescriptionId: "rx-approve-2",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [
+        {
+          inventoryItemId: "item-approve-2",
+          quantity: 200,
+          stockUnitQuantity: 100,
+          stockUnitQty: 100,
+          frequency: "BID",
+          frequencyPerDay: 2,
+          durationDays: 20,
+          doseQty: 5,
+          doseUnit: "ml",
+          sourceLineKey: "line-1",
+        },
+      ],
+      metadata: {
+        appointmentKind: "INPATIENT",
+        dispenseStockSource: "ALLOCATED",
+      },
+    });
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-approve-2",
+      organisationId: "org-1",
+      onHand: 5,
+      allocated: 5,
+    });
+    mockedPrisma.inventoryBatch.findMany
+      .mockResolvedValueOnce([
+        { id: "batch-approve-2", quantity: 5, allocated: 0 },
+      ])
+      .mockResolvedValueOnce([
+        { id: "batch-approve-2", quantity: 3, allocated: 0 },
+      ]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-approve-2",
+    });
+    mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({
+      id: "request-approve-2",
+      prescriptionId: "rx-approve-2",
+      organisationId: "org-1",
+      status: "DISPENSED",
+      reviewedBy: "user-1",
+      reviewedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    const events =
+      await InventoryConsumptionService.approvePrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-approve-2",
+        medications: [],
+        reviewedBy: "user-1",
+      });
+
+    expect(events).toHaveLength(1);
+    expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { onHand: 3, allocated: 3 },
       }),
     );
   });
@@ -890,7 +993,7 @@ describe("InventoryConsumptionService", () => {
     );
     expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { onHand: 8, allocated: 0 },
+        data: { onHand: 8 },
       }),
     );
     expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledWith(

@@ -49,7 +49,6 @@ import {
 } from '@/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
-import {convertWeight} from '@/shared/utils/measurementSystem';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -156,14 +155,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           ageString = age > 0 ? `${age}Y` : null;
         }
 
-        // Convert weight from kg (storage) to user's preferred unit
         let weightDisplay: string | null = null;
         if (companion.currentWeight) {
-          let weight = companion.currentWeight;
-          if (weightUnit === 'lbs') {
-            weight = convertWeight(weight, 'kg', 'lbs');
-          }
-          weightDisplay = `${weight.toFixed(1)} ${weightUnit}`;
+          weightDisplay = `${companion.currentWeight.toFixed(1)} ${weightUnit}`;
         }
 
         // Dynamically build the subtitle

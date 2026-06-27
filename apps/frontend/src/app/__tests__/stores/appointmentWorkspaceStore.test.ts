@@ -252,6 +252,22 @@ describe('appointmentWorkspaceStore', () => {
     expect(draft?.plan).toBe('<p>template plan</p>');
   });
 
+  it('replaces typed SOAP content when explicitly requested', () => {
+    seed();
+    getStore().upsertSoap(APPT, { subjective: '<p>clinician typed</p>' });
+    const tpl = {
+      id: 'tpl-content',
+      name: 'Wellness',
+      content: { subjective: '<p>template</p>', plan: '<p>template plan</p>' },
+    };
+    getStore().applySoapTemplate(APPT, tpl, { replaceContent: true });
+    const draft = getStore()
+      .getEncounter(APPT)!
+      .soap.find((n) => n.status !== 'COMPLETED');
+    expect(draft?.subjective).toBe('<p>template</p>');
+    expect(draft?.plan).toBe('<p>template plan</p>');
+  });
+
   it('applies and merges backend section locks and capabilities', () => {
     seed();
     getStore().applyWorkspaceLocks(

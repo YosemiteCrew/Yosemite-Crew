@@ -289,10 +289,7 @@ describe('Appointment Service', () => {
       expect(mockedToAppointmentDTO).toHaveBeenCalledWith(
         expect.objectContaining({ organisationId: 'org-123' })
       );
-      expect(mockedPostData).toHaveBeenCalledWith(
-        '/fhir/v1/appointment/pms?createPayment=true',
-        fhirPayload
-      );
+      expect(mockedPostData).toHaveBeenCalledWith('/fhir/v1/appointment/pms', fhirPayload);
       expect(mockedFromAppointmentDTO).toHaveBeenCalledWith(returnedDTO);
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
     });
@@ -756,7 +753,9 @@ describe('Appointment Service', () => {
       (useTeamStore.getState as jest.Mock).mockReturnValue({
         getTeamsByOrgId: jest
           .fn()
-          .mockReturnValue([{ _id: 'team-1', practionerId: 'user-1', name: 'Dr Pat' }]),
+          .mockReturnValue([
+            { _id: 'team-1', practionerId: 'Practitioner/user-1', name: 'Dr Pat' },
+          ]),
       });
 
       mockedToAppointmentDTO.mockReturnValue({ fhir: 'accept-auto' });

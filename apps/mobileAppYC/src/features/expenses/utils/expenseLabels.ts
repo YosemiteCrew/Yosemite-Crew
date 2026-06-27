@@ -8,19 +8,37 @@ const CATEGORY_LABEL_MAP = DOCUMENT_CATEGORIES.reduce<Record<string, string>>(
   {},
 );
 
-const SUBCATEGORY_LABEL_MAP = DOCUMENT_CATEGORIES.reduce<
-  Record<string, Record<string, string>>
->((accumulator, category) => {
-  const map = category.subcategories.reduce<Record<string, string>>(
-    (subAccumulator, subcategory) => {
-      subAccumulator[subcategory.id] = subcategory.label;
-      return subAccumulator;
-    },
-    {},
-  );
-  accumulator[category.id] = map;
-  return accumulator;
-}, {});
+const SUBCATEGORY_LABEL_MAP: Record<string, Record<string, string>> = {
+  admin: {
+    passport: 'Passport',
+    certificates:
+      'Certificates (incl. pedigree, microchip, awards, breeder papers)',
+    insurance: 'Insurance',
+  },
+  health: {
+    'hospital-visits': 'Hospital visits',
+    'prescriptions-treatments': 'Prescriptions & treatments',
+    'prescriptions-&-treatments': 'Prescriptions & treatments',
+    'vaccination-parasite':
+      'Vaccination, parasite prevention & chronic condition',
+    'vaccination,-parasite-prevention-&-chronic-condition':
+      'Vaccination, parasite prevention & chronic condition',
+    'lab-tests': 'Lab tests',
+  },
+  'hygiene-maintenance': {
+    'grooming-visits': 'Grooming visits',
+    'boarding-records': 'Boarding records',
+    'training-behaviour': 'Training & behaviour reports',
+    'training-&-behaviour-reports': 'Training & behaviour reports',
+    'breeder-interactions': 'Breeder interactions',
+  },
+  'dietary-plans': {
+    'nutrition-plans': 'Nutrition plans',
+  },
+  others: {
+    'weight-logs': 'Weight logs, behaviour notes, photos of wounds, etc.',
+  },
+};
 
 const VISIT_TYPE_MAP = VISIT_TYPES.reduce<Record<string, string>>(
   (accumulator, visitType) => {

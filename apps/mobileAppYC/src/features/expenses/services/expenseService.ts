@@ -391,6 +391,8 @@ const mapFinancePaymentSession = (
     payload?.paymentLinkUrl ??
     payload?.providerCheckoutUrl ??
     null,
+  connectedAccountId:
+    payload?.connectedAccountId ?? payload?.stripeAccountId ?? null,
 });
 
 const createFinancePaymentSession = async ({

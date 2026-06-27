@@ -379,6 +379,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       theme,
       item.status,
       item.paymentStatus,
+      item.bookingPaymentStatus,
     );
 
     const requestedBadge = isRequested ? (
@@ -644,6 +645,7 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
     theme,
     item.status,
     item.paymentStatus,
+    item.bookingPaymentStatus,
   );
 
   let ratingContent: React.ReactNode = null;

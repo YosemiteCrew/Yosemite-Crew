@@ -29,6 +29,14 @@ type SignPacketInput = {
   signerEmail?: string;
 };
 
+const ensureRequiredId = (value: string, fieldName: string): string => {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new WorkspaceServiceError(`${fieldName} is required`, 400);
+  }
+  return normalized;
+};
+
 type PacketRecord = {
   id: string;
   organisationId: string;
@@ -623,5 +631,32 @@ export const WorkspaceDocumentPacketService = {
     }
 
     return merged.pdf;
+  },
+
+  async buildEncounterPacketPdfForParent(
+    parentId: string,
+    encounterId: string,
+  ): Promise<Buffer> {
+    const normalizedParentId = ensureRequiredId(parentId, "parentId");
+    const normalizedEncounterId = ensureRequiredId(encounterId, "encounterId");
+
+    const encounter = await prisma.encounter.findFirst({
+      where: {
+        id: normalizedEncounterId,
+        parentId: normalizedParentId,
+      },
+      select: {
+        organisationId: true,
+      },
+    });
+
+    if (!encounter) {
+      throw new WorkspaceServiceError("Encounter not found", 404);
+    }
+
+    return WorkspaceDocumentPacketService.buildEncounterPacketPdf(
+      encounter.organisationId,
+      normalizedEncounterId,
+    );
   },
 };

@@ -80,6 +80,26 @@ type InvoiceWithCreditNotes = PrismaInvoice & {
   creditNotes?: PrismaCreditNote[];
 };
 
+type InvoiceSettlementLineAllocation = {
+  id?: string;
+  name: string;
+  description?: string | null;
+  total: number;
+  cashApplied: number;
+  creditApplied: number;
+  remaining: number;
+};
+
+type InvoiceSettlementSummary = {
+  invoiceTotal: number;
+  cashPaid: number;
+  depositRecordedAmount: number;
+  credited: number;
+  effectivePaid: number;
+  balance: number;
+  lineAllocations: InvoiceSettlementLineAllocation[];
+};
+
 type PrismaPaymentRefund = {
   id: string;
   paymentId: string;
@@ -171,6 +191,12 @@ const findInvoiceByIdOrThrow = async (invoiceId: string) => {
 
   return invoice;
 };
+
+const isPrismaUniqueConstraintError = (error: unknown): boolean =>
+  !!error &&
+  typeof error === "object" &&
+  "code" in error &&
+  (error as { code?: string }).code === "P2002";
 
 const normalizeInvoiceMetadata = (
   value: Prisma.JsonValue | null | undefined,
@@ -368,7 +394,13 @@ const mergeInvoiceLineItems = (
   return merged;
 };
 
-const loadInvoiceFinancialDetails = async (invoiceId: string) => {
+const loadInvoiceFinancialDetails = async (
+  invoice: Pick<
+    PrismaInvoice,
+    "id" | "items" | "totalAmount" | "depositCollectedAmount"
+  >,
+) => {
+  const invoiceId = invoice.id;
   const payments = (await prisma.payment.findMany({
     where: { invoiceId },
     orderBy: [{ createdAt: "desc" }, { updatedAt: "desc" }],
@@ -378,6 +410,77 @@ const loadInvoiceFinancialDetails = async (invoiceId: string) => {
       },
     },
   })) as PrismaPaymentWithRefunds[];
+
+  const creditNotes = (await prisma.creditNote.findMany({
+    where: { invoiceId, status: "ISSUED" },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      amount: true,
+    },
+  })) as Array<{ id: string; amount: number }>;
+
+  const buildLineAllocations = (
+    amount: number,
+    lines: InvoiceSettlementLineAllocation[],
+    key: "cashApplied" | "creditApplied",
+  ) => {
+    let remaining = roundMoney(amount);
+    for (const line of lines) {
+      if (remaining <= 0) {
+        break;
+      }
+
+      const available = roundMoney(Math.max(0, line.remaining));
+      if (available <= 0) {
+        continue;
+      }
+
+      const applied = roundMoney(Math.min(available, remaining));
+      line[key] = roundMoney(line[key] + applied);
+      line.remaining = roundMoney(line.remaining - applied);
+      remaining = roundMoney(remaining - applied);
+    }
+
+    return remaining;
+  };
+
+  const itemAllocations: InvoiceSettlementLineAllocation[] = Array.isArray(
+    invoice.items,
+  )
+    ? (invoice.items as InvoiceItem[]).map((item, index) => {
+        const total = roundMoney(
+          item.total != null ? item.total : item.quantity * item.unitPrice,
+        );
+        return {
+          id: item.id ?? undefined,
+          name: item.name || `Item ${index + 1}`,
+          description: item.description ?? undefined,
+          total,
+          cashApplied: 0,
+          creditApplied: 0,
+          remaining: total,
+        };
+      })
+    : [];
+
+  const actualCashPaid = roundMoney(
+    payments.reduce((sum, payment) => sum + payment.amount, 0),
+  );
+  const depositRecordedAmount = roundMoney(invoice.depositCollectedAmount ?? 0);
+  const credited = roundMoney(
+    creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
+  );
+  const effectivePaid = roundMoney(
+    Math.max(actualCashPaid, depositRecordedAmount),
+  );
+
+  buildLineAllocations(effectivePaid, itemAllocations, "cashApplied");
+  buildLineAllocations(credited, itemAllocations, "creditApplied");
+
+  const balance = roundMoney(
+    Math.max(0, invoice.totalAmount - effectivePaid - credited),
+  );
 
   const receipts = payments
     .filter((payment) => Boolean(payment.receiptUrl))
@@ -398,6 +501,15 @@ const loadInvoiceFinancialDetails = async (invoiceId: string) => {
   return {
     payments: payments.map((payment) => toPaymentRecord(payment)),
     receipts,
+    settlementSummary: {
+      invoiceTotal: roundMoney(invoice.totalAmount),
+      cashPaid: actualCashPaid,
+      depositRecordedAmount,
+      credited,
+      effectivePaid,
+      balance,
+      lineAllocations: itemAllocations,
+    } satisfies InvoiceSettlementSummary,
   };
 };
 
@@ -992,6 +1104,13 @@ export const InvoiceService = {
       throw new InvoiceServiceError("Appointment not found", 404);
     }
 
+    const existingDraft = await this.findOpenInvoiceForAppointment(
+      input.appointmentId,
+    );
+    if (existingDraft) {
+      return toInvoiceRecord(existingDraft);
+    }
+
     const patientId = getAppointmentPatientIdOrThrow(appointment);
     const parentId = getAppointmentParentIdOrThrow(appointment);
     if (input.patientId && input.patientId !== patientId) {
@@ -1013,18 +1132,36 @@ export const InvoiceService = {
       undefined,
       { skipTaxCalculation: true },
     );
-    const createdInvoice = await prisma.invoice.create({
-      data: {
-        ...data,
-        ...(taxSnapshot
-          ? {
-              taxSnapshot: {
-                create: taxSnapshot,
-              },
-            }
-          : {}),
-      },
-    });
+    const createdInvoice = await prisma.invoice
+      .create({
+        data: {
+          ...data,
+          ...(taxSnapshot
+            ? {
+                taxSnapshot: {
+                  create: taxSnapshot,
+                },
+              }
+            : {}),
+        },
+      })
+      .catch(async (error: unknown) => {
+        if (!isPrismaUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        const existingInvoice = await prisma.invoice.findFirst({
+          where: { appointmentId: input.appointmentId },
+          include: invoiceCreditNotesInclude,
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (!existingInvoice) {
+          throw error;
+        }
+
+        return existingInvoice;
+      });
 
     const targets = await resolveAuditTargetsForInvoiceRow(createdInvoice);
     await recordInvoiceAuditEvent(targets, {
@@ -1079,118 +1216,18 @@ export const InvoiceService = {
     invoiceDiscount?: PricingInvoiceDiscountInput;
     metadata?: Record<string, string | number | boolean | undefined>;
   }) {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: input.appointmentId },
-      select: { id: true, organisationId: true, patient: true },
-    });
-    if (!appointment) {
-      throw new InvoiceServiceError("Appointment not found", 404);
-    }
-
-    const currency = await resolveOrganisationCurrency(
-      appointment.organisationId,
-    );
-    const { patientId, parentId } = getAppointmentLinks(appointment);
-    if (!patientId || !parentId) {
+    if (!input.items.length) {
       throw new InvoiceServiceError(
-        "Appointment missing parent or patient links",
-        500,
+        "At least one invoice item is required",
+        400,
       );
     }
 
-    const items = input.items.map((item) => ({
-      description: item.description ?? item.name,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      discountPercent: item.discountPercent ?? undefined,
-    }));
-    const totals = await resolveInvoiceTotals(
-      items,
-      0,
-      input.invoiceDiscount,
-      DEFAULT_TAX_BEHAVIOR,
-      currency,
-      undefined,
-      "preview",
-      undefined,
-      { skipTaxCalculation: true },
-    );
-
-    const invoice = await prisma.invoice.create({
-      data: {
-        appointmentId: appointment.id,
-        parentId,
-        patientId,
-        organisationId: appointment.organisationId,
-        currency,
-        status: "AWAITING_PAYMENT",
-        paymentCollectionMethod: "PAYMENT_LINK",
-        billingCollectionMode: "STAGED_DURING_VISIT",
-        visitBillingStage: "READY_FOR_BILLING" as const,
-        ...buildReadyForBillingFields("SYSTEM"),
-        depositTargetAmount: 0,
-        depositCollectedAmount: 0,
-        taxProvider: totals.taxSnapshot?.provider ?? null,
-        items: buildInvoiceLineSnapshots(
-          items,
-        ) as unknown as Prisma.InputJsonValue,
-        subtotal: totals.subtotal,
-        discountTotal: totals.discountTotal,
-        invoiceDiscountTotal: totals.invoiceDiscountTotal,
-        invoiceDiscountType: input.invoiceDiscount?.type ?? null,
-        invoiceDiscountValue: input.invoiceDiscount?.value ?? null,
-        taxTotal: totals.taxTotal,
-        taxPercent: totals.taxPercent,
-        totalAmount: totals.totalAmount,
-        metadata: {
-          ...input.metadata,
-          source: "EXTRA_CHARGES",
-        } as unknown as Prisma.InputJsonValue,
-        ...(totals.taxSnapshot
-          ? {
-              taxSnapshot: {
-                create: totals.taxSnapshot,
-              },
-            }
-          : {}),
-      },
-    });
-
-    const targets = await resolveAuditTargetsForInvoiceRow(invoice);
-    await recordInvoiceAuditEvent(targets, {
-      eventType: "INVOICE_CREATED",
-      entityId: invoice.id,
-      metadata: {
-        appointmentId: appointment.id,
-        status: invoice.status,
-        totalAmount: invoice.totalAmount,
-        currency: invoice.currency,
-      },
-    });
-
-    await FinanceEventService.recordEvent({
-      organisationId: invoice.organisationId ?? null,
-      eventType: "INVOICE_CREATED",
-      entityType: "INVOICE",
-      entityId: invoice.id,
-      payload: {
-        appointmentId: appointment.id,
-        status: invoice.status,
-        totalAmount: invoice.totalAmount,
-        currency: invoice.currency,
-      },
-      occurredAt: invoice.createdAt,
-    });
-
-    await NotificationService.sendToUser(
-      parentId,
-      NotificationTemplates.Payment.PAYMENT_PENDING(
-        invoice.totalAmount,
-        invoice.currency,
-      ),
-    );
-
-    return toInvoiceRecord(invoice);
+    // Keep the supplemental-charge path anchored to the appointment's canonical
+    // invoice. The appointment invoice service already bootstraps an open draft
+    // when needed, so adding extra charges should extend that row rather than
+    // create a second invoice record.
+    return this.addChargesToAppointment(input.appointmentId, input.items);
   },
 
   async markInvoicePaid(params: { invoiceId: string }) {
@@ -1628,7 +1665,7 @@ export const InvoiceService = {
     return Promise.all(
       docs.map(async (doc) => ({
         ...toInvoiceRecord(doc),
-        ...(await loadInvoiceFinancialDetails(doc.id)),
+        ...(await loadInvoiceFinancialDetails(doc)),
       })),
     );
   },
@@ -1724,7 +1761,7 @@ export const InvoiceService = {
           include: { address: true },
         })
       : null;
-    const financialDetails = await loadInvoiceFinancialDetails(id);
+    const financialDetails = await loadInvoiceFinancialDetails(doc);
 
     return {
       organistion: {
@@ -2021,6 +2058,34 @@ export const InvoiceService = {
     }
 
     if (["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
+      const summary = await getInvoiceFinancialSummary(
+        invoice.id,
+        invoice.totalAmount,
+        invoice.depositCollectedAmount ?? 0,
+      );
+      if (summary.paid > 0) {
+        const {
+          invoice: updated,
+          refunds,
+          totalRefunded,
+        } = await FinancePaymentService.refundInvoicePayments(
+          invoice.id,
+          reason,
+        );
+        await recordInvoiceAuditForRow(
+          updated,
+          "INVOICE_REFUNDED",
+          updated.id,
+          {
+            status: updated.status,
+            reason,
+            refundId: refunds[0]?.refundId,
+            amount: totalRefunded,
+          },
+        );
+        return { action: "REFUNDED", refundId: refunds[0]?.refundId };
+      }
+
       const updated = await cancelUnpaidInvoice(invoice, reason);
       await recordInvoiceAuditForRow(updated, "INVOICE_CANCELLED", updated.id, {
         status: updated.status,
@@ -2057,6 +2122,35 @@ export const InvoiceService = {
     }
 
     if (["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
+      const summary = await getInvoiceFinancialSummary(
+        invoice.id,
+        invoice.totalAmount,
+        invoice.depositCollectedAmount ?? 0,
+      );
+      if (summary.paid > 0) {
+        const {
+          invoice: updated,
+          refunds,
+          totalRefunded,
+        } = await FinancePaymentService.refundInvoicePayments(
+          invoice.id,
+          reason,
+        );
+        await recordInvoiceAuditForRow(
+          updated,
+          "INVOICE_REFUNDED",
+          updated.id,
+          {
+            status: updated.status,
+            reason,
+            refundId: refunds[0]?.refundId,
+            amount: totalRefunded,
+            currency: updated.currency,
+          },
+        );
+        return { action: "REFUNDED", status: updated.status };
+      }
+
       const updated = await cancelUnpaidInvoice(invoice, reason);
       await recordInvoiceAuditForRow(updated, "INVOICE_CANCELLED", updated.id, {
         status: updated.status,
@@ -2126,7 +2220,7 @@ export const InvoiceService = {
       return null;
     }
 
-    const financialDetails = await loadInvoiceFinancialDetails(doc.id);
+    const financialDetails = await loadInvoiceFinancialDetails(doc);
     return {
       ...toInvoiceRecord(doc),
       ...financialDetails,

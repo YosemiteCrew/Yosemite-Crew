@@ -36,7 +36,7 @@ import {
   type CancelAppointmentBottomSheetRef,
 } from '@/features/appointments/components/CancelAppointmentBottomSheet';
 import {DocumentCard} from '@/shared/components/common/DocumentCard/DocumentCard';
-import {fetchDocuments} from '@/features/documents/documentSlice';
+import {fetchAppointmentDocuments} from '@/features/documents/documentSlice';
 import type {NavigationProp} from '@react-navigation/native';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {createSelector} from '@reduxjs/toolkit';
@@ -391,12 +391,13 @@ const useAppointmentRelations = (
   const handleOpenDocument = React.useCallback(
     (documentId: string) => {
       if (!tabNavigation) return;
+      const document = appointmentDocuments.find(doc => doc.id === documentId);
       tabNavigation.navigate('Documents', {
         screen: 'DocumentPreview',
-        params: {documentId},
+        params: {documentId, initialDocument: document},
       } as any);
     },
-    [tabNavigation],
+    [appointmentDocuments, tabNavigation],
   );
 
   return {
@@ -459,20 +460,30 @@ const useStatusDisplay = (theme: any) => {
   const getStatusDisplay = (
     statusValue: string,
     paymentStatus?: string | null,
+    bookingPaymentStatus?: string | null,
   ) => {
     const palette = getAppointmentStatusBadgePalette(
       theme,
       statusValue,
       paymentStatus,
+      bookingPaymentStatus,
     );
     return palette;
   };
   return getStatusDisplay;
 };
 
-const useStatusFlags = (status: string, paymentStatus?: string | null) => {
+const useStatusFlags = (
+  status: string,
+  paymentStatus?: string | null,
+  bookingPaymentStatus?: string | null,
+) => {
   return useMemo(() => {
-    const isPaymentPending = isAppointmentPaymentPending(status, paymentStatus);
+    const isPaymentPending = isAppointmentPaymentPending(
+      status,
+      paymentStatus,
+      bookingPaymentStatus,
+    );
     const isPaymentFailed = isAppointmentPaymentFailed(status, paymentStatus);
     const requiresPayment = isPaymentPending || isPaymentFailed;
     const isRequested = status === 'REQUESTED';
@@ -491,7 +502,7 @@ const useStatusFlags = (status: string, paymentStatus?: string | null) => {
       showInvoice: !requiresPayment,
       showCancel: !isTerminal && !requiresPayment,
     };
-  }, [paymentStatus, status]);
+  }, [paymentStatus, bookingPaymentStatus, status]);
 };
 
 const useAppointmentDisplayData = (params: {
@@ -584,17 +595,27 @@ const useEnsureAppointmentLoaded = ({
 };
 
 const useAppointmentDocumentsEffect = ({
+  appointmentId,
   companionId,
+  encounterId,
+  markFetched,
   dispatch,
 }: {
+  appointmentId: string;
   companionId?: string;
+  encounterId?: string | null;
+  markFetched: () => void;
   dispatch: AppDispatch;
 }) => {
   useEffect(() => {
-    if (companionId) {
-      dispatch(fetchDocuments({companionId}));
+    if (!appointmentId) {
+      return;
     }
-  }, [companionId, dispatch]);
+    markFetched();
+    dispatch(
+      fetchAppointmentDocuments({appointmentId, companionId, encounterId}),
+    );
+  }, [appointmentId, companionId, encounterId, dispatch, markFetched]);
 };
 
 const useBusinessPhotoEffect = ({
@@ -976,9 +997,18 @@ export const ViewAppointmentScreen: React.FC = () => {
   const lastFormsFetchTsRef = React.useRef(0);
   const lastTasksFetchTsRef = React.useRef(0);
   const lastDocumentsFetchTsRef = React.useRef(0);
+  const markDocumentsFetched = React.useCallback(() => {
+    lastDocumentsFetchTsRef.current = Date.now();
+  }, []);
 
   useEnsureAppointmentLoaded({apt, appointmentId, dispatch});
-  useAppointmentDocumentsEffect({companionId: apt?.companionId, dispatch});
+  useAppointmentDocumentsEffect({
+    appointmentId,
+    companionId: apt?.companionId,
+    encounterId: apt?.encounterId,
+    markFetched: markDocumentsFetched,
+    dispatch,
+  });
   useEffect(() => {
     if (companionId && !hasHydratedExpenses) {
       dispatch(fetchExpensesForCompanion({companionId}));
@@ -1043,12 +1073,18 @@ export const ViewAppointmentScreen: React.FC = () => {
             !lastDocumentsFetchTsRef.current ||
             now - lastDocumentsFetchTsRef.current > 3000;
           if (shouldFetchDocuments) {
-            lastDocumentsFetchTsRef.current = now;
-            dispatch(fetchDocuments({companionId}));
+            markDocumentsFetched();
+            dispatch(
+              fetchAppointmentDocuments({
+                appointmentId,
+                companionId,
+                encounterId: apt.encounterId,
+              }),
+            );
           }
         }
       }
-    }, [apt, appointmentId, companionId, dispatch]),
+    }, [apt, appointmentId, companionId, dispatch, markDocumentsFetched]),
   );
 
   const googlePlacesId =
@@ -1078,7 +1114,11 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   const status = apt?.status ?? 'REQUESTED';
   const getStatusDisplay = useStatusDisplay(theme);
-  const statusFlags = useStatusFlags(status, apt?.paymentStatus);
+  const statusFlags = useStatusFlags(
+    status,
+    apt?.paymentStatus,
+    apt?.bookingPaymentStatus,
+  );
   const {
     isRequested,
     isCheckedIn,
@@ -1088,7 +1128,11 @@ export const ViewAppointmentScreen: React.FC = () => {
     showInvoice,
     showCancel,
   } = statusFlags;
-  const statusInfo = getStatusDisplay(status, apt?.paymentStatus);
+  const statusInfo = getStatusDisplay(
+    status,
+    apt?.paymentStatus,
+    apt?.bookingPaymentStatus,
+  );
   const displayData = useAppointmentDisplayData({
     apt,
     business,

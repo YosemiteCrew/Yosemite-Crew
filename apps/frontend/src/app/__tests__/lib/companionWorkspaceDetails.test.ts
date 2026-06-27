@@ -43,7 +43,7 @@ describe('buildCompanionDetails', () => {
     expect(valueFor('Breed/Species', companion)).toBe('Golden Retriever / Canine');
     expect(valueFor('Age / DOB', companion)).toMatch(/years \/ /);
     expect(valueFor('Sex', companion)).toBe('Female, Spayed');
-    expect(valueFor('Weight', companion)).toBe('55 lbs');
+    expect(valueFor('Weight', companion)).toBe('55 kg');
     expect(valueFor('Blood Group', companion)).toBe('DEA 1.1');
     expect(valueFor('Microchip ID', companion)).toBe('ID-123457GHH');
     expect(valueFor('Allergies', companion)).toBe('Sensitive skin');
