@@ -88,7 +88,7 @@ function normalizeStripeEvent(
   const base = { providerEventRef: event.id };
   switch (event.type) {
     case "payment_intent.succeeded": {
-      const pi = event.data.object as Stripe.PaymentIntent;
+      const pi = event.data.object;
       return {
         ...base,
         type: "PAYMENT_SUCCEEDED",
@@ -100,7 +100,7 @@ function normalizeStripeEvent(
       };
     }
     case "payment_intent.payment_failed": {
-      const pi = event.data.object as Stripe.PaymentIntent;
+      const pi = event.data.object;
       return {
         ...base,
         type: "PAYMENT_FAILED",
@@ -111,7 +111,7 @@ function normalizeStripeEvent(
       };
     }
     case "charge.refunded": {
-      const charge = event.data.object as Stripe.Charge;
+      const charge = event.data.object;
       return {
         ...base,
         type: "REFUND_SUCCEEDED",
@@ -128,7 +128,7 @@ function normalizeStripeEvent(
       };
     }
     case "account.updated": {
-      const account = event.data.object as Stripe.Account;
+      const account = event.data.object;
       return {
         ...base,
         type: "ACCOUNT_UPDATED",
