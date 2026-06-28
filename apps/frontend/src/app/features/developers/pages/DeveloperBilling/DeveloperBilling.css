@@ -1,0 +1,180 @@
+.DevBilling-intro {
+  max-width: 640px;
+  margin-bottom: var(--spacing-6);
+}
+
+.DevBilling-currentPlan {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-5);
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-8);
+}
+
+.DevBilling-planBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.DevBilling-planBadge--free {
+  background: var(--color-surface-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.DevBilling-planBadge--pro {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+
+.DevBilling-planBadge--enterprise {
+  background: var(--color-text-primary);
+  color: var(--color-surface-primary);
+}
+
+.DevBilling-planBadge--past_due {
+  background: var(--color-feedback-error-surface);
+  color: var(--color-feedback-error-text);
+}
+
+.DevBilling-planMeta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.DevBilling-intervalToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-6);
+}
+
+.DevBilling-intervalBtn {
+  padding: var(--spacing-1-5) var(--spacing-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-default);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition:
+    background 120ms,
+    color 120ms,
+    border-color 120ms;
+}
+
+.DevBilling-intervalBtn--active {
+  background: var(--color-brand-primary);
+  color: #fff;
+  border-color: var(--color-brand-primary);
+}
+
+.DevBilling-intervalSavings {
+  font-size: var(--font-size-xs);
+  color: var(--color-feedback-success-text);
+  font-weight: var(--font-weight-medium);
+}
+
+.DevBilling-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-5);
+  margin-bottom: var(--spacing-8);
+}
+
+.DevBilling-planCard {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-6);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-primary);
+  position: relative;
+}
+
+.DevBilling-planCard--current {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 1px var(--color-brand-primary);
+}
+
+.DevBilling-planCard--recommended::before {
+  content: 'Most Popular';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-brand-primary);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px var(--spacing-3);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.DevBilling-planName {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-1);
+}
+
+.DevBilling-planPrice {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-1);
+}
+
+.DevBilling-planPriceSub {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-4);
+}
+
+.DevBilling-planDesc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-5);
+}
+
+.DevBilling-planFeatures {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--spacing-6);
+  flex: 1;
+}
+
+.DevBilling-planFeatures li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-1-5) 0;
+}
+
+.DevBilling-planFeatures li::before {
+  content: '✓';
+  color: var(--color-feedback-success-text);
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.DevBilling-error {
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-feedback-error-surface);
+  color: var(--color-feedback-error-text);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-4);
+}

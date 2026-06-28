@@ -67,7 +67,7 @@ const APP_ROUTE_GROUPS = [
 ] as const;
 
 const DEV_ROUTE_GROUPS = [
-  { label: 'Developer', routeNames: ['Dashboard', 'API Keys', 'Website - Builder'] },
+  { label: 'Developer', routeNames: ['Dashboard', 'API Keys', 'Billing', 'Website - Builder'] },
   { label: 'Platform', routeNames: ['Plugins', 'Documentation'] },
 ] as const;
 

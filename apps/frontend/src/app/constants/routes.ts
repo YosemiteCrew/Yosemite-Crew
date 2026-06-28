@@ -69,6 +69,7 @@ export const appRoutes: RouteItem[] = [
 export const devRoutes: RouteItem[] = [
   { name: 'Dashboard', href: '/developers/home' },
   { name: 'API Keys', href: '/developers/api-keys' },
+  { name: 'Billing', href: '/developers/billing' },
   { name: 'Website - Builder', href: '/developers/website-builder' },
   { name: 'Plugins', href: '/developers/plugins' },
   { name: 'Documentation', href: '/developers/documentation' },

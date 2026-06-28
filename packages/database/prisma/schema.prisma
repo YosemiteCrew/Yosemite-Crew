@@ -1245,6 +1245,74 @@ model OrganizationUsageCounter {
   @@map("OrgUsageCounters")
 }
 
+/// Programmatic API credential for the developer platform (humans + agents).
+/// Only the SHA-256 hash is stored; the plaintext secret is shown once at creation.
+model DeveloperApiKey {
+  id             String                    @id @default(uuid())
+  organisationId String
+  name           String
+  prefix         String                    @unique
+  hashedKey      String                    @unique
+  last4          String
+  scopes         String[]                  @default([])
+  environment    DeveloperApiKeyEnvironment @default(live)
+  status         DeveloperApiKeyStatus      @default(active)
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdBy      String
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([organisationId])
+  @@index([status])
+  @@map("DeveloperApiKeys")
+}
+
+enum DeveloperApiKeyEnvironment {
+  live
+  test
+}
+
+enum DeveloperApiKeyStatus {
+  active
+  revoked
+}
+
+model DeveloperSubscription {
+  id                       String                      @id @default(uuid())
+  organisationId           String                      @unique
+  plan                     DeveloperPlanTier           @default(free)
+  status                   DeveloperSubscriptionStatus @default(active)
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?                     @unique
+  stripeSubscriptionItemId String?
+  stripePriceId            String?
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  cancelAtPeriodEnd        Boolean                     @default(false)
+  lastStripeEventId        String?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+
+  @@index([stripeCustomerId])
+  @@map("DeveloperSubscriptions")
+}
+
+enum DeveloperPlanTier {
+  free
+  pro
+  enterprise
+}
+
+enum DeveloperSubscriptionStatus {
+  active
+  trialing
+  past_due
+  canceled
+  incomplete
+}
+
 enum DevicePlatform {
   ios
   android
