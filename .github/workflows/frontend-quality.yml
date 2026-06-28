@@ -58,7 +58,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Cache Jest transform cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: apps/frontend/.jest-cache
           key: jest-frontend-${{ runner.os }}-${{ hashFiles('apps/frontend/jest.config.ts', 'apps/frontend/package.json', 'pnpm-lock.yaml') }}
@@ -95,7 +95,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Cache Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: apps/frontend/.next/cache
           key: next-build-${{ runner.os }}-${{ hashFiles('apps/frontend/package.json', 'apps/frontend/next.config.*', 'pnpm-lock.yaml') }}
