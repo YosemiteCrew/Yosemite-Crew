@@ -18,7 +18,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "supertokens-node": "^23.1.0"
+    "supertokens-node": "^24.0.2"
   },
   "peerDependencies": {
     "cors": "^2.8.5",
