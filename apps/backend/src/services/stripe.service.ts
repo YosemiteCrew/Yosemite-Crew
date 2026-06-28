@@ -364,16 +364,35 @@ export const StripeService = {
   },
 
   // ----------------------------
-  // WEBHOOK VERIFICATION (existing)
+  // WEBHOOK VERIFICATION
   // ----------------------------
   verifyWebhook(body: Buffer, signature: string | string[] | undefined) {
+    return this.verifyWebhookWithSecret(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET,
+    );
+  },
+
+  verifyConnectWebhook(body: Buffer, signature: string | string[] | undefined) {
+    return this.verifyWebhookWithSecret(
+      body,
+      signature,
+      process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+    );
+  },
+
+  verifyWebhookWithSecret(
+    body: Buffer,
+    signature: string | string[] | undefined,
+    secret: string | undefined,
+  ) {
     const stripe = getStripeClient();
     if (!signature) throw new Error("Missing Stripe signature header");
     if (Array.isArray(signature))
       throw new Error("Invalid Stripe signature header format");
 
-    const secret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
+    if (!secret) throw new Error("Stripe webhook secret is not configured");
 
     return stripe.webhooks.constructEvent(body, signature, secret);
   },
@@ -383,19 +402,26 @@ export const StripeService = {
   // ----------------------------
   async handleWebhookEvent(event: Stripe.Event) {
     logger.info("Stripe Webhook received:", event.type);
+    const connectedAccountId =
+      typeof (event as Stripe.Event & { account?: string }).account === "string"
+        ? (event as Stripe.Event & { account?: string }).account
+        : undefined;
 
     switch (event.type) {
       // marketplace flows (existing)
       case "payment_intent.succeeded":
-        await this._handlePaymentSucceeded(event.data.object);
+        await this._handlePaymentSucceeded(
+          event.data.object,
+          connectedAccountId,
+        );
         break;
 
       case "payment_intent.payment_failed":
-        await this._handlePaymentFailed(event.data.object);
+        await this._handlePaymentFailed(event.data.object, connectedAccountId);
         break;
 
       case "charge.refunded":
-        await this._handleRefund(event.data.object);
+        await this._handleRefund(event.data.object, connectedAccountId);
         break;
 
       // connect readiness
@@ -509,19 +535,26 @@ export const StripeService = {
   // ----------------------------
   // EXISTING HANDLERS (keep)
   // ----------------------------
-  async _handlePaymentSucceeded(pi: Stripe.PaymentIntent) {
+  async _handlePaymentSucceeded(
+    pi: Stripe.PaymentIntent,
+    connectedAccountId?: string,
+  ) {
     const type = pi.metadata?.type;
     if (!type) {
       logger.error("payment_intent.succeeded missing metadata.type");
       return;
     }
-    if (type === "INVOICE_PAYMENT") return this._handleInvoicePayment(pi);
+    if (type === "INVOICE_PAYMENT")
+      return this._handleInvoicePayment(pi, connectedAccountId);
     if (type === "APPOINTMENT_BOOKING")
-      return this._handleAppointmentBookingPayment(pi);
+      return this._handleAppointmentBookingPayment(pi, connectedAccountId);
     logger.error("Unknown payment type in metadata");
   },
 
-  async _handleAppointmentBookingPayment(pi: Stripe.PaymentIntent) {
+  async _handleAppointmentBookingPayment(
+    pi: Stripe.PaymentIntent,
+    connectedAccountId?: string,
+  ) {
     // (your existing code unchanged)
     const appointmentId = pi.metadata?.appointmentId;
     if (!appointmentId) return;
@@ -546,7 +579,9 @@ export const StripeService = {
 
     if (openInvoice) {
       const chargeId = pi.latest_charge as string;
-      const charge = await getStripeClient().charges.retrieve(chargeId);
+      const charge = await getStripeClient().charges.retrieve(chargeId, {
+        ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
+      });
 
       await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
         invoiceId: openInvoice.id,
@@ -582,7 +617,9 @@ export const StripeService = {
     if (existingInvoice) return;
 
     const chargeId = pi.latest_charge as string;
-    const charge = await getStripeClient().charges.retrieve(chargeId);
+    const charge = await getStripeClient().charges.retrieve(chargeId, {
+      ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
+    });
 
     const serviceId = extractAppointmentTypeId(appointment.appointmentType);
     if (!serviceId) return;
@@ -643,14 +680,19 @@ export const StripeService = {
     logger.info(`Appointment ${appointmentId} booking PAID. Invoice created`);
   },
 
-  async _handleInvoicePayment(pi: Stripe.PaymentIntent) {
+  async _handleInvoicePayment(
+    pi: Stripe.PaymentIntent,
+    connectedAccountId?: string,
+  ) {
     const invoiceId = pi.metadata?.invoiceId;
     if (!invoiceId) return;
 
     const chargeId =
       typeof pi.latest_charge === "string" ? pi.latest_charge : null;
     const charge = chargeId
-      ? await getStripeClient().charges.retrieve(chargeId)
+      ? await getStripeClient().charges.retrieve(chargeId, {
+          ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
+        })
       : null;
 
     const result =
@@ -681,7 +723,11 @@ export const StripeService = {
     }
   },
 
-  async _handlePaymentFailed(pi: Stripe.PaymentIntent) {
+  async _handlePaymentFailed(
+    pi: Stripe.PaymentIntent,
+    _connectedAccountId?: string,
+  ) {
+    void _connectedAccountId;
     const appointmentId = pi.metadata?.appointmentId;
     const invoiceId = pi.metadata?.invoiceId;
     const result = await FinancePaymentService.handleInvoicePaymentFailed({
@@ -694,7 +740,8 @@ export const StripeService = {
     }
   },
 
-  async _handleRefund(charge: Stripe.Charge) {
+  async _handleRefund(charge: Stripe.Charge, _connectedAccountId?: string) {
+    void _connectedAccountId;
     const invoiceId = charge.metadata?.invoiceId;
     const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
       invoiceId,

@@ -27,7 +27,7 @@ jobs:
       has_changes: ${{ steps.matrix.outputs.has_changes }}
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Filter paths
@@ -141,7 +141,7 @@ jobs:
       matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
 
