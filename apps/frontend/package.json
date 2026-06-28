@@ -65,7 +65,7 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.11.3",
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/eslintrc": "^3",
     "@iconify/react": "^6.0.0",
     "@playwright/test": "^1.55.0",
