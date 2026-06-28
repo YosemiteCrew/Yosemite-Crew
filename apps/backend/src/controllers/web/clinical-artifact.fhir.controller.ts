@@ -555,6 +555,18 @@ export const ClinicalArtifactFhirController = {
     }
   },
 
+  async deletePrescription(req: Request, res: Response) {
+    try {
+      await ClinicalArtifactService.deletePrescription(
+        req.params.prescriptionId,
+        req.params.organisationId,
+      );
+      return res.status(204).send();
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
   async finalizeDischargeSummary(req: Request, res: Response) {
     try {
       const record = await ClinicalArtifactService.finalizeDischargeSummary(

@@ -169,6 +169,15 @@ router.patch(
   (req, res) => ClinicalArtifactFhirController.updatePrescription(req, res),
 );
 
+router.delete(
+  "/organisation/:organisationId/prescription/:prescriptionId",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["prescription:edit:any"]),
+  (req, res) => ClinicalArtifactFhirController.deletePrescription(req, res),
+);
+
 router.post(
   "/organisation/:organisationId/appointment/:appointmentId/discharge-summaries",
   authorizeCognito,

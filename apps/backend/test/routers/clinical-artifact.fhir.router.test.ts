@@ -20,6 +20,7 @@ const ClinicalArtifactFhirController = {
   createPrescription: jest.fn(),
   getPrescription: jest.fn(),
   updatePrescription: jest.fn(),
+  deletePrescription: jest.fn(),
   finalizePrescription: jest.fn(),
   reopenPrescription: jest.fn(),
   amendPrescription: jest.fn(),
@@ -131,6 +132,7 @@ describe("clinical-artifact.fhir.router", () => {
         "post",
       ],
       ["/organisation/:organisationId/prescription/:prescriptionId", "patch"],
+      ["/organisation/:organisationId/prescription/:prescriptionId", "delete"],
       [
         "/organisation/:organisationId/appointment/:appointmentId/discharge-summaries",
         "post",
@@ -249,6 +251,7 @@ describe("clinical-artifact.fhir.router", () => {
         "post",
       ],
       ["/organisation/:organisationId/prescription/:prescriptionId", "patch"],
+      ["/organisation/:organisationId/prescription/:prescriptionId", "delete"],
       [
         "/organisation/:organisationId/appointment/:appointmentId/discharge-summaries",
         "post",

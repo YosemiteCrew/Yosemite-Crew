@@ -30,6 +30,10 @@ jest.mock("src/config/prisma", () => ({
     appointment: {
       updateMany: jest.fn(),
     },
+    workspaceTreatmentItem: {
+      findFirst: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     clinicalArtifact: {
       create: jest.fn(),
       update: jest.fn(),
@@ -83,6 +87,10 @@ describe("ClinicalArtifactService", () => {
     $transaction: jest.Mock;
     appointment: {
       updateMany: jest.Mock;
+    };
+    workspaceTreatmentItem: {
+      findFirst: jest.Mock;
+      deleteMany: jest.Mock;
     };
     clinicalArtifact: {
       create: jest.Mock;
@@ -139,6 +147,8 @@ describe("ClinicalArtifactService", () => {
       return undefined;
     });
     mockedPrisma.appointment.updateMany.mockResolvedValue({ count: 0 });
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockReset();
+    mockedPrisma.workspaceTreatmentItem.deleteMany.mockReset();
     mockedPrisma.prescription.findFirst.mockReset();
     mockedRenderedDocumentRenderer.mockResolvedValue({
       pdf: Buffer.from("rendered-pdf"),
@@ -1729,6 +1739,127 @@ describe("ClinicalArtifactService", () => {
     expect(result.prescription.id).toBe("prescription-1");
   });
 
+  it("voids draft prescriptions and removes their workspace treatment items", async () => {
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce({
+      id: "prescription-1",
+      artifactId,
+      medications: [],
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      items: [],
+      artifact: {
+        id: artifactId,
+        organisationId,
+        appointmentId: null,
+        caseId: null,
+        encounterId: null,
+        kind: "PRESCRIPTION",
+        status: "DRAFT",
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: null,
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    } as never);
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
+      id: "treatment-item-1",
+      billingStatus: "UNBILLED",
+      invoiceRowId: null,
+    });
+    mockedPrisma.workspaceTreatmentItem.deleteMany.mockResolvedValueOnce({
+      count: 1,
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      id: artifactId,
+      organisationId,
+      kind: "PRESCRIPTION",
+      status: "VOID",
+      appointmentId: null,
+      caseId: null,
+      encounterId: null,
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: null,
+      signedBy: null,
+      signedAt: null,
+      summary: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    await ClinicalArtifactService.deletePrescription(
+      artifactId,
+      organisationId,
+    );
+
+    expect(mockedPrisma.workspaceTreatmentItem.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organisationId,
+          prescriptionId: "prescription-1",
+        },
+      }),
+    );
+    expect(mockedPrisma.workspaceTreatmentItem.deleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organisationId,
+          prescriptionId: "prescription-1",
+        },
+      }),
+    );
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: "VOID" },
+      }),
+    );
+  });
+
+  it("rejects deleting non-draft prescriptions", async () => {
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce({
+      id: "prescription-1",
+      artifactId,
+      medications: [],
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      items: [],
+      artifact: {
+        id: artifactId,
+        organisationId,
+        appointmentId: null,
+        caseId: null,
+        encounterId: null,
+        kind: "PRESCRIPTION",
+        status: "SIGNED",
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: null,
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    } as never);
+
+    await expect(
+      ClinicalArtifactService.deletePrescription(artifactId, organisationId),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
   it("amends a discharge summary into a fresh draft record", async () => {
     mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce({
       id: "discharge-1",
@@ -1995,6 +2126,24 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
     expect(meds[0].medication).toBe("Amoxicillin 500mg");
     expect(mocked.inventoryItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ["item-1"] } } }),
+    );
+  });
+
+  it("filters voided prescriptions out of the encounter list query", async () => {
+    mocked.prescription.findMany.mockResolvedValue([]);
+    mocked.inventoryItem.findMany.mockResolvedValue([]);
+
+    await ClinicalArtifactService.listPrescriptionsForEncounter(
+      "org-1",
+      "enc-1",
+    );
+
+    expect(mocked.prescription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          artifact: expect.objectContaining({ status: { not: "VOID" } }),
+        }),
+      }),
     );
   });
 });

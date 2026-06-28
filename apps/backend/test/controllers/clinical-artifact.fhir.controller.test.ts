@@ -28,6 +28,7 @@ jest.mock("../../src/services/clinical-artifact.service", () => {
       listPrescriptionsForEncounter: jest.fn(),
       reopenPrescription: jest.fn(),
       amendPrescription: jest.fn(),
+      deletePrescription: jest.fn(),
       createDischargeSummary: jest.fn(),
       updateDischargeSummary: jest.fn(),
       getDischargeSummary: jest.fn(),
@@ -77,14 +78,17 @@ describe("ClinicalArtifactFhirController", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let jsonMock: jest.Mock;
+  let sendMock: jest.Mock;
   let statusMock: jest.Mock;
 
   const buildResponse = () => {
     jsonMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+    sendMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
     res = {
       status: statusMock,
       json: jsonMock,
+      send: sendMock,
     } as unknown as Response;
   };
 
@@ -224,6 +228,10 @@ describe("ClinicalArtifactFhirController", () => {
       } as Request,
       res as Response,
     );
+    await ClinicalArtifactFhirController.deletePrescription(
+      req as Request,
+      res as Response,
+    );
 
     expect(mockedService.createPrescription).toHaveBeenCalledWith(
       expect.objectContaining({ status: "COMPLETED" }),
@@ -232,6 +240,7 @@ describe("ClinicalArtifactFhirController", () => {
       3,
     );
     expect(statusMock).toHaveBeenCalledWith(201);
+    expect(statusMock).toHaveBeenCalledWith(204);
   });
 
   it("handles discharge summary operations", async () => {

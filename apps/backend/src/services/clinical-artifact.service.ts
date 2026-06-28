@@ -86,6 +86,14 @@ type ClinicalPrisma = typeof prisma & {
       args: Prisma.AppointmentUpdateManyArgs,
     ): Promise<Prisma.BatchPayload>;
   };
+  workspaceTreatmentItem: {
+    findFirst(
+      args: Prisma.WorkspaceTreatmentItemFindFirstArgs,
+    ): Promise<Prisma.WorkspaceTreatmentItemGetPayload<Prisma.WorkspaceTreatmentItemDefaultArgs> | null>;
+    deleteMany(
+      args: Prisma.WorkspaceTreatmentItemDeleteManyArgs,
+    ): Promise<Prisma.BatchPayload>;
+  };
   prescription: {
     findFirst(
       args: Prisma.PrescriptionFindFirstArgs,
@@ -992,6 +1000,10 @@ const loadPrescriptionOrThrow = async (prescriptionId: string) => {
 
   assertArtifactKind(prescription.artifact, "PRESCRIPTION", "prescription");
 
+  if (prescription.artifact.status === "VOID") {
+    throw new ClinicalArtifactServiceError("Prescription not found", 404);
+  }
+
   return prescription;
 };
 
@@ -1531,6 +1543,66 @@ export const ClinicalArtifactService = {
     return updated;
   },
 
+  async deletePrescription(
+    prescriptionId: string,
+    organisationId?: string,
+  ): Promise<void> {
+    const record = await loadPrescriptionOrThrow(prescriptionId);
+    assertArtifactKind(
+      record.artifact,
+      "PRESCRIPTION",
+      "prescription",
+      organisationId,
+    );
+
+    if (record.artifact.status !== "DRAFT") {
+      throw new ClinicalArtifactServiceError(
+        "Only draft prescriptions can be deleted.",
+        409,
+      );
+    }
+
+    const treatmentItem = await clinicalPrisma.workspaceTreatmentItem.findFirst(
+      {
+        where: {
+          organisationId: record.artifact.organisationId,
+          prescriptionId: record.id,
+        },
+        select: {
+          id: true,
+          billingStatus: true,
+          invoiceRowId: true,
+        },
+      },
+    );
+
+    if (
+      treatmentItem &&
+      (treatmentItem.billingStatus !== "UNBILLED" ||
+        treatmentItem.invoiceRowId != null)
+    ) {
+      throw new ClinicalArtifactServiceError(
+        "Prescription has already been billed.",
+        409,
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const txPrisma = tx as ClinicalPrisma;
+      await txPrisma.workspaceTreatmentItem.deleteMany({
+        where: {
+          organisationId: record.artifact.organisationId,
+          prescriptionId: record.id,
+        },
+      });
+
+      await txPrisma.clinicalArtifact.update({
+        where: { id: record.artifact.id },
+        data: { status: "VOID" },
+      });
+    });
+  },
+
   async getPrescription(
     prescriptionId: string,
     organisationId?: string,
@@ -1556,6 +1628,7 @@ export const ClinicalArtifactService = {
           organisationId: ensureId(organisationId, "organisationId"),
           encounterId: ensureId(encounterId, "encounterId"),
           kind: "PRESCRIPTION",
+          status: { not: "VOID" },
         },
       },
       include: { artifact: true, items: true },
@@ -1575,6 +1648,7 @@ export const ClinicalArtifactService = {
           organisationId: ensureId(organisationId, "organisationId"),
           appointmentId: ensureId(appointmentId, "appointmentId"),
           kind: "PRESCRIPTION",
+          status: { not: "VOID" },
         },
       },
       include: { artifact: true, items: true },
