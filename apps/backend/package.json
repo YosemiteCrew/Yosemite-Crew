@@ -40,7 +40,7 @@
     "class-validator": "^0.14.2",
     "cookie-parser": "1.4.7",
     "cors": "2.8.5",
-    "cron-parser": "^5.4.0",
+    "cron-parser": "^5.6.1",
     "csv-parse": "^5.6.0",
     "dotenv": "16.4.7",
     "escape-string-regexp": "2",
