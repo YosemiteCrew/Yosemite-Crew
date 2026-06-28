@@ -15,6 +15,10 @@ const CheckoutSchema = z.object({
   cancelUrl: z.string().url(),
 });
 
+const PortalSchema = z.object({
+  returnUrl: z.string().url(),
+});
+
 const handleError = (err: unknown, res: Response): void => {
   if (err instanceof DeveloperBillingServiceError) {
     res.status(err.statusCode).json({ error: err.message });
@@ -70,16 +74,15 @@ export const DeveloperBillingController = {
       res.status(400).json({ error: "organisationId is required" });
       return;
     }
-    const returnUrl =
-      typeof req.body?.returnUrl === "string" ? req.body.returnUrl : null;
-    if (!returnUrl) {
+    const parsed = PortalSchema.safeParse(req.body);
+    if (!parsed.success) {
       res.status(400).json({ error: "returnUrl is required" });
       return;
     }
     try {
       const url = await DeveloperBillingService.createPortalSession({
         organisationId,
-        returnUrl,
+        returnUrl: parsed.data.returnUrl,
       });
       res.status(201).json({ data: { url } });
     } catch (err) {

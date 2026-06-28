@@ -189,7 +189,7 @@ export const DeveloperBillingService = {
   async handleWebhookEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object;
         if (session.mode !== "subscription") break;
         const orgId = session.metadata?.organisationId;
         if (!orgId) break;
@@ -248,7 +248,7 @@ export const DeveloperBillingService = {
       }
 
       case "customer.subscription.updated": {
-        const sub = event.data.object as Stripe.Subscription;
+        const sub = event.data.object;
         const record = await prisma.developerSubscription.findFirst({
           where: { stripeSubscriptionId: sub.id },
         });
@@ -277,7 +277,7 @@ export const DeveloperBillingService = {
       }
 
       case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
+        const sub = event.data.object;
         const record = await prisma.developerSubscription.findFirst({
           where: { stripeSubscriptionId: sub.id },
         });
