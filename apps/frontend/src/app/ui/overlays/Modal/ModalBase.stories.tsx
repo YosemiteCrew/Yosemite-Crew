@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import React, { useState } from 'react';
 import ModalBase from './ModalBase';
 
@@ -133,7 +133,7 @@ export const FocusTrap: Story = {
     const firstFocusable = modal.querySelector<HTMLElement>(
       'a[href], button:not([disabled]), input:not([disabled])'
     );
-    expect(firstFocusable).toHaveFocus();
+    await waitFor(() => expect(firstFocusable).toHaveFocus());
   },
   parameters: {
     docs: {
