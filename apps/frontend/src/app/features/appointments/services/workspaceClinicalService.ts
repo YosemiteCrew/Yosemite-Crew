@@ -914,11 +914,12 @@ export const listPrescriptionsForAppointment = async (
 };
 
 /**
- * Delete an unbilled prescription artifact. Targets the canonical REST DELETE on the clinical
- * artifact resource (`DELETE …/prescription/:prescriptionId`). The backend route is pending
- * (see the prescription-delete handoff); until it ships the caller falls back to deleting the
- * linked treatment-item row. Returns true on a successful delete, false when the endpoint is not
- * available yet (404/405) so the caller can fall back without surfacing an error.
+ * Delete (void) an unbilled DRAFT prescription artifact via the clinical-artifact REST DELETE
+ * (`DELETE …/prescription/:prescriptionId`). The backend soft-deletes (marks VOID), cascades the
+ * linked workspace treatment-item row, and excludes voided prescriptions from list/bootstrap reads.
+ * Contract: `204 No Content` on success; `409 Conflict` when finalized/billed (re-thrown for the
+ * caller to surface). Returns true on success, or false only if the route is unavailable
+ * (404/405/501) so the caller can fall back to the legacy treatment-item delete.
  */
 export const deletePrescriptionArtifact = async (
   organisationId: string,

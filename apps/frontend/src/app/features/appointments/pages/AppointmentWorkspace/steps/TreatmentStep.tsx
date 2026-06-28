@@ -536,10 +536,14 @@ const TreatmentStep = ({
   };
 
   // Remove a prescription. Billed/paid rows have no delete control, so anything reaching here is
-  // unbilled and may be removed. Staged (local-…) rows are local-only. A persisted row is also
-  // deleted on the backend so it does not reappear on refresh: prefer the linked treatment-item
-  // DELETE (works today), then the canonical prescription DELETE (ready once the backend ships it).
-  // The removal is optimistic; a backend failure restores the row and surfaces an error.
+  // unbilled and may be removed. Staged (local-…) rows are local-only. A persisted row is deleted
+  // on the backend so it does not reappear on refresh:
+  //   • Primary: DELETE …/prescription/:id — the backend voids the DRAFT artifact AND cascades the
+  //     linked workspace treatment-item row (204). A 409 means it is finalized/billed → not
+  //     deletable; we surface that and restore the row.
+  //   • Fallback: if the artifact route is unavailable (404/405 → returns false), delete the
+  //     linked treatment-item row directly.
+  // The removal is optimistic; any failure restores the row and surfaces an error.
   const handleRemovePrescription = async (id: string) => {
     const target = prescriptionItems.find((rx) => rx.id === id);
     // Hard guard: a billed/paid prescription is read-only and must never be deleted. The card
@@ -552,21 +556,25 @@ const TreatmentStep = ({
     if (!isPersisted || !organisationId || !target) return;
 
     try {
-      let deleted = false;
-      if (encounterId) {
-        deleted = await deletePrescriptionTreatmentItem(organisationId, encounterId, {
+      // Backend voids the draft and cascades the treatment-item row.
+      const deleted = await deletePrescriptionArtifact(organisationId, id);
+      // Route not available yet → fall back to deleting the linked treatment-item row.
+      if (!deleted && encounterId) {
+        await deletePrescriptionTreatmentItem(organisationId, encounterId, {
           id: target.id,
           inventoryItemId: target.inventoryItemId,
         });
       }
-      if (!deleted) {
-        await deletePrescriptionArtifact(organisationId, id);
-      }
     } catch (error) {
       console.error('Failed to delete prescription:', error);
+      const status = (error as { response?: { status?: number } })?.response?.status;
       // Restore the row so the UI reflects the still-present backend record.
       addPrescription(appointmentId, target, target.id);
-      setPrescriptionError('Unable to remove the prescription. Please try again.');
+      setPrescriptionError(
+        status === 409
+          ? 'This prescription is finalized or billed and can no longer be removed.'
+          : 'Unable to remove the prescription. Please try again.'
+      );
     }
   };
 

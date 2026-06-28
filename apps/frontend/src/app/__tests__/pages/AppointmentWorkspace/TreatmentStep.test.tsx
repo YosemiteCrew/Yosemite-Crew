@@ -7,7 +7,10 @@ import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceS
 import { useInventoryStore } from '@/app/stores/inventoryStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
-import { savePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  deletePrescriptionArtifact,
+  savePrescriptionArtifact,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
 import {
@@ -538,6 +541,67 @@ describe('TreatmentStep', () => {
         .getEncounter(APPT)
         ?.prescription.find((item) => item.medicineName === 'Prednisone')
     ).toBeUndefined();
+  });
+
+  it('deletes a persisted unbilled prescription via the artifact DELETE endpoint', async () => {
+    (deletePrescriptionArtifact as jest.Mock).mockClear();
+    (deletePrescriptionArtifact as jest.Mock).mockResolvedValue(true);
+    const seeded = seedAndGet();
+    const enc = { ...seeded, prescription: seeded.prescription.filter((p) => !p.billed) };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
+
+    await waitFor(() => expect(deletePrescriptionArtifact).toHaveBeenCalledWith(ORG, 'rx-1'));
+    expect(
+      useAppointmentWorkspaceStore
+        .getState()
+        .getEncounter(APPT)
+        ?.prescription.some((p) => p.id === 'rx-1')
+    ).toBe(false);
+  });
+
+  it('restores the row and warns when deleting a finalized/billed prescription returns 409', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (deletePrescriptionArtifact as jest.Mock).mockClear();
+    (deletePrescriptionArtifact as jest.Mock).mockRejectedValue({ response: { status: 409 } });
+    const seeded = seedAndGet();
+    const enc = { ...seeded, prescription: seeded.prescription.filter((p) => !p.billed) };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
+
+    expect(
+      await screen.findByText(/finalized or billed and can no longer be removed/i)
+    ).toBeInTheDocument();
+    // The row is restored after the conflict.
+    expect(
+      useAppointmentWorkspaceStore
+        .getState()
+        .getEncounter(APPT)
+        ?.prescription.some((p) => p.id === 'rx-1')
+    ).toBe(true);
+    errorSpy.mockRestore();
   });
 
   it('renders empty editable inputs for incomplete medication rows', () => {
