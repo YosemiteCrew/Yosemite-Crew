@@ -116,7 +116,7 @@ jobs:
             next-build-${{ runner.os }}-
 
       - name: Download frontend build output
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: frontend-e2e-build
           path: .
@@ -176,7 +176,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Download frontend build output
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: frontend-e2e-build
           path: .
