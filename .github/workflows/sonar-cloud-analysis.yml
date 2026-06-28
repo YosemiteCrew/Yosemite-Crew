@@ -186,7 +186,7 @@ jobs:
         run: pnpm run test --coverage --ci --maxWorkers=4 --cacheDirectory=.jest-cache
 
       - name: Sonar Scan
-        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         with:
           projectBaseDir: ${{ matrix.dir }}
         env:
