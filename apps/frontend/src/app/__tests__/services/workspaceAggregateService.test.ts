@@ -595,8 +595,9 @@ describe('workspaceAggregateService', () => {
           },
         },
       ],
-      // The billed status lives on the medication treatment item, linked to the artifact by
-      // prescriptionId and matched to the line by inventory id.
+      // The billed status lives on the medication treatment item and links to the artifact by
+      // prescriptionId. Inventory id alone is not enough because the same drug can be prescribed
+      // more than once.
       treatmentItems: [
         {
           id: 'ti-1',
@@ -611,6 +612,35 @@ describe('workspaceAggregateService', () => {
     });
 
     expect(patch.prescription).toEqual([expect.objectContaining({ id: 'line-1', billed: true })]);
+  });
+
+  it('does not mark a same-drug artifact prescription as billed without a prescription link', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      prescriptions: [
+        {
+          artifact: { id: 'artifact-2', kind: 'PRESCRIPTION', summary: 'Paracetamol repeat' },
+          prescription: {
+            id: 'rx-repeat',
+            items: [{ id: 'line-repeat', medication: 'Paracetamol', inventoryItemId: 'inv-9' }],
+          },
+        },
+      ],
+      treatmentItems: [
+        {
+          id: 'ti-billed-other',
+          prescriptionId: 'rx-original',
+          productId: 'inv-9',
+          servicePackageKind: 'MEDICATION',
+          name: 'Paracetamol',
+          quantity: 1,
+          billingStatus: 'BILLED',
+        },
+      ],
+    });
+
+    expect(patch.prescription).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'line-repeat', billed: false })])
+    );
   });
 
   it('keeps an artifact-sourced prescription line unbilled when no billed treatment item matches', () => {

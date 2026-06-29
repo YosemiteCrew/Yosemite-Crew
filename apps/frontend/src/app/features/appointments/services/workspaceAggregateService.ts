@@ -327,46 +327,40 @@ const normalizePrescriptions = (
   const sourceIds = new Set<string>();
 
   // Billed lookup: the medication TREATMENT-ITEM rows carry the `billingStatus`, but the matching
-  // prescription ARTIFACT line does not. Index the billed medication ids (by treatment-item id,
-  // prescriptionId and inventoryItemId) so an artifact-sourced line can be flagged `billed` — that
-  // is what locks the card to its read-only "Billed" view and blocks delete.
+  // prescription ARTIFACT line does not. Index only backend link ids (treatment-item id and
+  // prescriptionId) so a same-drug prescription does not become billed by inventory item alone.
   const billedMedicationIds = new Set<string>();
   treatmentItems.filter(isMedicationTreatmentItem).forEach((item) => {
     if (asString(item.billingStatus) !== 'BILLED') return;
-    [asString(item.id), asString(item.prescriptionId), asString(item.productId)]
+    [asString(item.id), asString(item.prescriptionId)]
       .filter((value): value is string => Boolean(value))
       .forEach((value) => billedMedicationIds.add(value));
   });
-  const isLineBilled = (line: PrescriptionItem): boolean =>
+  const isLineBilled = (line: PrescriptionItem, linkedIds: string[]): boolean =>
     Boolean(line.billed) ||
     billedMedicationIds.has(line.id) ||
-    Boolean(line.inventoryItemId && billedMedicationIds.has(line.inventoryItemId));
+    linkedIds.some((id) => billedMedicationIds.has(id));
 
   prescriptions.forEach((item) => {
-    // Collect EVERY id that can link a medication treatment item back to this prescription —
-    // the prescription id, the artifact id, and each line's inventory item id — so the backend's
-    // expanded medication-kind treatment item is reliably deduped (its own per-line id differs).
+    // Collect backend ids that can link a medication treatment item back to this prescription.
+    // Do not use inventory item ids here: the same product can be prescribed more than once.
     const artifact = isRecord(item.artifact) ? item.artifact : item;
     const prescription = isRecord(item.prescription) ? item.prescription : item;
-    [asString(prescription.id), asString(artifact.id), asString(item.id)]
-      .filter((value): value is string => Boolean(value))
-      .forEach((value) => sourceIds.add(value));
+    const linkedIds = [asString(prescription.id), asString(artifact.id), asString(item.id)].filter(
+      (value): value is string => Boolean(value)
+    );
+    linkedIds.forEach((value) => sourceIds.add(value));
     prescriptionLinesFromEnvelope(item).forEach((line) => {
-      if (line.inventoryItemId) sourceIds.add(line.inventoryItemId);
-      byId.set(line.id, { ...line, billed: isLineBilled(line) });
+      byId.set(line.id, { ...line, billed: isLineBilled(line, linkedIds) });
     });
   });
   treatmentItems.filter(isMedicationTreatmentItem).forEach((item, index) => {
     const prescription = medicationTreatmentItemToPrescription(item, index);
-    // The medication-kind treatment item and its prescription artifact share a link id (prescription
-    // id / artifact id / inventory item id), so skip it when the artifact already produced lines.
-    const linkedIds = [
-      asString(item.prescriptionId),
-      asString(item.id),
-      asString(item.productId),
-      prescription.inventoryItemId,
-      prescription.id,
-    ].filter((value): value is string => Boolean(value));
+    // The medication-kind treatment item and its prescription artifact share a backend link id, so
+    // skip it when the artifact already produced lines.
+    const linkedIds = [asString(item.prescriptionId), asString(item.id), prescription.id].filter(
+      (value): value is string => Boolean(value)
+    );
     if (byId.has(prescription.id) || linkedIds.some((id) => sourceIds.has(id))) return;
     byId.set(prescription.id, prescription);
   });

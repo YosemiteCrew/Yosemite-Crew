@@ -577,7 +577,7 @@ const inventoryToInvoiceCandidate = (item: InventoryItem): BillableCandidate => 
   return candidate;
 };
 
-const buildBillableItems = (
+export const buildBillableItems = (
   encounter: AppointmentEncounter,
   catalogServices: ServiceRevamp[],
   catalogPackages: PackageRevamp[],
@@ -625,7 +625,7 @@ const buildBillableItems = (
     [...serviceItems, ...prescriptionItems, ...inventoryCandidates],
     new Set()
   );
-  return uniqueByName([...visitItems, ...catalogItems], new Set());
+  return uniqueByName([...visitItems, ...catalogItems], existingNames);
 };
 
 const computeInvoiceTotalCents = (encounter: AppointmentEncounter): number => {

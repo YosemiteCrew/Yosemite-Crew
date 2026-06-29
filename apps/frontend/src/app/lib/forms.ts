@@ -108,13 +108,16 @@ const toStringList = (value: unknown): string[] => {
 };
 
 const SPECIES_LABELS = new Map<string, string>([
+  ['dog', 'Canine'],
+  ['cat', 'Feline'],
+  ['horse', 'Equine'],
   ['canine', 'Canine'],
   ['feline', 'Feline'],
   ['equine', 'Equine'],
 ]);
 
 const normalizeSpeciesValue = (value: string): string =>
-  SPECIES_LABELS.get(value.trim().toLowerCase()) ?? value;
+  SPECIES_LABELS.get(value.trim().toLowerCase()) ?? value.trim();
 
 const normalizeSpeciesList = (value: unknown): string[] =>
   toStringList(value).map(normalizeSpeciesValue);
@@ -243,7 +246,7 @@ export const mapFormToUI = (form: Form): FormsProps => ({
   description: form.description,
   businessType: (form as any).businessType,
   services: toList(form.serviceId),
-  species: form.speciesFilter ?? [],
+  species: normalizeSpeciesList(form.speciesFilter),
   category: form.category as FormsCategory,
   requiredSigner: form.requiredSigner ?? '',
   usage: normalizeUsageLabel(form.visibilityType ?? 'Internal'),

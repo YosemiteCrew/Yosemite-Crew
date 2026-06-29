@@ -23,6 +23,7 @@ import {
   listSoapNotesForAppointment,
   listVitalRecordsForEncounter,
   createPmsObservationSubmission,
+  deletePrescriptionArtifact,
   listObservationSubmissionsForAppointment,
   loadWorkspaceClinicalArtifacts,
   reopenDischargeSummary,
@@ -38,8 +39,10 @@ import {
 const postDataMock = jest.fn();
 const getDataMock = jest.fn();
 const patchDataMock = jest.fn();
+const deleteDataMock = jest.fn();
 
 jest.mock('@/app/services/axios', () => ({
+  deleteData: (...args: unknown[]) => deleteDataMock(...args),
   getData: (...args: unknown[]) => getDataMock(...args),
   patchData: (...args: unknown[]) => patchDataMock(...args),
   postData: (...args: unknown[]) => postDataMock(...args),
@@ -56,6 +59,7 @@ describe('workspaceClinicalService', () => {
     postDataMock.mockReset();
     getDataMock.mockReset();
     patchDataMock.mockReset();
+    deleteDataMock.mockReset();
   });
 
   it('lists SOAP notes from the clinical artifact FHIR endpoint', async () => {
@@ -581,6 +585,22 @@ describe('workspaceClinicalService', () => {
       expect.objectContaining({ resourceType: 'MedicationRequest' })
     );
     expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  it('surfaces missing prescription records instead of using the legacy delete fallback', async () => {
+    const notFound = { response: { status: 404 } };
+    deleteDataMock.mockRejectedValueOnce(notFound);
+
+    await expect(deletePrescriptionArtifact('org-1', 'rx-missing')).rejects.toBe(notFound);
+    expect(deleteDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-missing'
+    );
+  });
+
+  it('returns false only for unavailable prescription delete routes', async () => {
+    deleteDataMock.mockRejectedValueOnce({ response: { status: 405 } });
+
+    await expect(deletePrescriptionArtifact('org-1', 'rx-legacy')).resolves.toBe(false);
   });
 
   it('loads encounter-scoped prescriptions and gets a prescription by id', async () => {

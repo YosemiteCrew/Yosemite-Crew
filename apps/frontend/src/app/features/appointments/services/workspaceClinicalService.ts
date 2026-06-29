@@ -919,7 +919,7 @@ export const listPrescriptionsForAppointment = async (
  * linked workspace treatment-item row, and excludes voided prescriptions from list/bootstrap reads.
  * Contract: `204 No Content` on success; `409 Conflict` when finalized/billed (re-thrown for the
  * caller to surface). Returns true on success, or false only if the route is unavailable
- * (404/405/501) so the caller can fall back to the legacy treatment-item delete.
+ * (405/501) so the caller can fall back to the legacy treatment-item delete.
  */
 export const deletePrescriptionArtifact = async (
   organisationId: string,
@@ -932,8 +932,8 @@ export const deletePrescriptionArtifact = async (
     return true;
   } catch (error) {
     const status = (error as { response?: { status?: number } })?.response?.status;
-    // Route not implemented yet → let the caller fall back. Re-throw real failures.
-    if (status === 404 || status === 405 || status === 501) return false;
+    // Route not implemented yet → let the caller fall back. Re-throw missing records and failures.
+    if (status === 405 || status === 501) return false;
     throw error;
   }
 };

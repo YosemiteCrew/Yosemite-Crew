@@ -6,6 +6,7 @@ import {
   ensureSingleSignatureAtEnd,
   buildTemplateSchemaSnapshot,
   buildTemplatePayload,
+  mapFormToUI,
   mapTemplateToUI,
 } from '@/app/lib/forms';
 import type { FormField, FormsProps } from '@/app/features/forms/types/forms';
@@ -503,6 +504,52 @@ describe('buildTemplatePayload appliesTo linking', () => {
 
     expect(mapped.schema).toHaveLength(1);
     expect(mapped.schema[0].id).toBe('medications');
+  });
+});
+
+describe('species label normalization', () => {
+  it('maps legacy generic form species to biological labels', () => {
+    const mapped = mapFormToUI({
+      _id: 'form-1',
+      orgId: 'org-1',
+      name: 'Consent',
+      description: 'Consent form',
+      category: 'Consent form',
+      speciesFilter: ['Dog', 'cat', 'HORSE'],
+      status: 'draft',
+      schema: [],
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as any);
+
+    expect(mapped.species).toEqual(['Canine', 'Feline', 'Equine']);
+  });
+
+  it('maps template rule species codes to biological labels', () => {
+    const mapped = mapTemplateToUI({
+      id: 'tpl-species',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'SOAP_NOTE',
+      name: 'SOAP',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {
+        appliesTo: {
+          species: ['DOG', 'FELINE', 'horse'],
+        },
+      },
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as any);
+
+    expect(mapped.species).toEqual(['Canine', 'Feline', 'Equine']);
   });
 });
 
