@@ -173,10 +173,7 @@ export const TaskTemplateService = {
           input.defaultRole === undefined
             ? existing.defaultRole
             : toDefaultRole(input.defaultRole),
-        inpatientOnly:
-          input.inpatientOnly === undefined
-            ? existing.inpatientOnly
-            : input.inpatientOnly,
+        inpatientOnly: input.inpatientOnly ?? existing.inpatientOnly,
         defaultMedication:
           input.defaultMedication === undefined
             ? (existing.defaultMedication ?? undefined)

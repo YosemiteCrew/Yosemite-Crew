@@ -518,6 +518,97 @@ describe("WorkspaceService", () => {
     });
   });
 
+  it("returns a bootstrap payload without billing state when no invoice is open", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-2",
+      organisationId: "org-1",
+      status: "UPCOMING",
+      appointmentKind: "OUTPATIENT",
+      concern: "Annual review",
+      productItemId: "pkg-1",
+      encounterId: "enc-2",
+      caseId: "case-2",
+      patient: { id: "patient-2", parent: { id: "parent-2" } },
+      startTime: new Date("2026-06-15T10:00:00.000Z"),
+      endTime: new Date("2026-06-15T10:30:00.000Z"),
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      id: "enc-2",
+      organisationId: "org-1",
+      caseId: "case-2",
+      patientId: "patient-2",
+      parentId: "parent-2",
+      status: "onleave",
+      encounterClass: "IMP",
+      appointmentKind: "OUTPATIENT",
+      title: "Annual review",
+      reason: null,
+      periodStart: null,
+      periodEnd: null,
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+    mockedPrisma.case.findFirst.mockResolvedValue({
+      id: "case-2",
+      organisationId: "org-1",
+      patientId: "patient-2",
+      parentId: "parent-2",
+      status: "active",
+      appointmentKind: "OUTPATIENT",
+      title: "Episode",
+      description: null,
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.productItem.findFirst.mockResolvedValue({
+      kind: "PACKAGE",
+    });
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      appointmentLockWindowOutpatientMinutes: 30,
+      appointmentLockWindowInpatientMinutes: null,
+    });
+    mockedPrisma.patient.findFirst.mockResolvedValue({
+      id: "patient-2",
+      name: "Buddy",
+      type: "PET",
+      status: "ACTIVE",
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.parent.findFirst.mockResolvedValue({
+      id: "parent-2",
+      firstName: "Jane",
+      lastName: "Doe",
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.task.findMany.mockResolvedValue([]);
+    mockedPrisma.labOrder.findMany.mockResolvedValue([]);
+    mockedPrisma.labResult.findMany.mockResolvedValue([]);
+    mockedPrisma.workspaceTreatmentItem.findMany.mockResolvedValue([]);
+    mockedPrisma.productItem.findMany.mockResolvedValue([]);
+
+    const result = (await WorkspaceService.getAppointmentBootstrap(
+      {
+        organisationId: "org-1",
+        appointmentId: "appt-2",
+      },
+      [],
+    )) as unknown as {
+      invoice: unknown;
+      visitBillingStage: string | null;
+      readyForBilling: boolean;
+      readyForBillingByName: string | null;
+    };
+
+    expect(result.invoice).toBeNull();
+    expect(result.visitBillingStage).toBeNull();
+    expect(result.readyForBilling).toBe(false);
+    expect(result.readyForBillingByName).toBeNull();
+  });
+
   it("manages persisted treatment items", async () => {
     mockedPrisma.workspaceTreatmentItem.findMany.mockResolvedValue([
       {

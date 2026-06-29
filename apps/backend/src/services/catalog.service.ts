@@ -1197,13 +1197,13 @@ const mapProductRecordToCatalogListRow = (
   const totalAmount =
     product.kind === "PACKAGE"
       ? (packageSummary?.finalAmount ?? 0)
-      : unitPrice != null
-        ? computeLineAmounts({
+      : unitPrice == null
+        ? 0
+        : computeLineAmounts({
             unitPrice,
             quantity: 1,
             discountPercent: defaultDiscountPercent ?? 0,
-          }).finalAmount
-        : 0;
+          }).finalAmount;
 
   return {
     id: product.id,

@@ -138,7 +138,7 @@ const ensureHourMinute = (value: string) => {
 
 const parseTimeOfDay = (value: string) => {
   ensureHourMinute(value);
-  const [hours, minutes] = value.split(":").map((part) => Number(part));
+  const [hours, minutes] = value.split(":").map(Number);
   return { hours, minutes };
 };
 

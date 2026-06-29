@@ -364,11 +364,13 @@ const assertCompanionRequirement = (input: {
   }
 };
 
-const buildRecurrence = (input?: {
+type BuildRecurrenceInput = {
   type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
   endDate?: Date;
   cronExpression?: string;
-}) => {
+};
+
+const buildRecurrence = (input?: BuildRecurrenceInput) => {
   if (!input) return undefined;
 
   if (input.type === "ONCE") {

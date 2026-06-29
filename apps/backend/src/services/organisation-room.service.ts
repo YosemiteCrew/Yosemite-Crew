@@ -917,42 +917,23 @@ export const OrganisationRoomService = {
             ? existing.description
             : input.description,
         type: input.type ?? existing.type,
-        occupancyStatus:
-          input.occupancyStatus === undefined
-            ? existing.occupancyStatus
-            : input.occupancyStatus,
+        occupancyStatus: input.occupancyStatus ?? existing.occupancyStatus,
         assignedSpecialiteis:
-          input.assignedSpecialiteis === undefined
-            ? (currentLinks.specialitiesByRoom.get(existing.id) ?? [])
-            : input.assignedSpecialiteis,
+          input.assignedSpecialiteis ??
+          currentLinks.specialitiesByRoom.get(existing.id) ??
+          [],
         assignedStaffs:
-          input.assignedStaffs === undefined
-            ? (currentLinks.staffByRoom.get(existing.id) ?? [])
-            : input.assignedStaffs,
-        availableNow:
-          input.availableNow === undefined
-            ? existing.availableNow
-            : input.availableNow,
-        availabilityMode:
-          input.availabilityMode === undefined
-            ? existing.availabilityMode
-            : input.availabilityMode,
-        availabilityDays:
-          input.availabilityDays === undefined
-            ? existing.availabilityDays
-            : input.availabilityDays,
+          input.assignedStaffs ??
+          currentLinks.staffByRoom.get(existing.id) ??
+          [],
+        availableNow: input.availableNow ?? existing.availableNow,
+        availabilityMode: input.availabilityMode ?? existing.availabilityMode,
+        availabilityDays: input.availabilityDays ?? existing.availabilityDays,
         availabilityStartTime:
-          input.availabilityStartTime === undefined
-            ? existing.availabilityStartTime
-            : input.availabilityStartTime,
+          input.availabilityStartTime ?? existing.availabilityStartTime,
         availabilityEndTime:
-          input.availabilityEndTime === undefined
-            ? existing.availabilityEndTime
-            : input.availabilityEndTime,
-        capabilities:
-          input.capabilities === undefined
-            ? existing.capabilities
-            : input.capabilities,
+          input.availabilityEndTime ?? existing.availabilityEndTime,
+        capabilities: input.capabilities ?? existing.capabilities,
       },
       existing.id,
     );

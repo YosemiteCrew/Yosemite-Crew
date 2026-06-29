@@ -49,7 +49,7 @@ const buildMetadata = (
   req: Request,
   action: string,
 ) => ({
-  ...(body.metadata ?? {}),
+  ...(body.metadata ?? undefined),
   action,
   performedBy: resolveUserIdFromRequest(req),
   reason: body.reason ?? undefined,

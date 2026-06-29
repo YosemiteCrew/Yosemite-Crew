@@ -528,6 +528,95 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  it("derives frequency from hourly and times-per-day strings", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+      {
+        id: "item-hourly-1",
+        sku: "hourly-1",
+        name: "Hourly Medicine",
+        stockUnitType: "bottle",
+        unitOfMeasure: "ml",
+        packageQuantity: 30,
+        sellingPrice: 12.34,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
+      },
+      {
+        id: "item-times-1",
+        sku: "times-1",
+        name: "Times Medicine",
+        stockUnitType: "bottle",
+        unitOfMeasure: "tablet",
+        packageQuantity: 30,
+        sellingPrice: 8.5,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
+      },
+    ]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-frequency-1",
+      prescriptionId: "rx-frequency-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [],
+      metadata: null,
+      requestedBy: "user-1",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-frequency-1",
+      medications: [
+        {
+          inventoryItemId: "item-hourly-1",
+          frequency: "Q8H",
+          duration: "1 day",
+          dosage: "2.5ml",
+          sourceLineKey: "line-hourly-1",
+        },
+        {
+          inventoryItemId: "item-times-1",
+          frequency: "3 x daily",
+          duration: "1 day",
+          dosage: "1 Tablet",
+          sourceLineKey: "line-times-1",
+        },
+      ],
+      requestedBy: "user-1",
+    });
+
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.create,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          medications: expect.arrayContaining([
+            expect.objectContaining({
+              inventoryItemId: "item-hourly-1",
+              frequencyPerDay: 3,
+              doseQty: 2.5,
+              doseUnit: "ml",
+            }),
+            expect.objectContaining({
+              inventoryItemId: "item-times-1",
+              frequencyPerDay: 3,
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
   it("approves an outpatient dispense request from normal stock", async () => {
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
       id: "request-approve-1",

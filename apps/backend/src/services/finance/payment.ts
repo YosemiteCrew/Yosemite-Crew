@@ -25,6 +25,8 @@ type InvoiceFinancialSummary = {
   balance: number;
 };
 
+const EMPTY_METADATA = {} as Record<string, unknown>;
+
 type StripeCheckoutSessionClient = {
   checkout: {
     sessions: {
@@ -1094,7 +1096,8 @@ export const FinancePaymentService = {
       data: {
         status: "REFUNDED",
         metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ?? {}),
+          ...((invoice.metadata as Record<string, unknown> | null) ??
+            EMPTY_METADATA),
           cancellationReason: reason ?? undefined,
           refundId: providerRefundId ?? refund.id,
           amount: amountRefunded,
@@ -1665,7 +1668,8 @@ export const FinancePaymentService = {
       data: {
         status: "REFUNDED",
         metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ?? {}),
+          ...((invoice.metadata as Record<string, unknown> | null) ??
+            EMPTY_METADATA),
           refundId: input.chargeId ?? undefined,
           amount: input.amount,
           refundDate: new Date().toISOString(),

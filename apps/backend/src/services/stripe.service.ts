@@ -1,5 +1,7 @@
 // src/services/stripe.service.ts
 import Stripe from "stripe";
+
+type WebhookSignature = string | string[] | undefined;
 import logger from "../utils/logger";
 
 import { InvoiceService } from "./invoice.service";
@@ -366,7 +368,7 @@ export const StripeService = {
   // ----------------------------
   // WEBHOOK VERIFICATION
   // ----------------------------
-  verifyWebhook(body: Buffer, signature: string | string[] | undefined) {
+  verifyWebhook(body: Buffer, signature: WebhookSignature) {
     return this.verifyWebhookWithSecret(
       body,
       signature,
@@ -374,7 +376,7 @@ export const StripeService = {
     );
   },
 
-  verifyConnectWebhook(body: Buffer, signature: string | string[] | undefined) {
+  verifyConnectWebhook(body: Buffer, signature: WebhookSignature) {
     return this.verifyWebhookWithSecret(
       body,
       signature,

@@ -240,6 +240,8 @@ const normalizeCreditNoteMetadata = (
   }, {});
 };
 
+const EMPTY_METADATA = {} as Record<string, unknown>;
+
 const toCreditNoteRecord = (row: PrismaCreditNote): FinanceCreditNote => ({
   id: row.id,
   invoiceId: row.invoiceId,
@@ -449,9 +451,7 @@ const loadInvoiceFinancialDetails = async (
     invoice.items,
   )
     ? (invoice.items as InvoiceItem[]).map((item, index) => {
-        const total = roundMoney(
-          item.total != null ? item.total : item.quantity * item.unitPrice,
-        );
+        const total = roundMoney(item.total ?? item.quantity * item.unitPrice);
         return {
           id: item.id ?? undefined,
           name: item.name || `Item ${index + 1}`,
@@ -883,7 +883,7 @@ const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
       data: {
         status: "CANCELLED",
         metadata: {
-          ...(normalizeInvoiceMetadata(invoice.metadata) ?? {}),
+          ...(normalizeInvoiceMetadata(invoice.metadata) ?? EMPTY_METADATA),
           cancellationReason: reason,
         } as unknown as Prisma.InputJsonValue,
       },

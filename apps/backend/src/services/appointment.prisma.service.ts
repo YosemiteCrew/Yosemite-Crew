@@ -795,9 +795,9 @@ const admitInpatientRoomUnit = async (params: {
     update: {
       unitId,
       admittedAt,
-      ...(input?.expectedStayDays !== undefined
-        ? { expectedStayDays: input.expectedStayDays }
-        : {}),
+      ...(input?.expectedStayDays == null
+        ? undefined
+        : { expectedStayDays: input.expectedStayDays }),
     },
     create: {
       encounterId,

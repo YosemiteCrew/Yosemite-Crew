@@ -106,7 +106,7 @@ const readPositiveInteger = (value: unknown): number | undefined => {
   }
 
   if (typeof value === "string" && value.trim()) {
-    const match = value.trim().match(/(\d+(?:\.\d+)?)/);
+    const match = /(\d+(?:\.\d+)?)/.exec(value.trim());
     if (match) {
       const parsed = Number(match[1]);
       if (Number.isFinite(parsed)) {
@@ -125,7 +125,7 @@ const readPositiveNumber = (value: unknown): number | undefined => {
   }
 
   if (typeof value === "string" && value.trim()) {
-    const match = value.trim().match(/(\d+(?:\.\d+)?)/);
+    const match = /(\d+(?:\.\d+)?)/.exec(value.trim());
     if (match) {
       const parsed = Number(match[1]);
       return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
@@ -207,11 +207,11 @@ const resolveFrequencyPerDay = (frequency?: string | null) => {
     Q8H: 3,
     Q12H: 2,
   };
-  if (directMap[normalized] !== undefined) {
+  if (Object.prototype.hasOwnProperty.call(directMap, normalized)) {
     return directMap[normalized];
   }
 
-  const everyNhours = normalized.match(/^Q(\d+)H$/);
+  const everyNhours = /^Q(\d+)H$/.exec(normalized);
   if (everyNhours) {
     const hours = Number(everyNhours[1]);
     if (Number.isFinite(hours) && hours > 0) {
@@ -219,7 +219,7 @@ const resolveFrequencyPerDay = (frequency?: string | null) => {
     }
   }
 
-  const timesPerDay = normalized.match(/^(\d+)\s*X(?:\s*DAILY)?$/);
+  const timesPerDay = /^(\d+)\s*X(?:\s*DAILY)?$/.exec(normalized);
   if (timesPerDay) {
     const count = Number(timesPerDay[1]);
     if (Number.isFinite(count) && count > 0) {

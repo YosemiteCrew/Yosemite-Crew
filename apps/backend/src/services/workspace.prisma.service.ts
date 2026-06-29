@@ -413,15 +413,14 @@ const loadBootstrapBillingState = async (input: {
       : null;
 
   return {
-    invoice:
-      invoice != null
-        ? {
-            id: invoice.id,
-            visitBillingStage: invoice.visitBillingStage,
-            readyForBillingAt: invoice.readyForBillingAt,
-            readyForBillingActorId: invoice.readyForBillingActorId,
-          }
-        : null,
+    invoice: invoice
+      ? {
+          id: invoice.id,
+          visitBillingStage: invoice.visitBillingStage,
+          readyForBillingAt: invoice.readyForBillingAt,
+          readyForBillingActorId: invoice.readyForBillingActorId,
+        }
+      : null,
     visitBillingStage,
     readyForBilling,
     readyForDischarge,
@@ -942,14 +941,14 @@ const buildInvoiceLineFromTreatmentItem = (row: TreatmentItemRow) => {
   const grossAmount = readNumber(priceSnapshot.grossAmount);
   const finalAmount = readNumber(priceSnapshot.finalAmount);
   const snapshotUnitPrice = readNumber(priceSnapshot.unitPrice);
-  const unitPrice =
-    grossAmount != null
-      ? roundMoney(grossAmount / quantity)
-      : snapshotUnitPrice != null
-        ? snapshotUnitPrice
-        : finalAmount != null
-          ? roundMoney(finalAmount / quantity)
-          : 0;
+  let unitPrice = 0;
+  if (grossAmount != null) {
+    unitPrice = roundMoney(grossAmount / quantity);
+  } else if (snapshotUnitPrice != null) {
+    unitPrice = snapshotUnitPrice;
+  } else if (finalAmount != null) {
+    unitPrice = roundMoney(finalAmount / quantity);
+  }
   const discountPercent = readNumber(priceSnapshot.discountPercent);
   const total = finalAmount ?? roundMoney(unitPrice * quantity);
   const name = readText(
@@ -1276,46 +1275,45 @@ const MEDICAL_RECORD_KINDS = new Set([
 const buildContext = async (
   input: WorkspaceBootstrapInput,
 ): Promise<WorkspaceContext> => {
-  const appointment =
-    input.appointmentId != null
-      ? ((await prisma.appointment.findFirst({
-          where: {
-            id: input.appointmentId,
-            organisationId: input.organisationId,
-          },
-        })) as AppointmentRow | null)
-      : null;
+  const appointment = input.appointmentId
+    ? ((await prisma.appointment.findFirst({
+        where: {
+          id: input.appointmentId,
+          organisationId: input.organisationId,
+        },
+      })) as AppointmentRow | null)
+    : null;
 
-  const encounterAppointment =
-    appointment == null && input.encounterId != null
-      ? ((await prisma.appointment.findFirst({
-          where: {
-            encounterId: input.encounterId,
-            organisationId: input.organisationId,
-          },
-        })) as AppointmentRow | null)
-      : null;
+  let encounterAppointment: AppointmentRow | null = null;
+  if (appointment === null && input.encounterId) {
+    encounterAppointment = (await prisma.appointment.findFirst({
+      where: {
+        encounterId: input.encounterId,
+        organisationId: input.organisationId,
+      },
+    })) as AppointmentRow | null;
+  }
 
   const resolvedAppointment = appointment ?? encounterAppointment;
 
-  const encounterRow =
-    input.encounterId != null
-      ? ((await prisma.encounter.findFirst({
-          where: {
-            id: input.encounterId,
-            organisationId: input.organisationId,
-          },
-        })) as EncounterRow | null)
-      : appointment?.encounterId
-        ? ((await prisma.encounter.findFirst({
-            where: {
-              id: appointment.encounterId,
-              organisationId: input.organisationId,
-            },
-          })) as EncounterRow | null)
-        : null;
+  let encounterRow: EncounterRow | null = null;
+  if (input.encounterId) {
+    encounterRow = (await prisma.encounter.findFirst({
+      where: {
+        id: input.encounterId,
+        organisationId: input.organisationId,
+      },
+    })) as EncounterRow | null;
+  } else if (appointment?.encounterId) {
+    encounterRow = (await prisma.encounter.findFirst({
+      where: {
+        id: appointment.encounterId,
+        organisationId: input.organisationId,
+      },
+    })) as EncounterRow | null;
+  }
 
-  const encounter = encounterRow != null ? mapEncounterRow(encounterRow) : null;
+  const encounter = encounterRow ? mapEncounterRow(encounterRow) : null;
 
   const caseId = encounter?.caseId ?? resolvedAppointment?.caseId ?? undefined;
   const caseRow = caseId
@@ -1326,7 +1324,7 @@ const buildContext = async (
         },
       })) as CaseRow | null)
     : null;
-  const episodeOfCare = caseRow != null ? mapCaseRow(caseRow) : null;
+  const episodeOfCare = caseRow ? mapCaseRow(caseRow) : null;
 
   const companionId =
     encounter?.patientId ??
@@ -1356,18 +1354,17 @@ const buildContext = async (
 
   return {
     appointment: resolvedAppointment,
-    appointmentProductKind:
-      resolvedAppointment?.productItemId != null
-        ? ((
-            await prisma.productItem.findFirst({
-              where: {
-                id: resolvedAppointment.productItemId,
-                organisationId: input.organisationId,
-              },
-              select: { kind: true },
-            })
-          )?.kind ?? null)
-        : null,
+    appointmentProductKind: resolvedAppointment?.productItemId
+      ? ((
+          await prisma.productItem.findFirst({
+            where: {
+              id: resolvedAppointment.productItemId,
+              organisationId: input.organisationId,
+            },
+            select: { kind: true },
+          })
+        )?.kind ?? null)
+      : null,
     encounter,
     episodeOfCare,
     companion,

@@ -999,7 +999,7 @@ export const OrganizationService = {
     limit = 10,
   ) {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      throw new Error("lat/lng are required");
+      throw new TypeError("lat/lng are required");
     }
 
     const skip = (page - 1) * limit;

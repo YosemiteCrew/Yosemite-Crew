@@ -256,7 +256,13 @@ const validateFieldType = (
   path: string,
   field: BlueprintField,
   snapshotField: SnapshotField,
-) => (snapshotField.type !== field.type ? [`${path}.type`] : []);
+) => {
+  if (snapshotField.type === field.type) {
+    return [];
+  }
+
+  return [`${path}.type`];
+};
 
 const validateFieldRepeatable = (
   path: string,

@@ -112,6 +112,8 @@ const templateKindSchema = z.union([
   templateContractKindSchema,
 ]);
 
+const EMPTY_JSON_OBJECT = {} as Record<string, unknown>;
+
 const buildTemplateSearchFilter = (
   search?: string,
 ): Prisma.TemplateWhereInput => {
@@ -274,8 +276,8 @@ const mergeJsonObject = (
 ): Record<string, unknown> => ({
   ...(typeof base === "object" && base && !Array.isArray(base)
     ? (base as Record<string, unknown>)
-    : {}),
-  ...(patch ?? {}),
+    : EMPTY_JSON_OBJECT),
+  ...(patch ?? EMPTY_JSON_OBJECT),
 });
 
 const toJsonInput = (
@@ -1050,15 +1052,17 @@ export const TemplateService = {
       return TemplateService.getById(template.id, organisationId);
     }
 
-    const organisationFilter =
-      template.organisationId != null
-        ? { organisationId: template.organisationId }
-        : {};
+    const catalogItemWhere: Prisma.ProductItemWhereInput =
+      template.organisationId === null
+        ? {
+            id: { in: uniqueCatalogItemIds },
+          }
+        : {
+            id: { in: uniqueCatalogItemIds },
+            organisationId: template.organisationId,
+          };
     const catalogItems = await prisma.productItem.findMany({
-      where: {
-        id: { in: uniqueCatalogItemIds },
-        ...organisationFilter,
-      },
+      where: catalogItemWhere,
       select: {
         id: true,
       },

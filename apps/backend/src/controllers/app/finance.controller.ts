@@ -5,7 +5,10 @@ import {
   FinancePaymentService,
 } from "src/services/finance/payment";
 import { FinanceSubscriptionService } from "src/services/finance/subscription";
-import { FinanceEventService } from "src/services/finance/events";
+import {
+  FinanceEventService,
+  resolveActorDisplayName,
+} from "src/services/finance/events";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
 import {
@@ -17,7 +20,6 @@ import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { resolveUserIdFromRequest } from "src/utils/request";
-import { resolveActorDisplayName } from "src/services/finance/events";
 
 const CreateInvoicePaymentSessionBodySchema = z.object({
   provider: z.string().trim().min(1).optional(),
