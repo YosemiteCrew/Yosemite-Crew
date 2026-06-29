@@ -164,8 +164,6 @@ const defaultVitalFieldsFromFormsSchema = (): Field[] => {
   const fields = flattenFormFields(getCategoryTemplate('Vitals'));
   const mapped = fields.flatMap((field) => {
     const key = resolveDraftKey({ id: field.id, label: field.label });
-    const unit =
-      typeof field.meta === 'object' && field.meta !== null ? field.meta.unit : undefined;
     if (!key) return [];
     const unit = resolveVitalFieldUnit(key, getUnitFromRecord(field.meta));
     return [
@@ -184,8 +182,6 @@ const templateToVitalFields = (template: TemplateLike): Field[] => {
     getTemplateSchemaSnapshot(template)?.sections.flatMap((section) => section.fields) ?? [];
   const mapped = fields.flatMap((field: TemplateFieldDefinition) => {
     const key = resolveDraftKey(field);
-    const unit =
-      typeof field.rules === 'object' && field.rules !== null ? field.rules.unit : undefined;
     if (!key) return [];
     const unit = resolveVitalFieldUnit(key, getUnitFromRecord(field.rules));
     return [
