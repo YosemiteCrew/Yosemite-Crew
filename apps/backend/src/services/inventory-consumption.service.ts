@@ -150,15 +150,42 @@ const readDoseParts = (
     return {};
   }
 
-  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
-  if (!match) {
+  let index = 0;
+  while (
+    index < trimmed.length &&
+    trimmed[index] >= "0" &&
+    trimmed[index] <= "9"
+  ) {
+    index += 1;
+  }
+
+  if (index === 0) {
     return { doseUnit: trimmed };
   }
 
-  const doseQty = Number(match[1]);
+  if (trimmed[index] === ".") {
+    const decimalStart = index + 1;
+    let decimalEnd = decimalStart;
+
+    while (
+      decimalEnd < trimmed.length &&
+      trimmed[decimalEnd] >= "0" &&
+      trimmed[decimalEnd] <= "9"
+    ) {
+      decimalEnd += 1;
+    }
+
+    if (decimalEnd === decimalStart) {
+      return { doseUnit: trimmed };
+    }
+
+    index = decimalEnd;
+  }
+
+  const doseQty = Number(trimmed.slice(0, index));
   return {
     doseQty: Number.isFinite(doseQty) && doseQty > 0 ? doseQty : undefined,
-    doseUnit: match[2].trim() || undefined,
+    doseUnit: trimmed.slice(index).trim() || undefined,
   };
 };
 

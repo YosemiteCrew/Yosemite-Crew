@@ -231,6 +231,29 @@ describe("OrganisationRoomService", () => {
     expect(result.code).toBe("room");
   });
 
+  it("normalizes punctuation and repeated separators when generating room codes", async () => {
+    mockedPrisma.organisationRoom.create.mockResolvedValueOnce({
+      ...baseRoom,
+      code: "exam-room-12",
+    });
+
+    const result = await OrganisationRoomService.create({
+      organisationId: "org_1",
+      name: "  Exam --- Room ### 12  ",
+      code: "",
+      type: "EXAM_ROOM",
+    });
+
+    expect(mockedPrisma.organisationRoom.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          code: "exam-room-12",
+        }),
+      }),
+    );
+    expect(result.code).toBe("exam-room-12");
+  });
+
   it("rejects duplicate room codes within the same organisation", async () => {
     mockedPrisma.organisationRoom.findFirst.mockResolvedValueOnce({
       id: "room_existing",

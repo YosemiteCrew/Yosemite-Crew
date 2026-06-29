@@ -6,11 +6,29 @@ export type InventoryCategorySeed = {
   subcategories: string[];
 };
 
-const slugify = (value: string) =>
-  value
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "");
+const slugify = (value: string) => {
+  const lower = value.toLowerCase().trim();
+  let slug = "";
+  let pendingDash = false;
+
+  for (const char of lower) {
+    const isAlphaNumeric =
+      (char >= "a" && char <= "z") || (char >= "0" && char <= "9");
+
+    if (isAlphaNumeric) {
+      if (pendingDash && slug.length > 0) {
+        slug += "-";
+      }
+      slug += char;
+      pendingDash = false;
+      continue;
+    }
+
+    pendingDash = true;
+  }
+
+  return slug;
+};
 
 const category = (
   name: string,

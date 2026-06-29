@@ -834,17 +834,9 @@ export const TemplateService = {
 
     const nextOwnership = parsed.ownership ?? template.ownership;
     const nextOrganisationId =
-      nextOwnership === "YC_LIBRARY"
-        ? null
-        : parsed.ownership === "ORG_TEMPLATE"
-          ? template.organisationId
-          : template.organisationId;
+      nextOwnership === "YC_LIBRARY" ? null : template.organisationId;
     const nextOwnerUserId =
-      nextOwnership === "YC_LIBRARY"
-        ? null
-        : nextOwnership === "USER_TEMPLATE"
-          ? template.ownerUserId
-          : template.ownerUserId;
+      nextOwnership === "YC_LIBRARY" ? null : template.ownerUserId;
     const nextUpdatedBy = parsed.updatedBy ?? template.updatedBy;
     const nextName = parsed.name ?? template.name;
     const nextDescription =
@@ -1494,7 +1486,7 @@ export const TemplateService = {
           title:
             normalizedTemplateKind === "FORM"
               ? "Form submission"
-              : normalizedTemplateKind.split("_").join(" "),
+              : normalizedTemplateKind.replaceAll("_", " "),
           source: {
             sourceKind: "TEMPLATE_INSTANCE",
             sourceId: instance.id,

@@ -121,4 +121,35 @@ describe("TemplateService ownership persistence", () => {
       }),
     );
   });
+
+  it("keeps org and owner bindings for non-library ownership updates", async () => {
+    (prisma.template.findUnique as jest.Mock).mockResolvedValue({
+      id: "tpl-1",
+      organisationId: "org-1",
+      ownerUserId: "user-2",
+      ownership: "ORG_TEMPLATE",
+      kind: "SOAP_NOTE",
+      name: "SOAP",
+      description: null,
+      status: "DRAFT",
+      scope: "ORGANISATION",
+      rules: {},
+      latestVersion: 1,
+      publishedVersion: null,
+      updatedBy: "user-1",
+    });
+
+    await TemplateService.update("tpl-1", { ownership: "ORG_TEMPLATE" });
+
+    expect(prisma.template.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "tpl-1" },
+        data: expect.objectContaining({
+          ownership: "ORG_TEMPLATE",
+          organisationId: "org-1",
+          ownerUserId: "user-2",
+        }),
+      }),
+    );
+  });
 });

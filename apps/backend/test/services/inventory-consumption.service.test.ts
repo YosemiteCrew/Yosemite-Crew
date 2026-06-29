@@ -464,6 +464,70 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  it("parses compact dosage strings without whitespace", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+      {
+        id: "item-compact-1",
+        sku: "liq-1",
+        name: "Liquid Medicine",
+        stockUnitType: "bottle",
+        unitOfMeasure: "ml",
+        packageQuantity: 30,
+        sellingPrice: 12.34,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
+      },
+    ]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-compact-1",
+      prescriptionId: "rx-compact-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [],
+      metadata: null,
+      requestedBy: "user-1",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-compact-1",
+      medications: [
+        {
+          inventoryItemId: "item-compact-1",
+          frequency: "QD",
+          duration: "1 day",
+          dosage: "5ml",
+          sourceLineKey: "line-compact-1",
+        },
+      ],
+      requestedBy: "user-1",
+    });
+
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.create,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          medications: [
+            expect.objectContaining({
+              doseQty: 5,
+              doseUnit: "ml",
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it("approves an outpatient dispense request from normal stock", async () => {
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
       id: "request-approve-1",
