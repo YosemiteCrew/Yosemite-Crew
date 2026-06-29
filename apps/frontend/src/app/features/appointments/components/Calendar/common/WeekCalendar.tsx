@@ -64,7 +64,6 @@ type WeekCalendarProps = {
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
-  handleChangeStatusAppointment?: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
   canEditAppointments: boolean;

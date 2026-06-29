@@ -125,15 +125,18 @@ export const DOSE_UNIT_OPTIONS = [
 const POSITIVE_NUMBER = /^\d+(\.\d+)?$/;
 const NON_NEGATIVE_INTEGER = /^\d+$/;
 
+type PrescriptionValidationFields = Pick<PrescriptionItem, 'durationDays' | 'qty' | 'refill'>;
+type PrescriptionValidationErrors = Partial<Record<keyof PrescriptionValidationFields, string>>;
+
 /**
  * Validate the clinician-editable prescribing fields. Inventory-owned fields (form, route,
  * strength) are not validated here — they are sourced from the catalog. Returns a map of
  * field → message so the card can surface inline errors and the finalize gate can block.
  */
 export const validatePrescriptionItem = (
-  item: Pick<PrescriptionItem, 'durationDays' | 'qty' | 'refill'>
-): Partial<Record<'durationDays' | 'qty' | 'refill', string>> => {
-  const errors: Partial<Record<'durationDays' | 'qty' | 'refill', string>> = {};
+  item: PrescriptionValidationFields
+): PrescriptionValidationErrors => {
+  const errors: PrescriptionValidationErrors = {};
   const duration = item.durationDays?.trim();
   if (duration && !POSITIVE_NUMBER.test(duration)) {
     errors.durationDays = 'Enter a number';

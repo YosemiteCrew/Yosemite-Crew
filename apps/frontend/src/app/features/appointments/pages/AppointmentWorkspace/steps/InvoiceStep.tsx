@@ -1034,9 +1034,7 @@ const PaymentActions = ({
   );
   const paymentControls = paymentDisabledReason ? (
     <GlassTooltip content={paymentDisabledReason} side="top" maxWidth={320}>
-      <span tabIndex={0} className="inline-flex focus-visible:outline-none">
-        {paymentButtons}
-      </span>
+      <span className="inline-flex">{paymentButtons}</span>
     </GlassTooltip>
   ) : (
     paymentButtons
@@ -1204,9 +1202,9 @@ const InvoiceStep = ({
   const hasItems = encounter.invoiceLineItems.length > 0;
   const isReadyForBilling = encounter.readyForBilling.value;
   const canBuildBill = !readOnly && !hideBillBuilder;
-  const paymentDisabledReason = !isReadyForBilling
-    ? 'Mark this visit ready for billing before sending to client, collecting cash, or paying online.'
-    : undefined;
+  const paymentDisabledReason = isReadyForBilling
+    ? undefined
+    : 'Mark this visit ready for billing before sending to client, collecting cash, or paying online.';
   // Currency is encounter-scoped (hydrated from finance, defaults to USD). The
   // finance API works in lower-case ISO codes; display uses the upper-case code.
   // Currency precedence: the finance-hydrated encounter currency (server truth),
@@ -1384,9 +1382,9 @@ const InvoiceStep = ({
     if (!organisationId) return;
     const invoiceHistoryItems = encounter.pastInvoices.flatMap((invoice) => invoice.items);
     const packageIdsNeedingDetail = [...encounter.invoiceLineItems, ...invoiceHistoryItems]
-      .filter((line) => !line.breakdown || line.breakdown.length === 0)
+      .filter((line) => !line.breakdown?.length)
       .map((line) => findCatalogPackageForLine(line, catalogPackages, organisationId))
-      .filter((pkg): pkg is PackageRevamp => pkg !== undefined && pkg.breakdown.length === 0)
+      .filter((pkg): pkg is PackageRevamp => pkg?.breakdown.length === 0)
       .map((pkg) => pkg.id);
     if (packageIdsNeedingDetail.length === 0) return;
     Promise.all([...new Set(packageIdsNeedingDetail)].map((id) => hydratePackageDetail(id))).catch(
