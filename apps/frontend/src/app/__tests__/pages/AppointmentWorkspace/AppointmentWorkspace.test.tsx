@@ -566,7 +566,7 @@ describe('AppointmentWorkspace container', () => {
   });
 
   it('keeps admit available for a checked-in inpatient with a legacy bare admission stamp', async () => {
-    const startTime = new Date('2026-06-27T09:00:00.000Z');
+    const startTime = new Date();
     (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({
       appointment: { id: 'appt-workspace', kind: 'INPATIENT', status: 'CHECKED_IN' },
       encounter: {
