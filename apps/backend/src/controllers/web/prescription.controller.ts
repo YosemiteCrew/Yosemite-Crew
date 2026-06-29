@@ -96,55 +96,42 @@ const sendPrescriptionLabelPdf = async (
   return res.status(200).send(pdf);
 };
 
+const handlePrescriptionLabelPdfRequest = async (
+  req: Request,
+  res: Response,
+  dispositionName: string,
+) => {
+  try {
+    return await sendPrescriptionLabelPdf(req, res, dispositionName);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ message: "Invalid prescription label request." });
+    }
+
+    if (
+      error instanceof Error &&
+      (error.message === "Prescription not found" ||
+        error.message === "Organisation not found")
+    ) {
+      return res.status(404).json({ message: error.message });
+    }
+
+    logger.error("Failed to generate prescription label PDF", { error });
+    return res
+      .status(500)
+      .json({ message: "Failed to generate prescription label PDF." });
+  }
+};
+
 export const PrescriptionController = {
   async generateLabels(req: Request, res: Response) {
-    try {
-      return await sendPrescriptionLabelPdf(req, res, "prescription-label");
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ message: "Invalid prescription label request." });
-      }
-
-      if (
-        error instanceof Error &&
-        (error.message === "Prescription not found" ||
-          error.message === "Organisation not found")
-      ) {
-        return res.status(404).json({ message: error.message });
-      }
-
-      logger.error("Failed to generate prescription label PDF", { error });
-      return res
-        .status(500)
-        .json({ message: "Failed to generate prescription label PDF." });
-    }
+    return handlePrescriptionLabelPdfRequest(req, res, "prescription-label");
   },
 
   async generateLabelPdf(req: Request, res: Response) {
-    try {
-      return await sendPrescriptionLabelPdf(req, res, "prescription-label");
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res
-          .status(400)
-          .json({ message: "Invalid prescription label request." });
-      }
-
-      if (
-        error instanceof Error &&
-        (error.message === "Prescription not found" ||
-          error.message === "Organisation not found")
-      ) {
-        return res.status(404).json({ message: error.message });
-      }
-
-      logger.error("Failed to generate prescription label PDF", { error });
-      return res
-        .status(500)
-        .json({ message: "Failed to generate prescription label PDF." });
-    }
+    return handlePrescriptionLabelPdfRequest(req, res, "prescription-label");
   },
 
   async listDispenseRequests(req: Request, res: Response) {

@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { ClinicalArtifactService } from "./clinical-artifact.service";
 import { FormAssignmentService } from "./form-assignment.service";
+import {
+  readActorNameFromEventPayload,
+  resolveActorDisplayName,
+} from "./finance/events";
 import { InvoiceService, InvoiceServiceError } from "./invoice.service";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { roundMoney } from "./finance/pricing";
@@ -348,37 +352,7 @@ const latestReadinessActorName = async (
     orderBy: { occurredAt: "desc" },
     select: { payload: true },
   });
-  const payload = event?.payload;
-  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    const name = (payload as Record<string, unknown>).actorName;
-    return typeof name === "string" && name.trim() ? name : null;
-  }
-  return null;
-};
-
-const resolveActorDisplayName = async (
-  actorUserId?: string | null,
-): Promise<string | null> => {
-  const id = actorUserId?.trim();
-  if (!id) {
-    return null;
-  }
-  if (id === "SYSTEM") {
-    return "System";
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { userId: id },
-    select: { firstName: true, lastName: true, email: true },
-  });
-  if (!user) {
-    return null;
-  }
-  const name = [user.firstName, user.lastName]
-    .filter((part): part is string => Boolean(part && part.trim()))
-    .join(" ")
-    .trim();
-  return name || user.email || null;
+  return readActorNameFromEventPayload(event?.payload);
 };
 
 const loadBootstrapBillingState = async (input: {

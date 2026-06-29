@@ -112,6 +112,32 @@ const templateKindSchema = z.union([
   templateContractKindSchema,
 ]);
 
+const buildTemplateSearchFilter = (
+  search?: string,
+): Prisma.TemplateWhereInput => {
+  const trimmedSearch = search?.trim();
+  if (!trimmedSearch) {
+    return {};
+  }
+
+  return {
+    OR: [
+      {
+        name: {
+          contains: trimmedSearch,
+          mode: "insensitive",
+        },
+      },
+      {
+        description: {
+          contains: trimmedSearch,
+          mode: "insensitive",
+        },
+      },
+    ],
+  };
+};
+
 export const createTemplateSchema = z
   .object({
     organisationId: z.string().trim().min(1).optional(),
@@ -1095,7 +1121,6 @@ export const TemplateService = {
       search?: string;
     },
   ) {
-    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         organisationId: ensureId(organisationId, "organisationId"),
@@ -1103,24 +1128,7 @@ export const TemplateService = {
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
-        ...(search
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  description: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            }
-          : {}),
+        ...buildTemplateSearchFilter(filters?.search),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
@@ -1135,31 +1143,13 @@ export const TemplateService = {
     scope?: TemplateScope;
     search?: string;
   }) {
-    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         ownership: "YC_LIBRARY",
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
-        ...(search
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  description: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            }
-          : {}),
+        ...buildTemplateSearchFilter(filters?.search),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
@@ -1178,7 +1168,6 @@ export const TemplateService = {
       search?: string;
     },
   ) {
-    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         organisationId: ensureId(organisationId, "organisationId"),
@@ -1187,24 +1176,7 @@ export const TemplateService = {
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
-        ...(search
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  description: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            }
-          : {}),
+        ...buildTemplateSearchFilter(filters?.search),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
