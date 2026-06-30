@@ -60,7 +60,8 @@ export type AuditEventType =
   | "PASSPORT_ISSUED"
   | "PASSPORT_CONSENT_REQUESTED"
   | "PASSPORT_CONSENT_GRANTED"
-  | "PASSPORT_CONSENT_REVOKED";
+  | "PASSPORT_CONSENT_REVOKED"
+  | "PROTOCOL_APPLIED";
 
 export interface AuditTrailMongo {
   organisationId: string;

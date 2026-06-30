@@ -1717,6 +1717,101 @@ enum AuditEventType {
   PASSPORT_CONSENT_REQUESTED
   PASSPORT_CONSENT_GRANTED
   PASSPORT_CONSENT_REVOKED
+  PROTOCOL_APPLIED
+}
+
+enum TreatmentProtocolSpecies {
+  CANINE
+  FELINE
+  AVIAN
+  EXOTIC
+  ALL
+}
+
+enum TreatmentProtocolCategory {
+  WELLNESS
+  SURGICAL
+  EMERGENCY
+  DENTAL
+  DERMATOLOGY
+  ORTHOPEDIC
+  NUTRITION
+  OTHER
+}
+
+enum TreatmentProtocolStepType {
+  TASK
+  MEDICATION
+  SERVICE
+  NOTE
+}
+
+enum AppliedProtocolStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model TreatmentProtocol {
+  id             String                     @id @default(uuid())
+  organisationId String
+  name           String
+  description    String?
+  species        TreatmentProtocolSpecies   @default(ALL)
+  category       TreatmentProtocolCategory  @default(OTHER)
+  isActive       Boolean                    @default(true)
+  createdById    String?
+  steps          TreatmentProtocolStep[]
+  applications   AppliedTreatmentProtocol[]
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  @@index([organisationId, isActive])
+  @@index([organisationId, species, category])
+  @@map("TreatmentProtocol")
+}
+
+model TreatmentProtocolStep {
+  id               String                    @id @default(uuid())
+  protocolId       String
+  protocol         TreatmentProtocol         @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  stepOrder        Int
+  stepType         TreatmentProtocolStepType
+  title            String
+  description      String?
+  inventoryItemId  String?
+  doseValue        Float?
+  doseUnit         String?
+  routeOfAdmin     String?
+  frequency        String?
+  durationDays     Int?
+  assigneeRole     String?
+  dueDaysFromStart Int?
+  serviceCode      String?
+  unitPrice        Float?
+  quantity         Int?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  @@index([protocolId, stepOrder])
+  @@map("TreatmentProtocolStep")
+}
+
+model AppliedTreatmentProtocol {
+  id             String                @id @default(uuid())
+  protocolId     String
+  protocol       TreatmentProtocol     @relation(fields: [protocolId], references: [id])
+  encounterId    String
+  patientId      String
+  organisationId String
+  appliedById    String?
+  status         AppliedProtocolStatus @default(IN_PROGRESS)
+  appliedAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([organisationId, encounterId])
+  @@index([organisationId, patientId])
+  @@map("AppliedTreatmentProtocol")
 }
 
 enum WithdrawalStatus {
