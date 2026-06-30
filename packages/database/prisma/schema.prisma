@@ -1740,6 +1740,16 @@ enum AuditEventType {
   ALLERGY_RECORDED
   ALLERGY_UPDATED
   ALLERGY_RESOLVED
+  VITAL_SIGNS_RECORDED
+  VITAL_SIGNS_UPDATED
+  MAR_ENTRY_CREATED
+  MAR_ENTRY_ADMINISTERED
+  MAR_ENTRY_HELD
+  MAR_ENTRY_MISSED
+  CARE_PLAN_CREATED
+  CARE_PLAN_UPDATED
+  CARE_PLAN_CANCELLED
+  CARE_PLAN_ITEM_COMPLETED
 }
 
 enum WaitlistStatus {
@@ -3525,4 +3535,126 @@ model PatientAllergy {
   @@index([organisationId, patientId, status])
   @@index([organisationId, patientId])
   @@map("PatientAllergy")
+}
+
+// ---------------------------------------------------------------------------
+// Patient Vital Signs
+// ---------------------------------------------------------------------------
+
+model PatientVitalSign {
+  id                String   @id @default(uuid())
+  organisationId    String
+  patientId         String
+  encounterId       String?
+  recordedAt        DateTime @default(now())
+  recordedBy        String?
+  weightKg          Float?
+  temperatureCelsius Float?
+  pulseRateBpm      Int?
+  respiratoryRateBpm Int?
+  systolicBp        Int?
+  diastolicBp       Int?
+  bodyConditionScore Int?
+  mucosal           String?
+  capRefillTimeSec  Float?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organisationId, patientId, recordedAt])
+  @@index([organisationId, patientId])
+  @@map("PatientVitalSign")
+}
+
+// ---------------------------------------------------------------------------
+// Medication Administration Record (MAR)
+// ---------------------------------------------------------------------------
+
+enum MARStatus {
+  SCHEDULED
+  GIVEN
+  HELD
+  MISSED
+  REFUSED
+}
+
+model MAREntry {
+  id             String    @id @default(uuid())
+  organisationId String
+  patientId      String
+  encounterId    String?
+  prescriptionId String?
+  medicationName String
+  dose           String
+  route          String
+  scheduledAt    DateTime
+  administeredAt DateTime?
+  administeredBy String?
+  status         MARStatus @default(SCHEDULED)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([organisationId, patientId, scheduledAt])
+  @@index([organisationId, encounterId, scheduledAt])
+  @@index([organisationId, patientId, status])
+  @@map("MAREntry")
+}
+
+// ---------------------------------------------------------------------------
+// Preventive Care Plans
+// ---------------------------------------------------------------------------
+
+enum PreventiveCareFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  BIANNUAL
+  ANNUAL
+  CUSTOM
+}
+
+enum PreventiveCareStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model PreventiveCarePlan {
+  id                String                  @id @default(uuid())
+  organisationId    String
+  patientId         String
+  name              String
+  description       String?
+  status            PreventiveCareStatus    @default(ACTIVE)
+  createdBy         String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  items             PreventiveCareItem[]
+
+  @@index([organisationId, patientId, status])
+  @@index([organisationId, patientId])
+  @@map("PreventiveCarePlan")
+}
+
+model PreventiveCareItem {
+  id              String                  @id @default(uuid())
+  planId          String
+  organisationId  String
+  careType        String
+  frequency       PreventiveCareFrequency
+  intervalDays    Int?
+  lastDoneAt      DateTime?
+  nextDueAt       DateTime?
+  notes           String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  plan            PreventiveCarePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId, nextDueAt])
+  @@index([planId])
+  @@map("PreventiveCareItem")
 }
