@@ -378,6 +378,19 @@ describe("PetClinicalRecordService.recordClinicalExam", () => {
       PetClinicalRecordService.recordClinicalExam(CTX, input),
     ).rejects.toMatchObject({ statusCode: 500 });
   });
+
+  it("emits EXAM_RECORDED audit event", async () => {
+    await PetClinicalRecordService.recordClinicalExam(CTX, input);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "EXAM_RECORDED",
+        patientId: CTX.patientId,
+        organisationId: CTX.organisationId,
+        entityType: "COMPANION",
+        metadata: expect.objectContaining({ fitForTravel: true }),
+      }),
+    );
+  });
 });
 
 describe("PetClinicalRecordService.attestRecord", () => {

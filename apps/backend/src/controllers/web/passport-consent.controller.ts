@@ -93,6 +93,7 @@ export const PassportConsentController = {
         organisationId: params.data.organisationId,
         method: body.data.method,
         parentId: body.data.parentId,
+        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
       });
       return res.status(200).json(consent);
     } catch (err) {
@@ -116,6 +117,7 @@ export const PassportConsentController = {
         consentId: params.data.consentId,
         organisationId: params.data.organisationId,
         reason: body.data.reason,
+        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
       });
       return res.status(200).json(consent);
     } catch (err) {

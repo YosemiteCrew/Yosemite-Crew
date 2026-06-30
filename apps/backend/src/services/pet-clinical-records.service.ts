@@ -109,7 +109,8 @@ const audit = async (
   eventType:
     | "VACCINATION_RECORDED"
     | "TREATMENT_RECORDED"
-    | "TITRATION_RECORDED",
+    | "TITRATION_RECORDED"
+    | "EXAM_RECORDED",
   entityId: string,
   metadata: Record<string, unknown>,
 ): Promise<void> => {
@@ -482,6 +483,9 @@ export const PetClinicalRecordService = {
     if (!row) {
       throw new PetClinicalRecordError("Clinical exam not persisted.", 500);
     }
+    await audit(ctx, "EXAM_RECORDED", row.id, {
+      fitForTravel: input.fitForTravel,
+    });
     return {
       id: row.id,
       patientId: ctx.patientId,

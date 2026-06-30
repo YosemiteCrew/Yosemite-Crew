@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { AuditTrailService } from "./audit-trail.service";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
   PassportConsentDTO,
@@ -9,8 +10,6 @@ import type {
 // is per recipient practice and keyed to the pet by microchip. A record owned by
 // practice O is visible to practice R only when a GRANTED consent O->R exists for
 // the pet; the pet parent (owner) sees the full record without a gate.
-// TODO(consent): emit GDPR audit events; trigger the pet-parent consent request
-// (mobile push / email) on requestConsent.
 export class PassportConsentError extends Error {
   constructor(
     message: string,
@@ -133,6 +132,20 @@ export const PassportConsentService = {
       },
       update: fields,
     });
+    await AuditTrailService.recordSafely({
+      organisationId,
+      patientId,
+      eventType: "PASSPORT_CONSENT_REQUESTED",
+      actorType: actor.type,
+      actorId: actor.id ?? null,
+      entityType: "COMPANION",
+      entityId: row.id,
+      metadata: {
+        microchipNumber: patient.microchipNumber,
+        recipientOrganisationId,
+        purpose: params.purpose ?? null,
+      },
+    });
     return toDTO(row);
   },
 
@@ -143,6 +156,7 @@ export const PassportConsentService = {
     organisationId: string;
     method: PassportConsentMethod;
     parentId?: string;
+    actor?: Actor;
   }): Promise<PassportConsentDTO> {
     const { consentId, organisationId, method } = params;
     const consent = await loadConsentOrThrow(consentId, organisationId);
@@ -157,6 +171,21 @@ export const PassportConsentService = {
         revokedReason: null,
       },
     });
+    await AuditTrailService.recordSafely({
+      organisationId,
+      patientId: consent.patientId,
+      eventType: "PASSPORT_CONSENT_GRANTED",
+      actorType: params.actor?.type ?? "PMS_USER",
+      actorId: params.actor?.id ?? null,
+      entityType: "COMPANION",
+      entityId: row.id,
+      metadata: {
+        microchipNumber: consent.microchipNumber,
+        consentMethod: method,
+        ownerOrganisationId: consent.ownerOrganisationId,
+        recipientOrganisationId: consent.recipientOrganisationId,
+      },
+    });
     return toDTO(row);
   },
 
@@ -165,6 +194,7 @@ export const PassportConsentService = {
     consentId: string;
     organisationId: string;
     reason?: string;
+    actor?: Actor;
   }): Promise<PassportConsentDTO> {
     const consent = await loadConsentOrThrow(
       params.consentId,
@@ -178,12 +208,25 @@ export const PassportConsentService = {
         revokedReason: params.reason ?? null,
       },
     });
+    await AuditTrailService.recordSafely({
+      organisationId: params.organisationId,
+      patientId: consent.patientId,
+      eventType: "PASSPORT_CONSENT_REVOKED",
+      actorType: params.actor?.type ?? "PMS_USER",
+      actorId: params.actor?.id ?? null,
+      entityType: "COMPANION",
+      entityId: row.id,
+      metadata: {
+        microchipNumber: consent.microchipNumber,
+        ownerOrganisationId: consent.ownerOrganisationId,
+        recipientOrganisationId: consent.recipientOrganisationId,
+        reason: params.reason ?? null,
+      },
+    });
     return toDTO(row);
   },
 
-  async listConsents(
-    organisationId: string,
-  ): Promise<{
+  async listConsents(organisationId: string): Promise<{
     outgoing: PassportConsentDTO[];
     incoming: PassportConsentDTO[];
   }> {

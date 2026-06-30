@@ -3,6 +3,7 @@ import {
   PassportConsentError,
 } from "src/services/passport-consent.service";
 import { prisma } from "src/config/prisma";
+import { AuditTrailService } from "src/services/audit-trail.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -16,6 +17,12 @@ jest.mock("src/config/prisma", () => ({
     },
   },
 }));
+
+jest.mock("src/services/audit-trail.service", () => ({
+  AuditTrailService: { recordSafely: jest.fn().mockResolvedValue(undefined) },
+}));
+
+const mockRecordSafely = AuditTrailService.recordSafely as jest.Mock;
 
 const prismaMock = prisma as unknown as {
   patientOrganisation: { findFirst: jest.Mock };
@@ -47,6 +54,7 @@ const ACTOR = { type: "PMS_USER" as const, id: "vet-1" };
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockRecordSafely.mockResolvedValue(undefined);
   prismaMock.patientOrganisation.findFirst.mockResolvedValue({ id: "link-1" });
   prismaMock.patient.findUnique.mockResolvedValue({
     microchipNumber: "985141000123456",
@@ -114,6 +122,20 @@ describe("PassportConsentService.requestConsent", () => {
       PassportConsentService.requestConsent(base),
     ).rejects.toMatchObject({ statusCode: 400 });
   });
+
+  it("emits PASSPORT_CONSENT_REQUESTED audit event", async () => {
+    await PassportConsentService.requestConsent(base);
+    expect(mockRecordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "PASSPORT_CONSENT_REQUESTED",
+        patientId: "pat-1",
+        organisationId: "org-1",
+        actorType: "PMS_USER",
+        actorId: "vet-1",
+        entityType: "COMPANION",
+      }),
+    );
+  });
 });
 
 describe("PassportConsentService.grantConsent", () => {
@@ -159,6 +181,38 @@ describe("PassportConsentService.grantConsent", () => {
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
+
+  it("emits PASSPORT_CONSENT_GRANTED with actor when provided", async () => {
+    await PassportConsentService.grantConsent({
+      consentId: "con-1",
+      organisationId: "org-1",
+      method: "EMAIL",
+      actor: { type: "PMS_USER", id: "vet-2" },
+    });
+    expect(mockRecordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "PASSPORT_CONSENT_GRANTED",
+        actorType: "PMS_USER",
+        actorId: "vet-2",
+        entityType: "COMPANION",
+      }),
+    );
+  });
+
+  it("emits PASSPORT_CONSENT_GRANTED with default actor when none provided", async () => {
+    await PassportConsentService.grantConsent({
+      consentId: "con-1",
+      organisationId: "org-1",
+      method: "MOBILE",
+    });
+    expect(mockRecordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "PASSPORT_CONSENT_GRANTED",
+        actorType: "PMS_USER",
+        actorId: null,
+      }),
+    );
+  });
 });
 
 describe("PassportConsentService.revokeConsent", () => {
@@ -193,6 +247,43 @@ describe("PassportConsentService.revokeConsent", () => {
         organisationId: "org-1",
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("emits PASSPORT_CONSENT_REVOKED with actor when provided", async () => {
+    prismaMock.passportShareConsent.findUnique.mockResolvedValue(
+      consentRow({ status: "GRANTED" }),
+    );
+    await PassportConsentService.revokeConsent({
+      consentId: "con-1",
+      organisationId: "org-1",
+      reason: "done",
+      actor: { type: "PMS_USER", id: "vet-3" },
+    });
+    expect(mockRecordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "PASSPORT_CONSENT_REVOKED",
+        actorType: "PMS_USER",
+        actorId: "vet-3",
+        entityType: "COMPANION",
+      }),
+    );
+  });
+
+  it("emits PASSPORT_CONSENT_REVOKED with default actor when none provided", async () => {
+    prismaMock.passportShareConsent.findUnique.mockResolvedValue(
+      consentRow({ status: "GRANTED" }),
+    );
+    await PassportConsentService.revokeConsent({
+      consentId: "con-1",
+      organisationId: "org-1",
+    });
+    expect(mockRecordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "PASSPORT_CONSENT_REVOKED",
+        actorType: "PMS_USER",
+        actorId: null,
+      }),
+    );
   });
 });
 
