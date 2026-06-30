@@ -1731,6 +1731,9 @@ enum AuditEventType {
   INSURANCE_CLAIM_SUBMITTED
   INSURANCE_CLAIM_STATUS_CHANGED
   INSURANCE_CLAIM_CANCELLED
+  CARE_REMINDER_SENT
+  CARE_REMINDER_RESPONDED
+  CARE_REMINDER_CANCELLED
 }
 
 enum WaitlistStatus {
@@ -3400,4 +3403,45 @@ model InsuranceClaim {
   @@index([organisationId, status])
   @@index([organisationId, invoiceId])
   @@map("InsuranceClaim")
+}
+
+enum CareReminderType {
+  VACCINATION_BOOSTER
+  ANNUAL_CHECKUP
+  PARASITE_TREATMENT
+  DENTAL_CLEANING
+  FOLLOW_UP
+  CUSTOM
+}
+
+enum CareReminderStatus {
+  PENDING
+  SENT
+  RESPONDED
+  EXPIRED
+  CANCELLED
+}
+
+model CareReminder {
+  id             String             @id @default(uuid())
+  organisationId String
+  patientId      String
+  reminderType   CareReminderType
+  customMessage  String?
+  dueDate        DateTime
+  sendAt         DateTime?
+  status         CareReminderStatus @default(PENDING)
+  sentAt         DateTime?
+  respondedAt    DateTime?
+  appointmentId  String?
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@index([organisationId, reminderType])
+  @@index([organisationId, dueDate])
+  @@map("CareReminder")
 }

@@ -132,6 +132,14 @@ export const NotificationTemplates = {
       title: "Appointment slot available",
       body: `Good news! A slot has opened up for ${companionName}. Open the app to book before it fills.`,
     }),
+
+    CARE_REMINDER: (
+      companionName: string,
+      careType: string,
+    ): NotificationPayload => ({
+      title: `Care reminder for ${companionName}`,
+      body: `${companionName} is due for ${careType}. Book an appointment to keep them healthy.`,
+    }),
   },
 
   //
