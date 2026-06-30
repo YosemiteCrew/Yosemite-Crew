@@ -65,9 +65,8 @@ const handleError = (
 const parseDates = (data: Record<string, unknown>) => {
   const out = { ...data };
   if (typeof out.startedAt === "string")
-    out.startedAt = new Date(out.startedAt as string);
-  if (typeof out.endedAt === "string")
-    out.endedAt = new Date(out.endedAt as string);
+    out.startedAt = new Date(out.startedAt);
+  if (typeof out.endedAt === "string") out.endedAt = new Date(out.endedAt);
   return out;
 };
 
