@@ -1803,6 +1803,9 @@ enum AuditEventType {
   CARDIOLOGY_ASSESSMENT_RECORDED
   BEHAVIOR_ASSESSMENT_RECORDED
   DERMATOLOGY_ASSESSMENT_RECORDED
+  NEUROLOGY_ASSESSMENT_RECORDED
+  ONCOLOGY_ASSESSMENT_RECORDED
+  NUTRITION_ASSESSMENT_RECORDED
 }
 
 enum WaitlistStatus {
@@ -4823,4 +4826,139 @@ model DermatologyAssessment {
 
   @@index([organisationId, patientId])
   @@map("DermatologyAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Neurology Assessment
+// ---------------------------------------------------------------------------
+
+enum ConsciousnessLevel {
+  ALERT
+  OBTUNDED
+  STUPOR
+  COMA
+}
+
+enum GaitScore {
+  NORMAL
+  PARETIC
+  ATAXIC
+  NON_AMBULATORY_PARAPLEGIC
+  NON_AMBULATORY_TETRAPLEGIC
+}
+
+model NeurologyAssessment {
+  id                    String             @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  assessedAt            DateTime
+  assessedBy            String?
+  consciousnessLevel    ConsciousnessLevel?
+  gaitScore             GaitScore?
+  cranialNerveFindings  String?
+  spinalReflexGrades    Json?
+  deepPainPresent       Boolean?
+  proprioceptionIntact  Boolean?
+  seizureHistory        Boolean?
+  seizureFrequency      String?
+  mriRecommended        Boolean?
+  diagnoses             String[]
+  notes                 String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("NeurologyAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Oncology Assessment
+// ---------------------------------------------------------------------------
+
+enum OncologyStage {
+  STAGE_0
+  STAGE_I
+  STAGE_IA
+  STAGE_IB
+  STAGE_II
+  STAGE_IIA
+  STAGE_IIB
+  STAGE_III
+  STAGE_IIIA
+  STAGE_IIIB
+  STAGE_IV
+}
+
+model OncologyAssessment {
+  id                      String        @id @default(uuid())
+  organisationId          String
+  patientId               String
+  encounterId             String?
+  assessedAt              DateTime
+  assessedBy              String?
+  tumorType               String?
+  primaryTumorStage       String?
+  nodeStage               String?
+  metastasisStage         String?
+  overallStage            OncologyStage?
+  chemotherapyProtocol    String?
+  chemotherapyStartDate   DateTime?
+  chemotherapyCycles      Int?
+  qualityOfLifeScore      Int?
+  prognosis               String?
+  diagnoses               String[]
+  notes                   String?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("OncologyAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Nutrition Assessment
+// ---------------------------------------------------------------------------
+
+enum AppetiteScore {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  NONE
+}
+
+enum FeedingRoute {
+  ORAL
+  NASOGASTRIC
+  ESOPHAGOSTOMY
+  GASTROSTOMY
+  IV_PARENTERAL
+}
+
+model NutritionAssessment {
+  id                        String        @id @default(uuid())
+  organisationId            String
+  patientId                 String
+  encounterId               String?
+  assessedAt                DateTime
+  assessedBy                String?
+  appetiteScore             AppetiteScore?
+  bodyConditionScore        Int?
+  muscleConditionScore      Int?
+  currentWeightKg           Float?
+  idealWeightKg             Float?
+  restingEnergyRequirement  Float?
+  feedingRoute              FeedingRoute?
+  currentDiet               String?
+  feedingPlan               String?
+  supplementation           String[]
+  hydrationStatus           String?
+  diagnoses                 String[]
+  notes                     String?
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("NutritionAssessment")
 }
