@@ -1849,6 +1849,12 @@ enum AuditEventType {
   ANAESTHESIA_STARTED
   ANAESTHESIA_COMPLETED
   ANAESTHESIA_ABORTED
+  STAFF_SHIFT_SCHEDULED
+  STAFF_SHIFT_UPDATED
+  STAFF_SHIFT_CANCELLED
+  TREATMENT_OUTCOME_RECORDED
+  MEDICAL_CERTIFICATE_ISSUED
+  MEDICAL_CERTIFICATE_REVOKED
 }
 
 enum WaitlistStatus {
@@ -5955,4 +5961,113 @@ model AnaesthesiaRecord {
   @@index([organisationId, status])
   @@index([organisationId, appointmentId])
   @@map("AnaesthesiaRecord")
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model StaffShift {
+  id             String      @id @default(uuid())
+  organisationId String
+  staffId        String
+  role           String
+  shiftDate      DateTime
+  startTime      DateTime
+  endTime        DateTime
+  breakMinutes   Int?
+  status         ShiftStatus @default(SCHEDULED)
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([organisationId, shiftDate])
+  @@index([organisationId, staffId])
+  @@index([organisationId, status])
+  @@map("StaffShift")
+}
+
+enum TreatmentOutcomeType {
+  RECOVERED
+  IMPROVED
+  STABLE
+  DETERIORATED
+  DECEASED
+  REFERRED_OUT
+  LOST_TO_FOLLOWUP
+  ONGOING
+}
+
+model TreatmentOutcome {
+  id              String               @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  episodeOfCareId String?
+  recordedAt      DateTime
+  recordedBy      String?
+  outcomeType     TreatmentOutcomeType
+  clinicalNotes   String?
+  followUpDate    DateTime?
+  followUpNotes   String?
+  resolved        Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, outcomeType])
+  @@index([organisationId, recordedAt])
+  @@map("TreatmentOutcome")
+}
+
+enum MedicalCertificateType {
+  HEALTH_CERTIFICATE
+  VACCINATION_CERTIFICATE
+  FIT_FOR_TRAVEL
+  EXPORT_CERTIFICATE
+  BOARDING_CLEARANCE
+  BREEDING_CLEARANCE
+  OTHER
+}
+
+enum MedicalCertificateStatus {
+  DRAFT
+  ISSUED
+  EXPIRED
+  REVOKED
+}
+
+model MedicalCertificate {
+  id              String                   @id @default(uuid())
+  organisationId  String
+  patientId       String
+  clientId        String
+  encounterId     String?
+  appointmentId   String?
+  certificateType MedicalCertificateType
+  status          MedicalCertificateStatus @default(DRAFT)
+  issueNumber     String?                  @unique
+  issuedAt        DateTime?
+  expiresAt       DateTime?
+  issuedBy        String?
+  validForTravel  Boolean                  @default(false)
+  destinationCountry String?
+  clinicalFindings   String?
+  restrictions       String?
+  notes              String?
+  revokedAt          DateTime?
+  revokedReason      String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@index([organisationId, certificateType])
+  @@index([organisationId, issuedAt])
+  @@map("MedicalCertificate")
 }
