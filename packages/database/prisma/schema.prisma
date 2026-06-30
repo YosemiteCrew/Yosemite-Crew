@@ -1773,6 +1773,13 @@ enum AuditEventType {
   POST_OP_PLAN_CREATED
   POST_OP_PLAN_REVIEWED
   POST_OP_PLAN_COMPLETED
+  ANESTHESIA_RECORD_CREATED
+  ANESTHESIA_RECORD_UPDATED
+  ANESTHESIA_RECORD_COMPLETED
+  HOSPITALIZATION_OBS_RECORDED
+  PHYSIOTHERAPY_PLAN_CREATED
+  PHYSIOTHERAPY_PLAN_UPDATED
+  PHYSIOTHERAPY_PLAN_DISCONTINUED
 }
 
 enum WaitlistStatus {
@@ -3698,6 +3705,8 @@ enum AnesthesiaType {
   LOCAL
   SEDATION
   EPIDURAL
+  REGIONAL
+  TOTAL_IV
   NONE
 }
 
@@ -4055,4 +4064,129 @@ model PostOpCarePlan {
   @@index([organisationId, patientId])
   @@index([encounterId])
   @@map("PostOpCarePlan")
+}
+
+// ---------------------------------------------------------------------------
+// Anesthesia Records
+// ---------------------------------------------------------------------------
+
+enum AnesthesiaStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+}
+
+model AnesthesiaRecord {
+  id                  String           @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  surgicalProcedureId String?
+  anesthesiaType      AnesthesiaType   @default(GENERAL)
+  anesthesiologist    String?
+  assistantName       String?
+  preMedication       String?
+  inductionAgent      String?
+  maintenanceAgent    String?
+  oxygenFlowLpm       Decimal?
+  inductionTime       DateTime?
+  intubationTime      DateTime?
+  recoveryStartTime   DateTime?
+  recoveryEndTime     DateTime?
+  complications       String?
+  recoveryNotes       String?
+  status              AnesthesiaStatus @default(IN_PROGRESS)
+  notes               String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, surgicalProcedureId])
+  @@map("AnesthesiaRecord")
+}
+
+// ---------------------------------------------------------------------------
+// Hospitalization Monitoring (Nursing Obs Chart)
+// ---------------------------------------------------------------------------
+
+model HospitalizationMonitoring {
+  id                     String   @id @default(uuid())
+  organisationId         String
+  patientId              String
+  admissionId            String?
+  encounterId            String?
+  observedAt             DateTime
+  observedBy             String?
+  temperature            Decimal?
+  temperatureUnit        String?
+  heartRate              Int?
+  respiratoryRate        Int?
+  spo2                   Int?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  etco2                  Int?
+  painScore              Int?
+  crtSecs                Decimal?
+  mucousMembranes        String?
+  inputMl                Decimal?
+  outputMl               Decimal?
+  mentalStatus           String?
+  appetite               String?
+  urination              String?
+  defecation             String?
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, admissionId])
+  @@index([observedAt])
+  @@map("HospitalizationMonitoring")
+}
+
+// ---------------------------------------------------------------------------
+// Physiotherapy Plans
+// ---------------------------------------------------------------------------
+
+enum PhysiotherapyStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  DISCONTINUED
+}
+
+model PhysiotherapyPlan {
+  id                   String              @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  surgicalProcedureId  String?
+  diagnosis            String
+  goals                String?
+  frequency            String?
+  durationMinutes      Int?
+  totalSessions        Int?
+  exercisePrescription String?
+  hydrotherapy         Boolean             @default(false)
+  laserTherapy         Boolean             @default(false)
+  therapeuticUltrasound Boolean            @default(false)
+  massage              Boolean             @default(false)
+  acupuncture          Boolean             @default(false)
+  tapeApplication      Boolean             @default(false)
+  precautions          String?
+  homeExercises        String?
+  startDate            DateTime?
+  endDate              DateTime?
+  lastSessionAt        DateTime?
+  nextSessionAt        DateTime?
+  therapist            String?
+  prescribedBy         String?
+  status               PhysiotherapyStatus @default(ACTIVE)
+  notes                String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("PhysiotherapyPlan")
 }
