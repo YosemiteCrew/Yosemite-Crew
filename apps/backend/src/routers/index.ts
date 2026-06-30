@@ -116,6 +116,8 @@ import { clientComplaintRouter } from "./client-complaint.router";
 import { preOpAssessmentRouter } from "./pre-op-assessment.router";
 import { isolationProtocolRouter } from "./isolation-protocol.router";
 import { patientTransferRouter } from "./patient-transfer.router";
+import { clinicEquipmentRouter } from "./clinic-equipment.router";
+import { appointmentReminderLogRouter } from "./appointment-reminder-log.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -229,6 +231,8 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, preOpAssessmentRouter);
   app.use(`/v1`, isolationProtocolRouter);
   app.use(`/v1`, patientTransferRouter);
+  app.use(`/v1`, clinicEquipmentRouter);
+  app.use(`/v1`, appointmentReminderLogRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);

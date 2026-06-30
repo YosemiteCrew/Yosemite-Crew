@@ -1827,6 +1827,9 @@ enum AuditEventType {
   ISOLATION_PROTOCOL_STARTED
   ISOLATION_PROTOCOL_ENDED
   PATIENT_TRANSFER_RECORDED
+  CONSENT_FORM_SIGNED
+  EQUIPMENT_MAINTENANCE_LOGGED
+  APPOINTMENT_REMINDER_SENT
 }
 
 enum WaitlistStatus {
@@ -5663,4 +5666,108 @@ model PatientTransfer {
   @@index([organisationId, patientId])
   @@index([organisationId, transferredAt])
   @@map("PatientTransfer")
+}
+
+// ---------------------------------------------------------------------------
+// Equipment Maintenance Log
+// ---------------------------------------------------------------------------
+
+enum MaintenanceType {
+  ROUTINE_SERVICE
+  CALIBRATION
+  REPAIR
+  INSPECTION
+  CLEANING
+  REPLACEMENT
+  SOFTWARE_UPDATE
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  UNDER_MAINTENANCE
+  DECOMMISSIONED
+  AWAITING_REPAIR
+}
+
+model ClinicEquipment {
+  id              String          @id @default(uuid())
+  organisationId  String
+  name            String
+  model           String?
+  serialNumber    String?
+  manufacturer    String?
+  purchasedAt     DateTime?
+  warrantyExpiry  DateTime?
+  status          EquipmentStatus @default(OPERATIONAL)
+  locationNotes   String?
+  notes           String?
+  maintenanceLogs EquipmentMaintenanceLog[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([organisationId])
+  @@map("ClinicEquipment")
+}
+
+model EquipmentMaintenanceLog {
+  id            String          @id @default(uuid())
+  equipmentId   String
+  equipment     ClinicEquipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  maintenanceType MaintenanceType
+  performedBy   String?
+  vendor        String?
+  scheduledAt   DateTime?
+  performedAt   DateTime
+  nextDueAt     DateTime?
+  cost          Float?
+  currency      String?
+  passed        Boolean?
+  notes         String?
+  createdAt     DateTime        @default(now())
+
+  @@index([equipmentId])
+  @@index([equipmentId, performedAt])
+  @@map("EquipmentMaintenanceLog")
+}
+
+// ---------------------------------------------------------------------------
+// Appointment Reminder Outcome Log
+// ---------------------------------------------------------------------------
+
+enum ReminderChannel {
+  SMS
+  EMAIL
+  PUSH_NOTIFICATION
+  PHONE_CALL
+  WHATSAPP
+}
+
+enum ReminderOutcome {
+  DELIVERED
+  OPENED
+  CONFIRMED
+  RESCHEDULED
+  CANCELLED
+  NO_RESPONSE
+  BOUNCED
+  FAILED
+}
+
+model AppointmentReminderLog {
+  id             String          @id @default(uuid())
+  organisationId String
+  appointmentId  String
+  clientId       String
+  channel        ReminderChannel
+  outcome        ReminderOutcome @default(DELIVERED)
+  sentAt         DateTime
+  respondedAt    DateTime?
+  messagePreview String?
+  externalId     String?
+  errorMessage   String?
+  createdAt      DateTime        @default(now())
+
+  @@index([organisationId, appointmentId])
+  @@index([organisationId, clientId])
+  @@map("AppointmentReminderLog")
 }
