@@ -122,7 +122,6 @@ import { waitlistEntryRouter } from "./waitlist-entry.router";
 import { adverseEventReportRouter } from "./adverse-event-report.router";
 import { bodyConditionRecordRouter } from "./body-condition-record.router";
 import { qualityOfLifeAssessmentRouter } from "./quality-of-life-assessment.router";
-import { pointOfCareLabRouter } from "./point-of-care-lab.router";
 import { clinicalAlertLogRouter } from "./clinical-alert-log.router";
 import { telemedicineSessionRouter } from "./telemedicine-session.router";
 import { patientCheckInRouter } from "./patient-check-in.router";
@@ -246,7 +245,6 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, adverseEventReportRouter);
   app.use(`/v1`, bodyConditionRecordRouter);
   app.use(`/v1`, qualityOfLifeAssessmentRouter);
-  app.use(`/v1`, pointOfCareLabRouter);
   app.use(`/v1`, clinicalAlertLogRouter);
   app.use(`/v1`, telemedicineSessionRouter);
   app.use(`/v1`, patientCheckInRouter);
