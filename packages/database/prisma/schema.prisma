@@ -1799,6 +1799,8 @@ enum AuditEventType {
   DENTAL_EXAMINATION_RECORDED
   REPRODUCTIVE_RECORD_CREATED
   REPRODUCTIVE_RECORD_UPDATED
+  OPHTHALMOLOGY_EXAMINATION_RECORDED
+  CARDIOLOGY_ASSESSMENT_RECORDED
 }
 
 enum WaitlistStatus {
@@ -4634,4 +4636,116 @@ model ReproductiveRecord {
 
   @@index([organisationId, patientId])
   @@map("ReproductiveRecord")
+}
+
+// ---------------------------------------------------------------------------
+// Ophthalmology Examination
+// ---------------------------------------------------------------------------
+
+enum VisionStatus {
+  NORMAL
+  REDUCED
+  ABSENT
+  UNKNOWN
+}
+
+enum PLRResponse {
+  NORMAL
+  SLUGGISH
+  ABSENT
+}
+
+model OphthalmologyExamination {
+  id                  String       @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  examinedAt          DateTime
+  examinedBy          String?
+  visionLeft          VisionStatus?
+  visionRight         VisionStatus?
+  menaceLeft          Boolean?
+  menaceRight         Boolean?
+  plrDirectLeft       PLRResponse?
+  plrDirectRight      PLRResponse?
+  plrConsensualLeft   PLRResponse?
+  plrConsensualRight  PLRResponse?
+  sttLeft             Int?
+  sttRight            Int?
+  iopLeft             Decimal?
+  iopRight            Decimal?
+  fluoresceinLeft     Boolean?
+  fluoresceinRight    Boolean?
+  findingsLeft        Json?
+  findingsRight       Json?
+  diagnoses           String[]
+  notes               String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("OphthalmologyExamination")
+}
+
+// ---------------------------------------------------------------------------
+// Cardiology Assessment
+// ---------------------------------------------------------------------------
+
+enum MurmurGrade {
+  GRADE_1
+  GRADE_2
+  GRADE_3
+  GRADE_4
+  GRADE_5
+  GRADE_6
+}
+
+enum HeartRhythm {
+  NORMAL_SINUS
+  SINUS_ARRHYTHMIA
+  BRADYCARDIA
+  TACHYCARDIA
+  ATRIAL_FIBRILLATION
+  SECOND_DEGREE_AV_BLOCK
+  THIRD_DEGREE_AV_BLOCK
+  VENTRICULAR_PREMATURE_CONTRACTIONS
+  SUPRAVENTRICULAR_PREMATURE_CONTRACTIONS
+  OTHER
+}
+
+enum AcvimClass {
+  A
+  B1
+  B2
+  C
+  D
+}
+
+model CardiologyAssessment {
+  id                   String      @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  assessedAt           DateTime
+  assessedBy           String?
+  heartRate            Int?
+  heartRhythm          HeartRhythm?
+  murmurGrade          MurmurGrade?
+  murmurLocation       String?
+  murmurCharacter      String?
+  pulseQuality         String?
+  jugularPulse         String?
+  vertebralHeartScore  Decimal?
+  laAoRatio            Decimal?
+  fractionalShortening Decimal?
+  ejectionFraction     Decimal?
+  acvimClass           AcvimClass?
+  findings             Json?
+  diagnoses            String[]
+  notes                String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("CardiologyAssessment")
 }
