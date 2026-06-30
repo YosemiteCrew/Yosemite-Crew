@@ -1784,6 +1784,11 @@ enum AuditEventType {
   PATHOLOGY_SUBMITTED
   PATHOLOGY_RESULTS_RECORDED
   PATHOLOGY_REVIEWED
+  EMERGENCY_TRIAGE_RECORDED
+  EMERGENCY_TRIAGE_ESCALATED
+  ICU_CARE_PLAN_CREATED
+  ICU_CARE_PLAN_UPDATED
+  ICU_CARE_PLAN_DISCHARGED
 }
 
 enum WaitlistStatus {
@@ -4312,4 +4317,86 @@ model PathologySubmission {
   @@index([organisationId, patientId])
   @@index([organisationId, status])
   @@map("PathologySubmission")
+}
+
+// ---------------------------------------------------------------------------
+// Emergency Triage
+// ---------------------------------------------------------------------------
+
+enum TriagePriority {
+  IMMEDIATE
+  URGENT
+  LESS_URGENT
+  STANDARD
+  NON_URGENT
+}
+
+model EmergencyTriage {
+  id                     String         @id @default(uuid())
+  organisationId         String
+  patientId              String
+  encounterId            String?
+  triagePriority         TriagePriority
+  chiefComplaint         String
+  presentationAt         DateTime
+  heartRate              Int?
+  respiratoryRate        Int?
+  temperature            Decimal?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  oxygenSaturation       Decimal?
+  capillaryRefillTime    Decimal?
+  mentalStatus           String?
+  escalated              Boolean        @default(false)
+  escalatedAt            DateTime?
+  escalatedReason        String?
+  triageBy               String?
+  notes                  String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, presentationAt])
+  @@map("EmergencyTriage")
+}
+
+// ---------------------------------------------------------------------------
+// ICU Care Plan
+// ---------------------------------------------------------------------------
+
+enum IcuPlanStatus {
+  ACTIVE
+  TRANSFERRED
+  DISCHARGED
+  DECEASED
+}
+
+model IcuCarePlan {
+  id                   String        @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  status               IcuPlanStatus @default(ACTIVE)
+  admittedAt           DateTime
+  onVentilator         Boolean       @default(false)
+  onOxygenSupport      Boolean       @default(false)
+  hasUrinaryCatheter   Boolean       @default(false)
+  hasCentralLine       Boolean       @default(false)
+  hasDrain             Boolean       @default(false)
+  devices              String?
+  dailyGoals           String?
+  nursingFrequency     String?
+  alertThresholds      String?
+  primaryVet           String?
+  nursePrimary         String?
+  anticipatedDischarge DateTime?
+  dischargedAt         DateTime?
+  dischargeSummary     String?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@map("IcuCarePlan")
 }

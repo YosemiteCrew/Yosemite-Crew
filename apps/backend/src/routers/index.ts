@@ -86,6 +86,8 @@ import hospitalizationMonitoringRouter from "./hospitalization-monitoring.router
 import physiotherapyPlanRouter from "./physiotherapy-plan.router";
 import woundAssessmentRouter from "./wound-assessment.router";
 import pathologySubmissionRouter from "./pathology-submission.router";
+import emergencyTriageRouter from "./emergency-triage.router";
+import icuCarePlanRouter from "./icu-care-plan.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -169,6 +171,8 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, physiotherapyPlanRouter);
   app.use(`/v1`, woundAssessmentRouter);
   app.use(`/v1`, pathologySubmissionRouter);
+  app.use(`/v1`, emergencyTriageRouter);
+  app.use(`/v1`, icuCarePlanRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
