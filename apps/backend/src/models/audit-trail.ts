@@ -132,7 +132,9 @@ export type AuditEventType =
   | "EMERGENCY_TRIAGE_ESCALATED"
   | "ICU_CARE_PLAN_CREATED"
   | "ICU_CARE_PLAN_UPDATED"
-  | "ICU_CARE_PLAN_DISCHARGED";
+  | "ICU_CARE_PLAN_DISCHARGED"
+  | "PAIN_ASSESSMENT_RECORDED"
+  | "BODY_CONDITION_RECORDED";
 
 export interface AuditTrailMongo {
   organisationId: string;

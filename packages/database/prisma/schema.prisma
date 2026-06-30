@@ -1789,6 +1789,8 @@ enum AuditEventType {
   ICU_CARE_PLAN_CREATED
   ICU_CARE_PLAN_UPDATED
   ICU_CARE_PLAN_DISCHARGED
+  PAIN_ASSESSMENT_RECORDED
+  BODY_CONDITION_RECORDED
 }
 
 enum WaitlistStatus {
@@ -4399,4 +4401,81 @@ model IcuCarePlan {
   @@index([organisationId, patientId])
   @@index([organisationId, status])
   @@map("IcuCarePlan")
+}
+
+// ---------------------------------------------------------------------------
+// Pain Assessment
+// ---------------------------------------------------------------------------
+
+enum PainScale {
+  NUMERIC_0_10
+  COLORADO_ACUTE_PAIN_SCALE
+  GLASGOW_COMPOSITE_PAIN_SCALE
+  UNESP_BOTUCATU
+  FELINE_GRIMACE_SCALE
+}
+
+enum PainInterventionType {
+  ANALGESIC_GIVEN
+  REPOSITIONED
+  ICE_APPLIED
+  BANDAGE_ADJUSTED
+  ENVIRONMENT_MODIFIED
+  REASSESSED
+  OTHER
+}
+
+model PainAssessment {
+  id                 String                @id @default(uuid())
+  organisationId     String
+  patientId          String
+  encounterId        String?
+  painScale          PainScale
+  painScore          Int
+  rawScore           String?
+  behaviouralSigns   String?
+  vocalisation       Boolean?
+  posture            String?
+  assessedAt         DateTime
+  assessedBy         String?
+  interventionType   PainInterventionType?
+  interventionDetail String?
+  reassessAt         DateTime?
+  notes              String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, assessedAt])
+  @@map("PainAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Body Condition Record
+// ---------------------------------------------------------------------------
+
+enum BodyConditionScaleType {
+  BCS_5
+  BCS_9
+}
+
+model BodyConditionRecord {
+  id                   String                 @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  bcsScale             BodyConditionScaleType
+  bcsScore             Decimal
+  muscleConditionScore String?
+  weightKg             Decimal?
+  bodyFatPercentage    Decimal?
+  recordedAt           DateTime
+  recordedBy           String?
+  notes                String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, recordedAt])
+  @@map("BodyConditionRecord")
 }
