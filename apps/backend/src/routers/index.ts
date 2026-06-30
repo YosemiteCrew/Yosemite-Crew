@@ -104,6 +104,9 @@ import nutritionAssessmentRouter from "./nutrition-assessment.router";
 import pocLabRouter from "./poc-lab.router";
 import geneticHealthScreenRouter from "./genetic-health-screen.router";
 import qolAssessmentRouter from "./qol-assessment.router";
+import controlledSubstanceLogRouter from "./controlled-substance-log.router";
+import aftercarePlanRouter from "./aftercare-plan.router";
+import bloodBankRouter from "./blood-bank.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -205,6 +208,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, pocLabRouter);
   app.use(`/v1`, geneticHealthScreenRouter);
   app.use(`/v1`, qolAssessmentRouter);
+  app.use(`/v1`, controlledSubstanceLogRouter);
+  app.use(`/v1`, aftercarePlanRouter);
+  app.use(`/v1`, bloodBankRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);

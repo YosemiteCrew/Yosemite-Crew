@@ -1809,6 +1809,10 @@ enum AuditEventType {
   POC_LAB_RECORDED
   GENETIC_SCREEN_RECORDED
   QOL_ASSESSMENT_RECORDED
+  CONTROLLED_SUBSTANCE_LOGGED
+  AFTERCARE_PLAN_RECORDED
+  BLOOD_DONOR_REGISTERED
+  BLOOD_DONATION_COLLECTED
 }
 
 enum WaitlistStatus {
@@ -5085,4 +5089,146 @@ model QualityOfLifeAssessment {
 
   @@index([organisationId, patientId])
   @@map("QualityOfLifeAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Controlled Substance Log
+// ---------------------------------------------------------------------------
+
+enum DeaSchedule {
+  II
+  III
+  IV
+  V
+}
+
+enum DrugUnit {
+  ML
+  MG
+  MCG
+  TABLET
+  CAPSULE
+  PATCH
+  UNIT
+}
+
+model ControlledSubstanceLog {
+  id                 String      @id @default(uuid())
+  organisationId     String
+  patientId          String?
+  encounterId        String?
+  loggedAt           DateTime
+  drug               String
+  deaSchedule        DeaSchedule
+  lotNumber          String?
+  strength           Float?
+  unit               DrugUnit
+  amountDrawn        Float
+  amountAdministered Float
+  amountWasted       Float       @default(0)
+  wastedWitness      String?
+  balanceBefore      Float?
+  balanceAfter       Float?
+  administeredBy     String?
+  notes              String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([organisationId, drug])
+  @@index([organisationId, loggedAt])
+  @@map("ControlledSubstanceLog")
+}
+
+// ---------------------------------------------------------------------------
+// Aftercare Plan (End-of-Life Services)
+// ---------------------------------------------------------------------------
+
+enum AftercareType {
+  EUTHANASIA_SERVICE
+  CREMATION_PRIVATE
+  CREMATION_COMMUNAL
+  AQUAMATION
+  BURIAL
+  HOME_CARE
+  DONATION_TO_SCIENCE
+}
+
+model AftercarePlan {
+  id                   String        @id @default(uuid())
+  organisationId       String
+  patientId            String
+  type                 AftercareType
+  provider             String?
+  estimatedCost        Float?
+  depositPaid          Float?
+  pawPrintRequested    Boolean       @default(false)
+  furClippingRequested Boolean       @default(false)
+  urnsRequested        Int?
+  instructions         String?
+  certificateNumber    String?
+  completedAt          DateTime?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("AftercarePlan")
+}
+
+// ---------------------------------------------------------------------------
+// Blood Bank
+// ---------------------------------------------------------------------------
+
+enum DonationStatus {
+  COLLECTED
+  PROCESSED
+  AVAILABLE
+  TRANSFUSED
+  EXPIRED
+  DISCARDED
+}
+
+model BloodBankDonor {
+  id                     String    @id @default(uuid())
+  organisationId         String
+  patientId              String    @unique
+  bloodType              BloodType
+  lastScreeningAt        DateTime?
+  lastDonationAt         DateTime?
+  nextEligibleAt         DateTime?
+  isActive               Boolean   @default(true)
+  totalDonations         Int       @default(0)
+  disqualificationReason String?
+  notes                  String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  donations BloodDonationCollection[]
+
+  @@index([organisationId, bloodType])
+  @@index([organisationId, isActive])
+  @@map("BloodBankDonor")
+}
+
+model BloodDonationCollection {
+  id                String         @id @default(uuid())
+  donorId           String
+  organisationId    String
+  collectedAt       DateTime
+  collectedBy       String?
+  volumeMl          Float
+  anticoagulant     String?
+  unitId            String?
+  expiresAt         DateTime?
+  crossmatchResults Json?
+  status            DonationStatus @default(COLLECTED)
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  donor BloodBankDonor @relation(fields: [donorId], references: [id])
+
+  @@index([organisationId, status])
+  @@index([donorId])
+  @@map("BloodDonationCollection")
 }
