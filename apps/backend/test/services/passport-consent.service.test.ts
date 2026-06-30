@@ -4,6 +4,8 @@ import {
 } from "src/services/passport-consent.service";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "src/services/audit-trail.service";
+import { NotificationService } from "src/services/notification.service";
+import { sendEmail } from "src/utils/email";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -15,6 +17,8 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       findMany: jest.fn(),
     },
+    parentPatient: { findFirst: jest.fn() },
+    parent: { findUnique: jest.fn() },
   },
 }));
 
@@ -22,7 +26,24 @@ jest.mock("src/services/audit-trail.service", () => ({
   AuditTrailService: { recordSafely: jest.fn().mockResolvedValue(undefined) },
 }));
 
+jest.mock("src/services/notification.service", () => ({
+  NotificationService: {
+    sendToUser: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock("src/utils/email", () => ({
+  sendEmail: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock("src/utils/logger", () => ({
+  __esModule: true,
+  default: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
+}));
+
 const mockRecordSafely = AuditTrailService.recordSafely as jest.Mock;
+const mockSendToUser = NotificationService.sendToUser as jest.Mock;
+const mockSendEmail = sendEmail as jest.Mock;
 
 const prismaMock = prisma as unknown as {
   patientOrganisation: { findFirst: jest.Mock };
@@ -33,6 +54,8 @@ const prismaMock = prisma as unknown as {
     update: jest.Mock;
     findMany: jest.Mock;
   };
+  parentPatient: { findFirst: jest.Mock };
+  parent: { findUnique: jest.Mock };
 };
 
 const consentRow = (over: Record<string, unknown> = {}) => ({
@@ -55,7 +78,11 @@ const ACTOR = { type: "PMS_USER" as const, id: "vet-1" };
 beforeEach(() => {
   jest.clearAllMocks();
   mockRecordSafely.mockResolvedValue(undefined);
+  mockSendToUser.mockResolvedValue(undefined);
+  mockSendEmail.mockResolvedValue(undefined);
   prismaMock.patientOrganisation.findFirst.mockResolvedValue({ id: "link-1" });
+  prismaMock.parentPatient.findFirst.mockResolvedValue(null);
+  prismaMock.parent.findUnique.mockResolvedValue(null);
   prismaMock.patient.findUnique.mockResolvedValue({
     microchipNumber: "985141000123456",
   });
@@ -135,6 +162,56 @@ describe("PassportConsentService.requestConsent", () => {
         entityType: "COMPANION",
       }),
     );
+  });
+
+  it("sends push notification to owner when linkedUserId is present", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({
+      parentId: "par-1",
+    });
+    prismaMock.parent.findUnique.mockResolvedValue({
+      linkedUserId: "user-1",
+      email: null,
+    });
+    prismaMock.patient.findUnique
+      .mockResolvedValueOnce({ microchipNumber: "985141000123456" })
+      .mockResolvedValueOnce({ name: "Buddy" });
+    await PassportConsentService.requestConsent(base);
+    // flush the detached fire-and-forget promise chain
+    await new Promise((r) => setImmediate(r));
+    expect(mockSendToUser).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ title: "Passport sharing request" }),
+    );
+  });
+
+  it("sends email to owner when email is present and no linkedUserId", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({
+      parentId: "par-2",
+    });
+    prismaMock.parent.findUnique.mockResolvedValue({
+      linkedUserId: null,
+      email: "owner@example.com",
+    });
+    prismaMock.patient.findUnique
+      .mockResolvedValueOnce({ microchipNumber: "985141000123456" })
+      .mockResolvedValueOnce({ name: "Max" });
+    await PassportConsentService.requestConsent(base);
+    await new Promise((r) => setImmediate(r));
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "owner@example.com",
+        subject: expect.stringContaining("Max"),
+      }),
+    );
+  });
+
+  it("does not throw if notification lookup finds no owner", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue(null);
+    await expect(
+      PassportConsentService.requestConsent(base),
+    ).resolves.toBeDefined();
+    await new Promise((r) => setImmediate(r));
+    expect(mockSendToUser).not.toHaveBeenCalled();
   });
 });
 

@@ -122,6 +122,11 @@ export const NotificationTemplates = {
       title: "Passport updated 🪪",
       body: `${companionName}'s digital pet passport has a new verified record. Open it to view or add it to your wallet.`,
     }),
+
+    CONSENT_REQUESTED: (companionName: string): NotificationPayload => ({
+      title: "Passport sharing request",
+      body: `A veterinary clinic has requested to share ${companionName}'s digital passport records. Open the app to accept or decline.`,
+    }),
   },
 
   //
