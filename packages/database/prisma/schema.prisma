@@ -2920,6 +2920,17 @@ model Refund {
   @@index([status])
 }
 
+model ProcessedWebhookEvent {
+  id               String   @id @default(uuid())
+  providerEventRef String
+  providerId       String
+  processedAt      DateTime @default(now())
+
+  @@unique([providerEventRef, providerId])
+  @@index([processedAt])
+  @@map("ProcessedWebhookEvent")
+}
+
 model CreditNote {
   id               String           @id @default(uuid())
   invoiceId        String

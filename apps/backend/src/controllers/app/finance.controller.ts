@@ -6,8 +6,25 @@ import {
 } from "src/services/finance/payment";
 import { FinanceSubscriptionService } from "src/services/finance/subscription";
 import { FinanceEventService } from "src/services/finance/events";
-import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
+import { PaymentProviderRegistry } from "src/services/payments/registry";
+import { StripeProviderAdapter } from "src/services/payments/stripe.adapter";
+import { PaymentWebhookService } from "src/services/payments/webhook.service";
+import {
+  UnknownProviderError,
+  WebhookVerificationError,
+} from "src/services/payments/errors";
+import type { ProviderId } from "src/services/payments/types";
+
+let _paymentWebhookService: PaymentWebhookService | null = null;
+function getWebhookService(): PaymentWebhookService {
+  if (!_paymentWebhookService) {
+    const registry = new PaymentProviderRegistry();
+    registry.register(StripeProviderAdapter.fromEnv());
+    _paymentWebhookService = new PaymentWebhookService(registry);
+  }
+  return _paymentWebhookService;
+}
 import {
   InvoiceService,
   InvoiceServiceError,
@@ -1471,14 +1488,30 @@ export const FinanceController = {
   },
 
   async webhook(this: void, req: Request, res: Response) {
-    const provider = normalizeProvider(req.params.provider);
-    if (provider !== "STRIPE") {
-      return res.status(400).json({ message: "Unsupported provider" });
-    }
+    const providerId = normalizeProvider(req.params.provider) as ProviderId;
+    const rawBody = req.body as Buffer;
+    const headers = req.headers as Record<
+      string,
+      string | string[] | undefined
+    >;
 
-    return StripeController.webhook(
-      req as Request<Record<string, string>, unknown, Buffer>,
-      res,
-    );
+    try {
+      const dispatched = await getWebhookService().handle(
+        providerId,
+        rawBody,
+        headers,
+      );
+      return res.json({ received: true, dispatched });
+    } catch (err) {
+      if (err instanceof WebhookVerificationError) {
+        logger.warn("Payment webhook verification failed", { providerId, err });
+        return res.status(400).json({ error: "Webhook verification failed" });
+      }
+      if (err instanceof UnknownProviderError) {
+        return res.status(404).json({ error: "Unknown payment provider" });
+      }
+      logger.error("Payment webhook handler error", { providerId, err });
+      return res.status(500).json({ error: "Internal server error" });
+    }
   },
 };
