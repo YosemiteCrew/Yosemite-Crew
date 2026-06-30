@@ -42,7 +42,7 @@ const handleError = (err: unknown, res: Response) => {
 };
 
 export const StaffShiftController = {
-  async create(req: Request, res: Response) {
+  create: async (req: Request, res: Response) => {
     const parsed = CreateSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.errors });
@@ -60,7 +60,7 @@ export const StaffShiftController = {
     }
   },
 
-  async get(req: Request, res: Response) {
+  get: async (req: Request, res: Response) => {
     try {
       const shift = await StaffShiftService.get(
         req.params.shiftId,
@@ -72,7 +72,7 @@ export const StaffShiftController = {
     }
   },
 
-  async list(req: Request, res: Response) {
+  list: async (req: Request, res: Response) => {
     const { staffId, role, status, date } = req.query as Record<
       string,
       string | undefined
@@ -92,7 +92,7 @@ export const StaffShiftController = {
     }
   },
 
-  async update(req: Request, res: Response) {
+  update: async (req: Request, res: Response) => {
     const parsed = UpdateSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.errors });
@@ -119,7 +119,7 @@ export const StaffShiftController = {
     }
   },
 
-  async start(req: Request, res: Response) {
+  start: async (req: Request, res: Response) => {
     try {
       const shift = await StaffShiftService.start(
         req.params.shiftId,
@@ -131,7 +131,7 @@ export const StaffShiftController = {
     }
   },
 
-  async complete(req: Request, res: Response) {
+  complete: async (req: Request, res: Response) => {
     try {
       const shift = await StaffShiftService.complete(
         req.params.shiftId,
@@ -143,7 +143,7 @@ export const StaffShiftController = {
     }
   },
 
-  async cancel(req: Request, res: Response) {
+  cancel: async (req: Request, res: Response) => {
     const { cancelledBy } = req.body as { cancelledBy?: string };
     try {
       const shift = await StaffShiftService.cancel(
@@ -157,7 +157,7 @@ export const StaffShiftController = {
     }
   },
 
-  async markNoShow(req: Request, res: Response) {
+  markNoShow: async (req: Request, res: Response) => {
     try {
       const shift = await StaffShiftService.markNoShow(
         req.params.shiftId,

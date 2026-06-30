@@ -52,7 +52,7 @@ const handleError = (err: unknown, res: Response) => {
 };
 
 export const MedicalCertificateController = {
-  async create(req: Request, res: Response) {
+  create: async (req: Request, res: Response) => {
     const parsed = CreateSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.errors });
@@ -67,7 +67,7 @@ export const MedicalCertificateController = {
     }
   },
 
-  async get(req: Request, res: Response) {
+  get: async (req: Request, res: Response) => {
     try {
       const cert = await MedicalCertificateService.get(
         req.params.certId,
@@ -79,7 +79,7 @@ export const MedicalCertificateController = {
     }
   },
 
-  async list(req: Request, res: Response) {
+  list: async (req: Request, res: Response) => {
     const { patientId, clientId, status, certificateType } =
       req.query as Record<string, string | undefined>;
     const parsedStatus = CertStatusEnum.safeParse(status);
@@ -98,7 +98,7 @@ export const MedicalCertificateController = {
     }
   },
 
-  async issue(req: Request, res: Response) {
+  issue: async (req: Request, res: Response) => {
     const parsed = IssueSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.errors });
@@ -119,7 +119,7 @@ export const MedicalCertificateController = {
     }
   },
 
-  async revoke(req: Request, res: Response) {
+  revoke: async (req: Request, res: Response) => {
     const parsed = RevokeSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.errors });
@@ -136,7 +136,7 @@ export const MedicalCertificateController = {
     }
   },
 
-  async expire(req: Request, res: Response) {
+  expire: async (req: Request, res: Response) => {
     try {
       const cert = await MedicalCertificateService.expire(
         req.params.certId,

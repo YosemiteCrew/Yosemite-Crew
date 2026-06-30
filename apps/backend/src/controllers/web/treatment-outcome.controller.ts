@@ -44,7 +44,7 @@ const handleError = (err: unknown, res: Response) => {
 };
 
 export const TreatmentOutcomeController = {
-  async record(req: Request, res: Response) {
+  record: async (req: Request, res: Response) => {
     const parsed = RecordSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.errors });
@@ -63,7 +63,7 @@ export const TreatmentOutcomeController = {
     }
   },
 
-  async get(req: Request, res: Response) {
+  get: async (req: Request, res: Response) => {
     try {
       const outcome = await TreatmentOutcomeService.get(
         req.params.outcomeId,
@@ -75,7 +75,7 @@ export const TreatmentOutcomeController = {
     }
   },
 
-  async list(req: Request, res: Response) {
+  list: async (req: Request, res: Response) => {
     const { patientId, outcomeType, resolved, encounterId } =
       req.query as Record<string, string | undefined>;
     const parsedType = OutcomeTypeEnum.safeParse(outcomeType);
@@ -93,7 +93,7 @@ export const TreatmentOutcomeController = {
     }
   },
 
-  async update(req: Request, res: Response) {
+  update: async (req: Request, res: Response) => {
     const parsed = UpdateSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ errors: parsed.error.errors });
@@ -117,7 +117,7 @@ export const TreatmentOutcomeController = {
     }
   },
 
-  async resolve(req: Request, res: Response) {
+  resolve: async (req: Request, res: Response) => {
     try {
       const outcome = await TreatmentOutcomeService.resolve(
         req.params.outcomeId,
