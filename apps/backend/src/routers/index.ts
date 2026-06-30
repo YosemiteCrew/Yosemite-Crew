@@ -92,6 +92,8 @@ import painAssessmentRouter from "./pain-assessment.router";
 import bodyConditionRouter from "./body-condition.router";
 import medicationReconciliationRouter from "./medication-reconciliation.router";
 import clinicalProgressNoteRouter from "./clinical-progress-note.router";
+import dentalExaminationRouter from "./dental-examination.router";
+import reproductiveRecordRouter from "./reproductive-record.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -181,6 +183,8 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, bodyConditionRouter);
   app.use(`/v1`, medicationReconciliationRouter);
   app.use(`/v1`, clinicalProgressNoteRouter);
+  app.use(`/v1`, dentalExaminationRouter);
+  app.use(`/v1`, reproductiveRecordRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);

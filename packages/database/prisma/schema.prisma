@@ -1796,6 +1796,9 @@ enum AuditEventType {
   MEDICATION_RECONCILIATION_REVIEWED
   CLINICAL_NOTE_CREATED
   CLINICAL_NOTE_SIGNED
+  DENTAL_EXAMINATION_RECORDED
+  REPRODUCTIVE_RECORD_CREATED
+  REPRODUCTIVE_RECORD_UPDATED
 }
 
 enum WaitlistStatus {
@@ -4550,4 +4553,85 @@ model ClinicalProgressNote {
   @@index([organisationId, patientId])
   @@index([organisationId, encounterId])
   @@map("ClinicalProgressNote")
+}
+
+// ---------------------------------------------------------------------------
+// Dental Examination
+// ---------------------------------------------------------------------------
+
+enum DentalGrade {
+  GRADE_0
+  GRADE_1
+  GRADE_2
+  GRADE_3
+  GRADE_4
+}
+
+model DentalExamination {
+  id              String      @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  examinedAt      DateTime
+  examinedBy      String?
+  overallGrade    DentalGrade
+  findings        Json
+  calculusScore   Int?
+  plaqueScore     Int?
+  gingivalScore   Int?
+  procedures      String[]
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("DentalExamination")
+}
+
+// ---------------------------------------------------------------------------
+// Reproductive Health
+// ---------------------------------------------------------------------------
+
+enum ReproductiveStatus {
+  INTACT
+  SPAYED
+  NEUTERED
+  CASTRATED
+  UNKNOWN
+}
+
+enum PregnancyStatus {
+  SUSPECTED
+  CONFIRMED
+  WHELPED
+  QUEENED
+  ABORTED
+  RESORBED
+}
+
+model ReproductiveRecord {
+  id                    String              @id @default(uuid())
+  organisationId        String
+  patientId             String
+  reproductiveStatus    ReproductiveStatus
+  lastHeatDate          DateTime?
+  nextHeatExpected      DateTime?
+  matingDate            DateTime?
+  sireId                String?
+  sireName              String?
+  pregnancyStatus       PregnancyStatus?
+  pregnancyConfirmedAt  DateTime?
+  expectedWhelp         DateTime?
+  litterSizeUltrasound  Int?
+  litterSizeXray        Int?
+  actualWhelp           DateTime?
+  litterSizeBorn        Int?
+  litterSizeAlive       Int?
+  recordedBy            String?
+  notes                 String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("ReproductiveRecord")
 }
