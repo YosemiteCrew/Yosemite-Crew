@@ -1727,6 +1727,10 @@ enum AuditEventType {
   REFERRAL_LETTER_SIGNED
   REFERRAL_LETTER_SENT
   REFERRAL_LETTER_CANCELLED
+  INSURANCE_CLAIM_CREATED
+  INSURANCE_CLAIM_SUBMITTED
+  INSURANCE_CLAIM_STATUS_CHANGED
+  INSURANCE_CLAIM_CANCELLED
 }
 
 enum WaitlistStatus {
@@ -3356,4 +3360,44 @@ model ReferralLetter {
   @@index([organisationId, patientId])
   @@index([organisationId, status])
   @@map("ReferralLetter")
+}
+
+enum InsuranceClaimStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  PAID
+  CANCELLED
+}
+
+model InsuranceClaim {
+  id               String               @id @default(uuid())
+  organisationId   String
+  patientId        String
+  invoiceId        String?
+  encounterId      String?
+  insurerName      String
+  policyNumber     String
+  claimNumber      String?
+  submittedAmount  Float
+  approvedAmount   Float?
+  paidAmount       Float?
+  currency         String               @default("GBP")
+  status           InsuranceClaimStatus @default(DRAFT)
+  submittedAt      DateTime?
+  approvedAt       DateTime?
+  paidAt           DateTime?
+  rejectionReason  String?
+  notes            String?
+  externalClaimRef String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@index([organisationId, invoiceId])
+  @@map("InsuranceClaim")
 }
