@@ -80,7 +80,10 @@ export type AuditEventType =
   | "CARE_REMINDER_CANCELLED"
   | "PROBLEM_CREATED"
   | "PROBLEM_UPDATED"
-  | "PROBLEM_RESOLVED";
+  | "PROBLEM_RESOLVED"
+  | "ALLERGY_RECORDED"
+  | "ALLERGY_UPDATED"
+  | "ALLERGY_RESOLVED";
 
 export interface AuditTrailMongo {
   organisationId: string;

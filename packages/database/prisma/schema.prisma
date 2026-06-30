@@ -1737,6 +1737,9 @@ enum AuditEventType {
   PROBLEM_CREATED
   PROBLEM_UPDATED
   PROBLEM_RESOLVED
+  ALLERGY_RECORDED
+  ALLERGY_UPDATED
+  ALLERGY_RESOLVED
 }
 
 enum WaitlistStatus {
@@ -3481,4 +3484,45 @@ model PatientProblem {
   @@index([organisationId, patientId, status])
   @@index([organisationId, patientId])
   @@map("PatientProblem")
+}
+
+enum AllergyType {
+  DRUG
+  FOOD
+  ENVIRONMENTAL
+  OTHER
+}
+
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+  LIFE_THREATENING
+}
+
+enum AllergyStatus {
+  ACTIVE
+  RESOLVED
+  UNCONFIRMED
+}
+
+model PatientAllergy {
+  id             String          @id @default(uuid())
+  organisationId String
+  patientId      String
+  allergen       String
+  allergyType    AllergyType
+  severity       AllergySeverity
+  reaction       String?
+  status         AllergyStatus   @default(ACTIVE)
+  onsetDate      DateTime?
+  resolvedDate   DateTime?
+  notes          String?
+  recordedBy     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organisationId, patientId, status])
+  @@index([organisationId, patientId])
+  @@map("PatientAllergy")
 }
