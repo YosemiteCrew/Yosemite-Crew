@@ -173,7 +173,9 @@ export type AuditEventType =
   | "PATIENT_TRANSFER_RECORDED"
   | "CONSENT_FORM_SIGNED"
   | "EQUIPMENT_MAINTENANCE_LOGGED"
-  | "APPOINTMENT_REMINDER_SENT";
+  | "APPOINTMENT_REMINDER_SENT"
+  | "ADVERSE_EVENT_REPORTED"
+  | "QUALITY_OF_LIFE_ASSESSED";
 
 export interface AuditTrailMongo {
   organisationId: string;
