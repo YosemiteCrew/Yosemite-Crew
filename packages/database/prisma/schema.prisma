@@ -1791,6 +1791,11 @@ enum AuditEventType {
   ICU_CARE_PLAN_DISCHARGED
   PAIN_ASSESSMENT_RECORDED
   BODY_CONDITION_RECORDED
+  MEDICATION_RECONCILIATION_STARTED
+  MEDICATION_RECONCILIATION_COMPLETED
+  MEDICATION_RECONCILIATION_REVIEWED
+  CLINICAL_NOTE_CREATED
+  CLINICAL_NOTE_SIGNED
 }
 
 enum WaitlistStatus {
@@ -4478,4 +4483,71 @@ model BodyConditionRecord {
   @@index([organisationId, patientId])
   @@index([organisationId, recordedAt])
   @@map("BodyConditionRecord")
+}
+
+// ---------------------------------------------------------------------------
+// Medication Reconciliation
+// ---------------------------------------------------------------------------
+
+enum ReconciliationStatus {
+  IN_PROGRESS
+  COMPLETED
+  PENDING_REVIEW
+}
+
+model MedicationReconciliation {
+  id              String               @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  status          ReconciliationStatus @default(IN_PROGRESS)
+  reconciledBy    String?
+  reconciledAt    DateTime?
+  homeMedications Json
+  hospitalOrders  Json
+  discrepancies   Json?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+  notes           String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("MedicationReconciliation")
+}
+
+// ---------------------------------------------------------------------------
+// Clinical Progress Notes
+// ---------------------------------------------------------------------------
+
+enum ClinicalNoteType {
+  SHIFT_NOTE
+  PROGRESS_NOTE
+  NURSE_NOTE
+  SPECIALIST_NOTE
+  DISCHARGE_SUMMARY
+  OTHER
+}
+
+model ClinicalProgressNote {
+  id                 String           @id @default(uuid())
+  organisationId     String
+  patientId          String
+  encounterId        String?
+  noteType           ClinicalNoteType
+  subjectiveFindings String?
+  objectiveFindings  String?
+  assessment         String?
+  plan               String?
+  freeText           String?
+  authorId           String?
+  authorName         String?
+  signedAt           DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, encounterId])
+  @@map("ClinicalProgressNote")
 }

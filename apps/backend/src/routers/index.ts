@@ -90,6 +90,8 @@ import emergencyTriageRouter from "./emergency-triage.router";
 import icuCarePlanRouter from "./icu-care-plan.router";
 import painAssessmentRouter from "./pain-assessment.router";
 import bodyConditionRouter from "./body-condition.router";
+import medicationReconciliationRouter from "./medication-reconciliation.router";
+import clinicalProgressNoteRouter from "./clinical-progress-note.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -177,6 +179,8 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, icuCarePlanRouter);
   app.use(`/v1`, painAssessmentRouter);
   app.use(`/v1`, bodyConditionRouter);
+  app.use(`/v1`, medicationReconciliationRouter);
+  app.use(`/v1`, clinicalProgressNoteRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
