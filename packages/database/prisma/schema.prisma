@@ -1313,6 +1313,22 @@ enum DeveloperSubscriptionStatus {
   incomplete
 }
 
+// Tracks per-org API call counts per billing period.
+// Free tier quota enforcement uses this; Pro tier batches here before reporting to Stripe meters.
+model DeveloperApiUsage {
+  id             String    @id @default(uuid())
+  organisationId String
+  billingPeriod  String
+  callCount      Int       @default(0)
+  lastReportedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([organisationId, billingPeriod])
+  @@index([billingPeriod])
+  @@map("DeveloperApiUsage")
+}
+
 enum DevicePlatform {
   ios
   android

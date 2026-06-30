@@ -52,9 +52,12 @@ export const DeveloperBillingController = {
     }
     const parsed = CheckoutSchema.safeParse(req.body);
     if (!parsed.success) {
+      const errors = parsed.error.errors;
       res
         .status(400)
-        .json({ error: parsed.error.errors[0]?.message ?? "Invalid request" });
+        .json({
+          error: errors.length > 0 ? errors[0].message : "Invalid request",
+        });
       return;
     }
     try {

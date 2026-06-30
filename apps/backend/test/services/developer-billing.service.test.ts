@@ -370,6 +370,214 @@ describe("DeveloperBillingService", () => {
         }),
       );
     });
+
+    it("skips customer.subscription.deleted when record not found", async () => {
+      mockPrisma.developerSubscription.findFirst.mockResolvedValue(null);
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_6",
+        type: "customer.subscription.deleted",
+        data: { object: { ...baseSubscription, status: "canceled" } },
+      } as never);
+      expect(mockPrisma.developerSubscription.update).not.toHaveBeenCalled();
+    });
+
+    it("logs and continues on unknown event type (default branch)", async () => {
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_7",
+        type: "payment_intent.created",
+        data: { object: {} },
+      } as never);
+      expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+      expect(mockPrisma.developerSubscription.update).not.toHaveBeenCalled();
+    });
+
+    it("handles checkout.session.completed when subscription is an object", async () => {
+      const stripe = getStripeInstance();
+      stripe.subscriptions.retrieve.mockResolvedValue(baseSubscription);
+      mockPrisma.developerSubscription.upsert.mockResolvedValue({});
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_8",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            mode: "subscription",
+            subscription: { id: "sub_123" },
+            metadata: { organisationId: "org-1" },
+          },
+        },
+      } as never);
+
+      expect(stripe.subscriptions.retrieve).toHaveBeenCalledWith(
+        "sub_123",
+        expect.any(Object),
+      );
+    });
+
+    it("handles checkout with customer as object (not string)", async () => {
+      const stripe = getStripeInstance();
+      const subWithObjCustomer = {
+        ...baseSubscription,
+        customer: { id: "cus_obj" },
+      };
+      stripe.subscriptions.retrieve.mockResolvedValue(subWithObjCustomer);
+      mockPrisma.developerSubscription.upsert.mockResolvedValue({});
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_9",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            mode: "subscription",
+            subscription: "sub_123",
+            metadata: { organisationId: "org-1" },
+          },
+        },
+      } as never);
+
+      expect(mockPrisma.developerSubscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ stripeCustomerId: "cus_obj" }),
+        }),
+      );
+    });
+
+    it("skips checkout.session.completed when subscription id is missing", async () => {
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_10",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            mode: "subscription",
+            subscription: null,
+            metadata: { organisationId: "org-1" },
+          },
+        },
+      } as never);
+      expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+    });
+
+    it("skips checkout.session.completed when organisationId metadata is missing", async () => {
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_11",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            mode: "subscription",
+            subscription: "sub_123",
+            metadata: {},
+          },
+        },
+      } as never);
+      expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+    });
+
+    it("upserts with null periods when subscription has no items", async () => {
+      const stripe = getStripeInstance();
+      stripe.subscriptions.retrieve.mockResolvedValue({
+        ...baseSubscription,
+        items: { data: [] },
+      });
+      mockPrisma.developerSubscription.upsert.mockResolvedValue({});
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_12",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            mode: "subscription",
+            subscription: "sub_123",
+            metadata: { organisationId: "org-1" },
+          },
+        },
+      } as never);
+
+      expect(mockPrisma.developerSubscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            stripeSubscriptionItemId: null,
+            stripePriceId: null,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+          }),
+        }),
+      );
+    });
+
+    it("handles subscription.updated with no items — falls back to record values", async () => {
+      mockPrisma.developerSubscription.findFirst.mockResolvedValue({
+        id: "ds-1",
+        stripePriceId: "price_old",
+        stripeSubscriptionItemId: "si_old",
+      });
+      mockPrisma.developerSubscription.update.mockResolvedValue({});
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_13",
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            ...baseSubscription,
+            items: { data: [] },
+            status: "trialing",
+          },
+        },
+      } as never);
+
+      expect(mockPrisma.developerSubscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "trialing",
+            stripePriceId: "price_old",
+            stripeSubscriptionItemId: "si_old",
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+          }),
+        }),
+      );
+    });
+
+    it("maps incomplete status via toSubscriptionStatus", async () => {
+      mockPrisma.developerSubscription.findFirst.mockResolvedValue({
+        id: "ds-1",
+        stripePriceId: "price_old",
+        stripeSubscriptionItemId: "si_old",
+      });
+      mockPrisma.developerSubscription.update.mockResolvedValue({});
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_14",
+        type: "customer.subscription.updated",
+        data: { object: { ...baseSubscription, status: "incomplete" } },
+      } as never);
+
+      expect(mockPrisma.developerSubscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "incomplete" }),
+        }),
+      );
+    });
+
+    it("maps canceled status via toSubscriptionStatus in subscription.updated", async () => {
+      mockPrisma.developerSubscription.findFirst.mockResolvedValue({
+        id: "ds-1",
+        stripePriceId: "price_old",
+        stripeSubscriptionItemId: "si_old",
+      });
+      mockPrisma.developerSubscription.update.mockResolvedValue({});
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_15",
+        type: "customer.subscription.updated",
+        data: { object: { ...baseSubscription, status: "canceled" } },
+      } as never);
+
+      expect(mockPrisma.developerSubscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "canceled" }),
+        }),
+      );
+    });
   });
 
   describe("verifyWebhook", () => {
@@ -384,5 +592,52 @@ describe("DeveloperBillingService", () => {
       );
       expect(result).toBe(fakeEvent);
     });
+
+    it("throws when STRIPE_DEV_WEBHOOK_SECRET is not configured", () => {
+      const saved = process.env.STRIPE_DEV_WEBHOOK_SECRET;
+      delete process.env.STRIPE_DEV_WEBHOOK_SECRET;
+      expect(() =>
+        DeveloperBillingService.verifyWebhook(Buffer.from("body"), "sig"),
+      ).toThrow("STRIPE_DEV_WEBHOOK_SECRET is not configured");
+      process.env.STRIPE_DEV_WEBHOOK_SECRET = saved;
+    });
+  });
+});
+
+describe("DeveloperBillingService — module-isolated Stripe init", () => {
+  it("throws when STRIPE_SECRET_KEY is not configured", async () => {
+    const savedKey = process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_SECRET_KEY;
+
+    let IsolatedBillingService: typeof DeveloperBillingService | undefined;
+
+    jest.isolateModules(() => {
+      jest.doMock("stripe", () => {
+        const MockStripe = jest.fn().mockImplementation(() => ({
+          customers: { create: jest.fn() },
+          checkout: { sessions: { create: jest.fn() } },
+        }));
+        return { __esModule: true, default: MockStripe };
+      });
+      jest.doMock("../../src/config/prisma", () => ({
+        prisma: { developerSubscription: { findUnique: jest.fn() } },
+      }));
+      const mod = jest.requireActual<{
+        DeveloperBillingService: typeof DeveloperBillingService;
+      }>("../../src/services/developer-billing.service");
+      IsolatedBillingService = mod.DeveloperBillingService;
+    });
+
+    if (!IsolatedBillingService) throw new Error("module load failed");
+
+    await expect(
+      IsolatedBillingService.createCheckoutSession({
+        organisationId: "o",
+        successUrl: "https://a.com",
+        cancelUrl: "https://b.com",
+      }),
+    ).rejects.toThrow("STRIPE_SECRET_KEY is not configured");
+
+    process.env.STRIPE_SECRET_KEY = savedKey;
   });
 });

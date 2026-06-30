@@ -23,11 +23,7 @@ const getStripeClient = (): Stripe => {
   return stripeClient;
 };
 
-const toPlanTier = (value?: string | null): DeveloperPlanTier => {
-  if (value === "pro") return "pro";
-  if (value === "enterprise") return "enterprise";
-  return "free";
-};
+const toPlanTier = (): DeveloperPlanTier => "free";
 
 const toSubscriptionStatus = (
   value?: string | null,
@@ -49,6 +45,118 @@ const resolveMeteredPriceId = (): string => {
   }
   return id;
 };
+
+async function handleCheckoutCompleted(
+  event: Stripe.Event,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  if (session.mode !== "subscription") return;
+  const orgId = session.metadata?.organisationId;
+  if (!orgId) return;
+
+  const subId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : (session.subscription?.id ?? null);
+  if (!subId) return;
+
+  const stripe = getStripeClient();
+  const sub = await stripe.subscriptions.retrieve(subId, {
+    expand: ["items.data.price"],
+  });
+
+  const item = sub.items.data[0];
+  const priceId = item?.price?.id ?? null;
+
+  await prisma.developerSubscription.upsert({
+    where: { organisationId: orgId },
+    create: {
+      organisationId: orgId,
+      stripeCustomerId:
+        typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+      stripeSubscriptionId: sub.id,
+      stripeSubscriptionItemId: item?.id ?? null,
+      stripePriceId: priceId,
+      plan: "pro",
+      status: toSubscriptionStatus(sub.status),
+      currentPeriodStart: item?.current_period_start
+        ? new Date(item.current_period_start * 1000)
+        : null,
+      currentPeriodEnd: item?.current_period_end
+        ? new Date(item.current_period_end * 1000)
+        : null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      lastStripeEventId: event.id,
+    },
+    update: {
+      stripeSubscriptionId: sub.id,
+      stripeSubscriptionItemId: item?.id ?? null,
+      stripePriceId: priceId,
+      plan: "pro",
+      status: toSubscriptionStatus(sub.status),
+      currentPeriodStart: item?.current_period_start
+        ? new Date(item.current_period_start * 1000)
+        : null,
+      currentPeriodEnd: item?.current_period_end
+        ? new Date(item.current_period_end * 1000)
+        : null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      lastStripeEventId: event.id,
+    },
+  });
+}
+
+async function handleSubscriptionUpdated(
+  event: Stripe.Event,
+  sub: Stripe.Subscription,
+): Promise<void> {
+  const record = await prisma.developerSubscription.findFirst({
+    where: { stripeSubscriptionId: sub.id },
+  });
+  if (!record) return;
+
+  const item = sub.items.data[0];
+
+  await prisma.developerSubscription.update({
+    where: { id: record.id },
+    data: {
+      status: toSubscriptionStatus(sub.status),
+      stripePriceId: item?.price?.id ?? record.stripePriceId,
+      stripeSubscriptionItemId: item?.id ?? record.stripeSubscriptionItemId,
+      currentPeriodStart: item?.current_period_start
+        ? new Date(item.current_period_start * 1000)
+        : null,
+      currentPeriodEnd: item?.current_period_end
+        ? new Date(item.current_period_end * 1000)
+        : null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      lastStripeEventId: event.id,
+    },
+  });
+}
+
+async function handleSubscriptionDeleted(
+  event: Stripe.Event,
+  sub: Stripe.Subscription,
+): Promise<void> {
+  const record = await prisma.developerSubscription.findFirst({
+    where: { stripeSubscriptionId: sub.id },
+  });
+  if (!record) return;
+
+  await prisma.developerSubscription.update({
+    where: { id: record.id },
+    data: {
+      plan: toPlanTier(),
+      status: "canceled",
+      stripeSubscriptionId: null,
+      stripeSubscriptionItemId: null,
+      stripePriceId: null,
+      cancelAtPeriodEnd: false,
+      lastStripeEventId: event.id,
+    },
+  });
+}
 
 export const DeveloperBillingService = {
   async getSubscription(organisationId: string) {
@@ -188,116 +296,15 @@ export const DeveloperBillingService = {
 
   async handleWebhookEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object;
-        if (session.mode !== "subscription") break;
-        const orgId = session.metadata?.organisationId;
-        if (!orgId) break;
-
-        const subId =
-          typeof session.subscription === "string"
-            ? session.subscription
-            : (session.subscription?.id ?? null);
-        if (!subId) break;
-
-        const stripe = getStripeClient();
-        const sub = await stripe.subscriptions.retrieve(subId, {
-          expand: ["items.data.price"],
-        });
-
-        const item = sub.items.data[0];
-        const priceId = item?.price?.id ?? null;
-
-        await prisma.developerSubscription.upsert({
-          where: { organisationId: orgId },
-          create: {
-            organisationId: orgId,
-            stripeCustomerId:
-              typeof sub.customer === "string" ? sub.customer : sub.customer.id,
-            stripeSubscriptionId: sub.id,
-            stripeSubscriptionItemId: item?.id ?? null,
-            stripePriceId: priceId,
-            plan: "pro",
-            status: toSubscriptionStatus(sub.status),
-            currentPeriodStart: item?.current_period_start
-              ? new Date(item.current_period_start * 1000)
-              : null,
-            currentPeriodEnd: item?.current_period_end
-              ? new Date(item.current_period_end * 1000)
-              : null,
-            cancelAtPeriodEnd: sub.cancel_at_period_end,
-            lastStripeEventId: event.id,
-          },
-          update: {
-            stripeSubscriptionId: sub.id,
-            stripeSubscriptionItemId: item?.id ?? null,
-            stripePriceId: priceId,
-            plan: "pro",
-            status: toSubscriptionStatus(sub.status),
-            currentPeriodStart: item?.current_period_start
-              ? new Date(item.current_period_start * 1000)
-              : null,
-            currentPeriodEnd: item?.current_period_end
-              ? new Date(item.current_period_end * 1000)
-              : null,
-            cancelAtPeriodEnd: sub.cancel_at_period_end,
-            lastStripeEventId: event.id,
-          },
-        });
+      case "checkout.session.completed":
+        await handleCheckoutCompleted(event, event.data.object);
         break;
-      }
-
-      case "customer.subscription.updated": {
-        const sub = event.data.object;
-        const record = await prisma.developerSubscription.findFirst({
-          where: { stripeSubscriptionId: sub.id },
-        });
-        if (!record) break;
-
-        const item = sub.items.data[0];
-
-        await prisma.developerSubscription.update({
-          where: { id: record.id },
-          data: {
-            status: toSubscriptionStatus(sub.status),
-            stripePriceId: item?.price?.id ?? record.stripePriceId,
-            stripeSubscriptionItemId:
-              item?.id ?? record.stripeSubscriptionItemId,
-            currentPeriodStart: item?.current_period_start
-              ? new Date(item.current_period_start * 1000)
-              : null,
-            currentPeriodEnd: item?.current_period_end
-              ? new Date(item.current_period_end * 1000)
-              : null,
-            cancelAtPeriodEnd: sub.cancel_at_period_end,
-            lastStripeEventId: event.id,
-          },
-        });
+      case "customer.subscription.updated":
+        await handleSubscriptionUpdated(event, event.data.object);
         break;
-      }
-
-      case "customer.subscription.deleted": {
-        const sub = event.data.object;
-        const record = await prisma.developerSubscription.findFirst({
-          where: { stripeSubscriptionId: sub.id },
-        });
-        if (!record) break;
-
-        await prisma.developerSubscription.update({
-          where: { id: record.id },
-          data: {
-            plan: toPlanTier(null),
-            status: "canceled",
-            stripeSubscriptionId: null,
-            stripeSubscriptionItemId: null,
-            stripePriceId: null,
-            cancelAtPeriodEnd: false,
-            lastStripeEventId: event.id,
-          },
-        });
+      case "customer.subscription.deleted":
+        await handleSubscriptionDeleted(event, event.data.object);
         break;
-      }
-
       default:
         logger.info("Unhandled developer billing webhook event", {
           type: event.type,

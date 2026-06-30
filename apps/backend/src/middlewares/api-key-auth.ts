@@ -4,6 +4,7 @@ import {
   DeveloperApiKeyService,
   type VerifiedApiKey,
 } from "src/services/developer-api-key.service";
+import { DeveloperUsageService } from "src/services/developer-usage.service";
 
 export interface ApiKeyRequest extends Request {
   apiKey?: VerifiedApiKey;
@@ -34,6 +35,15 @@ export const authorizeApiKey = async (
   const verified = await DeveloperApiKeyService.verify(presented);
   if (!verified) {
     return res.status(401).json({ message: "Invalid or expired API key" });
+  }
+
+  const usage = await DeveloperUsageService.incrementAndCheck(
+    verified.organisationId,
+  );
+  if (!usage.allowed) {
+    return res.status(429).json({
+      message: "Monthly API quota exceeded. Upgrade to Pro to continue.",
+    });
   }
 
   (req as ApiKeyRequest).apiKey = verified;
