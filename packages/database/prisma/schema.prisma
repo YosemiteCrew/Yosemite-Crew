@@ -1723,6 +1723,10 @@ enum AuditEventType {
   WAITLIST_ENTRY_BOOKED
   WAITLIST_ENTRY_CANCELLED
   WAITLIST_ENTRY_EXPIRED
+  REFERRAL_LETTER_CREATED
+  REFERRAL_LETTER_SIGNED
+  REFERRAL_LETTER_SENT
+  REFERRAL_LETTER_CANCELLED
 }
 
 enum WaitlistStatus {
@@ -3318,4 +3322,38 @@ model CreditNote {
 
   @@index([invoiceId])
   @@index([status])
+}
+
+enum ReferralStatus {
+  DRAFT
+  SIGNED
+  SENT
+  ACKNOWLEDGED
+  CANCELLED
+}
+
+model ReferralLetter {
+  id                  String         @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  referringVetId      String?
+  specialistName      String?
+  specialistClinic    String?
+  specialistEmail     String?
+  reasonForReferral   String
+  historySummary      String?
+  examFindings        String?
+  currentMedications  String?
+  additionalNotes     String?
+  status              ReferralStatus @default(DRAFT)
+  signedAt            DateTime?
+  sentAt              DateTime?
+  documensoEnvelopeId String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@map("ReferralLetter")
 }

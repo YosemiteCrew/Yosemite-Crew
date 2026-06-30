@@ -64,6 +64,7 @@ import petPassportRouter from "./pet-passport.router";
 import petPassportPublicRouter from "./pet-passport-public.router";
 import treatmentProtocolRouter from "./treatment-protocol.router";
 import waitlistRouter from "./waitlist.router";
+import referralLetterRouter from "./referral-letter.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -125,6 +126,7 @@ export function registerRoutes(app: Express) {
   app.use(`/public/pet-passport`, petPassportPublicRouter);
   app.use(`/v1`, treatmentProtocolRouter);
   app.use(`/v1`, waitlistRouter);
+  app.use(`/v1`, referralLetterRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
