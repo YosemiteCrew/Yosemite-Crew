@@ -1740,8 +1740,6 @@ enum AuditEventType {
   ALLERGY_RECORDED
   ALLERGY_UPDATED
   ALLERGY_RESOLVED
-  VITAL_SIGNS_RECORDED
-  VITAL_SIGNS_UPDATED
   MAR_ENTRY_CREATED
   MAR_ENTRY_ADMINISTERED
   MAR_ENTRY_HELD
@@ -1759,9 +1757,6 @@ enum AuditEventType {
   DISCHARGE_INSTRUCTIONS_ACKNOWLEDGED
   DIAGNOSTIC_IMAGE_RECORDED
   DIAGNOSTIC_IMAGE_REVIEWED
-  SOAP_NOTE_CREATED
-  SOAP_NOTE_SIGNED
-  SOAP_NOTE_AMENDED
   TRANSFUSION_RECORDED
   TRANSFUSION_REACTION_REPORTED
   FLUID_PLAN_CREATED
@@ -1817,8 +1812,6 @@ enum AuditEventType {
   ESTIMATE_APPROVED
   ESTIMATE_DECLINED
   DECEASED_RECORD_CREATED
-  ADMISSION_CREATED
-  ADMISSION_DISCHARGED
   SURGICAL_CHECKLIST_COMPLETED
   DRUG_FORMULARY_ENTRY_ADDED
   CLIENT_COMPLAINT_OPENED
@@ -1855,6 +1848,12 @@ enum AuditEventType {
   TREATMENT_OUTCOME_RECORDED
   MEDICAL_CERTIFICATE_ISSUED
   MEDICAL_CERTIFICATE_REVOKED
+  PATIENT_FLAG_CREATED
+  PATIENT_FLAG_RESOLVED
+  INVENTORY_COUNT_RECORDED
+  INVENTORY_DISCREPANCY_RECONCILED
+  CLINIC_NOTE_CREATED
+  CLINIC_NOTE_PINNED
 }
 
 enum WaitlistStatus {
@@ -3642,34 +3641,6 @@ model PatientAllergy {
   @@map("PatientAllergy")
 }
 
-// ---------------------------------------------------------------------------
-// Patient Vital Signs
-// ---------------------------------------------------------------------------
-
-model PatientVitalSign {
-  id                String   @id @default(uuid())
-  organisationId    String
-  patientId         String
-  encounterId       String?
-  recordedAt        DateTime @default(now())
-  recordedBy        String?
-  weightKg          Float?
-  temperatureCelsius Float?
-  pulseRateBpm      Int?
-  respiratoryRateBpm Int?
-  systolicBp        Int?
-  diastolicBp       Int?
-  bodyConditionScore Int?
-  mucosal           String?
-  capRefillTimeSec  Float?
-  notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@index([organisationId, patientId, recordedAt])
-  @@index([organisationId, patientId])
-  @@map("PatientVitalSign")
-}
 
 // ---------------------------------------------------------------------------
 // Medication Administration Record (MAR)
@@ -3940,32 +3911,6 @@ model DiagnosticImage {
   @@map("DiagnosticImage")
 }
 
-// ---------------------------------------------------------------------------
-// SOAP Clinical Notes
-// ---------------------------------------------------------------------------
-
-model SOAPNote {
-  id            String    @id @default(uuid())
-  organisationId String
-  patientId     String
-  encounterId   String?
-  authorId      String?
-  noteDate      DateTime
-  subjective    String?
-  objective     String?
-  assessment    String?
-  plan          String?
-  signedAt      DateTime?
-  signedBy      String?
-  isAmended     Boolean   @default(false)
-  amendedReason String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@index([organisationId, patientId])
-  @@index([encounterId])
-  @@map("SOAPNote")
-}
 
 // ---------------------------------------------------------------------------
 // Blood Transfusion Records
@@ -6070,4 +6015,97 @@ model MedicalCertificate {
   @@index([organisationId, certificateType])
   @@index([organisationId, issuedAt])
   @@map("MedicalCertificate")
+}
+
+enum PatientFlagType {
+  AGGRESSION
+  ESCAPE_RISK
+  ALLERGY_WARNING
+  ANXIETY
+  SPECIAL_HANDLING
+  BILLING_NOTE
+  VIP
+  QUARANTINE
+  OTHER
+}
+
+enum FlagSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model PatientFlag {
+  id             String          @id @default(uuid())
+  organisationId String
+  patientId      String
+  flagType       PatientFlagType
+  severity       FlagSeverity    @default(MEDIUM)
+  title          String
+  description    String?
+  isActive       Boolean         @default(true)
+  createdBy      String?
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organisationId, patientId, isActive])
+  @@index([organisationId, flagType])
+  @@map("PatientFlag")
+}
+
+model InventoryCount {
+  id              String   @id @default(uuid())
+  organisationId  String
+  inventoryItemId String
+  countedBy       String?
+  countedAt       DateTime
+  systemCount     Int
+  physicalCount   Int
+  discrepancy     Int
+  notes           String?
+  reconciled      Boolean  @default(false)
+  reconciledAt    DateTime?
+  reconciledBy    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organisationId, inventoryItemId])
+  @@index([organisationId, countedAt])
+  @@index([organisationId, reconciled])
+  @@map("InventoryCount")
+}
+
+enum ClinicNoteSubjectType {
+  PATIENT
+  CLIENT
+  APPOINTMENT
+}
+
+enum ClinicNoteType {
+  GENERAL
+  BILLING
+  COMMUNICATION
+  FOLLOW_UP
+  ALERT
+}
+
+model ClinicNote {
+  id             String                @id @default(uuid())
+  organisationId String
+  subjectType    ClinicNoteSubjectType
+  subjectId      String
+  noteType       ClinicNoteType        @default(GENERAL)
+  content        String
+  isPinned       Boolean               @default(false)
+  createdBy      String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([organisationId, subjectType, subjectId])
+  @@index([organisationId, isPinned])
+  @@index([organisationId, createdAt])
+  @@map("ClinicNote")
 }
