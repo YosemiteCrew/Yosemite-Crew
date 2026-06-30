@@ -1836,6 +1836,19 @@ enum AuditEventType {
   CLINICAL_ALERT_ACKNOWLEDGED
   TELEMEDICINE_SESSION_STARTED
   TELEMEDICINE_SESSION_COMPLETED
+  PRESCRIPTION_CREATED
+  PRESCRIPTION_SIGNED
+  PRESCRIPTION_VOIDED
+  PRESCRIPTION_DISPENSE_REQUESTED
+  PRESCRIPTION_DISPENSED
+  PRESCRIPTION_DISPENSE_REJECTED
+  DISCHARGE_SUMMARY_CREATED
+  DISCHARGE_SUMMARY_UPDATED
+  PATIENT_CHECKED_IN
+  PATIENT_SEEN
+  ANAESTHESIA_STARTED
+  ANAESTHESIA_COMPLETED
+  ANAESTHESIA_ABORTED
 }
 
 enum WaitlistStatus {
@@ -5866,4 +5879,80 @@ model TelemedicineSession {
   @@index([organisationId, status])
   @@index([organisationId, appointmentId])
   @@map("TelemedicineSession")
+}
+
+// ---------------------------------------------------------------------------
+// Patient Check-In / Triage
+// ---------------------------------------------------------------------------
+
+enum CheckInStatus {
+  WAITING
+  IN_CONSULTATION
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+model PatientCheckIn {
+  id              String         @id @default(uuid())
+  organisationId  String
+  patientId       String
+  clientId        String
+  appointmentId   String?
+  arrivedAt       DateTime
+  triagePriority  TriagePriority @default(NON_URGENT)
+  triageNote      String?
+  assignedRoomId  String?
+  checkedInBy     String?
+  waitStartedAt   DateTime?
+  seenAt          DateTime?
+  waitMinutes     Int?
+  status          CheckInStatus  @default(WAITING)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([organisationId, status])
+  @@index([organisationId, patientId])
+  @@index([organisationId, arrivedAt])
+  @@map("PatientCheckIn")
+}
+
+// ---------------------------------------------------------------------------
+// Anaesthesia Records
+// ---------------------------------------------------------------------------
+
+enum AnaesthesiaStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+}
+
+model AnaesthesiaRecord {
+  id                  String             @id @default(uuid())
+  organisationId      String
+  patientId           String
+  appointmentId       String?
+  surgicalProcedureId String?
+  anaesthetistId      String?
+  inductionAgent      String?
+  maintenanceAgent    String?
+  oxygenFlowLpm       Float?
+  startedAt           DateTime?
+  endedAt             DateTime?
+  durationMinutes     Int?
+  preOpAssessment     String?
+  preMedications      Json?
+  intraOpNotes        Json?
+  complications       String?
+  recoveryNotes       String?
+  status              AnaesthesiaStatus  @default(PLANNED)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@index([organisationId, appointmentId])
+  @@map("AnaesthesiaRecord")
 }

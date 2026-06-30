@@ -125,6 +125,8 @@ import { qualityOfLifeAssessmentRouter } from "./quality-of-life-assessment.rout
 import { pointOfCareLabRouter } from "./point-of-care-lab.router";
 import { clinicalAlertLogRouter } from "./clinical-alert-log.router";
 import { telemedicineSessionRouter } from "./telemedicine-session.router";
+import { patientCheckInRouter } from "./patient-check-in.router";
+import { anaesthesiaRecordRouter } from "./anaesthesia-record.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -247,6 +249,8 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, pointOfCareLabRouter);
   app.use(`/v1`, clinicalAlertLogRouter);
   app.use(`/v1`, telemedicineSessionRouter);
+  app.use(`/v1`, patientCheckInRouter);
+  app.use(`/v1`, anaesthesiaRecordRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
