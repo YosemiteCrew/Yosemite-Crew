@@ -77,7 +77,10 @@ export type AuditEventType =
   | "INSURANCE_CLAIM_CANCELLED"
   | "CARE_REMINDER_SENT"
   | "CARE_REMINDER_RESPONDED"
-  | "CARE_REMINDER_CANCELLED";
+  | "CARE_REMINDER_CANCELLED"
+  | "PROBLEM_CREATED"
+  | "PROBLEM_UPDATED"
+  | "PROBLEM_RESOLVED";
 
 export interface AuditTrailMongo {
   organisationId: string;

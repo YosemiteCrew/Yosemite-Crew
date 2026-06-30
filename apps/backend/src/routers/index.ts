@@ -67,6 +67,7 @@ import waitlistRouter from "./waitlist.router";
 import referralLetterRouter from "./referral-letter.router";
 import insuranceClaimRouter from "./insurance-claim.router";
 import careReminderRouter from "./care-reminder.router";
+import patientProblemRouter from "./patient-problem.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -131,6 +132,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, referralLetterRouter);
   app.use(`/v1`, insuranceClaimRouter);
   app.use(`/v1`, careReminderRouter);
+  app.use(`/v1`, patientProblemRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);

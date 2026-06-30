@@ -1734,6 +1734,9 @@ enum AuditEventType {
   CARE_REMINDER_SENT
   CARE_REMINDER_RESPONDED
   CARE_REMINDER_CANCELLED
+  PROBLEM_CREATED
+  PROBLEM_UPDATED
+  PROBLEM_RESOLVED
 }
 
 enum WaitlistStatus {
@@ -3444,4 +3447,38 @@ model CareReminder {
   @@index([organisationId, reminderType])
   @@index([organisationId, dueDate])
   @@map("CareReminder")
+}
+
+enum ProblemStatus {
+  ACTIVE
+  INACTIVE
+  RESOLVED
+}
+
+enum ProblemSeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+model PatientProblem {
+  id             String           @id @default(uuid())
+  organisationId String
+  patientId      String
+  encounterId    String?
+  name           String
+  codeSystem     String?
+  code           String?
+  status         ProblemStatus    @default(ACTIVE)
+  severity       ProblemSeverity?
+  onsetDate      DateTime?
+  resolvedDate   DateTime?
+  notes          String?
+  recordedBy     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organisationId, patientId, status])
+  @@index([organisationId, patientId])
+  @@map("PatientProblem")
 }
