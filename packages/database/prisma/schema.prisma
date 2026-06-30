@@ -1764,6 +1764,15 @@ enum AuditEventType {
   SOAP_NOTE_AMENDED
   TRANSFUSION_RECORDED
   TRANSFUSION_REACTION_REPORTED
+  FLUID_PLAN_CREATED
+  FLUID_PLAN_UPDATED
+  FLUID_PLAN_DISCONTINUED
+  NUTRITION_PLAN_CREATED
+  NUTRITION_PLAN_UPDATED
+  NUTRITION_PLAN_DISCONTINUED
+  POST_OP_PLAN_CREATED
+  POST_OP_PLAN_REVIEWED
+  POST_OP_PLAN_COMPLETED
 }
 
 enum WaitlistStatus {
@@ -3922,4 +3931,128 @@ model BloodTransfusion {
   @@index([organisationId, patientId])
   @@index([encounterId])
   @@map("BloodTransfusion")
+}
+
+// ---------------------------------------------------------------------------
+// Fluid Therapy Plans
+// ---------------------------------------------------------------------------
+
+enum FluidType {
+  SALINE_09
+  LACTATED_RINGERS
+  DEXTROSE_5
+  HARTMANNS
+  PLASMALYTE
+  COLLOID
+  BLOOD_PRODUCT
+  CUSTOM
+}
+
+enum FluidTherapyStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  DISCONTINUED
+}
+
+model FluidTherapyPlan {
+  id               String             @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  admissionId      String?
+  fluidType        FluidType
+  customFluidName  String?
+  additives        String?
+  rateMlPerHour    Float
+  totalVolumeMl    Float?
+  durationHours    Float?
+  startedAt        DateTime
+  endedAt          DateTime?
+  status           FluidTherapyStatus @default(ACTIVE)
+  indication       String?
+  prescribedBy     String?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("FluidTherapyPlan")
+}
+
+// ---------------------------------------------------------------------------
+// Diet & Nutrition Plans
+// ---------------------------------------------------------------------------
+
+enum NutritionPlanStatus {
+  ACTIVE
+  COMPLETED
+  DISCONTINUED
+}
+
+model NutritionPlan {
+  id              String              @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  status          NutritionPlanStatus @default(ACTIVE)
+  dietName        String
+  calories        Float?
+  calorieUnit     String?
+  protein         Float?
+  fat             Float?
+  fibre           Float?
+  feedingFrequency String?
+  portionSize     String?
+  waterIntake     String?
+  restrictions    String?
+  indication      String?
+  prescribedBy    String?
+  reviewDate      DateTime?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("NutritionPlan")
+}
+
+// ---------------------------------------------------------------------------
+// Post-Operative Care Plans
+// ---------------------------------------------------------------------------
+
+enum PostOpCareStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model PostOpCarePlan {
+  id                String          @id @default(uuid())
+  organisationId    String
+  patientId         String
+  encounterId       String?
+  surgicalProcedureId String?
+  status            PostOpCareStatus @default(ACTIVE)
+  painScore         Int?
+  analgesiaProtocol String?
+  woundCareInstructions String?
+  activityRestrictions  String?
+  dietaryNotes      String?
+  fluidTherapyNotes String?
+  monitoringParams  String?
+  firstReviewAt     DateTime?
+  nextReviewAt      DateTime?
+  reviewedBy        String?
+  reviewNotes       String?
+  prescribedBy      String?
+  notes             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("PostOpCarePlan")
 }
