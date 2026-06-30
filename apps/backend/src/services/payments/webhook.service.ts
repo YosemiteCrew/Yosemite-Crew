@@ -2,7 +2,6 @@ import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import type { PaymentProviderRegistry } from "./registry";
 import type { NormalizedPaymentEvent, ProviderId } from "./types";
-import { WebhookVerificationError } from "./errors";
 
 export class PaymentWebhookService {
   constructor(private readonly registry: PaymentProviderRegistry) {}
