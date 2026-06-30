@@ -1813,6 +1813,12 @@ enum AuditEventType {
   AFTERCARE_PLAN_RECORDED
   BLOOD_DONOR_REGISTERED
   BLOOD_DONATION_COLLECTED
+  ESTIMATE_CREATED
+  ESTIMATE_APPROVED
+  ESTIMATE_DECLINED
+  DECEASED_RECORD_CREATED
+  ADMISSION_CREATED
+  ADMISSION_DISCHARGED
 }
 
 enum WaitlistStatus {
@@ -5231,4 +5237,111 @@ model BloodDonationCollection {
   @@index([organisationId, status])
   @@index([donorId])
   @@map("BloodDonationCollection")
+}
+
+// ---------------------------------------------------------------------------
+// Treatment Estimates
+// ---------------------------------------------------------------------------
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  APPROVED
+  DECLINED
+  EXPIRED
+  CONVERTED
+}
+
+model Estimate {
+  id                   String         @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  status               EstimateStatus @default(DRAFT)
+  validUntil           DateTime?
+  subtotal             Float          @default(0)
+  taxAmount            Float          @default(0)
+  total                Float          @default(0)
+  currency             String         @default("GBP")
+  notes                String?
+  approvedBy           String?
+  approvedAt           DateTime?
+  declinedAt           DateTime?
+  declineReason        String?
+  convertedToInvoiceId String?
+  createdBy            String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  items EstimateItem[]
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@map("Estimate")
+}
+
+model EstimateItem {
+  id          String   @id @default(uuid())
+  estimateId  String
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Float
+  taxRate     Float    @default(0)
+  lineTotal   Float
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  estimate Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@index([estimateId])
+  @@map("EstimateItem")
+}
+
+// ---------------------------------------------------------------------------
+// Deceased Patient Record
+// ---------------------------------------------------------------------------
+
+enum CauseOfDeathType {
+  EUTHANASIA
+  NATURAL_DEATH
+  TRAUMATIC_INJURY
+  ACUTE_ILLNESS
+  CHRONIC_DISEASE
+  SURGICAL_COMPLICATION
+  ANESTHETIC_COMPLICATION
+  UNKNOWN
+  OTHER
+}
+
+enum BodyDispositionType {
+  OWNER_COLLECTED
+  PRIVATE_CREMATION
+  COMMUNAL_CREMATION
+  AQUAMATION
+  BURIAL
+  NECROPSY_FACILITY
+  DONATED_TO_SCIENCE
+}
+
+model DeceasedRecord {
+  id                 String              @id @default(uuid())
+  organisationId     String
+  patientId          String              @unique
+  deceasedAt         DateTime
+  causeOfDeathType   CauseOfDeathType
+  causeOfDeathDetail String?
+  bodyWeightKg       Float?
+  bodyConditionScore Int?
+  necropsyRequested  Boolean             @default(false)
+  necropsyFacility   String?
+  bodyDisposition    BodyDispositionType?
+  ownerNotifiedAt    DateTime?
+  certifiedBy        String?
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([organisationId, deceasedAt])
+  @@map("DeceasedRecord")
 }

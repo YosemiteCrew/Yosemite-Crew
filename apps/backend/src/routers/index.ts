@@ -107,6 +107,9 @@ import qolAssessmentRouter from "./qol-assessment.router";
 import controlledSubstanceLogRouter from "./controlled-substance-log.router";
 import aftercarePlanRouter from "./aftercare-plan.router";
 import bloodBankRouter from "./blood-bank.router";
+import { estimateRouter } from "./estimate.router";
+import { deceasedRecordRouter } from "./deceased-record.router";
+import { admissionRouter } from "./admission.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -211,6 +214,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, controlledSubstanceLogRouter);
   app.use(`/v1`, aftercarePlanRouter);
   app.use(`/v1`, bloodBankRouter);
+  app.use(`/v1`, estimateRouter);
+  app.use(`/v1`, deceasedRecordRouter);
+  app.use(`/v1`, admissionRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
