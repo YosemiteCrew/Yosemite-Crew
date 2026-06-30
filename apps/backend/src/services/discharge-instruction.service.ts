@@ -152,7 +152,6 @@ export const DischargeInstructionService = {
     id: string,
     organisationId: string,
     params: UpdateDischargeInstructionParams,
-    _updatedBy?: string,
   ) {
     const record = await assertDischarge(id, organisationId);
     if (record.status !== "DRAFT") {

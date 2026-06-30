@@ -108,7 +108,6 @@ export const DischargeInstructionController = {
 
   update: async (req: Request, res: Response): Promise<Response> => {
     try {
-      const typedReq = req as OrgRequest;
       const params = DischargeParamsSchema.safeParse(req.params);
       if (!params.success)
         return res.status(400).json({ message: "Invalid route parameters" });
@@ -123,7 +122,6 @@ export const DischargeInstructionController = {
           ...rest,
           ...(followUpDate ? { followUpDate: new Date(followUpDate) } : {}),
         },
-        typedReq.userId ?? undefined,
       );
       return res.status(200).json(record);
     } catch (err) {

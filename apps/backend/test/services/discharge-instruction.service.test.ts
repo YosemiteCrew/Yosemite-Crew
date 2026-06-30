@@ -147,12 +147,9 @@ describe("DischargeInstructionService.list", () => {
 
 describe("DischargeInstructionService.update", () => {
   it("updates fields on a DRAFT instruction", async () => {
-    await DischargeInstructionService.update(
-      "dis-1",
-      "org-1",
-      { dietaryNotes: "Normal food from day 5" },
-      "vet-1",
-    );
+    await DischargeInstructionService.update("dis-1", "org-1", {
+      dietaryNotes: "Normal food from day 5",
+    });
     expect(pm.dischargeInstruction.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
