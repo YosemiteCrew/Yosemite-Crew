@@ -1750,6 +1750,13 @@ enum AuditEventType {
   CARE_PLAN_UPDATED
   CARE_PLAN_CANCELLED
   CARE_PLAN_ITEM_COMPLETED
+  SURGERY_RECORDED
+  SURGERY_OUTCOME_UPDATED
+  CONSENT_GRANTED
+  CONSENT_REVOKED
+  DISCHARGE_INSTRUCTIONS_CREATED
+  DISCHARGE_INSTRUCTIONS_SENT
+  DISCHARGE_INSTRUCTIONS_ACKNOWLEDGED
 }
 
 enum WaitlistStatus {
@@ -3657,4 +3664,132 @@ model PreventiveCareItem {
   @@index([organisationId, nextDueAt])
   @@index([planId])
   @@map("PreventiveCareItem")
+}
+
+// ---------------------------------------------------------------------------
+// Surgical Procedure Records
+// ---------------------------------------------------------------------------
+
+enum SurgeryOutcome {
+  SUCCESS
+  COMPLICATION
+  ABANDONED
+  PENDING
+}
+
+enum AnesthesiaType {
+  GENERAL
+  LOCAL
+  SEDATION
+  EPIDURAL
+  NONE
+}
+
+model SurgicalProcedure {
+  id               String         @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  procedureName    String
+  surgeon          String?
+  assistants       String[]
+  anesthesiaType   AnesthesiaType @default(NONE)
+  anesthesiaAgent  String?
+  anesthesiaDoseMs Float?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  durationMinutes  Int?
+  outcome          SurgeryOutcome @default(PENDING)
+  complications    String?
+  instruments      String[]
+  specimensSent    String[]
+  postOpNotes      String?
+  performedBy      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, patientId, outcome])
+  @@index([encounterId])
+  @@map("SurgicalProcedure")
+}
+
+// ---------------------------------------------------------------------------
+// Patient Consent Records
+// ---------------------------------------------------------------------------
+
+enum ConsentType {
+  SURGICAL
+  ANESTHESIA
+  DIAGNOSTIC
+  TREATMENT
+  DATA_SHARING
+  DNR
+  OTHER
+}
+
+enum ConsentStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model PatientConsent {
+  id              String        @id @default(uuid())
+  organisationId  String
+  patientId       String
+  consentType     ConsentType
+  status          ConsentStatus @default(ACTIVE)
+  procedureDesc   String?
+  consentedBy     String?
+  consentedByName String?
+  consentedAt     DateTime      @default(now())
+  expiresAt       DateTime?
+  witnessedBy     String?
+  revokedAt       DateTime?
+  revokedReason   String?
+  documentId      String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([organisationId, patientId, status])
+  @@index([organisationId, patientId])
+  @@map("PatientConsent")
+}
+
+// ---------------------------------------------------------------------------
+// Discharge Instructions
+// ---------------------------------------------------------------------------
+
+enum DischargeStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+}
+
+model DischargeInstruction {
+  id                 String          @id @default(uuid())
+  organisationId     String
+  patientId          String
+  encounterId        String?
+  status             DischargeStatus @default(DRAFT)
+  medicationSchedule String?
+  dietaryNotes       String?
+  activityNotes      String?
+  woundCareNotes     String?
+  warningSigns       String?
+  followUpDate       DateTime?
+  followUpNotes      String?
+  emergencyContact   String?
+  additionalNotes    String?
+  preparedBy         String?
+  sentAt             DateTime?
+  acknowledgedAt     DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("DischargeInstruction")
 }

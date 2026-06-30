@@ -72,6 +72,9 @@ import patientAllergyRouter from "./patient-allergy.router";
 import vitalSignRouter from "./vital-sign.router";
 import marRouter from "./mar.router";
 import preventiveCarePlanRouter from "./preventive-care-plan.router";
+import surgicalProcedureRouter from "./surgical-procedure.router";
+import patientConsentRouter from "./patient-consent.router";
+import dischargeInstructionRouter from "./discharge-instruction.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -141,6 +144,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, vitalSignRouter);
   app.use(`/v1`, marRouter);
   app.use(`/v1`, preventiveCarePlanRouter);
+  app.use(`/v1`, surgicalProcedureRouter);
+  app.use(`/v1`, patientConsentRouter);
+  app.use(`/v1`, dischargeInstructionRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
