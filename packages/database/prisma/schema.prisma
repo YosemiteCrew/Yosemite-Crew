@@ -1823,6 +1823,10 @@ enum AuditEventType {
   DRUG_FORMULARY_ENTRY_ADDED
   CLIENT_COMPLAINT_OPENED
   CLIENT_COMPLAINT_RESOLVED
+  PRE_OP_ASSESSMENT_RECORDED
+  ISOLATION_PROTOCOL_STARTED
+  ISOLATION_PROTOCOL_ENDED
+  PATIENT_TRANSFER_RECORDED
 }
 
 enum WaitlistStatus {
@@ -5533,4 +5537,130 @@ model ClientComplaintNote {
 
   @@index([complaintId])
   @@map("ClientComplaintNote")
+}
+
+// ---------------------------------------------------------------------------
+// Pre-operative Risk Assessment
+// ---------------------------------------------------------------------------
+
+enum AsaClass {
+  ASA_I
+  ASA_II
+  ASA_III
+  ASA_IV
+  ASA_V
+  ASA_E
+}
+
+model PreOpAssessment {
+  id                   String    @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String
+  asaClass             AsaClass  @default(ASA_I)
+  fastingStartedAt     DateTime?
+  labsReviewed         Boolean   @default(false)
+  ecgReviewed          Boolean   @default(false)
+  ownerConsentSigned   Boolean   @default(false)
+  anesthetistId        String?
+  surgeonId            String?
+  plannedProcedure     String?
+  anesthesiaType       String?
+  knownAllergies       String?
+  currentMedications   String?
+  airwayNotes          String?
+  cardiovascularNotes  String?
+  notes                String?
+  assessedBy           String?
+  assessedAt           DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, encounterId])
+  @@map("PreOpAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Isolation / Infection Control Protocol
+// ---------------------------------------------------------------------------
+
+enum IsolationReason {
+  PARVOVIRUS
+  DISTEMPER
+  RINGWORM
+  MRSA
+  RESPIRATORY_INFECTION
+  GASTROINTESTINAL_INFECTION
+  TICK_BORNE_DISEASE
+  UNDIAGNOSED_CONTAGIOUS
+  POST_OP_PRECAUTION
+  OTHER
+}
+
+enum IsolationLevel {
+  STANDARD
+  CONTACT
+  DROPLET
+  AIRBORNE
+  STRICT
+}
+
+model IsolationProtocol {
+  id              String         @id @default(uuid())
+  organisationId  String
+  patientId       String
+  reason          IsolationReason @default(OTHER)
+  level           IsolationLevel  @default(CONTACT)
+  unitId          String?
+  startedAt       DateTime
+  endedAt         DateTime?
+  initiatedBy     String?
+  endedBy         String?
+  ppe             String[]
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, endedAt])
+  @@map("IsolationProtocol")
+}
+
+// ---------------------------------------------------------------------------
+// Patient Transfer Record
+// ---------------------------------------------------------------------------
+
+enum TransferType {
+  REFERRAL_SPECIALIST
+  REFERRAL_EMERGENCY
+  INTER_HOSPITAL
+  CLIENT_TRANSFER
+  DISCHARGE_HOME
+}
+
+model PatientTransfer {
+  id                    String       @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  transferType          TransferType
+  receivingFacility     String
+  receivingVetName      String?
+  receivingVetContact   String?
+  transferredAt         DateTime
+  transferredBy         String?
+  chiefComplaint        String?
+  currentDiagnoses      String?
+  ongoingTreatments     String?
+  medicationsDispensed  String?
+  caseSummary           String?
+  criticalAlerts        String?
+  ownerInformed         Boolean      @default(false)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, transferredAt])
+  @@map("PatientTransfer")
 }
