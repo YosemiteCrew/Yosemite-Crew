@@ -32,9 +32,8 @@ export interface CreateQolParams {
   euthanasiaDiscussed?: boolean;
 }
 
-export type UpdateQolParams = Omit<
-  CreateQolParams,
-  "organisationId" | "patientId" | "assessedAt"
+export type UpdateQolParams = Partial<
+  Omit<CreateQolParams, "organisationId" | "patientId">
 >;
 
 export interface ListQolParams {
@@ -142,10 +141,21 @@ export const QolAssessmentService = {
     });
   },
 
+  async trend(patientId: string, organisationId: string, limit = 20) {
+    return prisma.qualityOfLifeAssessment.findMany({
+      where: { patientId, organisationId },
+      select: qolSelect,
+      orderBy: { assessedAt: "asc" },
+      take: limit,
+    });
+  },
+
   async update(id: string, organisationId: string, params: UpdateQolParams) {
     await assertRecord(id, organisationId);
 
     const data: Prisma.QualityOfLifeAssessmentUpdateInput = {};
+    if (params.encounterId !== undefined) data.encounterId = params.encounterId;
+    if (params.assessedAt !== undefined) data.assessedAt = params.assessedAt;
     if (params.assessedBy !== undefined) data.assessedBy = params.assessedBy;
     if (params.hhhhhmmScore !== undefined)
       data.hhhhhmmScore = params.hhhhhmmScore;

@@ -26,10 +26,7 @@ const CreateBodySchema = z.object({
   euthanasiaDiscussed: z.boolean().optional(),
 });
 
-const UpdateBodySchema = CreateBodySchema.omit({
-  patientId: true,
-  assessedAt: true,
-}).partial();
+const UpdateBodySchema = CreateBodySchema.omit({ patientId: true }).partial();
 const ListQuerySchema = z.object({
   patientId: z.string().uuid().optional(),
   encounterId: z.string().uuid().optional(),
@@ -122,14 +119,40 @@ export const QolAssessmentController = {
       const body = UpdateBodySchema.safeParse(req.body);
       if (!body.success)
         return res.status(400).json({ message: body.error.message });
+      const { assessedAt, ...rest } = body.data;
       const record = await QolAssessmentService.update(
         params.data.assessmentId,
         params.data.organisationId,
-        body.data,
+        {
+          ...rest,
+          ...(assessedAt ? { assessedAt: new Date(assessedAt) } : {}),
+        },
       );
       return res.status(200).json(record);
     } catch (err) {
       return handleError(err, res, "Failed to update QoL assessment");
+    }
+  },
+
+  trend: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const params = OrgParamsSchema.safeParse(req.params);
+      if (!params.success)
+        return res.status(400).json({ message: "Invalid route parameters" });
+      const patientId = req.query.patientId as string | undefined;
+      if (!patientId)
+        return res.status(400).json({ message: "patientId is required" });
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+      const records = await QolAssessmentService.trend(
+        patientId,
+        params.data.organisationId,
+        limit,
+      );
+      return res.status(200).json(records);
+    } catch (err) {
+      return handleError(err, res, "Failed to get QoL assessment trend");
     }
   },
 

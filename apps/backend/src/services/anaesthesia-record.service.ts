@@ -1,6 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, AnesthesiaType } from "@prisma/client";
 
 export class AnaesthesiaRecordError extends Error {
   constructor(
@@ -19,9 +19,11 @@ const TERMINAL_STATUSES: AnaesthesiaStatus[] = ["COMPLETED", "ABORTED"];
 export interface CreateAnaesthesiaParams {
   organisationId: string;
   patientId: string;
+  encounterId?: string;
   appointmentId?: string;
   surgicalProcedureId?: string;
   anaesthetistId?: string;
+  anesthesiaType?: AnesthesiaType;
   inductionAgent?: string;
   maintenanceAgent?: string;
   oxygenFlowLpm?: number;
@@ -33,9 +35,11 @@ const recordSelect = {
   id: true,
   organisationId: true,
   patientId: true,
+  encounterId: true,
   appointmentId: true,
   surgicalProcedureId: true,
   anaesthetistId: true,
+  anesthesiaType: true,
   inductionAgent: true,
   maintenanceAgent: true,
   oxygenFlowLpm: true,
@@ -68,9 +72,11 @@ export const AnaesthesiaRecordService = {
       data: {
         organisationId: params.organisationId,
         patientId: params.patientId,
+        encounterId: params.encounterId ?? null,
         appointmentId: params.appointmentId ?? null,
         surgicalProcedureId: params.surgicalProcedureId ?? null,
         anaesthetistId: params.anaesthetistId ?? null,
+        anesthesiaType: params.anesthesiaType ?? null,
         inductionAgent: params.inductionAgent ?? null,
         maintenanceAgent: params.maintenanceAgent ?? null,
         oxygenFlowLpm: params.oxygenFlowLpm ?? null,

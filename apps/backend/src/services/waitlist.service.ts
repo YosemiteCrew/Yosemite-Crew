@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import type { Prisma } from "@prisma/client";
 import { NotificationService } from "./notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { sendEmail } from "src/utils/email";
@@ -31,6 +32,7 @@ export interface ListWaitlistParams {
   organisationId: string;
   status?: "WAITING" | "OFFERED" | "BOOKED" | "CANCELLED" | "EXPIRED";
   patientId?: string;
+  appointmentType?: string;
 }
 
 const entrySelect = {
@@ -49,7 +51,7 @@ const entrySelect = {
   expiresAt: true,
   createdAt: true,
   updatedAt: true,
-} as const;
+} satisfies Prisma.WaitlistEntrySelect;
 
 const assertEntry = async (id: string, organisationId: string) => {
   const entry = await prisma.waitlistEntry.findFirst({
@@ -153,12 +155,13 @@ export const WaitlistService = {
   },
 
   async list(params: ListWaitlistParams) {
-    const { organisationId, status, patientId } = params;
+    const { organisationId, status, patientId, appointmentType } = params;
     return prisma.waitlistEntry.findMany({
       where: {
         organisationId,
         ...(status ? { status } : {}),
         ...(patientId ? { patientId } : {}),
+        ...(appointmentType ? { appointmentType } : {}),
       },
       select: entrySelect,
       orderBy: { createdAt: "asc" },

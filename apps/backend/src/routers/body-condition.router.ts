@@ -16,6 +16,11 @@ bodyConditionRouter.post(
   BodyConditionController.record,
 );
 bodyConditionRouter.get(
+  `${BASE}/trend`,
+  requirePermission("appointments:view:any"),
+  BodyConditionController.trend,
+);
+bodyConditionRouter.get(
   `${BASE}/:recordId`,
   requirePermission("appointments:view:any"),
   BodyConditionController.get,

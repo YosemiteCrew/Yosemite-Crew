@@ -24,6 +24,7 @@ const AddBodySchema = z.object({
 const ListQuerySchema = z.object({
   status: WaitlistStatusEnum.optional(),
   patientId: z.string().uuid().optional(),
+  appointmentType: z.string().max(100).optional(),
 });
 
 const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });

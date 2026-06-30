@@ -1,14 +1,26 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { AnaesthesiaRecordService } from "src/services/anaesthesia-record.service";
+import type { AnesthesiaType } from "@prisma/client";
 
 const StatusEnum = z.enum(["PLANNED", "IN_PROGRESS", "COMPLETED", "ABORTED"]);
+const AnesthesiaTypeEnum = z.enum([
+  "GENERAL",
+  "LOCAL",
+  "SEDATION",
+  "EPIDURAL",
+  "REGIONAL",
+  "TOTAL_IV",
+  "NONE",
+]) satisfies z.ZodType<AnesthesiaType>;
 
 const PlanSchema = z.object({
   patientId: z.string(),
+  encounterId: z.string().optional(),
   appointmentId: z.string().optional(),
   surgicalProcedureId: z.string().optional(),
   anaesthetistId: z.string().optional(),
+  anesthesiaType: AnesthesiaTypeEnum.optional(),
   inductionAgent: z.string().optional(),
   maintenanceAgent: z.string().optional(),
   oxygenFlowLpm: z.number().positive().optional(),

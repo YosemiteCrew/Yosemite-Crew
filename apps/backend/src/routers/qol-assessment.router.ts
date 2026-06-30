@@ -16,6 +16,11 @@ qolAssessmentRouter.post(
   QolAssessmentController.create,
 );
 qolAssessmentRouter.get(
+  `${BASE}/trend`,
+  requirePermission("appointments:view:any"),
+  QolAssessmentController.trend,
+);
+qolAssessmentRouter.get(
   `${BASE}/:assessmentId`,
   requirePermission("appointments:view:any"),
   QolAssessmentController.get,

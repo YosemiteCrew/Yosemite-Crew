@@ -22,8 +22,18 @@ const RecordBodySchema = z.object({
 
 const ListQuerySchema = z.object({
   patientId: z.string().uuid().optional(),
+  encounterId: z.string().uuid().optional(),
+  bcsScale: BcsScaleEnum.optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
+});
+
+const TrendQuerySchema = z.object({
+  patientId: z.string().uuid(),
+  limit: z
+    .string()
+    .transform((v) => parseInt(v, 10))
+    .optional(),
 });
 
 const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
@@ -99,6 +109,25 @@ export const BodyConditionController = {
       return res.status(200).json(bcr);
     } catch (err) {
       return handleError(err, res, "Failed to get body condition record");
+    }
+  },
+
+  trend: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const params = OrgParamsSchema.safeParse(req.params);
+      if (!params.success)
+        return res.status(400).json({ message: "Invalid route parameters" });
+      const query = TrendQuerySchema.safeParse(req.query);
+      if (!query.success)
+        return res.status(400).json({ message: query.error.message });
+      const records = await BodyConditionService.trend(
+        query.data.patientId,
+        params.data.organisationId,
+        query.data.limit,
+      );
+      return res.status(200).json(records);
+    } catch (err) {
+      return handleError(err, res, "Failed to get body condition trend");
     }
   },
 

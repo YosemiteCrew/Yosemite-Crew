@@ -31,6 +31,8 @@ export interface RecordBodyConditionParams {
 export interface ListBodyConditionParams {
   organisationId: string;
   patientId?: string;
+  encounterId?: string;
+  bcsScale?: BodyConditionScaleType;
   from?: Date;
   to?: Date;
 }
@@ -107,11 +109,14 @@ export const BodyConditionService = {
   },
 
   async list(params: ListBodyConditionParams) {
-    const { organisationId, patientId, from, to } = params;
+    const { organisationId, patientId, encounterId, bcsScale, from, to } =
+      params;
     return prisma.bodyConditionRecord.findMany({
       where: {
         organisationId,
         ...(patientId ? { patientId } : {}),
+        ...(encounterId ? { encounterId } : {}),
+        ...(bcsScale ? { bcsScale } : {}),
         ...(from || to
           ? {
               recordedAt: {
@@ -123,6 +128,15 @@ export const BodyConditionService = {
       },
       select: recordSelect,
       orderBy: { recordedAt: "asc" },
+    });
+  },
+
+  async trend(patientId: string, organisationId: string, limit = 20) {
+    return prisma.bodyConditionRecord.findMany({
+      where: { patientId, organisationId },
+      select: recordSelect,
+      orderBy: { recordedAt: "asc" },
+      take: limit,
     });
   },
 
