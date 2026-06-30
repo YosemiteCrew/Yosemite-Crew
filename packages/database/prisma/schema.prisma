@@ -1806,6 +1806,9 @@ enum AuditEventType {
   NEUROLOGY_ASSESSMENT_RECORDED
   ONCOLOGY_ASSESSMENT_RECORDED
   NUTRITION_ASSESSMENT_RECORDED
+  POC_LAB_RECORDED
+  GENETIC_SCREEN_RECORDED
+  QOL_ASSESSMENT_RECORDED
 }
 
 enum WaitlistStatus {
@@ -4961,4 +4964,125 @@ model NutritionAssessment {
 
   @@index([organisationId, patientId])
   @@map("NutritionAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Point-of-Care Lab Result
+// ---------------------------------------------------------------------------
+
+enum PocTestType {
+  CBC
+  BLOOD_CHEMISTRY
+  URINALYSIS
+  FECAL_FLOAT
+  CYTOLOGY
+  COAGULATION
+  ELECTROLYTES
+  THYROID_PANEL
+  CORTISOL
+  GLUCOSE_CURVE
+  BLOOD_GAS
+  OTHER
+}
+
+model PointOfCareLab {
+  id                  String       @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  conductedAt         DateTime
+  conductedBy         String?
+  testType            PocTestType
+  analyzerName        String?
+  sampleType          String?
+  results             Json
+  overallInterpretation String?
+  abnormalFlags       String[]
+  criticalFlags       String[]
+  followUpRecommended Boolean?
+  notes               String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, testType])
+  @@map("PointOfCareLab")
+}
+
+// ---------------------------------------------------------------------------
+// Genetic Health Screening
+// ---------------------------------------------------------------------------
+
+enum GeneticTestResult {
+  CLEAR
+  CARRIER
+  AFFECTED
+  AFFECTED_MINOR
+  INCONCLUSIVE
+  PENDING
+}
+
+enum OrthoRating {
+  EXCELLENT
+  GOOD
+  FAIR
+  BORDERLINE
+  MILD
+  MODERATE
+  SEVERE
+  NOT_EVALUABLE
+}
+
+model GeneticHealthScreen {
+  id                  String            @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  screenedAt          DateTime
+  screenedBy          String?
+  laboratoryName      String?
+  dnaTests            Json?
+  ofa_hips            OrthoRating?
+  ofa_elbows          OrthoRating?
+  ofa_patellas        OrthoRating?
+  ofa_cardiac         String?
+  ofa_eyes            String?
+  certificateNumber   String?
+  certificationExpiry DateTime?
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("GeneticHealthScreen")
+}
+
+// ---------------------------------------------------------------------------
+// Quality-of-Life Assessment
+// ---------------------------------------------------------------------------
+
+model QualityOfLifeAssessment {
+  id               String    @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  assessedAt       DateTime
+  assessedBy       String?
+  hhhhhmmScore     Int?
+  painScore        Int?
+  appetiteScore    Int?
+  hygieneScore     Int?
+  happinessScore   Int?
+  mobilityScore    Int?
+  moreDaysGood     Boolean?
+  overallScore     Int?
+  ownerAssessed    Boolean   @default(false)
+  clinicianNotes   String?
+  ownerNotes       String?
+  euthanasiaDiscussed Boolean?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("QualityOfLifeAssessment")
 }

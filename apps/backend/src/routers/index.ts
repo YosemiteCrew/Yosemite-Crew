@@ -101,6 +101,9 @@ import dermatologyAssessmentRouter from "./dermatology-assessment.router";
 import neurologyAssessmentRouter from "./neurology-assessment.router";
 import oncologyAssessmentRouter from "./oncology-assessment.router";
 import nutritionAssessmentRouter from "./nutrition-assessment.router";
+import pocLabRouter from "./poc-lab.router";
+import geneticHealthScreenRouter from "./genetic-health-screen.router";
+import qolAssessmentRouter from "./qol-assessment.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -199,6 +202,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, neurologyAssessmentRouter);
   app.use(`/v1`, oncologyAssessmentRouter);
   app.use(`/v1`, nutritionAssessmentRouter);
+  app.use(`/v1`, pocLabRouter);
+  app.use(`/v1`, geneticHealthScreenRouter);
+  app.use(`/v1`, qolAssessmentRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
