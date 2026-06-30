@@ -121,6 +121,7 @@ import { appointmentReminderLogRouter } from "./appointment-reminder-log.router"
 import { waitlistEntryRouter } from "./waitlist-entry.router";
 import { adverseEventReportRouter } from "./adverse-event-report.router";
 import { bodyConditionRecordRouter } from "./body-condition-record.router";
+import { qualityOfLifeAssessmentRouter } from "./quality-of-life-assessment.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -239,6 +240,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, waitlistEntryRouter);
   app.use(`/v1`, adverseEventReportRouter);
   app.use(`/v1`, bodyConditionRecordRouter);
+  app.use(`/v1`, qualityOfLifeAssessmentRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
