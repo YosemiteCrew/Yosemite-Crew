@@ -19,8 +19,6 @@ type AdverseEventStatus =
   | "FORWARDED"
   | "CLOSED";
 
-const CLOSED_STATUSES: AdverseEventStatus[] = ["CLOSED", "FORWARDED"];
-
 export interface CreateAdverseEventParams {
   organisationId?: string;
   appointmentId?: string;
