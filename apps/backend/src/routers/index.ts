@@ -110,6 +110,9 @@ import bloodBankRouter from "./blood-bank.router";
 import { estimateRouter } from "./estimate.router";
 import { deceasedRecordRouter } from "./deceased-record.router";
 import { admissionRouter } from "./admission.router";
+import { surgicalChecklistRouter } from "./surgical-checklist.router";
+import { drugFormularyRouter } from "./drug-formulary.router";
+import { clientComplaintRouter } from "./client-complaint.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -217,6 +220,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, estimateRouter);
   app.use(`/v1`, deceasedRecordRouter);
   app.use(`/v1`, admissionRouter);
+  app.use(`/v1`, surgicalChecklistRouter);
+  app.use(`/v1`, drugFormularyRouter);
+  app.use(`/v1`, clientComplaintRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);

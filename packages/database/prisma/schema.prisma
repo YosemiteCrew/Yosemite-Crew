@@ -1819,6 +1819,10 @@ enum AuditEventType {
   DECEASED_RECORD_CREATED
   ADMISSION_CREATED
   ADMISSION_DISCHARGED
+  SURGICAL_CHECKLIST_COMPLETED
+  DRUG_FORMULARY_ENTRY_ADDED
+  CLIENT_COMPLAINT_OPENED
+  CLIENT_COMPLAINT_RESOLVED
 }
 
 enum WaitlistStatus {
@@ -5344,4 +5348,189 @@ model DeceasedRecord {
 
   @@index([organisationId, deceasedAt])
   @@map("DeceasedRecord")
+}
+
+// ---------------------------------------------------------------------------
+// Surgical Safety Checklist (WHO-style Sign-In / Time-Out / Sign-Out)
+// ---------------------------------------------------------------------------
+
+enum ChecklistPhase {
+  SIGN_IN
+  TIME_OUT
+  SIGN_OUT
+}
+
+enum ChecklistStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+model SurgicalChecklist {
+  id              String          @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String
+  phase           ChecklistPhase  @default(SIGN_IN)
+  status          ChecklistStatus @default(PENDING)
+  conductedBy     String?
+  completedAt     DateTime?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  items SurgicalChecklistItem[]
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, encounterId])
+  @@map("SurgicalChecklist")
+}
+
+model SurgicalChecklistItem {
+  id          String   @id @default(uuid())
+  checklistId String
+  label       String
+  isChecked   Boolean  @default(false)
+  checkedBy   String?
+  checkedAt   DateTime?
+  notes       String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  checklist SurgicalChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+  @@map("SurgicalChecklistItem")
+}
+
+// ---------------------------------------------------------------------------
+// Drug Formulary (clinic-specific drug reference with dosage guidelines)
+// ---------------------------------------------------------------------------
+
+enum FormularyCategory {
+  ANALGESIC
+  ANTIBIOTIC
+  ANTIFUNGAL
+  ANTIPARASITIC
+  CARDIOVASCULAR
+  CHEMOTHERAPY
+  CONTROLLED_SUBSTANCE
+  DERMATOLOGY
+  ENDOCRINOLOGY
+  GASTROINTESTINAL
+  IMMUNOSUPPRESSANT
+  NEUROLOGY
+  OPHTHALMIC
+  RESPIRATORY
+  SEDATION_ANESTHESIA
+  VACCINE
+  OTHER
+}
+
+model DrugFormulary {
+  id             String            @id @default(uuid())
+  organisationId String
+  drugName       String
+  genericName    String?
+  category       FormularyCategory @default(OTHER)
+  manufacturer   String?
+  concentration  String?
+  availableUnits String[]
+  isActive       Boolean           @default(true)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  dosageEntries DrugFormularyDosage[]
+
+  @@index([organisationId, isActive])
+  @@index([organisationId, category])
+  @@map("DrugFormulary")
+}
+
+model DrugFormularyDosage {
+  id          String   @id @default(uuid())
+  formularyId String
+  species     String
+  indication  String?
+  doseMin     Float?
+  doseMax     Float?
+  doseUnit    String?
+  route       String?
+  frequency   String?
+  maxDose     Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  formulary DrugFormulary @relation(fields: [formularyId], references: [id], onDelete: Cascade)
+
+  @@index([formularyId])
+  @@map("DrugFormularyDosage")
+}
+
+// ---------------------------------------------------------------------------
+// Client Complaint Registry
+// ---------------------------------------------------------------------------
+
+enum ComplaintStatus {
+  OPEN
+  INVESTIGATING
+  PENDING_RESPONSE
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum ComplaintCategory {
+  CLINICAL_CARE
+  COMMUNICATION
+  BILLING
+  WAIT_TIMES
+  FACILITIES
+  STAFF_CONDUCT
+  OUTCOME_CONCERN
+  OTHER
+}
+
+model ClientComplaint {
+  id              String            @id @default(uuid())
+  organisationId  String
+  clientId        String
+  patientId       String?
+  encounterId     String?
+  status          ComplaintStatus   @default(OPEN)
+  category        ComplaintCategory @default(OTHER)
+  summary         String
+  description     String?
+  reportedAt      DateTime          @default(now())
+  reportedBy      String?
+  assignedTo      String?
+  resolvedAt      DateTime?
+  resolutionNotes String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  notes ClientComplaintNote[]
+
+  @@index([organisationId, status])
+  @@index([organisationId, clientId])
+  @@map("ClientComplaint")
+}
+
+model ClientComplaintNote {
+  id          String   @id @default(uuid())
+  complaintId String
+  authorId    String?
+  content     String
+  isInternal  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  complaint ClientComplaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@map("ClientComplaintNote")
 }
