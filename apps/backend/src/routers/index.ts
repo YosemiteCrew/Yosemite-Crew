@@ -75,6 +75,9 @@ import preventiveCarePlanRouter from "./preventive-care-plan.router";
 import surgicalProcedureRouter from "./surgical-procedure.router";
 import patientConsentRouter from "./patient-consent.router";
 import dischargeInstructionRouter from "./discharge-instruction.router";
+import diagnosticImageRouter from "./diagnostic-image.router";
+import soapNoteRouter from "./soap-note.router";
+import bloodTransfusionRouter from "./blood-transfusion.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -147,6 +150,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, surgicalProcedureRouter);
   app.use(`/v1`, patientConsentRouter);
   app.use(`/v1`, dischargeInstructionRouter);
+  app.use(`/v1`, diagnosticImageRouter);
+  app.use(`/v1`, soapNoteRouter);
+  app.use(`/v1`, bloodTransfusionRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);

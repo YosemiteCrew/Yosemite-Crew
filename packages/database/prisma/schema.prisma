@@ -1757,6 +1757,13 @@ enum AuditEventType {
   DISCHARGE_INSTRUCTIONS_CREATED
   DISCHARGE_INSTRUCTIONS_SENT
   DISCHARGE_INSTRUCTIONS_ACKNOWLEDGED
+  DIAGNOSTIC_IMAGE_RECORDED
+  DIAGNOSTIC_IMAGE_REVIEWED
+  SOAP_NOTE_CREATED
+  SOAP_NOTE_SIGNED
+  SOAP_NOTE_AMENDED
+  TRANSFUSION_RECORDED
+  TRANSFUSION_REACTION_REPORTED
 }
 
 enum WaitlistStatus {
@@ -3792,4 +3799,127 @@ model DischargeInstruction {
   @@index([organisationId, patientId])
   @@index([encounterId])
   @@map("DischargeInstruction")
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostic Imaging Records
+// ---------------------------------------------------------------------------
+
+enum ImagingType {
+  RADIOGRAPH
+  ULTRASOUND
+  CT_SCAN
+  MRI
+  ENDOSCOPY
+  FLUOROSCOPY
+  SCINTIGRAPHY
+  OTHER
+}
+
+enum ImagingStatus {
+  PENDING_REVIEW
+  REVIEWED
+  REQUIRES_SPECIALIST
+}
+
+model DiagnosticImage {
+  id               String        @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  imagingType      ImagingType
+  bodyRegion       String?
+  indication       String?
+  takenAt          DateTime
+  takenBy          String?
+  interpretedBy    String?
+  interpretedAt    DateTime?
+  findings         String?
+  impression       String?
+  followUpRequired Boolean       @default(false)
+  documentId       String?
+  status           ImagingStatus @default(PENDING_REVIEW)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("DiagnosticImage")
+}
+
+// ---------------------------------------------------------------------------
+// SOAP Clinical Notes
+// ---------------------------------------------------------------------------
+
+model SOAPNote {
+  id            String    @id @default(uuid())
+  organisationId String
+  patientId     String
+  encounterId   String?
+  authorId      String?
+  noteDate      DateTime
+  subjective    String?
+  objective     String?
+  assessment    String?
+  plan          String?
+  signedAt      DateTime?
+  signedBy      String?
+  isAmended     Boolean   @default(false)
+  amendedReason String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("SOAPNote")
+}
+
+// ---------------------------------------------------------------------------
+// Blood Transfusion Records
+// ---------------------------------------------------------------------------
+
+enum BloodType {
+  DEA_1_POSITIVE
+  DEA_1_NEGATIVE
+  TYPE_A
+  TYPE_B
+  TYPE_AB
+  UNKNOWN
+}
+
+enum TransfusionReaction {
+  NONE
+  FEBRILE
+  HAEMOLYTIC
+  ALLERGIC
+  ANAPHYLACTIC
+  CIRCULATORY_OVERLOAD
+  OTHER
+}
+
+model BloodTransfusion {
+  id              String              @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  donorId         String?
+  productType     String
+  bloodType       BloodType
+  volumeMl        Float
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationMinutes Int?
+  reaction        TransfusionReaction @default(NONE)
+  reactionNotes   String?
+  administeredBy  String?
+  crossMatchDone  Boolean             @default(false)
+  crossMatchResult String?
+  preTransfusionPCV Float?
+  postTransfusionPCV Float?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("BloodTransfusion")
 }
