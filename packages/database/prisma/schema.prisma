@@ -1801,6 +1801,8 @@ enum AuditEventType {
   REPRODUCTIVE_RECORD_UPDATED
   OPHTHALMOLOGY_EXAMINATION_RECORDED
   CARDIOLOGY_ASSESSMENT_RECORDED
+  BEHAVIOR_ASSESSMENT_RECORDED
+  DERMATOLOGY_ASSESSMENT_RECORDED
 }
 
 enum WaitlistStatus {
@@ -4748,4 +4750,77 @@ model CardiologyAssessment {
 
   @@index([organisationId, patientId])
   @@map("CardiologyAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Behavior Assessment
+// ---------------------------------------------------------------------------
+
+enum FasScore {
+  FAS_0
+  FAS_1
+  FAS_2
+  FAS_3
+  FAS_4
+  FAS_5
+}
+
+enum HandlingTolerance {
+  EASY
+  MODERATE
+  DIFFICULT
+  EXTREME
+}
+
+model BehaviorAssessment {
+  id                    String            @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  assessedAt            DateTime
+  assessedBy            String?
+  fasScore              FasScore?
+  nailTrimTolerance     HandlingTolerance?
+  handlingTolerance     HandlingTolerance?
+  aggressionTriggers    String[]
+  aversionBehaviors     String[]
+  trainingHistory       String?
+  diagnoses             String[]
+  referralRecommended   Boolean?
+  fearFreeNotes         String?
+  notes                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("BehaviorAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Dermatology Assessment
+// ---------------------------------------------------------------------------
+
+model DermatologyAssessment {
+  id                    String    @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  assessedAt            DateTime
+  assessedBy            String?
+  pruritusScore         Int?
+  affectedRegions       String[]
+  primaryLesions        String[]
+  secondaryLesions      String[]
+  coatQuality           String?
+  lesionMap             Json?
+  environmentalAllergens String[]
+  foodTrialStatus       String?
+  cades04Score          Int?
+  diagnoses             String[]
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("DermatologyAssessment")
 }
