@@ -1780,6 +1780,10 @@ enum AuditEventType {
   PHYSIOTHERAPY_PLAN_CREATED
   PHYSIOTHERAPY_PLAN_UPDATED
   PHYSIOTHERAPY_PLAN_DISCONTINUED
+  WOUND_ASSESSMENT_RECORDED
+  PATHOLOGY_SUBMITTED
+  PATHOLOGY_RESULTS_RECORDED
+  PATHOLOGY_REVIEWED
 }
 
 enum WaitlistStatus {
@@ -4189,4 +4193,123 @@ model PhysiotherapyPlan {
   @@index([organisationId, patientId])
   @@index([encounterId])
   @@map("PhysiotherapyPlan")
+}
+
+// ---------------------------------------------------------------------------
+// Wound Assessments
+// ---------------------------------------------------------------------------
+
+enum WoundType {
+  SURGICAL_INCISION
+  LACERATION
+  PUNCTURE
+  ABRASION
+  BURN
+  PRESSURE_SORE
+  ULCER
+  BITE_WOUND
+  OTHER
+}
+
+enum WoundHealingStage {
+  HAEMOSTASIS
+  INFLAMMATION
+  PROLIFERATION
+  MATURATION
+}
+
+enum WoundHealingStatus {
+  HEALING
+  STATIC
+  DETERIORATING
+  HEALED
+  COMPLICATED
+}
+
+model WoundAssessment {
+  id                  String             @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  surgicalProcedureId String?
+  woundType           WoundType
+  location            String
+  lengthCm            Decimal?
+  widthCm             Decimal?
+  depthCm             Decimal?
+  healingStage        WoundHealingStage?
+  healingStatus       WoundHealingStatus @default(HEALING)
+  exudateType         String?
+  exudateAmount       String?
+  odour               String?
+  woundBed            String?
+  woundEdges          String?
+  periwoundSkin       String?
+  dressing            String?
+  dressingChangeFreq  String?
+  assessedAt          DateTime
+  assessedBy          String?
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, surgicalProcedureId])
+  @@index([assessedAt])
+  @@map("WoundAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Pathology Submissions
+// ---------------------------------------------------------------------------
+
+enum PathologyType {
+  HISTOPATHOLOGY
+  CYTOLOGY
+  CULTURE_SENSITIVITY
+  HAEMATOLOGY
+  BIOCHEMISTRY
+  URINALYSIS
+  PCR
+  SEROLOGY
+  NECROPSY
+  OTHER
+}
+
+enum PathologyStatus {
+  PENDING
+  RECEIVED_BY_LAB
+  PROCESSING
+  RESULTS_AVAILABLE
+  REVIEWED
+}
+
+model PathologySubmission {
+  id              String          @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  pathologyType   PathologyType
+  sampleType      String
+  anatomicSite    String
+  collectedAt     DateTime
+  collectedBy     String?
+  submittedAt     DateTime?
+  labName         String?
+  labRefNumber    String?
+  clinicalHistory String?
+  differentials   String?
+  results         String?
+  diagnosis       String?
+  interpretation  String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  status          PathologyStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@map("PathologySubmission")
 }
