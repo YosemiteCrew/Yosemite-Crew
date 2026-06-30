@@ -127,6 +127,11 @@ export const NotificationTemplates = {
       title: "Passport sharing request",
       body: `A veterinary clinic has requested to share ${companionName}'s digital passport records. Open the app to accept or decline.`,
     }),
+
+    WAITLIST_SLOT_AVAILABLE: (companionName: string): NotificationPayload => ({
+      title: "Appointment slot available",
+      body: `Good news! A slot has opened up for ${companionName}. Open the app to book before it fills.`,
+    }),
   },
 
   //

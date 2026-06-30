@@ -1718,6 +1718,42 @@ enum AuditEventType {
   PASSPORT_CONSENT_GRANTED
   PASSPORT_CONSENT_REVOKED
   PROTOCOL_APPLIED
+  WAITLIST_ENTRY_ADDED
+  WAITLIST_ENTRY_OFFERED
+  WAITLIST_ENTRY_BOOKED
+  WAITLIST_ENTRY_CANCELLED
+  WAITLIST_ENTRY_EXPIRED
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  BOOKED
+  CANCELLED
+  EXPIRED
+}
+
+model WaitlistEntry {
+  id              String         @id @default(uuid())
+  organisationId  String
+  patientId       String
+  requestedBy     String?
+  preferredLeadId String?
+  appointmentType String?
+  earliestDate    DateTime?
+  latestDate      DateTime?
+  notes           String?
+  status          WaitlistStatus @default(WAITING)
+  offeredAt       DateTime?
+  bookedAt        DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([organisationId, status])
+  @@index([organisationId, patientId])
+  @@index([organisationId, earliestDate, latestDate])
+  @@map("WaitlistEntry")
 }
 
 enum TreatmentProtocolSpecies {
