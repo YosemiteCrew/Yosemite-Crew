@@ -14,9 +14,8 @@ Different apps in this monorepo ship on different cadences to different targets,
 
 | App | Mechanism | Trigger |
 |---|---|---|
-| `apps/frontend` (web) | Continuous deployment | Every push to `main`/`dev` that touches frontend paths ([`cd-frontend.yaml`](./.github/workflows/cd-frontend.yaml)) — no version tag involved. |
+| `apps/frontend` / PIMS (web) | Continuous deployment **and** a separate versioned tag line | Every push to `main`/`dev` that touches frontend paths deploys automatically ([`cd-frontend.yaml`](./.github/workflows/cd-frontend.yaml)). Independently, `pims-vX.Y.Z-beta` tags mark named release points for changelog/versioning purposes (see [README.md § Release Versioning](./README.md#release-versioning)) — deployment doesn't wait for the tag, the tag just labels a commit that already shipped. **Not CI-automated**: tagging is manual (`git tag -a pims-vX.Y.Z-beta && git push origin pims-vX.Y.Z-beta`). Older tags used the `pms-v` spelling (`pms-v1.0.0-beta` through `pms-v1.3.0-beta`); the `pims-v` spelling is current going forward per the README — this repo has both in tag history, worth normalizing on `pims-v` only rather than papering over it. |
 | `apps/backend` | Discrete tagged release | Manual: tag `backend-vX.Y.Z[-beta]`, then `gh release create`. **Not yet CI-automated.** |
-| PMS (backend + frontend bundle) | Discrete tagged release | Manual: tag `pms-vX.Y.Z[-beta]`, then `gh release create`. **Not yet CI-automated.** |
 | `apps/mobileAppYC` | Discrete tagged release | Manual: tag `mobile-vX.Y.Z-iOS-vA.B`, then `gh release create`. App-store submission is a separate manual step outside this repo. |
 | `apps/desktop` | Discrete tagged release, CI-built | Tag `desktop-vX.Y.Z-beta` pushed → [`desktop-release.yml`](./.github/workflows/desktop-release.yml) builds and publishes the Windows installer automatically. |
 
@@ -40,5 +39,5 @@ If you want a preview before tagging, run it locally: `git-cliff <previous-tag>.
 
 ## What this does not (yet) do
 
-- Backend/PMS/mobile releases are still manually tagged — this only automates the notes, not the decision of when/what to release or the artifact build/publish step.
+- Backend/PIMS/mobile releases are still manually tagged — this only automates the notes, not the decision of when/what to release or the artifact build/publish step.
 - `package.json` versions are not wired to tags. Doing so would need per-app release automation (e.g. Changesets or release-please) with either per-PR changeset files or `package.json` as the real source of truth — a bigger change than "stop hand-writing notes," left for a future ADR if the team wants it.
