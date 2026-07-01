@@ -1,0 +1,41 @@
+# git-cliff config for auto-generated GitHub Release notes.
+# Commit messages are already enforced into `<type>(<scope>): <subject>` by
+# commitlint (see commitlint.config.cjs) and the PR title gate in
+# .github/workflows/pr-governance.yml, so parsing is a direct match on that
+# format rather than a heuristic. See RELEASING.md for how this is invoked.
+
+[changelog]
+header = ""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | split(pat=": ") | last | trim }} ({{ commit.id | truncate(length=7, end="") }})
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = false
+filter_commits = true
+tag_pattern = "*-v[0-9]*"
+sort_commits = "oldest"
+
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Fixes" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^test", group = "Testing" },
+  { message = "^build", group = "Build" },
+  { message = "^ci", group = "CI" },
+  { message = "^style", group = "Style" },
+  { message = "^revert", group = "Reverts" },
+  { message = "^chore", group = "Chores", skip = true },
+]

@@ -1,0 +1,62 @@
+name: Release Notes
+
+# Generates GitHub Release notes from Conventional Commits (already enforced
+# by commitlint + pr-governance.yml) instead of requiring hand-written notes.
+# See RELEASING.md for the full release process this fits into.
+
+on:
+  push:
+    tags:
+      - '*-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  generate-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine component prefix and previous tag
+        id: prev
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PREFIX=$(echo "$TAG" | sed -E 's/-v[0-9].*$//')
+          echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
+          PREV=$(git tag --list "${PREFIX}-v*" --sort=-v:refname | grep -vFx "$TAG" | head -n1 || true)
+          echo "prev=$PREV" >> "$GITHUB_OUTPUT"
+
+      - name: Install git-cliff
+        run: |
+          ASSET_URL=$(curl -sL https://api.github.com/repos/orhun/git-cliff/releases/latest \
+            | grep browser_download_url \
+            | grep 'x86_64-unknown-linux-gnu\.tar\.gz"' \
+            | cut -d '"' -f4)
+          curl -sL "$ASSET_URL" -o git-cliff.tar.gz
+          tar xzf git-cliff.tar.gz
+          sudo mv git-cliff-*/git-cliff /usr/local/bin/
+          git-cliff --version
+
+      - name: Generate release notes
+        run: |
+          if [ -n "${{ steps.prev.outputs.prev }}" ]; then
+            RANGE="${{ steps.prev.outputs.prev }}..${{ github.ref_name }}"
+          else
+            RANGE="${{ github.ref_name }}"
+          fi
+          git-cliff "$RANGE" --config cliff.toml --strip all -o notes.md
+          cat notes.md
+
+      - name: Publish to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release edit "${{ github.ref_name }}" --notes-file notes.md
+          else
+            gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --notes-file notes.md
+          fi
