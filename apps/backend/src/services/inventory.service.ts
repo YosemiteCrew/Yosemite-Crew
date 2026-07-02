@@ -1023,6 +1023,8 @@ const createInventoryItemInPostgres = async (
         batchNumber: b.batchNumber ?? undefined,
         lotNumber: b.lotNumber ?? undefined,
         regulatoryTrackingId: b.regulatoryTrackingId ?? undefined,
+        expiryWarningBefore: b.expiryWarningBefore ?? undefined,
+        barcode: b.barcode ?? undefined,
         manufactureDate: b.manufactureDate ?? undefined,
         expiryDate: b.expiryDate ?? undefined,
         minShelfLifeAlertDate: b.minShelfLifeAlertDate ?? undefined,
@@ -1147,11 +1149,16 @@ export const InventoryService = {
       }
     }
 
-    if (input.sku !== undefined) {
+    const nextSku =
+      input.sku === undefined
+        ? undefined
+        : (asNonEmptyString(input.sku) ?? null);
+
+    if (typeof nextSku === "string") {
       const duplicate = await prisma.inventoryItem.findFirst({
         where: {
           organisationId: safeOrganisationId,
-          sku: input.sku,
+          sku: nextSku,
           NOT: { id: itemId },
         },
       });
@@ -1171,7 +1178,7 @@ export const InventoryService = {
       data.itemType = nextItemType;
     }
     if (input.name !== undefined) data.name = input.name;
-    if (input.sku !== undefined) data.sku = input.sku ?? null;
+    if (nextSku !== undefined) data.sku = nextSku;
     if (input.category !== undefined) data.category = input.category;
     if (input.subCategory !== undefined) {
       data.subCategory = input.subCategory ?? null;
