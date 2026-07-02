@@ -9,6 +9,8 @@ import { DocumensoWebhookController } from "./controllers/web/documenso.controll
 import { ChatWebhookController } from "./controllers/app/chatWebhook.controller";
 import mongoSanitize from "express-mongo-sanitize";
 import helmet from "helmet";
+import wellKnownRouter from "./routers/well-known.router";
+import { WellKnownController } from "./controllers/web/activitypub.controller";
 import {
   AuthService,
   createAuthProvider,
@@ -145,6 +147,12 @@ export function createApp() {
 
   app.use(express.json());
   app.use(mongoSanitize());
+
+  // ActivityPub well-known discovery (must be at root domain, before API routes)
+  app.use("/.well-known", wellKnownRouter);
+  app.get("/nodeinfo/2.0", (req, res) =>
+    WellKnownController.nodeInfo(req, res),
+  );
 
   registerRoutes(app); // all routes in 1 place
 

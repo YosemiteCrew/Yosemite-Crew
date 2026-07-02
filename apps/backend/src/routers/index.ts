@@ -129,6 +129,7 @@ import { inventoryCountRouter } from "./inventory-count.router";
 import { clinicNoteRouter } from "./clinic-note.router";
 import marketingUnsubscribeRouter from "./marketing-unsubscribe.router";
 import marketingRouter from "./marketing.router";
+import activityPubRouter from "./activitypub.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -264,4 +265,5 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/super-admin`, superAdminRouter);
   app.use(`/v1/catalog`, catalogRouter);
   app.use(`/v1/email-preferences`, marketingUnsubscribeRouter);
+  app.use(`/ap`, activityPubRouter);
 }
