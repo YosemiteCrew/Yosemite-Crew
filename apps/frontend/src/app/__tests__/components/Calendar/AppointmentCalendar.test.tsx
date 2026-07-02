@@ -11,12 +11,7 @@ import {
 } from '@/app/features/appointments/services/appointmentService';
 import { loadTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { useNotify } from '@/app/hooks/useNotify';
-import {
-  allowCalendarDrag,
-  canAssignAppointmentRoom,
-  canShowStatusChangeAction,
-  getPreferredNextAppointmentStatus,
-} from '@/app/lib/appointments';
+import { allowCalendarDrag, canAssignAppointmentRoom } from '@/app/lib/appointments';
 
 const dayCalendarSpy = jest.fn();
 const weekCalendarSpy = jest.fn();
@@ -73,8 +68,6 @@ jest.mock('@/app/hooks/useNotify', () => ({
 jest.mock('@/app/lib/appointments', () => ({
   allowCalendarDrag: jest.fn(),
   canAssignAppointmentRoom: jest.fn(),
-  canShowStatusChangeAction: jest.fn(),
-  getPreferredNextAppointmentStatus: jest.fn(),
 }));
 
 jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => ({
@@ -212,9 +205,7 @@ describe('AppointmentCalendar', () => {
     (allowCalendarDrag as jest.Mock).mockImplementation(
       (status: string) => status === 'REQUESTED' || status === 'UPCOMING'
     );
-    (canShowStatusChangeAction as jest.Mock).mockReturnValue(true);
     (canAssignAppointmentRoom as jest.Mock).mockReturnValue(true);
-    (getPreferredNextAppointmentStatus as jest.Mock).mockReturnValue('UPCOMING');
     (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([
       { startTime: '09:00', endTime: '11:00', vetIds: ['vet-1', 'vet-2'] },
     ]);
@@ -276,24 +267,7 @@ describe('AppointmentCalendar', () => {
     );
   });
 
-  it('blocks status change when appointment has no allowed next action', () => {
-    (canShowStatusChangeAction as jest.Mock).mockReturnValue(false);
-    renderCalendar({ activeCalendar: 'week' });
-    const props = weekCalendarSpy.mock.calls[0][0];
-
-    act(() => {
-      props.handleChangeStatusAppointment(appointments[0]);
-    });
-
-    expect(setChangeStatusPopup).not.toHaveBeenCalled();
-    expect(notifyMock).toHaveBeenCalledWith(
-      'warning',
-      expect.objectContaining({ title: 'Status change blocked' })
-    );
-  });
-
-  it('opens accept modal for requested appointments even when generic status action is blocked', () => {
-    (canShowStatusChangeAction as jest.Mock).mockReturnValue(false);
+  it('opens accept modal for requested appointments', () => {
     renderCalendar();
     const props = dayCalendarSpy.mock.calls[0][0];
 
@@ -336,19 +310,6 @@ describe('AppointmentCalendar', () => {
 
     expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
     expect(setReschedulePopup).toHaveBeenCalledWith(true);
-  });
-
-  it('opens status-change popup with preferred next status', () => {
-    renderCalendar({ activeCalendar: 'week' });
-    const props = weekCalendarSpy.mock.calls[0][0];
-
-    act(() => {
-      props.handleChangeStatusAppointment(appointments[0]);
-    });
-
-    expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
-    expect(setChangeStatusPreferredStatus).toHaveBeenCalledWith('UPCOMING');
-    expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
   });
 
   it('opens room-change popup when status allows room assignment', () => {

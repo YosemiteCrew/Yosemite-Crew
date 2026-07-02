@@ -1,7 +1,6 @@
 'use client';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { LuCheck, LuEye, LuEyeOff } from 'react-icons/lu';
-import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import Search from '@/app/ui/inputs/Search';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
@@ -24,6 +23,8 @@ type VitalsFormProps = {
   organisationId: string;
   encounterId?: string;
   authorId?: string;
+  /** Display name of the logged-in clinician; recorded as the vitals recorder. */
+  authorName?: string;
   vitals: Vitals[];
 };
 
@@ -149,23 +150,28 @@ const flattenFormFields = (fields: FormField[] = []): FormField[] =>
     field.type === 'group' ? flattenFormFields(field.fields ?? []) : [field]
   );
 
+const getUnitFromRecord = (value: unknown): string | undefined => {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const unit = (value as { unit?: unknown }).unit;
+  return typeof unit === 'string' ? unit : undefined;
+};
+
+const resolveVitalFieldUnit = (key: keyof DraftVitals, configuredUnit: string | undefined) => {
+  if (key === 'mucousMembrane') return '';
+  return configuredUnit ?? FIELD_FALLBACKS[key].unit;
+};
+
 const defaultVitalFieldsFromFormsSchema = (): Field[] => {
   const fields = flattenFormFields(getCategoryTemplate('Vitals'));
   const mapped = fields.flatMap((field) => {
     const key = resolveDraftKey({ id: field.id, label: field.label });
     if (!key) return [];
+    const unit = resolveVitalFieldUnit(key, getUnitFromRecord(field.meta));
     return [
       {
         ...FIELD_FALLBACKS[key],
         label: field.label || FIELD_FALLBACKS[key].label,
-        unit:
-          key === 'mucousMembrane'
-            ? ''
-            : typeof field.meta === 'object' &&
-                field.meta !== null &&
-                typeof (field.meta as { unit?: unknown }).unit === 'string'
-              ? (field.meta as { unit: string }).unit
-              : FIELD_FALLBACKS[key].unit,
+        unit,
       },
     ];
   });
@@ -178,18 +184,12 @@ const templateToVitalFields = (template: TemplateLike): Field[] => {
   const mapped = fields.flatMap((field: TemplateFieldDefinition) => {
     const key = resolveDraftKey(field);
     if (!key) return [];
+    const unit = resolveVitalFieldUnit(key, getUnitFromRecord(field.rules));
     return [
       {
         ...FIELD_FALLBACKS[key],
         label: field.label || FIELD_FALLBACKS[key].label,
-        unit:
-          key === 'mucousMembrane'
-            ? ''
-            : typeof field.rules === 'object' &&
-                field.rules !== null &&
-                typeof (field.rules as { unit?: unknown }).unit === 'string'
-              ? (field.rules as { unit: string }).unit
-              : FIELD_FALLBACKS[key].unit,
+        unit,
       },
     ];
   });
@@ -315,18 +315,11 @@ const VitalsForm = ({
   organisationId,
   encounterId,
   authorId,
+  authorName,
   vitals,
 }: VitalsFormProps) => {
   const addVitals = useAppointmentWorkspaceStore((s) => s.addVitals);
   const team = useTeamForPrimaryOrg();
-  const recorderOptions = useMemo(() => {
-    const members = team ?? [];
-    return members.flatMap((member) => {
-      const value = member.practionerId || member._id;
-      const label = member.name || value;
-      return value && label ? [{ label, value }] : [];
-    });
-  }, [team]);
   // Map every team-member id (practitioner id and `_id`) to a display name so a
   // hydrated vital that only carries a recorder id resolves to a real name.
   const recorderNamesById = useMemo(() => {
@@ -352,7 +345,6 @@ const VitalsForm = ({
   );
   const [draft, setDraft] = useState<DraftVitals>(EMPTY_DRAFT);
   const [notes, setNotes] = useState('');
-  const [recorder, setRecorder] = useState<{ label: string; value: string } | null>(null);
   const [templateQuery, setTemplateQuery] = useState('');
   const [templateState, setTemplateState] = useState<{
     templates: TemplateLike[];
@@ -363,11 +355,6 @@ const VitalsForm = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof DraftVitals, string>>>({});
-
-  useEffect(() => {
-    if (recorder || recorderOptions.length === 0) return;
-    setRecorder(recorderOptions[0]);
-  }, [recorder, recorderOptions]);
 
   useEffect(() => {
     listVitalsTemplates(organisationId)
@@ -419,14 +406,16 @@ const VitalsForm = ({
       painScore: parseNumber(draft.painScore),
       bcs: parseNumber(draft.bcs),
       notes: notes || undefined,
-      recordedByName: recorder?.label ?? 'Clinician',
+      // The recorder is always the logged-in clinician — no manual selection.
+      recordedByName: authorName?.trim() || 'Clinician',
+      recordedById: authorId,
       recordedAt: new Date().toISOString(),
     };
     setIsSaving(true);
     setSaveError(null);
     try {
       const savedVital = await saveVitalRecord(
-        { organisationId, appointmentId, encounterId, authorId: authorId ?? recorder?.value },
+        { organisationId, appointmentId, encounterId, authorId },
         nextVitals
       );
       addVitals(appointmentId, nextVitals, (savedVital as { id?: string } | undefined)?.id);
@@ -535,15 +524,6 @@ const VitalsForm = ({
           className="rounded-2xl border border-input-border-default px-4 py-2.5 text-body-4 text-text-primary outline-none focus:border-input-border-active"
         />
       </label>
-      <div className="w-full sm:max-w-60">
-        <LabelDropdown
-          placeholder="Recorded by"
-          options={recorderOptions}
-          defaultOption={recorder?.value}
-          searchable={false}
-          onSelect={(option) => setRecorder({ label: option.label, value: option.value })}
-        />
-      </div>
       <div className="flex items-center justify-center gap-3">
         {saveError && <p className="text-caption-1 text-red-600">{saveError}</p>}
         <Primary

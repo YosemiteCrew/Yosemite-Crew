@@ -116,6 +116,7 @@ const Details = ({
         ...prev,
         templateSource: 'YC_LIBRARY',
         isTemplateBacked: true,
+        requiredSigner: '',
         category: YC_DEFAULT_CATEGORIES.has(prev.category) ? prev.category : ('' as FormsCategory),
       }));
       return;
@@ -150,7 +151,8 @@ const Details = ({
     setFormData((prev) => ({
       ...prev,
       category,
-      requiredSigner: category === 'SOAP' ? '' : prev.requiredSigner,
+      requiredSigner:
+        prev.templateSource === 'YC_LIBRARY' || category === 'SOAP' ? '' : prev.requiredSigner,
       schema: normalizedTemplate,
     }));
   };
@@ -170,7 +172,7 @@ const Details = ({
     if (!formData.category) {
       errors.category = 'Category is required';
     }
-    if (formData.requiredSigner === undefined) {
+    if (!isYcDefault && formData.requiredSigner === undefined) {
       errors.requiredSigner = 'Signed by is required';
     }
     if (!formData.description?.trim()) {
@@ -185,7 +187,7 @@ const Details = ({
     }
     setFormDataErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [formData]);
+  }, [formData, isYcDefault]);
 
   const handleNext = () => {
     if (!validate()) return;
@@ -236,7 +238,7 @@ const Details = ({
               className="min-h-12!"
             />
             <LabelDropdown
-              placeholder="Template type"
+              placeholder="Template Source"
               defaultOption={getTemplateTypeOption(formData.templateSource)}
               onSelect={(option) => handleOwnershipChange(option.value)}
               options={[
@@ -260,40 +262,42 @@ const Details = ({
               }))}
               error={formDataErrors.category}
             />
-            <LabelDropdown
-              placeholder="Signed by"
-              defaultOption={formData.requiredSigner}
-              onSelect={(option) => {
-                if (formDataErrors.requiredSigner) {
-                  setFormDataErrors((prev) => ({
-                    ...prev,
-                    requiredSigner: undefined,
-                  }));
-                }
-                const nextSigner = option.value as FormsProps['requiredSigner'];
-                setFormData((prev) => {
-                  const next: FormsProps = {
-                    ...prev,
-                    requiredSigner: nextSigner,
-                  };
-                  if (!nextSigner) {
-                    next.schema = removeSignatureFields(next.schema ?? []);
-                  } else if (
-                    new Set(['Prescription', 'Discharge Form']).has(next.category) &&
-                    !hasSignatureField(next.schema ?? [])
-                  ) {
-                    next.schema = ensureSingleSignatureAtEnd(next.schema ?? []);
+            {!isYcDefault && (
+              <LabelDropdown
+                placeholder="Signed by"
+                defaultOption={formData.requiredSigner}
+                onSelect={(option) => {
+                  if (formDataErrors.requiredSigner) {
+                    setFormDataErrors((prev) => ({
+                      ...prev,
+                      requiredSigner: undefined,
+                    }));
                   }
-                  return next;
-                });
-              }}
-              options={
-                formData.category === 'SOAP'
-                  ? RequiredSignerOptions.filter((option) => option.value === '')
-                  : RequiredSignerOptions
-              }
-              error={formDataErrors.requiredSigner}
-            />
+                  const nextSigner = option.value as FormsProps['requiredSigner'];
+                  setFormData((prev) => {
+                    const next: FormsProps = {
+                      ...prev,
+                      requiredSigner: nextSigner,
+                    };
+                    if (!nextSigner) {
+                      next.schema = removeSignatureFields(next.schema ?? []);
+                    } else if (
+                      new Set(['Prescription', 'Discharge Form']).has(next.category) &&
+                      !hasSignatureField(next.schema ?? [])
+                    ) {
+                      next.schema = ensureSingleSignatureAtEnd(next.schema ?? []);
+                    }
+                    return next;
+                  });
+                }}
+                options={
+                  formData.category === 'SOAP'
+                    ? RequiredSignerOptions.filter((option) => option.value === '')
+                    : RequiredSignerOptions
+                }
+                error={formDataErrors.requiredSigner}
+              />
+            )}
           </div>
         </Accordion>
         <Accordion title="Usage and visibility" defaultOpen showEditIcon={false} isEditing={true}>
@@ -306,7 +310,7 @@ const Details = ({
             />
             {!isYcDefault && (
               <LabelDropdown
-                placeholder="Template scope"
+                placeholder="Template visibility"
                 defaultOption={formData.templateSource ?? 'ORG_TEMPLATE'}
                 onSelect={(option) =>
                   setFormData({
@@ -315,8 +319,8 @@ const Details = ({
                   })
                 }
                 options={[
-                  { label: 'Organisation (shared with your team)', value: 'ORG_TEMPLATE' },
-                  { label: 'Personal (only you)', value: 'USER_TEMPLATE' },
+                  { label: 'Organisation (team)', value: 'ORG_TEMPLATE' },
+                  { label: 'Personal', value: 'USER_TEMPLATE' },
                 ]}
               />
             )}

@@ -129,11 +129,13 @@ const shouldHideSearch = (pathname: string): boolean =>
   pathname.startsWith('/organizations') ||
   pathname.startsWith('/dashboard') ||
   pathname.startsWith('/guides') ||
+  pathname.startsWith('/inventory') ||
   (pathname.startsWith('/integrations') && !pathname.startsWith('/integrations/idexx-workspace'));
 
 const getSearchPlaceholder = (
   pathname: string,
-  _terminologyText: (s: string) => string
+  terminologyText: (s: string) => string,
+  useOrgTerminology: boolean
 ): string => {
   if (pathname.startsWith('/appointments/idexx-workspace')) return 'Search result / order';
   if (pathname.startsWith('/appointments')) return 'Search appointments';
@@ -141,7 +143,9 @@ const getSearchPlaceholder = (
   if (pathname.startsWith('/integrations/idexx-workspace')) return 'Search result / order';
   if (pathname.startsWith('/integrations')) return 'Search integrations';
   if (pathname.startsWith('/forms')) return 'Search forms';
-  if (pathname.startsWith('/companions')) return 'Search companions';
+  if (pathname.startsWith('/companions')) {
+    return useOrgTerminology ? terminologyText('Search companions') : 'Search companions';
+  }
   if (pathname.startsWith('/tasks')) return 'Search tasks';
   if (pathname.startsWith('/finance')) return 'Search invoices';
   if (pathname.startsWith('/organization/specialities')) return 'Search specialities';
@@ -156,6 +160,7 @@ const UserHeader = () => {
   const attributes = useAuthStore((s) => s.attributes);
   const profile = usePrimaryOrgProfile();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const isDev = pathname.startsWith('/developers');
   const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
   const routes = isDev ? headerDevRoutes : headerAppRoutes;
@@ -184,18 +189,22 @@ const UserHeader = () => {
 
   const logoutRedirect = pathname.startsWith('/developers') ? '/developers/signin' : '/signin';
 
-  const prevPathnameRef = useRef(pathname);
-  if (prevPathnameRef.current !== pathname) {
-    prevPathnameRef.current = pathname;
-    handlePathnameChange();
-  }
-
-  function handlePathnameChange() {
+  // Reset transient header UI (search + open menus) when the route changes.
+  // `clear()` mutates the external search store, so it must run in an effect —
+  // calling a store setter during render updates other store subscribers mid
+  // render and triggers React's "Cannot update a component while rendering a
+  // different component" warning.
+  useEffect(() => {
     clear();
-    if (menuOpen) setMenuOpen(false);
-    if (selectOrg) setSelectOrg(false);
-    if (selectProfile) setSelectProfile(false);
-  }
+    setMenuOpen(false);
+    setSelectOrg(false);
+    setSelectProfile(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const closeMenuOnDesktop = () => {
@@ -303,7 +312,7 @@ const UserHeader = () => {
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
 
-  const searchPlaceholder = getSearchPlaceholder(pathname, terminologyText);
+  const searchPlaceholder = getSearchPlaceholder(pathname, terminologyText, mounted);
 
   const hideSearch = shouldHideSearch(pathname);
   const primaryOrgId = primaryOrg?._id?.toString();

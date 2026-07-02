@@ -332,7 +332,12 @@ const Companion = ({
           minChars={0}
         />
 
-        <Accordion title="Companion information" defaultOpen showEditIcon={false} isEditing={true}>
+        <Accordion
+          title={terminologyText('Companion information')}
+          defaultOpen
+          showEditIcon={false}
+          isEditing={true}
+        >
           <div className="flex flex-col gap-3">
             <FormInput
               intype="text"
@@ -465,7 +470,7 @@ const Companion = ({
                   options={CountriesOptions}
                 />
                 <SelectLabel
-                  title="My companion comes from:"
+                  title={terminologyText('My companion comes from:')}
                   options={OriginOptions}
                   activeOption={formData.source || 'unknown'}
                   setOption={(value) => setFormData({ ...formData, source: value })}

@@ -28,6 +28,8 @@ jest.mock("../../src/services/clinical-artifact.service", () => {
       listPrescriptionsForEncounter: jest.fn(),
       reopenPrescription: jest.fn(),
       amendPrescription: jest.fn(),
+      deletePrescription: jest.fn(),
+      cancelPrescription: jest.fn(),
       createDischargeSummary: jest.fn(),
       updateDischargeSummary: jest.fn(),
       getDischargeSummary: jest.fn(),
@@ -77,14 +79,17 @@ describe("ClinicalArtifactFhirController", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let jsonMock: jest.Mock;
+  let sendMock: jest.Mock;
   let statusMock: jest.Mock;
 
   const buildResponse = () => {
     jsonMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+    sendMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
     res = {
       status: statusMock,
       json: jsonMock,
+      send: sendMock,
     } as unknown as Response;
   };
 
@@ -197,6 +202,10 @@ describe("ClinicalArtifactFhirController", () => {
       artifact: { id: "artifact-2" },
       prescription: { id: "rx-1" },
     } as never);
+    mockedService.cancelPrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-2" },
+      prescription: { id: "rx-1" },
+    } as never);
 
     await ClinicalArtifactFhirController.listPrescriptionsForAppointment(
       req as Request,
@@ -224,14 +233,27 @@ describe("ClinicalArtifactFhirController", () => {
       } as Request,
       res as Response,
     );
+    await ClinicalArtifactFhirController.deletePrescription(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.cancelPrescription(
+      req as Request,
+      res as Response,
+    );
 
     expect(mockedService.createPrescription).toHaveBeenCalledWith(
       expect.objectContaining({ status: "COMPLETED" }),
     );
     expect(mockedMapper.prescriptionToMedicationRequest).toHaveBeenCalledTimes(
-      3,
+      4,
+    );
+    expect(mockedService.cancelPrescription).toHaveBeenCalledWith(
+      "rx-1",
+      "org-1",
     );
     expect(statusMock).toHaveBeenCalledWith(201);
+    expect(statusMock).toHaveBeenCalledWith(204);
   });
 
   it("handles discharge summary operations", async () => {

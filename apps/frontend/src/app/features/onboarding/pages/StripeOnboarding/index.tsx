@@ -125,21 +125,22 @@ const StripeOnboarding = () => {
 
   return (
     <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-      <div className="flex justify-between items-center w-full">
-        <h1 className="text-text-primary text-heading-1">Stripe Onboarding</h1>
+      <div className="relative flex w-full items-center justify-center">
         <Secondary
           text="Back"
           icon={<IoArrowBack aria-hidden="true" />}
           onClick={() => router.back()}
+          className="absolute left-0 top-1/2 -translate-y-1/2"
         />
+        <h1 className="px-24 text-center text-heading-1 text-text-primary">Stripe Onboarding</h1>
       </div>
-      <div className="max-w-3xl text-body-3 text-text-secondary">
+      <div className="mx-auto max-w-3xl text-center text-body-3 text-text-secondary">
         Complete your Stripe setup to accept card payments, verify tax details, and review
         payout-related information for your organisation.
       </div>
       {setupError && (
         <div
-          className="max-w-3xl rounded-2xl border border-card-border bg-card-bg px-4 py-3 text-body-4 text-text-primary"
+          className="mx-auto w-full max-w-3xl rounded-2xl border border-card-border bg-card-bg px-4 py-3 text-center text-body-4 text-text-primary"
           role="alert"
         >
           <div>{setupError}</div>
@@ -152,7 +153,7 @@ const StripeOnboarding = () => {
       )}
       {!setupError && !connectInstance && (
         <output
-          className="max-w-3xl rounded-2xl border border-card-border bg-card-bg px-4 py-3 text-body-4 text-text-primary"
+          className="mx-auto w-full max-w-3xl rounded-2xl border border-card-border bg-card-bg px-4 py-3 text-center text-body-4 text-text-primary"
           aria-live="polite"
           aria-busy={isPreparing}
         >
@@ -163,12 +164,12 @@ const StripeOnboarding = () => {
         <ConnectComponentsProvider connectInstance={connectInstance}>
           <div className="flex flex-col gap-5" aria-label="Stripe onboarding steps">
             <ConnectAccountOnboarding onExit={handleExit} onStepChange={handleStepChange} />
-            <div>
-              <h2 className="text-text-primary text-heading-1">Tax Business Details</h2>
+            <div className="flex flex-col gap-3">
+              <h2 className="text-center text-heading-2 text-text-primary">Tax Business Details</h2>
               <ConnectTaxSettings />
             </div>
-            <div style={{ marginTop: '12px' }}>
-              <h2 className="text-text-primary text-heading-1">Tax Registrations</h2>
+            <div className="flex flex-col gap-3">
+              <h2 className="text-center text-heading-2 text-text-primary">Tax Registrations</h2>
               <ConnectTaxRegistrations />
             </div>
           </div>

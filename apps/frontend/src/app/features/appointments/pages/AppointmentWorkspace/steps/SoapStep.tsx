@@ -28,6 +28,7 @@ import {
   templateToSoapTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { collectMissingRequiredFields } from '@/app/features/forms/pages/Forms/Sections/AddForm/validationUtils';
 
 type SoapStepProps = {
@@ -126,6 +127,7 @@ const SoapStep = ({
   onRecordVitals,
   onSaveAndNext,
 }: SoapStepProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const upsertSoap = useAppointmentWorkspaceStore((s) => s.upsertSoap);
   const applySoapTemplate = useAppointmentWorkspaceStore((s) => s.applySoapTemplate);
   const signSoap = useAppointmentWorkspaceStore((s) => s.signSoap);
@@ -391,7 +393,7 @@ const SoapStep = ({
                   readOnly={false}
                   toolbarPlacement="inset"
                   onChange={(html) => upsertSoap(appointmentId, { subjective: html })}
-                  placeholder="Patient history and owner-reported information"
+                  placeholder={terminologyText('Patient history and owner-reported information')}
                 />
               </SectionContainer>
 

@@ -26,10 +26,12 @@ const DEFAULT_NON_LAB_TYPES: HistoryEntryType[] = [
 ];
 
 const ObjectIdSchema = z.string().regex(/^[a-fA-F0-9]{24}$/);
+const UuidSchema = z.string().uuid();
+const CompanionIdSchema = z.union([ObjectIdSchema, UuidSchema]);
 
 const ParamsSchema = z.object({
   organisationId: ObjectIdSchema,
-  patientId: ObjectIdSchema,
+  patientId: CompanionIdSchema,
 });
 
 const QuerySchema = z.object({

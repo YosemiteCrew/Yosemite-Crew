@@ -33,6 +33,10 @@ jest.mock(
   })
 );
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
   __esModule: true,
   default: ({ open, title }: { open: boolean; title?: string }) =>

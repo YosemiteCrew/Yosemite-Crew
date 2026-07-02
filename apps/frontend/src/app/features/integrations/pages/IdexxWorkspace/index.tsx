@@ -18,6 +18,7 @@ import Next from '@/app/ui/primitives/Icons/Next';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useSearchStore } from '@/app/stores/searchStore';
 import { useIntegrationByProviderForPrimaryOrg } from '@/app/hooks/useIntegrations';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
   getApiErrorMessage,
   getIdexxCensus,
@@ -173,6 +174,7 @@ type ResultsColumnsOptions = {
   getAppointmentLabsHref: (result: LabResult) => string;
   openResultDetails: (result: LabResult) => Promise<void>;
   openResultPdfPreview: (resultId: string) => Promise<void>;
+  terminologyText: (text: string) => string;
 };
 
 const buildResultsColumns = ({
@@ -180,9 +182,10 @@ const buildResultsColumns = ({
   getAppointmentLabsHref,
   openResultDetails,
   openResultPdfPreview,
+  terminologyText,
 }: ResultsColumnsOptions): Column<LabResult>[] => [
   {
-    label: 'Patient',
+    label: terminologyText('Patient'),
     key: 'patientName',
     width: '25%',
     render: (result) => (
@@ -190,7 +193,7 @@ const buildResultsColumns = ({
         <div className="text-body-4 text-text-primary">{result.patientName ?? '-'}</div>
         <div className="text-caption-1 text-text-secondary">Result: {result.resultId}</div>
         <div className="text-caption-1 text-text-secondary">
-          Patient ID: {result.patientId ?? '-'}
+          {terminologyText('Patient ID')}: {result.patientId ?? '-'}
         </div>
       </div>
     ),
@@ -386,11 +389,13 @@ const MobileResultCard = ({
 type ResultDetailModalContentProps = {
   resultDetailLoading: boolean;
   activeResultDetail: LabResult | null;
+  terminologyText: (text: string) => string;
 };
 
 const ResultDetailModalContent = ({
   resultDetailLoading,
   activeResultDetail,
+  terminologyText,
 }: ResultDetailModalContentProps) => {
   const onWheelHorizontal = useWheelToHorizontalScroll();
   if (resultDetailLoading) {
@@ -416,7 +421,8 @@ const ResultDetailModalContent = ({
           Requisition: {activeResultDetail.requisitionId ?? '-'}
         </div>
         <div className="text-caption-1 text-text-secondary">
-          Patient: {activeResultDetail.patientName ?? '-'} ({activeResultDetail.patientId ?? '-'})
+          {terminologyText('Patient')}: {activeResultDetail.patientName ?? '-'} (
+          {activeResultDetail.patientId ?? '-'})
         </div>
       </div>
 
@@ -624,7 +630,12 @@ const MobileResultsList = ({
   );
 };
 
-const CensusEntriesList = ({ entries }: { entries: CensusEntry[] }) => {
+type CensusEntriesListProps = {
+  entries: CensusEntry[];
+  terminologyText: (text: string) => string;
+};
+
+const CensusEntriesList = ({ entries, terminologyText }: CensusEntriesListProps) => {
   if (entries.length === 0) {
     return (
       <div className="rounded-2xl border border-card-border p-3 text-body-4 text-text-secondary">
@@ -642,7 +653,7 @@ const CensusEntriesList = ({ entries }: { entries: CensusEntry[] }) => {
         >
           <div className="text-body-4 text-text-primary">{entry.patient.name}</div>
           <div className="text-caption-1 text-text-secondary mt-0.5">
-            Patient ID: {entry.patient.patientId}
+            {terminologyText('Patient ID')}: {entry.patient.patientId}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
             <div className="text-text-secondary">Confirmed</div>
@@ -909,6 +920,7 @@ const useIdexxWorkspaceActions = (s: IdexxWorkspaceActionsState) => {
 };
 
 const useIdexxWorkspacePage = () => {
+  const terminologyText = useCompanionTerminologyText();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const idexxIntegration = useIntegrationByProviderForPrimaryOrg('IDEXX');
   const integrationEnabled = (idexxIntegration?.status ?? '').toLowerCase() === 'enabled';
@@ -1009,12 +1021,14 @@ const useIdexxWorkspacePage = () => {
         getAppointmentLabsHref: actions.getAppointmentLabsHref,
         openResultDetails: actions.openResultDetails,
         openResultPdfPreview: actions.openResultPdfPreview,
+        terminologyText,
       }),
     [
       pdfPreviewLoadingId,
       actions.getAppointmentLabsHref,
       actions.openResultDetails,
       actions.openResultPdfPreview,
+      terminologyText,
     ]
   );
 
@@ -1062,6 +1076,7 @@ const useIdexxWorkspacePage = () => {
 };
 
 const IdexxWorkspacePage = () => {
+  const terminologyText = useCompanionTerminologyText();
   const s = useIdexxWorkspacePage();
   const autoRefreshLabel = getAutoRefreshLabel(s.autoRefresh);
   const refreshButtonLabel = getRefreshButtonLabel(s.loading);
@@ -1261,7 +1276,7 @@ const IdexxWorkspacePage = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <Accordion title="Census overview" defaultOpen showEditIcon={false} isEditing>
           <div className="flex flex-col gap-2 py-2 max-h-[420px] overflow-y-auto pr-1">
-            <CensusEntriesList entries={s.censusEntries} />
+            <CensusEntriesList entries={s.censusEntries} terminologyText={terminologyText} />
           </div>
         </Accordion>
 
@@ -1320,6 +1335,7 @@ const IdexxWorkspacePage = () => {
           <ResultDetailModalContent
             resultDetailLoading={s.resultDetailLoading}
             activeResultDetail={s.activeResultDetail}
+            terminologyText={terminologyText}
           />
         </div>
       </ModalBase>

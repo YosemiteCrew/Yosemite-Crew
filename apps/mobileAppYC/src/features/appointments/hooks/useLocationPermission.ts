@@ -21,9 +21,9 @@ export interface LocationPermissionState {
   mapCenter: UserLocation | null;
 }
 const GEOLOCATION_OPTIONS = {
-  enableHighAccuracy: Platform.OS === 'android',
-  timeout: Platform.OS === 'android' ? 20000 : 10000,
-  maximumAge: 0,
+  enableHighAccuracy: false,
+  timeout: 10000,
+  maximumAge: 60000,
 };
 
 type LocationState = {

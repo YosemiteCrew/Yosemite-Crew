@@ -352,4 +352,19 @@ describe('CompanionHistoryPage', () => {
     expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/appointments');
   });
+
+  it('removes companion deep-link query when returning to companions', () => {
+    searchGetMock.mockImplementation((key: string) => {
+      if (key === 'companionId') return 'c-1';
+      if (key === 'source') return 'companions';
+      if (key === 'backTo') return '/companions?companionId=c-1';
+      return null;
+    });
+
+    render(<CompanionHistoryPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenCalledWith('/companions');
+  });
 });

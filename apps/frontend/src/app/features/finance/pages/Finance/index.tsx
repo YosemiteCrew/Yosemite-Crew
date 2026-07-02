@@ -19,6 +19,7 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import StripeSettingsButton from '@/app/features/billing/components/StripeSettingsButton';
 
 const FINANCE_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -88,7 +89,7 @@ const Finance = () => {
 
   return (
     <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
-      <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>
+      <PermissionGate allOf={[PERMISSIONS.ORG_EDIT, PERMISSIONS.SUBSCRIPTION_EDIT_ANY]}>
         {subscription && !subscription.canAcceptPayments && (
           <section
             className="px-6 py-3 border border-card-border rounded-2xl w-full flex items-center justify-between gap-3 flex-col sm:flex-row"
@@ -134,12 +135,15 @@ const Finance = () => {
                 </button>
               </GlassTooltip>
             </div>
-            <Filters
-              statusOptions={InvoiceStatusFilters}
-              activeStatus={activeStatus}
-              setActiveStatus={setActiveStatus}
-              className="w-auto"
-            />
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <Filters
+                statusOptions={InvoiceStatusFilters}
+                activeStatus={activeStatus}
+                setActiveStatus={setActiveStatus}
+                className="w-auto"
+              />
+              <StripeSettingsButton />
+            </div>
           </div>
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
             <InvoiceDataTable

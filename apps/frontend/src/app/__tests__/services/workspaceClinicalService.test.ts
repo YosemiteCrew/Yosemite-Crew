@@ -23,6 +23,7 @@ import {
   listSoapNotesForAppointment,
   listVitalRecordsForEncounter,
   createPmsObservationSubmission,
+  deletePrescriptionArtifact,
   listObservationSubmissionsForAppointment,
   loadWorkspaceClinicalArtifacts,
   reopenDischargeSummary,
@@ -38,8 +39,10 @@ import {
 const postDataMock = jest.fn();
 const getDataMock = jest.fn();
 const patchDataMock = jest.fn();
+const deleteDataMock = jest.fn();
 
 jest.mock('@/app/services/axios', () => ({
+  deleteData: (...args: unknown[]) => deleteDataMock(...args),
   getData: (...args: unknown[]) => getDataMock(...args),
   patchData: (...args: unknown[]) => patchDataMock(...args),
   postData: (...args: unknown[]) => postDataMock(...args),
@@ -56,6 +59,7 @@ describe('workspaceClinicalService', () => {
     postDataMock.mockReset();
     getDataMock.mockReset();
     patchDataMock.mockReset();
+    deleteDataMock.mockReset();
   });
 
   it('lists SOAP notes from the clinical artifact FHIR endpoint', async () => {
@@ -515,14 +519,19 @@ describe('workspaceClinicalService', () => {
       },
       {
         medicineName: 'Gabapentin',
-        dosage: '100mg',
-        frequency: 'BID',
+        strength: '100mg',
+        dosageForm: 'Capsule',
+        route: 'Oral',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        qty: '14',
         fulfillment: 'IN_HOUSE',
+        inventoryItemId: 'inv-1',
       }
     );
 
-    expect(postDataMock).toHaveBeenCalledWith(
-      '/fhir/v1/clinical-artifact/organisation/org-1/prescription',
+    const [, body] = postDataMock.mock.calls[0];
+    expect(body).toEqual(
       expect.objectContaining({
         resourceType: 'MedicationRequest',
         medicationCodeableConcept: { text: 'Gabapentin' },
@@ -531,6 +540,23 @@ describe('workspaceClinicalService', () => {
         authorId: 'user-1',
       })
     );
+    const medicationsExtension = body.extension.find((entry: { url: string }) =>
+      entry.url.endsWith('/prescription-medications')
+    );
+    expect(JSON.parse(medicationsExtension.valueString)).toEqual([
+      expect.objectContaining({
+        // Flat fields map to the backend's typed columns; strength is no longer clobbered.
+        medicineName: 'Gabapentin',
+        strength: '100mg',
+        route: 'Oral',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        qty: '14',
+        inventoryItemId: 'inv-1',
+        // Display/unit extras with no backend column ride along under metadata so they round-trip.
+        metadata: expect.objectContaining({ dosageForm: 'Capsule', fulfillment: 'IN_HOUSE' }),
+      }),
+    ]);
   });
 
   it('updates a persisted prescription artifact instead of creating a duplicate', async () => {
@@ -559,6 +585,22 @@ describe('workspaceClinicalService', () => {
       expect.objectContaining({ resourceType: 'MedicationRequest' })
     );
     expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  it('surfaces missing prescription records instead of using the legacy delete fallback', async () => {
+    const notFound = { response: { status: 404 } };
+    deleteDataMock.mockRejectedValueOnce(notFound);
+
+    await expect(deletePrescriptionArtifact('org-1', 'rx-missing')).rejects.toBe(notFound);
+    expect(deleteDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-missing'
+    );
+  });
+
+  it('returns false only for unavailable prescription delete routes', async () => {
+    deleteDataMock.mockRejectedValueOnce({ response: { status: 405 } });
+
+    await expect(deletePrescriptionArtifact('org-1', 'rx-legacy')).resolves.toBe(false);
   });
 
   it('loads encounter-scoped prescriptions and gets a prescription by id', async () => {

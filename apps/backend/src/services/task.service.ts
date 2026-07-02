@@ -64,6 +64,7 @@ type TaskCompletionRow = Prisma.TaskCompletionGetPayload<Record<string, never>>;
 type TaskLike = TaskRow & { _id: string };
 type TaskCompletionLike = TaskCompletionRow & { _id: string };
 type TaskListWhereResult = Prisma.TaskWhereInput[] | Prisma.TaskWhereInput;
+type RecurrenceScope = "THIS" | "THIS_AND_FOLLOWING" | "ALL";
 
 const toTaskLike = (row: TaskRow): TaskLike => ({
   ...row,
@@ -364,11 +365,13 @@ const assertCompanionRequirement = (input: {
   }
 };
 
-const buildRecurrence = (input?: {
+type BuildRecurrenceInput = {
   type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
   endDate?: Date;
   cronExpression?: string;
-}) => {
+};
+
+const buildRecurrence = (input?: BuildRecurrenceInput) => {
   if (!input) return undefined;
 
   if (input.type === "ONCE") {
@@ -450,6 +453,89 @@ const buildReminder = (
         scheduledNotificationId: undefined,
       }
     : undefined;
+
+const RECURRENCE_SCOPES = new Set<RecurrenceScope>([
+  "THIS",
+  "THIS_AND_FOLLOWING",
+  "ALL",
+]);
+
+const normalizeRecurrenceScope = (value?: string): RecurrenceScope => {
+  if (value && RECURRENCE_SCOPES.has(value as RecurrenceScope)) {
+    return value as RecurrenceScope;
+  }
+  return "THIS";
+};
+
+const getSeriesMasterId = (task: TaskRow): string | undefined => {
+  const recurrence = task.recurrence as
+    | { isMaster?: boolean; masterTaskId?: string }
+    | null
+    | undefined;
+
+  if (recurrence?.masterTaskId) return recurrence.masterTaskId;
+  if (recurrence?.isMaster) return task.id;
+  return undefined;
+};
+
+const toOccurrenceDueAt = (source: Date, template: Date): Date => {
+  const dueAt = new Date(source);
+  dueAt.setHours(
+    template.getHours(),
+    template.getMinutes(),
+    template.getSeconds(),
+    template.getMilliseconds(),
+  );
+  return dueAt;
+};
+
+const buildSeriesUpdateData = (task: TaskRow, updates: TaskUpdateInput) => ({
+  name: updates.name ?? task.name,
+  description:
+    updates.description === undefined
+      ? (task.description ?? undefined)
+      : (updates.description ?? undefined),
+  additionalNotes:
+    updates.additionalNotes === undefined
+      ? (task.additionalNotes ?? undefined)
+      : (updates.additionalNotes ?? undefined),
+  subcategory:
+    updates.subcategory === undefined
+      ? (task.subcategory ?? undefined)
+      : (updates.subcategory ?? undefined),
+  timezone:
+    updates.timezone === undefined
+      ? (task.timezone ?? undefined)
+      : (updates.timezone ?? undefined),
+  assignedTo: updates.assignedTo ?? task.assignedTo,
+  assignedGroupId:
+    updates.assignedGroupId === undefined
+      ? (task.assignedGroupId ?? undefined)
+      : (updates.assignedGroupId ?? undefined),
+  assignedBy:
+    updates.assignedTo !== undefined || updates.assignedGroupId !== undefined
+      ? (task.assignedBy ?? task.createdBy)
+      : (task.assignedBy ?? undefined),
+  medication:
+    updates.medication === undefined
+      ? (task.medication ?? undefined)
+      : toNullableJsonInput(sanitizeMedication(updates.medication)),
+  observationToolId:
+    updates.observationToolId === undefined
+      ? (task.observationToolId ?? undefined)
+      : (updates.observationToolId ?? undefined),
+  reminder:
+    updates.reminder === undefined
+      ? (task.reminder ?? undefined)
+      : toNullableJsonInput(buildReminder(updates.reminder)),
+  syncWithCalendar:
+    updates.syncWithCalendar ?? task.syncWithCalendar ?? undefined,
+  attachments:
+    updates.attachments === undefined
+      ? (task.attachments ?? undefined)
+      : toNullableJsonInput(updates.attachments),
+  recurrence: mergeRecurrence(task.recurrence, updates.recurrence),
+});
 
 const buildCreateTaskData = (input: {
   organisationId?: string;
@@ -1432,6 +1518,7 @@ export const TaskService = {
     taskId: string,
     updates: TaskUpdateInput,
     actorId: string,
+    scope: RecurrenceScope = "THIS",
   ): Promise<TaskLike> {
     const task = await prisma.task.findFirst({ where: { id: taskId } });
     if (!task) throw new TaskServiceError("Task not found", 404);
@@ -1450,30 +1537,162 @@ export const TaskService = {
       throw new TaskServiceError("Only task creator can reassign task", 403);
     }
 
-    const updated = await updateTaskRow(
-      taskId,
-      {
-        name: updates.name,
-        description: updates.description,
-        additionalNotes: updates.additionalNotes,
-        dueAt: updates.dueAt,
-        timezone: updates.timezone,
-        assignedTo: updates.assignedTo,
-        assignedGroupId: updates.assignedGroupId,
-        assignedBy:
-          updates.assignedTo !== undefined ||
-          updates.assignedGroupId !== undefined
-            ? actorId
-            : undefined,
-        medication: updates.medication,
-        observationToolId: updates.observationToolId,
-        reminder: updates.reminder,
-        syncWithCalendar: updates.syncWithCalendar,
-        attachments: updates.attachments,
-        recurrence: updates.recurrence,
+    const seriesMasterId = getSeriesMasterId(task);
+    const normalizedScope = normalizeRecurrenceScope(scope);
+
+    if (!seriesMasterId || normalizedScope === "THIS") {
+      const updated = await updateTaskRow(
+        taskId,
+        {
+          name: updates.name,
+          description: updates.description,
+          additionalNotes: updates.additionalNotes,
+          subcategory: updates.subcategory,
+          dueAt: updates.dueAt,
+          timezone: updates.timezone,
+          assignedTo: updates.assignedTo,
+          assignedGroupId: updates.assignedGroupId,
+          assignedBy:
+            updates.assignedTo !== undefined ||
+            updates.assignedGroupId !== undefined
+              ? actorId
+              : undefined,
+          medication: updates.medication,
+          observationToolId: updates.observationToolId,
+          reminder: updates.reminder,
+          syncWithCalendar: updates.syncWithCalendar,
+          attachments: updates.attachments,
+          recurrence: updates.recurrence,
+        },
+        task,
+      );
+
+      const mapped = toTaskLike(updated);
+
+      if (
+        updates.assignedTo !== undefined ||
+        updates.assignedGroupId !== undefined
+      ) {
+        await recordTaskAudit({
+          organisationId: mapped.organisationId,
+          patientId: mapped.patientId,
+          actorId,
+          eventType: "TASK_REASSIGNED",
+          entityId: mapped.id,
+          metadata: {
+            previousAssignedTo: task.assignedTo,
+            previousAssignedGroupId: task.assignedGroupId ?? null,
+            assignedTo: mapped.assignedTo,
+            assignedGroupId: mapped.assignedGroupId ?? null,
+            assignedBy: mapped.assignedBy ?? null,
+          },
+        });
+      }
+
+      return mapped;
+    }
+
+    const seriesRows = await prisma.task.findMany({
+      where: {
+        organisationId: task.organisationId,
+        OR: [
+          { id: seriesMasterId },
+          { recurrence: { path: ["masterTaskId"], equals: seriesMasterId } },
+        ],
       },
-      task,
+      orderBy: { dueAt: "asc" },
+    });
+
+    const master = seriesRows.find((row) => row.id === seriesMasterId) ?? task;
+    const seriesType =
+      (
+        master.recurrence as {
+          type?: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+        } | null
+      )?.type ?? "ONCE";
+    const seriesCronExpression =
+      (master.recurrence as { cronExpression?: string | null } | null)
+        ?.cronExpression ?? null;
+    const splitDueAt = updates.dueAt ?? task.dueAt;
+    const shiftDueAt = (row: TaskRow) =>
+      toOccurrenceDueAt(row.dueAt, splitDueAt);
+    const futureRows = seriesRows.filter(
+      (row) => row.id !== task.id && row.dueAt >= task.dueAt,
     );
+
+    const updatedRows = await prisma.$transaction(async (tx) => {
+      if (normalizedScope === "ALL") {
+        const rows: TaskRow[] = [];
+        for (const row of seriesRows) {
+          const updated = await tx.task.update({
+            where: { id: row.id },
+            data: {
+              ...buildSeriesUpdateData(row, updates),
+              dueAt: shiftDueAt(row),
+            },
+          });
+          rows.push(updated);
+        }
+        return rows;
+      }
+
+      const currentUpdated = await tx.task.update({
+        where: { id: task.id },
+        data: {
+          ...buildSeriesUpdateData(task, updates),
+          dueAt: splitDueAt,
+          recurrence: {
+            ...((task.recurrence as Record<string, unknown>) ?? {}),
+            type: seriesType,
+            isMaster: true,
+            masterTaskId: undefined,
+            cronExpression:
+              updates.recurrence?.cronExpression === undefined
+                ? (seriesCronExpression ?? undefined)
+                : (updates.recurrence?.cronExpression ?? undefined),
+            endDate:
+              updates.recurrence?.endDate === undefined
+                ? ((task.recurrence as { endDate?: Date | null } | null)
+                    ?.endDate ?? undefined)
+                : (updates.recurrence?.endDate ?? undefined),
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      if (normalizedScope === "THIS_AND_FOLLOWING") {
+        await tx.task.update({
+          where: { id: master.id },
+          data: {
+            recurrence: {
+              ...((master.recurrence as Record<string, unknown>) ?? {}),
+              type: seriesType,
+              isMaster: true,
+              masterTaskId: undefined,
+              cronExpression: seriesCronExpression ?? undefined,
+              endDate: new Date(splitDueAt.getTime() - 1),
+            } as Prisma.InputJsonValue,
+          },
+        });
+
+        for (const row of futureRows) {
+          await tx.task.update({
+            where: { id: row.id },
+            data: {
+              ...buildSeriesUpdateData(row, updates),
+              dueAt: shiftDueAt(row),
+              recurrence: {
+                ...((row.recurrence as Record<string, unknown>) ?? {}),
+                masterTaskId: task.id,
+              } as Prisma.InputJsonValue,
+            },
+          });
+        }
+      }
+
+      return [currentUpdated];
+    });
+
+    const updated = updatedRows[0];
 
     const mapped = toTaskLike(updated);
 
@@ -1498,6 +1717,78 @@ export const TaskService = {
     }
 
     return mapped;
+  },
+
+  async deleteTask(
+    taskId: string,
+    actorId: string,
+    scope: RecurrenceScope = "THIS",
+  ): Promise<void> {
+    const task = await prisma.task.findFirst({ where: { id: taskId } });
+    if (!task) throw new TaskServiceError("Task not found", 404);
+
+    const isCreator = task.createdBy === actorId;
+    const isAssignee = task.assignedTo === actorId;
+    assertCanUpdateTask(isCreator, isAssignee);
+
+    const seriesMasterId = getSeriesMasterId(task);
+    const normalizedScope = normalizeRecurrenceScope(scope);
+
+    if (!seriesMasterId || normalizedScope === "THIS") {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: { status: "CANCELLED" },
+      });
+      return;
+    }
+
+    const seriesIds = await prisma.task.findMany({
+      where: {
+        organisationId: task.organisationId,
+        OR: [
+          { id: seriesMasterId },
+          { recurrence: { path: ["masterTaskId"], equals: seriesMasterId } },
+        ],
+      },
+      select: { id: true, dueAt: true },
+    });
+
+    const cancellableIds =
+      normalizedScope === "ALL"
+        ? seriesIds.map((row) => row.id)
+        : seriesIds
+            .filter((row) => row.dueAt >= task.dueAt)
+            .map((row) => row.id);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: {
+          id: { in: cancellableIds },
+          organisationId: task.organisationId,
+        },
+        data: { status: "CANCELLED" },
+      });
+
+      if (normalizedScope === "THIS_AND_FOLLOWING") {
+        await tx.task.update({
+          where: { id: seriesMasterId },
+          data: {
+            recurrence: mergeRecurrence(task.recurrence, {
+              type:
+                (
+                  task.recurrence as {
+                    type?: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+                  } | null
+                )?.type ?? "ONCE",
+              endDate: new Date(task.dueAt.getTime() - 1),
+              cronExpression:
+                (task.recurrence as { cronExpression?: string | null } | null)
+                  ?.cronExpression ?? null,
+            }),
+          },
+        });
+      }
+    });
   },
 
   async changeStatus(

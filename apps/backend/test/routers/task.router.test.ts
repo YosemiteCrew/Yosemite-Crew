@@ -16,6 +16,7 @@ const TaskController = {
   listForCompanion: jest.fn(),
   getById: jest.fn(),
   updateTaskPMS: jest.fn(),
+  deleteTaskPMS: jest.fn(),
   changeStatusPMS: jest.fn(),
   createCustomTask: jest.fn(),
   listParentTasks: jest.fn(),
@@ -104,6 +105,7 @@ describe("task.router", () => {
     const companionListRoute = findRoute("/pms/companion/:patientId", "get");
     const getTaskRoute = findRoute("/pms/:taskId", "get");
     const updateTaskRoute = findRoute("/pms/:taskId", "patch");
+    const deleteTaskRoute = findRoute("/pms/:taskId", "delete");
     const changeStatusRoute = findRoute("/pms/:taskId/status", "post");
 
     expect(createLibraryRoute?.stack.map((layer) => layer.handle)).toContain(
@@ -127,12 +129,15 @@ describe("task.router", () => {
     expect(updateTaskRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
+    expect(deleteTaskRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
     expect(changeStatusRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
 
     expect(withOrgPermissions).toHaveBeenCalled();
-    expect(withTaskOrgPermissions).toHaveBeenCalledTimes(3);
+    expect(withTaskOrgPermissions).toHaveBeenCalledTimes(4);
     expect(requirePermission).toHaveBeenCalledWith([
       "tasks:edit:any",
       "tasks:edit:own",

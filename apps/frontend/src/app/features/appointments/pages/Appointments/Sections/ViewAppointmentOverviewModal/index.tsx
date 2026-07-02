@@ -25,6 +25,7 @@ import {
   assignEncounterUnit,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
+import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/roomService';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { useNotify } from '@/app/hooks/useNotify';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
@@ -33,8 +34,14 @@ import AppointmentAvatar from '@/app/features/appointments/components/Appointmen
 import AppointmentStatusPill from '@/app/features/appointments/components/AppointmentStatusPill';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { IoArrowForward } from 'react-icons/io5';
+import {
+  getAssignableRoomUnits,
+  getFirstAssignableRoomUnitId,
+  toAssignableRoomOptions,
+} from '@/app/features/appointments/lib/roomUnitAvailability';
 
 type ViewAppointmentOverviewModalProps = {
   showModal: boolean;
@@ -111,22 +118,6 @@ const resolveEstimateDisplay = (
   return '-';
 };
 
-const getActiveRoomUnits = (
-  roomId: string | undefined,
-  roomUnitsById: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitsById'],
-  roomUnitIdsByRoomId: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitIdsByRoomId']
-) =>
-  (roomUnitIdsByRoomId[roomId ?? ''] ?? []).flatMap((unitId) => {
-    const unit = roomUnitsById[unitId];
-    return unit && unit.isActive !== false ? [unit] : [];
-  });
-
-const getFirstRoomUnitId = (
-  roomId: string | undefined,
-  roomUnitsById: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitsById'],
-  roomUnitIdsByRoomId: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitIdsByRoomId']
-) => getActiveRoomUnits(roomId, roomUnitsById, roomUnitIdsByRoomId)[0]?.id;
-
 type RoomSelectorSectionProps = {
   label: string;
   savingRoom: boolean;
@@ -176,10 +167,12 @@ const ViewAppointmentOverviewModal = ({
   canEditAppointments = false,
   onOpenDetails,
 }: ViewAppointmentOverviewModalProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const { notify } = useNotify();
   const rooms = useRoomsForPrimaryOrg();
   const roomUnitsById = useOrganisationRoomStore((s) => s.roomUnitsById);
   const roomUnitIdsByRoomId = useOrganisationRoomStore((s) => s.roomUnitIdsByRoomId);
+  const setRoomUnitOccupied = useOrganisationRoomStore((s) => s.setRoomUnitOccupied);
   const invoices = useInvoicesForPrimaryOrg();
   const orgsById = useOrgStore((s) => s.orgsById);
   const companion = getAppointmentCompanion(activeAppointment);
@@ -195,6 +188,11 @@ const ViewAppointmentOverviewModal = ({
   );
 
   const [savingRoom, setSavingRoom] = useState(false);
+
+  React.useEffect(() => {
+    if (!showModal) return;
+    loadRoomsForOrgPrimaryOrg({ force: true, silent: true }).catch(() => undefined);
+  }, [showModal]);
   const isInpatient = activeAppointment.appointmentKind === 'INPATIENT';
   const appointmentParent = companion.parent as
     | (typeof companion.parent & ParentImageFields)
@@ -222,16 +220,24 @@ const ViewAppointmentOverviewModal = ({
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
 
   const effectiveRoomId = encounter?.roomId ?? activeAppointment.room?.id;
+  const currentUnitId = encounter?.unitId;
+  const roomIndexes = useMemo(
+    () => ({ roomUnitsById, roomUnitIdsByRoomId }),
+    [roomUnitIdsByRoomId, roomUnitsById]
+  );
   const effectiveUnitId =
-    encounter?.unitId ?? getFirstRoomUnitId(effectiveRoomId, roomUnitsById, roomUnitIdsByRoomId);
-  const roomOptions = useMemo(() => rooms.map((r) => ({ label: r.name, value: r.id })), [rooms]);
+    currentUnitId ?? getFirstAssignableRoomUnitId(effectiveRoomId, roomIndexes, currentUnitId);
+  const roomOptions = useMemo(
+    () => toAssignableRoomOptions(rooms, roomIndexes, effectiveRoomId, currentUnitId, isInpatient),
+    [currentUnitId, effectiveRoomId, isInpatient, roomIndexes, rooms]
+  );
   const unitOptions = useMemo(
     () =>
-      getActiveRoomUnits(effectiveRoomId, roomUnitsById, roomUnitIdsByRoomId).map((unit) => ({
+      getAssignableRoomUnits(effectiveRoomId, roomIndexes, currentUnitId).map((unit) => ({
         label: unit.displayName || unit.code,
         value: unit.id,
       })),
-    [effectiveRoomId, roomUnitIdsByRoomId, roomUnitsById]
+    [currentUnitId, effectiveRoomId, roomIndexes]
   );
 
   const serviceInfo = useMemo(() => {
@@ -284,7 +290,7 @@ const ViewAppointmentOverviewModal = ({
       try {
         const foundRoom = rooms.find((r) => r.id === option.value);
         const nextUnitId = isInpatient
-          ? getFirstRoomUnitId(option.value, roomUnitsById, roomUnitIdsByRoomId)
+          ? getFirstAssignableRoomUnitId(option.value, roomIndexes, currentUnitId)
           : undefined;
         await updateAppointment({
           ...activeAppointment,
@@ -302,6 +308,9 @@ const ViewAppointmentOverviewModal = ({
               unitId: nextUnitId,
               reason: 'Appointment overview room assignment',
             });
+            setRoomUnitOccupied(currentUnitId, false);
+            setRoomUnitOccupied(nextUnitId, true);
+            await loadRoomsForOrgPrimaryOrg({ force: true, silent: true });
           }
         }
       } catch {
@@ -316,10 +325,11 @@ const ViewAppointmentOverviewModal = ({
       initEncounter,
       isInpatient,
       notify,
-      roomUnitIdsByRoomId,
-      roomUnitsById,
+      currentUnitId,
+      roomIndexes,
       rooms,
       setRoomUnit,
+      setRoomUnitOccupied,
     ]
   );
 
@@ -339,6 +349,9 @@ const ViewAppointmentOverviewModal = ({
             unitId: option.value,
             reason: 'Appointment overview unit assignment',
           });
+          setRoomUnitOccupied(currentUnitId, false);
+          setRoomUnitOccupied(option.value, true);
+          await loadRoomsForOrgPrimaryOrg({ force: true, silent: true });
         }
       } catch {
         notify('error', { title: 'Unit update failed', text: 'Please try again.' });
@@ -357,6 +370,8 @@ const ViewAppointmentOverviewModal = ({
       isInpatient,
       notify,
       setRoomUnit,
+      currentUnitId,
+      setRoomUnitOccupied,
     ]
   );
 
@@ -381,7 +396,7 @@ const ViewAppointmentOverviewModal = ({
               photoUrl={(companion as Appointment['patient'] & { photoUrl?: string }).photoUrl}
             />
             <div className="min-w-0">
-              <div className="text-sm text-text-extra">Patient</div>
+              <div className="text-sm text-text-extra">{terminologyText('Patient')}</div>
               <div className="font-satoshi text-base text-text-primary truncate">
                 {companion.name || '-'}
               </div>

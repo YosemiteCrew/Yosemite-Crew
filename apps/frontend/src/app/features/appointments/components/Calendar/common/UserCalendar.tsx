@@ -51,7 +51,6 @@ type UserCalendarProps = {
   handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
-  handleChangeStatusAppointment?: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
   canEditAppointments: boolean;

@@ -11,6 +11,8 @@ jest.mock("../../../src/services/task.service", () => {
     ...actual,
     TaskService: {
       ...actual.TaskService,
+      updateTask: jest.fn(),
+      deleteTask: jest.fn(),
       changeStatus: jest.fn(),
     },
   };
@@ -69,6 +71,56 @@ describe("TaskController", () => {
       expect(statusMock).toHaveBeenCalledWith(403);
       expect(jsonMock).toHaveBeenCalledWith({ message: "Account not found" });
       expect(mockedTaskService.changeStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateTaskPMS", () => {
+    it("passes recurrence scope through to the service", async () => {
+      req.userId = "auth-user-id";
+      req.query = { scope: "THIS_AND_FOLLOWING" } as any;
+      mockedTaskService.updateTask.mockResolvedValue({ ok: true } as any);
+
+      await TaskController.updateTaskPMS(req as Request, res);
+
+      expect(mockedTaskService.updateTask).toHaveBeenCalledWith(
+        "task-1",
+        req.body,
+        "auth-user-id",
+        "THIS_AND_FOLLOWING",
+      );
+      expect(jsonMock).toHaveBeenCalledWith({ ok: true });
+    });
+
+    it("defaults to THIS when scope is absent or invalid", async () => {
+      req.userId = "auth-user-id";
+      req.query = { scope: "INVALID" } as any;
+      mockedTaskService.updateTask.mockResolvedValue({ ok: true } as any);
+
+      await TaskController.updateTaskPMS(req as Request, res);
+
+      expect(mockedTaskService.updateTask).toHaveBeenCalledWith(
+        "task-1",
+        req.body,
+        "auth-user-id",
+        "THIS",
+      );
+    });
+  });
+
+  describe("deleteTaskPMS", () => {
+    it("invokes deleteTask with the selected recurrence scope", async () => {
+      req.userId = "auth-user-id";
+      req.query = { scope: "ALL" } as any;
+      mockedTaskService.deleteTask.mockResolvedValue(undefined as any);
+
+      await TaskController.deleteTaskPMS(req as Request, res);
+
+      expect(mockedTaskService.deleteTask).toHaveBeenCalledWith(
+        "task-1",
+        "auth-user-id",
+        "ALL",
+      );
+      expect(statusMock).toHaveBeenCalledWith(204);
     });
   });
 });

@@ -323,10 +323,27 @@ export const TASK_CATEGORY_FIELD_OPTIONS: FieldOption[] = [
   makeOption('Custom', 'CUSTOM'),
 ];
 
+// Repeat options for task templates — mirrors the canonical task taxonomy
+// (taskTaxonomy.TASK_REPEAT_OPTIONS) so the template builder and the workspace
+// schedule agree on recurrence values.
 export const TASK_RECURRENCE_FIELD_OPTIONS: FieldOption[] = [
-  makeOption('Once', 'ONCE'),
+  makeOption('Does not repeat', 'ONCE'),
+  makeOption('Every 6 hours', 'EVERY_6_HOURS'),
+  makeOption('Every 12 hours', 'EVERY_12_HOURS'),
   makeOption('Daily', 'DAILY'),
+  makeOption('Every 2 days', 'EVERY_2_DAYS'),
   makeOption('Weekly', 'WEEKLY'),
+  makeOption('Custom', 'CUSTOM'),
+];
+
+// Reminder options for task templates — mirrors taskTaxonomy.TASK_REMINDER_OPTIONS.
+export const TASK_REMINDER_FIELD_OPTIONS: FieldOption[] = [
+  makeOption('No reminder', 'NONE'),
+  makeOption('5 minutes before', '5'),
+  makeOption('15 minutes before', '15'),
+  makeOption('30 minutes before', '30'),
+  makeOption('1 hour before', '60'),
+  makeOption('1 day before', '1440'),
 ];
 
 export const TASK_AUDIENCE_FIELD_OPTIONS: FieldOption[] = [

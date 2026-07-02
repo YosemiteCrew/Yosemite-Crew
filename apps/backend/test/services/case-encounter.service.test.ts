@@ -72,6 +72,9 @@ jest.mock("../../src/config/prisma", () => ({
     companion: {
       findUnique: jest.fn(),
     },
+    patient: {
+      findUnique: jest.fn(),
+    },
     roomUnitAssignment: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -143,7 +146,7 @@ describe("CaseEncounterService", () => {
     mockedPrisma.$transaction.mockImplementation(async (callback: any) =>
       callback(mockedPrisma),
     );
-    mockedPrisma.companion.findUnique.mockResolvedValue({
+    mockedPrisma.patient.findUnique.mockResolvedValue({
       id: "comp_1",
       type: "dog",
       speciesCode: "canislf",
@@ -945,7 +948,7 @@ describe("CaseEncounterService", () => {
       createdAt: new Date("2026-06-11T10:00:00.000Z"),
       updatedAt: new Date("2026-06-11T10:00:00.000Z"),
     } as never);
-    mockedPrisma.companion.findUnique.mockResolvedValue({
+    mockedPrisma.patient.findUnique.mockResolvedValue({
       id: "comp_1",
       type: "dog",
       speciesCode: "canislf",
@@ -1027,7 +1030,7 @@ describe("CaseEncounterService", () => {
       createdAt: new Date("2026-06-11T10:00:00.000Z"),
       updatedAt: new Date("2026-06-11T10:00:00.000Z"),
     } as never);
-    mockedPrisma.companion.findUnique.mockResolvedValue({
+    mockedPrisma.patient.findUnique.mockResolvedValue({
       id: "comp_1",
       type: "dog",
       speciesCode: "canislf",
@@ -1083,7 +1086,7 @@ describe("CaseEncounterService", () => {
       capabilities: [],
       isActive: true,
     } as never);
-    mockedPrisma.companion.findUnique.mockResolvedValue({
+    mockedPrisma.patient.findUnique.mockResolvedValue({
       id: "comp_1",
       type: "dog",
       speciesCode: "canislf",

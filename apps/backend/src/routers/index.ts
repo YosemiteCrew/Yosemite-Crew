@@ -58,6 +58,7 @@ import episodeOfCareRouter from "./episode-of-care.router";
 import encounterRouter from "./encounter.router";
 import roomUnitRouter from "./room-unit.router";
 import roomUnitGroupRouter from "./room-unit-group.router";
+import marketingUnsubscribeRouter from "./marketing-unsubscribe.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -120,4 +121,5 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/labs`, labResultRouter);
   app.use(`/v1/auth`, authRouter);
   app.use(`/v1/catalog`, catalogRouter);
+  app.use(`/v1/email-preferences`, marketingUnsubscribeRouter);
 }

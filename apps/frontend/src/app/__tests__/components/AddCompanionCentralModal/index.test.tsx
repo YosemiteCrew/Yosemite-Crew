@@ -34,6 +34,10 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: mockNotify }),
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 const mockCompanionsParents: any[] = [];
 jest.mock('@/app/hooks/useCompanion', () => ({
   useCompanionsParentsForPrimaryOrg: jest.fn(() => mockCompanionsParents),

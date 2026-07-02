@@ -165,6 +165,9 @@ export interface WorkspaceTreatmentItem {
   priceSnapshot: Record<string, unknown>;
   billingStatus: string;
   invoiceRowId: string | null;
+  settled?: boolean;
+  settledInvoiceId?: string | null;
+  settledAt?: Date | null;
   lockState: Record<string, unknown> | string | null;
   prescriptionId?: string | null;
   name?: string;

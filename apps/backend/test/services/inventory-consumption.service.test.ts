@@ -100,7 +100,7 @@ describe("InventoryConsumptionService", () => {
   const mockedPrisma = prisma as unknown as MockedPrisma;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     mockedPrisma.$transaction.mockImplementation(async (callback: unknown) => {
       if (typeof callback === "function") {
         return callback(prisma);
@@ -366,6 +366,9 @@ describe("InventoryConsumptionService", () => {
         isNeutered: true,
         currentWeight: 12.5,
         photoUrl: "https://cdn.example/patient.png",
+        parent: {
+          name: "Jane Doe",
+        },
       },
       appointmentKind: "INPATIENT",
     });
@@ -455,10 +458,247 @@ describe("InventoryConsumptionService", () => {
             petSpecies: "Canine",
             petSex: "Male",
             petReproductiveStatus: "Neutered",
+            petParentName: "Jane Doe",
             patientImageUrl: "https://cdn.example/patient.png",
             petWeight: 12.5,
             petWeightUnit: "kg",
           }),
+        }),
+      }),
+    );
+  });
+
+  it("enriches dispense requests by medication name when ids are missing", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+      {
+        id: "item-name-1",
+        sku: "calpol-strip-10",
+        name: "Calpol",
+        stockUnitType: "strip",
+        unitOfMeasure: "mg",
+        packageQuantity: 10,
+        sellingPrice: 12.34,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
+      },
+    ]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-name-1",
+      prescriptionId: "rx-name-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [],
+      metadata: null,
+      requestedBy: "user-1",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-name-1",
+      medications: [
+        {
+          name: "Calpol",
+          quantity: 24,
+          frequency: "BID",
+          duration: "12 days",
+          dosage: "1 Tablet",
+          sourceLineKey: "line-name-1",
+        },
+      ],
+      requestedBy: "user-1",
+    });
+
+    expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              name: expect.objectContaining({
+                in: ["Calpol"],
+              }),
+            }),
+          ]),
+        }),
+      }),
+    );
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.create,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          medications: [
+            expect.objectContaining({
+              inventoryItemName: "Calpol",
+              inventoryItemCode: "Calpol",
+              stockUnitType: "strip",
+              packageQuantity: 10,
+              unitQuantity: 10,
+              stockUnitQty: 10,
+              stockUnitQuantity: 10,
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("parses compact dosage strings without whitespace", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+      {
+        id: "item-compact-1",
+        sku: "liq-1",
+        name: "Liquid Medicine",
+        stockUnitType: "bottle",
+        unitOfMeasure: "ml",
+        packageQuantity: 30,
+        sellingPrice: 12.34,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
+      },
+    ]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-compact-1",
+      prescriptionId: "rx-compact-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [],
+      metadata: null,
+      requestedBy: "user-1",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-compact-1",
+      medications: [
+        {
+          inventoryItemId: "item-compact-1",
+          frequency: "QD",
+          duration: "1 day",
+          dosage: "5ml",
+          sourceLineKey: "line-compact-1",
+        },
+      ],
+      requestedBy: "user-1",
+    });
+
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.create,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          medications: [
+            expect.objectContaining({
+              doseQty: 5,
+              doseUnit: "ml",
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("derives frequency from hourly and times-per-day strings", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+      {
+        id: "item-hourly-1",
+        sku: "hourly-1",
+        name: "Hourly Medicine",
+        stockUnitType: "bottle",
+        unitOfMeasure: "ml",
+        packageQuantity: 30,
+        sellingPrice: 12.34,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
+      },
+      {
+        id: "item-times-1",
+        sku: "times-1",
+        name: "Times Medicine",
+        stockUnitType: "bottle",
+        unitOfMeasure: "tablet",
+        packageQuantity: 30,
+        sellingPrice: 8.5,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
+      },
+    ]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-frequency-1",
+      prescriptionId: "rx-frequency-1",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [],
+      metadata: null,
+      requestedBy: "user-1",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-frequency-1",
+      medications: [
+        {
+          inventoryItemId: "item-hourly-1",
+          frequency: "Q8H",
+          duration: "1 day",
+          dosage: "2.5ml",
+          sourceLineKey: "line-hourly-1",
+        },
+        {
+          inventoryItemId: "item-times-1",
+          frequency: "3 x daily",
+          duration: "1 day",
+          dosage: "1 Tablet",
+          sourceLineKey: "line-times-1",
+        },
+      ],
+      requestedBy: "user-1",
+    });
+
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.create,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          medications: expect.arrayContaining([
+            expect.objectContaining({
+              inventoryItemId: "item-hourly-1",
+              frequencyPerDay: 3,
+              doseQty: 2.5,
+              doseUnit: "ml",
+            }),
+            expect.objectContaining({
+              inventoryItemId: "item-times-1",
+              frequencyPerDay: 3,
+            }),
+          ]),
         }),
       }),
     );
@@ -634,6 +874,13 @@ describe("InventoryConsumptionService", () => {
       prescriptionId: "rx-not-dispensed-1",
       organisationId: "org-1",
       status: "PENDING",
+      prescription: {
+        id: "rx-not-dispensed-1",
+        artifactId: "artifact-not-dispensed-1",
+        artifact: {
+          appointmentId: "appt-not-dispensed-1",
+        },
+      },
     });
     mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({
       id: "request-not-dispensed-1",
@@ -642,6 +889,41 @@ describe("InventoryConsumptionService", () => {
       status: "NOT_DISPENSED",
       reviewedBy: "user-1",
       reviewedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-not-dispensed-1",
+      prescriptionId: "rx-not-dispensed-1",
+      organisationId: "org-1",
+      status: "NOT_DISPENSED",
+      medications: [],
+      metadata: null,
+      requestedBy: null,
+      reviewedBy: "user-1",
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      reviewedAt: new Date("2026-01-02T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+      prescription: {
+        id: "rx-not-dispensed-1",
+        artifactId: "artifact-not-dispensed-1",
+        artifact: {
+          appointmentId: "appt-not-dispensed-1",
+        },
+      },
+    });
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+      patient: {
+        name: "Bella",
+        parent: {
+          name: "Sarah Bella",
+        },
+      },
+      lead: {
+        name: "Dr. Rao",
+      },
+      room: {
+        name: "Ward A",
+      },
     });
 
     const result =
@@ -657,6 +939,10 @@ describe("InventoryConsumptionService", () => {
     expect(result).toMatchObject({
       status: "NOT_DISPENSED",
       reviewedBy: "user-1",
+      patientName: "Bella",
+      parentName: "Sarah Bella",
+      leadName: "Dr. Rao",
+      location: "Ward A",
     });
     expect(
       mockedPrisma.prescriptionDispenseRequest.update,
@@ -755,7 +1041,7 @@ describe("InventoryConsumptionService", () => {
         artifact: {
           id: "artifact-1",
           organisationId: "org-1",
-          appointmentId: null,
+          appointmentId: "appt-1",
           caseId: null,
           encounterId: null,
           kind: "PRESCRIPTION",
@@ -772,6 +1058,17 @@ describe("InventoryConsumptionService", () => {
         },
       },
     });
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
+      patient: {
+        name: "Milo",
+      },
+      lead: {
+        name: "Dr. Patel",
+      },
+      room: {
+        name: "Room 2",
+      },
+    });
 
     const result =
       await InventoryConsumptionService.getPrescriptionDispenseRequest({
@@ -779,7 +1076,15 @@ describe("InventoryConsumptionService", () => {
         dispenseRequestId: "request-get-1",
       });
 
-    expect(result.id).toBe("request-get-1");
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("request-get-1");
+    expect(result).toEqual(
+      expect.objectContaining({
+        patientName: "Milo",
+        leadName: "Dr. Patel",
+        location: "Room 2",
+      }),
+    );
     expect(
       mockedPrisma.prescriptionDispenseRequest.findFirst,
     ).toHaveBeenCalledWith(

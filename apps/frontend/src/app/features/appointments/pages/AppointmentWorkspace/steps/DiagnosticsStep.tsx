@@ -28,6 +28,7 @@ import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
   useLabTests,
   resolveOrderUiUrl,
@@ -367,47 +368,54 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   </div>
 );
 
-const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
-  <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-    <div className="flex flex-col gap-4">
-      <p className="max-w-2xl text-body-4 text-text-secondary">
-        In-house IDEXX workflow requires selecting an IVLS device, then adding the patient to census
-        here. Complete ordering on the IDEXX machine after census is confirmed.
-      </p>
-      <output
-        className={`block rounded-2xl border p-4 text-body-4 ${
-          s.companionInCensus
-            ? 'border-pill-success-border bg-pill-success-bg text-pill-success-text'
-            : 'border-card-border text-text-secondary'
-        }`}
-      >
-        <p>
-          {s.companionInCensus
-            ? 'Patient is present in IDEXX census for this appointment patient.'
-            : 'Patient is not yet in the IDEXX census.'}
+const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => {
+  const terminologyText = useCompanionTerminologyText();
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="flex flex-col gap-4">
+        <p className="max-w-2xl text-body-4 text-text-secondary">
+          {terminologyText(
+            'In-house IDEXX workflow requires selecting an IVLS device, then adding the patient to census here. Complete ordering on the IDEXX machine after census is confirmed.'
+          )}
         </p>
-        <p>
-          IVLS confirmation:{' '}
-          {s.selectedIvls === undefined || s.selectedIvls === ''
-            ? 'Select an IVLS device to check confirmation state'
-            : getIvlsConfirmationLabel(s.inHouseCensusConfirmed)}
-        </p>
-      </output>
+        <output
+          className={`block rounded-2xl border p-4 text-body-4 ${
+            s.companionInCensus
+              ? 'border-pill-success-border bg-pill-success-bg text-pill-success-text'
+              : 'border-card-border text-text-secondary'
+          }`}
+        >
+          <p>
+            {terminologyText(
+              s.companionInCensus
+                ? 'Patient is present in IDEXX census for this appointment patient.'
+                : 'Patient is not yet in the IDEXX census.'
+            )}
+          </p>
+          <p>
+            IVLS confirmation:{' '}
+            {s.selectedIvls === undefined || s.selectedIvls === ''
+              ? 'Select an IVLS device to check confirmation state'
+              : getIvlsConfirmationLabel(s.inHouseCensusConfirmed)}
+          </p>
+        </output>
+      </div>
+      <div className="flex flex-col gap-3">
+        <TestTypeSelect s={s} />
+        <LabelDropdown
+          placeholder="Select Device"
+          options={s.devices.map((device) => ({
+            label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
+            value: device.deviceSerialNumber,
+          }))}
+          defaultOption={s.selectedIvls}
+          onSelect={(option) => s.setSelectedIvls(option.value)}
+        />
+      </div>
     </div>
-    <div className="flex flex-col gap-3">
-      <TestTypeSelect s={s} />
-      <LabelDropdown
-        placeholder="Select Device"
-        options={s.devices.map((device) => ({
-          label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
-          value: device.deviceSerialNumber,
-        }))}
-        defaultOption={s.selectedIvls}
-        onSelect={(option) => s.setSelectedIvls(option.value)}
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 const OrderBuilderSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: boolean }) => {
   const isInHouse = s.modality === 'INHOUSE';

@@ -1,4 +1,4 @@
-import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { FormField } from '@/app/features/forms/types/forms';
 import React, { useMemo } from 'react';
 
@@ -90,13 +90,10 @@ const DropdownRenderer: React.FC<{
 
   return (
     <div className="flex flex-col gap-3">
-      <Dropdown
+      <LabelDropdown
         placeholder={field.label || ''}
-        value={displayValue}
-        onChange={(e) => !isReadOnly && onChange(e)}
-        className="min-h-12!"
-        dropdownClassName="top-[55px]! !h-fit max-h-[200px]!"
-        disabled={isReadOnly}
+        defaultOption={displayValue ?? ''}
+        onSelect={(option) => !isReadOnly && onChange(option.value)}
         options={options.map((opt) => ({
           label: opt.label,
           value: opt.value,

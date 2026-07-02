@@ -6,11 +6,13 @@ import {
   loadInvoicesForOrgPrimaryOrg,
   markAppointmentReadyForBilling,
   markInvoicePaid,
+  reverseAppointmentReadyForBilling,
+  sendInvoiceToClient,
   updateInvoicePaymentCollectionMethod,
 } from '@/app/features/billing/services/invoiceService';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { getData, patchData, postData } from '@/app/services/axios';
+import { deleteData, getData, patchData, postData } from '@/app/services/axios';
 
 type InvoiceState = {
   startLoading: jest.Mock;
@@ -36,6 +38,7 @@ jest.mock('@/app/services/axios', () => ({
   getData: jest.fn(),
   patchData: jest.fn(),
   postData: jest.fn(),
+  deleteData: jest.fn(),
 }));
 
 jest.mock('@yosemite-crew/types', () => ({
@@ -173,6 +176,47 @@ describe('invoiceService', () => {
       name: 'Sample testing package',
     });
     expect(billing.currency).toBe('USD');
+  });
+
+  it('keeps awaiting-payment invoices unpaid when no payment ledger exists', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-awaiting-payment',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [
+              {
+                name: 'Sample testing package',
+                total: 933.66,
+                quantity: 1,
+                unitPrice: 933.66,
+                description: 'Sample testing package',
+              },
+            ],
+            subtotal: 933.66,
+            totalAmount: 933.66,
+            currency: 'usd',
+            status: 'AWAITING_PAYMENT',
+            payments: [],
+            createdAt: '2026-06-27T09:42:35.064Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.pastInvoices[0]).toMatchObject({
+      id: 'inv-awaiting-payment',
+      totalCents: 93366,
+      outstandingCents: 93366,
+      status: 'UNPAID',
+      payments: [],
+    });
   });
 
   it('counts a deposit payment toward the deposit balance', async () => {
@@ -530,6 +574,48 @@ describe('invoiceService', () => {
     );
   });
 
+  it('does not re-append a line already on the invoice under a sub-cent price drift', async () => {
+    // Regression: the same booked service reaches the invoice via two pipelines whose
+    // prices differ by rounding (257.127 persisted vs 257.13 re-seeded). Dedupe is keyed
+    // on name+quantity (not price), so the rounded copy must NOT append a duplicate.
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-1',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        items: [
+          {
+            id: 'li-existing',
+            name: 'Skin examination',
+            quantity: 1,
+            unitPrice: 257.127,
+            total: 257.127,
+          },
+        ],
+      },
+    ]);
+
+    await addLineItemsToAppointments(
+      [
+        {
+          id: 'li-reseed',
+          name: 'Skin examination',
+          quantity: 1,
+          unitPrice: 257.13,
+          total: 257.13,
+        },
+      ],
+      'appt-1',
+      'USD'
+    );
+
+    expect(postData).not.toHaveBeenCalledWith(
+      '/v1/finance/invoices/inv-1/lines',
+      expect.anything()
+    );
+  });
+
   it('throws when line-item payload is invalid', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     await expect(addLineItemsToAppointments([], '', '')).rejects.toThrow(
@@ -591,6 +677,27 @@ describe('invoiceService', () => {
     await getPaymentLink('inv-1');
     expect(postData).not.toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it('sends the invoice checkout session to the client email endpoint', async () => {
+    (postData as jest.Mock).mockResolvedValue({
+      data: {
+        data: {
+          checkout: { url: 'https://stripe.test/pay/inv-1', paymentAttemptId: 'pay-attempt-1' },
+          emailSent: true,
+        },
+        meta: null,
+        error: null,
+      },
+    });
+
+    const result = await sendInvoiceToClient('inv-1');
+
+    expect(postData).toHaveBeenCalledWith('/fhir/v1/invoice/inv-1/checkout-session');
+    expect(result).toEqual({
+      checkout: { url: 'https://stripe.test/pay/inv-1', paymentAttemptId: 'pay-attempt-1' },
+      emailSent: true,
+    });
   });
 
   it('throws when mark paid invoice id is missing', async () => {
@@ -727,6 +834,57 @@ describe('invoiceService', () => {
     );
   });
 
+  it('reverses ready for billing through finance endpoint', async () => {
+    (deleteData as jest.Mock).mockResolvedValueOnce({
+      data: {
+        data: { appointmentId: 'appt-1', billingState: 'DRAFT' },
+        meta: null,
+        error: null,
+      },
+    });
+
+    await reverseAppointmentReadyForBilling('appt-1', {
+      organisationId: 'org-1',
+      visitId: 'enc-1',
+    });
+
+    expect(deleteData).toHaveBeenCalledWith('/v1/finance/appointments/appt-1/ready-for-billing');
+  });
+
+  it('falls back to appointment route when reverse finance route is not deployed', async () => {
+    (deleteData as jest.Mock)
+      .mockRejectedValueOnce({
+        response: { status: 404, data: { message: 'Finance route not found' } },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: { appointmentId: 'appt-1', billingState: 'DRAFT' },
+          meta: null,
+          error: null,
+        },
+      });
+
+    await reverseAppointmentReadyForBilling('appt-1', {
+      organisationId: 'org-1',
+      visitId: 'enc-1',
+    });
+
+    expect(deleteData).toHaveBeenNthCalledWith(
+      2,
+      '/fhir/v1/appointment/pms/org-1/appt-1/ready-for-billing'
+    );
+  });
+
+  it('propagates a 409 when reversing ready for billing with payments applied', async () => {
+    (deleteData as jest.Mock).mockRejectedValueOnce({
+      response: { status: 409, data: { message: 'Invoice already has payments applied' } },
+    });
+
+    await expect(
+      reverseAppointmentReadyForBilling('appt-1', { organisationId: 'org-1' })
+    ).rejects.toMatchObject({ response: { status: 409 } });
+  });
+
   it('falls back to appointment ready-for-billing route when finance route is not deployed', async () => {
     (postData as jest.Mock).mockRejectedValueOnce({
       response: { status: 404, data: { message: 'Finance route not found' } },
@@ -802,6 +960,57 @@ describe('invoiceService', () => {
         notes: 'Ready',
       }
     );
+  });
+
+  it('reverses appointment ready for billing through finance endpoint', async () => {
+    (deleteData as jest.Mock).mockResolvedValueOnce({
+      data: {
+        data: { appointmentId: 'appt-1', billingState: 'DRAFT' },
+        meta: null,
+        error: null,
+      },
+    });
+
+    await reverseAppointmentReadyForBilling('appt-1', { organisationId: 'org-1' });
+
+    expect(deleteData).toHaveBeenCalledWith('/v1/finance/appointments/appt-1/ready-for-billing');
+  });
+
+  it('falls back to appointment route when finance reverse route is not deployed', async () => {
+    (deleteData as jest.Mock)
+      .mockRejectedValueOnce({
+        response: { status: 404, data: { message: 'Finance route not found' } },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: { appointmentId: 'appt-1', billingState: 'DRAFT' },
+          meta: null,
+          error: null,
+        },
+      });
+
+    await reverseAppointmentReadyForBilling('appt-1', { organisationId: 'org-1' });
+
+    expect(deleteData).toHaveBeenNthCalledWith(
+      2,
+      '/fhir/v1/appointment/pms/org-1/appt-1/ready-for-billing'
+    );
+  });
+
+  it('propagates non-404 errors when reversing ready for billing (e.g. 409 paid invoice)', async () => {
+    (deleteData as jest.Mock).mockRejectedValueOnce({
+      response: { status: 409, data: { message: 'payments applied' } },
+    });
+
+    await expect(
+      reverseAppointmentReadyForBilling('appt-1', { organisationId: 'org-1' })
+    ).rejects.toMatchObject({ response: { status: 409 } });
+  });
+
+  it('throws when reversing ready for billing without an appointment id', async () => {
+    await expect(
+      reverseAppointmentReadyForBilling('', { organisationId: 'org-1' })
+    ).rejects.toThrow('Appointment ID missing');
   });
 
   it('extracts appointmentId from account reference with query string (normalizeReferenceTail)', async () => {

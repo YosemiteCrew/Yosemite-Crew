@@ -30,6 +30,13 @@ describe('buildCompanionDetails', () => {
     expect(valueFor('Blood Group')).toBe('-');
   });
 
+  it('applies a caller-provided terminology rewrite to configurable labels', () => {
+    const details = buildCompanionDetails(fallback, undefined, (text) =>
+      text.replace('Patient', 'Pet')
+    );
+    expect(details.find((row) => row.label === 'Pet ID')?.value).toBe('PT-1');
+  });
+
   it('maps a loaded companion record into all rows', () => {
     const companion = baseCompanion({
       isneutered: true,

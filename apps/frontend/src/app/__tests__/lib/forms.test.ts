@@ -6,6 +6,7 @@ import {
   ensureSingleSignatureAtEnd,
   buildTemplateSchemaSnapshot,
   buildTemplatePayload,
+  mapFormToUI,
   mapTemplateToUI,
 } from '@/app/lib/forms';
 import type { FormField, FormsProps } from '@/app/features/forms/types/forms';
@@ -380,6 +381,84 @@ describe('buildTemplateSchemaSnapshot canonical blueprint merge', () => {
       expect.objectContaining({ name: 'Vitals', category: 'CARE' }),
     ]);
   });
+
+  it('serializes YC-default Task Template (TASK_ASSIGNMENT) task blocks into schedule.taskBlocks', () => {
+    // No explicit kind override: category 'Task Template' must resolve to
+    // TASK_ASSIGNMENT and still serialize its authored task blocks.
+    const snapshot = buildTemplateSchemaSnapshot({
+      name: 'Care pathway',
+      category: 'Task Template',
+      usage: 'Internal',
+      updatedBy: 'user-1',
+      lastUpdated: '',
+      schema: [
+        {
+          id: 'task_blocks',
+          type: 'group',
+          label: 'Schedule tasks',
+          meta: { taskGroup: true },
+          fields: [
+            {
+              id: 'task-1',
+              type: 'group',
+              label: 'Record vitals',
+              meta: { taskBlock: true },
+              fields: [
+                {
+                  id: 'task-1_name',
+                  type: 'input',
+                  label: 'Task title',
+                  defaultValue: 'Record vitals',
+                },
+                {
+                  id: 'task-1_category',
+                  type: 'dropdown',
+                  label: 'Category',
+                  defaultValue: 'CARE',
+                  meta: { taskBlockKey: 'category' },
+                },
+                {
+                  id: 'task-1_recurrence',
+                  type: 'dropdown',
+                  label: 'Repeat',
+                  defaultValue: 'EVERY_6_HOURS',
+                  meta: { taskBlockKey: 'recurrence.type' },
+                },
+                {
+                  id: 'task-1_reminderOffsetMinutes',
+                  type: 'dropdown',
+                  label: 'Reminder',
+                  defaultValue: '5',
+                  meta: { taskBlockKey: 'reminderOffsetMinutes' },
+                },
+                {
+                  id: 'task-1_durationDays',
+                  type: 'number',
+                  label: 'Duration',
+                  defaultValue: '3',
+                  meta: { taskBlockKey: 'durationDays' },
+                },
+              ] as unknown as FormField[],
+            },
+          ] as unknown as FormField[],
+        },
+      ] as unknown as FormField[],
+    });
+
+    const scheduleSection = snapshot.sections.find((section) => section.id === 'schedule');
+    const taskBlocks = scheduleSection?.fields.find((field) => field.key === 'taskBlocks');
+    expect(taskBlocks?.defaultValue).toEqual([
+      expect.objectContaining({
+        name: 'Record vitals',
+        category: 'CARE',
+        taskKind: 'CUSTOM',
+        reminderOffsetMinutes: 5,
+        durationDays: 3,
+        // EVERY_6_HOURS resolves to a CUSTOM recurrence with a cron.
+        recurrence: { type: 'CUSTOM', cronExpression: '0 */6 * * *' },
+      }),
+    ]);
+  });
 });
 
 describe('mapTemplateToUI', () => {
@@ -404,6 +483,88 @@ describe('mapTemplateToUI', () => {
 
     expect(ui.templateSource).toBe('USER_TEMPLATE');
     expect(ui.templateKind).toBe('SOAP_NOTE');
+  });
+
+  it('normalizes reloaded task-assignment templates back into task-block builder schema', () => {
+    const template = {
+      id: 'template-task-1',
+      kind: 'TASK_ASSIGNMENT',
+      source: 'ORGANISATION',
+      ownership: 'ORG_TEMPLATE',
+      status: 'DRAFT',
+      latestVersion: 1,
+      publishedVersion: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'user-1',
+      updatedBy: 'user-2',
+      organisationId: 'org-1',
+      rules: {},
+      versions: [
+        {
+          version: 1,
+          schemaSnapshot: {
+            sections: [
+              {
+                id: 'schedule',
+                title: 'Schedule',
+                fields: [
+                  {
+                    key: 'taskBlocks',
+                    label: 'Task blocks',
+                    type: 'repeater',
+                    defaultValue: [
+                      {
+                        name: 'Care check',
+                        category: 'CARE',
+                        additionalNotes: 'Watch appetite and hydration',
+                        durationDays: 3,
+                        reminderOffsetMinutes: 5,
+                        recurrence: { type: 'CUSTOM', cronExpression: '0 */6 * * *' },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    } as any;
+
+    const ui = mapTemplateToUI(template);
+    const taskGroup = ui.schema[0] as FormField & { fields?: FormField[] };
+    const taskBlock = taskGroup.fields?.[0] as FormField & { fields?: FormField[] };
+
+    expect(ui.category).toBe('Task Template');
+    expect(taskGroup.id).toBe('task_blocks');
+    expect(taskGroup.meta?.taskGroup).toBe(true);
+    expect(taskBlock.fields?.map((field) => field.meta?.taskBlockKey)).toEqual([
+      'name',
+      'category',
+      'additionalNotes',
+      'recurrence.type',
+      'reminderOffsetMinutes',
+      'durationDays',
+    ]);
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'name')?.defaultValue
+    ).toBe('Care check');
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'recurrence.type')
+        ?.defaultValue
+    ).toBe('EVERY_6_HOURS');
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'reminderOffsetMinutes')
+        ?.defaultValue
+    ).toBe('5');
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'durationDays')?.defaultValue
+    ).toBe('3');
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'additionalNotes')
+        ?.defaultValue
+    ).toBe('Watch appetite and hydration');
   });
 });
 
@@ -442,6 +603,7 @@ describe('buildTemplatePayload appliesTo linking', () => {
       form({
         category: 'Prescription',
         templateSource: 'YC_LIBRARY',
+        requiredSigner: '',
       }),
       'org-1'
     );
@@ -449,9 +611,193 @@ describe('buildTemplatePayload appliesTo linking', () => {
     expect(payload.ownership).toBe('YC_LIBRARY');
     expect(payload.organisationId).toBeUndefined();
     expect(payload.kind).toBe('PRESCRIPTION');
+    expect((payload.rules as { requiredSigner?: string }).requiredSigner).toBe('');
   });
 
-  it('drops empty legacy prescription instructions and notes sections when mapping to UI', () => {
+  it('serializes every prescription medication default into medicationLine rows', () => {
+    const payload = buildTemplatePayload(
+      form({
+        category: 'Prescription',
+        schema: [
+          {
+            id: 'medications',
+            type: 'group',
+            label: 'Medications',
+            meta: { medicationGroup: true },
+            fields: [
+              {
+                id: 'inv-1_group',
+                type: 'group',
+                label: 'Carprofen',
+                meta: {
+                  medicineId: 'inv-1',
+                  inventoryItemId: 'inv-1',
+                  medicineName: 'Carprofen',
+                },
+                fields: [
+                  {
+                    id: 'inv-1_name',
+                    type: 'input',
+                    label: 'Name',
+                    defaultValue: 'Carprofen',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'medicineName' },
+                  },
+                  {
+                    id: 'inv-1_brand',
+                    type: 'input',
+                    label: 'Brand',
+                    defaultValue: 'Rimadyl',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'brand' },
+                  },
+                  {
+                    id: 'inv-1_genericName',
+                    type: 'input',
+                    label: 'Generic name',
+                    defaultValue: 'Carprofen',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'genericName' },
+                  },
+                  {
+                    id: 'inv-1_sku',
+                    type: 'input',
+                    label: 'SKU',
+                    defaultValue: 'SKU-CARP',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'sku' },
+                  },
+                  {
+                    id: 'inv-1_strength',
+                    type: 'input',
+                    label: 'Strength',
+                    defaultValue: '25',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'strength' },
+                  },
+                  {
+                    id: 'inv-1_strengthUnit',
+                    type: 'input',
+                    label: 'Strength unit',
+                    defaultValue: 'mg',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'strengthUnit' },
+                  },
+                  {
+                    id: 'inv-1_form',
+                    type: 'input',
+                    label: 'Form',
+                    defaultValue: 'Tablet',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'dosageForm' },
+                  },
+                  {
+                    id: 'inv-1_route',
+                    type: 'input',
+                    label: 'Route',
+                    defaultValue: 'Oral',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'route' },
+                  },
+                  {
+                    id: 'inv-1_frequency',
+                    type: 'input',
+                    label: 'Frequency',
+                    defaultValue: 'BID (twice daily)',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'frequency' },
+                  },
+                  {
+                    id: 'inv-1_duration',
+                    type: 'input',
+                    label: 'Duration',
+                    defaultValue: '7',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'durationDays' },
+                  },
+                  {
+                    id: 'inv-1_durationUnit',
+                    type: 'input',
+                    label: 'Duration unit',
+                    defaultValue: 'days',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'durationUnit' },
+                  },
+                  {
+                    id: 'inv-1_qty',
+                    type: 'number',
+                    label: 'Quantity',
+                    defaultValue: '14',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'qty' },
+                  },
+                  {
+                    id: 'inv-1_refill',
+                    type: 'number',
+                    label: 'Refills',
+                    defaultValue: '1',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'refill' },
+                  },
+                  {
+                    id: 'inv-1_remark',
+                    type: 'textarea',
+                    label: 'Instructions',
+                    defaultValue: 'Give with food',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'instructions' },
+                  },
+                  {
+                    id: 'inv-1_fulfillment',
+                    type: 'input',
+                    label: 'Fulfillment',
+                    defaultValue: 'IN_HOUSE',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'fulfillment' },
+                  },
+                  {
+                    id: 'inv-1_priceCents',
+                    type: 'number',
+                    label: 'Price (cents)',
+                    defaultValue: 1800,
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'priceCents' },
+                  },
+                  {
+                    id: 'inv-1_controlledSubstance',
+                    type: 'input',
+                    label: 'Controlled substance',
+                    defaultValue: 'false',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'controlledSubstance' },
+                  },
+                  {
+                    id: 'inv-1_prescriptionRequired',
+                    type: 'input',
+                    label: 'Prescription required',
+                    defaultValue: 'true',
+                    meta: { inventoryItemId: 'inv-1', prescriptionField: 'prescriptionRequired' },
+                  },
+                ],
+              },
+            ],
+          },
+        ] as unknown as FormField[],
+      }),
+      'org-1'
+    );
+
+    const medicationLine = payload.schemaSnapshot.sections[0].fields[0] as {
+      defaultValue?: Array<Record<string, unknown>>;
+    };
+    expect(medicationLine.defaultValue?.[0]).toMatchObject({
+      inventoryItemId: 'inv-1',
+      medicineId: 'inv-1',
+      medicineName: 'Carprofen',
+      brand: 'Rimadyl',
+      genericName: 'Carprofen',
+      sku: 'SKU-CARP',
+      strength: '25',
+      strengthUnit: 'mg',
+      dosageForm: 'Tablet',
+      route: 'Oral',
+      frequency: 'BID (twice daily)',
+      durationDays: '7',
+      durationUnit: 'days',
+      qty: '14',
+      refill: '1',
+      instructions: 'Give with food',
+      fulfillment: 'IN_HOUSE',
+      priceCents: 1800,
+      controlledSubstance: 'false',
+      prescriptionRequired: 'true',
+    });
+  });
+
+  it('keeps the canonical prescription instructions and notes sections when mapping to UI', () => {
     const mapped = mapTemplateToUI({
       id: 'tpl-prescription',
       organisationId: 'org-1',
@@ -501,8 +847,127 @@ describe('buildTemplatePayload appliesTo linking', () => {
       ],
     } as any);
 
-    expect(mapped.schema).toHaveLength(1);
-    expect(mapped.schema[0].id).toBe('medications');
+    expect(mapped.schema.map((section) => section.id)).toEqual([
+      'medications',
+      'instructions',
+      'notes',
+    ]);
+  });
+
+  it('keeps the populated richText instructions and notes sections the backend returns on reload', () => {
+    const mapped = mapTemplateToUI({
+      id: 'tpl-prescription-rich',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'YC_LIBRARY',
+      kind: 'PRESCRIPTION',
+      name: 'Prescription skin',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {},
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      versions: [
+        {
+          id: 'ver-1',
+          version: 1,
+          templateId: 'tpl-prescription-rich',
+          schemaSnapshot: {
+            sections: [
+              {
+                id: 'medications',
+                title: 'Medications',
+                order: 1,
+                fields: [
+                  {
+                    key: 'medicationLine',
+                    label: 'Medication lines',
+                    type: 'medicationLine',
+                    repeatable: true,
+                  },
+                ],
+              },
+              {
+                id: 'instructions',
+                title: 'Instructions',
+                order: 2,
+                fields: [
+                  { key: 'instructions', label: 'Instructions', type: 'richText', order: 1 },
+                ],
+              },
+              {
+                id: 'notes',
+                title: 'Notes',
+                order: 3,
+                fields: [{ key: 'notes', label: 'Notes', type: 'richText', order: 1 }],
+              },
+            ],
+          },
+          renderConfigSnapshot: null,
+          validationSnapshot: null,
+          createdBy: 'u1',
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        },
+      ],
+    } as any);
+
+    expect(mapped.schema.map((section) => section.id)).toEqual([
+      'medications',
+      'instructions',
+      'notes',
+    ]);
+  });
+});
+
+describe('species label normalization', () => {
+  it('maps legacy generic form species to biological labels', () => {
+    const mapped = mapFormToUI({
+      _id: 'form-1',
+      orgId: 'org-1',
+      name: 'Consent',
+      description: 'Consent form',
+      category: 'Consent form',
+      speciesFilter: ['Dog', 'cat', 'HORSE'],
+      status: 'draft',
+      schema: [],
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as any);
+
+    expect(mapped.species).toEqual(['Canine', 'Feline', 'Equine']);
+  });
+
+  it('maps template rule species codes to biological labels', () => {
+    const mapped = mapTemplateToUI({
+      id: 'tpl-species',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'SOAP_NOTE',
+      name: 'SOAP',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {
+        appliesTo: {
+          species: ['DOG', 'FELINE', 'horse'],
+        },
+      },
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as any);
+
+    expect(mapped.species).toEqual(['Canine', 'Feline', 'Equine']);
   });
 });
 

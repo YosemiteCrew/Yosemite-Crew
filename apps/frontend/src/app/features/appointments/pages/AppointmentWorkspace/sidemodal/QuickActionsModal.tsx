@@ -174,6 +174,7 @@ const QuickActionsModal = ({
           {activeAction === 'TASKS' && (
             <TasksPanel
               appointmentId={appointmentId}
+              companionId={companion.id}
               parentOptions={
                 companion.parent?.id
                   ? [{ label: companion.parent.name || 'Pet parent', value: companion.parent.id }]
@@ -187,6 +188,7 @@ const QuickActionsModal = ({
               companionId={companion.id}
               organisationId={organisationId}
               encounterId={encounterId}
+              appointmentStatus={appointment.status}
             />
           )}
           {activeAction === 'CHAT' && <ChatPanel appointment={appointment} />}

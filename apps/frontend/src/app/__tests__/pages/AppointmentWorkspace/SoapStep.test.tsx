@@ -19,6 +19,10 @@ jest.mock('@/app/features/appointments/services/workspaceTemplateService', () =>
   templateToSoapTemplate: jest.fn((template) => template),
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 const APPT = 'appt-soap';
 const APPOINTMENT_REASON = 'Limping after a long hike';
 const APPOINTMENT_SERVICE = 'Orthopaedic consult';

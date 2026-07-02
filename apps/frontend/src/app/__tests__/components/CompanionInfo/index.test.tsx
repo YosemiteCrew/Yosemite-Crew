@@ -45,6 +45,10 @@ jest.mock('@/app/lib/urls', () => ({
   getSafeImageUrl: () => 'https://example.com/pet.png',
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => <img alt={props.alt} {...props} />,

@@ -7,6 +7,7 @@ import type {
   LineItem,
   ObservationRecord,
   PrescriptionItem,
+  ReadyState as WorkspaceReadyState,
   ScheduleTask,
   ScheduleTaskStatus,
   SideAction,
@@ -66,10 +67,20 @@ const recalcInvoiceLine = (item: InvoiceLineItem): InvoiceLineItem => {
   const grossCents = item.unitPriceCents * item.qty;
   // Discount is bounded by the gross and, when the catalog sets one, the per-line
   // max-discount ceiling — so a manual edit can never exceed the allowed discount.
-  const ceiling =
-    item.maxDiscountCents == null ? grossCents : Math.min(item.maxDiscountCents, grossCents);
+  const percentCeiling =
+    item.maxDiscountPercent == null
+      ? undefined
+      : Math.round((grossCents * item.maxDiscountPercent) / 100);
+  const explicitCeiling = item.maxDiscountCents;
+  const ceiling = Math.min(percentCeiling ?? explicitCeiling ?? grossCents, grossCents);
   const discountCents = Math.min(Math.max(0, item.discountCents), ceiling);
-  return { ...item, grossCents, discountCents, amountCents: grossCents - discountCents };
+  return {
+    ...item,
+    grossCents,
+    discountCents,
+    maxDiscountCents: percentCeiling ?? explicitCeiling,
+    amountCents: grossCents - discountCents,
+  };
 };
 
 /** Bill totals shared by the Total Bill view and the payment-recording action. */
@@ -98,6 +109,11 @@ type AppointmentWorkspaceState = {
   encountersById: Record<string, AppointmentEncounter>;
   activeStep: WorkspaceStep;
   activeSideAction: SideAction | null;
+  /**
+   * Task id the Quick Actions Tasks panel should auto-open on mount — set when a
+   * schedule row's "View" is clicked, consumed + cleared by the panel.
+   */
+  focusTaskId: string | null;
 
   initEncounter: (
     appointmentId: string,
@@ -150,6 +166,9 @@ type AppointmentWorkspaceState = {
 
   setActiveStep: (step: WorkspaceStep) => void;
   setActiveSideAction: (action: SideAction | null) => void;
+  setFocusTaskId: (taskId: string | null) => void;
+  /** Open the Quick Actions Tasks panel focused on a specific task (schedule View). */
+  openTaskInQuickActions: (taskId: string) => void;
   setStepStatus: (
     appointmentId: string,
     step: WorkspaceStep,
@@ -195,6 +214,14 @@ type AppointmentWorkspaceState = {
     persistedId?: string
   ) => void;
   updatePrescription: (appointmentId: string, id: string, patch: Partial<PrescriptionItem>) => void;
+  /**
+   * Reconcile a staged prescription after it persists: replace the row identified by `localId`
+   * in place with `item` (carrying the backend id). Keeps the list at one entry — no duplicate
+   * local + persisted rows — and drops any other row that already has the persisted id.
+   */
+  replacePrescription: (appointmentId: string, localId: string, item: PrescriptionItem) => void;
+  /** Authoritatively replace the whole prescription list (used after a successful save). */
+  setPrescriptions: (appointmentId: string, items: PrescriptionItem[]) => void;
   removePrescription: (appointmentId: string, id: string) => void;
 
   addScheduleTask: (appointmentId: string, task: Omit<ScheduleTask, 'id'>) => void;
@@ -273,6 +300,24 @@ const patchEnc = (
 const preferNonEmpty = <T>(next: T[] | undefined, current: T[]): T[] =>
   next && next.length > 0 ? next : current;
 
+/**
+ * Merge a backend ready-state patch with the current one. The bootstrap frequently returns the
+ * `value` flag without the actor name/timestamp; keep the locally-known `byName`/`byUserId`/`at`
+ * in that case so the stamp doesn't degrade to a generic fallback after refresh.
+ */
+const mergeReadyState = (
+  patch: WorkspaceReadyState | undefined,
+  current: WorkspaceReadyState
+): WorkspaceReadyState => {
+  if (!patch) return current;
+  return {
+    value: patch.value,
+    byName: patch.byName ?? current.byName,
+    byUserId: patch.byUserId ?? current.byUserId,
+    at: patch.at ?? current.at,
+  };
+};
+
 const mergeEncounterDataPatch = (
   enc: AppointmentEncounter,
   patch: Partial<
@@ -329,8 +374,12 @@ const mergeEncounterDataPatch = (
   dischargeSummaryId: patch.dischargeSummaryId ?? enc.dischargeSummaryId,
   documents: preferNonEmpty(patch.documents, enc.documents),
   soapTemplates: preferNonEmpty(patch.soapTemplates, enc.soapTemplates),
-  readyForBilling: patch.readyForBilling ?? enc.readyForBilling,
-  readyForDischarge: patch.readyForDischarge ?? enc.readyForDischarge,
+  // Merge the ready-state stamps: the backend bootstrap often returns the flag without the actor
+  // name/timestamp, so keep the locally-known `byName`/`byUserId`/`at` (set when the clinician
+  // toggled it) rather than clobbering them with empties — otherwise the stamp degrades to the
+  // generic "Clinical team" after a refresh.
+  readyForBilling: mergeReadyState(patch.readyForBilling, enc.readyForBilling),
+  readyForDischarge: mergeReadyState(patch.readyForDischarge, enc.readyForDischarge),
   roomId: patch.roomId ?? enc.roomId,
   unitId: patch.unitId ?? enc.unitId,
   admittedAt: patch.admittedAt ?? enc.admittedAt,
@@ -381,6 +430,7 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
   encountersById: {},
   activeStep: 'SOAP',
   activeSideAction: null,
+  focusTaskId: null,
 
   initEncounter: (appointmentId, mode, staff) =>
     set((state) => {
@@ -428,6 +478,8 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
 
   setActiveStep: (step) => set({ activeStep: step }),
   setActiveSideAction: (action) => set({ activeSideAction: action }),
+  setFocusTaskId: (taskId) => set({ focusTaskId: taskId }),
+  openTaskInQuickActions: (taskId) => set({ activeSideAction: 'TASKS', focusTaskId: taskId }),
 
   setStepStatus: (appointmentId, step, status) =>
     patchEnc(set, appointmentId, (enc) => ({
@@ -625,22 +677,10 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
     })),
 
   addLineItem: (appointmentId, item) =>
-    patchEnc(set, appointmentId, (enc) => {
-      const lineItem = { ...item, id: nextId('li') };
-      const generatedTask: ScheduleTask = {
-        id: nextId('sch'),
-        description: `${item.kind === 'PACKAGE' ? 'Complete package' : 'Complete service'}: ${item.name}`,
-        category: item.kind === 'PACKAGE' ? 'Treatment' : 'Consultation (billable)',
-        status: 'UPCOMING',
-        autoGenerated: true,
-        sourceRefId: lineItem.id,
-      };
-      return {
-        ...enc,
-        services: [...enc.services, lineItem],
-        schedule: enc.mode === 'INPATIENT' ? [...enc.schedule, generatedTask] : enc.schedule,
-      };
-    }),
+    patchEnc(set, appointmentId, (enc) => ({
+      ...enc,
+      services: [...enc.services, { ...item, id: nextId('li') }],
+    })),
 
   updateLineItem: (appointmentId, id, patch) =>
     patchEnc(set, appointmentId, (enc) => ({
@@ -655,28 +695,38 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
     })),
 
   addPrescription: (appointmentId, item, persistedId) =>
-    patchEnc(set, appointmentId, (enc) => {
-      const prescription = { ...item, id: persistedId ?? nextId('rx') };
-      const generatedTask: ScheduleTask = {
-        id: nextId('sch'),
-        description: `Administer ${item.medicineName}`,
-        category: 'Medication',
-        status: 'UPCOMING',
-        autoGenerated: true,
-        sourceRefId: prescription.id,
-      };
-      return {
-        ...enc,
-        prescription: [...enc.prescription, prescription],
-        schedule: enc.mode === 'INPATIENT' ? [...enc.schedule, generatedTask] : enc.schedule,
-      };
-    }),
+    patchEnc(set, appointmentId, (enc) => ({
+      ...enc,
+      prescription: [...enc.prescription, { ...item, id: persistedId ?? nextId('rx') }],
+    })),
 
   updatePrescription: (appointmentId, id, patch) =>
     patchEnc(set, appointmentId, (enc) => ({
       ...enc,
       prescription: enc.prescription.map((p) => (p.id === id ? { ...p, ...patch } : p)),
     })),
+
+  setPrescriptions: (appointmentId, items) =>
+    patchEnc(set, appointmentId, (enc) => ({ ...enc, prescription: items })),
+
+  replacePrescription: (appointmentId, localId, item) =>
+    patchEnc(set, appointmentId, (enc) => {
+      let replaced = false;
+      const prescription = enc.prescription.flatMap((p) => {
+        if (p.id === localId) {
+          replaced = true;
+          return [item];
+        }
+        // Drop any pre-existing row that already carries the persisted id (e.g. a prior
+        // bootstrap-hydrated copy) so the reconciled row is unique.
+        if (p.id === item.id) return [];
+        return [p];
+      });
+      return {
+        ...enc,
+        prescription: replaced ? prescription : [...prescription, item],
+      };
+    }),
 
   removePrescription: (appointmentId, id) =>
     patchEnc(set, appointmentId, (enc) => ({

@@ -9,6 +9,8 @@ type SearchProps = {
   label?: string;
   /** Forwarded to the underlying input so callers can focus it programmatically. */
   inputRef?: React.Ref<HTMLInputElement>;
+  /** Fired when the input gains focus (e.g. to open a results dropdown). */
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
 };
 
 const Search = ({
@@ -18,6 +20,7 @@ const Search = ({
   placeholder = 'Search',
   label = 'Search',
   inputRef,
+  onFocus,
 }: SearchProps) => {
   const inputId = useId();
 
@@ -35,6 +38,7 @@ const Search = ({
         aria-label={label}
         value={value}
         onChange={(e) => setSearch(e.target.value)}
+        onFocus={onFocus}
         className="font-satoshi outline-none border-0 w-full text-body-4 placeholder:text-text-secondary text-text-primary"
         placeholder={placeholder}
       />

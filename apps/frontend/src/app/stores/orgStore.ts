@@ -68,6 +68,7 @@ export const useOrgStore = create<OrgState>()(
               animalWelfareComplianceCertNo: o.animalWelfareComplianceCertNo,
               fireAndEmergencyCertNo: o.fireAndEmergencyCertNo,
               googlePlacesId: o.googlePlacesId,
+              crossOrgMessagingEnabled: o.crossOrgMessagingEnabled,
             };
             orgIds.push(id);
           }
@@ -111,6 +112,7 @@ export const useOrgStore = create<OrgState>()(
               animalWelfareComplianceCertNo: org.animalWelfareComplianceCertNo,
               fireAndEmergencyCertNo: org.fireAndEmergencyCertNo,
               googlePlacesId: org.googlePlacesId,
+              crossOrgMessagingEnabled: org.crossOrgMessagingEnabled,
             },
           };
           const orgIds = exists ? state.orgIds : [...state.orgIds, id];

@@ -240,6 +240,8 @@ const normalizeCreditNoteMetadata = (
   }, {});
 };
 
+const EMPTY_METADATA = {} as Record<string, unknown>;
+
 const toCreditNoteRecord = (row: PrismaCreditNote): FinanceCreditNote => ({
   id: row.id,
   invoiceId: row.invoiceId,
@@ -323,6 +325,29 @@ const toInvoiceRecord = (row: InvoiceWithCreditNotes): Invoice => {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+};
+
+const withRenderedDocument = async <T extends Invoice>(
+  invoice: T,
+): Promise<T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">> => {
+  if (!invoice.id || !invoice.organisationId) {
+    return invoice as T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">;
+  }
+  const document = await prisma.renderedDocument.findFirst({
+    where: {
+      organisationId: invoice.organisationId,
+      sourceKind: "INVOICE",
+      sourceId: invoice.id,
+    },
+    select: { id: true, pdfUrl: true },
+  });
+  return document
+    ? {
+        ...invoice,
+        renderedDocumentId: document.id,
+        pdfUrl: document.pdfUrl,
+      }
+    : (invoice as T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">);
 };
 
 const buildInvoiceLineSnapshots = (items: DraftInvoiceItemInput[]) =>
@@ -449,9 +474,7 @@ const loadInvoiceFinancialDetails = async (
     invoice.items,
   )
     ? (invoice.items as InvoiceItem[]).map((item, index) => {
-        const total = roundMoney(
-          item.total != null ? item.total : item.quantity * item.unitPrice,
-        );
+        const total = roundMoney(item.total ?? item.quantity * item.unitPrice);
         return {
           id: item.id ?? undefined,
           name: item.name || `Item ${index + 1}`,
@@ -883,7 +906,7 @@ const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
       data: {
         status: "CANCELLED",
         metadata: {
-          ...(normalizeInvoiceMetadata(invoice.metadata) ?? {}),
+          ...(normalizeInvoiceMetadata(invoice.metadata) ?? EMPTY_METADATA),
           cancellationReason: reason,
         } as unknown as Prisma.InputJsonValue,
       },
@@ -1008,6 +1031,28 @@ const recordInvoicePaidState = async (invoice: PrismaInvoice, paidAt: Date) => {
       visitBillingStage: "SETTLED",
     },
   });
+  const invoiceRowIds = (Array.isArray(invoice.items) ? invoice.items : [])
+    .map((item) =>
+      typeof item === "object" &&
+      item !== null &&
+      "id" in item &&
+      typeof item.id === "string"
+        ? item.id
+        : null,
+    )
+    .filter((id): id is string => Boolean(id));
+  if (invoiceRowIds.length > 0) {
+    await prisma.workspaceTreatmentItem.updateMany({
+      where: {
+        appointmentId: invoice.appointmentId,
+        invoiceRowId: { in: invoiceRowIds },
+      },
+      data: {
+        settledInvoiceId: invoice.id,
+        settledAt: paidAt,
+      },
+    });
+  }
 
   await recordInvoiceAuditForRow(updated, "INVOICE_PAID", updated.id, {
     status: updated.status,
@@ -1545,7 +1590,6 @@ export const InvoiceService = {
     }
 
     if (
-      invoice.billingCollectionMode === "PREPAY_AT_BOOKING" ||
       invoice.visitBillingStage === "READY_FOR_BILLING" ||
       invoice.visitBillingStage === "SETTLED"
     ) {
@@ -1663,10 +1707,12 @@ export const InvoiceService = {
     });
 
     return Promise.all(
-      docs.map(async (doc) => ({
-        ...toInvoiceRecord(doc),
-        ...(await loadInvoiceFinancialDetails(doc)),
-      })),
+      docs.map(async (doc) =>
+        withRenderedDocument({
+          ...toInvoiceRecord(doc),
+          ...(await loadInvoiceFinancialDetails(doc)),
+        }),
+      ),
     );
   },
 
@@ -1771,8 +1817,10 @@ export const InvoiceService = {
         image: org?.imageUrl ?? "",
       },
       invoice: {
-        ...toInvoiceRecord(doc),
-        ...financialDetails,
+        ...(await withRenderedDocument({
+          ...toInvoiceRecord(doc),
+          ...financialDetails,
+        })),
       },
     };
   },
@@ -1813,14 +1861,14 @@ export const InvoiceService = {
       throw new InvoiceServiceError("Invoice not found", 404);
     }
 
-    if (invoice.status === "PAID") {
-      throw new InvoiceServiceError("Cannot modify a paid invoice", 409);
+    if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
+      throw new InvoiceServiceError("Cannot modify a closed invoice", 409);
     }
 
-    // A finalized but UNPAID invoice can still be edited (e.g. to add line items
-    // and re-issue the payment link); only PAID invoices are locked (checked above).
-    // We re-open it below so it can be re-priced and a fresh payment link generated.
+    // A finalized or previously paid invoice can receive new charges. Re-open it
+    // so existing payments remain recorded while the new balance is collectible.
     const wasFinalized = Boolean(invoice.finalizedAt);
+    const wasPaid = invoice.status === "PAID";
 
     const existingItems = Array.isArray(invoice.items)
       ? (invoice.items as unknown as DraftInvoiceItemInput[])
@@ -1860,7 +1908,10 @@ export const InvoiceService = {
         taxTotal: totals.taxTotal,
         taxPercent: totals.taxPercent,
         totalAmount: totals.totalAmount,
-        finalizedAt: wasFinalized ? null : undefined,
+        status: wasPaid ? "AWAITING_PAYMENT" : undefined,
+        paidAt: wasPaid ? null : undefined,
+        visitBillingStage: wasPaid ? "DRAFT" : undefined,
+        finalizedAt: wasFinalized || wasPaid ? null : undefined,
         taxSnapshot: {
           upsert: {
             create: totals.taxSnapshot!,
@@ -2015,7 +2066,9 @@ export const InvoiceService = {
 
       if (
         !bootstrappedInvoice.id ||
-        !["AWAITING_PAYMENT", "PENDING"].includes(bootstrappedInvoice.status)
+        !["AWAITING_PAYMENT", "PENDING", "PAID"].includes(
+          bootstrappedInvoice.status,
+        )
       ) {
         throw new InvoiceServiceError(
           "Invoice is not open for appointment",

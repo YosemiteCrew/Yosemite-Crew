@@ -25,6 +25,7 @@ type RoomState = {
   setRoomUnitsForRoom: (roomId: string, items: RoomUnit[]) => void;
   upsertRoomUnitGroup: (unitGroup: RoomUnitGroup) => void;
   upsertRoomUnit: (unit: RoomUnit) => void;
+  setRoomUnitOccupied: (unitId: string | undefined, isOccupied: boolean) => void;
 
   getRoomsByOrgId: (orgId: string) => OrganisationRoom[];
   getRoomUnitGroupsByRoomId: (roomId: string) => RoomUnitGroup[];
@@ -272,6 +273,20 @@ export const useOrganisationRoomStore = create<RoomState>()((set, get) => ({
           [unit.roomId]: roomIds.includes(unit.id) ? roomIds : [...roomIds, unit.id],
         },
         roomUnitIdsByGroupId,
+      };
+    }),
+
+  setRoomUnitOccupied: (unitId, isOccupied) =>
+    set((state) => {
+      if (!unitId || !state.roomUnitsById[unitId]) return {};
+      return {
+        roomUnitsById: {
+          ...state.roomUnitsById,
+          [unitId]: {
+            ...state.roomUnitsById[unitId],
+            isOccupied,
+          },
+        },
       };
     }),
 

@@ -77,6 +77,7 @@ import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 import { formatDisplayDate, getAgeInYears } from '@/app/lib/date';
 import { getCompanionStatusStyle } from '@/app/ui/tables/tableUtils';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import clsx from 'clsx';
 
 // ─── Species / breed constants ────────────────────────────────────────────────
@@ -598,10 +599,14 @@ const createCompanionFlow = async (
   );
 };
 
-const getModalTitle = (mode: ModalMode, companionTitle: string): string => {
-  if (mode === 'view') return companionTitle || 'Patient Details';
-  if (mode === 'edit') return 'Edit Patient / Client';
-  return 'New Patient / Client';
+const getModalTitle = (
+  mode: ModalMode,
+  companionTitle: string,
+  terminologyText: (text: string) => string
+): string => {
+  if (mode === 'view') return companionTitle || terminologyText('Patient Details');
+  if (mode === 'edit') return terminologyText('Edit Patient / Client');
+  return terminologyText('New Patient / Client');
 };
 
 type FooterLeftProps = {
@@ -684,6 +689,7 @@ const AddCompanionCentralModal = ({
   formMode = 'default',
   onGoToAppointment,
 }: AddCompanionCentralModalProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const isFastTrack = formMode === 'fasttrack';
   const router = useRouter();
   const notifyHook = useNotify();
@@ -1012,7 +1018,7 @@ const AddCompanionCentralModal = ({
       await updateCompanion({ ...viewCompanion.companion, status: newStatus });
       notifyHook.notify('success', {
         title: 'Status updated',
-        text: `Companion is now ${toTitleCase(newStatus)}.`,
+        text: terminologyText(`Companion is now ${toTitleCase(newStatus)}.`),
       });
     } catch {
       notifyHook.notify('error', { title: 'Failed to update status', text: 'Please try again.' });
@@ -1044,8 +1050,8 @@ const AddCompanionCentralModal = ({
     };
     await Promise.all([updateCompanion(companionPayload), updateParent(normalizedParent)]);
     notifyHook.notify('success', {
-      title: 'Companion updated',
-      text: 'Companion has been updated successfully.',
+      title: terminologyText('Companion updated'),
+      text: terminologyText('Companion has been updated successfully.'),
     });
     setMode('view');
   };
@@ -1068,15 +1074,15 @@ const AddCompanionCentralModal = ({
 
       const createdCompanion = await createCompanionFlow(normalizedParent, companionFormData);
       notifyHook.notify('success', {
-        title: 'Companion saved',
-        text: 'Companion has been saved successfully.',
+        title: terminologyText('Companion saved'),
+        text: terminologyText('Companion has been saved successfully.'),
       });
       if (createdCompanion) onCompanionCreated?.(createdCompanion.id);
       setShowModal(false);
     } catch {
       notifyHook.notify('error', {
         title: 'Unable to save',
-        text: 'Failed to save companion. Please try again.',
+        text: terminologyText('Failed to save companion. Please try again.'),
       });
     } finally {
       setIsSubmitting(false);
@@ -1114,7 +1120,7 @@ const AddCompanionCentralModal = ({
   }, [allCompanionParents, companionFormData.name]);
 
   // ── Modal title ──
-  const modalTitle = getModalTitle(mode, companionTitle);
+  const modalTitle = getModalTitle(mode, companionTitle, terminologyText);
 
   // ── Current gender+neuter combined value ──
   const genderNeuterValue = getGenderNeuterValue(
@@ -1163,7 +1169,7 @@ const AddCompanionCentralModal = ({
         title={modalTitle}
         canClose={canCloseModal}
         isLoading={isCompanionModalBusy(isSubmitting, savingStatus)}
-        loadingLabel={getCompanionModalLoadingLabel(savingStatus)}
+        loadingLabel={terminologyText(getCompanionModalLoadingLabel(savingStatus))}
       >
         <div className="flex flex-col gap-6">
           {/* ══ VIEW MODE ═══════════════════════════════════════════════════════ */}
@@ -1241,7 +1247,10 @@ const AddCompanionCentralModal = ({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-0 lg:items-start">
                 {/* Left — Patient */}
                 <div className="flex flex-col gap-3">
-                  <SectionHeading icon={<MdPets size={16} />} title="Patient Details" />
+                  <SectionHeading
+                    icon={<MdPets size={16} />}
+                    title={terminologyText('Patient Details')}
+                  />
 
                   {/* Core patient info rows */}
                   <div className="flex flex-col">
@@ -1375,7 +1384,10 @@ const AddCompanionCentralModal = ({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-0 lg:items-stretch">
                 {/* ══ LEFT: Patient ══════════════════════════════════ */}
                 <div className="flex flex-col gap-3">
-                  <SectionHeading icon={<MdPets size={16} />} title="Patient Details" />
+                  <SectionHeading
+                    icon={<MdPets size={16} />}
+                    title={terminologyText('Patient Details')}
+                  />
 
                   {/* Name — with inline search dropdown when companions exist for selected parent */}
                   <InputWithDropdown

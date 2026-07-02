@@ -75,6 +75,7 @@ jest.mock("../../src/config/prisma", () => ({
     },
     inventoryItem: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
     userProfile: {
       findFirst: jest.fn(),
@@ -105,6 +106,7 @@ describe("CatalogService", () => {
     (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.invoice.count as jest.Mock).mockResolvedValue(0);
     (prisma.productItem.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.productPackageItem.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.templateCatalogLink.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.userProfile.findFirst as jest.Mock).mockResolvedValue(null);
@@ -1215,23 +1217,22 @@ describe("CatalogService", () => {
   });
 
   it("creates a package product with nested price, bookable settings, and package items", async () => {
-    (prisma.productItem.findMany as jest.Mock)
-      .mockResolvedValueOnce([
-        {
-          id: "prod_exam",
-          version: 1,
-          organisationId: "org_1",
-          name: "Exam",
-          description: null,
-          code: "CS-0002",
-          kind: "DIAGNOSTIC",
-          specialityId: "spec_1",
-          legacyServiceId: null,
-          isActive: true,
-          package: null,
-        },
-      ])
-      .mockResolvedValueOnce([]);
+    (prisma.productItem.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: "prod_exam",
+        version: 1,
+        organisationId: "org_1",
+        name: "Exam",
+        description: null,
+        code: "CS-0002",
+        kind: "DIAGNOSTIC",
+        specialityId: "spec_1",
+        legacyServiceId: null,
+        isActive: true,
+        package: null,
+      },
+    ]);
+    (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValueOnce([]);
     (prisma.productItem.create as jest.Mock).mockResolvedValue({
       id: "prod_pkg",
       version: 1,

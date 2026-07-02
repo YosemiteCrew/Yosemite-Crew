@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { WorkspaceService } from "src/services/workspace.prisma.service";
+import axios from "axios";
 import { DocumensoService } from "../../src/services/documenso.service";
 import { buildMergedClinicalPacketPdf } from "../../src/services/clinical-packet-pdf.service";
 import { renderCombinedClinicalPacketPdf } from "../../src/services/rendered-document-renderer.service";
@@ -18,6 +19,13 @@ jest.mock("src/config/prisma", () => ({
     encounter: { findFirst: jest.fn() },
     renderedDocument: { update: jest.fn() },
     documentSignature: { upsert: jest.fn() },
+  },
+}));
+
+jest.mock("axios", () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
   },
 }));
 
@@ -81,6 +89,9 @@ const mockedDocumenso = DocumensoService as unknown as {
   createDocument: jest.Mock;
   distributeDocument: jest.Mock;
   downloadSignedDocument: jest.Mock;
+};
+const mockedAxios = axios as unknown as {
+  get: jest.Mock;
 };
 const mockedBuildPacketPdf =
   buildMergedClinicalPacketPdf as unknown as jest.Mock;
@@ -778,6 +789,75 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
   });
 });
 
+describe("WorkspaceDocumentPacketService.reconcile", () => {
+  it("finalises an in-progress packet by delegating to completeSigning", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        signing: {
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          documentIds: ["d1"],
+        },
+      }),
+    );
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: {
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          documentIds: ["d1"],
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
+    });
+    mockedPrisma.workspaceDocumentPacket.update.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) =>
+        basePacket({ status: data.status, signing: data.signing }),
+    );
+    mockedPrisma.renderedDocument.update.mockResolvedValue({});
+    mockedPrisma.documentSignature.upsert.mockResolvedValue({});
+
+    const result = await WorkspaceDocumentPacketService.reconcile(
+      "org-1",
+      "pkt-1",
+    );
+
+    expect(result.status).toBe("FINAL");
+    expect(mockedDocumenso.downloadSignedDocument).toHaveBeenCalled();
+  });
+
+  it("returns the packet untouched when already FINAL", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        status: "FINAL",
+        signing: { status: "SIGNED", documentId: "123", documentIds: [] },
+      }),
+    );
+
+    const result = await WorkspaceDocumentPacketService.reconcile(
+      "org-1",
+      "pkt-1",
+    );
+
+    expect(result.status).toBe("FINAL");
+    expect(mockedDocumenso.downloadSignedDocument).not.toHaveBeenCalled();
+    expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects with 404 when the packet is not found for the org", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceDocumentPacketService.reconcile("org-1", "pkt-x"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 describe("WorkspaceDocumentPacketService.resetSigning", () => {
   it("resets in-progress signing to NOT_STARTED", async () => {
     mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
@@ -833,6 +913,73 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
     });
     mockedRenderCombinedPacketPdf.mockResolvedValue(combinedPdfResult());
   };
+
+  it("returns the signed packet PDF when a FINAL packet has a signed Documenso copy", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        status: "FINAL",
+        signing: {
+          status: "SIGNED",
+          documentId: "123",
+          pdf: { url: "https://signed.example/packet.pdf" },
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
+    });
+    mockedAxios.get.mockResolvedValue({
+      data: Buffer.from("signed-pdf"),
+    });
+
+    const pdf = await WorkspaceDocumentPacketService.buildEncounterPacketPdf(
+      "org-1",
+      "enc-1",
+    );
+
+    expect(pdf.toString()).toBe("signed-pdf");
+    expect(mockedWorkspaceService.getEncounterBootstrap).not.toHaveBeenCalled();
+    expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
+    expect(mockedBuildPacketPdf).not.toHaveBeenCalled();
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      "https://signed.example/packet.pdf",
+      expect.objectContaining({ responseType: "arraybuffer" }),
+    );
+  });
+
+  it("falls back to a live merge when the signed packet cannot be fetched", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        status: "FINAL",
+        signing: {
+          status: "SIGNED",
+          documentId: "123",
+          pdf: { url: "https://signed.example/packet.pdf" },
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.downloadSignedDocument.mockRejectedValue(
+      new Error("expired"),
+    );
+    mockedWorkspaceService.getEncounterBootstrap.mockResolvedValue({
+      appointment: null,
+      encounter: { id: "enc-1" },
+      companion: null,
+      documents: [{ ...docRow("d1"), pdfUrl: "https://cdn/d1.pdf" }],
+    });
+    mockedRenderCombinedPacketPdf.mockResolvedValue(combinedPdfResult());
+
+    const pdf = await WorkspaceDocumentPacketService.buildEncounterPacketPdf(
+      "org-1",
+      "enc-1",
+    );
+
+    expect(pdf).toBeInstanceOf(Buffer);
+    expect(mockedWorkspaceService.getEncounterBootstrap).toHaveBeenCalled();
+    expect(mockedRenderCombinedPacketPdf).toHaveBeenCalled();
+  });
 
   it("renders the encounter clinical artifacts into a single combined PDF for print", async () => {
     mockedWorkspaceService.getEncounterBootstrap.mockResolvedValue({

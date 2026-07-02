@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { ClinicalArtifactService } from "./clinical-artifact.service";
 import { FormAssignmentService } from "./form-assignment.service";
+import {
+  readActorNameFromEventPayload,
+  resolveActorDisplayName,
+} from "./finance/events";
 import { InvoiceService, InvoiceServiceError } from "./invoice.service";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { roundMoney } from "./finance/pricing";
@@ -348,37 +352,7 @@ const latestReadinessActorName = async (
     orderBy: { occurredAt: "desc" },
     select: { payload: true },
   });
-  const payload = event?.payload;
-  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    const name = (payload as Record<string, unknown>).actorName;
-    return typeof name === "string" && name.trim() ? name : null;
-  }
-  return null;
-};
-
-const resolveActorDisplayName = async (
-  actorUserId?: string | null,
-): Promise<string | null> => {
-  const id = actorUserId?.trim();
-  if (!id) {
-    return null;
-  }
-  if (id === "SYSTEM") {
-    return "System";
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { userId: id },
-    select: { firstName: true, lastName: true, email: true },
-  });
-  if (!user) {
-    return null;
-  }
-  const name = [user.firstName, user.lastName]
-    .filter((part): part is string => Boolean(part && part.trim()))
-    .join(" ")
-    .trim();
-  return name || user.email || null;
+  return readActorNameFromEventPayload(event?.payload);
 };
 
 const loadBootstrapBillingState = async (input: {
@@ -439,15 +413,14 @@ const loadBootstrapBillingState = async (input: {
       : null;
 
   return {
-    invoice:
-      invoice != null
-        ? {
-            id: invoice.id,
-            visitBillingStage: invoice.visitBillingStage,
-            readyForBillingAt: invoice.readyForBillingAt,
-            readyForBillingActorId: invoice.readyForBillingActorId,
-          }
-        : null,
+    invoice: invoice
+      ? {
+          id: invoice.id,
+          visitBillingStage: invoice.visitBillingStage,
+          readyForBillingAt: invoice.readyForBillingAt,
+          readyForBillingActorId: invoice.readyForBillingActorId,
+        }
+      : null,
     visitBillingStage,
     readyForBilling,
     readyForDischarge,
@@ -878,6 +851,8 @@ type TreatmentItemRow = {
   priceSnapshot: unknown;
   billingStatus: string;
   invoiceRowId: string | null;
+  settledInvoiceId: string | null;
+  settledAt: Date | null;
   lockState: unknown;
   prescriptionId: string | null;
   createdAt: Date;
@@ -923,7 +898,11 @@ const mapTreatmentItemRow = (
     !Array.isArray(row.productSnapshot)
       ? (row.productSnapshot as Record<string, unknown>)
       : {},
-  servicePackageKind: row.servicePackageKind,
+  servicePackageKind:
+    row.prescriptionId &&
+    !["MEDICATION", "PRESCRIPTION"].includes(row.servicePackageKind)
+      ? "PRESCRIPTION"
+      : row.servicePackageKind,
   quantity: row.quantity,
   priceSnapshot:
     typeof row.priceSnapshot === "object" &&
@@ -933,6 +912,9 @@ const mapTreatmentItemRow = (
       : {},
   billingStatus: row.billingStatus,
   invoiceRowId: row.invoiceRowId,
+  settled: Boolean(row.settledInvoiceId),
+  settledInvoiceId: row.settledInvoiceId,
+  settledAt: row.settledAt,
   lockState:
     typeof row.lockState === "string"
       ? row.lockState
@@ -968,14 +950,14 @@ const buildInvoiceLineFromTreatmentItem = (row: TreatmentItemRow) => {
   const grossAmount = readNumber(priceSnapshot.grossAmount);
   const finalAmount = readNumber(priceSnapshot.finalAmount);
   const snapshotUnitPrice = readNumber(priceSnapshot.unitPrice);
-  const unitPrice =
-    grossAmount != null
-      ? roundMoney(grossAmount / quantity)
-      : snapshotUnitPrice != null
-        ? snapshotUnitPrice
-        : finalAmount != null
-          ? roundMoney(finalAmount / quantity)
-          : 0;
+  let unitPrice = 0;
+  if (grossAmount != null) {
+    unitPrice = roundMoney(grossAmount / quantity);
+  } else if (snapshotUnitPrice != null) {
+    unitPrice = snapshotUnitPrice;
+  } else if (finalAmount != null) {
+    unitPrice = roundMoney(finalAmount / quantity);
+  }
   const discountPercent = readNumber(priceSnapshot.discountPercent);
   const total = finalAmount ?? roundMoney(unitPrice * quantity);
   const name = readText(
@@ -999,7 +981,7 @@ const buildInvoiceLineFromTreatmentItem = (row: TreatmentItemRow) => {
 };
 
 const syncTreatmentItemInvoice = async (row: TreatmentItemRow) => {
-  if (!row.appointmentId) {
+  if (!row.appointmentId || row.settledInvoiceId) {
     return row;
   }
 
@@ -1017,7 +999,9 @@ const syncTreatmentItemInvoice = async (row: TreatmentItemRow) => {
         bootstrappedInvoice &&
         typeof bootstrappedInvoice.id === "string" &&
         bootstrappedInvoice.id.trim() &&
-        ["AWAITING_PAYMENT", "PENDING"].includes(bootstrappedInvoice.status)
+        ["AWAITING_PAYMENT", "PENDING", "PAID"].includes(
+          bootstrappedInvoice.status,
+        )
       ) {
         invoice = { id: bootstrappedInvoice.id.trim() };
       }
@@ -1302,46 +1286,45 @@ const MEDICAL_RECORD_KINDS = new Set([
 const buildContext = async (
   input: WorkspaceBootstrapInput,
 ): Promise<WorkspaceContext> => {
-  const appointment =
-    input.appointmentId != null
-      ? ((await prisma.appointment.findFirst({
-          where: {
-            id: input.appointmentId,
-            organisationId: input.organisationId,
-          },
-        })) as AppointmentRow | null)
-      : null;
+  const appointment = input.appointmentId
+    ? ((await prisma.appointment.findFirst({
+        where: {
+          id: input.appointmentId,
+          organisationId: input.organisationId,
+        },
+      })) as AppointmentRow | null)
+    : null;
 
-  const encounterAppointment =
-    appointment == null && input.encounterId != null
-      ? ((await prisma.appointment.findFirst({
-          where: {
-            encounterId: input.encounterId,
-            organisationId: input.organisationId,
-          },
-        })) as AppointmentRow | null)
-      : null;
+  let encounterAppointment: AppointmentRow | null = null;
+  if (appointment === null && input.encounterId) {
+    encounterAppointment = (await prisma.appointment.findFirst({
+      where: {
+        encounterId: input.encounterId,
+        organisationId: input.organisationId,
+      },
+    })) as AppointmentRow | null;
+  }
 
   const resolvedAppointment = appointment ?? encounterAppointment;
 
-  const encounterRow =
-    input.encounterId != null
-      ? ((await prisma.encounter.findFirst({
-          where: {
-            id: input.encounterId,
-            organisationId: input.organisationId,
-          },
-        })) as EncounterRow | null)
-      : appointment?.encounterId
-        ? ((await prisma.encounter.findFirst({
-            where: {
-              id: appointment.encounterId,
-              organisationId: input.organisationId,
-            },
-          })) as EncounterRow | null)
-        : null;
+  let encounterRow: EncounterRow | null = null;
+  if (input.encounterId) {
+    encounterRow = (await prisma.encounter.findFirst({
+      where: {
+        id: input.encounterId,
+        organisationId: input.organisationId,
+      },
+    })) as EncounterRow | null;
+  } else if (appointment?.encounterId) {
+    encounterRow = (await prisma.encounter.findFirst({
+      where: {
+        id: appointment.encounterId,
+        organisationId: input.organisationId,
+      },
+    })) as EncounterRow | null;
+  }
 
-  const encounter = encounterRow != null ? mapEncounterRow(encounterRow) : null;
+  const encounter = encounterRow ? mapEncounterRow(encounterRow) : null;
 
   const caseId = encounter?.caseId ?? resolvedAppointment?.caseId ?? undefined;
   const caseRow = caseId
@@ -1352,7 +1335,7 @@ const buildContext = async (
         },
       })) as CaseRow | null)
     : null;
-  const episodeOfCare = caseRow != null ? mapCaseRow(caseRow) : null;
+  const episodeOfCare = caseRow ? mapCaseRow(caseRow) : null;
 
   const companionId =
     encounter?.patientId ??
@@ -1382,18 +1365,17 @@ const buildContext = async (
 
   return {
     appointment: resolvedAppointment,
-    appointmentProductKind:
-      resolvedAppointment?.productItemId != null
-        ? ((
-            await prisma.productItem.findFirst({
-              where: {
-                id: resolvedAppointment.productItemId,
-                organisationId: input.organisationId,
-              },
-              select: { kind: true },
-            })
-          )?.kind ?? null)
-        : null,
+    appointmentProductKind: resolvedAppointment?.productItemId
+      ? ((
+          await prisma.productItem.findFirst({
+            where: {
+              id: resolvedAppointment.productItemId,
+              organisationId: input.organisationId,
+            },
+            select: { kind: true },
+          })
+        )?.kind ?? null)
+      : null,
     encounter,
     episodeOfCare,
     companion,
@@ -2224,7 +2206,9 @@ export const WorkspaceService = {
           input.productSnapshot === undefined
             ? undefined
             : (input.productSnapshot as Prisma.InputJsonValue),
-        servicePackageKind: input.servicePackageKind ?? undefined,
+        servicePackageKind: existing.prescriptionId
+          ? existing.servicePackageKind
+          : (input.servicePackageKind ?? undefined),
         quantity: input.quantity ?? undefined,
         priceSnapshot:
           input.priceSnapshot === undefined

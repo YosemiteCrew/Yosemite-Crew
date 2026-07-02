@@ -406,6 +406,428 @@ describe("OrganizationService", () => {
     });
   });
 
+  describe("FHIR extraction and sanitization via upsert", () => {
+    it("extracts taxId from a FHIR extension and image/cert extensions", async () => {
+      const payload: any = {
+        ...baseDto,
+        extension: [
+          {
+            url: "http://example.org/fhir/StructureDefinition/taxId",
+            valueString: "EXT-TAX",
+          },
+          {
+            url: "http://example.org/fhir/StructureDefinition/organisation-image",
+            valueUrl: "https://cdn.example.com/img.jpg",
+          },
+          {
+            url: "http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber",
+            valueString: "HS-1",
+          },
+          {
+            url: "http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber",
+            valueString: "AW-1",
+          },
+          {
+            url: "http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber",
+            valueString: "FE-1",
+          },
+          {
+            url: "http://example.com/fhir/StructureDefinition/google-place-id",
+            valueString: "place-ext",
+          },
+        ],
+      };
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        taxId: undefined,
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await OrganizationService.upsert(payload);
+
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            taxId: "EXT-TAX",
+            healthAndSafetyCertNo: "HS-1",
+            animalWelfareComplianceCertNo: "AW-1",
+            fireAndEmergencyCertNo: "FE-1",
+            googlePlacesId: "place-ext",
+          }),
+        }),
+      );
+    });
+
+    it("extracts taxId from a matching identifier system", async () => {
+      const payload: any = {
+        ...baseDto,
+        identifier: [
+          {
+            system: "http://example.org/fhir/NamingSystem/organisation-tax-id",
+            value: "ID-TAX",
+          },
+        ],
+      };
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        taxId: undefined,
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await OrganizationService.upsert(payload);
+
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ taxId: "ID-TAX" }),
+        }),
+      );
+    });
+
+    it("sanitizes typeCoding and persists a full address", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        typeCoding: {
+          system: "http://snomed.info/sct",
+          code: "12345",
+          display: "Hospital",
+        },
+        petNamePreference: "companion",
+        appointmentCheckInBufferMinutes: "10",
+        address: {
+          addressLine: "Line 1",
+          country: "US",
+          city: "City",
+          state: "CA",
+          postalCode: "90001",
+          latitude: 10,
+          longitude: 20,
+        },
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await OrganizationService.upsert(baseDto);
+
+      expect(prisma.organizationAddress.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organizationId: orgId },
+          create: expect.objectContaining({
+            organizationId: orgId,
+            addressLine: "Line 1",
+            latitude: 10,
+            longitude: 20,
+          }),
+        }),
+      );
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            petNamePreference: "COMPANION",
+            typeCoding: expect.objectContaining({ code: "12345" }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("validation guards via upsert", () => {
+    const upsertWith = (attrs: any) => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        ...attrs,
+      });
+      return OrganizationService.upsert(baseDto);
+    };
+
+    it("rejects a missing organization name", async () => {
+      await expect(upsertWith({ name: null })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Organization name is required.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects a non-string organization name", async () => {
+      await expect(upsertWith({ name: 123 })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Organization name must be a string.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects an empty organization name", async () => {
+      await expect(upsertWith({ name: "   " })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Organization name cannot be empty.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects a name containing an invalid character", async () => {
+      await expect(upsertWith({ name: "Bad$Name" })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Invalid character in Organization name.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects a non-string optional website", async () => {
+      await expect(upsertWith({ website: 5 })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Website must be a string.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects an optional website containing an invalid character", async () => {
+      await expect(upsertWith({ website: "ht$tp" })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Invalid character in Website.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects a non-string pet name preference", async () => {
+      await expect(upsertWith({ petNamePreference: 1 })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Pet name preference must be a string.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects an invalid pet name preference value", async () => {
+      await expect(upsertWith({ petNamePreference: "WRONG" })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Invalid pet name preference.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects a non-numeric latitude", async () => {
+      await expect(
+        upsertWith({
+          address: { addressLine: "L", latitude: "abc" },
+        }),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "Address latitude must be a valid number.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects a non-integer check-in buffer", async () => {
+      await expect(
+        upsertWith({ appointmentCheckInBufferMinutes: 1.5 }),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "Appointment check-in buffer minutes must be an integer.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects a negative check-in buffer", async () => {
+      await expect(
+        upsertWith({ appointmentCheckInBufferMinutes: -1 }),
+      ).rejects.toEqual(
+        expect.objectContaining({
+          message: "Appointment check-in buffer minutes must be non-negative.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("parses a numeric string check-in buffer", async () => {
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...baseDto,
+        appointmentCheckInBufferMinutes: "15",
+      });
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await OrganizationService.upsert(baseDto);
+
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            appointmentCheckInBufferMinutes: 15,
+          }),
+        }),
+      );
+    });
+
+    it("rejects a non-string organization type", async () => {
+      await expect(upsertWith({ type: 7 })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Organization type must be a string.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects an empty organization type", async () => {
+      await expect(upsertWith({ type: "   " })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Organization type cannot be empty.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects an unknown organization type", async () => {
+      await expect(upsertWith({ type: "CLINIC" })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Invalid organization type.",
+          statusCode: 400,
+        }),
+      );
+    });
+
+    it("rejects an invalid identifier format", async () => {
+      await expect(upsertWith({ id: "bad id with spaces!" })).rejects.toEqual(
+        expect.objectContaining({
+          message: "Invalid identifier format.",
+          statusCode: 400,
+        }),
+      );
+    });
+  });
+
+  describe("buildFHIRResponseFromPrisma typeCoding option", () => {
+    it("passes typeCoding through to the response DTO", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        ...baseOrg,
+        typeCoding: { system: "sys", code: "c" },
+      });
+
+      await OrganizationService.getById(orgId);
+
+      expect(TypesPkg.toOrganizationResponseDTO).toHaveBeenCalledWith(
+        expect.any(Object),
+        { typeCoding: { system: "sys", code: "c" } },
+      );
+    });
+  });
+
+  describe("null-organisation early returns", () => {
+    it("update returns null when org not found", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        OrganizationService.update(orgId, baseDto),
+      ).resolves.toBeNull();
+    });
+
+    it("upadtePofileVerificationStatus returns null for invalid id", async () => {
+      await expect(
+        OrganizationService.upadtePofileVerificationStatus("   ", true),
+      ).resolves.toBeNull();
+    });
+
+    it("upadtePofileVerificationStatus returns null when org not found", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        OrganizationService.upadtePofileVerificationStatus(orgId, true),
+      ).resolves.toBeNull();
+    });
+
+    it("updateProfilePhotoUrl returns null for invalid id", async () => {
+      await expect(
+        OrganizationService.updateProfilePhotoUrl("   ", "url"),
+      ).resolves.toBeNull();
+    });
+
+    it("updateProfilePhotoUrl returns null when org not found", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        OrganizationService.updateProfilePhotoUrl(orgId, "url"),
+      ).resolves.toBeNull();
+    });
+  });
+
+  describe("resolveOrganisationByCoordinates filtering", () => {
+    it("returns non-PMS when no org is within range", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        { ...baseOrg, address: { latitude: null, longitude: null } },
+        {
+          ...baseOrg,
+          address: { latitude: 80, longitude: 80, location: null },
+        },
+      ]);
+
+      await expect(
+        OrganizationService.resolveOrganisation({ lat: 10, lng: 20 }),
+      ).resolves.toEqual({ isPmsOrganisation: false });
+    });
+  });
+
+  describe("nearby fallback", () => {
+    it("falls back to all organisations when none are nearby", async () => {
+      (prisma.organization.findMany as jest.Mock)
+        .mockResolvedValueOnce([
+          { ...baseOrg, address: { latitude: null, longitude: null } },
+        ])
+        .mockResolvedValueOnce([
+          {
+            ...baseOrg,
+            id: "org-all",
+            name: "All",
+            address: {
+              addressLine: "Line 1",
+              country: "US",
+              city: "City",
+              state: "CA",
+              postalCode: "90001",
+              latitude: 10,
+              longitude: 20,
+              location: null,
+            },
+          },
+        ]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.service.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const result =
+        await OrganizationService.listNearbyForAppointmentsPaginated(
+          10,
+          20,
+          500,
+          1,
+          10,
+        );
+
+      expect(result.meta.total).toBe(1);
+      expect(result.data[0].org.name).toBe("All");
+    });
+  });
+
   describe("nearby", () => {
     it("returns paginated nearby organizations", async () => {
       (prisma.organization.findMany as jest.Mock)

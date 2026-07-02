@@ -28,6 +28,10 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
   default: ({ children }: any) => <div>{children}</div>,
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
   default: ({ children, title }: any) => (

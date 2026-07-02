@@ -1,5 +1,5 @@
 import { FieldConfig } from '@/app/ui/primitives/Accordion/EditableAccordion';
-import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
+import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   changeAppointmentStatus,
@@ -35,6 +35,8 @@ import {
 } from '@/app/lib/appointments';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { useNotify } from '@/app/hooks/useNotify';
+import { useOrganisationRoomStore } from '@/app/stores/roomStore';
+import { toAssignableRoomOptions } from '@/app/features/appointments/lib/roomUnitAvailability';
 
 const getAppointmentFields = ({
   RoomOptions,
@@ -291,7 +293,10 @@ const AppointmentInfo = ({
   canEditAppointments: canEditProp = true,
 }: AppointmentInfoProps) => {
   const { notify } = useNotify();
+  useLoadRoomsForPrimaryOrg({ force: true, silent: true });
   const rooms = useRoomsForPrimaryOrg();
+  const roomUnitsById = useOrganisationRoomStore((state) => state.roomUnitsById);
+  const roomUnitIdsByRoomId = useOrganisationRoomStore((state) => state.roomUnitIdsByRoomId);
   const teams = useTeamForPrimaryOrg();
   const specialities = useSpecialitiesForPrimaryOrg();
   const getServicesBySpecialityId = useServiceStore.getState().getServicesBySpecialityId;
@@ -389,13 +394,27 @@ const AppointmentInfo = ({
     ]
   );
 
+  const roomIndexes = useMemo(
+    () => ({ roomUnitsById, roomUnitIdsByRoomId }),
+    [roomUnitIdsByRoomId, roomUnitsById]
+  );
+  const appointmentRoomUnitId = (activeAppointment.room as { unitId?: string } | undefined)?.unitId;
   const RoomOptions = useMemo(
     () =>
-      rooms?.map((room) => ({
-        label: room.name,
-        value: room.id,
-      })),
-    [rooms]
+      toAssignableRoomOptions(
+        rooms ?? [],
+        roomIndexes,
+        activeAppointment.room?.id,
+        appointmentRoomUnitId,
+        activeAppointment.appointmentKind === 'INPATIENT'
+      ),
+    [
+      activeAppointment.appointmentKind,
+      activeAppointment.room?.id,
+      appointmentRoomUnitId,
+      roomIndexes,
+      rooms,
+    ]
   );
 
   const TeamOptions = useMemo(

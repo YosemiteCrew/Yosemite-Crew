@@ -132,4 +132,12 @@ router.post(
   (req, res) => WorkspaceController.signDocumentPacket(req, res),
 );
 
+router.post(
+  "/organisations/:organisationId/document-packets/:packetId/reconcile",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("document:edit:any"),
+  (req, res) => WorkspaceController.reconcileDocumentPacket(req, res),
+);
+
 export default router;

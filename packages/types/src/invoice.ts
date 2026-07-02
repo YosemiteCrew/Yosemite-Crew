@@ -97,6 +97,8 @@ export type Invoice = {
 
   metadata?: Record<string, string | number | boolean>;
   settlementSummary?: InvoiceSettlementSummary;
+  renderedDocumentId?: string;
+  pdfUrl?: string | null;
   paidAt?: Date;
   createdAt: Date;
   updatedAt: Date;

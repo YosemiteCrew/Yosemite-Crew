@@ -25,6 +25,8 @@ type InvoiceFinancialSummary = {
   balance: number;
 };
 
+const EMPTY_METADATA = {} as Record<string, unknown>;
+
 type StripeCheckoutSessionClient = {
   checkout: {
     sessions: {
@@ -151,8 +153,14 @@ export type RefundPaymentResult = {
 export type PaymentIntentResult = {
   paymentIntentId: string;
   clientSecret?: string | null;
+  connectedAccountId?: string | null;
   amount: number;
   currency: string;
+};
+
+type CreatePaymentIntentForInvoiceOptions = {
+  collectionMode?: PrismaBillingCollectionMode | null;
+  settlementChannel?: PrismaSettlementChannel | null;
 };
 
 export const getInvoiceFinancialSummary = async (
@@ -361,7 +369,7 @@ const updateInvoiceAfterPayment = async (params: {
     : roundMoney(invoice.depositCollectedAmount ?? 0);
 
   if (appliedAmount >= balance) {
-    return prisma.invoice.update({
+    const settledInvoice = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         status: "PAID",
@@ -375,6 +383,29 @@ const updateInvoiceAfterPayment = async (params: {
           : {}),
       },
     });
+    const invoiceRowIds = (Array.isArray(invoice.items) ? invoice.items : [])
+      .map((item) =>
+        typeof item === "object" &&
+        item !== null &&
+        "id" in item &&
+        typeof item.id === "string"
+          ? item.id
+          : null,
+      )
+      .filter((id): id is string => Boolean(id));
+    if (invoiceRowIds.length > 0) {
+      await prisma.workspaceTreatmentItem.updateMany({
+        where: {
+          appointmentId: invoice.appointmentId,
+          invoiceRowId: { in: invoiceRowIds },
+        },
+        data: {
+          settledInvoiceId: invoiceId,
+          settledAt: receivedAt,
+        },
+      });
+    }
+    return settledInvoice;
   }
 
   if (isDepositPayment) {
@@ -715,8 +746,8 @@ export const FinancePaymentService = {
             parentId: invoice.parentId ?? "",
           },
         },
-        success_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`,
-        cancel_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`,
+        success_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
         expires_at: expiresAt,
       },
       {
@@ -762,6 +793,7 @@ export const FinancePaymentService = {
 
   async createPaymentIntentForInvoice(
     invoiceId: string,
+    options: CreatePaymentIntentForInvoiceOptions = {},
   ): Promise<PaymentIntentResult> {
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
@@ -800,10 +832,15 @@ export const FinancePaymentService = {
         invoiceId,
         provider: "STRIPE",
         providerPaymentIntentId: { not: null },
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
       },
       select: {
+        id: true,
+        amountRequested: true,
         providerPaymentIntentId: true,
+        rawProviderPayload: true,
       },
+      orderBy: { createdAt: "desc" },
     });
 
     if (existingPaymentIntentAttempt?.providerPaymentIntentId) {
@@ -812,12 +849,35 @@ export const FinancePaymentService = {
         invoice.totalAmount,
         invoice.depositCollectedAmount ?? 0,
       );
-      return {
-        paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
-        clientSecret: null,
-        amount: summary.balance,
-        currency: invoice.currency,
-      };
+      if (
+        roundMoney(existingPaymentIntentAttempt.amountRequested ?? 0) ===
+        summary.balance
+      ) {
+        const rawProviderPayload =
+          existingPaymentIntentAttempt.rawProviderPayload &&
+          typeof existingPaymentIntentAttempt.rawProviderPayload === "object" &&
+          !Array.isArray(existingPaymentIntentAttempt.rawProviderPayload)
+            ? existingPaymentIntentAttempt.rawProviderPayload
+            : {};
+        return {
+          paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
+          clientSecret:
+            typeof rawProviderPayload.clientSecret === "string"
+              ? rawProviderPayload.clientSecret
+              : null,
+          connectedAccountId:
+            typeof rawProviderPayload.connectedAccountId === "string"
+              ? rawProviderPayload.connectedAccountId
+              : null,
+          amount: summary.balance,
+          currency: invoice.currency,
+        };
+      }
+
+      await prisma.paymentAttempt.update({
+        where: { id: existingPaymentIntentAttempt.id },
+        data: { status: "CANCELED" },
+      });
     }
 
     const summary = await getInvoiceFinancialSummary(
@@ -856,6 +916,8 @@ export const FinancePaymentService = {
           organisationId: invoice.organisationId ?? "",
           parentId: invoice.parentId ?? "",
           patientId: invoice.patientId ?? "",
+          collectionMode: options.collectionMode ?? "",
+          settlementChannel: options.settlementChannel ?? "",
         },
         description: `Payment for Invoice ${invoiceId}`,
       },
@@ -867,19 +929,21 @@ export const FinancePaymentService = {
     await createPaymentAttempt(invoiceId, {
       provider: "STRIPE",
       status: "REQUIRES_ACTION",
-      settlementChannel: "STRIPE",
+      settlementChannel: options.settlementChannel ?? "STRIPE",
       providerPaymentIntentId: paymentIntent.id,
       amountRequested: summary.balance,
       amountCaptured: 0,
       amountApplied: 0,
       currency: invoice.currency || "usd",
-      collectionMode: null,
+      collectionMode: options.collectionMode ?? null,
       isOffline: false,
       isPartial: false,
       rawProviderPayload: {
         paymentIntentId: paymentIntent.id,
         clientSecret: paymentIntent.client_secret ?? null,
         connectedAccountId: organisation.stripeAccountId,
+        collectionMode: options.collectionMode ?? null,
+        settlementChannel: options.settlementChannel ?? null,
       } as Prisma.InputJsonValue,
     });
 
@@ -893,6 +957,7 @@ export const FinancePaymentService = {
     return {
       paymentIntentId: paymentIntent.id,
       clientSecret: paymentIntent.client_secret,
+      connectedAccountId: organisation.stripeAccountId,
       amount: summary.balance,
       currency: invoice.currency || "usd",
     };
@@ -1054,7 +1119,8 @@ export const FinancePaymentService = {
       data: {
         status: "REFUNDED",
         metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ?? {}),
+          ...((invoice.metadata as Record<string, unknown> | null) ??
+            EMPTY_METADATA),
           cancellationReason: reason ?? undefined,
           refundId: providerRefundId ?? refund.id,
           amount: amountRefunded,
@@ -1451,28 +1517,32 @@ export const FinancePaymentService = {
       return { action: "ALREADY_PAID" as const, invoice };
     }
 
-    if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
-      return { action: "IGNORED" as const, invoice };
-    }
-
-    if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {
-      await this.refundPaymentIntent(input.paymentIntentId);
-      return { action: "REFUNDED" as const, invoice };
-    }
-
     const paymentAttempt = await prisma.paymentAttempt.findFirst({
       where: {
         invoiceId: invoice.id,
         providerPaymentIntentId: input.paymentIntentId,
       },
-      select: { id: true },
+      select: { id: true, collectionMode: true, settlementChannel: true },
     });
+
+    if (invoice.paymentCollectionMethod === "PAYMENT_LINK" && !paymentAttempt) {
+      return { action: "IGNORED" as const, invoice };
+    }
+
+    if (
+      invoice.paymentCollectionMethod !== "PAYMENT_INTENT" &&
+      !paymentAttempt
+    ) {
+      await this.refundPaymentIntent(input.paymentIntentId);
+      return { action: "REFUNDED" as const, invoice };
+    }
 
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
       amount: input.amount ?? invoice.totalAmount,
       currency: input.currency ?? invoice.currency,
-      settlementChannel: "STRIPE",
+      settlementChannel: paymentAttempt?.settlementChannel ?? "STRIPE",
+      collectionMode: paymentAttempt?.collectionMode ?? null,
       providerPaymentId: input.paymentIntentId,
       paymentAttemptId: paymentAttempt?.id ?? null,
       reference: input.receiptUrl ?? undefined,
@@ -1621,7 +1691,8 @@ export const FinancePaymentService = {
       data: {
         status: "REFUNDED",
         metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ?? {}),
+          ...((invoice.metadata as Record<string, unknown> | null) ??
+            EMPTY_METADATA),
           refundId: input.chargeId ?? undefined,
           amount: input.amount,
           refundDate: new Date().toISOString(),

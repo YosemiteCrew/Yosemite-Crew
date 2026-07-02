@@ -17,6 +17,7 @@ import {
   LuSearch,
 } from 'react-icons/lu';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import Search from '@/app/ui/inputs/Search';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
@@ -45,6 +46,7 @@ import {
   getEncounterDocumentPacketPdfUrl,
   listEncounterWorkspaceDocuments,
   normalizeWorkspaceBootstrapForEncounter,
+  reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 
@@ -384,6 +386,10 @@ const SummaryStep = ({
   // hydrated/admitted visits). Acts as the last-resort fallback so the document,
   // sign, and print logic still has encounter context.
   const [hydratedEncounterId, setHydratedEncounterId] = useState<string | undefined>();
+  // Packet-level signing truth captured from the reconcile response. Kept
+  // alongside the documents-derived signal so the Sign→Download Signed swap fires
+  // even before the per-document SIGNED status has propagated into the read-model.
+  const [packetSigned, setPacketSigned] = useState(false);
 
   const templateSearchRef = useRef<HTMLDivElement>(null);
   const templateMatches = useMemo(() => {
@@ -457,6 +463,23 @@ const SummaryStep = ({
   // ready-for-billing) reflect the completed Documenso signature.
   const refreshAfterSigning = useCallback(async () => {
     if (!organisationId || !appointmentId) return;
+    // The Documenso completion webhook can't reach the backend in local/dev and
+    // can lag in prod, so first ask the backend to reconcile the packet against
+    // Documenso directly (pull the signed copy, mark packet + documents SIGNED).
+    // Best-effort: if the reconcile endpoint isn't deployed yet (404) or signing
+    // is genuinely incomplete, we swallow the error and fall through to the
+    // bootstrap + documents refetch below, which still reflects webhook truth.
+    const packetId = signingPacketIdRef.current;
+    if (packetId) {
+      try {
+        const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+        if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
+          setPacketSigned(true);
+        }
+      } catch (error) {
+        console.error('Unable to reconcile packet signing:', error);
+      }
+    }
     try {
       const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
       mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
@@ -470,6 +493,9 @@ const SummaryStep = ({
   // sign was started as the signal to refetch (the Documenso webhook has run
   // server-side by then).
   const signingInitiatedRef = useRef(false);
+  // The packet being signed, captured when signing starts so the post-close
+  // reconcile can pull server-side signing truth from Documenso directly.
+  const signingPacketIdRef = useRef<string | null>(null);
   const resolvedDischargeEncounterRef = useRef<string | null>(null);
   const dischargeResolveKey = encounterId ?? appointmentId;
   const companionId = appointment?.patient?.id;
@@ -577,6 +603,9 @@ const SummaryStep = ({
       if (!packetId) {
         throw new Error('Document packet could not be created.');
       }
+      // Remember the packet so the post-close reconcile can resolve its signing
+      // state against Documenso directly.
+      signingPacketIdRef.current = packetId;
       const signed = await signWorkspaceDocumentPacket(organisationId, packetId, {
         signerName: encounter.leadName ?? undefined,
       });
@@ -659,6 +688,45 @@ const SummaryStep = ({
 
   const followUpDate = toFollowUpDate(encounter.followUpAt);
   const showDocumentActions = dischargeSaved;
+
+  // The packet is considered signed once any document in the encounter read-model
+  // reports a SIGNED signing status — Documenso marks the bundled documents signed
+  // against the one signed packet PDF. Drives the Sign→Download Signed swap and the
+  // "print the signed copy" behaviour.
+  const isPacketSigned = useMemo(
+    () =>
+      packetSigned ||
+      documents.some((document) => document.signingStatus?.toUpperCase() === 'SIGNED'),
+    [documents, packetSigned]
+  );
+
+  // Signing may only begin while the appointment is actively in progress; before
+  // that (e.g. checked-in/upcoming) or after completion the action is disabled and
+  // a tooltip explains why.
+  const appointmentInProgress = appointment?.status === 'IN_PROGRESS';
+  const signDisabled = encounter.viewOnly || isSigning || !appointmentInProgress;
+  const signDisabledReason = appointmentInProgress
+    ? undefined
+    : 'Signing is available only while the appointment is In progress.';
+
+  // Download the signed packet PDF (the packet endpoint returns the signed copy
+  // server-side once signing has completed).
+  const handleDownloadSigned = async () => {
+    if (isPrinting) return;
+    if (!organisationId || !encounterId) return;
+    setIsPrinting(true);
+    try {
+      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
+      downloadDocumentUrl(url);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setSignError(
+        error instanceof Error ? error.message : 'Unable to download the signed document.'
+      );
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -811,12 +879,30 @@ const SummaryStep = ({
               isDisabled={encounter.viewOnly || isSaving}
             />
           )}
-          {showDocumentActions && (
+          {showDocumentActions && isPacketSigned && (
+            <Secondary
+              text="Download Signed"
+              icon={<LuDownload aria-hidden="true" />}
+              onClick={handleDownloadSigned}
+              isDisabled={isPrinting}
+            />
+          )}
+          {showDocumentActions && !isPacketSigned && signDisabledReason && (
+            <GlassTooltip content={signDisabledReason} side="top">
+              <Secondary
+                text={isSigning ? 'Signing…' : 'Sign'}
+                icon={<LuFileSignature aria-hidden="true" />}
+                onClick={handleSign}
+                isDisabled={signDisabled}
+              />
+            </GlassTooltip>
+          )}
+          {showDocumentActions && !isPacketSigned && !signDisabledReason && (
             <Secondary
               text={isSigning ? 'Signing…' : 'Sign'}
               icon={<LuFileSignature aria-hidden="true" />}
               onClick={handleSign}
-              isDisabled={encounter.viewOnly || isSigning}
+              isDisabled={signDisabled}
             />
           )}
         </div>

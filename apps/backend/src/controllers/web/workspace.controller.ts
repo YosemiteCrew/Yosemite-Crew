@@ -281,6 +281,19 @@ export const WorkspaceController = {
     }
   },
 
+  async reconcileDocumentPacket(req: Request, res: Response) {
+    try {
+      const params = packetParamsSchema.parse(req.params);
+      const data = await WorkspaceDocumentPacketService.reconcile(
+        params.organisationId,
+        params.packetId,
+      );
+      return res.status(200).json(data);
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
   async getEncounterTreatmentItems(req: Request, res: Response) {
     try {
       const params = treatmentItemEncounterParamsSchema.parse(req.params);

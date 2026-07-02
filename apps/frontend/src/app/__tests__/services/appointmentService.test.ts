@@ -1005,6 +1005,26 @@ describe('Appointment Service', () => {
         expect.any(Object)
       );
     });
+
+    it('pins the requested status when the backend echoes a stale status', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-pin', status: 'CHECKED_IN' });
+      mockedToAppointmentDTO.mockReturnValue({});
+      mockedPatchData.mockResolvedValue({
+        data: { data: makeBaseAppointment({ id: 'appt-pin', status: 'CHECKED_IN' }) },
+      });
+      // Simulate the response mapping back to the OLD status (stale echo).
+      mockedFromAppointmentDTO.mockReturnValue(
+        makeBaseAppointment({ id: 'appt-pin', status: 'CHECKED_IN' })
+      );
+
+      const result = await changeAppointmentStatus(appointment, 'IN_PROGRESS');
+
+      expect(result?.status).toBe('IN_PROGRESS');
+      // The store is upserted twice: once by updateAppointment, once to pin.
+      expect(mockAppointmentStoreUpsertAppointment).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: 'appt-pin', status: 'IN_PROGRESS' })
+      );
+    });
   });
 
   // --- Section 10: updateAppointmentPaymentStatus ---

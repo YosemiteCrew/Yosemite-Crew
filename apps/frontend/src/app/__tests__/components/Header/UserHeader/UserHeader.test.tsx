@@ -2,6 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import UserHeader from '@/app/ui/layout/Header/UserHeader/UserHeader';
 import { usePathname, useRouter } from 'next/navigation';
+import { useOrgStore } from '@/app/stores/orgStore';
+import type { Organisation } from '@yosemite-crew/types';
 
 // --- Mocks ---
 
@@ -51,6 +53,7 @@ describe('UserHeader Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    useOrgStore.getState().clearOrgs();
     (useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
       replace: mockReplace,
@@ -126,6 +129,23 @@ describe('UserHeader Component', () => {
     render(<UserHeader />);
 
     expect(screen.getByTestId('next-link')).toHaveAttribute('href', '/developers/home');
+  });
+
+  it('updates the companions search placeholder with organization terminology after mount', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/companions');
+    const hospitalOrg = {
+      _id: 'hospital-org',
+      name: 'Hospital Org',
+      type: 'HOSPITAL',
+    } as Organisation;
+
+    useOrgStore.getState().setOrgs([hospitalOrg]);
+
+    render(<UserHeader />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search patients')).toBeInTheDocument();
+    });
   });
 
   // --- 3. Sign Out Logic ---

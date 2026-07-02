@@ -69,10 +69,11 @@ type CompanionFallback = {
  */
 export const buildCompanionDetails = (
   fallback: CompanionFallback,
-  companion?: StoredCompanion
+  companion?: StoredCompanion,
+  rewriteText: (text: string) => string = (text) => text
 ): CompanionDetail[] => [
   { label: 'Name', value: clean(companion?.name ?? fallback.name) },
-  { label: 'Patient ID', value: clean(companion?.id ?? fallback.id) },
+  { label: rewriteText('Patient ID'), value: clean(companion?.id ?? fallback.id) },
   {
     label: 'Breed/Species',
     value: formatBreedSpecies(

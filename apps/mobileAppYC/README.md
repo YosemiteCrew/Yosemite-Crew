@@ -31,7 +31,7 @@ Current production releases:
 | Platform | Store Version | Build |
 | -------- | ------------- | ----- |
 | Android  | v1.0.10       | 12    |
-| iOS      | v1.2          |       |
+| iOS      | v1.2          | 12    |
 
 Release history:
 

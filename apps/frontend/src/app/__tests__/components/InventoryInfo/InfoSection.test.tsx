@@ -9,30 +9,66 @@ import { BusinessType } from '@/app/features/organization/types/org';
 // Mock EditableAccordion to inspect props passed to it
 jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   __esModule: true,
-  default: ({ title, fields, data, onSave, onEditingChange, onRegisterActions, readOnly }: any) => (
-    <div data-testid="mock-accordion">
-      <div data-testid="acc-title">{title}</div>
-      <div data-testid="acc-readonly">{readOnly ? 'true' : 'false'}</div>
-      <div data-testid="acc-fields">{JSON.stringify(fields)}</div>
-      <div data-testid="acc-data">{JSON.stringify(data)}</div>
-      <button data-testid="trigger-save" onClick={() => onSave({ someField: 'newValue' })}>
-        Save
-      </button>
-      <button
-        data-testid="trigger-edit-change"
-        // FIX: Use optional chaining to satisfy linter
-        onClick={() => onEditingChange?.(true)}
-      >
-        EditChange
-      </button>
-      <button
-        data-testid="trigger-register"
-        // FIX: Use optional chaining
-        onClick={() => onRegisterActions?.({ save: async () => {} } as any)}
-      >
-        Register
-      </button>
-    </div>
+  default: function MockEditableAccordion({
+    title,
+    fields,
+    data,
+    onSave,
+    onEditingChange,
+    onRegisterActions,
+    readOnly,
+    footer,
+    dynamicFooter,
+  }: any) {
+    const [values, setValues] = React.useState(data);
+    const setFieldValue = (key: string, value: unknown) => {
+      setValues((prev: Record<string, unknown>) => ({ ...prev, [key]: value }));
+    };
+    return (
+      <div data-testid="mock-accordion">
+        <div data-testid="acc-title">{title}</div>
+        <div data-testid="acc-readonly">{readOnly ? 'true' : 'false'}</div>
+        <div data-testid="acc-fields">{JSON.stringify(fields)}</div>
+        <div data-testid="acc-data">{JSON.stringify(data)}</div>
+        <button
+          data-testid="trigger-save"
+          onClick={() =>
+            onSave(
+              values.imageUrl
+                ? { someField: 'newValue', imageUrl: values.imageUrl }
+                : { someField: 'newValue' }
+            )
+          }
+        >
+          Save
+        </button>
+        <button data-testid="trigger-edit-change" onClick={() => onEditingChange?.(true)}>
+          EditChange
+        </button>
+        <button
+          data-testid="trigger-register"
+          onClick={() => onRegisterActions?.({ save: async () => {} } as any)}
+        >
+          Register
+        </button>
+        {typeof footer === 'function' ? footer({ values, setFieldValue, isEditing: true }) : footer}
+        {typeof dynamicFooter === 'function' ? dynamicFooter(values) : null}
+      </div>
+    );
+  },
+}));
+
+jest.mock('@/app/features/inventory/components/AddInventory/ImageUploadField', () => ({
+  __esModule: true,
+  default: ({ value, onChange }: any) => (
+    <button
+      type="button"
+      data-testid="mock-image-upload"
+      data-value={value}
+      onClick={() => onChange('inventory/org-1/new-item.png')}
+    >
+      Upload image
+    </button>
   ),
 }));
 
@@ -74,8 +110,34 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
             placeholder: 'Prescription required',
           },
         },
+        {
+          kind: 'field',
+          field: {
+            name: 'imageUrl',
+            component: 'upload',
+            placeholder: 'Product image',
+          },
+        },
       ],
       emptySection: [], // To test empty state
+      stock: [
+        {
+          kind: 'field',
+          field: { name: 'allocated', component: 'text', placeholder: 'Allocated stock' },
+        },
+        {
+          kind: 'row',
+          fields: [
+            { name: 'current', component: 'text', placeholder: 'On hand stock', readonly: true },
+            {
+              name: 'available',
+              component: 'text',
+              placeholder: 'Available stock',
+              readonly: true,
+            },
+          ],
+        },
+      ],
     },
   },
 }));
@@ -88,6 +150,11 @@ const mockInventory: InventoryItem = {
     name: 'Test Item',
     category: 'A',
     expiry: '2025-01-01',
+  },
+  stock: {
+    current: '100',
+    allocated: '20',
+    available: '80',
   },
 } as any;
 
@@ -239,6 +306,29 @@ describe('InfoSection Component', () => {
     });
   });
 
+  it('keeps uploaded image changes in the accordion draft until the section saves', () => {
+    render(
+      <InfoSection
+        businessType={'vet' as BusinessType}
+        sectionKey="basicInfo"
+        sectionTitle="Basic Info"
+        inventory={mockInventory}
+        onSaveSection={mockOnSaveSection}
+        organisationId="org-1"
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('mock-image-upload'));
+    expect(mockOnSaveSection).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('trigger-save'));
+
+    expect(mockOnSaveSection).toHaveBeenCalledWith('basicInfo', {
+      someField: 'newValue',
+      imageUrl: 'inventory/org-1/new-item.png',
+    });
+  });
+
   it('propagates onEditingChange callback', () => {
     render(
       <InfoSection
@@ -301,6 +391,28 @@ describe('InfoSection Component', () => {
     );
 
     expect(screen.getByTestId('acc-readonly')).toHaveTextContent('false');
+  });
+
+  it('renders on-hand and available stock as read-only badges in the stock section', () => {
+    render(
+      <InfoSection
+        businessType={'vet' as BusinessType}
+        sectionKey="stock"
+        sectionTitle="Stock Control"
+        inventory={mockInventory}
+      />
+    );
+
+    // 'current' and 'available' are readonly and excluded from the editable field list
+    const fieldsJson = screen.getByTestId('acc-fields').textContent;
+    const fields = JSON.parse(fieldsJson || '[]');
+    expect(fields.map((field: any) => field.key)).toEqual(['allocated']);
+
+    expect(screen.getByText('On hand stock :')).toBeInTheDocument();
+    expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.getByText('Available stock (dispensable) :')).toBeInTheDocument();
+    // available = current(100) - allocated(20) computed live from the footer's formValues
+    expect(screen.getByText('80')).toBeInTheDocument();
   });
 
   it('handles missing label/placeholder fallback in field mapping', async () => {

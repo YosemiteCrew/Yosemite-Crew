@@ -81,8 +81,8 @@ describe('Appointment Task editor', () => {
   it('creates a task when required fields are set', async () => {
     render(<Task />);
 
-    fireEvent.click(screen.getByText('To'));
-    fireEvent.change(screen.getByLabelText('Task'), {
+    fireEvent.click(screen.getByText('Assigned to'));
+    fireEvent.change(screen.getByLabelText('Task title'), {
       target: { value: 'Follow up' },
     });
 

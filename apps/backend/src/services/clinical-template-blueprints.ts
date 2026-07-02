@@ -12,6 +12,7 @@ type BlueprintFieldType =
   | "signature"
   | "table"
   | "repeater"
+  | "observation"
   | "medicationLine"
   | "diagnosis"
   | "procedure"
@@ -60,6 +61,34 @@ export type ClinicalTemplateBlueprintValidation = {
   missingFieldPaths: string[];
   invalidFieldPaths: string[];
 };
+
+const PRESCRIPTION_ROW_KEYS = [
+  "inventoryItemId",
+  "medicineId",
+  "medicineName",
+  "brand",
+  "genericName",
+  "sku",
+  "strength",
+  "strengthUnit",
+  "dosageForm",
+  "dosage",
+  "dose",
+  "doseUnit",
+  "route",
+  "frequency",
+  "durationDays",
+  "durationUnit",
+  "qty",
+  "refill",
+  "instructions",
+  "fulfillment",
+  "inventoryBatchId",
+  "priceCents",
+  "controlledSubstance",
+  "prescriptionRequired",
+  "drugSchedule",
+] as const;
 
 type SnapshotField = {
   key?: string;
@@ -150,17 +179,41 @@ const PRESCRIPTION_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
           required: true,
           order: 1,
           rules: {
-            columns: [
-              "inventoryItemId",
-              "dosage",
+            inventoryItemKind: "MEDICAL",
+            columns: [...PRESCRIPTION_ROW_KEYS],
+            rowKeys: [...PRESCRIPTION_ROW_KEYS],
+            editableInWorkspace: [
+              "dosageForm",
+              "route",
+              "qty",
+              "refill",
               "frequency",
               "durationDays",
+              "durationUnit",
               "instructions",
-              "qty",
             ],
           },
         },
       ],
+    },
+    {
+      id: "instructions",
+      title: "Instructions",
+      order: 2,
+      fields: [
+        {
+          key: "instructions",
+          label: "Instructions",
+          type: "richText",
+          order: 1,
+        },
+      ],
+    },
+    {
+      id: "notes",
+      title: "Notes",
+      order: 3,
+      fields: [{ key: "notes", label: "Notes", type: "richText", order: 1 }],
     },
   ],
 };
@@ -400,6 +453,38 @@ export const buildClinicalTemplateSchemaSnapshot = (
     fields: section.fields.map((field) => ({ ...field })),
   })),
 });
+
+export const normalizeClinicalTemplateSchemaSnapshot = (
+  kind: TemplateKind,
+  snapshot: ClinicalTemplateSchemaSnapshot,
+): ClinicalTemplateSchemaSnapshot => {
+  if (kind !== "PRESCRIPTION") {
+    return snapshot;
+  }
+
+  const existingSectionIds = new Set(
+    snapshot.sections.map((section) => section.id.trim()),
+  );
+  const missingOptionalSections = PRESCRIPTION_BLUEPRINT.sections
+    .filter(
+      (section) => section.id === "instructions" || section.id === "notes",
+    )
+    .filter((section) => !existingSectionIds.has(section.id));
+
+  if (missingOptionalSections.length === 0) {
+    return snapshot;
+  }
+
+  return {
+    sections: [
+      ...snapshot.sections,
+      ...missingOptionalSections.map((section) => ({
+        ...section,
+        fields: section.fields.map((field) => ({ ...field })),
+      })),
+    ],
+  };
+};
 
 // FE-consumable default SOAP seed: four S/O/A/P sections, single-sourced from the backend
 // canonical structure.

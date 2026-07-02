@@ -26,6 +26,7 @@ export interface Organisation {
   appointmentCheckInRadiusMeters?: number;
   appointmentLockWindowOutpatientMinutes?: number;
   appointmentLockWindowInpatientMinutes?: number;
+  crossOrgMessagingEnabled?: boolean;
 }
 
 export type Organization = Organisation;
@@ -63,6 +64,8 @@ const APPOINTMENT_LOCK_WINDOW_OUTPATIENT_MINUTES_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-lock-window-outpatient-minutes';
 const APPOINTMENT_LOCK_WINDOW_INPATIENT_MINUTES_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-lock-window-inpatient-minutes';
+const CROSS_ORG_MESSAGING_ENABLED_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/cross-org-messaging-enabled';
 
 const ORGANISATION_TYPE_CODING_MAP: Record<
   Organisation['type'],
@@ -236,6 +239,13 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
     });
   }
 
+  if (typeof organisation.crossOrgMessagingEnabled === 'boolean') {
+    extensions.push({
+      url: CROSS_ORG_MESSAGING_ENABLED_EXTENSION_URL,
+      valueBoolean: organisation.crossOrgMessagingEnabled,
+    });
+  }
+
   return extensions.length ? extensions : undefined;
 };
 
@@ -330,6 +340,14 @@ const extractIntegerExtension = (
   return typeof value === 'number' ? value : undefined;
 };
 
+const extractBooleanExtension = (
+  extensions: FHIROrganization['extension'],
+  url: string
+): boolean | undefined => {
+  const value = extensions?.find((extension) => extension.url === url)?.valueBoolean;
+  return typeof value === 'boolean' ? value : undefined;
+};
+
 const extractType = (resource: FHIROrganization): Organisation['type'] => {
   const coding = resource.type?.[0]?.coding?.[0];
 
@@ -387,6 +405,10 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
     appointmentLockWindowInpatientMinutes: extractIntegerExtension(
       extensions,
       APPOINTMENT_LOCK_WINDOW_INPATIENT_MINUTES_EXTENSION_URL
+    ),
+    crossOrgMessagingEnabled: extractBooleanExtension(
+      extensions,
+      CROSS_ORG_MESSAGING_ENABLED_EXTENSION_URL
     ),
   };
 };

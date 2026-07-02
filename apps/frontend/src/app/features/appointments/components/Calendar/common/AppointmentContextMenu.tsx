@@ -15,6 +15,7 @@ import {
   changeAppointmentStatus,
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
+import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/roomService';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -27,6 +28,10 @@ import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from '@/app/hooks/us
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { IoChevronForward } from 'react-icons/io5';
+import {
+  getFirstAssignableRoomUnitId,
+  toAssignableRoomOptions,
+} from '@/app/features/appointments/lib/roomUnitAvailability';
 
 type AppointmentContextMenuProps = {
   appointment: Appointment;
@@ -82,15 +87,6 @@ const getRoomStatusLabel = (selected: boolean, saving: boolean) => {
   return null;
 };
 
-const getFirstUnitIdForRoom = (
-  roomId: string,
-  roomUnitsById: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitsById'],
-  roomUnitIdsByRoomId: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitIdsByRoomId']
-) =>
-  (roomUnitIdsByRoomId[roomId] ?? [])
-    .map((unitId) => roomUnitsById[unitId])
-    .find((unit) => unit?.isActive !== false)?.id;
-
 const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = ({
   appointment,
   canEditAppointments,
@@ -101,10 +97,11 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
   onClose,
 }) => {
   const router = useRouter();
-  useLoadRoomsForPrimaryOrg();
+  useLoadRoomsForPrimaryOrg({ force: true, silent: true });
   const rooms = useRoomsForPrimaryOrg();
   const roomUnitsById = useOrganisationRoomStore((state) => state.roomUnitsById);
   const roomUnitIdsByRoomId = useOrganisationRoomStore((state) => state.roomUnitIdsByRoomId);
+  const setRoomUnitOccupied = useOrganisationRoomStore((state) => state.setRoomUnitOccupied);
   const initEncounter = useAppointmentWorkspaceStore((state) => state.initEncounter);
   const setRoomUnit = useAppointmentWorkspaceStore((state) => state.setRoomUnit);
   const orgsById = useOrgStore((state) => state.orgsById);
@@ -122,6 +119,14 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
   const orgType =
     (appointment.organisationId && orgsById[appointment.organisationId]?.type) || 'HOSPITAL';
   const isInpatient = appointment.appointmentKind === 'INPATIENT';
+  const encounter = useAppointmentWorkspaceStore((state) =>
+    appointment.id ? state.encountersById?.[appointment.id] : undefined
+  );
+  const currentUnitId = encounter?.unitId;
+  const roomIndexes = useMemo(
+    () => ({ roomUnitsById, roomUnitIdsByRoomId }),
+    [roomUnitIdsByRoomId, roomUnitsById]
+  );
   const clinicalNotesLabel = getClinicalNotesLabel(orgType);
   const clinicalNotesIntent = getClinicalNotesIntent(orgType);
   const statusOptions = useMemo(
@@ -174,7 +179,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
       setMenuError(null);
       const nextUnitId =
         isInpatient && room
-          ? getFirstUnitIdForRoom(room.id, roomUnitsById, roomUnitIdsByRoomId)
+          ? getFirstAssignableRoomUnitId(room.id, roomIndexes, currentUnitId)
           : undefined;
       await updateAppointment({
         ...appointment,
@@ -192,6 +197,9 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
             unitId: nextUnitId,
             reason: 'Appointment quick action room assignment',
           });
+          setRoomUnitOccupied(currentUnitId, false);
+          setRoomUnitOccupied(nextUnitId, true);
+          await loadRoomsForOrgPrimaryOrg({ force: true, silent: true });
         }
       }
       onClose();
@@ -271,11 +279,17 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
     });
   }
 
-  const roomOptions = rooms.map((room) => ({
-    key: room.id,
-    label: room.name,
-    selected: room.id === appointment.room?.id,
-    onSelect: () => handleRoomChange(room),
+  const roomOptions = toAssignableRoomOptions(
+    rooms,
+    roomIndexes,
+    appointment.room?.id,
+    currentUnitId,
+    isInpatient
+  ).map((room) => ({
+    key: room.value,
+    label: room.label,
+    selected: room.value === appointment.room?.id,
+    onSelect: () => handleRoomChange(rooms.find((item) => item.id === room.value) ?? null),
   }));
   if (appointment.room?.id) {
     roomOptions.unshift({
