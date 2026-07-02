@@ -62,6 +62,10 @@ const DeleteProfile = dynamic(
     loading: () => <CardSkeleton />,
   }
 );
+const FederationSection = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/FederationSection'),
+  { loading: () => <SettingsSectionSkeleton /> }
+);
 
 const Settings = () => {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -114,6 +118,15 @@ const Settings = () => {
         <div className="flex flex-col gap-3.5">
           <YourOrganizations />
           <DeleteProfile />
+        </div>
+
+        {/* Federation is institution-to-institution: clinical referrals, directory
+            presence and trust between practices. It is deliberately separate from
+            the cross-clinic messaging toggle above, which only governs colleague
+            chat. A clinic can federate without opening its staff to chat, and the
+            reverse, so the two switches are not merged. */}
+        <div className="xl:col-span-2">
+          <FederationSection />
         </div>
       </div>
 
