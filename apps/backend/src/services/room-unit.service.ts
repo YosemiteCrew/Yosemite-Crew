@@ -28,6 +28,10 @@ type RoomUnitRow = {
   updatedAt: Date;
 };
 
+type AdmissionRow = {
+  unitId: string | null;
+};
+
 type RoomUnitDelegate = {
   create(args: {
     data: {
@@ -100,7 +104,10 @@ const requireString = (value: string | undefined, field: string) => {
   }
 };
 
-const toDomain = (row: RoomUnitRow): RoomUnit => ({
+const toDomain = (
+  row: RoomUnitRow,
+  occupiedUnitIds?: ReadonlySet<string>,
+): RoomUnit => ({
   id: row.id,
   organisationId: row.organisationId,
   roomId: row.roomId,
@@ -115,10 +122,46 @@ const toDomain = (row: RoomUnitRow): RoomUnit => ({
       )
     : undefined,
   isActive: row.isActive,
+  isOccupied: occupiedUnitIds?.has(row.id),
 });
 
 const getRoomUnitDelegate = (): RoomUnitDelegate =>
   (prisma as unknown as { roomUnit: RoomUnitDelegate }).roomUnit;
+
+const getOccupiedUnitIds = async (
+  organisationId?: string,
+): Promise<Set<string> | undefined> => {
+  const normalizedOrganisationId = normalizeOptionalString(organisationId);
+  if (!normalizedOrganisationId) return undefined;
+
+  const admissions = await (
+    prisma as unknown as {
+      admission: {
+        findMany(args: {
+          where: {
+            organisationId: string;
+            dischargedAt: null;
+            unitId: { not: null };
+          };
+          select: { unitId: true };
+        }): Promise<AdmissionRow[]>;
+      };
+    }
+  ).admission.findMany({
+    where: {
+      organisationId: normalizedOrganisationId,
+      dischargedAt: null,
+      unitId: { not: null },
+    },
+    select: { unitId: true },
+  });
+
+  return new Set(
+    admissions
+      .map((admission) => admission.unitId)
+      .filter((unitId): unitId is string => Boolean(unitId)),
+  );
+};
 
 const assertRoomExists = async (roomId: string, organisationId: string) => {
   const room = (await prisma.organisationRoom.findUnique({
@@ -264,7 +307,9 @@ export const RoomUnitService = {
       orderBy: { displayName: "asc" },
     });
 
-    return rows.map(toDomain);
+    const occupiedUnitIds = await getOccupiedUnitIds(filters.organisationId);
+
+    return rows.map((row) => toDomain(row, occupiedUnitIds));
   },
 
   async delete(id: string, organisationId?: string): Promise<RoomUnit> {

@@ -199,21 +199,21 @@ describe('AddInventory Component', () => {
       target: { value: 'Item 1 generic' },
     });
     fireEvent.click(screen.getByTestId('save-btn')); // Next
+    expect(screen.getByTestId('active-label')).toHaveTextContent('batch');
+
+    // 3. Batch
+    fireEvent.change(screen.getByTestId('in-batch-0'), {
+      target: { value: 'B1' },
+    });
+    fireEvent.click(screen.getByTestId('save-btn')); // Next
     expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
 
-    // 3. Stock
+    // 4. Stock
     fireEvent.change(screen.getByTestId('in-curr'), {
       target: { value: '100' },
     });
     fireEvent.change(screen.getByTestId('in-reorder'), {
       target: { value: '10' },
-    });
-    fireEvent.click(screen.getByTestId('save-btn')); // Next
-    expect(screen.getByTestId('active-label')).toHaveTextContent('batch');
-
-    // 4. Batch
-    fireEvent.change(screen.getByTestId('in-batch-0'), {
-      target: { value: 'B1' },
     });
     fireEvent.click(screen.getByTestId('save-btn')); // Next
     expect(screen.getByTestId('active-label')).toHaveTextContent('pricing');
@@ -273,7 +273,7 @@ describe('AddInventory Component', () => {
     });
     fireEvent.click(screen.getByTestId('save-btn'));
 
-    expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
+    expect(screen.getByTestId('active-label')).toHaveTextContent('batch');
   });
 
   it('clears drug-only clinical fields when Non-drug is selected', async () => {

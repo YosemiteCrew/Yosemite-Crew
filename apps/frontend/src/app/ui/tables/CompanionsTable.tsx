@@ -181,10 +181,10 @@ const CompanionsTable = ({
     {
       label: 'Name',
       key: 'name',
-      width: '160px',
+      width: '220px',
       render: (item: CompanionParent) => (
         <div className="appointment-profile">
-          <div className="appointment-profile-two">
+          <div className="appointment-profile-two min-w-0">
             <button
               type="button"
               onClick={() => handleOpenCompanionHistoryPage(item)}
@@ -193,11 +193,13 @@ const CompanionsTable = ({
             >
               {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
             </button>
-            <div className="flex items-center">
-              <div className="appointment-profile-sub mr-1">
+            <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+              <div className="appointment-profile-sub min-w-0">
                 {formatDisplayValue(item.companion.breed)}
               </div>
-              <div className="appointment-profile-sub">{`/ ${SPECIES_LABEL[item.companion.type?.toLowerCase()] ?? toTitleCase(item.companion.type)}`}</div>
+              <div className="appointment-profile-sub shrink-0 whitespace-nowrap">
+                {`/ ${SPECIES_LABEL[item.companion.type?.toLowerCase()] ?? toTitleCase(item.companion.type)}`}
+              </div>
             </div>
           </div>
         </div>

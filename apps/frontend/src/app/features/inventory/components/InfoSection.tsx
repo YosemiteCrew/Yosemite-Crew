@@ -15,19 +15,29 @@ import {
   FieldDef,
 } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 
-const renderAvailableStockFooter = (formValues: Record<string, any>): React.ReactNode => {
-  const current = Number(formValues['current'] ?? 0);
-  const allocated = Number(formValues['allocated'] ?? 0);
-  const available = Math.max(0, current - allocated);
-  return (
-    <div className="flex items-center gap-2 px-2 text-body-4 text-text-primary">
-      <span>Available stock :</span>
-      <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
-        {String(available)}
-      </span>
-    </div>
-  );
-};
+const makeStockFooter =
+  (currentStock: unknown) =>
+  (formValues: Record<string, any>): React.ReactNode => {
+    const current = Number(currentStock ?? 0);
+    const allocated = Number(formValues['allocated'] ?? 0);
+    const available = Math.max(0, current - allocated);
+    return (
+      <div className="flex flex-wrap items-center gap-4 px-2 text-body-4 text-text-primary">
+        <div className="flex items-center gap-2">
+          <span>On hand stock :</span>
+          <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+            {String(current)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span>Available stock (dispensable) :</span>
+          <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+            {String(available)}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
 type InfoSectionProps = {
   businessType: BusinessType;
@@ -56,6 +66,52 @@ type EditableField = {
   options?: string[];
   editable?: boolean;
 };
+
+type UploadFooterProps = {
+  fields: FieldDef<any>[];
+  values: Record<string, any>;
+  organisationId?: string;
+  setFieldValue: (key: string, value: any) => void;
+};
+
+type FooterContext = {
+  values: Record<string, any>;
+  setFieldValue: (key: string, value: any) => void;
+};
+
+const UploadFooter = ({
+  fields,
+  values,
+  organisationId,
+  setFieldValue,
+}: UploadFooterProps): React.ReactNode => {
+  if (fields.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {fields.map((field) => (
+        <ImageUploadField
+          key={field.name}
+          label={field.placeholder || field.label}
+          value={values[field.name] ?? ''}
+          organisationId={organisationId}
+          onChange={(url) => setFieldValue(field.name, url)}
+        />
+      ))}
+    </div>
+  );
+};
+
+const makeUploadFooter =
+  (fields: FieldDef<any>[], organisationId?: string) =>
+  ({ values, setFieldValue }: FooterContext): React.ReactNode => (
+    <UploadFooter
+      fields={fields}
+      values={values}
+      organisationId={organisationId}
+      setFieldValue={setFieldValue}
+    />
+  );
 
 const InfoSection: React.FC<InfoSectionProps> = ({
   businessType,
@@ -120,7 +176,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   });
   const uploadFields = allFields.filter((f) => f.component === 'upload');
   const nonUploadFields = allFields.filter(
-    (f) => f.component !== 'upload' && f.name !== 'available'
+    (f) => f.component !== 'upload' && f.name !== 'available' && f.name !== 'current'
   );
 
   const toEditableField = (field: FieldDef<any>): EditableField => {
@@ -200,26 +256,8 @@ const InfoSection: React.FC<InfoSectionProps> = ({
               : undefined
           }
           onRegisterActions={onRegisterActions}
-          dynamicFooter={sectionKey === 'stock' ? renderAvailableStockFooter : undefined}
-          footer={
-            <>
-              {uploadFields.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  {uploadFields.map((field) => (
-                    <ImageUploadField
-                      key={field.name}
-                      label={field.placeholder || field.label}
-                      value={data?.[field.name] ?? ''}
-                      organisationId={organisationId}
-                      onChange={(url) =>
-                        !disableEditing && onSaveSection?.(sectionKey, { [field.name]: url })
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          }
+          dynamicFooter={sectionKey === 'stock' ? makeStockFooter(data?.current) : undefined}
+          footer={makeUploadFooter(uploadFields, organisationId)}
         />
       )}
     </div>

@@ -319,7 +319,7 @@ const InventoryFilterBar = ({
   return (
     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       <div className="flex items-center gap-2">
-        {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((vis) => {
+        {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
           const label = getVisibilityLabel(vis);
           const active = filters.visibility === vis;
           return (

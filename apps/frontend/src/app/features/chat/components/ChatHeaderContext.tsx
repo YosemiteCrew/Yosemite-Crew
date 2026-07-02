@@ -2,6 +2,7 @@ import { LuShieldAlert, LuCalendar } from 'react-icons/lu';
 import type { Appointment } from '@yosemite-crew/types';
 import Text from '@/app/ui/Text';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
+import { allowReschedule, canTransitionAppointmentStatus } from '@/app/lib/appointments';
 
 /**
  * Clinical context rendered under the chat header for a pet-parent (appointment)
@@ -14,11 +15,30 @@ import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 type ClinicalAlert = { title?: string; severity: 'critical' | 'high' | 'medium' | 'low' };
 
 const APPT_ACTIONS = ['Reschedule', 'Send form', 'Mark complete', 'Book follow-up'] as const;
+type AppointmentAction = (typeof APPT_ACTIONS)[number];
+
+const getVisibleAppointmentActions = (
+  appointment?: Appointment,
+  completing?: boolean
+): AppointmentAction[] => {
+  const status = appointment?.status;
+  return APPT_ACTIONS.filter((action) => {
+    if (action === 'Reschedule') return allowReschedule(status);
+    if (action === 'Mark complete') {
+      // Hide as soon as the completion is in flight so the button can't be
+      // clicked twice while the status round-trip is still pending.
+      return !completing && canTransitionAppointmentStatus(status, 'COMPLETED');
+    }
+    return true;
+  });
+};
 
 export type ChatHeaderContextProps = Readonly<{
   allergy?: string;
   alerts?: ClinicalAlert[];
   appointment?: Appointment;
+  /** True while a "Mark complete" request is in flight — hides that action. */
+  completing?: boolean;
   onAction: (action: string) => void;
 }>;
 
@@ -26,6 +46,7 @@ export function ChatHeaderContext({
   allergy,
   alerts,
   appointment,
+  completing,
   onAction,
 }: ChatHeaderContextProps) {
   const flags: string[] = [];
@@ -45,6 +66,7 @@ export function ChatHeaderContext({
       })
     : undefined;
   const apptName = appointment?.patient?.name ?? appointment?.companion?.name;
+  const visibleActions = getVisibleAppointmentActions(appointment, completing);
 
   if (flags.length === 0 && !appointment) return null;
 
@@ -74,7 +96,7 @@ export function ChatHeaderContext({
             </div>
           </div>
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:mx-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:px-0">
-            {APPT_ACTIONS.map((a) => (
+            {visibleActions.map((a) => (
               <Secondary key={a} text={a} onClick={() => onAction(a)} className="shrink-0" />
             ))}
           </div>

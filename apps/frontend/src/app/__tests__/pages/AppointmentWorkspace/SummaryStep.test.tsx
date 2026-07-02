@@ -19,6 +19,7 @@ import {
 import {
   getAppointmentWorkspaceBootstrap,
   listEncounterWorkspaceDocuments,
+  reconcileWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 
 jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
@@ -46,6 +47,7 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
     signing: { status: 'IN_PROGRESS', signingUrl: 'https://sign.test/abc' },
   }),
   getEncounterDocumentPacketPdfUrl: jest.fn().mockResolvedValue('blob:packet-pdf'),
+  reconcileWorkspaceDocumentPacket: jest.fn().mockResolvedValue({ packetId: 'packet-1' }),
   listEncounterWorkspaceDocuments: jest.fn(),
   getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
   normalizeWorkspaceBootstrapForEncounter: jest.fn(() => ({})),
@@ -151,6 +153,7 @@ const reset = () => {
   (resolveDischargeTemplate as jest.Mock).mockResolvedValue(null);
   (extractFollowUpInDays as jest.Mock).mockReturnValue(undefined);
   (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
+  (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({ packetId: 'packet-1' });
   (getRenderedDocument as jest.Mock).mockResolvedValue({ pdfUrl: 'https://files.test/doc.pdf' });
 };
 
@@ -573,6 +576,40 @@ describe('SummaryStep', () => {
       expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith('org-1', APPT);
       expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-1');
     });
+  });
+
+  it('swaps Sign for Download Signed when reconcile reports the packet signed', async () => {
+    // Documents read-model still reports the packet unsigned, so the swap must be
+    // driven by the reconcile response (packet-level signing truth).
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ title: 'SOAP note', signingStatus: 'IN_PROGRESS' }),
+    ]);
+    (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({
+      packetId: 'packet-1',
+      status: 'FINAL',
+      signing: { status: 'SIGNED' },
+    });
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Download Signed' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
   });
 
   it('opens an existing workspace document PDF', async () => {

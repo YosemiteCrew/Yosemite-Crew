@@ -154,7 +154,7 @@ export const formatStockHealthLabel = (stockHealth?: StockHealthStatus): string 
     case 'LOW_STOCK':
       return 'Low stock';
     case 'HEALTHY':
-      return 'Healthy';
+      return 'In stock';
     case 'EXPIRED':
       return 'Expired';
     case 'EXPIRING_SOON':
@@ -173,9 +173,9 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
   switch (key) {
     case 'low stock':
       return {
-        color: 'var(--color-pill-progress-text)',
-        backgroundColor: 'var(--color-pill-progress-bg)',
-        borderColor: 'var(--color-pill-progress-border)',
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
       };
     case 'overstocked':
     case 'expiring soon':
@@ -186,9 +186,9 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
       };
     case 'expired':
       return {
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
+        color: 'var(--color-danger-600)',
+        backgroundColor: 'var(--color-danger-100)',
+        borderColor: 'var(--color-danger-400)',
       };
     case 'out of stock':
     case 'hidden':
@@ -606,7 +606,7 @@ export const buildInventoryPayload = (
     businessType,
     itemType,
     name: formData.basicInfo.name,
-    sku: formData.basicInfo.skuCode || formData.sku,
+    sku: formData.basicInfo.skuCode,
     category: formData.basicInfo.category,
     subCategory: formData.basicInfo.subCategory,
     description: formData.basicInfo.description,
@@ -629,11 +629,11 @@ export const buildInventoryPayload = (
       species: formData.classification.species,
       unitofMeasure: formData.classification.unitofMeasure,
     },
-    onHand: batchTotals.onHand ?? toNumberSafe(formData.stock.current),
+    // onHand/initialOnHand reflect the item-level "on hand stock" field the user edits directly;
+    // batch quantities are a separate concept and must not override it here.
+    onHand: toNumberSafe(formData.stock.current),
     allocated: toNumberSafe(formData.stock.allocated),
-    // Backend create reads initialOnHand/initialAllocated for items without batches;
-    // when batches exist the server recomputes these from the batch quantities.
-    initialOnHand: batchTotals.onHand ?? toNumberSafe(formData.stock.current),
+    initialOnHand: toNumberSafe(formData.stock.current),
     initialAllocated: toNumberSafe(formData.stock.allocated),
     reorderLevel: toNumberSafe(formData.stock.reorderLevel),
     unitCost: toNumberSafe(formData.pricing.purchaseCost),

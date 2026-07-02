@@ -71,56 +71,64 @@ const WorkspaceHeader = ({
   onRemoveAlert,
 }: WorkspaceHeaderProps) => {
   const terminologyText = useCompanionTerminologyText();
+  const hasAlerts = alerts.length > 0 || clientAlerts.length > 0 || Boolean(onAddAlert);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex min-w-0 items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <button
           type="button"
           aria-label="Go back"
           onClick={onBack}
-          className="flex size-9 items-center justify-center rounded-full text-neutral-900 transition-colors duration-150 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-neutral-900 transition-colors duration-150 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         >
           <IoIosArrowBack size={22} aria-hidden="true" />
         </button>
-        <h1 className="font-satoshi text-[24px] font-medium leading-[120%] tracking-[-0.48px] text-neutral-900">
+        <h1 className="shrink-0 font-satoshi text-[24px] font-medium leading-[120%] tracking-[-0.48px] text-neutral-900">
           {companionName.split(' ')[0]}&rsquo;s Appointment
         </h1>
         <AppointmentStatusPill appointment={appointment} />
         {appointment.isEmergency && <EmergencyBadge />}
-        <div className="flex flex-wrap items-center gap-2">
-          {alerts.map((alert) => (
-            <AlertPill
-              key={alert.id}
-              id={alert.id}
-              label={alert.label}
-              severity={alert.severity}
-              onRemove={onRemoveAlert}
-            />
-          ))}
-          {clientAlerts.map((alert) => (
-            <AlertPill
-              key={alert.id}
-              id={alert.id}
-              label={`Client: ${alert.label}`}
-              severity={alert.severity}
-            />
-          ))}
-          {onAddAlert && (
-            <GlassTooltip content={terminologyText('Add alerts for patient')} side="bottom">
-              <button
-                type="button"
-                aria-label="Add alert"
-                onClick={onAddAlert}
-                className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors duration-150 hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-              >
-                <LuPlus size={14} aria-hidden="true" />
-              </button>
-            </GlassTooltip>
-          )}
-        </div>
+        {hasAlerts && (
+          <div
+            data-testid="workspace-alert-strip"
+            className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 scrollbar-hidden"
+          >
+            {alerts.map((alert) => (
+              <div key={alert.id} className="shrink-0">
+                <AlertPill
+                  id={alert.id}
+                  label={alert.label}
+                  severity={alert.severity}
+                  onRemove={onRemoveAlert}
+                />
+              </div>
+            ))}
+            {clientAlerts.map((alert) => (
+              <div key={alert.id} className="shrink-0">
+                <AlertPill
+                  id={alert.id}
+                  label={`Client: ${alert.label}`}
+                  severity={alert.severity}
+                />
+              </div>
+            ))}
+            {onAddAlert && (
+              <GlassTooltip content={terminologyText('Add alerts for patient')} side="bottom">
+                <button
+                  type="button"
+                  aria-label="Add alert"
+                  onClick={onAddAlert}
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors duration-150 hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+                >
+                  <LuPlus size={14} aria-hidden="true" />
+                </button>
+              </GlassTooltip>
+            )}
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         {canAdmit && onAdmit && (
           <Primary
             text={isAdmitting ? 'Admitting' : 'Admit'}

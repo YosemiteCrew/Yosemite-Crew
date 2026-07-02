@@ -9,6 +9,7 @@ import {
   getInpatientScheduleForEncounter,
   listDischargeSummaryTemplates,
   listPrescriptionTemplatesForWorkspace,
+  resolveScheduleTasksFromTemplate,
   listSoapTemplatesForWorkspace,
   listVitalsTemplates,
   listWorkspaceTemplates,
@@ -443,6 +444,52 @@ describe('workspaceTemplateService', () => {
     expect(getDataMock).toHaveBeenCalledWith(
       '/v1/templates/pms/templates/organisation/org-1/tpl-1'
     );
+  });
+
+  it('resolves schedule template instructions into workspace row subtext', async () => {
+    getDataMock.mockResolvedValueOnce({
+      data: {
+        ...template('tpl-schedule', 'Care pathway'),
+        kind: 'TASK_ASSIGNMENT',
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'schedule',
+                  title: 'Schedule',
+                  fields: [
+                    {
+                      key: 'taskBlocks',
+                      type: 'repeater',
+                      label: 'Task blocks',
+                      defaultValue: [
+                        {
+                          name: 'Record vitals',
+                          category: 'CARE',
+                          description: 'Check temperature and appetite',
+                          timeOfDay: '09:00',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    await expect(resolveScheduleTasksFromTemplate('org-1', 'tpl-schedule')).resolves.toEqual([
+      expect.objectContaining({
+        description: 'Record vitals',
+        subtext: 'Check temperature and appetite',
+        category: 'Care',
+        time: '9:00 AM',
+      }),
+    ]);
   });
 
   it('updates catalog links for a workspace template', async () => {

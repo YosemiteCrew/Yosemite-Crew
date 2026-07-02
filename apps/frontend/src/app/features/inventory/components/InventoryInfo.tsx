@@ -29,7 +29,6 @@ import Labels from '@/app/ui/widgets/Labels/Labels';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 
 const drugOnlyBatchFieldNames = new Set(['tracking']);
-const itemAttributeBatchFieldNames: (keyof BatchValues)[] = ['expiryWarningBefore', 'barcode'];
 
 const emptyBatch: BatchValues = {
   batch: '',
@@ -60,8 +59,6 @@ const getBasicInfoErrors = (
   const errs: Record<string, string> = {};
   if (!values.name && !inventory.basicInfo.name) errs.name = 'Name is required';
   if (!values.category && !inventory.basicInfo.category) errs.category = 'Category is required';
-  if (!values.subCategory && !inventory.basicInfo.subCategory)
-    errs.subCategory = 'Sub category is required';
   return errs;
 };
 
@@ -163,19 +160,6 @@ const formatFinalValue = (display: string | string[]): string => {
   }
   return '—';
 };
-
-const getBatchAttributeValues = (batches: BatchValues[]): Partial<BatchValues> =>
-  batches.reduce<Partial<BatchValues>>((acc, batch) => {
-    itemAttributeBatchFieldNames.forEach((key) => {
-      if (batch[key] !== undefined) {
-        acc[key] = batch[key];
-      }
-    });
-    return acc;
-  }, {});
-
-const hasBatchAttributeValues = (values: Partial<BatchValues>) =>
-  itemAttributeBatchFieldNames.some((key) => values[key] !== undefined);
 
 type BatchEditorProps = {
   businessType: BusinessType;
@@ -549,8 +533,8 @@ type InventoryInfoProps = {
 const modalSections: { key: InventorySectionKey; name: string }[] = [
   { key: 'basicInfo', name: 'Basic Details' },
   { key: 'classification', name: 'Clinical Details' },
-  { key: 'stock', name: 'Stock Control' },
   { key: 'batch', name: 'Batch and expiry' },
+  { key: 'stock', name: 'Stock Control' },
   { key: 'pricing', name: 'Pricing' },
   { key: 'vendor', name: 'Vendor details' },
 ];
@@ -728,20 +712,6 @@ const InventoryInfo = ({
       ? (values as any).updatedBatches
       : [];
     if (!activeInventory?.id) return;
-    const batchAttributeValues = getBatchAttributeValues([...updatedBatches, ...newBatches]);
-    if (hasBatchAttributeValues(batchAttributeValues)) {
-      await onUpdate({
-        ...activeInventory,
-        attributes: {
-          ...activeInventory.attributes,
-          ...batchAttributeValues,
-        },
-        batch: {
-          ...activeInventory.batch,
-          ...batchAttributeValues,
-        },
-      });
-    }
     if (updatedBatches.length && onUpdateBatch) {
       await onUpdateBatch(activeInventory.id, updatedBatches);
     }

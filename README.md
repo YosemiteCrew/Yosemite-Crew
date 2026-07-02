@@ -13,11 +13,8 @@
 </div>
 
 <br>
-<p align="center">
-  <a href="https://yosemitecrew.com/">
-      <img src="https://d2il6osz49gpup.cloudfront.net/github.gif" alt="YC logo" />
-  </a>
-</p>
+
+https://github.com/user-attachments/assets/46f13270-295e-4d7d-ba34-d11cba392cdc
 
 <br>
 
@@ -36,21 +33,6 @@
 # 📝 Overview
 
 Yosemite Crew is an open-source operating system designed for animal health industry. At its core is a free, fully customizable Practice Information Management System (PIMS) that unifies pet care operations, bringing together pet owners, pet businesses, and developers into one innovative ecosystem.
-
-## Release Versioning
-
-Frontend release tags follow the `pims-v*` pattern.
-
-- Latest shipped baseline before this revamp: `pms-v1.3.0-beta`
-- Current frontend release line: `pims-v2.0.0-beta`
-- Tag format: `pims-v<major>.<minor>.<patch>-beta`
-
-Release tags should be created from the repo root after the target commit is ready:
-
-```sh
-git tag -a pims-v2.0.0-beta -m "PIMS frontend v2.0.0-beta"
-git push origin pims-v2.0.0-beta
-```
 
 For Pet Owners
 
@@ -180,7 +162,5 @@ Thanks to everyone who has contributed to Yosemite Crew!
 
 See the [growth over time](#-star-history) above. Browse everyone who starred or forked the project:
 
-<!-- Fallback roster links (reporoster.com images can be unreliable). -->
-
-[![Stargazers repo roster for @YosemiteCrew/Yosemite-Crew](https://reporoster.com/stars/YosemiteCrew/Yosemite-Crew)](https://github.com/YosemiteCrew/Yosemite-Crew/stargazers)
-[![Forkers repo roster for @YosemiteCrew/Yosemite-Crew](https://reporoster.com/forks/YosemiteCrew/Yosemite-Crew)](https://github.com/YosemiteCrew/Yosemite-Crew/network/members)
+- ⭐ [View all Stargazers](https://github.com/YosemiteCrew/Yosemite-Crew/stargazers)
+- 🍴 [View all Forkers](https://github.com/YosemiteCrew/Yosemite-Crew/network/members)

@@ -174,7 +174,7 @@ const ServicesPackagesEditor = ({
 
       <SectionContainer
         titleClassName="text-yc-20-b-primary"
-        title="Services & Packages"
+        title="Additional services & packages"
         titleIcon={<TitleAddIcon />}
         className="flex flex-col gap-5"
       >

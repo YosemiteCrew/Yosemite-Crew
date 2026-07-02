@@ -6,6 +6,7 @@ import CompanionsTable from '@/app/ui/tables/CompanionsTable';
 
 const useAppointmentsForPrimaryOrgMock = jest.fn();
 const pushMock = jest.fn();
+const genericTableSpy = jest.fn();
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -45,17 +46,20 @@ jest.mock('@/app/lib/validators', () => ({
 
 jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
   __esModule: true,
-  default: ({ data, columns }: any) => (
-    <div data-testid="table">
-      {data.map((item: any) => (
-        <div key={item.companion.name}>
-          {columns.map((col: any) => (
-            <div key={col.key || col.label}>{col.render ? col.render(item) : item[col.key]}</div>
-          ))}
-        </div>
-      ))}
-    </div>
-  ),
+  default: ({ data, columns }: any) => {
+    genericTableSpy({ data, columns });
+    return (
+      <div data-testid="table">
+        {data.map((item: any) => (
+          <div key={item.companion.name}>
+            {columns.map((col: any) => (
+              <div key={col.key || col.label}>{col.render ? col.render(item) : item[col.key]}</div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  },
 }));
 
 jest.mock('@/app/ui/cards/CompanionCard/CompanionCard', () => ({
@@ -167,5 +171,39 @@ describe('CompanionsTable', () => {
     );
 
     expect(screen.getByText('No data available')).toBeInTheDocument();
+  });
+
+  it('keeps the species label readable when the breed wraps', () => {
+    render(
+      <CompanionsTable
+        filteredList={[
+          {
+            ...companion,
+            companion: {
+              ...companion.companion,
+              name: 'Shiro',
+              breed: 'Japanese shiba inu',
+              type: 'Dog',
+            },
+            parent: { firstName: 'Nohara' },
+          },
+        ]}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
+        canEditCompanions={false}
+      />
+    );
+
+    expect(screen.getByText('/ Canine')).toHaveClass('whitespace-nowrap');
+    expect(genericTableSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        columns: expect.arrayContaining([expect.objectContaining({ key: 'name', width: '220px' })]),
+      })
+    );
   });
 });

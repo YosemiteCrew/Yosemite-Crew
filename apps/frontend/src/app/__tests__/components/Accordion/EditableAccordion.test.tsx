@@ -268,6 +268,43 @@ describe('EditableAccordion Component', () => {
     expect(onSave).toHaveBeenCalledWith({ name: 'New' });
   });
 
+  it('merges footer field changes into the current draft before saving', async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+
+    render(
+      <EditableAccordion
+        title="Inventory"
+        fields={[{ label: 'Name', key: 'name', type: 'text', required: true }]}
+        data={{ name: 'Old', imageUrl: '' }}
+        defaultOpen
+        onSave={onSave}
+        footer={({ values, setFieldValue }) => (
+          <button
+            type="button"
+            onClick={() => setFieldValue('imageUrl', 'inventory/org-1/new-item.png')}
+          >
+            {values.imageUrl || 'Upload image'}
+          </button>
+        )}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Toggle Edit'));
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'New name' },
+    });
+    fireEvent.click(screen.getByText('Upload image'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save'));
+    });
+
+    expect(onSave).toHaveBeenCalledWith({
+      name: 'New name',
+      imageUrl: 'inventory/org-1/new-item.png',
+    });
+  });
+
   it('renders googleAddress field in edit mode and autofills sibling fields on address select', async () => {
     const onSave = jest.fn().mockResolvedValue(undefined);
 

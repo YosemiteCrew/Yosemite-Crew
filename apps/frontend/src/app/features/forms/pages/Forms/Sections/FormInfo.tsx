@@ -24,6 +24,77 @@ import { Icon } from '@iconify/react';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 
+const taskBlockValue = (block: FormField & { fields?: FormField[] }, key: string): string => {
+  const field = (block.fields ?? []).find(
+    (item) => (item.meta as { taskBlockKey?: string })?.taskBlockKey === key
+  );
+  if (!field && key === 'additionalNotes') {
+    return taskBlockValue(block, 'description');
+  }
+  if (!field) return '';
+  const value = (field as FormField & { defaultValue?: unknown }).defaultValue;
+  if (value !== undefined && value !== '') return String(value);
+  return field.placeholder ?? '';
+};
+
+const labelForOption = (options: { label: string; value: string }[], value: string): string =>
+  options.find((option) => option.value === value)?.label ?? value;
+
+const TaskTemplateSummary = ({ schema }: { schema: FormField[] }) => {
+  const group = schema.find(
+    (field): field is FormField & { fields?: FormField[] } =>
+      field.type === 'group' && Boolean((field.meta as { taskGroup?: boolean })?.taskGroup)
+  );
+  const blocks = (group?.fields ?? []).filter(
+    (field): field is FormField & { fields?: FormField[] } => field.type === 'group'
+  );
+
+  if (blocks.length === 0) {
+    return <p className="text-body-4 text-text-secondary">No tasks added yet.</p>;
+  }
+
+  return (
+    <ul className="flex flex-col gap-3">
+      {blocks.map((block, index) => {
+        const categoryField = (block.fields ?? []).find(
+          (field) => (field.meta as { taskBlockKey?: string })?.taskBlockKey === 'category'
+        ) as (FormField & { options?: { label: string; value: string }[] }) | undefined;
+        const repeatField = (block.fields ?? []).find(
+          (field) => (field.meta as { taskBlockKey?: string })?.taskBlockKey === 'recurrence.type'
+        ) as (FormField & { options?: { label: string; value: string }[] }) | undefined;
+        const reminderField = (block.fields ?? []).find(
+          (field) =>
+            (field.meta as { taskBlockKey?: string })?.taskBlockKey === 'reminderOffsetMinutes'
+        ) as (FormField & { options?: { label: string; value: string }[] }) | undefined;
+        const duration = taskBlockValue(block, 'durationDays');
+        const instructions = taskBlockValue(block, 'additionalNotes');
+
+        return (
+          <li
+            key={block.id}
+            className="flex flex-col gap-1 rounded-2xl border border-card-border p-3"
+          >
+            <span className="text-body-3-emphasis text-text-primary">
+              {taskBlockValue(block, 'name') || `Task ${index + 1}`}
+            </span>
+            <span className="text-caption-1 text-text-secondary">
+              {labelForOption(categoryField?.options ?? [], taskBlockValue(block, 'category'))} ·{' '}
+              {labelForOption(repeatField?.options ?? [], taskBlockValue(block, 'recurrence.type'))}
+              {reminderField &&
+                taskBlockValue(block, 'reminderOffsetMinutes') &&
+                ` · ${labelForOption(reminderField.options ?? [], taskBlockValue(block, 'reminderOffsetMinutes'))}`}
+              {duration && ` · ${duration} day${duration === '1' ? '' : 's'}`}
+            </span>
+            {instructions && (
+              <span className="text-caption-1 text-text-secondary">{instructions}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
+
 const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
   const walk = (items: FormField[]) => {
@@ -137,12 +208,12 @@ const FormInfo = ({
     }),
     [activeForm]
   );
-  const detailsFields = React.useMemo(
-    () => [
+  const detailsFields = React.useMemo(() => {
+    const fields = [
       baseDetailsFields[0],
       baseDetailsFields[1],
       {
-        label: 'Template type',
+        label: 'Template Source',
         key: 'templateSource',
         type: 'dropdown',
         options: [
@@ -159,10 +230,12 @@ const FormInfo = ({
           value: category,
         })),
       },
-      baseDetailsFields[2],
-    ],
-    [effectiveOrgType]
-  );
+    ];
+    if (activeForm.templateSource !== 'YC_LIBRARY') {
+      fields.push(baseDetailsFields[2]);
+    }
+    return fields;
+  }, [activeForm.templateSource, effectiveOrgType]);
 
   const showActionError = (message: string) =>
     showErrorTost({
@@ -339,16 +412,21 @@ const FormInfo = ({
               showEditIcon={false}
               readOnly
             />
-            {(activeForm.schema?.length ?? 0) > 0 && (
-              <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
-                <FormRenderer
-                  fields={activeForm.schema ?? []}
-                  values={buildPreviewValues(activeForm.schema ?? [])}
-                  onChange={() => {}}
-                  readOnly
-                />
-              </Accordion>
-            )}
+            {(activeForm.schema?.length ?? 0) > 0 &&
+              (activeForm.category === 'Task Template' ? (
+                <Accordion title="Tasks" defaultOpen showEditIcon={false} isEditing={true}>
+                  <TaskTemplateSummary schema={activeForm.schema ?? []} />
+                </Accordion>
+              ) : (
+                <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
+                  <FormRenderer
+                    fields={activeForm.schema ?? []}
+                    values={buildPreviewValues(activeForm.schema ?? [])}
+                    onChange={() => {}}
+                    readOnly
+                  />
+                </Accordion>
+              ))}
           </div>
           <div className="flex flex-col gap-3 px-3 pb-3">
             {canMutateTemplateState && renderActions()}

@@ -545,6 +545,29 @@ export const WorkspaceDocumentPacketService = {
   },
 
   /**
+   * On-demand reconciliation of a packet's signing state, org-scoped for the API.
+   * The Documenso completion webhook can't reach the backend in local/dev (and can
+   * lag in prod), so the frontend calls this when the signing overlay closes: we
+   * pull the signed copy straight from Documenso and, if signed, finalize the
+   * packet + mark every bundled document SIGNED, returning the updated packet.
+   *
+   * When Documenso has no signed copy yet (the user closed the frame without
+   * completing), `completeSigning` throws 502 — callers treat that as "not
+   * reconciled yet" and leave the packet DRAFT.
+   */
+  async reconcile(
+    organisationId: string,
+    packetId: string,
+  ): Promise<WorkspaceDocumentPacketRow> {
+    const packet = await ensurePacket(organisationId, packetId);
+    if (packet.status === "FINAL") {
+      return mapPacket(packet);
+    }
+    const updated = await this.completeSigning(packetId);
+    return updated ?? mapPacket(packet);
+  },
+
+  /**
    * Reset signing if Documenso reports the packet document was deleted before
    * completion. Already-signed packets are left untouched.
    */

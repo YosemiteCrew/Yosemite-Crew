@@ -29,6 +29,11 @@ import {
 import { formatDisplayDate, formatTimeInPreferredTimeZone } from '@/app/lib/date';
 import {
   categoryToKind,
+  offsetToReminderValue,
+  recurrenceToRepeatValue,
+  TASK_CATEGORY_OPTIONS,
+  TASK_REMINDER_OPTIONS,
+  TASK_REPEAT_OPTIONS,
   reminderValueToOffset,
   repeatValueToRecurrence,
 } from '@/app/features/tasks/constants/taskTaxonomy';
@@ -273,13 +278,128 @@ const resolveTemplateStatus = (
   return 'draft';
 };
 
+const taskAssignmentSchemaToFormFields = (snapshot: TemplateSchemaSnapshot): FormField[] => {
+  const baseTaskTemplate = getCategoryTemplate('Task Template');
+  const taskGroup = baseTaskTemplate.find(
+    (field): field is FormField & { type: 'group'; fields?: FormField[] } =>
+      field.type === 'group' && Boolean(field.meta?.taskGroup)
+  );
+  if (!taskGroup) return baseTaskTemplate;
+
+  const scheduleSection = snapshot.sections.find((section) => section.id === 'schedule');
+  const taskBlocksField = scheduleSection?.fields.find((field) => field.key === 'taskBlocks');
+  const taskBlocks = Array.isArray(taskBlocksField?.defaultValue)
+    ? taskBlocksField.defaultValue
+    : [];
+
+  return [
+    {
+      ...taskGroup,
+      fields: taskBlocks
+        .filter(
+          (block): block is Record<string, unknown> => Boolean(block) && typeof block === 'object'
+        )
+        .map((block, index) => {
+          const prefix = `task_blocks_task_${index + 1}`;
+          let instructions = '';
+          if (typeof block.additionalNotes === 'string') {
+            instructions = block.additionalNotes;
+          } else if (typeof block.description === 'string') {
+            instructions = block.description;
+          }
+          const recurrence = (
+            block.recurrence && typeof block.recurrence === 'object' ? block.recurrence : {}
+          ) as {
+            type?: string;
+            cronExpression?: string;
+          };
+          const reminderOffset =
+            typeof block.reminderOffsetMinutes === 'number'
+              ? block.reminderOffsetMinutes
+              : undefined;
+          const durationDays =
+            typeof block.durationDays === 'number' || typeof block.durationDays === 'string'
+              ? String(block.durationDays)
+              : '';
+
+          return {
+            id: `${prefix}_group`,
+            type: 'group',
+            label:
+              typeof block.name === 'string' && block.name.trim().length > 0
+                ? block.name
+                : `Task ${index + 1}`,
+            meta: { taskBlock: true, taskBlockId: prefix },
+            fields: [
+              {
+                id: `${prefix}_name`,
+                type: 'input',
+                label: 'Task title',
+                placeholder: 'Eg.: Record vitals',
+                defaultValue: typeof block.name === 'string' ? block.name : '',
+                meta: { taskBlockKey: 'name' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_category`,
+                type: 'dropdown',
+                label: 'Category',
+                options: TASK_CATEGORY_OPTIONS,
+                defaultValue:
+                  typeof block.category === 'string' && block.category.trim().length > 0
+                    ? block.category
+                    : 'CARE',
+                meta: { taskBlockKey: 'category' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_additionalNotes`,
+                type: 'textarea',
+                label: 'Instructions (optional)',
+                placeholder: 'Add default instructions for this task',
+                defaultValue: instructions,
+                meta: { taskBlockKey: 'additionalNotes' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_recurrence`,
+                type: 'dropdown',
+                label: 'Repeat',
+                options: TASK_REPEAT_OPTIONS,
+                defaultValue: recurrenceToRepeatValue(recurrence),
+                meta: { taskBlockKey: 'recurrence.type' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_reminderOffsetMinutes`,
+                type: 'dropdown',
+                label: 'Reminder (optional)',
+                options: TASK_REMINDER_OPTIONS,
+                defaultValue: offsetToReminderValue(reminderOffset),
+                meta: { taskBlockKey: 'reminderOffsetMinutes' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_durationDays`,
+                type: 'number',
+                label: 'Duration (days)',
+                placeholder: '3',
+                defaultValue: durationDays,
+                meta: { taskBlockKey: 'durationDays' },
+              } as unknown as FormField,
+            ],
+          } as unknown as FormField;
+        }),
+    },
+  ];
+};
+
 const templateToForm = (template: TemplateLike): Form => {
   const sanitizePrescriptionSchema = (snapshot: TemplateSchemaSnapshot): TemplateSchemaSnapshot => {
-    const sections = snapshot.sections.filter((section) => {
-      if (section.fields.length > 0) return true;
-      const title = section.title.trim().toLowerCase();
-      return title !== 'instructions' && title !== 'notes';
-    });
+    // The backend persists the canonical medications section plus generic
+    // `instructions`/`notes` richText sections. The builder/edit modal only
+    // authors the canonical prescription structure, so strip any section that
+    // is not part of it (matched on the canonical section ids) to keep the
+    // reloaded preview and edit flow aligned with the create flow.
+    const canonicalSectionIds = new Set(
+      CANONICAL_PRESCRIPTION_STRUCTURE.sections.map((section) => section.id)
+    );
+    const sections = snapshot.sections.filter((section) => canonicalSectionIds.has(section.id));
     return sections.length === snapshot.sections.length ? snapshot : { sections };
   };
 
@@ -294,6 +414,11 @@ const templateToForm = (template: TemplateLike): Form => {
     }
     return { sections: [] };
   };
+  const schema = latestSchemaFromTemplate();
+  const uiSchema =
+    template.kind === 'TASK_ASSIGNMENT'
+      ? taskAssignmentSchemaToFormFields(schema)
+      : templateSchemaToFormFields(schema);
 
   if (templateMapper.isPlanDefinitionResourceKind(template.kind)) {
     const resource = templateMapper.templateToPlanDefinition(template);
@@ -315,7 +440,7 @@ const templateToForm = (template: TemplateLike): Form => {
       description: input.description,
       visibilityType: 'Internal',
       status: template.status === 'ARCHIVED' ? 'archived' : 'draft',
-      schema: templateSchemaToFormFields(latestSchemaFromTemplate()),
+      schema: uiSchema,
       serviceId: templateServicesFromLinks(template),
       createdBy: template.createdBy,
       updatedBy: template.updatedBy,
@@ -343,7 +468,7 @@ const templateToForm = (template: TemplateLike): Form => {
     description: input.description,
     visibilityType: 'Internal',
     status: resolveTemplateStatus(template.status, input.schemaSnapshot.sections.length),
-    schema: templateSchemaToFormFields(latestSchemaFromTemplate()),
+    schema: uiSchema,
     serviceId: templateServicesFromLinks(template),
     createdBy: template.createdBy,
     updatedBy: template.updatedBy,

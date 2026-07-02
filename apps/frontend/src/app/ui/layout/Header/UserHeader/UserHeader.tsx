@@ -189,18 +189,18 @@ const UserHeader = () => {
 
   const logoutRedirect = pathname.startsWith('/developers') ? '/developers/signin' : '/signin';
 
-  const prevPathnameRef = useRef(pathname);
-  if (prevPathnameRef.current !== pathname) {
-    prevPathnameRef.current = pathname;
-    handlePathnameChange();
-  }
-
-  function handlePathnameChange() {
+  // Reset transient header UI (search + open menus) when the route changes.
+  // `clear()` mutates the external search store, so it must run in an effect —
+  // calling a store setter during render updates other store subscribers mid
+  // render and triggers React's "Cannot update a component while rendering a
+  // different component" warning.
+  useEffect(() => {
     clear();
-    if (menuOpen) setMenuOpen(false);
-    if (selectOrg) setSelectOrg(false);
-    if (selectProfile) setSelectProfile(false);
-  }
+    setMenuOpen(false);
+    setSelectOrg(false);
+    setSelectProfile(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   useEffect(() => {
     setMounted(true);

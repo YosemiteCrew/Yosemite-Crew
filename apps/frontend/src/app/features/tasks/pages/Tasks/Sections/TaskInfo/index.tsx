@@ -225,14 +225,8 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         editable: canEditDetails,
       },
       {
-        label: 'Description',
+        label: 'Instructions (optional)',
         key: 'description',
-        type: 'text',
-        editable: canEditDetails,
-      },
-      {
-        label: 'Additional notes',
-        key: 'additionalNotes',
         type: 'text',
         editable: canEditDetails,
       },
@@ -436,7 +430,6 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         ...activeTask,
         name: values.name,
         description: values.description,
-        additionalNotes: values.additionalNotes,
         category: values.category,
         assignedTo: resolveAssigneeId(),
         dueAt: nextDueAt,

@@ -68,6 +68,8 @@ const config: Config = {
     // which made Sonar report them as 0% coverage. A trailing positive pattern
     // re-includes them (micromatch honours order).
     '<rootDir>/src/app/features/companions/components/AddCompanionCentralModal/index.tsx',
+    '<rootDir>/src/app/features/inventory/pages/Inventory/index.tsx',
+    '<rootDir>/src/app/features/appointments/pages/AppointmentWorkspace/index.tsx',
   ],
 
   // The directory where Jest should output its coverage files

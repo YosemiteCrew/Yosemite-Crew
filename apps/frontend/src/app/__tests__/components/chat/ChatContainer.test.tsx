@@ -21,6 +21,8 @@ import * as streamChatService from '@/app/features/chat/services/streamChatServi
 import * as chatService from '@/app/features/chat/services/chatService';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useAppointmentStore } from '@/app/stores/appointmentStore';
+import { useCompanionStore } from '@/app/stores/companionStore';
 import { useChannelStateContext, useChatContext } from 'stream-chat-react';
 
 // ----------------------------------------------------------------------------
@@ -34,6 +36,27 @@ jest.mock('@/app/stores/authStore', () => ({
 
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
+}));
+
+jest.mock('@/app/stores/appointmentStore', () => ({
+  useAppointmentStore: jest.fn(),
+}));
+
+jest.mock('@/app/stores/companionStore', () => ({
+  useCompanionStore: jest.fn(),
+}));
+
+jest.mock('@/app/hooks/useAppointments', () => ({
+  useLoadAppointmentsForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock('@/app/hooks/useCompanion', () => ({
+  useLoadCompanionsForPrimaryOrg: jest.fn(),
+}));
+
+const mockRouterPush = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
 }));
 
 // Mock toast notifications
@@ -169,6 +192,21 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
   default: ({ children }: any) => <div data-testid="org-guard">{children}</div>,
 }));
 
+jest.mock('@/app/features/appointments/pages/Appointments/Sections/Reschedule', () => ({
+  __esModule: true,
+  default: ({ showModal }: { showModal: boolean }) =>
+    showModal ? <div data-testid="chat-reschedule-modal" /> : null,
+}));
+
+jest.mock(
+  '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal',
+  () => ({
+    __esModule: true,
+    default: ({ showModal }: { showModal: boolean }) =>
+      showModal ? <div data-testid="chat-followup-modal" /> : null,
+  })
+);
+
 const mockClient = {
   userID: 'user-1',
   channel: jest.fn(() => defaultMockChannel),
@@ -178,6 +216,8 @@ const mockClient = {
 describe('ChatContainer', () => {
   const mockUseAuthStore = useAuthStore as unknown as jest.Mock;
   const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
+  const mockUseAppointmentStore = useAppointmentStore as unknown as jest.Mock;
+  const mockUseCompanionStore = useCompanionStore as unknown as jest.Mock;
   const mockUseChannelStateContext = useChannelStateContext as unknown as jest.Mock;
   const mockUseChatContext = useChatContext as unknown as jest.Mock;
 
@@ -210,6 +250,32 @@ describe('ChatContainer', () => {
       })
     );
 
+    mockUseAppointmentStore.mockImplementation((selector: any) =>
+      selector({
+        appointmentsById: {
+          '123': {
+            id: '123',
+            status: 'UPCOMING',
+            startTime: new Date('2026-06-25T15:00:00Z'),
+            patient: { id: 'patient-1', name: 'Bella' },
+            companion: { id: 'patient-1', name: 'Bella', parent: { id: 'parent-1', name: 'Pat' } },
+          },
+        },
+      })
+    );
+
+    mockUseCompanionStore.mockImplementation((selector: any) =>
+      selector({
+        companionsById: {
+          'patient-1': {
+            id: 'patient-1',
+            allergy: 'Penicillin',
+            alerts: [{ title: 'Bleed risk', severity: 'high' }],
+          },
+        },
+      })
+    );
+
     // Service Defaults
     (chatService.fetchOrgUsers as jest.Mock).mockResolvedValue([
       { id: 'u2', userId: 'user-2', name: 'User Two', email: 'u2@test.com' },
@@ -239,6 +305,8 @@ describe('ChatContainer', () => {
       createdBy: 'user-1',
       type: 'ORG_DIRECT',
     });
+
+    mockRouterPush.mockReset();
   });
 
   // --------------------------------------------------------------------------
@@ -693,10 +761,10 @@ describe('ChatContainer', () => {
     }
   });
 
-  it('navigates to forms and appointments via header appointment actions', async () => {
+  it('routes Send form to the invoice workspace step', async () => {
     const clientChannel = {
       ...defaultMockChannel,
-      data: { appointmentId: '123', chatCategory: 'clients' },
+      data: { appointmentId: '123', patientId: 'patient-1', chatCategory: 'clients' },
     };
     mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
     (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
@@ -705,10 +773,30 @@ describe('ChatContainer', () => {
       render(<ChatContainer appointmentId="123" />);
     });
 
-    // Reaching this header path exercises handleApptAction wiring + close-session
-    // error catch fall-through. The presence of the close-session control confirms
-    // the appointment header rendered.
     await waitFor(() => expect(screen.getByText('Close session')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Send form' }));
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/appointments/123/workspace?step=INVOICE');
+  });
+
+  it('opens the shared reschedule and follow-up modals from chat header actions', async () => {
+    const clientChannel = {
+      ...defaultMockChannel,
+      data: { appointmentId: '123', patientId: 'patient-1', chatCategory: 'clients' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await waitFor(() => expect(screen.getByText('Close session')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Reschedule' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Book follow-up' }));
+
+    expect(screen.getByTestId('chat-reschedule-modal')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-followup-modal')).toBeInTheDocument();
   });
 
   it('notifies on error when closing the session fails', async () => {

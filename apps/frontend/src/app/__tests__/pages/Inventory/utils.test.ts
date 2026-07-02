@@ -168,7 +168,7 @@ describe('Inventory Utils', () => {
 
     it('formatStockHealthLabel handles cases', () => {
       expect(formatStockHealthLabel('LOW_STOCK')).toBe('Low stock');
-      expect(formatStockHealthLabel('HEALTHY')).toBe('Healthy');
+      expect(formatStockHealthLabel('HEALTHY')).toBe('In stock');
       expect(formatStockHealthLabel('EXPIRED')).toBe('Expired');
       expect(formatStockHealthLabel('EXPIRING_SOON')).toBe('Expiring soon');
       expect(formatStockHealthLabel()).toBe('');
@@ -177,15 +177,15 @@ describe('Inventory Utils', () => {
     it('getStatusBadgeStyle handles cases', () => {
       // low stock
       expect(getStatusBadgeStyle('Low Stock')).toEqual({
-        color: 'var(--color-pill-progress-text)',
-        backgroundColor: 'var(--color-pill-progress-bg)',
-        borderColor: 'var(--color-pill-progress-border)',
-      });
-      // expired / out of stock
-      expect(getStatusBadgeStyle('Expired')).toEqual({
         color: 'var(--color-pill-warning-text)',
         backgroundColor: 'var(--color-pill-warning-bg)',
         borderColor: 'var(--color-pill-warning-border)',
+      });
+      // expired / out of stock
+      expect(getStatusBadgeStyle('Expired')).toEqual({
+        color: 'var(--color-danger-600)',
+        backgroundColor: 'var(--color-danger-100)',
+        borderColor: 'var(--color-danger-400)',
       });
       expect(getStatusBadgeStyle('Out of Stock')).toEqual({
         color: 'var(--color-pill-neutral-text)',
@@ -645,6 +645,26 @@ describe('Inventory Utils', () => {
         expect(payload?.quantity).toBe(99);
       });
 
+      it('sends expiryWarningBefore and barcode per batch so each batch can hold its own value', () => {
+        const batchA = {
+          ...mockInventoryItem.batches![0],
+          expiryWarningBefore: '30 days',
+          barcode: 'BAR-A',
+        } as any;
+        const batchB = {
+          ...mockInventoryItem.batches![1],
+          expiryWarningBefore: '14 days',
+          barcode: 'BAR-B',
+        } as any;
+
+        expect(buildBatchPayload(batchA)).toEqual(
+          expect.objectContaining({ expiryWarningBefore: '30 days', barcode: 'BAR-A' })
+        );
+        expect(buildBatchPayload(batchB)).toEqual(
+          expect.objectContaining({ expiryWarningBefore: '14 days', barcode: 'BAR-B' })
+        );
+      });
+
       it('returns undefined if payload ends up empty (cleanObject logic)', () => {
         // Pass object with all undefineds/empty strings
         const batch = {
@@ -676,13 +696,49 @@ describe('Inventory Utils', () => {
         expect(payload.organisationId).toBe('org-1');
         expect(payload.name).toBe('Payload Item');
         expect(payload.batches).toHaveLength(2);
-        // Calculated totals
-        expect(payload.onHand).toBe(100); // 50 + 50
+        // onHand/initialOnHand come from the item-level stock field, not batch totals
+        expect(payload.onHand).toBe(100);
+        expect(payload.initialOnHand).toBe(100);
         expect(payload.allocated).toBe(10);
         expect(payload.initialAllocated).toBe(10);
         // Check attributes cleaning
         expect(payload.attributes?.stockLocation).toBe('Loc A');
         expect(payload.attributes?.species).toEqual(['Dog']);
+      });
+
+      it('sends the cleared SKU as empty rather than falling back to the stale top-level sku', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            sku: 'OLD-STALE-SKU',
+            basicInfo: {
+              ...mockInventoryItem.basicInfo,
+              skuCode: '',
+            },
+          },
+          'org-1',
+          'VETERINARY' as BusinessType
+        );
+
+        expect(payload.sku).toBe('');
+      });
+
+      it('uses stock control on-hand value, not the batch quantity sum, even when they differ', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            stock: {
+              ...mockInventoryItem.stock,
+              current: '68744',
+            },
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        // batches sum to 100 (50 + 50); the edited stock.current value must win
+        expect(payload.onHand).toBe(68744);
+        expect(payload.initialOnHand).toBe(68744);
       });
 
       it('prefers stock control allocated over batch totals when batches exist', () => {

@@ -181,8 +181,17 @@ const normalizeDocuments = (items: Record<string, unknown>[]): WorkspaceDocument
 // both the same.
 const MEDICATION_TREATMENT_KINDS = new Set(['MEDICATION', 'PRESCRIPTION']);
 
+// A treatment item belongs in the prescription section when its kind is a medicine
+// OR it links to a prescription artifact (`prescriptionId`). The link check matters
+// for BILLED/dispensed drugs: once billed, the backend can persist the drug as a
+// treatment-item row whose `servicePackageKind` is no longer MEDICATION/PRESCRIPTION,
+// which would otherwise misfile the paid prescription under Services & Packages (or
+// drop it from the prescription list entirely once the virtual artifact line is
+// deduped away). Keying off the prescription link keeps a paid prescription visible
+// and read-only in the prescription section.
 const isMedicationTreatmentItem = (item: Record<string, unknown>): boolean =>
-  MEDICATION_TREATMENT_KINDS.has(asString(item.servicePackageKind) ?? '');
+  MEDICATION_TREATMENT_KINDS.has(asString(item.servicePackageKind) ?? '') ||
+  Boolean(asString(item.prescriptionId));
 
 const normalizeTreatmentItems = (items: Record<string, unknown>[]): LineItem[] =>
   items
@@ -396,17 +405,43 @@ const applyEncounterReadiness = (
   encounter: Record<string, unknown>,
   invoice: Record<string, unknown>
 ) => {
+  // Ready-for-discharge is a monotonic milestone, like ready-for-billing: once the visit is
+  // actually discharged it was, by definition, ready for discharge. A full discharge advances the
+  // FHIR encounter status 'onleave' -> 'finished' and stamps admission.dischargedAt, so BOTH of
+  // those must also satisfy the flag — otherwise the box unticks on refresh after discharge.
+  const admission = isRecord(encounter.admission) ? encounter.admission : {};
+  const isDischarged =
+    asString(encounter.status) === 'finished' || Boolean(asOptionalIso(admission.dischargedAt));
   const readyForDischargeFlag =
     asString(encounter.status) === 'onleave' ||
+    isDischarged ||
     encounter.readyForDischarge === true ||
     (isRecord(encounter.readyForDischarge) &&
-      asBoolean(encounter.readyForDischarge.value) === true);
+      asBoolean(encounter.readyForDischarge.value) === true) ||
+    bootstrap.readyForDischarge === true ||
+    (isRecord(bootstrap.readyForDischarge) &&
+      asBoolean(bootstrap.readyForDischarge.value) === true);
   if (readyForDischargeFlag) {
+    // Actor name/id for these flags live at the bootstrap top level (readyForDischargeByName),
+    // NOT inside `encounter`, so include the bootstrap as a fallback source. When a discharge
+    // happened, the dischargedAt timestamp is the most accurate stamp time.
     patch.readyForDischarge = buildReadyState(
-      encounter,
-      encounter,
-      ['readyForDischargeAt', 'readyForDischargeOn', 'dischargeReadyAt', 'updatedAt'],
-      ['readyForDischargeByName', 'dischargeReadyByName', 'updatedByName', 'updatedBy'],
+      { ...bootstrap, ...encounter, ...admission },
+      { ...bootstrap, ...encounter },
+      [
+        'dischargedAt',
+        'readyForDischargeAt',
+        'readyForDischargeOn',
+        'dischargeReadyAt',
+        'updatedAt',
+      ],
+      [
+        'readyForDischargeByName',
+        'dischargeReadyByName',
+        'dischargedByName',
+        'updatedByName',
+        'updatedBy',
+      ],
       ['readyForDischargeByUserId', 'dischargeReadyByUserId', 'updatedById']
     );
   }
@@ -422,19 +457,30 @@ const applyEncounterReadiness = (
     asString(bootstrap.visitBillingStage) ??
     asString(invoice.visitBillingStage) ??
     asString(encounter.visitBillingStage);
-  // "Ready for billing" must reflect an EXPLICIT clinician action (the READY_FOR_BILLING stage or
-  // the readyForBilling field) — NOT a SETTLED/paid invoice. Treating SETTLED as ready conflated
-  // "paid" with "ready" and made the checkbox auto-tick after check-in / payment.
+  // "Ready for billing" is a monotonic workflow milestone, not a consumable toggle: once a visit
+  // has been billed/paid it was, by definition, ready for billing, and the box must stay ticked and
+  // locked (the backend already 409s any revert once paid). So a SETTLED stage — or a PAID/settled
+  // invoice, which advances the single-slot billing stage PAST and thus overwrites READY_FOR_BILLING
+  // — still satisfies the flag. It must NOT be inferred from an unpaid/DRAFT invoice or from
+  // check-in alone (that conflated "exists" with "ready" and auto-ticked the box).
+  const invoiceStatus = asString(invoice.status)?.toUpperCase();
+  const invoiceSettled =
+    billingStage === 'SETTLED' ||
+    invoiceStatus === 'PAID' ||
+    (isRecord(invoice) && Boolean(invoice.paidAt));
   const readyForBillingFlag =
     billingStage === 'READY_FOR_BILLING' ||
+    invoiceSettled ||
     bootstrap.readyForBilling === true ||
     encounter.readyForBilling === true ||
     (isRecord(bootstrap.readyForBilling) && asBoolean(bootstrap.readyForBilling.value) === true) ||
     (isRecord(encounter.readyForBilling) && asBoolean(encounter.readyForBilling.value) === true);
   if (readyForBillingFlag) {
+    // The actor name (readyForBillingByName) lives at the bootstrap top level, so fall back to it —
+    // otherwise the stamp degrades to the generic "Clinical team" even when the server knows who.
     patch.readyForBilling = buildReadyState(
-      readyForBilling,
-      billingFallback,
+      { ...bootstrap, ...readyForBilling },
+      { ...bootstrap, ...billingFallback },
       ['readyForBillingAt', 'billingReadyAt', 'updatedAt', 'createdAt'],
       ['readyForBillingByName', 'billingReadyByName', 'updatedByName', 'updatedBy'],
       ['readyForBillingActorId', 'readyForBillingByUserId', 'billingReadyByUserId', 'updatedById']
@@ -713,6 +759,29 @@ export const signWorkspaceDocumentPacket = async (
   const res = await postData<WorkspaceDocumentPacketDTO>(
     `/v1/workspace/organisations/${organisationId}/document-packets/${packetId}/sign`,
     body
+  );
+  return res.data;
+};
+
+/**
+ * Reconcile a packet's signing state on demand, bypassing the Documenso
+ * completion webhook. The webhook can't reach the backend in local/dev (and can
+ * lag in prod), so we call this when the signing overlay closes: the backend
+ * pulls the signed copy straight from Documenso and, if signed, finalizes the
+ * packet + marks every bundled document SIGNED, returning the updated packet.
+ *
+ * NOTE: the `.../document-packets/:packetId/reconcile` endpoint ships in a later
+ * backend release. Until it is deployed this call 404s; callers must treat a
+ * failure as "not reconciled yet" and fall back to the bootstrap refetch. Once
+ * the backend is live this starts working end-to-end with no frontend change.
+ */
+export const reconcileWorkspaceDocumentPacket = async (
+  organisationId: string,
+  packetId: string
+) => {
+  const res = await postData<WorkspaceDocumentPacketDTO>(
+    `/v1/workspace/organisations/${organisationId}/document-packets/${packetId}/reconcile`,
+    {}
   );
   return res.data;
 };

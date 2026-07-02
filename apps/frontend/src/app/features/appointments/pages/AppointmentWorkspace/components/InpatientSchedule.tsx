@@ -1,61 +1,39 @@
 import React, { useMemo, useState } from 'react';
 import {
-  LuArrowRight,
   LuChevronDown,
   LuChevronLeft,
   LuChevronRight,
   LuEye,
-  LuEyeOff,
   LuPlus,
-  LuRefreshCw,
+  LuSearch,
 } from 'react-icons/lu';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
-import Search from '@/app/ui/inputs/Search';
-import Datepicker from '@/app/ui/inputs/Datepicker';
-import Timepicker from '@/app/ui/inputs/Timepicker';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import type { ScheduleTask, ScheduleTaskStatus } from '@/app/features/appointments/types/workspace';
 import type { TemplateLike } from '@yosemite-crew/types';
-import { TASK_CATEGORY_OPTIONS } from '@/app/features/tasks/constants/taskTaxonomy';
-
-// Schedule rows carry the human category label (EmployeeTaskCategory). Build the
-// dropdown options from the canonical taxonomy labels so the picker matches the
-// rest of the task system.
-const SCHEDULE_CATEGORY_OPTIONS = TASK_CATEGORY_OPTIONS.map((option) => ({
-  label: option.label,
-  value: option.label,
-}));
+import { formatStampDate } from '@/app/lib/appointmentWorkspace';
 
 type AssigneeOption = { label: string; value: string };
 
 type InpatientScheduleProps = {
   tasks: ScheduleTask[];
+  /** Published schedule/task templates that the search can find and append. */
   templates?: TemplateLike[];
   readOnly: boolean;
   /** Real staff (team members + appointment lead/support) available to own a task. */
   assigneeOptions: AssigneeOption[];
-  onAddTask: (task: Omit<ScheduleTask, 'id'>) => void;
-  onUpdateTask: (id: string, patch: Partial<ScheduleTask>) => void;
-  /** Commit a task's edited breakdown (start/end/time) to the backend. */
-  onRecordTask?: (id: string) => void;
-  onApplyTemplate?: (templateId: string) => void;
-  /**
-   * Lifecycle state of the applied schedule, when one exists. When `active` is a
-   * non-null instance id the pause/resume/cancel/regenerate controls are shown and
-   * call the matching backend action. `paused` toggles pause⇄resume.
-   */
-  scheduleLifecycle?: {
-    instanceId: string | null;
-    paused: boolean;
-    busy: boolean;
-    onPause: () => void;
-    onResume: () => void;
-    onCancel: () => void;
-    onRegenerate: () => void;
-  };
+  /** Open the Quick Actions add-task flow (side modal) — no inline add. */
+  onAddTask: () => void;
+  /** Open a task in the Quick Actions side modal (view/edit). */
+  onViewTask: (taskId: string) => void;
+  /** Reassign a task inline. */
+  onAssignTask: (taskId: string, option: AssigneeOption) => void;
+  /** Change a task's status inline. */
+  onStatusChange: (taskId: string, status: ScheduleTaskStatus) => void;
+  /** Append a template's task blocks into the schedule as staged rows. */
+  onAppendTemplate?: (templateId: string) => void;
 };
 
 const STATUS_OPTIONS: { label: string; value: ScheduleTaskStatus }[] = [
@@ -65,9 +43,22 @@ const STATUS_OPTIONS: { label: string; value: ScheduleTaskStatus }[] = [
   { label: 'Pending', value: 'PENDING' },
 ];
 const EMPTY_TEMPLATES: TemplateLike[] = [];
+const ASSIGNEE_COLUMN_MIN_CH = 14;
+const ASSIGNEE_COLUMN_MAX_CH = 20;
 
 const formatStatusLabel = (status: ScheduleTaskStatus): string =>
   STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const formatTimelineLabel = (task: ScheduleTask): { primary: string; secondary?: string } => {
+  const dateLabel = task.startDate ? formatStampDate(task.startDate) : undefined;
+  const timeLabel = task.time?.trim();
+  if (dateLabel && timeLabel) return { primary: timeLabel, secondary: dateLabel };
+  if (timeLabel) return { primary: timeLabel };
+  if (dateLabel) return { primary: dateLabel };
+  return { primary: '—' };
+};
 
 /** Shared status colours (same source of truth as the appointment status pill). */
 const statusPillStyle = (status: ScheduleTaskStatus): React.CSSProperties => {
@@ -156,12 +147,16 @@ const StatusPillSelect = ({
   );
 };
 
-/** "MMM d, yyyy" string ⇄ the Datepicker's `Date | null` value. */
+/** Read-only category pill (neutral style), matching the schedule design. */
+const CategoryPill = ({ category }: { category?: string }) => (
+  <span className="inline-flex w-fit items-center rounded-2xl border border-pill-neutral-border bg-pill-neutral-bg px-3 py-1.5 text-caption-1 text-pill-neutral-text">
+    {category || '—'}
+  </span>
+);
+
+/** "MMM d, yyyy" string → local Date for day-window comparisons. */
 const parseTaskDate = (value?: string): Date | null => {
   if (!value) return null;
-  // ISO date-only strings ("2026-06-23") parse as UTC midnight, which shifts a
-  // calendar day in negative-offset timezones. Parse those as a local date so
-  // day comparisons line up with the locally-rendered "MMM d, yyyy" dates.
   const isoDateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (isoDateOnly) {
     const [, year, month, day] = isoDateOnly;
@@ -169,32 +164,6 @@ const parseTaskDate = (value?: string): Date | null => {
   }
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
-};
-const formatTaskDate = (date: Date | null): string | undefined =>
-  date
-    ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : undefined;
-
-/** "h:mm AM/PM" (stored/displayed) ⇄ the Timepicker's 24-hour "HH:mm" value. */
-const toTimepickerValue = (value?: string): string => {
-  if (!value) return '';
-  const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i.exec(value.trim());
-  if (!match) return '';
-  let hours = Number.parseInt(match[1], 10);
-  const minutes = match[2];
-  const meridiem = match[3]?.toUpperCase();
-  if (meridiem === 'PM' && hours < 12) hours += 12;
-  if (meridiem === 'AM' && hours === 12) hours = 0;
-  return `${String(hours).padStart(2, '0')}:${minutes}`;
-};
-const fromTimepickerValue = (value: string): string | undefined => {
-  if (!value) return undefined;
-  const [hourRaw, minute] = value.split(':');
-  const hours = Number.parseInt(hourRaw, 10);
-  if (!Number.isFinite(hours)) return undefined;
-  const meridiem = hours >= 12 ? 'PM' : 'AM';
-  const display = hours % 12 === 0 ? 12 : hours % 12;
-  return `${display}:${minute} ${meridiem}`;
 };
 
 /** Vertical timeline marker: outer ring + solid centre dot (matches the stepper). */
@@ -211,83 +180,19 @@ const TimelineMarker = ({ active }: { active: boolean }) => {
   );
 };
 
-/**
- * Nested "Task breakdown" floating container shown when a row is expanded. Reuses
- * the shared Datepicker (Starts/Ends) and Timepicker (Set Time); all three fields
- * are 48px tall and vertically centre with the Record button.
- */
-const TaskBreakdown = ({
-  task,
-  readOnly,
-  onUpdateTask,
-  onRecordTask,
-}: {
-  task: ScheduleTask;
-  readOnly: boolean;
-  onUpdateTask: (id: string, patch: Partial<ScheduleTask>) => void;
-  onRecordTask?: (id: string) => void;
-}) => (
-  <div className="mt-4">
-    <SectionContainer title="Task breakdown" nested className="bg-neutral-0">
-      <div
-        className={`grid items-center gap-3 lg:grid-cols-[1fr_1fr_1fr_auto] ${
-          readOnly ? 'pointer-events-none opacity-60' : ''
-        }`}
-      >
-        <Datepicker
-          type="input"
-          placeholder="Starts"
-          currentDate={parseTaskDate(task.startDate)}
-          setCurrentDate={
-            ((next: Date | null) =>
-              onUpdateTask(task.id, {
-                startDate: formatTaskDate(next),
-              })) as React.Dispatch<React.SetStateAction<Date | null>>
-          }
-        />
-        <Datepicker
-          type="input"
-          placeholder="Ends"
-          currentDate={parseTaskDate(task.endDate)}
-          setCurrentDate={
-            ((next: Date | null) =>
-              onUpdateTask(task.id, {
-                endDate: formatTaskDate(next),
-              })) as React.Dispatch<React.SetStateAction<Date | null>>
-          }
-        />
-        <Timepicker
-          label="Set Time"
-          value={toTimepickerValue(task.time)}
-          onChange={(value) => onUpdateTask(task.id, { time: fromTimepickerValue(value) })}
-        />
-        <Primary
-          text="Record"
-          icon={<LuArrowRight aria-hidden="true" />}
-          iconPosition="right"
-          onClick={() => onRecordTask?.(task.id)}
-          isDisabled={readOnly}
-        />
-      </div>
-    </SectionContainer>
-  </div>
-);
-
 const InpatientSchedule = ({
   tasks,
   templates = EMPTY_TEMPLATES,
   readOnly,
   assigneeOptions,
   onAddTask,
-  onUpdateTask,
-  onRecordTask,
-  onApplyTemplate,
-  scheduleLifecycle,
+  onViewTask,
+  onAssignTask,
+  onStatusChange,
+  onAppendTemplate,
 }: InpatientScheduleProps) => {
   const [search, setSearch] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(tasks[0]?.id ?? null);
   // Day the schedule is focused on. Defaults to today; prev/next shift by a day.
-  // Time is zeroed so day comparisons are stable regardless of clock time.
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -337,8 +242,9 @@ const InpatientSchedule = ({
     });
   }, [tasks, selectedDate]);
 
+  const query = search.trim().toLowerCase();
+
   const filteredTasks = useMemo(() => {
-    const query = search.trim().toLowerCase();
     if (!query) return tasksForSelectedDay;
     return tasksForSelectedDay.filter((task) =>
       [task.description, task.category, task.assignedToName, task.status].some((value) =>
@@ -347,21 +253,29 @@ const InpatientSchedule = ({
           .includes(query)
       )
     );
-  }, [search, tasksForSelectedDay]);
+  }, [query, tasksForSelectedDay]);
 
-  const handleAddTask = () => {
-    onAddTask({
-      description: 'New task',
-      category: 'Care',
-      status: 'UPCOMING',
-      autoGenerated: false,
-      startDate: formatTaskDate(selectedDate),
-      endDate: formatTaskDate(selectedDate),
-    });
+  // The search box doubles as a task-template finder: when the query matches a
+  // published template's name, offer it as a suggestion that appends its blocks.
+  const templateSuggestions = useMemo(() => {
+    if (!query || !onAppendTemplate) return [];
+    return templates.filter((template) => template.name?.toLowerCase().includes(query)).slice(0, 5);
+  }, [query, templates, onAppendTemplate]);
+
+  const assigneeColumnWidthCh = useMemo(() => {
+    const maxLabelLength = assigneeOptions.reduce(
+      (longest, option) => Math.max(longest, option.label.trim().length),
+      'Assigned to'.length
+    );
+    return clamp(maxLabelLength + 2, ASSIGNEE_COLUMN_MIN_CH, ASSIGNEE_COLUMN_MAX_CH);
+  }, [assigneeOptions]);
+
+  const scheduleHeaderGridStyle: React.CSSProperties = {
+    gridTemplateColumns: `96px 20px 150px minmax(0, 1fr) ${assigneeColumnWidthCh}ch 140px 72px`,
   };
 
-  const handleToggleExpanded = (id: string) => {
-    setExpandedId((current) => (current === id ? null : id));
+  const scheduleRowGridStyle: React.CSSProperties = {
+    gridTemplateColumns: `150px minmax(0, 1fr) ${assigneeColumnWidthCh}ch 140px 72px`,
   };
 
   return (
@@ -385,149 +299,148 @@ const InpatientSchedule = ({
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {templates.length > 0 && (
-            <div className="w-full sm:w-70">
-              <LabelDropdown
-                placeholder="Load schedule template"
-                options={templates.map((template) => ({
-                  label: template.name,
-                  value: template.id,
-                }))}
-                searchable
-                onSelect={(option) => onApplyTemplate?.(option.value)}
-              />
-            </div>
-          )}
-          {scheduleLifecycle?.instanceId && !readOnly && (
-            <div className="flex flex-wrap items-center gap-2">
-              {scheduleLifecycle.paused ? (
-                <Secondary
-                  text="Resume"
-                  onClick={scheduleLifecycle.onResume}
-                  isDisabled={scheduleLifecycle.busy}
-                />
-              ) : (
-                <Secondary
-                  text="Pause"
-                  onClick={scheduleLifecycle.onPause}
-                  isDisabled={scheduleLifecycle.busy}
-                />
-              )}
-              <Secondary
-                text="Regenerate"
-                onClick={scheduleLifecycle.onRegenerate}
-                isDisabled={scheduleLifecycle.busy}
-                icon={<LuRefreshCw aria-hidden="true" />}
-              />
-              <Secondary
-                text="Cancel schedule"
-                onClick={scheduleLifecycle.onCancel}
-                isDisabled={scheduleLifecycle.busy}
-              />
-            </div>
-          )}
           <CircleIconButton
             icon={<LuPlus aria-hidden="true" />}
             label="Add schedule task"
             variant="dark"
             disabled={readOnly}
-            onClick={handleAddTask}
+            onClick={onAddTask}
           />
-          <Search
-            value={search}
-            setSearch={setSearch}
-            placeholder="Search for task"
-            label="Search schedule tasks"
-          />
+          {/* Search finds tasks AND published task templates (append on select). */}
+          <div className="relative w-full sm:w-80">
+            <div className="flex items-center gap-2 rounded-2xl border border-input-border-default px-3 py-2.5">
+              <LuSearch size={16} aria-hidden="true" className="shrink-0 text-text-secondary" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search tasks, assignees or templates"
+                placeholder="Search for tasks, assignees…"
+                className="w-full bg-transparent text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
+              />
+            </div>
+            {templateSuggestions.length > 0 && (
+              <div className="absolute left-0 top-full z-20 mt-1 w-full overflow-hidden rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_3px_1px_rgba(0,0,0,0.15)]">
+                <p className="px-3 pt-2 text-caption-2 text-text-secondary">Task templates</p>
+                {templateSuggestions.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => {
+                      onAppendTemplate?.(template.id);
+                      setSearch('');
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-body-4 text-text-primary hover:bg-neutral-100 disabled:opacity-50"
+                  >
+                    <LuPlus size={14} aria-hidden="true" className="shrink-0 text-text-brand" />
+                    {template.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
+      {filteredTasks.length > 0 && (
+        <div
+          className="hidden items-center gap-4 text-caption-2 text-text-secondary lg:grid lg:gap-6"
+          style={scheduleHeaderGridStyle}
+        >
+          <span>Timeline</span>
+          <span aria-hidden="true" />
+          <span>Category</span>
+          <span>Task</span>
+          <span className="-ml-[20px]">Assigned to</span>
+          <span>Status</span>
+          <span className="text-right">Action</span>
+        </div>
+      )}
+
       <ol className="flex flex-col">
         {filteredTasks.map((task, index) => {
-          const expanded = expandedId === task.id;
           const isFirst = index === 0;
           const isLast = index === filteredTasks.length - 1;
           return (
-            <li key={task.id} className="flex gap-3">
-              {/* Time + vertical timeline rail (marker centred, line running through) */}
-              <span className="w-20 shrink-0 pt-4 text-right text-body-4 font-medium text-pill-success-text">
-                {task.time ?? '-'}
-              </span>
-              <div className="relative flex shrink-0 flex-col items-center">
-                <span className={`h-4 w-px flex-none ${isFirst ? '' : 'bg-card-border'}`} />
+            <li
+              key={task.id}
+              className="grid grid-cols-[96px_20px_1fr] items-center gap-4 lg:gap-6"
+            >
+              {/* Timeline column: keep the time text centered against the row body. */}
+              {(() => {
+                const timeline = formatTimelineLabel(task);
+                return (
+                  <div className="flex min-h-[84px] flex-col items-end justify-center py-3 text-right">
+                    <span className="text-caption-1 font-normal text-pill-success-text">
+                      {timeline.primary}
+                    </span>
+                    {timeline.secondary && (
+                      <span className="text-caption-2 text-text-secondary">
+                        {timeline.secondary}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+              <div className="relative flex min-h-[84px] items-center justify-center py-3">
+                <span
+                  className={`absolute left-1/2 top-0 w-px -translate-x-1/2 ${isFirst ? 'bg-transparent' : 'bg-card-border'}`}
+                  style={{ height: 'calc(50% - 10px)' }}
+                />
                 <TimelineMarker active={task.status !== 'CANCELLED'} />
-                <span className={`w-px flex-1 ${isLast ? '' : 'bg-card-border'}`} />
+                <span
+                  className={`absolute bottom-0 left-1/2 w-px -translate-x-1/2 ${isLast ? 'bg-transparent' : 'bg-card-border'}`}
+                  style={{ height: 'calc(50% - 10px)' }}
+                />
               </div>
-              <div className="mb-3 flex-1 rounded-2xl border border-card-border p-4">
-                <div className="grid gap-3 text-body-4 text-text-primary lg:grid-cols-[1.4fr_140px_180px_140px_110px] lg:items-center">
-                  {readOnly ? (
-                    <span>{task.description}</span>
-                  ) : (
-                    <input
-                      value={task.description}
-                      aria-label="Task description"
-                      onChange={(e) => onUpdateTask(task.id, { description: e.target.value })}
-                      className="w-full rounded-2xl border border-input-border-default px-3 py-2 text-body-4 text-text-primary outline-none focus:border-input-border-active"
-                    />
+              {/* Row content: flat (no card), columns aligned with the header. */}
+              <div
+                className="grid min-h-[84px] gap-4 border-b border-card-border py-4 lg:items-center lg:gap-6"
+                style={scheduleRowGridStyle}
+              >
+                <div className="flex min-h-[48px] items-center">
+                  <CategoryPill category={task.category} />
+                </div>
+                <div className="flex min-h-[48px] min-w-0 flex-col justify-center leading-[140%]">
+                  <span className="truncate text-body-4 text-text-primary">{task.description}</span>
+                  {task.subtext && (
+                    <span className="truncate text-caption-1 text-text-secondary">
+                      {task.subtext}
+                    </span>
                   )}
-                  {readOnly ? (
-                    <span>{task.category}</span>
-                  ) : (
+                </div>
+                <div className="flex min-h-[48px] items-center justify-start self-center">
+                  <div className="w-full max-w-full">
                     <LabelDropdown
-                      placeholder="Category"
-                      options={SCHEDULE_CATEGORY_OPTIONS}
-                      defaultOption={task.category}
+                      placeholder="Assigned to"
+                      options={assigneeOptions}
+                      defaultOption={
+                        task.assignedToName ??
+                        assigneeOptions.find((option) => option.value === task.assignedToId)
+                          ?.label ??
+                        task.assignedToId
+                      }
                       searchable={false}
                       onSelect={(option) =>
-                        onUpdateTask(task.id, {
-                          category: option.value as ScheduleTask['category'],
-                        })
+                        onAssignTask(task.id, { label: option.label, value: option.value })
                       }
-                    />
-                  )}
-                  <LabelDropdown
-                    placeholder="Assigned to"
-                    options={assigneeOptions}
-                    defaultOption={task.assignedToId ?? task.assignedToName}
-                    searchable={false}
-                    onSelect={(option) =>
-                      onUpdateTask(task.id, {
-                        assignedToId: option.value,
-                        assignedToName: option.label,
-                      })
-                    }
-                  />
-                  <StatusPillSelect
-                    status={task.status}
-                    onChange={(status) => onUpdateTask(task.id, { status })}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <CircleIconButton
-                      icon={<LuRefreshCw aria-hidden="true" />}
-                      label={`Reschedule ${task.description}`}
-                      disabled={readOnly}
-                      // Reschedule expands the row so the real time/date pickers in
-                      // the breakdown are used — no hardcoded placeholder time.
-                      onClick={() => setExpandedId(task.id)}
-                    />
-                    <CircleIconButton
-                      icon={
-                        expanded ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />
-                      }
-                      label={expanded ? `Hide ${task.description}` : `View ${task.description}`}
-                      variant="dark"
-                      onClick={() => handleToggleExpanded(task.id)}
                     />
                   </div>
                 </div>
-                {expanded && (
-                  <TaskBreakdown
-                    task={task}
-                    readOnly={readOnly}
-                    onUpdateTask={onUpdateTask}
-                    onRecordTask={onRecordTask}
+                <div className="flex min-h-[48px] items-center">
+                  <StatusPillSelect
+                    status={task.status}
+                    onChange={(status) => onStatusChange(task.id, status)}
                   />
-                )}
+                </div>
+                <div className="flex min-h-[48px] items-center justify-end">
+                  <CircleIconButton
+                    icon={<LuEye aria-hidden="true" />}
+                    label={`View ${task.description}`}
+                    variant="dark"
+                    onClick={() => onViewTask(task.id)}
+                  />
+                </div>
               </div>
             </li>
           );

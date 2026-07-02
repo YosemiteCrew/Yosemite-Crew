@@ -484,6 +484,88 @@ describe('mapTemplateToUI', () => {
     expect(ui.templateSource).toBe('USER_TEMPLATE');
     expect(ui.templateKind).toBe('SOAP_NOTE');
   });
+
+  it('normalizes reloaded task-assignment templates back into task-block builder schema', () => {
+    const template = {
+      id: 'template-task-1',
+      kind: 'TASK_ASSIGNMENT',
+      source: 'ORGANISATION',
+      ownership: 'ORG_TEMPLATE',
+      status: 'DRAFT',
+      latestVersion: 1,
+      publishedVersion: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'user-1',
+      updatedBy: 'user-2',
+      organisationId: 'org-1',
+      rules: {},
+      versions: [
+        {
+          version: 1,
+          schemaSnapshot: {
+            sections: [
+              {
+                id: 'schedule',
+                title: 'Schedule',
+                fields: [
+                  {
+                    key: 'taskBlocks',
+                    label: 'Task blocks',
+                    type: 'repeater',
+                    defaultValue: [
+                      {
+                        name: 'Care check',
+                        category: 'CARE',
+                        additionalNotes: 'Watch appetite and hydration',
+                        durationDays: 3,
+                        reminderOffsetMinutes: 5,
+                        recurrence: { type: 'CUSTOM', cronExpression: '0 */6 * * *' },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    } as any;
+
+    const ui = mapTemplateToUI(template);
+    const taskGroup = ui.schema[0] as FormField & { fields?: FormField[] };
+    const taskBlock = taskGroup.fields?.[0] as FormField & { fields?: FormField[] };
+
+    expect(ui.category).toBe('Task Template');
+    expect(taskGroup.id).toBe('task_blocks');
+    expect(taskGroup.meta?.taskGroup).toBe(true);
+    expect(taskBlock.fields?.map((field) => field.meta?.taskBlockKey)).toEqual([
+      'name',
+      'category',
+      'additionalNotes',
+      'recurrence.type',
+      'reminderOffsetMinutes',
+      'durationDays',
+    ]);
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'name')?.defaultValue
+    ).toBe('Care check');
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'recurrence.type')
+        ?.defaultValue
+    ).toBe('EVERY_6_HOURS');
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'reminderOffsetMinutes')
+        ?.defaultValue
+    ).toBe('5');
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'durationDays')?.defaultValue
+    ).toBe('3');
+    expect(
+      taskBlock.fields?.find((field) => field.meta?.taskBlockKey === 'additionalNotes')
+        ?.defaultValue
+    ).toBe('Watch appetite and hydration');
+  });
 });
 
 describe('buildTemplatePayload appliesTo linking', () => {
@@ -521,6 +603,7 @@ describe('buildTemplatePayload appliesTo linking', () => {
       form({
         category: 'Prescription',
         templateSource: 'YC_LIBRARY',
+        requiredSigner: '',
       }),
       'org-1'
     );
@@ -528,6 +611,7 @@ describe('buildTemplatePayload appliesTo linking', () => {
     expect(payload.ownership).toBe('YC_LIBRARY');
     expect(payload.organisationId).toBeUndefined();
     expect(payload.kind).toBe('PRESCRIPTION');
+    expect((payload.rules as { requiredSigner?: string }).requiredSigner).toBe('');
   });
 
   it('serializes every prescription medication default into medicationLine rows', () => {
@@ -713,7 +797,7 @@ describe('buildTemplatePayload appliesTo linking', () => {
     });
   });
 
-  it('drops empty legacy prescription instructions and notes sections when mapping to UI', () => {
+  it('keeps the canonical prescription instructions and notes sections when mapping to UI', () => {
     const mapped = mapTemplateToUI({
       id: 'tpl-prescription',
       organisationId: 'org-1',
@@ -763,8 +847,81 @@ describe('buildTemplatePayload appliesTo linking', () => {
       ],
     } as any);
 
-    expect(mapped.schema).toHaveLength(1);
-    expect(mapped.schema[0].id).toBe('medications');
+    expect(mapped.schema.map((section) => section.id)).toEqual([
+      'medications',
+      'instructions',
+      'notes',
+    ]);
+  });
+
+  it('keeps the populated richText instructions and notes sections the backend returns on reload', () => {
+    const mapped = mapTemplateToUI({
+      id: 'tpl-prescription-rich',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'YC_LIBRARY',
+      kind: 'PRESCRIPTION',
+      name: 'Prescription skin',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {},
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      versions: [
+        {
+          id: 'ver-1',
+          version: 1,
+          templateId: 'tpl-prescription-rich',
+          schemaSnapshot: {
+            sections: [
+              {
+                id: 'medications',
+                title: 'Medications',
+                order: 1,
+                fields: [
+                  {
+                    key: 'medicationLine',
+                    label: 'Medication lines',
+                    type: 'medicationLine',
+                    repeatable: true,
+                  },
+                ],
+              },
+              {
+                id: 'instructions',
+                title: 'Instructions',
+                order: 2,
+                fields: [
+                  { key: 'instructions', label: 'Instructions', type: 'richText', order: 1 },
+                ],
+              },
+              {
+                id: 'notes',
+                title: 'Notes',
+                order: 3,
+                fields: [{ key: 'notes', label: 'Notes', type: 'richText', order: 1 }],
+              },
+            ],
+          },
+          renderConfigSnapshot: null,
+          validationSnapshot: null,
+          createdBy: 'u1',
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        },
+      ],
+    } as any);
+
+    expect(mapped.schema.map((section) => section.id)).toEqual([
+      'medications',
+      'instructions',
+      'notes',
+    ]);
   });
 });
 

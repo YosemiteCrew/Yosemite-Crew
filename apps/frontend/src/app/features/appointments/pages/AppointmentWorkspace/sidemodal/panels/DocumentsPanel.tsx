@@ -8,7 +8,7 @@ import {
   LuFileSignature,
   LuPrinter,
 } from 'react-icons/lu';
-import type { Appointment, Form } from '@yosemite-crew/types';
+import type { Appointment, Form, TemplateLike } from '@yosemite-crew/types';
 
 type AppointmentStatus = Appointment['status'];
 import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
@@ -19,11 +19,18 @@ import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorks
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import CompanionDocumentsSection from '@/app/features/documents/components/CompanionDocumentsSection';
-import { fetchAppointmentForms } from '@/app/features/forms/services/appointmentFormsService';
+import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
+import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
+import {
+  fetchAppointmentForms,
+  linkAppointmentForms,
+} from '@/app/features/forms/services/appointmentFormsService';
+import { loadTemplateForms } from '@/app/features/forms/services/templateFormsService';
 import { downloadSubmissionPdf } from '@/app/features/forms/services/formSigningService';
 import {
   createEncounterDocumentPacket,
   getEncounterDocumentPacketPdfUrl,
+  reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
@@ -83,6 +90,20 @@ const AUDIENCE_META: Record<FormAudience, string> = {
   STAFF: 'Staff form',
   PARENT: 'Parent consent',
 };
+
+// The workspace forms search assigns questionnaire-style templates to the
+// appointment — consent forms and custom (FORM) templates. Clinical artifact
+// kinds (SOAP, vitals, prescription, discharge) and plan-definition kinds
+// (tasks, inpatient schedule) are authored elsewhere in the workspace and must
+// never appear here, so we allow-list only the two assignable kinds.
+const ASSIGNABLE_FORM_KINDS = new Set<TemplateLike['kind']>(['FORM', 'CONSENT']);
+
+// Only published templates can be filled/signed by a client, so drafts and
+// archived templates are excluded from the assignable list.
+const isAssignableFormTemplate = (template: TemplateLike): boolean =>
+  ASSIGNABLE_FORM_KINDS.has(template.kind) &&
+  template.status === 'PUBLISHED' &&
+  Boolean(template.id);
 
 // Internal forms are completed by the practice (staff); External forms are sent
 // to the pet parent for consent. `visibilityType` is the authoritative signal;
@@ -209,12 +230,33 @@ const ClinicalPacketSection = ({
   }, [refreshPacket]);
 
   const signingInitiatedRef = useRef(false);
+  // The packet being signed, captured when signing starts so the post-close
+  // reconcile can resolve its signing state against Documenso directly.
+  const signingPacketIdRef = useRef<string | null>(null);
 
+  // When the signing overlay closes after a sign was started, reconcile the
+  // packet against Documenso (webhook can't reach the backend in local/dev and
+  // can lag in prod), then refetch so the Sign→Download Signed swap and the
+  // Draft→Final / Signed badges reflect the completed signature. Best-effort:
+  // if the reconcile endpoint isn't deployed yet the refetch still applies
+  // webhook truth.
   useEffect(() => {
     if (signingOverlayOpen || !signingInitiatedRef.current) return;
     signingInitiatedRef.current = false;
-    void refreshPacket();
-  }, [refreshPacket, signingOverlayOpen]);
+    const packetId = signingPacketIdRef.current;
+    void (async () => {
+      if (packetId && organisationId) {
+        try {
+          await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+        } catch (error) {
+          if (!isAuthRedirectError(error)) {
+            console.error('Unable to reconcile packet signing:', error);
+          }
+        }
+      }
+      await refreshPacket();
+    })();
+  }, [organisationId, refreshPacket, signingOverlayOpen]);
 
   const isSigned = packet?.signingStatus === 'SIGNED';
   const isInProgress = packet?.signingStatus === 'IN_PROGRESS';
@@ -271,6 +313,7 @@ const ClinicalPacketSection = ({
       if (!packetId) {
         throw new Error('Document packet could not be created.');
       }
+      signingPacketIdRef.current = packetId;
       const signed = await signWorkspaceDocumentPacket(organisationId, packetId);
       const signingUrl = signed?.signing?.signingUrl;
       if (!signingUrl) {
@@ -405,7 +448,7 @@ const renderFormsPanelContent = (
   if (filteredForms.length === 0) {
     return (
       <p className="py-6 text-center text-body-4 text-text-secondary">
-        No forms match this search.
+        No forms assigned yet. Use the search above to add a consent or custom form.
       </p>
     );
   }
@@ -508,46 +551,112 @@ const AppointmentFormsPanel = ({
   const [query, setQuery] = useState('');
   const [forms, setForms] = useState<SubmittedForm[]>([]);
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  // Assignable form templates (consent + custom forms) the clinician can attach
+  // to this appointment from the search dropdown, mirroring the pre-revamp
+  // side-modal flow. Loaded once org context is available.
+  const [templates, setTemplates] = useState<TemplateLike[]>([]);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const searchAnchorRef = useRef<HTMLDivElement>(null);
+
+  const loadForms = useCallback(async () => {
+    try {
+      const response = await fetchAppointmentForms(initialAppointmentId.current);
+      setForms(
+        response.forms.map(({ form, submission, status: formStatus }) => {
+          const updatedAt = form.updatedAt ?? form.createdAt;
+          const audience = resolveFormAudience(form);
+          return {
+            id: submission?._id ?? form._id ?? form.name,
+            title: form.name,
+            audience,
+            auth: resolveFormAuth(audience, formStatus === 'completed'),
+            date: formatDate(updatedAt),
+            time: formatTime(updatedAt),
+            submissionId: submission?._id,
+          };
+        })
+      );
+      setStatus('loaded');
+    } catch (error) {
+      if (!isAuthRedirectError(error)) {
+        console.error('Unable to load appointment forms:', error);
+      }
+      setStatus('error');
+    }
+  }, []);
 
   useEffect(() => {
+    void loadForms();
+  }, [loadForms]);
+
+  // Load the org's assignable form templates (consent + custom forms only —
+  // clinical artifacts and plan definitions are excluded) so the search can
+  // surface everything available to attach to this appointment.
+  useEffect(() => {
+    if (!organisationId) return;
     let cancelled = false;
-    fetchAppointmentForms(initialAppointmentId.current).then(
-      (response) => {
+    loadTemplateForms(organisationId, { status: 'PUBLISHED' })
+      .then((items) => {
         if (cancelled) return;
-        setForms(
-          response.forms.map(({ form, submission, status: formStatus }) => {
-            const updatedAt = form.updatedAt ?? form.createdAt;
-            const audience = resolveFormAudience(form);
-            return {
-              id: submission?._id ?? form._id ?? form.name,
-              title: form.name,
-              audience,
-              auth: resolveFormAuth(audience, formStatus === 'completed'),
-              date: formatDate(updatedAt),
-              time: formatTime(updatedAt),
-              submissionId: submission?._id,
-            };
-          })
-        );
-        setStatus('loaded');
-      },
-      (error) => {
-        if (cancelled) return;
+        setTemplates(items.filter(isAssignableFormTemplate));
+      })
+      .catch((error) => {
         if (!isAuthRedirectError(error)) {
-          console.error('Unable to load appointment forms:', error);
+          console.error('Unable to load assignable form templates:', error);
         }
-        setStatus('error');
-      }
-    );
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [organisationId]);
 
-  const filteredForms = useMemo(
-    () => forms.filter((f) => f.title.toLowerCase().includes(query.trim().toLowerCase())),
-    [forms, query]
+  // Titles already assigned to this appointment — hidden from the search results
+  // so the clinician can't attach the same form twice.
+  const assignedTitles = useMemo(
+    () => new Set(forms.map((f) => f.title.trim().toLowerCase())),
+    [forms]
   );
+
+  // Whether the search input is focused. Focusing the field surfaces the full
+  // list of assignable forms (like the pre-revamp side-modal), so the clinician
+  // can browse without having to type a query first.
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  const templateMatches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const unassigned = templates.filter(
+      (template) => !assignedTitles.has(template.name.trim().toLowerCase())
+    );
+    // Empty query → show everything available so the dropdown is never blank when
+    // the org actually has assignable forms.
+    if (!q) return unassigned;
+    return unassigned.filter((template) => template.name.toLowerCase().includes(q));
+  }, [query, templates, assignedTitles]);
+
+  const dropdownOpen = Boolean(organisationId) && (Boolean(query.trim()) || searchFocused);
+
+  const handleAssignTemplate = async (template: TemplateLike) => {
+    if (!organisationId || assigningId) return;
+    setAssignError(null);
+    setAssigningId(template.id);
+    try {
+      await linkAppointmentForms({
+        organisationId,
+        appointmentId: initialAppointmentId.current,
+        formIds: [template.id],
+      });
+      setQuery('');
+      await loadForms();
+    } catch (error) {
+      if (!isAuthRedirectError(error)) {
+        console.error('Unable to assign form:', error);
+      }
+      setAssignError('Unable to assign this form. Please try again.');
+    } finally {
+      setAssigningId(null);
+    }
+  };
 
   return (
     <div
@@ -561,14 +670,50 @@ const AppointmentFormsPanel = ({
         encounterId={encounterId}
         appointmentStatus={appointmentStatus}
       />
-      <Search
-        value={query}
-        setSearch={setQuery}
-        placeholder="Search forms to add"
-        label="Search forms to add"
-        className="w-full!"
-      />
-      {renderFormsPanelContent(status, filteredForms)}
+      <div ref={searchAnchorRef} className="relative">
+        <Search
+          value={query}
+          setSearch={setQuery}
+          onFocus={() => setSearchFocused(true)}
+          placeholder="Search forms to add"
+          label="Search forms to add"
+          className="w-full!"
+        />
+        <SearchResultsDropdown
+          anchorRef={searchAnchorRef}
+          open={dropdownOpen}
+          onClose={() => {
+            setQuery('');
+            setSearchFocused(false);
+          }}
+        >
+          {templateMatches.length > 0 ? (
+            <ul>
+              {templateMatches.map((template) => (
+                <WorkspaceSearchResultRow
+                  key={template.id}
+                  name={template.name}
+                  leadingIcon={<LuFileSignature aria-hidden="true" className="shrink-0" />}
+                  disabled={assigningId === template.id}
+                  onSelect={() => void handleAssignTemplate(template)}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="px-4 py-3 text-body-4 text-text-secondary">
+              {query.trim()
+                ? 'No forms available to add for this search.'
+                : 'No assignable forms available to add.'}
+            </p>
+          )}
+        </SearchResultsDropdown>
+      </div>
+      {assignError && (
+        <p role="alert" className="text-[12px] text-danger-600">
+          {assignError}
+        </p>
+      )}
+      {renderFormsPanelContent(status, forms)}
     </div>
   );
 };

@@ -129,6 +129,17 @@ export const configureStreamUploadPolicy = async (): Promise<void> => {
     size_limit: MAX_UPLOAD_SIZE_BYTES,
   };
 
+  // The image upload path must NOT reuse the file policy: Stream validates image
+  // uploads against image_upload_config, and blocking the full document/script
+  // MIME + extension list there caused legitimate photos (jpg/png/webp/…) to be
+  // rejected. Only SVG-family images carry browser-active content, so those are
+  // the only image types we block here; everything else uploads normally.
+  const imageUploadConfig = {
+    blocked_file_extensions: ["svg", "svgz"],
+    blocked_mime_types: ["image/svg+xml"],
+    size_limit: MAX_UPLOAD_SIZE_BYTES,
+  };
+
   // Opt-in: when a public webhook URL is set, route Stream events to the
   // attachment malware scanner. Left unset by default so an existing webhook
   // configuration is never clobbered.
@@ -138,7 +149,7 @@ export const configureStreamUploadPolicy = async (): Promise<void> => {
     const client = StreamChat.getInstance(key, secret);
     await client.updateAppSettings({
       file_upload_config: uploadConfig,
-      image_upload_config: uploadConfig,
+      image_upload_config: imageUploadConfig,
       ...(webhookUrl ? { webhook_url: webhookUrl } : {}),
     });
     logger.info(

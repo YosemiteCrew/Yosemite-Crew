@@ -789,6 +789,75 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
   });
 });
 
+describe("WorkspaceDocumentPacketService.reconcile", () => {
+  it("finalises an in-progress packet by delegating to completeSigning", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        signing: {
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          documentIds: ["d1"],
+        },
+      }),
+    );
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: {
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          documentIds: ["d1"],
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
+    });
+    mockedPrisma.workspaceDocumentPacket.update.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) =>
+        basePacket({ status: data.status, signing: data.signing }),
+    );
+    mockedPrisma.renderedDocument.update.mockResolvedValue({});
+    mockedPrisma.documentSignature.upsert.mockResolvedValue({});
+
+    const result = await WorkspaceDocumentPacketService.reconcile(
+      "org-1",
+      "pkt-1",
+    );
+
+    expect(result.status).toBe("FINAL");
+    expect(mockedDocumenso.downloadSignedDocument).toHaveBeenCalled();
+  });
+
+  it("returns the packet untouched when already FINAL", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        status: "FINAL",
+        signing: { status: "SIGNED", documentId: "123", documentIds: [] },
+      }),
+    );
+
+    const result = await WorkspaceDocumentPacketService.reconcile(
+      "org-1",
+      "pkt-1",
+    );
+
+    expect(result.status).toBe("FINAL");
+    expect(mockedDocumenso.downloadSignedDocument).not.toHaveBeenCalled();
+    expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects with 404 when the packet is not found for the org", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceDocumentPacketService.reconcile("org-1", "pkt-x"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 describe("WorkspaceDocumentPacketService.resetSigning", () => {
   it("resets in-progress signing to NOT_STARTED", async () => {
     mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(

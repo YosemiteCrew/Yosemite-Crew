@@ -307,6 +307,7 @@ type TaskBlockSeed = {
   name?: string;
   category?: string;
   additionalNotes?: string;
+  description?: string;
   reminderOffsetMinutes?: number;
   recurrence?: { type?: string };
 };
@@ -334,13 +335,15 @@ const firstTaskBlock = (template: TemplateLike): TaskBlockSeed | undefined => {
 const templateToTaskTemplate = (template: TemplateLike): TaskTemplate => {
   const block = firstTaskBlock(template);
   const category = block?.category || resolveTemplateTaskCategory(template);
+  const instructions =
+    block?.additionalNotes || block?.description || template.description || undefined;
   return {
     _id: template.id,
     source: 'ORG_TEMPLATE',
     organisationId: template.organisationId ?? '',
     category,
     name: block?.name || template.name,
-    description: block?.additionalNotes || template.description || undefined,
+    description: instructions,
     kind: resolveTemplateTaskKind(template),
     defaultRole: resolveTemplateDefaultRole(template),
     defaultReminderOffsetMinutes:

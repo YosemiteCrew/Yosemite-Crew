@@ -301,9 +301,68 @@ describe('taskService', () => {
       expect.objectContaining({
         _id: 'generic-template',
         category: 'COMMUNICATION',
+        description: 'Call parent',
         kind: 'COMMUNICATION',
         defaultRole: 'PARENT',
         defaultReminderOffsetMinutes: 15,
+      }),
+    ]);
+  });
+
+  it('hydrates generic task template instructions from a task block description alias', async () => {
+    getDataMock.mockResolvedValueOnce({ data: [] });
+    loadTemplateFormsMock.mockResolvedValue([
+      {
+        id: 'generic-template',
+        organisationId: 'org-1',
+        name: 'Generic communication',
+        description: 'Template fallback',
+        kind: 'TASK_ASSIGNMENT',
+        status: 'PUBLISHED',
+        rules: {
+          category: 'COMMUNICATION',
+          taskKind: 'COMMUNICATION',
+          audience: 'PARENT_TASK',
+        },
+        publishedVersion: 1,
+        latestVersion: 1,
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'schedule',
+                  title: 'Schedule',
+                  fields: [
+                    {
+                      key: 'taskBlocks',
+                      type: 'repeater',
+                      label: 'Task blocks',
+                      defaultValue: [
+                        {
+                          name: 'Call parent',
+                          description: 'Share medication instructions',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+        createdBy: 'user-2',
+      },
+    ]);
+
+    const templates = await getTaskTemplatesForPrimaryOrg();
+
+    expect(templates).toEqual([
+      expect.objectContaining({
+        _id: 'generic-template',
+        name: 'Call parent',
+        description: 'Share medication instructions',
       }),
     ]);
   });

@@ -329,6 +329,85 @@ describe('workspaceAggregateService', () => {
     expect(patch.readyForDischarge).toBeUndefined();
   });
 
+  it('keeps ready-for-billing ticked once the invoice is SETTLED after payment', () => {
+    // Regression: paying advances the single-slot billing stage to SETTLED, overwriting
+    // READY_FOR_BILLING, and the backend reports readyForBilling: false. The milestone is
+    // monotonic — a paid visit was, by definition, ready for billing — so it must stay ticked.
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'in-progress', updatedAt: '2026-07-02T10:00:00.000Z' },
+      readyForBilling: false,
+      visitBillingStage: 'SETTLED',
+      invoice: {
+        status: 'PAID',
+        visitBillingStage: 'SETTLED',
+        paidAt: '2026-07-02T10:19:31.000Z',
+      },
+    });
+    expect(patch.readyForBilling?.value).toBe(true);
+  });
+
+  it('keeps ready-for-billing ticked for a PAID invoice even without an explicit stage', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'in-progress' },
+      readyForBilling: false,
+      invoice: { status: 'PAID', paidAt: '2026-07-02T10:19:31.000Z' },
+    });
+    expect(patch.readyForBilling?.value).toBe(true);
+  });
+
+  it('does not tick ready-for-billing for an unpaid DRAFT invoice', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'in-progress' },
+      readyForBilling: false,
+      visitBillingStage: 'DRAFT',
+      invoice: { status: 'AWAITING_PAYMENT', visitBillingStage: 'DRAFT' },
+    });
+    expect(patch.readyForBilling).toBeUndefined();
+  });
+
+  it('persists ready-for-discharge from the encounter onleave status (marked, not yet discharged)', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'onleave', updatedAt: '2026-07-02T10:00:00.000Z' },
+      readyForDischarge: true,
+      readyForDischargeByName: 'Dr Patel',
+    });
+    expect(patch.readyForDischarge?.value).toBe(true);
+    expect(patch.readyForDischarge?.byName).toBe('Dr Patel');
+  });
+
+  it('persists ready-for-discharge from the bootstrap flag even when encounter.status is absent', () => {
+    // The backend surfaces readiness as a top-level boolean; the old code only read
+    // encounter.status/encounter.readyForDischarge and dropped the flag on refresh.
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1' },
+      readyForDischarge: true,
+    });
+    expect(patch.readyForDischarge?.value).toBe(true);
+  });
+
+  it('keeps ready-for-discharge ticked once the visit is fully discharged (status finished)', () => {
+    // A full discharge advances status onleave -> finished and stamps admission.dischargedAt, so
+    // the backend reports readyForDischarge: false — but the milestone is monotonic and must persist.
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: {
+        id: 'enc-1',
+        status: 'finished',
+        admission: { dischargedAt: '2026-07-02T10:49:00.000Z' },
+      },
+      readyForDischarge: false,
+    });
+    expect(patch.readyForDischarge?.value).toBe(true);
+    expect(patch.readyForDischarge?.at).toBe('2026-07-02T10:49:00.000Z');
+  });
+
+  it('does not tick ready-for-discharge for an open, un-marked encounter', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'in-progress' },
+      readyForDischarge: false,
+    });
+    expect(patch.readyForDischarge).toBeUndefined();
+  });
+
   it('hydrates both ready states from explicit bootstrap flags', () => {
     const patch = normalizeWorkspaceBootstrapForEncounter({
       encounter: {
@@ -485,6 +564,39 @@ describe('workspaceAggregateService', () => {
       }),
     ]);
     expect(patch.stepStatus?.TREATMENT).toBe('COMPLETED');
+  });
+
+  it('keeps a billed prescription-linked item in the prescription section even when its kind is not a medication', () => {
+    // After billing/dispense the backend can persist the drug as a treatment-item
+    // row whose kind is no longer MEDICATION/PRESCRIPTION but which still links to a
+    // prescription artifact. It must stay in the prescription section (read-only via
+    // `billed`), not be misfiled under Services & Packages or dropped entirely.
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      treatmentItems: [
+        {
+          id: 'ti-billed-rx',
+          productId: 'prod-drug',
+          servicePackageKind: 'SERVICE',
+          prescriptionId: 'rx-artifact-1',
+          name: 'Metronidazole',
+          quantity: 1,
+          priceSnapshot: { unitPrice: 18 },
+          billingStatus: 'BILLED',
+        },
+      ],
+    });
+
+    expect(patch.services ?? []).not.toContainEqual(
+      expect.objectContaining({ id: 'ti-billed-rx' })
+    );
+    expect(patch.prescription).toEqual([
+      expect.objectContaining({
+        id: 'ti-billed-rx',
+        medicineName: 'Metronidazole',
+        priceCents: 1800,
+        billed: true,
+      }),
+    ]);
   });
 
   it('merges stored prescriptions with medication treatment items without duplicating ids', () => {

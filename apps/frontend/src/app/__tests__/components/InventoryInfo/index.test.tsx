@@ -389,7 +389,7 @@ describe('InventoryInfo Component', () => {
     });
   });
 
-  it('saves batch-section barcode and expiry warning through the item update payload', async () => {
+  it('saves batch-section barcode and expiry warning per batch, without mirroring to item attributes', async () => {
     render(<InventoryInfo {...defaultProps} />);
     fireEvent.click(screen.getByTestId('tab-batch'));
     fireEvent.click(screen.getByTestId('accordion-edit-btn'));
@@ -403,18 +403,6 @@ describe('InventoryInfo Component', () => {
       fireEvent.click(screen.getByTestId('primary-btn'));
     });
 
-    expect(mockOnUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        attributes: expect.objectContaining({
-          expiryWarningBefore: '60 days',
-          barcode: 'NEW-BAR',
-        }),
-        batch: expect.objectContaining({
-          expiryWarningBefore: '60 days',
-          barcode: 'NEW-BAR',
-        }),
-      })
-    );
     expect(mockOnUpdateBatch).toHaveBeenCalledWith(
       'item-1',
       expect.arrayContaining([
@@ -425,6 +413,9 @@ describe('InventoryInfo Component', () => {
         }),
       ])
     );
+    // These two fields are now stored per batch by the backend, so saving a
+    // batch no longer needs to mirror the value onto the item-level attributes.
+    expect(mockOnUpdate).not.toHaveBeenCalled();
   });
 
   it('validates empty batch list on save', async () => {

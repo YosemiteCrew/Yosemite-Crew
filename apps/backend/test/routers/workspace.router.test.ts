@@ -175,7 +175,7 @@ describe("workspace.router", () => {
     expect(mobilePacketPdfRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognitoMobile,
     );
-    expect(withOrgPermissions).toHaveBeenCalledTimes(15);
+    expect(withOrgPermissions).toHaveBeenCalledTimes(16);
     expect(requirePermission).toHaveBeenCalled();
     expect(WorkspaceController.getAppointmentBootstrap).toHaveBeenCalledTimes(
       0,

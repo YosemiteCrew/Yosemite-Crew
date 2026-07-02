@@ -23,6 +23,8 @@ import {
   markAppointmentReadyForBilling,
   reverseAppointmentReadyForBilling,
 } from '@/app/features/billing/services/invoiceService';
+import { updateCompanion } from '@/app/features/companions/services/companionService';
+import { useCompanionStore } from '@/app/stores/companionStore';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
@@ -136,6 +138,10 @@ jest.mock('@/app/hooks/useRooms', () => ({
   useRoomsForPrimaryOrg: jest.fn(),
 }));
 
+jest.mock('@/app/features/organization/services/roomService', () => ({
+  loadRoomsForOrgPrimaryOrg: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   admitAppointment: jest.fn().mockResolvedValue({}),
   assignEncounterUnit: jest.fn().mockResolvedValue(undefined),
@@ -176,6 +182,10 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
 jest.mock('@/app/features/billing/services/invoiceService', () => ({
   markAppointmentReadyForBilling: jest.fn().mockResolvedValue({}),
   reverseAppointmentReadyForBilling: jest.fn().mockResolvedValue({}),
+}));
+
+jest.mock('@/app/features/companions/services/companionService', () => ({
+  updateCompanion: jest.fn(),
 }));
 
 jest.mock('@/app/stores/revampCatalogStore', () => ({
@@ -251,6 +261,9 @@ const resetStore = () => {
     roomUnitGroupsById: {},
     roomUnitGroupIdsByRoomId: {},
   });
+  (updateCompanion as jest.Mock).mockReset();
+  (updateCompanion as jest.Mock).mockResolvedValue(undefined);
+  useCompanionStore.setState({ companionsById: {} });
 };
 
 describe('AppointmentWorkspace container', () => {
@@ -408,6 +421,117 @@ describe('AppointmentWorkspace container', () => {
         })
       );
     });
+  });
+
+  it('renders room and unit as read-only for completed appointments', async () => {
+    (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([
+      { id: 'room-1', name: 'Ward A' },
+      { id: 'room-2', name: 'Ward B' },
+    ]);
+    useOrganisationRoomStore.setState({
+      roomUnitsById: {
+        'unit-a': {
+          id: 'unit-a',
+          organisationId: 'org-1',
+          roomId: 'room-1',
+          code: 'A',
+          displayName: 'A',
+          isActive: true,
+        },
+        'unit-b': {
+          id: 'unit-b',
+          organisationId: 'org-1',
+          roomId: 'room-2',
+          code: 'B',
+          displayName: 'B',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: {
+        'room-1': ['unit-a'],
+        'room-2': ['unit-b'],
+      },
+    });
+
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date(), true),
+            encounterId: 'enc-1',
+            status: 'COMPLETED',
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('Ward A')).toBeInTheDocument();
+    expect(screen.getByText('A')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /room: ward a/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /unit: a/i })).not.toBeInTheDocument();
+    expect(updateAppointment).not.toHaveBeenCalled();
+    expect(assignEncounterUnit).not.toHaveBeenCalled();
+  });
+
+  it('renders room and unit as read-only after an inpatient admission is discharged', async () => {
+    (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([
+      { id: 'room-1', name: 'Ward A' },
+      { id: 'room-2', name: 'Ward B' },
+    ]);
+    useOrganisationRoomStore.setState({
+      roomUnitsById: {
+        'unit-a': {
+          id: 'unit-a',
+          organisationId: 'org-1',
+          roomId: 'room-1',
+          code: 'A',
+          displayName: 'A',
+          isActive: true,
+        },
+        'unit-b': {
+          id: 'unit-b',
+          organisationId: 'org-1',
+          roomId: 'room-2',
+          code: 'B',
+          displayName: 'B',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: {
+        'room-1': ['unit-a'],
+        'room-2': ['unit-b'],
+      },
+    });
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({
+      encounter: {
+        id: 'enc-1',
+        appointmentKind: 'INPATIENT',
+        admission: {
+          roomId: 'room-1',
+          unitId: 'unit-a',
+          admittedAt: '2026-07-01T09:00:00.000Z',
+          dischargedAt: '2026-07-02T09:00:00.000Z',
+        },
+      },
+    });
+
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date(), true), encounterId: 'enc-1' } as Appointment}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.dischargedAt
+      ).toBe('2026-07-02T09:00:00.000Z');
+    });
+    expect(screen.getByText('Ward A')).toBeInTheDocument();
+    expect(screen.getByText('A')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /room: ward a/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /unit: a/i })).not.toBeInTheDocument();
+    expect(updateAppointment).not.toHaveBeenCalled();
+    expect(assignEncounterUnit).not.toHaveBeenCalled();
   });
 
   it('persists outpatient room-only selection on select', async () => {
@@ -1279,5 +1403,251 @@ describe('AppointmentWorkspace container', () => {
     expect(screen.getByRole('button', { name: 'Discharge date' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Discharge time' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /confirm discharge/i })).toBeInTheDocument();
+  });
+
+  const singleUnitInpatientRooms = () => {
+    (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([{ id: 'room-1', name: 'Ward A' }]);
+    useOrganisationRoomStore.setState({
+      roomUnitsById: {
+        'unit-a': {
+          id: 'unit-a',
+          organisationId: 'org-1',
+          roomId: 'room-1',
+          code: 'A',
+          displayName: 'A',
+          isActive: true,
+        },
+        'unit-b': {
+          id: 'unit-b',
+          organisationId: 'org-1',
+          roomId: 'room-1',
+          code: 'B',
+          displayName: 'B',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: {
+        'room-1': ['unit-a', 'unit-b'],
+      },
+    });
+  };
+
+  it('notifies and reverts when persisting an inpatient unit change fails', async () => {
+    singleUnitInpatientRooms();
+    (assignEncounterUnit as jest.Mock).mockRejectedValue(new Error('Boom'));
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date(), true), encounterId: 'enc-1' } as Appointment}
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to assign unit' })
+      )
+    );
+    expect(useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.unitId).toBe(
+      'unit-a'
+    );
+  });
+
+  it('re-admits when assigning a unit fails because the admission is missing', async () => {
+    singleUnitInpatientRooms();
+    (assignEncounterUnit as jest.Mock).mockRejectedValue(new Error('Admission not found'));
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date(), true), encounterId: 'enc-1' } as Appointment}
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({ roomUnitId: 'unit-b' })
+      )
+    );
+  });
+
+  it('surfaces an error notification when admission fails', async () => {
+    singleUnitInpatientRooms();
+    (admitAppointment as jest.Mock).mockRejectedValue(new Error('Admit failed'));
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date(), true), encounterId: 'enc-1' } as Appointment}
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to admit', text: 'Admit failed' })
+      )
+    );
+  });
+
+  it('logs and continues when persisting the appointment room fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([
+      { id: 'room-1', name: 'Exam Room 1' },
+      { id: 'room-2', name: 'Exam Room 2' },
+    ]);
+    (updateAppointment as jest.Mock).mockRejectedValue(new Error('nope'));
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /room/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exam Room 2' }));
+
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        'Unable to persist appointment room assignment:',
+        expect.any(Error)
+      )
+    );
+    expect(useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.roomId).toBe(
+      'room-2'
+    );
+    consoleError.mockRestore();
+  });
+
+  it('warns that unit assignment needs an encounter when none exists yet', async () => {
+    singleUnitInpatientRooms();
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({});
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date(), true)} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({
+          title: 'Unable to assign unit',
+          text: expect.stringContaining('does not have an encounter'),
+        })
+      )
+    );
+    expect(assignEncounterUnit).not.toHaveBeenCalled();
+  });
+
+  const seedCompanionRecord = (alerts: Array<{ title: string; severity: string }> = []) => {
+    useCompanionStore.setState({
+      companionsById: {
+        'comp-1': {
+          id: 'comp-1',
+          name: 'Gigi',
+          type: 'Canine',
+          alerts,
+        } as never,
+      },
+    });
+  };
+
+  it('adds a patient alert and notifies on success', async () => {
+    seedCompanionRecord();
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(
+      within(screen.getByTestId('workspace-alert-strip')).getByRole('button', {
+        name: 'Add alert',
+      })
+    );
+    fireEvent.change(screen.getByLabelText(/Alert \(e\.g\. Needs muzzle/i), {
+      target: { value: 'Diabetic' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: /^Add alert$/i }).at(-1)!);
+
+    await waitFor(() =>
+      expect(updateCompanion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'comp-1',
+          alerts: expect.arrayContaining([expect.objectContaining({ title: 'Diabetic' })]),
+        })
+      )
+    );
+    expect(mockNotify).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Alert added' })
+    );
+  });
+
+  it('notifies when adding a patient alert fails', async () => {
+    seedCompanionRecord();
+    (updateCompanion as jest.Mock).mockRejectedValue(new Error('save failed'));
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(
+      within(screen.getByTestId('workspace-alert-strip')).getByRole('button', {
+        name: 'Add alert',
+      })
+    );
+    fireEvent.change(screen.getByLabelText(/Alert \(e\.g\. Needs muzzle/i), {
+      target: { value: 'Diabetic' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: /^Add alert$/i }).at(-1)!);
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Failed to add alert' })
+      )
+    );
+  });
+
+  it('removes a patient alert and notifies on success', async () => {
+    seedCompanionRecord([{ title: 'Diabetic', severity: 'high' }]);
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /remove .*diabetic/i }));
+
+    await waitFor(() =>
+      expect(updateCompanion).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'comp-1', alerts: [] })
+      )
+    );
+    expect(mockNotify).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Alert removed' })
+    );
+  });
+
+  it('warns when adding an alert without a loaded patient record', async () => {
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(
+      within(screen.getByTestId('workspace-alert-strip')).getByRole('button', {
+        name: 'Add alert',
+      })
+    );
+    fireEvent.change(screen.getByLabelText(/Alert \(e\.g\. Needs muzzle/i), {
+      target: { value: 'Diabetic' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: /^Add alert$/i }).at(-1)!);
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to update alerts' })
+      )
+    );
+    expect(updateCompanion).not.toHaveBeenCalled();
   });
 });

@@ -38,7 +38,7 @@ type EditableAccordionProps = {
   hideInlineActions?: boolean;
   compactInlineActions?: boolean;
   onEditingChange?: (isEditing: boolean) => void;
-  footer?: React.ReactNode;
+  footer?: React.ReactNode | ((context: AccordionFooterContext) => React.ReactNode);
   fieldFilter?: (key: string, formValues: FormValues) => boolean;
   dynamicFooter?: (formValues: FormValues) => React.ReactNode;
   fieldResets?: Record<string, string[]>;
@@ -57,6 +57,12 @@ type EditableAccordionProps = {
 };
 
 type FormValues = Record<string, any>;
+
+type AccordionFooterContext = {
+  values: FormValues;
+  isEditing: boolean;
+  setFieldValue: (key: string, value: any) => void;
+};
 
 type BaseFieldProps = {
   field: FieldConfig;
@@ -468,19 +474,31 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setFormValuesErrors({});
   }
 
-  const handleChange = (key: string, value: string | string[]) => {
-    const resets = fieldResets?.[key] ?? [];
-    const resetValues = resets.reduce<Record<string, string>>(
-      (acc, k) => ({ ...acc, [k]: '' }),
-      {}
-    );
-    const resetErrors = resets.reduce<Record<string, undefined>>(
-      (acc, k) => ({ ...acc, [k]: undefined }),
-      {}
-    );
-    setFormValues((prev) => ({ ...prev, [key]: value, ...resetValues }));
-    setFormValuesErrors((prev) => ({ ...prev, [key]: undefined, ...resetErrors }));
-  };
+  const handleChange = useCallback(
+    (key: string, value: any) => {
+      const resets = fieldResets?.[key] ?? [];
+      const resetValues = resets.reduce<Record<string, string>>(
+        (acc, k) => ({ ...acc, [k]: '' }),
+        {}
+      );
+      const resetErrors = resets.reduce<Record<string, undefined>>(
+        (acc, k) => ({ ...acc, [k]: undefined }),
+        {}
+      );
+      setFormValues((prev) => ({ ...prev, [key]: value, ...resetValues }));
+      setFormValuesErrors((prev) => ({ ...prev, [key]: undefined, ...resetErrors }));
+    },
+    [fieldResets]
+  );
+
+  const handleFooterFieldChange = useCallback(
+    (key: string, value: any) => {
+      if (readOnly) return;
+      handleChange(key, value);
+      setIsEditing(true);
+    },
+    [readOnly, handleChange]
+  );
 
   const handleMultiChange = (values: Record<string, any>) => {
     setFormValues((prev) => ({ ...prev, ...values }));
@@ -555,6 +573,14 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   const effectiveEditing = readOnly ? false : isEditing;
 
   const displayValues: FormValues = useMemo(() => ({ ...data, ...formValues }), [data, formValues]);
+  const renderedFooter =
+    typeof footer === 'function'
+      ? footer({
+          values: displayValues,
+          isEditing: effectiveEditing,
+          setFieldValue: handleFooterFieldChange,
+        })
+      : footer;
 
   return (
     <div className="flex flex-col gap-3 w-full">
@@ -569,6 +595,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         onDeleteClick={onDelete}
       >
         <div className={`flex flex-col`}>
+          {dynamicFooter && <div className="mb-3">{dynamicFooter(formValues)}</div>}
           {fields
             .filter((field) => !fieldFilter || fieldFilter(field.key, formValues))
             .map((field) => {
@@ -595,8 +622,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
                 </div>
               );
             })}
-          {footer && <div className="mt-3">{footer}</div>}
-          {dynamicFooter && <div className="mt-3">{dynamicFooter(formValues)}</div>}
+          {renderedFooter && <div className="mt-3">{renderedFooter}</div>}
         </div>
       </Accordion>
 

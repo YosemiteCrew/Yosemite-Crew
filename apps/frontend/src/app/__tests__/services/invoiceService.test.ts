@@ -7,6 +7,7 @@ import {
   markAppointmentReadyForBilling,
   markInvoicePaid,
   reverseAppointmentReadyForBilling,
+  sendInvoiceToClient,
   updateInvoicePaymentCollectionMethod,
 } from '@/app/features/billing/services/invoiceService';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
@@ -573,6 +574,48 @@ describe('invoiceService', () => {
     );
   });
 
+  it('does not re-append a line already on the invoice under a sub-cent price drift', async () => {
+    // Regression: the same booked service reaches the invoice via two pipelines whose
+    // prices differ by rounding (257.127 persisted vs 257.13 re-seeded). Dedupe is keyed
+    // on name+quantity (not price), so the rounded copy must NOT append a duplicate.
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-1',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        items: [
+          {
+            id: 'li-existing',
+            name: 'Skin examination',
+            quantity: 1,
+            unitPrice: 257.127,
+            total: 257.127,
+          },
+        ],
+      },
+    ]);
+
+    await addLineItemsToAppointments(
+      [
+        {
+          id: 'li-reseed',
+          name: 'Skin examination',
+          quantity: 1,
+          unitPrice: 257.13,
+          total: 257.13,
+        },
+      ],
+      'appt-1',
+      'USD'
+    );
+
+    expect(postData).not.toHaveBeenCalledWith(
+      '/v1/finance/invoices/inv-1/lines',
+      expect.anything()
+    );
+  });
+
   it('throws when line-item payload is invalid', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     await expect(addLineItemsToAppointments([], '', '')).rejects.toThrow(
@@ -634,6 +677,27 @@ describe('invoiceService', () => {
     await getPaymentLink('inv-1');
     expect(postData).not.toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it('sends the invoice checkout session to the client email endpoint', async () => {
+    (postData as jest.Mock).mockResolvedValue({
+      data: {
+        data: {
+          checkout: { url: 'https://stripe.test/pay/inv-1', paymentAttemptId: 'pay-attempt-1' },
+          emailSent: true,
+        },
+        meta: null,
+        error: null,
+      },
+    });
+
+    const result = await sendInvoiceToClient('inv-1');
+
+    expect(postData).toHaveBeenCalledWith('/fhir/v1/invoice/inv-1/checkout-session');
+    expect(result).toEqual({
+      checkout: { url: 'https://stripe.test/pay/inv-1', paymentAttemptId: 'pay-attempt-1' },
+      emailSent: true,
+    });
   });
 
   it('throws when mark paid invoice id is missing', async () => {

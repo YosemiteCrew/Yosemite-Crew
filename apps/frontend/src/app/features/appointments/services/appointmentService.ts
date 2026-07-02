@@ -455,10 +455,20 @@ export const rejectAppointment = (appointment: Appointment) =>
   performAppointmentAction(appointment, 'reject');
 
 const performStatusUpdate = async (appointment: Appointment, nextStatus: AppointmentStatus) => {
-  return updateAppointment({
+  const updated = await updateAppointment({
     ...appointment,
     status: nextStatus,
   });
+  // The PATCH succeeded, so the transition is authoritative. Guard against a
+  // backend response that echoes a stale status (or omits it) by pinning the
+  // stored appointment to the requested status — otherwise consumers that gate
+  // on `status` (e.g. the Summary step's Sign button) never see the change.
+  if (updated && updated.status !== nextStatus) {
+    const pinned = { ...updated, status: nextStatus };
+    useAppointmentStore.getState().upsertAppointment(pinned);
+    return pinned;
+  }
+  return updated;
 };
 
 export const changeAppointmentStatus = async (

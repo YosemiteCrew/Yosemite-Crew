@@ -5,6 +5,7 @@ import { ChatHeaderContext } from '@/app/features/chat/components/ChatHeaderCont
 const appointment = {
   startTime: new Date('2026-06-25T15:00:00Z'),
   patient: { name: 'Bella' },
+  status: 'UPCOMING',
 } as unknown as Appointment;
 
 describe('ChatHeaderContext', () => {
@@ -67,15 +68,37 @@ describe('ChatHeaderContext', () => {
     expect(screen.getByText(/Bella/)).toBeInTheDocument();
   });
 
-  it('renders all four appointment quick-action buttons', () => {
+  it('shows reschedule for upcoming appointments and hides mark complete', () => {
     render(<ChatHeaderContext appointment={appointment} onAction={jest.fn()} />);
     expect(screen.getByRole('button', { name: 'Reschedule' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send form' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mark complete' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Book follow-up' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
   });
 
-  it.each(['Reschedule', 'Send form', 'Mark complete', 'Book follow-up'])(
+  it('shows mark complete for in-progress appointments and hides reschedule', () => {
+    render(
+      <ChatHeaderContext
+        appointment={{ ...appointment, status: 'IN_PROGRESS' } as Appointment}
+        onAction={jest.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Mark complete' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reschedule' })).not.toBeInTheDocument();
+  });
+
+  it('hides mark complete while a completion request is in flight', () => {
+    render(
+      <ChatHeaderContext
+        appointment={{ ...appointment, status: 'IN_PROGRESS' } as Appointment}
+        completing
+        onAction={jest.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
+  });
+
+  it.each(['Reschedule', 'Send form', 'Book follow-up'])(
     'calls onAction with "%s" when that button is clicked',
     (label) => {
       const onAction = jest.fn();
@@ -84,6 +107,18 @@ describe('ChatHeaderContext', () => {
       expect(onAction).toHaveBeenCalledWith(label);
     }
   );
+
+  it('calls onAction with "Mark complete" for in-progress appointments', () => {
+    const onAction = jest.fn();
+    render(
+      <ChatHeaderContext
+        appointment={{ ...appointment, status: 'IN_PROGRESS' } as Appointment}
+        onAction={onAction}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Mark complete' }));
+    expect(onAction).toHaveBeenCalledWith('Mark complete');
+  });
 
   it('falls back to "Linked appointment" when start time and name are absent', () => {
     const bare = {} as unknown as Appointment;

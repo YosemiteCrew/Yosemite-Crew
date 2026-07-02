@@ -112,8 +112,8 @@ const Review = ({
     | Organisation['type']
     | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
-  const detailsFields = React.useMemo(
-    () => [
+  const detailsFields = React.useMemo(() => {
+    const fields = [
       baseDetailsFields[0],
       baseDetailsFields[1],
       {
@@ -125,10 +125,12 @@ const Review = ({
           value: category,
         })),
       },
-      baseDetailsFields[2],
-    ],
-    [effectiveOrgType]
-  );
+    ];
+    if (formData.templateSource !== 'YC_LIBRARY') {
+      fields.push(baseDetailsFields[2]);
+    }
+    return fields;
+  }, [effectiveOrgType, formData.templateSource]);
   const UsageFields = React.useMemo(
     () => [
       {

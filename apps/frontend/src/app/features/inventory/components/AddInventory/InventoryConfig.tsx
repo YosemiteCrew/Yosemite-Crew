@@ -84,16 +84,6 @@ const row = <S extends InventorySectionKey>(...fields: FieldDef<S>[]): ConfigIte
   fields,
 });
 
-const readonlyField = <S extends InventorySectionKey>(
-  name: FieldNameForSection<S>,
-  placeholder: string,
-  component: FieldComponentType,
-  options?: string[]
-): ConfigItem<S> => ({
-  kind: 'field',
-  field: { name, placeholder, component, options, readonly: true },
-});
-
 const f = <S extends InventorySectionKey>(
   name: FieldNameForSection<S>,
   placeholder: string,
@@ -101,6 +91,12 @@ const f = <S extends InventorySectionKey>(
   options?: string[],
   numeric?: boolean
 ): FieldDef<S> => ({ name, placeholder, component, options, numeric });
+
+const readonlyF = <S extends InventorySectionKey>(
+  name: FieldNameForSection<S>,
+  placeholder: string,
+  component: FieldComponentType = 'text'
+): FieldDef<S> => ({ name, placeholder, component, readonly: true });
 
 const commonPricingFields: SectionConfig<'pricing'> = [
   field('purchaseCost', 'Unit cost', 'text', undefined, true),
@@ -117,10 +113,7 @@ const commonVendorFields = (includesLicense: boolean): SectionConfig<'vendor'> =
 ];
 
 const commonStockFields = (includesStockType: boolean = false): SectionConfig<'stock'> => [
-  row(
-    f('current', 'On hand stock', 'text', undefined, true),
-    f('allocated', 'Allocated stock (optional)', 'text', undefined, true)
-  ),
+  field('allocated', 'Allocated stock (optional)', 'text', undefined, true),
   row(
     f('maxStock', 'Max stock', 'text', undefined, true),
     f('stockLocation', 'Stock location', 'dropdown', StockLocationOptions)
@@ -131,7 +124,10 @@ const commonStockFields = (includesStockType: boolean = false): SectionConfig<'s
   ),
   field('abcClass', 'ABC Class', 'dropdown', AbcClassOptions),
   field('withdrawlPeriod', 'Withdrawal period (optional)', 'dropdown', WithdrawalPeriodOptions),
-  readonlyField('available', 'Available stock', 'text'),
+  row(
+    readonlyF('current', 'On hand stock'),
+    readonlyF('available', 'Available stock (dispensable)')
+  ),
   ...(includesStockType
     ? [
         row<'stock'>(

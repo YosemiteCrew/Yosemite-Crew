@@ -58,6 +58,7 @@ import {
   getAppointmentChannel,
 } from '@/app/features/chat/services/streamChatService';
 import { formatDisplayDate } from '@/app/lib/date';
+import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
 import {
   createOrgDirectChat,
   createOrgGroupChat,
@@ -76,7 +77,12 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { useCompanionStore } from '@/app/stores/companionStore';
+import { useLoadAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
+import { useLoadCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
+import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
 import { useRouter } from 'next/navigation';
+import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
+import AddAppointmentCentralModal from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 
 const GroupModalContext = createContext<{
@@ -439,6 +445,9 @@ const ChannelHeaderWithCounterpart: FC<{
   const { notify } = useNotify();
   const [closingSession, setClosingSession] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [completingAppointment, setCompletingAppointment] = useState(false);
   const { title } = getChannelDisplayInfo(channel, currentUserId);
   const scope = channel ? resolveChannelScope(channel) : 'colleagues';
   const channelMemberCount = channel?.state?.members
@@ -525,12 +534,55 @@ const ChannelHeaderWithCounterpart: FC<{
   const statusText =
     isClientChat && !hasSessionClosed ? `${baseStatus} · via pet parent app` : baseStatus;
 
+  const handleAppointmentComplete = async () => {
+    if (!appointment || completingAppointment) return;
+    setCompletingAppointment(true);
+    try {
+      await changeAppointmentStatus(appointment, 'COMPLETED');
+      notify('success', {
+        title: 'Appointment completed',
+        text: 'The visit has been marked complete.',
+      });
+    } catch (error) {
+      notify('error', {
+        title: 'Unable to complete',
+        text: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setCompletingAppointment(false);
+    }
+  };
+
   const handleApptAction = (action: string) => {
-    if (action === 'Send form') {
-      router.push('/forms');
+    if (!appointmentId) {
+      router.push('/appointments');
       return;
     }
-    router.push(appointmentId ? `/appointments/${appointmentId}/workspace` : '/appointments');
+    if (action === 'Reschedule') {
+      if (appointment) {
+        setRescheduleOpen(true);
+        return;
+      }
+      router.push(buildWorkspaceHref(appointmentId));
+      return;
+    }
+    if (action === 'Send form') {
+      router.push(buildWorkspaceHref(appointmentId, 'INVOICE'));
+      return;
+    }
+    if (action === 'Mark complete') {
+      void handleAppointmentComplete();
+      return;
+    }
+    if (action === 'Book follow-up') {
+      if (appointment?.companion?.id || appointment?.patient?.id) {
+        setFollowUpOpen(true);
+        return;
+      }
+      router.push('/appointments');
+      return;
+    }
+    router.push(buildWorkspaceHref(appointmentId));
   };
 
   return (
@@ -553,7 +605,7 @@ const ChannelHeaderWithCounterpart: FC<{
             </Text>
             {/* "Pet parent" is the fixed owner term and is NOT subject to the animal-terminology rewrite. */}
             {isClientChat && (
-              <span className="hidden shrink-0 sm:inline-flex">
+              <span className="hidden shrink-0 items-center self-center sm:inline-flex">
                 <Badge tone="warning">Pet parent</Badge>
               </span>
             )}
@@ -586,12 +638,29 @@ const ChannelHeaderWithCounterpart: FC<{
         </div>
       </header>
       {isClientChat && (
-        <ChatHeaderContext
-          allergy={companion?.allergy?.trim() || undefined}
-          alerts={companion?.alerts}
-          appointment={appointment}
-          onAction={handleApptAction}
-        />
+        <>
+          <ChatHeaderContext
+            allergy={companion?.allergy?.trim() || undefined}
+            alerts={companion?.alerts}
+            appointment={appointment}
+            completing={completingAppointment}
+            onAction={handleApptAction}
+          />
+          {appointment && (
+            <Reschedule
+              showModal={rescheduleOpen}
+              setShowModal={setRescheduleOpen}
+              activeAppointment={appointment}
+            />
+          )}
+          <AddAppointmentCentralModal
+            showModal={followUpOpen}
+            setShowModal={setFollowUpOpen}
+            setActiveFilter={() => undefined}
+            setActiveStatus={() => undefined}
+            initialCompanionId={appointment?.companion?.id ?? appointment?.patient?.id ?? null}
+          />
+        </>
       )}
     </>
   );
@@ -1024,6 +1093,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   scope = 'clients',
   onScopeChange,
 }) => {
+  useLoadAppointmentsForPrimaryOrg();
+  useLoadCompanionsForPrimaryOrg();
   const attributes = useAuthStore((state) => state.attributes);
   const authStatus = useAuthStore((state) => state.status);
   const authLoading = useAuthStore((state) => state.loading);

@@ -16,6 +16,25 @@ import type { DropdownOption } from '@/app/hooks/useDropdown';
 
 type DropdownItem = { label: string; value: string };
 
+const getSelectedDropdownLabel = (
+  options: DropdownItem[],
+  selectedValue: string | undefined,
+  fallback = '-'
+) => options.find((option) => option.value === selectedValue)?.label ?? selectedValue ?? fallback;
+
+const ReadOnlyMetaField = ({ label, value }: { label: string; value: string }) => (
+  <div className="relative w-full">
+    <div className="relative flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) py-2 pr-5 pl-5">
+      <span className="min-w-0 flex-1 truncate text-left text-body-4 text-text-primary">
+        {value}
+      </span>
+    </div>
+    <span className="pointer-events-none absolute -top-2 left-5 z-10 bg-(--whitebg) px-1 text-caption-2 text-text-secondary">
+      {label}
+    </span>
+  </div>
+);
+
 /**
  * Read-only consultation-type field. Mirrors the StaffField floating-label box
  * but shows a mode-specific icon (bed = inpatient, footprints = outpatient)
@@ -56,6 +75,7 @@ type WorkspaceMetaBarProps = {
   onSaveAndNext: () => void;
   onToggleReadyForBilling: () => void;
   onToggleReadyForDischarge: () => void;
+  roomAssignmentLocked?: boolean;
   /**
    * Lock for the billing readiness toggle. Billing is operational, so it is NOT
    * frozen by the clinical time-window — only by a persisted view-only encounter.
@@ -88,6 +108,7 @@ const WorkspaceMetaBar = ({
   onSaveAndNext,
   onToggleReadyForBilling,
   onToggleReadyForDischarge,
+  roomAssignmentLocked = false,
   billingTogglesLocked,
   dischargeTogglesLocked,
   primaryCta,
@@ -115,22 +136,36 @@ const WorkspaceMetaBar = ({
           Unit is inpatient-only. */}
       {showRoom && (
         <div className="w-40">
-          <LabelDropdown
-            placeholder="Room"
-            options={roomOptions}
-            defaultOption={encounter.roomId}
-            onSelect={onSelectRoom}
-          />
+          {roomAssignmentLocked ? (
+            <ReadOnlyMetaField
+              label="Room"
+              value={getSelectedDropdownLabel(roomOptions, encounter.roomId)}
+            />
+          ) : (
+            <LabelDropdown
+              placeholder="Room"
+              options={roomOptions}
+              defaultOption={encounter.roomId}
+              onSelect={onSelectRoom}
+            />
+          )}
         </div>
       )}
       {isInpatient && (
         <div className="w-32">
-          <LabelDropdown
-            placeholder="Unit"
-            options={unitOptions}
-            defaultOption={encounter.unitId}
-            onSelect={onSelectUnit}
-          />
+          {roomAssignmentLocked ? (
+            <ReadOnlyMetaField
+              label="Unit"
+              value={getSelectedDropdownLabel(unitOptions, encounter.unitId)}
+            />
+          ) : (
+            <LabelDropdown
+              placeholder="Unit"
+              options={unitOptions}
+              defaultOption={encounter.unitId}
+              onSelect={onSelectUnit}
+            />
+          )}
         </div>
       )}
     </>

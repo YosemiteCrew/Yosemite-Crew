@@ -30,7 +30,7 @@ afterAll(() => {
 });
 
 describe("configureStreamUploadPolicy", () => {
-  it("blocks executable/script types and caps size on both upload paths", async () => {
+  it("blocks executable/script types on the file path and caps size", async () => {
     await configureStreamUploadPolicy();
 
     expect(mockUpdateAppSettings).toHaveBeenCalledTimes(1);
@@ -42,9 +42,25 @@ describe("configureStreamUploadPolicy", () => {
       BLOCKED_UPLOAD_MIME_TYPES,
     );
     expect(arg.file_upload_config.size_limit).toBe(MAX_UPLOAD_SIZE_BYTES);
-    expect(arg.image_upload_config.blocked_file_extensions).toEqual(
-      BLOCKED_UPLOAD_EXTENSIONS,
+  });
+
+  it("only blocks active-content (SVG) images so normal photos still upload", async () => {
+    await configureStreamUploadPolicy();
+
+    const arg = mockUpdateAppSettings.mock.calls[0][0];
+    // Regression guard: reusing the full file policy on image_upload_config
+    // caused Stream to reject legitimate jpg/png/webp uploads.
+    expect(arg.image_upload_config.blocked_file_extensions).toEqual([
+      "svg",
+      "svgz",
+    ]);
+    expect(arg.image_upload_config.blocked_mime_types).toEqual([
+      "image/svg+xml",
+    ]);
+    expect(arg.image_upload_config.blocked_file_extensions).not.toContain(
+      "jpg",
     );
+    expect(arg.image_upload_config.size_limit).toBe(MAX_UPLOAD_SIZE_BYTES);
   });
 
   it("covers the obvious malware vectors", () => {

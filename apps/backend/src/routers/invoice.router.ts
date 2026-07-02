@@ -107,6 +107,8 @@ router.post(
   "/:invoiceId/checkout-session",
   authorizeCognito,
   invoiceActionLimiter,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:edit:any"),
   InvoiceController.createCheckoutSessionForInvoice,
 );
 

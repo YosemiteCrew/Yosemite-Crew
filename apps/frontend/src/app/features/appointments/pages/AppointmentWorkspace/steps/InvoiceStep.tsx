@@ -38,6 +38,7 @@ import {
   getPaymentLink,
   loadAppointmentBilling,
   recordManualInvoicePayment,
+  sendInvoiceToClient,
   findOpenAppointmentInvoice,
 } from '@/app/features/billing/services/invoiceService';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
@@ -290,14 +291,12 @@ const escapeHtml = (value: string): string =>
 // Render an invoice as a standalone printable document and open the browser print
 // dialog (print-to-PDF). There is no backend invoice-PDF endpoint, so this is the
 // portable way to produce a downloadable PDF from the invoice the user sees.
-const printInvoice = (invoice: PastInvoice, currency: string): void => {
-  if (globalThis.window === undefined) return;
-  const printWindow = globalThis.window.open(
-    '',
-    '_blank',
-    'noopener,noreferrer,width=800,height=900'
-  );
-  if (!printWindow) return;
+const printInvoice = (invoice: PastInvoice, currency: string): boolean => {
+  if (globalThis.window === undefined) return false;
+  const printWindow = globalThis.window.open('', '_blank', 'width=800,height=900');
+  // Popup blocked (or otherwise unavailable) — report failure so the caller can
+  // surface it instead of the download silently doing nothing.
+  if (!printWindow) return false;
   const rows = invoice.items
     .map(
       (item) =>
@@ -323,6 +322,7 @@ const printInvoice = (invoice: PastInvoice, currency: string): void => {
     )}</td></tr></tfoot></table>`;
   printWindow.focus();
   printWindow.print();
+  return true;
 };
 
 /** The workspace tracks money in integer cents; the finance API stores major units
@@ -634,6 +634,25 @@ export const buildBillableItems = (
   return uniqueByName([...visitItems, ...catalogItems], existingNames);
 };
 
+/**
+ * Names that must not be auto-seeded onto the editable bill because they are already
+ * represented there — either on the current builder or on an OPEN (unpaid/partial)
+ * invoice, which hydrateInvoiceBilling seeds straight into the builder. Paid invoices
+ * are handled separately (settledLineNames) and excluded here so their lines don't
+ * block a legitimate re-bill.
+ */
+export const collectSeededBillNames = (
+  builderNames: string[],
+  pastInvoices: PastInvoice[]
+): Set<string> => {
+  const names = new Set(builderNames.map((name) => normalizeLineName(name)));
+  for (const invoice of pastInvoices) {
+    if (invoice.status === 'PAID_FULL') continue;
+    for (const item of invoice.items) names.add(normalizeLineName(item.name));
+  }
+  return names;
+};
+
 const computeInvoiceTotalCents = (encounter: AppointmentEncounter): number => {
   const subtotalCents = encounter.invoiceLineItems.reduce((sum, item) => sum + item.grossCents, 0);
   const lineDiscountCents = encounter.invoiceLineItems.reduce(
@@ -692,10 +711,12 @@ const getPaymentProgressDescription = (status: PaymentProgressState['status']): 
 const PaymentProgressOverlay = ({
   state,
   onCheckAgain,
+  onAbort,
   onContinue,
 }: {
   state: PaymentProgressState | null;
   onCheckAgain: () => void;
+  onAbort: () => void;
   onContinue: () => void;
 }) => {
   if (!state) return null;
@@ -735,8 +756,17 @@ const PaymentProgressOverlay = ({
             Reopen Stripe checkout
           </a>
         )}
-        {!isChecking && (
+        {isChecking && <Secondary text="Abort" onClick={onAbort} />}
+        {isConfirmed && (
+          // Payment is confirmed — the only sensible action is to close and continue.
+          // Never show Abort (nothing left to abort) or Check again (already settled).
+          <Primary text="Done" onClick={onContinue} />
+        )}
+        {!isChecking && !isConfirmed && (
+          // Delayed: confirmation hasn't arrived yet, so keep both the retry and the
+          // escape hatches available.
           <div className="flex flex-wrap justify-center gap-3">
+            <Secondary text="Abort" onClick={onAbort} />
             <Secondary text="Continue editing" onClick={onContinue} />
             <Primary text="Check again" onClick={onCheckAgain} />
           </div>
@@ -1325,22 +1355,41 @@ const InvoiceStep = ({
     [bookedLineKey, discountByName, encounter.invoiceLineItems]
   );
 
+  // Server-authoritative anti-double-bill guard. The per-item `billed` flag is derived
+  // from the treatment item's `billingStatus`, which the backend can reset after a
+  // re-hydrate (bootstrap) or which conflates "on an invoice" with "paid" — so a line
+  // already settled on a paid invoice could otherwise re-seed onto the bill and be
+  // charged twice. Any line name appearing on a SETTLED (paid / zero-outstanding) past
+  // invoice is treated as final and never re-added to the editable bill, regardless of
+  // the `billed` flag. See backend handoff (finance double-bill).
+  const settledLineNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const invoice of encounter.pastInvoices) {
+      if (!isInvoiceSettled(invoice)) continue;
+      for (const item of invoice.items) names.add(normalizeLineName(item.name));
+    }
+    return names;
+  }, [encounter.pastInvoices]);
+
   // Saved (persisted) Service/Package + in-house prescription lines for this visit
   // that are not yet billed, mapped into Total Bill lines. These are auto-added to
   // the bill (below) so a clinician doesn't have to re-add each saved item by search.
-  // Catalog/inventory candidates stay opt-in (search only).
+  // Catalog/inventory candidates stay opt-in (search only). Lines already settled on
+  // a paid invoice are excluded so they can't be re-billed.
   const autoSeedCandidates = useMemo<Omit<InvoiceLineItem, 'id'>[]>(
     () => [
       ...encounter.services
         .filter((item) => !item.billed && item.amountCents > 0)
+        .filter((item) => !settledLineNames.has(normalizeLineName(item.name)))
         .map((item) => serviceLineItemToInvoiceLine(item, catalogServices, catalogPackages)),
       ...encounter.prescription
         .filter(
           (item) => !item.billed && item.fulfillment === 'IN_HOUSE' && (item.priceCents ?? 0) > 0
         )
+        .filter((item) => !settledLineNames.has(normalizeLineName(item.medicineName)))
         .map(prescriptionToInvoiceLine),
     ],
-    [catalogPackages, catalogServices, encounter.services, encounter.prescription]
+    [catalogPackages, catalogServices, encounter.services, encounter.prescription, settledLineNames]
   );
 
   // Load the org catalog so saved service/package lines can recover their max-discount ceiling
@@ -1427,24 +1476,37 @@ const InvoiceStep = ({
   const seededBillNamesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!canBuildBill || !billingHydrated) return;
-    const existing = new Set(
-      encounter.invoiceLineItems.map((item) => item.name.trim().toLowerCase())
+    // Names already represented on the bill: the current builder plus any OPEN invoice
+    // (hydrateInvoiceBilling seeds those into the builder). The booked service in
+    // particular is persisted onto that invoice AND exists as a treatment row here; its
+    // invoice line name and treatment name can differ, so anchoring the booked service by
+    // its dedicated key stops the second copy from seeding. `taken` is mutated in-loop so
+    // two candidates that normalize to the same name can't both seed.
+    const taken = collectSeededBillNames(
+      encounter.invoiceLineItems.map((item) => item.name),
+      encounter.pastInvoices
     );
+    // A booked line already on any open invoice blocks re-seeding it under a mismatched name.
+    const bookedAlreadyOnBill =
+      bookedLineKey !== undefined && taken.size > 0 && encounter.pastInvoices.length > 0;
     autoSeedCandidates.forEach((line) => {
-      const key = line.name.trim().toLowerCase();
+      const key = normalizeLineName(line.name);
       if (!key || seededBillNamesRef.current.has(key)) return;
       seededBillNamesRef.current.add(key);
-      if (!existing.has(key)) {
-        addInvoiceLineItem(appointmentId, line);
-      }
+      const isBookedDuplicate = key === bookedLineKey && bookedAlreadyOnBill;
+      if (taken.has(key) || isBookedDuplicate) return;
+      taken.add(key);
+      addInvoiceLineItem(appointmentId, line);
     });
   }, [
     addInvoiceLineItem,
     appointmentId,
     autoSeedCandidates,
     billingHydrated,
+    bookedLineKey,
     canBuildBill,
     encounter.invoiceLineItems,
+    encounter.pastInvoices,
   ]);
 
   useEffect(() => {
@@ -1507,6 +1569,16 @@ const InvoiceStep = ({
       const billing = await reloadBilling();
       if (!billing) return;
       if (isInvoiceSettled(findInvoiceById(billing.pastInvoices, targetInvoiceId))) {
+        // Online payment settled: clear the editable draft bill and mark the paid
+        // treatment/prescription rows billed — the manual (cash/deposit) paths do this
+        // via recordInvoicePayment, but the online poll only reloads pastInvoices, so
+        // without this the paid line items linger in the Total Bill after the client
+        // pays. recordInvoicePayment no-ops once invoiceLineItems is empty, so the
+        // repeated poll → confirm transition stays idempotent.
+        recordInvoicePayment(appointmentId, {
+          method: 'ONLINE',
+          byName: encounter.leadName ?? 'Front desk',
+        });
         setPaymentProgress((current) =>
           current?.invoiceId === targetInvoiceId ? { ...current, status: 'confirmed' } : current
         );
@@ -1514,7 +1586,13 @@ const InvoiceStep = ({
         setConfirmation('Online payment confirmed');
       }
     },
-    [paymentProgress?.invoiceId, reloadBilling]
+    [
+      appointmentId,
+      encounter.leadName,
+      paymentProgress?.invoiceId,
+      recordInvoicePayment,
+      reloadBilling,
+    ]
   );
 
   const startPaymentProgress = useCallback(
@@ -1717,7 +1795,39 @@ const InvoiceStep = ({
   };
 
   const handleSendToClient = async () => {
-    await handleCollect('ONLINE');
+    if (!hasItems || !isReadyForBilling) {
+      notify('warning', {
+        title: 'Mark ready for billing first',
+        text: 'Set the visit to Ready for billing before sending the invoice to the client.',
+      });
+      return;
+    }
+    setErrorMessage(null);
+    setIsProcessingPayment(true);
+    try {
+      const invoice = await persistCurrentInvoice({ finalize: false });
+      if (!invoice?.id) {
+        throw new Error('Unable to prepare the invoice for sending.');
+      }
+      const result = await sendInvoiceToClient(invoice.id);
+      const checkoutUrl = result.checkout?.url ?? result.checkout?.checkoutUrl;
+      setConfirmationLink(result.emailSent ? null : (checkoutUrl ?? null));
+      let confirmationMessage: string;
+      if (result.emailSent) {
+        confirmationMessage = 'Invoice sent to client.';
+      } else if (checkoutUrl) {
+        confirmationMessage =
+          'Checkout created, but the client email was not sent. Share this link manually.';
+      } else {
+        confirmationMessage = 'Invoice prepared for client payment.';
+      }
+      setConfirmation(confirmationMessage);
+      await reloadBilling();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to send invoice to client.');
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   const handlePaymentCheckAgain = () => {
@@ -1732,33 +1842,59 @@ const InvoiceStep = ({
     void reloadBilling();
   };
 
+  const handleAbortPaymentProgress = () => {
+    setPaymentProgress(null);
+  };
+
   const handleDownloadInvoice = (invoice: PastInvoice) => {
+    // Prefer a backend-rendered PDF when finance exposes one; otherwise fall back to
+    // a client-rendered print-to-PDF of the invoice the user sees.
     if (invoice.pdfUrl) {
       openDocumentUrl(invoice.pdfUrl);
       return;
     }
-    printInvoice(invoice, currency);
+    const opened = printInvoice(invoice, currency);
+    // The print window is opened synchronously inside a click handler, so a null
+    // result means the browser blocked the popup — tell the user rather than
+    // leaving the Download button looking dead.
+    if (!opened) {
+      notify('warning', {
+        title: 'Allow pop-ups to download',
+        text: 'Your browser blocked the invoice window. Enable pop-ups for this site, then try Download again.',
+      });
+    }
   };
 
-  // Share = copy a concise invoice summary to the clipboard for pasting into a
-  // message/email. Falls back to a confirmation when clipboard isn't available.
+  // Share = copy the invoice's shareable URL to the clipboard for pasting into a
+  // message/email. Prefer the hosted invoice/checkout link when the finance record
+  // carries one; otherwise fall back to a deep link to this appointment's invoice
+  // step so the recipient still lands on the right invoice. A concise text summary
+  // is the last resort when no URL can be built (e.g. no window/origin).
+  const buildShareUrl = (invoice: PastInvoice): string | null => {
+    if (invoice.pdfUrl) return invoice.pdfUrl;
+    if (globalThis.window === undefined) return null;
+    const origin = globalThis.window.location.origin;
+    return `${origin}/appointments/${appointmentId}/workspace?step=INVOICE`;
+  };
+
   const handleShareInvoice = async (invoice: PastInvoice) => {
-    const summary = `Invoice ${invoice.id} — ${formatCents(invoice.totalCents, currency)} (${
-      invoice.status
-    })`;
+    const shareUrl = buildShareUrl(invoice);
+    const payload =
+      shareUrl ??
+      `Invoice ${invoice.id} — ${formatCents(invoice.totalCents, currency)} (${invoice.status})`;
     try {
       if (globalThis.navigator?.clipboard) {
-        await globalThis.navigator.clipboard.writeText(summary);
-        setConfirmationLink(null);
-        setConfirmation('Invoice summary copied to clipboard.');
+        await globalThis.navigator.clipboard.writeText(payload);
+        setConfirmationLink(shareUrl);
+        setConfirmation(shareUrl ? 'Invoice link copied to clipboard.' : payload);
       } else {
-        setConfirmationLink(null);
-        setConfirmation(summary);
+        setConfirmationLink(shareUrl);
+        setConfirmation(shareUrl ? 'Invoice link:' : payload);
       }
     } catch (error) {
-      console.error('Failed to copy invoice summary:', error);
-      setConfirmationLink(null);
-      setConfirmation(summary);
+      console.error('Failed to copy invoice link:', error);
+      setConfirmationLink(shareUrl);
+      setConfirmation(shareUrl ? 'Invoice link:' : payload);
     }
   };
 
@@ -1900,6 +2036,7 @@ const InvoiceStep = ({
       <PaymentProgressOverlay
         state={paymentProgress}
         onCheckAgain={handlePaymentCheckAgain}
+        onAbort={handleAbortPaymentProgress}
         onContinue={handleContinueAfterPaymentDelay}
       />
 

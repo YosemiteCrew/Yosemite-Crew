@@ -315,7 +315,10 @@ export type ScheduleTaskStatus = 'UPCOMING' | 'COMPLETED' | 'CANCELLED' | 'PENDI
 export type ScheduleTask = {
   id: string;
   time?: string;
+  /** Row title (the task name). */
   description: string;
+  /** Optional grey secondary line under the title (the task's instructions). */
+  subtext?: string;
   category: EmployeeTaskCategory;
   assignedToId?: string;
   assignedToName?: string;
