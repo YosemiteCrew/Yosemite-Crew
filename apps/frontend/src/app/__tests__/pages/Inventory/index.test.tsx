@@ -312,7 +312,7 @@ const mockInventory = [
   },
   {
     id: '2',
-    status: 'HIDDEN',
+    status: 'ACTIVE',
     stockHealth: 'Low Stock',
     basicInfo: { name: 'Item B', category: 'Food', description: 'Desc B' },
   },
@@ -491,6 +491,17 @@ describe('Inventory Page', () => {
   });
 
   it('filters inventory by status', async () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [mockInventory[0], { ...mockInventory[1], status: 'HIDDEN' }],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+    });
     render(<ProtectedInventory />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Active' }));
