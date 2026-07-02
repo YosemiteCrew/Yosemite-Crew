@@ -924,7 +924,7 @@ describe('Inventory Utils', () => {
       abcClasses: [],
       suppliers: [],
       status: 'ALL',
-      visibility: 'ALL',
+      visibility: 'ACTIVE',
       search: '',
     });
   });

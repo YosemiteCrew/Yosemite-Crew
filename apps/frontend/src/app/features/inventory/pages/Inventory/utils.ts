@@ -657,7 +657,7 @@ export const defaultFilters: InventoryFiltersState = {
   locations: [],
   abcClasses: [],
   suppliers: [],
-  visibility: 'ALL',
+  visibility: 'ACTIVE',
   status: 'ALL',
   search: '',
 };
