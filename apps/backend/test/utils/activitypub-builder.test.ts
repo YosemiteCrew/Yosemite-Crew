@@ -19,6 +19,8 @@ import {
   buildRejectActivity,
   buildUndoActivity,
   buildReferralObject,
+  buildAgentTaskObject,
+  buildAgentTaskResultObject,
   buildOfferActivity,
   buildNoteActivity,
   buildAnnounceActivity,
@@ -289,6 +291,65 @@ describe("activitypub-builder", () => {
         urgency: "ROUTINE",
       });
       expect(referral["yc:clinicalContext"]).toBeUndefined();
+    });
+  });
+
+  describe("buildAgentTaskObject", () => {
+    it("builds a yc:AgentTask with input and replyTo", () => {
+      const task = buildAgentTaskObject({
+        id: "task-1",
+        fromActorUri: ACTOR,
+        taskType: "capability_query",
+        input: { species: "Dog" },
+        replyTo: `${BASE}/ap/activities/act-1`,
+      });
+      expect(task.id).toBe(`${BASE}/ap/agent-tasks/task-1`);
+      expect(task.type).toBe("yc:AgentTask");
+      expect(task.attributedTo).toBe(ACTOR);
+      expect(task["yc:taskType"]).toBe("capability_query");
+      expect(task["yc:input"]).toEqual({ species: "Dog" });
+      expect(task["yc:replyTo"]).toBe(`${BASE}/ap/activities/act-1`);
+      expect(typeof task.published).toBe("string");
+      expect(task["@context"]).toEqual([
+        ...AP_CONTEXT,
+        { yc: "https://yosemitecrew.com/ns#" },
+      ]);
+    });
+
+    it("defaults yc:input to {} and leaves replyTo undefined when omitted", () => {
+      const task = buildAgentTaskObject({
+        id: "task-2",
+        fromActorUri: ACTOR,
+        taskType: "availability_query",
+      });
+      expect(task["yc:input"]).toEqual({});
+      expect(task["yc:replyTo"]).toBeUndefined();
+    });
+  });
+
+  describe("buildAgentTaskResultObject", () => {
+    it("builds a yc:AgentTaskResult with all yc: fields and inReplyTo", () => {
+      const result = buildAgentTaskResultObject({
+        id: "res-1",
+        fromActorUri: ACTOR,
+        taskType: "capability_query",
+        inReplyTo: `${BASE}/ap/activities/act-1`,
+        result: { status: "ok", capabilities: { name: "Clinic" } },
+      });
+      expect(result.id).toBe(`${BASE}/ap/agent-task-results/res-1`);
+      expect(result.type).toBe("yc:AgentTaskResult");
+      expect(result.attributedTo).toBe(ACTOR);
+      expect(result["yc:taskType"]).toBe("capability_query");
+      expect(result.inReplyTo).toBe(`${BASE}/ap/activities/act-1`);
+      expect(result["yc:result"]).toEqual({
+        status: "ok",
+        capabilities: { name: "Clinic" },
+      });
+      expect(typeof result.published).toBe("string");
+      expect(result["@context"]).toEqual([
+        ...AP_CONTEXT,
+        { yc: "https://yosemitecrew.com/ns#" },
+      ]);
     });
   });
 

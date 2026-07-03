@@ -4,12 +4,14 @@ import { signRequest } from "src/utils/http-signature";
 const fetchRemoteActor = jest.fn();
 const getActorByOrgId = jest.fn();
 const getOrCreateActor = jest.fn();
+const getOrgCapabilities = jest.fn();
 const isLicenseTokenValid = jest.fn();
 
 jest.mock("src/services/activitypub.service", () => ({
   fetchRemoteActor: (uri: string) => fetchRemoteActor(uri),
   getActorByOrgId: (orgId: string) => getActorByOrgId(orgId),
   getOrCreateActor: (orgId: string) => getOrCreateActor(orgId),
+  getOrgCapabilities: (orgId: string) => getOrgCapabilities(orgId),
 }));
 jest.mock("src/services/ap-license.service", () => ({
   isLicenseTokenValid: (token: unknown, uri: string) =>
@@ -46,6 +48,14 @@ jest.mock("@yosemite-crew/database", () => ({
 jest.mock("src/utils/activitypub-builder", () => ({
   buildAcceptActivity: jest.fn(() => ({ type: "Accept" })),
   buildFollowActivity: jest.fn(() => ({ type: "Follow" })),
+  buildActivity: jest.fn((opts: { type: string; object: unknown }) => ({
+    type: opts.type,
+    object: opts.object,
+  })),
+  buildAgentTaskResultObject: jest.fn((opts: unknown) => ({
+    type: "yc:AgentTaskResult",
+    ...(opts as Record<string, unknown>),
+  })),
   generateActivityId: jest.fn(() => "urn:generated:id"),
 }));
 
@@ -271,6 +281,11 @@ function resetAll() {
     licenseToken: "tok",
   });
   isLicenseTokenValid.mockResolvedValue(true);
+  getOrgCapabilities.mockResolvedValue({
+    name: "Local Clinic",
+    type: "CLINIC",
+    specialities: [],
+  });
 }
 
 describe("dispatchInboundActivity", () => {
@@ -615,6 +630,161 @@ describe("handleOffer", () => {
       object: { type: "Note" },
     });
     expect(prismaMock.aPReferral.upsert).not.toHaveBeenCalled();
+    expect(ApDeliveryQueueAdd).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleAgentTask (via Offer)", () => {
+  beforeEach(resetAll);
+
+  it("answers a capability_query from a verified requester with a Create AgentTaskResult", async () => {
+    isLicenseTokenValid.mockResolvedValue(true);
+    getOrgCapabilities.mockResolvedValue({
+      name: "Local Clinic",
+      type: "CLINIC",
+      specialities: [{ name: "Cardiology", services: ["ECG"] }],
+    });
+
+    await dispatch({
+      id: "urn:at:1",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: {
+        type: "yc:AgentTask",
+        "yc:taskType": "capability_query",
+        "yc:replyTo": "https://remote.example/ap/activities/req-1",
+      },
+    });
+
+    expect(getOrgCapabilities).toHaveBeenCalledWith(ORG_ID);
+    expect(ApDeliveryQueueAdd).toHaveBeenCalledTimes(1);
+    const payload = ApDeliveryQueueAdd.mock.calls[0][1];
+    expect(payload.actorId).toBe(LOCAL_ACTOR.id);
+    expect(payload.inboxUri).toBe("https://remote.example/shared-inbox");
+    expect(payload.activity.type).toBe("Create");
+    expect(payload.activity.object.type).toBe("yc:AgentTaskResult");
+    expect(payload.activity.object.inReplyTo).toBe(
+      "https://remote.example/ap/activities/req-1",
+    );
+    expect(payload.activity.object.result).toEqual({
+      status: "ok",
+      capabilities: {
+        name: "Local Clinic",
+        type: "CLINIC",
+        specialities: [{ name: "Cardiology", services: ["ECG"] }],
+      },
+    });
+  });
+
+  it("falls back to activity.id for inReplyTo when yc:replyTo is absent", async () => {
+    isLicenseTokenValid.mockResolvedValue(true);
+
+    await dispatch({
+      id: "urn:at:reply",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: { type: "yc:AgentTask", "yc:taskType": "capability_query" },
+    });
+
+    const payload = ApDeliveryQueueAdd.mock.calls[0][1];
+    expect(payload.activity.object.inReplyTo).toBe("urn:at:reply");
+  });
+
+  it("warns and does not deliver when the requester is unverified", async () => {
+    isLicenseTokenValid.mockResolvedValue(false);
+
+    await dispatch({
+      id: "urn:at:2",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: {
+        type: "yc:AgentTask",
+        "yc:taskType": "capability_query",
+        "yc:replyTo": "https://remote.example/ap/activities/req-2",
+      },
+    });
+
+    expect(getOrgCapabilities).not.toHaveBeenCalled();
+    expect(ApDeliveryQueueAdd).not.toHaveBeenCalled();
+    // handler ran and the activity was still marked processed
+    expect(prismaMock.aPActivity.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("Rejects an unsupported task type with reason requires_human_review", async () => {
+    isLicenseTokenValid.mockResolvedValue(true);
+
+    await dispatch({
+      id: "urn:at:3",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: {
+        type: "yc:AgentTask",
+        "yc:taskType": "availability_query",
+        "yc:replyTo": "https://remote.example/ap/activities/req-3",
+      },
+    });
+
+    expect(getOrgCapabilities).not.toHaveBeenCalled();
+    expect(ApDeliveryQueueAdd).toHaveBeenCalledTimes(1);
+    const payload = ApDeliveryQueueAdd.mock.calls[0][1];
+    expect(payload.inboxUri).toBe("https://remote.example/shared-inbox");
+    expect(payload.activity.type).toBe("Reject");
+    expect(payload.activity.object).toEqual({
+      type: "yc:AgentTask",
+      inReplyTo: "https://remote.example/ap/activities/req-3",
+      "yc:reason": "requires_human_review",
+    });
+  });
+
+  it("defaults an empty task type to the human-review Reject path", async () => {
+    isLicenseTokenValid.mockResolvedValue(true);
+
+    await dispatch({
+      id: "urn:at:empty",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: { type: "yc:AgentTask", "yc:replyTo": "https://remote/req" },
+    });
+
+    const payload = ApDeliveryQueueAdd.mock.calls[0][1];
+    expect(payload.activity.type).toBe("Reject");
+  });
+
+  it("falls back to the direct inbox when the requester has no shared inbox", async () => {
+    isLicenseTokenValid.mockResolvedValue(true);
+    fetchRemoteActor.mockResolvedValue({
+      uri: "https://remote.example/actor",
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+      licenseToken: "tok",
+    });
+
+    await dispatch({
+      id: "urn:at:4",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: { type: "yc:AgentTask", "yc:taskType": "capability_query" },
+    });
+
+    expect(ApDeliveryQueueAdd.mock.calls[0][1].inboxUri).toBe(
+      "https://remote.example/inbox",
+    );
+  });
+
+  it("swallows errors (no throw, no delivery, still marked processed)", async () => {
+    fetchRemoteActor.mockRejectedValue(new Error("network down"));
+
+    await expect(
+      dispatch({
+        id: "urn:at:5",
+        type: "Offer",
+        actor: "https://remote.example/actor",
+        object: { type: "yc:AgentTask", "yc:taskType": "capability_query" },
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(ApDeliveryQueueAdd).not.toHaveBeenCalled();
+    expect(prismaMock.aPActivity.update).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -648,6 +818,36 @@ describe("handleCreate / handleAnnounce", () => {
       actor: "https://remote.example/actor",
       object: { type: "Note" },
     });
+    expect(prismaMock.aPActivity.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs an AgentTaskResult and returns before Note handling", async () => {
+    const logger = jest.requireMock("src/utils/logger").default as {
+      info: jest.Mock;
+    };
+    await dispatch({
+      id: "urn:c:res",
+      type: "Create",
+      actor: "https://remote.example/actor",
+      object: {
+        type: "yc:AgentTaskResult",
+        "yc:taskType": "capability_query",
+        content: "should-not-be-read-as-note",
+      },
+    });
+    expect(logger.info).toHaveBeenCalledWith(
+      "[AP inbox] Received AgentTaskResult",
+      expect.objectContaining({
+        from: "https://remote.example/actor",
+        toOrg: ORG_ID,
+        taskType: "capability_query",
+      }),
+    );
+    // did not fall through to the Note branch
+    expect(logger.info).not.toHaveBeenCalledWith(
+      "[AP inbox] Received Note",
+      expect.anything(),
+    );
     expect(prismaMock.aPActivity.update).toHaveBeenCalledTimes(1);
   });
 

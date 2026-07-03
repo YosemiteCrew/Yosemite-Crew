@@ -12,6 +12,9 @@ const prisma = {
   organization: {
     findUniqueOrThrow: jest.fn(),
   },
+  speciality: {
+    findMany: jest.fn(),
+  },
   aPRemoteActor: {
     findUnique: jest.fn(),
     upsert: jest.fn(),
@@ -524,6 +527,119 @@ describe("sendReferral", () => {
     expect(queueAdd).toHaveBeenCalledWith(
       "deliver",
       expect.objectContaining({ inboxUri: "https://remote.example/inbox" }),
+    );
+  });
+});
+
+// ─── getOrgCapabilities ───────────────────────────────────────────────────────
+
+describe("getOrgCapabilities", () => {
+  it("returns org name/type and active specialities, mapping null description to undefined", async () => {
+    prisma.organization.findUniqueOrThrow.mockResolvedValue({
+      name: "Happy Paws",
+      type: "CLINIC",
+    });
+    prisma.speciality.findMany.mockResolvedValue([
+      {
+        name: "Cardiology",
+        description: "Heart care",
+        services: ["ECG", "Echo"],
+      },
+      { name: "Dermatology", description: null, services: ["Allergy testing"] },
+    ]);
+
+    const result = await svc.getOrgCapabilities("org-1");
+
+    expect(result).toEqual({
+      name: "Happy Paws",
+      type: "CLINIC",
+      specialities: [
+        {
+          name: "Cardiology",
+          description: "Heart care",
+          services: ["ECG", "Echo"],
+        },
+        {
+          name: "Dermatology",
+          description: undefined,
+          services: ["Allergy testing"],
+        },
+      ],
+    });
+    const specArg = prisma.speciality.findMany.mock.calls[0][0];
+    expect(specArg.where).toEqual({ organisationId: "org-1", isActive: true });
+    expect(specArg.orderBy).toEqual({ name: "asc" });
+  });
+
+  it("returns an empty specialities list when the org has none", async () => {
+    prisma.organization.findUniqueOrThrow.mockResolvedValue({
+      name: "Solo Vet",
+      type: "PRACTICE",
+    });
+    prisma.speciality.findMany.mockResolvedValue([]);
+
+    const result = await svc.getOrgCapabilities("org-1");
+
+    expect(result).toEqual({
+      name: "Solo Vet",
+      type: "PRACTICE",
+      specialities: [],
+    });
+  });
+});
+
+// ─── sendAgentTask ────────────────────────────────────────────────────────────
+
+describe("sendAgentTask", () => {
+  it("enqueues an Offer wrapping a yc:AgentTask and returns { taskId, activityId }", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: "https://remote.example/actor",
+      fetchedAt: new Date(),
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: "https://remote.example/shared",
+    });
+
+    const result = await svc.sendAgentTask({
+      fromOrgId: "org-1",
+      toActorUri: "https://remote.example/actor",
+      taskType: "capability_query",
+      input: { species: "Cat" },
+    });
+
+    expect(result).toEqual({
+      taskId: expect.any(String),
+      activityId: expect.any(String),
+    });
+    expect(queueAdd).toHaveBeenCalledTimes(1);
+    const [job, payload] = queueAdd.mock.calls[0];
+    expect(job).toBe("deliver");
+    expect(payload.actorId).toBe("actor-1");
+    expect(payload.inboxUri).toBe("https://remote.example/shared");
+    expect(payload.activity.type).toBe("Offer");
+    const taskObject = payload.activity.object as Record<string, unknown>;
+    expect(taskObject.type).toBe("yc:AgentTask");
+    expect(taskObject["yc:taskType"]).toBe("capability_query");
+    expect(taskObject["yc:input"]).toEqual({ species: "Cat" });
+  });
+
+  it("falls back to the direct inbox when there is no shared inbox", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: "https://remote.example/actor",
+      fetchedAt: new Date(),
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+    });
+
+    await svc.sendAgentTask({
+      fromOrgId: "org-1",
+      toActorUri: "https://remote.example/actor",
+      taskType: "capability_query",
+    });
+
+    expect(queueAdd.mock.calls[0][1].inboxUri).toBe(
+      "https://remote.example/inbox",
     );
   });
 });
