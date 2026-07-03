@@ -15,8 +15,6 @@ permissions:
 
 env:
   NEXT_PUBLIC_BASE_URL: https://devapi.yosemitecrew.com/
-  NEXT_PUBLIC_COGNITO_USERPOOLID: eu-central-1_hxzTCq5oY
-  NEXT_PUBLIC_COGNITO_CLIENTID: 2aaosvrhi2ukh6unle6gcn46en
   NEXT_PUBLIC_DISABLE_AUTH_GUARD: 'false'
 
 concurrency:

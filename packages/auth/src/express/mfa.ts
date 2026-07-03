@@ -1,6 +1,7 @@
 import type { SessionRequest } from 'supertokens-node/framework/express';
 import { verifySession } from 'supertokens-node/recipe/session/framework/express';
 import MultiFactorAuth from 'supertokens-node/recipe/multifactorauth';
+import TOTP from 'supertokens-node/recipe/totp';
 
 export const TOTP_FACTOR_ID = MultiFactorAuth.FactorIds.TOTP;
 
@@ -60,3 +61,7 @@ export const requireMfaCompleted = () =>
       MultiFactorAuth.MultiFactorAuthClaim.validators.hasCompletedMFARequirementsForAuth(),
     ],
   });
+
+export async function createTotpDeviceForUser(userId: string, deviceName?: string) {
+  return TOTP.createDevice(userId, undefined, deviceName);
+}
