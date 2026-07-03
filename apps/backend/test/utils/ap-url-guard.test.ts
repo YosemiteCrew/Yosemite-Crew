@@ -1,11 +1,22 @@
 import { lookup } from "node:dns/promises";
-import { assertPublicHttpsUrl } from "src/utils/ap-url-guard";
+import { lookup as lookupCb } from "node:dns";
+import { Agent as HttpsAgent } from "node:https";
+import {
+  assertPublicHttpsUrl,
+  guardedLookup,
+  guardedHttpsAgent,
+} from "src/utils/ap-url-guard";
 
 jest.mock("node:dns/promises", () => ({
   lookup: jest.fn(),
 }));
 
+jest.mock("node:dns", () => ({
+  lookup: jest.fn(),
+}));
+
 const mockLookup = lookup as unknown as jest.Mock;
+const mockLookupCb = lookupCb as unknown as jest.Mock;
 
 function resolvesTo(...addresses: string[]) {
   mockLookup.mockResolvedValue(
@@ -114,5 +125,61 @@ describe("assertPublicHttpsUrl", () => {
     await expect(
       assertPublicHttpsUrl("https://[2606:4700::1111]/inbox"),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("guardedLookup (connect-time SSRF re-check)", () => {
+  beforeEach(() => {
+    mockLookupCb.mockReset();
+  });
+
+  it("passes through when the resolved address is public", (done) => {
+    mockLookupCb.mockImplementation((_host, _opts, cb) =>
+      cb(null, "93.184.216.34", 4),
+    );
+    guardedLookup("example.com", {}, (err, address, family) => {
+      expect(err).toBeNull();
+      expect(address).toBe("93.184.216.34");
+      expect(family).toBe(4);
+      done();
+    });
+  });
+
+  it("errors when the resolved address is a blocked private IP (rebinding)", (done) => {
+    mockLookupCb.mockImplementation((_host, _opts, cb) =>
+      cb(null, "169.254.169.254", 4),
+    );
+    guardedLookup("evil.example", {}, (err) => {
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toMatch(/disallowed address/);
+      done();
+    });
+  });
+
+  it("errors when any address in the all:true array is blocked", (done) => {
+    mockLookupCb.mockImplementation((_host, _opts, cb) =>
+      cb(null, [
+        { address: "93.184.216.34", family: 4 },
+        { address: "10.0.0.5", family: 4 },
+      ]),
+    );
+    guardedLookup("evil.example", { all: true }, (err) => {
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toMatch(/disallowed address/);
+      done();
+    });
+  });
+
+  it("propagates an underlying DNS error unchanged", (done) => {
+    const dnsErr = new Error("ENOTFOUND");
+    mockLookupCb.mockImplementation((_host, _opts, cb) => cb(dnsErr));
+    guardedLookup("missing.example", {}, (err) => {
+      expect(err).toBe(dnsErr);
+      done();
+    });
+  });
+
+  it("exposes a guarded https.Agent", () => {
+    expect(guardedHttpsAgent).toBeInstanceOf(HttpsAgent);
   });
 });

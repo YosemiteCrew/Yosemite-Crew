@@ -1,0 +1,980 @@
+import { APFollowerState, APFollowingState, APDirection } from "@prisma/client";
+
+// ─── Mocks ──────────────────────────────────────────────────────────────────
+
+const prisma = {
+  aPActor: {
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    count: jest.fn(),
+    update: jest.fn(),
+  },
+  organization: {
+    findUniqueOrThrow: jest.fn(),
+  },
+  aPRemoteActor: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
+  aPFollower: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  aPFollowing: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+    delete: jest.fn(),
+  },
+  aPActivity: {
+    findMany: jest.fn(),
+    create: jest.fn(),
+  },
+  aPReferral: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findUniqueOrThrow: jest.fn(),
+    update: jest.fn(),
+  },
+};
+
+jest.mock("@yosemite-crew/database", () => ({
+  prisma,
+  Prisma: {},
+}));
+
+jest.mock("axios", () => ({
+  __esModule: true,
+  default: { get: jest.fn(), post: jest.fn() },
+}));
+
+const generateRsaKeyPair = jest.fn();
+const encryptPrivateKey = jest.fn();
+const decryptPrivateKey = jest.fn();
+jest.mock("src/services/activitypub-crypto.service", () => ({
+  generateRsaKeyPair: () => generateRsaKeyPair(),
+  encryptPrivateKey: (pem: string) => encryptPrivateKey(pem),
+  decryptPrivateKey: (pem: string) => decryptPrivateKey(pem),
+}));
+
+jest.mock("src/utils/http-signature", () => ({
+  signRequest: jest.fn(() => ({ Signature: "sig" })),
+}));
+
+const assertPublicHttpsUrl = jest.fn();
+jest.mock("src/utils/ap-url-guard", () => ({
+  assertPublicHttpsUrl: (uri: string) => assertPublicHttpsUrl(uri),
+}));
+
+const queueAdd = jest.fn();
+jest.mock("src/queues/ap-delivery.queue", () => ({
+  ApDeliveryQueue: { add: (...args: unknown[]) => queueAdd(...args) },
+}));
+
+const isLicenseTokenValid = jest.fn();
+const verifyLicenseToken = jest.fn();
+jest.mock("src/services/ap-license.service", () => ({
+  isLicenseTokenValid: (...args: unknown[]) => isLicenseTokenValid(...args),
+  verifyLicenseToken: (...args: unknown[]) => verifyLicenseToken(...args),
+}));
+
+import axios from "axios";
+import * as svc from "src/services/activitypub.service";
+
+const mockAxios = axios as unknown as {
+  get: jest.Mock;
+  post: jest.Mock;
+};
+
+const BASE = "https://vet.example";
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  process.env.AP_BASE_URL = BASE;
+  assertPublicHttpsUrl.mockResolvedValue(undefined);
+});
+
+function makeActor(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "actor-1",
+    organisationId: "org-1",
+    uri: `${BASE}/ap/organizations/org-1`,
+    preferredUsername: "clinic",
+    publicKeyPem: "PUBKEY",
+    privateKeyPem: "ENC_PRIV",
+    publicKeyId: `${BASE}/ap/organizations/org-1#main-key`,
+    inboxUri: `${BASE}/ap/organizations/org-1/inbox`,
+    outboxUri: `${BASE}/ap/organizations/org-1/outbox`,
+    followersUri: `${BASE}/ap/organizations/org-1/followers`,
+    followingUri: `${BASE}/ap/organizations/org-1/following`,
+    sharedInboxUri: `${BASE}/ap/shared-inbox`,
+    summary: "A clinic",
+    iconUrl: null,
+    licenseToken: "lic-token",
+    ...overrides,
+  };
+}
+
+// ─── getOrCreateActor ─────────────────────────────────────────────────────────
+
+describe("getOrCreateActor", () => {
+  it("returns the existing actor without creating", async () => {
+    const actor = makeActor();
+    prisma.aPActor.findUnique.mockResolvedValue(actor);
+
+    const result = await svc.getOrCreateActor("org-1");
+
+    expect(result).toBe(actor);
+    expect(prisma.aPActor.create).not.toHaveBeenCalled();
+    expect(prisma.organization.findUniqueOrThrow).not.toHaveBeenCalled();
+  });
+
+  it("creates a new actor when none exists", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    prisma.organization.findUniqueOrThrow.mockResolvedValue({
+      id: "org-1",
+      name: "Happy Paws!",
+      imageUrl: "https://cdn.example/logo.png",
+    });
+    generateRsaKeyPair.mockReturnValue({
+      publicKeyPem: "PUB",
+      privateKeyPem: "PRIV",
+    });
+    encryptPrivateKey.mockReturnValue("ENCRYPTED");
+    const created = makeActor();
+    prisma.aPActor.create.mockResolvedValue(created);
+
+    const result = await svc.getOrCreateActor("org-1");
+
+    expect(result).toBe(created);
+    expect(encryptPrivateKey).toHaveBeenCalledWith("PRIV");
+    const arg = prisma.aPActor.create.mock.calls[0][0];
+    expect(arg.data.organisationId).toBe("org-1");
+    expect(arg.data.preferredUsername).toBe("happy_paws_");
+    expect(arg.data.publicKeyPem).toBe("PUB");
+    expect(arg.data.privateKeyPem).toBe("ENCRYPTED");
+    expect(arg.data.iconUrl).toBe("https://cdn.example/logo.png");
+    expect(arg.data.summary).toBe("Happy Paws! — Yosemite Crew");
+  });
+
+  it("creates an actor with undefined icon when org has no imageUrl", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    prisma.organization.findUniqueOrThrow.mockResolvedValue({
+      id: "org-1",
+      name: "Clinic",
+      imageUrl: null,
+    });
+    generateRsaKeyPair.mockReturnValue({
+      publicKeyPem: "PUB",
+      privateKeyPem: "PRIV",
+    });
+    encryptPrivateKey.mockReturnValue("ENCRYPTED");
+    prisma.aPActor.create.mockResolvedValue(makeActor());
+
+    await svc.getOrCreateActor("org-1");
+
+    const arg = prisma.aPActor.create.mock.calls[0][0];
+    expect(arg.data.iconUrl).toBeUndefined();
+  });
+});
+
+// ─── Actor lookups ──────────────────────────────────────────────────────────
+
+describe("actor lookups", () => {
+  it("getActorByOrgId queries by organisationId", async () => {
+    const actor = makeActor();
+    prisma.aPActor.findUnique.mockResolvedValue(actor);
+    const result = await svc.getActorByOrgId("org-1");
+    expect(result).toBe(actor);
+    expect(prisma.aPActor.findUnique).toHaveBeenCalledWith({
+      where: { organisationId: "org-1" },
+    });
+  });
+
+  it("getActorByUri queries by uri", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    const result = await svc.getActorByUri("https://x/actor");
+    expect(result).toBeNull();
+    expect(prisma.aPActor.findUnique).toHaveBeenCalledWith({
+      where: { uri: "https://x/actor" },
+    });
+  });
+
+  it("getActorByUsername queries by preferredUsername", async () => {
+    const actor = makeActor();
+    prisma.aPActor.findUnique.mockResolvedValue(actor);
+    const result = await svc.getActorByUsername("clinic");
+    expect(result).toBe(actor);
+    expect(prisma.aPActor.findUnique).toHaveBeenCalledWith({
+      where: { preferredUsername: "clinic" },
+    });
+  });
+});
+
+// ─── buildActorResponse ───────────────────────────────────────────────────────
+
+describe("buildActorResponse", () => {
+  it("builds the actor object from actor + org", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor({ summary: "S" }));
+    prisma.organization.findUniqueOrThrow.mockResolvedValue({
+      id: "org-1",
+      name: "Clinic",
+    });
+
+    const result = (await svc.buildActorResponse("org-1")) as Record<
+      string,
+      unknown
+    >;
+
+    expect(result.id).toBe(`${BASE}/ap/organizations/org-1`);
+    expect(result.preferredUsername).toBe("clinic");
+    expect(result.name).toBe("Clinic");
+    expect(result.summary).toBe("S");
+    expect((result.publicKey as { publicKeyPem: string }).publicKeyPem).toBe(
+      "PUBKEY",
+    );
+  });
+});
+
+// ─── resolveWebFinger ─────────────────────────────────────────────────────────
+
+describe("resolveWebFinger", () => {
+  it("returns null for a non-acct resource", async () => {
+    const result = await svc.resolveWebFinger("https://not-acct");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when no actor matches the username", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    const result = await svc.resolveWebFinger("acct:ghost@vet.example");
+    expect(result).toBeNull();
+  });
+
+  it("returns a WebFinger response for a matching actor", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    const result = (await svc.resolveWebFinger(
+      "acct:clinic@vet.example",
+    )) as Record<string, unknown>;
+    expect(result.subject).toBe("acct:clinic@vet.example");
+    expect(result.aliases).toContain(`${BASE}/ap/organizations/org-1`);
+  });
+
+  it("returns null when the matched actor has no organisationId", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(
+      makeActor({ organisationId: null }),
+    );
+    const result = await svc.resolveWebFinger("acct:clinic@vet.example");
+    expect(result).toBeNull();
+  });
+});
+
+// ─── buildNodeInfoResponse ────────────────────────────────────────────────────
+
+describe("buildNodeInfoResponse", () => {
+  it("returns node info with the actor count and host", async () => {
+    prisma.aPActor.count.mockResolvedValue(7);
+    const result = (await svc.buildNodeInfoResponse()) as {
+      usage: { users: { total: number } };
+      metadata: { nodeName: string };
+    };
+    expect(result.usage.users.total).toBe(7);
+    expect(result.metadata.nodeName).toBe("vet.example");
+  });
+});
+
+// ─── fetchRemoteActor ─────────────────────────────────────────────────────────
+
+describe("fetchRemoteActor", () => {
+  const REMOTE = "https://remote.example/ap/organizations/o2";
+
+  function remoteDoc(overrides: Record<string, unknown> = {}) {
+    return {
+      id: REMOTE,
+      preferredUsername: "remoteclinic",
+      inbox: `${REMOTE}/inbox`,
+      endpoints: { sharedInbox: "https://remote.example/ap/shared-inbox" },
+      publicKey: {
+        id: `${REMOTE}#main-key`,
+        publicKeyPem: "REMOTE_PUB",
+      },
+      "yc:licenseToken": "remote-lic",
+      ...overrides,
+    };
+  }
+
+  it("returns the cached actor when fresh (cache-hit)", async () => {
+    const cached = { uri: REMOTE, fetchedAt: new Date() };
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(cached);
+
+    const result = await svc.fetchRemoteActor(REMOTE);
+
+    expect(result).toBe(cached);
+    expect(assertPublicHttpsUrl).not.toHaveBeenCalled();
+    expect(mockAxios.get).not.toHaveBeenCalled();
+  });
+
+  it("fetches fresh when cache is stale and origins match", async () => {
+    const staleDate = new Date(Date.now() - 25 * 60 * 60 * 1000);
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: REMOTE,
+      fetchedAt: staleDate,
+    });
+    mockAxios.get.mockResolvedValue({ data: remoteDoc() });
+    const upserted = { uri: REMOTE };
+    prisma.aPRemoteActor.upsert.mockResolvedValue(upserted);
+
+    const result = await svc.fetchRemoteActor(REMOTE);
+
+    expect(assertPublicHttpsUrl).toHaveBeenCalledWith(REMOTE);
+    expect(result).toBe(upserted);
+    const arg = prisma.aPRemoteActor.upsert.mock.calls[0][0];
+    expect(arg.where).toEqual({ uri: REMOTE });
+    expect(arg.create.publicKeyPem).toBe("REMOTE_PUB");
+    expect(arg.create.sharedInboxUri).toBe(
+      "https://remote.example/ap/shared-inbox",
+    );
+    expect(arg.create.licenseToken).toBe("remote-lic");
+  });
+
+  it("fetches fresh when there is no cache entry, handles missing sharedInbox/license", async () => {
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+    mockAxios.get.mockResolvedValue({
+      data: remoteDoc({ endpoints: undefined, "yc:licenseToken": undefined }),
+    });
+    prisma.aPRemoteActor.upsert.mockResolvedValue({ uri: REMOTE });
+
+    await svc.fetchRemoteActor(REMOTE);
+
+    const arg = prisma.aPRemoteActor.upsert.mock.calls[0][0];
+    expect(arg.create.sharedInboxUri).toBeNull();
+    expect(arg.create.licenseToken).toBeNull();
+  });
+
+  it("throws on origin mismatch between fetched URL and declared id/key", async () => {
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+    mockAxios.get.mockResolvedValue({
+      data: remoteDoc({ id: "https://evil.example/actor" }),
+    });
+
+    await expect(svc.fetchRemoteActor(REMOTE)).rejects.toThrow(
+      /origin mismatch/,
+    );
+    expect(prisma.aPRemoteActor.upsert).not.toHaveBeenCalled();
+  });
+
+  it("throws when the declared id or key id is malformed", async () => {
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+    mockAxios.get.mockResolvedValue({
+      data: remoteDoc({
+        id: "not a url",
+        publicKey: { id: "also bad", publicKeyPem: "x" },
+      }),
+    });
+
+    await expect(svc.fetchRemoteActor(REMOTE)).rejects.toThrow(
+      /malformed id or key/,
+    );
+  });
+});
+
+// ─── Collections ──────────────────────────────────────────────────────────────
+
+describe("collections", () => {
+  it("getFollowersCollection returns approved followers", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findMany.mockResolvedValue([
+      { remoteActorUri: "https://a/1" },
+      { remoteActorUri: "https://a/2" },
+    ]);
+
+    const result = (await svc.getFollowersCollection("org-1")) as {
+      totalItems: number;
+      orderedItems: unknown[];
+    };
+
+    expect(result.totalItems).toBe(2);
+    expect(result.orderedItems).toEqual(["https://a/1", "https://a/2"]);
+    expect(prisma.aPFollower.findMany.mock.calls[0][0].where.state).toBe(
+      APFollowerState.APPROVED,
+    );
+  });
+
+  it("getFollowingCollection returns accepted following", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollowing.findMany.mockResolvedValue([
+      { remoteActorUri: "https://b/1" },
+    ]);
+
+    const result = (await svc.getFollowingCollection("org-1")) as {
+      totalItems: number;
+    };
+
+    expect(result.totalItems).toBe(1);
+    expect(prisma.aPFollowing.findMany.mock.calls[0][0].where.state).toBe(
+      APFollowingState.ACCEPTED,
+    );
+  });
+
+  it("getOutboxCollection returns recent outbound activities", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActivity.findMany.mockResolvedValue([
+      { rawJson: { type: "Note" }, published: new Date() },
+    ]);
+
+    const result = (await svc.getOutboxCollection("org-1")) as {
+      totalItems: number;
+      orderedItems: unknown[];
+    };
+
+    expect(result.totalItems).toBe(1);
+    expect(result.orderedItems).toEqual([{ type: "Note" }]);
+    expect(prisma.aPActivity.findMany.mock.calls[0][0].where.direction).toBe(
+      APDirection.OUTBOUND,
+    );
+  });
+});
+
+// ─── sendFollow ───────────────────────────────────────────────────────────────
+
+describe("sendFollow", () => {
+  it("throws when the instance has no valid license", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    isLicenseTokenValid.mockResolvedValue(false);
+
+    await expect(
+      svc.sendFollow("org-1", "https://remote.example/actor"),
+    ).rejects.toThrow(/valid federation license/);
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+
+  it("upserts following, records activity, and enqueues delivery", async () => {
+    const actor = makeActor();
+    prisma.aPActor.findUnique.mockResolvedValue(actor);
+    isLicenseTokenValid.mockResolvedValue(true);
+    // fetchRemoteActor path: cached fresh
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: "https://remote.example/actor",
+      fetchedAt: new Date(),
+      inboxUri: "https://remote.example/actor/inbox",
+      sharedInboxUri: "https://remote.example/shared",
+    });
+    prisma.aPFollowing.upsert.mockResolvedValue({});
+    prisma.aPActivity.create.mockResolvedValue({});
+
+    const activity = (await svc.sendFollow(
+      "org-1",
+      "https://remote.example/actor",
+    )) as { type: string };
+
+    expect(activity.type).toBe("Follow");
+    expect(prisma.aPFollowing.upsert).toHaveBeenCalled();
+    expect(prisma.aPActivity.create).toHaveBeenCalled();
+    const followingArg = prisma.aPFollowing.upsert.mock.calls[0][0];
+    expect(followingArg.create.state).toBe(APFollowingState.PENDING);
+    expect(queueAdd).toHaveBeenCalledWith(
+      "deliver",
+      expect.objectContaining({
+        actorId: "actor-1",
+        inboxUri: "https://remote.example/shared",
+      }),
+    );
+  });
+});
+
+// ─── sendReferral ─────────────────────────────────────────────────────────────
+
+describe("sendReferral", () => {
+  const opts = {
+    fromOrgId: "org-1",
+    toActorUri: "https://remote.example/actor",
+    patientSummary: { species: "dog", chiefComplaint: "limping" },
+    urgency: "ROUTINE" as const,
+  };
+
+  it("throws when there is no accepted federation link (consent gate)", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollowing.findUnique.mockResolvedValue(null);
+
+    await expect(svc.sendReferral(opts)).rejects.toThrow(
+      /No accepted federation link/,
+    );
+  });
+
+  it("throws when the link exists but is not ACCEPTED", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollowing.findUnique.mockResolvedValue({
+      state: APFollowingState.PENDING,
+    });
+
+    await expect(svc.sendReferral(opts)).rejects.toThrow(
+      /No accepted federation link/,
+    );
+  });
+
+  it("creates referral + activity and enqueues delivery on the happy path", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollowing.findUnique.mockResolvedValue({
+      state: APFollowingState.ACCEPTED,
+    });
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: opts.toActorUri,
+      fetchedAt: new Date(),
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+    });
+    prisma.aPReferral.create.mockResolvedValue({});
+    prisma.aPActivity.create.mockResolvedValue({});
+
+    const activity = (await svc.sendReferral({
+      ...opts,
+      clinicalContext: "seen twice",
+    })) as { type: string };
+
+    expect(activity.type).toBe("Offer");
+    expect(prisma.aPReferral.create).toHaveBeenCalled();
+    expect(prisma.aPActivity.create).toHaveBeenCalled();
+    // sharedInbox null -> falls back to inboxUri
+    expect(queueAdd).toHaveBeenCalledWith(
+      "deliver",
+      expect.objectContaining({ inboxUri: "https://remote.example/inbox" }),
+    );
+  });
+});
+
+// ─── sendNote ─────────────────────────────────────────────────────────────────
+
+describe("sendNote", () => {
+  it("creates a Create activity and enqueues delivery", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: "https://remote.example/actor",
+      fetchedAt: new Date(),
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: "https://remote.example/shared",
+    });
+    prisma.aPActivity.create.mockResolvedValue({});
+
+    const activity = (await svc.sendNote({
+      fromOrgId: "org-1",
+      toActorUri: "https://remote.example/actor",
+      content: "hello",
+      inReplyTo: "https://remote.example/notes/1",
+    })) as { type: string };
+
+    expect(activity.type).toBe("Create");
+    expect(prisma.aPActivity.create).toHaveBeenCalled();
+    expect(queueAdd).toHaveBeenCalledWith(
+      "deliver",
+      expect.objectContaining({ inboxUri: "https://remote.example/shared" }),
+    );
+  });
+});
+
+// ─── announceEmergency ────────────────────────────────────────────────────────
+
+describe("announceEmergency", () => {
+  it("records the announce and fans out to unique follower inboxes", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActivity.create.mockResolvedValue({});
+    prisma.aPFollower.findMany.mockResolvedValue([
+      { sharedInboxUri: "https://a/shared", remoteInboxUri: "https://a/inbox" },
+      { sharedInboxUri: "https://a/shared", remoteInboxUri: "https://a/inbox" },
+      { sharedInboxUri: null, remoteInboxUri: "https://b/inbox" },
+    ]);
+
+    const activity = (await svc.announceEmergency({
+      fromOrgId: "org-1",
+      content: "Emergency!",
+      urgency: "EMERGENCY",
+    })) as { type: string };
+
+    expect(activity.type).toBe("Announce");
+    expect(prisma.aPActivity.create).toHaveBeenCalled();
+    // dedup: {https://a/shared, https://b/inbox} => 2 deliveries
+    expect(queueAdd).toHaveBeenCalledTimes(2);
+    const inboxes = queueAdd.mock.calls.map((c) => c[1].inboxUri).sort();
+    expect(inboxes).toEqual(["https://a/shared", "https://b/inbox"]);
+  });
+});
+
+// ─── updateLicenseToken ───────────────────────────────────────────────────────
+
+describe("updateLicenseToken", () => {
+  it("throws when token orgId does not match", async () => {
+    verifyLicenseToken.mockResolvedValue({ orgId: "other-org" });
+
+    await expect(svc.updateLicenseToken("org-1", "tok")).rejects.toThrow(
+      /orgId mismatch/,
+    );
+    expect(prisma.aPActor.update).not.toHaveBeenCalled();
+  });
+
+  it("persists the token on the actor when orgId matches", async () => {
+    verifyLicenseToken.mockResolvedValue({ orgId: "org-1" });
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+
+    await svc.updateLicenseToken("org-1", "tok");
+
+    expect(prisma.aPActor.update).toHaveBeenCalledWith({
+      where: { id: "actor-1" },
+      data: { licenseToken: "tok" },
+    });
+  });
+});
+
+// ─── deliverActivity ──────────────────────────────────────────────────────────
+
+describe("deliverActivity", () => {
+  it("signs and POSTs the activity to the target inbox", async () => {
+    decryptPrivateKey.mockReturnValue("DECRYPTED");
+    mockAxios.post.mockResolvedValue({ status: 202 });
+
+    await svc.deliverActivity({
+      actor: makeActor() as never,
+      targetInboxUri: "https://remote.example/inbox",
+      activity: { type: "Follow" },
+    });
+
+    expect(assertPublicHttpsUrl).toHaveBeenCalledWith(
+      "https://remote.example/inbox",
+    );
+    expect(decryptPrivateKey).toHaveBeenCalledWith("ENC_PRIV");
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      "https://remote.example/inbox",
+      JSON.stringify({ type: "Follow" }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Signature: "sig" }),
+      }),
+    );
+  });
+});
+
+// ─── sendUnfollow ─────────────────────────────────────────────────────────────
+
+describe("sendUnfollow", () => {
+  it("returns null when there is no following record", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollowing.findUnique.mockResolvedValue(null);
+
+    const result = await svc.sendUnfollow("org-1", "https://remote.example/a");
+    expect(result).toBeNull();
+    expect(prisma.aPFollowing.delete).not.toHaveBeenCalled?.();
+  });
+
+  it("deletes the following and enqueues Undo when remote is known", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollowing.findUnique.mockResolvedValue({ id: "f1" });
+    prisma.aPFollowing.delete.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+    });
+
+    const activity = (await svc.sendUnfollow(
+      "org-1",
+      "https://remote.example/a",
+    )) as { type: string };
+
+    expect(activity.type).toBe("Undo");
+    expect(prisma.aPFollowing.delete).toHaveBeenCalled();
+    expect(queueAdd).toHaveBeenCalledWith(
+      "deliver",
+      expect.objectContaining({ inboxUri: "https://remote.example/inbox" }),
+    );
+  });
+
+  it("deletes but does not enqueue when remote actor is unknown", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollowing.findUnique.mockResolvedValue({ id: "f1" });
+    prisma.aPFollowing.delete.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+
+    const activity = (await svc.sendUnfollow(
+      "org-1",
+      "https://remote.example/a",
+    )) as { type: string };
+
+    expect(activity.type).toBe("Undo");
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+});
+
+// ─── approveFollower / rejectFollower ─────────────────────────────────────────
+
+describe("approveFollower", () => {
+  it("throws when the follow request is missing", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findUnique.mockResolvedValue(null);
+    await expect(
+      svc.approveFollower("org-1", "https://remote.example/a"),
+    ).rejects.toThrow(/not found/);
+  });
+
+  it("approves and enqueues an Accept when remote is known", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findUnique.mockResolvedValue({ id: "fl1" });
+    prisma.aPFollower.update.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: "https://remote.example/shared",
+    });
+
+    await svc.approveFollower("org-1", "https://remote.example/a");
+
+    expect(prisma.aPFollower.update.mock.calls[0][0].data.state).toBe(
+      APFollowerState.APPROVED,
+    );
+    expect(queueAdd).toHaveBeenCalledWith(
+      "deliver",
+      expect.objectContaining({ inboxUri: "https://remote.example/shared" }),
+    );
+  });
+
+  it("approves without enqueueing when remote is unknown", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findUnique.mockResolvedValue({ id: "fl1" });
+    prisma.aPFollower.update.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+
+    await svc.approveFollower("org-1", "https://remote.example/a");
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+});
+
+describe("rejectFollower", () => {
+  it("throws when the follow request is missing", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findUnique.mockResolvedValue(null);
+    await expect(
+      svc.rejectFollower("org-1", "https://remote.example/a"),
+    ).rejects.toThrow(/not found/);
+  });
+
+  it("rejects and enqueues a Reject when remote is known", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findUnique.mockResolvedValue({ id: "fl1" });
+    prisma.aPFollower.update.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+    });
+
+    await svc.rejectFollower("org-1", "https://remote.example/a");
+
+    expect(prisma.aPFollower.update.mock.calls[0][0].data.state).toBe(
+      APFollowerState.REJECTED,
+    );
+    expect(queueAdd).toHaveBeenCalledWith(
+      "deliver",
+      expect.objectContaining({ inboxUri: "https://remote.example/inbox" }),
+    );
+  });
+
+  it("rejects without enqueueing when remote is unknown", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findUnique.mockResolvedValue({ id: "fl1" });
+    prisma.aPFollower.update.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+
+    await svc.rejectFollower("org-1", "https://remote.example/a");
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Referral management (receiving side) ─────────────────────────────────────
+
+describe("listInboundReferrals / listOutboundReferrals", () => {
+  it("returns [] when no actor exists (inbound)", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    expect(await svc.listInboundReferrals("org-1")).toEqual([]);
+  });
+
+  it("lists inbound referrals by actor uri", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    const rows = [{ id: "r1" }];
+    prisma.aPReferral.findMany.mockResolvedValue(rows);
+    expect(await svc.listInboundReferrals("org-1")).toBe(rows);
+    expect(prisma.aPReferral.findMany.mock.calls[0][0].where.toActorUri).toBe(
+      makeActor().uri,
+    );
+  });
+
+  it("returns [] when no actor exists (outbound)", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    expect(await svc.listOutboundReferrals("org-1")).toEqual([]);
+  });
+
+  it("lists outbound referrals by org id", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    const rows = [{ id: "r2" }];
+    prisma.aPReferral.findMany.mockResolvedValue(rows);
+    expect(await svc.listOutboundReferrals("org-1")).toBe(rows);
+    expect(prisma.aPReferral.findMany.mock.calls[0][0].where.fromOrgId).toBe(
+      "org-1",
+    );
+  });
+});
+
+describe("respondToReferral", () => {
+  const REFERRAL_URI = `${BASE}/ap/activities/act-1`;
+
+  function makeReferral(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "ref-1",
+      toActorUri: makeActor().uri,
+      fromActorUri: "https://remote.example/actor",
+      activityUri: REFERRAL_URI,
+      state: "PENDING",
+      ...overrides,
+    };
+  }
+
+  it("throws when the referral does not belong to this org", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPReferral.findUniqueOrThrow.mockResolvedValue(
+      makeReferral({ toActorUri: "https://other/actor" }),
+    );
+    await expect(
+      svc.respondToReferral("org-1", "ref-1", "accept"),
+    ).rejects.toThrow(/does not belong/);
+  });
+
+  it("throws when the referral is not PENDING", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPReferral.findUniqueOrThrow.mockResolvedValue(
+      makeReferral({ state: "ACCEPTED" }),
+    );
+    await expect(
+      svc.respondToReferral("org-1", "ref-1", "accept"),
+    ).rejects.toThrow(/already accepted/);
+  });
+
+  it("accepts: updates state, sends Accept, enqueues delivery", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPReferral.findUniqueOrThrow.mockResolvedValue(makeReferral());
+    prisma.aPReferral.update.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: "https://remote.example/actor",
+      fetchedAt: new Date(),
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: "https://remote.example/shared",
+    });
+    prisma.aPActivity.create.mockResolvedValue({});
+
+    const result = await svc.respondToReferral("org-1", "ref-1", "accept");
+
+    expect(result).toEqual({ id: "ref-1", state: "ACCEPTED" });
+    const updArg = prisma.aPReferral.update.mock.calls[0][0];
+    expect(updArg.data.state).toBe("ACCEPTED");
+    expect(updArg.data.acceptedAt).toBeInstanceOf(Date);
+    expect(prisma.aPActivity.create.mock.calls[0][0].data.type).toBe("Accept");
+    expect(queueAdd).toHaveBeenCalledWith(
+      "deliver",
+      expect.objectContaining({ inboxUri: "https://remote.example/shared" }),
+    );
+  });
+
+  it("declines: updates state and sends Reject", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPReferral.findUniqueOrThrow.mockResolvedValue(makeReferral());
+    prisma.aPReferral.update.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: "https://remote.example/actor",
+      fetchedAt: new Date(),
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+    });
+    prisma.aPActivity.create.mockResolvedValue({});
+
+    const result = await svc.respondToReferral("org-1", "ref-1", "decline");
+
+    expect(result).toEqual({ id: "ref-1", state: "DECLINED" });
+    const updArg = prisma.aPReferral.update.mock.calls[0][0];
+    expect(updArg.data.state).toBe("DECLINED");
+    expect(updArg.data.declinedAt).toBeInstanceOf(Date);
+    expect(prisma.aPActivity.create.mock.calls[0][0].data.type).toBe("Reject");
+  });
+});
+
+// ─── updateActorProfile ───────────────────────────────────────────────────────
+
+describe("updateActorProfile", () => {
+  it("updates only provided fields", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+    await svc.updateActorProfile("org-1", { summary: "new" });
+    expect(prisma.aPActor.update.mock.calls[0][0].data).toEqual({
+      summary: "new",
+    });
+  });
+
+  it("updates iconUrl and leaves summary untouched when omitted", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+    await svc.updateActorProfile("org-1", { iconUrl: "https://x/i.png" });
+    expect(prisma.aPActor.update.mock.calls[0][0].data).toEqual({
+      iconUrl: "https://x/i.png",
+    });
+  });
+});
+
+// ─── listFollowers / listFollowing ────────────────────────────────────────────
+
+describe("listFollowers / listFollowing", () => {
+  it("returns [] when no actor exists (followers)", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    expect(await svc.listFollowers("org-1")).toEqual([]);
+  });
+
+  it("lists followers for the actor", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    const rows = [{ id: "fl1" }];
+    prisma.aPFollower.findMany.mockResolvedValue(rows);
+    expect(await svc.listFollowers("org-1")).toBe(rows);
+    expect(prisma.aPFollower.findMany.mock.calls[0][0].where.localActorId).toBe(
+      "actor-1",
+    );
+  });
+
+  it("returns [] when no actor exists (following)", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    expect(await svc.listFollowing("org-1")).toEqual([]);
+  });
+
+  it("lists following for the actor", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    const rows = [{ id: "fw1" }];
+    prisma.aPFollowing.findMany.mockResolvedValue(rows);
+    expect(await svc.listFollowing("org-1")).toBe(rows);
+  });
+});
+
+// ─── getLicenseTokenStatus ────────────────────────────────────────────────────
+
+describe("getLicenseTokenStatus", () => {
+  it("returns 'none' when no actor exists", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    expect(await svc.getLicenseTokenStatus("org-1")).toBe("none");
+  });
+
+  it("returns 'none' when the actor has no licenseToken", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(
+      makeActor({ licenseToken: null }),
+    );
+    expect(await svc.getLicenseTokenStatus("org-1")).toBe("none");
+  });
+
+  it("returns 'valid' when the token validates", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    isLicenseTokenValid.mockResolvedValue(true);
+    expect(await svc.getLicenseTokenStatus("org-1")).toBe("valid");
+  });
+
+  it("returns 'invalid' when the token fails validation", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    isLicenseTokenValid.mockResolvedValue(false);
+    expect(await svc.getLicenseTokenStatus("org-1")).toBe("invalid");
+  });
+});
