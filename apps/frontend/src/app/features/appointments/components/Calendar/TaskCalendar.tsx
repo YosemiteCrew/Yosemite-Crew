@@ -479,9 +479,7 @@ const TaskCalendar = ({
   const allTaskItems = allTasks ?? filteredList;
   const teams = useTeamForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
+  const authUserId = useAuthStore((s) => s.attributes?.sub || s.attributes?.email || '');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [draggedTaskLabel, setDraggedTaskLabel] = useState<string | null>(null);
   const [dragError, setDragError] = useState<string | null>(null);

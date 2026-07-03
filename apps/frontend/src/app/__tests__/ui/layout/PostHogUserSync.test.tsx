@@ -34,8 +34,8 @@ describe('PostHogUserSync', () => {
           email: 'vet@example.com',
           family_name: 'Doctor',
           given_name: 'Taylor',
-          'custom:role': 'OWNER',
         },
+        role: 'OWNER',
         status: 'authenticated',
       })
     );
@@ -54,8 +54,8 @@ describe('PostHogUserSync', () => {
           email: 'vet@example.com',
           family_name: 'Doctor',
           given_name: 'Taylor',
-          'custom:role': 'OWNER',
         },
+        role: 'OWNER',
         status: 'authenticated',
       })
     );

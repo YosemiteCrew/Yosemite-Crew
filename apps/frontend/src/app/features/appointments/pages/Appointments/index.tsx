@@ -241,9 +241,7 @@ const Appointments = () => {
   const canEditAppointments = canEditAny || canEditOwn;
 
   const team = useTeamForPrimaryOrg();
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
+  const authUserId = useAuthStore((s) => s.attributes?.sub || s.attributes?.email || '');
   const currentUserLeadId = useMemo(() => {
     const normalizedCurrentUser = normalizeLeadId(authUserId);
     if (!normalizedCurrentUser) return '';

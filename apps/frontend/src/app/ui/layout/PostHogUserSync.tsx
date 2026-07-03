@@ -20,6 +20,7 @@ const addDefinedValue = (
 
 const PostHogUserSync = () => {
   const attributes = useAuthStore((state) => state.attributes);
+  const role = useAuthStore((state) => state.role);
   const status = useAuthStore((state) => state.status);
   const identifiedIdRef = useRef<string | null>(null);
   const [consented, setConsented] = useState(false);
@@ -70,11 +71,11 @@ const PostHogUserSync = () => {
     addDefinedValue(personProperties, 'email', attributes?.email);
     addDefinedValue(personProperties, 'first_name', attributes?.given_name);
     addDefinedValue(personProperties, 'last_name', attributes?.family_name);
-    addDefinedValue(personProperties, 'role', attributes?.['custom:role']);
+    addDefinedValue(personProperties, 'role', role ?? undefined);
 
     posthog.identify(distinctId, personProperties);
     identifiedIdRef.current = distinctId;
-  }, [attributes, consented, ready, status]);
+  }, [attributes, role, consented, ready, status]);
 
   return null;
 };

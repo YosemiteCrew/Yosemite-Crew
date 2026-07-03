@@ -181,9 +181,7 @@ const AppointmentBoardComponent = ({
   const encountersById = useAppointmentWorkspaceStore((s) => s.encountersById);
   const roomUnitsById = useOrganisationRoomStore((s) => s.roomUnitsById);
   const team = useTeamForPrimaryOrg();
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
+  const authUserId = useAuthStore((s) => s.attributes?.sub || s.attributes?.email || '');
   const [draggedAppointmentId, setDraggedAppointmentId] = useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [showMineOnly, setShowMineOnly] = useState(false);

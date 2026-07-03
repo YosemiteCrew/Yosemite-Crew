@@ -71,7 +71,6 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
 
     addAlias(authAttributes?.sub);
     addAlias(authAttributes?.email);
-    addAlias(authAttributes?.['cognito:username']);
 
     const matchedTeamMember = teams.find((team) => {
       const candidateIds = [

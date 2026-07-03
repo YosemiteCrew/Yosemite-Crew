@@ -36,6 +36,10 @@ const CrossClinicMessagingPreference = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/CrossClinicMessagingPreference'),
   { loading: () => <SettingsSectionSkeleton /> }
 );
+const SecuritySection = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/SecuritySection'),
+  { loading: () => <SettingsSectionSkeleton /> }
+);
 const DeleteProfile = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/DeleteProfile'),
   {
@@ -56,6 +60,7 @@ const Settings = () => {
         <AppointmentLockWindowPreference />
       </div>
       <CrossClinicMessagingPreference />
+      <SecuritySection />
       <DeleteProfile />
     </div>
   );

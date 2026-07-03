@@ -1655,7 +1655,7 @@ const InvoiceStep = ({
     const lineItems = toFinanceLineItems(encounter.invoiceLineItems);
     // Prefer an existing OPEN invoice for this appointment and append new lines to
     // it (web /lines). When none exists, create one via the web POST /invoices —
-    // never the mobile /seed route, which requires a mobile Cognito token on web
+    // never the mobile /seed route, which requires a mobile session on web
     // and 401s (logging the user out).
     const storeInvoiceId = findOpenAppointmentInvoice(organisationId, appointmentId)?.id;
     // Fall back to the server-loaded billing state: loadAppointmentBilling hydrates
