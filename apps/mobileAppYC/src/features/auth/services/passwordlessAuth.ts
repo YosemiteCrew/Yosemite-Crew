@@ -143,8 +143,9 @@ export const requestPasswordlessEmailCode = async (
   }
 
   activeDeviceState = {
-    deviceId: String(data.deviceId ?? ''),
-    preAuthSessionId: String(data.preAuthSessionId ?? ''),
+    deviceId: typeof data.deviceId === 'string' ? data.deviceId : '',
+    preAuthSessionId:
+      typeof data.preAuthSessionId === 'string' ? data.preAuthSessionId : '',
     email: username,
     apiBase,
   };

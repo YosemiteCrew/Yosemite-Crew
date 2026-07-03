@@ -15,6 +15,50 @@ type UpdateUserNameRequest = Request<
   }
 >;
 
+const trimmedString = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() ? value.trim() : undefined;
+
+// Names/role come from the signup form (request body) with the session as
+// fallback; the session token no longer carries profile attributes.
+function resolveProvisioningProfile(req: AuthenticatedRequest): {
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+} {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const role = trimmedString(body.role);
+  return {
+    firstName: trimmedString(body.firstName) ?? req.firstName,
+    lastName: trimmedString(body.lastName) ?? req.lastName,
+    role: role && /^[a-z_-]{1,40}$/i.test(role) ? role : undefined,
+  };
+}
+
+// Best-effort profile sync to the auth provider so /v1/auth/me can serve
+// names and role without touching the database.
+async function syncProfileToAuthProvider(
+  userId: string,
+  profile: { firstName?: string; lastName?: string; role?: string },
+): Promise<void> {
+  const authService = getAuthService();
+  if (!authService) {
+    return;
+  }
+  try {
+    if (profile.firstName && profile.lastName) {
+      await authService.updateUserName(userId, {
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+      });
+    }
+    if (profile.role) {
+      await authService.setUserRole(userId, profile.role);
+    }
+  } catch (syncError) {
+    logger.warn("Auth provider profile sync failed", syncError);
+  }
+}
+
 export const UserController = {
   create: async (req: Request, res: Response) => {
     try {
@@ -27,48 +71,16 @@ export const UserController = {
           .json({ message: "Missing user identity from token." });
       }
 
-      // Names/role come from the signup form (request body) with the session
-      // as fallback; the session token no longer carries profile attributes.
-      const body = (req.body ?? {}) as {
-        firstName?: unknown;
-        lastName?: unknown;
-        role?: unknown;
-      };
-      const firstName =
-        typeof body.firstName === "string" && body.firstName.trim()
-          ? body.firstName.trim()
-          : authRequest.firstName;
-      const lastName =
-        typeof body.lastName === "string" && body.lastName.trim()
-          ? body.lastName.trim()
-          : authRequest.lastName;
-      const role =
-        typeof body.role === "string" && /^[a-z_-]{1,40}$/i.test(body.role)
-          ? body.role
-          : undefined;
+      const profile = resolveProvisioningProfile(authRequest);
 
       const user = await UserService.create({
         id: userId,
         email: email,
-        firstName: firstName!,
-        lastName: lastName!,
+        firstName: profile.firstName!,
+        lastName: profile.lastName!,
       });
 
-      // Best-effort profile sync to the auth provider so /v1/auth/me can
-      // serve names and role without touching the database.
-      const authService = getAuthService();
-      if (authService) {
-        try {
-          if (firstName && lastName) {
-            await authService.updateUserName(userId, { firstName, lastName });
-          }
-          if (role) {
-            await authService.setUserRole(userId, role);
-          }
-        } catch (syncError) {
-          logger.warn("Auth provider profile sync failed", syncError);
-        }
-      }
+      await syncProfileToAuthProvider(userId, profile);
 
       res.status(201).json(user);
     } catch (error: unknown) {
