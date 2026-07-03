@@ -8,9 +8,11 @@
  * pool (the output of the identity provider's list-users CLI, passed via
  * --staff <file>). Each user is created as an EmailPassword user with an
  * unguessable random password (never stored or logged - users set their own
- * password after their email-OTP first login), the email is marked verified
- * when the export says so, and a user-id mapping pins the external id to the
- * pre-existing stable app user id so every database reference keeps working.
+ * password on first use via the password-reset link, since the staff-web
+ * profile is keyed to the email-and-password factor), the email is marked
+ * verified when the export says so, and a user-id mapping pins the external id
+ * to the pre-existing stable app user id so every database reference keeps
+ * working.
  *
  * Mobile (pet parent) identities are imported from the AuthUserMobile table
  * (--mobile): each distinct identity becomes a Passwordless user with the
@@ -148,11 +150,6 @@ async function recordIdentity(input: {
   });
 }
 
-async function findExistingByEmail(email: string): Promise<string | undefined> {
-  const users = await SuperTokens.listUsersByAccountInfo(TENANT, { email });
-  return users[0]?.id;
-}
-
 async function importStaff(
   file: string,
   options: CliOptions,
@@ -185,8 +182,8 @@ async function importStaff(
         continue;
       }
 
-      // Random throwaway password: the user signs in with email OTP first and
-      // then sets their own. Never persisted or logged.
+      // Random throwaway password: the user sets their own via the
+      // password-reset link on first use. Never persisted or logged.
       const signUp = await EmailPassword.signUp(
         TENANT,
         email,
@@ -200,14 +197,20 @@ async function importStaff(
         recipeUserId = signUp.recipeUserId;
         counters.created += 1;
       } else {
-        const existing = await findExistingByEmail(email);
-        if (!existing) {
+        const existingUser = (
+          await SuperTokens.listUsersByAccountInfo(TENANT, { email })
+        )[0];
+        if (!existingUser) {
           counters.failed += 1;
           console.error(`[staff] cannot resolve ${maskEmail(email)}`);
           continue;
         }
-        superTokensUserId = existing;
-        recipeUserId = undefined;
+        superTokensUserId = existingUser.id;
+        // Re-derive the recipe user id so a re-run after a partial failure can
+        // still (idempotently) mark the email verified below.
+        recipeUserId = existingUser.loginMethods.find(
+          (m) => m.recipeId === "emailpassword",
+        )?.recipeUserId;
         counters.existing += 1;
       }
 
