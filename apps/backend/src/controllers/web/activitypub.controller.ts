@@ -5,7 +5,6 @@ import { ApInboxQueue } from "src/queues/ap-inbox.queue";
 import {
   buildActorResponse,
   resolveWebFinger,
-  buildNodeInfoResponse,
   getFollowersCollection,
   getFollowingCollection,
   getOutboxCollection,
@@ -80,23 +79,6 @@ export const WellKnownController = {
   <Link rel="lrdd" type="application/xrd+xml" template="${base}/.well-known/webfinger?resource={uri}"/>
 </XRD>`;
     return res.status(200).set("Content-Type", "application/xrd+xml").send(xml);
-  },
-
-  nodeInfoIndex: (_req: Request, res: Response) => {
-    const base = (process.env.AP_BASE_URL ?? "").replace(/\/$/, "");
-    return res.status(200).json({
-      links: [
-        {
-          rel: "http://nodeinfo.diaspora.software/ns/schema/2.0",
-          href: `${base}/nodeinfo/2.0`,
-        },
-      ],
-    });
-  },
-
-  nodeInfo: async (_req: Request, res: Response) => {
-    const info = await buildNodeInfoResponse();
-    return res.status(200).json(info);
   },
 };
 

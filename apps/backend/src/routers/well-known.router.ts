@@ -32,10 +32,5 @@ router.get(
   "/host-meta",
   h((req, res) => WellKnownController.hostMeta(req, res)),
 );
-router.get(
-  "/nodeinfo",
-  apEnabled,
-  h((req, res) => WellKnownController.nodeInfoIndex(req, res)),
-);
 
 export default router;

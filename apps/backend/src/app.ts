@@ -10,7 +10,6 @@ import { ChatWebhookController } from "./controllers/app/chatWebhook.controller"
 import mongoSanitize from "express-mongo-sanitize";
 import helmet from "helmet";
 import wellKnownRouter from "./routers/well-known.router";
-import { WellKnownController } from "./controllers/web/activitypub.controller";
 import {
   AuthService,
   createAuthProvider,
@@ -163,15 +162,6 @@ export function createApp() {
 
   // ActivityPub well-known discovery (must be at root domain, before API routes)
   app.use("/.well-known", wellKnownRouter);
-  app.get("/nodeinfo/2.0", (req, res) => {
-    // Fail-closed: the federation surface is off unless explicitly enabled.
-    if (process.env.AP_ENABLED !== "true") {
-      return res
-        .status(404)
-        .json({ error: "Federation is disabled on this instance" });
-    }
-    return WellKnownController.nodeInfo(req, res);
-  });
 
   registerRoutes(app); // all routes in 1 place
 

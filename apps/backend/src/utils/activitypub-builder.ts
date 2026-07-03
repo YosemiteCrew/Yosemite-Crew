@@ -102,38 +102,7 @@ export function buildWebFingerResponse(opts: {
         type: AP_CONTENT_TYPE,
         href: actorUri(opts.orgId),
       },
-      {
-        rel: "http://webfinger.net/rel/profile-page",
-        type: "text/html",
-        href: actorUri(opts.orgId),
-      },
     ],
-  };
-}
-
-export function buildNodeInfo(opts: {
-  instanceHost: string;
-  actorCount: number;
-}) {
-  return {
-    version: "2.0",
-    software: {
-      name: "yosemite-crew",
-      version: process.env.npm_package_version ?? "1.0.0",
-    },
-    protocols: ["activitypub"],
-    usage: {
-      users: {
-        total: opts.actorCount,
-        activeMonth: opts.actorCount,
-        activeHalfyear: opts.actorCount,
-      },
-    },
-    openRegistrations: false,
-    metadata: {
-      nodeDescription: "Yosemite Crew veterinary practice management",
-      nodeName: opts.instanceHost,
-    },
   };
 }
 

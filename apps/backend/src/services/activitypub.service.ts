@@ -16,7 +16,6 @@ import {
   sharedInboxUri,
   buildActorObject,
   buildWebFingerResponse,
-  buildNodeInfo,
   buildOrderedCollection,
   buildFollowActivity,
   buildAcceptActivity,
@@ -124,14 +123,6 @@ export async function resolveWebFinger(resource: string) {
     orgId: actor.organisationId,
     preferredUsername: actor.preferredUsername,
   });
-}
-
-// ─── NodeInfo ─────────────────────────────────────────────────────────────────
-
-export async function buildNodeInfoResponse() {
-  const count = await prisma.aPActor.count();
-  const host = new URL(apBaseUrl()).host;
-  return buildNodeInfo({ instanceHost: host, actorCount: count });
 }
 
 // ─── Remote actor fetching ────────────────────────────────────────────────────
