@@ -211,7 +211,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
       id={popoverId}
       ref={popoverDialogRef}
       open
-      className="fixed z-[1000] w-[440px] rounded-3xl border border-card-border bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
+      className="fixed z-1000 w-110 rounded-3xl border border-card-border bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
       style={popoverStyle}
       aria-labelledby={titleId}
       aria-modal="false"
@@ -254,7 +254,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
             >
               {companionDisplayName}
             </button>
-            <div className="text-yc-12-m-neutral mt-1 line-clamp-2 text-left break-words">
+            <div className="text-yc-12-m-neutral mt-1 line-clamp-2 text-left wrap-break-word">
               {(() => {
                 const c = companionDetails as typeof companionDetails & {
                   gender?: string;
