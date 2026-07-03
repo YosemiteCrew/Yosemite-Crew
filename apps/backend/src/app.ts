@@ -145,14 +145,33 @@ export function createApp() {
     );
   }
 
+  // Parse the raw signed bytes for AP inbox POSTs so the HTTP signature is
+  // verified against the exact payload, not a re-serialized object.
+  app.use(
+    ["/ap/organizations/:orgId/inbox", "/ap/shared-inbox"],
+    express.raw({
+      type: [
+        "application/activity+json",
+        "application/ld+json",
+        "application/json",
+      ],
+    }),
+  );
+
   app.use(express.json());
   app.use(mongoSanitize());
 
   // ActivityPub well-known discovery (must be at root domain, before API routes)
   app.use("/.well-known", wellKnownRouter);
-  app.get("/nodeinfo/2.0", (req, res) =>
-    WellKnownController.nodeInfo(req, res),
-  );
+  app.get("/nodeinfo/2.0", (req, res) => {
+    // Fail-closed: the federation surface is off unless explicitly enabled.
+    if (process.env.AP_ENABLED !== "true") {
+      return res
+        .status(404)
+        .json({ error: "Federation is disabled on this instance" });
+    }
+    return WellKnownController.nodeInfo(req, res);
+  });
 
   registerRoutes(app); // all routes in 1 place
 

@@ -5,6 +5,7 @@ import { prisma } from "@yosemite-crew/database";
 import { signRequest } from "src/utils/http-signature";
 import { decryptPrivateKey } from "src/services/activitypub-crypto.service";
 import { AP_CONTENT_TYPE } from "src/utils/activitypub-builder";
+import { assertPublicHttpsUrl } from "src/utils/ap-url-guard";
 import axios from "axios";
 import logger from "src/utils/logger";
 
@@ -12,6 +13,8 @@ new Worker<ApDeliveryJobData>(
   "ap-delivery",
   async (job) => {
     const { actorId, inboxUri, activity } = job.data;
+
+    await assertPublicHttpsUrl(inboxUri);
 
     const actor = await prisma.aPActor.findUniqueOrThrow({
       where: { id: actorId },
@@ -34,6 +37,7 @@ new Worker<ApDeliveryJobData>(
         ...signedHeaders,
       },
       timeout: 15_000,
+      maxRedirects: 0,
     });
 
     logger.info("[AP delivery] Delivered activity", {

@@ -6,7 +6,6 @@ import {
   APDirection,
 } from "@prisma/client";
 import axios from "axios";
-import logger from "src/utils/logger";
 import {
   actorUri,
   inboxUri,
@@ -37,6 +36,7 @@ import {
   decryptPrivateKey,
 } from "./activitypub-crypto.service";
 import { signRequest } from "src/utils/http-signature";
+import { assertPublicHttpsUrl } from "src/utils/ap-url-guard";
 import { ApDeliveryQueue } from "src/queues/ap-delivery.queue";
 
 // ─── Actor management ─────────────────────────────────────────────────────────
@@ -138,6 +138,8 @@ export async function fetchRemoteActor(uri: string) {
     return cached;
   }
 
+  await assertPublicHttpsUrl(uri);
+
   const resp = await axios.get<{
     id: string;
     preferredUsername: string;
@@ -148,9 +150,33 @@ export async function fetchRemoteActor(uri: string) {
   }>(uri, {
     headers: { Accept: AP_CONTENT_TYPE },
     timeout: 10_000,
+    maxRedirects: 0,
   });
 
   const data = resp.data;
+
+  // Bind the fetched document to the URL it came from: an actor may only
+  // declare an id and key hosted on the same origin it is served from.
+  // Without this, any public host could serve a document claiming another
+  // instance's actor id (with its own key) and impersonate that instance.
+  const fetchedOrigin = new URL(uri).origin;
+  let declaredActorOrigin: string;
+  let declaredKeyOrigin: string;
+  try {
+    declaredActorOrigin = new URL(data.id).origin;
+    declaredKeyOrigin = new URL(data.publicKey.id).origin;
+  } catch {
+    throw new Error(`Remote actor ${uri} declares a malformed id or key id`);
+  }
+  if (
+    declaredActorOrigin !== fetchedOrigin ||
+    declaredKeyOrigin !== fetchedOrigin
+  ) {
+    throw new Error(
+      `Remote actor origin mismatch: fetched from ${fetchedOrigin} but id/key claim a different origin`,
+    );
+  }
+
   const instanceHost = new URL(uri).host;
   const now = new Date();
 
@@ -229,6 +255,8 @@ export async function deliverActivity(opts: {
   targetInboxUri: string;
   activity: unknown;
 }) {
+  await assertPublicHttpsUrl(opts.targetInboxUri);
+
   const body = JSON.stringify(opts.activity);
   const privateKeyPem = decryptPrivateKey(opts.actor.privateKeyPem);
   const signedHeaders = signRequest({
@@ -245,6 +273,7 @@ export async function deliverActivity(opts: {
       ...signedHeaders,
     },
     timeout: 15_000,
+    maxRedirects: 0,
   });
 }
 

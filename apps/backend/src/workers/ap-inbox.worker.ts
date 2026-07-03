@@ -14,14 +14,14 @@ new Worker<ApInboxJobData>(
     const { targetOrgId, rawBody, headers, requestUrl, requestMethod } =
       job.data;
 
-    const valid = await verifyInboundRequest({
+    const { ok, signerUri } = await verifyInboundRequest({
       method: requestMethod,
       url: requestUrl,
       headers,
       body: rawBody,
     });
 
-    if (!valid) {
+    if (!ok) {
       logger.warn("[AP inbox] Signature verification failed", {
         targetOrgId,
         keyId: headers["signature"]?.match(/keyId="([^"]+)"/)?.[1],
@@ -34,6 +34,16 @@ new Worker<ApInboxJobData>(
       activity = JSON.parse(rawBody) as AnyActivity;
     } catch {
       logger.warn("[AP inbox] Invalid JSON body", { targetOrgId });
+      return;
+    }
+
+    // The signing actor must be the activity's actor — block impersonation.
+    if (activity.actor !== signerUri) {
+      logger.warn("[AP inbox] Actor does not match request signer — dropping", {
+        targetOrgId,
+        activityActor: activity.actor,
+        signerUri,
+      });
       return;
     }
 

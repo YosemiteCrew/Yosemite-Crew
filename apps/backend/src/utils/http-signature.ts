@@ -1,5 +1,4 @@
-import crypto from "crypto";
-import { createHash } from "crypto";
+import crypto, { createHash } from "crypto";
 
 export interface SignatureComponents {
   keyId: string;
@@ -138,8 +137,11 @@ export function verifySignature(opts: {
 }
 
 export function verifyBodyDigest(body: string, digestHeader: string): boolean {
-  const [algo, expected] = digestHeader.split("=", 2);
-  if (algo?.toUpperCase() !== "SHA-256") return false;
+  const eq = digestHeader.indexOf("=");
+  if (eq === -1) return false;
+  const algo = digestHeader.slice(0, eq);
+  const expected = digestHeader.slice(eq + 1);
+  if (algo.toUpperCase() !== "SHA-256") return false;
   const actual = createHash("sha256").update(body, "utf8").digest("base64");
   return actual === expected;
 }

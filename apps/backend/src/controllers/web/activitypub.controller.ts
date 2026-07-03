@@ -29,6 +29,23 @@ import {
 import type { OrgRequest } from "src/middlewares/rbac";
 
 const AP_HEADERS = { "Content-Type": AP_CONTENT_TYPE };
+const INTERNAL_ERROR = "Internal error";
+const REMOTE_ACTOR_URI_REQUIRED = "remoteActorUri required";
+
+function extractRawBody(req: Request): string {
+  if (Buffer.isBuffer(req.body)) return req.body.toString("utf8");
+  if (typeof req.body === "string") return req.body;
+  return JSON.stringify(req.body);
+}
+
+function collectHeaders(req: Request): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const [k, v] of Object.entries(req.headers)) {
+    if (typeof v === "string") headers[k.toLowerCase()] = v;
+    else if (Array.isArray(v)) headers[k.toLowerCase()] = v[0] ?? "";
+  }
+  return headers;
+}
 
 function requireOrgId(req: Request, res: Response): string | null {
   const orgId = (req as OrgRequest).organisationId;
@@ -101,71 +118,78 @@ export const ActivityPubController = {
   postInbox: async (req: Request, res: Response) => {
     try {
       const orgId = req.params.orgId;
-      const rawBody =
-        typeof req.body === "string" ? req.body : JSON.stringify(req.body);
-      const headers: Record<string, string> = {};
-      for (const [k, v] of Object.entries(req.headers)) {
-        if (typeof v === "string") headers[k.toLowerCase()] = v;
-        else if (Array.isArray(v)) headers[k.toLowerCase()] = v[0] ?? "";
+      const rawBody = extractRawBody(req);
+      try {
+        JSON.parse(rawBody);
+      } catch {
+        return res.status(400).json({ error: "Invalid JSON body" });
       }
+      const headers = collectHeaders(req);
 
       await ApInboxQueue.add("process", {
         targetOrgId: orgId,
         rawBody,
         headers,
-        requestUrl: `${process.env.AP_BASE_URL ?? ""}${req.path}`,
+        requestUrl: `${process.env.AP_BASE_URL ?? ""}${req.originalUrl}`,
         requestMethod: req.method,
       });
 
       return res.status(202).end();
     } catch (err) {
       logger.error("[AP] postInbox error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
   postSharedInbox: async (req: Request, res: Response) => {
     try {
-      const activity = req.body as {
+      const rawBody = extractRawBody(req);
+      let parsed: {
         object?: { to?: string | string[] };
         to?: string | string[];
       };
+      try {
+        parsed = JSON.parse(rawBody) as {
+          object?: { to?: string | string[] };
+          to?: string | string[];
+        };
+      } catch {
+        return res.status(400).json({ error: "Invalid JSON body" });
+      }
+
       const toAddresses = [
-        ...(Array.isArray(activity.to) ? activity.to : [activity.to ?? ""]),
-        ...(Array.isArray(activity.object?.to)
-          ? activity.object!.to!
-          : [activity.object?.to ?? ""]),
-      ].filter(Boolean);
+        ...(Array.isArray(parsed.to) ? parsed.to : [parsed.to ?? ""]),
+        ...(Array.isArray(parsed.object?.to)
+          ? (parsed.object?.to ?? [])
+          : [parsed.object?.to ?? ""]),
+      ].filter((v): v is string => Boolean(v));
+
+      const headers = collectHeaders(req);
+      const orgIds = toAddresses
+        .map((uri) =>
+          uri.includes("/ap/organizations/")
+            ? uri.split("/ap/organizations/")[1]
+            : null,
+        )
+        .filter((v): v is string => Boolean(v));
 
       const actors = await Promise.allSettled(
-        toAddresses
-          .map((uri) =>
-            uri.includes("/ap/organizations/")
-              ? uri.split("/ap/organizations/")[1]
-              : null,
-          )
-          .filter(Boolean)
-          .map((orgId) =>
-            ApInboxQueue.add("process", {
-              targetOrgId: orgId!,
-              rawBody: JSON.stringify(req.body),
-              headers: Object.fromEntries(
-                Object.entries(req.headers).map(([k, v]) => [
-                  k,
-                  Array.isArray(v) ? v[0] : (v ?? ""),
-                ]),
-              ),
-              requestUrl: `${process.env.AP_BASE_URL ?? ""}${req.path}`,
-              requestMethod: req.method,
-            }),
-          ),
+        orgIds.map((orgId) =>
+          ApInboxQueue.add("process", {
+            targetOrgId: orgId,
+            rawBody,
+            headers,
+            requestUrl: `${process.env.AP_BASE_URL ?? ""}${req.originalUrl}`,
+            requestMethod: req.method,
+          }),
+        ),
       );
 
       logger.info("[AP] Shared inbox queued", { count: actors.length });
       return res.status(202).end();
     } catch (err) {
       logger.error("[AP] postSharedInbox error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -212,7 +236,7 @@ export const ActivityPubController = {
       });
     } catch (err) {
       logger.error("[AP] getActorSettings error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -237,12 +261,12 @@ export const ActivityPubController = {
       if (!orgId) return;
       const { remoteActorUri } = req.body as { remoteActorUri: string };
       if (!remoteActorUri)
-        return res.status(400).json({ error: "remoteActorUri required" });
+        return res.status(400).json({ error: REMOTE_ACTOR_URI_REQUIRED });
       const activity = await sendFollow(orgId, remoteActorUri);
       return res.status(202).json(activity);
     } catch (err) {
       logger.error("[AP] follow error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -252,14 +276,14 @@ export const ActivityPubController = {
       if (!orgId) return;
       const { remoteActorUri } = req.body as { remoteActorUri: string };
       if (!remoteActorUri)
-        return res.status(400).json({ error: "remoteActorUri required" });
+        return res.status(400).json({ error: REMOTE_ACTOR_URI_REQUIRED });
       const activity = await sendUnfollow(orgId, remoteActorUri);
       if (!activity)
         return res.status(404).json({ error: "Not following that actor" });
       return res.status(202).json(activity);
     } catch (err) {
       logger.error("[AP] unfollow error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -269,12 +293,12 @@ export const ActivityPubController = {
       if (!orgId) return;
       const { remoteActorUri } = req.body as { remoteActorUri: string };
       if (!remoteActorUri)
-        return res.status(400).json({ error: "remoteActorUri required" });
+        return res.status(400).json({ error: REMOTE_ACTOR_URI_REQUIRED });
       await approveFollower(orgId, remoteActorUri);
       return res.status(200).json({ ok: true });
     } catch (err) {
       logger.error("[AP] approveFollower error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -284,12 +308,12 @@ export const ActivityPubController = {
       if (!orgId) return;
       const { remoteActorUri } = req.body as { remoteActorUri: string };
       if (!remoteActorUri)
-        return res.status(400).json({ error: "remoteActorUri required" });
+        return res.status(400).json({ error: REMOTE_ACTOR_URI_REQUIRED });
       await rejectFollower(orgId, remoteActorUri);
       return res.status(200).json({ ok: true });
     } catch (err) {
       logger.error("[AP] rejectFollower error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -341,7 +365,7 @@ export const ActivityPubController = {
       return res.status(202).json(activity);
     } catch (err) {
       logger.error("[AP] sendReferral error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -379,7 +403,7 @@ export const ActivityPubController = {
       return res.status(202).json(activity);
     } catch (err) {
       logger.error("[AP] sendNote error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -400,7 +424,7 @@ export const ActivityPubController = {
       return res.status(202).json(activity);
     } catch (err) {
       logger.error("[AP] announceEmergency error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 
@@ -419,7 +443,7 @@ export const ActivityPubController = {
       return res.status(200).json(result);
     } catch (err) {
       logger.error("[AP] respondToReferral error", { err });
-      const message = err instanceof Error ? err.message : "Internal error";
+      const message = err instanceof Error ? err.message : INTERNAL_ERROR;
       return res.status(422).json({ error: message });
     }
   },
@@ -438,7 +462,7 @@ export const ActivityPubController = {
         .json({ summary: actor.summary, iconUrl: actor.iconUrl });
     } catch (err) {
       logger.error("[AP] updateActorProfile error", { err });
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },
 };

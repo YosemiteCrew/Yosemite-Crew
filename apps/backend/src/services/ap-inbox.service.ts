@@ -12,13 +12,12 @@ import {
   getActorByOrgId,
   getOrCreateActor,
 } from "./activitypub.service";
-import { apBaseUrl, generateActivityId } from "src/utils/activitypub-builder";
+import { generateActivityId } from "src/utils/activitypub-builder";
 import { ApDeliveryQueue } from "src/queues/ap-delivery.queue";
 import {
   buildAcceptActivity,
   buildFollowActivity,
 } from "src/utils/activitypub-builder";
-import { decryptPrivateKey } from "./activitypub-crypto.service";
 
 type AnyActivity = {
   "@context"?: unknown;
@@ -32,34 +31,62 @@ type AnyActivity = {
 
 // ─── Signature verification ───────────────────────────────────────────────────
 
+const REQUIRED_SIGNED_HEADERS = ["(request-target)", "host", "date", "digest"];
+const REPLAY_WINDOW_SECONDS = 300;
+
 export async function verifyInboundRequest(opts: {
   method: string;
   url: string;
   headers: Record<string, string>;
   body: string;
-}): Promise<boolean> {
+}): Promise<{ ok: boolean; signerUri?: string }> {
   const sigHeader = opts.headers["signature"];
-  if (!sigHeader) return false;
+  if (!sigHeader) return { ok: false };
 
+  // A Digest header is mandatory on all inbox POSTs, verified over raw bytes.
   const digestHeader = opts.headers["digest"];
-  if (digestHeader && !verifyBodyDigest(opts.body, digestHeader)) return false;
+  if (!digestHeader || !verifyBodyDigest(opts.body, digestHeader)) {
+    return { ok: false };
+  }
+
+  // Replay protection: reject stale or missing Date.
+  const dateHeader = opts.headers["date"];
+  if (!dateHeader) return { ok: false };
+  const dateMs = Date.parse(dateHeader);
+  if (Number.isNaN(dateMs)) return { ok: false };
+  if (Math.abs(Date.now() - dateMs) > REPLAY_WINDOW_SECONDS * 1000) {
+    return { ok: false };
+  }
 
   const components = parseSignatureHeader(sigHeader);
-  if (!components.keyId) return false;
+  if (!components.keyId) return { ok: false };
+
+  // The signature must cover at least (request-target), host, date, digest.
+  const signedHeaderSet = new Set(
+    components.headers.map((h) => h.toLowerCase()),
+  );
+  for (const required of REQUIRED_SIGNED_HEADERS) {
+    if (!signedHeaderSet.has(required)) return { ok: false };
+  }
 
   const keyOwnerUri = components.keyId.split("#")[0];
 
   try {
     const remote = await fetchRemoteActor(keyOwnerUri);
-    return verifySignature({
+    const signatureValid = verifySignature({
       publicKeyPem: remote.publicKeyPem,
       method: opts.method,
       url: opts.url,
       headers: opts.headers,
       sigComponents: components,
     });
+    // The keyId must be the actor's advertised key — no key confusion.
+    if (!signatureValid || remote.publicKeyId !== components.keyId) {
+      return { ok: false };
+    }
+    return { ok: true, signerUri: remote.uri };
   } catch {
-    return false;
+    return { ok: false };
   }
 }
 
@@ -71,28 +98,70 @@ export async function dispatchInboundActivity(
 ): Promise<void> {
   const actor = await getOrCreateActor(targetOrgId);
 
-  await prisma.aPActivity.upsert({
-    where: { uri: activity.id ?? `urn:unknown:${generateActivityId()}` },
-    create: {
-      uri: activity.id ?? `urn:unknown:${generateActivityId()}`,
+  // Real ActivityPub activities always carry a stable id. Reject id-less
+  // activities instead of synthesising a random one, which would let a
+  // replayed request create a fresh row (and re-run its handler) every time.
+  if (typeof activity.id !== "string" || activity.id.length === 0) {
+    logger.warn("[AP inbox] dropping activity without an id", {
       type: activity.type,
-      localActorId: actor.id,
-      objectUri:
-        typeof activity.object === "string" ? activity.object : undefined,
-      objectJson:
-        typeof activity.object === "object"
-          ? (activity.object as object)
-          : undefined,
-      toAddresses: toArray(activity.to),
-      ccAddresses: toArray(activity.cc),
-      published: new Date(),
-      direction: APDirection.INBOUND,
-      processed: false,
-      rawJson: activity as unknown as Prisma.InputJsonValue,
-    },
-    update: {},
-  });
+      actor: activity.actor,
+    });
+    return;
+  }
 
+  // Idempotency / replay defence: only run a handler the first time an
+  // activity id is seen. An existing-but-unprocessed row means an earlier
+  // attempt failed and is being retried; a processed row means this is a
+  // replay (e.g. a captured signed request resent within the date window).
+  const existing = await prisma.aPActivity.findUnique({
+    where: { uri: activity.id },
+    select: { processed: true },
+  });
+  if (existing?.processed) {
+    logger.info("[AP inbox] ignoring already-processed activity", {
+      uri: activity.id,
+    });
+    return;
+  }
+  if (!existing) {
+    try {
+      await prisma.aPActivity.create({
+        data: {
+          uri: activity.id,
+          type: activity.type,
+          localActorId: actor.id,
+          objectUri:
+            typeof activity.object === "string" ? activity.object : undefined,
+          objectJson:
+            typeof activity.object === "object"
+              ? (activity.object as object)
+              : undefined,
+          toAddresses: toArray(activity.to),
+          ccAddresses: toArray(activity.cc),
+          published: new Date(),
+          direction: APDirection.INBOUND,
+          processed: false,
+          rawJson: activity as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } catch (err) {
+      // A concurrent delivery of the same id may have created it first.
+      if ((err as { code?: string }).code !== "P2002") throw err;
+    }
+  }
+
+  await runInboundHandler(targetOrgId, activity);
+
+  await prisma.aPActivity.update({
+    where: { uri: activity.id },
+    data: { processed: true },
+  });
+}
+
+async function runInboundHandler(
+  targetOrgId: string,
+  activity: AnyActivity,
+): Promise<void> {
   switch (activity.type) {
     case "Follow":
       return handleFollow(targetOrgId, activity);
@@ -194,12 +263,11 @@ async function handleAccept(targetOrgId: string, activity: AnyActivity) {
   const localActor = await getActorByOrgId(targetOrgId);
   if (!localActor) return;
 
-  const obj = activity.object as { actor?: string } | string | undefined;
-  const followedBy =
-    typeof obj === "object" && obj?.actor ? obj.actor : activity.actor;
-
+  // The acceptor is the activity's actor, which the worker has already bound to
+  // the verified signer. Never trust the inner object.actor: a verified peer
+  // could otherwise name a third party and flip our follow-link to them.
   await prisma.aPFollowing.updateMany({
-    where: { localActorId: localActor.id, remoteActorUri: followedBy },
+    where: { localActorId: localActor.id, remoteActorUri: activity.actor },
     data: { state: APFollowingState.ACCEPTED },
   });
 }
@@ -210,12 +278,9 @@ async function handleReject(targetOrgId: string, activity: AnyActivity) {
   const localActor = await getActorByOrgId(targetOrgId);
   if (!localActor) return;
 
-  const obj = activity.object as { actor?: string } | string | undefined;
-  const rejectedBy =
-    typeof obj === "object" && obj?.actor ? obj.actor : activity.actor;
-
+  // Same rule as Accept: trust only the verified signer (activity.actor).
   await prisma.aPFollowing.updateMany({
-    where: { localActorId: localActor.id, remoteActorUri: rejectedBy },
+    where: { localActorId: localActor.id, remoteActorUri: activity.actor },
     data: { state: APFollowingState.REJECTED },
   });
 }
@@ -270,7 +335,7 @@ async function handleOffer(targetOrgId: string, activity: AnyActivity) {
 
 // ─── Create (Note) ────────────────────────────────────────────────────────────
 
-async function handleCreate(targetOrgId: string, activity: AnyActivity) {
+function handleCreate(targetOrgId: string, activity: AnyActivity) {
   const obj = activity.object as
     | {
         type?: string;
@@ -290,7 +355,7 @@ async function handleCreate(targetOrgId: string, activity: AnyActivity) {
 
 // ─── Announce ─────────────────────────────────────────────────────────────────
 
-async function handleAnnounce(targetOrgId: string, activity: AnyActivity) {
+function handleAnnounce(targetOrgId: string, activity: AnyActivity) {
   logger.info("[AP inbox] Received Announce", {
     from: activity.actor,
     toOrg: targetOrgId,

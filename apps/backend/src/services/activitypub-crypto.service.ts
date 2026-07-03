@@ -1,10 +1,14 @@
 import crypto from "crypto";
 
-function encryptionKey(): Buffer {
+function masterSecret(): string {
   const raw = process.env.ENCRYPTION_KEY ?? "";
   if (!raw)
     throw new Error("ENCRYPTION_KEY env var is required for AP key storage");
-  return crypto.createHash("sha256").update(raw).digest();
+  return raw;
+}
+
+function deriveKey(salt: Buffer): Buffer {
+  return crypto.scryptSync(masterSecret(), salt, 32);
 }
 
 export function generateRsaKeyPair(): {
@@ -20,19 +24,31 @@ export function generateRsaKeyPair(): {
 }
 
 export function encryptPrivateKey(pem: string): string {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv("aes-256-cbc", encryptionKey(), iv);
+  const salt = crypto.randomBytes(16);
+  const iv = crypto.randomBytes(12);
+  const key = deriveKey(salt);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([cipher.update(pem, "utf8"), cipher.final()]);
-  return `${iv.toString("hex")}:${encrypted.toString("hex")}`;
+  const authTag = cipher.getAuthTag();
+  return [
+    salt.toString("hex"),
+    iv.toString("hex"),
+    authTag.toString("hex"),
+    encrypted.toString("hex"),
+  ].join(":");
 }
 
 export function decryptPrivateKey(stored: string): string {
-  const [ivHex, dataHex] = stored.split(":");
-  if (!ivHex || !dataHex)
+  const [saltHex, ivHex, authTagHex, dataHex] = stored.split(":");
+  if (!saltHex || !ivHex || !authTagHex || !dataHex)
     throw new Error("Invalid encrypted private key format");
+  const salt = Buffer.from(saltHex, "hex");
   const iv = Buffer.from(ivHex, "hex");
+  const authTag = Buffer.from(authTagHex, "hex");
   const data = Buffer.from(dataHex, "hex");
-  const decipher = crypto.createDecipheriv("aes-256-cbc", encryptionKey(), iv);
+  const key = deriveKey(salt);
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(authTag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString(
     "utf8",
   );
