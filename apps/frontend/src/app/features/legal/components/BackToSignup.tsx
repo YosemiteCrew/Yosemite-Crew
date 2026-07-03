@@ -14,7 +14,7 @@ const BackToSignup = () => {
       type="button"
       onClick={() => router.back()}
       aria-label="Back to sign up"
-      className="fixed top-5 left-5 z-50 flex items-center gap-2 px-4 py-2 text-body-4 text-text-secondary hover:text-text-primary transition-colors duration-200"
+      className="fixed top-20 left-5 z-50 flex items-center gap-2 px-4 py-2 text-body-4 text-text-secondary transition-colors duration-200 hover:text-text-primary lg:top-24"
     >
       <IoArrowBack size={16} />
       <span>Back to sign up</span>
