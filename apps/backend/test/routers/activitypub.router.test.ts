@@ -25,6 +25,8 @@ const HANDLER_NAMES = [
   "updateActorProfile",
   "sendNote",
   "announceEmergency",
+  "toggleDirectoryListing",
+  "getDirectory",
 ];
 for (const n of HANDLER_NAMES)
   controller[n] = jest.fn().mockResolvedValue(undefined);
@@ -164,6 +166,8 @@ describe("activitypub.router dispatch when AP_ENABLED=true", () => {
     ["GET", "/manage/referrals/inbound", "listInboundReferrals"],
     ["GET", "/manage/referrals/outbound", "listOutboundReferrals"],
     ["PUT", "/manage/license-token", "updateLicenseToken"],
+    ["PUT", "/manage/directory-listing", "toggleDirectoryListing"],
+    ["GET", "/manage/directory", "getDirectory"],
     ["PATCH", "/manage/referrals/r1", "respondToReferral"],
     ["PUT", "/manage/actor", "updateActorProfile"],
     ["POST", "/manage/notes", "sendNote"],

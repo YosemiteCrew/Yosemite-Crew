@@ -11,6 +11,7 @@ const prisma = {
   },
   organization: {
     findUniqueOrThrow: jest.fn(),
+    findUnique: jest.fn(),
   },
   speciality: {
     findMany: jest.fn(),
@@ -82,6 +83,11 @@ jest.mock("src/services/ap-license.service", () => ({
   verifyLicenseToken: (...args: unknown[]) => verifyLicenseToken(...args),
 }));
 
+jest.mock("src/utils/logger", () => ({
+  __esModule: true,
+  default: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+}));
+
 import axios from "axios";
 import * as svc from "src/services/activitypub.service";
 
@@ -95,8 +101,12 @@ const BASE = "https://vet.example";
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.AP_BASE_URL = BASE;
+  process.env.AP_LICENSE_AUTHORITY_URL = "https://authority.example";
   assertPublicHttpsUrl.mockResolvedValue(undefined);
+  global.fetch = jest.fn();
 });
+
+const mockFetch = () => global.fetch as unknown as jest.Mock;
 
 function makeActor(overrides: Record<string, unknown> = {}) {
   return {
@@ -115,6 +125,7 @@ function makeActor(overrides: Record<string, unknown> = {}) {
     summary: "A clinic",
     iconUrl: null,
     licenseToken: "lic-token",
+    directoryListed: false,
     ...overrides,
   };
 }
@@ -1078,5 +1089,230 @@ describe("getLicenseTokenStatus", () => {
     prisma.aPActor.findUnique.mockResolvedValue(makeActor());
     isLicenseTokenValid.mockResolvedValue(false);
     expect(await svc.getLicenseTokenStatus("org-1")).toBe("invalid");
+  });
+});
+
+// ─── setDirectoryListing ──────────────────────────────────────────────────────
+
+describe("setDirectoryListing", () => {
+  it("throws when the organisation is not verified", async () => {
+    prisma.organization.findUnique.mockResolvedValue({ isVerified: false });
+
+    await expect(svc.setDirectoryListing("org-1", true)).rejects.toThrow(
+      /must be verified/,
+    );
+    expect(prisma.aPActor.update).not.toHaveBeenCalled();
+    expect(mockFetch()).not.toHaveBeenCalled();
+  });
+
+  it("throws when the org record is missing (nullish isVerified)", async () => {
+    prisma.organization.findUnique.mockResolvedValue(null);
+
+    await expect(svc.setDirectoryListing("org-1", true)).rejects.toThrow(
+      /must be verified/,
+    );
+  });
+
+  it("throws when the actor has no license token", async () => {
+    prisma.organization.findUnique.mockResolvedValue({ isVerified: true });
+    prisma.aPActor.findUnique.mockResolvedValue(
+      makeActor({ licenseToken: null }),
+    );
+
+    await expect(svc.setDirectoryListing("org-1", true)).rejects.toThrow(
+      /federation license token/,
+    );
+    expect(prisma.aPActor.update).not.toHaveBeenCalled();
+    expect(mockFetch()).not.toHaveBeenCalled();
+  });
+
+  it("updates locally and calls the authority with the bearer token on success", async () => {
+    prisma.organization.findUnique.mockResolvedValue({ isVerified: true });
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+    mockFetch().mockResolvedValue({ ok: true });
+
+    const result = await svc.setDirectoryListing("org-1", true);
+
+    expect(result).toEqual({ listed: true });
+    expect(prisma.aPActor.update).toHaveBeenCalledWith({
+      where: { id: "actor-1" },
+      data: { directoryListed: true },
+    });
+    const [url, opts] = mockFetch().mock.calls[0];
+    expect(url).toBe("https://authority.example/api/directory/listing");
+    expect(opts.method).toBe("PUT");
+    expect(opts.headers.Authorization).toBe("Bearer lic-token");
+    expect(opts.headers["Content-Type"]).toBe("application/json");
+    expect(JSON.parse(opts.body)).toEqual({ listed: true });
+  });
+
+  it("throws when the authority responds non-ok", async () => {
+    prisma.organization.findUnique.mockResolvedValue({ isVerified: true });
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+    mockFetch().mockResolvedValue({ ok: false, status: 503 });
+
+    await expect(svc.setDirectoryListing("org-1", false)).rejects.toThrow(
+      /HTTP 503/,
+    );
+  });
+
+  it("falls back to the default authority base when the env var is unset", async () => {
+    delete process.env.AP_LICENSE_AUTHORITY_URL;
+    prisma.organization.findUnique.mockResolvedValue({ isVerified: true });
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+    mockFetch().mockResolvedValue({ ok: true });
+
+    await svc.setDirectoryListing("org-1", true);
+
+    expect(mockFetch().mock.calls[0][0]).toBe(
+      "https://api.yosemitecrew.com/api/directory/listing",
+    );
+  });
+});
+
+// ─── listDirectory ────────────────────────────────────────────────────────────
+
+describe("listDirectory", () => {
+  const clinics = [
+    {
+      actorUri: "https://vet.example/ap/organizations/o2",
+      orgName: "Remote Vet",
+      instanceHost: "vet.example",
+      handle: "@remotevet@vet.example",
+    },
+  ];
+
+  it("passes through the authority clinics with the license bearer (fresh module)", async () => {
+    await jest.isolateModulesAsync(async () => {
+      const fresh = await import("src/services/activitypub.service");
+      prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ clinics }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await fresh.listDirectory("org-1");
+
+      expect(result).toEqual({ clinics });
+      const [url, opts] = fetchMock.mock.calls[0];
+      expect(url).toBe("https://authority.example/api/directory");
+      expect(opts.headers.Authorization).toBe("Bearer lic-token");
+    });
+  });
+
+  it("caches the authority response within the TTL (second call does not refetch)", async () => {
+    await jest.isolateModulesAsync(async () => {
+      const fresh = await import("src/services/activitypub.service");
+      prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ clinics }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await fresh.listDirectory("org-1");
+      await fresh.listDirectory("org-1");
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("omits the Authorization header when no license token and defaults missing clinics to []", async () => {
+    await jest.isolateModulesAsync(async () => {
+      const fresh = await import("src/services/activitypub.service");
+      prisma.aPActor.findUnique.mockResolvedValue(
+        makeActor({ licenseToken: null }),
+      );
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await fresh.listDirectory("org-1");
+
+      expect(result).toEqual({ clinics: [] });
+      expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
+    });
+  });
+
+  it("returns { clinics: [] } when there is no actor at all", async () => {
+    await jest.isolateModulesAsync(async () => {
+      const fresh = await import("src/services/activitypub.service");
+      prisma.aPActor.findUnique.mockResolvedValue(null);
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ clinics }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await fresh.listDirectory("org-1");
+      expect(result).toEqual({ clinics });
+    });
+  });
+
+  it("returns { clinics: [] } (resilient) when the authority responds non-ok", async () => {
+    await jest.isolateModulesAsync(async () => {
+      const fresh = await import("src/services/activitypub.service");
+      prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue({
+          ok: false,
+          status: 500,
+        }) as unknown as typeof fetch;
+
+      const result = await fresh.listDirectory("org-1");
+      expect(result).toEqual({ clinics: [] });
+    });
+  });
+
+  it("returns { clinics: [] } (resilient) when fetch rejects (network error)", async () => {
+    await jest.isolateModulesAsync(async () => {
+      const fresh = await import("src/services/activitypub.service");
+      prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(
+          new Error("ECONNREFUSED"),
+        ) as unknown as typeof fetch;
+
+      const result = await fresh.listDirectory("org-1");
+      expect(result).toEqual({ clinics: [] });
+    });
+  });
+});
+
+// ─── getActorSettingsData ─────────────────────────────────────────────────────
+
+describe("getActorSettingsData", () => {
+  it("returns the actor, license status, verification, and listing flags", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(
+      makeActor({ directoryListed: true }),
+    );
+    prisma.organization.findUnique.mockResolvedValue({ isVerified: true });
+    isLicenseTokenValid.mockResolvedValue(true);
+
+    const result = await svc.getActorSettingsData("org-1");
+
+    expect(result.actor.id).toBe("actor-1");
+    expect(result.licenseTokenStatus).toBe("valid");
+    expect(result.isVerified).toBe(true);
+    expect(result.directoryListed).toBe(true);
+  });
+
+  it("defaults isVerified to false when the org record is missing", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.organization.findUnique.mockResolvedValue(null);
+    isLicenseTokenValid.mockResolvedValue(false);
+
+    const result = await svc.getActorSettingsData("org-1");
+
+    expect(result.isVerified).toBe(false);
+    expect(result.directoryListed).toBe(false);
   });
 });

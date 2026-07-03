@@ -19,11 +19,12 @@ import {
   listOutboundReferrals,
   listFollowers,
   listFollowing,
-  getOrCreateActor,
   updateLicenseToken,
-  getLicenseTokenStatus,
   respondToReferral,
   updateActorProfile,
+  getActorSettingsData,
+  setDirectoryListing,
+  listDirectory,
 } from "src/services/activitypub.service";
 import type { OrgRequest } from "src/middlewares/rbac";
 
@@ -198,10 +199,8 @@ export const ActivityPubController = {
     try {
       const orgId = requireOrgId(req, res);
       if (!orgId) return;
-      const [actor, licenseTokenStatus] = await Promise.all([
-        getOrCreateActor(orgId),
-        getLicenseTokenStatus(orgId),
-      ]);
+      const { actor, licenseTokenStatus, isVerified, directoryListed } =
+        await getActorSettingsData(orgId);
       return res.status(200).json({
         uri: actor.uri,
         preferredUsername: actor.preferredUsername,
@@ -215,9 +214,39 @@ export const ActivityPubController = {
         iconUrl: actor.iconUrl,
         createdAt: actor.createdAt,
         licenseTokenStatus,
+        isVerified,
+        directoryListed,
       });
     } catch (err) {
       logger.error("[AP] getActorSettings error", { err });
+      return res.status(500).json({ error: INTERNAL_ERROR });
+    }
+  },
+
+  toggleDirectoryListing: async (req: Request, res: Response) => {
+    try {
+      const orgId = requireOrgId(req, res);
+      if (!orgId) return;
+      const { listed } = req.body as { listed?: boolean };
+      if (typeof listed !== "boolean")
+        return res.status(400).json({ error: "listed (boolean) required" });
+      const result = await setDirectoryListing(orgId, listed);
+      return res.status(200).json(result);
+    } catch (err) {
+      logger.error("[AP] toggleDirectoryListing error", { err });
+      const message = err instanceof Error ? err.message : INTERNAL_ERROR;
+      return res.status(422).json({ error: message });
+    }
+  },
+
+  getDirectory: async (req: Request, res: Response) => {
+    try {
+      const orgId = requireOrgId(req, res);
+      if (!orgId) return;
+      const result = await listDirectory(orgId);
+      return res.status(200).json(result);
+    } catch (err) {
+      logger.error("[AP] getDirectory error", { err });
       return res.status(500).json({ error: INTERNAL_ERROR });
     }
   },

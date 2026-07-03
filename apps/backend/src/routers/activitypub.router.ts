@@ -103,6 +103,15 @@ router.put(
   "/manage/license-token",
   h((req, res) => ActivityPubController.updateLicenseToken(req, res)),
 );
+
+router.put(
+  "/manage/directory-listing",
+  h((req, res) => ActivityPubController.toggleDirectoryListing(req, res)),
+);
+router.get(
+  "/manage/directory",
+  h((req, res) => ActivityPubController.getDirectory(req, res)),
+);
 router.patch(
   "/manage/referrals/:referralId",
   h((req, res) => ActivityPubController.respondToReferral(req, res)),

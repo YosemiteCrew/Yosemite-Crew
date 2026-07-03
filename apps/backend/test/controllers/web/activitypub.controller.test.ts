@@ -23,6 +23,9 @@ const svc = {
   getLicenseTokenStatus: jest.fn(),
   respondToReferral: jest.fn(),
   updateActorProfile: jest.fn(),
+  getActorSettingsData: jest.fn(),
+  setDirectoryListing: jest.fn(),
+  listDirectory: jest.fn(),
 };
 
 jest.mock("src/services/activitypub.service", () => svc);
@@ -477,21 +480,25 @@ describe("requireOrgId gate", () => {
 
 // ─── getActorSettings ─────────────────────────────────────────────────────────
 describe("ActivityPubController.getActorSettings", () => {
-  it("200 with mapped actor + license status", async () => {
-    svc.getOrCreateActor.mockResolvedValue({
-      uri: "u",
-      preferredUsername: "pu",
-      publicKeyId: "k",
-      inboxUri: "in",
-      outboxUri: "out",
-      followersUri: "fr",
-      followingUri: "fg",
-      sharedInboxUri: "si",
-      summary: "s",
-      iconUrl: "i",
-      createdAt: "2020",
+  it("200 with mapped actor + license status + directory flags", async () => {
+    svc.getActorSettingsData.mockResolvedValue({
+      actor: {
+        uri: "u",
+        preferredUsername: "pu",
+        publicKeyId: "k",
+        inboxUri: "in",
+        outboxUri: "out",
+        followersUri: "fr",
+        followingUri: "fg",
+        sharedInboxUri: "si",
+        summary: "s",
+        iconUrl: "i",
+        createdAt: "2020",
+      },
+      licenseTokenStatus: "VALID",
+      isVerified: true,
+      directoryListed: true,
     });
-    svc.getLicenseTokenStatus.mockResolvedValue("VALID");
     const res = makeRes();
     await ActivityPubController.getActorSettings(withOrg(), res);
     expect(res.statusCode).toBe(200);
@@ -499,14 +506,127 @@ describe("ActivityPubController.getActorSettings", () => {
       uri: "u",
       preferredUsername: "pu",
       licenseTokenStatus: "VALID",
+      isVerified: true,
+      directoryListed: true,
     });
   });
 
   it("500 when a service throws", async () => {
-    svc.getOrCreateActor.mockRejectedValue(new Error("db"));
-    svc.getLicenseTokenStatus.mockResolvedValue("VALID");
+    svc.getActorSettingsData.mockRejectedValue(new Error("db"));
     const res = makeRes();
     await ActivityPubController.getActorSettings(withOrg(), res);
+    expect(res.statusCode).toBe(500);
+    expect(res.body).toEqual({ error: "Internal error" });
+  });
+
+  it("403 without org", async () => {
+    const res = makeRes();
+    await ActivityPubController.getActorSettings(makeReq(), res);
+    expect(res.statusCode).toBe(403);
+    expect(svc.getActorSettingsData).not.toHaveBeenCalled();
+  });
+});
+
+// ─── toggleDirectoryListing ───────────────────────────────────────────────────
+describe("ActivityPubController.toggleDirectoryListing", () => {
+  it("403 without org", async () => {
+    const res = makeRes();
+    await ActivityPubController.toggleDirectoryListing(
+      makeReq({ body: { listed: true } }),
+      res,
+    );
+    expect(res.statusCode).toBe(403);
+    expect(svc.setDirectoryListing).not.toHaveBeenCalled();
+  });
+
+  it("400 when listed is not a boolean", async () => {
+    const res = makeRes();
+    await ActivityPubController.toggleDirectoryListing(
+      withOrg({ body: { listed: "yes" } }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: "listed (boolean) required" });
+    expect(svc.setDirectoryListing).not.toHaveBeenCalled();
+  });
+
+  it("400 when listed is missing", async () => {
+    const res = makeRes();
+    await ActivityPubController.toggleDirectoryListing(
+      withOrg({ body: {} }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("200 with the result on success", async () => {
+    svc.setDirectoryListing.mockResolvedValue({ listed: true });
+    const res = makeRes();
+    await ActivityPubController.toggleDirectoryListing(
+      withOrg({ body: { listed: true } }),
+      res,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ listed: true });
+    expect(svc.setDirectoryListing).toHaveBeenCalledWith("org-1", true);
+  });
+
+  it("accepts listed: false", async () => {
+    svc.setDirectoryListing.mockResolvedValue({ listed: false });
+    const res = makeRes();
+    await ActivityPubController.toggleDirectoryListing(
+      withOrg({ body: { listed: false } }),
+      res,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ listed: false });
+  });
+
+  it("422 with the error message when the service throws (Error)", async () => {
+    svc.setDirectoryListing.mockRejectedValue(new Error("must be verified"));
+    const res = makeRes();
+    await ActivityPubController.toggleDirectoryListing(
+      withOrg({ body: { listed: true } }),
+      res,
+    );
+    expect(res.statusCode).toBe(422);
+    expect(res.body).toEqual({ error: "must be verified" });
+  });
+
+  it("422 with fallback message when the rejection is not an Error", async () => {
+    svc.setDirectoryListing.mockRejectedValue("boom");
+    const res = makeRes();
+    await ActivityPubController.toggleDirectoryListing(
+      withOrg({ body: { listed: true } }),
+      res,
+    );
+    expect(res.statusCode).toBe(422);
+    expect(res.body).toEqual({ error: "Internal error" });
+  });
+});
+
+// ─── getDirectory ─────────────────────────────────────────────────────────────
+describe("ActivityPubController.getDirectory", () => {
+  it("403 without org", async () => {
+    const res = makeRes();
+    await ActivityPubController.getDirectory(makeReq(), res);
+    expect(res.statusCode).toBe(403);
+    expect(svc.listDirectory).not.toHaveBeenCalled();
+  });
+
+  it("200 with the clinics list", async () => {
+    svc.listDirectory.mockResolvedValue({ clinics: [{ actorUri: "a" }] });
+    const res = makeRes();
+    await ActivityPubController.getDirectory(withOrg(), res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ clinics: [{ actorUri: "a" }] });
+    expect(svc.listDirectory).toHaveBeenCalledWith("org-1");
+  });
+
+  it("500 when the service throws", async () => {
+    svc.listDirectory.mockRejectedValue(new Error("boom"));
+    const res = makeRes();
+    await ActivityPubController.getDirectory(withOrg(), res);
     expect(res.statusCode).toBe(500);
     expect(res.body).toEqual({ error: "Internal error" });
   });

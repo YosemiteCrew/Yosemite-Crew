@@ -6,6 +6,8 @@ import {
   APDirection,
 } from "@prisma/client";
 import axios from "axios";
+import { addCachedPromise, type CachedPromise } from "@yosemite-crew/lib";
+import logger from "src/utils/logger";
 import {
   actorUri,
   inboxUri,
@@ -866,6 +868,139 @@ export async function getLicenseTokenStatus(
   if (!actor?.licenseToken) return "none";
   const valid = await isLicenseTokenValid(actor.licenseToken, apBaseUrl());
   return valid ? "valid" : "invalid";
+}
+
+// ─── Directory (federation clinic directory via the SuperAdmin authority) ─────
+
+export interface DirectoryClinic {
+  actorUri: string;
+  orgName: string;
+  instanceHost: string;
+  handle: string;
+}
+
+function directoryAuthorityBase(): string {
+  return (
+    process.env.AP_LICENSE_AUTHORITY_URL ?? "https://api.yosemitecrew.com"
+  ).replace(/\/$/, "");
+}
+
+const DIRECTORY_CACHE_TTL_MS = 60_000;
+const directoryCache = new Map<string, CachedPromise<DirectoryClinic[]>>();
+const DIRECTORY_CACHE_OPTIONS = { maxEntries: 8, pruneIntervalMs: 60_000 };
+
+/**
+ * Toggle this organisation's presence in the SuperAdmin federation directory.
+ * Requires a verified organisation and a stored license token; mirrors the
+ * change to the authority using the org's own bearer token.
+ */
+export async function setDirectoryListing(
+  orgId: string,
+  listed: boolean,
+): Promise<{ listed: boolean }> {
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { isVerified: true },
+  });
+  if (!org?.isVerified) {
+    throw new Error(
+      "Organisation must be verified before it can be listed in the federation directory.",
+    );
+  }
+
+  const actor = await getOrCreateActor(orgId);
+  if (!actor.licenseToken) {
+    throw new Error(
+      "This instance does not have a federation license token. Add one before managing the directory listing.",
+    );
+  }
+
+  await prisma.aPActor.update({
+    where: { id: actor.id },
+    data: { directoryListed: listed },
+  });
+
+  const res = await fetch(`${directoryAuthorityBase()}/api/directory/listing`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${actor.licenseToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ listed }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    throw new Error(`Directory authority responded HTTP ${res.status}`);
+  }
+
+  return { listed };
+}
+
+/**
+ * Read the federation clinic directory from the SuperAdmin authority, cached
+ * in-memory for ~60s. Resilient: if the authority is unreachable, returns an
+ * empty list so the directory page renders an empty state rather than erroring.
+ */
+export async function listDirectory(
+  orgId: string,
+): Promise<{ clinics: DirectoryClinic[] }> {
+  const actor = await getActorByOrgId(orgId);
+  const licenseToken = actor?.licenseToken;
+
+  try {
+    const clinics = await addCachedPromise(
+      directoryCache,
+      "directory",
+      DIRECTORY_CACHE_TTL_MS,
+      async () => {
+        const res = await fetch(`${directoryAuthorityBase()}/api/directory`, {
+          headers: {
+            ...(licenseToken
+              ? { Authorization: `Bearer ${licenseToken}` }
+              : {}),
+            Accept: "application/json",
+          },
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) {
+          throw new Error(`Directory authority responded HTTP ${res.status}`);
+        }
+        const data = (await res.json()) as { clinics?: DirectoryClinic[] };
+        return data.clinics ?? [];
+      },
+      DIRECTORY_CACHE_OPTIONS,
+    );
+    return { clinics };
+  } catch (err) {
+    logger.error("[AP] listDirectory error", { err });
+    return { clinics: [] };
+  }
+}
+
+/**
+ * Actor settings plus the flags the directory-listing toggle needs:
+ * whether the organisation is verified and whether it is currently listed.
+ */
+export async function getActorSettingsData(orgId: string): Promise<{
+  actor: APActor;
+  licenseTokenStatus: "none" | "valid" | "invalid";
+  isVerified: boolean;
+  directoryListed: boolean;
+}> {
+  const [actor, licenseTokenStatus, org] = await Promise.all([
+    getOrCreateActor(orgId),
+    getLicenseTokenStatus(orgId),
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { isVerified: true },
+    }),
+  ]);
+  return {
+    actor,
+    licenseTokenStatus,
+    isVerified: org?.isVerified ?? false,
+    directoryListed: actor.directoryListed,
+  };
 }
 
 export type { APActor };
