@@ -18,7 +18,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "supertokens-node": "^23.1.0"
+    "supertokens-node": "^24.0.2",
+    "jsonwebtoken": "9.0.2",
+    "jwks-rsa": "^3.2.0"
   },
   "peerDependencies": {
     "cors": "^2.8.5",
@@ -28,6 +30,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.8",
-    "typescript": "5.0.4"
+    "typescript": "5.0.4",
+    "@types/jsonwebtoken": "^9.0.9"
   }
 }
