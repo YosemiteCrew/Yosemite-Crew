@@ -62,10 +62,12 @@
      the Parent-linked identity wins the id mapping. The legacy
      `authProvider` column is never trusted (historical write bug, fixed in
      this migration).
-3. **Deploy with** `AUTH_LEGACY_TOKEN_GRACE=true`. Web users sign in again
-   (first login via email OTP, then set password + enroll TOTP); mobile
-   users on old app builds keep working through the grace verifier until
-   they update.
+3. **Deploy with** `AUTH_LEGACY_TOKEN_GRACE=true`. Migrated staff set their
+   password on first use via the password-reset link (their address is
+   imported pre-verified), then enroll TOTP; the staff-web profile is keyed
+   to the email-and-password first factor, so first login is password-reset,
+   not OTP. Mobile users on old app builds keep working through the grace
+   verifier until they update.
 4. **Monitor** auth error rates (401/403/refresh) live; the kill-switch and
    the grace flag are the rollback rails.
 5. **Close the window** (24-72h after the mobile fleet converges): set

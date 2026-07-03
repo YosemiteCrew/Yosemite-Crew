@@ -7,30 +7,24 @@ import logger from "src/utils/logger";
 // mappings, without the auth package depending on the database.
 
 export const authHooks: AuthHooks = {
-  // Staff records key off the stable app user id (User.userId) with the unique
-  // email as fallback (migrated staff signing in via the OTP first-login path
-  // may not resolve by id until the identity mapping settles).
-  async resolveAuthProfile({ appUserId, email }) {
-    const staff = await prisma.user.findFirst({
-      where: email
-        ? { OR: [{ userId: appUserId }, { email }] }
-        : { userId: appUserId },
-      select: { id: true },
-    });
-    if (staff) {
-      return "pims_web";
+  // Product profile is derived from HOW the user authenticates, never from
+  // their email address: one person can be both clinic staff and a pet owner
+  // under the same address, and each product must resolve to its own profile
+  // for the current session. Email and password is a staff-web first factor
+  // (only staff hold a password; migrated staff set one via the password-reset
+  // link); email OTP and social are the pet-parent mobile product. This
+  // deliberately mirrors the package default - the earlier email lookup let a
+  // pet-parent's mobile OTP session be stamped pims_web whenever the address
+  // matched a staff row, 403-locking dual-role users out of the mobile app.
+  resolveAuthProfile({ loginMethod }) {
+    if (loginMethod === "emailpassword") {
+      return Promise.resolve("pims_web");
     }
-
-    const mobileUser = await prisma.authUserMobile.findFirst({
-      where: { providerUserId: appUserId },
-      select: { id: true },
-    });
-    if (mobileUser) {
-      return "pet_parent_mobile";
+    if (loginMethod === "otp-email" || loginMethod.startsWith("thirdparty")) {
+      return Promise.resolve("pet_parent_mobile");
     }
-
-    // Unknown user (fresh sign-up): fall back to the login-method default.
-    return undefined;
+    // Unknown method: defer to the package default.
+    return Promise.resolve(undefined);
   },
 
   async onUserCreated({

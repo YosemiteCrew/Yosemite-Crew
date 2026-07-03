@@ -128,6 +128,12 @@ const SignIn = ({
     } catch (error) {
       console.log(error);
       await useAuthStore.getState().signout();
+      // Tear down any MFA challenge panel too - the session was just revoked,
+      // so leaving it mounted would let the user submit codes against a dead
+      // session. Return them to the sign-in form like the non-MFA path does.
+      setMfaFactor(null);
+      setMfaCode('');
+      setMfaCodeError(undefined);
       setIsSubmitting(false);
       showDangerToast('Sign in failed');
       return;
