@@ -27,13 +27,11 @@ import {AppNavigator} from './src/navigation/AppNavigator';
 import {useTheme} from './src/shared/hooks/useTheme';
 import CustomSplashScreen from './src/shared/components/common/customSplashScreen/customSplash';
 import './src/localization';
-import devOutputs from './devamplify_outputs.json';
-import prodOutputs from './prodamplify_outputs.json';
 import {StripeProvider} from '@stripe/stripe-react-native';
-import {Amplify} from 'aws-amplify';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {AuthProvider, useAuth} from '@/features/auth/context/AuthContext';
 import {configureSocialProviders} from '@/features/auth/services/socialAuth';
+import {initSuperTokens} from '@/features/auth/services/superTokensClient';
 import {ErrorBoundary} from '@/shared/components/common/ErrorBoundary';
 import {PreferencesProvider} from '@/features/preferences/PreferencesContext';
 import {GlobalLoaderProvider} from '@/context/GlobalLoaderContext';
@@ -62,6 +60,7 @@ import {
   STRIPE_CONFIG,
   UI_FEATURE_FLAGS,
   DEVELOPMENT_API_BASE_URL,
+  PRODUCTION_API_BASE_URL,
 } from '@/config/variables';
 import {setResolvedStripePublishableKey} from '@/config/stripeKeyRegistry';
 import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
@@ -81,7 +80,12 @@ import {
   trackPostHogScreen,
 } from '@/shared/services/posthogAnalytics';
 
-Amplify.configure(MOBILE_CONFIG_BEHAVIOR.useDevApi ? devOutputs : prodOutputs);
+initSuperTokens(
+  MOBILE_CONFIG_BEHAVIOR.overrides?.apiBaseUrl ??
+    (MOBILE_CONFIG_BEHAVIOR.useDevApi
+      ? DEVELOPMENT_API_BASE_URL
+      : PRODUCTION_API_BASE_URL),
+);
 
 LogBox.ignoreLogs([
   'This method is deprecated (as well as all React Native Firebase namespaced API)',
@@ -104,8 +108,6 @@ const coerceBooleanFlag = (
   }
   return false;
 };
-
-const PRODUCTION_API_BASE_URL = 'https://api.yosemitecrew.com';
 
 const applyMockAppUpdateFlow = (
   config: MobileConfig,
@@ -343,7 +345,7 @@ function App(): React.JSX.Element {
             resolvedBaseUrl = DEVELOPMENT_API_BASE_URL;
           } else if (storedDemoMode === 'true') {
             resolvedBaseUrl = DEVELOPMENT_API_BASE_URL;
-            Amplify.configure(devOutputs);
+            initSuperTokens(DEVELOPMENT_API_BASE_URL);
             setDevApiActive(true);
           } else {
             resolvedBaseUrl = PRODUCTION_API_BASE_URL;

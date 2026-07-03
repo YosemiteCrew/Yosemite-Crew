@@ -40,9 +40,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     // Redirect any relative `setup/mockTheme` imports to the shared test helper
     '.*/setup/mockTheme$': '<rootDir>/__tests__/setup/mockTheme.ts',
-    // Mock all amplify output files (gitignored, safe mock for CI/CD)
-    '^.*/(dev|prod)?amplify_outputs\\.json$':
-      '<rootDir>/__mocks__/amplify_outputs.json',
     // Stub asset imports if needed
     '\\.(svg)$': '<rootDir>/__mocks__/svgMock.js',
     '\\.(png|jpg|jpeg|gif|webp|bmp)$': '<rootDir>/__mocks__/fileMock.js',

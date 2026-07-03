@@ -206,7 +206,7 @@ export const AppNavigator: React.FC = () => {
           idToken: storedTokens.idToken,
           accessToken: storedTokens.accessToken,
           refreshToken: storedTokens.refreshToken,
-          provider: storedTokens.provider ?? 'amplify',
+          provider: storedTokens.provider ?? 'supertokens',
           userId: storedTokens.userId ?? user.id,
           expiresAt: storedTokens.expiresAt,
         };

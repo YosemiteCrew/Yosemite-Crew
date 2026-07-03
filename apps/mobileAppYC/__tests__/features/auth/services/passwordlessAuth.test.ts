@@ -3,21 +3,24 @@ jest.mock('@/features/auth/services/authUserService', () => ({
   syncAuthUser: (...args: any[]) => mockSyncAuthUser(...args),
 }));
 
-// Mock aws-amplify/auth
-jest.mock('aws-amplify/auth', () => ({
-  signUp: jest.fn(),
-  signIn: jest.fn(),
-  confirmSignIn: jest.fn(),
-  fetchAuthSession: jest.fn(),
-  getCurrentUser: jest.fn(),
-  fetchUserAttributes: jest.fn(),
-  signOut: jest.fn(),
-  AuthError: class AuthError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = 'AuthError';
-    }
+jest.mock('supertokens-react-native', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(),
+    signOut: jest.fn(),
+    doesSessionExist: jest.fn(),
+    getAccessToken: jest.fn(),
+    getUserId: jest.fn(),
+    attemptRefreshingSession: jest.fn(),
+    addAxiosInterceptors: jest.fn(),
   },
+}));
+
+jest.mock('@/config/variables', () => ({
+  API_CONFIG: {baseUrl: 'https://api.test', timeoutMs: 15000},
+  AUTH_FEATURE_FLAGS: {enableReviewLogin: true},
+  DEMO_LOGIN_CONFIG: {email: 'demo@example.com', password: 'test-review-pass'},
+  DEVELOPMENT_API_BASE_URL: 'https://devapi.test',
 }));
 
 import {
@@ -25,21 +28,57 @@ import {
   completePasswordlessSignIn,
   signOutEverywhere,
   formatAuthError,
+  __resetPasswordlessStateForTesting,
 } from '@/features/auth/services/passwordlessAuth';
+import {__resetSuperTokensInitForTesting} from '@/features/auth/services/superTokensClient';
+import SuperTokens from 'supertokens-react-native';
 
-const AmplifyAuth = require('aws-amplify/auth');
+const mockSuperTokens = SuperTokens as jest.Mocked<typeof SuperTokens> & {
+  init: jest.Mock;
+  signOut: jest.Mock;
+  doesSessionExist: jest.Mock;
+  getAccessToken: jest.Mock;
+  getUserId: jest.Mock;
+};
+
+const makeResponse = (body: unknown, ok = true, status = 200) => ({
+  ok,
+  status,
+  json: async () => body,
+});
+
+const okCreateCodeBody = {
+  status: 'OK',
+  deviceId: 'device-1',
+  preAuthSessionId: 'pre-auth-1',
+  flowType: 'USER_INPUT_CODE',
+};
+
+const okConsumeBody = {
+  status: 'OK',
+  createdNewRecipeUser: false,
+  user: {id: 'user-123', emails: ['test@example.com']},
+};
+
+const mockFetch = jest.fn();
 
 describe('passwordlessAuth', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    __resetPasswordlessStateForTesting();
+    __resetSuperTokensInitForTesting();
+    (global as any).fetch = mockFetch;
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'warn').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    mockSuperTokens.getAccessToken.mockResolvedValue('st-access-token');
+    mockSuperTokens.getUserId.mockResolvedValue('user-123');
+    mockSuperTokens.signOut.mockResolvedValue(undefined);
     mockSyncAuthUser.mockResolvedValue({
       success: true,
       authUser: {
         _id: 'auth-user-id',
-        authProvider: 'cognito',
+        authProvider: 'supertokens',
         providerUserId: 'user-123',
         email: 'test@example.com',
       },
@@ -53,423 +92,364 @@ describe('passwordlessAuth', () => {
   });
 
   describe('requestPasswordlessEmailCode', () => {
-    it('should successfully request code for new user', async () => {
-      const email = 'test@example.com';
+    it('creates an OTP device via the SuperTokens FDI endpoint', async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(okCreateCodeBody));
 
-      (AmplifyAuth.signUp as jest.Mock).mockResolvedValue({
-        isSignUpComplete: true,
-        userId: 'user-123',
-      });
-
-      (AmplifyAuth.signIn as jest.Mock).mockResolvedValue({
-        isSignedIn: false,
-        nextStep: {
-          signInStep: 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE',
-        },
-      });
-
-      const result = await requestPasswordlessEmailCode(email);
+      const result = await requestPasswordlessEmailCode('test@example.com');
 
       expect(result).toEqual({
         destination: 'test@example.com',
-        isNewUser: true,
-        challengeLength: 4,
-        challengeType: 'otp',
-        isDemoLogin: false,
-        nextStep: {
-          signInStep: 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE',
-        },
-      });
-
-      expect(AmplifyAuth.signUp).toHaveBeenCalledWith({
-        username: 'test@example.com',
-        password: expect.any(String),
-        options: {
-          userAttributes: {
-            email: 'test@example.com',
-            preferred_username: 'test@example.com',
-          },
-        },
-      });
-
-      expect(AmplifyAuth.signIn).toHaveBeenCalledWith({
-        username: 'test@example.com',
-        options: {
-          authFlowType: 'CUSTOM_WITHOUT_SRP',
-          clientMetadata: {
-            loginEmail: 'test@example.com',
-          },
-        },
-      });
-    });
-
-    it('should successfully request code for existing user', async () => {
-      const email = 'existing@example.com';
-
-      // Create an error that looks like AuthError with UsernameExistsException
-      const existsError = Object.assign(new Error('User already exists'), {
-        name: 'UsernameExistsException',
-      });
-      // Make it an instance of AuthError by setting the prototype
-      Object.setPrototypeOf(existsError, AmplifyAuth.AuthError.prototype);
-
-      (AmplifyAuth.signUp as jest.Mock).mockRejectedValue(existsError);
-
-      (AmplifyAuth.signIn as jest.Mock).mockResolvedValue({
-        isSignedIn: false,
-        nextStep: {
-          signInStep: 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE',
-        },
-      });
-
-      const result = await requestPasswordlessEmailCode(email);
-
-      expect(result).toEqual({
-        destination: 'existing@example.com',
         isNewUser: false,
-        challengeLength: 4,
         challengeType: 'otp',
+        challengeLength: 6,
         isDemoLogin: false,
-        nextStep: {
-          signInStep: 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE',
-        },
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test/auth/signinup/code',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            rid: 'passwordless',
+          }),
+          body: JSON.stringify({email: 'test@example.com'}),
+        }),
+      );
+
+      expect(mockSuperTokens.init).toHaveBeenCalledWith({
+        apiDomain: 'https://api.test',
+        apiBasePath: '/auth',
+        tokenTransferMethod: 'header',
       });
     });
 
-    it('should normalize email to lowercase and trim', async () => {
-      const email = '  Test@EXAMPLE.COM  ';
+    it('normalizes email to lowercase and trims', async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(okCreateCodeBody));
 
-      (AmplifyAuth.signUp as jest.Mock).mockResolvedValue({});
-      (AmplifyAuth.signIn as jest.Mock).mockResolvedValue({
-        isSignedIn: false,
-        nextStep: {signInStep: 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE'},
-      });
+      const result = await requestPasswordlessEmailCode('  Test@EXAMPLE.COM  ');
 
-      await requestPasswordlessEmailCode(email);
-
-      expect(AmplifyAuth.signUp).toHaveBeenCalledWith(
+      expect(result.destination).toBe('test@example.com');
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
-          username: 'test@example.com',
+          body: JSON.stringify({email: 'test@example.com'}),
         }),
       );
     });
 
-    it('should handle signUp errors other than UsernameExists', async () => {
-      const error = Object.assign(new Error('Invalid email'), {
-        name: 'InvalidParameterException',
-      });
-      (AmplifyAuth.signUp as jest.Mock).mockRejectedValue(error);
+    it('routes the demo/review login to the dev backend', async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(okCreateCodeBody));
 
-      await expect(requestPasswordlessEmailCode('invalid')).rejects.toThrow(
-        'The email address looks invalid. Please try again.',
+      const result = await requestPasswordlessEmailCode('demo@example.com');
+
+      expect(result).toEqual({
+        destination: 'demo@example.com',
+        isNewUser: false,
+        challengeType: 'demoPassword',
+        challengeLength: 'test-review-pass'.length,
+        isDemoLogin: true,
+      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://devapi.test/auth/signinup/code',
+        expect.any(Object),
+      );
+      expect(mockSuperTokens.init).toHaveBeenCalledWith(
+        expect.objectContaining({apiDomain: 'https://devapi.test'}),
       );
     });
 
-    it('should handle signIn errors', async () => {
-      const error = Object.assign(new Error('Not authorized'), {
-        name: 'NotAuthorizedException',
+    it('surfaces backend GENERAL_ERROR messages', async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({status: 'GENERAL_ERROR', message: 'Email is blocked'}),
+      );
+
+      await expect(
+        requestPasswordlessEmailCode('test@example.com'),
+      ).rejects.toThrow('Email is blocked');
+    });
+
+    it('maps SIGN_IN_UP_NOT_ALLOWED to the reason message', async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({
+          status: 'SIGN_IN_UP_NOT_ALLOWED',
+          reason: 'Sign ups are disabled.',
+        }),
+      );
+
+      await expect(
+        requestPasswordlessEmailCode('test@example.com'),
+      ).rejects.toThrow('Sign ups are disabled.');
+    });
+
+    it('falls back to a generic error for unparseable failures', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new Error('bad json');
+        },
       });
 
-      (AmplifyAuth.signUp as jest.Mock).mockResolvedValue({});
-      (AmplifyAuth.signIn as jest.Mock).mockRejectedValue(error);
-
-      await expect(requestPasswordlessEmailCode('test@example.com')).rejects.toThrow();
+      await expect(
+        requestPasswordlessEmailCode('test@example.com'),
+      ).rejects.toThrow('Unexpected authentication error. Please retry.');
     });
   });
 
   describe('completePasswordlessSignIn', () => {
-    const mockSession = {
-      tokens: {
-        idToken: {
-          toString: () => 'mock-id-token',
-          payload: {exp: 1234567890},
-        },
-        accessToken: {
-          toString: () => 'mock-access-token',
-          payload: {exp: 1234567890},
-        },
-      },
+    const requestCode = async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(okCreateCodeBody));
+      await requestPasswordlessEmailCode('test@example.com');
+      mockFetch.mockClear();
     };
 
-    const mockUser = {
-      userId: 'user-123',
-      username: 'test@example.com',
-    };
-
-    const mockAttributes = {
-      email: 'test@example.com',
-      sub: 'user-123',
-    };
-
-    const mockParentSummary = {
-      id: 'parent-1',
-      firstName: 'Parent',
-      lastName: 'User',
-      profileImageUrl: 'profile-token-123',
-      isComplete: true,
-    };
-    const mockProfile = {
-      exists: true,
-      isComplete: true,
-      profileToken: 'profile-token-123',
-      source: 'remote' as const,
-      parent: mockParentSummary,
-    };
-
-    it('should complete sign in successfully', async () => {
-      (AmplifyAuth.confirmSignIn as jest.Mock).mockResolvedValue({
-        isSignedIn: true,
-      });
-      (AmplifyAuth.fetchAuthSession as jest.Mock).mockResolvedValue(mockSession);
-      (AmplifyAuth.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
-      (AmplifyAuth.fetchUserAttributes as jest.Mock).mockResolvedValue(mockAttributes);
+    it('consumes the OTP and establishes a session', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(makeResponse(okConsumeBody));
       mockSyncAuthUser.mockResolvedValueOnce({
         success: true,
         authUser: {
           _id: 'auth-user-id',
-          authProvider: 'cognito',
+          authProvider: 'supertokens',
           providerUserId: 'user-123',
           email: 'test@example.com',
         },
         parentLinked: true,
-        parentSummary: mockParentSummary,
+        parentSummary: {
+          id: 'parent-1',
+          firstName: 'Parent',
+          lastName: 'User',
+          profileImageUrl: 'profile-token-123',
+          isComplete: true,
+        },
       });
 
       const result = await completePasswordlessSignIn('123456');
 
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test/auth/signinup/code/consume',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({rid: 'passwordless'}),
+          body: JSON.stringify({
+            preAuthSessionId: 'pre-auth-1',
+            deviceId: 'device-1',
+            userInputCode: '123456',
+          }),
+        }),
+      );
+
       expect(result).toEqual({
-        user: mockUser,
-        attributes: mockAttributes,
+        userId: 'user-123',
+        email: 'test@example.com',
+        isNewUser: false,
         tokens: {
-          idToken: 'mock-id-token',
-          accessToken: 'mock-access-token',
+          idToken: 'st-access-token',
+          accessToken: 'st-access-token',
           refreshToken: undefined,
-          expiresAt: 1234567890000,
+          expiresAt: undefined,
           userId: 'user-123',
-          provider: 'amplify',
+          provider: 'supertokens',
         },
-        profile: mockProfile,
+        profile: {
+          exists: true,
+          isComplete: true,
+          profileToken: 'profile-token-123',
+          source: 'remote',
+          parent: {
+            id: 'parent-1',
+            firstName: 'Parent',
+            lastName: 'User',
+            profileImageUrl: 'profile-token-123',
+            isComplete: true,
+          },
+        },
         parentLinked: true,
       });
 
-      expect(AmplifyAuth.confirmSignIn).toHaveBeenCalledWith({
-        challengeResponse: '123456',
+      expect(mockSyncAuthUser).toHaveBeenCalledWith({
+        authToken: 'st-access-token',
       });
     });
 
-    it('should throw error when not signed in after confirmation', async () => {
-      (AmplifyAuth.confirmSignIn as jest.Mock).mockResolvedValue({
-        isSignedIn: false,
-      });
+    it('reports new users from createdNewUser/createdNewRecipeUser', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({...okConsumeBody, createdNewRecipeUser: true}),
+      );
 
-      await expect(completePasswordlessSignIn('123456')).rejects.toThrow();
+      const result = await completePasswordlessSignIn('123456');
+
+      expect(result.isNewUser).toBe(true);
     });
 
-    it('should throw error when tokens are missing', async () => {
-      (AmplifyAuth.confirmSignIn as jest.Mock).mockResolvedValue({
-        isSignedIn: true,
-      });
-      (AmplifyAuth.fetchAuthSession as jest.Mock).mockResolvedValue({
-        tokens: null,
-      });
+    it('falls back to the requested email when the response has none', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({
+          status: 'OK',
+          createdNewUser: false,
+          user: {id: 'user-123'},
+        }),
+      );
+
+      const result = await completePasswordlessSignIn('123456');
+
+      expect(result.email).toBe('test@example.com');
+    });
+
+    it('throws the restart-flow message when no code was requested', async () => {
+      await expect(completePasswordlessSignIn('123456')).rejects.toThrow(
+        'Too many failed attempts. Please request a new code.',
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('maps INCORRECT_USER_INPUT_CODE_ERROR to the incorrect-code message', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({
+          status: 'INCORRECT_USER_INPUT_CODE_ERROR',
+          failedCodeInputAttemptCount: 1,
+          maximumCodeInputAttempts: 5,
+        }),
+      );
+
+      await expect(completePasswordlessSignIn('000000')).rejects.toThrow(
+        'The code you entered is incorrect. Please try again.',
+      );
+    });
+
+    it('maps EXPIRED_USER_INPUT_CODE_ERROR to the expired-code message', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({status: 'EXPIRED_USER_INPUT_CODE_ERROR'}),
+      );
+
+      await expect(completePasswordlessSignIn('123456')).rejects.toThrow(
+        'The code has expired. Request a new one to continue.',
+      );
+    });
+
+    it('maps RESTART_FLOW_ERROR and requires a new code afterwards', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({status: 'RESTART_FLOW_ERROR'}),
+      );
+
+      await expect(completePasswordlessSignIn('123456')).rejects.toThrow(
+        'Too many failed attempts. Please request a new code.',
+      );
+
+      // Device state cleared — a retry without a fresh code is rejected locally.
+      mockFetch.mockClear();
+      await expect(completePasswordlessSignIn('123456')).rejects.toThrow(
+        'Too many failed attempts. Please request a new code.',
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('throws when the SDK exposes no access token after consume', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(makeResponse(okConsumeBody));
+      mockSuperTokens.getAccessToken.mockResolvedValueOnce(undefined);
 
       await expect(completePasswordlessSignIn('123456')).rejects.toThrow(
         'Authentication tokens are missing from the session.',
       );
     });
 
-    it('should throw error when idToken is missing', async () => {
-      (AmplifyAuth.confirmSignIn as jest.Mock).mockResolvedValue({
-        isSignedIn: true,
-      });
-      (AmplifyAuth.fetchAuthSession as jest.Mock).mockResolvedValue({
-        tokens: {
-          idToken: null,
-          accessToken: {toString: () => 'access-token'},
-        },
-      });
-
-      await expect(completePasswordlessSignIn('123456')).rejects.toThrow(
-        'Authentication tokens are missing from the session.',
+    it('resolves the user id from the SDK when missing in the response', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({status: 'OK', user: {emails: ['test@example.com']}}),
       );
+      mockSuperTokens.getUserId.mockResolvedValueOnce('sdk-user-9');
+
+      const result = await completePasswordlessSignIn('123456');
+
+      expect(result.userId).toBe('sdk-user-9');
     });
 
-    it('should handle profile fetch with user data', async () => {
-      (AmplifyAuth.confirmSignIn as jest.Mock).mockResolvedValue({
-        isSignedIn: true,
-      });
-      (AmplifyAuth.fetchAuthSession as jest.Mock).mockResolvedValue(mockSession);
-      (AmplifyAuth.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
-      (AmplifyAuth.fetchUserAttributes as jest.Mock).mockResolvedValue(mockAttributes);
-      mockSyncAuthUser.mockResolvedValueOnce({
-        success: true,
-        authUser: {
-          _id: 'auth-user-id',
-          authProvider: 'cognito',
-          providerUserId: 'user-123',
-          email: 'test@example.com',
-        },
-        parentLinked: false,
-        parentSummary: mockParentSummary,
-      });
+    it('completes with a default profile when auth sync fails', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(makeResponse(okConsumeBody));
+      mockSyncAuthUser.mockRejectedValueOnce(new Error('sync failed'));
 
-      await completePasswordlessSignIn('123456');
+      const result = await completePasswordlessSignIn('123456');
 
-      expect(mockSyncAuthUser).toHaveBeenCalledWith({
-        authToken: 'mock-id-token',
-        idToken: 'mock-id-token',
+      expect(result.profile).toEqual({
+        exists: false,
+        isComplete: false,
+        profileToken: undefined,
+        source: 'remote',
       });
-    });
-
-    it('should use username as fallback when email attribute is missing', async () => {
-      const attributesWithoutEmail = {sub: 'user-123'};
-
-      (AmplifyAuth.confirmSignIn as jest.Mock).mockResolvedValue({
-        isSignedIn: true,
-      });
-      (AmplifyAuth.fetchAuthSession as jest.Mock).mockResolvedValue(mockSession);
-      (AmplifyAuth.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
-      (AmplifyAuth.fetchUserAttributes as jest.Mock).mockResolvedValue(attributesWithoutEmail);
-      mockSyncAuthUser.mockResolvedValueOnce({
-        success: true,
-        authUser: {
-          _id: 'auth-user-id',
-          authProvider: 'cognito',
-          providerUserId: 'user-123',
-          email: 'user-123',
-        },
-        parentLinked: false,
-        parentSummary: mockParentSummary,
-      });
-
-      await completePasswordlessSignIn('123456');
-
-      expect(mockSyncAuthUser).toHaveBeenCalledWith({
-        authToken: 'mock-id-token',
-        idToken: 'mock-id-token',
-      });
+      expect(result.parentLinked).toBe(false);
     });
   });
 
   describe('signOutEverywhere', () => {
-    it('should sign out globally successfully', async () => {
-      (AmplifyAuth.signOut as jest.Mock).mockResolvedValue(undefined);
-
+    it('signs out via the SuperTokens SDK', async () => {
       await signOutEverywhere();
 
-      expect(AmplifyAuth.signOut).toHaveBeenCalledWith({global: true});
-      expect(console.log).toHaveBeenCalledWith('[Amplify] Signed out globally');
+      expect(mockSuperTokens.signOut).toHaveBeenCalled();
+      expect(console.log).toHaveBeenCalledWith('[SuperTokens] Signed out');
     });
 
-    it('should fallback to local sign out when global fails', async () => {
-      (AmplifyAuth.signOut as jest.Mock)
-        .mockRejectedValueOnce(new Error('Global sign out failed'))
-        .mockResolvedValueOnce(undefined);
-
-      await signOutEverywhere();
-
-      expect(AmplifyAuth.signOut).toHaveBeenCalledWith({global: true});
-      expect(AmplifyAuth.signOut).toHaveBeenCalledWith({global: false});
-      expect(console.log).toHaveBeenCalledWith('[Amplify] Signed out locally');
-    });
-
-    it('should handle OAuth sign out exception gracefully', async () => {
-      const oauthError = {name: 'OAuthSignOutException'};
-      (AmplifyAuth.signOut as jest.Mock)
-        .mockRejectedValueOnce(new Error('Global failed'))
-        .mockRejectedValueOnce(oauthError);
+    it('warns without throwing when sign out fails', async () => {
+      mockSuperTokens.signOut.mockRejectedValueOnce(new Error('offline'));
 
       await expect(signOutEverywhere()).resolves.not.toThrow();
-
-      expect(console.log).toHaveBeenCalledWith(
-        '[Amplify] OAuth sign out error - user may have signed in with social provider',
+      expect(console.warn).toHaveBeenCalledWith(
+        '[SuperTokens] Sign out failed:',
+        expect.any(Error),
       );
-    });
-
-    it('should throw error for non-OAuth local sign out failures', async () => {
-      const error = new Error('Unknown error');
-      (AmplifyAuth.signOut as jest.Mock)
-        .mockRejectedValueOnce(new Error('Global failed'))
-        .mockRejectedValueOnce(error);
-
-      await expect(signOutEverywhere()).rejects.toThrow('Unknown error');
     });
   });
 
   describe('formatAuthError', () => {
-    it('should format InvalidParameterException', () => {
-      const error = Object.assign(new Error('Invalid parameter'), {
-        name: 'InvalidParameterException',
-      });
-      expect(formatAuthError(error)).toBe(
-        'The email address looks invalid. Please try again.',
-      );
+    it('returns messages from Error instances', () => {
+      expect(formatAuthError(new Error('Regular error'))).toBe('Regular error');
     });
 
-    it('should format CodeMismatchException', () => {
-      const error = Object.assign(new Error('Code mismatch'), {
-        name: 'CodeMismatchException',
-      });
-      expect(formatAuthError(error)).toBe(
+    it('maps INCORRECT_USER_INPUT_CODE_ERROR payloads', () => {
+      expect(formatAuthError({status: 'INCORRECT_USER_INPUT_CODE_ERROR'})).toBe(
         'The code you entered is incorrect. Please try again.',
       );
     });
 
-    it('should format NotAuthorizedException', () => {
-      const error = Object.assign(new Error('Not authorized'), {
-        name: 'NotAuthorizedException',
-      });
-      expect(formatAuthError(error)).toBe(
-        'The code you entered is incorrect. Please try again.',
-      );
-    });
-
-    it('should format ExpiredCodeException', () => {
-      const error = Object.assign(new Error('Code expired'), {
-        name: 'ExpiredCodeException',
-      });
-      expect(formatAuthError(error)).toBe(
+    it('maps EXPIRED_USER_INPUT_CODE_ERROR payloads', () => {
+      expect(formatAuthError({status: 'EXPIRED_USER_INPUT_CODE_ERROR'})).toBe(
         'The code has expired. Request a new one to continue.',
       );
     });
 
-    it('should format message containing "code mismatch"', () => {
-      const error = Object.assign(new Error('The code mismatch occurred'), {
-        name: 'SomeException',
-      });
-      expect(formatAuthError(error)).toBe(
-        'The code you entered is incorrect. Please try again.',
+    it('maps RESTART_FLOW_ERROR payloads', () => {
+      expect(formatAuthError({status: 'RESTART_FLOW_ERROR'})).toBe(
+        'Too many failed attempts. Please request a new code.',
       );
     });
 
-    it('should format message containing "expired"', () => {
-      const error = Object.assign(new Error('Your code has expired'), {
-        name: 'SomeException',
-      });
-      expect(formatAuthError(error)).toBe(
+    it('maps messages containing "expired"', () => {
+      expect(formatAuthError({message: 'Your code has expired'})).toBe(
         'The code has expired. Request a new one to continue.',
       );
     });
 
-    it('should return error message for unknown error names', () => {
-      const error = Object.assign(new Error('Something went wrong'), {
-        name: 'UnknownError',
-      });
-      expect(formatAuthError(error)).toBe('Something went wrong');
+    it('passes through other backend messages', () => {
+      expect(formatAuthError({message: 'Something went wrong'})).toBe(
+        'Something went wrong',
+      );
     });
 
-    it('should handle regular Error objects', () => {
-      const error = new Error('Regular error');
-      expect(formatAuthError(error)).toBe('Regular error');
-    });
-
-    it('should handle unknown error types', () => {
+    it('handles unknown error types', () => {
       expect(formatAuthError('string error')).toBe(
         'Unexpected authentication error. Please retry.',
       );
     });
 
-    it('should handle null/undefined errors', () => {
+    it('handles null/undefined errors', () => {
       expect(formatAuthError(null)).toBe(
         'Unexpected authentication error. Please retry.',
       );

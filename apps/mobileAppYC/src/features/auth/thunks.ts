@@ -12,7 +12,7 @@ import {resetCoParentState} from '@/features/coParent';
 import {resetNotificationState} from '@/features/notifications';
 import {resetFormsState} from '@/features/forms';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
-import {getAuth, signOut} from '@react-native-firebase/auth';
+import {initSuperTokens} from '@/features/auth/services/superTokensClient';
 import {DeviceEventEmitter} from 'react-native';
 
 import {
@@ -46,9 +46,6 @@ import {
   MOBILE_CONFIG_BEHAVIOR,
   PRODUCTION_API_BASE_URL,
 } from '@/config/variables';
-import {Amplify} from 'aws-amplify';
-import devOutputs from '../../../devamplify_outputs.json';
-import prodOutputs from '../../../prodamplify_outputs.json';
 
 let appStateListenerRegistered = false;
 
@@ -161,7 +158,7 @@ export const establishSession = createAsyncThunk<
   const normalizedTokens = await persistSessionData(user, {
     ...tokens,
     userId: tokens.userId ?? user.id,
-    provider: tokens.provider ?? 'amplify',
+    provider: tokens.provider ?? 'supertokens',
   });
 
   const now = Date.now();
@@ -238,33 +235,11 @@ export const logout = createAsyncThunk<
   void,
   void,
   {state: RootState; dispatch: AppDispatch}
->('auth/logout', async (_, {dispatch, getState}) => {
-  const currentProvider = getState().auth.provider;
-
+>('auth/logout', async (_, {dispatch}) => {
   try {
-    if (currentProvider === 'amplify') {
-      await signOutEverywhere();
-    }
+    await signOutEverywhere();
   } catch (error) {
-    console.warn('[Auth] Amplify sign out failed:', error);
-  }
-
-  if (currentProvider === 'firebase') {
-    try {
-      const auth = getAuth();
-      if (auth.currentUser) {
-        await signOut(auth);
-      } else {
-        console.warn('[Auth] Firebase sign out skipped: no current user');
-      }
-    } catch (error) {
-      const code = (error as any)?.code;
-      if (code === 'auth/no-current-user') {
-        console.warn('[Auth] Firebase sign out skipped: no current user');
-      } else {
-        console.warn('[Auth] Firebase sign out failed:', error);
-      }
-    }
+    console.warn('[Auth] SuperTokens sign out failed:', error);
   }
 
   await clearSessionData({clearPendingProfile: true});
@@ -279,9 +254,7 @@ export const logout = createAsyncThunk<
   API_CONFIG.baseUrl = defaultBaseUrl;
   API_CONFIG.pmsBaseUrl = defaultPmsUrl;
   updateApiClientBaseConfig({baseUrl: defaultBaseUrl});
-  Amplify.configure(
-    MOBILE_CONFIG_BEHAVIOR.useDevApi ? devOutputs : prodOutputs,
-  );
+  initSuperTokens(defaultBaseUrl);
   DeviceEventEmitter.emit(DEV_API_MODE_CHANGED_EVENT, {
     isDevApi: MOBILE_CONFIG_BEHAVIOR.useDevApi,
   });

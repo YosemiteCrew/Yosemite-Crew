@@ -14,6 +14,7 @@ import {
 } from '@/features/auth/thunks';
 import * as sessionManager from '@/features/auth/sessionManager';
 import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
+import {__resetSuperTokensInitForTesting} from '@/features/auth/services/superTokensClient';
 import type {
   User,
   AuthTokens,
@@ -22,13 +23,6 @@ import type {
 
 jest.mock('@/features/auth/sessionManager');
 jest.mock('@/features/auth/services/passwordlessAuth');
-jest.mock('@react-native-firebase/auth', () => ({
-  getAuth: jest.fn(() => ({
-    currentUser: null,
-    signOut: jest.fn(),
-  })),
-  signOut: jest.fn(async auth => auth?.signOut?.()),
-}));
 
 const createTestStore = () => {
   return configureStore({
@@ -59,13 +53,14 @@ describe('auth thunks', () => {
     refreshToken: 'refresh-token-123',
     expiresAt: Date.now() + 3600000,
     userId: 'user-123',
-    provider: 'amplify',
+    provider: 'supertokens',
   };
 
   beforeEach(() => {
     store = createTestStore();
     jest.clearAllMocks();
     __resetAuthListenersForTesting();
+    __resetSuperTokensInitForTesting();
   });
 
   describe('initializeAuth', () => {
@@ -75,7 +70,7 @@ describe('auth thunks', () => {
         kind: 'authenticated',
         user: mockUser,
         tokens: mockTokens,
-        provider: 'amplify',
+        provider: 'supertokens',
       };
 
       (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(
@@ -176,7 +171,7 @@ describe('auth thunks', () => {
         type: 'auth/setAuthenticated',
         payload: {
           user: mockUser,
-          provider: 'amplify',
+          provider: 'supertokens',
           sessionExpiry: null,
           lastRefresh: Date.now(),
         },
@@ -222,7 +217,7 @@ describe('auth thunks', () => {
       );
     });
 
-    it('should default provider to amplify if not provided', async () => {
+    it('should default provider to supertokens if not provided', async () => {
       const tokensWithoutProvider: AuthTokens = {
         ...mockTokens,
         provider: undefined,
@@ -250,7 +245,7 @@ describe('auth thunks', () => {
 
       expect(sessionManager.persistSessionData).toHaveBeenCalledWith(
         mockUser,
-        expect.objectContaining({provider: 'amplify'}),
+        expect.objectContaining({provider: 'supertokens'}),
       );
     });
   });
@@ -261,7 +256,7 @@ describe('auth thunks', () => {
         kind: 'authenticated',
         user: mockUser,
         tokens: mockTokens,
-        provider: 'amplify',
+        provider: 'supertokens',
       };
 
       (sessionManager.recoverAuthSession as jest.Mock).mockResolvedValue(
@@ -319,7 +314,7 @@ describe('auth thunks', () => {
         type: 'auth/setAuthenticated',
         payload: {
           user: mockUser,
-          provider: 'amplify',
+          provider: 'supertokens',
           sessionExpiry: null,
           lastRefresh: Date.now(),
         },
@@ -349,7 +344,7 @@ describe('auth thunks', () => {
   });
 
   describe('logout', () => {
-    it('should logout amplify user', async () => {
+    it('should sign out via SuperTokens on logout', async () => {
       const signOutSpy = jest
         .spyOn(passwordlessAuth, 'signOutEverywhere')
         .mockResolvedValue();
@@ -364,7 +359,7 @@ describe('auth thunks', () => {
         type: 'auth/setAuthenticated',
         payload: {
           user: mockUser,
-          provider: 'amplify',
+          provider: 'supertokens',
           sessionExpiry: null,
           lastRefresh: Date.now(),
         },
@@ -392,14 +387,9 @@ describe('auth thunks', () => {
       expect(store.getState().forms.byAppointmentId).toEqual({});
     });
 
-    it('should logout firebase user', async () => {
-      const mockSignOut = jest.fn();
-      const {getAuth} = require('@react-native-firebase/auth');
-      (getAuth as jest.Mock).mockReturnValue({
-        currentUser: {uid: 'user-123'},
-        signOut: mockSignOut,
-      });
-
+    it('re-initializes SuperTokens against the default API domain', async () => {
+      const SuperTokens = require('supertokens-react-native').default;
+      jest.spyOn(passwordlessAuth, 'signOutEverywhere').mockResolvedValue();
       (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
         undefined,
       );
@@ -411,7 +401,7 @@ describe('auth thunks', () => {
         type: 'auth/setAuthenticated',
         payload: {
           user: mockUser,
-          provider: 'firebase',
+          provider: 'supertokens',
           sessionExpiry: null,
           lastRefresh: Date.now(),
         },
@@ -420,7 +410,12 @@ describe('auth thunks', () => {
       const dispatch = store.dispatch as any;
       await dispatch(logout());
 
-      expect(mockSignOut).toHaveBeenCalled();
+      expect(SuperTokens.init).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiBasePath: '/auth',
+          tokenTransferMethod: 'header',
+        }),
+      );
     });
 
     it('should handle logout errors gracefully', async () => {
@@ -438,7 +433,7 @@ describe('auth thunks', () => {
         type: 'auth/setAuthenticated',
         payload: {
           user: mockUser,
-          provider: 'amplify',
+          provider: 'supertokens',
           sessionExpiry: null,
           lastRefresh: Date.now(),
         },

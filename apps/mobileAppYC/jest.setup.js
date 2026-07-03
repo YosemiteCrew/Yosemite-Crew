@@ -443,26 +443,18 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-// Mock aws-amplify to avoid pulling in ESM sub-deps
-jest.mock('aws-amplify', () => ({
-  Amplify: {configure: jest.fn()},
-}));
-
-// Mock Amplify Auth submodule to avoid ESM deps and network
-jest.mock('aws-amplify/auth', () => ({
-  confirmSignIn: jest.fn().mockResolvedValue({isSignedIn: true, nextStep: {}}),
-  fetchAuthSession: jest.fn().mockResolvedValue({tokens: {}}),
-  fetchUserAttributes: jest.fn().mockResolvedValue({}),
-  getCurrentUser: jest
-    .fn()
-    .mockResolvedValue({userId: 'test', username: 'test@example.com'}),
-  signIn: jest.fn().mockResolvedValue({nextStep: {}}),
-  signOut: jest.fn().mockResolvedValue(undefined),
-  AuthError: class AuthError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = 'AuthError';
-    }
+// Mock the SuperTokens React Native SDK to avoid network/native deps
+jest.mock('supertokens-react-native', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(),
+    signOut: jest.fn().mockResolvedValue(undefined),
+    doesSessionExist: jest.fn().mockResolvedValue(false),
+    getAccessToken: jest.fn().mockResolvedValue(undefined),
+    getUserId: jest.fn().mockResolvedValue('test'),
+    getAccessTokenPayloadSecurely: jest.fn().mockResolvedValue({}),
+    attemptRefreshingSession: jest.fn().mockResolvedValue(false),
+    addAxiosInterceptors: jest.fn(),
   },
 }));
 
@@ -470,27 +462,6 @@ jest.mock('aws-amplify/auth', () => ({
 jest.mock('@/features/auth/services/socialAuth', () => ({
   configureSocialProviders: jest.fn(),
 }));
-
-// Mock React Native Firebase Auth to avoid pulling firebase ESM
-jest.mock('@react-native-firebase/auth', () => {
-  const reload = jest.fn(async () => undefined);
-  const getIdToken = jest.fn(async user => user?.getIdToken?.());
-  const getIdTokenResult = jest.fn(async user => user?.getIdTokenResult?.());
-  const getAuth = jest.fn(() => ({}));
-  const signOut = jest.fn(async auth => {
-    // Delegate to instance signOut when provided to match real API shape
-    return auth?.signOut ? auth.signOut() : undefined;
-  });
-
-  return {
-    __esModule: true,
-    getAuth,
-    signOut,
-    getIdToken,
-    getIdTokenResult,
-    reload,
-  };
-});
 
 // Mock Keychain to avoid native module dependency
 jest.mock('react-native-keychain', () => ({

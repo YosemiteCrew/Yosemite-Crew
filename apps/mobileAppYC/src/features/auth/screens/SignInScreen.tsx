@@ -20,10 +20,7 @@ import {
   formatAuthError,
   DEMO_LOGIN_EMAIL,
 } from '@/features/auth/services/passwordlessAuth';
-import {AUTH_FEATURE_FLAGS, MOBILE_CONFIG_BEHAVIOR} from '@/config/variables';
-import {Amplify} from 'aws-amplify';
-import devOutputs from '../../../../devamplify_outputs.json';
-import prodOutputs from '../../../../prodamplify_outputs.json';
+import {AUTH_FEATURE_FLAGS} from '@/config/variables';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 import {useAuth} from '@/features/auth/context/AuthContext';
@@ -164,11 +161,8 @@ const useOTPHandler = (
     const isDemoLogin =
       allowReviewLogin && normalizedEmail.toLowerCase() === DEMO_LOGIN_EMAIL;
     try {
-      Amplify.configure(
-        MOBILE_CONFIG_BEHAVIOR.useDevApi || isDemoLogin
-          ? devOutputs
-          : prodOutputs,
-      );
+      // requestPasswordlessEmailCode initializes SuperTokens against the
+      // correct API domain (dev backend for the demo/review login).
       const result = await requestPasswordlessEmailCode(normalizedEmail);
 
       const message = isDemoLogin
@@ -183,9 +177,6 @@ const useOTPHandler = (
         challengeLength: isDemoLogin ? result.challengeLength : undefined,
       });
     } catch (error) {
-      if (isDemoLogin && !MOBILE_CONFIG_BEHAVIOR.useDevApi) {
-        Amplify.configure(prodOutputs);
-      }
       console.error('[Auth] Failed requesting passwordless code', error);
       setEmailError(formatAuthError(error));
     } finally {

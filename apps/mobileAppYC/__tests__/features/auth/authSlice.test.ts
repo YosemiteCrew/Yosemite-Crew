@@ -67,7 +67,7 @@ describe('authSlice', () => {
         initialState,
         setAuthenticated({
           user: mockUser,
-          provider: 'amplify',
+          provider: 'supertokens',
           sessionExpiry,
           lastRefresh,
         }),
@@ -75,7 +75,7 @@ describe('authSlice', () => {
 
       expect(nextState.status).toBe('authenticated');
       expect(nextState.user).toEqual(mockUser);
-      expect(nextState.provider).toBe('amplify');
+      expect(nextState.provider).toBe('supertokens');
       expect(nextState.sessionExpiry).toBe(sessionExpiry);
       expect(nextState.lastRefresh).toBe(lastRefresh);
       expect(nextState.error).toBeNull();
@@ -88,7 +88,7 @@ describe('authSlice', () => {
         initialState,
         setAuthenticated({
           user: mockUser,
-          provider: 'firebase',
+          provider: 'supertokens',
           sessionExpiry: null,
         }),
       );
@@ -103,7 +103,7 @@ describe('authSlice', () => {
         initialState,
         setAuthenticated({
           user: mockUser,
-          provider: 'amplify',
+          provider: 'supertokens',
         }),
       );
       const after = Date.now();
@@ -119,7 +119,7 @@ describe('authSlice', () => {
         status: 'authenticated',
         initialized: true,
         user: mockUser,
-        provider: 'amplify',
+        provider: 'supertokens',
         sessionExpiry: 123456,
         lastRefresh: 789012,
         isRefreshing: true,
@@ -145,10 +145,7 @@ describe('authSlice', () => {
   describe('setAuthError', () => {
     it('should set error message', () => {
       const errorMessage = 'Authentication failed';
-      const nextState = authReducer(
-        initialState,
-        setAuthError(errorMessage),
-      );
+      const nextState = authReducer(initialState, setAuthError(errorMessage));
 
       expect(nextState.error).toBe(errorMessage);
     });
@@ -167,10 +164,7 @@ describe('authSlice', () => {
 
   describe('setAuthRefreshing', () => {
     it('should set isRefreshing to true', () => {
-      const nextState = authReducer(
-        initialState,
-        setAuthRefreshing(true),
-      );
+      const nextState = authReducer(initialState, setAuthRefreshing(true));
 
       expect(nextState.isRefreshing).toBe(true);
     });
@@ -286,7 +280,7 @@ describe('authSlice', () => {
         status: 'authenticated',
         initialized: true,
         user: mockUser,
-        provider: 'firebase',
+        provider: 'supertokens',
         sessionExpiry: 123456,
         lastRefresh: 789012,
         isRefreshing: true,

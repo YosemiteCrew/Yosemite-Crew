@@ -15,7 +15,7 @@ describe('tokenStorage', () => {
     refreshToken: 'mock-refresh-token',
     expiresAt: Date.now() + 3600000,
     userId: 'user-123',
-    provider: 'amplify',
+    provider: 'supertokens',
   };
 
   beforeEach(() => {
@@ -46,7 +46,7 @@ describe('tokenStorage', () => {
       );
     });
 
-    it('should default provider to amplify when not provided', async () => {
+    it('should default provider to supertokens when not provided', async () => {
       (Keychain.setGenericPassword as jest.Mock).mockResolvedValue(true);
 
       const tokensWithoutProvider = {
@@ -58,7 +58,7 @@ describe('tokenStorage', () => {
 
       const expectedPayload = JSON.stringify({
         ...tokensWithoutProvider,
-        provider: 'amplify',
+        provider: 'supertokens',
       });
 
       expect(Keychain.setGenericPassword).toHaveBeenCalledWith(
@@ -104,11 +104,11 @@ describe('tokenStorage', () => {
   });
 
   describe('loadStoredTokens', () => {
-    it('should load tokens successfully', async () => {
+    it('should load supertokens records successfully', async () => {
       const credentials = {
         username: 'yosemite-crew',
         password: JSON.stringify(mockTokens),
-        service: 'yosemite-crew-auth-tokens',
+        service: 'yosemite-crew-session',
         storage: 'keychain' as const,
       };
 
@@ -129,7 +129,37 @@ describe('tokenStorage', () => {
       expect(result).toBeNull();
     });
 
-    it('should default provider to amplify when not in stored tokens', async () => {
+    it.each(['amplify', 'firebase'])(
+      'should clear and sign out legacy %s records',
+      async legacyProvider => {
+        const legacyRecord = {
+          idToken: 'id-token',
+          accessToken: 'access-token',
+          provider: legacyProvider,
+        };
+
+        const credentials = {
+          username: 'yosemite-crew',
+          password: JSON.stringify(legacyRecord),
+          service: 'yosemite-crew-session',
+          storage: 'keychain' as const,
+        };
+
+        (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(
+          credentials,
+        );
+        (Keychain.resetGenericPassword as jest.Mock).mockResolvedValue(true);
+
+        const result = await loadStoredTokens();
+
+        expect(result).toBeNull();
+        expect(Keychain.resetGenericPassword).toHaveBeenCalledWith(
+          expect.objectContaining({service: 'yosemite-crew-session'}),
+        );
+      },
+    );
+
+    it('should treat records without a provider as legacy and clear them', async () => {
       const tokensWithoutProvider = {
         idToken: 'id-token',
         accessToken: 'access-token',
@@ -138,29 +168,29 @@ describe('tokenStorage', () => {
       const credentials = {
         username: 'yosemite-crew',
         password: JSON.stringify(tokensWithoutProvider),
-        service: 'yosemite-crew-auth-tokens',
+        service: 'yosemite-crew-session',
         storage: 'keychain' as const,
       };
 
       (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(credentials);
+      (Keychain.resetGenericPassword as jest.Mock).mockResolvedValue(true);
 
       const result = await loadStoredTokens();
 
-      expect(result).toEqual({
-        ...tokensWithoutProvider,
-        provider: 'amplify',
-      });
+      expect(result).toBeNull();
+      expect(Keychain.resetGenericPassword).toHaveBeenCalled();
     });
 
     it('should return null when JSON parsing fails', async () => {
       const credentials = {
         username: 'yosemite-crew',
         password: 'invalid-json',
-        service: 'yosemite-crew-auth-tokens',
+        service: 'yosemite-crew-session',
         storage: 'keychain' as const,
       };
 
       (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(credentials);
+      (Keychain.resetGenericPassword as jest.Mock).mockResolvedValue(true);
 
       const result = await loadStoredTokens();
 
@@ -169,6 +199,22 @@ describe('tokenStorage', () => {
         'Failed to parse tokens from secure storage',
         expect.any(Error),
       );
+    });
+
+    it('should not throw when clearing a legacy record fails', async () => {
+      const credentials = {
+        username: 'yosemite-crew',
+        password: JSON.stringify({idToken: 'a', accessToken: 'b'}),
+        service: 'yosemite-crew-session',
+        storage: 'keychain' as const,
+      };
+
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(credentials);
+      (Keychain.resetGenericPassword as jest.Mock).mockRejectedValue(
+        new Error('reset failed'),
+      );
+
+      await expect(loadStoredTokens()).resolves.toBeNull();
     });
 
     it('should handle keychain read errors', async () => {
@@ -184,28 +230,26 @@ describe('tokenStorage', () => {
       );
     });
 
-    describe('legacy migration', () => {
-      it('should migrate tokens from old service and return them', async () => {
+    describe('legacy service cleanup', () => {
+      it('should reset the pre-SuperTokens service and return null', async () => {
         (Keychain.getGenericPassword as jest.Mock)
           .mockResolvedValueOnce(false) // new service: no tokens
           .mockResolvedValueOnce({
-            // legacy service: has tokens
+            // legacy service: pre-cutover tokens
             username: 'yosemite-crew',
-            password: JSON.stringify(mockTokens),
+            password: JSON.stringify({
+              idToken: 'legacy',
+              accessToken: 'legacy',
+              provider: 'amplify',
+            }),
             service: 'yosemite-crew-auth-tokens',
             storage: 'keychain' as const,
           });
-        (Keychain.setGenericPassword as jest.Mock).mockResolvedValue(true);
         (Keychain.resetGenericPassword as jest.Mock).mockResolvedValue(true);
 
         const result = await loadStoredTokens();
 
-        expect(result).toEqual(mockTokens);
-        expect(Keychain.setGenericPassword).toHaveBeenCalledWith(
-          'yosemite-crew',
-          JSON.stringify(mockTokens),
-          expect.objectContaining({service: 'yosemite-crew-session'}),
-        );
+        expect(result).toBeNull();
         expect(Keychain.resetGenericPassword).toHaveBeenCalledWith({
           service: 'yosemite-crew-auth-tokens',
         });
@@ -218,46 +262,7 @@ describe('tokenStorage', () => {
 
         expect(result).toBeNull();
         expect(Keychain.getGenericPassword).toHaveBeenCalledTimes(2);
-      });
-
-      it('should return null without migrating when legacy JSON is invalid', async () => {
-        (Keychain.getGenericPassword as jest.Mock)
-          .mockResolvedValueOnce(false)
-          .mockResolvedValueOnce({
-            username: 'yosemite-crew',
-            password: 'invalid-json',
-            service: 'yosemite-crew-auth-tokens',
-            storage: 'keychain' as const,
-          });
-
-        const result = await loadStoredTokens();
-
-        expect(result).toBeNull();
-        expect(Keychain.setGenericPassword).not.toHaveBeenCalled();
         expect(Keychain.resetGenericPassword).not.toHaveBeenCalled();
-      });
-    });
-
-    it('should handle tokens with all optional fields', async () => {
-      const minimalTokens = {
-        idToken: 'id-token',
-        accessToken: 'access-token',
-      };
-
-      const credentials = {
-        username: 'yosemite-crew',
-        password: JSON.stringify(minimalTokens),
-        service: 'yosemite-crew-auth-tokens',
-        storage: 'keychain' as const,
-      };
-
-      (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(credentials);
-
-      const result = await loadStoredTokens();
-
-      expect(result).toEqual({
-        ...minimalTokens,
-        provider: 'amplify',
       });
     });
   });
@@ -310,7 +315,7 @@ describe('tokenStorage', () => {
           return {
             username: 'yosemite-crew',
             password: storedPassword,
-            service: 'yosemite-crew-auth-tokens',
+            service: 'yosemite-crew-session',
             storage: 'keychain' as const,
           };
         },
@@ -331,7 +336,7 @@ describe('tokenStorage', () => {
           return {
             username: 'yosemite-crew',
             password: storedPassword,
-            service: 'yosemite-crew-auth-tokens',
+            service: 'yosemite-crew-session',
             storage: 'keychain' as const,
           };
         },

@@ -4,7 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {Amplify} from 'aws-amplify';
+import SuperTokens from 'supertokens-react-native';
 
 jest.mock('@stripe/stripe-react-native', () => ({
   StripeProvider: ({children}: {children: React.ReactNode}) => <>{children}</>,
@@ -52,10 +52,8 @@ jest.mock('../src/navigation', () => ({
   AppNavigator: () => null,
 }));
 
-// Spy must be set up before App module is required (module-level Amplify.configure call)
-const mockAmplifyConfigure = jest
-  .spyOn(Amplify, 'configure')
-  .mockImplementation(() => {});
+// SuperTokens.init runs at module scope in App.tsx (globally mocked in jest.setup)
+const mockSuperTokensInit = SuperTokens.init as jest.Mock;
 
 const App = require('../App').default;
 
@@ -73,7 +71,6 @@ afterAll(() => {
   } else {
     delete (globalThis as any).document;
   }
-  mockAmplifyConfigure.mockRestore();
 });
 
 test('renders correctly', async () => {
@@ -82,23 +79,29 @@ test('renders correctly', async () => {
   });
 });
 
-test('configures Amplify with an auth pool on startup', () => {
-  expect(mockAmplifyConfigure).toHaveBeenCalledTimes(1);
-  const configArg = mockAmplifyConfigure.mock.calls[0][0] as any;
-  expect(configArg).toHaveProperty('auth.user_pool_id');
-  expect(configArg).toHaveProperty('auth.user_pool_client_id');
-  expect(configArg).toHaveProperty('auth.identity_pool_id');
+test('initializes SuperTokens against the FDI base path on startup', () => {
+  expect(mockSuperTokensInit).toHaveBeenCalledTimes(1);
+  const configArg = mockSuperTokensInit.mock.calls[0][0] as any;
+  expect(configArg).toMatchObject({
+    apiBasePath: '/auth',
+    tokenTransferMethod: 'header',
+  });
+  expect(typeof configArg.apiDomain).toBe('string');
+  expect(configArg.apiDomain.length).toBeGreaterThan(0);
 });
 
-test('selects dev pool when useDevApi is true', () => {
-  const devOutputs = require('../devamplify_outputs.json');
-  const prodOutputs = require('../prodamplify_outputs.json');
-  const {MOBILE_CONFIG_BEHAVIOR} = require('@/config/variables');
-  const configArg = mockAmplifyConfigure.mock.calls[0][0];
+test('selects the API domain matching the runtime environment', () => {
+  const {
+    MOBILE_CONFIG_BEHAVIOR,
+    DEVELOPMENT_API_BASE_URL,
+    PRODUCTION_API_BASE_URL,
+  } = require('@/config/variables');
+  const configArg = mockSuperTokensInit.mock.calls[0][0] as any;
 
-  if (MOBILE_CONFIG_BEHAVIOR.useDevApi) {
-    expect(configArg).toEqual(devOutputs);
-  } else {
-    expect(configArg).toEqual(prodOutputs);
-  }
+  const expectedDomain =
+    MOBILE_CONFIG_BEHAVIOR.overrides?.apiBaseUrl ??
+    (MOBILE_CONFIG_BEHAVIOR.useDevApi
+      ? DEVELOPMENT_API_BASE_URL
+      : PRODUCTION_API_BASE_URL);
+  expect(configArg.apiDomain).toBe(expectedDomain);
 });

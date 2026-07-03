@@ -4,7 +4,13 @@ const KEYCHAIN_SERVICE = 'yosemite-crew-session';
 const KEYCHAIN_SERVICE_LEGACY = 'yosemite-crew-auth-tokens';
 const KEYCHAIN_ACCOUNT = 'yosemite-crew';
 
-export type AuthProviderName = 'amplify' | 'firebase';
+export type AuthProviderName = 'supertokens';
+
+/**
+ * Providers from before the SuperTokens cutover. Records stored with these
+ * providers can no longer be recovered — the user simply signs in again.
+ */
+type LegacyAuthProviderName = 'amplify' | 'firebase';
 
 export type StoredAuthTokens = {
   idToken: string;
@@ -12,6 +18,7 @@ export type StoredAuthTokens = {
   refreshToken?: string;
   expiresAt?: number;
   userId?: string;
+  email?: string;
   provider?: AuthProviderName;
 };
 
@@ -27,7 +34,7 @@ export const storeTokens = async (tokens: StoredAuthTokens): Promise<void> => {
   try {
     const tokensWithProvider: StoredAuthTokens = {
       ...tokens,
-      provider: tokens.provider ?? 'amplify',
+      provider: tokens.provider ?? 'supertokens',
     };
     const payload = JSON.stringify(tokensWithProvider);
     const didStore = await Keychain.setGenericPassword(
@@ -50,9 +57,15 @@ export const storeTokens = async (tokens: StoredAuthTokens): Promise<void> => {
 
 const parsedTokensOrNull = (password: string): StoredAuthTokens | null => {
   try {
-    const parsed = JSON.parse(password) as StoredAuthTokens;
-    parsed.provider = parsed.provider ?? 'amplify';
-    return parsed;
+    const parsed = JSON.parse(password) as StoredAuthTokens & {
+      provider?: AuthProviderName | LegacyAuthProviderName;
+    };
+    if (parsed.provider !== 'supertokens') {
+      // Legacy Amplify/Firebase record (or pre-provider record). Those
+      // sessions cannot be recovered post-cutover — treat as signed out.
+      return null;
+    }
+    return {...parsed, provider: 'supertokens'};
   } catch (parseError) {
     console.warn('Failed to parse tokens from secure storage', parseError);
     return null;
@@ -63,22 +76,24 @@ export const loadStoredTokens = async (): Promise<StoredAuthTokens | null> => {
   try {
     const credentials = await Keychain.getGenericPassword(keychainOptions);
     if (credentials) {
-      return parsedTokensOrNull(credentials.password);
+      const tokens = parsedTokensOrNull(credentials.password);
+      if (!tokens) {
+        // Clear unreadable/legacy records so the user is prompted to sign in.
+        await clearStoredTokens().catch(() => undefined);
+      }
+      return tokens;
     }
 
-    // Migrate tokens stored under the previous service name
+    // Records stored under the previous service name predate SuperTokens —
+    // clear them so stale Amplify/Firebase sessions don't linger.
     const legacy = await Keychain.getGenericPassword({
       service: KEYCHAIN_SERVICE_LEGACY,
     });
     if (!legacy) {
       return null;
     }
-    const tokens = parsedTokensOrNull(legacy.password);
-    if (tokens) {
-      await storeTokens(tokens);
-      await Keychain.resetGenericPassword({service: KEYCHAIN_SERVICE_LEGACY});
-    }
-    return tokens;
+    await Keychain.resetGenericPassword({service: KEYCHAIN_SERVICE_LEGACY});
+    return null;
   } catch (error) {
     console.error('Unable to read tokens from secure storage', error);
     return null;

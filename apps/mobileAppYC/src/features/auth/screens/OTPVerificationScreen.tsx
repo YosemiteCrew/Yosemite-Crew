@@ -44,7 +44,8 @@ import {storeTokens} from '@/features/auth/services/tokenStorage';
 import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
 import {DEMO_API_MODE_KEY} from '@/features/auth/sessionManager';
 
-const DEFAULT_OTP_LENGTH = 4;
+// SuperTokens USER_INPUT_CODE emails deliver a 6-digit code.
+const DEFAULT_OTP_LENGTH = 6;
 const RESEND_SECONDS = 60;
 
 const resolveOtpError = (formatted: string): string =>
@@ -136,14 +137,9 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
   ): User => {
     const baseUser: User = {
-      id: completion.user.userId,
+      id: completion.userId,
       parentId: completion.profile.parent?.id ?? undefined,
-      email: completion.attributes.email ?? completion.user.username,
-      firstName: completion.attributes.given_name,
-      lastName: completion.attributes.family_name,
-      phone: completion.attributes.phone_number,
-      dateOfBirth: completion.attributes.birthdate,
-      profilePicture: completion.attributes.picture,
+      email: completion.email,
       profileToken: completion.profile.profileToken,
       profileCompleted: completion.profile.isComplete,
     };
@@ -203,7 +199,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     await storeTokens({
       ...tokens,
       userId: userPayload.id,
-      provider: tokens.provider ?? 'amplify',
+      provider: tokens.provider ?? 'supertokens',
     });
 
     await AsyncStorage.setItem(
@@ -319,7 +315,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
       try {
         await signOutEverywhere();
       } catch (error) {
-        console.warn('[OTP] Failed to cancel Amplify session', error);
+        console.warn('[OTP] Failed to cancel SuperTokens session', error);
       }
 
       navigation.reset({
