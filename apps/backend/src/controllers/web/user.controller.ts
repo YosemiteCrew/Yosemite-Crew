@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { getAuthService } from "@yosemite-crew/auth";
 import logger from "../../utils/logger";
 import { UserService, UserServiceError } from "../../services/user.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
@@ -18,7 +19,7 @@ export const UserController = {
   create: async (req: Request, res: Response) => {
     try {
       const authRequest = req as AuthenticatedRequest;
-      const { userId, email, firstName, lastName } = authRequest;
+      const { userId, email } = authRequest;
 
       if (!userId || !email) {
         return res
@@ -26,12 +27,48 @@ export const UserController = {
           .json({ message: "Missing user identity from token." });
       }
 
+      // Names/role come from the signup form (request body) with the session
+      // as fallback; the session token no longer carries profile attributes.
+      const body = (req.body ?? {}) as {
+        firstName?: unknown;
+        lastName?: unknown;
+        role?: unknown;
+      };
+      const firstName =
+        typeof body.firstName === "string" && body.firstName.trim()
+          ? body.firstName.trim()
+          : authRequest.firstName;
+      const lastName =
+        typeof body.lastName === "string" && body.lastName.trim()
+          ? body.lastName.trim()
+          : authRequest.lastName;
+      const role =
+        typeof body.role === "string" && /^[a-z_-]{1,40}$/i.test(body.role)
+          ? body.role
+          : undefined;
+
       const user = await UserService.create({
         id: userId,
         email: email,
         firstName: firstName!,
         lastName: lastName!,
       });
+
+      // Best-effort profile sync to the auth provider so /v1/auth/me can
+      // serve names and role without touching the database.
+      const authService = getAuthService();
+      if (authService) {
+        try {
+          if (firstName && lastName) {
+            await authService.updateUserName(userId, { firstName, lastName });
+          }
+          if (role) {
+            await authService.setUserRole(userId, role);
+          }
+        } catch (syncError) {
+          logger.warn("Auth provider profile sync failed", syncError);
+        }
+      }
 
       res.status(201).json(user);
     } catch (error: unknown) {
