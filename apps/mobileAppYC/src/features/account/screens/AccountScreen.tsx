@@ -43,10 +43,7 @@ import {
   isTokenExpired,
 } from '@/features/auth/sessionManager';
 import {deleteParentProfile} from '@/features/account/services/profileService';
-import {
-  deleteAmplifyAccount,
-  deleteFirebaseAccount,
-} from '@/features/auth/services/accountDeletion';
+import {deleteSupertokensAccount} from '@/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 
@@ -104,7 +101,7 @@ const deriveDeletionErrorMessage = (error: unknown): string => {
 
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
-  const {logout, provider} = useAuth();
+  const {logout} = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const authUser = useSelector(selectAuthUser);
   const {weightUnit} = usePreferences();
@@ -301,11 +298,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
       await deleteParentProfile(authUser.parentId, accessToken);
 
-      if (provider === 'amplify') {
-        await deleteAmplifyAccount();
-      } else if (provider === 'firebase') {
-        await deleteFirebaseAccount();
-      }
+      await deleteSupertokensAccount();
 
       isDeleteSheetOpenRef.current = false;
       await logout();
@@ -316,7 +309,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     } finally {
       setIsDeletingAccount(false);
     }
-  }, [authUser?.parentId, logout, provider]);
+  }, [authUser?.parentId, logout]);
 
   const handleLogoutPress = React.useCallback(() => {
     logout().catch(error => {

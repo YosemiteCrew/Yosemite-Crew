@@ -17,7 +17,7 @@
     "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
-    "@aws-amplify/react-native": "^1.1.10",
+    "@bottom-tabs/react-navigation": "^1.1.0",
     "@callstack/liquid-glass": "^0.7.0",
     "@d11/react-native-fast-image": "^8.13.0",
     "@gorhom/bottom-sheet": "^5",
@@ -30,7 +30,6 @@
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-documents/picker": "^11.0.0",
     "@react-native-firebase/app": "^23.5.0",
-    "@react-native-firebase/auth": "^23.5.0",
     "@react-native-firebase/messaging": "^23.5.0",
     "@react-native-google-signin/google-signin": "^15.0.0",
     "@react-native-masked-view/masked-view": "^0.3.2",
@@ -45,7 +44,6 @@
     "@stripe/stripe-react-native": "^0.57.0",
     "@yosemite-crew/fhir": "workspace:*",
     "@yosemite-crew/types": "workspace:*",
-    "aws-amplify": "^6.15.6",
     "axios": "^1.16.0",
     "i18next": "^25.4.1",
     "js-sha256": "^0.11.1",
@@ -90,11 +88,11 @@
     "stream-chat-react-native": "^8.8.0",
     "supertokens-react-native": "^5.1.5",
     "toastify-react-native": "^7.2.3",
-    "uuid": "11.1.1"
+    "use-sync-external-store": "^1.6.0",
+    "uuid": "11.1.1",
+    "yup": "^1.7.0"
   },
   "devDependencies": {
-    "@aws-amplify/backend": "^1.16.1",
-    "@aws-amplify/backend-cli": "^1.8.0",
     "@babel/core": "^7.29.6",
     "@babel/preset-env": "^7.29.5",
     "@babel/runtime": "^7.25.0",

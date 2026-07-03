@@ -43,54 +43,55 @@ const createMockBusinessesState = (): BusinessesState => ({
   error: null,
 });
 
-const createMockState = (authState: Partial<AuthState>): RootState => ({
-  auth: {
-    status: 'idle',
-    initialized: false,
-    user: null,
-    provider: null,
-    sessionExpiry: null,
-    lastRefresh: null,
-    isRefreshing: false,
-    error: null,
-    ...authState,
-  },
-  theme: {
-    theme: 'light',
-    isDark: false,
-  },
-  companion: {
-    companions: [],
-    selectedCompanionId: null,
-    loading: false,
-    error: null,
-  },
-  documents: {
-    documents: [],
-    loading: false,
-    error: null,
-    uploadProgress: 0,
-  },
-  expenses: createMockExpensesState(),
-  tasks: createMockTasksState(),
-  appointments: createMockAppointmentsState(),
-  businesses: createMockBusinessesState(),
-  coParent: {
-    coParents: [],
-    loading: false,
-    error: null,
-    selectedCoParentId: null,
-  },
-  linkedBusinesses: {
-    linkedBusinesses: [],
-    loading: false,
-    error: null,
-  },
-  _persist: {
-    version: 2,
-    rehydrated: true,
-  },
-} as RootState);
+const createMockState = (authState: Partial<AuthState>): RootState =>
+  ({
+    auth: {
+      status: 'idle',
+      initialized: false,
+      user: null,
+      provider: null,
+      sessionExpiry: null,
+      lastRefresh: null,
+      isRefreshing: false,
+      error: null,
+      ...authState,
+    },
+    theme: {
+      theme: 'light',
+      isDark: false,
+    },
+    companion: {
+      companions: [],
+      selectedCompanionId: null,
+      loading: false,
+      error: null,
+    },
+    documents: {
+      documents: [],
+      loading: false,
+      error: null,
+      uploadProgress: 0,
+    },
+    expenses: createMockExpensesState(),
+    tasks: createMockTasksState(),
+    appointments: createMockAppointmentsState(),
+    businesses: createMockBusinessesState(),
+    coParent: {
+      coParents: [],
+      loading: false,
+      error: null,
+      selectedCoParentId: null,
+    },
+    linkedBusinesses: {
+      linkedBusinesses: [],
+      loading: false,
+      error: null,
+    },
+    _persist: {
+      version: 2,
+      rehydrated: true,
+    },
+  }) as RootState;
 
 describe('auth selectors', () => {
   const mockUser: User = {
@@ -185,7 +186,7 @@ describe('auth selectors', () => {
         status: 'authenticated',
         initialized: true,
         user: mockUser,
-        provider: 'amplify',
+        provider: 'supertokens',
         sessionExpiry: null,
         lastRefresh: null,
         isRefreshing: false,

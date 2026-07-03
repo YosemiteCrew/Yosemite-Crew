@@ -2,19 +2,8 @@ import 'react-native-get-random-values';
 import {Platform} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {v4 as uuid} from 'uuid';
-import {
-  getAuth,
-  signInWithCredential,
-  fetchSignInMethodsForEmail,
-  GoogleAuthProvider,
-  FacebookAuthProvider,
-  AppleAuthProvider,
-  updateProfile,
-  getIdToken,
-  getIdTokenResult,
-} from '@react-native-firebase/auth';
+import SuperTokens from 'supertokens-react-native';
 import * as Keychain from 'react-native-keychain';
-import type {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import {
   GoogleSignin,
   statusCodes as GoogleStatusCodes,
@@ -30,11 +19,15 @@ import {
   AuthenticationToken,
 } from 'react-native-fbsdk-next';
 import {sha256} from 'js-sha256';
-import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
+import {API_CONFIG, PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
 import type {ProfileStatus} from '@/features/account/services/profileService';
 import type {User, AuthTokens} from '@/features/auth/context/AuthContext';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import {syncAuthUser} from '@/features/auth/services/authUserService';
+import {
+  initSuperTokens,
+  resolveAuthEndpoint,
+} from '@/features/auth/services/superTokensClient';
 
 export type SocialProvider = 'google' | 'facebook' | 'apple';
 
@@ -78,49 +71,6 @@ const parseName = (
   const [firstName, ...rest] = fullName.trim().split(/\s+/);
   const lastName = rest.length ? rest.join(' ') : undefined;
   return {firstName, lastName};
-};
-
-const resolveDisplayInfo = (
-  user: FirebaseAuthTypes.User,
-  provider: SocialProvider,
-  extra?: {
-    email?: string | null;
-    firstName?: string | null;
-    lastName?: string | null;
-  },
-) => {
-  const email = extra?.email ?? user.email ?? undefined;
-  const displayNameParts = parseName(user.displayName);
-
-  return {
-    email,
-    firstName: extra?.firstName ?? displayNameParts.firstName,
-    lastName: extra?.lastName ?? displayNameParts.lastName,
-    provider,
-    avatarUrl: user.photoURL ?? undefined,
-  };
-};
-
-const buildTokens = async (
-  user: FirebaseAuthTypes.User,
-): Promise<
-  Pick<AuthTokens, 'idToken' | 'accessToken' | 'expiresAt' | 'userId'>
-> => {
-  // Avoid forcing refresh to reduce deprecation noise; rely on Firebase to refresh as needed
-  const [idToken, idTokenResult] = await Promise.all([
-    getIdToken(user),
-    getIdTokenResult(user),
-  ]);
-  const expiresAtTimestamp = idTokenResult?.expirationTime
-    ? new Date(idTokenResult.expirationTime).getTime()
-    : undefined;
-
-  return {
-    idToken,
-    accessToken: idToken,
-    expiresAt: expiresAtTimestamp,
-    userId: user.uid,
-  };
 };
 
 const getCachedAppleProfile = async (
@@ -186,45 +136,42 @@ const cacheAppleProfile = async (
   await clearLegacyAppleProfileCache(userId);
 };
 
-const extractAdditionalAppleProfile = (
-  userCredential: FirebaseAuthTypes.UserCredential,
-): {
+type NativeCredential = {
+  accessToken?: string;
+  idToken?: string;
+  authorizationCode?: string;
+  email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
-  email?: string | null;
-} => {
-  const profile: Record<string, any> =
-    userCredential.additionalUserInfo?.profile ?? {};
-  const nameFromProfile =
-    profile.name ??
-    profile.fullName ??
-    profile.full_name ??
-    profile.displayName ??
-    undefined;
-  const parsedFromDisplayName = parseName(nameFromProfile);
+  avatarUrl?: string | null;
+};
+
+const extractGoogleProfile = (
+  signInResult: unknown,
+): Pick<NativeCredential, 'email' | 'firstName' | 'lastName' | 'avatarUrl'> => {
+  const result = (signInResult ?? {}) as {
+    data?: {user?: Record<string, unknown>};
+    user?: Record<string, unknown>;
+  };
+  const user = result.data?.user ?? result.user ?? {};
+  const name = typeof user.name === 'string' ? user.name : undefined;
+  const parsed = parseName(name);
 
   return {
+    email: typeof user.email === 'string' ? user.email : null,
     firstName:
-      profile.givenName ??
-      profile.given_name ??
-      profile.firstName ??
-      profile.first_name ??
-      parsedFromDisplayName.firstName ??
-      null,
+      typeof user.givenName === 'string'
+        ? user.givenName
+        : (parsed.firstName ?? null),
     lastName:
-      profile.familyName ??
-      profile.family_name ??
-      profile.lastName ??
-      profile.last_name ??
-      parsedFromDisplayName.lastName ??
-      null,
-    email: profile.email ?? null,
+      typeof user.familyName === 'string'
+        ? user.familyName
+        : (parsed.lastName ?? null),
+    avatarUrl: typeof user.photo === 'string' ? user.photo : null,
   };
 };
 
-const performGoogleSignIn = async (): Promise<{
-  userCredential: FirebaseAuthTypes.UserCredential;
-}> => {
+const performGoogleSignIn = async (): Promise<NativeCredential> => {
   await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
 
   try {
@@ -236,8 +183,9 @@ const performGoogleSignIn = async (): Promise<{
     );
   }
 
+  let signInResult: unknown;
   try {
-    await GoogleSignin.signIn();
+    signInResult = await GoogleSignin.signIn();
   } catch (err: any) {
     if (err?.code === GoogleStatusCodes.SIGN_IN_CANCELLED) {
       const e = new Error('Google sign-in cancelled');
@@ -246,10 +194,13 @@ const performGoogleSignIn = async (): Promise<{
     }
     throw err;
   }
+
   let idToken: string | undefined;
+  let accessToken: string | undefined;
   try {
     const tokens = await GoogleSignin.getTokens();
     idToken = tokens?.idToken ?? undefined;
+    accessToken = tokens?.accessToken ?? undefined;
   } catch (err: any) {
     await GoogleSignin.signOut().catch(() => undefined);
     const e = new Error(
@@ -265,16 +216,14 @@ const performGoogleSignIn = async (): Promise<{
     throw new Error('Google sign-in failed. Missing ID token.');
   }
 
-  const googleCredential = GoogleAuthProvider.credential(idToken);
-  const auth = getAuth();
-  const userCredential = await signInWithCredential(auth, googleCredential);
-
-  return {userCredential};
+  return {
+    idToken,
+    accessToken,
+    ...extractGoogleProfile(signInResult),
+  };
 };
 
-const performFacebookSignIn = async (): Promise<{
-  userCredential: FirebaseAuthTypes.UserCredential;
-}> => {
+const performFacebookSignIn = async (): Promise<NativeCredential> => {
   LoginManager.logOut();
 
   if (Platform.OS === 'ios') {
@@ -302,14 +251,8 @@ const performFacebookSignIn = async (): Promise<{
       );
     }
 
-    const facebookCredential = FacebookAuthProvider.credential(
-      authenticationToken,
-      rawNonce,
-    );
-    const auth = getAuth();
-    const userCredential = await signInWithCredential(auth, facebookCredential);
-
-    return {userCredential};
+    // Limited login returns an OIDC token — exchanged as an id_token.
+    return {idToken: authenticationToken};
   }
 
   const loginResult = await LoginManager.logInWithPermissions([
@@ -328,21 +271,10 @@ const performFacebookSignIn = async (): Promise<{
     throw new Error('Facebook sign-in failed. Missing access token.');
   }
 
-  const facebookCredential = FacebookAuthProvider.credential(
-    currentAccessToken.accessToken,
-  );
-  const auth = getAuth();
-  const userCredential = await signInWithCredential(auth, facebookCredential);
-
-  return {userCredential};
+  return {accessToken: currentAccessToken.accessToken};
 };
 
-const signInWithAppleIOS = async (): Promise<{
-  userCredential: FirebaseAuthTypes.UserCredential;
-  firstName?: string | null;
-  lastName?: string | null;
-  email?: string | null;
-}> => {
+const signInWithAppleIOS = async (): Promise<NativeCredential> => {
   const appleAuthRequestResponse = await appleAuth.performRequest({
     requestedOperation: appleAuth.Operation.LOGIN,
     requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
@@ -352,26 +284,16 @@ const signInWithAppleIOS = async (): Promise<{
     throw new Error('Apple Sign-In failed - no identity token returned');
   }
 
-  const {identityToken, nonce} = appleAuthRequestResponse;
-  const appleCredential = AppleAuthProvider.credential(identityToken, nonce);
-
-  const auth = getAuth();
-  const userCredential = await signInWithCredential(auth, appleCredential);
-
   return {
-    userCredential,
+    idToken: appleAuthRequestResponse.identityToken,
+    authorizationCode: appleAuthRequestResponse.authorizationCode ?? undefined,
     firstName: appleAuthRequestResponse.fullName?.givenName ?? null,
     lastName: appleAuthRequestResponse.fullName?.familyName ?? null,
     email: appleAuthRequestResponse.email ?? null,
   };
 };
 
-const signInWithAppleAndroid = async (): Promise<{
-  userCredential: FirebaseAuthTypes.UserCredential;
-  firstName?: string | null;
-  lastName?: string | null;
-  email?: string | null;
-}> => {
+const signInWithAppleAndroid = async (): Promise<NativeCredential> => {
   if (!appleAuthAndroid.isSupported) {
     throw new Error('Apple sign-in requires Android API 19+.');
   }
@@ -403,30 +325,11 @@ const signInWithAppleAndroid = async (): Promise<{
     throw new Error('Apple Sign-In failed - no id_token returned.');
   }
 
-  const appleCredential = AppleAuthProvider.credential(idToken, rawNonce);
-
-  const auth = getAuth();
-  const userCredential = await signInWithCredential(auth, appleCredential);
-
   const firstName = (response as any)?.user?.name?.firstName ?? null;
   const lastName = (response as any)?.user?.name?.lastName ?? null;
   const email = (response as any)?.user?.email ?? null;
 
-  return {userCredential, firstName, lastName, email};
-};
-
-const signOutFirebaseIfNeeded = async () => {
-  try {
-    const auth = getAuth();
-    if (auth.currentUser) {
-      await auth.signOut();
-    }
-  } catch (error) {
-    console.warn(
-      '[SocialAuth] Failed to clear Firebase session after cancellation',
-      error,
-    );
-  }
+  return {idToken, firstName, lastName, email};
 };
 
 const mapAppleSignInError = (error: any): Error => {
@@ -436,26 +339,10 @@ const mapAppleSignInError = (error: any): Error => {
     message: error?.message,
   });
 
-  if (error?.code === 'auth/invalid-credential') {
-    return new Error(
-      'Invalid Apple credentials. Check your Firebase and Apple configuration and try again.',
-    );
-  }
-
   if (error?.code === 'auth/account-exists-with-different-credential') {
     return new Error(
       'An account already exists with the same email but different sign-in credentials.',
     );
-  }
-
-  if (error?.code === 'auth/missing-or-invalid-nonce') {
-    return new Error(
-      'Authentication failed due to an invalid nonce. Please try signing in again.',
-    );
-  }
-
-  if (error?.code === 'auth/credential-already-in-use') {
-    return new Error('This Apple account is already linked to another user.');
   }
 
   if (error?.message?.includes('invalid_client')) {
@@ -485,12 +372,7 @@ const mapAppleSignInError = (error: any): Error => {
   return error instanceof Error ? error : new Error(String(error));
 };
 
-const performAppleSignIn = async (): Promise<{
-  userCredential: FirebaseAuthTypes.UserCredential;
-  firstName?: string | null;
-  lastName?: string | null;
-  email?: string | null;
-}> => {
+const performAppleSignIn = async (): Promise<NativeCredential> => {
   try {
     if (Platform.OS === 'ios') {
       return await signInWithAppleIOS();
@@ -506,33 +388,16 @@ const performAppleSignIn = async (): Promise<{
   }
 };
 
-const resolveCredential = async (
+const resolveNativeCredential = async (
   provider: SocialProvider,
-): Promise<{
-  userCredential: FirebaseAuthTypes.UserCredential;
-  metadata?: {
-    firstName?: string | null;
-    lastName?: string | null;
-    email?: string | null;
-  };
-}> => {
+): Promise<NativeCredential> => {
   switch (provider) {
     case 'google':
       return performGoogleSignIn();
     case 'facebook':
       return performFacebookSignIn();
-    case 'apple': {
-      const {userCredential, firstName, lastName, email} =
-        await performAppleSignIn();
-      return {
-        userCredential,
-        metadata: {
-          firstName,
-          lastName,
-          email,
-        },
-      };
-    }
+    case 'apple':
+      return performAppleSignIn();
     default:
       throw new Error(`Unsupported social provider: ${provider}`);
   }
@@ -567,6 +432,116 @@ export const configureSocialProviders = () => {
   }
 };
 
+type SignInUpExchange = {
+  userId: string;
+  email?: string;
+  isNewUser: boolean;
+};
+
+const buildSignInUpBody = (
+  provider: SocialProvider,
+  credential: NativeCredential,
+): Record<string, unknown> => {
+  if (
+    provider === 'apple' &&
+    Platform.OS === 'ios' &&
+    credential.authorizationCode
+  ) {
+    // Apple requires the authorization-code flow on the backend.
+    return {
+      thirdPartyId: 'apple',
+      redirectURIInfo: {
+        redirectURIOnProviderDashboard: '',
+        redirectURIQueryParams: {
+          code: credential.authorizationCode,
+          id_token: credential.idToken,
+        },
+      },
+    };
+  }
+
+  const oAuthTokens: Record<string, string> = {};
+  if (credential.accessToken) {
+    oAuthTokens.access_token = credential.accessToken;
+  }
+  if (credential.idToken) {
+    oAuthTokens.id_token = credential.idToken;
+  }
+
+  return {
+    thirdPartyId: provider,
+    oAuthTokens,
+  };
+};
+
+const ACCOUNT_EXISTS_CODE = 'auth/account-exists-with-different-credential';
+
+const mapSignInUpError = (data: Record<string, unknown>): Error => {
+  if (data.status === 'SIGN_IN_UP_NOT_ALLOWED') {
+    const message =
+      typeof data.reason === 'string'
+        ? data.reason
+        : 'An account already exists with this email. Sign in using your existing login method and try again.';
+    const conflictError = new Error(message);
+    (conflictError as any).code = ACCOUNT_EXISTS_CODE;
+    return conflictError;
+  }
+
+  const message =
+    typeof data.message === 'string'
+      ? data.message
+      : 'Social sign-in failed. Please try again.';
+  return new Error(message);
+};
+
+const exchangeWithSuperTokens = async (
+  provider: SocialProvider,
+  credential: NativeCredential,
+): Promise<SignInUpExchange> => {
+  initSuperTokens(API_CONFIG.baseUrl);
+
+  const response = await fetch(resolveAuthEndpoint('/signinup'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      rid: 'thirdparty',
+    },
+    body: JSON.stringify(buildSignInUpBody(provider, credential)),
+  });
+
+  let data: Record<string, unknown> = {};
+  try {
+    const body = (await response.json()) as unknown;
+    data = typeof body === 'object' && body ? (body as typeof data) : {};
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok || data.status !== 'OK') {
+    console.error('[SocialAuth] SuperTokens signinup failed', {
+      provider,
+      status: response.status,
+      body: data,
+    });
+    throw mapSignInUpError(data);
+  }
+
+  const user =
+    typeof data.user === 'object' && data.user
+      ? (data.user as {id?: string; emails?: string[]})
+      : {};
+
+  if (!user.id) {
+    throw new Error('Social sign-in failed. Missing user in response.');
+  }
+
+  return {
+    userId: user.id,
+    email: user.emails?.[0],
+    isNewUser: Boolean(data.createdNewUser ?? data.createdNewRecipeUser),
+  };
+};
+
 type AuthSyncResult = Awaited<ReturnType<typeof syncAuthUser>>;
 
 const mapProfileFromAuthSync = (authSync?: AuthSyncResult): ProfileStatus =>
@@ -586,18 +561,19 @@ const mapProfileFromAuthSync = (authSync?: AuthSyncResult): ProfileStatus =>
       };
 
 const buildUserFromProfile = (params: {
-  firebaseUser: FirebaseAuthTypes.User;
+  userId: string;
+  email: string;
   profile: ProfileStatus;
-  resolvedDetails: ReturnType<typeof resolveDisplayInfo>;
+  credential: NativeCredential;
 }): User => {
-  const {firebaseUser, profile, resolvedDetails} = params;
+  const {userId, email, profile, credential} = params;
   const baseUser: User = {
-    id: firebaseUser.uid,
+    id: userId,
     parentId: profile.parent?.id ?? undefined,
-    email: resolvedDetails.email ?? '',
-    firstName: resolvedDetails.firstName ?? undefined,
-    lastName: resolvedDetails.lastName ?? undefined,
-    profilePicture: resolvedDetails.avatarUrl ?? undefined,
+    email,
+    firstName: credential.firstName ?? undefined,
+    lastName: credential.lastName ?? undefined,
+    profilePicture: credential.avatarUrl ?? undefined,
     profileToken: profile.profileToken,
   };
   const userWithProfile = mergeUserWithParentProfile(baseUser, profile.parent);
@@ -612,15 +588,11 @@ const logSocialLogin = (
   tokens: AuthTokens,
   user: User,
 ) => {
-  console.log('╔════════════════════════════════════════╗');
-  console.log(`║   FIREBASE - ${provider.toUpperCase()} LOGIN   ║`);
-  console.log('╚════════════════════════════════════════╝');
-  console.log('JWT (ID Token):', tokens.idToken);
-  console.log('Access Token:', tokens.accessToken);
-  console.log('User ID:', tokens.userId);
-  console.log('Email:', user.email);
-  console.log('Provider: firebase');
-  console.log('═══════════════════════════════════════');
+  console.log(`[SocialAuth] SuperTokens ${provider} login complete`, {
+    userId: tokens.userId,
+    email: user.email,
+    provider: 'supertokens',
+  });
 };
 
 const determineErrorCode = (error: any): string | undefined => {
@@ -630,75 +602,6 @@ const determineErrorCode = (error: any): string | undefined => {
   const message =
     typeof error?.message === 'string' ? error.message.toLowerCase() : '';
   return message.includes('cancel') ? 'auth/cancelled' : undefined;
-};
-
-const ACCOUNT_EXISTS_CODE = 'auth/account-exists-with-different-credential';
-
-const getEmailFromAuthError = (error: any): string | undefined => {
-  const email =
-    error?.customData?.email ?? error?.userInfo?.email ?? error?.email;
-
-  return typeof email === 'string' && email.length > 0 ? email : undefined;
-};
-
-const formatProviderLabel = (providerId: string): string => {
-  switch (providerId) {
-    case 'google.com':
-      return 'Google';
-    case 'facebook.com':
-      return 'Facebook';
-    case 'apple.com':
-      return 'Apple';
-    case 'password':
-      return 'Email';
-    default:
-      return providerId;
-  }
-};
-
-const joinProviderLabels = (providers: string[]): string => {
-  if (providers.length === 1) {
-    return providers[0];
-  }
-
-  if (providers.length === 2) {
-    return `${providers[0]} or ${providers[1]}`;
-  }
-
-  return `${providers.slice(0, -1).join(', ')}, or ${providers.at(-1)}`;
-};
-
-const buildAccountExistsError = async (error: any): Promise<Error> => {
-  const email = getEmailFromAuthError(error);
-  let signInMethods: string[] = [];
-
-  if (email) {
-    try {
-      signInMethods = await fetchSignInMethodsForEmail(getAuth(), email);
-    } catch (signInMethodsError) {
-      console.warn(
-        '[SocialAuth] Failed to fetch sign-in methods for conflict email',
-        {
-          email,
-          signInMethodsError,
-        },
-      );
-    }
-  }
-
-  const formattedProviders = Array.from(
-    new Set(signInMethods.map(formatProviderLabel)),
-  );
-  const message =
-    formattedProviders.length > 0
-      ? `An account already exists with this email. Sign in with ${joinProviderLabels(formattedProviders)} and try again.`
-      : 'An account already exists with this email. Sign in using your existing login method and try again.';
-
-  const conflictError = new Error(message);
-  (conflictError as any).code = ACCOUNT_EXISTS_CODE;
-  (conflictError as any).email = email;
-  (conflictError as any).providers = signInMethods;
-  return conflictError;
 };
 
 const handleSocialSignInError = async (
@@ -715,7 +618,6 @@ const handleSocialSignInError = async (
       );
     }
   }
-  await signOutFirebaseIfNeeded();
 
   const normalizedCode = determineErrorCode(error);
   if (normalizedCode === 'auth/cancelled') {
@@ -725,10 +627,6 @@ const handleSocialSignInError = async (
     const cancelledError = new Error('auth/cancelled');
     (cancelledError as any).code = 'auth/cancelled';
     throw cancelledError;
-  }
-
-  if (normalizedCode === ACCOUNT_EXISTS_CODE) {
-    throw await buildAccountExistsError(error);
   }
 
   console.error(
@@ -744,102 +642,73 @@ const handleSocialSignInError = async (
     : new Error(String(error ?? 'Social sign-in failed'));
 };
 
+const resolveAppleMetadata = async (
+  userId: string,
+  credential: NativeCredential,
+  exchangeEmail?: string,
+): Promise<NativeCredential> => {
+  const cached = await getCachedAppleProfile(userId);
+
+  const merged: NativeCredential = {
+    ...credential,
+    firstName: credential.firstName ?? cached?.firstName ?? null,
+    lastName: credential.lastName ?? cached?.lastName ?? null,
+    email: credential.email ?? cached?.email ?? exchangeEmail ?? null,
+  };
+
+  // Apple only shares the name/email on first authorization — persist it
+  // so future logins can prefill the profile.
+  await cacheAppleProfile(userId, {
+    firstName: merged.firstName,
+    lastName: merged.lastName,
+    email: merged.email,
+  });
+
+  console.log('[SocialAuth][Apple] Resolved profile metadata', {
+    cached,
+    mergedMetadata: {
+      firstName: merged.firstName,
+      lastName: merged.lastName,
+      email: merged.email,
+    },
+  });
+
+  return merged;
+};
+
 export const signInWithSocialProvider = async (
   provider: SocialProvider,
 ): Promise<SocialAuthResult> => {
   try {
     console.log(`[SocialAuth] Starting ${provider} sign-in...`);
-    const {userCredential, metadata: rawMetadata} =
-      await resolveCredential(provider);
-    const firebaseUser = userCredential.user;
-    let metadata = rawMetadata;
+    let credential = await resolveNativeCredential(provider);
+
+    const exchange = await exchangeWithSuperTokens(provider, credential);
 
     if (provider === 'apple') {
-      const additionalProfile = extractAdditionalAppleProfile(userCredential);
-      const cached = await getCachedAppleProfile(firebaseUser.uid);
-      const displayNameParts = parseName(firebaseUser.displayName);
-
-      metadata = {
-        firstName:
-          metadata?.firstName ??
-          additionalProfile.firstName ??
-          cached?.firstName ??
-          displayNameParts.firstName ??
-          null,
-        lastName:
-          metadata?.lastName ??
-          additionalProfile.lastName ??
-          cached?.lastName ??
-          displayNameParts.lastName ??
-          null,
-        email:
-          metadata?.email ??
-          additionalProfile.email ??
-          cached?.email ??
-          firebaseUser.email ??
-          null,
-      };
-
-      // Persist any available apple identity details for future logins
-      await cacheAppleProfile(firebaseUser.uid, {
-        firstName: metadata.firstName ?? cached?.firstName ?? null,
-        lastName: metadata.lastName ?? cached?.lastName ?? null,
-        email: metadata.email ?? cached?.email ?? firebaseUser.email ?? null,
-      });
-
-      console.log('[SocialAuth][Apple] Additional profile', {
-        additionalProfile,
-        cached,
-        displayName: firebaseUser.displayName,
-        mergedMetadata: metadata,
-      });
+      credential = await resolveAppleMetadata(
+        exchange.userId,
+        credential,
+        exchange.email,
+      );
     }
 
-    if (!firebaseUser.email && !metadata?.email) {
+    const email = exchange.email ?? credential.email ?? undefined;
+    if (!email) {
       throw new Error(
         'We could not retrieve your email address from the selected provider. Please allow email access and try again.',
       );
     }
 
-    const tokens = await buildTokens(firebaseUser);
-    const resolvedDetails = resolveDisplayInfo(
-      firebaseUser,
-      provider,
-      metadata,
-    );
-    if (
-      provider === 'apple' &&
-      (metadata?.firstName || metadata?.lastName) &&
-      !firebaseUser.displayName
-    ) {
-      try {
-        const displayName = [metadata.firstName, metadata.lastName]
-          .filter(Boolean)
-          .join(' ')
-          .trim();
-        if (displayName.length > 0) {
-          await updateProfile(firebaseUser, {displayName});
-          console.log(
-            '[SocialAuth][Apple] Set Firebase displayName from Apple metadata',
-            {
-              displayName,
-            },
-          );
-        }
-      } catch (error) {
-        console.warn(
-          '[SocialAuth][Apple] Failed to set Firebase displayName',
-          error,
-        );
-      }
+    // The SDK captured the session from the signinup response headers.
+    const accessToken = await SuperTokens.getAccessToken();
+    if (!accessToken) {
+      throw new Error('Authentication tokens are missing from the session.');
     }
 
     let authSync: AuthSyncResult | undefined;
     try {
-      authSync = await syncAuthUser({
-        authToken: tokens.accessToken,
-        idToken: tokens.idToken,
-      });
+      authSync = await syncAuthUser({authToken: accessToken});
     } catch (error) {
       console.warn(
         '[SocialAuth] Failed to sync auth user, proceeding with default profile',
@@ -848,19 +717,21 @@ export const signInWithSocialProvider = async (
     }
 
     const profile = mapProfileFromAuthSync(authSync);
-    const user = buildUserFromProfile({firebaseUser, profile, resolvedDetails});
-    const completeTokens: AuthTokens = {...tokens, provider: 'firebase'};
-    const initialFirstName = user.firstName ?? metadata?.firstName ?? undefined;
-    const initialLastName = user.lastName ?? metadata?.lastName ?? undefined;
-    if (provider === 'apple') {
-      console.log('[SocialAuth][Apple] Prefill debug', {
-        metadata,
-        resolvedDetails,
-        initialFirstName,
-        initialLastName,
-        email: resolvedDetails.email ?? firebaseUser.email,
-      });
-    }
+    const user = buildUserFromProfile({
+      userId: exchange.userId,
+      email,
+      profile,
+      credential,
+    });
+    const completeTokens: AuthTokens = {
+      idToken: accessToken,
+      accessToken,
+      userId: exchange.userId,
+      provider: 'supertokens',
+    };
+    const initialFirstName =
+      user.firstName ?? credential.firstName ?? undefined;
+    const initialLastName = user.lastName ?? credential.lastName ?? undefined;
 
     logSocialLogin(provider, completeTokens, user);
 
