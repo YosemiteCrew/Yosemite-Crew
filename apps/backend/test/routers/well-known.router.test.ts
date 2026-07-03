@@ -3,7 +3,6 @@ import type { Request, Response, NextFunction } from "express";
 const controller: Record<string, jest.Mock> = {
   webfinger: jest.fn().mockResolvedValue(undefined),
   hostMeta: jest.fn(),
-  nodeInfoIndex: jest.fn(),
 };
 
 jest.mock("src/controllers/web/activitypub.controller", () => ({
@@ -85,12 +84,6 @@ describe("well-known.router AP_ENABLED gate", () => {
     expect(controller.webfinger).not.toHaveBeenCalled();
   });
 
-  it("nodeinfo 404 when disabled", async () => {
-    const res = await dispatch("GET", "/nodeinfo");
-    expect(res.statusCode).toBe(404);
-    expect(controller.nodeInfoIndex).not.toHaveBeenCalled();
-  });
-
   it("host-meta is reachable even when disabled (no gate)", async () => {
     await dispatch("GET", "/host-meta");
     expect(controller.hostMeta).toHaveBeenCalledTimes(1);
@@ -110,11 +103,6 @@ describe("well-known.router when AP_ENABLED=true", () => {
   it("dispatches webfinger", async () => {
     await dispatch("GET", "/webfinger");
     expect(controller.webfinger).toHaveBeenCalledTimes(1);
-  });
-
-  it("dispatches nodeinfo index", async () => {
-    await dispatch("GET", "/nodeinfo");
-    expect(controller.nodeInfoIndex).toHaveBeenCalledTimes(1);
   });
 
   it("async wrapper catches a rejected webfinger handler and 500s", async () => {

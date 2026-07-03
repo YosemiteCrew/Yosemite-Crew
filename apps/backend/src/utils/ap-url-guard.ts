@@ -222,3 +222,16 @@ export const guardedLookup: LookupFunction = (hostname, options, callback) => {
  * guardedLookup. Use for every outbound request to a remote-controlled URL.
  */
 export const guardedHttpsAgent = new HttpsAgent({ lookup: guardedLookup });
+
+/**
+ * Internal helpers exported solely so tests can exercise the defensive
+ * malformed-input guards that the public API's `isIP()` pre-validation makes
+ * otherwise unreachable. Not part of the module's supported surface.
+ */
+export const __testables = {
+  ipv4ToOctets,
+  isBlockedIpv4,
+  expandIpv6ToHextets,
+  isBlockedIpv6,
+  isBlockedAddress,
+};

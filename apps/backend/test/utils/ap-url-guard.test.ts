@@ -5,6 +5,7 @@ import {
   assertPublicHttpsUrl,
   guardedLookup,
   guardedHttpsAgent,
+  __testables,
 } from "src/utils/ap-url-guard";
 
 jest.mock("node:dns/promises", () => ({
@@ -126,6 +127,28 @@ describe("assertPublicHttpsUrl", () => {
       assertPublicHttpsUrl("https://[2606:4700::1111]/inbox"),
     ).resolves.toBeUndefined();
   });
+
+  it("allows a full-form (no ::) public IPv6 host", async () => {
+    // A full 8-hextet address with no compressible zero run: new URL() keeps it
+    // in expanded form, exercising the no-"::" expansion path.
+    await expect(
+      assertPublicHttpsUrl("https://[2606:4700:1:2:3:4:5:6]/inbox"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a full-form (no ::) link-local IPv6 literal", async () => {
+    // fe80:… stays expanded (no long zero run to compress) and is link-local.
+    await expect(
+      assertPublicHttpsUrl("https://[fe80:1:2:3:4:5:6:7]/inbox"),
+    ).rejects.toThrow(/disallowed IP/);
+  });
+
+  it("throws when the host resolves to no addresses", async () => {
+    mockLookup.mockResolvedValue([]);
+    await expect(
+      assertPublicHttpsUrl("https://ghost.example.com"),
+    ).rejects.toThrow(/Could not resolve host/);
+  });
 });
 
 describe("guardedLookup (connect-time SSRF re-check)", () => {
@@ -170,6 +193,20 @@ describe("guardedLookup (connect-time SSRF re-check)", () => {
     });
   });
 
+  it("passes through when the resolved value is not an IP literal (family 0)", (done) => {
+    // A non-IP address string yields isIP() === 0, which isBlockedAddress
+    // treats as not-blocked; guardedLookup must forward it unchanged.
+    mockLookupCb.mockImplementation((_host, _opts, cb) =>
+      cb(null, "not-an-ip", 0),
+    );
+    guardedLookup("weird.example", {}, (err, address, family) => {
+      expect(err).toBeNull();
+      expect(address).toBe("not-an-ip");
+      expect(family).toBe(0);
+      done();
+    });
+  });
+
   it("propagates an underlying DNS error unchanged", (done) => {
     const dnsErr = new Error("ENOTFOUND");
     mockLookupCb.mockImplementation((_host, _opts, cb) => cb(dnsErr));
@@ -181,5 +218,99 @@ describe("guardedLookup (connect-time SSRF re-check)", () => {
 
   it("exposes a guarded https.Agent", () => {
     expect(guardedHttpsAgent).toBeInstanceOf(HttpsAgent);
+  });
+});
+
+// ─── Internal parsing guards ──────────────────────────────────────────────────
+// These defensive null-guards are unreachable through the public API because
+// isIP() pre-validates every address, so they are exercised directly.
+describe("ap-url-guard internal guards", () => {
+  const {
+    ipv4ToOctets,
+    isBlockedIpv4,
+    expandIpv6ToHextets,
+    isBlockedIpv6,
+    isBlockedAddress,
+  } = __testables;
+
+  describe("ipv4ToOctets", () => {
+    it("returns null when the dotted quad has the wrong part count", () => {
+      expect(ipv4ToOctets("1.2.3")).toBeNull();
+      expect(ipv4ToOctets("1.2.3.4.5")).toBeNull();
+    });
+
+    it("returns null for out-of-range or non-integer octets", () => {
+      expect(ipv4ToOctets("1.2.3.999")).toBeNull();
+      expect(ipv4ToOctets("1.2.3.-1")).toBeNull();
+      expect(ipv4ToOctets("1.2.3.x")).toBeNull();
+    });
+
+    it("returns the octets for a well-formed address", () => {
+      expect(ipv4ToOctets("10.0.0.1")).toEqual([10, 0, 0, 1]);
+    });
+  });
+
+  describe("isBlockedIpv4", () => {
+    it("treats an unparseable address as not blocked", () => {
+      expect(isBlockedIpv4("nonsense")).toBe(false);
+    });
+  });
+
+  describe("expandIpv6ToHextets", () => {
+    it("returns null when an embedded dotted-quad is malformed", () => {
+      expect(expandIpv6ToHextets("::ffff:1.2.3")).toBeNull();
+    });
+
+    it("returns null for a full-form address without 8 hextets", () => {
+      expect(expandIpv6ToHextets("1:2:3:4:5:6:7")).toBeNull();
+    });
+
+    it("returns null when compressed form has too many hextets", () => {
+      expect(expandIpv6ToHextets("1:2:3:4:5:6:7:8::9")).toBeNull();
+    });
+
+    it("returns null for an out-of-range hextet", () => {
+      expect(expandIpv6ToHextets("1:2:3:4:5:6:7:fffff")).toBeNull();
+    });
+
+    it("expands an embedded dotted-quad tail", () => {
+      expect(expandIpv6ToHextets("::ffff:127.0.0.1")).toEqual([
+        0, 0, 0, 0, 0, 0xffff, 0x7f00, 1,
+      ]);
+    });
+
+    it("expands a compressed address with head and tail parts", () => {
+      expect(expandIpv6ToHextets("2606:4700::1111")).toEqual([
+        0x2606, 0x4700, 0, 0, 0, 0, 0, 0x1111,
+      ]);
+    });
+
+    it("expands an address with an empty tail (trailing ::)", () => {
+      expect(expandIpv6ToHextets("2606:4700::")).toEqual([
+        0x2606, 0x4700, 0, 0, 0, 0, 0, 0,
+      ]);
+    });
+
+    it("expands an address with an empty head (leading ::)", () => {
+      expect(expandIpv6ToHextets("::2606:4700")).toEqual([
+        0, 0, 0, 0, 0, 0, 0x2606, 0x4700,
+      ]);
+    });
+  });
+
+  describe("isBlockedIpv6", () => {
+    it("treats an unparseable address as not blocked", () => {
+      expect(isBlockedIpv6("1:2:3")).toBe(false);
+    });
+
+    it("blocks v4-compatible embedded private addresses", () => {
+      expect(isBlockedIpv6("::10.0.0.1")).toBe(true);
+    });
+  });
+
+  describe("isBlockedAddress", () => {
+    it("returns false for a non-IP string (family 0)", () => {
+      expect(isBlockedAddress("not-an-ip")).toBe(false);
+    });
   });
 });

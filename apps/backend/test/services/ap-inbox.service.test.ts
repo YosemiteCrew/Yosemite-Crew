@@ -181,6 +181,59 @@ describe("verifyInboundRequest", () => {
     expect(result).toEqual({ ok: false });
   });
 
+  it("rejects when the Date header is missing", async () => {
+    const h = signedHeaders(keys.privateKey);
+    delete (h as Record<string, string>).date;
+    const result = await verifyInboundRequest({
+      method: "POST",
+      url: URL,
+      headers: h,
+      body: BODY,
+    });
+    expect(result).toEqual({ ok: false });
+  });
+
+  it("rejects an unparseable Date header", async () => {
+    const h = signedHeaders(keys.privateKey);
+    h.date = "not-a-date";
+    const result = await verifyInboundRequest({
+      method: "POST",
+      url: URL,
+      headers: h,
+      body: BODY,
+    });
+    expect(result).toEqual({ ok: false });
+  });
+
+  it("rejects when the signature header carries no keyId", async () => {
+    const h = signedHeaders(keys.privateKey);
+    // Strip the keyId component from the Signature header.
+    h.signature = h.signature.replace(/keyId="[^"]*",?/, "");
+    const result = await verifyInboundRequest({
+      method: "POST",
+      url: URL,
+      headers: h,
+      body: BODY,
+    });
+    expect(result).toEqual({ ok: false });
+  });
+
+  it("rejects when the signature does not cover a required header", async () => {
+    const h = signedHeaders(keys.privateKey);
+    // Drop "digest" from the signed headers list so a required header is unsigned.
+    h.signature = h.signature.replace(
+      /headers="[^"]*"/,
+      'headers="(request-target) host date"',
+    );
+    const result = await verifyInboundRequest({
+      method: "POST",
+      url: URL,
+      headers: h,
+      body: BODY,
+    });
+    expect(result).toEqual({ ok: false });
+  });
+
   it("rejects when fetching the remote actor throws (network error)", async () => {
     fetchRemoteActor.mockRejectedValue(new Error("actor unreachable"));
     const result = await verifyInboundRequest({

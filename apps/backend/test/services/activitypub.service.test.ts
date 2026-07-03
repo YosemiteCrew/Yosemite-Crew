@@ -269,20 +269,6 @@ describe("resolveWebFinger", () => {
   });
 });
 
-// ─── buildNodeInfoResponse ────────────────────────────────────────────────────
-
-describe("buildNodeInfoResponse", () => {
-  it("returns node info with the actor count and host", async () => {
-    prisma.aPActor.count.mockResolvedValue(7);
-    const result = (await svc.buildNodeInfoResponse()) as {
-      usage: { users: { total: number } };
-      metadata: { nodeName: string };
-    };
-    expect(result.usage.users.total).toBe(7);
-    expect(result.metadata.nodeName).toBe("vet.example");
-  });
-});
-
 // ─── fetchRemoteActor ─────────────────────────────────────────────────────────
 
 describe("fetchRemoteActor", () => {

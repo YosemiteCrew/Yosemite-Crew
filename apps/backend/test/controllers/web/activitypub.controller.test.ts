@@ -4,7 +4,6 @@ import type { Request, Response } from "express";
 const svc = {
   buildActorResponse: jest.fn(),
   resolveWebFinger: jest.fn(),
-  buildNodeInfoResponse: jest.fn(),
   getFollowersCollection: jest.fn(),
   getFollowingCollection: jest.fn(),
   getOutboxCollection: jest.fn(),
@@ -161,27 +160,6 @@ describe("WellKnownController.hostMeta", () => {
   });
 });
 
-describe("WellKnownController.nodeInfoIndex", () => {
-  it("returns the 2.0 discovery link", () => {
-    const res = makeRes();
-    WellKnownController.nodeInfoIndex(makeReq(), res);
-    expect(res.statusCode).toBe(200);
-    expect((res.body as { links: { href: string }[] }).links[0].href).toBe(
-      "https://local.example/nodeinfo/2.0",
-    );
-  });
-});
-
-describe("WellKnownController.nodeInfo", () => {
-  it("returns the built nodeinfo payload", async () => {
-    svc.buildNodeInfoResponse.mockResolvedValue({ version: "2.0" });
-    const res = makeRes();
-    await WellKnownController.nodeInfo(makeReq(), res);
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ version: "2.0" });
-  });
-});
-
 // ─── ActivityPubController: actor & collections ───────────────────────────────
 describe("ActivityPubController.getActor", () => {
   it("200 with the actor document and AP content-type", async () => {
@@ -307,6 +285,28 @@ describe("ActivityPubController.postInbox", () => {
     expect(inboxAdd).not.toHaveBeenCalled();
   });
 
+  it("uses an empty base when AP_BASE_URL is unset", async () => {
+    delete process.env.AP_BASE_URL;
+    inboxAdd.mockResolvedValue({ id: "job1" });
+    const res = makeRes();
+    await ActivityPubController.postInbox(
+      makeReq({
+        params: { orgId: "org-1" },
+        method: "POST",
+        originalUrl: "/ap/organizations/org-1/inbox",
+        body: '{"type":"Follow"}',
+      }),
+      res,
+    );
+    expect(res.statusCode).toBe(202);
+    expect(inboxAdd).toHaveBeenCalledWith(
+      "process",
+      expect.objectContaining({
+        requestUrl: "/ap/organizations/org-1/inbox",
+      }),
+    );
+  });
+
   it("500 when the queue add rejects", async () => {
     inboxAdd.mockRejectedValue(new Error("redis down"));
     const res = makeRes();
@@ -397,6 +397,42 @@ describe("ActivityPubController.postSharedInbox", () => {
     );
     expect(res.statusCode).toBe(202);
     expect(inboxAdd).not.toHaveBeenCalled();
+  });
+
+  it("202 when both to and object.to are absent (nullish fallbacks)", async () => {
+    const res = makeRes();
+    await ActivityPubController.postSharedInbox(
+      makeReq({ method: "POST", body: JSON.stringify({ type: "Create" }) }),
+      res,
+    );
+    expect(res.statusCode).toBe(202);
+    expect(inboxAdd).not.toHaveBeenCalled();
+  });
+
+  it("handles a scalar object.to and uses an empty base when AP_BASE_URL unset", async () => {
+    delete process.env.AP_BASE_URL;
+    inboxAdd.mockResolvedValue({ id: "j" });
+    const res = makeRes();
+    const body = JSON.stringify({
+      object: { to: "https://local.example/ap/organizations/org-e" },
+    });
+    await ActivityPubController.postSharedInbox(
+      makeReq({
+        method: "POST",
+        body,
+        originalUrl: "/ap/shared-inbox",
+      }),
+      res,
+    );
+    expect(res.statusCode).toBe(202);
+    expect(inboxAdd).toHaveBeenCalledTimes(1);
+    expect(inboxAdd).toHaveBeenCalledWith(
+      "process",
+      expect.objectContaining({
+        targetOrgId: "org-e",
+        requestUrl: "/ap/shared-inbox",
+      }),
+    );
   });
 
   it("400 on invalid JSON body", async () => {
@@ -594,6 +630,16 @@ describe("follow-family handlers", () => {
     );
     expect(res.statusCode).toBe(202);
     expect(res.body).toEqual({ type: "Undo" });
+  });
+
+  it("unfollow 403 without org", async () => {
+    const res = makeRes();
+    await ActivityPubController.unfollow(
+      makeReq({ body: { remoteActorUri: "x" } }),
+      res,
+    );
+    expect(res.statusCode).toBe(403);
+    expect(svc.sendUnfollow).not.toHaveBeenCalled();
   });
 
   it("unfollow 500 on error", async () => {

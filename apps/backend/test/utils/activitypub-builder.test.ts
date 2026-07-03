@@ -13,7 +13,6 @@ import {
   activityUri,
   buildActorObject,
   buildWebFingerResponse,
-  buildNodeInfo,
   buildActivity,
   buildFollowActivity,
   buildAcceptActivity,
@@ -163,43 +162,7 @@ describe("activitypub-builder", () => {
       expect(wf.aliases).toEqual([ACTOR]);
       expect(wf.links).toEqual([
         { rel: "self", type: AP_CONTENT_TYPE, href: ACTOR },
-        {
-          rel: "http://webfinger.net/rel/profile-page",
-          type: "text/html",
-          href: ACTOR,
-        },
       ]);
-    });
-  });
-
-  describe("buildNodeInfo", () => {
-    it("uses the package version when available", () => {
-      process.env.npm_package_version = "2.5.0";
-      const info = buildNodeInfo({
-        instanceHost: "vet.example.com",
-        actorCount: 7,
-      });
-      expect(info.version).toBe("2.0");
-      expect(info.software).toEqual({
-        name: "yosemite-crew",
-        version: "2.5.0",
-      });
-      expect(info.protocols).toEqual(["activitypub"]);
-      expect(info.usage.users).toEqual({
-        total: 7,
-        activeMonth: 7,
-        activeHalfyear: 7,
-      });
-      expect(info.openRegistrations).toBe(false);
-      expect(info.metadata.nodeName).toBe("vet.example.com");
-    });
-
-    it("defaults the software version when the env var is missing", () => {
-      const info = buildNodeInfo({
-        instanceHost: "vet.example.com",
-        actorCount: 0,
-      });
-      expect(info.software.version).toBe("1.0.0");
     });
   });
 

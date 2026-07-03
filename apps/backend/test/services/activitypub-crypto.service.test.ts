@@ -1,6 +1,7 @@
 import {
   encryptPrivateKey,
   decryptPrivateKey,
+  generateRsaKeyPair,
 } from "src/services/activitypub-crypto.service";
 
 describe("activitypub-crypto.service (AES-256-GCM + scrypt)", () => {
@@ -43,5 +44,32 @@ describe("activitypub-crypto.service (AES-256-GCM + scrypt)", () => {
     expect(() => decryptPrivateKey("only:three:parts")).toThrow(
       /Invalid encrypted private key format/,
     );
+  });
+
+  it("generates an RSA key pair and round-trips its private key through encryption", () => {
+    const { publicKeyPem, privateKeyPem } = generateRsaKeyPair();
+    expect(publicKeyPem).toMatch(/-----BEGIN PUBLIC KEY-----/);
+    expect(publicKeyPem).toMatch(/-----END PUBLIC KEY-----/);
+    expect(privateKeyPem).toMatch(/-----BEGIN PRIVATE KEY-----/);
+    expect(privateKeyPem).toMatch(/-----END PRIVATE KEY-----/);
+    // A fresh generation yields a distinct key.
+    const other = generateRsaKeyPair();
+    expect(other.privateKeyPem).not.toBe(privateKeyPem);
+    // The generated private key survives encrypt/decrypt intact.
+    expect(decryptPrivateKey(encryptPrivateKey(privateKeyPem))).toBe(
+      privateKeyPem,
+    );
+  });
+
+  it("throws when ENCRYPTION_KEY is not set", () => {
+    const saved = process.env.ENCRYPTION_KEY;
+    delete process.env.ENCRYPTION_KEY;
+    try {
+      expect(() => encryptPrivateKey("secret")).toThrow(
+        /ENCRYPTION_KEY env var is required/,
+      );
+    } finally {
+      process.env.ENCRYPTION_KEY = saved;
+    }
   });
 });
