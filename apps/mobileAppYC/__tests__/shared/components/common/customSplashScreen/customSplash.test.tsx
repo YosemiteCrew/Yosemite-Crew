@@ -1,5 +1,5 @@
 import React from 'react';
-import {act, cleanup, render, screen} from '@testing-library/react-native';
+import {act, cleanup, render, screen} from '@testing-library/react-native/pure';
 import {Animated} from 'react-native';
 jest.unmock('@/shared/components/common/customSplashScreen/customSplash');
 import CustomSplashScreen from '@/shared/components/common/customSplashScreen/customSplash';
@@ -21,7 +21,10 @@ jest.mock('react-native-linear-gradient', () => {
 });
 
 describe('CustomSplashScreen', () => {
+  const loopAnimations: Array<{start: jest.Mock; stop: jest.Mock}> = [];
+
   beforeEach(() => {
+    loopAnimations.length = 0;
     jest.clearAllMocks();
     jest.useFakeTimers();
 
@@ -63,10 +66,13 @@ describe('CustomSplashScreen', () => {
     });
 
     jest.spyOn(Animated, 'loop').mockImplementation((_animation: any) => {
-      return {
+      const loopAnimation = {
         start: jest.fn(),
         stop: jest.fn(),
-      } as any;
+      };
+      loopAnimations.push(loopAnimation);
+
+      return loopAnimation as any;
     });
 
     jest.spyOn(Animated, 'delay').mockImplementation((_time: number) => {
@@ -75,10 +81,8 @@ describe('CustomSplashScreen', () => {
   });
 
   afterEach(() => {
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
     cleanup();
+    jest.clearAllTimers();
     jest.useRealTimers();
     jest.restoreAllMocks();
   });
@@ -133,6 +137,27 @@ describe('CustomSplashScreen', () => {
       const timingCallsAfter = (Animated.timing as jest.Mock).mock.calls.length;
 
       expect(timingCallsAfter).toBeGreaterThanOrEqual(timingCallsBefore);
+    });
+
+    it('should stop active animations and scheduled timers on unmount', () => {
+      const onAnimationEnd = jest.fn();
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      const {unmount} = render(
+        <CustomSplashScreen onAnimationEnd={onAnimationEnd} />,
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(1500);
+      });
+
+      expect(loopAnimations).toHaveLength(4);
+
+      unmount();
+
+      expect(clearTimeoutSpy).toHaveBeenCalledTimes(2);
+      loopAnimations.forEach(animation => {
+        expect(animation.stop).toHaveBeenCalledTimes(1);
+      });
     });
   });
 
