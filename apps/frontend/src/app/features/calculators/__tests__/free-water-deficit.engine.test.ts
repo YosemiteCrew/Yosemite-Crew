@@ -64,7 +64,7 @@ describe('calculateFreeWaterDeficit', () => {
     ).toThrow('Target sodium must be between 100 and 200.');
   });
 
-  it('rejects a non-positive body water fraction when provided', () => {
+  it('rejects a body water fraction outside the allowed range when provided', () => {
     expect(() =>
       calculateFreeWaterDeficit({
         weightKg: 20,
@@ -72,7 +72,7 @@ describe('calculateFreeWaterDeficit', () => {
         targetNa: 150,
         bodyWaterFraction: 0,
       })
-    ).toThrow('Body water fraction must be greater than 0.');
+    ).toThrow('Body water fraction must be between 0.4 and 0.8.');
   });
 
   it('rejects a target sodium that is not below the current sodium', () => {
