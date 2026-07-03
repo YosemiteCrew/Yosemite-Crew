@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import {
   requirePermission,
   withOrgPermissions,
@@ -32,7 +32,7 @@ const financeAppointmentLimiter = rateLimit({
 
 router.get(
   "/organisation/:organisationId/subscription/seat-sync-plan",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:view:any"),
   FinanceController.getSubscriptionSeatSyncPlan,
@@ -40,7 +40,7 @@ router.get(
 
 router.post(
   "/organisation/:organisationId/subscription/provider/:provider/customer",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   FinanceController.recordSubscriptionCustomer,
@@ -48,7 +48,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/subscription/provider/:provider/checkout/completed",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   FinanceController.recordSubscriptionCheckoutCompleted,
@@ -56,7 +56,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/subscription/provider/:provider/updated",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   FinanceController.recordSubscriptionUpdated,
@@ -64,7 +64,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/subscription/provider/:provider/deleted",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   FinanceController.recordSubscriptionDeleted,
@@ -72,7 +72,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/subscription/provider/:provider/invoice-paid",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   FinanceController.recordSubscriptionInvoicePaid,
@@ -80,7 +80,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/subscription/provider/:provider/invoice-failed",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   FinanceController.recordSubscriptionInvoiceFailed,
@@ -88,7 +88,7 @@ router.post(
 
 router.get(
   "/subscriptions/current",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:view:any"),
   FinanceController.getCurrentSubscription,
@@ -96,7 +96,7 @@ router.get(
 
 router.post(
   "/subscriptions",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   FinanceController.upsertSubscription,
@@ -104,7 +104,7 @@ router.post(
 
 router.post(
   "/usage-events",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   FinanceController.recordUsageEvent,
@@ -112,7 +112,7 @@ router.post(
 
 router.get(
   "/usage-snapshots",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:view:any"),
   FinanceController.getUsageSnapshots,
@@ -120,7 +120,7 @@ router.get(
 
 router.post(
   "/visits/:visitId/milestones",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.recordVisitMilestone,
@@ -128,7 +128,7 @@ router.post(
 
 router.post(
   "/appointments/:appointmentId/ready-for-billing",
-  authorizeCognito,
+  requireWebAuth,
   withAppointmentOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.markAppointmentReadyForBilling,
@@ -136,7 +136,7 @@ router.post(
 
 router.delete(
   "/appointments/:appointmentId/ready-for-billing",
-  authorizeCognito,
+  requireWebAuth,
   withAppointmentOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.reverseAppointmentReadyForBilling,
@@ -144,7 +144,7 @@ router.delete(
 
 router.get(
   "/invoices",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   FinanceController.listInvoices,
@@ -152,7 +152,7 @@ router.get(
 
 router.post(
   "/invoices",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.createInvoice,
@@ -160,7 +160,7 @@ router.post(
 
 router.post(
   "/invoices/:invoiceId/lines",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.addInvoiceItems,
@@ -168,7 +168,7 @@ router.post(
 
 router.get(
   "/invoices/:invoiceId",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:view:any"),
   FinanceController.getInvoiceById,
@@ -176,7 +176,7 @@ router.get(
 
 router.get(
   "/invoices/payment-intent/:paymentIntentId",
-  authorizeCognito,
+  requireWebAuth,
   withPaymentIntentOrgPermissions(),
   requirePermission("billing:view:any"),
   FinanceController.retrievePaymentIntent,
@@ -184,7 +184,7 @@ router.get(
 
 router.post(
   "/invoices/:invoiceId/finalize",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.finalizeInvoice,
@@ -192,7 +192,7 @@ router.post(
 
 router.post(
   "/invoices/:invoiceId/closeout",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.settleInvoiceAtCloseout,
@@ -200,7 +200,7 @@ router.post(
 
 router.post(
   "/invoices/:invoiceId/tax/preview",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:view:any"),
   FinanceController.previewInvoiceTax,
@@ -208,7 +208,7 @@ router.post(
 
 router.post(
   "/invoices/:invoiceId/tax/finalize",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.finalizeInvoice,
@@ -216,7 +216,7 @@ router.post(
 
 router.post(
   "/invoices/:invoiceId/void",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.voidInvoice,
@@ -224,7 +224,7 @@ router.post(
 
 router.post(
   "/invoices/:invoiceId/supplement",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.supplementInvoice,
@@ -232,7 +232,7 @@ router.post(
 
 router.post(
   "/invoices/:invoiceId/payments",
-  authorizeCognito,
+  requireWebAuth,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.recordInvoicePayment,
@@ -240,7 +240,7 @@ router.post(
 
 router.post(
   "/invoices/:invoiceId/payments/sessions",
-  authorizeCognito,
+  requireWebAuth,
   financeAppointmentLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
@@ -249,7 +249,7 @@ router.post(
 
 router.get(
   "/:invoiceId",
-  authorizeCognito,
+  requireWebAuth,
   financeAppointmentLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:view:any"),
@@ -258,44 +258,44 @@ router.get(
 
 router.get(
   "/mobile/parents/:parentId/invoices",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FinanceController.listInvoicesForParent,
 );
 
 router.post(
   "/mobile/appointments/:appointmentId/invoices",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   financeAppointmentLimiter,
   FinanceController.listInvoicesForAppointment,
 );
 
 router.post(
   "/mobile/appointments/:appointmentId/seed",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FinanceController.bootstrapInvoiceForAppointment,
 );
 
 router.post(
   "/mobile/invoices/:invoiceId/payments/sessions",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FinanceController.createMobileInvoicePaymentSession,
 );
 
 router.get(
   "/mobile/payment-intent/:paymentIntentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FinanceController.retrievePaymentIntent,
 );
 
 router.get(
   "/mobile/:invoiceId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FinanceController.getInvoiceById,
 );
 
 router.post(
   "/payments/:paymentId/refunds",
-  authorizeCognito,
+  requireWebAuth,
   withPaymentOrgPermissions(),
   requirePermission("billing:edit:any"),
   FinanceController.refundPayment,

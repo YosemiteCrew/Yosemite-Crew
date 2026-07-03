@@ -21,4 +21,15 @@ export class AuthService {
   signOut(ctx: RequestContext) {
     return this.provider.signOut(ctx);
   }
+
+  async updateUserName(
+    appUserId: string,
+    name: { firstName: string; lastName: string }
+  ): Promise<void> {
+    await this.provider.updateUserName?.(appUserId, name);
+  }
+
+  async deleteUser(appUserId: string): Promise<void> {
+    await this.provider.deleteUser?.(appUserId);
+  }
 }

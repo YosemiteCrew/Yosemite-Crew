@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const financeAppointmentLimiter = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const withAppointmentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
@@ -74,8 +74,8 @@ const FinanceController = {
 const rateLimit = jest.fn(() => financeAppointmentLimiter);
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("express-rate-limit", () => rateLimit);
@@ -142,7 +142,7 @@ describe("finance.router", () => {
       FinanceController.createInvoicePaymentSession,
     );
     expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
       financeAppointmentLimiter,
@@ -180,24 +180,24 @@ describe("finance.router", () => {
       FinanceController.createInvoice,
     );
     expect(mobileParentRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognitoMobile,
+      requireMobileAuth,
     );
     expect(
       mobileAppointmentRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognitoMobile);
+    ).toContain(requireMobileAuth);
     expect(
       mobileAppointmentRoute?.stack.map((layer) => layer.handle),
     ).toContain(financeAppointmentLimiter);
     expect(
       mobilePaymentSessionRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognitoMobile);
+    ).toContain(requireMobileAuth);
     expect(
       mobilePaymentSessionRoute?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.createMobileInvoicePaymentSession);
     expect(
       findRoute("/:invoiceId", "get")?.stack.map((layer) => layer.handle),
     ).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       financeAppointmentLimiter,
       withInvoiceOrgPermissionsMiddleware,
       requirePermissionMiddleware,

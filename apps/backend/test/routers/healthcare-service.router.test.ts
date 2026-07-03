@@ -1,7 +1,7 @@
 import express from "express";
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
@@ -15,7 +15,7 @@ const CatalogController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -74,7 +74,7 @@ describe("healthcare-service.router", () => {
     const route = findRoute(String.raw`/\$search-components`, "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       expect.any(Function),
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
@@ -86,7 +86,7 @@ describe("healthcare-service.router", () => {
     const route = findRoute(String.raw`/\$resolve-selection`, "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       expect.any(Function),
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,

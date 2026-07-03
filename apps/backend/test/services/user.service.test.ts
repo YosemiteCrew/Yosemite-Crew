@@ -63,10 +63,10 @@ jest.mock("src/config/prisma", () => ({
   },
 }));
 
-jest.mock("../../src/services/cognito.service", () => ({
-  CognitoService: {
-    updateUserName: jest.fn(),
-  },
+const mockAuthUpdateUserName = jest.fn();
+jest.mock("@yosemite-crew/auth", () => ({
+  ...jest.requireActual("@yosemite-crew/auth"),
+  getAuthService: () => ({ updateUserName: mockAuthUpdateUserName }),
 }));
 
 import UserOrganizationModel from "../../src/models/user-organization";
@@ -76,7 +76,6 @@ import WeeklyAvailabilityOverrideModel from "../../src/models/weekly-availablity
 import { OccupancyModel } from "../../src/models/occupancy";
 import { UserOrganizationService } from "../../src/services/user-organization.service";
 import { OrganizationService } from "../../src/services/organization.service";
-import { CognitoService } from "../../src/services/cognito.service";
 
 const mockedUserModel = UserModel as unknown as {
   findOne: jest.Mock;
@@ -496,10 +495,10 @@ describe("UserService", () => {
         email: "same@example.com",
         isActive: true,
       });
-      expect(CognitoService.updateUserName).not.toHaveBeenCalled();
+      expect(mockAuthUpdateUserName).not.toHaveBeenCalled();
     });
 
-    it("updates name and syncs cognito", async () => {
+    it("updates name and syncs the auth provider", async () => {
       const save = jest.fn().mockResolvedValueOnce(undefined);
       const userDoc = {
         userId: "user-12",
@@ -517,9 +516,7 @@ describe("UserService", () => {
         lastName: "Name",
       });
 
-      expect(CognitoService.updateUserName).toHaveBeenCalledWith({
-        userPoolId: process.env.COGNITO_USER_POOL_ID,
-        cognitoUserId: "user-12",
+      expect(mockAuthUpdateUserName).toHaveBeenCalledWith("user-12", {
         firstName: "New",
         lastName: "Name",
       });

@@ -8,6 +8,17 @@ import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { isReadFromPostgres } from "src/config/read-switch";
 
+// firebase-admin is used here ONLY for FCM push delivery (device messaging),
+// not for authentication. Initialized lazily so environments without push
+// credentials (CI, local API-only work) never require them.
+if (!admin.apps?.length && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  admin.initializeApp({
+    credential: admin.credential.cert(
+      process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    ),
+  });
+}
+
 const createNotificationRecord = async (input: {
   userId: string;
   title: string;

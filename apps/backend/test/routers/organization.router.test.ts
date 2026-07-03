@@ -1,8 +1,8 @@
 import express from "express";
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
@@ -31,8 +31,8 @@ const CatalogController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -79,7 +79,7 @@ describe("organization.router", () => {
     const route = findRoute("/mobile/getNearby", "get");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognitoMobile,
+      requireMobileAuth,
       CatalogController.getCatalogNearbyOrganisations,
     ]);
   });
@@ -96,7 +96,7 @@ describe("organization.router", () => {
     const route = findRoute("/:organizationId", "get");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       OrganizationController.getBusinessById,
@@ -107,7 +107,7 @@ describe("organization.router", () => {
     const route = findRoute("/logo/presigned-url/:orgId", "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       OrganizationController.getLogoUploadUrl,

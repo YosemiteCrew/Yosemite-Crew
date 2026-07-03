@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { FormController } from "src/controllers/web/form.controller";
 import { FormSigningController } from "src/controllers/web/formSigning.contorller";
-import { authorizeCognitoMobile, authorizeCognito } from "src/middlewares/auth";
+import { requireMobileAuth, requireWebAuth } from "src/middlewares/auth";
 import {
   withOrgPermissions,
   withAppointmentOrgPermissions,
@@ -17,7 +17,7 @@ const router = Router();
 // Create form
 router.post(
   "/admin/:orgId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   FormController.createForm,
@@ -26,7 +26,7 @@ router.post(
 // List forms for organisation
 router.get(
   "/admin/:orgId/forms",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:view:any"),
   FormController.getFormListForOrganisation,
@@ -35,7 +35,7 @@ router.get(
 // Get form for admin
 router.get(
   "/admin/:orgId/:formId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:view:any"),
   FormController.getFormForAdmin,
@@ -44,7 +44,7 @@ router.get(
 // Update form
 router.put(
   "/admin/:orgId/:formId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   FormController.updateForm,
@@ -53,7 +53,7 @@ router.put(
 // Publish / Unpublish / Archive
 router.post(
   "/admin/:formId/publish",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   FormController.publishForm,
@@ -61,7 +61,7 @@ router.post(
 
 router.post(
   "/admin/:formId/unpublish",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   FormController.unpublishForm,
@@ -69,7 +69,7 @@ router.post(
 
 router.post(
   "/admin/:formId/archive",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   FormController.archiveForm,
@@ -78,7 +78,7 @@ router.post(
 // Submit form from PMS
 router.post(
   "/admin/:formId/submit",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   FormController.submitFormFromPMS,
@@ -91,7 +91,7 @@ router.post(
 // SOAP notes for appointment
 router.post(
   "/appointments/:appointmentId/soap-notes",
-  authorizeCognito,
+  requireWebAuth,
   withAppointmentOrgPermissions(),
   requirePermission("prescription:view:any"),
   FormController.getSOAPNotesByAppointment,
@@ -100,7 +100,7 @@ router.post(
 // Forms for appointment
 router.post(
   "/appointments/:appointmentId/forms",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:view:any"),
   FormController.getFormsForAppointment,
@@ -109,7 +109,7 @@ router.post(
 // Start signing (PMS)
 router.post(
   "/form-submissions/:submissionId/sign",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   FormSigningController.startSigning,
@@ -118,7 +118,7 @@ router.post(
 // Get signed document (PMS)
 router.get(
   "/form-submissions/:submissionId/signed-document",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:view:any"),
   FormSigningController.getSignedDocument,
@@ -136,49 +136,49 @@ router.get("/public/:formId", FormController.getFormForClient);
 
 router.post(
   "/mobile/forms/:formId/submit",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FormController.submitForm,
 );
 
 router.get(
   "/mobile/submissions/:formId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FormController.getFormSubmissions,
 );
 
 router.get(
   "/mobile/forms/:formId/submissions",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FormController.listFormSubmissions,
 );
 
 router.get(
   "/mobile/forms/:organizationId/:serivceId/consent-form",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FormController.getConsentFormForParent,
 );
 
 router.post(
   "/mobile/appointments/:appointmentId/soap-notes",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FormController.getSOAPNotesByAppointment,
 );
 
 router.post(
   "/mobile/appointments/:appointmentId/forms",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FormController.getFormsForAppointment,
 );
 
 router.get(
   "/mobile/form-submissions/:submissionId/pdf",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FormController.getFormSubmissionPDF,
 );
 
 router.post(
   "/mobile/form-submissions/:submissionId/sign",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   FormSigningController.startSigningMobile,
 );
 

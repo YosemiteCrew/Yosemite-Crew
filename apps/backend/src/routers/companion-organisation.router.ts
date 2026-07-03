@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { CompanionOrganisationController } from "../controllers/app/companion-organisation.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
@@ -11,37 +11,37 @@ const router = Router();
 
 router.post(
   "/link",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CompanionOrganisationController.linkByParent,
 );
 
 router.post(
   "/invite",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CompanionOrganisationController.sendInvite,
 );
 
 router.post(
   "/:linkId/approve",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CompanionOrganisationController.approvePendingLink,
 );
 
 router.post(
   "/:linkId/deny",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CompanionOrganisationController.denyPendingLink,
 );
 
 router.delete(
   "/revoke/:linkId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CompanionOrganisationController.revokeLink,
 );
 
 router.get(
   "/:patientId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CompanionOrganisationController.getLinksForCompanionByOrganisationType,
 );
 
@@ -52,7 +52,7 @@ router.get(
 // Accept invite sent by parent
 router.post(
   "/pms/accept",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),
   CompanionOrganisationController.acceptInvite,
@@ -61,7 +61,7 @@ router.post(
 // Reject invite sent by parent
 router.post(
   "/pms/reject",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),
   CompanionOrganisationController.rejectInvite,
@@ -70,7 +70,7 @@ router.post(
 // Link companion directly from PMS
 router.post(
   "/pms/:organisationId/:patientId/link",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),
   CompanionOrganisationController.linkByPmsUser,
@@ -79,7 +79,7 @@ router.post(
 // List all companion links for organisation
 router.get(
   "/pms/:organisationId/list",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:view:any"),
   CompanionOrganisationController.getLinksForOrganisation,

@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
@@ -17,7 +17,7 @@ const ServiceController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -56,7 +56,7 @@ describe("service.router", () => {
     const route = findRoute("/", "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       ServiceController.createService,
@@ -67,7 +67,7 @@ describe("service.router", () => {
     const route = findRoute("/bulk", "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       ServiceController.createMany,
@@ -78,7 +78,7 @@ describe("service.router", () => {
     const route = findRoute("/:id", "patch");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       ServiceController.updateService,
     ]);
   });
@@ -87,7 +87,7 @@ describe("service.router", () => {
     const route = findRoute("/:id", "delete");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       ServiceController.deleteService,
     ]);
   });

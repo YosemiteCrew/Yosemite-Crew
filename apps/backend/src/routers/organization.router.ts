@@ -2,7 +2,7 @@ import { Router } from "express";
 import { OrganizationController } from "../controllers/web/organization.controller";
 import { SpecialityController } from "src/controllers/web/speciality.controller";
 import { OrganisationInviteController } from "../controllers/web/organisation-invite.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { CatalogController } from "src/controllers/web/catalog.controller";
 
@@ -18,19 +18,19 @@ router.get("/getNearby", OrganizationController.getNearbyPaginated);
 
 router.get(
   "/mobile/getNearby",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CatalogController.getCatalogNearbyOrganisations,
 );
 
 router.post(
   "/logo/presigned-url",
-  authorizeCognito,
+  requireWebAuth,
   OrganizationController.getLogoUploadUrl,
 );
 
 router.post(
   "/logo/presigned-url/:orgId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("teams:edit:any"),
   OrganizationController.getLogoUploadUrl,
@@ -41,10 +41,10 @@ router.post(
    ====================================================== */
 
 // Onboard new organisation
-router.post("/", authorizeCognito, OrganizationController.onboardBusiness);
+router.post("/", requireWebAuth, OrganizationController.onboardBusiness);
 
 // List all businesses (admin-level)
-router.get("/", authorizeCognito, OrganizationController.getAllBusinesses);
+router.get("/", requireWebAuth, OrganizationController.getAllBusinesses);
 
 /* ======================================================
    PMS – ORG SCOPED (RBAC ENABLED)
@@ -53,7 +53,7 @@ router.get("/", authorizeCognito, OrganizationController.getAllBusinesses);
 // Get organisation details
 router.get(
   "/:organizationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("teams:view:any"),
   OrganizationController.getBusinessById,
@@ -62,7 +62,7 @@ router.get(
 // Update organisation
 router.put(
   "/:organizationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("teams:edit:any"),
   OrganizationController.updateBusinessById,
@@ -71,7 +71,7 @@ router.put(
 // Delete organisation (OWNER only)
 router.delete(
   "/:organizationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("org:delete"),
   OrganizationController.deleteBusinessById,
@@ -83,7 +83,7 @@ router.delete(
 
 router.get(
   "/:organizationId/specality",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   SpecialityController.getAllByOrganizationId,
@@ -96,7 +96,7 @@ router.get(
 // Create invite
 router.post(
   "/:organisationId/invites",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("teams:edit:any"),
   OrganisationInviteController.createInvite,
@@ -105,7 +105,7 @@ router.post(
 // List invites
 router.get(
   "/:organisationId/invites",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("teams:view:any"),
   OrganisationInviteController.listOrganisationInvites,

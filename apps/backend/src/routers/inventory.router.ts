@@ -5,7 +5,7 @@ import {
   InventoryMetaFieldController,
   InventoryVendorController,
 } from "src/controllers/web/inventory.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import {
   requirePermission,
   withInventoryItemOrgPermissions,
@@ -21,7 +21,7 @@ const router = Router();
 // Inventory item image upload URL
 router.post(
   "/organisation/:organisationId/items/upload-url",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.getItemImageUploadUrl,
@@ -30,7 +30,7 @@ router.post(
 // Create item
 router.post(
   "/items",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.createItem,
@@ -39,7 +39,7 @@ router.post(
 // Update item
 router.patch(
   "/items/:itemId",
-  authorizeCognito,
+  requireWebAuth,
   withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.updateItem,
@@ -48,7 +48,7 @@ router.patch(
 // Hide / Archive / Activate item
 router.post(
   "/items/:itemId/hide",
-  authorizeCognito,
+  requireWebAuth,
   withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.hideItem,
@@ -56,7 +56,7 @@ router.post(
 
 router.post(
   "/items/:itemId/archive",
-  authorizeCognito,
+  requireWebAuth,
   withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.archiveItem,
@@ -64,7 +64,7 @@ router.post(
 
 router.post(
   "/items/:itemId/active",
-  authorizeCognito,
+  requireWebAuth,
   withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.activeItem,
@@ -72,7 +72,7 @@ router.post(
 
 router.patch(
   "/items/:itemId/status",
-  authorizeCognito,
+  requireWebAuth,
   withInventoryItemOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.toggleItemStatus,
@@ -81,7 +81,7 @@ router.patch(
 // List items
 router.get(
   "/organisation/:organisationId/items",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryController.listItems,
@@ -89,7 +89,7 @@ router.get(
 
 router.get(
   "/categories",
-  authorizeCognito,
+  requireWebAuth,
   requirePermission("inventory:view:any"),
   InventoryController.getCategories,
 );
@@ -97,7 +97,7 @@ router.get(
 // Inventory turnover
 router.get(
   "/organisation/:organisationId/turnover",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryController.getInventoryTurnOver,
@@ -106,7 +106,7 @@ router.get(
 // Get item with batches
 router.get(
   "/items/:itemId",
-  authorizeCognito,
+  requireWebAuth,
   withInventoryItemOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryController.getItemWithBatches,
@@ -119,7 +119,7 @@ router.get(
 // Add batch
 router.post(
   "/items/:itemId/batches",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.addBatch,
@@ -128,7 +128,7 @@ router.post(
 // Update batch
 router.patch(
   "/batches/:batchId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.updateBatch,
@@ -137,7 +137,7 @@ router.patch(
 // Delete batch
 router.delete(
   "/batches/:batchId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.deleteBatch,
@@ -149,7 +149,7 @@ router.delete(
 
 router.post(
   "/stock/consume",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.consumeStock,
@@ -157,7 +157,7 @@ router.post(
 
 router.post(
   "/stock/consume/bulk",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.bulkConsumeStock,
@@ -165,7 +165,7 @@ router.post(
 
 router.post(
   "/items/:itemId/adjust",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.adjustStock,
@@ -173,7 +173,7 @@ router.post(
 
 router.post(
   "/items/:itemId/allocate",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.allocateStock,
@@ -181,7 +181,7 @@ router.post(
 
 router.post(
   "/items/:itemId/release",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryController.releaseAllocatedStock,
@@ -194,7 +194,7 @@ router.post(
 // Create vendor
 router.post(
   "/vendors",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryVendorController.createVendor,
@@ -203,7 +203,7 @@ router.post(
 // List vendors
 router.get(
   "/organisation/:organisationId/vendors",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryVendorController.listVendors,
@@ -212,7 +212,7 @@ router.get(
 // Get vendor
 router.get(
   "/vendors/:vendorId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryVendorController.getVendor,
@@ -221,7 +221,7 @@ router.get(
 // Update vendor
 router.patch(
   "/vendors/:vendorId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryVendorController.updateVendor,
@@ -230,7 +230,7 @@ router.patch(
 // Delete vendor
 router.delete(
   "/vendors/:vendorId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryVendorController.deleteVendor,
@@ -242,7 +242,7 @@ router.delete(
 
 router.post(
   "/meta-fields",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryMetaFieldController.createField,
@@ -250,7 +250,7 @@ router.post(
 
 router.get(
   "/meta-fields",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryMetaFieldController.listFields,
@@ -258,7 +258,7 @@ router.get(
 
 router.patch(
   "/meta-fields/:fieldId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryMetaFieldController.updateField,
@@ -266,7 +266,7 @@ router.patch(
 
 router.delete(
   "/meta-fields/:fieldId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryMetaFieldController.deleteField,
@@ -278,7 +278,7 @@ router.delete(
 
 router.get(
   "/organisation/:organisationId/alerts/low-stock",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryAlertController.getLowStockItems,
@@ -286,7 +286,7 @@ router.get(
 
 router.get(
   "/organisation/:organisationId/alerts/expiring",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryAlertController.getExpiringItems,

@@ -1,20 +1,20 @@
 import { Router } from "express";
 import { DeviceTokenController } from "../controllers/app/deviceToken.controller";
-import { authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireMobileAuth } from "src/middlewares/auth";
 
 const router = Router();
 
 // Route to register a device token
 router.post(
   "/register",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DeviceTokenController.registerDeviceToken,
 );
 
 // Route to unregister a device token
 router.post(
   "/unregister",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DeviceTokenController.unregisterDeviceToken,
 );
 

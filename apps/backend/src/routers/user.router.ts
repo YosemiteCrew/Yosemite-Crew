@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { UserController } from "../controllers/web/user.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/", authorizeCognito, UserController.create);
-router.get("/:id", authorizeCognito, UserController.getById);
-router.delete("/:id", authorizeCognito, UserController.deleteById);
-router.patch("/update-name", authorizeCognito, UserController.updateName);
+router.post("/", requireWebAuth, UserController.create);
+router.get("/:id", requireWebAuth, UserController.getById);
+router.delete("/:id", requireWebAuth, UserController.deleteById);
+router.patch("/update-name", requireWebAuth, UserController.updateName);
 
 export default router;

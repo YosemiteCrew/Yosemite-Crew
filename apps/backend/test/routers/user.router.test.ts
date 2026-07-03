@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 
 const UserController = {
   create: jest.fn(),
@@ -10,7 +10,7 @@ const UserController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/controllers/web/user.controller", () => ({
@@ -39,21 +39,21 @@ describe("user.router", () => {
     const route = findRoute("/:id", "get");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       UserController.getById,
     ]);
   });
 
   it("keeps the mutation routes authenticated", () => {
     expect(findRoute("/", "post")?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       UserController.create,
     ]);
     expect(
       findRoute("/:id", "delete")?.stack.map((layer) => layer.handle),
-    ).toEqual([authorizeCognito, UserController.deleteById]);
+    ).toEqual([requireWebAuth, UserController.deleteById]);
     expect(
       findRoute("/update-name", "patch")?.stack.map((layer) => layer.handle),
-    ).toEqual([authorizeCognito, UserController.updateName]);
+    ).toEqual([requireWebAuth, UserController.updateName]);
   });
 });

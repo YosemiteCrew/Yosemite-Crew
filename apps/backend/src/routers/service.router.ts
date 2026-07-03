@@ -1,20 +1,20 @@
 import { Router } from "express";
 import { ServiceController } from "../controllers/web/service.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   ServiceController.createService,
 );
 router.post(
   "/bulk",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   ServiceController.createMany,
@@ -33,7 +33,7 @@ router.post(
   ServiceController.getCalendarPrefill,
 );
 router.get("/:id", ServiceController.getServiceById);
-router.patch("/:id", authorizeCognito, ServiceController.updateService);
-router.delete("/:id", authorizeCognito, ServiceController.deleteService);
+router.patch("/:id", requireWebAuth, ServiceController.updateService);
+router.delete("/:id", requireWebAuth, ServiceController.deleteService);
 
 export default router;

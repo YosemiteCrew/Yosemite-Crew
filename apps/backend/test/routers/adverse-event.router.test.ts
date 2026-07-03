@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 
 const AdverseEventController = {
@@ -13,8 +13,8 @@ const AdverseEventController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -48,7 +48,7 @@ describe("adverse-event.router", () => {
     const route = findRoute("/organisation/:organisationId", "get");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       AdverseEventController.listForOrg,
     ]);
@@ -57,15 +57,15 @@ describe("adverse-event.router", () => {
   it("requires auth for reading and updating reports", () => {
     expect(
       findRoute("/:id", "get")?.stack.map((layer) => layer.handle),
-    ).toEqual([authorizeCognito, AdverseEventController.getById]);
+    ).toEqual([requireWebAuth, AdverseEventController.getById]);
     expect(
       findRoute("/:id/status", "patch")?.stack.map((layer) => layer.handle),
-    ).toEqual([authorizeCognito, AdverseEventController.updateStatus]);
+    ).toEqual([requireWebAuth, AdverseEventController.updateStatus]);
   });
 
   it("keeps the mobile report submission on mobile auth", () => {
     expect(findRoute("/", "post")?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognitoMobile,
+      requireMobileAuth,
       AdverseEventController.createFromMobile,
     ]);
   });

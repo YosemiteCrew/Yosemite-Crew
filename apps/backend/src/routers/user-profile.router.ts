@@ -1,32 +1,32 @@
 import { Router } from "express";
 import { UserProfileController } from "../controllers/web/user-profile.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 
 const router = Router();
 
 router.post(
   "/:organizationId/profile",
-  authorizeCognito,
+  requireWebAuth,
   UserProfileController.create,
 );
 router.put(
   "/:organizationId/profile",
-  authorizeCognito,
+  requireWebAuth,
   UserProfileController.update,
 );
 router.get(
   "/:organizationId/profile",
-  authorizeCognito,
+  requireWebAuth,
   UserProfileController.getByUserId,
 );
 router.get(
   "/:userId/:organizationId/profile",
-  authorizeCognito,
+  requireWebAuth,
   UserProfileController.getUserProfileById,
 );
 router.post(
   "/:organizationId/profile-picture",
-  authorizeCognito,
+  requireWebAuth,
   UserProfileController.getProfilePictureUploadUrl,
 );
 

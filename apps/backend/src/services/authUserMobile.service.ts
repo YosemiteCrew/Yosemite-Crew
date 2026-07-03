@@ -4,7 +4,7 @@ import { assertSafeString } from "src/utils/sanitize";
 
 type AuthUserMobileRecord = {
   id: string;
-  authProvider: "cognito" | "firebase";
+  authProvider: "cognito" | "firebase" | "supertokens";
   providerUserId: string;
   email: string;
   parentId: string | null;
@@ -14,7 +14,7 @@ type AuthUserMobileRecord = {
 
 const mapAuthUserMobile = (authUser: {
   id: string;
-  authProvider: "cognito" | "firebase";
+  authProvider: "cognito" | "firebase" | "supertokens";
   providerUserId: string;
   email: string;
   parentId: string | null;
@@ -80,7 +80,7 @@ const linkParentIds = async (authUserId: string, parentId: string) => {
 
 export const AuthUserMobileService = {
   async createOrGetAuthUser(
-    authProvider: "cognito" | "firebase",
+    authProvider: "cognito" | "firebase" | "supertokens",
     providerUserId: string,
     email: string,
   ): Promise<AuthUserMobileRecord> {

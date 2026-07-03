@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { AuthUserMobileController } from "src/controllers/app/authUserMobile.controller";
-import { authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireMobileAuth } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/signup", authorizeCognitoMobile, (req, res) =>
+router.post("/signup", requireMobileAuth, (req, res) =>
   AuthUserMobileController.signup(req, res),
 );
 

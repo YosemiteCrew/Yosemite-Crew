@@ -7,7 +7,7 @@ import WeeklyAvailabilityOverrideModel from "../models/weekly-availablity-overri
 import { OccupancyModel } from "../models/occupancy";
 import { UserOrganizationService } from "./user-organization.service";
 import { User } from "@yosemite-crew/types";
-import { CognitoService } from "./cognito.service";
+import { getAuthService } from "@yosemite-crew/auth";
 import { OrganizationService } from "./organization.service";
 import { prisma } from "src/config/prisma";
 import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
@@ -375,12 +375,13 @@ export const UserService = {
       return toUserDomain(user);
     }
 
-    await CognitoService.updateUserName({
-      userPoolId: process.env.COGNITO_USER_POOL_ID!,
-      cognitoUserId: userId,
-      firstName,
-      lastName,
-    });
+    // Sync the display name to the auth provider through the neutral
+    // boundary; a no-op when no provider is configured (the database stays
+    // the source of truth for names).
+    const authService = getAuthService();
+    if (authService) {
+      await authService.updateUserName(userId, { firstName, lastName });
+    }
 
     user.firstName = firstName;
     user.lastName = lastName;

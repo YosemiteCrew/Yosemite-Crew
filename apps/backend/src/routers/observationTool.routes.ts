@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import {
   requirePermission,
   withAppointmentOrgPermissions,
@@ -21,33 +21,33 @@ const router = Router();
 // Parent lists available OT definitions (for UI)
 router.get(
   "/mobile/tools",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ObservationToolDefinitionController.list,
 );
 
 // Parent loads one OT definition
 router.get(
   "/mobile/tools/:toolId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ObservationToolDefinitionController.getById,
 );
 
 // Parent submits OT
 router.post(
   "/mobile/tools/:toolId/submissions",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ObservationToolSubmissionController.createFromMobile,
 );
 
 router.post(
   "/mobile/submissions/:submissionId/link-appointment",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ObservationToolSubmissionController.linkAppointment,
 );
 
 router.get(
   "/mobile/tasks/:taskId/preview",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ObservationToolSubmissionController.getPreviewByTaskId,
 );
 
@@ -59,38 +59,38 @@ router.get(
 // Definitions
 router.get(
   "/pms/tools",
-  authorizeCognito,
+  requireWebAuth,
   ObservationToolDefinitionController.list,
 );
 
 router.get(
   "/pms/tools/:toolId",
-  authorizeCognito,
+  requireWebAuth,
   ObservationToolDefinitionController.getById,
 );
 
 router.post(
   "/pms/tools",
-  authorizeCognito,
+  requireWebAuth,
   ObservationToolDefinitionController.create,
 );
 
 router.patch(
   "/pms/tools/:toolId",
-  authorizeCognito,
+  requireWebAuth,
   ObservationToolDefinitionController.update,
 );
 
 router.post(
   "/pms/tools/:toolId/archive",
-  authorizeCognito,
+  requireWebAuth,
   ObservationToolDefinitionController.archive,
 );
 
 // Submissions
 router.get(
   "/pms/submissions",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   ObservationToolSubmissionController.listForPms,
@@ -98,7 +98,7 @@ router.get(
 
 router.get(
   "/pms/submissions/:submissionId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   ObservationToolSubmissionController.getById,
@@ -106,7 +106,7 @@ router.get(
 
 router.post(
   "/pms/submissions/:submissionId/link-appointment",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   ObservationToolSubmissionController.linkAppointment,
@@ -114,7 +114,7 @@ router.post(
 
 router.post(
   "/pms/appointments/:appointmentId/submissions",
-  authorizeCognito,
+  requireWebAuth,
   withAppointmentOrgPermissions(),
   requirePermission("appointments:view:any"),
   ObservationToolSubmissionController.listForAppointment,
@@ -122,7 +122,7 @@ router.post(
 
 router.post(
   "/pms/appointments/:appointmentId/submissions/create",
-  authorizeCognito,
+  requireWebAuth,
   withAppointmentOrgPermissions(),
   requirePermission("appointments:edit:any"),
   ObservationToolSubmissionController.createForAppointment,
@@ -130,7 +130,7 @@ router.post(
 
 router.get(
   "/pms/tasks/:taskId/submission",
-  authorizeCognito,
+  requireWebAuth,
   withTaskOrgPermissions(),
   requirePermission("tasks:view:any"),
   ObservationToolSubmissionController.getByTaskId,
@@ -138,7 +138,7 @@ router.get(
 
 router.get(
   "/pms/tasks/:taskId/preview",
-  authorizeCognito,
+  requireWebAuth,
   withTaskOrgPermissions(),
   requirePermission("tasks:view:any"),
   ObservationToolSubmissionController.getPreviewByTaskId,
@@ -146,7 +146,7 @@ router.get(
 
 router.get(
   "/pms/appointments/:appointmentId/task-previews",
-  authorizeCognito,
+  requireWebAuth,
   withAppointmentOrgPermissions(),
   requirePermission("appointments:view:any"),
   ObservationToolSubmissionController.listTaskPreviewsForAppointment,

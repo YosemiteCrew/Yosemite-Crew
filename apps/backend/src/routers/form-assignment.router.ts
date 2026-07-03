@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { FormAssignmentController } from "src/controllers/web/form-assignment.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
 router.post(
   "/organisations/:organisationId/appointments/:appointmentId/assignments",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   (req, res) => FormAssignmentController.createForAppointment(req, res),
@@ -15,7 +15,7 @@ router.post(
 
 router.get(
   "/organisations/:organisationId/appointments/:appointmentId/assignments",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:view:any"),
   (req, res) => FormAssignmentController.listForAppointment(req, res),
@@ -23,7 +23,7 @@ router.get(
 
 router.get(
   "/organisations/:organisationId/assignments",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:view:any"),
   (req, res) => FormAssignmentController.listForOrganisation(req, res),
@@ -31,7 +31,7 @@ router.get(
 
 router.get(
   "/organisations/:organisationId/companions/:companionId/assignments",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:view:any"),
   (req, res) => FormAssignmentController.listForCompanion(req, res),
@@ -39,7 +39,7 @@ router.get(
 
 router.get(
   "/organisations/:organisationId/assignments",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:view:any"),
   (req, res) => FormAssignmentController.listForOrganisation(req, res),
@@ -47,7 +47,7 @@ router.get(
 
 router.post(
   String.raw`/organisations/:organisationId/assignments/:assignmentId/\$resend`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   (req, res) => FormAssignmentController.resend(req, res),
@@ -55,7 +55,7 @@ router.post(
 
 router.post(
   String.raw`/organisations/:organisationId/assignments/:assignmentId/\$cancel`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("forms:edit:any"),
   (req, res) => FormAssignmentController.cancel(req, res),

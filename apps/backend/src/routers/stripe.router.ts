@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { StripeController } from "../controllers/web/stripe.controller";
 import bodyParser from "body-parser";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
@@ -28,13 +28,13 @@ router.post(
 
 router.post(
   "/payment-intent/:appointmentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   StripeController.createPaymentIntent,
 );
 
 router.get(
   "/payment-intent/:paymentIntentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   StripeController.retrievePaymentIntent,
 );
 
@@ -46,7 +46,7 @@ router.get(
 
 router.get(
   "/invoice/:invoiceId/payment-intent",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   StripeController.createPaymentIntentForInvoice,
 );
 
@@ -57,7 +57,7 @@ router.get(
 // Create payment intent for invoice (PMS)
 router.post(
   "/pms/payment-intent/:invoiceId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   StripeController.createPaymentIntentForInvoice,
@@ -66,7 +66,7 @@ router.post(
 // Create or fetch connected Stripe account
 router.post(
   "/organisation/:organisationId/account",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   StripeController.createOrGetConnectedAccount,
@@ -75,7 +75,7 @@ router.post(
 // Get Stripe account status
 router.get(
   "/organisation/:organisationId/account/status",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   StripeController.getAccountStatus,
@@ -84,7 +84,7 @@ router.get(
 // Create Stripe onboarding link
 router.post(
   "/organisation/:organisationId/onboarding",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   StripeController.createOnboardingLink,
@@ -93,7 +93,7 @@ router.post(
 // Create business checkout (subscription)
 router.post(
   "/organisation/:organisationId/billing/checkout",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   StripeController.createBusinessCheckout,
@@ -102,7 +102,7 @@ router.post(
 // Open billing portal
 router.post(
   "/organisation/:organisationId/billing/portal",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   StripeController.createBillingPortal,
@@ -111,7 +111,7 @@ router.post(
 // Sync seats (subscription management)
 router.post(
   "/organisation/:organisationId/billing/sync-seats",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("subscription:edit:any"),
   StripeController.syncSeats,

@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const withAppointmentOrgPermissions = jest.fn(() =>
   jest.fn((_req, _res, next) => next()),
@@ -32,8 +32,8 @@ const ObservationToolSubmissionController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -81,13 +81,13 @@ describe("observationTool.routes", () => {
     const pmsCreateRoute = findRoute("/pms/tools", "post");
 
     expect(mobileListRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognitoMobile,
+      requireMobileAuth,
     );
     expect(mobileSubmitRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognitoMobile,
+      requireMobileAuth,
     );
     expect(pmsCreateRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
   });
 
@@ -120,20 +120,20 @@ describe("observationTool.routes", () => {
     );
 
     expect(submissionListRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(submissionDetailRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(linkRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(
       appointmentSubmissionsRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(
       appointmentCreateRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(
       appointmentCreateRoute?.stack.map((layer) => layer.handle),
     ).toContain(ObservationToolSubmissionController.createForAppointment);
@@ -141,14 +141,14 @@ describe("observationTool.routes", () => {
       appointmentSubmissionsRoute?.stack.map((layer) => layer.handle),
     ).toContain(ObservationToolSubmissionController.listForAppointment);
     expect(taskSubmissionRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(taskPreviewRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(
       appointmentTaskPreviewsRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
 
     expect(withOrgPermissions).toHaveBeenCalledTimes(3);
     expect(withAppointmentOrgPermissions).toHaveBeenCalledTimes(3);

@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const withInventoryItemOrgPermissions = jest.fn(() =>
   jest.fn((_req, _res, next) => next()),
@@ -50,7 +50,7 @@ const InventoryAlertController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -96,7 +96,7 @@ describe("inventory.router", () => {
     );
 
     expect(uploadRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(withOrgPermissions).toHaveBeenCalled();
     expect(requirePermission).toHaveBeenCalledWith("inventory:edit:any");
@@ -116,10 +116,10 @@ describe("inventory.router", () => {
     );
 
     expect(listItemsRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(turnoverRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(withOrgPermissions).toHaveBeenCalled();
     expect(requirePermission).toHaveBeenCalledWith("inventory:view:any");
@@ -134,22 +134,22 @@ describe("inventory.router", () => {
     const statusRoute = findRoute("/items/:itemId/status", "patch");
 
     expect(detailRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(updateRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(hideRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(archiveRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(activeRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(statusRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
 
     expect(withInventoryItemOrgPermissions).toHaveBeenCalledTimes(6);

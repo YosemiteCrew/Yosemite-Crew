@@ -1,7 +1,7 @@
 import express from "express";
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
@@ -40,7 +40,7 @@ const CatalogController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -96,7 +96,7 @@ describe("catalog.router", () => {
     );
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       CatalogController.getCatalogNearbyOrganisations,
@@ -110,7 +110,7 @@ describe("catalog.router", () => {
     );
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       CatalogController.getCatalogBookableSlots,
@@ -124,7 +124,7 @@ describe("catalog.router", () => {
     );
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       CatalogController.getCatalogCalendarPrefill,

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { LabOrderController } from "src/controllers/web/lab-order.controller";
 import { LabCensusController } from "src/controllers/web/lab-census.controller";
@@ -8,14 +8,14 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId/:provider/orders",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabOrderController.listOrders(req, res),
 );
 router.post(
   "/pms/organisation/:organisationId/:provider/orders/search",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabOrderController.searchOrders(req, res),
@@ -23,14 +23,14 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/tests",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabOrderController.listProviderTests(req, res),
 );
 router.post(
   "/pms/organisation/:organisationId/:provider/tests",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabOrderController.listProviderTests(req, res),
@@ -38,7 +38,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/ivls/devices",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabCensusController.listIvlsDevices(req, res),
@@ -46,7 +46,7 @@ router.get(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/census",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabCensusController.listCensus(req, res),
@@ -54,7 +54,7 @@ router.get(
 
 router.delete(
   "/pms/organisation/:organisationId/:provider/census",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:edit:any"),
   (req, res) => LabCensusController.deleteCensus(req, res),
@@ -62,7 +62,7 @@ router.delete(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/census/:censusId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabCensusController.getCensusById(req, res),
@@ -70,7 +70,7 @@ router.get(
 
 router.delete(
   "/pms/organisation/:organisationId/:provider/census/:censusId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:edit:any"),
   (req, res) => LabCensusController.deleteCensusById(req, res),
@@ -78,14 +78,14 @@ router.delete(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/census/patient/:patientId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabCensusController.getCensusPatient(req, res),
 );
 router.post(
   "/pms/organisation/:organisationId/:provider/census/patient",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabCensusController.getCensusPatient(req, res),
@@ -93,7 +93,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/:provider/census",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:edit:any"),
   (req, res) => LabCensusController.addCensusPatient(req, res),
@@ -101,7 +101,7 @@ router.post(
 
 router.delete(
   "/pms/organisation/:organisationId/:provider/census/patient/:patientId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:edit:any"),
   (req, res) => LabCensusController.deleteCensusPatient(req, res),
@@ -109,7 +109,7 @@ router.delete(
 
 router.post(
   "/pms/organisation/:organisationId/:provider/orders",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:edit:any"),
   (req, res) => LabOrderController.createIdexxOrder(req, res),
@@ -117,7 +117,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/orders/:idexxOrderId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabOrderController.getOrder(req, res),
@@ -125,7 +125,7 @@ router.get(
 
 router.put(
   "/pms/organisation/:organisationId/:provider/orders/:idexxOrderId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:edit:any"),
   (req, res) => LabOrderController.updateOrder(req, res),
@@ -133,7 +133,7 @@ router.put(
 
 router.delete(
   "/pms/organisation/:organisationId/:provider/orders/:idexxOrderId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:edit:any"),
   (req, res) => LabOrderController.cancelOrder(req, res),

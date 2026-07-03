@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { IntegrationController } from "src/controllers/web/integration.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:view:any"),
   IntegrationController.listForOrganisation,
@@ -15,7 +15,7 @@ router.get(
 
 router.get(
   "/pms/organisation/:organisationId/:provider",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:view:any"),
   IntegrationController.getForOrganisation,
@@ -23,7 +23,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/:provider/credentials",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:edit:any"),
   IntegrationController.updateCredentials,
@@ -31,7 +31,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/:provider/enable",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:edit:any"),
   IntegrationController.enable,
@@ -39,7 +39,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/:provider/disable",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:edit:any"),
   IntegrationController.disable,
@@ -47,7 +47,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/:provider/validate",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:edit:any"),
   IntegrationController.validate,

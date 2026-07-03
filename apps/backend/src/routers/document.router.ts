@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { DocumentController } from "../controllers/app/document.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
@@ -11,61 +11,61 @@ const router = Router();
 
 router.post(
   "/mobile/upload-url",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.getUploadUrl,
 );
 
 router.get(
   "/mobile/search/:patientId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.searchDocumentMobile,
 );
 
 router.post(
   "/mobile/:patientId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.createDocument,
 );
 
 router.get(
   "/mobile/:patientId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.listDocumentsForParent,
 );
 
 router.patch(
   "/mobile/details/:id",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.updateDocument,
 );
 
 router.post(
   "/mobile/appointments/:appointmentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.listForAppointment,
 );
 
 router.get(
   "/mobile/view/:documentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.getDocumentDownloadUrl,
 );
 
 router.post(
   "/mobile/view",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.getSignedDownloadUrl,
 );
 
 router.delete(
   "/mobile/:documentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.deleteForParent,
 );
 
 router.get(
   "/search/:patientId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   DocumentController.searchDocument,
 );
 
@@ -76,7 +76,7 @@ router.get(
 // Generate upload URL (PMS)
 router.post(
   "/pms/upload-url",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   DocumentController.getUploadUrl,
@@ -85,7 +85,7 @@ router.post(
 // Create document (PMS)
 router.post(
   "/pms/:patientId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   DocumentController.createDocumentPms,
@@ -94,7 +94,7 @@ router.post(
 // List documents for companion (PMS)
 router.get(
   "/pms/:patientId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:view:any"),
   DocumentController.listForPms,
@@ -103,7 +103,7 @@ router.get(
 // Get document details (PMS)
 router.get(
   "/pms/details/:documentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:view:any"),
   DocumentController.getForPms,
@@ -112,7 +112,7 @@ router.get(
 // Update document (PMS)
 router.patch(
   "/pms/details/:documentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   DocumentController.updateDocument,
@@ -121,7 +121,7 @@ router.patch(
 // Download document (PMS)
 router.get(
   "/pms/view/:documentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:view:any"),
   DocumentController.getDocumentDownloadUrl,
@@ -130,7 +130,7 @@ router.get(
 // Signed download URL (PMS)
 router.post(
   "/pms/view",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:view:any"),
   DocumentController.getSignedDownloadUrl,
@@ -139,7 +139,7 @@ router.post(
 // List documents for appointment (PMS)
 router.post(
   "/pms/appointments/:appointmentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:view:any"),
   DocumentController.listForAppointment,

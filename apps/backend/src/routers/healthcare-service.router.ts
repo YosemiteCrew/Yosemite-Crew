@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response, Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { CatalogController } from "src/controllers/web/catalog.controller";
 
@@ -26,7 +26,7 @@ const attachOrganisationIdFromQuery = (
 
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.createProduct,
@@ -34,7 +34,7 @@ router.post(
 
 router.patch(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.updateProduct,
@@ -42,7 +42,7 @@ router.patch(
 
 router.get(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   attachOrganisationIdFromQuery,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
@@ -51,7 +51,7 @@ router.get(
 
 router.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   attachOrganisationIdFromQuery,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
@@ -60,7 +60,7 @@ router.get(
 
 router.post(
   String.raw`/\$resolve-selection`,
-  authorizeCognito,
+  requireWebAuth,
   attachOrganisationIdFromQuery,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
@@ -69,7 +69,7 @@ router.post(
 
 router.post(
   String.raw`/\$search-components`,
-  authorizeCognito,
+  requireWebAuth,
   attachOrganisationIdFromQuery,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),

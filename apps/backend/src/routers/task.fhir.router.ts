@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { TaskFhirController } from "src/controllers/web/task.fhir.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
 router.get(
   "/organisation/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:view:any", "tasks:view:own"]),
   (req, res) => TaskFhirController.listEmployeeTasks(req, res),
@@ -15,7 +15,7 @@ router.get(
 
 router.get(
   "/companion/:patientId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:view:any", "tasks:view:own"]),
   (req, res) => TaskFhirController.listCompanionTasks(req, res),
@@ -23,7 +23,7 @@ router.get(
 
 router.post(
   "/organisation/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   (req, res) => TaskFhirController.create(req, res),
@@ -31,7 +31,7 @@ router.post(
 
 router.get(
   "/organisation/:organisationId/:taskId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:view:any", "tasks:view:own"]),
   (req, res) => TaskFhirController.getById(req, res),
@@ -39,7 +39,7 @@ router.get(
 
 router.patch(
   "/organisation/:organisationId/:taskId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   (req, res) => TaskFhirController.update(req, res),
@@ -47,7 +47,7 @@ router.patch(
 
 router.post(
   String.raw`/organisation/:organisationId/:taskId/\$status`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any", "tasks:edit:own"]),
   (req, res) => TaskFhirController.changeStatus(req, res),

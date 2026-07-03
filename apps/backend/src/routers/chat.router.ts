@@ -1,104 +1,102 @@
 import { Router } from "express";
 import { ChatController } from "../controllers/app/chat.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 
 export const chatRouter = Router();
 
 /* ------------------------------ MOBILE ---------------------------------- */
 
-chatRouter.post("/mobile/token", authorizeCognitoMobile, (req, res) =>
+chatRouter.post("/mobile/token", requireMobileAuth, (req, res) =>
   ChatController.generateToken(req, res),
 );
 
 chatRouter.post(
   "/mobile/appointments/:appointmentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   (req, res) => ChatController.ensureAppointmentSession(req, res),
 );
 
 chatRouter.post(
   "/mobile/sessions/:sessionId/open",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   (req, res) => ChatController.openChat(req, res),
 );
 
-chatRouter.get("/mobile/sessions", authorizeCognitoMobile, (req, res) =>
+chatRouter.get("/mobile/sessions", requireMobileAuth, (req, res) =>
   ChatController.listMySessions(req, res),
 );
 
 /* ------------------------------- PMS ------------------------------------ */
 
-chatRouter.post("/pms/token", authorizeCognito, (req, res) =>
+chatRouter.post("/pms/token", requireWebAuth, (req, res) =>
   ChatController.generateTokenForPMS(req, res),
 );
 
 chatRouter.post(
   "/pms/appointments/:appointmentId",
-  authorizeCognito,
+  requireWebAuth,
   (req, res) => ChatController.ensureAppointmentSession(req, res),
 );
 
-chatRouter.post("/pms/org/direct", authorizeCognito, (req, res) =>
+chatRouter.post("/pms/org/direct", requireWebAuth, (req, res) =>
   ChatController.createOrgDirectChat(req, res),
 );
 
-chatRouter.post("/pms/org/group", authorizeCognito, (req, res) =>
+chatRouter.post("/pms/org/group", requireWebAuth, (req, res) =>
   ChatController.createOrgGroupChat(req, res),
 );
 
-chatRouter.get("/pms/network/colleagues", authorizeCognito, (req, res) =>
+chatRouter.get("/pms/network/colleagues", requireWebAuth, (req, res) =>
   ChatController.searchNetworkColleagues(req, res),
 );
 
-chatRouter.post("/pms/network/direct", authorizeCognito, (req, res) =>
+chatRouter.post("/pms/network/direct", requireWebAuth, (req, res) =>
   ChatController.createNetworkDirectChat(req, res),
 );
 
-chatRouter.post("/pms/sessions/:sessionId/open", authorizeCognito, (req, res) =>
+chatRouter.post("/pms/sessions/:sessionId/open", requireWebAuth, (req, res) =>
   ChatController.openChat(req, res),
 );
 
-chatRouter.get("/pms/sessions/:organisationId", authorizeCognito, (req, res) =>
+chatRouter.get("/pms/sessions/:organisationId", requireWebAuth, (req, res) =>
   ChatController.listMySessions(req, res),
 );
 
-chatRouter.post(
-  "/pms/sessions/:sessionId/close",
-  authorizeCognito,
-  (req, res) => ChatController.closeSession(req, res),
+chatRouter.post("/pms/sessions/:sessionId/close", requireWebAuth, (req, res) =>
+  ChatController.closeSession(req, res),
 );
 
 chatRouter.post(
   "/pms/groups/:sessionId/members/add",
-  authorizeCognito,
+  requireWebAuth,
   (req, res) => ChatController.addGroupMembers(req, res),
 );
 
 chatRouter.post(
   "/pms/groups/:sessionId/members/remove",
-  authorizeCognito,
+  requireWebAuth,
   (req, res) => ChatController.removeGroupMembers(req, res),
 );
 
-chatRouter.patch("/pms/groups/:sessionId", authorizeCognito, (req, res) =>
+chatRouter.patch("/pms/groups/:sessionId", requireWebAuth, (req, res) =>
   ChatController.updateGroup(req, res),
 );
 
-chatRouter.delete("/pms/groups/:sessionId", authorizeCognito, (req, res) =>
+chatRouter.delete("/pms/groups/:sessionId", requireWebAuth, (req, res) =>
   ChatController.deleteGroup(req, res),
 );
 
 /* ------------------------- SHARED ENTITIES ------------------------------ */
 
-chatRouter.post("/pms/share", authorizeCognito, (req, res) =>
+chatRouter.post("/pms/share", requireWebAuth, (req, res) =>
   ChatController.shareEntityToChannel(req, res),
 );
 
-chatRouter.get("/pms/share/:channelId", authorizeCognito, (req, res) =>
+chatRouter.get("/pms/share/:channelId", requireWebAuth, (req, res) =>
   ChatController.listSharedEntities(req, res),
 );
 
-chatRouter.post("/pms/share/:id/revoke", authorizeCognito, (req, res) =>
+chatRouter.post("/pms/share/:id/revoke", requireWebAuth, (req, res) =>
   ChatController.revokeSharedEntity(req, res),
 );
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { SpecialityController } from "../controllers/web/speciality.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
@@ -12,7 +12,7 @@ const router = Router();
 // Create speciality
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   SpecialityController.create,
@@ -21,7 +21,7 @@ router.post(
 // Bulk create specialities
 router.post(
   "/bulk",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   SpecialityController.createMany,
@@ -30,7 +30,7 @@ router.post(
 // List specialities by organisation
 router.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   SpecialityController.getAllByOrganizationId,
@@ -38,7 +38,7 @@ router.get(
 
 router.get(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   SpecialityController.getSpecialityById,
@@ -47,7 +47,7 @@ router.get(
 // Update speciality
 router.put(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   SpecialityController.update,
@@ -56,7 +56,7 @@ router.put(
 // Delete speciality
 router.delete(
   "/:organisationId/:specialityId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   SpecialityController.deleteSpeciality,
@@ -65,7 +65,7 @@ router.delete(
 // Legacy compatibility route
 router.get(
   "/organization/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   SpecialityController.getAllByOrganizationId,

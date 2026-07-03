@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -30,7 +30,7 @@ const TemplateFhirController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -85,9 +85,7 @@ describe("template.fhir.router", () => {
       "/questionnaire/organisation/:organisationId",
       "get",
     );
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
-    );
+    expect(route?.stack.map((layer) => layer.handle)).toContain(requireWebAuth);
     expect(route?.stack.map((layer) => layer.handle)).toContain(
       withOrgPermissions.mock.results[0].value,
     );

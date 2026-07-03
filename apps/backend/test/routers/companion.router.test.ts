@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
@@ -17,8 +17,8 @@ const CompanionController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -52,7 +52,7 @@ describe("companion.router", () => {
     const route = findRoute("/org/:id", "get");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       CompanionController.getCompanionById,
     ]);
   });
@@ -60,6 +60,6 @@ describe("companion.router", () => {
   it("keeps the mobile routes on mobile auth", () => {
     expect(
       findRoute("/:id", "get")?.stack.map((layer) => layer.handle),
-    ).toEqual([authorizeCognitoMobile, CompanionController.getCompanionById]);
+    ).toEqual([requireMobileAuth, CompanionController.getCompanionById]);
   });
 });

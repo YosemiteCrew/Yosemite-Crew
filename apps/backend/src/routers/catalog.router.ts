@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { CatalogController } from "src/controllers/web/catalog.controller";
 
@@ -10,7 +10,7 @@ const router = Router();
 
 router.post(
   "/products",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.createProduct,
@@ -18,7 +18,7 @@ router.post(
 
 router.patch(
   "/products/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.updateProduct,
@@ -26,7 +26,7 @@ router.patch(
 
 router.get(
   "/products/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getProductById,
@@ -34,7 +34,7 @@ router.get(
 
 router.get(
   "/packages/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getPackageDetail,
@@ -42,7 +42,7 @@ router.get(
 
 router.get(
   "/organisation/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.listProducts,
@@ -50,7 +50,7 @@ router.get(
 
 router.get(
   "/organisations/:organisationId/summary",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getOrganisationSummary,
@@ -58,7 +58,7 @@ router.get(
 
 router.get(
   "/organisations/:organisationId/services/nearby",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getCatalogNearbyOrganisations,
@@ -66,7 +66,7 @@ router.get(
 
 router.post(
   "/organisations/:organisationId/bookable-slots",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getCatalogBookableSlots,
@@ -74,7 +74,7 @@ router.post(
 
 router.post(
   "/organisations/:organisationId/bookable-slots/calendar-prefill",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getCatalogCalendarPrefill,
@@ -82,7 +82,7 @@ router.post(
 
 router.get(
   "/organisations/:organisationId/specialities",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.listSpecialities,
@@ -90,7 +90,7 @@ router.get(
 
 router.post(
   "/organisations/:organisationId/specialities",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.createSpeciality,
@@ -98,7 +98,7 @@ router.post(
 
 router.patch(
   "/organisations/:organisationId/specialities/:specialityId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.updateSpeciality,
@@ -106,7 +106,7 @@ router.patch(
 
 router.post(
   "/organisations/:organisationId/specialities/:specialityId/archive",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.archiveSpeciality,
@@ -114,7 +114,7 @@ router.post(
 
 router.post(
   "/organisations/:organisationId/specialities/:specialityId/restore",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.restoreSpeciality,
@@ -122,7 +122,7 @@ router.post(
 
 router.delete(
   "/organisations/:organisationId/specialities/:specialityId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.deleteSpeciality,
@@ -130,7 +130,7 @@ router.delete(
 
 router.get(
   "/organisation/:organisationId/specialities/:specialityId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getSpecialityCatalog,
@@ -138,7 +138,7 @@ router.get(
 
 router.get(
   "/organisations/:organisationId/specialities/:specialityId/services",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.listServicesBySpeciality,
@@ -146,7 +146,7 @@ router.get(
 
 router.post(
   "/organisations/:organisationId/specialities/:specialityId/services",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.createService,
@@ -154,7 +154,7 @@ router.post(
 
 router.patch(
   "/organisations/:organisationId/services/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.updateService,
@@ -162,7 +162,7 @@ router.patch(
 
 router.post(
   "/organisations/:organisationId/services/:id/archive",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.archiveService,
@@ -170,7 +170,7 @@ router.post(
 
 router.post(
   "/organisations/:organisationId/services/:id/restore",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.restoreService,
@@ -178,7 +178,7 @@ router.post(
 
 router.delete(
   "/organisations/:organisationId/services/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.deleteService,
@@ -186,7 +186,7 @@ router.delete(
 
 router.get(
   "/organisations/:organisationId/specialities/:specialityId/packages",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.listPackagesBySpeciality,
@@ -194,7 +194,7 @@ router.get(
 
 router.post(
   "/organisations/:organisationId/specialities/:specialityId/packages",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.createPackage,
@@ -202,7 +202,7 @@ router.post(
 
 router.get(
   "/organisations/:organisationId/packages/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getPackageDetail,
@@ -210,7 +210,7 @@ router.get(
 
 router.patch(
   "/organisations/:organisationId/packages/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.updatePackage,
@@ -218,7 +218,7 @@ router.patch(
 
 router.post(
   "/organisations/:organisationId/packages/:id/archive",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.archivePackage,
@@ -226,7 +226,7 @@ router.post(
 
 router.post(
   "/organisations/:organisationId/packages/:id/restore",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.restorePackage,
@@ -234,7 +234,7 @@ router.post(
 
 router.delete(
   "/organisations/:organisationId/packages/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.deletePackage,
@@ -242,7 +242,7 @@ router.delete(
 
 router.get(
   "/organisations/:organisationId/items/search",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.searchItems,
@@ -250,7 +250,7 @@ router.get(
 
 router.get(
   "/organisations/:organisationId/specialities/:specialityId/archive",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.getArchiveCatalog,
@@ -258,7 +258,7 @@ router.get(
 
 router.post(
   "/resolve",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
   CatalogController.resolveProduct,

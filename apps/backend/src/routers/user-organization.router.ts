@@ -1,30 +1,30 @@
 import { Router } from "express";
 import { UserOrganizationController } from "../controllers/web/user-organization.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/", authorizeCognito, UserOrganizationController.upsertMapping);
+router.post("/", requireWebAuth, UserOrganizationController.upsertMapping);
 router.get(
   "/user/mapping",
-  authorizeCognito,
+  requireWebAuth,
   UserOrganizationController.listMappingsForUser,
 );
 router.get(
   "/org/mapping/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   UserOrganizationController.listByOrganisationId,
 );
-router.get("/:id", authorizeCognito, UserOrganizationController.getMappingById);
-router.get("/", authorizeCognito, UserOrganizationController.listMappings);
+router.get("/:id", requireWebAuth, UserOrganizationController.getMappingById);
+router.get("/", requireWebAuth, UserOrganizationController.listMappings);
 router.delete(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   UserOrganizationController.deleteMappingById,
 );
 router.put(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   UserOrganizationController.updateMappingById,
 );
 

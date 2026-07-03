@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { AvailabilityController } from "src/controllers/web/availability.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
 
-router.use(authorizeCognito);
+router.use(requireWebAuth);
 
 // Base
 router.post(

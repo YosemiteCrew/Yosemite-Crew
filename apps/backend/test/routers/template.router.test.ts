@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -21,7 +21,7 @@ const TemplateController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -83,7 +83,7 @@ describe("template.router", () => {
     );
 
     expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
       withOrgPermissions.mock.results[0].value,
@@ -92,16 +92,16 @@ describe("template.router", () => {
       requirePermission.mock.results[0].value,
     );
     expect(libraryRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(libraryRoute?.stack.map((layer) => layer.handle)).not.toContain(
       requirePermission.mock.results[0].value,
     );
     expect(organisationRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(userRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(organisationRoute?.stack.map((layer) => layer.handle)).toContain(
       withOrgPermissions.mock.results[1].value ??
