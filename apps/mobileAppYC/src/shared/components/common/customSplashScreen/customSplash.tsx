@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Image,
@@ -10,7 +10,7 @@ import {
 import BootSplash from 'react-native-bootsplash';
 import LinearGradient from 'react-native-linear-gradient';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
 
 type Props = {
   onAnimationEnd: () => void;
@@ -23,9 +23,10 @@ const CERTIFICATION_LOGOS = [
   require('../../../../assets/splash/fhir.png'),
   require('../../../../assets/splash/gdpr.png'),
   require('../../../../assets/splash/iso.png'),
+  require('../../../../assets/splash/fda.png'),
 ];
 
-const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
+const CustomSplashScreen = ({onAnimationEnd}: Props) => {
   const [fadeAnim] = useState(() => new Animated.Value(1));
   const [scaleAnim] = useState(() => new Animated.Value(0.8));
   const [star1Anim] = useState(() => new Animated.Value(1)); // Start visible
@@ -36,7 +37,7 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
 
   useEffect(() => {
     // Hide native splash immediately with no fade
-    BootSplash.hide({ fade: false });
+    BootSplash.hide({fade: false});
 
     // Start star rotations immediately from the beginning
     const star1Rotation = Animated.loop(
@@ -44,7 +45,7 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
         toValue: 1,
         duration: 4000,
         useNativeDriver: true,
-      })
+      }),
     );
 
     const star2Rotation = Animated.loop(
@@ -52,7 +53,7 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
         toValue: 1,
         duration: 5000,
         useNativeDriver: true,
-      })
+      }),
     );
 
     // Start rotations immediately
@@ -95,7 +96,7 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
             duration: 2500,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
 
       const star2Float = Animated.loop(
@@ -110,7 +111,7 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
             duration: 3000,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
 
       star1Float.start();
@@ -158,7 +159,16 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
     return () => {
       clearTimeout(exitTimer);
     };
-  }, [scaleAnim, star1Anim, star2Anim, certAnim, fadeAnim, star1RotateAnim, star2RotateAnim, onAnimationEnd]);
+  }, [
+    scaleAnim,
+    star1Anim,
+    star2Anim,
+    certAnim,
+    fadeAnim,
+    star1RotateAnim,
+    star2RotateAnim,
+    onAnimationEnd,
+  ]);
 
   // Better random positions for stars
   const star1Position = {
@@ -199,8 +209,7 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
           {
             opacity: fadeAnim,
           },
-        ]}
-      >
+        ]}>
         {/* Background Gradient - Fixed smooth gradient */}
         <LinearGradient
           colors={[
@@ -235,9 +244,12 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
                     },
                   ],
                 },
-              ]}
-            >
-              <Image source={STAR_IMAGE} style={styles.starSmall} resizeMode="contain" />
+              ]}>
+              <Image
+                source={STAR_IMAGE}
+                style={styles.starSmall}
+                resizeMode="contain"
+              />
             </Animated.View>
           );
         })}
@@ -246,10 +258,13 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
         <View style={styles.logoContainer}>
           <Animated.View
             style={{
-              transform: [{ scale: scaleAnim }],
-            }}
-          >
-            <Image source={MAIN_LOGO} style={styles.mainLogo} resizeMode="contain" />
+              transform: [{scale: scaleAnim}],
+            }}>
+            <Image
+              source={MAIN_LOGO}
+              style={styles.mainLogo}
+              resizeMode="contain"
+            />
           </Animated.View>
         </View>
 
@@ -268,11 +283,17 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
                 },
               ],
             },
-          ]}
-        >
-          {CERTIFICATION_LOGOS.map(source => (
-            <View key={String(source)} style={styles.certificationWrapper}>
-              <Image source={source} style={styles.certificationLogo} resizeMode="contain" />
+          ]}>
+          {CERTIFICATION_LOGOS.map((source, index) => (
+            <View
+              key={`${index}-${String(source)}`}
+              testID="certification-logo"
+              style={styles.certificationWrapper}>
+              <Image
+                source={source}
+                style={styles.certificationLogo}
+                resizeMode="contain"
+              />
             </View>
           ))}
         </Animated.View>
@@ -317,25 +338,27 @@ const styles = StyleSheet.create({
   },
   certificationsContainer: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 64,
     left: 0,
     right: 0,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    paddingHorizontal: 25,
+    paddingHorizontal: 20,
     zIndex: 100, // Ensure they appear on top
   },
   certificationWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
-    minWidth: 75,
-    minHeight: 60,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 72,
+    minHeight: 56,
   },
   certificationLogo: {
-    width: 65,
-    height: 48,
+    width: 58,
+    height: 42,
     opacity: 1, // Full opacity for real colors
   },
 });

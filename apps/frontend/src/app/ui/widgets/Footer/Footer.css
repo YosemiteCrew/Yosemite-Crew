@@ -47,9 +47,15 @@
 .leftFooter .ClientLogo {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   flex-wrap: wrap;
+}
+.leftFooter .ClientLogo li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
 }
 .RytFooter {
   display: flex;
@@ -190,6 +196,10 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);
   flex: 0 0 auto;
 }
+.fda-footer {
+  width: 56px;
+  height: 56px;
+}
 
 @media screen and (max-width: 1024px) {
   .Footersec {
@@ -279,5 +289,9 @@
   .fhir-footer {
     width: 110px;
     height: 28px;
+  }
+  .fda-footer {
+    width: 56px;
+    height: 56px;
   }
 }

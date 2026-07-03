@@ -1,6 +1,7 @@
 import React from 'react';
-import {render} from '@testing-library/react-native';
+import {render, screen} from '@testing-library/react-native';
 import {Animated} from 'react-native';
+jest.unmock('@/shared/components/common/customSplashScreen/customSplash');
 import CustomSplashScreen from '@/shared/components/common/customSplashScreen/customSplash';
 
 // Mock dependencies
@@ -25,21 +26,25 @@ describe('CustomSplashScreen', () => {
     jest.useFakeTimers();
 
     // Mock Animated API
-    jest.spyOn(Animated, 'timing').mockImplementation((_value: any, _config: any) => {
-      return {
-        start: jest.fn((callback?: any) => {
-          if (callback) callback();
-        }),
-      } as any;
-    });
+    jest
+      .spyOn(Animated, 'timing')
+      .mockImplementation((_value: any, _config: any) => {
+        return {
+          start: jest.fn((callback?: any) => {
+            if (callback) callback();
+          }),
+        } as any;
+      });
 
-    jest.spyOn(Animated, 'spring').mockImplementation((_value: any, _config: any) => {
-      return {
-        start: jest.fn((callback?: any) => {
-          if (callback) callback();
-        }),
-      } as any;
-    });
+    jest
+      .spyOn(Animated, 'spring')
+      .mockImplementation((_value: any, _config: any) => {
+        return {
+          start: jest.fn((callback?: any) => {
+            if (callback) callback();
+          }),
+        } as any;
+      });
 
     jest.spyOn(Animated, 'sequence').mockImplementation((_animations: any) => {
       return {
@@ -77,9 +82,18 @@ describe('CustomSplashScreen', () => {
   describe('rendering', () => {
     it('should render without crashing', () => {
       const onAnimationEnd = jest.fn();
-      const {UNSAFE_root} = render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
+      const {UNSAFE_root} = render(
+        <CustomSplashScreen onAnimationEnd={onAnimationEnd} />,
+      );
 
       expect(UNSAFE_root).toBeDefined();
+    });
+
+    it('should render the FDA certification alongside the existing splash assets', () => {
+      const onAnimationEnd = jest.fn();
+      render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
+
+      expect(screen.getAllByTestId('certification-logo')).toHaveLength(5);
     });
   });
 
@@ -105,10 +119,10 @@ describe('CustomSplashScreen', () => {
   });
 
   describe('component lifecycle', () => {
-
     it('should only initialize animations once', () => {
       const onAnimationEnd = jest.fn();
-      const timingCallsBefore = (Animated.timing as jest.Mock).mock.calls.length;
+      const timingCallsBefore = (Animated.timing as jest.Mock).mock.calls
+        .length;
 
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
