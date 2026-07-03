@@ -9,6 +9,7 @@ import {
 import { FinanceSubscriptionService } from "../../src/services/finance/subscription";
 import { NotificationService } from "../../src/services/notification.service";
 import logger from "../../src/utils/logger";
+import { recomputeOrganizationVerification } from "../../src/services/organization-verification.service";
 import { prisma } from "src/config/prisma";
 
 // --- MOCKING SETUP ---
@@ -89,6 +90,10 @@ jest.mock("../../src/services/notification.service", () => ({
   NotificationService: { sendToUser: jest.fn() },
 }));
 
+jest.mock("../../src/services/organization-verification.service", () => ({
+  recomputeOrganizationVerification: jest.fn(),
+}));
+
 jest.mock("../../src/utils/notificationTemplates", () => ({
   NotificationTemplates: {
     Payment: {
@@ -111,6 +116,7 @@ jest.mock("src/config/prisma", () => ({
     organizationBilling: {
       upsert: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
     },
@@ -1012,6 +1018,9 @@ describe("StripeService", () => {
       (
         FinanceSubscriptionService.recordSubscriptionInvoiceFailed as jest.Mock
       ).mockResolvedValueOnce(undefined);
+      (prisma.organizationBilling.findMany as jest.Mock).mockResolvedValueOnce([
+        { orgId: "org_1" },
+      ]);
 
       await StripeService._handleAccountUpdated({
         id: "acct_1",
@@ -1078,6 +1087,48 @@ describe("StripeService", () => {
         subscriptionId: "sub_1",
         invoiceId: "in_1",
       });
+    });
+
+    it("recomputes verification for every org on the connected account", async () => {
+      (prisma.organizationBilling.findMany as jest.Mock).mockResolvedValueOnce([
+        { orgId: "org_1" },
+        { orgId: "org_2" },
+      ]);
+
+      await StripeService._handleAccountUpdated({
+        id: "acct_multi",
+        charges_enabled: true,
+        payouts_enabled: true,
+        default_currency: "usd",
+        requirements: {
+          currently_due: [],
+          eventually_due: [],
+          past_due: [],
+          pending_verification: [],
+          errors: [],
+          disabled_reason: null,
+        },
+      } as any);
+
+      expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { connectAccountId: "acct_multi" },
+          data: expect.objectContaining({ canAcceptPayments: true }),
+        }),
+      );
+      expect(prisma.organizationBilling.findMany).toHaveBeenCalledWith({
+        where: { connectAccountId: "acct_multi" },
+        select: { orgId: true },
+      });
+      expect(recomputeOrganizationVerification).toHaveBeenCalledTimes(2);
+      expect(recomputeOrganizationVerification).toHaveBeenNthCalledWith(
+        1,
+        "org_1",
+      );
+      expect(recomputeOrganizationVerification).toHaveBeenNthCalledWith(
+        2,
+        "org_2",
+      );
     });
 
     it("handles appointment booking payment", async () => {

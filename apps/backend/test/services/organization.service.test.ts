@@ -84,6 +84,31 @@ jest.mock("src/config/prisma", () => ({
   },
 }));
 
+// recomputeOrganizationVerification (invoked by upsert / setVerificationOverride)
+// reads prisma from @yosemite-crew/database, a distinct module from
+// src/config/prisma, so it needs its own mock to avoid touching a real DB.
+jest.mock("@yosemite-crew/database", () => ({
+  prisma: {
+    organization: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    organizationBilling: {
+      findUnique: jest.fn(),
+    },
+  },
+  Prisma: {},
+}));
+
+const dbPrismaMock = (
+  jest.requireMock("@yosemite-crew/database") as {
+    prisma: {
+      organization: { findUnique: jest.Mock; update: jest.Mock };
+      organizationBilling: { findUnique: jest.Mock };
+    };
+  }
+).prisma;
+
 describe("OrganizationService", () => {
   const orgId = "org-1";
   const userId = "user-1";
@@ -137,6 +162,16 @@ describe("OrganizationService", () => {
     (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValue({
       ...baseDto,
     });
+    // Default recompute wiring: org has no certs and no active Connect billing,
+    // so the derived isVerified is false. Individual tests override as needed.
+    dbPrismaMock.organization.findUnique.mockResolvedValue({
+      verificationOverride: null,
+      healthAndSafetyCertNo: null,
+      animalWelfareComplianceCertNo: null,
+      fireAndEmergencyCertNo: null,
+    });
+    dbPrismaMock.organizationBilling.findUnique.mockResolvedValue(null);
+    dbPrismaMock.organization.update.mockResolvedValue({});
   });
 
   describe("OrganizationServiceError", () => {
@@ -501,7 +536,7 @@ describe("OrganizationService", () => {
         OrganizationService.update(orgId, baseDto),
       ).resolves.toBeDefined();
       await expect(
-        OrganizationService.upadtePofileVerificationStatus(orgId, true),
+        OrganizationService.setVerificationOverride(orgId, true),
       ).resolves.toBeDefined();
       await expect(
         OrganizationService.updateProfilePhotoUrl(orgId, "url"),
@@ -861,17 +896,53 @@ describe("OrganizationService", () => {
       ).resolves.toBeNull();
     });
 
-    it("upadtePofileVerificationStatus returns null for invalid id", async () => {
+    it("setVerificationOverride returns null for invalid id", async () => {
       await expect(
-        OrganizationService.upadtePofileVerificationStatus("   ", true),
+        OrganizationService.setVerificationOverride("   ", true),
       ).resolves.toBeNull();
     });
 
-    it("upadtePofileVerificationStatus returns null when org not found", async () => {
+    it("setVerificationOverride returns null when org not found", async () => {
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
       await expect(
-        OrganizationService.upadtePofileVerificationStatus(orgId, true),
+        OrganizationService.setVerificationOverride(orgId, true),
       ).resolves.toBeNull();
+    });
+
+    it("setVerificationOverride sets the override and recomputes isVerified", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+        baseOrg,
+      );
+      (prisma.organization.update as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce({ ...baseOrg, isVerified: true });
+      // A true override forces isVerified=true regardless of billing/certs.
+      dbPrismaMock.organization.findUnique.mockResolvedValueOnce({
+        verificationOverride: true,
+        healthAndSafetyCertNo: null,
+        animalWelfareComplianceCertNo: null,
+        fireAndEmergencyCertNo: null,
+      });
+
+      const result = await OrganizationService.setVerificationOverride(
+        orgId,
+        true,
+      );
+
+      expect(prisma.organization.update).toHaveBeenCalledWith({
+        where: { id: orgId },
+        data: { verificationOverride: true },
+      });
+      expect(dbPrismaMock.organization.update).toHaveBeenCalledWith({
+        where: { id: orgId },
+        data: { isVerified: true },
+      });
+      // The mocked toOrganizationResponseDTO passes the persisted org through,
+      // so the derived isVerified surfaces on the FHIR response payload.
+      expect((result as unknown as { isVerified?: boolean })?.isVerified).toBe(
+        true,
+      );
     });
 
     it("updateProfilePhotoUrl returns null for invalid id", async () => {
