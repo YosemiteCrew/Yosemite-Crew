@@ -3,8 +3,19 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InventoryTable from '@/app/ui/tables/InventoryTable';
 
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ alt, src }: any) => React.createElement('img', { alt, src }),
+}));
+
 jest.mock('react-icons/io5', () => ({
   IoEye: () => <span data-testid="icon-eye" />,
+}));
+
+jest.mock('@/app/lib/urls', () => ({
+  getSafeOrgImageUrl: jest.fn((src: string) =>
+    typeof src === 'string' && src.startsWith('inventory/') ? `https://cdn.example.com/${src}` : ''
+  ),
 }));
 
 jest.mock('@/app/ui/cards/InventoryCard', () => ({
@@ -157,5 +168,28 @@ describe('InventoryTable', () => {
 
     expect(screen.getByRole('button', { name: 'View Vaccine' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Restock Vaccine' })).toBeInTheDocument();
+  });
+
+  it('renders an inventory image when the item stores an s3 key', () => {
+    const itemWithImage = {
+      ...item,
+      basicInfo: {
+        ...item.basicInfo,
+        imageUrl: 'inventory/org-1/vaccine.jpg',
+      },
+    };
+
+    render(
+      <InventoryTable
+        filteredList={[itemWithImage]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByAltText('')).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/inventory/org-1/vaccine.jpg'
+    );
   });
 });

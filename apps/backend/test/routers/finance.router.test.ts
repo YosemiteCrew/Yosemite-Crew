@@ -44,6 +44,7 @@ const FinanceController = {
   listInvoicesForParent: jest.fn(),
   bootstrapInvoiceForAppointment: jest.fn(),
   finalizeInvoice: jest.fn(),
+  settleInvoiceAtCloseout: jest.fn(),
   previewInvoiceTax: jest.fn(),
   voidInvoice: jest.fn(),
   supplementInvoice: jest.fn(),
@@ -67,6 +68,7 @@ const FinanceController = {
   getUsageSnapshots: jest.fn(),
   recordVisitMilestone: jest.fn(),
   markAppointmentReadyForBilling: jest.fn(),
+  reverseAppointmentReadyForBilling: jest.fn(),
 };
 
 const rateLimit = jest.fn(() => financeAppointmentLimiter);
@@ -139,6 +141,18 @@ describe("finance.router", () => {
     expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
       FinanceController.createInvoicePaymentSession,
     );
+    expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
+      financeAppointmentLimiter,
+    );
+    expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
+      withInvoiceOrgPermissionsMiddleware,
+    );
+    expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
+      requirePermissionMiddleware,
+    );
     expect(
       findRoute("/invoices/payment-intent/:paymentIntentId", "get")?.stack.map(
         (layer) => layer.handle,
@@ -180,6 +194,15 @@ describe("finance.router", () => {
     expect(
       mobilePaymentSessionRoute?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.createMobileInvoicePaymentSession);
+    expect(
+      findRoute("/:invoiceId", "get")?.stack.map((layer) => layer.handle),
+    ).toEqual([
+      authorizeCognito,
+      financeAppointmentLimiter,
+      withInvoiceOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      FinanceController.getInvoiceById,
+    ]);
     expect(
       findRoute("/mobile/payment-intent/:paymentIntentId", "get")?.stack.map(
         (layer) => layer.handle,
@@ -256,5 +279,16 @@ describe("finance.router", () => {
         "post",
       )?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.markAppointmentReadyForBilling);
+    expect(
+      findRoute(
+        "/appointments/:appointmentId/ready-for-billing",
+        "delete",
+      )?.stack.map((layer) => layer.handle),
+    ).toContain(FinanceController.reverseAppointmentReadyForBilling);
+    expect(
+      findRoute("/invoices/:invoiceId/closeout", "post")?.stack.map(
+        (layer) => layer.handle,
+      ),
+    ).toContain(FinanceController.settleInvoiceAtCloseout);
   });
 });

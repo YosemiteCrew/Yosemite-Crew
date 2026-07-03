@@ -1,4 +1,9 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { CatalogService, CatalogServiceError } from "./catalog.service";
+import { AuditTrailService } from "./audit-trail.service";
+import { WorkspaceService } from "./workspace.prisma.service";
+import { FinanceEventService } from "./finance/events";
 import type {
   Admission as AdmissionDomain,
   AppointmentKind,
@@ -7,6 +12,7 @@ import type {
   Encounter as EncounterDomain,
   EncounterClass,
   EncounterStatus,
+  WorkspaceFinalizationGate,
 } from "@yosemite-crew/types";
 
 type CaseRow = {
@@ -44,7 +50,22 @@ type AppointmentLinkRow = {
   caseId: string | null;
   encounterId: string | null;
   organisationId: string;
+  productItemId?: string | null;
   patient: unknown;
+};
+
+type AppointmentLinkLookupDelegate = {
+  findUnique(args: {
+    where: { id: string };
+    select: {
+      id: true;
+      caseId: true;
+      encounterId: true;
+      organisationId: true;
+      productItemId: true;
+      patient: true;
+    };
+  }): Promise<AppointmentLinkRow | null>;
 };
 
 type AdmissionRow = {
@@ -167,6 +188,104 @@ type RoomUnitAssignmentDelegate = {
   }): Promise<RoomUnitAssignmentRow>;
 };
 
+type WorkspaceTreatmentItemRow = {
+  productSnapshot: unknown;
+};
+
+type WorkspaceTreatmentItemDelegate = {
+  findMany(args: {
+    where: { organisationId: string; encounterId: string };
+  }): Promise<WorkspaceTreatmentItemRow[]>;
+  create(args: {
+    data: {
+      organisationId: string;
+      appointmentId?: string | null;
+      encounterId: string;
+      productId: string;
+      productVersion?: number | null;
+      productSnapshot: unknown;
+      servicePackageKind: string;
+      quantity: number;
+      priceSnapshot: unknown;
+      billingStatus?: string;
+      invoiceRowId?: string | null;
+      lockState?: unknown;
+      prescriptionId?: string | null;
+    };
+  }): Promise<unknown>;
+};
+
+type ClinicalArtifactDelegate = {
+  create(args: {
+    data: {
+      organisationId: string;
+      appointmentId?: string | null;
+      caseId?: string | null;
+      encounterId?: string | null;
+      kind: "PRESCRIPTION";
+      status: string;
+      summary?: string | null;
+      authorId?: string | null;
+      templateId?: string | null;
+      templateVersion?: number | null;
+      templateVersionId?: string | null;
+    };
+  }): Promise<{ id: string; organisationId: string }>;
+};
+
+type PrescriptionDelegate = {
+  create(args: {
+    data: {
+      artifactId: string;
+      medications: Prisma.InputJsonValue | Prisma.NullTypes.JsonNull | null;
+      instructions?: Prisma.InputJsonValue | Prisma.NullTypes.JsonNull | null;
+      notes?: Prisma.InputJsonValue | Prisma.NullTypes.JsonNull | null;
+      metadata?: Prisma.InputJsonValue | Prisma.NullTypes.JsonNull | null;
+      items?: {
+        create: Array<{
+          medication: string;
+          strength?: string;
+          dosage?: string;
+          route?: string;
+          frequency?: string;
+          duration?: string;
+          quantity?: string;
+          instructions?: string;
+          sortOrder?: number;
+        }>;
+      };
+    };
+  }): Promise<{ id: string }>;
+};
+
+type TemplateInstanceDelegate = {
+  findFirst(args: {
+    where: {
+      organisationId: string;
+      templateId: string;
+      OR?: Array<{
+        appointmentId?: string;
+        encounterId?: string;
+        caseId?: string;
+      }>;
+    };
+    select: { id: true };
+  }): Promise<{ id: string } | null>;
+  create(args: {
+    data: {
+      templateId: string;
+      templateVersion: number;
+      organisationId: string;
+      appointmentId?: string;
+      caseId?: string;
+      encounterId?: string;
+      status?: "DRAFT";
+      data: Prisma.InputJsonValue;
+      authorId?: string | null;
+    };
+  }): Promise<{ id: string }>;
+};
+
 export class CaseEncounterServiceError extends Error {
   constructor(
     message: string,
@@ -229,6 +348,450 @@ const normalizeOptionalString = (value?: string | null) => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const getTransactionDelegate = <TDelegate>(
+  tx: Prisma.TransactionClient,
+  key: string,
+): TDelegate => {
+  const delegate = (tx as Record<string, unknown>)[key];
+
+  if (!delegate) {
+    throw new CaseEncounterServiceError(
+      `Transaction client is missing ${key} delegate.`,
+      500,
+    );
+  }
+
+  return delegate as TDelegate;
+};
+
+const resolveAssignableUnitContext = async (params: {
+  tx: Prisma.TransactionClient;
+  encounter: EncounterRow;
+  unitId: string;
+}) => {
+  const { tx, encounter, unitId } = params;
+  const roomUnitDelegate = getTransactionDelegate<RoomUnitDelegate>(
+    tx,
+    "roomUnit",
+  );
+  const roomUnitGroupDelegate = getTransactionDelegate<RoomUnitGroupDelegate>(
+    tx,
+    "roomUnitGroup",
+  );
+  const companionDelegate = getTransactionDelegate<CompanionDelegate>(
+    tx,
+    "patient",
+  );
+
+  const unit = await roomUnitDelegate.findUnique({
+    where: { id: unitId },
+  });
+
+  if (!unit) {
+    throw new CaseEncounterServiceError("Room unit not found.", 404);
+  }
+
+  if (unit.organisationId !== encounter.organisationId) {
+    throw new CaseEncounterServiceError("Unit organisation mismatch.", 409);
+  }
+
+  if (!unit.isActive) {
+    throw new CaseEncounterServiceError("Selected unit is inactive.", 409);
+  }
+
+  const companion = await companionDelegate.findUnique({
+    where: { id: encounter.patientId },
+  });
+
+  if (!companion) {
+    throw new CaseEncounterServiceError("Companion not found.", 404);
+  }
+
+  assertRoomUnitSpeciesCompatibility(unit, companion);
+
+  if (!unit.unitGroupId) {
+    return { unit, companion };
+  }
+
+  const group = await roomUnitGroupDelegate.findUnique({
+    where: { id: unit.unitGroupId },
+  });
+
+  if (!group) {
+    throw new CaseEncounterServiceError("Room unit group not found.", 404);
+  }
+
+  if (group.organisationId !== encounter.organisationId) {
+    throw new CaseEncounterServiceError(
+      "Room unit group organisation mismatch.",
+      409,
+    );
+  }
+
+  assertRoomUnitGroupSpeciesCompatibility(group, companion);
+
+  return { unit, companion, group };
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const toPositiveInteger = (value: number | undefined): number => {
+  if (!value || !Number.isFinite(value)) {
+    return 1;
+  }
+
+  const quantity = Math.trunc(value);
+  return quantity > 0 ? quantity : 1;
+};
+
+const getPackageProductItemId = (value: unknown): string | undefined => {
+  if (!isRecord(value)) return undefined;
+  return typeof value.packageProductItemId === "string" &&
+    value.packageProductItemId.trim()
+    ? value.packageProductItemId.trim()
+    : undefined;
+};
+
+const getPackageMetadata = (
+  item: Record<string, unknown>,
+  packageProductItemId: string,
+) => ({
+  origin: "PACKAGE_EXPANSION" as const,
+  packageId: packageProductItemId,
+  packageItemId:
+    typeof item.packageItemId === "string" && item.packageItemId.trim()
+      ? item.packageItemId.trim()
+      : item.productItemId,
+  productKind:
+    typeof item.kind === "string" && item.kind.trim()
+      ? item.kind.trim()
+      : undefined,
+  sourceVersion:
+    typeof item.sourceVersion === "number" &&
+    Number.isFinite(item.sourceVersion)
+      ? item.sourceVersion
+      : null,
+});
+
+const createPackageTemplateInstances = async (params: {
+  tx: {
+    templateInstance: TemplateInstanceDelegate;
+  };
+  organisationId: string;
+  appointmentId: string;
+  caseId: string;
+  encounterId: string;
+  selection: Awaited<ReturnType<typeof CatalogService.resolveSelection>>;
+}) => {
+  const bindings = params.selection.templateBindings.filter(
+    (binding) =>
+      typeof binding.templateId === "string" && binding.templateId.trim(),
+  );
+
+  for (const binding of bindings) {
+    const templateId = binding.templateId!.trim();
+    const existing = await params.tx.templateInstance.findFirst({
+      where: {
+        organisationId: params.organisationId,
+        templateId,
+        OR: [
+          { appointmentId: params.appointmentId },
+          { encounterId: params.encounterId },
+          { caseId: params.caseId },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      continue;
+    }
+
+    await params.tx.templateInstance.create({
+      data: {
+        templateId,
+        templateVersion: binding.templateVersion ?? 1,
+        organisationId: params.organisationId,
+        appointmentId: params.appointmentId,
+        caseId: params.caseId,
+        encounterId: params.encounterId,
+        status: "DRAFT",
+        data: {
+          origin: "PACKAGE_EXPANSION",
+          packageId: params.selection.productItemId,
+          packageItemId: params.selection.productItemId,
+          productItemId: params.selection.productItemId,
+          productKind: params.selection.productKind,
+          templateKind: binding.templateKind,
+        } as Prisma.InputJsonValue,
+        authorId: null,
+      },
+    });
+  }
+};
+
+const buildPrescriptionMedicationRows = (
+  items: Array<{
+    productItemId: string;
+    code: string | null;
+    name: string;
+    kind: string;
+    quantity: number;
+    packageProductItemId?: string | null;
+    isPackageComponent: boolean;
+  }>,
+) =>
+  items.map((item, index) => ({
+    medication: item.name,
+    strength: item.code ?? undefined,
+    dosage: item.kind,
+    route: item.isPackageComponent ? "PACKAGE" : undefined,
+    frequency: item.packageProductItemId ?? undefined,
+    duration: String(toPositiveInteger(item.quantity)),
+    quantity: String(toPositiveInteger(item.quantity)),
+    instructions: item.isPackageComponent
+      ? `Package component from ${item.packageProductItemId ?? item.productItemId}`
+      : undefined,
+    sortOrder: index,
+  }));
+
+const resolveSelectionSafe = async (
+  productItemId: string,
+  organisationId: string,
+) => {
+  try {
+    return await CatalogService.resolveSelection(productItemId, organisationId);
+  } catch (error) {
+    if (error instanceof CatalogServiceError && error.statusCode === 404) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+const loadAppointmentLink = async (
+  appointmentDelegate: AppointmentLinkLookupDelegate,
+  appointmentId: string,
+) =>
+  appointmentDelegate.findUnique({
+    where: { id: appointmentId },
+    select: {
+      id: true,
+      caseId: true,
+      encounterId: true,
+      organisationId: true,
+      productItemId: true,
+      patient: true,
+    },
+  });
+
+const assertAppointmentMatchesEncounterContext = (
+  appointment: AppointmentLinkRow,
+  context: {
+    caseId: string;
+    encounterId?: string;
+    organisationId: string;
+    patientId: string;
+  },
+) => {
+  if (appointment.organisationId !== context.organisationId) {
+    throw new CaseEncounterServiceError(
+      "Encounter appointment organisation mismatch.",
+      409,
+    );
+  }
+
+  if (toAppointmentCompanionId(appointment.patient) !== context.patientId) {
+    throw new CaseEncounterServiceError(
+      "Encounter appointment companion mismatch.",
+      409,
+    );
+  }
+
+  if (appointment.caseId && appointment.caseId !== context.caseId) {
+    throw new CaseEncounterServiceError(
+      "Appointment is already linked to a different case.",
+      409,
+    );
+  }
+
+  if (
+    appointment.encounterId &&
+    appointment.encounterId !== context.encounterId
+  ) {
+    throw new CaseEncounterServiceError(
+      "Appointment is already linked to a different encounter.",
+      409,
+    );
+  }
+};
+
+const maybeExpandPackageTreatmentItems = async (params: {
+  tx: {
+    workspaceTreatmentItem: WorkspaceTreatmentItemDelegate;
+    clinicalArtifact: ClinicalArtifactDelegate;
+    prescription: PrescriptionDelegate;
+    templateInstance: TemplateInstanceDelegate;
+  };
+  organisationId: string;
+  appointmentId: string;
+  caseId: string;
+  encounterId: string;
+  selection: Awaited<ReturnType<typeof CatalogService.resolveSelection>>;
+}) => {
+  if (params.selection.productKind !== "PACKAGE") {
+    return;
+  }
+
+  await expandPackageTreatmentItems(params);
+};
+
+const expandPackageTreatmentItems = async (params: {
+  tx: {
+    workspaceTreatmentItem: WorkspaceTreatmentItemDelegate;
+    clinicalArtifact: ClinicalArtifactDelegate;
+    prescription: PrescriptionDelegate;
+    templateInstance: TemplateInstanceDelegate;
+  };
+  organisationId: string;
+  appointmentId: string;
+  caseId: string;
+  encounterId: string;
+  selection: Awaited<ReturnType<typeof CatalogService.resolveSelection>>;
+}) => {
+  const packageProductItemId = params.selection.productItemId;
+  const existingItems = await params.tx.workspaceTreatmentItem.findMany({
+    where: {
+      organisationId: params.organisationId,
+      encounterId: params.encounterId,
+    },
+  });
+
+  if (
+    existingItems.some(
+      (item) =>
+        getPackageProductItemId(item.productSnapshot) === packageProductItemId,
+    )
+  ) {
+    return;
+  }
+
+  const items = [
+    ...params.selection.billingItems,
+    ...params.selection.includedItems,
+  ];
+  const medicationItems = items.filter((item) => item.kind === "MEDICATION");
+
+  let packagePrescriptionId: string | null = null;
+  if (medicationItems.length > 0) {
+    const medicationRows = buildPrescriptionMedicationRows(medicationItems);
+    const createdArtifact = await params.tx.clinicalArtifact.create({
+      data: {
+        organisationId: params.organisationId,
+        appointmentId: params.appointmentId,
+        encounterId: params.encounterId,
+        kind: "PRESCRIPTION",
+        status: "DRAFT",
+        summary: `${params.selection.name} medication package`,
+        authorId: null,
+      },
+    });
+
+    const createdPrescription = await params.tx.prescription.create({
+      data: {
+        artifactId: createdArtifact.id,
+        medications: medicationRows as Prisma.InputJsonValue,
+        items: {
+          create: medicationRows,
+        },
+        metadata: {
+          origin: "PACKAGE_EXPANSION",
+          packageId: packageProductItemId,
+          packageItemId: packageProductItemId,
+          productKind: params.selection.productKind,
+          sourceVersion: null,
+        } as Prisma.InputJsonValue,
+      },
+    });
+    packagePrescriptionId = createdPrescription.id;
+  }
+
+  await createPackageTemplateInstances({
+    tx: params.tx,
+    organisationId: params.organisationId,
+    appointmentId: params.appointmentId,
+    caseId: params.caseId,
+    encounterId: params.encounterId,
+    selection: params.selection,
+  });
+
+  for (const item of items) {
+    const included = params.selection.includedItems.some(
+      (includedItem) => includedItem.productItemId === item.productItemId,
+    );
+    const packageMetadata = getPackageMetadata(
+      {
+        productItemId: item.productItemId,
+        code: item.code,
+        name: item.name,
+        kind: item.kind,
+        packageProductItemId: item.packageProductItemId,
+        isPackageComponent: item.isPackageComponent,
+      },
+      packageProductItemId,
+    );
+    const priceSnapshot = {
+      productItemId: item.productItemId,
+      code: item.code,
+      name: item.name,
+      kind: item.kind,
+      quantity: item.quantity,
+      currency: item.currency,
+      unitPrice: included ? 0 : item.unitPrice,
+      referenceUnitPrice: item.referenceUnitPrice ?? null,
+      defaultDiscountPercent: item.defaultDiscountPercent ?? null,
+      maxDiscountPercent: item.maxDiscountPercent ?? null,
+      discountPercent: included ? 0 : item.discountPercent,
+      grossAmount: included ? 0 : item.grossAmount,
+      discountAmount: included ? 0 : item.discountAmount,
+      finalAmount: included ? 0 : item.finalAmount,
+      isPackageComponent: item.isPackageComponent,
+      packageProductItemId,
+      ...packageMetadata,
+    };
+
+    await params.tx.workspaceTreatmentItem.create({
+      data: {
+        organisationId: params.organisationId,
+        appointmentId: params.appointmentId,
+        encounterId: params.encounterId,
+        productId: item.productItemId,
+        productVersion: null,
+        productSnapshot: {
+          productItemId: item.productItemId,
+          code: item.code,
+          name: item.name,
+          kind: item.kind,
+          packageProductItemId,
+          ...packageMetadata,
+          isPackageComponent: item.isPackageComponent,
+        },
+        servicePackageKind: item.kind,
+        quantity: item.quantity,
+        priceSnapshot,
+        billingStatus: "UNBILLED",
+        invoiceRowId: null,
+        lockState: null,
+        prescriptionId:
+          packagePrescriptionId && item.kind === "MEDICATION"
+            ? packagePrescriptionId
+            : null,
+      },
+    });
+  }
 };
 
 const toCaseStatus = (status: string): CaseStatus => {
@@ -622,48 +1185,20 @@ export const CaseEncounterService = {
 
       const appointmentId = normalizeOptionalString(input.appointmentId);
       if (appointmentId) {
-        const appointment = (await tx.appointment.findUnique({
-          where: { id: appointmentId },
-          select: {
-            id: true,
-            caseId: true,
-            encounterId: true,
-            organisationId: true,
-            patient: true,
-          },
-        })) as AppointmentLinkRow | null;
+        const appointment = await loadAppointmentLink(
+          tx.appointment,
+          appointmentId,
+        );
 
         if (!appointment) {
           throw new CaseEncounterServiceError("Appointment not found.", 404);
         }
 
-        if (appointment.organisationId !== organisationId) {
-          throw new CaseEncounterServiceError(
-            "Encounter appointment organisation mismatch.",
-            409,
-          );
-        }
-
-        if (toAppointmentCompanionId(appointment.patient) !== patientId) {
-          throw new CaseEncounterServiceError(
-            "Encounter appointment companion mismatch.",
-            409,
-          );
-        }
-
-        if (appointment.caseId && appointment.caseId !== caseId) {
-          throw new CaseEncounterServiceError(
-            "Appointment is already linked to a different case.",
-            409,
-          );
-        }
-
-        if (appointment.encounterId) {
-          throw new CaseEncounterServiceError(
-            "Appointment is already linked to a different encounter.",
-            409,
-          );
-        }
+        assertAppointmentMatchesEncounterContext(appointment, {
+          caseId,
+          organisationId,
+          patientId,
+        });
       }
 
       const createdEncounter = await tx.encounter.create({
@@ -690,6 +1225,41 @@ export const CaseEncounterService = {
             encounterId: createdEncounter.id,
           },
         });
+
+        const appointment = (await tx.appointment.findUnique({
+          where: { id: appointmentId },
+          select: {
+            id: true,
+            caseId: true,
+            encounterId: true,
+            organisationId: true,
+            productItemId: true,
+            patient: true,
+          },
+        })) as AppointmentLinkRow | null;
+
+        if (appointment?.productItemId) {
+          const selection = await resolveSelectionSafe(
+            appointment.productItemId,
+            organisationId,
+          );
+
+          if (selection) {
+            await maybeExpandPackageTreatmentItems({
+              tx: tx as unknown as {
+                workspaceTreatmentItem: WorkspaceTreatmentItemDelegate;
+                clinicalArtifact: ClinicalArtifactDelegate;
+                prescription: PrescriptionDelegate;
+                templateInstance: TemplateInstanceDelegate;
+              },
+              organisationId,
+              appointmentId,
+              caseId,
+              encounterId: createdEncounter.id,
+              selection,
+            });
+          }
+        }
       }
 
       return createdEncounter;
@@ -767,53 +1337,21 @@ export const CaseEncounterService = {
         }
 
         if (nextAppointmentId) {
-          const nextAppointment = (await tx.appointment.findUnique({
-            where: { id: nextAppointmentId },
-            select: {
-              id: true,
-              caseId: true,
-              encounterId: true,
-              organisationId: true,
-              patient: true,
-            },
-          })) as AppointmentLinkRow | null;
+          const nextAppointment = await loadAppointmentLink(
+            tx.appointment,
+            nextAppointmentId,
+          );
 
           if (!nextAppointment) {
             throw new CaseEncounterServiceError("Appointment not found.", 404);
           }
 
-          if (nextAppointment.organisationId !== row.organisationId) {
-            throw new CaseEncounterServiceError(
-              "Encounter appointment organisation mismatch.",
-              409,
-            );
-          }
-
-          if (
-            toAppointmentCompanionId(nextAppointment.patient) !== row.patientId
-          ) {
-            throw new CaseEncounterServiceError(
-              "Encounter appointment companion mismatch.",
-              409,
-            );
-          }
-
-          if (nextAppointment.caseId && nextAppointment.caseId !== row.caseId) {
-            throw new CaseEncounterServiceError(
-              "Appointment is already linked to a different case.",
-              409,
-            );
-          }
-
-          if (
-            nextAppointment.encounterId &&
-            nextAppointment.encounterId !== id
-          ) {
-            throw new CaseEncounterServiceError(
-              "Appointment is already linked to a different encounter.",
-              409,
-            );
-          }
+          assertAppointmentMatchesEncounterContext(nextAppointment, {
+            caseId: row.caseId,
+            encounterId: id,
+            organisationId: row.organisationId,
+            patientId: row.patientId,
+          });
 
           await tx.appointment.update({
             where: { id: nextAppointmentId },
@@ -856,11 +1394,17 @@ export const CaseEncounterService = {
 
   async dischargeEncounter(
     encounterId: string,
-    input?: { dischargedAt?: Date; periodEnd?: Date },
+    input?: {
+      dischargedAt?: Date;
+      periodEnd?: Date;
+      overrideReason?: string;
+      actorUserId?: string | null;
+    },
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
     assertPeriod(undefined, input?.dischargedAt);
     assertPeriod(undefined, input?.periodEnd);
+    let finalizationGate: WorkspaceFinalizationGate | null = null;
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
       const encounter = (await tx.encounter.findUnique({
@@ -888,6 +1432,19 @@ export const CaseEncounterService = {
       if (admission.dischargedAt) {
         throw new CaseEncounterServiceError(
           "Admission is already discharged.",
+          409,
+        );
+      }
+
+      finalizationGate = await WorkspaceService.getEncounterFinalizationGate({
+        organisationId: encounter.organisationId,
+        encounterId: id,
+      });
+      const overrideReason = input?.overrideReason?.trim();
+      if (!finalizationGate.enabled && !overrideReason) {
+        throw new CaseEncounterServiceError(
+          finalizationGate.disabledReason ??
+            "Encounter finalization gate is blocking discharge.",
           409,
         );
       }
@@ -934,6 +1491,45 @@ export const CaseEncounterService = {
       })) as EncounterRow;
     });
 
+    const overrideReason = input?.overrideReason?.trim();
+    const resolvedFinalizationGate = finalizationGate;
+
+    if (overrideReason) {
+      await AuditTrailService.recordSafely({
+        organisationId: updatedEncounter.organisationId,
+        patientId: updatedEncounter.patientId,
+        eventType: "ENCOUNTER_DISCHARGE_OVERRIDDEN",
+        actorType: input?.actorUserId ? "PMS_USER" : "SYSTEM",
+        actorId: input?.actorUserId ?? null,
+        entityType: "ENCOUNTER",
+        entityId: updatedEncounter.id,
+        metadata: {
+          encounterId: updatedEncounter.id,
+          overrideReason,
+          finalizationGate: resolvedFinalizationGate,
+        },
+        occurredAt: input?.dischargedAt ?? new Date(),
+      });
+    }
+
+    await AuditTrailService.recordSafely({
+      organisationId: updatedEncounter.organisationId,
+      patientId: updatedEncounter.patientId,
+      eventType: "ENCOUNTER_DISCHARGED",
+      actorType: input?.actorUserId ? "PMS_USER" : "SYSTEM",
+      actorId: input?.actorUserId ?? null,
+      entityType: "ENCOUNTER",
+      entityId: updatedEncounter.id,
+      metadata: {
+        encounterId: updatedEncounter.id,
+        dischargedAt: input?.dischargedAt?.toISOString?.() ?? undefined,
+        periodEnd: input?.periodEnd?.toISOString?.() ?? undefined,
+        overrideReason,
+        finalizationGate: resolvedFinalizationGate,
+      },
+      occurredAt: input?.dischargedAt ?? new Date(),
+    });
+
     return (
       await attachEncounterAppointmentIds([toEncounterDomain(updatedEncounter)])
     )[0];
@@ -968,16 +1564,6 @@ export const CaseEncounterService = {
       const admissionDelegate = (
         tx as unknown as { admission: AdmissionMutationDelegate }
       ).admission;
-      const roomUnitDelegate = (tx as unknown as { roomUnit: RoomUnitDelegate })
-        .roomUnit;
-      const roomUnitGroupDelegate = (
-        tx as unknown as { roomUnitGroup: RoomUnitGroupDelegate }
-      ).roomUnitGroup;
-      const companionDelegate = (
-        tx as unknown as {
-          companion: CompanionDelegate;
-        }
-      ).companion;
       const assignmentDelegate = (
         tx as unknown as { roomUnitAssignment: RoomUnitAssignmentDelegate }
       ).roomUnitAssignment;
@@ -1000,53 +1586,11 @@ export const CaseEncounterService = {
         );
       }
 
-      const unit = await roomUnitDelegate.findUnique({
-        where: { id: unitId },
+      await resolveAssignableUnitContext({
+        tx,
+        encounter,
+        unitId,
       });
-
-      if (!unit) {
-        throw new CaseEncounterServiceError("Room unit not found.", 404);
-      }
-
-      if (unit.organisationId !== encounter.organisationId) {
-        throw new CaseEncounterServiceError("Unit organisation mismatch.", 409);
-      }
-
-      if (!unit.isActive) {
-        throw new CaseEncounterServiceError("Selected unit is inactive.", 409);
-      }
-
-      const companion = await companionDelegate.findUnique({
-        where: { id: encounter.patientId },
-      });
-
-      if (!companion) {
-        throw new CaseEncounterServiceError("Companion not found.", 404);
-      }
-
-      assertRoomUnitSpeciesCompatibility(unit, companion);
-
-      if (unit.unitGroupId) {
-        const group = await roomUnitGroupDelegate.findUnique({
-          where: { id: unit.unitGroupId },
-        });
-
-        if (!group) {
-          throw new CaseEncounterServiceError(
-            "Room unit group not found.",
-            404,
-          );
-        }
-
-        if (group.organisationId !== encounter.organisationId) {
-          throw new CaseEncounterServiceError(
-            "Room unit group organisation mismatch.",
-            409,
-          );
-        }
-
-        assertRoomUnitGroupSpeciesCompatibility(group, companion);
-      }
 
       const conflictingAssignment = await assignmentDelegate.findFirst({
         where: {
@@ -1194,6 +1738,7 @@ export const CaseEncounterService = {
 
   async markEncounterReadyForDischarge(
     encounterId: string,
+    actorUserId?: string,
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
 
@@ -1214,6 +1759,14 @@ export const CaseEncounterService = {
           status: "onleave",
         },
       })) as EncounterRow;
+    });
+
+    await FinanceEventService.recordReadinessEvent({
+      organisationId: updatedEncounter.organisationId,
+      eventType: "ENCOUNTER_READY_FOR_DISCHARGE",
+      entityType: "ENCOUNTER",
+      entityId: id,
+      actorUserId,
     });
 
     return (

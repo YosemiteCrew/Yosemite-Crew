@@ -31,6 +31,7 @@ jest.mock('@/app/stores/roomStore', () => ({
 }));
 
 jest.mock('@yosemite-crew/types', () => ({
+  ...jest.requireActual('@yosemite-crew/types'),
   fromOrganisationRoomRequestDTO: jest.fn(),
   toOrganisationRoomResponseDTO: jest.fn(),
   fromFHIRRoomUnitGroup: jest.fn(),

@@ -23,7 +23,7 @@ describe("LabResultService", () => {
     jest.clearAllMocks();
   });
 
-  it("lists results by patient through prisma lab orders", async () => {
+  it("lists results by patient through prisma lab orders and direct patient matches", async () => {
     prismaMock.labOrder.findMany.mockResolvedValue([
       { idexxOrderId: "ORDER-1" },
       { idexxOrderId: null },
@@ -44,12 +44,34 @@ describe("LabResultService", () => {
       where: {
         organisationId: "ORG-1",
         provider: "IDEXX",
-        orderId: { in: ["ORDER-1"] },
+        OR: [{ patientId: "PATIENT-1" }, { orderId: { in: ["ORDER-1"] } }],
       },
       orderBy: { updatedAt: "desc" },
       take: undefined,
     });
     expect(results).toEqual([{ resultId: "RESULT-1" }]);
+  });
+
+  it("lists results by patient when there are no linked lab orders", async () => {
+    prismaMock.labOrder.findMany.mockResolvedValue([]);
+    prismaMock.labResult.findMany.mockResolvedValue([{ resultId: "RESULT-2" }]);
+
+    const results = await LabResultService.list({
+      organisationId: "ORG-1",
+      provider: "IDEXX",
+      patientId: "PATIENT-1",
+    });
+
+    expect(prismaMock.labResult.findMany).toHaveBeenCalledWith({
+      where: {
+        organisationId: "ORG-1",
+        provider: "IDEXX",
+        OR: [{ patientId: "PATIENT-1" }],
+      },
+      orderBy: { updatedAt: "desc" },
+      take: undefined,
+    });
+    expect(results).toEqual([{ resultId: "RESULT-2" }]);
   });
 
   it("gets a result by id through prisma", async () => {

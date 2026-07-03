@@ -11,9 +11,11 @@ import {
   listEncounterTreatmentItems,
   listEncounterWorkspaceDocuments,
   normalizeWorkspaceBootstrapForEncounter,
+  persistTreatmentItems,
   signWorkspaceDocumentPacket,
   updateEncounterTreatmentItem,
 } from '@/app/features/appointments/services/workspaceAggregateService';
+import type { LineItem } from '@/app/features/appointments/types/workspace';
 import { deleteData, getData, patchData, postData } from '@/app/services/axios';
 
 jest.mock('@/app/services/axios', () => ({
@@ -108,6 +110,117 @@ describe('workspaceAggregateService', () => {
     );
   });
 
+  it('POSTs new local rows and PATCHes edits to persisted rows', async () => {
+    // Backend already has the persisted row; no removals to reconcile.
+    (getData as jest.Mock).mockResolvedValueOnce({
+      data: [{ id: 'svc-persisted', servicePackageKind: 'SERVICE', billingStatus: 'UNBILLED' }],
+    });
+    const items: LineItem[] = [
+      {
+        id: 'svc-persisted',
+        refId: 'prod-1',
+        kind: 'SERVICE',
+        name: 'Saved service (qty edited)',
+        qty: 3,
+        unitPriceCents: 5000,
+        amountCents: 15000,
+      },
+      {
+        id: 'local-li-2',
+        refId: 'prod-2',
+        kind: 'PACKAGE',
+        name: 'New package',
+        qty: 2,
+        instructions: 'Apply twice',
+        unitPriceCents: 12000,
+        amountCents: 24000,
+      },
+    ];
+
+    await persistTreatmentItems('org-1', 'enc-1', items);
+
+    // The local- row is POSTed with the backend create contract.
+    expect(postData).toHaveBeenCalledTimes(1);
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/workspace/organisations/org-1/encounters/enc-1/treatment-items',
+      expect.objectContaining({
+        productId: 'prod-2',
+        servicePackageKind: 'PACKAGE',
+        quantity: 2,
+        priceSnapshot: { unitPrice: 120 },
+        productSnapshot: expect.objectContaining({
+          name: 'New package',
+          kind: 'PACKAGE',
+          instructions: 'Apply twice',
+        }),
+      })
+    );
+    // The persisted row's edit (qty 1 -> 3) is PATCHed so it survives rehydrate.
+    expect(patchData).toHaveBeenCalledTimes(1);
+    expect(patchData).toHaveBeenCalledWith(
+      '/v1/workspace/organisations/org-1/treatment-items/svc-persisted',
+      expect.objectContaining({
+        productId: 'prod-1',
+        servicePackageKind: 'SERVICE',
+        quantity: 3,
+        priceSnapshot: { unitPrice: 50 },
+        productSnapshot: expect.objectContaining({ name: 'Saved service (qty edited)' }),
+      })
+    );
+    // Nothing was removed, so no DELETE is issued.
+    expect(deleteData).not.toHaveBeenCalled();
+  });
+
+  it('DELETEs persisted service rows the clinician removed locally', async () => {
+    // Backend has two persisted rows; only one remains in the local list.
+    (getData as jest.Mock).mockResolvedValueOnce({
+      data: [
+        { id: 'svc-keep', servicePackageKind: 'SERVICE', billingStatus: 'UNBILLED' },
+        { id: 'svc-removed', servicePackageKind: 'PACKAGE', billingStatus: 'UNBILLED' },
+      ],
+    });
+    const items: LineItem[] = [
+      {
+        id: 'svc-keep',
+        refId: 'prod-1',
+        kind: 'SERVICE',
+        name: 'Kept service',
+        qty: 1,
+        unitPriceCents: 5000,
+        amountCents: 5000,
+      },
+    ];
+
+    await persistTreatmentItems('org-1', 'enc-1', items);
+
+    expect(deleteData).toHaveBeenCalledTimes(1);
+    expect(deleteData).toHaveBeenCalledWith(
+      '/v1/workspace/organisations/org-1/treatment-items/svc-removed'
+    );
+    // The kept row is still PATCHed.
+    expect(patchData).toHaveBeenCalledWith(
+      '/v1/workspace/organisations/org-1/treatment-items/svc-keep',
+      expect.any(Object)
+    );
+  });
+
+  it('never deletes billed or medication-kind backend rows', async () => {
+    (getData as jest.Mock).mockResolvedValueOnce({
+      data: [
+        { id: 'svc-billed', servicePackageKind: 'SERVICE', billingStatus: 'BILLED' },
+        { id: 'rx-row', servicePackageKind: 'MEDICATION', billingStatus: 'UNBILLED' },
+      ],
+    });
+
+    // Local list is empty: no service/package rows kept, but billed + medication
+    // rows must be preserved.
+    await persistTreatmentItems('org-1', 'enc-1', []);
+
+    expect(deleteData).not.toHaveBeenCalled();
+    expect(postData).not.toHaveBeenCalled();
+    expect(patchData).not.toHaveBeenCalled();
+  });
+
   it('normalizes aggregate diagnostics, encounter mode, and saved discharge state', () => {
     const patch = normalizeWorkspaceBootstrapForEncounter({
       appointment: { id: 'appt-1', kind: 'INPATIENT' },
@@ -120,6 +233,7 @@ describe('workspaceAggregateService', () => {
         readyForDischargeByName: 'Dr Discharge',
         readyForDischargeAt: '2026-06-18T10:05:00.000Z',
         admission: {
+          room: { id: 'room-1' },
           unitId: 'unit-1',
           admittedAt: '2026-06-18T08:30:00.000Z',
         },
@@ -163,6 +277,7 @@ describe('workspaceAggregateService', () => {
     });
 
     expect(patch.mode).toBe('INPATIENT');
+    expect(patch.roomId).toBe('room-1');
     expect(patch.unitId).toBe('unit-1');
     expect(patch.admittedAt).toBe('2026-06-18T08:30:00.000Z');
     expect(patch.readyForDischarge?.value).toBe(true);
@@ -202,13 +317,94 @@ describe('workspaceAggregateService', () => {
       invoice: {
         visitBillingStage: 'READY_FOR_BILLING',
         readyForBillingByName: 'Front Desk',
+        readyForBillingActorId: 'system',
         readyForBillingAt: '2026-06-18T11:05:00.000Z',
       },
     });
     expect(patch.readyForBilling?.value).toBe(true);
     expect(patch.readyForBilling?.byName).toBe('Front Desk');
+    expect(patch.readyForBilling?.byUserId).toBe('system');
     expect(patch.readyForBilling?.at).toBe('2026-06-18T11:05:00.000Z');
     // Discharge is not implied by billing.
+    expect(patch.readyForDischarge).toBeUndefined();
+  });
+
+  it('keeps ready-for-billing ticked once the invoice is SETTLED after payment', () => {
+    // Regression: paying advances the single-slot billing stage to SETTLED, overwriting
+    // READY_FOR_BILLING, and the backend reports readyForBilling: false. The milestone is
+    // monotonic — a paid visit was, by definition, ready for billing — so it must stay ticked.
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'in-progress', updatedAt: '2026-07-02T10:00:00.000Z' },
+      readyForBilling: false,
+      visitBillingStage: 'SETTLED',
+      invoice: {
+        status: 'PAID',
+        visitBillingStage: 'SETTLED',
+        paidAt: '2026-07-02T10:19:31.000Z',
+      },
+    });
+    expect(patch.readyForBilling?.value).toBe(true);
+  });
+
+  it('keeps ready-for-billing ticked for a PAID invoice even without an explicit stage', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'in-progress' },
+      readyForBilling: false,
+      invoice: { status: 'PAID', paidAt: '2026-07-02T10:19:31.000Z' },
+    });
+    expect(patch.readyForBilling?.value).toBe(true);
+  });
+
+  it('does not tick ready-for-billing for an unpaid DRAFT invoice', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'in-progress' },
+      readyForBilling: false,
+      visitBillingStage: 'DRAFT',
+      invoice: { status: 'AWAITING_PAYMENT', visitBillingStage: 'DRAFT' },
+    });
+    expect(patch.readyForBilling).toBeUndefined();
+  });
+
+  it('persists ready-for-discharge from the encounter onleave status (marked, not yet discharged)', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'onleave', updatedAt: '2026-07-02T10:00:00.000Z' },
+      readyForDischarge: true,
+      readyForDischargeByName: 'Dr Patel',
+    });
+    expect(patch.readyForDischarge?.value).toBe(true);
+    expect(patch.readyForDischarge?.byName).toBe('Dr Patel');
+  });
+
+  it('persists ready-for-discharge from the bootstrap flag even when encounter.status is absent', () => {
+    // The backend surfaces readiness as a top-level boolean; the old code only read
+    // encounter.status/encounter.readyForDischarge and dropped the flag on refresh.
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1' },
+      readyForDischarge: true,
+    });
+    expect(patch.readyForDischarge?.value).toBe(true);
+  });
+
+  it('keeps ready-for-discharge ticked once the visit is fully discharged (status finished)', () => {
+    // A full discharge advances status onleave -> finished and stamps admission.dischargedAt, so
+    // the backend reports readyForDischarge: false — but the milestone is monotonic and must persist.
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: {
+        id: 'enc-1',
+        status: 'finished',
+        admission: { dischargedAt: '2026-07-02T10:49:00.000Z' },
+      },
+      readyForDischarge: false,
+    });
+    expect(patch.readyForDischarge?.value).toBe(true);
+    expect(patch.readyForDischarge?.at).toBe('2026-07-02T10:49:00.000Z');
+  });
+
+  it('does not tick ready-for-discharge for an open, un-marked encounter', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: { id: 'enc-1', status: 'in-progress' },
+      readyForDischarge: false,
+    });
     expect(patch.readyForDischarge).toBeUndefined();
   });
 
@@ -224,6 +420,86 @@ describe('workspaceAggregateService', () => {
     });
     expect(patch.readyForBilling?.value).toBe(true);
     expect(patch.readyForDischarge?.value).toBe(true);
+  });
+
+  it('normalizes backend section locks and capabilities when present', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      sectionLocks: {
+        soap: { locked: true, reason: 'Record finalized' },
+        invoice: { locked: false },
+        // Unknown sections and malformed entries are ignored.
+        unknownSection: { locked: true },
+        treatment: { reason: 'no locked flag' },
+      },
+      capabilities: {
+        canEditSoap: false,
+        canCollectPayment: true,
+        notACapability: true,
+      },
+    });
+    expect(patch.sectionLocks).toEqual({
+      soap: { locked: true, reason: 'Record finalized' },
+      invoice: { locked: false, reason: undefined },
+    });
+    expect(patch.capabilities).toEqual({ canEditSoap: false, canCollectPayment: true });
+  });
+
+  it('reads section locks from the legacy `locks` key and omits absent contracts', () => {
+    const withLocks = normalizeWorkspaceBootstrapForEncounter({
+      locks: { discharge: { locked: true } },
+    });
+    expect(withLocks.sectionLocks).toEqual({ discharge: { locked: true, reason: undefined } });
+
+    const without = normalizeWorkspaceBootstrapForEncounter({ encounter: { id: 'enc-1' } });
+    expect(without.sectionLocks).toBeUndefined();
+    expect(without.capabilities).toBeUndefined();
+  });
+
+  it('reads capability flags from the backend `permissions` key', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      permissions: { canEditSoap: true, canCollectPayment: false, notACapability: true },
+    });
+    expect(patch.capabilities).toEqual({ canEditSoap: true, canCollectPayment: false });
+  });
+
+  it('normalizes the primary action and finalization gate from the bootstrap', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      primaryAction: {
+        kind: 'DISCHARGE',
+        label: 'Discharge patient',
+        detail: 'All requirements met',
+        enabled: true,
+      },
+      finalizationGate: {
+        enabled: false,
+        disabledReason: 'Forms not signed',
+        requiredFormsSigned: false,
+        billingReady: true,
+        notAGateFlag: true,
+      },
+    });
+    expect(patch.primaryAction).toEqual({
+      kind: 'DISCHARGE',
+      label: 'Discharge patient',
+      detail: 'All requirements met',
+      enabled: true,
+      disabledReason: undefined,
+    });
+    expect(patch.finalizationGate).toEqual({
+      enabled: false,
+      disabledReason: 'Forms not signed',
+      requiredFormsSigned: false,
+      billingReady: true,
+    });
+  });
+
+  it('skips an unlabelled primary action and a gate without an enabled flag', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      primaryAction: { kind: 'NONE' },
+      finalizationGate: { disabledReason: 'no enabled flag' },
+    });
+    expect(patch.primaryAction).toBeUndefined();
+    expect(patch.finalizationGate).toBeUndefined();
   });
 
   it('splits package-expanded treatment items into services and prescriptions by kind', () => {
@@ -290,6 +566,39 @@ describe('workspaceAggregateService', () => {
     expect(patch.stepStatus?.TREATMENT).toBe('COMPLETED');
   });
 
+  it('keeps a billed prescription-linked item in the prescription section even when its kind is not a medication', () => {
+    // After billing/dispense the backend can persist the drug as a treatment-item
+    // row whose kind is no longer MEDICATION/PRESCRIPTION but which still links to a
+    // prescription artifact. It must stay in the prescription section (read-only via
+    // `billed`), not be misfiled under Services & Packages or dropped entirely.
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      treatmentItems: [
+        {
+          id: 'ti-billed-rx',
+          productId: 'prod-drug',
+          servicePackageKind: 'SERVICE',
+          prescriptionId: 'rx-artifact-1',
+          name: 'Metronidazole',
+          quantity: 1,
+          priceSnapshot: { unitPrice: 18 },
+          billingStatus: 'BILLED',
+        },
+      ],
+    });
+
+    expect(patch.services ?? []).not.toContainEqual(
+      expect.objectContaining({ id: 'ti-billed-rx' })
+    );
+    expect(patch.prescription).toEqual([
+      expect.objectContaining({
+        id: 'ti-billed-rx',
+        medicineName: 'Metronidazole',
+        priceCents: 1800,
+        billed: true,
+      }),
+    ]);
+  });
+
   it('merges stored prescriptions with medication treatment items without duplicating ids', () => {
     const patch = normalizeWorkspaceBootstrapForEncounter({
       prescriptions: [
@@ -330,5 +639,138 @@ describe('workspaceAggregateService', () => {
     ]);
     // The PRESCRIPTION-kind treatment item is not also rendered as a service row.
     expect(patch.services).toBeUndefined();
+  });
+
+  it('reads the nested { artifact, prescription } envelope and per-line items', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      prescriptions: [
+        {
+          artifact: {
+            id: 'artifact-1',
+            kind: 'PRESCRIPTION',
+            status: 'COMPLETED',
+            summary: 'Carprofen 75 mg Tablets',
+          },
+          prescription: {
+            id: 'rx-1',
+            items: [
+              {
+                id: 'line-1',
+                medication: '',
+                strength: '75mg',
+                dosage: '75mg',
+                route: 'PO',
+                frequency: 'BID',
+                quantity: '2',
+                metadata: { dosageForm: 'Tablet' },
+              },
+            ],
+            medications: [{ medication: '', inventoryItemId: 'inv-1' }],
+          },
+        },
+      ],
+      // Same backend id as the artifact — must not produce a duplicate row.
+      treatmentItems: [
+        {
+          id: 'rx-1',
+          prescriptionId: 'rx-1',
+          servicePackageKind: 'PRESCRIPTION',
+          name: 'Treatment items',
+          quantity: 1,
+        },
+      ],
+    });
+
+    expect(patch.prescription).toEqual([
+      expect.objectContaining({
+        id: 'line-1',
+        // Per-line medication is blank, so the artifact summary is the label.
+        medicineName: 'Carprofen 75 mg Tablets',
+        strength: '75mg',
+        dosageForm: 'Tablet',
+        dosage: '75mg',
+        route: 'PO',
+        frequency: 'BID',
+        qty: '2',
+      }),
+    ]);
+    expect(patch.services).toBeUndefined();
+  });
+
+  it('flags an artifact-sourced prescription line as billed from its medication treatment item', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      prescriptions: [
+        {
+          artifact: { id: 'artifact-1', kind: 'PRESCRIPTION', summary: 'Paracetamol' },
+          prescription: {
+            id: 'rx-1',
+            items: [{ id: 'line-1', medication: 'Paracetamol', inventoryItemId: 'inv-9' }],
+            medications: [{ medication: 'Paracetamol', inventoryItemId: 'inv-9' }],
+          },
+        },
+      ],
+      // The billed status lives on the medication treatment item and links to the artifact by
+      // prescriptionId. Inventory id alone is not enough because the same drug can be prescribed
+      // more than once.
+      treatmentItems: [
+        {
+          id: 'ti-1',
+          prescriptionId: 'rx-1',
+          productId: 'inv-9',
+          servicePackageKind: 'MEDICATION',
+          name: 'Paracetamol',
+          quantity: 1,
+          billingStatus: 'BILLED',
+        },
+      ],
+    });
+
+    expect(patch.prescription).toEqual([expect.objectContaining({ id: 'line-1', billed: true })]);
+  });
+
+  it('does not mark a same-drug artifact prescription as billed without a prescription link', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      prescriptions: [
+        {
+          artifact: { id: 'artifact-2', kind: 'PRESCRIPTION', summary: 'Paracetamol repeat' },
+          prescription: {
+            id: 'rx-repeat',
+            items: [{ id: 'line-repeat', medication: 'Paracetamol', inventoryItemId: 'inv-9' }],
+          },
+        },
+      ],
+      treatmentItems: [
+        {
+          id: 'ti-billed-other',
+          prescriptionId: 'rx-original',
+          productId: 'inv-9',
+          servicePackageKind: 'MEDICATION',
+          name: 'Paracetamol',
+          quantity: 1,
+          billingStatus: 'BILLED',
+        },
+      ],
+    });
+
+    expect(patch.prescription).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'line-repeat', billed: false })])
+    );
+  });
+
+  it('keeps an artifact-sourced prescription line unbilled when no billed treatment item matches', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      prescriptions: [
+        {
+          artifact: { id: 'artifact-1', kind: 'PRESCRIPTION', summary: 'Paracetamol' },
+          prescription: {
+            id: 'rx-1',
+            items: [{ id: 'line-1', medication: 'Paracetamol', inventoryItemId: 'inv-9' }],
+          },
+        },
+      ],
+      treatmentItems: [],
+    });
+
+    expect(patch.prescription).toEqual([expect.objectContaining({ id: 'line-1', billed: false })]);
   });
 });

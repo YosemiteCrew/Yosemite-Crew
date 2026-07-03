@@ -995,7 +995,11 @@ export const UserOrganizationService = {
 
   async listByUserId(id: string) {
     const userId = requireSafeString(id, "User Id");
-    const practitionerReferences = [userId, `Practitioner/${userId}`];
+    const practitionerReferences = [
+      userId,
+      `Practitioner/${userId}`,
+      `User/${userId}`,
+    ];
 
     const mappings = await prisma.userOrganization.findMany({
       where: {
@@ -1174,5 +1178,35 @@ export const UserOrganizationService = {
     }
 
     return { scannedCount, updatedCount };
+  },
+
+  async getMappingByUserAndOrganization(
+    userId: string,
+    organizationId: string,
+  ) {
+    const practitionerReferences = [
+      userId,
+      `Practitioner/${userId}`,
+      `User/${userId}`,
+    ];
+    const organizationReferences = [
+      organizationId,
+      `Organization/${organizationId}`,
+    ];
+
+    const mapping = await prisma.userOrganization.findFirst({
+      where: {
+        practitionerReference: { in: practitionerReferences },
+        organizationReference: { in: organizationReferences },
+      },
+    });
+
+    if (!mapping) {
+      return null;
+    }
+
+    return toUserOrganizationResponseDTO(
+      buildUserOrganizationDomainFromPrisma(mapping),
+    );
   },
 };

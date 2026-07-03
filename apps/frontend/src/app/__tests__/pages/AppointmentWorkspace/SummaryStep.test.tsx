@@ -1,16 +1,31 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import SummaryStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SummaryStep';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
-import { listDischargeSummaryTemplates } from '@/app/features/appointments/services/workspaceTemplateService';
-import { getRenderedDocument } from '@/app/features/appointments/services/workspaceClinicalService';
+import type { WorkspaceDocumentRow } from '@yosemite-crew/types';
+import {
+  extractFollowUpInDays,
+  listDischargeSummaryTemplates,
+  resolveDischargeTemplate,
+} from '@/app/features/appointments/services/workspaceTemplateService';
+import {
+  getRenderedDocument,
+  saveDischargeSummaryArtifact,
+} from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  getAppointmentWorkspaceBootstrap,
+  listEncounterWorkspaceDocuments,
+  reconcileWorkspaceDocumentPacket,
+} from '@/app/features/appointments/services/workspaceAggregateService';
 
 jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
   listDischargeSummaryTemplates: jest.fn(),
+  resolveDischargeTemplate: jest.fn(),
+  extractFollowUpInDays: jest.fn(() => undefined),
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
@@ -18,13 +33,69 @@ jest.mock('@/app/features/appointments/services/workspaceClinicalService', () =>
   saveDischargeSummaryArtifact: jest.fn().mockResolvedValue({ id: 'saved-summary' }),
 }));
 
+// Capability gating: grant document:view:any so document actions render.
+jest.mock('@/app/hooks/usePermissions', () => ({
+  usePermissions: () => ({ can: () => true }),
+}));
+
+// Packet-signing behaviour is covered in
+// __tests__/features/appointments/AppointmentWorkspace/SummaryStep.test.tsx.
+jest.mock('@/app/features/appointments/services/workspaceAggregateService', () => ({
+  createEncounterDocumentPacket: jest.fn().mockResolvedValue({ packetId: 'packet-1' }),
+  signWorkspaceDocumentPacket: jest.fn().mockResolvedValue({
+    packetId: 'packet-1',
+    signing: { status: 'IN_PROGRESS', signingUrl: 'https://sign.test/abc' },
+  }),
+  getEncounterDocumentPacketPdfUrl: jest.fn().mockResolvedValue('blob:packet-pdf'),
+  reconcileWorkspaceDocumentPacket: jest.fn().mockResolvedValue({ packetId: 'packet-1' }),
+  listEncounterWorkspaceDocuments: jest.fn(),
+  getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
+  normalizeWorkspaceBootstrapForEncounter: jest.fn(() => ({})),
+}));
+
+const makeDocumentRow = (overrides: Partial<WorkspaceDocumentRow> = {}): WorkspaceDocumentRow => ({
+  documentId: 'doc-1',
+  sourceKind: 'SOAP_NOTE',
+  sourceId: 'src-1',
+  appointmentId: 'appt-summary',
+  encounterId: 'enc-1',
+  companionId: null,
+  templateId: null,
+  templateVersion: null,
+  title: 'Signed SOAP note',
+  kind: 'SOAP_NOTE',
+  status: 'FINAL',
+  signingStatus: 'SIGNED',
+  pdfUrl: null,
+  createdAt: new Date('2026-04-20T12:30:00Z'),
+  updatedAt: new Date('2026-04-20T12:45:00Z'),
+  ...overrides,
+});
+
 jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
   __esModule: true,
-  default: ({ open, title, pdfUrl }: { open: boolean; title: string; pdfUrl: string | null }) =>
+  default: ({
+    open,
+    title,
+    pdfUrl,
+    downloadLabel,
+    onDownload,
+  }: {
+    open: boolean;
+    title: string;
+    pdfUrl: string | null;
+    downloadLabel?: string;
+    onDownload?: () => void;
+  }) =>
     open ? (
       <div data-testid="pdf-preview">
         <span>{title}</span>
         <span>{pdfUrl}</span>
+        {onDownload && (
+          <button type="button" aria-label={downloadLabel} onClick={onDownload}>
+            Download
+          </button>
+        )}
       </div>
     ) : null,
 }));
@@ -63,6 +134,7 @@ const appointment = {
   id: APPT,
   organisationId: 'org-1',
   encounterId: 'enc-1',
+  status: 'IN_PROGRESS',
 } as any;
 
 const reset = () => {
@@ -78,6 +150,10 @@ const reset = () => {
     submissionId: null,
   });
   (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([]);
+  (resolveDischargeTemplate as jest.Mock).mockResolvedValue(null);
+  (extractFollowUpInDays as jest.Mock).mockReturnValue(undefined);
+  (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
+  (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({ packetId: 'packet-1' });
   (getRenderedDocument as jest.Mock).mockResolvedValue({ pdfUrl: 'https://files.test/doc.pdf' });
 };
 
@@ -92,30 +168,27 @@ const renderSummary = (encounter: AppointmentEncounter) => {
 
 describe('SummaryStep', () => {
   beforeEach(reset);
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-  it('renders discharge summary, follow-up date field and all documents', () => {
+  it('renders discharge summary, follow-up date field and backend documents', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ title: 'Signed SOAP note' }),
+    ]);
     const enc = seedAndGet();
-    const withDocument = {
-      ...enc,
-      documents: [
-        {
-          id: 'doc-soap-1',
-          createdAt: '2026-04-20T12:30:00Z',
-          category: 'SOAP' as const,
-          description: 'Signed SOAP note',
-          signedByName: 'Dr. Tim Apple',
-          lastModifiedAt: '2026-04-20T12:45:00Z',
-        },
-      ],
-    };
-    renderSummary(withDocument);
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
 
     expect(screen.getByText('Discharge Summary')).toBeInTheDocument();
     expect(screen.getByLabelText('Discharge summary')).toBeInTheDocument();
     // Follow-up is now a date-picker field labelled "Follow up date".
     expect(screen.getByRole('button', { name: /follow up date/i })).toBeInTheDocument();
     expect(screen.getByText('All Documents')).toBeInTheDocument();
-    expect(screen.getByText('Signed SOAP note')).toBeInTheDocument();
+    // Documents are sourced from the backend read-model, not rebuilt client-side.
+    expect(await screen.findByText('Signed SOAP note')).toBeInTheDocument();
+    expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-1');
   });
 
   it('places the follow-up date field after the discharge editor', () => {
@@ -158,6 +231,271 @@ describe('SummaryStep', () => {
     );
   });
 
+  it('fills rich discharge template defaults without duplicate field headings', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-25T00:00:00.000Z') });
+    (extractFollowUpInDays as jest.Mock).mockReturnValue(3);
+    (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-discharge-rich',
+        name: 'Sample discharge',
+        latestVersion: 1,
+        publishedVersion: 1,
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'summary',
+                  title: 'Discharge summary',
+                  fields: [
+                    {
+                      key: 'summaryText',
+                      type: 'richText',
+                      label: 'Discharge summary',
+                      defaultValue: '<p>Patient can rest at home.</p>',
+                    },
+                  ],
+                },
+                {
+                  id: 'follow_up',
+                  title: 'Follow up',
+                  fields: [
+                    {
+                      key: 'followUpInDays',
+                      type: 'number',
+                      label: 'Follow up in (days)',
+                      defaultValue: '3',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    fireEvent.change(screen.getByLabelText(/search discharge templates/i), {
+      target: { value: 'sample' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /sample discharge/i }));
+
+    const summary = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSummary;
+    expect(summary).toBe('<p>Patient can rest at home.</p>');
+    expect(summary).not.toContain('Discharge summary</strong>');
+    expect(summary).not.toContain('Follow up in (days)');
+    const followUpAt = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt;
+    const diffMs =
+      new Date(followUpAt ?? '').getTime() - new Date('2026-06-25T00:00:00.000Z').getTime();
+    expect(diffMs).toBe(3 * 24 * 60 * 60 * 1000);
+  });
+
+  it('renders the default discharge template without duplicate field labels', async () => {
+    (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: '11111111-1111-4111-8111-111111111113',
+        name: 'Default discharge summary',
+        latestVersion: 1,
+        publishedVersion: 1,
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'summary',
+                  title: 'Summary',
+                  fields: [
+                    {
+                      key: 'summaryText',
+                      type: 'richText',
+                      label: 'Summary text',
+                      required: true,
+                    },
+                  ],
+                },
+                {
+                  id: 'diagnoses',
+                  title: 'Diagnoses',
+                  fields: [
+                    {
+                      key: 'diagnosisItems',
+                      type: 'diagnosis',
+                      label: 'Diagnosis items',
+                      required: true,
+                      repeatable: true,
+                    },
+                  ],
+                },
+                {
+                  id: 'medications',
+                  title: 'Medications',
+                  fields: [
+                    {
+                      key: 'medicationLines',
+                      type: 'medicationLine',
+                      label: 'Medication lines',
+                      required: true,
+                      repeatable: true,
+                      rules: { columns: ['drug', 'dose', 'frequency', 'duration'] },
+                    },
+                  ],
+                },
+                {
+                  id: 'follow_up',
+                  title: 'Follow Up',
+                  fields: [{ key: 'followUpDate', type: 'datetime', label: 'Follow up date' }],
+                },
+                {
+                  id: 'instructions',
+                  title: 'Instructions',
+                  fields: [
+                    {
+                      key: 'dischargeInstructions',
+                      type: 'instructionBlock',
+                      label: 'Discharge instructions',
+                      required: true,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    fireEvent.change(screen.getByLabelText(/search discharge templates/i), {
+      target: { value: 'default' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /default discharge summary/i }));
+
+    const summary = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSummary;
+    expect(summary).toContain('<strong>Summary</strong>');
+    expect(summary).toContain('<strong>Diagnoses</strong>');
+    expect(summary).toContain('<strong>Medications</strong>');
+    expect(summary).toContain('<strong>Instructions</strong>');
+    expect(summary).not.toContain('Summary text');
+    expect(summary).not.toContain('Diagnosis items');
+    expect(summary).not.toContain('Medication lines');
+    expect(summary).not.toContain('Follow up date');
+    expect(summary).not.toContain('Discharge instructions');
+  });
+
+  it('resolves a discharge template by context and saves with template provenance', async () => {
+    (resolveDischargeTemplate as jest.Mock).mockResolvedValue({
+      templateId: 'tpl-resolved-1',
+      templateVersion: 4,
+      templateVersionId: 'tplv-9',
+      schemaSnapshot: {
+        sections: [
+          {
+            id: 'care',
+            title: 'Home care',
+            fields: [{ key: 'meds', label: 'Medication schedule' }],
+          },
+        ],
+      },
+    });
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    // Resolve is asked for the discharge kind with the encounter's context.
+    expect(resolveDischargeTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organisationId: 'org-1',
+        encounterId: 'enc-1',
+        appointmentId: APPT,
+      })
+    );
+
+    // The editor is hydrated from the resolved template's schema snapshot.
+    await waitFor(() =>
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSummary
+      ).toContain('Medication schedule')
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    // The saved artifact carries the resolved template provenance.
+    await waitFor(() =>
+      expect(saveDischargeSummaryArtifact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          templateId: 'tpl-resolved-1',
+          templateVersion: 4,
+          templateVersionId: 'tplv-9',
+        }),
+        expect.any(String),
+        undefined
+      )
+    );
+  });
+
+  it('prefills the follow-up date from resolved follow-up days', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-25T00:00:00.000Z') });
+    (extractFollowUpInDays as jest.Mock).mockReturnValue(3);
+    (resolveDischargeTemplate as jest.Mock).mockResolvedValue({
+      templateId: 'tpl-resolved-days',
+      templateVersion: 1,
+      schemaSnapshot: {
+        sections: [
+          {
+            id: 'summary',
+            title: 'Discharge summary',
+            fields: [
+              {
+                key: 'summaryText',
+                type: 'richText',
+                label: 'Discharge summary',
+                defaultValue: '<p>Rest at home.</p>',
+              },
+            ],
+          },
+          {
+            id: 'follow_up',
+            title: 'Follow up',
+            fields: [
+              {
+                key: 'followUpInDays',
+                type: 'number',
+                label: 'Follow up in (days)',
+                defaultValue: '3',
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    await waitFor(() =>
+      expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt).toBeDefined()
+    );
+    const followUpAt = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt;
+    const diffMs =
+      new Date(followUpAt ?? '').getTime() - new Date('2026-06-25T00:00:00.000Z').getTime();
+    expect(diffMs).toBe(3 * 24 * 60 * 60 * 1000);
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSummary).toBe(
+      '<p>Rest at home.</p>'
+    );
+    jest.useRealTimers();
+  });
+
   it('passes an existing follow-up date into the picker field', () => {
     const enc = { ...seedAndGet(), followUpAt: '2026-05-10T12:00:00Z' };
     renderSummary(enc);
@@ -187,73 +525,164 @@ describe('SummaryStep', () => {
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt).toBeUndefined();
   });
 
-  it('signs summary, adds a document and opens the signing overlay', () => {
-    const enc = seedAndGet();
-    const before = enc.documents.length;
+  it('falls back to the browser print dialog without encounter context', () => {
+    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     renderSummary(enc);
 
-    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
-
-    const updated = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
-    expect(updated.documents).toHaveLength(before + 1);
-    expect(updated.documents[0].description).toBe('Signed discharge summary');
-    expect(updated.stepStatus.SUMMARY).toBe('COMPLETED');
-    expect(useSigningOverlayStore.getState().open).toBe(true);
-    expect(screen.getByText('Preparing signing session...')).toBeInTheDocument();
-  });
-
-  it('prints all documents', () => {
-    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
-    renderSummary(seedAndGet());
-
-    fireEvent.click(screen.getByRole('button', { name: /^print$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
 
     expect(printSpy).toHaveBeenCalled();
     printSpy.mockRestore();
   });
 
-  it('opens an existing workspace document PDF', async () => {
-    const enc = {
-      ...seedAndGet(),
-      documents: [
-        {
-          id: 'doc-1',
-          pdfUrl: 'https://files.test/direct.pdf',
-          createdAt: '2026-04-20T12:30:00Z',
-          category: 'SOAP' as const,
-          description: 'Signed SOAP note',
-          signedByName: 'Dr. Tim Apple',
-          lastModifiedAt: '2026-04-20T12:45:00Z',
-        },
-      ],
-    };
-    renderSummary(enc);
+  it('opens the merged packet PDF when printing with encounter context', async () => {
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /view signed soap note/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
+
+    const preview = await screen.findByTestId('pdf-preview');
+    expect(preview).toHaveTextContent('Clinical packet');
+    expect(preview).toHaveTextContent('blob:packet-pdf');
+    expect(screen.getByRole('button', { name: 'Download clinical packet' })).toBeInTheDocument();
+  });
+
+  it('refreshes documents and encounter after the signing overlay closes', async () => {
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+
+    (listEncounterWorkspaceDocuments as jest.Mock).mockClear();
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockClear();
+
+    // Closing the overlay (signing finished server-side via the Documenso webhook)
+    // triggers a refetch of documents + the encounter read-model so the documents
+    // list, discharge status, and finalization gate reflect the signature.
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    await waitFor(() => {
+      expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith('org-1', APPT);
+      expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-1');
+    });
+  });
+
+  it('swaps Sign for Download Signed when reconcile reports the packet signed', async () => {
+    // Documents read-model still reports the packet unsigned, so the swap must be
+    // driven by the reconcile response (packet-level signing truth).
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ title: 'SOAP note', signingStatus: 'IN_PROGRESS' }),
+    ]);
+    (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({
+      packetId: 'packet-1',
+      status: 'FINAL',
+      signing: { status: 'SIGNED' },
+    });
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Download Signed' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
+  });
+
+  it('opens an existing workspace document PDF', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({
+        documentId: 'doc-1',
+        title: 'Signed SOAP note',
+        pdfUrl: 'https://files.test/direct.pdf',
+      }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /view signed soap note/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('pdf-preview')).toHaveTextContent('Signed SOAP note');
     });
     expect(screen.getByTestId('pdf-preview')).toHaveTextContent('https://files.test/direct.pdf');
     expect(getRenderedDocument).not.toHaveBeenCalled();
+    expect(
+      within(screen.getByTestId('pdf-preview')).getByRole('button', {
+        name: 'Download Signed SOAP note',
+      })
+    ).toBeInTheDocument();
+  });
+
+  it('opens the same document PDF overlay from the download action', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({
+        documentId: 'doc-1',
+        title: 'Signed SOAP note',
+        pdfUrl: 'https://files.test/direct.pdf',
+      }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /download signed soap note/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pdf-preview')).toHaveTextContent('Signed SOAP note');
+    });
+    expect(screen.getByTestId('pdf-preview')).toHaveTextContent('https://files.test/direct.pdf');
+    expect(
+      within(screen.getByTestId('pdf-preview')).getByRole('button', {
+        name: 'Download Signed SOAP note',
+      })
+    ).toBeInTheDocument();
   });
 
   it('looks up a rendered document PDF when the document row has no direct URL', async () => {
-    const enc = {
-      ...seedAndGet(),
-      documents: [
-        {
-          id: 'rendered-1',
-          createdAt: '2026-04-20T12:30:00Z',
-          category: 'Discharge' as const,
-          description: 'Discharge summary',
-          lastModifiedAt: '2026-04-20T12:45:00Z',
-        },
-      ],
-    };
-    render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({
+        documentId: 'rendered-1',
+        title: 'Discharge summary',
+        sourceKind: 'DISCHARGE_SUMMARY',
+        pdfUrl: null,
+      }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: /view discharge summary/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /view discharge summary/i }));
 
     await waitFor(() => {
       expect(getRenderedDocument).toHaveBeenCalledWith('org-1', 'rendered-1');
@@ -266,22 +695,27 @@ describe('SummaryStep', () => {
     const clickSpy = jest
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => undefined);
-    const enc = {
-      ...seedAndGet(),
-      documents: [
-        {
-          id: 'doc-download',
-          pdfUrl: 'https://files.test/download.pdf',
-          createdAt: '2026-04-20T12:30:00Z',
-          category: 'SOAP' as const,
-          description: 'Signed SOAP note',
-          lastModifiedAt: '2026-04-20T12:45:00Z',
-        },
-      ],
-    };
-    renderSummary(enc);
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({
+        documentId: 'doc-download',
+        title: 'Signed SOAP note',
+        pdfUrl: 'https://files.test/download.pdf',
+      }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: /download signed soap note/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /download signed soap note/i }));
+
+    await screen.findByTestId('pdf-preview');
+    fireEvent.click(
+      within(screen.getByTestId('pdf-preview')).getByRole('button', {
+        name: 'Download Signed SOAP note',
+      })
+    );
 
     await waitFor(() => {
       expect(clickSpy).toHaveBeenCalled();
@@ -301,7 +735,7 @@ describe('SummaryStep', () => {
     // The follow-up picker is wrapped in a non-interactive (aria-disabled) shell.
     const followUpButton = screen.getByRole('button', { name: /follow up date/i });
     expect(followUpButton.closest('[aria-disabled="true"]')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^sign$/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
   });
 
   it('has no axe accessibility violations', async () => {
@@ -311,36 +745,36 @@ describe('SummaryStep', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('derives document rows from saved SOAP notes and prescriptions', () => {
-    const enc = {
-      ...seedAndGet(),
-      soap: [
-        {
-          id: 'note-1',
-          chiefComplaint: '',
-          subjective: '<p>Lethargy</p>',
-          objective: '',
-          assessment: '',
-          plan: '',
-          status: 'COMPLETED' as const,
-          createdAt: '2026-04-20T12:30:00Z',
-        },
-      ],
-      prescription: [{ id: 'rx-1', medicineName: 'Amoxicillin', fulfillment: 'IN_HOUSE' as const }],
-    } as AppointmentEncounter;
-    renderSummary(enc);
+  it('renders backend document rows with humanised source, status and signing state', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({
+        documentId: 'doc-soap',
+        title: 'SOAP note',
+        sourceKind: 'SOAP_NOTE',
+        status: 'FINAL',
+        signingStatus: 'NOT_REQUIRED',
+      }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
 
-    expect(screen.getByText('SOAP note')).toBeInTheDocument();
-    expect(screen.getByText(/Prescription — Amoxicillin/)).toBeInTheDocument();
+    expect(await screen.findByText('SOAP note')).toBeInTheDocument();
+    // Raw backend enums are humanised before display.
+    expect(screen.getByText('Soap note')).toBeInTheDocument(); // source pill
+    expect(screen.getByText('Final')).toBeInTheDocument(); // document status
+    expect(screen.getByText('Not required')).toBeInTheDocument(); // signing status
   });
 
   it('does not render the terminal Complete button inside the summary body', () => {
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     render(<SummaryStep appointmentId={APPT} encounter={enc} />);
 
-    expect(screen.queryByRole('button', { name: /discharge/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^edit discharge summary$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^complete$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^print$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^print all$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument();
   });
 
@@ -350,6 +784,69 @@ describe('SummaryStep', () => {
     render(<SummaryStep appointmentId={APPT} encounter={enc} />);
 
     expect(screen.queryByText('Discharge date & time')).not.toBeInTheDocument();
+  });
+
+  it('uses the parent-threaded resolved encounter id when the appointment lacks one', async () => {
+    // Appointment predates bootstrap and carries no encounterId; the parent passes
+    // the hydrated id via resolvedEncounterId.
+    const appointmentWithoutEncounter = {
+      id: APPT,
+      organisationId: 'org-1',
+      status: 'IN_PROGRESS',
+    } as any;
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    await act(async () => {
+      render(
+        <SummaryStep
+          appointmentId={APPT}
+          appointment={appointmentWithoutEncounter}
+          encounter={enc}
+          resolvedEncounterId="enc-hydrated"
+        />
+      );
+    });
+
+    // Document list and signing read the hydrated id, not undefined.
+    await waitFor(() =>
+      expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-hydrated')
+    );
+    // No bootstrap fallback is needed when the prop already supplies the id.
+    expect(getAppointmentWorkspaceBootstrap).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+    expect(screen.queryByText('Missing organisation or encounter for signing.')).toBeNull();
+  });
+
+  it('hydrates the encounter id from the bootstrap when none is supplied', async () => {
+    const appointmentWithoutEncounter = {
+      id: APPT,
+      organisationId: 'org-1',
+    } as any;
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({
+      encounter: { id: 'enc-bootstrap' },
+    });
+    const enc = seedAndGet();
+    await act(async () => {
+      render(
+        <SummaryStep
+          appointmentId={APPT}
+          appointment={appointmentWithoutEncounter}
+          encounter={enc}
+        />
+      );
+    });
+
+    // The bootstrap is consulted to recover the encounter id, then the document
+    // list loads against the hydrated id (instead of returning early).
+    await waitFor(() =>
+      expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith('org-1', APPT)
+    );
+    await waitFor(() =>
+      expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-bootstrap')
+    );
   });
 
   it('keeps discharge date/time out of the summary body once discharged', () => {

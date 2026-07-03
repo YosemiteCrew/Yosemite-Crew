@@ -40,6 +40,7 @@ jest.mock('@/app/stores/serviceStore', () => ({
 
 // 4. Mock External Utils
 jest.mock('@yosemite-crew/types', () => ({
+  ...jest.requireActual('@yosemite-crew/types'),
   fromServiceRequestDTO: jest.fn(),
 }));
 const mockedFromDTO = fromServiceRequestDTO as jest.Mock;

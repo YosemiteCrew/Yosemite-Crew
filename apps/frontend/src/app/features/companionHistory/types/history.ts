@@ -24,7 +24,8 @@ export type HistoryEntry = {
     kind: string;
     id: string;
     appointmentId?: string;
-    companionId: string;
+    patientId?: string;
+    companionId?: string;
   };
   source: string;
   payload: Record<string, unknown>;
@@ -58,10 +59,10 @@ export const getFormHistoryLabel = (orgType?: string | null): string => {
   return CLINICAL_ORG_TYPES.has(normalizedOrgType) ? 'SOAP / Templates' : 'Care plan / Templates';
 };
 
-export const getHistoryFilters = (orgType?: string | null): HistoryFilterDefinition[] => [
+export const getHistoryFilters = (_orgType?: string | null): HistoryFilterDefinition[] => [
   { key: 'APPOINTMENT', label: 'Appointments' },
   { key: 'LAB_RESULT', label: 'Diagnostics' },
-  { key: 'MEDICAL_RECORDS', label: getFormHistoryLabel(orgType) },
+  { key: 'MEDICAL_RECORDS', label: 'Medical records' },
   { key: 'TASK', label: 'Tasks' },
   { key: 'INVOICE', label: 'Billing' },
   { key: 'AUDIT_TRAIL', label: 'Audit trail' },

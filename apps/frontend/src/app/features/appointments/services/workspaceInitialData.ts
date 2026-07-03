@@ -55,6 +55,10 @@ export const buildEmptyEncounter = (
   invoiceLineItems: [],
   pastInvoices: [],
   depositCents: 0,
+  // Pre-hydration placeholder only: a valid ISO-4217 code is required because
+  // money.ts (Intl.NumberFormat) throws on empty/invalid codes. The server's
+  // org-derived currency always wins once billing is hydrated into the store
+  // (see appointmentWorkspaceStore: `currency: billing.currency ?? enc.currency`).
   currency: 'USD',
   withdrawDeposit: false,
   taxPercent: 0,

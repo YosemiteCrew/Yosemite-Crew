@@ -1,12 +1,41 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
+
+const mockGetStripeBillingPortal = jest.fn();
+const mockCan = jest.fn();
+
+jest.mock('@/app/features/billing/services/billingService', () => ({
+  getStripeBillingPortal: () => mockGetStripeBillingPortal(),
+}));
+
+jest.mock('@/app/lib/urls', () => ({
+  getSafeStripeRedirectUrl: (url: string) => url,
+}));
+
+jest.mock('@/app/hooks/useBilling', () => ({
+  useSubscriptionForPrimaryOrg: () => ({
+    plan: 'business',
+    stripeCustomerId: 'cus_123',
+  }),
+}));
+
+jest.mock('@/app/hooks/usePermissions', () => ({
+  usePermissions: () => ({ can: mockCan }),
+}));
+
+jest.mock('@/app/ui/widgets/Upgrade', () => ({
+  __esModule: true,
+  default: () => <span>Upgrade</span>,
+}));
 
 describe('AccordionButton Component', () => {
   const mockButtonClick = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCan.mockReturnValue(false);
+    mockGetStripeBillingPortal.mockResolvedValue('https://billing.stripe.com/session');
   });
 
   it('renders closed by default and toggles content on click', () => {
@@ -125,5 +154,24 @@ describe('AccordionButton Component', () => {
 
     expect(mockButtonClick).toHaveBeenCalledWith(true);
     expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+  });
+
+  it('opens billing portal in a new tab for subscription editors', async () => {
+    mockCan.mockReturnValue(true);
+    const openSpy = jest.spyOn(globalThis, 'open').mockImplementation(() => null);
+
+    render(<AccordionButton title="Payment" finance showButton={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Billing portal' }));
+
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://billing.stripe.com/session',
+        '_blank',
+        'noopener,noreferrer'
+      );
+    });
+
+    openSpy.mockRestore();
   });
 });

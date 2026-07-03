@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function AccessibilityPage() {
   return (
     <>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-6 py-16">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-6 pt-22 pb-16">
         <h1 className="text-display-2 text-text-primary mb-8">Accessibility Statement</h1>
 
         <section aria-labelledby="commitment-heading" className="mb-10">

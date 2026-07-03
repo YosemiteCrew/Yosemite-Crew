@@ -2,6 +2,7 @@ import {
   getSafeDocumensoIframeUrl,
   getSafeIdexxIframeUrl,
   getSafeImageUrl,
+  getSafePdfPreviewUrl,
   getSafeSameOriginPath,
   getSafeStripeRedirectUrl,
   isHttpsImageUrl,
@@ -39,6 +40,28 @@ describe('url helpers', () => {
     expect(
       getSafeIdexxIframeUrl('blob:https://app.yosemitecrew.com/abc', { allowBlob: true })
     ).toBe('blob:https://app.yosemitecrew.com/abc');
+  });
+
+  it('allows safe PDF preview URLs for workspace documents', () => {
+    expect(getSafePdfPreviewUrl('https://files.test/workspace/doc.pdf')).toBe(
+      'https://files.test/workspace/doc.pdf'
+    );
+    expect(getSafePdfPreviewUrl('/workspace/doc.pdf')).toBe('/workspace/doc.pdf');
+    expect(getSafePdfPreviewUrl('http://localhost:4000/workspace/doc.pdf')).toBe(
+      'http://localhost:4000/workspace/doc.pdf'
+    );
+    expect(getSafePdfPreviewUrl('blob:https://app.yosemitecrew.com/abc', { allowBlob: true })).toBe(
+      'blob:https://app.yosemitecrew.com/abc'
+    );
+  });
+
+  it('rejects unsafe PDF preview URLs', () => {
+    expect(getSafePdfPreviewUrl('javascript:alert(1)')).toBe('');
+    expect(getSafePdfPreviewUrl('data:text/html,<script>alert(1)</script>')).toBe('');
+    expect(getSafePdfPreviewUrl('http://evil.example.com/doc.pdf')).toBe('');
+    expect(getSafePdfPreviewUrl('//evil.example.com/doc.pdf')).toBe('');
+    expect(getSafePdfPreviewUrl('/path\\with\\backslash')).toBe('');
+    expect(getSafePdfPreviewUrl('blob:https://app.yosemitecrew.com/abc')).toBe('');
   });
 
   it('allows only configured Documenso https URLs for iframes', () => {

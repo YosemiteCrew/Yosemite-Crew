@@ -1,24 +1,21 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import DropdownRenderer from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownRenderer";
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import DropdownRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownRenderer';
 
 // --- Mocks ---
 
-// Mock the Dropdown component to isolate logic and easily test prop passing
-jest.mock("@/app/ui/inputs/Dropdown/Dropdown", () => ({
+// Mock the reusable searchable LabelDropdown to isolate logic and test prop passing.
+// The dropdown field now renders LabelDropdown (defaultOption + onSelect(option));
+// read-only is enforced by the renderer guarding onSelect, not a disabled prop.
+jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ value, onChange, disabled, options, placeholder }: any) => (
+  default: ({ defaultOption, onSelect, options, placeholder }: any) => (
     <div data-testid="mock-dropdown">
-      <span data-testid="dropdown-value">{JSON.stringify(value)}</span>
-      <span data-testid="dropdown-disabled">{String(disabled)}</span>
+      <span data-testid="dropdown-value">{JSON.stringify(defaultOption)}</span>
       <span data-testid="dropdown-placeholder">{placeholder}</span>
       <div data-testid="dropdown-options">
         {options.map((o: any) => (
-          <button
-            key={o.value}
-            data-testid={`option-${o.value}`}
-            onClick={() => !disabled && onChange(o.value)}
-          >
+          <button key={o.value} data-testid={`option-${o.value}`} onClick={() => onSelect(o)}>
             {o.label}
           </button>
         ))}
@@ -27,15 +24,15 @@ jest.mock("@/app/ui/inputs/Dropdown/Dropdown", () => ({
   ),
 }));
 
-describe("DropdownRenderer Component", () => {
+describe('DropdownRenderer Component', () => {
   const mockOnChange = jest.fn();
 
   const baseField = {
-    id: "test-field",
-    label: "Test Label",
+    id: 'test-field',
+    label: 'Test Label',
     options: [
-      { label: "Option A", value: "opt-a" },
-      { label: "Option B", value: "opt-b" },
+      { label: 'Option A', value: 'opt-a' },
+      { label: 'Option B', value: 'opt-b' },
     ],
   };
 
@@ -45,39 +42,29 @@ describe("DropdownRenderer Component", () => {
 
   // --- Section 1: Validation & Null State ---
 
-  it("returns null if options are empty or undefined", () => {
+  it('returns null if options are empty or undefined', () => {
     const fieldNoOptions = { ...baseField, options: [] } as any;
     const { container } = render(
-      <DropdownRenderer
-        field={fieldNoOptions}
-        value=""
-        onChange={mockOnChange}
-      />
+      <DropdownRenderer field={fieldNoOptions} value="" onChange={mockOnChange} />
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   // --- Section 2: Checkbox Logic ---
 
-  describe("Type: Checkbox", () => {
-    const checkboxField = { ...baseField, type: "checkbox" } as any;
+  describe('Type: Checkbox', () => {
+    const checkboxField = { ...baseField, type: 'checkbox' } as any;
 
-    it("renders options as checkboxes with labels", () => {
-      render(
-        <DropdownRenderer
-          field={checkboxField}
-          value={[]}
-          onChange={mockOnChange}
-        />
-      );
-      expect(screen.getByText("Option A")).toBeInTheDocument();
-      expect(screen.getByText("Option B")).toBeInTheDocument();
+    it('renders options as checkboxes with labels', () => {
+      render(<DropdownRenderer field={checkboxField} value={[]} onChange={mockOnChange} />);
+      expect(screen.getByText('Option A')).toBeInTheDocument();
+      expect(screen.getByText('Option B')).toBeInTheDocument();
       // Verify actual checkbox inputs exist
-      const checkboxes = screen.getAllByRole("checkbox");
+      const checkboxes = screen.getAllByRole('checkbox');
       expect(checkboxes).toHaveLength(2);
     });
 
-    it("adds a value to selection (Toggle On)", () => {
+    it('adds a value to selection (Toggle On)', () => {
       render(
         <DropdownRenderer
           field={checkboxField}
@@ -85,26 +72,26 @@ describe("DropdownRenderer Component", () => {
           onChange={mockOnChange}
         />
       );
-      const checkboxA = screen.getAllByRole("checkbox")[0];
+      const checkboxA = screen.getAllByRole('checkbox')[0];
       fireEvent.click(checkboxA);
-      expect(mockOnChange).toHaveBeenCalledWith(["opt-a"]);
+      expect(mockOnChange).toHaveBeenCalledWith(['opt-a']);
     });
 
-    it("removes a value from selection (Toggle Off)", () => {
+    it('removes a value from selection (Toggle Off)', () => {
       render(
         <DropdownRenderer
           field={checkboxField}
-          value={["opt-a", "opt-b"]} // Already selected
+          value={['opt-a', 'opt-b']} // Already selected
           onChange={mockOnChange}
         />
       );
-      const checkboxA = screen.getAllByRole("checkbox")[0];
+      const checkboxA = screen.getAllByRole('checkbox')[0];
       fireEvent.click(checkboxA);
       // Should remove 'opt-a' and keep 'opt-b'
-      expect(mockOnChange).toHaveBeenCalledWith(["opt-b"]);
+      expect(mockOnChange).toHaveBeenCalledWith(['opt-b']);
     });
 
-    it("handles legacy string value input gracefully (converts to array)", () => {
+    it('handles legacy string value input gracefully (converts to array)', () => {
       render(
         <DropdownRenderer
           field={checkboxField}
@@ -113,25 +100,19 @@ describe("DropdownRenderer Component", () => {
         />
       );
       // Clicking it should toggle it OFF (remove from array)
-      const checkboxA = screen.getAllByRole("checkbox")[0];
+      const checkboxA = screen.getAllByRole('checkbox')[0];
       fireEvent.click(checkboxA);
       expect(mockOnChange).toHaveBeenCalledWith([]);
     });
 
-    it("checks selected items", () => {
-      render(
-        <DropdownRenderer
-          field={checkboxField}
-          value={["opt-a"]}
-          onChange={mockOnChange}
-        />
-      );
-      const checkboxes = screen.getAllByRole("checkbox");
+    it('checks selected items', () => {
+      render(<DropdownRenderer field={checkboxField} value={['opt-a']} onChange={mockOnChange} />);
+      const checkboxes = screen.getAllByRole('checkbox');
       expect(checkboxes[0]).toBeChecked(); // opt-a is checked
       expect(checkboxes[1]).not.toBeChecked(); // opt-b is not checked
     });
 
-    it("does not trigger change when ReadOnly", () => {
+    it('does not trigger change when ReadOnly', () => {
       render(
         <DropdownRenderer
           field={checkboxField}
@@ -140,7 +121,7 @@ describe("DropdownRenderer Component", () => {
           readOnly={true}
         />
       );
-      const checkboxA = screen.getAllByRole("checkbox")[0];
+      const checkboxA = screen.getAllByRole('checkbox')[0];
       expect(checkboxA).toBeDisabled();
 
       fireEvent.click(checkboxA);
@@ -150,50 +131,35 @@ describe("DropdownRenderer Component", () => {
 
   // --- Section 3: Radio Logic ---
 
-  describe("Type: Radio", () => {
-    const radioField = { ...baseField, type: "radio" } as any;
+  describe('Type: Radio', () => {
+    const radioField = { ...baseField, type: 'radio' } as any;
 
-    it("renders options as radio buttons", () => {
-      render(
-        <DropdownRenderer field={radioField} value="" onChange={mockOnChange} />
-      );
-      expect(screen.getByText("Option A")).toBeInTheDocument();
-      const radios = screen.getAllByRole("radio");
+    it('renders options as radio buttons', () => {
+      render(<DropdownRenderer field={radioField} value="" onChange={mockOnChange} />);
+      expect(screen.getByText('Option A')).toBeInTheDocument();
+      const radios = screen.getAllByRole('radio');
       expect(radios).toHaveLength(2);
     });
 
-    it("calls onChange with selected value", () => {
-      render(
-        <DropdownRenderer field={radioField} value="" onChange={mockOnChange} />
-      );
-      const radioA = screen.getAllByRole("radio")[0];
+    it('calls onChange with selected value', () => {
+      render(<DropdownRenderer field={radioField} value="" onChange={mockOnChange} />);
+      const radioA = screen.getAllByRole('radio')[0];
       fireEvent.click(radioA);
-      expect(mockOnChange).toHaveBeenCalledWith("opt-a");
+      expect(mockOnChange).toHaveBeenCalledWith('opt-a');
     });
 
-    it("checks selected radio option", () => {
-      render(
-        <DropdownRenderer
-          field={radioField}
-          value="opt-a"
-          onChange={mockOnChange}
-        />
-      );
-      const radios = screen.getAllByRole("radio");
+    it('checks selected radio option', () => {
+      render(<DropdownRenderer field={radioField} value="opt-a" onChange={mockOnChange} />);
+      const radios = screen.getAllByRole('radio');
       expect(radios[0]).toBeChecked(); // opt-a is checked
       expect(radios[1]).not.toBeChecked(); // opt-b is not checked
     });
 
-    it("prevents interaction when ReadOnly", () => {
+    it('prevents interaction when ReadOnly', () => {
       render(
-        <DropdownRenderer
-          field={radioField}
-          value=""
-          onChange={mockOnChange}
-          readOnly={true}
-        />
+        <DropdownRenderer field={radioField} value="" onChange={mockOnChange} readOnly={true} />
       );
-      const radio = screen.getAllByRole("radio")[0];
+      const radio = screen.getAllByRole('radio')[0];
       expect(radio).toBeDisabled();
       fireEvent.click(radio);
       expect(mockOnChange).not.toHaveBeenCalled();
@@ -202,60 +168,39 @@ describe("DropdownRenderer Component", () => {
 
   // --- Section 4: Dropdown (Default) Logic ---
 
-  describe("Type: Dropdown (Default)", () => {
-    const dropdownField = { ...baseField, type: "dropdown" } as any;
+  describe('Type: Dropdown (Default)', () => {
+    const dropdownField = { ...baseField, type: 'dropdown' } as any;
 
-    it("renders the mocked Dropdown component", () => {
-      render(
-        <DropdownRenderer
-          field={dropdownField}
-          value="opt-a"
-          onChange={mockOnChange}
-        />
-      );
-      expect(screen.getByTestId("mock-dropdown")).toBeInTheDocument();
-      expect(screen.getByTestId("dropdown-value")).toHaveTextContent('"opt-a"');
-      expect(screen.getByTestId("dropdown-placeholder")).toHaveTextContent(
-        "Test Label"
-      );
+    it('renders the mocked Dropdown component', () => {
+      render(<DropdownRenderer field={dropdownField} value="opt-a" onChange={mockOnChange} />);
+      expect(screen.getByTestId('mock-dropdown')).toBeInTheDocument();
+      expect(screen.getByTestId('dropdown-value')).toHaveTextContent('"opt-a"');
+      expect(screen.getByTestId('dropdown-placeholder')).toHaveTextContent('Test Label');
     });
 
-    it("calls onChange when an option is selected via mock", () => {
-      render(
-        <DropdownRenderer
-          field={dropdownField}
-          value=""
-          onChange={mockOnChange}
-        />
-      );
-      fireEvent.click(screen.getByTestId("option-opt-b"));
-      expect(mockOnChange).toHaveBeenCalledWith("opt-b");
+    it('calls onChange when an option is selected via mock', () => {
+      render(<DropdownRenderer field={dropdownField} value="" onChange={mockOnChange} />);
+      fireEvent.click(screen.getByTestId('option-opt-b'));
+      expect(mockOnChange).toHaveBeenCalledWith('opt-b');
     });
 
-    it("passes disabled prop when ReadOnly", () => {
+    it('does not call onChange when ReadOnly', () => {
       render(
-        <DropdownRenderer
-          field={dropdownField}
-          value=""
-          onChange={mockOnChange}
-          readOnly={true}
-        />
+        <DropdownRenderer field={dropdownField} value="" onChange={mockOnChange} readOnly={true} />
       );
-      expect(screen.getByTestId("dropdown-disabled")).toHaveTextContent("true");
-
-      // Attempt click - mock now respects disabled
-      fireEvent.click(screen.getByTestId("option-opt-a"));
+      // The renderer guards onSelect when read-only.
+      fireEvent.click(screen.getByTestId('option-opt-a'));
       expect(mockOnChange).not.toHaveBeenCalled();
     });
   });
 
   // --- Section 5: Meta & Default Values ---
 
-  it("uses defaultValue if value is undefined", () => {
+  it('uses defaultValue if value is undefined', () => {
     const fieldWithDefault = {
       ...baseField,
-      type: "dropdown",
-      defaultValue: "opt-b",
+      type: 'dropdown',
+      defaultValue: 'opt-b',
     } as any;
 
     render(
@@ -265,23 +210,19 @@ describe("DropdownRenderer Component", () => {
         onChange={mockOnChange}
       />
     );
-    expect(screen.getByTestId("dropdown-value")).toHaveTextContent('"opt-b"');
+    expect(screen.getByTestId('dropdown-value')).toHaveTextContent('"opt-b"');
   });
 
-  it("respects field.meta.readonly", () => {
+  it('respects field.meta.readonly', () => {
     const fieldReadOnly = {
       ...baseField,
-      type: "dropdown",
+      type: 'dropdown',
       meta: { readonly: true },
     } as any;
 
-    render(
-      <DropdownRenderer
-        field={fieldReadOnly}
-        value=""
-        onChange={mockOnChange}
-      />
-    );
-    expect(screen.getByTestId("dropdown-disabled")).toHaveTextContent("true");
+    render(<DropdownRenderer field={fieldReadOnly} value="" onChange={mockOnChange} />);
+    // meta.readonly guards selection just like the readOnly prop.
+    fireEvent.click(screen.getByTestId('option-opt-a'));
+    expect(mockOnChange).not.toHaveBeenCalled();
   });
 });

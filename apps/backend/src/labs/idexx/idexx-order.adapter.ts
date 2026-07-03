@@ -233,29 +233,36 @@ const buildCensusPayload = async (input: {
   };
 };
 
+const resolveOrderParentId = async (
+  patientId: string,
+  parentId: string | null | undefined,
+) => {
+  if (parentId) {
+    return parentId;
+  }
+
+  const parentLink = await prisma.parentPatient.findFirst({
+    where: {
+      patientId,
+      role: "PRIMARY",
+      status: "ACTIVE",
+    },
+  });
+
+  if (!parentLink?.parentId) {
+    throw new LabOrderServiceError(
+      "Primary parent not found for companion.",
+      400,
+    );
+  }
+
+  return parentLink.parentId;
+};
+
 export class IdexxOrderAdapter implements LabOrderAdapter {
   async createOrder(input: LabOrderCreateInput): Promise<LabOrderCreateResult> {
     const patientId = input.patientId;
-    let parentId = input.parentId ?? null;
-
-    if (!parentId) {
-      const parentLink = await prisma.parentPatient.findFirst({
-        where: {
-          patientId,
-          role: "PRIMARY",
-          status: "ACTIVE",
-        },
-      });
-
-      if (!parentLink?.parentId) {
-        throw new LabOrderServiceError(
-          "Primary parent not found for companion.",
-          400,
-        );
-      }
-
-      parentId = parentLink.parentId;
-    }
+    const parentId = await resolveOrderParentId(patientId, input.parentId);
 
     const payload = await buildOrderPayload({
       patientId,

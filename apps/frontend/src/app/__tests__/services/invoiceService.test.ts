@@ -6,11 +6,13 @@ import {
   loadInvoicesForOrgPrimaryOrg,
   markAppointmentReadyForBilling,
   markInvoicePaid,
+  reverseAppointmentReadyForBilling,
+  sendInvoiceToClient,
   updateInvoicePaymentCollectionMethod,
 } from '@/app/features/billing/services/invoiceService';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { getData, patchData, postData } from '@/app/services/axios';
+import { deleteData, getData, patchData, postData } from '@/app/services/axios';
 
 type InvoiceState = {
   startLoading: jest.Mock;
@@ -36,6 +38,7 @@ jest.mock('@/app/services/axios', () => ({
   getData: jest.fn(),
   patchData: jest.fn(),
   postData: jest.fn(),
+  deleteData: jest.fn(),
 }));
 
 jest.mock('@yosemite-crew/types', () => ({
@@ -68,6 +71,13 @@ describe('invoiceService', () => {
     await loadInvoicesForOrgPrimaryOrg();
 
     expect(invoiceState.startLoading).toHaveBeenCalled();
+    expect(getData).toHaveBeenCalledWith(
+      '/v1/finance/invoices',
+      expect.objectContaining({
+        organisationId: 'org-1',
+        _cacheBust: expect.any(Number),
+      })
+    );
     expect(invoiceState.setInvoicesForOrg).toHaveBeenCalledWith('org-1', []);
   });
 
@@ -93,6 +103,239 @@ describe('invoiceService', () => {
         }),
       ])
     );
+  });
+
+  it('maps an enveloped finance invoice list into workspace past invoices', async () => {
+    // Exact shape returned by GET /v1/finance/invoices: a { data, meta, error }
+    // envelope wrapping plain finance invoices (no FHIR resourceType).
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: '672e7254-ae36-4658-b567-62e88ab4ecb7',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [
+              {
+                name: 'Sample testing package',
+                total: 272.3175,
+                quantity: 1,
+                unitPrice: 272.3175,
+                description: 'Sample testing package',
+              },
+            ],
+            subtotal: 272.32,
+            totalAmount: 272.32,
+            currency: 'usd',
+            visitBillingStage: 'DRAFT',
+            status: 'AWAITING_PAYMENT',
+            payments: [
+              {
+                id: 'pay-1',
+                amount: 100,
+                settlementChannel: 'CARD_PRESENT',
+                provider: 'MANUAL',
+                status: 'PAID',
+                paidAt: '2026-06-22T18:12:30.000Z',
+                receiptUrl: 'https://files.test/receipt.pdf',
+              },
+            ],
+            pdfUrl: 'https://files.test/invoice.pdf',
+            renderedDocumentId: 'rd-invoice-1',
+            createdAt: '2026-06-22T18:11:58.870Z',
+            updatedAt: '2026-06-22T18:12:00.073Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.pastInvoices).toHaveLength(1);
+    expect(billing.pastInvoices[0]).toMatchObject({
+      id: '672e7254-ae36-4658-b567-62e88ab4ecb7',
+      status: 'PARTIAL',
+      totalCents: 27232,
+      pdfUrl: 'https://files.test/invoice.pdf',
+      renderedDocumentId: 'rd-invoice-1',
+    });
+    expect(billing.pastInvoices[0].payments).toEqual([
+      {
+        id: 'pay-1',
+        amountCents: 10000,
+        method: 'CARD_PRESENT',
+        provider: 'MANUAL',
+        status: 'PAID',
+        paidAt: '2026-06-22T18:12:30.000Z',
+        receiptUrl: 'https://files.test/receipt.pdf',
+      },
+    ]);
+    expect(billing.pastInvoices[0].items[0]).toMatchObject({
+      name: 'Sample testing package',
+    });
+    expect(billing.currency).toBe('USD');
+  });
+
+  it('keeps awaiting-payment invoices unpaid when no payment ledger exists', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-awaiting-payment',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [
+              {
+                name: 'Sample testing package',
+                total: 933.66,
+                quantity: 1,
+                unitPrice: 933.66,
+                description: 'Sample testing package',
+              },
+            ],
+            subtotal: 933.66,
+            totalAmount: 933.66,
+            currency: 'usd',
+            status: 'AWAITING_PAYMENT',
+            payments: [],
+            createdAt: '2026-06-27T09:42:35.064Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.pastInvoices[0]).toMatchObject({
+      id: 'inv-awaiting-payment',
+      totalCents: 93366,
+      outstandingCents: 93366,
+      status: 'UNPAID',
+      payments: [],
+    });
+  });
+
+  it('counts a deposit payment toward the deposit balance', async () => {
+    // The backend now records the deposit on the same invoice, so the payment
+    // ledger should be the source of truth when depositCollectedAmount is still 0.
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-deposit',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [{ name: 'Consult', total: 100, quantity: 1, unitPrice: 100 }],
+            totalAmount: 100,
+            currency: 'usd',
+            billingCollectionMode: 'DEPOSIT_THEN_SETTLE',
+            visitBillingStage: 'READY_FOR_BILLING',
+            depositCollectedAmount: 0,
+            status: 'AWAITING_PAYMENT',
+            payments: [
+              {
+                id: 'pay-deposit',
+                amount: 100,
+                settlementChannel: 'DEPOSIT',
+                provider: 'MANUAL',
+                status: 'SUCCEEDED',
+                paidAt: '2026-06-22T19:54:43.986Z',
+              },
+            ],
+            createdAt: '2026-06-22T19:51:52.106Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.depositCents).toBe(10000);
+    expect(billing.pastInvoices[0]).toMatchObject({
+      outstandingCents: 0,
+      status: 'PAID_FULL',
+    });
+  });
+
+  it('marks an invoice as partially paid when the payment ledger covers only part of the total', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-partial',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [{ name: 'Consult', total: 100, quantity: 1, unitPrice: 100 }],
+            totalAmount: 100,
+            currency: 'usd',
+            status: 'AWAITING_PAYMENT',
+            payments: [
+              {
+                id: 'pay-partial',
+                amount: 25,
+                settlementChannel: 'CARD_PRESENT',
+                provider: 'MANUAL',
+                status: 'SUCCEEDED',
+                paidAt: '2026-06-22T19:54:43.986Z',
+              },
+            ],
+            createdAt: '2026-06-22T19:51:52.106Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.pastInvoices[0]).toMatchObject({
+      outstandingCents: 7500,
+      status: 'PARTIAL',
+    });
+  });
+
+  it('prefers explicit depositCollectedAmount over payment ledger fallback', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-deposit-explicit',
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            items: [{ name: 'Consult', total: 100, quantity: 1, unitPrice: 100 }],
+            totalAmount: 100,
+            currency: 'usd',
+            billingCollectionMode: 'DEPOSIT_THEN_SETTLE',
+            visitBillingStage: 'READY_FOR_BILLING',
+            depositCollectedAmount: 25,
+            payments: [
+              {
+                id: 'pay-deposit',
+                amount: 100,
+                settlementChannel: 'DEPOSIT',
+                provider: 'MANUAL',
+                status: 'SUCCEEDED',
+                paidAt: '2026-06-22T19:54:43.986Z',
+              },
+            ],
+            createdAt: '2026-06-22T19:51:52.106Z',
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.depositCents).toBe(2500);
   });
 
   it('skips loading when already loading', async () => {
@@ -169,10 +412,14 @@ describe('invoiceService', () => {
 
     await loadInvoicesForAppointment('apt-1');
 
-    expect(getData).toHaveBeenCalledWith('/v1/finance/invoices', {
-      organisationId: 'org-1',
-      appointmentId: 'apt-1',
-    });
+    expect(getData).toHaveBeenCalledWith(
+      '/v1/finance/invoices',
+      expect.objectContaining({
+        organisationId: 'org-1',
+        appointmentId: 'apt-1',
+        _cacheBust: expect.any(Number),
+      })
+    );
     expect(invoiceState.upsertInvoice).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'inv-1', appointmentId: 'apt-1' })
     );
@@ -199,6 +446,38 @@ describe('invoiceService', () => {
     expect(postData).toHaveBeenCalledWith(
       '/v1/finance/invoices/inv-1/lines',
       expect.objectContaining({ currency: 'usd' })
+    );
+  });
+
+  it('adds line items to the open invoice, not a paid deposit invoice', async () => {
+    // Two invoices for the appointment: a PAID/SETTLED deposit and an open bill.
+    // Lines must target the open one — posting to the paid invoice 409s.
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-deposit',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'PAID',
+        visitBillingStage: 'SETTLED',
+      },
+      {
+        id: 'inv-open',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        visitBillingStage: 'DRAFT',
+      },
+    ]);
+
+    await addLineItemsToAppointments([{ id: 'li-1' } as any], 'appt-1', 'USD');
+
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/finance/invoices/inv-open/lines',
+      expect.objectContaining({ currency: 'usd' })
+    );
+    expect(postData).not.toHaveBeenCalledWith(
+      '/v1/finance/invoices/inv-deposit/lines',
+      expect.anything()
     );
   });
 
@@ -295,6 +574,48 @@ describe('invoiceService', () => {
     );
   });
 
+  it('does not re-append a line already on the invoice under a sub-cent price drift', async () => {
+    // Regression: the same booked service reaches the invoice via two pipelines whose
+    // prices differ by rounding (257.127 persisted vs 257.13 re-seeded). Dedupe is keyed
+    // on name+quantity (not price), so the rounded copy must NOT append a duplicate.
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-1',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        items: [
+          {
+            id: 'li-existing',
+            name: 'Skin examination',
+            quantity: 1,
+            unitPrice: 257.127,
+            total: 257.127,
+          },
+        ],
+      },
+    ]);
+
+    await addLineItemsToAppointments(
+      [
+        {
+          id: 'li-reseed',
+          name: 'Skin examination',
+          quantity: 1,
+          unitPrice: 257.13,
+          total: 257.13,
+        },
+      ],
+      'appt-1',
+      'USD'
+    );
+
+    expect(postData).not.toHaveBeenCalledWith(
+      '/v1/finance/invoices/inv-1/lines',
+      expect.anything()
+    );
+  });
+
   it('throws when line-item payload is invalid', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     await expect(addLineItemsToAppointments([], '', '')).rejects.toThrow(
@@ -326,6 +647,24 @@ describe('invoiceService', () => {
     expect(result).toBe('https://stripe.test');
   });
 
+  it('reads the checkout link from the finance `url` field', async () => {
+    // The finance payments/sessions endpoint returns the Stripe link as `url`
+    // (with sessionId + paymentAttemptId), not `checkoutUrl`.
+    (postData as jest.Mock).mockResolvedValue({
+      data: {
+        data: {
+          sessionId: 'cs_test_123',
+          url: 'https://checkout.stripe.com/c/pay/cs_test_123',
+          paymentAttemptId: 'pa-1',
+        },
+        meta: null,
+        error: null,
+      },
+    });
+    const result = await getPaymentLink('inv-1');
+    expect(result).toBe('https://checkout.stripe.com/c/pay/cs_test_123');
+  });
+
   it('throws when invoice id is missing in payment link call', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     await expect(getPaymentLink('')).rejects.toThrow('Invoice ID missing');
@@ -338,6 +677,27 @@ describe('invoiceService', () => {
     await getPaymentLink('inv-1');
     expect(postData).not.toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it('sends the invoice checkout session to the client email endpoint', async () => {
+    (postData as jest.Mock).mockResolvedValue({
+      data: {
+        data: {
+          checkout: { url: 'https://stripe.test/pay/inv-1', paymentAttemptId: 'pay-attempt-1' },
+          emailSent: true,
+        },
+        meta: null,
+        error: null,
+      },
+    });
+
+    const result = await sendInvoiceToClient('inv-1');
+
+    expect(postData).toHaveBeenCalledWith('/fhir/v1/invoice/inv-1/checkout-session');
+    expect(result).toEqual({
+      checkout: { url: 'https://stripe.test/pay/inv-1', paymentAttemptId: 'pay-attempt-1' },
+      emailSent: true,
+    });
   });
 
   it('throws when mark paid invoice id is missing', async () => {
@@ -474,6 +834,57 @@ describe('invoiceService', () => {
     );
   });
 
+  it('reverses ready for billing through finance endpoint', async () => {
+    (deleteData as jest.Mock).mockResolvedValueOnce({
+      data: {
+        data: { appointmentId: 'appt-1', billingState: 'DRAFT' },
+        meta: null,
+        error: null,
+      },
+    });
+
+    await reverseAppointmentReadyForBilling('appt-1', {
+      organisationId: 'org-1',
+      visitId: 'enc-1',
+    });
+
+    expect(deleteData).toHaveBeenCalledWith('/v1/finance/appointments/appt-1/ready-for-billing');
+  });
+
+  it('falls back to appointment route when reverse finance route is not deployed', async () => {
+    (deleteData as jest.Mock)
+      .mockRejectedValueOnce({
+        response: { status: 404, data: { message: 'Finance route not found' } },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: { appointmentId: 'appt-1', billingState: 'DRAFT' },
+          meta: null,
+          error: null,
+        },
+      });
+
+    await reverseAppointmentReadyForBilling('appt-1', {
+      organisationId: 'org-1',
+      visitId: 'enc-1',
+    });
+
+    expect(deleteData).toHaveBeenNthCalledWith(
+      2,
+      '/fhir/v1/appointment/pms/org-1/appt-1/ready-for-billing'
+    );
+  });
+
+  it('propagates a 409 when reversing ready for billing with payments applied', async () => {
+    (deleteData as jest.Mock).mockRejectedValueOnce({
+      response: { status: 409, data: { message: 'Invoice already has payments applied' } },
+    });
+
+    await expect(
+      reverseAppointmentReadyForBilling('appt-1', { organisationId: 'org-1' })
+    ).rejects.toMatchObject({ response: { status: 409 } });
+  });
+
   it('falls back to appointment ready-for-billing route when finance route is not deployed', async () => {
     (postData as jest.Mock).mockRejectedValueOnce({
       response: { status: 404, data: { message: 'Finance route not found' } },
@@ -549,6 +960,57 @@ describe('invoiceService', () => {
         notes: 'Ready',
       }
     );
+  });
+
+  it('reverses appointment ready for billing through finance endpoint', async () => {
+    (deleteData as jest.Mock).mockResolvedValueOnce({
+      data: {
+        data: { appointmentId: 'appt-1', billingState: 'DRAFT' },
+        meta: null,
+        error: null,
+      },
+    });
+
+    await reverseAppointmentReadyForBilling('appt-1', { organisationId: 'org-1' });
+
+    expect(deleteData).toHaveBeenCalledWith('/v1/finance/appointments/appt-1/ready-for-billing');
+  });
+
+  it('falls back to appointment route when finance reverse route is not deployed', async () => {
+    (deleteData as jest.Mock)
+      .mockRejectedValueOnce({
+        response: { status: 404, data: { message: 'Finance route not found' } },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: { appointmentId: 'appt-1', billingState: 'DRAFT' },
+          meta: null,
+          error: null,
+        },
+      });
+
+    await reverseAppointmentReadyForBilling('appt-1', { organisationId: 'org-1' });
+
+    expect(deleteData).toHaveBeenNthCalledWith(
+      2,
+      '/fhir/v1/appointment/pms/org-1/appt-1/ready-for-billing'
+    );
+  });
+
+  it('propagates non-404 errors when reversing ready for billing (e.g. 409 paid invoice)', async () => {
+    (deleteData as jest.Mock).mockRejectedValueOnce({
+      response: { status: 409, data: { message: 'payments applied' } },
+    });
+
+    await expect(
+      reverseAppointmentReadyForBilling('appt-1', { organisationId: 'org-1' })
+    ).rejects.toMatchObject({ response: { status: 409 } });
+  });
+
+  it('throws when reversing ready for billing without an appointment id', async () => {
+    await expect(
+      reverseAppointmentReadyForBilling('', { organisationId: 'org-1' })
+    ).rejects.toThrow('Appointment ID missing');
   });
 
   it('extracts appointmentId from account reference with query string (normalizeReferenceTail)', async () => {
@@ -643,6 +1105,14 @@ describe('invoiceService', () => {
 
     const billing = await loadAppointmentBilling('org-1', 'appt-1');
 
+    expect(getData).toHaveBeenCalledWith(
+      '/v1/finance/invoices',
+      expect.objectContaining({
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        _cacheBust: expect.any(Number),
+      })
+    );
     expect(billing.pastInvoices).toHaveLength(1);
     expect(billing.pastInvoices[0].items.map((item) => item.name)).toEqual([
       'bookable procedure',

@@ -10,6 +10,8 @@ type RecordPanelProps = {
   organisationId: string;
   encounterId?: string;
   authorId?: string;
+  authorName?: string;
+  companionId?: string;
 };
 
 type RecordTab = 'VITALS' | 'OBSERVATION';
@@ -25,6 +27,8 @@ const RecordPanel = ({
   organisationId,
   encounterId,
   authorId,
+  authorName,
+  companionId,
 }: RecordPanelProps) => {
   const [tab, setTab] = useState<RecordTab>('VITALS');
   const encounter = useAppointmentWorkspaceStore((s) => s.encountersById[appointmentId]);
@@ -46,6 +50,7 @@ const RecordPanel = ({
             organisationId={organisationId}
             encounterId={encounterId}
             authorId={authorId}
+            authorName={authorName}
             vitals={encounter.vitals}
           />
         </div>
@@ -53,6 +58,11 @@ const RecordPanel = ({
         <div id="record-panel-OBSERVATION" role="tabpanel" aria-labelledby="tab-OBSERVATION">
           <ObservationToolForm
             appointmentId={appointmentId}
+            organisationId={organisationId}
+            encounterId={encounterId}
+            companionId={companionId}
+            filledBy={authorId}
+            filledByName={authorName}
             observations={encounter.observations}
           />
         </div>

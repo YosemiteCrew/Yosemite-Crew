@@ -4,13 +4,7 @@ import { IdexxReferenceQueue } from "./idexx-reference.queue";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function registerIdexxReferenceScheduler() {
-  await IdexxReferenceQueue.add(
-    "sync",
-    {},
-    {
-      jobId: "idexx-reference-startup",
-    },
-  );
+  await IdexxReferenceQueue.add("sync", {}, {});
 
   await IdexxReferenceQueue.add(
     "sync",

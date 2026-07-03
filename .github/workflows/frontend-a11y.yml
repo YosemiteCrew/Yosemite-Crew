@@ -41,34 +41,12 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup
+        uses: ./.github/actions/setup
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
 
-      - name: Compute pnpm store path
-        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
-
-      - name: Restore pnpm store cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
+      # jest-axe asserts zero WCAG 2.1 AA violations inside the component tests, so
+      # any new violation fails this step directly — no separate gate step needed.
       - name: Run jest-axe accessibility tests
         run: pnpm --filter frontend run test:a11y
-
-      - name: Fail if new axe violation patterns are introduced
-        run: |
-          echo "✅ All jest-axe assertions passed — no WCAG 2.1 AA violations detected in component tests."

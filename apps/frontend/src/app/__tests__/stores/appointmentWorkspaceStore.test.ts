@@ -176,6 +176,154 @@ describe('appointmentWorkspaceStore', () => {
     expect(soap.filter((n) => n.status === 'COMPLETED')).toHaveLength(1);
   });
 
+  it('prefills S/O/A/P content and version when a template carries content', () => {
+    seed();
+    const tpl = {
+      id: 'tpl-content',
+      name: 'Wellness',
+      version: 4,
+      content: {
+        chiefComplaint: '<p>Annual check</p>',
+        subjective: '<p>History</p>',
+        objective: '<p>Exam</p>',
+        assessment: '<p>Healthy</p>',
+        plan: '<p>Vaccinate</p>',
+      },
+    };
+    getStore().applySoapTemplate(APPT, tpl);
+    const draft = getStore().getEncounter(APPT)!.soap[0];
+    expect(draft.templateId).toBe('tpl-content');
+    expect(draft.templateVersion).toBe(4);
+    expect(draft.subjective).toBe('<p>History</p>');
+    expect(draft.plan).toBe('<p>Vaccinate</p>');
+  });
+
+  it('swaps to a custom template structure and clears it when a native template is applied', () => {
+    seed();
+    const customTpl = {
+      id: 'tpl-custom',
+      name: 'Mobility',
+      version: 2,
+      versionId: 'ver-2',
+      customSchema: [
+        {
+          id: 'grp',
+          type: 'group' as const,
+          label: 'Mobility',
+          fields: [{ id: 'gait', type: 'input' as const, label: 'Gait', defaultValue: 'normal' }],
+        },
+      ],
+    };
+    getStore().applySoapTemplate(APPT, customTpl);
+    let draft = getStore().getEncounter(APPT)!.soap[0];
+    // Custom template swaps STRUCTURE: schema rendered, answers seeded from defaults, provenance kept.
+    expect(draft.customSchema).toBeDefined();
+    expect(draft.customAnswers).toEqual({ gait: 'normal' });
+    expect(draft.templateVersionId).toBe('ver-2');
+
+    // Switching back to a native template clears the override and prefills the editors.
+    getStore().applySoapTemplate(APPT, {
+      id: 'tpl-native',
+      name: 'Native',
+      content: { subjective: '<p>S</p>' },
+    });
+    draft = getStore()
+      .getEncounter(APPT)!
+      .soap.find((n) => n.status !== 'COMPLETED')!;
+    expect(draft.customSchema).toBeUndefined();
+    expect(draft.customAnswers).toBeUndefined();
+    expect(draft.subjective).toBe('<p>S</p>');
+  });
+
+  it('does not overwrite typed SOAP content when applying a template', () => {
+    seed();
+    getStore().upsertSoap(APPT, { subjective: '<p>clinician typed</p>' });
+    const tpl = {
+      id: 'tpl-content',
+      name: 'Wellness',
+      content: { subjective: '<p>template</p>', plan: '<p>template plan</p>' },
+    };
+    getStore().applySoapTemplate(APPT, tpl);
+    const draft = getStore()
+      .getEncounter(APPT)!
+      .soap.find((n) => n.status !== 'COMPLETED');
+    // Typed subjective is preserved; the empty plan gets the template default.
+    expect(draft?.subjective).toBe('<p>clinician typed</p>');
+    expect(draft?.plan).toBe('<p>template plan</p>');
+  });
+
+  it('replaces typed SOAP content when explicitly requested', () => {
+    seed();
+    getStore().upsertSoap(APPT, { subjective: '<p>clinician typed</p>' });
+    const tpl = {
+      id: 'tpl-content',
+      name: 'Wellness',
+      content: { subjective: '<p>template</p>', plan: '<p>template plan</p>' },
+    };
+    getStore().applySoapTemplate(APPT, tpl, { replaceContent: true });
+    const draft = getStore()
+      .getEncounter(APPT)!
+      .soap.find((n) => n.status !== 'COMPLETED');
+    expect(draft?.subjective).toBe('<p>template</p>');
+    expect(draft?.plan).toBe('<p>template plan</p>');
+  });
+
+  it('applies and merges backend section locks and capabilities', () => {
+    seed();
+    getStore().applyWorkspaceLocks(
+      APPT,
+      { soap: { locked: true, reason: 'Window closed' } },
+      {
+        canEditSoap: false,
+      }
+    );
+    let enc = getStore().getEncounter(APPT);
+    expect(enc?.sectionLocks?.soap).toEqual({ locked: true, reason: 'Window closed' });
+    expect(enc?.capabilities?.canEditSoap).toBe(false);
+    // A later partial apply merges rather than replacing existing sections.
+    getStore().applyWorkspaceLocks(APPT, { invoice: { locked: false } }, undefined);
+    enc = getStore().getEncounter(APPT);
+    expect(enc?.sectionLocks?.soap?.locked).toBe(true);
+    expect(enc?.sectionLocks?.invoice?.locked).toBe(false);
+    expect(enc?.capabilities?.canEditSoap).toBe(false);
+  });
+
+  it('adds a backend observation record and de-dupes by id', () => {
+    seed();
+    const record = {
+      id: 'sub-1',
+      code: 'OT-001',
+      toolKey: 'FGS',
+      toolName: 'Feline grimace scale',
+      scores: { Pain: 1 },
+      total: 3,
+      recordedByName: 'Dr Vet',
+      recordedAt: '2026-06-22T10:00:00.000Z',
+    };
+    getStore().addObservationRecord(APPT, record);
+    expect(getStore().getEncounter(APPT)?.observations).toHaveLength(1);
+    // Re-adding the same id replaces (de-dupes) rather than duplicating.
+    getStore().addObservationRecord(APPT, { ...record, total: 5 });
+    const obs = getStore().getEncounter(APPT)!.observations;
+    expect(obs).toHaveLength(1);
+    expect(obs[0].total).toBe(5);
+  });
+
+  it('merges backend primaryAction and finalizationGate into the encounter', () => {
+    seed();
+    getStore().mergeEncounterData(APPT, {
+      primaryAction: { label: 'Discharge patient', enabled: true },
+      finalizationGate: { enabled: false, disabledReason: 'Forms not signed' },
+    });
+    const enc = getStore().getEncounter(APPT);
+    expect(enc?.primaryAction).toEqual({ label: 'Discharge patient', enabled: true });
+    expect(enc?.finalizationGate?.enabled).toBe(false);
+    expect(enc?.finalizationGate?.disabledReason).toBe('Forms not signed');
+    // A later merge without these keys preserves the existing snapshot.
+    getStore().mergeEncounterData(APPT, { soap: [] });
+    expect(getStore().getEncounter(APPT)?.primaryAction?.label).toBe('Discharge patient');
+  });
+
   it('no-ops signing when there is no active draft', () => {
     seed();
     // Nothing typed yet — signing must not create an empty completed note.
@@ -244,7 +392,10 @@ describe('appointmentWorkspaceStore', () => {
     ).toBeUndefined();
   });
 
-  it('auto-generates inpatient schedule tasks from line items', () => {
+  it('does not create local schedule rows when adding line items', () => {
+    // The task store is the single source of truth for schedule tasks — adding a
+    // line item must NOT push a local-only schedule row (which would duplicate the
+    // real backend task and desync the Schedule timeline from the Quick Actions panel).
     seed('INPATIENT');
     const before = getStore().getEncounter(APPT)!.schedule.length;
     getStore().addLineItem(APPT, {
@@ -256,9 +407,8 @@ describe('appointmentWorkspaceStore', () => {
       amountCents: 12000,
     });
     const enc = getStore().getEncounter(APPT)!;
-    expect(enc.schedule).toHaveLength(before + 1);
-    expect(enc.schedule.at(-1)?.description).toContain('Inpatient care package');
-    expect(enc.schedule.at(-1)?.autoGenerated).toBe(true);
+    expect(enc.services.at(-1)?.name).toBe('Inpatient care package');
+    expect(enc.schedule).toHaveLength(before);
   });
 
   it('adds, updates and removes prescription items', () => {
@@ -279,14 +429,13 @@ describe('appointmentWorkspaceStore', () => {
     ).toBeUndefined();
   });
 
-  it('auto-generates inpatient medication tasks from prescriptions', () => {
+  it('does not create local schedule rows when adding prescriptions', () => {
     seed('INPATIENT');
     const before = getStore().getEncounter(APPT)!.schedule.length;
     getStore().addPrescription(APPT, { medicineName: 'Gabapentin', fulfillment: 'IN_HOUSE' });
     const enc = getStore().getEncounter(APPT)!;
-    expect(enc.schedule).toHaveLength(before + 1);
-    expect(enc.schedule.at(-1)?.category).toBe('Medication');
-    expect(enc.schedule.at(-1)?.description).toContain('Gabapentin');
+    expect(enc.prescription.at(-1)?.medicineName).toBe('Gabapentin');
+    expect(enc.schedule).toHaveLength(before);
   });
 
   it('manages schedule tasks', () => {
@@ -328,13 +477,12 @@ describe('appointmentWorkspaceStore', () => {
 
   it('hydrates invoice billing while preserving locally recorded invoices', () => {
     seed();
-    // A locally recorded (session-only) invoice that finance has not returned yet.
+    // A locally recorded deposit that finance has not returned yet.
     getStore().recordDepositCollection(APPT, {
       amountCents: 5000,
       method: 'CASH',
       byName: 'Front desk',
     });
-    const localId = getStore().getEncounter(APPT)!.pastInvoices[0].id;
 
     getStore().hydrateInvoiceBilling(APPT, {
       depositCents: 12000,
@@ -352,7 +500,7 @@ describe('appointmentWorkspaceStore', () => {
 
     const enc = getStore().getEncounter(APPT)!;
     expect(enc.depositCents).toBe(12000);
-    expect(enc.pastInvoices.map((invoice) => invoice.id)).toEqual(['finance-inv-1', localId]);
+    expect(enc.pastInvoices.map((invoice) => invoice.id)).toEqual(['finance-inv-1']);
   });
 
   it('seeds the editable bill from the latest open invoice while keeping it in history', () => {
@@ -536,7 +684,7 @@ describe('appointmentWorkspaceStore', () => {
     expect(clamped.amountCents).toBe(0);
   });
 
-  it('caps a line discount at the per-line max-discount ceiling', () => {
+  it('caps a line discount at the per-line max-discount percent ceiling', () => {
     seed();
     getStore().addInvoiceLineItem(APPT, {
       name: 'Ultrasound scan',
@@ -545,20 +693,30 @@ describe('appointmentWorkspaceStore', () => {
       grossCents: 10000,
       discountCents: 1000,
       amountCents: 9000,
+      maxDiscountPercent: 20,
       maxDiscountCents: 2000,
     });
     const item = getStore().getEncounter(APPT)!.invoiceLineItems[0];
 
-    // Try to discount more than the ceiling — it clamps to maxDiscountCents.
+    // Try to discount more than the ceiling — it clamps to maxDiscountPercent.
     getStore().updateInvoiceLineItem(APPT, item.id, { discountCents: 5000 });
     const capped = getStore()
       .getEncounter(APPT)!
       .invoiceLineItems.find((i) => i.id === item.id)!;
     expect(capped.discountCents).toBe(2000);
     expect(capped.amountCents).toBe(8000);
+
+    getStore().updateInvoiceLineItem(APPT, item.id, { qty: 2, discountCents: 5000 });
+    const resized = getStore()
+      .getEncounter(APPT)!
+      .invoiceLineItems.find((i) => i.id === item.id)!;
+    expect(resized.grossCents).toBe(20000);
+    expect(resized.maxDiscountCents).toBe(4000);
+    expect(resized.discountCents).toBe(4000);
+    expect(resized.amountCents).toBe(16000);
   });
 
-  it('records an invoice payment, clearing the bill and prepending a paid invoice', () => {
+  it('records an invoice payment, clearing the bill without creating a synthetic invoice', () => {
     seed();
     getStore().addInvoiceLineItem(APPT, {
       name: 'Initial Consultation',
@@ -575,12 +733,7 @@ describe('appointmentWorkspaceStore', () => {
 
     const after = getStore().getEncounter(APPT)!;
     expect(after.invoiceLineItems).toHaveLength(0);
-    expect(after.pastInvoices).toHaveLength(pastCount + 1);
-    const newest = after.pastInvoices[0];
-    expect(newest.status).toBe('PAID_FULL');
-    expect(newest.paymentMethod).toBe('CASH');
-    expect(newest.paidByName).toBe('Front desk');
-    expect(newest.outstandingCents).toBe(0);
+    expect(after.pastInvoices).toHaveLength(pastCount);
   });
 
   it('reduces the deposit when payment is from the deposit', () => {
@@ -600,12 +753,28 @@ describe('appointmentWorkspaceStore', () => {
       },
     }));
     const start = getStore().getEncounter(APPT)!.depositCents;
+    const pastCount = getStore().getEncounter(APPT)!.pastInvoices.length;
 
     getStore().recordInvoicePayment(APPT, { method: 'DEPOSIT' });
 
     const after = getStore().getEncounter(APPT)!;
-    expect(after.pastInvoices[0].paidFromDeposit).toBe(true);
     expect(after.depositCents).toBeLessThan(start);
+    expect(after.pastInvoices).toHaveLength(pastCount);
+  });
+
+  it('records a deposit balance without creating a synthetic invoice', () => {
+    seed();
+    const before = getStore().getEncounter(APPT)!;
+
+    getStore().recordDepositCollection(APPT, {
+      amountCents: 5000,
+      method: 'CASH',
+      byName: 'Front desk',
+    });
+
+    const after = getStore().getEncounter(APPT)!;
+    expect(after.depositCents).toBe(before.depositCents + 5000);
+    expect(after.pastInvoices).toHaveLength(before.pastInvoices.length);
   });
 
   it('no-ops recording a payment when there are no line items', () => {
@@ -631,6 +800,19 @@ describe('appointmentWorkspaceStore', () => {
     enc = getStore().getEncounter(APPT);
     expect(enc?.readyForBilling.value).toBe(false);
     expect(enc?.readyForBilling.byName).toBeUndefined();
+  });
+
+  it('keeps the ready-for-billing actor name when a bootstrap merge omits it', () => {
+    seed();
+    // Clinician marks it (optimistic) with their name + timestamp.
+    getStore().toggleReadyForBilling(APPT, { id: 'u1', name: 'Dr Tim' });
+    // A subsequent bootstrap refresh reports the flag but without an actor name/time.
+    getStore().mergeEncounterData(APPT, { readyForBilling: { value: true } });
+    const enc = getStore().getEncounter(APPT);
+    expect(enc?.readyForBilling.value).toBe(true);
+    // The locally-known name/time survive — the stamp does not degrade to "Clinical team".
+    expect(enc?.readyForBilling.byName).toBe('Dr Tim');
+    expect(enc?.readyForBilling.at).toBeTruthy();
   });
 
   it('toggles ready-for-discharge with a stamp', () => {
@@ -661,5 +843,80 @@ describe('appointmentWorkspaceStore', () => {
   it('ignores mutations for unknown appointments', () => {
     getStore().setLead('missing', 'u', 'n');
     expect(getStore().getEncounter('missing')).toBeUndefined();
+  });
+
+  it('marks matching saved treatment rows billed and clears the bill on payment', () => {
+    seed();
+    useAppointmentWorkspaceStore.setState((state) => ({
+      encountersById: {
+        ...state.encountersById,
+        [APPT]: {
+          ...state.encountersById[APPT],
+          services: [
+            {
+              id: 's1',
+              refId: 'r1',
+              kind: 'SERVICE' as const,
+              name: 'Dental cleaning',
+              qty: 1,
+              unitPriceCents: 5000,
+              amountCents: 5000,
+            },
+            {
+              id: 's2',
+              refId: 'r2',
+              kind: 'SERVICE' as const,
+              name: 'Nail trim',
+              qty: 1,
+              unitPriceCents: 2000,
+              amountCents: 2000,
+            },
+          ],
+          prescription: [
+            {
+              id: 'p1',
+              medicineName: 'Amoxicillin',
+              fulfillment: 'IN_HOUSE' as const,
+              priceCents: 800,
+            },
+          ],
+          invoiceLineItems: [
+            {
+              id: 'inv-1',
+              name: 'Dental cleaning',
+              unitPriceCents: 5000,
+              qty: 1,
+              grossCents: 5000,
+              discountCents: 0,
+              amountCents: 5000,
+            },
+            {
+              id: 'inv-2',
+              name: 'Amoxicillin',
+              unitPriceCents: 800,
+              qty: 1,
+              grossCents: 800,
+              discountCents: 0,
+              amountCents: 800,
+            },
+          ],
+        },
+      },
+    }));
+
+    getStore().recordInvoicePayment(APPT, { method: 'CASH', byName: 'Dr Patel' });
+
+    const enc = getStore().getEncounter(APPT)!;
+    // The editable bill is cleared (the paid lines move to pastInvoices).
+    expect(enc.invoiceLineItems).toEqual([]);
+    // The matching saved service + prescription are flipped to billed so the
+    // Total Bill auto-seed cannot re-add them.
+    const dental = enc.services.find((s) => s.name === 'Dental cleaning')!;
+    expect(dental.billed).toBe(true);
+    expect(dental.billedByName).toBe('Dr Patel');
+    expect(dental.billedAt).toBeTruthy();
+    expect(enc.prescription[0].billed).toBe(true);
+    // A saved service that was NOT on the paid bill stays unbilled/billable.
+    expect(enc.services.find((s) => s.name === 'Nail trim')!.billed).toBeFalsy();
   });
 });

@@ -56,26 +56,6 @@ type SnapshotSection = {
   fields?: SnapshotField[];
 };
 
-const taskKindOptions = [
-  { label: "Medication", value: "MEDICATION" },
-  { label: "Observation tool", value: "OBSERVATION_TOOL" },
-  { label: "Hygiene", value: "HYGIENE" },
-  { label: "Diet", value: "DIET" },
-  { label: "Custom", value: "CUSTOM" },
-];
-
-const audienceOptions = [
-  { label: "Employee task", value: "EMPLOYEE_TASK" },
-  { label: "Parent task", value: "PARENT_TASK" },
-];
-
-const recurrenceOptions = [
-  { label: "Once", value: "ONCE" },
-  { label: "Daily", value: "DAILY" },
-  { label: "Weekly", value: "WEEKLY" },
-  { label: "Custom", value: "CUSTOM" },
-];
-
 const workflowBlueprints: Record<
   TaskWorkflowTemplateKind,
   TaskWorkflowTemplateSchemaSnapshot
@@ -92,7 +72,13 @@ const workflowBlueprints: Record<
             label: "Task kind",
             type: "select",
             required: true,
-            options: taskKindOptions,
+            options: [
+              { label: "Medication", value: "MEDICATION" },
+              { label: "Observation tool", value: "OBSERVATION_TOOL" },
+              { label: "Hygiene", value: "HYGIENE" },
+              { label: "Diet", value: "DIET" },
+              { label: "Custom", value: "CUSTOM" },
+            ],
             rules: { allowCustom: false },
           },
           {
@@ -124,14 +110,20 @@ const workflowBlueprints: Record<
             label: "Audience",
             type: "select",
             required: true,
-            options: audienceOptions,
+            options: [
+              { label: "Employee task", value: "EMPLOYEE_TASK" },
+              { label: "Parent task", value: "PARENT_TASK" },
+            ],
             rules: { allowCustom: false },
           },
           {
             key: "defaultAssigneeRole",
             label: "Default assignee role",
             type: "select",
-            options: audienceOptions,
+            options: [
+              { label: "Employee task", value: "EMPLOYEE_TASK" },
+              { label: "Parent task", value: "PARENT_TASK" },
+            ],
             rules: { allowCustom: false },
           },
           {
@@ -161,7 +153,12 @@ const workflowBlueprints: Record<
             key: "recurrence",
             label: "Recurrence",
             type: "select",
-            options: recurrenceOptions,
+            options: [
+              { label: "Once", value: "ONCE" },
+              { label: "Daily", value: "DAILY" },
+              { label: "Weekly", value: "WEEKLY" },
+              { label: "Custom", value: "CUSTOM" },
+            ],
             rules: { allowCustom: false },
           },
         ],
@@ -267,60 +264,82 @@ const validateField = (
   field: BlueprintField,
   snapshotField: SnapshotField | undefined,
 ) => {
-  const issues: string[] = [];
-
+  const path = `${kind}.${sectionId}.${field.key}`;
   if (!snapshotField) {
-    if (field.required) {
-      issues.push(`${kind}.${sectionId}.${field.key}`);
-    }
-    return issues;
+    return field.required ? [path] : [];
   }
 
-  if (snapshotField.type !== field.type) {
-    issues.push(`${kind}.${sectionId}.${field.key}.type`);
+  return [
+    ...validateFieldType(path, field, snapshotField),
+    ...validateFieldRepeatable(path, field, snapshotField),
+    ...validateFieldOptions(path, field, snapshotField),
+    ...validateFieldRules(path, field, snapshotField),
+  ];
+};
+
+const validateFieldType = (
+  path: string,
+  field: BlueprintField,
+  snapshotField: SnapshotField,
+) => {
+  if (snapshotField.type === field.type) {
+    return [];
   }
 
-  if (
-    field.repeatable !== undefined &&
-    snapshotField.repeatable !== field.repeatable
-  ) {
-    issues.push(`${kind}.${sectionId}.${field.key}.repeatable`);
+  return [`${path}.type`];
+};
+
+const validateFieldRepeatable = (
+  path: string,
+  field: BlueprintField,
+  snapshotField: SnapshotField,
+) =>
+  field.repeatable !== undefined &&
+  snapshotField.repeatable !== field.repeatable
+    ? [`${path}.repeatable`]
+    : [];
+
+const validateFieldOptions = (
+  path: string,
+  field: BlueprintField,
+  snapshotField: SnapshotField,
+) => {
+  if (!field.options) return [];
+
+  const snapshotOptions = snapshotField.options ?? [];
+  const same =
+    snapshotOptions.length === field.options.length &&
+    field.options.every((option, index) => {
+      const snapshotOption = snapshotOptions[index];
+      return (
+        snapshotOption?.label === option.label &&
+        snapshotOption?.value === option.value
+      );
+    });
+
+  return same ? [] : [`${path}.options`];
+};
+
+const validateFieldRules = (
+  path: string,
+  field: BlueprintField,
+  snapshotField: SnapshotField,
+) => {
+  if (!field.rules) return [];
+
+  const snapshotRules = snapshotField.rules;
+  if (!snapshotRules || typeof snapshotRules !== "object") {
+    return [`${path}.rules`];
   }
 
-  if (field.options) {
-    const snapshotOptions = snapshotField.options ?? [];
-    const same =
-      snapshotOptions.length === field.options.length &&
-      field.options.every((option, index) => {
-        const snapshotOption = snapshotOptions[index];
-        return (
-          snapshotOption?.label === option.label &&
-          snapshotOption?.value === option.value
-        );
-      });
-    if (!same) {
-      issues.push(`${kind}.${sectionId}.${field.key}.options`);
-    }
-  }
+  const same = Object.entries(field.rules).every(([key, value]) => {
+    const snapshotValue = Object.entries(snapshotRules).find(
+      ([snapshotKey]) => snapshotKey === key,
+    )?.[1];
+    return JSON.stringify(snapshotValue) === JSON.stringify(value);
+  });
 
-  if (field.rules) {
-    const snapshotRules = snapshotField.rules;
-    if (!snapshotRules || typeof snapshotRules !== "object") {
-      issues.push(`${kind}.${sectionId}.${field.key}.rules`);
-    } else {
-      const same = Object.entries(field.rules).every(([key, value]) => {
-        const snapshotValue = Object.entries(snapshotRules).find(
-          ([snapshotKey]) => snapshotKey === key,
-        )?.[1];
-        return JSON.stringify(snapshotValue) === JSON.stringify(value);
-      });
-      if (!same) {
-        issues.push(`${kind}.${sectionId}.${field.key}.rules`);
-      }
-    }
-  }
-
-  return issues;
+  return same ? [] : [`${path}.rules`];
 };
 
 export const buildTaskWorkflowTemplateSchemaSnapshot = (

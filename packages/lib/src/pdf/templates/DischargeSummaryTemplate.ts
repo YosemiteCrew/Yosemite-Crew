@@ -7,29 +7,11 @@ import { renderRichText } from '../sections/RichText.js';
 import type { ClinicalPdfSignaturePlacement, DischargeSummaryDocumentData } from '../types.js';
 import { buildClinicalHeaderKeyValue } from './shared.js';
 
-export const renderDischargeSummaryTemplate = (
+// Content sections only (no title, metadata or signature) for combined packets.
+export const renderDischargeSummaryContent = (
   ctx: PdfContext,
   data: DischargeSummaryDocumentData
-): ClinicalPdfSignaturePlacement => {
-  renderDocumentTitle(ctx, data.title);
-  renderKeyValueGrid(
-    ctx,
-    buildClinicalHeaderKeyValue({
-      date: data.date,
-      appointmentId: data.appointmentId,
-      leadLabel: 'Doctor',
-      leadName: data.doctorName,
-      patientName: data.patientName,
-      clientName: data.clientName,
-      clientId: data.clientId,
-      clientContact: data.contact,
-      speciesBreed: data.speciesBreed,
-      ageSex: data.ageSex,
-    }),
-    { columns: 3 }
-  );
-  renderSpacer(ctx, ctx.theme.spacing.sectionGap);
-
+): void => {
   renderSectionTitle(ctx, 'Chief Complaint');
   renderRichText(ctx, data.chiefComplaint);
 
@@ -53,8 +35,40 @@ export const renderDischargeSummaryTemplate = (
 
   renderSectionTitle(ctx, 'Emergency Contact');
   renderRichText(ctx, data.emergencyContact);
+};
 
+// Title + metadata + content, without the signature end block.
+export const renderDischargeSummaryBody = (
+  ctx: PdfContext,
+  data: DischargeSummaryDocumentData
+): void => {
+  renderDocumentTitle(ctx, data.title);
+  renderKeyValueGrid(
+    ctx,
+    buildClinicalHeaderKeyValue({
+      date: data.date,
+      appointmentId: data.appointmentId,
+      leadLabel: 'Doctor',
+      leadName: data.doctorName,
+      patientName: data.patientName,
+      clientName: data.clientName,
+      clientId: data.clientId,
+      clientContact: data.contact,
+      speciesBreed: data.speciesBreed,
+      ageSex: data.ageSex,
+    }),
+    { columns: 3 }
+  );
   renderSpacer(ctx, ctx.theme.spacing.sectionGap);
+  renderDischargeSummaryContent(ctx, data);
+  renderSpacer(ctx, ctx.theme.spacing.sectionGap);
+};
+
+export const renderDischargeSummaryTemplate = (
+  ctx: PdfContext,
+  data: DischargeSummaryDocumentData
+): ClinicalPdfSignaturePlacement => {
+  renderDischargeSummaryBody(ctx, data);
   return renderDocumentEndBlock(ctx, {
     printedBy: data.printedBy,
     signature: data.signature,

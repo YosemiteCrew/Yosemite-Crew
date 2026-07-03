@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { IoEyeOutline } from 'react-icons/io5';
-import { getTaskStatusStyle } from '@/app/ui/tables/tableUtils';
 import { Task } from '@/app/features/tasks/types/task';
 import {
   autoScrollCalendarHorizontally,
@@ -24,6 +23,35 @@ import { DropAvailabilityInterval } from '@/app/features/appointments/components
 
 const DEFAULT_DROP_AVAILABILITY_INTERVALS: DropAvailabilityInterval[] = [];
 const DEFAULT_SLOT_OFFSET_MINUTES: number[] = [];
+
+const TASK_MARKER_STYLES: Record<
+  string,
+  { backgroundColor: string; borderColor: string; color: string }
+> = {
+  PENDING: {
+    backgroundColor: 'rgba(37, 99, 235, 0.92)',
+    borderColor: 'rgba(29, 78, 216, 1)',
+    color: '#ffffff',
+  },
+  IN_PROGRESS: {
+    backgroundColor: 'rgba(14, 116, 144, 0.94)',
+    borderColor: 'rgba(8, 145, 178, 1)',
+    color: '#ffffff',
+  },
+  COMPLETED: {
+    backgroundColor: 'rgba(22, 163, 74, 0.92)',
+    borderColor: 'rgba(21, 128, 61, 1)',
+    color: '#ffffff',
+  },
+  CANCELLED: {
+    backgroundColor: 'rgba(185, 28, 28, 0.92)',
+    borderColor: 'rgba(153, 27, 27, 1)',
+    color: '#ffffff',
+  },
+};
+
+const getTaskMarkerStyle = (status: string) =>
+  TASK_MARKER_STYLES[status.toUpperCase()] ?? TASK_MARKER_STYLES.PENDING;
 
 type TaskSlotProps = {
   slotEvents: Task[];
@@ -347,9 +375,9 @@ const TaskSlot = ({
                 aria-expanded={activePopoverKey === taskKey}
                 aria-controls={taskPopoverId}
                 style={{
-                  ...getTaskStatusStyle(task.status),
-                  borderColor: isZoomOutMode ? 'rgba(0,0,0,0.08)' : undefined,
+                  ...getTaskMarkerStyle(task.status),
                   borderRadius: isZoomOutMode ? 9999 : 16,
+                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.16)',
                 }}
                 title={markerTitle}
                 onClick={() => handleViewTask(task)}
@@ -381,12 +409,14 @@ const TaskSlot = ({
                 {isZoomOutMode ? null : (
                   <>
                     <div
-                      className={`text-caption-1 text-white truncate ${isCompact ? 'text-center' : ''}`}
+                      className={`text-caption-1 truncate ${isCompact ? 'text-center' : ''}`}
+                      style={{ color: '#ffffff' }}
                     >
                       {task.name || '-'}
                     </div>
                     <div
-                      className={`text-[10px] text-white/90 truncate ${isCompact ? 'text-center' : ''}`}
+                      className={`text-[10px] truncate ${isCompact ? 'text-center' : ''}`}
+                      style={{ color: 'rgba(255,255,255,0.92)' }}
                     >
                       Due: {dueTimeLabel}
                     </div>
@@ -463,8 +493,8 @@ const TaskSlot = ({
                   <span
                     className="shrink-0 rounded-full px-2 py-0.5 text-[10px] leading-4 font-medium text-white whitespace-nowrap"
                     style={{
-                      backgroundColor:
-                        getTaskStatusStyle(activeTask.status).backgroundColor || '#1a73e8',
+                      backgroundColor: getTaskMarkerStyle(activeTask.status).backgroundColor,
+                      border: `1px solid ${getTaskMarkerStyle(activeTask.status).borderColor}`,
                     }}
                   >
                     {getTaskStatusLabel(activeTask.status)}

@@ -1,5 +1,6 @@
 .App {
   font-family: var(--font-satoshi);
   text-align: center;
-  height: calc(100vh - 141px);
+  min-height: max(720px, 100vh);
+  padding-top: 88px;
 }

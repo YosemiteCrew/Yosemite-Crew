@@ -57,13 +57,7 @@ router.post(
 );
 
 // Get companion by id (PMS)
-router.get(
-  "/org/:id",
-  // authorizeCognito,
-  // withOrgPermissions(),
-  // requirePermission("companions:view:any"),
-  CompanionController.getCompanionById,
-);
+router.get("/org/:id", authorizeCognito, CompanionController.getCompanionById);
 
 // Update companion (PMS)
 router.put(

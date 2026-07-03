@@ -26,6 +26,7 @@ jest.mock('@/app/stores/orgStore');
 jest.mock('@/app/stores/teamStore');
 jest.mock('@/app/lib/permissions');
 jest.mock('@yosemite-crew/types', () => ({
+  ...jest.requireActual('@yosemite-crew/types'),
   fromUserOrganizationRequestDTO: jest.fn(),
   toUserOrganizationResponseDTO: jest.fn(),
 }));

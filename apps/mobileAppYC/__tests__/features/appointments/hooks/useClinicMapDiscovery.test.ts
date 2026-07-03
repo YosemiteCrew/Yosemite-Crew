@@ -127,6 +127,10 @@ describe('useClinicMapDiscovery', () => {
     });
 
     it('updates mapRegion and limits visible clinics to that region', () => {
+      setReduxBusinesses([
+        makeReduxBusiness({id: 'sf_biz', lat: 37.77, lng: -122.42}),
+        makeReduxBusiness({id: 'oakland_biz', lat: 37.8, lng: -122.27}),
+      ]);
       const {result} = renderHook(() => useClinicMapDiscovery(''));
       const sfOnly = {
         latitude: 37.77,
@@ -143,6 +147,31 @@ describe('useClinicMapDiscovery', () => {
           sfOnly.latitudeDelta / 2,
         );
       });
+    });
+
+    it('keeps fetched businesses visible when none are inside the current map region', () => {
+      setReduxBusinesses([
+        makeReduxBusiness({
+          id: 'remote_biz',
+          name: 'Remote Veterinary Business',
+          lat: -37.7760336,
+          lng: 144.9379768,
+        }),
+      ]);
+      const {result} = renderHook(() => useClinicMapDiscovery(''));
+
+      act(() => {
+        result.current.setMapRegion({
+          latitude: 37.421998333333335,
+          longitude: -122.084,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        });
+      });
+
+      expect(result.current.visibleClinics.map(c => c.id)).toEqual([
+        'remote_biz',
+      ]);
     });
   });
 

@@ -33,7 +33,7 @@
 }
 .companions-table-fixed {
   table-layout: fixed;
-  min-width: 1036px; /* 56+160+130+100+110+170+110+200 */
+  min-width: 1096px; /* 56+220+130+100+110+170+110+200 */
 }
 .inventory-table-fixed {
   table-layout: fixed;
@@ -223,7 +223,6 @@
   line-height: 120%;
   letter-spacing: -0.32px;
   overflow-wrap: anywhere;
-  word-break: break-word;
   white-space: normal;
 }
 .appointment-profile-sub {

@@ -11,6 +11,7 @@ import {
   richTextIsEmpty,
   formatStampTime,
   formatStampDate,
+  resolveSectionLock,
 } from '@/app/lib/appointmentWorkspace';
 import { setPreferredTimeZone } from '@/app/lib/timezone';
 import { buildEmptyEncounter } from '@/app/features/appointments/services/workspaceInitialData';
@@ -170,5 +171,27 @@ describe('appointmentWorkspace lib', () => {
     expect(richTextIsEmpty('<p></p>')).toBe(true);
     expect(richTextIsEmpty('<p>&nbsp;</p>')).toBe(true);
     expect(richTextIsEmpty('<p>hello</p>')).toBe(false);
+  });
+
+  describe('resolveSectionLock', () => {
+    it('prefers the backend section lock when present', () => {
+      const enc = base();
+      enc.sectionLocks = { soap: { locked: true, reason: 'Record finalized' } };
+      // Even with clientLocked=false, the backend lock is authoritative.
+      expect(resolveSectionLock(enc, 'soap', false)).toEqual({
+        locked: true,
+        reason: 'Record finalized',
+      });
+    });
+
+    it('falls back to the client lock when the backend omits the section', () => {
+      const enc = base();
+      expect(resolveSectionLock(enc, 'soap', true)).toEqual({ locked: true });
+      expect(resolveSectionLock(enc, 'invoice', false)).toEqual({ locked: false });
+    });
+
+    it('falls back to the client lock when no encounter is provided', () => {
+      expect(resolveSectionLock(undefined, 'treatment', true)).toEqual({ locked: true });
+    });
   });
 });

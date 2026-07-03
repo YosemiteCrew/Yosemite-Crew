@@ -120,6 +120,158 @@ const syncIntegrationAccountToPostgres = async (
   }
 };
 
+const buildEnabledIntegrationData = () => ({
+  status: "enabled" as const,
+  enabledAt: new Date(),
+  disabledAt: null,
+  lastError: null,
+  credentialsStatus: "valid" as const,
+  lastValidatedAt: new Date(),
+});
+
+const ensureIntegrationCredentialsPresent = (
+  account: { credentials?: unknown } | null | undefined,
+) => {
+  if (!account?.credentials) {
+    throw new IntegrationServiceError(
+      "Integration credentials are missing.",
+      400,
+    );
+  }
+};
+
+const enableMerckIntegrationInPostgres = async (organisationId: string) => {
+  const existing = await prisma.integrationAccount.findFirst({
+    where: { organisationId, provider: "MERCK_MANUALS" },
+  });
+
+  if (existing) {
+    return prisma.integrationAccount.update({
+      where: { id: existing.id },
+      data: buildEnabledIntegrationData(),
+    });
+  }
+
+  return prisma.integrationAccount.create({
+    data: {
+      organisationId,
+      provider: "MERCK_MANUALS",
+      ...buildEnabledIntegrationData(),
+    },
+  });
+};
+
+const enableMerckIntegrationInMongo = async (organisationId: string) => {
+  const existing = await IntegrationAccountModel.findOne({
+    organisationId,
+    provider: "MERCK_MANUALS",
+  }).setOptions({ sanitizeFilter: true });
+
+  if (existing) {
+    existing.status = "enabled";
+    existing.enabledAt = new Date();
+    existing.disabledAt = null;
+    existing.lastError = null;
+    existing.credentialsStatus = "valid";
+    existing.lastValidatedAt = new Date();
+    await existing.save();
+    await syncIntegrationAccountToPostgres(existing);
+    return existing.toJSON();
+  }
+
+  const created = new IntegrationAccountModel({
+    organisationId,
+    provider: "MERCK_MANUALS",
+    ...buildEnabledIntegrationData(),
+  });
+  await created.save();
+  await syncIntegrationAccountToPostgres(created);
+  return created.toJSON();
+};
+
+const enableNonMerckIntegrationInPostgres = async (
+  organisationId: string,
+  provider: IntegrationProvider,
+  validateCredentials: (
+    organisationId: string,
+    provider: IntegrationProvider,
+  ) => Promise<IntegrationValidationResult>,
+) => {
+  const existing = await prisma.integrationAccount.findFirst({
+    where: { organisationId, provider },
+  });
+
+  if (!existing) {
+    throw new IntegrationServiceError(
+      "Integration credentials must be configured before enabling.",
+      400,
+    );
+  }
+
+  ensureIntegrationCredentialsPresent(existing);
+
+  const validation = await validateCredentials(organisationId, provider);
+
+  if (!validation.ok) {
+    throw new IntegrationServiceError(
+      `Integration validation failed: ${validation.reason}`,
+      400,
+    );
+  }
+
+  return prisma.integrationAccount.update({
+    where: { id: existing.id },
+    data: {
+      status: "enabled",
+      enabledAt: new Date(),
+      disabledAt: null,
+      lastError: null,
+    },
+  });
+};
+
+const enableNonMerckIntegrationInMongo = async (
+  organisationId: string,
+  provider: IntegrationProvider,
+  validateCredentials: (
+    organisationId: string,
+    provider: IntegrationProvider,
+  ) => Promise<IntegrationValidationResult>,
+) => {
+  const existing = await IntegrationAccountModel.findOne({
+    organisationId,
+    provider,
+  }).setOptions({ sanitizeFilter: true });
+
+  if (!existing) {
+    throw new IntegrationServiceError(
+      "Integration credentials must be configured before enabling.",
+      400,
+    );
+  }
+
+  ensureIntegrationCredentialsPresent(existing);
+
+  const validation = await validateCredentials(organisationId, provider);
+
+  if (!validation.ok) {
+    throw new IntegrationServiceError(
+      `Integration validation failed: ${validation.reason}`,
+      400,
+    );
+  }
+
+  existing.status = "enabled";
+  existing.enabledAt = new Date();
+  existing.disabledAt = null;
+  existing.lastError = null;
+
+  await existing.save();
+  await syncIntegrationAccountToPostgres(existing);
+
+  return existing.toJSON();
+};
+
 export const IntegrationService = {
   ensureProvider,
 
@@ -340,152 +492,24 @@ export const IntegrationService = {
     const normalized = ensureProvider(provider);
 
     if (isMerckProvider(normalized)) {
-      if (isReadFromPostgres()) {
-        const existing = await prisma.integrationAccount.findFirst({
-          where: { organisationId: safeOrganisationId, provider: normalized },
-        });
-        if (existing) {
-          return prisma.integrationAccount.update({
-            where: { id: existing.id },
-            data: {
-              status: "enabled",
-              enabledAt: new Date(),
-              disabledAt: null,
-              lastError: null,
-              credentialsStatus: "valid",
-              lastValidatedAt: new Date(),
-            },
-          });
-        }
-        return prisma.integrationAccount.create({
-          data: {
-            organisationId: safeOrganisationId,
-            provider: normalized,
-            status: "enabled",
-            enabledAt: new Date(),
-            disabledAt: null,
-            lastError: null,
-            credentialsStatus: "valid",
-            lastValidatedAt: new Date(),
-          },
-        });
-      }
-
-      const existing = await IntegrationAccountModel.findOne({
-        organisationId: safeOrganisationId,
-        provider: normalized,
-      }).setOptions({ sanitizeFilter: true });
-
-      if (existing) {
-        existing.status = "enabled";
-        existing.enabledAt = new Date();
-        existing.disabledAt = null;
-        existing.lastError = null;
-        existing.credentialsStatus = "valid";
-        existing.lastValidatedAt = new Date();
-        await existing.save();
-        await syncIntegrationAccountToPostgres(existing);
-        return existing.toJSON();
-      }
-
-      const created = new IntegrationAccountModel({
-        organisationId,
-        provider: normalized,
-        status: "enabled",
-        enabledAt: new Date(),
-        disabledAt: null,
-        lastError: null,
-        credentialsStatus: "valid",
-        lastValidatedAt: new Date(),
-      });
-      await created.save();
-      await syncIntegrationAccountToPostgres(created);
-      return created.toJSON();
+      return isReadFromPostgres()
+        ? enableMerckIntegrationInPostgres(safeOrganisationId)
+        : enableMerckIntegrationInMongo(safeOrganisationId);
     }
 
     if (isReadFromPostgres()) {
-      const existing = await prisma.integrationAccount.findFirst({
-        where: { organisationId: safeOrganisationId, provider: normalized },
-      });
-
-      if (!existing) {
-        throw new IntegrationServiceError(
-          "Integration credentials must be configured before enabling.",
-          400,
-        );
-      }
-
-      if (!existing.credentials) {
-        throw new IntegrationServiceError(
-          "Integration credentials are missing.",
-          400,
-        );
-      }
-
-      const validation = await this.validateCredentials(
+      return enableNonMerckIntegrationInPostgres(
         safeOrganisationId,
         normalized,
-      );
-
-      if (!validation.ok) {
-        throw new IntegrationServiceError(
-          `Integration validation failed: ${validation.reason}`,
-          400,
-        );
-      }
-
-      const updated = await prisma.integrationAccount.update({
-        where: { id: existing.id },
-        data: {
-          status: "enabled",
-          enabledAt: new Date(),
-          disabledAt: null,
-          lastError: null,
-        },
-      });
-      return updated;
-    }
-
-    const existing = await IntegrationAccountModel.findOne({
-      organisationId: safeOrganisationId,
-      provider: normalized,
-    }).setOptions({ sanitizeFilter: true });
-
-    if (!existing) {
-      throw new IntegrationServiceError(
-        "Integration credentials must be configured before enabling.",
-        400,
+        this.validateCredentials.bind(this),
       );
     }
 
-    if (!existing.credentials) {
-      throw new IntegrationServiceError(
-        "Integration credentials are missing.",
-        400,
-      );
-    }
-
-    const validation = await this.validateCredentials(
+    return enableNonMerckIntegrationInMongo(
       safeOrganisationId,
       normalized,
+      this.validateCredentials.bind(this),
     );
-
-    if (!validation.ok) {
-      throw new IntegrationServiceError(
-        `Integration validation failed: ${validation.reason}`,
-        400,
-      );
-    }
-
-    existing.status = "enabled";
-    existing.enabledAt = new Date();
-    existing.disabledAt = null;
-    existing.lastError = null;
-
-    await existing.save();
-    await syncIntegrationAccountToPostgres(existing);
-
-    return existing.toJSON();
   },
 
   async setDisabled(organisationId: string, provider: string) {

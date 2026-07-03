@@ -69,7 +69,7 @@ export const useOrgOnboarding = (
       .map((id) => specialitiesById[id])
       .filter((s): s is Speciality => s != null);
 
-    const step = computeOrgOnboardingStep(org, specialities);
+    const step = computeOrgOnboardingStep(org);
 
     return { step, specialities, effectiveOrg: org, isReady: true };
   }, [orgId, org, specialitiesById, specialityIdsByOrgId, membership, orgStatus, specialityStatus]);

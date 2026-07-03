@@ -72,6 +72,20 @@ jest.mock('@gorhom/bottom-sheet', () => {
   };
 });
 
+jest.mock('react-native-gesture-handler', () => {
+  const {View} = require('react-native');
+  return {
+    GestureDetector: ({children}: any) => <>{children}</>,
+    Gesture: {
+      Native: () => ({}),
+    },
+    // kept for any other consumers of this mock
+    NativeViewGestureHandler: ({children, ...props}: any) => (
+      <View {...props}>{children}</View>
+    ),
+  };
+});
+
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
@@ -149,12 +163,13 @@ describe('ClinicBottomSheet', () => {
 
   it('renders the filterHeader when provided', () => {
     const {Text} = require('react-native');
-    const {getByText} = render(
+    const {getByTestId, getByText} = render(
       <ClinicBottomSheet
         {...defaultProps}
         filterHeader={<Text>Filter Controls</Text>}
       />,
     );
+    expect(getByTestId('filter-header-gesture')).toBeTruthy();
     expect(getByText('Filter Controls')).toBeTruthy();
   });
 

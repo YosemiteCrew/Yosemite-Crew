@@ -1,4 +1,8 @@
 import { getData, postData } from '@/app/services/axios';
+import type {
+  FormAssignmentListFilters,
+  FormAssignmentListItem,
+} from '@/app/features/forms/types/forms';
 
 export type FormAssignmentDTO = Record<string, unknown>;
 export type CreateFormAssignmentBody = Record<string, unknown>;
@@ -21,6 +25,27 @@ export const listAppointmentFormAssignments = async (
 ) => {
   const res = await getData<FormAssignmentDTO[]>(
     `/v1/forms/organisations/${organisationId}/appointments/${appointmentId}/assignments`
+  );
+  return res.data ?? [];
+};
+
+/**
+ * List every form assignment for an organisation (parent-assigned forms shown on
+ * the /forms page). Optional filters narrow by parent, companion, or lifecycle
+ * status; `status` is sent as the backend's comma-separated uppercase param.
+ */
+export const listOrganisationFormAssignments = async (
+  organisationId: string,
+  filters: FormAssignmentListFilters = {}
+): Promise<FormAssignmentListItem[]> => {
+  const params: Record<string, string> = {};
+  if (filters.parentId) params.parentId = filters.parentId;
+  if (filters.companionId) params.companionId = filters.companionId;
+  if (filters.status?.length) params.status = filters.status.join(',');
+
+  const res = await getData<FormAssignmentListItem[]>(
+    `/v1/forms/organisations/${organisationId}/assignments`,
+    params
   );
   return res.data ?? [];
 };

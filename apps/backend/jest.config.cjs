@@ -1,4 +1,7 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
+// Worker recycling is only needed for coverage runs (see workerIdleMemoryLimit below).
+const collectingCoverage = process.argv.includes("--coverage");
+
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
@@ -32,6 +35,12 @@ module.exports = {
   ],
   coverageDirectory: "<rootDir>/coverage",
   coverageProvider: "v8",
+  // Recycle workers ONLY during coverage runs. The v8 coverage provider accumulates
+  // scope/context state across the 200+ suites on a long-lived worker, tripping an
+  // internal V8 assertion ("# Check failed: needs_context ...") on memory-constrained
+  // CI runners. Applying this to the much lighter non-coverage `turbo run test` runs
+  // just restarts ts-jest workers needlessly and slows them down, so gate it on --coverage.
+  ...(collectingCoverage ? { workerIdleMemoryLimit: "512MB" } : {}),
   setupFilesAfterEnv: ["<rootDir>/test/jest.setup.ts"],
   moduleNameMapper: {
     "^@yosemite-crew/database$": "<rootDir>/../../packages/database/src/client.ts",
@@ -41,11 +50,13 @@ module.exports = {
     "^src/(.*)$": "<rootDir>/src/$1",
   },
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }],
-  },
-  globals: {
-    'ts-jest': {
-      diagnostics: false, 
-    },
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        tsconfig: "<rootDir>/tsconfig.json",
+        diagnostics: false,
+        isolatedModules: true,
+      },
+    ],
   },
 };

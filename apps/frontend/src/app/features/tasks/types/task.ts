@@ -4,43 +4,17 @@ import {
   status,
   StatusOption,
 } from '@/app/features/companions/pages/Companions/types';
+import { type TaskKind as CanonicalTaskKind } from '@/app/features/tasks/constants/taskTaxonomy';
 
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
-export type TaskKind =
-  | 'MEDICATION'
-  | 'CARE'
-  | 'DIET'
-  | 'PROCEDURE'
-  | 'DIAGNOSTIC'
-  | 'COMMUNICATION'
-  | 'BILLING'
-  | 'RECORD'
-  | 'ADMIN'
-  | 'OBSERVATION_TOOL'
-  | 'HYGIENE'
-  | 'CUSTOM';
+export type TaskKind = CanonicalTaskKind;
 
-export const TaskRecurrenceOptions = [
-  { label: 'Once', value: 'ONCE' },
-  { label: 'Daily', value: 'DAILY' },
-  { label: 'Weekly', value: 'WEEKLY' },
-];
+/** Repeat options shown in task pickers (single-sourced from the taxonomy). */
+export { TASK_REPEAT_OPTIONS as TaskRecurrenceOptions } from '@/app/features/tasks/constants/taskTaxonomy';
 
-export const TaskKindOptions = [
-  { label: 'Medication', value: 'MEDICATION' },
-  { label: 'Care', value: 'CARE' },
-  { label: 'Diet', value: 'DIET' },
-  { label: 'Procedure', value: 'PROCEDURE' },
-  { label: 'Diagnostic', value: 'DIAGNOSTIC' },
-  { label: 'Communication', value: 'COMMUNICATION' },
-  { label: 'Billing', value: 'BILLING' },
-  { label: 'Record', value: 'RECORD' },
-  { label: 'Admin', value: 'ADMIN' },
-  { label: 'Observation tool', value: 'OBSERVATION_TOOL' },
-  { label: 'Hygiene', value: 'HYGIENE' },
-  { label: 'Custom', value: 'CUSTOM' },
-];
+/** Category options shown in task pickers (single-sourced from the taxonomy). */
+export { TASK_CATEGORY_OPTIONS as TaskKindOptions } from '@/app/features/tasks/constants/taskTaxonomy';
 
 export const TaskStatusOptions = [
   { label: 'Pending', value: 'PENDING' },
@@ -161,7 +135,7 @@ export const EMPTY_TASK: Task = {
   source: 'CUSTOM',
   libraryTaskId: undefined,
   templateId: undefined,
-  category: 'MEDICATION',
+  category: 'CARE',
   recurrence: {
     type: 'ONCE',
     isMaster: false,
@@ -179,7 +153,7 @@ export const EMPTY_COMPANION_TASK: Task = {
   source: 'CUSTOM',
   libraryTaskId: undefined,
   templateId: undefined,
-  category: 'MEDICATION',
+  category: 'CARE',
   recurrence: {
     type: 'ONCE',
     isMaster: false,

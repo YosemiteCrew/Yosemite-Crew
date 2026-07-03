@@ -53,12 +53,21 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
 
 jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   __esModule: true,
-  default: ({ title }: any) => <div>{title}</div>,
+  default: ({ title, data }: any) => (
+    <div data-testid={`editable-${title}`}>
+      {title}:{data?.templateSource ?? 'none'}
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
-  default: ({ title }: any) => <div>{title}</div>,
+  default: ({ title, children }: any) => (
+    <div>
+      <div>{title}</div>
+      {children}
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -150,10 +159,11 @@ describe('FormInfo', () => {
     );
 
     expect(screen.getByText('View template')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Unpublish' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit form' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.getByTestId('editable-Usage & visibility')).toHaveTextContent('YC_LIBRARY');
+    expect(screen.getByRole('button', { name: 'Unpublish' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'close' })).toHaveLength(2);
   });
 
   it('uses form view copy for non-editable legacy forms', () => {
@@ -213,5 +223,68 @@ describe('FormInfo', () => {
     });
     expect(publishFormMock).not.toHaveBeenCalled();
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('renders task templates with the task summary instead of the generic form preview', () => {
+    render(
+      <FormInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeForm={
+          {
+            _id: 'tpl-task',
+            name: 'Task template',
+            category: 'Task Template',
+            status: 'Draft',
+            schema: [
+              {
+                id: 'task_blocks',
+                type: 'group',
+                meta: { taskGroup: true },
+                fields: [
+                  {
+                    id: 'task-1',
+                    type: 'group',
+                    label: 'Record vitals',
+                    fields: [
+                      {
+                        id: 'task-1_name',
+                        type: 'input',
+                        label: 'Task title',
+                        defaultValue: 'Record vitals',
+                        meta: { taskBlockKey: 'name' },
+                      },
+                      {
+                        id: 'task-1_category',
+                        type: 'dropdown',
+                        label: 'Category',
+                        defaultValue: 'CARE',
+                        meta: { taskBlockKey: 'category' },
+                        options: [{ label: 'Care', value: 'CARE' }],
+                      },
+                      {
+                        id: 'task-1_instructions',
+                        type: 'textarea',
+                        label: 'Instructions (optional)',
+                        defaultValue: 'Watch appetite and hydration',
+                        meta: { taskBlockKey: 'additionalNotes' },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          } as any
+        }
+        onEdit={jest.fn()}
+        serviceOptions={[]}
+      />
+    );
+
+    expect(screen.getByText('Tasks')).toBeInTheDocument();
+    expect(screen.queryByText('Form preview')).not.toBeInTheDocument();
+    expect(screen.getByText('Record vitals')).toBeInTheDocument();
+    expect(screen.getByText(/Care ·/)).toBeInTheDocument();
+    expect(screen.getByText('Watch appetite and hydration')).toBeInTheDocument();
   });
 });

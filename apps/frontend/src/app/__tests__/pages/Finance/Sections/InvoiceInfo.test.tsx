@@ -17,6 +17,10 @@ jest.mock('@/app/constants/mediaSources', () => ({
   MEDIA_SOURCES: { appointments: { stripe: '/stripe.png' } },
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>

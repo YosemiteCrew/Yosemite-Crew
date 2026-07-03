@@ -131,6 +131,25 @@ describe("OrganisationRoomController", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("passes vacantOnly through to the summary service", async () => {
+    req.params = { organizationId: "org_1" };
+    req.query = { vacantOnly: "true" };
+    mockedService.getSummaryByOrganizationId.mockResolvedValue([
+      { id: "room_1" },
+    ] as never);
+
+    await OrganisationRoomController.getAllByOrganizationId(
+      req as any,
+      res as any,
+    );
+
+    expect(mockedService.getSummaryByOrganizationId).toHaveBeenCalledWith(
+      "org_1",
+      { vacantOnly: true },
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("rejects a missing organisation identifier", async () => {
     req.params = {};
 

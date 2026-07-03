@@ -24,12 +24,7 @@ describe("registerIdexxReferenceScheduler", () => {
     await registerIdexxReferenceScheduler();
 
     expect(mockedQueue.add).toHaveBeenCalledTimes(2);
-    expect(mockedQueue.add).toHaveBeenNthCalledWith(
-      1,
-      "sync",
-      {},
-      { jobId: "idexx-reference-startup" },
-    );
+    expect(mockedQueue.add).toHaveBeenNthCalledWith(1, "sync", {}, {});
     expect(mockedQueue.add).toHaveBeenNthCalledWith(
       2,
       "sync",

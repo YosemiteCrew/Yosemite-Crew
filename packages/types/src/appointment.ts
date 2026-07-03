@@ -19,6 +19,7 @@ export type AppointmentStatus =
   | 'NO_SHOW';
 
 export type AppointmentPaymentStatus = 'PAID' | 'UNPAID';
+export type AppointmentBookingPaymentStatus = 'PAID' | 'UNPAID';
 
 export type AppointmentTemplateDefault = {
   templateKind: TemplateKind;
@@ -55,6 +56,16 @@ export type Appointment = {
     // Clinic room being booked
     id: string;
     name: string;
+    // Inpatient ward/unit the room is assigned to (surfaced on the appointments
+    // list so the room's unit is visible without opening the workspace).
+    unitId?: string;
+    unitName?: string;
+    unit?: {
+      id: string;
+      name: string;
+      displayName?: string;
+      code?: string;
+    };
   };
   appointmentType?: {
     id: string;
@@ -73,6 +84,7 @@ export type Appointment = {
   endTime: Date; // Booking end timestamp
   status: AppointmentStatus;
   paymentStatus?: AppointmentPaymentStatus;
+  bookingPaymentStatus?: AppointmentBookingPaymentStatus;
   isEmergency?: boolean;
   concern?: string; // Reason for the appointment
   createdAt?: Date;
@@ -91,10 +103,14 @@ const EXT_EMERGENCY = 'https://yosemitecrew.com/fhir/StructureDefinition/appoint
 const EXT_APPOINTMENT_ATTACHMENTS =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-attachments';
 const EXT_LEAD_PROFILE_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/lead-profile-url';
+const EXT_ROOM_UNIT_ID = 'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-id';
+const EXT_ROOM_UNIT_NAME = 'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-name';
 const EXT_APPOINTMENT_FORM_IDS =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-form-id';
 const EXT_APPOINTMENT_PAYMENT_STATUS =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-payment-status';
+const EXT_APPOINTMENT_BOOKING_PAYMENT_STATUS =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-booking-payment-status';
 const EXT_APPOINTMENT_KIND = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-kind';
 const EXT_APPOINTMENT_CASE_ID =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-case-id';
@@ -189,6 +205,11 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
 
   // Room participant
   if (appointment.room) {
+    const roomUnitId = appointment.room.unitId ?? appointment.room.unit?.id;
+    const roomUnitName =
+      appointment.room.unitName ??
+      appointment.room.unit?.displayName ??
+      appointment.room.unit?.name;
     participants.push({
       actor: {
         reference: `Location/${appointment.room.id}`,
@@ -206,6 +227,12 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
           ],
         },
       ],
+      extension: roomUnitId
+        ? [
+            { url: EXT_ROOM_UNIT_ID, valueString: roomUnitId },
+            { url: EXT_ROOM_UNIT_NAME, valueString: roomUnitName ?? '' },
+          ]
+        : undefined,
     });
   }
 
@@ -291,6 +318,13 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
     extension.push({
       url: EXT_APPOINTMENT_PAYMENT_STATUS,
       valueString: appointment.paymentStatus,
+    });
+  }
+
+  if (appointment.bookingPaymentStatus) {
+    extension.push({
+      url: EXT_APPOINTMENT_BOOKING_PAYMENT_STATUS,
+      valueString: appointment.bookingPaymentStatus,
     });
   }
 
@@ -405,6 +439,13 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const leadProfileExtension = leadParticipant?.extension?.find(
     (ext) => ext.url === EXT_LEAD_PROFILE_URL
   );
+  const roomUnitId =
+    roomParticipant?.extension?.find((ext) => ext.url === EXT_ROOM_UNIT_ID)?.valueString?.trim() ||
+    '';
+  const roomUnitName =
+    roomParticipant?.extension
+      ?.find((ext) => ext.url === EXT_ROOM_UNIT_NAME)
+      ?.valueString?.trim() || '';
 
   const pmsStatus = FHIRappointment.status; // fallback if unknown status
   const normalizedStatus = pmsStatus === 'NO_PAYMENT' ? 'REQUESTED' : pmsStatus;
@@ -429,6 +470,9 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const paymentStatus = FHIRappointment.extension?.find(
     (ext) => ext.url === EXT_APPOINTMENT_PAYMENT_STATUS
   )?.valueString as AppointmentPaymentStatus | undefined;
+  const bookingPaymentStatus = FHIRappointment.extension?.find(
+    (ext) => ext.url === EXT_APPOINTMENT_BOOKING_PAYMENT_STATUS
+  )?.valueString as AppointmentBookingPaymentStatus | undefined;
   const appointmentKind = FHIRappointment.extension?.find((ext) => ext.url === EXT_APPOINTMENT_KIND)
     ?.valueString as AppointmentKind | undefined;
   const caseId = FHIRappointment.extension?.find(
@@ -503,6 +547,17 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
       ? {
           id: roomParticipant.actor?.reference?.split('/')[1] ?? '',
           name: roomParticipant.actor?.display ?? '',
+          ...(roomUnitId
+            ? {
+                unitId: roomUnitId,
+                unitName: roomUnitName || undefined,
+                unit: {
+                  id: roomUnitId,
+                  name: roomUnitName ?? '',
+                  displayName: roomUnitName ?? '',
+                },
+              }
+            : {}),
         }
       : undefined,
     appointmentDate: FHIRappointment.start ? new Date(FHIRappointment.start) : new Date(),
@@ -512,6 +567,7 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     endTime: FHIRappointment.end ? new Date(FHIRappointment.end) : new Date(),
     status: normalizedStatus as any,
     paymentStatus,
+    bookingPaymentStatus,
     concern: FHIRappointment.description ?? '',
     createdAt: FHIRappointment.created ? new Date(FHIRappointment.created) : new Date(),
     updatedAt: new Date(),

@@ -10,8 +10,10 @@ import {
   sanitizePostHogEvent,
 } from '@/app/lib/posthog';
 
+const POSTHOG_EU_HOST = 'https://eu.i.posthog.com';
+
 const getPostHogConfig = () => ({
-  apiHost: process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() ?? '',
+  apiHost: process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() === POSTHOG_EU_HOST ? POSTHOG_EU_HOST : '',
   projectToken: process.env.NEXT_PUBLIC_POSTHOG_TOKEN?.trim() ?? '',
 });
 

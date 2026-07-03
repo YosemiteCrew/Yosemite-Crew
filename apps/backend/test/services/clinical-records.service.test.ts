@@ -23,6 +23,7 @@ jest.mock("src/config/prisma", () => ({
     prescription: {
       create: jest.fn(),
       update: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
@@ -37,6 +38,12 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+    },
+    appointment: {
+      updateMany: jest.fn(),
     },
   },
 }));
@@ -62,6 +69,7 @@ describe("ClinicalArtifactService clinical records", () => {
     prescription: {
       create: jest.Mock;
       update: jest.Mock;
+      findFirst: jest.Mock;
       findUnique: jest.Mock;
       findMany: jest.Mock;
     };
@@ -76,6 +84,12 @@ describe("ClinicalArtifactService clinical records", () => {
       update: jest.Mock;
       findUnique: jest.Mock;
       findMany: jest.Mock;
+    };
+    user: {
+      findFirst: jest.Mock;
+    };
+    appointment: {
+      updateMany: jest.Mock;
     };
   };
 
@@ -104,6 +118,13 @@ describe("ClinicalArtifactService clinical records", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedPrisma.user.findFirst.mockResolvedValue({
+      id: "user-1",
+      userId: "nurse-1",
+      firstName: "Nina",
+      lastName: "Nurse",
+      displayName: "Nina Nurse",
+    });
     mockedPrisma.$transaction.mockImplementation(async (callback: unknown) => {
       if (typeof callback === "function") {
         return callback(prisma);
@@ -140,7 +161,7 @@ describe("ClinicalArtifactService clinical records", () => {
 
     expect(created.prescription.id).toBe("rx-1");
 
-    mockedPrisma.prescription.findUnique.mockResolvedValueOnce({
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce({
       id: "rx-1",
       artifactId,
       medications: [{ name: "Amoxicillin", dose: "250mg" }],
@@ -155,7 +176,7 @@ describe("ClinicalArtifactService clinical records", () => {
     const fetched = await ClinicalArtifactService.getPrescription("rx-1");
     expect(fetched.artifact.kind).toBe("PRESCRIPTION");
 
-    mockedPrisma.prescription.findUnique.mockResolvedValueOnce({
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce({
       id: "rx-1",
       artifactId,
       medications: [{ name: "Amoxicillin", dose: "250mg" }],
@@ -211,7 +232,7 @@ describe("ClinicalArtifactService clinical records", () => {
   });
 
   it("rejects prescription updates for the wrong organisation", async () => {
-    mockedPrisma.prescription.findUnique.mockResolvedValueOnce({
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce({
       id: "rx-1",
       artifactId,
       medications: [],

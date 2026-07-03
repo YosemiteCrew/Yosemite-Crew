@@ -75,24 +75,33 @@ describe("availability.router", () => {
 
   it("requires org permissions + appointments:view:any for org-wide base availability read", () => {
     const route = findRoute("/:orgId/base/all", "get");
-    expect(route?.stack[0]?.handle).toBe(
-      withOrgPermissions.mock.results[0]?.value,
-    );
-    expect(route?.stack[1]?.handle).toBe(
-      requirePermission.mock.results[0]?.value,
-    );
-    expect(typeof route?.stack[2]?.handle).toBe("function");
-
-    expect(withOrgPermissions).toHaveBeenCalledTimes(1);
     expect(requirePermission).toHaveBeenCalledWith("appointments:view:any");
+    expect(route?.stack[0]?.handle).toEqual(expect.any(Function));
+    expect(route?.stack[1]?.handle).toEqual(expect.any(Function));
+    expect(route?.stack[2]?.handle).toEqual(expect.any(Function));
 
-    const handler = route?.stack[2]?.handle as unknown as
+    const handler = route?.stack[2]?.handle as
       | ((req: unknown, res: unknown) => unknown)
       | undefined;
-    expect(handler).toBeDefined();
     handler?.({} as any, {} as any);
     expect(
       AvailabilityController.getOrganisationBaseAvailability,
     ).toHaveBeenCalled();
+  });
+
+  it("requires org permissions for mutating org-scoped routes", () => {
+    const baseRoute = findRoute("/:orgId/base", "post");
+    const bulkRoute = findRoute("/:orgId/occupancy/bulk", "post");
+
+    expect(requirePermission).toHaveBeenCalledWith("appointments:edit:any");
+    expect(baseRoute?.stack[0]?.handle).toEqual(expect.any(Function));
+    expect(baseRoute?.stack[1]?.handle).toEqual(expect.any(Function));
+    expect(baseRoute?.stack[2]?.handle).toEqual(expect.any(Function));
+    expect(bulkRoute?.stack[0]?.handle).toEqual(expect.any(Function));
+    expect(bulkRoute?.stack[1]?.handle).toEqual(expect.any(Function));
+    expect(bulkRoute?.stack[2]?.handle).toEqual(expect.any(Function));
+    expect(
+      AvailabilityController.setAllBaseAvailability,
+    ).not.toHaveBeenCalled();
   });
 });

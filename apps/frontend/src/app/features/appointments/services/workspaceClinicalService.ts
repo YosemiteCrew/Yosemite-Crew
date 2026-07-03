@@ -1,6 +1,6 @@
 import type { Bundle, Composition, MedicationRequest, Observation } from '@yosemite-crew/fhir';
 import { clinicalArtifactFhirMapper } from '@yosemite-crew/types';
-import { postData, getData, patchData } from '@/app/services/axios';
+import { postData, getData, patchData, deleteData } from '@/app/services/axios';
 import type {
   AppointmentEncounter,
   ObservationRecord,
@@ -89,7 +89,7 @@ type ObservationSubmissionListFilters = {
   toDate?: string | Date;
 };
 
-type ClinicalArtifactAction = '$finalize' | '$reopen' | '$amend';
+type ClinicalArtifactAction = '$finalize' | '$reopen' | '$amend' | '$cancel';
 type DischargeSummaryHydration = Pick<
   WorkspaceClinicalHydration,
   | 'dischargeSummary'
@@ -196,6 +196,10 @@ const SOAP_EXT = {
   objective: 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-objective',
   assessment: 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-assessment',
   plan: 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-plan',
+  // The shared clinical-artifact mapper round-trips this extension into the SoapNote.metadata
+  // JSON column, so a custom-template structure override (schema + answers) persists and
+  // rehydrates without any backend change.
+  metadata: 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-metadata',
 };
 
 const DISCHARGE_EXT = {
@@ -225,7 +229,10 @@ const buildComposition = (
       : { reference: `Encounter/${context.encounterId}` };
   return {
     resourceType: 'Composition',
-    status: 'final',
+    // Saving creates a draft record; only `$finalize` flips it to COMPLETED (see the
+    // soapNoteFromComposition note below). Sending 'final' here would finalize the
+    // artifact on every save.
+    status: 'preliminary',
     title,
     type: { text: kind },
     date: new Date().toISOString(),
@@ -255,6 +262,15 @@ const soapNoteFromComposition = (
 ): SoapNoteEntry => {
   const input = clinicalArtifactFhirMapper.compositionToSoapNoteInput(resource, context);
   const signedByName = getClinicalAuthorName(resource, context);
+  // Rehydrate a custom-template structure override from the metadata channel so a saved custom
+  // SOAP note re-renders via FormRenderer (not the four native editors) after refresh.
+  const metadata =
+    input.metadata && typeof input.metadata === 'object'
+      ? (input.metadata as Record<string, unknown>)
+      : undefined;
+  const customTemplate = metadata?.customTemplate as
+    | { schema?: NonNullable<SoapNoteEntry['customSchema']>; answers?: Record<string, unknown> }
+    | undefined;
   return {
     id: resource.id ?? `soap-${resource.date ?? Date.now()}`,
     chiefComplaint: '',
@@ -263,6 +279,9 @@ const soapNoteFromComposition = (
     assessment: toText(input.assessment),
     plan: toText(input.plan),
     templateId: input.templateId,
+    templateVersionId: (input as { templateVersionId?: string }).templateVersionId,
+    customSchema: customTemplate?.schema,
+    customAnswers: customTemplate?.answers,
     // A SOAP note that came back from the backend is a saved record and belongs in the
     // "All SOAP notes" history, not the active draft. The backend stores saved notes as
     // `preliminary` (only `$finalize` flips it to `final`), so persisted id — not status —
@@ -399,6 +418,11 @@ export const amendSoapNote = (
 ) => clinicalArtifactAction<Composition>(organisationId, 'soap-note', soapNoteId, '$amend', body);
 
 export const saveSoapNote = async (context: ClinicalContext, note: SoapNoteEntry) => {
+  // Custom-template override (structure swap): persist the schema + answers in the metadata
+  // channel so the workspace re-renders the custom form after refresh.
+  const customMetadata = note.customSchema?.length
+    ? { customTemplate: { schema: note.customSchema, answers: note.customAnswers ?? {} } }
+    : undefined;
   const body = buildComposition(
     context,
     'SOAP_NOTE',
@@ -408,6 +432,7 @@ export const saveSoapNote = async (context: ClinicalContext, note: SoapNoteEntry
       jsonExtension(SOAP_EXT.objective, note.objective),
       jsonExtension(SOAP_EXT.assessment, note.assessment),
       jsonExtension(SOAP_EXT.plan, note.plan),
+      jsonExtension(SOAP_EXT.metadata, customMetadata),
     ])
   );
   const endpoint = `/fhir/v1/clinical-artifact/organisation/${context.organisationId}/soap-note`;
@@ -588,7 +613,9 @@ export const saveVitalRecord = async (
 ) => {
   const body: Observation & Record<string, unknown> = {
     resourceType: 'Observation',
-    status: 'final',
+    // Saving creates a draft vital record; $finalize completes it. 'final' would
+    // finalize on every save.
+    status: 'preliminary',
     code: { text: 'VITAL_RECORD' },
     effectiveDateTime: vital.recordedAt,
     extension: compactExtensions([
@@ -612,6 +639,21 @@ export const saveVitalRecord = async (
   return res.data;
 };
 
+/** Map a backend observation-tool submission to the workspace ObservationRecord. */
+const submissionToObservationRecord = (
+  submission: ObservationToolSubmission,
+  index: number
+): ObservationRecord => ({
+  id: submission.id ?? stringifyObjectId(submission._id) ?? `ot-${index + 1}`,
+  code: `OT-${String(index + 1).padStart(3, '0')}`,
+  toolKey: submission.toolId ?? submission.toolCategory ?? 'OBSERVATION_TOOL',
+  toolName: submission.toolName ?? submission.toolCategory ?? 'Observation tool',
+  scores: answerPreviewToScores(submission.answers),
+  total: typeof submission.score === 'number' ? submission.score : undefined,
+  recordedByName: submission.filledByName ?? submission.filledBy ?? 'Parent',
+  recordedAt: asIso(submission.createdAt ?? submission.updatedAt),
+});
+
 export const listObservationSubmissionsForAppointment = async (
   appointmentId: string
 ): Promise<ObservationRecord[]> => {
@@ -619,21 +661,45 @@ export const listObservationSubmissionsForAppointment = async (
     `/v1/observation-tools/pms/appointments/${appointmentId}/submissions`,
     {}
   );
-  return res.data.map((submission, index) => {
-    const id = submission.id ?? stringifyObjectId(submission._id) ?? `ot-${index + 1}`;
-    const toolKey = submission.toolId ?? submission.toolCategory ?? 'OBSERVATION_TOOL';
-    const toolName = submission.toolName ?? submission.toolCategory ?? 'Observation tool';
-    return {
-      id,
-      code: `OT-${String(index + 1).padStart(3, '0')}`,
-      toolKey,
-      toolName,
-      scores: answerPreviewToScores(submission.answers),
-      total: typeof submission.score === 'number' ? submission.score : undefined,
-      recordedByName: submission.filledByName ?? submission.filledBy ?? 'Parent',
-      recordedAt: asIso(submission.createdAt ?? submission.updatedAt),
-    };
-  });
+  return res.data.map((submission, index) => submissionToObservationRecord(submission, index));
+};
+
+export type PmsObservationSubmissionInput = {
+  organisationId: string;
+  appointmentId: string;
+  encounterId?: string;
+  companionId: string;
+  toolId: string;
+  taskId?: string;
+  filledBy: string;
+  answers: Record<string, unknown>;
+  summary?: string;
+};
+
+/**
+ * Create a clinician-recorded observation-tool submission via the existing PMS
+ * route. The BACKEND computes the score from the tool definition — the returned
+ * submission's `score` is authoritative (we never derive clinical math here).
+ * Returns the mapped ObservationRecord so the workspace can show the real result.
+ */
+export const createPmsObservationSubmission = async (
+  input: PmsObservationSubmissionInput
+): Promise<ObservationRecord> => {
+  const res = await postData<ObservationToolSubmission>(
+    `/v1/observation-tools/pms/appointments/${input.appointmentId}/submissions/create`,
+    {
+      organisationId: input.organisationId,
+      appointmentId: input.appointmentId,
+      encounterId: input.encounterId,
+      companionId: input.companionId,
+      toolId: input.toolId,
+      taskId: input.taskId,
+      filledBy: input.filledBy,
+      answers: input.answers,
+      summary: input.summary,
+    }
+  );
+  return submissionToObservationRecord(res.data, 0);
 };
 
 export const listPmsObservationSubmissions = async (
@@ -690,9 +756,40 @@ export const savePrescriptionArtifact = async (
   context: ClinicalContext,
   prescription: PrescriptionItem | Omit<PrescriptionItem, 'id'>
 ) => {
+  // The backend persists prescription lines into TYPED columns (medication, strength, dosage,
+  // route, frequency, duration, quantity, refill, instructions, inventoryItemId/Sku, batch…) and
+  // stashes anything else in a per-item `metadata` JSON column. So the flat fields below survive as
+  // columns, and the display-only / unit fields that have no column are nested under `metadata`
+  // so they round-trip. `dose` is sent both flat (BE maps it to the `dosage` column) and kept in
+  // metadata for an exact rehydrate.
+  const { id: _id, ...lineFields } = prescription as PrescriptionItem;
+  const medicationLine = {
+    ...lineFields,
+    // BE reads `dosage` from ["dosage","dose"]; send the per-administration amount there.
+    dosage: prescription.dose ?? prescription.dosage,
+    metadata: {
+      brand: prescription.brand,
+      genericName: prescription.genericName,
+      sku: prescription.sku,
+      strengthUnit: prescription.strengthUnit,
+      dose: prescription.dose,
+      doseUnit: prescription.doseUnit,
+      durationUnit: prescription.durationUnit,
+      dosageForm: prescription.dosageForm,
+      fulfillment: prescription.fulfillment,
+      priceCents: prescription.priceCents,
+      stockQty: prescription.stockQty,
+      lowStock: prescription.lowStock,
+      controlledSubstance: prescription.controlledSubstance,
+      drugSchedule: prescription.drugSchedule,
+      prescriptionRequired: prescription.prescriptionRequired,
+    },
+  };
   const body: MedicationRequest & Record<string, unknown> = {
     resourceType: 'MedicationRequest',
-    status: 'active',
+    // Saving creates a draft prescription; only $finalize completes it (and triggers
+    // the inventory dispense). 'active' here would dispense on every plain save.
+    status: 'draft',
     intent: 'order',
     medicationCodeableConcept: { text: prescription.medicineName },
     medicationReference: { display: prescription.medicineName },
@@ -702,7 +799,7 @@ export const savePrescriptionArtifact = async (
         ? undefined
         : { reference: `Encounter/${context.encounterId}` },
     extension: compactExtensions([
-      jsonExtension(PRESCRIPTION_EXT.medications, [prescription]),
+      jsonExtension(PRESCRIPTION_EXT.medications, [medicationLine]),
       jsonExtension(PRESCRIPTION_EXT.instructions, prescription.instructions),
     ]),
     organisationId: context.organisationId,
@@ -729,27 +826,72 @@ const prescriptionFromMedicationRequest = (
 ): PrescriptionItem => {
   const input = clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(resource, context);
   const medications = Array.isArray(input.medications) ? input.medications : [];
-  const first = medications[0] as Partial<PrescriptionItem> | undefined;
+  // The backend persists the line into TYPED columns (medication/dosage/route/frequency/duration/
+  // quantity/refill/inventoryItemId/inventoryItemSku) and keeps display/unit extras in a nested
+  // `metadata` object. Coalesce both shapes (BE column name ?? our field name ?? metadata) so a
+  // round-tripped prescription rehydrates fully.
+  const raw = (medications[0] ?? {}) as Record<string, unknown>;
+  const meta =
+    raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
+      ? (raw.metadata as Record<string, unknown>)
+      : {};
+  const str = (...keys: string[]): string | undefined => {
+    for (const key of keys) {
+      const value = raw[key] ?? meta[key];
+      if (typeof value === 'string' && value.trim()) return value;
+      if (typeof value === 'number') return String(value);
+    }
+    return undefined;
+  };
+  const bool = (...keys: string[]): boolean | undefined => {
+    for (const key of keys) {
+      const value = raw[key] ?? meta[key];
+      if (typeof value === 'boolean') return value;
+    }
+    return undefined;
+  };
+  const num = (...keys: string[]): number | undefined => {
+    for (const key of keys) {
+      const value = raw[key] ?? meta[key];
+      if (typeof value === 'number') return value;
+    }
+    return undefined;
+  };
+  const fulfillmentValue = str('fulfillment');
   return {
     id: resource.id ?? `rx-${index + 1}`,
     medicineName:
-      first?.medicineName ??
+      str('medication', 'medicineName', 'name') ??
       resource.medicationCodeableConcept?.text ??
       resource.medicationReference?.display ??
       'Medication',
-    dosage: first?.dosage,
-    route: first?.route,
-    frequency: first?.frequency,
-    durationDays: first?.durationDays,
-    refill: first?.refill,
+    brand: str('brand'),
+    genericName: str('genericName'),
+    sku: str('sku', 'inventoryItemSku'),
+    strength: str('strength'),
+    strengthUnit: str('strengthUnit'),
+    dosageForm: str('dosageForm'),
+    dosage: str('dosage'),
+    dose: str('dose', 'dosage'),
+    doseUnit: str('doseUnit'),
+    route: str('route', 'routeOfAdministration'),
+    frequency: str('frequency'),
+    durationDays: str('duration', 'durationDays'),
+    durationUnit: str('durationUnit'),
+    qty: str('quantity', 'qty'),
+    refill: str('refill'),
+    drugSchedule: str('drugSchedule'),
+    prescriptionRequired: bool('prescriptionRequired'),
     instructions:
-      first?.instructions ??
+      str('instructions') ??
       (typeof input.instructions === 'string' ? input.instructions : undefined),
-    fulfillment: first?.fulfillment ?? 'PRESCRIPTION_ONLY',
-    priceCents: first?.priceCents,
-    stockQty: first?.stockQty,
-    lowStock: first?.lowStock,
-    controlledSubstance: first?.controlledSubstance,
+    fulfillment: fulfillmentValue === 'IN_HOUSE' ? 'IN_HOUSE' : 'PRESCRIPTION_ONLY',
+    priceCents: num('priceCents'),
+    stockQty: num('stockQty'),
+    lowStock: bool('lowStock'),
+    controlledSubstance: bool('controlledSubstance', 'controlledItem'),
+    inventoryItemId: str('inventoryItemId'),
+    inventoryBatchId: str('inventoryBatchId', 'batchId'),
   };
 };
 
@@ -769,6 +911,55 @@ export const listPrescriptionsForAppointment = async (
       ...context,
     })
   );
+};
+
+/**
+ * Cancel (void) a FINALIZED but unbilled prescription. A finalized prescription is a clinical
+ * record and cannot be hard-deleted, so the backend reverses the in-house dispense/stock
+ * reservation and marks it CANCELLED. Contract: `200/204` on success; `409 Conflict` when the
+ * prescription is already billed/paid (re-thrown for the caller to surface).
+ */
+export const cancelPrescriptionArtifact = (organisationId: string, prescriptionId: string) =>
+  clinicalArtifactAction<MedicationRequest>(
+    organisationId,
+    'prescription',
+    prescriptionId,
+    '$cancel'
+  );
+
+/**
+ * Remove a prescription end-to-end. DRAFT prescriptions are hard-deleted via the clinical-artifact
+ * REST DELETE (`DELETE …/prescription/:id`). A finalized-but-unbilled prescription returns
+ * `409` from DELETE ("Only draft prescriptions can be deleted") — the correct PIMS rule — so we
+ * fall back to `$cancel`, which voids it and reverses the dispense. Either way the backend cascades
+ * the linked treatment-item and excludes the record from list/bootstrap reads. Re-throws a `409`
+ * only when the prescription is genuinely billed/paid (cancel also rejects). Returns true on
+ * success, or false when the DELETE route is unavailable (405/501) so the caller can fall back to
+ * the legacy treatment-item delete.
+ */
+export const deletePrescriptionArtifact = async (
+  organisationId: string,
+  prescriptionId: string
+): Promise<boolean> => {
+  const statusOf = (error: unknown) =>
+    (error as { response?: { status?: number } })?.response?.status;
+  try {
+    await deleteData(
+      `/fhir/v1/clinical-artifact/organisation/${organisationId}/prescription/${prescriptionId}`
+    );
+    return true;
+  } catch (error) {
+    const status = statusOf(error);
+    // Route not implemented yet → let the caller fall back.
+    if (status === 405 || status === 501) return false;
+    // Non-draft (finalized) → cancel/void instead of delete. A 409 from cancel means it is
+    // billed/paid and genuinely cannot be removed; surface that to the caller.
+    if (status === 409) {
+      await cancelPrescriptionArtifact(organisationId, prescriptionId);
+      return true;
+    }
+    throw error;
+  }
 };
 
 export const listPrescriptionsForEncounter = async (
@@ -795,6 +986,23 @@ export const getPrescriptionArtifact = async (organisationId: string, prescripti
     {}
   );
   return res.data;
+};
+
+/**
+ * Generate a label-format PDF for a prescription (pharmacy dispensing labels: medication, strength,
+ * dosage, frequency, route, instructions, patient/owner, clinic, date). Returns the rendered PDF
+ * URL. Backed by the new backend label endpoint (handoff §3); until that ships this resolves the
+ * URL from the standard rendered-document response shape.
+ */
+export const generatePrescriptionLabels = async (
+  organisationId: string,
+  prescriptionId: string
+): Promise<string | undefined> => {
+  const res = await postData<{ url?: string; pdfUrl?: string; renderedDocumentId?: string }>(
+    `/fhir/v1/clinical-artifact/organisation/${organisationId}/prescription/${prescriptionId}/labels`,
+    {}
+  );
+  return res.data?.url ?? res.data?.pdfUrl;
 };
 
 export const finalizePrescriptionArtifact = (organisationId: string, prescriptionId: string) =>

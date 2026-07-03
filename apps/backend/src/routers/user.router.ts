@@ -5,7 +5,7 @@ import { authorizeCognito } from "src/middlewares/auth";
 const router = Router();
 
 router.post("/", authorizeCognito, UserController.create);
-router.get("/:id", UserController.getById);
+router.get("/:id", authorizeCognito, UserController.getById);
 router.delete("/:id", authorizeCognito, UserController.deleteById);
 router.patch("/update-name", authorizeCognito, UserController.updateName);
 

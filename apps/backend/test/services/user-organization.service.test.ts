@@ -364,5 +364,56 @@ describe("UserOrganizationService", () => {
       expect(byOrg[0].name).toBe("Jane Doe");
       expect(byOrg[0].weeklyHours).toBe(40);
     });
+
+    it("matches legacy User/ practitioner references when listing by user", async () => {
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValueOnce([
+        prismaMapping,
+      ]);
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: orgId,
+        fhirId: null,
+        name: "Org",
+        imageUrl: null,
+        phoneNo: "",
+        type: "HOSPITAL",
+        googlePlacesId: null,
+        address: null,
+        taxId: "",
+        dunsNumber: null,
+        petNamePreference: null,
+        website: null,
+        documensoTeamId: null,
+        documensoApiKey: null,
+        isVerified: true,
+        isActive: true,
+        typeCoding: null,
+        healthAndSafetyCertNo: null,
+        animalWelfareComplianceCertNo: null,
+        fireAndEmergencyCertNo: null,
+        stripeAccountId: null,
+        averageRating: null,
+        ratingCount: null,
+        appointmentCheckInBufferMinutes: null,
+        appointmentCheckInRadiusMeters: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (
+        prisma.organizationUsageCounter.findFirst as jest.Mock
+      ).mockResolvedValue(null);
+
+      await UserOrganizationService.listByUserId(userId);
+
+      expect(prisma.userOrganization.findMany).toHaveBeenCalledWith({
+        where: {
+          practitionerReference: {
+            in: [userId, `Practitioner/${userId}`, `User/${userId}`],
+          },
+        },
+      });
+    });
   });
 });

@@ -149,6 +149,22 @@ describe("TaskLibraryService", () => {
     expect(result).toEqual([{ id: "lib-1" }]);
   });
 
+  it("accepts expanded task kinds", async () => {
+    mockedPrisma.taskLibraryDefinition.findFirst.mockResolvedValueOnce(null);
+    mockedPrisma.taskLibraryDefinition.create.mockResolvedValueOnce({
+      id: "lib-2",
+    });
+
+    await expect(
+      TaskLibraryService.create({
+        kind: "CARE",
+        category: "Care",
+        name: "Rounds",
+        schema: {},
+      }),
+    ).resolves.toEqual({ id: "lib-2" });
+  });
+
   it("rejects invalid list and lookup filters", async () => {
     await expect(
       TaskLibraryService.listActive("INVALID" as never),

@@ -162,6 +162,15 @@ const buildOtpEmailHtml = (recipientName: string, otp: string) => {
                                       style="display:block;"
                                     />
                                   </td>
+                                  <td style="padding-left:8px; padding-bottom:8px;">
+                                    <img
+                                      src="https://d2il6osz49gpup.cloudfront.net/footer/fda.png"
+                                      alt="FDA 21 CFR Part 11"
+                                      width="48"
+                                      height="48"
+                                      style="display:block;"
+                                    />
+                                  </td>
                                 </tr>
                               </table>
                             </td>

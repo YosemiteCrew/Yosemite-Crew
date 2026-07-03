@@ -19,61 +19,84 @@ const BILLING_SETTINGS_URL = process.env.APP_URL
 
 const extractReferenceId = (value: string) => value.split("/").pop()?.trim();
 
-const resolveOwnerUser = async (orgId: Types.ObjectId | string) => {
-  const orgIdString = typeof orgId === "string" ? orgId : orgId.toString();
+const buildOwnerContact = (
+  email: string,
+  organisationName: string,
+  firstName?: string | null,
+  lastName?: string | null,
+): {
+  email: string;
+  name?: string;
+  organisationName: string;
+} => {
+  const nameParts = [firstName, lastName].filter(Boolean);
 
-  if (isReadFromPostgres()) {
-    const organisation = await prisma.organization.findFirst({
-      where: { OR: [{ id: orgIdString }, { fhirId: orgIdString }] },
-      select: { id: true, name: true, fhirId: true },
-    });
+  return {
+    email,
+    name: nameParts.length ? nameParts.join(" ") : undefined,
+    organisationName,
+  };
+};
 
-    if (!organisation) {
-      return null;
-    }
+const buildOrgReferenceCandidates = (
+  organisationId: string,
+  fhirId?: string | null,
+) =>
+  [
+    organisationId,
+    `Organization/${organisationId}`,
+    fhirId,
+    fhirId ? `Organization/${fhirId}` : undefined,
+  ].filter(Boolean) as string[];
 
-    const orgReferenceCandidates = [
-      organisation.id,
-      `Organization/${organisation.id}`,
-      organisation.fhirId,
-      organisation.fhirId ? `Organization/${organisation.fhirId}` : undefined,
-    ].filter(Boolean) as string[];
+const resolveOwnerUserFromPostgres = async (orgIdString: string) => {
+  const organisation = await prisma.organization.findFirst({
+    where: { OR: [{ id: orgIdString }, { fhirId: orgIdString }] },
+    select: { id: true, name: true, fhirId: true },
+  });
 
-    const ownerMapping = await prisma.userOrganization.findFirst({
-      where: {
-        roleCode: "OWNER",
-        active: true,
-        organizationReference: { in: orgReferenceCandidates },
-      },
-      select: { practitionerReference: true },
-    });
-
-    if (!ownerMapping?.practitionerReference) {
-      return null;
-    }
-
-    const ownerUserId =
-      extractReferenceId(ownerMapping.practitionerReference) ??
-      ownerMapping.practitionerReference;
-
-    const ownerUser = await prisma.user.findFirst({
-      where: { userId: ownerUserId },
-      select: { email: true, firstName: true, lastName: true },
-    });
-
-    if (!ownerUser?.email) {
-      return null;
-    }
-
-    const nameParts = [ownerUser.firstName, ownerUser.lastName].filter(Boolean);
-
-    return {
-      email: ownerUser.email,
-      name: nameParts.length ? nameParts.join(" ") : undefined,
-      organisationName: organisation.name,
-    };
+  if (!organisation) {
+    return null;
   }
 
+  const ownerMapping = await prisma.userOrganization.findFirst({
+    where: {
+      roleCode: "OWNER",
+      active: true,
+      organizationReference: {
+        in: buildOrgReferenceCandidates(organisation.id, organisation.fhirId),
+      },
+    },
+    select: { practitionerReference: true },
+  });
+
+  if (!ownerMapping?.practitionerReference) {
+    return null;
+  }
+
+  const ownerUserId =
+    extractReferenceId(ownerMapping.practitionerReference) ??
+    ownerMapping.practitionerReference;
+
+  const ownerUser = await prisma.user.findFirst({
+    where: { userId: ownerUserId },
+    select: { email: true, firstName: true, lastName: true },
+  });
+
+  if (!ownerUser?.email) {
+    return null;
+  }
+
+  return buildOwnerContact(
+    ownerUser.email,
+    organisation.name,
+    ownerUser.firstName,
+    ownerUser.lastName,
+  );
+};
+
+const resolveOwnerUserFromMongo = async (orgId: Types.ObjectId | string) => {
+  const orgIdString = typeof orgId === "string" ? orgId : orgId.toString();
   const organisation = await OrganizationModel.findById(orgId)
     .select("name fhirId")
     .lean();
@@ -82,18 +105,12 @@ const resolveOwnerUser = async (orgId: Types.ObjectId | string) => {
     return null;
   }
 
-  const orgFhirId = organisation.fhirId;
-  const orgReferenceCandidates = [
-    orgIdString,
-    `Organization/${orgIdString}`,
-    orgFhirId,
-    orgFhirId ? `Organization/${orgFhirId}` : undefined,
-  ].filter(Boolean) as string[];
-
   const ownerMapping = await UserOrganizationModel.findOne({
     roleCode: "OWNER",
     active: true,
-    organizationReference: { $in: orgReferenceCandidates },
+    organizationReference: {
+      $in: buildOrgReferenceCandidates(orgIdString, organisation.fhirId),
+    },
   })
     .select("practitionerReference")
     .lean();
@@ -115,13 +132,20 @@ const resolveOwnerUser = async (orgId: Types.ObjectId | string) => {
     return null;
   }
 
-  const nameParts = [ownerUser.firstName, ownerUser.lastName].filter(Boolean);
+  return buildOwnerContact(
+    ownerUser.email,
+    organisation.name,
+    ownerUser.firstName,
+    ownerUser.lastName,
+  );
+};
 
-  return {
-    email: ownerUser.email,
-    name: nameParts.length ? nameParts.join(" ") : undefined,
-    organisationName: organisation.name,
-  };
+const resolveOwnerUser = async (orgId: Types.ObjectId | string) => {
+  const orgIdString = typeof orgId === "string" ? orgId : orgId.toString();
+
+  return isReadFromPostgres()
+    ? resolveOwnerUserFromPostgres(orgIdString)
+    : resolveOwnerUserFromMongo(orgId);
 };
 
 export const sendFreePlanLimitReachedEmail = async (params: {
@@ -149,27 +173,21 @@ export const sendFreePlanLimitReachedEmail = async (params: {
     (params.usage.usersActiveCount ?? 0) >= (params.usage.freeUsersLimit ?? 0);
 
   const limitItems = [
-    appointmentLimitReached
-      ? {
-          label: "Appointments",
-          used: params.usage.appointmentsUsed ?? 0,
-          limit: params.usage.freeAppointmentsLimit ?? 0,
-        }
-      : null,
-    toolsLimitReached
-      ? {
-          label: "Tools",
-          used: params.usage.toolsUsed ?? 0,
-          limit: params.usage.freeToolsLimit ?? 0,
-        }
-      : null,
-    usersLimitReached
-      ? {
-          label: "Users",
-          used: params.usage.usersActiveCount ?? 0,
-          limit: params.usage.freeUsersLimit ?? 0,
-        }
-      : null,
+    appointmentLimitReached && {
+      label: "Appointments",
+      used: params.usage.appointmentsUsed ?? 0,
+      limit: params.usage.freeAppointmentsLimit ?? 0,
+    },
+    toolsLimitReached && {
+      label: "Tools",
+      used: params.usage.toolsUsed ?? 0,
+      limit: params.usage.freeToolsLimit ?? 0,
+    },
+    usersLimitReached && {
+      label: "Users",
+      used: params.usage.usersActiveCount ?? 0,
+      limit: params.usage.freeUsersLimit ?? 0,
+    },
   ].filter(Boolean) as Array<{ label: string; used: number; limit: number }>;
 
   if (!limitItems.length) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { Appointment } from '@yosemite-crew/types';
@@ -28,6 +28,7 @@ import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
   useLabTests,
   resolveOrderUiUrl,
@@ -40,9 +41,16 @@ import {
   type UseLabTestsReturn,
 } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
 import type { IdexxTest } from '@/app/features/integrations/services/types';
+import type { DiagnosticOrder } from '@/app/features/appointments/types/workspace';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import {
+  getAppointmentWorkspaceBootstrap,
+  normalizeWorkspaceBootstrapForEncounter,
+} from '@/app/features/appointments/services/workspaceAggregateService';
+import { getIdexxCombinedResultsPdfBlob } from '@/app/features/integrations/services/idexxService';
 
 type DiagnosticProvider = 'IDEXX' | 'RAD_ANALYZER';
 
@@ -52,16 +60,24 @@ type DiagnosticsStepProps = {
   onOpenTreatment: () => void;
 };
 
-const PROVIDERS: { key: DiagnosticProvider; label: string }[] = [
-  { key: 'IDEXX', label: 'IDEXX' },
-  { key: 'RAD_ANALYZER', label: 'RadAnalyzer' },
+type ProviderOption = {
+  key: DiagnosticProvider;
+  label: string;
+  available: boolean;
+  unavailableReason?: string;
+};
+
+const PROVIDERS: ProviderOption[] = [
+  { key: 'IDEXX', label: 'IDEXX', available: true },
+  {
+    key: 'RAD_ANALYZER',
+    label: 'RadAnalyzer',
+    available: false,
+    unavailableReason: 'RadAnalyzer diagnostics are coming soon for the appointment workspace.',
+  },
 ];
 
-const ProviderContent = ({
-  provider,
-}: {
-  provider: { key: DiagnosticProvider; label: string };
-}) => {
+const ProviderContent = ({ provider }: { provider: ProviderOption }) => {
   if (provider.key === 'IDEXX') {
     return (
       <Image
@@ -76,6 +92,12 @@ const ProviderContent = ({
   return <span>{provider.label}</span>;
 };
 
+const getIntegrationPillClass = (disabled: boolean, active: boolean): string => {
+  if (disabled) return 'cursor-not-allowed border-neutral-300 text-text-secondary opacity-60';
+  if (active) return 'border-text-brand bg-primary-100 text-text-brand';
+  return 'border-neutral-300 text-text-primary hover:bg-neutral-100';
+};
+
 const IntegrationPills = ({
   selected,
   onSelect,
@@ -86,20 +108,28 @@ const IntegrationPills = ({
   <div className="flex flex-wrap items-center gap-3">
     {PROVIDERS.map((provider) => {
       const active = selected === provider.key;
+      const disabled = !provider.available;
       return (
         <button
           key={provider.key}
           type="button"
           aria-pressed={active}
-          onClick={() => onSelect(provider.key)}
-          className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
+          disabled={disabled}
+          title={disabled ? provider.unavailableReason : undefined}
+          onClick={() => {
+            if (!disabled) onSelect(provider.key);
+          }}
+          className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
+            disabled,
             active
-              ? 'border-text-brand bg-primary-100 text-text-brand'
-              : 'border-neutral-300 text-text-primary hover:bg-neutral-100'
-          }`}
+          )}`}
         >
           <ProviderContent provider={provider} />
-          {active && <LuExternalLink size={14} aria-hidden="true" />}
+          {disabled ? (
+            <span className="text-caption-2 text-text-secondary">Coming soon</span>
+          ) : (
+            active && <LuExternalLink size={14} aria-hidden="true" />
+          )}
         </button>
       );
     })}
@@ -132,6 +162,49 @@ const StatusPill = ({ status }: { status: string }) => (
     className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${getStatusPillClasses(status)}`}
   >
     {status}
+  </span>
+);
+
+const MODALITY_LABELS: Record<string, string> = {
+  REFERENCE_LAB: 'Reference lab',
+  INHOUSE: 'In-house',
+  IN_HOUSE: 'In-house',
+};
+
+/** "REFERENCE_LAB" → "Reference lab", "INHOUSE"/"IN_HOUSE" → "In-house". */
+const formatModality = (modality?: string | null): string | null => {
+  if (!modality) return null;
+  return MODALITY_LABELS[modality.trim().toUpperCase()] ?? null;
+};
+
+const getOrderActionLabel = (order: { status?: string | null }): string => {
+  const statusKey = String(order.status ?? '')
+    .trim()
+    .toUpperCase()
+    .replaceAll(/\s+/g, '_');
+  if (statusKey === 'SUBMITTED') return 'Follow up';
+  if (statusKey === 'CREATED' || !statusKey) return 'Continue';
+  return 'Open IDEXX';
+};
+
+const getOrderActionSource = (order: { status?: string | null }): 'order' | 'followup' =>
+  String(order.status ?? '')
+    .trim()
+    .toUpperCase()
+    .replaceAll(/\s+/g, '_') === 'SUBMITTED'
+    ? 'followup'
+    : 'order';
+
+/** Small neutral/info origin badge (provider, modality, package origin, billing). */
+const MetaPill = ({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'info' }) => (
+  <span
+    className={`inline-flex shrink-0 rounded-2xl border px-2 py-0.5 text-caption-2 ${
+      tone === 'info'
+        ? 'border-pill-info-border bg-pill-info-bg text-pill-info-text'
+        : 'border-pill-neutral-border bg-pill-neutral-bg text-pill-neutral-text'
+    }`}
+  >
+    {label}
   </span>
 );
 
@@ -221,7 +294,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   <div className="grid items-stretch gap-5 lg:grid-cols-[1fr_320px]">
     <div className="flex flex-col gap-4">
       <SearchDropdown
-        placeholder="Search for Lab tests"
+        placeholder="Search for lab tests"
         options={s.tests.map((test) => ({
           value: test.code,
           label: `${test.display} (${test.code})`,
@@ -295,47 +368,54 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   </div>
 );
 
-const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
-  <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-    <div className="flex flex-col gap-4">
-      <p className="max-w-2xl text-body-4 text-text-secondary">
-        In-house IDEXX workflow requires selecting an IVLS device, then adding the patient to census
-        here. Complete ordering on the IDEXX machine after census is confirmed.
-      </p>
-      <output
-        className={`block rounded-2xl border p-4 text-body-4 ${
-          s.companionInCensus
-            ? 'border-pill-success-border bg-pill-success-bg text-pill-success-text'
-            : 'border-card-border text-text-secondary'
-        }`}
-      >
-        <p>
-          {s.companionInCensus
-            ? 'Patient is present in IDEXX census for this appointment patient.'
-            : 'Patient is not yet in the IDEXX census.'}
+const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => {
+  const terminologyText = useCompanionTerminologyText();
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="flex flex-col gap-4">
+        <p className="max-w-2xl text-body-4 text-text-secondary">
+          {terminologyText(
+            'In-house IDEXX workflow requires selecting an IVLS device, then adding the patient to census here. Complete ordering on the IDEXX machine after census is confirmed.'
+          )}
         </p>
-        <p>
-          IVLS confirmation:{' '}
-          {s.selectedIvls === undefined || s.selectedIvls === ''
-            ? 'Select an IVLS device to check confirmation state'
-            : getIvlsConfirmationLabel(s.inHouseCensusConfirmed)}
-        </p>
-      </output>
+        <output
+          className={`block rounded-2xl border p-4 text-body-4 ${
+            s.companionInCensus
+              ? 'border-pill-success-border bg-pill-success-bg text-pill-success-text'
+              : 'border-card-border text-text-secondary'
+          }`}
+        >
+          <p>
+            {terminologyText(
+              s.companionInCensus
+                ? 'Patient is present in IDEXX census for this appointment patient.'
+                : 'Patient is not yet in the IDEXX census.'
+            )}
+          </p>
+          <p>
+            IVLS confirmation:{' '}
+            {s.selectedIvls === undefined || s.selectedIvls === ''
+              ? 'Select an IVLS device to check confirmation state'
+              : getIvlsConfirmationLabel(s.inHouseCensusConfirmed)}
+          </p>
+        </output>
+      </div>
+      <div className="flex flex-col gap-3">
+        <TestTypeSelect s={s} />
+        <LabelDropdown
+          placeholder="Select Device"
+          options={s.devices.map((device) => ({
+            label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
+            value: device.deviceSerialNumber,
+          }))}
+          defaultOption={s.selectedIvls}
+          onSelect={(option) => s.setSelectedIvls(option.value)}
+        />
+      </div>
     </div>
-    <div className="flex flex-col gap-3">
-      <TestTypeSelect s={s} />
-      <LabelDropdown
-        placeholder="Select Device"
-        options={s.devices.map((device) => ({
-          label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
-          value: device.deviceSerialNumber,
-        }))}
-        defaultOption={s.selectedIvls}
-        onSelect={(option) => s.setSelectedIvls(option.value)}
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 const OrderBuilderSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: boolean }) => {
   const isInHouse = s.modality === 'INHOUSE';
@@ -366,7 +446,54 @@ const OrderBuilderSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: 
   );
 };
 
-const TestQueueSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: boolean }) => (
+const ORIGIN_LABELS: Record<string, string> = {
+  PRODUCT_ITEM: 'Service',
+  PACKAGE_ITEM: 'Package',
+};
+
+/**
+ * Diagnostics included in this appointment's services/packages, preloaded from
+ * the workspace bootstrap's diagnostic queue so the clinician sees what to order.
+ */
+const PreloadedDiagnosticsSection = ({ items }: { items: DiagnosticOrder[] }) => {
+  if (items.length === 0) return null;
+  return (
+    <SectionContainer
+      titleClassName="text-yc-20-b-primary"
+      title="Preloaded from Services & Packages"
+      className="flex flex-col gap-3"
+    >
+      <p className="text-body-4 text-text-secondary">
+        Diagnostics included in this appointment&apos;s services and packages. Order them with the
+        provider when ready.
+      </p>
+      <ul className="flex flex-col gap-3">
+        {items.map((item) => (
+          <li
+            key={item.id}
+            className="flex flex-wrap items-center gap-2 rounded-2xl border border-card-border p-4"
+          >
+            <span className="font-medium text-text-primary">{item.name ?? item.orderCode}</span>
+            {item.sourceKind && ORIGIN_LABELS[item.sourceKind] && (
+              <MetaPill label={ORIGIN_LABELS[item.sourceKind]} />
+            )}
+            {item.provider && <MetaPill label={item.provider} tone="info" />}
+          </li>
+        ))}
+      </ul>
+    </SectionContainer>
+  );
+};
+
+const TestQueueSection = ({
+  s,
+  readOnly,
+  onCreateOrder,
+}: {
+  s: UseLabTestsReturn;
+  readOnly: boolean;
+  onCreateOrder: () => void;
+}) => (
   <SectionContainer
     titleClassName="text-yc-20-b-primary"
     title="Test Queue"
@@ -395,7 +522,7 @@ const TestQueueSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: boo
         <Primary
           text={s.creatingOrder ? 'Creating Lab Order…' : 'Create Lab Order'}
           icon={<LuFlaskConical aria-hidden="true" />}
-          onClick={s.handleCreateOrder}
+          onClick={onCreateOrder}
           isDisabled={
             s.creatingOrder || s.loading || s.selectedTests.length === 0 || !s.companionId
           }
@@ -405,13 +532,7 @@ const TestQueueSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: boo
   </SectionContainer>
 );
 
-const OrderStatusSection = ({
-  s,
-  orderButtonText,
-}: {
-  s: UseLabTestsReturn;
-  orderButtonText: string;
-}) => (
+const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
   <SectionContainer
     titleClassName="text-yc-20-b-primary"
     title="Order Status"
@@ -432,13 +553,22 @@ const OrderStatusSection = ({
         <ul className="flex flex-col gap-3">
           {s.appointmentOrders.map((order, index) => {
             const isComplete = s.getOrderDisplayStatus(order) === 'Complete';
+            const orderActionLabel = isComplete ? 'Result PDF' : getOrderActionLabel(order);
             return (
               <li
                 key={order._id ?? order.idexxOrderId ?? `order-${index}`}
                 className={`${ORDER_STATUS_ROW_GRID} rounded-2xl border border-card-border p-4`}
               >
-                <span className="truncate font-medium text-text-primary">
-                  {index + 1}. Order {order.idexxOrderId}
+                <span className="flex min-w-0 flex-col gap-1">
+                  <span className="truncate font-medium text-text-primary">
+                    {index + 1}. Order {order.idexxOrderId}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-1">
+                    {order.provider && <MetaPill label={order.provider} tone="info" />}
+                    {formatModality(order.modality) && (
+                      <MetaPill label={formatModality(order.modality) as string} />
+                    )}
+                  </span>
                 </span>
                 <span className="truncate text-body-4 text-text-secondary">
                   {formatDateTimeLocal(order.updatedAt ?? order.createdAt, '-')}
@@ -448,16 +578,16 @@ const OrderStatusSection = ({
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   <Secondary
-                    text={isComplete ? 'Result PDF' : orderButtonText}
+                    text={orderActionLabel}
                     icon={isComplete ? undefined : <LuExternalLink aria-hidden="true" />}
-                    ariaLabel={`${isComplete ? 'Open result PDF' : orderButtonText} for order ${order.idexxOrderId}`}
+                    ariaLabel={`${isComplete ? 'Open result PDF' : orderActionLabel} for order ${order.idexxOrderId}`}
                     onClick={() => {
                       s.setActiveOrderForActions(order);
                       if (isComplete) {
                         void s.openResultPdfForOrder(order);
                         return;
                       }
-                      s.openOrderIframe(s.canOpenFollowUpInCurrentOrder ? 'followup' : 'order');
+                      s.openOrderIframe(getOrderActionSource(order), order.status, order);
                     }}
                     isDisabled={!isComplete && !resolveOrderUiUrl(order)}
                   />
@@ -579,6 +709,9 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
   const url = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
   const safeUrl = getSafeIdexxIframeUrl(url);
   const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (s.showOrderIframe) setLoaded(false);
+  }, [safeUrl, s.iframeOpenSource, s.showOrderIframe]);
   if (!s.showOrderIframe || !safeUrl || typeof document === 'undefined') return null;
   const title = s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
   return createPortal(
@@ -588,7 +721,15 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
     >
       <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-black/10 px-4 py-2">
-          <span className="text-body-2 text-text-primary">{title}</span>
+          <span className="flex flex-col">
+            <span className="text-body-2 text-text-primary">{title}</span>
+            {s.iframeOpenSource === 'followup' ? (
+              <span className="text-caption-1 text-text-secondary">
+                If IDEXX shows the order was submitted and this window stays open, close it with the
+                top-right cross arrow to refresh this appointment.
+              </span>
+            ) : null}
+          </span>
           <button
             type="button"
             onClick={s.closeOrderIframeManually}
@@ -621,21 +762,6 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
   );
 };
 
-const RadAnalyzerComingSoon = () => (
-  <SectionContainer
-    titleClassName="text-yc-20-b-primary"
-    title="RadAnalyzer"
-    className="flex flex-col gap-3"
-  >
-    <p className="text-body-4 text-text-secondary">
-      RadAnalyzer diagnostics are coming soon for the appointment workspace.
-    </p>
-    <p className="text-caption-1 text-text-secondary">
-      Use IDEXX for live diagnostic orders, IVLS census, results, and acknowledgements.
-    </p>
-  </SectionContainer>
-);
-
 const IdexxNotEnabled = () => (
   <SectionContainer
     titleClassName="text-yc-20-b-primary"
@@ -661,10 +787,65 @@ const DiagnosticsStep = ({
 }: DiagnosticsStepProps) => {
   const s = useLabTests(appointment);
   const [selectedProvider, setSelectedProvider] = useState<DiagnosticProvider>('IDEXX');
+  const mergeEncounterData = useAppointmentWorkspaceStore((store) => store.mergeEncounterData);
+  const preloadedDiagnostics = useAppointmentWorkspaceStore((store) =>
+    appointment.id ? store.encountersById[appointment.id]?.diagnosticOrders : undefined
+  );
+  // Diagnostics the backend preloaded from this appointment's services/packages
+  // (PROVIDER_TEST items), surfaced so they are not silently dropped from the queue.
+  const preloadedTests = useMemo(
+    () => (preloadedDiagnostics ?? []).filter((item) => item.kind === 'PROVIDER_TEST'),
+    [preloadedDiagnostics]
+  );
 
-  let orderButtonText = 'Open IDEXX';
-  if (s.needsInitialOrderPlacement) orderButtonText = 'Resume order placement';
-  else if (s.canOpenFollowUpInCurrentOrder) orderButtonText = 'Follow up';
+  // Widen the post-order refresh beyond IDEXX orders/results: after a lab order is
+  // created, re-hydrate the encounter so the diagnostic queue, invoice candidates,
+  // and documents (requisitions) reflect the new order, not just the lab tables.
+  const handleCreateOrder = useCallback(async () => {
+    await s.handleCreateOrder();
+    const organisationId = appointment.organisationId;
+    const appointmentId = appointment.id;
+    if (!organisationId || !appointmentId) return;
+    try {
+      const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
+      mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
+    } catch (error) {
+      console.error('Unable to refresh workspace after lab order:', error);
+    }
+  }, [s, appointment.organisationId, appointment.id, mergeEncounterData]);
+
+  // "Print all Results": fetch one backend-merged PDF of every result and open it
+  // in the preview overlay. Falls back to the browser print dialog when there are
+  // no results yet or the combined PDF can't be built.
+  const [combinedPdfUrl, setCombinedPdfUrl] = useState<string | null>(null);
+  const [printingAll, setPrintingAll] = useState(false);
+
+  const handlePrintAllResults = useCallback(async () => {
+    if (printingAll) return;
+    const organisationId = appointment.organisationId;
+    const resultIds = s.results.map((result) => result.resultId).filter(Boolean);
+    if (!organisationId || resultIds.length === 0) {
+      globalThis.window.print();
+      return;
+    }
+    setPrintingAll(true);
+    try {
+      const blob = await getIdexxCombinedResultsPdfBlob({ organisationId, resultIds });
+      setCombinedPdfUrl(URL.createObjectURL(blob));
+    } catch (error) {
+      console.error('Unable to build combined results PDF:', error);
+      globalThis.window.print();
+    } finally {
+      setPrintingAll(false);
+    }
+  }, [printingAll, appointment.organisationId, s.results]);
+
+  const closeCombinedPdf = useCallback(() => {
+    setCombinedPdfUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+  }, []);
 
   const renderIdexx = () => {
     if (s.loading) {
@@ -675,14 +856,20 @@ const DiagnosticsStep = ({
       <>
         {s.error ? <p className="text-body-4 text-text-error">{s.error}</p> : null}
         {!readOnly && <OrderBuilderSection s={s} readOnly={readOnly} />}
-        <TestQueueSection s={s} readOnly={readOnly} />
-        <OrderStatusSection s={s} orderButtonText={orderButtonText} />
+        <PreloadedDiagnosticsSection items={preloadedTests} />
+        <TestQueueSection
+          s={s}
+          readOnly={readOnly}
+          onCreateOrder={() => void handleCreateOrder()}
+        />
+        <OrderStatusSection s={s} />
         <ResultsSection s={s} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Secondary
-            text="Print all Results"
+            text={printingAll ? 'Preparing…' : 'Print all Results'}
             icon={<LuPrinter aria-hidden="true" />}
-            onClick={() => globalThis.window.print()}
+            onClick={() => void handlePrintAllResults()}
+            isDisabled={printingAll}
           />
           <div className="flex flex-wrap items-center gap-3">
             <Secondary
@@ -706,6 +893,13 @@ const DiagnosticsStep = ({
           closeLabel="Close IDEXX PDF preview"
           onClose={s.closePdfPreview}
         />
+        <PdfPreviewOverlay
+          open={Boolean(combinedPdfUrl)}
+          pdfUrl={combinedPdfUrl}
+          title="All lab results"
+          closeLabel="Close combined results PDF"
+          onClose={closeCombinedPdf}
+        />
       </>
     );
   };
@@ -713,7 +907,7 @@ const DiagnosticsStep = ({
   return (
     <div className="flex flex-col gap-5">
       <IntegrationPills selected={selectedProvider} onSelect={setSelectedProvider} />
-      {selectedProvider === 'RAD_ANALYZER' ? <RadAnalyzerComingSoon /> : renderIdexx()}
+      {renderIdexx()}
     </div>
   );
 };

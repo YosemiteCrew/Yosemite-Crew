@@ -10,6 +10,35 @@ export class LabResultServiceError extends Error {
   }
 }
 
+const normalizeOptionalString = (value: unknown) =>
+  typeof value === "string" && value.trim() ? value.trim() : undefined;
+
+const resolvePatientFilter = async (patientId?: string) => {
+  if (!patientId) {
+    return undefined;
+  }
+
+  if (!patientId.trim()) {
+    throw new LabResultServiceError("Invalid patientId", 400);
+  }
+
+  const orders = await prisma.labOrder.findMany({
+    where: { patientId },
+    select: { idexxOrderId: true },
+  });
+
+  const orderIds = orders
+    .map((order) => order.idexxOrderId)
+    .filter(Boolean) as string[];
+
+  return {
+    OR: [
+      { patientId },
+      ...(orderIds.length ? [{ orderId: { in: orderIds } }] : []),
+    ],
+  };
+};
+
 export const LabResultService = {
   async list(params: {
     organisationId?: string;
@@ -18,18 +47,9 @@ export const LabResultService = {
     patientId?: string;
     limit?: number;
   }) {
-    const safeOrganisationId =
-      typeof params.organisationId === "string" && params.organisationId.trim()
-        ? params.organisationId
-        : undefined;
-    const safeProvider =
-      typeof params.provider === "string" && params.provider.trim()
-        ? params.provider
-        : undefined;
-    const safeOrderId =
-      typeof params.orderId === "string" && params.orderId.trim()
-        ? params.orderId
-        : undefined;
+    const safeOrganisationId = normalizeOptionalString(params.organisationId);
+    const safeProvider = normalizeOptionalString(params.provider);
+    const safeOrderId = normalizeOptionalString(params.orderId);
     const safeLimit =
       typeof params.limit === "number" && Number.isFinite(params.limit)
         ? Math.floor(params.limit)
@@ -39,21 +59,9 @@ export const LabResultService = {
     if (safeOrganisationId) where.organisationId = safeOrganisationId;
     if (safeProvider) where.provider = safeProvider;
     if (safeOrderId) where.orderId = safeOrderId;
-    if (params.patientId) {
-      if (!params.patientId.trim()) {
-        throw new LabResultServiceError("Invalid patientId", 400);
-      }
-      const orders = await prisma.labOrder.findMany({
-        where: { patientId: params.patientId },
-        select: { idexxOrderId: true },
-      });
-      const orderIds = orders
-        .map((o) => o.idexxOrderId)
-        .filter(Boolean) as string[];
-      if (!orderIds.length) {
-        return [];
-      }
-      where.orderId = { in: orderIds };
+    const patientFilter = await resolvePatientFilter(params.patientId);
+    if (patientFilter) {
+      where.OR = patientFilter.OR;
     }
 
     return prisma.labResult.findMany({
@@ -68,14 +76,9 @@ export const LabResultService = {
     provider: string,
     resultId: string,
   ) {
-    const safeOrganisationId =
-      typeof organisationId === "string" && organisationId.trim()
-        ? organisationId
-        : null;
-    const safeProvider =
-      typeof provider === "string" && provider.trim() ? provider : null;
-    const safeResultId =
-      typeof resultId === "string" && resultId.trim() ? resultId : null;
+    const safeOrganisationId = normalizeOptionalString(organisationId);
+    const safeProvider = normalizeOptionalString(provider);
+    const safeResultId = normalizeOptionalString(resultId);
     if (!safeOrganisationId || !safeProvider || !safeResultId) {
       throw new LabResultServiceError(
         "Invalid organisationId, provider or resultId",

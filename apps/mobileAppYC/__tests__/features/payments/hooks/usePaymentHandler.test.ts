@@ -77,10 +77,12 @@ describe('usePaymentHandler', () => {
     mockPresentPaymentSheet.mockResolvedValue({error: null});
 
     // Make dispatch return the action it was called with (simulate thunk)
-    mockDispatch.mockImplementation((action) => Promise.resolve(action));
+    mockDispatch.mockImplementation(action => Promise.resolve(action));
 
     // Default recordPayment matching (not rejected)
-    (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(false);
+    (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(
+      false,
+    );
   });
 
   // --- 1. Basic Validations ---
@@ -138,12 +140,17 @@ describe('usePaymentHandler', () => {
     });
 
     expect(result.current.presentingSheet).toBe(false);
-    expect(Alert.alert).toHaveBeenCalledWith('Payment failed', 'User cancelled');
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Payment failed',
+      'User cancelled',
+    );
     expect(mockDispatch).not.toHaveBeenCalled(); // Should not record payment
   });
 
   it('catches exceptions during presentation and alerts', async () => {
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     mockPresentPaymentSheet.mockRejectedValue(new Error('Crash!'));
 
     const {result} = renderHook(() => usePaymentHandler(defaultProps));
@@ -153,7 +160,7 @@ describe('usePaymentHandler', () => {
     });
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Error presenting payment sheet'),
+      expect.stringContaining('[Payment] presentPaymentSheet threw'),
       expect.any(Error),
     );
     expect(Alert.alert).toHaveBeenCalledWith(
@@ -180,7 +187,9 @@ describe('usePaymentHandler', () => {
     expect(mockPresentPaymentSheet).toHaveBeenCalled();
     // 3. Dispatch Record
     // Since recordPayment mock returns an object, mockDispatch is called with that object.
-    expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({type: 'appointments/recordPayment/pending'}));
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({type: 'appointments/recordPayment/pending'}),
+    );
     expect(recordPayment).toHaveBeenCalledWith({appointmentId: 'apt-1'});
     // 4. Navigate
     expect(mockNavigation.replace).toHaveBeenCalledWith('PaymentSuccess', {
@@ -213,7 +222,9 @@ describe('usePaymentHandler', () => {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     // Simulate rejection
-    (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(true);
+    (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(
+      true,
+    );
 
     const {result} = renderHook(() => usePaymentHandler(defaultProps));
 
@@ -278,8 +289,8 @@ describe('usePaymentHandler', () => {
   it('falls back to default "Yosemite Crew" if both config and businessName missing', async () => {
     mockStripeConfig = {};
 
-    const {result} = renderHook(() =>
-      usePaymentHandler({...defaultProps, businessName: '   '}), // Empty/Whitespace
+    const {result} = renderHook(
+      () => usePaymentHandler({...defaultProps, businessName: '   '}), // Empty/Whitespace
     );
 
     await act(async () => {

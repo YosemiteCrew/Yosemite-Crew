@@ -227,14 +227,9 @@ const hexToPdfBlob = (hex: string) => {
   return new Blob([bytes], { type: 'application/pdf' });
 };
 
-export const getIdexxResultPdfBlob = async (opts: {
-  organisationId: string;
-  resultId: string;
-}): Promise<Blob> => {
-  const endpoint = `/v1/labs/pms/organisation/${opts.organisationId}/IDEXX/results/${opts.resultId}/pdf`;
-  const res = await api.get<Blob>(endpoint, { responseType: 'blob' });
-  const blob = res.data;
-
+// IDEXX PDF endpoints may answer with a real application/pdf blob, or a
+// JSON/hex-encoded body — normalise either into a PDF blob.
+const normalizePdfResponseBlob = async (blob: Blob): Promise<Blob> => {
   const type = String(blob.type ?? '').toLowerCase();
   if (type.includes('application/pdf')) {
     return blob;
@@ -260,4 +255,29 @@ export const getIdexxResultPdfBlob = async (opts: {
   }
 
   return new Blob([blob], { type: 'application/pdf' });
+};
+
+export const getIdexxResultPdfBlob = async (opts: {
+  organisationId: string;
+  resultId: string;
+}): Promise<Blob> => {
+  const endpoint = `/v1/labs/pms/organisation/${opts.organisationId}/IDEXX/results/${opts.resultId}/pdf`;
+  const res = await api.get<Blob>(endpoint, { responseType: 'blob' });
+  return normalizePdfResponseBlob(res.data);
+};
+
+/**
+ * Fetch a single combined PDF concatenating every supplied result's PDF — the
+ * backend merges them server-side (the "Print all Results" action).
+ */
+export const getIdexxCombinedResultsPdfBlob = async (opts: {
+  organisationId: string;
+  resultIds: string[];
+}): Promise<Blob> => {
+  const endpoint = `/v1/labs/pms/organisation/${opts.organisationId}/IDEXX/results/pdf`;
+  const res = await api.get<Blob>(endpoint, {
+    responseType: 'blob',
+    params: { resultIds: opts.resultIds.join(',') },
+  });
+  return normalizePdfResponseBlob(res.data);
 };

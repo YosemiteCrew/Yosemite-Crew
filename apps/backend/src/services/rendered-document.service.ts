@@ -1,5 +1,6 @@
 import {
   Prisma,
+  TemplateKind as PrismaTemplateKind,
   RenderedDocumentSourceKind as PrismaRenderedDocumentSourceKind,
 } from "@prisma/client";
 import AWS from "aws-sdk";
@@ -365,7 +366,9 @@ const toRenderedDocumentCreateData = (
   templateId: draft.source.templateId ?? undefined,
   templateVersion: draft.source.templateVersion ?? undefined,
   templateVersionId: draft.source.templateVersionId ?? undefined,
-  kind: toLegacyTemplateKind(draft.kind),
+  kind: (draft.kind === "INVOICE"
+    ? "INVOICE"
+    : toLegacyTemplateKind(draft.kind)) as PrismaTemplateKind,
   version: draft.version,
   title: draft.title,
   mimeType: draft.mimeType,

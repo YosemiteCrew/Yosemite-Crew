@@ -23,7 +23,13 @@ const shortId = (value: string) =>
 
 export function PaymentStatusContent() {
   const searchParams = useSearchParams();
-  const session_id = searchParams.get('session_id');
+  // Stripe's configured redirect appends a stray quote to the session id
+  // (…{CHECKOUT_SESSION_ID}"), which arrives here as a trailing " / %22 and breaks
+  // the status lookup. Strip any surrounding quotes/whitespace before using it.
+  const rawSessionId = searchParams.get('session_id');
+  const session_id = rawSessionId
+    ? rawSessionId.trim().replaceAll('"', '').replaceAll("'", '') || null
+    : rawSessionId;
 
   const [state, setState] = useState<PaymentStatusState>({
     data: null,
@@ -136,7 +142,7 @@ export function PaymentStatusContent() {
     requestState === 'error' || requestState === 'missing_session' ? 'alert' : 'status';
 
   return (
-    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 py-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]">
+    <div className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]">
       <div className="w-full max-w-xl bg-white/80 border border-card-border rounded-2xl px-6 py-10">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="relative flex items-center justify-center size-24 rounded-full">

@@ -508,7 +508,7 @@ const PackageFormDraft = ({
                 onChange={(e) => setIsBookable(e.target.checked)}
                 className="size-4 shrink-0 accent-(--color-input-border-active) disabled:cursor-not-allowed"
               />
-              {'Is this Package Bookable?'}
+              {'Is this package bookable?'}
             </label>
             <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
               <input

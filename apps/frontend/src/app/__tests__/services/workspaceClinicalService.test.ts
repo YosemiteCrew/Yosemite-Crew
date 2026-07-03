@@ -22,6 +22,8 @@ import {
   listSoapNotesForEncounter,
   listSoapNotesForAppointment,
   listVitalRecordsForEncounter,
+  createPmsObservationSubmission,
+  deletePrescriptionArtifact,
   listObservationSubmissionsForAppointment,
   loadWorkspaceClinicalArtifacts,
   reopenDischargeSummary,
@@ -37,8 +39,10 @@ import {
 const postDataMock = jest.fn();
 const getDataMock = jest.fn();
 const patchDataMock = jest.fn();
+const deleteDataMock = jest.fn();
 
 jest.mock('@/app/services/axios', () => ({
+  deleteData: (...args: unknown[]) => deleteDataMock(...args),
   getData: (...args: unknown[]) => getDataMock(...args),
   patchData: (...args: unknown[]) => patchDataMock(...args),
   postData: (...args: unknown[]) => postDataMock(...args),
@@ -55,6 +59,7 @@ describe('workspaceClinicalService', () => {
     postDataMock.mockReset();
     getDataMock.mockReset();
     patchDataMock.mockReset();
+    deleteDataMock.mockReset();
   });
 
   it('lists SOAP notes from the clinical artifact FHIR endpoint', async () => {
@@ -171,6 +176,75 @@ describe('workspaceClinicalService', () => {
       expect.objectContaining({ resourceType: 'Composition' })
     );
     expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  const SOAP_METADATA_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-metadata';
+  const customSchema = [{ id: 'gait', type: 'input' as const, label: 'Gait' }];
+
+  it('persists a custom-template structure override (schema + answers) and full provenance', async () => {
+    postDataMock.mockResolvedValueOnce({ data: { resourceType: 'Composition', id: 'soap-c' } });
+
+    await saveSoapNote(
+      {
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        encounterId: 'enc-1',
+        templateId: 'tpl-custom',
+        templateVersion: 2,
+        templateVersionId: 'ver-2',
+      },
+      {
+        id: 'draft',
+        chiefComplaint: '',
+        subjective: '',
+        objective: '',
+        assessment: '',
+        plan: '',
+        status: 'IN_PROGRESS',
+        createdAt: '2026-04-20T09:00:00.000Z',
+        customSchema,
+        customAnswers: { gait: 'normal' },
+      }
+    );
+
+    const body = postDataMock.mock.calls[0][1] as {
+      status?: string;
+      templateVersion?: number;
+      templateVersionId?: string;
+      extension: Array<{ url: string; valueString?: string }>;
+    };
+    // Saving must create a draft artifact ('preliminary'); only $finalize completes it.
+    // Sending 'final' here would finalize on every save.
+    expect(body.status).toBe('preliminary');
+    expect(body.templateVersion).toBe(2);
+    expect(body.templateVersionId).toBe('ver-2');
+    const meta = body.extension.find((ext) => ext.url === SOAP_METADATA_URL);
+    expect(meta).toBeDefined();
+    expect(JSON.parse(meta?.valueString ?? '{}')).toEqual({
+      customTemplate: { schema: customSchema, answers: { gait: 'normal' } },
+    });
+  });
+
+  it('rehydrates a custom-template structure override from the SOAP metadata extension', async () => {
+    postDataMock.mockResolvedValueOnce({
+      data: bundle('Composition', {
+        id: 'soap-c',
+        status: 'final',
+        date: '2026-04-20T09:00:00.000Z',
+        extension: [
+          {
+            url: SOAP_METADATA_URL,
+            valueString: JSON.stringify({
+              customTemplate: { schema: customSchema, answers: { gait: 'normal' } },
+            }),
+          },
+        ],
+      }),
+    });
+
+    const notes = await listSoapNotesForAppointment('org-1', 'appt-1', { encounterId: 'enc-1' });
+    expect(notes[0].customSchema).toEqual(customSchema);
+    expect(notes[0].customAnswers).toEqual({ gait: 'normal' });
   });
 
   it('loads encounter-scoped SOAP notes and gets a SOAP note by id', async () => {
@@ -445,14 +519,19 @@ describe('workspaceClinicalService', () => {
       },
       {
         medicineName: 'Gabapentin',
-        dosage: '100mg',
-        frequency: 'BID',
+        strength: '100mg',
+        dosageForm: 'Capsule',
+        route: 'Oral',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        qty: '14',
         fulfillment: 'IN_HOUSE',
+        inventoryItemId: 'inv-1',
       }
     );
 
-    expect(postDataMock).toHaveBeenCalledWith(
-      '/fhir/v1/clinical-artifact/organisation/org-1/prescription',
+    const [, body] = postDataMock.mock.calls[0];
+    expect(body).toEqual(
       expect.objectContaining({
         resourceType: 'MedicationRequest',
         medicationCodeableConcept: { text: 'Gabapentin' },
@@ -461,6 +540,23 @@ describe('workspaceClinicalService', () => {
         authorId: 'user-1',
       })
     );
+    const medicationsExtension = body.extension.find((entry: { url: string }) =>
+      entry.url.endsWith('/prescription-medications')
+    );
+    expect(JSON.parse(medicationsExtension.valueString)).toEqual([
+      expect.objectContaining({
+        // Flat fields map to the backend's typed columns; strength is no longer clobbered.
+        medicineName: 'Gabapentin',
+        strength: '100mg',
+        route: 'Oral',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        qty: '14',
+        inventoryItemId: 'inv-1',
+        // Display/unit extras with no backend column ride along under metadata so they round-trip.
+        metadata: expect.objectContaining({ dosageForm: 'Capsule', fulfillment: 'IN_HOUSE' }),
+      }),
+    ]);
   });
 
   it('updates a persisted prescription artifact instead of creating a duplicate', async () => {
@@ -489,6 +585,22 @@ describe('workspaceClinicalService', () => {
       expect.objectContaining({ resourceType: 'MedicationRequest' })
     );
     expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  it('surfaces missing prescription records instead of using the legacy delete fallback', async () => {
+    const notFound = { response: { status: 404 } };
+    deleteDataMock.mockRejectedValueOnce(notFound);
+
+    await expect(deletePrescriptionArtifact('org-1', 'rx-missing')).rejects.toBe(notFound);
+    expect(deleteDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-missing'
+    );
+  });
+
+  it('returns false only for unavailable prescription delete routes', async () => {
+    deleteDataMock.mockRejectedValueOnce({ response: { status: 405 } });
+
+    await expect(deletePrescriptionArtifact('org-1', 'rx-legacy')).resolves.toBe(false);
   });
 
   it('loads encounter-scoped prescriptions and gets a prescription by id', async () => {
@@ -544,6 +656,47 @@ describe('workspaceClinicalService', () => {
         scores: { posture: 1, painful: 'Yes', notes: 'Guarded' },
         total: 2,
       })
+    );
+  });
+
+  it('creates a clinician observation submission and maps the backend-scored result', async () => {
+    postDataMock.mockResolvedValueOnce({
+      data: {
+        id: 'obs-new',
+        toolId: 'CSU_CAP',
+        toolName: 'Canine acute pain scale',
+        answers: { posture: 2 },
+        score: 4,
+        filledByName: 'Dr Vet',
+        createdAt: '2026-06-22T10:00:00.000Z',
+      },
+    });
+
+    const record = await createPmsObservationSubmission({
+      organisationId: 'org-1',
+      appointmentId: 'appt-1',
+      encounterId: 'enc-1',
+      companionId: 'comp-9',
+      toolId: 'CSU_CAP',
+      filledBy: 'vet-1',
+      answers: {},
+    });
+
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/v1/observation-tools/pms/appointments/appt-1/submissions/create',
+      expect.objectContaining({
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        encounterId: 'enc-1',
+        companionId: 'comp-9',
+        toolId: 'CSU_CAP',
+        filledBy: 'vet-1',
+        answers: {},
+      })
+    );
+    // The backend score is authoritative — we never derive it on the client.
+    expect(record).toEqual(
+      expect.objectContaining({ id: 'obs-new', toolKey: 'CSU_CAP', total: 4 })
     );
   });
 

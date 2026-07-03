@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import logger from "../../utils/logger";
 import { UserService, UserServiceError } from "../../services/user.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 type GetUserRequest = Request<{ id: string }>;
 type UpdateUserNameRequest = Request<
@@ -46,7 +47,26 @@ export const UserController = {
 
   getById: async (req: GetUserRequest, res: Response) => {
     try {
-      const user = await UserService.getById(req.params?.id);
+      const requesterId = resolveUserIdFromRequest(req);
+      const { id } = req.params;
+
+      if (!id) {
+        return res.status(400).json({ message: "User id is required." });
+      }
+
+      if (!requesterId) {
+        return res
+          .status(401)
+          .json({ message: "Missing user identity from token." });
+      }
+
+      if (requesterId !== id) {
+        return res.status(403).json({
+          message: "You can only view your own user.",
+        });
+      }
+
+      const user = await UserService.getById(id);
 
       if (!user) {
         res.status(404).json({ message: "User not found." });

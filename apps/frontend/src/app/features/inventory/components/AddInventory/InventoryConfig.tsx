@@ -58,6 +58,8 @@ export type FieldDef<S extends InventorySectionKey = InventorySectionKey> = {
   label?: string;
   component: FieldComponentType;
   options?: string[];
+  readonly?: boolean;
+  numeric?: boolean;
 };
 
 export type ConfigItem<S extends InventorySectionKey = InventorySectionKey> =
@@ -70,10 +72,11 @@ const field = <S extends InventorySectionKey>(
   name: FieldNameForSection<S>,
   placeholder: string,
   component: FieldComponentType,
-  options?: string[]
+  options?: string[],
+  numeric?: boolean
 ): ConfigItem<S> => ({
   kind: 'field',
-  field: { name, placeholder, component, options },
+  field: { name, placeholder, component, options, numeric },
 });
 
 const row = <S extends InventorySectionKey>(...fields: FieldDef<S>[]): ConfigItem<S> => ({
@@ -85,14 +88,21 @@ const f = <S extends InventorySectionKey>(
   name: FieldNameForSection<S>,
   placeholder: string,
   component: FieldComponentType,
-  options?: string[]
-): FieldDef<S> => ({ name, placeholder, component, options });
+  options?: string[],
+  numeric?: boolean
+): FieldDef<S> => ({ name, placeholder, component, options, numeric });
+
+const readonlyF = <S extends InventorySectionKey>(
+  name: FieldNameForSection<S>,
+  placeholder: string,
+  component: FieldComponentType = 'text'
+): FieldDef<S> => ({ name, placeholder, component, readonly: true });
 
 const commonPricingFields: SectionConfig<'pricing'> = [
-  field('purchaseCost', 'Unit cost', 'text'),
-  field('selling', 'Selling price', 'text'),
-  field('maxDiscount', 'Max. discount %', 'text'),
-  field('tax', 'Tax (%)', 'text'),
+  field('purchaseCost', 'Unit cost', 'text', undefined, true),
+  field('selling', 'Selling price', 'text', undefined, true),
+  field('maxDiscount', 'Max. discount %', 'text', undefined, true),
+  field('tax', 'Tax (%)', 'text', undefined, true),
 ];
 
 const commonVendorFields = (includesLicense: boolean): SectionConfig<'vendor'> => [
@@ -103,25 +113,41 @@ const commonVendorFields = (includesLicense: boolean): SectionConfig<'vendor'> =
 ];
 
 const commonStockFields = (includesStockType: boolean = false): SectionConfig<'stock'> => [
-  row(f('current', 'On hand stock', 'text'), f('allocated', 'Allocated stock (optional)', 'text')),
+  field('allocated', 'Allocated stock (optional)', 'text', undefined, true),
   row(
-    f('maxStock', 'Max stock', 'text'),
+    f('maxStock', 'Max stock', 'text', undefined, true),
     f('stockLocation', 'Stock location', 'dropdown', StockLocationOptions)
   ),
   row(
-    f('reorderLevel', 'Reorder point', 'text'),
-    f('reorderQuantity', 'Reorder quantity (optional)', 'text')
+    f('reorderLevel', 'Reorder point', 'text', undefined, true),
+    f('reorderQuantity', 'Reorder quantity (optional)', 'text', undefined, true)
   ),
   field('abcClass', 'ABC Class', 'dropdown', AbcClassOptions),
   field('withdrawlPeriod', 'Withdrawal period (optional)', 'dropdown', WithdrawalPeriodOptions),
-  field('available', 'Available stock', 'text'),
+  row(
+    readonlyF('current', 'On hand stock'),
+    readonlyF('available', 'Available stock (dispensable)')
+  ),
   ...(includesStockType
-    ? [field<'stock'>('stockType', 'Stock type', 'dropdown', StockTypeOptions)]
+    ? [
+        row<'stock'>(
+          {
+            name: 'stockType',
+            placeholder: 'Stock unit type',
+            component: 'dropdown',
+            options: StockTypeOptions,
+          },
+          { name: 'unitQnt', placeholder: 'Unit qnt', component: 'text', numeric: true }
+        ),
+      ]
     : []),
 ];
 
 const commonBatchFields: SectionConfig<'batch'> = [
-  row(f('batch', 'Batch/ Lot number', 'text'), f('quantity', 'Batch quantity', 'text')),
+  row(
+    f('batch', 'Batch/ Lot number', 'text'),
+    f('quantity', 'Batch quantity', 'text', undefined, true)
+  ),
   row(f('manufactureDate', 'Manufacturing date', 'date'), f('expiryDate', 'Expiry date', 'date')),
   field('expiryWarningBefore', 'Expiring warning before', 'dropdown', ExpiryWarningOptions),
   field('barcode', 'Barcode', 'text'),
@@ -195,6 +221,7 @@ export const InventoryFormConfig: Record<
       },
     ],
     classification: [
+      field('genericName', 'Generic name', 'text'),
       {
         kind: 'row',
         fields: [
@@ -253,6 +280,7 @@ export const InventoryFormConfig: Record<
           name: 'strength',
           placeholder: 'Strength',
           component: 'text',
+          numeric: true,
         },
       },
       {
@@ -412,6 +440,7 @@ export const InventoryFormConfig: Record<
           name: 'packSize',
           placeholder: 'Pack size / Quantity per pack',
           component: 'text',
+          numeric: true,
         },
       },
       {
@@ -420,6 +449,7 @@ export const InventoryFormConfig: Record<
           name: 'usagePerService',
           placeholder: 'Usage per service',
           component: 'text',
+          numeric: true,
         },
       },
     ],
@@ -531,6 +561,7 @@ export const InventoryFormConfig: Record<
           name: 'strength',
           placeholder: 'Strength',
           component: 'text',
+          numeric: true,
         },
       },
       {
@@ -539,6 +570,7 @@ export const InventoryFormConfig: Record<
           name: 'packSize',
           placeholder: 'Pack size / Quantity per pack',
           component: 'text',
+          numeric: true,
         },
       },
       {
@@ -604,7 +636,10 @@ export const InventoryFormConfig: Record<
     stock: commonStockFields(false),
     batch: [
       field('batch', 'Batch / Lot Number', 'text'),
-      row(f('quantity', 'Quantity', 'text'), f('allocated', 'Allocated', 'text')),
+      row(
+        f('quantity', 'Quantity', 'text', undefined, true),
+        f('allocated', 'Allocated', 'text', undefined, true)
+      ),
       field('litterId', 'Manufacture date', 'text'),
       field('manufactureDate', 'Associated litter ID', 'date'),
       field('expiryDate', 'Expiry date', 'date'),

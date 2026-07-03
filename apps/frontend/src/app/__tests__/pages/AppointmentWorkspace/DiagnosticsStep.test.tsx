@@ -1,11 +1,14 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import type { Appointment } from '@yosemite-crew/types';
 import type { IdexxTest, LabOrder, LabResult } from '@/app/features/integrations/services/types';
 import type { UseLabTestsReturn } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
 import DiagnosticsStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/DiagnosticsStep';
+import { getAppointmentWorkspaceBootstrap } from '@/app/features/appointments/services/workspaceAggregateService';
+import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 
 expect.extend(toHaveNoViolations);
 
@@ -30,6 +33,10 @@ jest.mock(
   })
 );
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
   __esModule: true,
   default: ({ open, title }: { open: boolean; title?: string }) =>
@@ -38,6 +45,11 @@ jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
 
 jest.mock('@/app/lib/urls', () => ({
   getSafeIdexxIframeUrl: (url: string | null | undefined) => url ?? null,
+}));
+
+jest.mock('@/app/features/appointments/services/workspaceAggregateService', () => ({
+  getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
+  normalizeWorkspaceBootstrapForEncounter: jest.fn(() => ({})),
 }));
 
 const APPOINTMENT = {
@@ -174,6 +186,7 @@ const renderStep = (
 describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   beforeEach(() => {
     mockUseLabTests.mockReset();
+    useAppointmentWorkspaceStore.setState({ encountersById: {} });
   });
 
   it('renders provider pills with IDEXX selected and the order builder/queue/results sections', () => {
@@ -189,13 +202,36 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(screen.getAllByText(/Order 100358709/).length).toBeGreaterThan(0);
   });
 
-  it('switches to RadAnalyzer coming-soon and hides the IDEXX order builder', () => {
+  it('shows provider and modality origin badges on order rows', () => {
     renderStep();
 
-    fireEvent.click(screen.getByRole('button', { name: 'RadAnalyzer' }));
+    // The same order id also appears in the Results section, so target the
+    // first occurrence — the Order Status row, which carries the origin badges.
+    const orderRow = screen.getAllByText('1. Order 100358709')[0].parentElement as HTMLElement;
+    expect(orderRow).toHaveTextContent('IDEXX');
+    expect(orderRow).toHaveTextContent('Reference lab');
+  });
 
-    expect(screen.getByText(/RadAnalyzer diagnostics are coming soon/i)).toBeInTheDocument();
-    expect(screen.queryByText('Order Builder')).not.toBeInTheDocument();
+  it('shows the in-house modality badge for in-house orders', () => {
+    renderStep({
+      appointmentOrders: [makeOrder({ modality: 'INHOUSE', idexxOrderId: '200001' })],
+    });
+
+    const orderRow = screen.getByText('1. Order 200001').parentElement as HTMLElement;
+    expect(orderRow).toHaveTextContent('In-house');
+  });
+
+  it('disables the RadAnalyzer provider with an availability reason and keeps IDEXX active', () => {
+    renderStep();
+
+    const radButton = screen.getByRole('button', { name: /RadAnalyzer/i });
+    expect(radButton).toBeDisabled();
+    expect(radButton).toHaveAttribute('title', expect.stringMatching(/coming soon/i));
+
+    // Clicking the disabled provider does not switch away from the IDEXX builder.
+    fireEvent.click(radButton);
+    expect(screen.getByText('Order Builder')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('keeps diagnostic history visible but hides new-order controls when read-only', () => {
@@ -221,6 +257,27 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(screen.getByText(/Loading IDEXX integration/i)).toBeInTheDocument();
   });
 
+  it('shows Follow up for submitted orders and Continue for created orders', () => {
+    renderStep({
+      latestOrder: makeOrder({ status: 'SUBMITTED' }),
+      canOpenFollowUpInCurrentOrder: true,
+      needsInitialOrderPlacement: false,
+    });
+    expect(
+      screen.getByRole('button', { name: 'Follow up for order 100358709' })
+    ).toBeInTheDocument();
+
+    renderStep({
+      latestOrder: makeOrder({ status: 'CREATED' }),
+      appointmentOrders: [makeOrder({ status: 'CREATED' })],
+      canOpenFollowUpInCurrentOrder: false,
+      needsInitialOrderPlacement: true,
+    });
+    expect(
+      screen.getByRole('button', { name: 'Continue for order 100358709' })
+    ).toBeInTheDocument();
+  });
+
   it('surfaces a hook error message', () => {
     renderStep({ error: 'IDEXX request failed' });
 
@@ -241,6 +298,51 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     fireEvent.click(screen.getByRole('button', { name: /create lab order/i }));
 
     expect(hook.handleCreateOrder).toHaveBeenCalled();
+  });
+
+  it('surfaces diagnostics preloaded from services and packages', () => {
+    useAppointmentWorkspaceStore.setState({
+      encountersById: {
+        'appt-diagnostics': {
+          diagnosticOrders: [
+            {
+              id: 'dx-1',
+              orderCode: 'CBC',
+              name: 'Complete Blood Count',
+              kind: 'PROVIDER_TEST',
+              provider: 'IDEXX',
+              sourceKind: 'PACKAGE_ITEM',
+              status: 'CREATED',
+              createdAt: '2026-06-01T10:00:00Z',
+            },
+          ],
+        } as unknown as AppointmentEncounter,
+      },
+    });
+    renderStep();
+
+    expect(screen.getByText('Preloaded from Services & Packages')).toBeInTheDocument();
+    const row = screen.getByText('Complete Blood Count').parentElement as HTMLElement;
+    expect(row).toHaveTextContent('Package');
+    expect(row).toHaveTextContent('IDEXX');
+  });
+
+  it('refetches the encounter workspace after creating a lab order', async () => {
+    mockUseLabTests.mockReturnValue(baseHook());
+    const appointmentWithOrg = {
+      id: 'appt-diagnostics',
+      organisationId: 'org-1',
+      companion: { id: 'comp-1', name: 'Gigi' },
+    } as unknown as Appointment;
+    render(<DiagnosticsStep appointment={appointmentWithOrg} onOpenTreatment={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /create lab order/i }));
+
+    // Beyond the IDEXX tables, the encounter is re-hydrated so the diagnostic
+    // queue, invoice candidates, and documents reflect the new order.
+    await waitFor(() =>
+      expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith('org-1', 'appt-diagnostics')
+    );
   });
 
   it('updates order builder fields through the backend hook callbacks', () => {
@@ -293,9 +395,9 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     const order = makeOrder({ pdfUrl: 'https://idexx.test/ack.pdf' } as Partial<LabOrder>);
     const { hook } = renderStep({ appointmentOrders: [order], latestOrder: order });
 
-    fireEvent.click(screen.getByRole('button', { name: /open idexx for order 100358709/i }));
+    fireEvent.click(screen.getByRole('button', { name: /follow up for order 100358709/i }));
     expect(hook.setActiveOrderForActions).toHaveBeenCalled();
-    expect(hook.openOrderIframe).toHaveBeenCalledWith('order');
+    expect(hook.openOrderIframe).toHaveBeenCalledWith('followup', order.status, order);
 
     fireEvent.click(
       screen.getByRole('button', { name: /view acknowledgement for order 100358709/i })
@@ -348,6 +450,18 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     renderStep({ showOrderIframe: true, iframeOrderUiUrl: 'https://idexx.test/frame' });
 
     expect(screen.getByTitle('IDEXX order UI')).toBeInTheDocument();
+  });
+
+  it('shows the IDEXX loader when the follow-up iframe modal opens', () => {
+    renderStep({
+      showOrderIframe: true,
+      iframeOrderUiUrl: 'https://idexx.test/follow-up',
+      iframeOpenSource: 'followup',
+    });
+
+    expect(screen.getByText('IDEXX follow-up ordering')).toBeInTheDocument();
+    expect(screen.getByTestId('idexx-order-loader')).toBeInTheDocument();
+    expect(screen.getByText('Loading IDEXX')).toBeInTheDocument();
   });
 
   it('renders the PDF preview overlay when showPdfPreview is set', () => {

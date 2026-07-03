@@ -86,6 +86,9 @@ describe("template.router", () => {
       authorizeCognito,
     );
     expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
+      withOrgPermissions.mock.results[0].value,
+    );
+    expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
       requirePermission.mock.results[0].value,
     );
     expect(libraryRoute?.stack.map((layer) => layer.handle)).toContain(
@@ -101,10 +104,12 @@ describe("template.router", () => {
       authorizeCognito,
     );
     expect(organisationRoute?.stack.map((layer) => layer.handle)).toContain(
-      withOrgPermissions.mock.results[0].value,
+      withOrgPermissions.mock.results[1].value ??
+        withOrgPermissions.mock.results[0].value,
     );
     expect(userRoute?.stack.map((layer) => layer.handle)).toContain(
-      withOrgPermissions.mock.results[1].value ??
+      withOrgPermissions.mock.results[2].value ??
+        withOrgPermissions.mock.results[1].value ??
         withOrgPermissions.mock.results[0].value,
     );
     expect(requirePermission).toHaveBeenCalledWith(["forms:view:any"]);

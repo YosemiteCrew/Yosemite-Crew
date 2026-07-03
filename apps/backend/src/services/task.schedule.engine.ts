@@ -56,39 +56,89 @@ const isNonEmptyStringArray = (value: unknown): value is string[] =>
   value.length > 0 &&
   value.every((item) => typeof item === "string" && item.trim().length > 0);
 
+function assertTaskWorkflowSeedShape(
+  seed: Record<string, unknown>,
+): asserts seed is Record<string, unknown> & {
+  organisationId: string;
+  createdBy: string;
+  assignedTo: string;
+  category: string;
+  name: string;
+  dueAt: string;
+} {
+  if (
+    typeof seed.organisationId !== "string" ||
+    typeof seed.createdBy !== "string" ||
+    typeof seed.assignedTo !== "string" ||
+    typeof seed.category !== "string" ||
+    typeof seed.name !== "string" ||
+    typeof seed.dueAt !== "string"
+  ) {
+    throw new TaskScheduleEngineError("Invalid schedule seed payload");
+  }
+}
+
+const normalizeWorkflowRecurrence = (
+  recurrence: unknown,
+): StoredTaskWorkflowSeed["recurrence"] | undefined => {
+  if (!recurrence || typeof recurrence !== "object") {
+    return undefined;
+  }
+
+  const seedRecurrence = recurrence as Record<string, unknown>;
+
+  return {
+    type:
+      seedRecurrence.type === "DAILY" ||
+      seedRecurrence.type === "WEEKLY" ||
+      seedRecurrence.type === "CUSTOM"
+        ? seedRecurrence.type
+        : "ONCE",
+    isMaster: Boolean(seedRecurrence.isMaster),
+    masterTaskId:
+      typeof seedRecurrence.masterTaskId === "string"
+        ? seedRecurrence.masterTaskId
+        : undefined,
+    cronExpression:
+      typeof seedRecurrence.cronExpression === "string"
+        ? seedRecurrence.cronExpression
+        : undefined,
+    endDate:
+      typeof seedRecurrence.endDate === "string"
+        ? seedRecurrence.endDate
+        : undefined,
+  };
+};
+
+const normalizeWorkflowReminder = (
+  reminder: unknown,
+): StoredTaskWorkflowSeed["reminder"] | undefined => {
+  if (!reminder || typeof reminder !== "object") {
+    return undefined;
+  }
+
+  const seedReminder = reminder as Record<string, unknown>;
+
+  return {
+    enabled: Boolean(seedReminder.enabled),
+    offsetMinutes:
+      typeof seedReminder.offsetMinutes === "number"
+        ? seedReminder.offsetMinutes
+        : 0,
+    scheduledNotificationId:
+      typeof seedReminder.scheduledNotificationId === "string"
+        ? seedReminder.scheduledNotificationId
+        : undefined,
+  };
+};
+
 const parseSeed = (value: unknown): StoredTaskWorkflowSeed => {
   if (!value || typeof value !== "object") {
     throw new TaskScheduleEngineError("Invalid schedule seed payload");
   }
 
   const seed = value as Record<string, unknown>;
-
-  if (
-    typeof seed.organisationId !== "string" ||
-    typeof seed.createdBy !== "string"
-  ) {
-    throw new TaskScheduleEngineError("Invalid schedule seed payload");
-  }
-
-  if (
-    typeof seed.assignedTo !== "string" ||
-    typeof seed.category !== "string"
-  ) {
-    throw new TaskScheduleEngineError("Invalid schedule seed payload");
-  }
-
-  if (typeof seed.name !== "string" || typeof seed.dueAt !== "string") {
-    throw new TaskScheduleEngineError("Invalid schedule seed payload");
-  }
-
-  const recurrence =
-    seed.recurrence && typeof seed.recurrence === "object"
-      ? (seed.recurrence as Record<string, unknown>)
-      : null;
-  const reminder =
-    seed.reminder && typeof seed.reminder === "object"
-      ? (seed.reminder as Record<string, unknown>)
-      : null;
+  assertTaskWorkflowSeedShape(seed);
 
   return {
     source:
@@ -126,42 +176,8 @@ const parseSeed = (value: unknown): StoredTaskWorkflowSeed => {
         : undefined,
     dueAt: seed.dueAt,
     timezone: typeof seed.timezone === "string" ? seed.timezone : undefined,
-    recurrence: recurrence
-      ? {
-          type:
-            recurrence.type === "DAILY" ||
-            recurrence.type === "WEEKLY" ||
-            recurrence.type === "CUSTOM"
-              ? recurrence.type
-              : "ONCE",
-          isMaster: Boolean(recurrence.isMaster),
-          masterTaskId:
-            typeof recurrence.masterTaskId === "string"
-              ? recurrence.masterTaskId
-              : undefined,
-          cronExpression:
-            typeof recurrence.cronExpression === "string"
-              ? recurrence.cronExpression
-              : undefined,
-          endDate:
-            typeof recurrence.endDate === "string"
-              ? recurrence.endDate
-              : undefined,
-        }
-      : undefined,
-    reminder: reminder
-      ? {
-          enabled: Boolean(reminder.enabled),
-          offsetMinutes:
-            typeof reminder.offsetMinutes === "number"
-              ? reminder.offsetMinutes
-              : 0,
-          scheduledNotificationId:
-            typeof reminder.scheduledNotificationId === "string"
-              ? reminder.scheduledNotificationId
-              : undefined,
-        }
-      : undefined,
+    recurrence: normalizeWorkflowRecurrence(seed.recurrence),
+    reminder: normalizeWorkflowReminder(seed.reminder),
     syncWithCalendar:
       typeof seed.syncWithCalendar === "boolean"
         ? seed.syncWithCalendar
@@ -181,6 +197,62 @@ const scheduleStatusForTemplateKind = (
 ): TaskScheduleStatus =>
   kind === TemplateKind.TASK_TEMPLATE ? "COMPLETED" : "ACTIVE";
 
+const toWorkflowSeedInput = (seed: StoredTaskWorkflowSeed) => ({
+  ...seed,
+  dueAt: new Date(seed.dueAt),
+  recurrence: seed.recurrence
+    ? {
+        ...seed.recurrence,
+        endDate: seed.recurrence.endDate
+          ? new Date(seed.recurrence.endDate)
+          : undefined,
+      }
+    : undefined,
+});
+
+const materializeSchedule = async (
+  schedule: {
+    id: string;
+    templateKind: TemplateKind;
+    generatedTaskIds: unknown;
+    materializedSeeds: unknown;
+  },
+  now: Date,
+) => {
+  if (isNonEmptyStringArray(schedule.generatedTaskIds)) {
+    return;
+  }
+
+  if (
+    !Array.isArray(schedule.materializedSeeds) ||
+    schedule.materializedSeeds.length === 0
+  ) {
+    return;
+  }
+
+  const seeds = schedule.materializedSeeds.map(parseSeed);
+  const generatedTaskIds: string[] = [];
+
+  for (const seed of seeds) {
+    const task = await TaskService.createFromWorkflowSeed(
+      toWorkflowSeedInput(seed),
+      { notify: false },
+    );
+    generatedTaskIds.push(task.id);
+  }
+
+  await prisma.taskSchedule.update({
+    where: { id: schedule.id },
+    data: {
+      generatedTaskIds: generatedTaskIds as Prisma.InputJsonValue,
+      status: scheduleStatusForTemplateKind(schedule.templateKind),
+      completedAt:
+        schedule.templateKind === TemplateKind.TASK_TEMPLATE ? now : null,
+      lastMaterializedAt: now,
+    },
+  });
+};
+
 export const TaskScheduleEngine = {
   async run() {
     const now = new Date();
@@ -194,47 +266,7 @@ export const TaskScheduleEngine = {
 
     for (const schedule of schedules) {
       try {
-        if (isNonEmptyStringArray(schedule.generatedTaskIds)) {
-          continue;
-        }
-
-        const seedsValue = schedule.materializedSeeds;
-        if (!Array.isArray(seedsValue) || seedsValue.length === 0) {
-          continue;
-        }
-
-        const seeds = seedsValue.map(parseSeed);
-        const generatedTaskIds: string[] = [];
-
-        for (const seed of seeds) {
-          const task = await TaskService.createFromWorkflowSeed(
-            {
-              ...seed,
-              dueAt: new Date(seed.dueAt),
-              recurrence: seed.recurrence
-                ? {
-                    ...seed.recurrence,
-                    endDate: seed.recurrence.endDate
-                      ? new Date(seed.recurrence.endDate)
-                      : undefined,
-                  }
-                : undefined,
-            },
-            { notify: false },
-          );
-          generatedTaskIds.push(task.id);
-        }
-
-        await prisma.taskSchedule.update({
-          where: { id: schedule.id },
-          data: {
-            generatedTaskIds: generatedTaskIds as Prisma.InputJsonValue,
-            status: scheduleStatusForTemplateKind(schedule.templateKind),
-            completedAt:
-              schedule.templateKind === TemplateKind.TASK_TEMPLATE ? now : null,
-            lastMaterializedAt: now,
-          },
-        });
+        await materializeSchedule(schedule, now);
       } catch (error) {
         console.error("Failed to process task schedule", schedule.id, error);
       }

@@ -7,6 +7,7 @@ import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import type { OrgRequest } from "src/middlewares/rbac";
 
 type RescheduleRequestBody = {
   startTime: string | Date;
@@ -272,12 +273,15 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
-      const body = admitAppointmentSchema.parse(req.body) as AdmitBody;
+      const body = admitAppointmentSchema.parse(req.body);
 
       const data = await AppointmentPrismaService.admitAppointmentToInpatient(
         req.params.appointmentId,
         {
           admittedAt: body.admittedAt ? new Date(body.admittedAt) : undefined,
+          // The admitting user is whoever is signed in and clicked
+          // "Convert to Inpatient" (the verified Cognito token), never the body.
+          admittedBy: (req as { userId?: string }).userId,
           expectedStayDays: body.expectedStayDays,
           lead: body.lead,
           supportStaff: body.supportStaff,
@@ -303,6 +307,7 @@ export const AppointmentController = {
     try {
       await InvoiceService.markAppointmentReadyForBilling(
         req.params.appointmentId,
+        resolveUserIdFromRequest(req),
       );
       return res
         .status(200)
@@ -313,6 +318,31 @@ export const AppointmentController = {
         res,
         err,
         "Failed to mark appointment ready for billing",
+      );
+    }
+  },
+
+  reverseReadyForBillingForPMS: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const invoice = await InvoiceService.reverseAppointmentReadyForBilling(
+        req.params.appointmentId,
+        resolveUserIdFromRequest(req),
+      );
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      return res.status(200).json({
+        message: "Appointment billing readiness reversed",
+      });
+    } catch (err: unknown) {
+      logger.error("Appointment billing readiness reversal error", err);
+      return sendAppointmentError(
+        res,
+        err,
+        "Failed to reverse appointment ready for billing",
       );
     }
   },
@@ -370,7 +400,6 @@ export const AppointmentController = {
       const data = await AppointmentPrismaService.cancelAppointmentFromParent(
         req.params.appointmentId,
         authUser.parentId.toString(),
-        req.body.reason,
       );
 
       return res.status(200).json({ message: "Appointment cancelled", data });
@@ -387,7 +416,6 @@ export const AppointmentController = {
     try {
       const data = await AppointmentPrismaService.cancelAppointment(
         req.params.appointmentId,
-        req.body.reason,
       );
       return res.status(200).json({ message: "Appointment cancelled", data });
     } catch (err: unknown) {
@@ -398,9 +426,51 @@ export const AppointmentController = {
 
   getById: async (req: Request<{ appointmentId: string }>, res: Response) => {
     try {
+      const typedReq = req as OrgRequest;
+      const actorId = resolveUserIdFromRequest(req);
+      const canViewAny =
+        typedReq.userPermissions?.includes("appointments:view:any") ?? false;
+
+      if (!canViewAny && !actorId) {
+        return res.status(403).json({ message: "User not authenticated" });
+      }
+
       const data = await AppointmentPrismaService.getById(
         req.params.appointmentId,
+        typedReq.organisationId ?? req.params.organisationId,
+        canViewAny ? undefined : actorId,
       );
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      logger.error("Appointment fetch error", err);
+      return sendAppointmentError(res, err, "Failed to fetch appointment");
+    }
+  },
+
+  getByIdMobile: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const actorId = resolveUserIdFromRequest(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const authUser = await AuthUserMobileService.getByProviderUserId(actorId);
+      if (!authUser?.parentId) {
+        return res
+          .status(400)
+          .json({ message: "Parent information missing for user" });
+      }
+
+      const data = await AppointmentPrismaService.getById(
+        req.params.appointmentId,
+        undefined,
+        undefined,
+        authUser.parentId.toString(),
+      );
+
       return res.status(200).json({ data });
     } catch (err: unknown) {
       logger.error("Appointment fetch error", err);

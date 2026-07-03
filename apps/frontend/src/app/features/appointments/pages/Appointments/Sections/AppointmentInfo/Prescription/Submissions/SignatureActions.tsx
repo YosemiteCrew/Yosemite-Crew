@@ -12,6 +12,14 @@ type SubmissionWithSigning = FormSubmission & {
   submissionId?: string;
 };
 
+const getSigningStatusLabel = (submission: SubmissionWithSigning): string | null => {
+  if (submission.signing?.status === 'SIGNED') return 'Signed';
+  if (submission.signing?.status === 'IN_PROGRESS') return 'Signing in progress';
+  if (submission.signing?.status) return 'Not started';
+  if (submission.signatureRequired) return 'Signature required';
+  return null;
+};
+
 type SignatureActionsProps = {
   submission: SubmissionWithSigning;
   onStatusChange?: (submissionId: string, updates: Partial<SubmissionWithSigning>) => void;
@@ -35,6 +43,7 @@ const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps)
   }, [submission._id, submission.submissionId]);
 
   const isSigned = submission.signing?.status === 'SIGNED' || Boolean(submission.signing?.pdf?.url);
+  const signingStatusLabel = getSigningStatusLabel(submission);
 
   const shouldShowActions = submission.signatureRequired || Boolean(submission.signing);
 
@@ -138,7 +147,15 @@ const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps)
       void (async () => {
         try {
           const url = await pollForSignedUrl();
-          if (!url && submission.signing?.status === 'IN_PROGRESS') {
+          if (url) {
+            onStatusChange?.(submissionId, {
+              signing: {
+                ...(submission.signing ?? { required: true, provider: 'DOCUMENSO' }),
+                status: 'SIGNED',
+                pdf: { url },
+              },
+            });
+          } else if (submission.signing?.status === 'IN_PROGRESS' || submission.signatureRequired) {
             onStatusChange?.(submissionId, {
               signing: {
                 ...(submission.signing ?? { required: true, provider: 'DOCUMENSO' }),
@@ -161,12 +178,18 @@ const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps)
     resolveSignedUrl,
     shouldShowActions,
     submission.signing,
+    submission.signatureRequired,
   ]);
 
   if (!submissionId || !shouldShowActions) return null;
 
   return (
     <div className="flex flex-col gap-2">
+      {signingStatusLabel ? (
+        <div className={`text-xs ${isSigned ? 'text-success-600' : 'text-text-secondary'}`}>
+          {signingStatusLabel}
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {isSigned ? null : (
           <Primary

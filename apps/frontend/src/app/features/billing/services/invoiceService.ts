@@ -7,7 +7,7 @@ import {
 } from '@yosemite-crew/types';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { getData, patchData, postData } from '@/app/services/axios';
+import { deleteData, getData, patchData, postData } from '@/app/services/axios';
 import type {
   InvoiceLineItem as WorkspaceInvoiceLine,
   InvoiceStatus as WorkspaceInvoiceStatus,
@@ -72,15 +72,45 @@ type ReadyForBillingInput = {
 
 type PaymentSessionResponse = {
   paymentAttemptId: string;
+  // The finance service returns the Stripe checkout URL as `url`; older/alt shapes
+  // used `checkoutUrl`. Read both so the link is never silently dropped.
+  url?: string;
   checkoutUrl?: string;
+  sessionId?: string;
   providerPaymentIntentId?: string;
   providerCheckoutSessionId?: string;
 };
+
+type InvoiceCheckoutSessionResponse = {
+  checkout?: PaymentSessionResponse | null;
+  emailSent?: boolean;
+};
+
+type InvoiceBackendArtifacts = {
+  pdfUrl?: unknown;
+  invoicePdfUrl?: unknown;
+  renderedDocumentUrl?: unknown;
+  renderedPdfUrl?: unknown;
+  renderedDocumentId?: unknown;
+  invoiceDocumentId?: unknown;
+  payments?: unknown;
+};
+
+type NormalizedFinanceInvoice = Invoice & InvoiceBackendArtifacts;
 
 const FINANCE_BASE_PATH = '/v1/finance';
 
 const APPOINTMENT_ID_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id';
+
+const withFreshFinanceParams = <T extends Record<string, unknown>>(
+  params: T
+): T & {
+  _cacheBust: number;
+} => ({
+  ...params,
+  _cacheBust: Date.now(),
+});
 
 const normalizeReferenceTail = (value: unknown): string | undefined => {
   let raw = '';
@@ -94,6 +124,17 @@ const normalizeReferenceTail = (value: unknown): string | undefined => {
   const withoutQuery = normalizedRaw.split(/[?#]/)[0];
   const tail = withoutQuery.split('/').findLast(Boolean)?.trim();
   return tail || undefined;
+};
+
+const toSafeText = (value: unknown): string => {
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  return '';
+};
+
+const normalizePaidAt = (value: unknown): string | undefined => {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return undefined;
 };
 
 const unwrapFinanceData = <T>(value: T | FinanceEnvelope<T>): T => {
@@ -123,10 +164,10 @@ const isInvoiceMissingForReadyForBilling = (error: unknown): boolean => {
   const response = error as { response?: { data?: unknown } };
   const data = response.response?.data;
   if (!data || typeof data !== 'object') return false;
-  const toText = (value: unknown): string =>
-    typeof value === 'string' || typeof value === 'number' ? String(value).toLowerCase() : '';
-  const message = toText((data as { message?: unknown }).message);
-  const errorMessage = toText((data as { error?: { message?: unknown } }).error?.message);
+  const message = toSafeText((data as { message?: unknown }).message).toLowerCase();
+  const errorMessage = toSafeText(
+    (data as { error?: { message?: unknown } }).error?.message
+  ).toLowerCase();
   return [message, errorMessage].some((text) => text.includes('invoice'));
 };
 
@@ -142,7 +183,21 @@ const markAppointmentReadyForBillingViaAppointmentRoute = async (
   return unwrapFinanceData(res.data);
 };
 
-const normalizeFinanceInvoice = (invoice: any, fallbackOrganisationId?: string): Invoice => {
+const reverseAppointmentReadyForBillingViaAppointmentRoute = async (
+  appointmentId: string,
+  input: ReadyForBillingInput
+): Promise<unknown> => {
+  if (!input.organisationId) throw new Error('Organisation ID missing');
+  const res = await deleteData<FinanceResponse>(
+    `/fhir/v1/appointment/pms/${input.organisationId}/${appointmentId}/ready-for-billing`
+  );
+  return unwrapFinanceData(res.data);
+};
+
+const normalizeFinanceInvoice = (
+  invoice: any,
+  fallbackOrganisationId?: string
+): NormalizedFinanceInvoice => {
   if (invoice?.resourceType === 'Invoice') {
     return normalizeInvoiceForFrontend(invoice, fallbackOrganisationId);
   }
@@ -182,6 +237,19 @@ const normalizeFinanceInvoice = (invoice: any, fallbackOrganisationId?: string):
     stripeCheckoutSessionId: invoice?.stripeCheckoutSessionId,
     stripeCheckoutUrl: invoice?.stripeCheckoutUrl,
     status: invoice?.status ?? 'PENDING',
+    // Carry billing-stage/deposit fields through so deposit totals persist and the
+    // open-invoice selector can exclude SETTLED invoices.
+    billingCollectionMode: invoice?.billingCollectionMode,
+    visitBillingStage: invoice?.visitBillingStage,
+    depositCollectedAmount: invoice?.depositCollectedAmount,
+    depositTargetAmount: invoice?.depositTargetAmount,
+    pdfUrl: invoice?.pdfUrl,
+    invoicePdfUrl: invoice?.invoicePdfUrl,
+    renderedDocumentUrl: invoice?.renderedDocumentUrl,
+    renderedPdfUrl: invoice?.renderedPdfUrl,
+    renderedDocumentId: invoice?.renderedDocumentId,
+    invoiceDocumentId: invoice?.invoiceDocumentId,
+    payments: invoice?.payments,
     metadata: invoice?.metadata,
     paidAt: invoice?.paidAt ? new Date(invoice.paidAt) : undefined,
     createdAt,
@@ -243,9 +311,9 @@ export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
   try {
     const res = await getData<FinanceEnvelope<unknown[]> | unknown[]>(
       `${FINANCE_BASE_PATH}/invoices`,
-      {
+      withFreshFinanceParams({
         organisationId: primaryOrgId,
-      }
+      })
     );
     const invoicePayload = unwrapFinanceData(res.data) ?? [];
     const invoices = invoicePayload.map((invoice) =>
@@ -273,10 +341,10 @@ export const loadInvoicesForAppointment = async (appointmentId: string): Promise
   try {
     const res = await getData<FinanceEnvelope<unknown[]> | unknown[]>(
       `${FINANCE_BASE_PATH}/invoices`,
-      {
+      withFreshFinanceParams({
         organisationId: primaryOrgId,
         appointmentId,
-      }
+      })
     );
     const invoicePayload = unwrapFinanceData(res.data) ?? [];
     const invoices = invoicePayload.map((invoice) =>
@@ -303,9 +371,11 @@ const FINANCE_OPEN_STATUSES = new Set(['PENDING', 'AWAITING_PAYMENT', 'REQUIRES_
 /** Map a finance invoice status to the workspace's coarse paid/unpaid pill state. */
 const toWorkspaceInvoiceStatus = (
   status: string | undefined,
-  outstandingCents: number
+  outstandingCents: number,
+  totalCents: number
 ): WorkspaceInvoiceStatus => {
   if (status === 'PAID' || outstandingCents <= 0) return 'PAID_FULL';
+  if (outstandingCents < totalCents) return 'PARTIAL';
   if (status && FINANCE_OPEN_STATUSES.has(status)) return 'UNPAID';
   return outstandingCents > 0 ? 'PARTIAL' : 'PAID_FULL';
 };
@@ -326,6 +396,21 @@ const financeItemToWorkspaceLineItem = (item: InvoiceItem, index: number): Works
   };
 };
 
+const readInvoiceString = (invoice: Invoice, key: string): string | undefined => {
+  const value = (invoice as unknown as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+};
+
+const invoiceRenderedPdfUrl = (invoice: Invoice): string | undefined =>
+  readInvoiceString(invoice, 'pdfUrl') ??
+  readInvoiceString(invoice, 'invoicePdfUrl') ??
+  readInvoiceString(invoice, 'renderedDocumentUrl') ??
+  readInvoiceString(invoice, 'renderedPdfUrl');
+
+const invoiceRenderedDocumentId = (invoice: Invoice): string | undefined =>
+  readInvoiceString(invoice, 'renderedDocumentId') ??
+  readInvoiceString(invoice, 'invoiceDocumentId');
+
 /**
  * Hydrate the appointment workspace's billing view from the finance service:
  * existing/settled invoices (for the Invoices section), the deposit balance, and
@@ -342,16 +427,15 @@ export const loadAppointmentBilling = async (
 
   const res = await getData<FinanceEnvelope<unknown[]> | unknown[]>(
     `${FINANCE_BASE_PATH}/invoices`,
-    { organisationId, appointmentId }
+    withFreshFinanceParams({ organisationId, appointmentId })
   );
   const invoicePayload = unwrapFinanceData(res.data) ?? [];
-  const invoices = invoicePayload
-    .map((invoice) => normalizeFinanceInvoice(invoice, organisationId))
-    // Guard against a backend that ignores the appointmentId filter: only keep
-    // invoices for this appointment (when the field is present on the row).
-    .filter(
-      (invoice) => invoice.appointmentId === undefined || invoice.appointmentId === appointmentId
-    );
+  // The backend scopes `GET /invoices?organisationId&appointmentId` to the
+  // appointment (appointmentId takes precedence over organisationId), so the
+  // response is already appointment-scoped — no client-side guard needed.
+  const invoices = invoicePayload.map((invoice) =>
+    normalizeFinanceInvoice(invoice, organisationId)
+  );
 
   const invoicedItemNames = new Set<string>();
   let depositCents = 0;
@@ -366,19 +450,47 @@ export const loadAppointmentBilling = async (
     const totalCents =
       financeAmountToCents(invoice.totalAmount) ||
       items.reduce((sum, item) => sum + item.amountCents, 0);
-    const collectedCents = financeAmountToCents(invoice.depositCollectedAmount);
-    depositCents += collectedCents;
     const isPaid = invoice.status === 'PAID' || Boolean(invoice.paidAt);
-    const outstandingCents = isPaid ? 0 : totalCents;
+    // Map the payment ledger (deposits + settlements with provider metadata and receipt URLs)
+    // when the backend includes it on the invoice (handoff §5). Absent until then.
+    const rawPayments = (invoice as { payments?: unknown }).payments;
+    const payments = Array.isArray(rawPayments)
+      ? rawPayments.map((payment, index) => {
+          const p = payment as Record<string, unknown>;
+          const paymentId = toSafeText(p.id);
+          return {
+            id: paymentId || `${String(invoice.id ?? appointmentId)}-pay-${index}`,
+            amountCents: financeAmountToCents(p.amount as number | undefined),
+            method: typeof p.settlementChannel === 'string' ? p.settlementChannel : undefined,
+            provider: typeof p.provider === 'string' ? p.provider : undefined,
+            status: typeof p.status === 'string' ? p.status : undefined,
+            paidAt: normalizePaidAt(p.paidAt),
+            receiptUrl: typeof p.receiptUrl === 'string' ? p.receiptUrl : undefined,
+          };
+        })
+      : undefined;
+    const explicitDepositCents = financeAmountToCents(invoice.depositCollectedAmount);
+    const ledgerDepositCents =
+      payments?.reduce((sum, payment) => {
+        const method = String(payment.method ?? '').toUpperCase();
+        return method === 'DEPOSIT' ? sum + payment.amountCents : sum;
+      }, 0) ?? 0;
+    const collectedCents = explicitDepositCents > 0 ? explicitDepositCents : ledgerDepositCents;
+    depositCents += collectedCents;
+    const paymentTotalCents = payments?.reduce((sum, payment) => sum + payment.amountCents, 0) ?? 0;
+    const outstandingCents = isPaid ? 0 : Math.max(0, totalCents - paymentTotalCents);
     return {
       id: String(invoice.id ?? appointmentId),
       createdAt: (invoice.createdAt ?? new Date()).toISOString(),
       totalCents,
       outstandingCents,
-      status: toWorkspaceInvoiceStatus(invoice.status, outstandingCents),
+      status: toWorkspaceInvoiceStatus(invoice.status, outstandingCents, totalCents),
       paidByName: undefined,
       paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : undefined,
       items,
+      payments,
+      pdfUrl: invoiceRenderedPdfUrl(invoice),
+      renderedDocumentId: invoiceRenderedDocumentId(invoice),
     };
   });
 
@@ -402,16 +514,17 @@ const shouldFetchInvoices = (
   return status === 'idle' || status === 'error';
 };
 
-const normalizeInvoiceLineKey = (
-  item: Pick<InvoiceItem, 'name' | 'quantity' | 'unitPrice' | 'total'>
-) =>
+// Dedupe key for "is this line already on the invoice". Intentionally keyed on
+// name + quantity only — NOT price. The same booked service can reach the invoice
+// through two pipelines (the treatment/catalog seed and the FE bill re-seed) whose
+// prices differ by a sub-cent rounding delta (e.g. 257.127 vs 257.13), and keying
+// on price let that rounded copy slip past the guard and append a duplicate line.
+const normalizeInvoiceLineKey = (item: Pick<InvoiceItem, 'name' | 'quantity'>) =>
   [
     String(item.name ?? '')
       .trim()
       .toLowerCase(),
     Number(item.quantity),
-    Number(item.unitPrice),
-    Number(item.total),
   ].join('|');
 
 const filterNewInvoiceLineItems = (invoice: Invoice, lineItems: InvoiceItem[]): InvoiceItem[] => {
@@ -477,11 +590,33 @@ export const getPaymentLink = async (invoiceId: string): Promise<string | undefi
       { provider: 'STRIPE' }
     );
     const paymentSession = unwrapFinanceData(res.data);
-    const url = paymentSession.checkoutUrl;
+    const url = paymentSession.url ?? paymentSession.checkoutUrl;
     if (!url) throw new Error('No checkout URL returned from backend.');
     return url;
   } catch (err) {
     console.error('Failed to load specialities:', err);
+    throw err;
+  }
+};
+
+export const sendInvoiceToClient = async (
+  invoiceId: string
+): Promise<InvoiceCheckoutSessionResponse> => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot send invoice to client.');
+    return {};
+  }
+  try {
+    if (!invoiceId) {
+      throw new Error('Invoice ID missing');
+    }
+    const res = await postData<
+      FinanceEnvelope<InvoiceCheckoutSessionResponse> | InvoiceCheckoutSessionResponse
+    >(`/fhir/v1/invoice/${invoiceId}/checkout-session`);
+    return unwrapFinanceData(res.data);
+  } catch (err) {
+    console.error('Failed to send invoice to client:', err);
     throw err;
   }
 };
@@ -646,14 +781,54 @@ export const markAppointmentReadyForBilling = async (
   }
 };
 
+export const reverseAppointmentReadyForBilling = async (
+  appointmentId: string,
+  input: ReadyForBillingInput
+): Promise<unknown> => {
+  if (!appointmentId) throw new Error('Appointment ID missing');
+  const endpoint = `${FINANCE_BASE_PATH}/appointments/${appointmentId}/ready-for-billing`;
+  try {
+    const res = await deleteData<FinanceResponse>(endpoint);
+    return unwrapFinanceData(res.data);
+  } catch (error) {
+    // The finance route isn't deployed on every backend fork — fall back to the
+    // appointment PMS route on a 404, mirroring the forward (mark) direction.
+    if (getErrorStatus(error) === 404) {
+      return reverseAppointmentReadyForBillingViaAppointmentRoute(appointmentId, input);
+    }
+    throw error;
+  }
+};
+
+// Statuses an invoice can no longer accept line edits in. A paid/settled invoice
+// (e.g. a collected deposit) returns 409 "Cannot modify a paid invoice" on /lines.
+const CLOSED_INVOICE_STATUSES = new Set(['PAID', 'CANCELLED', 'REFUNDED', 'VOID']);
+
+/**
+ * Find an OPEN invoice for an appointment from the invoice store. An appointment
+ * can carry several invoices (e.g. a paid deposit + the main bill); only an open
+ * one may receive new lines — a paid/settled invoice 409s on /lines.
+ */
+export const findOpenAppointmentInvoice = (
+  organisationId: string,
+  appointmentId: string
+): Invoice | undefined =>
+  useInvoiceStore
+    .getState()
+    .getInvoicesByOrgId(organisationId)
+    .find(
+      (invoice) =>
+        invoice.appointmentId === appointmentId &&
+        invoice.id &&
+        !CLOSED_INVOICE_STATUSES.has(String(invoice.status ?? '').toUpperCase()) &&
+        String(invoice.visitBillingStage ?? '').toUpperCase() !== 'SETTLED'
+    );
+
 export const seedAppointmentInvoice = async (appointmentId: string): Promise<Invoice> => {
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
-  const state = useInvoiceStore.getState();
   if (primaryOrgId) {
-    const existing = state
-      .getInvoicesByOrgId(primaryOrgId)
-      .find((invoice) => invoice.appointmentId === appointmentId && invoice.status !== 'CANCELLED');
-    if (existing?.id) return existing;
+    const openInvoice = findOpenAppointmentInvoice(primaryOrgId, appointmentId);
+    if (openInvoice?.id) return openInvoice;
   }
 
   const res = await postData<FinanceResponse>(

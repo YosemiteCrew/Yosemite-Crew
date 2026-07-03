@@ -54,18 +54,24 @@ const findRoute = (path: string, method: string) => {
 
 describe("encounter.router", () => {
   it("registers the encounter action routes", () => {
-    expect(findRoute("/:id/$discharge", "post")).toBeDefined();
-    expect(findRoute("/:id/$assign-unit", "post")).toBeDefined();
-    expect(findRoute("/:id/$unit-assignments", "get")).toBeDefined();
-    expect(findRoute("/:id/$admission-unit-assignments", "get")).toBeDefined();
-    expect(findRoute("/:id/$start", "post")).toBeDefined();
-    expect(findRoute("/:id/$ready-for-discharge", "post")).toBeDefined();
-    expect(findRoute("/:id/$undo-ready-for-discharge", "post")).toBeDefined();
-    expect(findRoute("/$active-inpatients", "get")).toBeDefined();
+    expect(findRoute(String.raw`/:id/\$discharge`, "post")).toBeDefined();
+    expect(findRoute(String.raw`/:id/\$assign-unit`, "post")).toBeDefined();
+    expect(findRoute(String.raw`/:id/\$unit-assignments`, "get")).toBeDefined();
+    expect(
+      findRoute(String.raw`/:id/\$admission-unit-assignments`, "get"),
+    ).toBeDefined();
+    expect(findRoute(String.raw`/:id/\$start`, "post")).toBeDefined();
+    expect(
+      findRoute(String.raw`/:id/\$ready-for-discharge`, "post"),
+    ).toBeDefined();
+    expect(
+      findRoute(String.raw`/:id/\$undo-ready-for-discharge`, "post"),
+    ).toBeDefined();
+    expect(findRoute(String.raw`/\$active-inpatients`, "get")).toBeDefined();
   });
 
   it("protects the routes with auth and permissions middleware", () => {
-    const route = findRoute("/:id/$discharge", "post");
+    const route = findRoute(String.raw`/:id/\$discharge`, "post");
 
     expect(route?.stack[0]?.handle).toBe(authorizeCognito);
     expect(route?.stack.length).toBeGreaterThanOrEqual(3);

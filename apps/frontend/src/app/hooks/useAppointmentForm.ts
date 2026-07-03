@@ -378,10 +378,6 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const revampPackages = useRevampCatalogStore((state) => state.packages);
   const loadSpecialityCatalog = useRevampCatalogStore((state) => state.loadSpecialityCatalog);
   const { canMore, reason } = useCanMoreForPrimaryOrg('appointments');
-  const getServicesBySpecialityId = useMemo(
-    () => useServiceStore.getState().getServicesBySpecialityId,
-    []
-  );
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
 
   const [formData, setFormData] = useState<AppointmentWithCompanion>(
@@ -424,6 +420,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
   const getAppointmentServicesBySpecialityId = useCallback(
     (specialityId: string): AppointmentCatalogService[] => {
+      const legacyServices = useServiceStore.getState().getServicesBySpecialityId(specialityId);
       const currentCatalogServices = revampServices
         .filter(
           (service) =>
@@ -440,10 +437,9 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
             pkg.organisationId === primaryOrgId
         )
         .map(mapRevampPackageForAppointment);
-      const legacyServices = getServicesBySpecialityId(specialityId);
       return mergeServicesById([...currentCatalogServices, ...catalogPackages], legacyServices);
     },
-    [getServicesBySpecialityId, primaryOrgId, revampPackages, revampServices]
+    [primaryOrgId, revampPackages, revampServices]
   );
 
   const ServiceFields = useMemo(

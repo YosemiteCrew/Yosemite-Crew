@@ -172,6 +172,62 @@ const syncUserToPostgres = async (doc: UserDocument) => {
   }
 };
 
+const collectOwnerOrganizationIds = (
+  mappings: Array<{
+    _id: { toString(): string };
+    roleCode?: string | null;
+    organizationReference: unknown;
+  }>,
+) => {
+  const ownerOrganizationIds = new Set<string>();
+
+  for (const mapping of mappings) {
+    if (mapping.roleCode?.toUpperCase() === "OWNER") {
+      ownerOrganizationIds.add(
+        extractOrganizationIdentifier(mapping.organizationReference),
+      );
+    }
+  }
+
+  return ownerOrganizationIds;
+};
+
+const deleteUserOrganizationMappings = async (
+  mappings: Array<{ _id: { toString(): string } }>,
+) => {
+  for (const mapping of mappings) {
+    await UserOrganizationService.deleteById(mapping._id.toString());
+  }
+};
+
+const cleanupDualWriteUserData = async (userId: string) => {
+  try {
+    await prisma.userProfile.deleteMany({ where: { userId } });
+  } catch (err) {
+    handleDualWriteError("UserProfile delete", err);
+  }
+
+  try {
+    await prisma.baseAvailability.deleteMany({ where: { userId } });
+  } catch (err) {
+    handleDualWriteError("BaseAvailability delete", err);
+  }
+
+  try {
+    await prisma.weeklyAvailabilityOverride.deleteMany({
+      where: { userId },
+    });
+  } catch (err) {
+    handleDualWriteError("WeeklyAvailabilityOverride delete", err);
+  }
+
+  try {
+    await prisma.occupancy.deleteMany({ where: { userId } });
+  } catch (err) {
+    handleDualWriteError("Occupancy delete", err);
+  }
+};
+
 export const UserService = {
   async create(payload: User): Promise<UserDomain> {
     const attributes = sanitizeUserAttributes(payload);
@@ -259,19 +315,8 @@ export const UserService = {
       { sanitizeFilter: true },
     ).lean();
 
-    const ownerOrganizationIds = new Set<string>();
-
-    for (const mapping of mappings) {
-      if (mapping.roleCode?.toUpperCase() === "OWNER") {
-        ownerOrganizationIds.add(
-          extractOrganizationIdentifier(mapping.organizationReference),
-        );
-      }
-    }
-
-    for (const mapping of mappings) {
-      await UserOrganizationService.deleteById(mapping._id.toString());
-    }
+    const ownerOrganizationIds = collectOwnerOrganizationIds(mappings);
+    await deleteUserOrganizationMappings(mappings);
 
     await Promise.all([
       UserProfileModel.deleteMany({ userId }).setOptions({
@@ -289,31 +334,7 @@ export const UserService = {
     ]);
 
     if (shouldDualWrite) {
-      try {
-        await prisma.userProfile.deleteMany({ where: { userId } });
-      } catch (err) {
-        handleDualWriteError("UserProfile delete", err);
-      }
-
-      try {
-        await prisma.baseAvailability.deleteMany({ where: { userId } });
-      } catch (err) {
-        handleDualWriteError("BaseAvailability delete", err);
-      }
-
-      try {
-        await prisma.weeklyAvailabilityOverride.deleteMany({
-          where: { userId },
-        });
-      } catch (err) {
-        handleDualWriteError("WeeklyAvailabilityOverride delete", err);
-      }
-
-      try {
-        await prisma.occupancy.deleteMany({ where: { userId } });
-      } catch (err) {
-        handleDualWriteError("Occupancy delete", err);
-      }
+      await cleanupDualWriteUserData(userId);
     }
 
     const updated = await UserModel.findOneAndUpdate(

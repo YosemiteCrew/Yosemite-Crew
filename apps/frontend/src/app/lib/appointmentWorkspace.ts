@@ -2,7 +2,9 @@ import type { Appointment } from '@yosemite-crew/types';
 import type {
   AppointmentEncounter,
   EncounterMode,
+  SectionLock,
   StepStatus,
+  WorkspaceLockSection,
   WorkspaceStep,
 } from '@/app/features/appointments/types/workspace';
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
@@ -110,6 +112,23 @@ export const isPastLockWindow = (
       ? overrideHours
       : defaultHours;
   return nowMs - startMs > hours * 60 * 60 * 1000;
+};
+
+/**
+ * Resolve the effective lock for a workspace section. The backend section-lock is
+ * authoritative when present (`encounter.sectionLocks[section]`); otherwise we fall
+ * back to the client-derived `clientLocked` (e.g. `viewOnly` or the lock-window).
+ * This lets every section consume backend-owned locks the moment the bootstrap
+ * starts returning them, without changing behaviour while the contract is absent.
+ */
+export const resolveSectionLock = (
+  encounter: Pick<AppointmentEncounter, 'sectionLocks'> | undefined,
+  section: WorkspaceLockSection,
+  clientLocked: boolean
+): SectionLock => {
+  const backendLock = encounter?.sectionLocks?.[section];
+  if (backendLock) return backendLock;
+  return { locked: clientLocked };
 };
 
 /**

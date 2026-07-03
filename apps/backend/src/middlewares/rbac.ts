@@ -24,42 +24,60 @@ export interface OrgRequest extends AuthenticatedRequest {
  * Extract orgId from params, headers, or body.
  */
 function extractOrgId(req: Request): string | null {
-  const body = (req as { body?: unknown }).body;
-  const query = (req as { query?: unknown }).query;
-  const bodyOrgId =
-    typeof body === "object" && body !== null && !Array.isArray(body)
-      ? (body as Record<string, unknown>).organisationId
-      : undefined;
-  const queryOrgId =
-    typeof query === "object" && query !== null && !Array.isArray(query)
-      ? ((query as Record<string, unknown>).organisationId ??
-        (query as Record<string, unknown>).organizationId)
-      : undefined;
+  return (
+    extractOrgIdFromParams(req.params) ??
+    extractOrgIdFromHeader(req.headers["x-org-id"]) ??
+    extractOrgIdFromQuery((req as { query?: unknown }).query) ??
+    extractOrgIdFromBody((req as { body?: unknown }).body)
+  );
+}
 
+function extractOrgIdFromParams(params: Request["params"]) {
+  return params.orgId ?? params.organisationId ?? params.organizationId ?? null;
+}
+
+function extractOrgIdFromHeader(headerValue: unknown) {
+  return typeof headerValue === "string" && headerValue.trim()
+    ? headerValue.trim()
+    : null;
+}
+
+function extractOrgIdFromQuery(query: unknown): unknown {
+  if (typeof query !== "object" || query === null || Array.isArray(query)) {
+    return undefined;
+  }
+
+  const queryRecord = query as Record<string, unknown>;
+  return queryRecord.organisationId ?? queryRecord.organizationId;
+}
+
+function extractOrgIdFromBody(body: unknown): unknown {
   if (Array.isArray(body)) {
     const orgIds = new Set<string>();
+
     for (const entry of body) {
-      if (typeof entry === "object" && entry !== null) {
-        const oid = (entry as Record<string, unknown>).organisationId;
-        if (typeof oid === "string" && oid.trim()) {
-          orgIds.add(oid.trim());
-        }
+      if (typeof entry !== "object" || entry === null) {
+        continue;
+      }
+
+      const oid = (entry as Record<string, unknown>).organisationId;
+      if (typeof oid === "string" && oid.trim()) {
+        orgIds.add(oid.trim());
       }
     }
+
     if (orgIds.size === 1) {
       return Array.from(orgIds)[0] ?? null;
     }
+
+    return undefined;
   }
 
-  return (
-    req.params.orgId ||
-    req.params.organisationId ||
-    req.params.organizationId ||
-    (req.headers["x-org-id"] as string) ||
-    (typeof queryOrgId === "string" ? queryOrgId : null) ||
-    (typeof bodyOrgId === "string" ? bodyOrgId : null) ||
-    null
-  );
+  if (typeof body !== "object" || body === null) {
+    return undefined;
+  }
+
+  return (body as Record<string, unknown>).organisationId;
 }
 
 export function withOrgPermissions() {

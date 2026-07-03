@@ -217,6 +217,31 @@ describe('AddressStep Component', () => {
     });
   });
 
+  it('renders a custom submit label and calls onSubmit instead of nextStep when provided', async () => {
+    const mockOnSubmit = jest.fn();
+
+    render(
+      <AddressStep
+        nextStep={mockNextStep}
+        prevStep={mockPrevStep}
+        submitText="Create"
+        onSubmit={mockOnSubmit}
+        formData={validFormData}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    expect(screen.getByTestId('next-button')).toHaveTextContent('Create');
+
+    fireEvent.click(screen.getByTestId('next-button'));
+
+    await waitFor(() => {
+      expect(mockSetFormData).toHaveBeenCalledWith(validFormData);
+      expect(mockOnSubmit).toHaveBeenCalled();
+      expect(mockNextStep).not.toHaveBeenCalled();
+    });
+  });
+
   it('goes back when the Back button is clicked', () => {
     render(
       <AddressStep

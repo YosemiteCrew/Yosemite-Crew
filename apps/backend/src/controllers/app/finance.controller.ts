@@ -5,7 +5,10 @@ import {
   FinancePaymentService,
 } from "src/services/finance/payment";
 import { FinanceSubscriptionService } from "src/services/finance/subscription";
-import { FinanceEventService } from "src/services/finance/events";
+import {
+  FinanceEventService,
+  resolveActorDisplayName,
+} from "src/services/finance/events";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
 import {
@@ -16,6 +19,7 @@ import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
+import { resolveUserIdFromRequest } from "src/utils/request";
 
 const CreateInvoicePaymentSessionBodySchema = z.object({
   provider: z.string().trim().min(1).optional(),
@@ -188,6 +192,12 @@ const RecordInvoicePaymentBodySchema = z.object({
   receivedAt: z.string().datetime().optional(),
 });
 
+const CloseoutInvoiceBodySchema = z.object({
+  settlementChannel: z.string().trim().min(1).optional(),
+  reference: z.string().trim().min(1).optional(),
+  receivedAt: z.string().datetime().optional(),
+});
+
 const RefundPaymentBodySchema = z.object({
   amount: z.number().positive(),
   reason: z.string().trim().min(1).optional(),
@@ -269,6 +279,10 @@ export const FinanceController = {
       }
 
       const filters = query.data;
+      // Tenant scope must come from the org authorized by withOrgPermissions
+      // (which may be supplied via header/param), not the raw query value.
+      const authorizedOrganisationId =
+        (req as OrgRequest).organisationId ?? filters.organisationId;
       const resolved = {
         organisationId: filters.organisationId,
         appointmentId: filters.appointmentId,
@@ -288,16 +302,17 @@ export const FinanceController = {
         });
       }
 
-      if (resolved.organisationId) {
-        const invoices = await InvoiceService.listForOrganisation(
-          resolved.organisationId,
+      if (resolved.appointmentId) {
+        const invoices = await InvoiceService.getByAppointmentId(
+          resolved.appointmentId,
+          authorizedOrganisationId,
         );
         return res.status(200).json(toFinanceSuccess(invoices));
       }
 
-      if (resolved.appointmentId) {
-        const invoices = await InvoiceService.getByAppointmentId(
-          resolved.appointmentId,
+      if (resolved.organisationId) {
+        const invoices = await InvoiceService.listForOrganisation(
+          resolved.organisationId,
         );
         return res.status(200).json(toFinanceSuccess(invoices));
       }
@@ -511,6 +526,60 @@ export const FinanceController = {
           : "Internal server error";
 
       logger.error("Error finalizing invoice", error);
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async settleInvoiceAtCloseout(this: void, req: Request, res: Response) {
+    try {
+      const invoiceId = req.params.invoiceId;
+      if (!invoiceId) {
+        return res.status(400).json({ message: "Invoice Id is required" });
+      }
+
+      const body = CloseoutInvoiceBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const invoice = await InvoiceService.settleInvoiceAtCloseout(
+        invoiceId,
+        organisationId,
+        {
+          settlementChannel: body.data.settlementChannel as
+            | "CASH"
+            | "BANK_TRANSFER"
+            | "CARD_PRESENT"
+            | "DEPOSIT"
+            | "OTHER"
+            | undefined,
+          reference: body.data.reference,
+          receivedAt: body.data.receivedAt
+            ? new Date(body.data.receivedAt)
+            : undefined,
+        },
+      );
+
+      return res.status(200).json(toFinanceSuccess(invoice));
+    } catch (error) {
+      const statusCode =
+        error instanceof InvoiceServiceError
+          ? error.statusCode
+          : error instanceof FinancePaymentError
+            ? error.statusCode
+            : 500;
+      const message =
+        error instanceof InvoiceServiceError ||
+        error instanceof FinancePaymentError
+          ? error.message
+          : "Internal server error";
+
+      logger.error("Error settling invoice at closeout", error);
       return res.status(statusCode).json({ message });
     }
   },
@@ -772,6 +841,9 @@ export const FinanceController = {
         return res.status(404).json({ message: "Invoice not found" });
       }
 
+      const actorUserId = resolveUserIdFromRequest(req);
+      const actorName = await resolveActorDisplayName(actorUserId);
+
       await FinanceEventService.recordEvent({
         organisationId: (req as OrgRequest).organisationId ?? null,
         eventType: "APPOINTMENT_READY_FOR_BILLING",
@@ -780,6 +852,51 @@ export const FinanceController = {
         payload: {
           visitId: body.data.visitId ?? null,
           notes: body.data.notes ?? null,
+          invoiceId: invoice.id,
+          billingState: invoice.visitBillingStage,
+          collectionMode: invoice.billingCollectionMode ?? null,
+          actorUserId: actorUserId ?? null,
+          actorName,
+        },
+      });
+
+      return res.status(200).json(
+        toFinanceSuccess({
+          appointmentId,
+          billingState: invoice.visitBillingStage,
+          invoiceId: invoice.id,
+          collectionMode: invoice.billingCollectionMode ?? null,
+        }),
+      );
+    } catch (error) {
+      logger.error("Error marking appointment ready for billing", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async reverseAppointmentReadyForBilling(
+    this: void,
+    req: Request,
+    res: Response,
+  ) {
+    try {
+      const appointmentId = req.params.appointmentId;
+      if (!appointmentId) {
+        return res.status(400).json({ message: "Appointment Id is required" });
+      }
+
+      const invoice =
+        await InvoiceService.reverseAppointmentReadyForBilling(appointmentId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      await FinanceEventService.recordEvent({
+        organisationId: (req as OrgRequest).organisationId ?? null,
+        eventType: "APPOINTMENT_READY_FOR_BILLING_REVERSED",
+        entityType: "APPOINTMENT",
+        entityId: appointmentId,
+        payload: {
           invoiceId: invoice.id,
           billingState: invoice.visitBillingStage,
           collectionMode: invoice.billingCollectionMode ?? null,
@@ -795,8 +912,14 @@ export const FinanceController = {
         }),
       );
     } catch (error) {
-      logger.error("Error marking appointment ready for billing", error);
-      return res.status(500).json({ message: "Internal server error" });
+      logger.error("Error reversing appointment ready for billing", error);
+      const statusCode =
+        error instanceof InvoiceServiceError ? error.statusCode : 500;
+      const message =
+        error instanceof InvoiceServiceError
+          ? error.message
+          : "Internal server error";
+      return res.status(statusCode).json({ message });
     }
   },
 
@@ -1328,8 +1451,13 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invoice Id is required" });
       }
 
-      const result =
-        await FinancePaymentService.createPaymentIntentForInvoice(invoiceId);
+      const result = await FinancePaymentService.createPaymentIntentForInvoice(
+        invoiceId,
+        {
+          collectionMode: "DEPOSIT_THEN_SETTLE",
+          settlementChannel: "DEPOSIT",
+        },
+      );
 
       return res.status(201).json({
         data: result,

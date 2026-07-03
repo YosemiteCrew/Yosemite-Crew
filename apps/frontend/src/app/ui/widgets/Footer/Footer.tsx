@@ -67,7 +67,7 @@ const footerLinks = [
   {
     title: 'Company',
     links: [
-      { label: 'About us', href: '/about' },
+      { label: 'About us', href: '/about-us' },
       { label: 'Terms and conditions', href: '/terms-and-conditions' },
       { label: 'Privacy policy', href: '/privacy-policy' },
       { label: 'Accessibility', href: '/accessibility' },
@@ -182,6 +182,16 @@ const Footer = () => {
                         width={117}
                         height={28}
                         className="fhir-footer"
+                        style={{ height: 'auto' }}
+                      />
+                    </li>
+                    <li>
+                      <Image
+                        src={MEDIA_SOURCES.footer.fda}
+                        alt=""
+                        width={48}
+                        height={48}
+                        className="fda-footer"
                         style={{ height: 'auto' }}
                       />
                     </li>

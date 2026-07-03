@@ -191,11 +191,6 @@ const syncTests = async (data: IdexxRefList<IdexxTest>) => {
   }
 };
 
-const shouldSync = async (kind: CodeSyncKind, version: string) => {
-  const state = await CodeSyncService.get("IDEXX", kind);
-  return state?.version !== version;
-};
-
 const markSynced = async (kind: CodeSyncKind, version: string) => {
   await CodeSyncService.upsert({
     system: "IDEXX",
@@ -229,29 +224,41 @@ export const IdexxReferenceService = {
     });
 
     const versions = await client.getRefVersions<IdexxVersionResponse>();
-
-    if (versions.species && (await shouldSync("species", versions.species))) {
-      const species = await client.getRefSpecies<IdexxRefList<IdexxSpecies>>();
-      await syncSpecies(species);
-      await markSynced("species", species.version);
+    if (versions.species) {
+      const state = await CodeSyncService.get("IDEXX", "species");
+      if (state?.version !== versions.species) {
+        const species =
+          await client.getRefSpecies<IdexxRefList<IdexxSpecies>>();
+        await syncSpecies(species);
+        await markSynced("species", species.version);
+      }
     }
 
-    if (versions.breeds && (await shouldSync("breeds", versions.breeds))) {
-      const breeds = await client.getRefBreeds<IdexxRefList<IdexxBreed>>();
-      await syncBreeds(breeds);
-      await markSynced("breeds", breeds.version);
+    if (versions.breeds) {
+      const state = await CodeSyncService.get("IDEXX", "breeds");
+      if (state?.version !== versions.breeds) {
+        const breeds = await client.getRefBreeds<IdexxRefList<IdexxBreed>>();
+        await syncBreeds(breeds);
+        await markSynced("breeds", breeds.version);
+      }
     }
 
-    if (versions.genders && (await shouldSync("genders", versions.genders))) {
-      const genders = await client.getRefGenders<IdexxRefList<IdexxGender>>();
-      await syncGenders(genders);
-      await markSynced("genders", genders.version);
+    if (versions.genders) {
+      const state = await CodeSyncService.get("IDEXX", "genders");
+      if (state?.version !== versions.genders) {
+        const genders = await client.getRefGenders<IdexxRefList<IdexxGender>>();
+        await syncGenders(genders);
+        await markSynced("genders", genders.version);
+      }
     }
 
-    if (versions.tests && (await shouldSync("tests", versions.tests))) {
-      const tests = await client.getRefTests<IdexxRefList<IdexxTest>>();
-      await syncTests(tests);
-      await markSynced("tests", tests.version);
+    if (versions.tests) {
+      const state = await CodeSyncService.get("IDEXX", "tests");
+      if (state?.version !== versions.tests) {
+        const tests = await client.getRefTests<IdexxRefList<IdexxTest>>();
+        await syncTests(tests);
+        await markSynced("tests", tests.version);
+      }
     }
 
     logger.info("IDEXX reference sync complete.");

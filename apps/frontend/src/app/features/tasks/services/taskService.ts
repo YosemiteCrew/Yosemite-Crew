@@ -1,6 +1,7 @@
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useTaskStore } from '@/app/stores/taskStore';
 import { Task, TaskKind, TaskLibrary, TaskTemplate } from '@/app/features/tasks/types/task';
+import type { RecurrenceScope } from '@/app/features/tasks/constants/taskTaxonomy';
 import { deleteData, getData, patchData, postData, putData } from '@/app/services/axios';
 import { loadTemplateForms } from '@/app/features/forms/services/templateFormsService';
 import type { TemplateLike } from '@yosemite-crew/types';
@@ -178,7 +179,14 @@ export const archiveTaskTemplate = async (templateId: string): Promise<void> => 
   await deleteData('/v1/task/pms/templates/' + templateId);
 };
 
-export const updateTask = async (payload: Task) => {
+/**
+ * Update a task. For a task in a recurring series, an optional `scope` selects
+ * which occurrences the edit applies to (THIS / THIS_AND_FOLLOWING / ALL); it is
+ * sent as a `scope` query param. The backend ignores it until the series-scoped
+ * contract ships (handoff), so a scoped edit safely degrades to a single-task
+ * update — never an error.
+ */
+export const updateTask = async (payload: Task, scope?: RecurrenceScope) => {
   const { upsertTask } = useTaskStore.getState();
   const { primaryOrgId } = useOrgStore.getState();
   if (!primaryOrgId) {
@@ -190,13 +198,38 @@ export const updateTask = async (payload: Task) => {
     return;
   }
   try {
-    const res = await patchData<Task>('/v1/task/pms/' + payload._id, payload);
+    const res = await patchData<Task>(
+      '/v1/task/pms/' + payload._id,
+      payload,
+      scope ? { params: { scope } } : undefined
+    );
     const normalTask = res.data;
     upsertTask(normalTask);
   } catch (err) {
     console.error('Failed to update task:', err);
     throw err;
   }
+};
+
+/**
+ * Delete a task. For a recurring series, `scope` selects which occurrences to
+ * remove (sent as a `scope` query param). NOTE: the backend task-delete endpoint
+ * does not exist yet (handoff) — this call will fail until it ships; callers
+ * should surface the error rather than assume success.
+ */
+export const deleteTask = async (taskId: string, scope?: RecurrenceScope) => {
+  const { removeTask } = useTaskStore.getState();
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot delete task.');
+    return;
+  }
+  if (!taskId) {
+    console.warn('deleteTask: missing id');
+    return;
+  }
+  await deleteData('/v1/task/pms/' + taskId, scope ? { scope } : {});
+  removeTask(taskId);
 };
 
 export const changeTaskStatus = async (task: Task) => {
@@ -265,21 +298,65 @@ export const getTaskTemplatesForPrimaryOrg = async (): Promise<TaskTemplate[]> =
   }
 };
 
-const templateToTaskTemplate = (template: TemplateLike): TaskTemplate => ({
-  _id: template.id,
-  source: 'ORG_TEMPLATE',
-  organisationId: template.organisationId ?? '',
-  category: resolveTemplateTaskCategory(template),
-  name: template.name,
-  description: template.description ?? undefined,
-  kind: resolveTemplateTaskKind(template),
-  defaultRole: resolveTemplateDefaultRole(template),
-  defaultReminderOffsetMinutes: resolveTemplateReminderOffset(template),
-  isActive: template.status === 'PUBLISHED',
-  createdBy: template.createdBy,
-  createdAt: template.createdAt,
-  updatedAt: template.updatedAt,
-});
+/**
+ * The first authored task block of a YC-default Task Template (multi-task
+ * builder), read from the `schedule.taskBlocks` snapshot field. Used to give the
+ * single-task Add-task "Load from template" prefill something meaningful.
+ */
+type TaskBlockSeed = {
+  name?: string;
+  category?: string;
+  additionalNotes?: string;
+  description?: string;
+  reminderOffsetMinutes?: number;
+  recurrence?: { type?: string };
+};
+
+const firstTaskBlock = (template: TemplateLike): TaskBlockSeed | undefined => {
+  const snapshot =
+    (template as TemplateLike & { schemaSnapshot?: { sections?: unknown[] } }).schemaSnapshot ??
+    template.versions?.find(
+      (item) =>
+        item.version === template.publishedVersion || item.version === template.latestVersion
+    )?.schemaSnapshot;
+  const sections = (snapshot as { sections?: Array<{ fields?: Array<Record<string, unknown>> }> })
+    ?.sections;
+  if (!Array.isArray(sections)) return undefined;
+  for (const section of sections) {
+    for (const field of section.fields ?? []) {
+      if (field.key === 'taskBlocks' && Array.isArray(field.defaultValue)) {
+        return (field.defaultValue as TaskBlockSeed[])[0];
+      }
+    }
+  }
+  return undefined;
+};
+
+const templateToTaskTemplate = (template: TemplateLike): TaskTemplate => {
+  const block = firstTaskBlock(template);
+  const category = block?.category || resolveTemplateTaskCategory(template);
+  const instructions =
+    block?.additionalNotes || block?.description || template.description || undefined;
+  return {
+    _id: template.id,
+    source: 'ORG_TEMPLATE',
+    organisationId: template.organisationId ?? '',
+    category,
+    name: block?.name || template.name,
+    description: instructions,
+    kind: resolveTemplateTaskKind(template),
+    defaultRole: resolveTemplateDefaultRole(template),
+    defaultReminderOffsetMinutes:
+      block?.reminderOffsetMinutes ?? resolveTemplateReminderOffset(template),
+    defaultRecurrence: block?.recurrence?.type
+      ? { type: block.recurrence.type as NonNullable<TaskTemplate['defaultRecurrence']>['type'] }
+      : undefined,
+    isActive: template.status === 'PUBLISHED',
+    createdBy: template.createdBy,
+    createdAt: template.createdAt,
+    updatedAt: template.updatedAt,
+  };
+};
 
 const resolveTemplateTaskCategory = (template: TemplateLike) => {
   const rules = template.rules;

@@ -5,9 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { useSpecialityStore } from '@/app/stores/specialityStore';
 import { computeOrgOnboardingStep } from '@/app/lib/orgOnboarding';
-import type { Organisation, Speciality, UserOrganization } from '@yosemite-crew/types';
+import type { Organisation, UserOrganization } from '@yosemite-crew/types';
 import type { UserProfile } from '@/app/features/users/types/profile';
 import { useLoadTeam } from '@/app/hooks/useTeam';
 import { useTeamStore } from '@/app/stores/teamStore';
@@ -75,7 +74,6 @@ type RedirectParams = {
   primaryOrg: Organisation;
   membership: UserOrganization;
   profile: UserProfile | null | undefined;
-  specialities: Speciality[];
   availabilities: ApiDayAvailability[];
 };
 
@@ -95,7 +93,7 @@ const resolveUnverifiedOwnerRedirect = (
   pathname: string,
   primaryOrgId: string
 ): string | null => {
-  if (step < 3) return `/create-org?orgId=${primaryOrgId}`;
+  if (step < 2) return `/create-org?orgId=${primaryOrgId}`;
   if (profileStep < 3 && pathname !== '/team-onboarding') {
     return `/team-onboarding?orgId=${primaryOrgId}`;
   }
@@ -109,10 +107,9 @@ const resolveOrgRedirect = ({
   primaryOrg,
   membership,
   profile,
-  specialities,
   availabilities,
 }: RedirectParams): string | null => {
-  const step = computeOrgOnboardingStep(primaryOrg, specialities);
+  const step = computeOrgOnboardingStep(primaryOrg);
   const profileStep = computeTeamOnboardingStep(profile, availabilities);
   const role = membership.roleDisplay ?? membership.roleCode;
 
@@ -135,13 +132,11 @@ const resolveOrgRedirect = ({
 
 const shouldWaitForOrgGuardData = (
   availabilityStatus: string,
-  specialityStatus: string,
   profileStatus: string,
   teamStatus: string,
   hasTeamDataForOrg: boolean
 ) =>
   isStatusPending(availabilityStatus) ||
-  isStatusPending(specialityStatus) ||
   isStatusPending(profileStatus) ||
   (isStatusPending(teamStatus) && !hasTeamDataForOrg);
 
@@ -188,8 +183,8 @@ const applyDefaultLandingRedirect = (
  *    - isVerified === true:
  *        - if on /create-org → /dashboard
  *    - isVerified === false:
- *        - onboarding step < 3 → force /create-org
- *        - onboarding step === 3 → /dashboard
+ *        - onboarding step < 2 → force /create-org
+ *        - onboarding step === 2 → /dashboard
  * - Member:
  *    - isOnboarded === false → force /complete-profile
  *    - isOnboarded === true:
@@ -223,10 +218,6 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
   const membership = useOrgStore((s) =>
     primaryOrgId ? (s.membershipsByOrgId[primaryOrgId] ?? null) : null
   );
-
-  const specialityStatus = useSpecialityStore((s) => s.status);
-  const specialityIdsByOrgId = useSpecialityStore((s) => s.specialityIdsByOrgId);
-  const getSpecialitiesByOrgId = useSpecialityStore((s) => s.getSpecialitiesByOrgId);
 
   const availabilityStatus = useAvailabilityStore((s) => s.status);
   const getAvailabilitiesByOrgId = useAvailabilityStore((s) => s.getAvailabilitiesByOrgId);
@@ -272,13 +263,7 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     }
     const hasTeamDataForOrg = !teamIdsByOrgId || Object.hasOwn(teamIdsByOrgId, primaryOrgId);
     if (
-      shouldWaitForOrgGuardData(
-        availabilityStatus,
-        specialityStatus,
-        profileStatus,
-        teamStatus,
-        hasTeamDataForOrg
-      )
+      shouldWaitForOrgGuardData(availabilityStatus, profileStatus, teamStatus, hasTeamDataForOrg)
     ) {
       return;
     }
@@ -292,16 +277,6 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     }
 
     const role = membership.roleDisplay ?? membership.roleCode;
-    const shouldWaitForSpecialitiesForOrg =
-      role.toLowerCase() === 'owner' &&
-      !primaryOrg.isVerified &&
-      specialityStatus !== 'error' &&
-      !Object.hasOwn(specialityIdsByOrgId, primaryOrgId);
-    if (shouldWaitForSpecialitiesForOrg) {
-      return;
-    }
-
-    const specialities = getSpecialitiesByOrgId(primaryOrgId);
     const availabilities = getAvailabilitiesByOrgId(primaryOrgId);
     const redirectTo = resolveOrgRedirect({
       pathname,
@@ -309,7 +284,6 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
       primaryOrg,
       membership,
       profile,
-      specialities,
       availabilities,
     });
 
@@ -346,16 +320,13 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     router,
     primaryOrgId,
     primaryOrg,
-    getSpecialitiesByOrgId,
     pathname,
     profile,
     orgStatus,
     getAvailabilitiesByOrgId,
-    specialityStatus,
     availabilityStatus,
     profileStatus,
     membership,
-    specialityIdsByOrgId,
     teamStatus,
     teamIdsByOrgId,
   ]);

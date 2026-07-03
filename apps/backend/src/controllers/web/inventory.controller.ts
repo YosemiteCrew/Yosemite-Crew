@@ -1,7 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment */
 import { Request, Response } from "express";
+import { z } from "zod";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { OrgRequest } from "src/middlewares/rbac";
+import { generatePresignedUrl } from "src/middlewares/upload";
 import {
   InventoryService,
   InventoryAdjustmentService,
@@ -23,11 +24,14 @@ import {
   InventoryItemDocument,
   InventoryBatchDocument,
   InventoryVendorDocument,
-  InventoryMetaFieldDocument,
 } from "src/models/inventory";
 import logger from "src/utils/logger";
 
 type EmptyParams = Record<string, never>;
+
+const inventoryImageUploadBodySchema = z.object({
+  mimeType: z.string().min(1),
+});
 
 /**
  * Common error handler to keep controllers clean
@@ -83,6 +87,36 @@ interface ListMetaFieldsQuery {
  * INVENTORY ITEM + BATCH + STOCK CONTROLLER
  */
 export const InventoryController = {
+  getItemImageUploadUrl: async (
+    req: Request<{ organisationId: string }>,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      const parsedBody = inventoryImageUploadBodySchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        res
+          .status(400)
+          .json({ message: "MIME type is required in the request body." });
+        return;
+      }
+
+      const { organisationId } = req.params;
+      const { mimeType } = parsedBody.data;
+      const { url, key } = await generatePresignedUrl(
+        mimeType,
+        "inventory",
+        organisationId,
+      );
+
+      res.status(200).json({ uploadUrl: url, s3Key: key });
+    } catch (error) {
+      logger.error("Failed to generate inventory image upload URL", error);
+      res.status(500).json({
+        message: "Unable to generate inventory image upload URL.",
+      });
+    }
+  },
+
   // ─────────────────────────────────────────────
   // ITEM: CREATE
   // ─────────────────────────────────────────────
@@ -577,7 +611,7 @@ export const InventoryVendorController = {
   ): Promise<void> => {
     try {
       const { vendorId } = req.params;
-      const updated = await InventoryVendorService.updateVendor(
+      const updated: unknown = await InventoryVendorService.updateVendor(
         vendorId,
         req.body,
       );
@@ -593,7 +627,8 @@ export const InventoryVendorController = {
   ): Promise<void> => {
     try {
       const { organisationId } = req.params;
-      const list = await InventoryVendorService.listVendors(organisationId);
+      const list: unknown =
+        await InventoryVendorService.listVendors(organisationId);
       res.json(list);
     } catch (error) {
       handleError(error, res);
@@ -606,7 +641,7 @@ export const InventoryVendorController = {
   ): Promise<void> => {
     try {
       const { vendorId } = req.params;
-      const vendor = await InventoryVendorService.getVendor(vendorId);
+      const vendor: unknown = await InventoryVendorService.getVendor(vendorId);
       if (!vendor) {
         res.status(404).json({ message: "Vendor not found" });
         return;
@@ -669,7 +704,7 @@ export const InventoryMetaFieldController = {
   ): Promise<void> => {
     try {
       const { fieldId } = req.params;
-      const updated = await InventoryMetaFieldService.updateField(
+      const updated: unknown = await InventoryMetaFieldService.updateField(
         fieldId,
         req.body,
       );
@@ -704,7 +739,8 @@ export const InventoryMetaFieldController = {
         return;
       }
 
-      const fields = await InventoryMetaFieldService.listFields(businessType);
+      const fields: unknown =
+        await InventoryMetaFieldService.listFields(businessType);
       res.json(fields);
     } catch (error) {
       handleError(error, res);
@@ -722,7 +758,7 @@ export const InventoryAlertController = {
   ): Promise<void> => {
     try {
       const { organisationId } = req.params;
-      const items =
+      const items: unknown =
         await InventoryAlertService.getLowStockItems(organisationId);
       res.json(items);
     } catch (error) {
@@ -744,7 +780,7 @@ export const InventoryAlertController = {
       const { days } = req.query;
       const parsedDays = days ? Number(days) : 7;
 
-      const batches = await InventoryAlertService.getExpiringItems(
+      const batches: unknown = await InventoryAlertService.getExpiringItems(
         organisationId,
         parsedDays,
       );

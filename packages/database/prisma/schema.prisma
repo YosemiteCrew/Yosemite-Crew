@@ -604,6 +604,7 @@ model Admission {
   unitId            String?
   expectedStayDays  Int?
   admittedAt        DateTime
+  admittedBy        String?
   dischargedAt      DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -623,6 +624,7 @@ model ChatSession {
   appointmentId   String?
   channelId       String
   organisationId  String
+  counterpartOrganisationId String?
   patientId     String?
   parentId        String?
   vetId           String?
@@ -646,6 +648,41 @@ model ChatSession {
   @@index([organisationId, status])
   @@index([parentId])
   @@index([vetId])
+}
+
+enum SharedChatEntityType {
+  COMPANION
+  APPOINTMENT
+  INVOICE
+  FORM
+  PRESCRIPTION
+  DOCUMENT
+}
+
+/// A PIMS record (companion, appointment, invoice, etc.) shared into a chat
+/// channel as a structured card. The row is also the immutable audit trail for
+/// the share: who shared it (sharedById), when (createdAt), into which channel,
+/// and whether/when it was revoked (revokedAt / revokedById).
+model SharedChatEntity {
+  id             String               @id @default(uuid())
+  organisationId String
+  channelId      String
+  sessionId      String?
+  messageId      String?
+  entityType     SharedChatEntityType
+  entityId       String
+  title          String?
+  snapshot       Json?
+  sharedById     String
+  revokedAt      DateTime?
+  revokedById    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([organisationId])
+  @@index([channelId])
+  @@index([entityType, entityId])
+  @@index([sharedById])
 }
 
 model Parent {
@@ -714,6 +751,7 @@ model Organization {
   appointmentCheckInRadiusMeters  Int          @default(200)
   appointmentLockWindowOutpatientMinutes Int?
   appointmentLockWindowInpatientMinutes   Int?
+  crossOrgMessagingEnabled    Boolean          @default(false)
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 
@@ -1374,6 +1412,7 @@ enum TemplateKind {
   DISCHARGE_SUMMARY
   TASK_TEMPLATE
   CARE_PATHWAY
+  INVOICE
 }
 
 enum RenderedDocumentStatus {
@@ -1385,6 +1424,8 @@ enum RenderedDocumentSourceKind {
   TEMPLATE_INSTANCE
   CLINICAL_ARTIFACT
   FORM_SUBMISSION
+  TASK_SCHEDULE
+  INVOICE
 }
 
 enum DocumentSignatureSignerType {
@@ -1502,6 +1543,13 @@ enum TaskKind {
   HYGIENE
   DIET
   CUSTOM
+  CARE
+  PROCEDURE
+  DIAGNOSTIC
+  COMMUNICATION
+  BILLING
+  RECORD
+  ADMIN
 }
 
 enum TaskTemplateRole {
@@ -1530,10 +1578,13 @@ enum AuditActorType {
 enum AuditEntityType {
   PATIENT_ORGANISATION
   APPOINTMENT
+  ENCOUNTER
   INVOICE
   DOCUMENT
   FORM
   TASK
+  PARENT
+  COMPANION
 }
 
 enum AuditEventType {
@@ -1551,6 +1602,8 @@ enum AuditEventType {
   APPOINTMENT_CANCELLED
   APPOINTMENT_RESCHEDULED
   APPOINTMENT_CHECKED_IN
+  ENCOUNTER_DISCHARGE_OVERRIDDEN
+  ENCOUNTER_DISCHARGED
   INVOICE_CREATED
   INVOICE_UPDATED
   INVOICE_PAID
@@ -1565,6 +1618,12 @@ enum AuditEventType {
   TASK_CREATED
   TASK_REASSIGNED
   TASK_STATUS_CHANGED
+  PARENT_ALERT_CREATED
+  PARENT_ALERT_UPDATED
+  PARENT_ALERT_DELETED
+  COMPANION_ALERT_CREATED
+  COMPANION_ALERT_UPDATED
+  COMPANION_ALERT_DELETED
 }
 
 enum WithdrawalStatus {
@@ -1923,6 +1982,7 @@ model WorkspaceDocumentPacket {
   companionId    String?
   status         WorkspaceDocumentPacketStatus @default(DRAFT)
   documents      Json
+  signing        Json?
   signedBy       String?
   signedByName   String?
   signedAt       DateTime?
@@ -1948,6 +2008,8 @@ model WorkspaceTreatmentItem {
   priceSnapshot      Json
   billingStatus      String   @default("UNBILLED")
   invoiceRowId       String?
+  settledInvoiceId   String?
+  settledAt          DateTime?
   lockState          Json?
   prescriptionId     String?
   createdAt          DateTime @default(now())
@@ -1957,6 +2019,7 @@ model WorkspaceTreatmentItem {
   @@index([organisationId, appointmentId])
   @@index([organisationId, billingStatus])
   @@index([invoiceRowId])
+  @@index([settledInvoiceId])
   @@index([prescriptionId])
 }
 
@@ -2046,6 +2109,7 @@ model Prescription {
 model PrescriptionItem {
   id             String       @id @default(uuid())
   prescriptionId String
+  sourceLineKey  String?
   medication     String
   strength       String?
   dosage         String?
@@ -2054,6 +2118,14 @@ model PrescriptionItem {
   duration       String?
   quantity       String?
   instructions   String?
+  refill         String?
+  inventoryItemId String?
+  inventoryItemSku String?
+  batchId        String?
+  batchNumber    String?
+  lotNumber      String?
+  expiryDate     DateTime?
+  metadata       Json?
   sortOrder      Int          @default(0)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -2204,7 +2276,8 @@ model ProductPackage {
 model ProductPackageItem {
   id                 String                 @id @default(uuid())
   packageId          String
-  childProductItemId String
+  childProductItemId String?
+  inventoryItemId    String?
   quantity           Int                    @default(1)
   pricingMode        PackageItemPricingMode @default(INCLUDED)
   overridePrice      Float?
@@ -2214,10 +2287,12 @@ model ProductPackageItem {
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
   package            ProductPackage         @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  childProductItem   ProductItem            @relation("ProductPackageComponent", fields: [childProductItemId], references: [id], onDelete: Restrict)
+  childProductItem   ProductItem?           @relation("ProductPackageComponent", fields: [childProductItemId], references: [id], onDelete: Restrict)
+  inventoryItem      InventoryItem?         @relation("ProductPackageInventoryComponent", fields: [inventoryItemId], references: [id], onDelete: Restrict)
 
   @@index([packageId, sortOrder])
   @@index([childProductItemId])
+  @@index([inventoryItemId])
 }
 
 model Task {
@@ -2317,6 +2392,7 @@ model TaskTemplate {
   description                 String?
   kind                        TaskKind
   defaultRole                 TaskTemplateRole
+  inpatientOnly               Boolean         @default(false)
   defaultMedication           Json?
   defaultObservationToolId    String?
   defaultRecurrence           Json?
@@ -2414,6 +2490,7 @@ model InventoryItem {
   subCategory               String?
   description               String?
   imageUrl                  String?
+  stockUnitType             String?
   attachments               Json?
   attributes                Json                 @default("{}")
   genericName               String?
@@ -2441,6 +2518,7 @@ model InventoryItem {
   status                    InventoryItemStatus   @default(ACTIVE)
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
+  packageItemsAsInventory    ProductPackageItem[]  @relation("ProductPackageInventoryComponent")
 
   @@unique([organisationId, sku])
   @@index([organisationId, name])
@@ -2457,6 +2535,8 @@ model InventoryBatch {
   batchNumber          String?
   lotNumber            String?
   regulatoryTrackingId String?
+  expiryWarningBefore  String?
+  barcode              String?
   manufactureDate      DateTime?
   expiryDate           DateTime?
   minShelfLifeAlertDate DateTime?
@@ -2764,6 +2844,8 @@ model Invoice {
   paymentCollectionMethod  PaymentCollectionMethod  @default(PAYMENT_INTENT)
   billingCollectionMode    BillingCollectionMode    @default(PREPAY_AT_BOOKING)
   visitBillingStage        InvoiceVisitBillingStage  @default(DRAFT)
+  readyForBillingAt        DateTime?
+  readyForBillingActorId   String?
   depositTargetAmount      Float                    @default(0)
   depositCollectedAmount   Float                    @default(0)
   status                   InvoiceStatus            @default(PENDING)
@@ -2785,7 +2867,9 @@ model Invoice {
   @@index([paymentCollectionMethod])
   @@index([billingCollectionMode])
   @@index([visitBillingStage])
+  @@index([readyForBillingAt])
   @@index([taxProvider])
+  @@unique([appointmentId])
 }
 
 model InvoiceTaxSnapshot {

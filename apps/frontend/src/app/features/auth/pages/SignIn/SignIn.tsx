@@ -122,7 +122,8 @@ const SignIn = ({
       className={`
         relative flex w-full flex-1 items-center justify-center
         bg-cover bg-center bg-no-repeat
-        h-[calc(100vh-80px)]
+        min-h-[max(720px,100vh)]
+        pt-22
       `}
       style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
     >

@@ -51,7 +51,6 @@ type UserCalendarProps = {
   handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
-  handleChangeStatusAppointment?: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
   canEditAppointments: boolean;
@@ -86,7 +85,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   handleDetailAppointment,
   handleOpenWorkspace,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
   setCurrentDate,
@@ -308,9 +306,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                             handleOpenWorkspace={handleOpenWorkspace}
                             handleRescheduleAppointment={handleRescheduleAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
-                            handleAcceptAppointment={
-                              handleAcceptAppointment ?? handleChangeStatusAppointment
-                            }
+                            handleAcceptAppointment={handleAcceptAppointment}
                             length={team.length - 1}
                             canEditAppointments={canEditAppointments}
                             draggedAppointmentId={draggedAppointmentId}

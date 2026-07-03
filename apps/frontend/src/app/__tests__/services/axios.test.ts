@@ -105,6 +105,17 @@ describe('Axios Service', () => {
 
   // --- Helper Functions Tests ---
 
+  // The instance is created once at module import, before beforeEach clears
+  // mocks — capture the create config in beforeAll so the assertion survives.
+  let createConfig: { timeout?: number } | undefined;
+  beforeAll(() => {
+    createConfig = (axios.create as jest.Mock).mock.calls[0]?.[0];
+  });
+
+  it('creates the api instance with a generous timeout for slow backends', () => {
+    expect(createConfig).toEqual(expect.objectContaining({ timeout: 60_000 }));
+  });
+
   describe('Wrapper Methods', () => {
     it('getData calls api.get', async () => {
       mockAxiosInstance.get.mockResolvedValue({ data: 'ok' });
@@ -413,23 +424,45 @@ describe('Axios Service', () => {
       expect(responseSuccessHandler(response)).toEqual(response);
     });
 
-    it('throws error immediately if status is not 401', async () => {
+    it('throws non-retryable errors immediately for idempotent reads', async () => {
       const error = {
-        response: { status: 500 },
-        config: {},
+        response: { status: 400 },
+        config: { method: 'get' },
       };
       await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockAxiosInstance).not.toHaveBeenCalled();
     });
 
-    it('throws rate-limit errors without retrying', async () => {
+    it('does not retry transient failures on non-idempotent writes', async () => {
       const error = {
         response: { status: 429 },
-        config: {},
+        config: { method: 'post' },
       };
-
       await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockAxiosInstance).not.toHaveBeenCalled();
+    });
 
-      expect(mockGetState).not.toHaveBeenCalled();
+    it('retries idempotent reads on rate-limit (429) with backoff', async () => {
+      const error = {
+        response: { status: 429, headers: { 'retry-after': '0' } },
+        config: { method: 'get' },
+      };
+      mockAxiosInstance.mockResolvedValueOnce({ data: 'recovered' });
+
+      const result = await responseErrorHandler(error);
+
+      expect(mockAxiosInstance).toHaveBeenCalledTimes(1);
+      expect((error.config as { _transientRetryCount?: number })._transientRetryCount).toBe(1);
+      expect(result).toEqual({ data: 'recovered' });
+    });
+
+    it('gives up after the maximum transient retries', async () => {
+      const error = {
+        response: { status: 503, headers: { 'retry-after': '0' } },
+        config: { method: 'get', _transientRetryCount: 3 },
+      };
+      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockAxiosInstance).not.toHaveBeenCalled();
     });
 
     it('logs out and throws if request has already been retried', async () => {

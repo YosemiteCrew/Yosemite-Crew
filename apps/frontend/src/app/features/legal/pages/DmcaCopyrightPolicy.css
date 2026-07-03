@@ -2,7 +2,7 @@
   background: var(--whitebg);
   color: var(--black-text);
   font-family: var(--satoshi-font);
-  padding: 80px 0;
+  padding: 88px 0 80px;
 }
 
 .DmcaPolicyData {
@@ -145,7 +145,7 @@
 
 @media (max-width: 768px) {
   .DmcaPolicySec {
-    padding: 56px 0;
+    padding: 80px 0 56px;
   }
 
   .DmcaPolicyData {

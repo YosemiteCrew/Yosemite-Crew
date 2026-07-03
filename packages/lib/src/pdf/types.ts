@@ -2,6 +2,7 @@ export type ClinicalDocumentType =
   | 'DISCHARGE_SUMMARY'
   | 'SOAP_NOTE'
   | 'PRESCRIPTION'
+  | 'PRESCRIPTION_LABEL'
   | 'VITAL_RECORD'
   | 'INVOICE';
 
@@ -24,6 +25,8 @@ export type DocumentSignature = {
   signerName?: string;
   signerRole?: string;
   signerDegree?: string;
+  signerEmail?: string;
+  authMethod?: string;
   signedAt?: Date;
   label?: string;
 };
@@ -38,6 +41,7 @@ export type ClinicalDocumentDataByType = {
   DISCHARGE_SUMMARY: DischargeSummaryDocumentData;
   SOAP_NOTE: SoapNoteDocumentData;
   PRESCRIPTION: PrescriptionDocumentData;
+  PRESCRIPTION_LABEL: PrescriptionLabelDocumentData;
   VITAL_RECORD: VitalRecordDocumentData;
   INVOICE: InvoiceDocumentData;
 };
@@ -125,10 +129,12 @@ export type PrescriptionItem = {
   medication: string;
   strength?: string;
   dosage?: string;
+  route?: string;
   frequency?: string;
   duration?: string;
   quantity?: string;
   instructions?: string;
+  controlled?: boolean;
 };
 
 export type PrescriptionDocumentData = BaseClinicalDocumentData & {
@@ -146,6 +152,16 @@ export type PrescriptionDocumentData = BaseClinicalDocumentData & {
   notes?: string;
 };
 
+export type PrescriptionLabelDocumentData = BaseClinicalDocumentData & {
+  date: Date;
+  prescriptionId?: string;
+  patientName: string;
+  clientName: string;
+  prescriberName: string;
+  organisationName: string;
+  items: PrescriptionItem[];
+};
+
 export type VitalRecordMeasurement = {
   label: string;
   value: string;
@@ -157,6 +173,7 @@ export type VitalRecordDocumentData = BaseClinicalDocumentData & {
   date: Date;
   appointmentId?: string;
   recordedBy?: string;
+  recordedAt?: string;
   patientName: string;
   speciesBreed?: string;
   ageSex?: string;

@@ -69,7 +69,7 @@ describe('Footer Component', () => {
     expect(screen.getByAltText('Yosemite Crew Logo')).toBeInTheDocument();
     const certifications = screen.getByRole('list', { name: 'Certifications' });
     expect(certifications).toBeInTheDocument();
-    expect(certifications.querySelectorAll('li')).toHaveLength(4);
+    expect(certifications.querySelectorAll('li')).toHaveLength(5);
     expect(screen.queryByAltText('GDPR')).not.toBeInTheDocument();
     expect(screen.queryByAltText('SOC2')).not.toBeInTheDocument();
     expect(screen.queryByAltText('FHIR')).not.toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('Footer Component', () => {
 
     const aboutUsLink = screen.getByRole('link', { name: 'About us' });
     expect(aboutUsLink).toBeInTheDocument();
-    expect(aboutUsLink).toHaveAttribute('href', '/about');
+    expect(aboutUsLink).toHaveAttribute('href', '/about-us');
 
     const dmcaLink = screen.getByRole('link', { name: 'DMCA' });
     expect(dmcaLink).toBeInTheDocument();

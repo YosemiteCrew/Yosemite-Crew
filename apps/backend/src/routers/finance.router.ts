@@ -134,6 +134,14 @@ router.post(
   FinanceController.markAppointmentReadyForBilling,
 );
 
+router.delete(
+  "/appointments/:appointmentId/ready-for-billing",
+  authorizeCognito,
+  withAppointmentOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.reverseAppointmentReadyForBilling,
+);
+
 router.get(
   "/invoices",
   authorizeCognito,
@@ -183,6 +191,14 @@ router.post(
 );
 
 router.post(
+  "/invoices/:invoiceId/closeout",
+  authorizeCognito,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.settleInvoiceAtCloseout,
+);
+
+router.post(
   "/invoices/:invoiceId/tax/preview",
   authorizeCognito,
   withInvoiceOrgPermissions(),
@@ -225,10 +241,20 @@ router.post(
 router.post(
   "/invoices/:invoiceId/payments/sessions",
   authorizeCognito,
+  financeAppointmentLimiter,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:edit:any"),
   FinanceController.createInvoicePaymentSession,
 );
 
-router.get("/:invoiceId", authorizeCognito, FinanceController.getInvoiceById);
+router.get(
+  "/:invoiceId",
+  authorizeCognito,
+  financeAppointmentLimiter,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.getInvoiceById,
+);
 
 router.get(
   "/mobile/parents/:parentId/invoices",

@@ -34,6 +34,7 @@ import { AppointmentFormEntry } from '@/app/features/appointments/types/appointm
 import { FormField } from '@/app/features/forms/types/forms';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
 import { buildInitialValues } from '@/app/features/forms/pages/Forms/Sections/AddForm/reviewUtils';
+import { collectMissingRequiredFields } from '@/app/features/forms/pages/Forms/Sections/AddForm/validationUtils';
 import { useAuthStore } from '@/app/stores/authStore';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import { useFormsStore } from '@/app/stores/formsStore';
@@ -382,6 +383,19 @@ const CustomFormsView = ({
                           const requiresSignature =
                             requiredSigner === 'VET' && hasSignatureField(template.schema);
                           const companion = activeAppointment?.companion;
+                          const valuesToSubmit =
+                            valuesByForm[selectedTemplateId] ?? buildInitialValues(template.schema);
+                          const missingRequired = collectMissingRequiredFields(
+                            template.schema ?? [],
+                            valuesToSubmit
+                          );
+                          if (missingRequired.length > 0) {
+                            setSubmitError(
+                              `Please complete the required field(s): ${missingRequired.join(', ')}`
+                            );
+                            setSubmittingId(null);
+                            return;
+                          }
                           const submission: FormSubmission = {
                             _id: '',
                             formVersion: 1,
@@ -390,9 +404,7 @@ const CustomFormsView = ({
                             appointmentId: activeAppointment.id,
                             companionId: companion?.id ?? '',
                             parentId: companion?.parent?.id ?? '',
-                            answers:
-                              valuesByForm[selectedTemplateId] ??
-                              buildInitialValues(template.schema),
+                            answers: valuesToSubmit,
                             submittedBy: attributes.sub,
                           };
                           const created = await createSubmission(submission);
@@ -522,6 +534,18 @@ const CustomFormsView = ({
                         try {
                           const requiresSignature = signatureRequired;
                           const companion = activeAppointment?.companion;
+                          const valuesToSubmit = valuesByForm[formId] ?? formValues;
+                          const missingRequired = collectMissingRequiredFields(
+                            entry.form.schema ?? [],
+                            valuesToSubmit
+                          );
+                          if (missingRequired.length > 0) {
+                            setSubmitError(
+                              `Please complete the required field(s): ${missingRequired.join(', ')}`
+                            );
+                            setSubmittingId(null);
+                            return;
+                          }
                           const submission: FormSubmission = {
                             _id: '',
                             formVersion: entry.submission?.formVersion ?? 1,
@@ -530,7 +554,7 @@ const CustomFormsView = ({
                             appointmentId: activeAppointment.id,
                             companionId: companion?.id ?? '',
                             parentId: companion?.parent?.id ?? '',
-                            answers: valuesByForm[formId] ?? formValues,
+                            answers: valuesToSubmit,
                             submittedBy: attributes.sub,
                           };
                           const created = await createSubmission(submission);
@@ -1027,8 +1051,8 @@ const AppoitmentInfo = ({
       setActiveSubLabel(labels[0].labels[0].key);
       return;
     }
-    const sub = current.labels.find((l: { key: string }) => l.key === activeSubLabel);
-    if (!sub) {
+    const hasSub = current.labels.some((l: { key: string }) => l.key === activeSubLabel);
+    if (!hasSub) {
       setActiveSubLabel(current.labels[0].key);
     }
   }, [labels, activeLabel, activeSubLabel]);

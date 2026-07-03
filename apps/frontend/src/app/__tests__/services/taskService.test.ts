@@ -4,6 +4,7 @@ import {
   createTaskLibrary,
   createTask,
   createTaskTemplate,
+  deleteTask,
   getTaskLibrary,
   getTaskLibraryById,
   getTaskTemplateById,
@@ -28,6 +29,7 @@ const taskStoreState: any = {
   status: 'idle',
   setTasksForOrg: jest.fn(),
   upsertTask: jest.fn(),
+  removeTask: jest.fn(),
   tasksById: {},
 };
 
@@ -137,8 +139,30 @@ describe('taskService', () => {
 
     await updateTask({ _id: 't1' } as any);
 
-    expect(patchDataMock).toHaveBeenCalledWith('/v1/task/pms/t1', expect.any(Object));
+    // No scope → no third (config) arg with params.
+    expect(patchDataMock).toHaveBeenCalledWith('/v1/task/pms/t1', expect.any(Object), undefined);
     expect(taskStoreState.upsertTask).toHaveBeenCalled();
+  });
+
+  it('passes a recurrence scope to the update as a query param', async () => {
+    patchDataMock.mockResolvedValue({ data: { _id: 't1' } });
+
+    await updateTask({ _id: 't1' } as any, 'ALL');
+
+    expect(patchDataMock).toHaveBeenCalledWith('/v1/task/pms/t1', expect.any(Object), {
+      params: { scope: 'ALL' },
+    });
+  });
+
+  it('deletes a task (with optional recurrence scope) and removes it from the store', async () => {
+    deleteDataMock.mockResolvedValueOnce({ data: undefined });
+
+    await deleteTask('t1', 'THIS_AND_FOLLOWING');
+
+    expect(deleteDataMock).toHaveBeenCalledWith('/v1/task/pms/t1', {
+      scope: 'THIS_AND_FOLLOWING',
+    });
+    expect(taskStoreState.removeTask).toHaveBeenCalledWith('t1');
   });
 
   it('changes task status', async () => {
@@ -277,9 +301,68 @@ describe('taskService', () => {
       expect.objectContaining({
         _id: 'generic-template',
         category: 'COMMUNICATION',
+        description: 'Call parent',
         kind: 'COMMUNICATION',
         defaultRole: 'PARENT',
         defaultReminderOffsetMinutes: 15,
+      }),
+    ]);
+  });
+
+  it('hydrates generic task template instructions from a task block description alias', async () => {
+    getDataMock.mockResolvedValueOnce({ data: [] });
+    loadTemplateFormsMock.mockResolvedValue([
+      {
+        id: 'generic-template',
+        organisationId: 'org-1',
+        name: 'Generic communication',
+        description: 'Template fallback',
+        kind: 'TASK_ASSIGNMENT',
+        status: 'PUBLISHED',
+        rules: {
+          category: 'COMMUNICATION',
+          taskKind: 'COMMUNICATION',
+          audience: 'PARENT_TASK',
+        },
+        publishedVersion: 1,
+        latestVersion: 1,
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'schedule',
+                  title: 'Schedule',
+                  fields: [
+                    {
+                      key: 'taskBlocks',
+                      type: 'repeater',
+                      label: 'Task blocks',
+                      defaultValue: [
+                        {
+                          name: 'Call parent',
+                          description: 'Share medication instructions',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+        createdBy: 'user-2',
+      },
+    ]);
+
+    const templates = await getTaskTemplatesForPrimaryOrg();
+
+    expect(templates).toEqual([
+      expect.objectContaining({
+        _id: 'generic-template',
+        name: 'Call parent',
+        description: 'Share medication instructions',
       }),
     ]);
   });

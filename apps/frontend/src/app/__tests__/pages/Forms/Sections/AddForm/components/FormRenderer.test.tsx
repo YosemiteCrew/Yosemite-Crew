@@ -47,6 +47,19 @@ jest.mock(
   })
 );
 
+jest.mock(
+  '@/app/features/forms/pages/Forms/Sections/AddForm/components/RichText/RichTextRenderer',
+  () => ({
+    __esModule: true,
+    default: ({ value, readOnly }: any) => (
+      <div data-testid="mock-richtext">
+        <span data-testid="value-richtext">{JSON.stringify(value)}</span>
+        <span data-testid="readonly-richtext">{String(readOnly)}</span>
+      </div>
+    ),
+  })
+);
+
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer', () => ({
   __esModule: true,
   default: ({ value, onChange, readOnly }: any) => (
@@ -175,6 +188,47 @@ describe('FormRenderer Component', () => {
     // Verify Nested Field is rendered
     expect(screen.getByTestId('mock-input')).toBeInTheDocument();
     expect(screen.getByTestId('value-input')).toHaveTextContent('"Nested Value"');
+  });
+
+  it('hides duplicate child labels when the group and child share the same heading', () => {
+    const fields: any[] = [
+      {
+        id: 'subjective',
+        type: 'group',
+        label: 'Subjective',
+        fields: [
+          { id: 'subjective', type: 'richtext', label: 'Subjective', defaultValue: '<p>a</p>' },
+        ],
+      },
+    ];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={mockOnChange} readOnly />);
+
+    expect(screen.getAllByText('Subjective')).toHaveLength(1);
+  });
+
+  it('passes rich-text defaults to the rich-text renderer', () => {
+    const fields: any[] = [
+      {
+        id: 'subjective',
+        type: 'group',
+        label: 'Subjective',
+        fields: [
+          {
+            id: 'subjective',
+            type: 'richtext',
+            label: 'Subjective',
+            defaultValue: '<p>Patient is stable</p>',
+          },
+        ],
+      },
+    ];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={mockOnChange} readOnly />);
+
+    expect(screen.getByTestId('mock-richtext')).toBeInTheDocument();
+    expect(screen.getByTestId('value-richtext')).toHaveTextContent('<p>Patient is stable</p>');
+    expect(screen.getByTestId('readonly-richtext')).toHaveTextContent('true');
   });
 
   it('renders default group label if label is missing', () => {

@@ -4,7 +4,7 @@ import { authorizeCognito } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/", UserOrganizationController.upsertMapping);
+router.post("/", authorizeCognito, UserOrganizationController.upsertMapping);
 router.get(
   "/user/mapping",
   authorizeCognito,
@@ -15,9 +15,17 @@ router.get(
   authorizeCognito,
   UserOrganizationController.listByOrganisationId,
 );
-router.get("/:id", UserOrganizationController.getMappingById);
-router.get("/", UserOrganizationController.listMappings);
-router.delete("/:id", UserOrganizationController.deleteMappingById);
-router.put("/:id", UserOrganizationController.updateMappingById);
+router.get("/:id", authorizeCognito, UserOrganizationController.getMappingById);
+router.get("/", authorizeCognito, UserOrganizationController.listMappings);
+router.delete(
+  "/:id",
+  authorizeCognito,
+  UserOrganizationController.deleteMappingById,
+);
+router.put(
+  "/:id",
+  authorizeCognito,
+  UserOrganizationController.updateMappingById,
+);
 
 export default router;

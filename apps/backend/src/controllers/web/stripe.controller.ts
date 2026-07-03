@@ -133,6 +133,22 @@ export const StripeController = {
     }
   },
 
+  connectWebhook: async (
+    req: Request<unknown, unknown, Buffer>,
+    res: Response,
+  ) => {
+    const sig = req.headers["stripe-signature"];
+    try {
+      const event = StripeService.verifyConnectWebhook(req.body, sig);
+      await StripeService.handleWebhookEvent(event);
+      return res.status(200).send("OK");
+    } catch (err) {
+      logger.error("Stripe Connect Webhook Error:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return res.status(400).json({ error: message });
+    }
+  },
+
   createPaymentIntent: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;

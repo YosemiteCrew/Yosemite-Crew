@@ -208,7 +208,7 @@ describe("invoice.router", () => {
     expect(withAppointmentOrgPermissions).toHaveBeenCalledTimes(3);
     expect(withPaymentIntentOrgPermissions).toHaveBeenCalledTimes(1);
     expect(withOrgPermissions).toHaveBeenCalledTimes(1);
-    expect(withInvoiceOrgPermissions).toHaveBeenCalledTimes(4);
+    expect(withInvoiceOrgPermissions).toHaveBeenCalledTimes(5);
     expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
   });

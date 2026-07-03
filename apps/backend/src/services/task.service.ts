@@ -63,6 +63,8 @@ type TaskCompletionRow = Prisma.TaskCompletionGetPayload<Record<string, never>>;
 
 type TaskLike = TaskRow & { _id: string };
 type TaskCompletionLike = TaskCompletionRow & { _id: string };
+type TaskListWhereResult = Prisma.TaskWhereInput[] | Prisma.TaskWhereInput;
+type RecurrenceScope = "THIS" | "THIS_AND_FOLLOWING" | "ALL";
 
 const toTaskLike = (row: TaskRow): TaskLike => ({
   ...row,
@@ -211,10 +213,87 @@ const recordTaskAudit = async (params: {
   });
 };
 
+const recordTaskCreatedAudit = async (task: TaskLike) =>
+  recordTaskAudit({
+    organisationId: task.organisationId,
+    patientId: task.patientId,
+    actorId: task.createdBy,
+    eventType: "TASK_CREATED",
+    entityId: task.id,
+    metadata: {
+      source: task.source,
+      audience: task.audience,
+      assignedTo: task.assignedTo,
+      assignedGroupId: task.assignedGroupId ?? null,
+      status: task.status,
+    },
+  });
+
 const assertCanUpdateTask = (isCreator: boolean, isAssignee: boolean) => {
   if (!isCreator && !isAssignee) {
     throw new TaskServiceError("Not allowed to update this task", 403);
   }
+};
+
+const resolveNextTaskStatus = (params: {
+  currentStatus: TaskStatus;
+  requestedStatus: TaskStatus;
+  completedAt: Date | null;
+  completedBy: string | null;
+  actorId: string;
+}) => {
+  let nextStatus: PrismaTaskStatus;
+  let completedAt = params.completedAt;
+  let completedBy = params.completedBy;
+
+  if (
+    params.requestedStatus === "IN_PROGRESS" &&
+    params.currentStatus === "PENDING"
+  ) {
+    nextStatus = "IN_PROGRESS";
+  } else if (params.requestedStatus === "COMPLETED") {
+    nextStatus = "COMPLETED";
+    completedAt = new Date();
+    completedBy = params.actorId;
+  } else if (params.requestedStatus === "CANCELLED") {
+    nextStatus = "CANCELLED";
+  } else if (params.requestedStatus === "PENDING") {
+    nextStatus = "PENDING";
+  } else {
+    nextStatus = params.requestedStatus;
+  }
+
+  return { nextStatus, completedAt, completedBy };
+};
+
+const createTaskCompletionIfNeeded = async (params: {
+  task: TaskRow;
+  newStatus: TaskStatus;
+  completion?: CompleteTaskInput;
+  actorId: string;
+}) => {
+  const completion = params.completion;
+  const completionAnswers = completion?.answers;
+  if (params.newStatus !== "COMPLETED" || !completionAnswers) {
+    return undefined;
+  }
+
+  if (!params.task.patientId) {
+    throw new TaskServiceError("Companion is required for completion.", 400);
+  }
+
+  const created = await prisma.taskCompletion.create({
+    data: {
+      taskId: params.task.id,
+      patientId: params.task.patientId,
+      filledBy: completion.filledBy ?? params.actorId,
+      answers: completionAnswers as unknown as Prisma.InputJsonValue,
+      score: completion.score ?? undefined,
+      summary: completion.summary ?? undefined,
+    },
+  });
+
+  return toTaskCompletionLike(created);
 };
 
 const normalizeDoseTime = (value: unknown): string | undefined => {
@@ -286,11 +365,13 @@ const assertCompanionRequirement = (input: {
   }
 };
 
-const buildRecurrence = (input?: {
+type BuildRecurrenceInput = {
   type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
   endDate?: Date;
   cronExpression?: string;
-}) => {
+};
+
+const buildRecurrence = (input?: BuildRecurrenceInput) => {
   if (!input) return undefined;
 
   if (input.type === "ONCE") {
@@ -372,6 +453,89 @@ const buildReminder = (
         scheduledNotificationId: undefined,
       }
     : undefined;
+
+const RECURRENCE_SCOPES = new Set<RecurrenceScope>([
+  "THIS",
+  "THIS_AND_FOLLOWING",
+  "ALL",
+]);
+
+const normalizeRecurrenceScope = (value?: string): RecurrenceScope => {
+  if (value && RECURRENCE_SCOPES.has(value as RecurrenceScope)) {
+    return value as RecurrenceScope;
+  }
+  return "THIS";
+};
+
+const getSeriesMasterId = (task: TaskRow): string | undefined => {
+  const recurrence = task.recurrence as
+    | { isMaster?: boolean; masterTaskId?: string }
+    | null
+    | undefined;
+
+  if (recurrence?.masterTaskId) return recurrence.masterTaskId;
+  if (recurrence?.isMaster) return task.id;
+  return undefined;
+};
+
+const toOccurrenceDueAt = (source: Date, template: Date): Date => {
+  const dueAt = new Date(source);
+  dueAt.setHours(
+    template.getHours(),
+    template.getMinutes(),
+    template.getSeconds(),
+    template.getMilliseconds(),
+  );
+  return dueAt;
+};
+
+const buildSeriesUpdateData = (task: TaskRow, updates: TaskUpdateInput) => ({
+  name: updates.name ?? task.name,
+  description:
+    updates.description === undefined
+      ? (task.description ?? undefined)
+      : (updates.description ?? undefined),
+  additionalNotes:
+    updates.additionalNotes === undefined
+      ? (task.additionalNotes ?? undefined)
+      : (updates.additionalNotes ?? undefined),
+  subcategory:
+    updates.subcategory === undefined
+      ? (task.subcategory ?? undefined)
+      : (updates.subcategory ?? undefined),
+  timezone:
+    updates.timezone === undefined
+      ? (task.timezone ?? undefined)
+      : (updates.timezone ?? undefined),
+  assignedTo: updates.assignedTo ?? task.assignedTo,
+  assignedGroupId:
+    updates.assignedGroupId === undefined
+      ? (task.assignedGroupId ?? undefined)
+      : (updates.assignedGroupId ?? undefined),
+  assignedBy:
+    updates.assignedTo !== undefined || updates.assignedGroupId !== undefined
+      ? (task.assignedBy ?? task.createdBy)
+      : (task.assignedBy ?? undefined),
+  medication:
+    updates.medication === undefined
+      ? (task.medication ?? undefined)
+      : toNullableJsonInput(sanitizeMedication(updates.medication)),
+  observationToolId:
+    updates.observationToolId === undefined
+      ? (task.observationToolId ?? undefined)
+      : (updates.observationToolId ?? undefined),
+  reminder:
+    updates.reminder === undefined
+      ? (task.reminder ?? undefined)
+      : toNullableJsonInput(buildReminder(updates.reminder)),
+  syncWithCalendar:
+    updates.syncWithCalendar ?? task.syncWithCalendar ?? undefined,
+  attachments:
+    updates.attachments === undefined
+      ? (task.attachments ?? undefined)
+      : toNullableJsonInput(updates.attachments),
+  recurrence: mergeRecurrence(task.recurrence, updates.recurrence),
+});
 
 const buildCreateTaskData = (input: {
   organisationId?: string;
@@ -649,47 +813,92 @@ const resolveScheduleTaskIds = async (params: {
   return taskIds ?? [];
 };
 
-const resolveKindTaskMatch = async (params: {
-  organisationId?: string;
-  kind?: PrismaTaskKind;
-}): Promise<Prisma.TaskWhereInput | undefined> => {
-  if (!params.kind) {
+const buildTaskIdWhereForIds = (
+  field: "id" | "appointmentId" | "templateId" | "libraryTaskId",
+  ids: string[] | undefined,
+) => {
+  if (!ids) {
     return undefined;
   }
 
-  if (params.kind === "CUSTOM") {
-    return { source: "CUSTOM" };
+  if (!ids.length) {
+    return { id: { in: [] } };
   }
 
-  const [templateMatches, libraryMatches] = await Promise.all([
+  return { [field]: { in: ids } } as Prisma.TaskWhereInput;
+};
+
+const resolveTaskKindSourceWhere = (kind?: PrismaTaskKind) => {
+  if (!kind) {
+    return undefined;
+  }
+
+  if (kind === "CUSTOM") {
+    return { source: "CUSTOM" } as Prisma.TaskWhereInput;
+  }
+
+  return undefined;
+};
+
+const resolveTaskKindDefinitionIds = async (params: {
+  organisationId?: string;
+  kind?: PrismaTaskKind;
+}): Promise<{ templateIds: string[]; libraryIds: string[] } | undefined> => {
+  if (!params.kind || params.kind === "CUSTOM") {
+    return undefined;
+  }
+
+  const [templateIds, libraryIds] = await Promise.all([
     params.organisationId
-      ? prisma.taskTemplate.findMany({
-          where: {
-            organisationId: params.organisationId,
-            kind: params.kind,
-          },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-    prisma.taskLibraryDefinition.findMany({
-      where: { kind: params.kind },
-      select: { id: true },
-    }),
+      ? prisma.taskTemplate
+          .findMany({
+            where: {
+              organisationId: params.organisationId,
+              kind: params.kind,
+            },
+            select: { id: true },
+          })
+          .then((rows) => rows.map((row) => row.id))
+      : Promise.resolve([] as string[]),
+    prisma.taskLibraryDefinition
+      .findMany({
+        where: { kind: params.kind },
+        select: { id: true },
+      })
+      .then((rows) => rows.map((row) => row.id)),
   ]);
 
-  const conditions: Prisma.TaskWhereInput[] = [];
+  return { templateIds, libraryIds };
+};
 
-  if (templateMatches.length) {
-    conditions.push({
-      templateId: { in: templateMatches.map((template) => template.id) },
-    });
+const resolveTaskKindWhere = async (params: {
+  organisationId?: string;
+  kind?: PrismaTaskKind;
+}): Promise<Prisma.TaskWhereInput | undefined> => {
+  const sourceWhere = resolveTaskKindSourceWhere(params.kind);
+  if (sourceWhere) {
+    return sourceWhere;
   }
 
-  if (libraryMatches.length) {
-    conditions.push({
-      libraryTaskId: { in: libraryMatches.map((library) => library.id) },
-    });
+  const ids = await resolveTaskKindDefinitionIds(params);
+  if (!ids) {
+    return undefined;
   }
+
+  const templateWhere = buildTaskIdWhereForIds("templateId", ids.templateIds);
+  const libraryWhere = buildTaskIdWhereForIds("libraryTaskId", ids.libraryIds);
+
+  if (templateWhere && isEmptyTaskIdFilter(templateWhere)) {
+    return templateWhere;
+  }
+
+  if (libraryWhere && isEmptyTaskIdFilter(libraryWhere)) {
+    return libraryWhere;
+  }
+
+  const conditions = [templateWhere, libraryWhere].filter(
+    (value): value is Prisma.TaskWhereInput => Boolean(value),
+  );
 
   if (!conditions.length) {
     return { id: { in: [] } };
@@ -723,9 +932,60 @@ const buildTaskListWhere = async (params: {
   dueTo?: Date;
   includeCompleted?: boolean;
 }): Promise<Prisma.TaskWhereInput> => {
+  const organisationId = asNonEmptyString(params.organisationId);
+  const patientWhere = buildPatientWhere(params);
+  const patientFilter = resolveTaskListPatientWhere(patientWhere);
+  if (patientFilter) return patientFilter;
+
+  const baseWhere = buildTaskListBaseWhere(
+    params,
+    organisationId,
+    patientWhere,
+  );
+  const conditions = await buildTaskListConditions(params, organisationId);
+  return resolveTaskListConditionsWhere(baseWhere, conditions);
+};
+
+const resolveTaskListPatientWhere = (
+  patientWhere: Prisma.TaskWhereInput | null,
+) => {
+  if (!patientWhere) {
+    return null;
+  }
+
+  return isEmptyTaskIdFilter(patientWhere) ? patientWhere : null;
+};
+
+const resolveTaskListConditionsWhere = (
+  baseWhere: Prisma.TaskWhereInput,
+  conditions: TaskListWhereResult,
+) => {
+  if (!Array.isArray(conditions)) {
+    return conditions;
+  }
+
+  return composeTaskListWhere(baseWhere, conditions);
+};
+
+const buildTaskListBaseWhere = (
+  params: {
+    audience?: TaskAudience;
+    assignedTo?: string;
+    category?: string;
+    subcategory?: string;
+    status?: TaskStatus[];
+    dueFrom?: Date;
+    dueTo?: Date;
+    includeCompleted?: boolean;
+    patientId?: string;
+    companionId?: string;
+    clientId?: string;
+  },
+  organisationId?: string,
+  patientWhere?: Prisma.TaskWhereInput | null,
+) => {
   const baseWhere: Prisma.TaskWhereInput = {};
 
-  const organisationId = asNonEmptyString(params.organisationId);
   if (organisationId) {
     baseWhere.organisationId = organisationId;
   }
@@ -739,18 +999,144 @@ const buildTaskListWhere = async (params: {
     baseWhere.assignedTo = assignedTo;
   }
 
+  if (patientWhere) {
+    Object.assign(baseWhere, patientWhere);
+  }
+
+  Object.assign(baseWhere, buildTaskScalarFilters(params));
+
+  return baseWhere;
+};
+
+const buildTaskListConditions = async (
+  params: {
+    appointmentId?: string;
+    encounterId?: string;
+    episodeOfCareId?: string;
+    admissionId?: string;
+    templateInstanceId?: string;
+    scheduleId?: string;
+    kind?: PrismaTaskKind;
+  },
+  organisationId?: string,
+): Promise<TaskListWhereResult> => {
+  const conditions: Prisma.TaskWhereInput[] = [];
+
+  const appointmentIds = await resolveAppointmentTaskIds({
+    organisationId,
+    appointmentId: params.appointmentId,
+    encounterId: params.encounterId,
+    episodeOfCareId: params.episodeOfCareId,
+    admissionId: params.admissionId,
+  });
+  const appointmentWhere = buildTaskIdWhereForIds(
+    "appointmentId",
+    appointmentIds,
+  );
+  if (appointmentWhere && isEmptyTaskIdFilter(appointmentWhere)) {
+    return appointmentWhere;
+  }
+  if (appointmentWhere) {
+    conditions.push(appointmentWhere);
+  }
+
+  const scheduleTaskIds = await resolveScheduleTaskIds({
+    organisationId,
+    templateInstanceId: params.templateInstanceId,
+    scheduleId: params.scheduleId,
+  });
+  const scheduleWhere = buildTaskIdWhereForIds("id", scheduleTaskIds);
+  if (scheduleWhere && isEmptyTaskIdFilter(scheduleWhere)) {
+    return scheduleWhere;
+  }
+  if (scheduleWhere) {
+    conditions.push(scheduleWhere);
+  }
+
+  const kindWhere = await resolveTaskKindWhere({
+    organisationId,
+    kind: params.kind,
+  });
+  if (kindWhere) {
+    if (isEmptyTaskIdFilter(kindWhere)) {
+      return kindWhere;
+    }
+    conditions.push(kindWhere);
+  }
+
+  return conditions;
+};
+
+const composeTaskListWhere = (
+  baseWhere: Prisma.TaskWhereInput,
+  conditions: Prisma.TaskWhereInput[],
+) => {
+  const baseKeys = Object.keys(baseWhere);
+  if (!baseKeys.length && !conditions.length) {
+    return {};
+  }
+
+  if (!conditions.length) {
+    return baseWhere;
+  }
+
+  const rootConditions: Prisma.TaskWhereInput[] = [];
+  if (baseKeys.length) {
+    rootConditions.push(baseWhere);
+  }
+  rootConditions.push(...conditions);
+
+  if (rootConditions.length === 1) {
+    return rootConditions[0];
+  }
+
+  return { AND: rootConditions };
+};
+
+const isEmptyTaskIdFilter = (value: Prisma.TaskWhereInput) => {
+  const id = value.id;
+  return (
+    typeof id === "object" &&
+    id !== null &&
+    !Array.isArray(id) &&
+    "in" in id &&
+    Array.isArray((id as { in?: unknown[] }).in) &&
+    (id as { in: unknown[] }).in.length === 0
+  );
+};
+
+const buildPatientWhere = (params: {
+  patientId?: string;
+  companionId?: string;
+  clientId?: string;
+}): Prisma.TaskWhereInput | null => {
   const patientIds = [
     asNonEmptyString(params.patientId),
     asNonEmptyString(params.companionId),
     asNonEmptyString(params.clientId),
   ].filter((value): value is string => Boolean(value));
-  if (patientIds.length) {
-    const uniquePatientIds = [...new Set(patientIds)];
-    if (uniquePatientIds.length > 1) {
-      return { id: { in: [] } };
-    }
-    baseWhere.patientId = uniquePatientIds[0];
+
+  if (!patientIds.length) {
+    return null;
   }
+
+  const uniquePatientIds = [...new Set(patientIds)];
+  if (uniquePatientIds.length > 1) {
+    return { id: { in: [] } };
+  }
+
+  return { patientId: uniquePatientIds[0] };
+};
+
+const buildTaskScalarFilters = (params: {
+  category?: string;
+  subcategory?: string;
+  status?: TaskStatus[];
+  includeCompleted?: boolean;
+  dueFrom?: Date;
+  dueTo?: Date;
+}) => {
+  const baseWhere: Prisma.TaskWhereInput = {};
 
   const category = sanitizeTaskCategory(params.category);
   if (category) {
@@ -777,77 +1163,7 @@ const buildTaskListWhere = async (params: {
     if (toDueAt) baseWhere.dueAt.lte = toDueAt;
   }
 
-  const conditions: Prisma.TaskWhereInput[] = [];
-
-  const appointmentIds = await resolveAppointmentTaskIds({
-    organisationId,
-    appointmentId: params.appointmentId,
-    encounterId: params.encounterId,
-    episodeOfCareId: params.episodeOfCareId,
-    admissionId: params.admissionId,
-  });
-
-  if (appointmentIds) {
-    if (!appointmentIds.length) {
-      return { id: { in: [] } };
-    }
-    conditions.push({ appointmentId: { in: appointmentIds } });
-  }
-
-  const scheduleTaskIds = await resolveScheduleTaskIds({
-    organisationId,
-    templateInstanceId: params.templateInstanceId,
-    scheduleId: params.scheduleId,
-  });
-
-  if (scheduleTaskIds) {
-    if (!scheduleTaskIds.length) {
-      return { id: { in: [] } };
-    }
-    conditions.push({ id: { in: scheduleTaskIds } });
-  }
-
-  const kindWhere = await resolveKindTaskMatch({
-    organisationId,
-    kind: params.kind,
-  });
-
-  if (kindWhere) {
-    const kindIdFilter =
-      "id" in kindWhere &&
-      kindWhere.id &&
-      typeof kindWhere.id === "object" &&
-      !Array.isArray(kindWhere.id) &&
-      "in" in kindWhere.id &&
-      Array.isArray((kindWhere.id as { in?: unknown[] }).in)
-        ? (kindWhere.id as { in: unknown[] }).in
-        : undefined;
-    if (kindIdFilter && kindIdFilter.length === 0) {
-      return kindWhere;
-    }
-    conditions.push(kindWhere);
-  }
-
-  const baseKeys = Object.keys(baseWhere);
-  if (!baseKeys.length && !conditions.length) {
-    return {};
-  }
-
-  if (!conditions.length) {
-    return baseWhere;
-  }
-
-  const rootConditions: Prisma.TaskWhereInput[] = [];
-  if (baseKeys.length) {
-    rootConditions.push(baseWhere);
-  }
-  rootConditions.push(...conditions);
-
-  if (rootConditions.length === 1) {
-    return rootConditions[0];
-  }
-
-  return { AND: rootConditions };
+  return baseWhere;
 };
 
 export interface BaseTaskCreateInput {
@@ -985,20 +1301,7 @@ export const TaskService = {
     });
 
     const mapped = toTaskLike(doc);
-    await recordTaskAudit({
-      organisationId: mapped.organisationId,
-      patientId: mapped.patientId,
-      actorId: mapped.createdBy,
-      eventType: "TASK_CREATED",
-      entityId: mapped.id,
-      metadata: {
-        source: mapped.source,
-        audience: mapped.audience,
-        assignedTo: mapped.assignedTo,
-        assignedGroupId: mapped.assignedGroupId ?? null,
-        status: mapped.status,
-      },
-    });
+    await recordTaskCreatedAudit(mapped);
     void sendTaskAssignmentEmail(mapped);
     return mapped;
   },
@@ -1110,20 +1413,7 @@ export const TaskService = {
     });
 
     const mapped = toTaskLike(doc);
-    await recordTaskAudit({
-      organisationId: mapped.organisationId,
-      patientId: mapped.patientId,
-      actorId: mapped.createdBy,
-      eventType: "TASK_CREATED",
-      entityId: mapped.id,
-      metadata: {
-        source: mapped.source,
-        audience: mapped.audience,
-        assignedTo: mapped.assignedTo,
-        assignedGroupId: mapped.assignedGroupId ?? null,
-        status: mapped.status,
-      },
-    });
+    await recordTaskCreatedAudit(mapped);
     void sendTaskAssignmentEmail(mapped);
     return mapped;
   },
@@ -1168,20 +1458,7 @@ export const TaskService = {
     });
 
     const mapped = toTaskLike(doc);
-    await recordTaskAudit({
-      organisationId: mapped.organisationId,
-      patientId: mapped.patientId,
-      actorId: mapped.createdBy,
-      eventType: "TASK_CREATED",
-      entityId: mapped.id,
-      metadata: {
-        source: mapped.source,
-        audience: mapped.audience,
-        assignedTo: mapped.assignedTo,
-        assignedGroupId: mapped.assignedGroupId ?? null,
-        status: mapped.status,
-      },
-    });
+    await recordTaskCreatedAudit(mapped);
     void sendTaskAssignmentEmail(mapped);
     return mapped;
   },
@@ -1232,20 +1509,7 @@ export const TaskService = {
       void sendTaskAssignmentEmail(mapped);
     }
 
-    await recordTaskAudit({
-      organisationId: mapped.organisationId,
-      patientId: mapped.patientId,
-      actorId: mapped.createdBy,
-      eventType: "TASK_CREATED",
-      entityId: mapped.id,
-      metadata: {
-        source: mapped.source,
-        audience: mapped.audience,
-        assignedTo: mapped.assignedTo,
-        assignedGroupId: mapped.assignedGroupId ?? null,
-        status: mapped.status,
-      },
-    });
+    await recordTaskCreatedAudit(mapped);
 
     return mapped;
   },
@@ -1254,6 +1518,7 @@ export const TaskService = {
     taskId: string,
     updates: TaskUpdateInput,
     actorId: string,
+    scope: RecurrenceScope = "THIS",
   ): Promise<TaskLike> {
     const task = await prisma.task.findFirst({ where: { id: taskId } });
     if (!task) throw new TaskServiceError("Task not found", 404);
@@ -1272,30 +1537,162 @@ export const TaskService = {
       throw new TaskServiceError("Only task creator can reassign task", 403);
     }
 
-    const updated = await updateTaskRow(
-      taskId,
-      {
-        name: updates.name,
-        description: updates.description,
-        additionalNotes: updates.additionalNotes,
-        dueAt: updates.dueAt,
-        timezone: updates.timezone,
-        assignedTo: updates.assignedTo,
-        assignedGroupId: updates.assignedGroupId,
-        assignedBy:
-          updates.assignedTo !== undefined ||
-          updates.assignedGroupId !== undefined
-            ? actorId
-            : undefined,
-        medication: updates.medication,
-        observationToolId: updates.observationToolId,
-        reminder: updates.reminder,
-        syncWithCalendar: updates.syncWithCalendar,
-        attachments: updates.attachments,
-        recurrence: updates.recurrence,
+    const seriesMasterId = getSeriesMasterId(task);
+    const normalizedScope = normalizeRecurrenceScope(scope);
+
+    if (!seriesMasterId || normalizedScope === "THIS") {
+      const updated = await updateTaskRow(
+        taskId,
+        {
+          name: updates.name,
+          description: updates.description,
+          additionalNotes: updates.additionalNotes,
+          subcategory: updates.subcategory,
+          dueAt: updates.dueAt,
+          timezone: updates.timezone,
+          assignedTo: updates.assignedTo,
+          assignedGroupId: updates.assignedGroupId,
+          assignedBy:
+            updates.assignedTo !== undefined ||
+            updates.assignedGroupId !== undefined
+              ? actorId
+              : undefined,
+          medication: updates.medication,
+          observationToolId: updates.observationToolId,
+          reminder: updates.reminder,
+          syncWithCalendar: updates.syncWithCalendar,
+          attachments: updates.attachments,
+          recurrence: updates.recurrence,
+        },
+        task,
+      );
+
+      const mapped = toTaskLike(updated);
+
+      if (
+        updates.assignedTo !== undefined ||
+        updates.assignedGroupId !== undefined
+      ) {
+        await recordTaskAudit({
+          organisationId: mapped.organisationId,
+          patientId: mapped.patientId,
+          actorId,
+          eventType: "TASK_REASSIGNED",
+          entityId: mapped.id,
+          metadata: {
+            previousAssignedTo: task.assignedTo,
+            previousAssignedGroupId: task.assignedGroupId ?? null,
+            assignedTo: mapped.assignedTo,
+            assignedGroupId: mapped.assignedGroupId ?? null,
+            assignedBy: mapped.assignedBy ?? null,
+          },
+        });
+      }
+
+      return mapped;
+    }
+
+    const seriesRows = await prisma.task.findMany({
+      where: {
+        organisationId: task.organisationId,
+        OR: [
+          { id: seriesMasterId },
+          { recurrence: { path: ["masterTaskId"], equals: seriesMasterId } },
+        ],
       },
-      task,
+      orderBy: { dueAt: "asc" },
+    });
+
+    const master = seriesRows.find((row) => row.id === seriesMasterId) ?? task;
+    const seriesType =
+      (
+        master.recurrence as {
+          type?: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+        } | null
+      )?.type ?? "ONCE";
+    const seriesCronExpression =
+      (master.recurrence as { cronExpression?: string | null } | null)
+        ?.cronExpression ?? null;
+    const splitDueAt = updates.dueAt ?? task.dueAt;
+    const shiftDueAt = (row: TaskRow) =>
+      toOccurrenceDueAt(row.dueAt, splitDueAt);
+    const futureRows = seriesRows.filter(
+      (row) => row.id !== task.id && row.dueAt >= task.dueAt,
     );
+
+    const updatedRows = await prisma.$transaction(async (tx) => {
+      if (normalizedScope === "ALL") {
+        const rows: TaskRow[] = [];
+        for (const row of seriesRows) {
+          const updated = await tx.task.update({
+            where: { id: row.id },
+            data: {
+              ...buildSeriesUpdateData(row, updates),
+              dueAt: shiftDueAt(row),
+            },
+          });
+          rows.push(updated);
+        }
+        return rows;
+      }
+
+      const currentUpdated = await tx.task.update({
+        where: { id: task.id },
+        data: {
+          ...buildSeriesUpdateData(task, updates),
+          dueAt: splitDueAt,
+          recurrence: {
+            ...((task.recurrence as Record<string, unknown>) ?? {}),
+            type: seriesType,
+            isMaster: true,
+            masterTaskId: undefined,
+            cronExpression:
+              updates.recurrence?.cronExpression === undefined
+                ? (seriesCronExpression ?? undefined)
+                : (updates.recurrence?.cronExpression ?? undefined),
+            endDate:
+              updates.recurrence?.endDate === undefined
+                ? ((task.recurrence as { endDate?: Date | null } | null)
+                    ?.endDate ?? undefined)
+                : (updates.recurrence?.endDate ?? undefined),
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      if (normalizedScope === "THIS_AND_FOLLOWING") {
+        await tx.task.update({
+          where: { id: master.id },
+          data: {
+            recurrence: {
+              ...((master.recurrence as Record<string, unknown>) ?? {}),
+              type: seriesType,
+              isMaster: true,
+              masterTaskId: undefined,
+              cronExpression: seriesCronExpression ?? undefined,
+              endDate: new Date(splitDueAt.getTime() - 1),
+            } as Prisma.InputJsonValue,
+          },
+        });
+
+        for (const row of futureRows) {
+          await tx.task.update({
+            where: { id: row.id },
+            data: {
+              ...buildSeriesUpdateData(row, updates),
+              dueAt: shiftDueAt(row),
+              recurrence: {
+                ...((row.recurrence as Record<string, unknown>) ?? {}),
+                masterTaskId: task.id,
+              } as Prisma.InputJsonValue,
+            },
+          });
+        }
+      }
+
+      return [currentUpdated];
+    });
+
+    const updated = updatedRows[0];
 
     const mapped = toTaskLike(updated);
 
@@ -1322,6 +1719,78 @@ export const TaskService = {
     return mapped;
   },
 
+  async deleteTask(
+    taskId: string,
+    actorId: string,
+    scope: RecurrenceScope = "THIS",
+  ): Promise<void> {
+    const task = await prisma.task.findFirst({ where: { id: taskId } });
+    if (!task) throw new TaskServiceError("Task not found", 404);
+
+    const isCreator = task.createdBy === actorId;
+    const isAssignee = task.assignedTo === actorId;
+    assertCanUpdateTask(isCreator, isAssignee);
+
+    const seriesMasterId = getSeriesMasterId(task);
+    const normalizedScope = normalizeRecurrenceScope(scope);
+
+    if (!seriesMasterId || normalizedScope === "THIS") {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: { status: "CANCELLED" },
+      });
+      return;
+    }
+
+    const seriesIds = await prisma.task.findMany({
+      where: {
+        organisationId: task.organisationId,
+        OR: [
+          { id: seriesMasterId },
+          { recurrence: { path: ["masterTaskId"], equals: seriesMasterId } },
+        ],
+      },
+      select: { id: true, dueAt: true },
+    });
+
+    const cancellableIds =
+      normalizedScope === "ALL"
+        ? seriesIds.map((row) => row.id)
+        : seriesIds
+            .filter((row) => row.dueAt >= task.dueAt)
+            .map((row) => row.id);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: {
+          id: { in: cancellableIds },
+          organisationId: task.organisationId,
+        },
+        data: { status: "CANCELLED" },
+      });
+
+      if (normalizedScope === "THIS_AND_FOLLOWING") {
+        await tx.task.update({
+          where: { id: seriesMasterId },
+          data: {
+            recurrence: mergeRecurrence(task.recurrence, {
+              type:
+                (
+                  task.recurrence as {
+                    type?: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+                  } | null
+                )?.type ?? "ONCE",
+              endDate: new Date(task.dueAt.getTime() - 1),
+              cronExpression:
+                (task.recurrence as { cronExpression?: string | null } | null)
+                  ?.cronExpression ?? null,
+            }),
+          },
+        });
+      }
+    });
+  },
+
   async changeStatus(
     taskId: string,
     newStatus: TaskStatus,
@@ -1339,45 +1808,20 @@ export const TaskService = {
       throw new TaskServiceError("Task already finished", 400);
     }
 
-    let nextStatus: PrismaTaskStatus;
-    let completedAt: Date | null = task.completedAt ?? null;
-    let completedBy: string | null = task.completedBy ?? null;
+    const { nextStatus, completedAt, completedBy } = resolveNextTaskStatus({
+      currentStatus: task.status,
+      requestedStatus: newStatus,
+      completedAt: task.completedAt ?? null,
+      completedBy: task.completedBy ?? null,
+      actorId,
+    });
 
-    if (newStatus === "IN_PROGRESS" && task.status === "PENDING") {
-      nextStatus = "IN_PROGRESS";
-    } else if (newStatus === "COMPLETED") {
-      nextStatus = "COMPLETED";
-      completedAt = new Date();
-      completedBy = actorId;
-    } else if (newStatus === "CANCELLED") {
-      nextStatus = "CANCELLED";
-    } else if (newStatus === "PENDING") {
-      nextStatus = "PENDING";
-    } else {
-      nextStatus = newStatus;
-    }
-
-    let completionDoc: TaskCompletionLike | undefined;
-
-    if (newStatus === "COMPLETED" && completion?.answers) {
-      if (!task.patientId) {
-        throw new TaskServiceError(
-          "Companion is required for completion.",
-          400,
-        );
-      }
-      const created = await prisma.taskCompletion.create({
-        data: {
-          taskId: task.id,
-          patientId: task.patientId,
-          filledBy: completion.filledBy ?? actorId,
-          answers: completion.answers as unknown as Prisma.InputJsonValue,
-          score: completion.score ?? undefined,
-          summary: completion.summary ?? undefined,
-        },
-      });
-      completionDoc = toTaskCompletionLike(created);
-    }
+    const completionDoc = await createTaskCompletionIfNeeded({
+      task,
+      newStatus,
+      completion,
+      actorId,
+    });
 
     const updated = await prisma.task.update({
       where: { id: task.id },

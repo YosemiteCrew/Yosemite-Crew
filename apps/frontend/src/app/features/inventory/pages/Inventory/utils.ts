@@ -60,8 +60,8 @@ export const calculateBatchTotals = (
   let hasAllocated = false;
 
   batches.forEach((batch) => {
-    const qty = toNumberSafe(batch.quantity);
-    const alloc = toNumberSafe(batch.allocated);
+    const qty = batch.quantity === '' ? undefined : toNumberSafe(batch.quantity);
+    const alloc = batch.allocated === '' ? undefined : toNumberSafe(batch.allocated);
     if (qty !== undefined) {
       onHand += qty;
       hasOnHand = true;
@@ -114,13 +114,47 @@ const normalizeStatus = (status?: string): InventoryStatus | undefined => {
   }
 };
 
+const normalizeItemTypeForForm = (value?: string): string => {
+  const normalized = (value || '').trim().toUpperCase();
+  if (normalized === 'NON_MEDICAL' || normalized === 'NON-DRUG' || normalized === 'NON_DRUG') {
+    return 'Non-drug';
+  }
+  if (normalized === 'MEDICAL' || normalized === 'DRUG') {
+    return 'Drug';
+  }
+  return value || '';
+};
+
+const normalizeItemTypeForApi = (
+  value?: string
+): InventoryRequestPayload['itemType'] | undefined => {
+  const normalized = (value || '').trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === 'non-drug' || normalized === 'non_medical' || normalized === 'non medical') {
+    return 'NON_MEDICAL';
+  }
+  if (normalized === 'drug' || normalized === 'medical') {
+    return 'MEDICAL';
+  }
+  return undefined;
+};
+
+const normalizeBooleanStringForApi = (value?: string): boolean | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'string') {
+    if (value === 'true' || value === 'Yes') return true;
+    if (value === 'false' || value === 'No') return false;
+  }
+  return Boolean(value);
+};
+
 export const formatStockHealthLabel = (stockHealth?: StockHealthStatus): string => {
   const key = (stockHealth || '').toString().trim().toUpperCase();
   switch (key) {
     case 'LOW_STOCK':
       return 'Low stock';
     case 'HEALTHY':
-      return 'Healthy';
+      return 'In stock';
     case 'EXPIRED':
       return 'Expired';
     case 'EXPIRING_SOON':
@@ -139,9 +173,9 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
   switch (key) {
     case 'low stock':
       return {
-        color: 'var(--color-pill-progress-text)',
-        backgroundColor: 'var(--color-pill-progress-bg)',
-        borderColor: 'var(--color-pill-progress-border)',
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
       };
     case 'overstocked':
     case 'expiring soon':
@@ -151,12 +185,12 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
         borderColor: 'var(--color-pill-info-border)',
       };
     case 'expired':
-    case 'out of stock':
       return {
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
+        color: 'var(--color-danger-600)',
+        backgroundColor: 'var(--color-danger-100)',
+        borderColor: 'var(--color-danger-400)',
       };
+    case 'out of stock':
     case 'hidden':
       return {
         color: 'var(--color-pill-neutral-text)',
@@ -222,6 +256,10 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
       minShelfLifeAlertDate: toStringSafe(
         b.minShelfLifeAlertDate ?? attributes.minShelfLifeAlertDate
       ),
+      expiryWarningBefore: toStringSafe(
+        (b as any).expiryWarningBefore ?? attributes.expiryWarningBefore
+      ),
+      barcode: toStringSafe((b as any).barcode ?? attributes.barcode),
       quantity: toStringSafe(b.quantity),
       allocated: toStringSafe(b.allocated),
       createdAt: toStringSafe(b.createdAt),
@@ -252,14 +290,15 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
     toNumberSafe(attributes.available)
   );
   const allocatedVal = firstDefined(
-    batchTotals.allocated,
     toNumberSafe(apiItem.allocated),
+    batchTotals.allocated,
     toNumberSafe(attributes.allocated)
   );
   const available = firstDefined(
+    onHandVal !== undefined && allocatedVal !== undefined ? onHandVal - allocatedVal : onHandVal,
+    toNumberSafe(apiItem.onHand),
     batchTotals.available,
-    toNumberSafe(attributes.available),
-    onHandVal !== undefined && allocatedVal !== undefined ? onHandVal - allocatedVal : onHandVal
+    toNumberSafe(attributes.available)
   );
 
   const primaryBatch = selectPrimaryBatch(batches);
@@ -287,7 +326,7 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
       brand: toStringSafe(attributes.brand),
       imageUrl: toStringSafe(apiItem.imageUrl ?? attributes.imageUrl),
       visibleInInventory: normalizeStatus(apiItem.status) !== 'HIDDEN',
-      itemType: toStringSafe(attributes.itemType),
+      itemType: normalizeItemTypeForForm(toStringSafe(apiItem.itemType ?? attributes.itemType)),
       drugSchedule: toStringSafe(attributes.drugSchedule),
       prescriptionRequired: toStringSafe(attributes.prescriptionRequired),
       regulationType: toStringSafe(attributes.regulationType),
@@ -302,19 +341,30 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
       skuCode: toStringSafe(attributes.skuCode ?? apiItem.sku),
     },
     classification: {
-      form: toStringSafe(attributes.form),
-      unitofMeasure: normalizeStringOrArray(attributes.unitofMeasure ?? attributes.unitOfMeasure),
+      genericName: toStringSafe(apiItem.genericName ?? attributes.genericName),
+      form: toStringSafe(apiItem.dosageForm ?? attributes.form),
+      unitofMeasure: normalizeStringOrArray(
+        apiItem.unitOfMeasure ?? attributes.unitofMeasure ?? attributes.unitOfMeasure
+      ),
       species: normalizeStringOrArray(attributes.species),
-      administration: toStringSafe(attributes.administration),
-      itemType: toStringSafe(attributes.itemType),
+      administration: toStringSafe(
+        apiItem.routeOfAdministration ??
+          attributes.routeOfAdministration ??
+          attributes.administration
+      ),
+      itemType: normalizeItemTypeForForm(toStringSafe(apiItem.itemType ?? attributes.itemType)),
       drugSchedule: toStringSafe(attributes.drugSchedule),
-      storageCondition: toStringSafe(attributes.storageCondition),
-      controlledSubstance: toStringSafe(attributes.controlledSubstance),
-      prescriptionRequired: toStringSafe(attributes.prescriptionRequired),
+      storageCondition: toStringSafe(
+        apiItem.storageInstructions ?? attributes.storageInstructions ?? attributes.storageCondition
+      ),
+      controlledSubstance: toStringSafe(apiItem.controlledItem ?? attributes.controlledSubstance),
+      prescriptionRequired: toStringSafe(
+        apiItem.prescriptionRequired ?? attributes.prescriptionRequired
+      ),
       reportableToGovernment: toStringSafe(attributes.reportableToGovernment),
       therapeuticClass: toStringSafe(attributes.therapeuticClass),
-      strength: toStringSafe(attributes.strength),
-      dosageForm: toStringSafe(attributes.dosageForm),
+      strength: toStringSafe(apiItem.strength ?? attributes.strength),
+      dosageForm: toStringSafe(apiItem.dosageForm ?? attributes.dosageForm),
       withdrawlPeriod: toStringSafe(attributes.withdrawlPeriod),
       dispenseUnit: toStringSafe(attributes.dispenseUnit),
       packSize: toStringSafe(attributes.packSize),
@@ -352,11 +402,12 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
       maxStock: toStringSafe(attributes.maxStock),
       reorderLevel: toStringSafe(apiItem.reorderLevel),
       reorderQuantity: toStringSafe(attributes.reorderQuantity),
-      stockLocation: toStringSafe(attributes.stockLocation),
+      stockLocation: toStringSafe(apiItem.storageLocation ?? attributes.storageLocation),
       abcClass: toStringSafe(attributes.abcClass),
       withdrawlPeriod: toStringSafe(attributes.withdrawlPeriod),
       stockType: toStringSafe(attributes.stockType),
-      minStockAlert: toStringSafe(attributes.minStockAlert),
+      unitQnt: toStringSafe(attributes.unitQnt),
+      minStockAlert: toStringSafe(apiItem.minimumStock ?? attributes.minStockAlert),
     },
     batch: {
       batch: toStringSafe(
@@ -373,8 +424,6 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
           attributes.expiryDate ??
           batches.find((b) => b.expiryDate)?.expiryDate
       ),
-      expiryWarningBefore: toStringSafe(attributes.expiryWarningBefore),
-      barcode: toStringSafe(primaryBatch?.serial ?? attributes.barcode),
       serial: toStringSafe(primaryBatch?.serial ?? attributes.serial),
       tracking: toStringSafe(primaryBatch?.tracking ?? attributes.tracking),
       litterId: toStringSafe(primaryBatch?.litterId ?? attributes.litterId),
@@ -390,6 +439,10 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
       ),
       quantity: toStringSafe(primaryBatch?.quantity ?? onHandVal),
       allocated: toStringSafe(primaryBatch?.allocated ?? allocatedVal),
+      expiryWarningBefore: toStringSafe(
+        primaryBatch?.expiryWarningBefore ?? attributes.expiryWarningBefore
+      ),
+      barcode: toStringSafe(primaryBatch?.barcode ?? attributes.barcode),
       _id: primaryBatch?._id,
       itemId: primaryBatch?.itemId,
       organisationId: primaryBatch?.organisationId,
@@ -408,19 +461,27 @@ const normalizeStatusForApi = (status?: string) => {
 export const buildBatchPayload = (batch: BatchValues): InventoryBatchPayload | undefined => {
   const batchRecord = batch as BatchValues & { current?: unknown; available?: unknown };
   const quantity = toNumberSafe(batch.quantity ?? batchRecord.current ?? batchRecord.available);
-  const allocated = toNumberSafe(batch.allocated);
+  const allocated = batch.allocated === '' ? undefined : toNumberSafe(batch.allocated);
   const normalizeDateForApi = (val?: string) => {
     if (!val) return undefined;
     if (val.includes('/')) {
       const [dd, mm, yyyy] = val.split('/');
-      const parsed = new Date(`${yyyy}-${mm}-${dd}`);
+      const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
       if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString().split('T')[0];
+        return parsed.toISOString();
+      }
+    }
+    const isoDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val);
+    if (isoDateMatch) {
+      const [, yyyy, mm, dd] = isoDateMatch;
+      const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
       }
     }
     const parsed = new Date(val);
     if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString().split('T')[0];
+      return parsed.toISOString();
     }
     return undefined;
   };
@@ -441,6 +502,8 @@ export const buildBatchPayload = (batch: BatchValues): InventoryBatchPayload | u
     batchNumber: batch.batch,
     lotNumber: batch.serial,
     regulatoryTrackingId: batch.tracking,
+    expiryWarningBefore: batch.expiryWarningBefore,
+    barcode: batch.barcode,
     manufactureDate: normalizedManufacture ?? (manufactureRaw || undefined),
     expiryDate: normalizedExpiry ?? (expiryRaw || undefined),
     minShelfLifeAlertDate: normalizedMinShelfLife ?? (minShelfRaw || undefined),
@@ -456,6 +519,30 @@ export const buildInventoryPayload = (
   organisationId: string,
   businessType: BusinessType
 ): InventoryRequestPayload => {
+  const itemType = normalizeItemTypeForApi(
+    formData.classification.itemType ?? formData.basicInfo.itemType
+  );
+  const genericName = formData.classification.genericName?.trim() || undefined;
+  const strength = formData.classification.strength?.trim() || undefined;
+  const dosageForm =
+    formData.classification.form?.trim() || formData.classification.dosageForm?.trim() || undefined;
+  const routeOfAdministration = formData.classification.administration?.trim() || undefined;
+  const prescriptionRequired = normalizeBooleanStringForApi(
+    formData.classification.prescriptionRequired ?? formData.basicInfo.prescriptionRequired
+  );
+  const controlledItem = normalizeBooleanStringForApi(formData.classification.controlledSubstance);
+  const storageInstructions =
+    formData.classification.storageCondition?.trim() ||
+    formData.basicInfo.storageCondition?.trim() ||
+    undefined;
+  const unitOfMeasureValue = formData.classification.unitofMeasure;
+  const unitOfMeasure = Array.isArray(unitOfMeasureValue)
+    ? unitOfMeasureValue[0]
+    : unitOfMeasureValue?.trim() || undefined;
+  const packageQuantity =
+    toNumberSafe(formData.classification.packSize) ?? toNumberSafe(formData.stock.unitQnt);
+  const storageLocation = formData.stock.stockLocation?.trim() || undefined;
+  const minimumStock = toNumberSafe(formData.stock.minStockAlert);
   const statusForApi = normalizeStatusForApi(formData.status ?? formData.basicInfo.status);
 
   const batchesSource =
@@ -468,7 +555,6 @@ export const buildInventoryPayload = (
 
   const attributes = cleanObject({
     department: formData.basicInfo.department,
-    brand: formData.basicInfo.brand ?? formData.vendor.brand,
     imageUrl: formData.basicInfo.imageUrl ?? formData.imageUrl,
     itemType: formData.classification.itemType ?? formData.basicInfo.itemType,
     drugSchedule: formData.classification.drugSchedule ?? formData.basicInfo.drugSchedule,
@@ -488,6 +574,8 @@ export const buildInventoryPayload = (
     animalStage: formData.basicInfo.animalStage,
     skuCode: formData.basicInfo.skuCode,
     ...formData.classification,
+    dosageForm: formData.classification.form || formData.classification.dosageForm,
+    brand: formData.basicInfo.brand ?? formData.vendor.brand,
     tax: formData.pricing.tax,
     maxDiscount: formData.pricing.maxDiscount,
     supplierName: formData.vendor.supplierName,
@@ -497,15 +585,17 @@ export const buildInventoryPayload = (
     leadTime: formData.vendor.leadTime,
     stockLocation: formData.stock.stockLocation,
     stockType: formData.stock.stockType,
+    unitQnt: formData.stock.unitQnt,
     maxStock: formData.stock.maxStock,
     abcClass: formData.stock.abcClass,
     withdrawlPeriod: formData.stock.withdrawlPeriod ?? formData.classification.withdrawlPeriod,
     minStockAlert: formData.stock.minStockAlert,
     reorderQuantity: formData.stock.reorderQuantity,
     available: batchTotals.available ?? toNumberSafe(formData.stock.available),
-    expiryWarningBefore: firstBatch?.expiryWarningBefore,
-    barcode: firstBatch?.barcode,
-    serial: firstBatch?.serial ?? firstBatch?.barcode,
+    expiryWarningBefore:
+      formData.attributes?.expiryWarningBefore ?? firstBatch?.expiryWarningBefore,
+    barcode: formData.attributes?.barcode ?? firstBatch?.barcode,
+    serial: firstBatch?.serial ?? formData.attributes?.barcode ?? firstBatch?.barcode,
     tracking: firstBatch?.tracking,
     litterId: firstBatch?.litterId,
     nextRefillDate: firstBatch?.nextRefillDate,
@@ -514,23 +604,37 @@ export const buildInventoryPayload = (
   const payload: InventoryRequestPayload = {
     organisationId,
     businessType,
+    itemType,
     name: formData.basicInfo.name,
-    sku: formData.basicInfo.skuCode || formData.sku,
+    sku: formData.basicInfo.skuCode,
     category: formData.basicInfo.category,
     subCategory: formData.basicInfo.subCategory,
     description: formData.basicInfo.description,
     imageUrl: formData.basicInfo.imageUrl ?? formData.imageUrl,
+    genericName,
+    strength,
+    dosageForm,
+    routeOfAdministration,
+    prescriptionRequired,
+    controlledItem,
+    storageInstructions,
+    unitOfMeasure,
+    packageQuantity,
+    unitQuantity: toNumberSafe(formData.stock.unitQnt),
+    stockUnitType: formData.stock.stockType?.trim() || undefined,
+    storageLocation,
+    minimumStock,
     attributes: {
       ...attributes,
       species: formData.classification.species,
       unitofMeasure: formData.classification.unitofMeasure,
     },
-    onHand: batchTotals.onHand ?? toNumberSafe(formData.stock.current),
-    allocated: batchTotals.allocated ?? toNumberSafe(formData.stock.allocated),
-    // Backend create reads initialOnHand/initialAllocated for items without batches;
-    // when batches exist the server recomputes these from the batch quantities.
-    initialOnHand: batchTotals.onHand ?? toNumberSafe(formData.stock.current),
-    initialAllocated: batchTotals.allocated ?? toNumberSafe(formData.stock.allocated),
+    // onHand/initialOnHand reflect the item-level "on hand stock" field the user edits directly;
+    // batch quantities are a separate concept and must not override it here.
+    onHand: toNumberSafe(formData.stock.current),
+    allocated: toNumberSafe(formData.stock.allocated),
+    initialOnHand: toNumberSafe(formData.stock.current),
+    initialAllocated: toNumberSafe(formData.stock.allocated),
     reorderLevel: toNumberSafe(formData.stock.reorderLevel),
     unitCost: toNumberSafe(formData.pricing.purchaseCost),
     sellingPrice: toNumberSafe(formData.pricing.selling),
@@ -553,7 +657,7 @@ export const defaultFilters: InventoryFiltersState = {
   locations: [],
   abcClasses: [],
   suppliers: [],
-  visibility: 'ALL',
+  visibility: 'ACTIVE',
   status: 'ALL',
   search: '',
 };

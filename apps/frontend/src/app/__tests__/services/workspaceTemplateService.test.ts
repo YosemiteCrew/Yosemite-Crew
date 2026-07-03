@@ -3,17 +3,23 @@ import {
   applyInpatientScheduleTemplate,
   cancelInpatientScheduleTemplate,
   createWorkspaceTemplateInstance,
+  extractFollowUpInDays,
+  schemaSnapshotToPrescriptionItems,
   getWorkspaceTemplateById,
   getInpatientScheduleForEncounter,
   listDischargeSummaryTemplates,
+  listPrescriptionTemplatesForWorkspace,
+  resolveScheduleTasksFromTemplate,
   listSoapTemplatesForWorkspace,
   listVitalsTemplates,
   listWorkspaceTemplates,
   pauseInpatientScheduleTemplate,
   regenerateInpatientScheduleTemplate,
+  resolveSoapTemplate,
   resumeInpatientScheduleTemplate,
   submitWorkspaceTemplateInstance,
   templateToSoapTemplate,
+  templateToPrescriptionTemplate,
   updateWorkspaceTemplateCatalogLinks,
   updateWorkspaceTemplateInstance,
 } from '@/app/features/appointments/services/workspaceTemplateService';
@@ -132,13 +138,300 @@ describe('workspaceTemplateService', () => {
     });
   });
 
+  it('loads published prescription templates with authored medication rows', async () => {
+    getDataMock
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            ...template('tpl-rx', 'Otitis prescription'),
+            kind: 'PRESCRIPTION',
+            versions: [
+              {
+                id: 'ver-rx',
+                templateId: 'tpl-rx',
+                version: 1,
+                schemaSnapshot: {
+                  sections: [
+                    {
+                      id: 'medications',
+                      title: 'Medications',
+                      fields: [
+                        {
+                          key: 'medicationLine',
+                          label: 'Medication lines',
+                          type: 'medicationLine',
+                          defaultValue: [
+                            {
+                              inventoryItemId: 'inv-ear',
+                              medicineName: 'Ear drops',
+                              brand: 'OtiCalm',
+                              genericName: 'Ofloxacin',
+                              sku: 'SKU-OTI',
+                              strength: '0.3',
+                              strengthUnit: '%',
+                              dosageForm: 'Drops',
+                              route: 'Otic',
+                              frequency: 'BID (twice daily)',
+                              durationDays: '7',
+                              durationUnit: 'days',
+                              qty: '1',
+                              refill: '0',
+                              instructions: 'Apply after cleaning',
+                              fulfillment: 'IN_HOUSE',
+                              priceCents: 2500,
+                              controlledSubstance: false,
+                              prescriptionRequired: true,
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                renderConfigSnapshot: null,
+                validationSnapshot: null,
+                createdBy: 'user-1',
+                createdAt: new Date('2026-04-20T09:00:00.000Z'),
+              },
+            ],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ data: [] });
+
+    const templates = await listPrescriptionTemplatesForWorkspace('org-1');
+
+    expect(getDataMock).toHaveBeenNthCalledWith(1, '/v1/templates/pms/templates/library', {
+      kind: 'PRESCRIPTION',
+      status: 'PUBLISHED',
+    });
+    expect(templates).toHaveLength(1);
+    expect(templates[0].items[0]).toMatchObject({
+      medicineName: 'Ear drops',
+      brand: 'OtiCalm',
+      genericName: 'Ofloxacin',
+      sku: 'SKU-OTI',
+      strength: '0.3',
+      strengthUnit: '%',
+      dosageForm: 'Drops',
+      route: 'Otic',
+      frequency: 'BID (twice daily)',
+      durationDays: '7',
+      durationUnit: 'days',
+      qty: '1',
+      refill: '0',
+      instructions: 'Apply after cleaning',
+      fulfillment: 'IN_HOUSE',
+      priceCents: 2500,
+      controlledSubstance: false,
+      prescriptionRequired: true,
+    });
+  });
+
   it('maps backend templates to SOAP template options', () => {
     expect(templateToSoapTemplate({ ...template('tpl-yc'), ownership: 'YC_LIBRARY' })).toEqual({
       id: 'tpl-yc',
       name: 'tpl-yc',
       serviceId: 'svc-1',
       isDefault: true,
+      version: 1,
+      content: undefined,
     });
+  });
+
+  it('maps a prescription template snapshot to a reusable search option', () => {
+    const mapped = templateToPrescriptionTemplate({
+      ...template('tpl-rx', 'Post-op meds'),
+      kind: 'PRESCRIPTION',
+      schemaSnapshot: {
+        sections: [
+          {
+            id: 'medications',
+            title: 'Medications',
+            fields: [
+              {
+                key: 'medicationLine',
+                label: 'Medication lines',
+                type: 'medicationLine',
+                defaultValue: [
+                  {
+                    inventoryItemId: 'inv-pain',
+                    medicineName: 'Carprofen',
+                    dosageForm: 'Tablet',
+                    route: 'Oral',
+                    frequency: 'SID (once daily)',
+                    durationDays: '5',
+                    qty: '5',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as TemplateLike);
+
+    expect(mapped).toMatchObject({
+      id: 'tpl-rx',
+      name: 'Post-op meds',
+      items: [
+        {
+          inventoryItemId: 'inv-pain',
+          medicineName: 'Carprofen',
+          dosageForm: 'Tablet',
+          route: 'Oral',
+          frequency: 'SID (once daily)',
+          durationDays: '5',
+          qty: '5',
+        },
+      ],
+    });
+  });
+
+  it('prefills S/O/A/P content from a template schema snapshot', () => {
+    const withSchema = {
+      ...template('tpl-content'),
+      schemaSnapshot: {
+        sections: [
+          {
+            id: 's1',
+            title: 'Subjective History',
+            fields: [{ key: 'subj', label: 'History', type: 'richtext' }],
+          },
+          {
+            id: 's2',
+            title: 'Plan',
+            fields: [{ key: 'plan', label: 'Plan', type: 'richtext', defaultValue: '<p>Rx</p>' }],
+          },
+          {
+            id: 's3',
+            title: 'Unmapped section',
+            fields: [{ key: 'x', label: 'X', type: 'text' }],
+          },
+        ],
+      },
+    } as unknown as TemplateLike;
+    const mapped = templateToSoapTemplate(withSchema);
+    expect(mapped.content?.subjective).toBe('<p>History</p>');
+    // defaultValue wins over the label fallback.
+    expect(mapped.content?.plan).toBe('<p>Rx</p>');
+    // Sections that map to no S/O/A/P field are ignored.
+    expect(mapped.content?.objective).toBeUndefined();
+  });
+
+  it('resolves the SOAP template for an encounter context', async () => {
+    getDataMock.mockResolvedValueOnce({
+      data: {
+        templateId: 'tpl-resolved',
+        templateVersion: 3,
+        name: 'Resolved SOAP',
+        source: 'ORG_LINKED',
+        schemaSnapshot: {
+          sections: [
+            { id: 'a', title: 'Assessment', fields: [{ key: 'a', label: 'Dx', type: 'text' }] },
+          ],
+        },
+      },
+    });
+
+    const resolved = await resolveSoapTemplate({
+      organisationId: 'org-1',
+      appointmentId: 'appt-1',
+      serviceId: 'svc-1',
+      mode: 'OUTPATIENT',
+    });
+
+    expect(getDataMock).toHaveBeenCalledWith('/v1/templates/pms/resolve', {
+      organisationId: 'org-1',
+      kind: 'SOAP_NOTE',
+      appointmentId: 'appt-1',
+      serviceId: 'svc-1',
+      mode: 'OUTPATIENT',
+    });
+    expect(resolved).toMatchObject({
+      id: 'tpl-resolved',
+      version: 3,
+      isDefault: false,
+    });
+    expect(resolved?.content?.assessment).toBe('<p>Dx</p>');
+  });
+
+  it('classifies a custom (non-S/O/A/P) template as a structure override', () => {
+    const customTpl = {
+      ...template('tpl-custom'),
+      schemaSnapshot: {
+        sections: [
+          {
+            id: 'ortho',
+            title: 'Mobility scoring',
+            fields: [
+              { key: 'gaitScore', label: 'Gait score', type: 'number' },
+              { key: 'lameness', label: 'Lameness', type: 'text' },
+            ],
+          },
+        ],
+      },
+    } as unknown as TemplateLike;
+    const mapped = templateToSoapTemplate(customTpl);
+    // Custom templates swap STRUCTURE: no native content, a renderable schema instead.
+    expect(mapped.content).toBeUndefined();
+    expect(mapped.customSchema).toBeDefined();
+    expect(mapped.customSchema?.[0]?.type).toBe('group');
+    const leaves = (mapped.customSchema?.[0] as { fields?: Array<{ id: string }> }).fields ?? [];
+    expect(leaves.map((f) => f.id)).toEqual(['gaitScore', 'lameness']);
+  });
+
+  it('keeps a native S/O/A/P template as content-only (no structure override)', () => {
+    const nativeTpl = {
+      ...template('tpl-native'),
+      schemaSnapshot: {
+        sections: [
+          {
+            id: 'subjective',
+            title: 'Subjective',
+            fields: [{ key: 'subjective', label: 'Subjective', type: 'richText' }],
+          },
+        ],
+      },
+    } as unknown as TemplateLike;
+    const mapped = templateToSoapTemplate(nativeTpl);
+    expect(mapped.customSchema).toBeUndefined();
+  });
+
+  it('resolves a custom template as a structure override with provenance', async () => {
+    getDataMock.mockResolvedValueOnce({
+      data: {
+        templateId: 'tpl-custom-resolved',
+        templateVersion: 2,
+        templateVersionId: 'ver-2',
+        name: 'Ortho SOAP',
+        source: 'USER_LINKED',
+        schemaSnapshot: {
+          sections: [
+            {
+              id: 'ortho',
+              title: 'Mobility scoring',
+              fields: [{ key: 'gaitScore', label: 'Gait score', type: 'number' }],
+            },
+          ],
+        },
+      },
+    });
+    const resolved = await resolveSoapTemplate({ organisationId: 'org-1' });
+    expect(resolved?.customSchema).toBeDefined();
+    expect(resolved?.content).toBeUndefined();
+    expect(resolved?.versionId).toBe('ver-2');
+  });
+
+  it('returns null when no SOAP template is configured (404)', async () => {
+    getDataMock.mockRejectedValueOnce(new Error('not found'));
+    await expect(resolveSoapTemplate({ organisationId: 'org-1' })).resolves.toBeNull();
+  });
+
+  it('returns null when the resolver responds without a templateId', async () => {
+    getDataMock.mockResolvedValueOnce({ data: { name: 'empty' } });
+    await expect(resolveSoapTemplate({ organisationId: 'org-1' })).resolves.toBeNull();
   });
 
   it('loads a single workspace template by id', async () => {
@@ -151,6 +444,52 @@ describe('workspaceTemplateService', () => {
     expect(getDataMock).toHaveBeenCalledWith(
       '/v1/templates/pms/templates/organisation/org-1/tpl-1'
     );
+  });
+
+  it('resolves schedule template instructions into workspace row subtext', async () => {
+    getDataMock.mockResolvedValueOnce({
+      data: {
+        ...template('tpl-schedule', 'Care pathway'),
+        kind: 'TASK_ASSIGNMENT',
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'schedule',
+                  title: 'Schedule',
+                  fields: [
+                    {
+                      key: 'taskBlocks',
+                      type: 'repeater',
+                      label: 'Task blocks',
+                      defaultValue: [
+                        {
+                          name: 'Record vitals',
+                          category: 'CARE',
+                          description: 'Check temperature and appetite',
+                          timeOfDay: '09:00',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    await expect(resolveScheduleTasksFromTemplate('org-1', 'tpl-schedule')).resolves.toEqual([
+      expect.objectContaining({
+        description: 'Record vitals',
+        subtext: 'Check temperature and appetite',
+        category: 'Care',
+        time: '9:00 AM',
+      }),
+    ]);
   });
 
   it('updates catalog links for a workspace template', async () => {
@@ -285,5 +624,93 @@ describe('workspaceTemplateService', () => {
       '/fhir/v1/task-schedule/organisation/org-1/encounter/enc-1'
     );
     expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  describe('extractFollowUpInDays', () => {
+    const withFollowUp = (defaultValue: unknown) => ({
+      sections: [
+        {
+          id: 'follow_up',
+          title: 'Follow up',
+          fields: [
+            { key: 'followUpInDays', label: 'Follow up in (days)', type: 'number', defaultValue },
+          ],
+        },
+      ],
+    });
+
+    it('reads a positive numeric follow-up value', () => {
+      expect(extractFollowUpInDays(withFollowUp(7) as never)).toBe(7);
+    });
+
+    it('coerces a numeric string', () => {
+      expect(extractFollowUpInDays(withFollowUp('14') as never)).toBe(14);
+    });
+
+    it('returns undefined for missing, zero, or non-numeric values', () => {
+      expect(extractFollowUpInDays(undefined)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp(0) as never)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp('soon') as never)).toBeUndefined();
+      expect(extractFollowUpInDays({ sections: [] } as never)).toBeUndefined();
+    });
+  });
+
+  describe('schemaSnapshotToPrescriptionItems', () => {
+    const medField = (key: string, inventoryItemId: string, defaultValue?: unknown) => ({
+      key,
+      label: key,
+      type: 'text',
+      defaultValue,
+      rules: { inventoryItemId },
+    });
+
+    it('groups medication fields by inventory id and maps role-by-key-suffix with defaults', () => {
+      const snapshot = {
+        sections: [
+          {
+            id: 'medications',
+            title: 'Medications',
+            fields: [
+              medField('g_med_1_name', 'inv-1', 'Gabapentin'),
+              medField('g_med_1_dosage', 'inv-1', '100mg'),
+              medField('g_med_1_route', 'inv-1', 'Oral'),
+              medField('g_med_1_frequency', 'inv-1', '2x daily'),
+              medField('g_med_1_duration', 'inv-1', '7'),
+              medField('g_med_1_remark', 'inv-1', 'With food'),
+            ],
+          },
+        ],
+      };
+
+      expect(schemaSnapshotToPrescriptionItems(snapshot as never)).toEqual([
+        {
+          medicineName: 'Gabapentin',
+          dosage: '100mg',
+          route: 'Oral',
+          frequency: '2x daily',
+          durationDays: '7',
+          instructions: 'With food',
+          fulfillment: 'IN_HOUSE',
+          inventoryItemId: 'inv-1',
+        },
+      ]);
+    });
+
+    it('ignores fields without an inventory id and rows without a name', () => {
+      const snapshot = {
+        sections: [
+          {
+            id: 'medications',
+            title: 'Medications',
+            fields: [
+              { key: 'note', label: 'Note', type: 'text', defaultValue: 'x' },
+              medField('g_med_1_dosage', 'inv-2', '50mg'),
+            ],
+          },
+        ],
+      };
+      expect(schemaSnapshotToPrescriptionItems(snapshot as never)).toEqual([]);
+      expect(schemaSnapshotToPrescriptionItems(undefined)).toEqual([]);
+    });
   });
 });

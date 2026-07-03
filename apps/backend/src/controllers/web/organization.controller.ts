@@ -55,6 +55,55 @@ const respondWithPresignedUpload = async (
   res.status(200).json({ uploadUrl: url, s3Key: key });
 };
 
+const parseCoordinates = (
+  latString: string | undefined,
+  lngString: string | undefined,
+) => {
+  if (!latString || !lngString) {
+    return { lat: null, lng: null };
+  }
+
+  const lat = Number(latString);
+  const lng = Number(lngString);
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return { lat: null, lng: null };
+  }
+
+  return { lat, lng };
+};
+
+const resolveCoordinatesFromSavedAddress = async (
+  authUserId: string | null | undefined,
+) => {
+  if (!authUserId) {
+    return { lat: null, lng: null, reason: "missing-address" as const };
+  }
+
+  const parentAddress = await getParentAddressForAuthUser(authUserId);
+
+  if (!parentAddress?.city || !parentAddress?.postalCode) {
+    return { lat: null, lng: null, reason: "missing-address" as const };
+  }
+
+  const query = `${parentAddress.city} ${parentAddress.postalCode}`;
+  const geo = await helpers.getGeoLocation(query);
+
+  const geoRecord =
+    geo && typeof geo === "object" ? (geo as Record<string, unknown>) : {};
+  const lat = typeof geoRecord.lat === "number" ? geoRecord.lat : null;
+  const lng = typeof geoRecord.lng === "number" ? geoRecord.lng : null;
+
+  return {
+    lat,
+    lng,
+    reason:
+      lat === null || lng === null
+        ? ("unresolved" as const)
+        : ("resolved" as const),
+  };
+};
+
 export const OrganizationController = {
   onboardBusiness: async (req: Request, res: Response) => {
     try {
@@ -219,52 +268,27 @@ export const OrganizationController = {
       const page = req.query.page ? Number(req.query.page) : 1;
       const limit = req.query.limit ? Number(req.query.limit) : 10;
 
-      let lat: number | null = null;
-      let lng: number | null = null;
+      const { lat: requestedLat, lng: requestedLng } = parseCoordinates(
+        latString,
+        lngString,
+      );
+      let lat = requestedLat;
+      let lng = requestedLng;
 
-      // --- 1. Use user-provided lat/lng if available ---
-      if (latString && lngString) {
-        lat = Number(latString);
-        lng = Number(lngString);
-
-        if (Number.isNaN(lat) || Number.isNaN(lng)) {
-          return res.status(400).json({
-            message: "lat & lng must be valid numbers",
-          });
-        }
-      }
-
-      // --- 2. Fallback: use user's saved city+pincode ---
-      if (!lat || !lng) {
+      if (lat === null || lng === null) {
         const authUserId = resolveUserIdFromRequest(req);
-        const parentAddress = await getParentAddressForAuthUser(authUserId);
+        const resolved = await resolveCoordinatesFromSavedAddress(authUserId);
 
-        if (!parentAddress?.city || !parentAddress?.postalCode) {
+        lat = resolved.lat;
+        lng = resolved.lng;
+
+        if (lat === null || lng === null) {
+          const message =
+            resolved.reason === "missing-address"
+              ? "Location missing and user has no saved city/pincode."
+              : "Unable to resolve location from user's saved address.";
           return res.status(400).json({
-            message: "Location missing and user has no saved city/pincode.",
-          });
-        }
-
-        const query = `${parentAddress.city} ${parentAddress.postalCode}`;
-
-        // Geocode city+pincode → lat/lng
-        const geo = await helpers.getGeoLocation(query);
-
-        const geoRecord =
-          geo && typeof geo === "object"
-            ? (geo as Record<string, unknown>)
-            : {};
-        const nextLat =
-          typeof geoRecord.lat === "number" ? geoRecord.lat : null;
-        const nextLng =
-          typeof geoRecord.lng === "number" ? geoRecord.lng : null;
-
-        lat = nextLat;
-        lng = nextLng;
-
-        if (!lat || !lng) {
-          return res.status(400).json({
-            message: "Unable to resolve location from user's saved address.",
+            message,
           });
         }
       }

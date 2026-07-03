@@ -168,7 +168,7 @@ describe('Inventory Utils', () => {
 
     it('formatStockHealthLabel handles cases', () => {
       expect(formatStockHealthLabel('LOW_STOCK')).toBe('Low stock');
-      expect(formatStockHealthLabel('HEALTHY')).toBe('Healthy');
+      expect(formatStockHealthLabel('HEALTHY')).toBe('In stock');
       expect(formatStockHealthLabel('EXPIRED')).toBe('Expired');
       expect(formatStockHealthLabel('EXPIRING_SOON')).toBe('Expiring soon');
       expect(formatStockHealthLabel()).toBe('');
@@ -177,20 +177,20 @@ describe('Inventory Utils', () => {
     it('getStatusBadgeStyle handles cases', () => {
       // low stock
       expect(getStatusBadgeStyle('Low Stock')).toEqual({
-        color: 'var(--color-pill-progress-text)',
-        backgroundColor: 'var(--color-pill-progress-bg)',
-        borderColor: 'var(--color-pill-progress-border)',
+        color: 'var(--color-pill-warning-text)',
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        borderColor: 'var(--color-pill-warning-border)',
       });
       // expired / out of stock
       expect(getStatusBadgeStyle('Expired')).toEqual({
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
+        color: 'var(--color-danger-600)',
+        backgroundColor: 'var(--color-danger-100)',
+        borderColor: 'var(--color-danger-400)',
       });
       expect(getStatusBadgeStyle('Out of Stock')).toEqual({
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       });
       // hidden
       expect(getStatusBadgeStyle('Hidden')).toEqual({
@@ -257,6 +257,36 @@ describe('Inventory Utils', () => {
       expect(result.status).toBe('ACTIVE');
     });
 
+    it('hydrates backend top-level clinical and stock fields for edit flow', () => {
+      const result = mapApiItemToInventoryItem({
+        ...mockApiItem,
+        itemType: 'NON_MEDICAL',
+        genericName: 'Amoxicillin',
+        strength: '250 mg',
+        dosageForm: 'Tablet',
+        routeOfAdministration: 'Oral',
+        prescriptionRequired: true,
+        controlledItem: false,
+        storageInstructions: 'Keep refrigerated',
+        unitOfMeasure: 'Tablet',
+        storageLocation: 'Pharmacy shelf',
+        minimumStock: 12,
+      });
+
+      expect(result.basicInfo.itemType).toBe('Non-drug');
+      expect(result.classification.itemType).toBe('Non-drug');
+      expect(result.classification.genericName).toBe('Amoxicillin');
+      expect(result.classification.strength).toBe('250 mg');
+      expect(result.classification.dosageForm).toBe('Tablet');
+      expect(result.classification.administration).toBe('Oral');
+      expect(result.classification.prescriptionRequired).toBe('true');
+      expect(result.classification.controlledSubstance).toBe('false');
+      expect(result.classification.storageCondition).toBe('Keep refrigerated');
+      expect(result.classification.unitofMeasure).toBe('Tablet');
+      expect(result.stock.stockLocation).toBe('Pharmacy shelf');
+      expect(result.stock.minStockAlert).toBe('12');
+    });
+
     it('normalizes status correctly (Hidden case)', () => {
       const item = { ...mockApiItem, status: 'HIDDEN' };
       const result = mapApiItemToInventoryItem(item);
@@ -311,6 +341,48 @@ describe('Inventory Utils', () => {
       // Totals calculation check
       // 5 + 10 = 15
       expect(result.stock.current).toBe('15');
+    });
+
+    it('rehydrates saved batch display fields from attributes', () => {
+      const result = mapApiItemToInventoryItem({
+        ...mockApiItem,
+        attributes: {
+          ...mockApiItem.attributes,
+          expiryWarningBefore: '30 days',
+          barcode: 'BAR-123',
+        },
+        batches: [{ _id: 'b1', batchNumber: 'BATCH-1', quantity: 10 }],
+      } as unknown as InventoryApiItem);
+
+      expect(result.batch.expiryWarningBefore).toBe('30 days');
+      expect(result.batch.barcode).toBe('BAR-123');
+      expect(result.batches?.[0].expiryWarningBefore).toBe('30 days');
+      expect(result.batches?.[0].barcode).toBe('BAR-123');
+    });
+
+    it('prefers batch-specific display fields over shared attributes', () => {
+      const result = mapApiItemToInventoryItem({
+        ...mockApiItem,
+        attributes: {
+          ...mockApiItem.attributes,
+          expiryWarningBefore: 'shared warning',
+          barcode: 'SHARED-BAR',
+        },
+        batches: [
+          {
+            _id: 'b1',
+            batchNumber: 'BATCH-1',
+            quantity: 10,
+            expiryWarningBefore: 'per-batch warning',
+            barcode: 'PER-BATCH-BAR',
+          },
+        ],
+      } as unknown as InventoryApiItem);
+
+      expect(result.batch.expiryWarningBefore).toBe('per-batch warning');
+      expect(result.batch.barcode).toBe('PER-BATCH-BAR');
+      expect(result.batches?.[0].expiryWarningBefore).toBe('per-batch warning');
+      expect(result.batches?.[0].barcode).toBe('PER-BATCH-BAR');
     });
 
     it('selects first batch if no expiry dates provided', () => {
@@ -389,6 +461,32 @@ describe('Inventory Utils', () => {
 
       const result = mapApiItemToInventoryItem(item);
       expect(result.stock.available).toBe('100');
+    });
+
+    it('prefers item-level allocated and derived available over batch values for edit flow', () => {
+      const item = {
+        ...mockApiItem,
+        onHand: 7,
+        allocated: 12,
+        attributes: {
+          ...mockApiItem.attributes,
+          available: 7,
+        },
+        batches: [
+          {
+            _id: 'b1',
+            batchNumber: 'BATCH-1',
+            quantity: 7,
+            allocated: 0,
+          },
+        ],
+      } as unknown as InventoryApiItem;
+
+      const result = mapApiItemToInventoryItem(item);
+
+      expect(result.stock.allocated).toBe('12');
+      expect(result.stock.available).toBe('-5');
+      expect(result.batch.allocated).toBe('0');
     });
 
     // ------------------------------------------------------------------------
@@ -505,16 +603,36 @@ describe('Inventory Utils', () => {
     } as InventoryItem;
 
     describe('buildBatchPayload', () => {
-      it('normalizes Slash dates to ISO YYYY-MM-DD', () => {
+      it('normalizes slash dates to full ISO datetimes', () => {
         const batch = { ...mockInventoryItem.batches![0] };
         const payload = buildBatchPayload(batch);
-        expect(payload?.expiryDate).toBe('2025-12-31');
+        expect(payload?.expiryDate).toBe('2025-12-31T00:00:00.000Z');
       });
 
-      it('keeps ISO dates as YYYY-MM-DD', () => {
+      it('normalizes plain ISO calendar dates to full ISO datetimes', () => {
         const batch = { ...mockInventoryItem.batches![1] };
         const payload = buildBatchPayload(batch);
-        expect(payload?.expiryDate).toBe('2026-01-01');
+        expect(payload?.expiryDate).toBe('2026-01-01T00:00:00.000Z');
+      });
+
+      it('preserves full ISO datetime values', () => {
+        const batch = {
+          ...mockInventoryItem.batches![1],
+          expiryDate: '2026-01-01T05:30:00.000Z',
+        };
+        const payload = buildBatchPayload(batch);
+        expect(payload?.expiryDate).toBe('2026-01-01T05:30:00.000Z');
+      });
+
+      it('preserves per-batch expiry warning and barcode fields', () => {
+        const batch = {
+          ...mockInventoryItem.batches![0],
+          expiryWarningBefore: '30 days',
+          barcode: 'BAR-123',
+        };
+        const payload = buildBatchPayload(batch);
+        expect(payload?.expiryWarningBefore).toBe('30 days');
+        expect(payload?.barcode).toBe('BAR-123');
       });
 
       it('falls back to current/available for quantity if quantity field missing', () => {
@@ -525,6 +643,26 @@ describe('Inventory Utils', () => {
         } as any;
         const payload = buildBatchPayload(batch);
         expect(payload?.quantity).toBe(99);
+      });
+
+      it('sends expiryWarningBefore and barcode per batch so each batch can hold its own value', () => {
+        const batchA = {
+          ...mockInventoryItem.batches![0],
+          expiryWarningBefore: '30 days',
+          barcode: 'BAR-A',
+        } as any;
+        const batchB = {
+          ...mockInventoryItem.batches![1],
+          expiryWarningBefore: '14 days',
+          barcode: 'BAR-B',
+        } as any;
+
+        expect(buildBatchPayload(batchA)).toEqual(
+          expect.objectContaining({ expiryWarningBefore: '30 days', barcode: 'BAR-A' })
+        );
+        expect(buildBatchPayload(batchB)).toEqual(
+          expect.objectContaining({ expiryWarningBefore: '14 days', barcode: 'BAR-B' })
+        );
       });
 
       it('returns undefined if payload ends up empty (cleanObject logic)', () => {
@@ -558,12 +696,127 @@ describe('Inventory Utils', () => {
         expect(payload.organisationId).toBe('org-1');
         expect(payload.name).toBe('Payload Item');
         expect(payload.batches).toHaveLength(2);
-        // Calculated totals
-        expect(payload.onHand).toBe(100); // 50 + 50
-        expect(payload.allocated).toBe(5); // 5 + undefined(0)
+        // onHand/initialOnHand come from the item-level stock field, not batch totals
+        expect(payload.onHand).toBe(100);
+        expect(payload.initialOnHand).toBe(100);
+        expect(payload.allocated).toBe(10);
+        expect(payload.initialAllocated).toBe(10);
         // Check attributes cleaning
         expect(payload.attributes?.stockLocation).toBe('Loc A');
         expect(payload.attributes?.species).toEqual(['Dog']);
+      });
+
+      it('sends the cleared SKU as empty rather than falling back to the stale top-level sku', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            sku: 'OLD-STALE-SKU',
+            basicInfo: {
+              ...mockInventoryItem.basicInfo,
+              skuCode: '',
+            },
+          },
+          'org-1',
+          'VETERINARY' as BusinessType
+        );
+
+        expect(payload.sku).toBe('');
+      });
+
+      it('uses stock control on-hand value, not the batch quantity sum, even when they differ', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            stock: {
+              ...mockInventoryItem.stock,
+              current: '68744',
+            },
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        // batches sum to 100 (50 + 50); the edited stock.current value must win
+        expect(payload.onHand).toBe(68744);
+        expect(payload.initialOnHand).toBe(68744);
+      });
+
+      it('prefers stock control allocated over batch totals when batches exist', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            stock: {
+              ...mockInventoryItem.stock,
+              allocated: '30',
+            },
+            batches: [
+              {
+                ...mockInventoryItem.batches![0],
+                allocated: '0',
+              },
+            ] as any,
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        expect(payload.allocated).toBe(30);
+        expect(payload.initialAllocated).toBe(30);
+      });
+
+      it('maps medical clinical fields to top-level API keys', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            classification: {
+              ...mockInventoryItem.classification,
+              genericName: 'Amoxicillin',
+              form: 'Tablet',
+              strength: '250 mg',
+              administration: 'Oral',
+            },
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        expect(payload.genericName).toBe('Amoxicillin');
+        expect(payload.dosageForm).toBe('Tablet');
+        expect(payload.strength).toBe('250 mg');
+        expect(payload.routeOfAdministration).toBe('Oral');
+      });
+
+      it('maps inventory edit fields to backend-owned top-level columns', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            classification: {
+              ...mockInventoryItem.classification,
+              itemType: 'Non-drug',
+              unitofMeasure: ['Tablet'],
+              prescriptionRequired: 'true',
+              controlledSubstance: 'false',
+              storageCondition: 'Cool and dry',
+              packSize: '24',
+            },
+            stock: {
+              ...mockInventoryItem.stock,
+              stockLocation: 'Cabinet A',
+              minStockAlert: '5',
+            },
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        expect(payload.itemType).toBe('NON_MEDICAL');
+        expect(payload.unitOfMeasure).toBe('Tablet');
+        expect(payload.prescriptionRequired).toBe(true);
+        expect(payload.controlledItem).toBe(false);
+        expect(payload.storageInstructions).toBe('Cool and dry');
+        expect(payload.packageQuantity).toBe(24);
+        expect(payload.storageLocation).toBe('Cabinet A');
+        expect(payload.minimumStock).toBe(5);
       });
 
       it('uses single batch from formData.batch if formData.batches is empty', () => {
@@ -602,6 +855,29 @@ describe('Inventory Utils', () => {
         const item = { ...mockInventoryItem, batches: [], stock: { available: '77' } } as any;
         const payload = buildInventoryPayload(item, 'org-1', 'VETERINARY' as BusinessType);
         expect(payload.attributes?.available).toBe(77);
+      });
+
+      it('uses inventory attributes for batch-section item attributes when present', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            attributes: {
+              expiryWarningBefore: '60 days',
+              barcode: 'NEW-BAR',
+            },
+            batch: {
+              ...mockInventoryItem.batch,
+              expiryWarningBefore: '30 days',
+              barcode: 'OLD-BAR',
+            },
+          },
+          'org-1',
+          'VETERINARY' as BusinessType
+        );
+
+        expect(payload.attributes?.expiryWarningBefore).toBe('60 days');
+        expect(payload.attributes?.barcode).toBe('NEW-BAR');
+        expect(payload.attributes?.serial).toBe('NEW-BAR');
       });
     });
   });
@@ -648,7 +924,7 @@ describe('Inventory Utils', () => {
       abcClasses: [],
       suppliers: [],
       status: 'ALL',
-      visibility: 'ALL',
+      visibility: 'ACTIVE',
       search: '',
     });
   });

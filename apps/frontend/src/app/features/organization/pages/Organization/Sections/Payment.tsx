@@ -9,6 +9,7 @@ import {
   field,
   ProfileField,
 } from '@/app/features/organization/pages/Organization/Sections/profileFields';
+import StripeSettingsButton from '@/app/features/billing/components/StripeSettingsButton';
 
 const BasicFields: ProfileField[] = [
   field('Current plan', 'plan', 'text', false),
@@ -43,7 +44,12 @@ const Payment = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}>
-      <AccordionButton title="Payment" showButton={false} finance>
+      <AccordionButton
+        title="Payment"
+        showButton={false}
+        finance
+        actions={<StripeSettingsButton />}
+      >
         <div className="flex flex-col gap-4">
           <ProfileCard title="Plan overview" fields={BasicFields} org={values} />
         </div>

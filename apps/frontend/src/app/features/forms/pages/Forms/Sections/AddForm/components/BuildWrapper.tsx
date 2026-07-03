@@ -3,6 +3,14 @@ import { FormField } from '@/app/features/forms/types/forms';
 import { MdDeleteForever, MdDragIndicator } from 'react-icons/md';
 import { IoMdArrowUp, IoMdArrowDown } from 'react-icons/io';
 
+/**
+ * When true, the template structure is locked (YC-default ownership): builder controls
+ * that change structure — add/remove/delete/move/reorder and the medication/task pickers —
+ * are hidden at every nesting level, while field content stays editable. Provided by Build
+ * and consumed by BuilderWrapper plus the nested group builders.
+ */
+export const StructureLockContext = React.createContext(false);
+
 const BuilderWrapper: React.FC<{
   field: FormField;
   onDelete: () => void;
@@ -17,6 +25,12 @@ const BuilderWrapper: React.FC<{
   onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
   isDragging?: boolean;
   compact?: boolean;
+  /**
+   * When true, this item is content (e.g. a medication or task the author added to a YC-default
+   * template) rather than structure, so its delete control stays available even while the template
+   * structure is locked. Move/reorder controls remain hidden when locked.
+   */
+  contentDeletable?: boolean;
   children: React.ReactNode;
 }> = ({
   field,
@@ -32,11 +46,15 @@ const BuilderWrapper: React.FC<{
   onDragEnd,
   isDragging,
   compact = false,
+  contentDeletable = false,
   children,
 }) => {
+  const structureLocked = React.useContext(StructureLockContext);
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
   const dragPreviewRef = React.useRef<HTMLDivElement | null>(null);
   const title = field.type.charAt(0).toUpperCase() + field.type.slice(1);
+  // Locked structure: never reorder via drag and never expose delete/move controls.
+  const canDrag = draggable && !structureLocked;
 
   const cleanupDragPreview = () => {
     if (dragPreviewRef.current) {
@@ -76,7 +94,7 @@ const BuilderWrapper: React.FC<{
     onDragEnd?.(e);
   };
 
-  const dragProps = draggable
+  const dragProps = canDrag
     ? {
         draggable: true,
         onDragStart: handleDragStart,
@@ -100,7 +118,7 @@ const BuilderWrapper: React.FC<{
           <MdDragIndicator
             size={20}
             color="var(--color-muted-999)"
-            className={`cursor-grab ${draggable ? 'opacity-100' : 'opacity-50'}`}
+            className={`cursor-grab ${canDrag ? 'opacity-100' : 'opacity-50'}`}
             data-drag-handle
           />
           <div
@@ -109,33 +127,37 @@ const BuilderWrapper: React.FC<{
             {title}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {onMoveUp && (
-            <button
-              type="button"
-              onClick={onMoveUp}
-              disabled={!canMoveUp}
-              className={`${canMoveUp ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
-              title="Move up"
-            >
-              <IoMdArrowUp size={20} color="var(--color-neutral-900)" />
+        {(!structureLocked || contentDeletable) && (
+          <div className="flex items-center gap-2">
+            {/* Move/reorder is a structural change — hidden while the structure is locked. */}
+            {!structureLocked && onMoveUp && (
+              <button
+                type="button"
+                onClick={onMoveUp}
+                disabled={!canMoveUp}
+                className={`${canMoveUp ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
+                title="Move up"
+              >
+                <IoMdArrowUp size={20} color="var(--color-neutral-900)" />
+              </button>
+            )}
+            {!structureLocked && onMoveDown && (
+              <button
+                type="button"
+                onClick={onMoveDown}
+                disabled={!canMoveDown}
+                className={`${canMoveDown ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
+                title="Move down"
+              >
+                <IoMdArrowDown size={20} color="var(--color-neutral-900)" />
+              </button>
+            )}
+            {/* Delete stays available for content items (medications/tasks) even when locked. */}
+            <button type="button" onClick={onDelete} className="hover:bg-red-50 rounded p-1">
+              <MdDeleteForever size={20} color="var(--color-danger-600)" />
             </button>
-          )}
-          {onMoveDown && (
-            <button
-              type="button"
-              onClick={onMoveDown}
-              disabled={!canMoveDown}
-              className={`${canMoveDown ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
-              title="Move down"
-            >
-              <IoMdArrowDown size={20} color="var(--color-neutral-900)" />
-            </button>
-          )}
-          <button type="button" onClick={onDelete} className="hover:bg-red-50 rounded p-1">
-            <MdDeleteForever size={20} color="var(--color-danger-600)" />
-          </button>
-        </div>
+          </div>
+        )}
       </div>
       {children}
     </section>

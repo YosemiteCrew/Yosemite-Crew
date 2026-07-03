@@ -32,6 +32,7 @@ import {
   CatalogService,
   CatalogServiceError,
 } from "../../src/services/catalog.service";
+import { CompanionOrganisationService } from "../../src/services/companion-organisation.service";
 import { FormModel } from "src/models/form";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
@@ -112,6 +113,12 @@ jest.mock("../../src/services/catalog.service", () => ({
   },
   CatalogService: {
     resolveSelection: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/companion-organisation.service", () => ({
+  CompanionOrganisationService: {
+    linkByParent: jest.fn(),
   },
 }));
 
@@ -215,6 +222,7 @@ jest.mock("src/config/prisma", () => ({
       updateMany: jest.fn(),
     },
     invoice: { findMany: jest.fn() },
+    admission: { findMany: jest.fn() },
     form: { findFirst: jest.fn(), findMany: jest.fn() },
     formVersion: { findFirst: jest.fn() },
     occupancy: {
@@ -233,6 +241,7 @@ jest.mock("src/config/prisma", () => ({
       upsert: jest.fn(),
     },
     organizationBilling: { findUnique: jest.fn() },
+    patientOrganisation: { findFirst: jest.fn(), create: jest.fn() },
   },
 }));
 
@@ -325,6 +334,13 @@ describe("AppointmentService", () => {
     (CatalogService.resolveSelection as jest.Mock).mockResolvedValue(null);
     (prisma.$transaction as jest.Mock).mockImplementation(
       async (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+    );
+    (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+      type: "HOSPITAL",
+    });
+    (OrganizationModel.findById as jest.Mock).mockReturnValue(
+      createQueryChain({ type: "HOSPITAL" }),
     );
   });
 
@@ -1213,6 +1229,7 @@ describe("AppointmentService", () => {
         serviceType: "OBSERVATION_TOOL",
         observationToolId: "tool_1",
       });
+      prisma.organization.findUnique.mockResolvedValue({ type: "HOSPITAL" });
       prisma.organizationBilling.findUnique.mockResolvedValue({ plan: "free" });
       prisma.organizationUsageCounter.findUnique.mockResolvedValue({
         orgId: "org_1",
@@ -1285,6 +1302,14 @@ describe("AppointmentService", () => {
       const result = await AppointmentService.createRequestedFromMobile(dto);
 
       expect(prisma.appointment.create).toHaveBeenCalled();
+      expect(CompanionOrganisationService.linkByParent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parentId: "parent_1",
+          patientId: "comp_1",
+          organisationId: "org_1",
+          organisationType: "HOSPITAL",
+        }),
+      );
       expect(prisma.organizationUsageCounter.update).toHaveBeenCalled();
       expect(InvoiceService.setInvoiceDepositTarget).toHaveBeenCalledWith(
         "inv_1",
@@ -1305,6 +1330,7 @@ describe("AppointmentService", () => {
         isActive: true,
         serviceType: "STANDARD",
       });
+      prisma.organization.findUnique.mockResolvedValue({ type: "HOSPITAL" });
       prisma.organizationBilling.findUnique.mockResolvedValue({ plan: "free" });
       prisma.organizationUsageCounter.findUnique.mockResolvedValue({
         orgId: "org_1",
@@ -1363,13 +1389,21 @@ describe("AppointmentService", () => {
       const result = await AppointmentService.createRequestedFromMobile(dto);
 
       expect((result.appointment as any).formIds).toEqual([]);
+      expect(CompanionOrganisationService.linkByParent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parentId: "parent_1",
+          patientId: "comp_1",
+          organisationId: "org_1",
+          organisationType: "HOSPITAL",
+        }),
+      );
       expect(InvoiceService.setInvoiceDepositTarget).toHaveBeenCalledWith(
         "inv_2",
         25,
       );
     });
 
-    it("should use catalog billing items and persist productItemId when catalog selection exists", async () => {
+    it("should collapse package catalog selections to a single invoice line and persist productItemId", async () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { prisma } = require("src/config/prisma");
       const startTime = new Date();
@@ -1378,9 +1412,11 @@ describe("AppointmentService", () => {
       (CatalogService.resolveSelection as jest.Mock).mockResolvedValue({
         productItemId: "prod_bundle",
         productKind: "PACKAGE",
+        name: "Dental Bundle",
         legacyServiceId: null,
         isBookable: true,
         appointmentKinds: ["OUTPATIENT"],
+        finalAmount: 317.5,
         billingItems: [
           {
             productItemId: "prod_bundle",
@@ -1469,14 +1505,8 @@ describe("AppointmentService", () => {
             {
               description: "Dental Bundle",
               quantity: 1,
-              unitPrice: 250,
-              discountPercent: 5,
-            },
-            {
-              description: "Dental X-Ray",
-              quantity: 2,
-              unitPrice: 40,
-              discountPercent: undefined,
+              unitPrice: 317.5,
+              total: 317.5,
             },
           ],
         }),
@@ -1575,6 +1605,12 @@ describe("AppointmentService", () => {
   });
 
   describe("createRequestedFromMobile (mongo)", () => {
+    beforeEach(() => {
+      (OrganizationModel.findById as jest.Mock).mockReturnValue(
+        createQueryChain({ type: "HOSPITAL" }),
+      );
+    });
+
     it("should throw when free plan observation tool limit reached", async () => {
       const startTime = new Date();
       const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
@@ -1653,6 +1689,14 @@ describe("AppointmentService", () => {
         durationMinutes: 30,
       } as any);
 
+      expect(CompanionOrganisationService.linkByParent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parentId: validId,
+          patientId: validId,
+          organisationId: validId,
+          organisationType: "HOSPITAL",
+        }),
+      );
       expect(TaskService.createCustom).toHaveBeenCalledWith(
         expect.objectContaining({
           observationToolId: toolId.toString(),
@@ -1715,6 +1759,66 @@ describe("AppointmentService", () => {
         await AppointmentService.getAppointmentsForOrganisation("org_1");
 
       expect((results[0] as any)?.paymentStatus).toBe("PAID");
+    });
+
+    it("enriches the room with its inpatient unit", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { prisma } = require("src/config/prisma");
+      const startTime = new Date();
+      const row = {
+        id: "appt_ipd",
+        encounterId: "enc_1",
+        companion: { id: "comp_1", parent: { id: "parent_1" }, name: "Pet" },
+        lead: null,
+        supportStaff: [],
+        room: { id: "room_1", name: "Recovery Room" },
+        appointmentType: { id: "service_1", name: "Checkup" },
+        organisationId: "org_1",
+        appointmentDate: startTime,
+        startTime,
+        endTime: new Date(startTime.getTime() + 30 * 60 * 1000),
+        timeSlot: "10:00",
+        durationMinutes: 30,
+        status: "REQUESTED",
+        isEmergency: false,
+        concern: null,
+        createdAt: startTime,
+        updatedAt: startTime,
+        attachments: null,
+        formIds: [],
+      };
+
+      prisma.appointment.findMany.mockResolvedValueOnce([row]);
+      prisma.invoice.findMany.mockResolvedValueOnce([]);
+      prisma.admission.findMany.mockResolvedValueOnce([
+        {
+          encounterId: "enc_1",
+          currentUnit: {
+            id: "unit_7",
+            displayName: "ICU - Bed 2",
+            code: "ICU-2",
+          },
+        },
+      ]);
+
+      const results =
+        await AppointmentService.getAppointmentsForOrganisation("org_1");
+      const room = (results[0] as any)?.room;
+
+      expect(prisma.admission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { encounterId: { in: ["enc_1"] } },
+        }),
+      );
+      expect(room?.id).toBe("room_1");
+      expect(room?.unitId).toBe("unit_7");
+      expect(room?.unitName).toBe("ICU - Bed 2");
+      expect(room?.unit).toEqual({
+        id: "unit_7",
+        name: "ICU - Bed 2",
+        displayName: "ICU - Bed 2",
+        code: "ICU-2",
+      });
     });
   });
 

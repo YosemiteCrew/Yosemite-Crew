@@ -90,6 +90,7 @@ describe('InventoryFormConfig', () => {
     it('should have the correct field structure in the classification section', () => {
       const classificationFields = extractFieldNames(config.classification!);
       const expectedFields = [
+        'genericName',
         'itemType',
         'drugSchedule',
         'species',
@@ -120,7 +121,6 @@ describe('InventoryFormConfig', () => {
     it('should have the correct field structure in the stock section', () => {
       const stockFields = extractFieldNames(config.stock!);
       const expectedFields = [
-        'current',
         'allocated',
         'maxStock',
         'stockLocation',
@@ -128,8 +128,10 @@ describe('InventoryFormConfig', () => {
         'reorderQuantity',
         'abcClass',
         'withdrawlPeriod',
+        'current',
         'available',
         'stockType',
+        'unitQnt',
       ];
       expect(stockFields).toEqual(expectedFields);
     });
@@ -212,7 +214,6 @@ describe('InventoryFormConfig', () => {
     it('should have the correct field structure in the stock section', () => {
       const stockFields = extractFieldNames(config.stock!);
       const expectedFields = [
-        'current',
         'allocated',
         'maxStock',
         'stockLocation',
@@ -220,6 +221,7 @@ describe('InventoryFormConfig', () => {
         'reorderQuantity',
         'abcClass',
         'withdrawlPeriod',
+        'current',
         'available',
       ];
       expect(stockFields).toEqual(expectedFields);
@@ -291,7 +293,6 @@ describe('InventoryFormConfig', () => {
     it('should have the correct field structure in the stock section', () => {
       const stockFields = extractFieldNames(config.stock!);
       const expectedFields = [
-        'current',
         'allocated',
         'maxStock',
         'stockLocation',
@@ -299,6 +300,7 @@ describe('InventoryFormConfig', () => {
         'reorderQuantity',
         'abcClass',
         'withdrawlPeriod',
+        'current',
         'available',
       ];
       expect(stockFields).toEqual(expectedFields);

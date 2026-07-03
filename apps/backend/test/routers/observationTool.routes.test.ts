@@ -26,6 +26,7 @@ const ObservationToolSubmissionController = {
   listForPms: jest.fn(),
   getById: jest.fn(),
   listForAppointment: jest.fn(),
+  createForAppointment: jest.fn(),
   getByTaskId: jest.fn(),
   listTaskPreviewsForAppointment: jest.fn(),
 };
@@ -104,6 +105,10 @@ describe("observationTool.routes", () => {
       "/pms/appointments/:appointmentId/submissions",
       "post",
     );
+    const appointmentCreateRoute = findRoute(
+      "/pms/appointments/:appointmentId/submissions/create",
+      "post",
+    );
     const taskSubmissionRoute = findRoute(
       "/pms/tasks/:taskId/submission",
       "get",
@@ -126,6 +131,15 @@ describe("observationTool.routes", () => {
     expect(
       appointmentSubmissionsRoute?.stack.map((layer) => layer.handle),
     ).toContain(authorizeCognito);
+    expect(
+      appointmentCreateRoute?.stack.map((layer) => layer.handle),
+    ).toContain(authorizeCognito);
+    expect(
+      appointmentCreateRoute?.stack.map((layer) => layer.handle),
+    ).toContain(ObservationToolSubmissionController.createForAppointment);
+    expect(
+      appointmentSubmissionsRoute?.stack.map((layer) => layer.handle),
+    ).toContain(ObservationToolSubmissionController.listForAppointment);
     expect(taskSubmissionRoute?.stack.map((layer) => layer.handle)).toContain(
       authorizeCognito,
     );
@@ -137,7 +151,7 @@ describe("observationTool.routes", () => {
     ).toContain(authorizeCognito);
 
     expect(withOrgPermissions).toHaveBeenCalledTimes(3);
-    expect(withAppointmentOrgPermissions).toHaveBeenCalledTimes(2);
+    expect(withAppointmentOrgPermissions).toHaveBeenCalledTimes(3);
     expect(withTaskOrgPermissions).toHaveBeenCalledTimes(2);
     expect(requirePermission).toHaveBeenCalledWith("appointments:view:any");
     expect(requirePermission).toHaveBeenCalledWith("appointments:edit:any");

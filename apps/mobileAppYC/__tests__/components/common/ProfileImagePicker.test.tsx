@@ -5,13 +5,7 @@ import {
   ProfileImagePicker,
   ProfileImagePickerRef,
 } from '../../../src/shared/components/common/ProfileImagePicker/ProfileImagePicker';
-import {
-  Alert,
-  Platform,
-  Linking,
-  Image,
-  TouchableOpacity,
-} from 'react-native';
+import {Alert, Platform, Linking, Image, TouchableOpacity} from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {check, request, RESULTS, PERMISSIONS} from 'react-native-permissions';
 import * as ImageUriUtils from '@/shared/utils/imageUri';
@@ -176,7 +170,7 @@ describe('ProfileImagePicker', () => {
       expect(check).toHaveBeenCalledWith(PERMISSIONS.IOS.PHOTO_LIBRARY);
     });
 
-    it('requests correct permissions on Android < 33', async () => {
+    it('opens Android gallery without storage permission on Android < 33', async () => {
       Platform.OS = 'android';
       // @ts-ignore
       Platform.Version = 32;
@@ -191,15 +185,14 @@ describe('ProfileImagePicker', () => {
         b => b.text === 'Choose from Gallery',
       )!;
 
-      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
       await act(async () => await chooseGallery.onPress!());
 
-      expect(check).toHaveBeenCalledWith(
-        PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
-      );
+      expect(check).not.toHaveBeenCalled();
+      expect(request).not.toHaveBeenCalled();
+      expect(launchImageLibrary).toHaveBeenCalled();
     });
 
-    it('requests correct permissions on Android >= 33', async () => {
+    it('opens Android gallery without media permission on Android >= 33', async () => {
       Platform.OS = 'android';
       // @ts-ignore
       Platform.Version = 33;
@@ -214,10 +207,11 @@ describe('ProfileImagePicker', () => {
         b => b.text === 'Choose from Gallery',
       )!;
 
-      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
       await act(async () => await chooseGallery.onPress!());
 
-      expect(check).toHaveBeenCalledWith(PERMISSIONS.ANDROID.READ_MEDIA_IMAGES);
+      expect(check).not.toHaveBeenCalled();
+      expect(request).not.toHaveBeenCalled();
+      expect(launchImageLibrary).toHaveBeenCalled();
     });
   });
 
@@ -243,7 +237,8 @@ describe('ProfileImagePicker', () => {
       expect(launchCamera).not.toHaveBeenCalled();
     });
 
-    it('handles RESULTS.UNAVAILABLE for Gallery', async () => {
+    it('handles RESULTS.UNAVAILABLE for iOS Gallery', async () => {
+      Platform.OS = 'ios';
       (check as jest.Mock).mockResolvedValue(RESULTS.UNAVAILABLE);
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,

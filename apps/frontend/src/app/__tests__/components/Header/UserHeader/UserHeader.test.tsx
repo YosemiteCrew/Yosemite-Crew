@@ -1,7 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import UserHeader from '@/app/ui/layout/Header/UserHeader/UserHeader';
 import { usePathname, useRouter } from 'next/navigation';
+import { useOrgStore } from '@/app/stores/orgStore';
+import type { Organisation } from '@yosemite-crew/types';
+import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 
 // --- Mocks ---
 
@@ -45,12 +48,18 @@ jest.mock('@/app/hooks/useMerckIntegration', () => ({
   useResolvedMerckIntegrationForPrimaryOrg: jest.fn(() => ({ isEnabled: true })),
 }));
 
+jest.mock('@/app/lib/postAuthRedirect', () => ({
+  resolveOrgScopedRedirect: jest.fn(),
+}));
+
 describe('UserHeader Component', () => {
   const mockPush = jest.fn();
   const mockReplace = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    useOrgStore.getState().clearOrgs();
+    (resolveOrgScopedRedirect as jest.Mock).mockResolvedValue('/dashboard');
     (useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
       replace: mockReplace,
@@ -126,6 +135,23 @@ describe('UserHeader Component', () => {
     render(<UserHeader />);
 
     expect(screen.getByTestId('next-link')).toHaveAttribute('href', '/developers/home');
+  });
+
+  it('updates the companions search placeholder with organization terminology after mount', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/companions');
+    const hospitalOrg = {
+      _id: 'hospital-org',
+      name: 'Hospital Org',
+      type: 'HOSPITAL',
+    } as Organisation;
+
+    useOrgStore.getState().setOrgs([hospitalOrg]);
+
+    render(<UserHeader />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search patients')).toBeInTheDocument();
+    });
   });
 
   // --- 3. Sign Out Logic ---
@@ -249,5 +275,67 @@ describe('UserHeader Component', () => {
     await waitFor(() => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
+  });
+
+  it('switches organizations from the mobile menu and closes the drawer', async () => {
+    jest.useFakeTimers();
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+
+    useOrgStore
+      .getState()
+      .setOrgs(
+        [
+          { _id: 'org-1', name: 'Alpha Vet', type: 'HOSPITAL' } as Organisation,
+          { _id: 'org-2', name: 'Beta Vet', type: 'HOSPITAL' } as Organisation,
+        ],
+        { keepPrimaryIfPresent: false }
+      );
+    useOrgStore
+      .getState()
+      .setUserOrgMappings([
+        { organizationReference: 'org-1', roleDisplay: 'OWNER' } as any,
+        { organizationReference: 'org-2', roleDisplay: 'OWNER' } as any,
+      ]);
+
+    render(<UserHeader />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    });
+
+    const mobileNavigation = screen.getByRole('navigation', { name: 'Mobile navigation' });
+
+    const mobileOrgTrigger = within(mobileNavigation)
+      .getAllByRole('button', { name: /organization/i })
+      .find((element) => element.className.includes('yc-mobile-org-trigger'));
+
+    expect(mobileOrgTrigger).toBeDefined();
+
+    await act(async () => {
+      fireEvent.click(mobileOrgTrigger!);
+    });
+
+    await act(async () => {
+      fireEvent.click(within(mobileNavigation).getAllByRole('menuitem', { name: 'Beta Vet' })[0]);
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(resolveOrgScopedRedirect).toHaveBeenCalledWith({
+        orgId: 'org-2',
+        fallbackRole: 'OWNER',
+      });
+      expect(mockPush).toHaveBeenCalledWith('/dashboard');
+    });
+
+    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    expect(
+      within(mobileNavigation).queryByRole('menuitem', { name: 'Beta Vet' })
+    ).not.toBeInTheDocument();
+
+    jest.useRealTimers();
   });
 });

@@ -1,5 +1,5 @@
 .pricingSection {
-  padding: 32px 80px;
+  padding: 88px 80px 32px;
   position: relative;
   z-index: 1;
 }
@@ -56,7 +56,7 @@
 }
 @media screen and (max-width: 1280px) {
   .pricingSection {
-    padding: 32px 32px;
+    padding: 88px 32px 32px;
   }
   .pricingSection .PricingData {
     gap: 64px;
@@ -72,7 +72,7 @@
 }
 @media screen and (max-width: 768px) {
   .pricingSection {
-    padding: 32px 16px;
+    padding: 80px 16px 32px;
   }
   .PricingPage-header {
     gap: 16px;

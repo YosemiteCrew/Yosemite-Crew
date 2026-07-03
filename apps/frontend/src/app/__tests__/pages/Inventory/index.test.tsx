@@ -4,6 +4,8 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import ProtectedInventory from '@/app/features/inventory/pages/Inventory';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useInventoryModule } from '@/app/hooks/useInventory';
+import { listDispenseRequests } from '@/app/features/inventory/services/dispensaryService';
+import { dispensePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 
 expect.extend(toHaveNoViolations);
 
@@ -19,6 +21,15 @@ jest.mock('next/dynamic', () => ({
           }
         ).default;
         return <MockInventoryTable {...props} />;
+      }
+
+      if (source.includes('ui/tables/DispensaryTable')) {
+        const MockDispensaryTable = (
+          jest.requireMock('@/app/ui/tables/DispensaryTable') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockDispensaryTable {...props} />;
       }
 
       if (source.includes('ui/tables/InventoryTurnoverTable')) {
@@ -126,6 +137,46 @@ jest.mock('@/app/ui/filters/InventoryFilters', () => ({
 jest.mock('@/app/ui/filters/InventoryTurnoverFilters', () => ({
   __esModule: true,
   default: () => <div data-testid="turnover-filters" />,
+}));
+
+jest.mock('@/app/ui/tables/DispensaryTable', () => ({
+  __esModule: true,
+  default: ({ filteredList, onView, onDispense }: any) => (
+    <div data-testid="dispensary-table">
+      {filteredList.map((record: any) => (
+        <div key={record.id} data-testid={`dispensary-record-${record.id}`}>
+          <span data-testid={`patient-name-${record.id}`}>{record.patient.name}</span>
+          <span data-testid={`parent-name-${record.id}`}>{record.petParentName ?? 'none'}</span>
+          <span data-testid={`request-type-${record.id}`}>{record.requestType}</span>
+          {onView && (
+            <button data-testid={`view-${record.id}`} onClick={() => onView(record)}>
+              View
+            </button>
+          )}
+          {onDispense && (
+            <button data-testid={`dispense-${record.id}`} onClick={() => onDispense(record)}>
+              Dispense
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  ),
+}));
+
+jest.mock('@/app/features/inventory/components/DispensaryDetailModal', () => ({
+  __esModule: true,
+  default: ({ record, showModal }: any) =>
+    showModal && record ? <div data-testid="dispensary-modal">{record.patient.name}</div> : null,
+}));
+
+jest.mock('@/app/features/inventory/services/dispensaryService', () => ({
+  listDispenseRequests: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('@/app/features/appointments/services/prescriptionWorkflowService', () => ({
+  dispensePrescription: jest.fn().mockResolvedValue({}),
+  finalizePrescription: jest.fn().mockResolvedValue({}),
 }));
 
 // Mock Tables
@@ -261,7 +312,7 @@ const mockInventory = [
   },
   {
     id: '2',
-    status: 'HIDDEN',
+    status: 'ACTIVE',
     stockHealth: 'Low Stock',
     basicInfo: { name: 'Item B', category: 'Food', description: 'Desc B' },
   },
@@ -332,18 +383,16 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     expect(screen.getByRole('button', { name: 'Inventory info' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Turnover' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dispensary' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sort by' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add item' })).toBeInTheDocument();
     expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
-    expect(screen.queryByTestId('turnover-filters')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('turnover-table')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dispensary-table')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
 
-    expect(screen.getByTestId('turnover-filters')).toBeInTheDocument();
-    expect(screen.getByTestId('turnover-table')).toBeInTheDocument();
+    expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
     expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
   });
 
@@ -413,6 +462,7 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Medicine' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
@@ -426,27 +476,36 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Medicine' }));
 
-    const removeChip = screen.getByRole('button', { name: 'Remove Medicine filter' });
+    const removeChip = screen.getByRole('button', { name: 'Remove Medicine' });
     expect(removeChip).toBeInTheDocument();
 
     fireEvent.click(removeChip);
 
-    expect(
-      screen.queryByRole('button', { name: 'Remove Medicine filter' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove Medicine' })).not.toBeInTheDocument();
     expect((screen.getByRole('checkbox', { name: 'Medicine' }) as HTMLInputElement).checked).toBe(
       false
     );
   });
 
   it('filters inventory by status', async () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [mockInventory[0], { ...mockInventory[1], status: 'HIDDEN' }],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+    });
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Visible' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+
     await waitFor(() => {
       expect(screen.getByTestId('item-1')).toBeInTheDocument();
       expect(screen.queryByTestId('item-2')).not.toBeInTheDocument();
@@ -646,5 +705,169 @@ describe('Inventory Page', () => {
       expect(screen.getByText('Unable to hide inventory item.')).toBeInTheDocument();
     });
     consoleSpy.mockRestore();
+  });
+
+  // --- Section 5: Dispensary view ---
+
+  const baseDispenseRequest = (overrides: Record<string, any> = {}) => ({
+    id: 'dr-1',
+    prescriptionId: 'presc-1',
+    organisationId: 'org-1',
+    status: 'PENDING',
+    medications: [
+      {
+        inventoryItemId: 'inv-1',
+        inventoryItemName: 'Paracetamol',
+        quantity: 1,
+        priceCents: 6500,
+        fulfillment: 'PATIENT',
+        frequency: 'TID (three times daily)',
+        frequencyPerDay: 3,
+        durationDays: 14,
+        doseQty: 655,
+        doseUnit: 'mL Capsule',
+        refillsRemaining: 3,
+        isRx: true,
+        isControlled: true,
+        metadata: { doseUnit: 'capsule', durationUnit: 'weeks' },
+      },
+    ],
+    metadata: { petParentName: 'Tim Cook' },
+    patientName: 'Catty',
+    parentName: null,
+    petBreed: 'Persian',
+    petAge: '2',
+    patientImageUrl: null,
+    leadName: 'Harshit Wandhare',
+    location: 'Puppy Ward',
+    invoiceId: null,
+    paymentStatus: null,
+    currency: 'USD',
+    requestedBy: 'user-1',
+    reviewedBy: null,
+    requestedAt: '2026-06-30T13:17:32.259Z',
+    reviewedAt: null,
+    createdAt: '2026-06-30T13:17:32.259Z',
+    updatedAt: '2026-06-30T13:17:32.259Z',
+    prescription: {
+      id: 'presc-1',
+      artifactId: 'art-1',
+      artifact: {
+        id: 'art-1',
+        kind: 'PRESCRIPTION',
+        status: 'COMPLETED',
+        appointmentId: 'appt-1',
+        summary: 'Paracetamol',
+      },
+    },
+    ...overrides,
+  });
+
+  const openDispensaryView = async (recordId = 'dr-1') => {
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
+    await waitFor(() => {
+      expect(screen.getByTestId(`dispensary-record-${recordId}`)).toBeInTheDocument();
+    });
+  };
+
+  beforeEach(() => {
+    (listDispenseRequests as jest.Mock).mockReset().mockResolvedValue([]);
+  });
+
+  it('prefers the top-level parentName over metadata.petParentName', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([
+      baseDispenseRequest({ parentName: 'Tim Cook', metadata: { petParentName: 'Other Name' } }),
+    ]);
+    await openDispensaryView();
+    expect(screen.getByTestId('parent-name-dr-1')).toHaveTextContent('Tim Cook');
+  });
+
+  it('falls back to metadata.petParentName when parentName is absent', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([
+      baseDispenseRequest({ parentName: null, metadata: { petParentName: 'Tim Cook' } }),
+    ]);
+    await openDispensaryView();
+    expect(screen.getByTestId('parent-name-dr-1')).toHaveTextContent('Tim Cook');
+  });
+
+  it('renders no parent name when neither source provides one', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([
+      baseDispenseRequest({ parentName: null, metadata: {} }),
+    ]);
+    await openDispensaryView();
+    expect(screen.getByTestId('parent-name-dr-1')).toHaveTextContent('none');
+  });
+
+  it('derives PATIENT request type when fulfillment is not IN_HOUSE and a patient name exists', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    await openDispensaryView();
+    expect(screen.getByTestId('request-type-dr-1')).toHaveTextContent('PATIENT');
+  });
+
+  it('derives IN_HOUSE request type when fulfillment is IN_HOUSE', async () => {
+    const req = baseDispenseRequest();
+    req.medications[0].fulfillment = 'IN_HOUSE';
+    (listDispenseRequests as jest.Mock).mockResolvedValue([req]);
+    await openDispensaryView();
+    expect(screen.getByTestId('request-type-dr-1')).toHaveTextContent('IN_HOUSE');
+  });
+
+  it('derives IN_HOUSE request type when there is no patient name', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([
+      baseDispenseRequest({ patientName: null }),
+    ]);
+    await openDispensaryView();
+    expect(screen.getByTestId('request-type-dr-1')).toHaveTextContent('IN_HOUSE');
+  });
+
+  it('opens the dispensary detail modal when View is clicked', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    await openDispensaryView();
+    fireEvent.click(screen.getByTestId('view-dr-1'));
+    expect(screen.getByTestId('dispensary-modal')).toHaveTextContent('Catty');
+  });
+
+  it('calls dispensePrescription and refetches when Dispense is clicked', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    await openDispensaryView();
+
+    fireEvent.click(screen.getByTestId('dispense-dr-1'));
+
+    await waitFor(() => {
+      expect(dispensePrescription).toHaveBeenCalledWith('org-1', 'presc-1');
+    });
+    await waitFor(() => {
+      expect(listDispenseRequests).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('silently swallows errors when dispensePrescription fails', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    (dispensePrescription as jest.Mock).mockRejectedValueOnce(new Error('Dispense failed'));
+    await openDispensaryView();
+
+    fireEvent.click(screen.getByTestId('dispense-dr-1'));
+
+    await waitFor(() => {
+      expect(dispensePrescription).toHaveBeenCalled();
+    });
+    expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
+  });
+
+  it('silently handles errors from listDispenseRequests', async () => {
+    (listDispenseRequests as jest.Mock).mockRejectedValue(new Error('Network error'));
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('dispensary-record-dr-1')).not.toBeInTheDocument();
+  });
+
+  it('maps medication dose unit, duration and refill display fields', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    await openDispensaryView();
+    expect(screen.getByTestId('patient-name-dr-1')).toHaveTextContent('Catty');
   });
 });

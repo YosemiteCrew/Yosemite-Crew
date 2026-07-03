@@ -233,6 +233,27 @@ describe('AppointmentBoard', () => {
     );
   });
 
+  it('shows room and unit on inpatient status board cards', () => {
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-inpatient',
+            status: 'UPCOMING',
+            appointmentKind: 'INPATIENT',
+            room: { name: 'Ward 1', unitName: 'Kennel A' },
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByText('Room / Unit: Ward 1 / Kennel A')).toBeInTheDocument();
+  });
+
   it('triggers add appointment and date navigation callbacks', () => {
     const onAddAppointment = jest.fn();
 

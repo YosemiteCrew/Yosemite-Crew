@@ -111,7 +111,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
           columns={columns}
           bordered={false}
           pagination
-          pageSize={5}
+          pageSize={10}
           tableClassName="inventory-turnover-table-fixed"
         />
       </div>

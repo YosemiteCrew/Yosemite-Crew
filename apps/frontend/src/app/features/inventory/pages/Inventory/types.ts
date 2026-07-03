@@ -10,32 +10,67 @@ export type StockHealthStatus =
   | 'OUT_OF_STOCK'
   | 'OVERSTOCKED';
 
-export type InventoryBatchApi = {
+type InventoryBatchDetails = {
   batchNumber?: string;
   lotNumber?: string;
   regulatoryTrackingId?: string;
+  expiryWarningBefore?: string;
+  barcode?: string;
   manufactureDate?: string;
   expiryDate?: string;
   minShelfLifeAlertDate?: string;
   quantity?: number;
   allocated?: number;
-  createdAt?: string;
-  updatedAt?: string;
+};
+
+type InventoryBatchIdentity = {
   _id?: string;
   itemId?: string;
   organisationId?: string;
+  batchNumber?: string;
+  lotNumber?: string;
+  regulatoryTrackingId?: string;
+  expiryWarningBefore?: string;
+  barcode?: string;
+  manufactureDate?: string;
+  expiryDate?: string;
+  minShelfLifeAlertDate?: string;
+  quantity?: number;
+  allocated?: number;
 };
 
-export type InventoryApiItem = {
-  _id: string;
+export type InventoryBatchApi = InventoryBatchDetails &
+  InventoryBatchIdentity & {
+    createdAt?: string;
+    updatedAt?: string;
+  };
+
+type InventoryBusinessContext = {
   organisationId: string;
   businessType: BusinessType;
+};
+
+type InventoryItemDetails<ItemType = string> = {
+  itemType?: ItemType;
   name: string;
   sku?: string;
   category?: string;
   subCategory?: string;
   description?: string;
   imageUrl?: string;
+  genericName?: string;
+  strength?: string;
+  dosageForm?: string;
+  routeOfAdministration?: string;
+  prescriptionRequired?: boolean;
+  controlledItem?: boolean;
+  storageInstructions?: string;
+  unitOfMeasure?: string;
+  packageQuantity?: number;
+  unitQuantity?: number;
+  stockUnitType?: string;
+  storageLocation?: string;
+  minimumStock?: number;
   attributes?: Record<string, any>;
   onHand?: number;
   allocated?: number;
@@ -45,48 +80,25 @@ export type InventoryApiItem = {
   currency?: string;
   vendorId?: string;
   status?: string;
-  stockHealth?: StockHealthStatus;
-  batches?: InventoryBatchApi[];
-  createdAt?: string;
-  updatedAt?: string;
 };
 
-export type InventoryBatchPayload = {
-  _id?: string;
-  itemId?: string;
-  organisationId?: string;
-  batchNumber?: string;
-  lotNumber?: string;
-  regulatoryTrackingId?: string;
-  manufactureDate?: string;
-  expiryDate?: string;
-  minShelfLifeAlertDate?: string;
-  quantity?: number;
-  allocated?: number;
-};
+export type InventoryApiItem = InventoryBusinessContext &
+  InventoryItemDetails & {
+    _id: string;
+    stockHealth?: StockHealthStatus;
+    batches?: InventoryBatchApi[];
+    createdAt?: string;
+    updatedAt?: string;
+  };
 
-export type InventoryRequestPayload = {
-  organisationId: string;
-  businessType: BusinessType;
-  name: string;
-  sku?: string;
-  category?: string;
-  subCategory?: string;
-  description?: string;
-  imageUrl?: string;
-  attributes?: Record<string, any>;
-  onHand?: number;
-  allocated?: number;
-  initialOnHand?: number;
-  initialAllocated?: number;
-  reorderLevel?: number;
-  unitCost?: number;
-  sellingPrice?: number;
-  currency?: string;
-  vendorId?: string;
-  status?: string;
-  batches?: InventoryBatchPayload[];
-};
+export type InventoryBatchPayload = InventoryBatchIdentity & InventoryBatchDetails;
+
+export type InventoryRequestPayload = InventoryBusinessContext &
+  InventoryItemDetails<'MEDICAL' | 'NON_MEDICAL'> & {
+    initialOnHand?: number;
+    initialAllocated?: number;
+    batches?: InventoryBatchPayload[];
+  };
 
 // Primary Information Values
 export const StatusOptions: string[] = ['Low stock', 'Expired', 'Hidden', 'This week'];
@@ -488,6 +500,7 @@ export const SafetyClassificationOptions: string[] = [
 ];
 
 export type ClassificationValues = {
+  genericName?: string;
   form?: string;
   unitofMeasure?: string | string[];
   species?: string | string[];
@@ -570,7 +583,16 @@ export const StockLocationOptions = [
   'Treatment room',
   'Isolation ward',
 ];
-export const StockTypeOptions = ['Central store', 'Pharmacy', 'Surgery', 'Lab', 'Cold storage'];
+export const StockTypeOptions = [
+  'Bottle',
+  'Strip',
+  'Box',
+  'Pair',
+  'Kit',
+  'Piece',
+  'Pack of',
+  'Custom',
+];
 export const AbcClassOptions = ['Class A', 'Class B', 'Class C'];
 export const WithdrawalPeriodOptions = [
   'Not applicable',
@@ -596,6 +618,7 @@ export type StockValues = {
 
   // Hospital
   stockType?: string;
+  unitQnt?: string;
 };
 
 // Batch Values
@@ -664,6 +687,58 @@ export type InventoryErrors = {
   stock?: Partial<Record<keyof StockValues, string>>;
   batch?: Partial<Record<keyof BatchValues, string>>;
 };
+
+export type DispensaryRequestType = 'ALL' | 'PATIENT' | 'IN_HOUSE';
+export type DispensaryStatus = 'PENDING' | 'DISPENSED' | 'NOT_DISPENSED';
+
+export interface DispensaryItem {
+  name: string;
+  quantity: number;
+  priceCents: number;
+  isRx?: boolean;
+  isControlled?: boolean;
+  doseQty?: number;
+  doseUnit?: string;
+  frequency?: string;
+  frequencyPerDay?: number;
+  durationDays?: number;
+  durationUnit?: string;
+  refillsRemaining?: number;
+  stockUnitQty?: number;
+  stockUnitType?: string;
+  prescription?: {
+    dose: string;
+    freq: string;
+    duration: string;
+    refill: string;
+    route?: string;
+  };
+}
+
+export interface DispensaryRecord {
+  id: string;
+  prescriptionId: string;
+  patient: {
+    name: string;
+    appointmentId: string;
+    imageUrl?: string;
+    petBreed?: string;
+    petAge?: string;
+  };
+  status: DispensaryStatus;
+  prescriptionItems: string[];
+  prescriptionCreated: string;
+  amountCents: number;
+  currency?: string;
+  lead: string;
+  petParentName?: string;
+  location: string;
+  timeDispensed?: string;
+  requestType: 'PATIENT' | 'IN_HOUSE';
+  invoiceId?: string;
+  paymentStatus?: 'PAID' | 'UNPAID';
+  items?: DispensaryItem[];
+}
 
 export interface InventoryTurnoverItem {
   itemId?: string;

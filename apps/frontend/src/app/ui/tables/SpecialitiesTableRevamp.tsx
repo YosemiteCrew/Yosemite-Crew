@@ -43,7 +43,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       },
     },
     {
-      label: 'Services',
+      label: 'Services / Packages',
       key: 'Services',
       width: '100px',
       render: (item: SpecialityWeb) => {

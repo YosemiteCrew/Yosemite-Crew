@@ -25,6 +25,14 @@ export class ObservationToolSubmissionServiceError extends Error {
   }
 }
 
+type ObservationToolTaskRow = {
+  _id: Types.ObjectId;
+  patientId?: string | null;
+  status?: string;
+  dueAt?: Date;
+  observationToolId?: Types.ObjectId | string | null;
+};
+
 const SAFE_ID_FALLBACK = /^[A-Za-z0-9_-]+$/;
 
 const asNonEmptyString = (value: unknown): string | undefined => {
@@ -88,6 +96,11 @@ export interface CreateObservationToolSubmissionInput {
 
   answers: ObservationToolAnswers;
   summary?: string;
+}
+
+export interface CreateAppointmentSubmissionInput extends CreateObservationToolSubmissionInput {
+  appointmentId: string;
+  organisationId: string;
 }
 
 export interface LinkSubmissionToAppointmentInput {
@@ -532,6 +545,93 @@ export const ObservationToolSubmissionService = {
     return doc;
   },
 
+  /**
+   * PMS — clinician records an observation-tool submission directly against an
+   * appointment. The score is computed from the tool definition (never trusted
+   * from the client) and the submission is linked to the appointment via
+   * evaluationAppointmentId so it surfaces in the appointment workspace.
+   */
+  async createForAppointment(
+    input: CreateAppointmentSubmissionInput,
+  ): Promise<ObservationToolSubmissionDocument> {
+    assertSubmissionInput(input);
+
+    const appointmentId = assertObjectId(input.appointmentId, "appointmentId");
+    const organisationId = assertObjectId(
+      input.organisationId,
+      "organisationId",
+    );
+    const taskId = input.taskId
+      ? assertObjectId(input.taskId, "taskId")
+      : undefined;
+
+    await ensureAppointmentInOrganisation(appointmentId, organisationId);
+    await ensureCompanionInOrganisation(input.patientId, organisationId);
+
+    if (isReadFromPostgres()) {
+      const tool = await prisma.observationToolDefinition.findFirst({
+        where: { id: input.toolId },
+      });
+
+      if (!tool?.isActive) {
+        throw new ObservationToolSubmissionServiceError(
+          "Observation tool not found or inactive",
+          404,
+        );
+      }
+
+      const toolForScore = {
+        fields: (tool.fields ??
+          []) as unknown as ObservationToolDefinitionDocument["fields"],
+      } as ObservationToolDefinitionDocument;
+
+      const score = computeScore(toolForScore, input.answers);
+
+      const doc = await prisma.observationToolSubmission.create({
+        data: {
+          toolId: input.toolId,
+          taskId,
+          patientId: input.patientId,
+          filledBy: input.filledBy,
+          answers: input.answers as Prisma.InputJsonValue,
+          score: score ?? undefined,
+          summary: input.summary ?? undefined,
+          evaluationAppointmentId: appointmentId,
+        },
+      });
+
+      return doc as unknown as ObservationToolSubmissionDocument;
+    }
+
+    const tool = await ObservationToolDefinitionModel.findById(
+      input.toolId,
+    ).exec();
+
+    if (!tool?.isActive) {
+      throw new ObservationToolSubmissionServiceError(
+        "Observation tool not found or inactive",
+        404,
+      );
+    }
+
+    const score = computeScore(tool, input.answers);
+
+    const doc = await ObservationToolSubmissionModel.create({
+      toolId: input.toolId,
+      taskId,
+      patientId: input.patientId,
+      filledBy: input.filledBy,
+      answers: input.answers,
+      score,
+      summary: input.summary,
+      evaluationAppointmentId: appointmentId,
+    });
+
+    await syncObservationToolSubmissionToPostgres(doc);
+
+    return doc;
+  },
+
   async linkToAppointment(
     input: LinkSubmissionToAppointmentInput,
   ): Promise<ObservationToolSubmissionDocument> {
@@ -968,13 +1068,7 @@ export const ObservationToolSubmissionService = {
     })
       .setOptions({ sanitizeFilter: true })
       .select("_id patientId status dueAt observationToolId")
-      .lean()) as unknown as Array<{
-      _id: Types.ObjectId;
-      patientId?: string | null;
-      status?: string;
-      dueAt?: Date;
-      observationToolId?: Types.ObjectId | string | null;
-    }>;
+      .lean()) as unknown as Array<ObservationToolTaskRow>;
 
     if (!tasks.length) return [];
 

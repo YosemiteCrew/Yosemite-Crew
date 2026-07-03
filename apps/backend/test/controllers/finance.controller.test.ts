@@ -39,6 +39,7 @@ jest.mock("../../src/services/invoice.service", () => ({
     addItemsToInvoice: jest.fn(),
     addChargesToAppointment: jest.fn(),
     markAppointmentReadyForBilling: jest.fn(),
+    reverseAppointmentReadyForBilling: jest.fn(),
   },
 }));
 
@@ -56,6 +57,7 @@ jest.mock("../../src/services/finance/events", () => ({
   FinanceEventService: {
     recordEvent: jest.fn(),
   },
+  resolveActorDisplayName: jest.fn(),
 }));
 
 jest.mock("../../src/services/authUserMobile.service", () => ({
@@ -129,6 +131,7 @@ describe("FinanceController", () => {
     ).mockResolvedValueOnce({
       paymentIntentId: "pi_1",
       clientSecret: "secret_1",
+      connectedAccountId: "acct_1",
       amount: 42,
       currency: "usd",
     });
@@ -145,12 +148,16 @@ describe("FinanceController", () => {
 
     expect(
       FinancePaymentService.createPaymentIntentForInvoice,
-    ).toHaveBeenCalledWith("inv_1");
+    ).toHaveBeenCalledWith("inv_1", {
+      collectionMode: "DEPOSIT_THEN_SETTLE",
+      settlementChannel: "DEPOSIT",
+    });
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
       data: {
         paymentIntentId: "pi_1",
         clientSecret: "secret_1",
+        connectedAccountId: "acct_1",
         amount: 42,
         currency: "usd",
       },
@@ -357,6 +364,37 @@ describe("FinanceController", () => {
 
     expect(InvoiceService.listForOrganisation).toHaveBeenCalledWith("org_1");
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("lists invoices by appointment when both appointment and organisation filters are present", async () => {
+    (InvoiceService.getByAppointmentId as jest.Mock).mockResolvedValueOnce([
+      { id: "inv_appt" },
+    ]);
+
+    const req = {
+      query: {
+        organisationId: "org_1",
+        appointmentId: "appt_1",
+      },
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.listInvoices(req, res);
+
+    expect(InvoiceService.getByAppointmentId).toHaveBeenCalledWith(
+      "appt_1",
+      "org_1",
+    );
+    expect(InvoiceService.listForOrganisation).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      data: [{ id: "inv_appt" }],
+      meta: null,
+      error: null,
+    });
   });
 
   it("lists organisation invoices through the finance alias", async () => {
@@ -665,6 +703,53 @@ describe("FinanceController", () => {
       }),
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("reverses an appointment ready-for-billing state from the finance route", async () => {
+    (
+      InvoiceService.reverseAppointmentReadyForBilling as jest.Mock
+    ).mockResolvedValueOnce({
+      id: "inv_ready",
+      visitBillingStage: "DRAFT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+    });
+    (FinanceEventService.recordEvent as jest.Mock).mockResolvedValueOnce({});
+
+    const req = {
+      params: { appointmentId: "appt_1" },
+      organisationId: "org_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.reverseAppointmentReadyForBilling(req, res);
+
+    expect(
+      InvoiceService.reverseAppointmentReadyForBilling,
+    ).toHaveBeenCalledWith("appt_1");
+    expect(FinanceEventService.recordEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organisationId: "org_1",
+        eventType: "APPOINTMENT_READY_FOR_BILLING_REVERSED",
+        payload: expect.objectContaining({
+          invoiceId: "inv_ready",
+          billingState: "DRAFT",
+        }),
+      }),
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          appointmentId: "appt_1",
+          billingState: "DRAFT",
+          invoiceId: "inv_ready",
+          collectionMode: "PAY_AT_VISIT_END",
+        }),
+      }),
+    );
   });
 
   it("records a visit milestone and auto-readies billing when requested", async () => {

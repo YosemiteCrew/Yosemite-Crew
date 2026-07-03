@@ -17,6 +17,7 @@ import {
   getIdexxResultById,
   getIdexxResultPdfUrl,
   getIdexxResultPdfBlob,
+  getIdexxCombinedResultsPdfBlob,
 } from '@/app/features/integrations/services/idexxService';
 
 const getDataMock = jest.fn();
@@ -454,5 +455,28 @@ describe('getIdexxResultPdfBlob', () => {
     apiGetMock.mockResolvedValue({ data: nonHexBlob });
     const result = await getIdexxResultPdfBlob({ organisationId: 'org-1', resultId: 'r1' });
     expect(result.type).toBe('application/pdf');
+  });
+});
+
+describe('getIdexxCombinedResultsPdfBlob', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('requests the combined results PDF with comma-joined resultIds', async () => {
+    const mockBlob = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
+    apiGetMock.mockResolvedValue({ data: mockBlob });
+
+    const result = await getIdexxCombinedResultsPdfBlob({
+      organisationId: 'org-1',
+      resultIds: ['r1', 'r2'],
+    });
+
+    expect(result).toBeInstanceOf(Blob);
+    expect(apiGetMock).toHaveBeenCalledWith(
+      '/v1/labs/pms/organisation/org-1/IDEXX/results/pdf',
+      expect.objectContaining({
+        responseType: 'blob',
+        params: { resultIds: 'r1,r2' },
+      })
+    );
   });
 });

@@ -14,7 +14,11 @@ jest.useFakeTimers();
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt }: any) => <span data-testid="mock-next-image">{alt || ''}</span>,
+  default: ({ alt, width }: any) => (
+    <span data-testid="mock-next-image" data-width={width}>
+      {alt || ''}
+    </span>
+  ),
 }));
 
 jest.mock('@/app/ui/tables/Appointments', () => ({
@@ -34,6 +38,11 @@ jest.mock('@/app/lib/appointments', () => ({
   ),
   normalizeAppointmentStatus: (status: string) => (status === 'NO_PAYMENT' ? 'REQUESTED' : status),
   toStatusLabel: (status: string) => status,
+}));
+
+jest.mock('@/app/lib/appointmentWorkspace', () => ({
+  ...jest.requireActual('@/app/lib/appointmentWorkspace'),
+  canEnterAppointmentWorkspace: (status?: string) => status !== 'CANCELLED' && status !== 'NO_SHOW',
 }));
 
 jest.mock('@/app/features/appointments/components/Calendar/calendarDrop', () => ({
@@ -187,6 +196,39 @@ describe('Slot (Appointments)', () => {
     expect(handleDetailAppointment).not.toHaveBeenCalled();
   });
 
+  it('does not open the workspace for cancelled appointments from the popover or double click', () => {
+    const cancelledEvent = { ...event, status: 'CANCELLED' };
+
+    render(
+      <Slot
+        slotEvents={[cancelledEvent]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleOpenWorkspace={handleOpenWorkspace}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    const marker = screen.getByRole('button', { name: /Rex/i });
+    fireEvent.click(marker);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+
+    expect(screen.queryByRole('button', { name: /view appointment/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /finance summary/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /lab tests/i })).not.toBeInTheDocument();
+
+    fireEvent.doubleClick(marker);
+
+    expect(handleOpenWorkspace).not.toHaveBeenCalled();
+    expect(handleDetailAppointment).toHaveBeenCalledWith(cancelledEvent);
+  });
+
   it('shows only the service label for overlapping compact markers', () => {
     const overlappingEvent = {
       ...event,
@@ -216,6 +258,31 @@ describe('Slot (Appointments)', () => {
       screen.queryByText('Very long concern that should not be rendered in compact markers')
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Checkup')).not.toBeInTheDocument();
+  });
+
+  it('shows a compact companion avatar for short single-lane markers', () => {
+    const shortEvent = {
+      ...event,
+      startTime: new Date('2025-01-06T09:00:00Z'),
+      endTime: new Date('2025-01-06T09:05:00Z'),
+    };
+
+    render(
+      <Slot
+        slotEvents={[shortEvent]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    const image = screen.getByTestId('mock-next-image');
+    expect(image).toBeInTheDocument();
+    expect(image).toHaveAttribute('data-width', '24');
   });
 
   it('creates appointment when empty slot is clicked', () => {

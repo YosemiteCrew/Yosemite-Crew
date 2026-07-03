@@ -15,7 +15,10 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import type {VetPackage} from '@/features/appointments/types';
 import {PackageItem} from '@/features/appointments/components/PackageAccordion/PackageAccordion';
-import {createAccordionSectionStyles} from '@/features/appointments/components/accordionSectionStyles';
+import {
+  createAccordionSectionStyles,
+  KIND_LABELS,
+} from '@/features/appointments/components/accordionSectionStyles';
 
 interface Service {
   id: string;
@@ -24,6 +27,7 @@ interface Service {
   basePrice?: number;
   currency?: string;
   icon?: any;
+  appointmentKinds?: string[];
 }
 
 interface SpecialtyGroup {
@@ -115,14 +119,26 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
                   {service.name}
                 </Text>
                 {service.basePrice ? (
-                  <View style={styles.priceChip}>
-                    <Text style={styles.priceChipText}>
+                  <View style={styles.chipContainer}>
+                    <Text style={styles.chipText}>
                       {resolveCurrencySymbol(service?.currency ?? 'USD')}
                       {service.basePrice}
                     </Text>
                   </View>
                 ) : null}
               </View>
+              {service.appointmentKinds &&
+              service.appointmentKinds.length > 0 ? (
+                <View style={styles.kindBadgeRow}>
+                  {service.appointmentKinds.map(kind => (
+                    <View key={kind} style={styles.kindBadge}>
+                      <Text style={styles.kindBadgeText}>
+                        {KIND_LABELS[kind] ?? kind}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
               {service.description ? (
                 <Text style={styles.serviceDescription}>
                   {service.description}
@@ -276,27 +292,6 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['3'],
     },
-    priceChip: {
-      paddingHorizontal: theme.spacing['2'],
-      paddingVertical: theme.spacing['1'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.primaryTint,
-    },
-    priceChipText: {
-      ...theme.typography.subtitleBold12,
-      color: theme.colors.primary,
-    },
-    selectButton: {
-      width: '100%',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: theme.borderRadius.lg,
-    },
-    selectButtonText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.white,
-    },
-
     // ── Package section inside specialty ──
     packagesSectionWrapper: {
       gap: theme.spacing['2'],

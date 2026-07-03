@@ -344,6 +344,77 @@ const ensureSafeIdentifier = (value: unknown): string | undefined => {
   return identifier;
 };
 
+const resolveOrganisationByPlaceId = async (placeId: string) => {
+  const org = await prisma.organization.findFirst({
+    where: { googlePlacesId: placeId },
+    include: { address: true },
+  });
+
+  if (!org) return null;
+
+  return {
+    isPmsOrganisation: true as const,
+    organisation: buildFHIRResponseFromPrisma(org),
+  };
+};
+
+const resolveOrganisationByCoordinates = async (lat: number, lng: number) => {
+  const metersPerDegreeLat = 111000;
+  const latDelta = 120 / metersPerDegreeLat;
+  const lngDelta = 120 / (metersPerDegreeLat * Math.cos(toRadians(lat)));
+
+  const orgs = await prisma.organization.findMany({
+    where: {
+      address: {
+        is: {
+          latitude: { gte: lat - latDelta, lte: lat + latDelta },
+          longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
+        },
+      },
+    },
+    include: { address: true },
+  });
+
+  const closest = orgs.find((org) => {
+    if (org.address?.latitude == null || org.address?.longitude == null) {
+      return false;
+    }
+
+    return (
+      calculateDistanceMeters(
+        lat,
+        lng,
+        org.address.latitude,
+        org.address.longitude,
+      ) <= 120
+    );
+  });
+
+  if (!closest) return null;
+
+  return {
+    isPmsOrganisation: true as const,
+    organisation: buildFHIRResponseFromPrisma(closest),
+  };
+};
+
+const resolveOrganisationByName = async (name: string) => {
+  const safeName = name.trim();
+  if (!safeName) return null;
+
+  const org = await prisma.organization.findFirst({
+    where: { name: { contains: safeName, mode: "insensitive" } },
+    include: { address: true },
+  });
+
+  if (!org) return null;
+
+  return {
+    isPmsOrganisation: true as const,
+    organisation: buildFHIRResponseFromPrisma(org),
+  };
+};
+
 const requireOrganizationType = (value: unknown): Organisation["type"] => {
   if (typeof value !== "string") {
     throw new OrganizationServiceError(
@@ -462,6 +533,10 @@ const sanitizeBusinessAttributes = (
     dto.appointmentLockWindowInpatientMinutes,
     "Appointment lock window inpatient minutes",
   );
+  const crossOrgMessagingEnabled =
+    dto.crossOrgMessagingEnabled === undefined
+      ? undefined
+      : Boolean(dto.crossOrgMessagingEnabled);
   const checkInConfig = resolveCheckInConfig({
     appointmentCheckInBufferMinutes,
     appointmentCheckInRadiusMeters,
@@ -492,6 +567,7 @@ const sanitizeBusinessAttributes = (
       checkInConfig.appointmentCheckInRadiusMeters,
     appointmentLockWindowOutpatientMinutes,
     appointmentLockWindowInpatientMinutes,
+    crossOrgMessagingEnabled,
   };
 };
 
@@ -513,6 +589,7 @@ const buildFHIRResponseFromPrisma = (
       organisation.appointmentLockWindowOutpatientMinutes ?? undefined,
     appointmentLockWindowInpatientMinutes:
       organisation.appointmentLockWindowInpatientMinutes ?? undefined,
+    crossOrgMessagingEnabled: organisation.crossOrgMessagingEnabled ?? false,
     _id: organisation.fhirId ?? organisation.id,
     name: organisation.name,
     taxId: organisation.taxId ?? "",
@@ -634,6 +711,7 @@ export const OrganizationService = {
         persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
       appointmentLockWindowInpatientMinutes:
         persistable.appointmentLockWindowInpatientMinutes ?? undefined,
+      crossOrgMessagingEnabled: persistable.crossOrgMessagingEnabled ?? false,
     };
 
     const organisation = existing
@@ -825,6 +903,7 @@ export const OrganizationService = {
           persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
         appointmentLockWindowInpatientMinutes:
           persistable.appointmentLockWindowInpatientMinutes ?? undefined,
+        crossOrgMessagingEnabled: persistable.crossOrgMessagingEnabled ?? false,
       },
     });
 
@@ -890,73 +969,21 @@ export const OrganizationService = {
     }
 
     if (input.placeId) {
-      const org = await prisma.organization.findFirst({
-        where: { googlePlacesId: input.placeId },
-        include: { address: true },
-      });
-      if (org) {
-        return {
-          isPmsOrganisation: true,
-          organisation: buildFHIRResponseFromPrisma(org),
-        };
-      }
+      const byPlaceId = await resolveOrganisationByPlaceId(input.placeId);
+      if (byPlaceId) return byPlaceId;
     }
 
     if (input.lat != null && input.lng != null) {
-      const lat = input.lat;
-      const lng = input.lng;
-      const metersPerDegreeLat = 111000;
-      const latDelta = 120 / metersPerDegreeLat;
-      const lngDelta = 120 / (metersPerDegreeLat * Math.cos(toRadians(lat)));
-
-      const orgs = await prisma.organization.findMany({
-        where: {
-          address: {
-            is: {
-              latitude: { gte: lat - latDelta, lte: lat + latDelta },
-              longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
-            },
-          },
-        },
-        include: { address: true },
-      });
-
-      const closest = orgs.find((org) => {
-        if (org.address?.latitude == null || org.address?.longitude == null) {
-          return false;
-        }
-        return (
-          calculateDistanceMeters(
-            lat,
-            lng,
-            org.address.latitude,
-            org.address.longitude,
-          ) <= 120
-        );
-      });
-
-      if (closest) {
-        return {
-          isPmsOrganisation: true,
-          organisation: buildFHIRResponseFromPrisma(closest),
-        };
-      }
+      const byCoordinates = await resolveOrganisationByCoordinates(
+        input.lat,
+        input.lng,
+      );
+      if (byCoordinates) return byCoordinates;
     }
 
     if (input.name) {
-      const safeName = input.name.trim();
-      if (safeName) {
-        const org = await prisma.organization.findFirst({
-          where: { name: { contains: safeName, mode: "insensitive" } },
-          include: { address: true },
-        });
-        if (org) {
-          return {
-            isPmsOrganisation: true,
-            organisation: buildFHIRResponseFromPrisma(org),
-          };
-        }
-      }
+      const byName = await resolveOrganisationByName(input.name);
+      if (byName) return byName;
     }
 
     return {
@@ -972,7 +999,7 @@ export const OrganizationService = {
     limit = 10,
   ) {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      throw new Error("lat/lng are required");
+      throw new TypeError("lat/lng are required");
     }
 
     const skip = (page - 1) * limit;

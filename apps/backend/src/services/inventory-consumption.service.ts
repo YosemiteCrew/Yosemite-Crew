@@ -46,6 +46,46 @@ export type InventoryConsumptionRequest = {
   lines: InventoryConsumptionLineInput[];
 };
 
+type AppointmentKindValue = "INPATIENT" | "OUTPATIENT";
+type DispenseStockSource = "NORMAL" | "ALLOCATED";
+
+type PrescriptionDispenseRequestContext = {
+  appointmentId?: string | null;
+  encounterId?: string | null;
+};
+
+type PrescriptionDispenseRequestMedication = Record<string, unknown> & {
+  inventoryItemName?: string | null;
+  inventoryItemCode?: string | null;
+  frequency?: string | null;
+  frequencyPerDay?: number | null;
+  durationDays?: number | null;
+  doseQty?: number | null;
+  doseUnit?: string | null;
+  refillsRemaining?: number | null;
+  isRx?: boolean | null;
+  isControlled?: boolean | null;
+  stockUnitQty?: number | null;
+  stockUnitType?: string | null;
+  stockUnitQuantity?: number | null;
+  packageQuantity?: number | null;
+  unitQuantity?: number | null;
+  priceCents?: number | null;
+};
+
+type PrescriptionDispenseRequestMetadata = Record<string, unknown> & {
+  appointmentKind?: AppointmentKindValue;
+  dispenseStockSource?: DispenseStockSource;
+  petParentName?: string;
+};
+
+type PrescriptionDispenseRequestDisplayFields = {
+  patientName?: string | null;
+  parentName?: string | null;
+  leadName?: string | null;
+  location?: string | null;
+};
+
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -58,7 +98,580 @@ const asPositiveInteger = (value: unknown): number | undefined => {
   return integer > 0 ? integer : undefined;
 };
 
+const asPositiveNumber = (value: unknown): number | undefined => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return value > 0 ? value : undefined;
+};
+
+const asPositiveFloat = (value: unknown): number | undefined => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return value > 0 ? value : undefined;
+};
+
+const readPositiveInteger = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const integer = Math.trunc(value);
+    return integer > 0 ? integer : undefined;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const match = /(\d+(?:\.\d+)?)/.exec(value.trim());
+    if (match) {
+      const parsed = Number(match[1]);
+      if (Number.isFinite(parsed)) {
+        const integer = Math.trunc(parsed);
+        return integer > 0 ? integer : undefined;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const readPositiveNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value > 0 ? value : undefined;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const match = /(\d+(?:\.\d+)?)/.exec(value.trim());
+    if (match) {
+      const parsed = Number(match[1]);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    }
+  }
+
+  return undefined;
+};
+
+const readDoseParts = (
+  value: unknown,
+): {
+  doseQty?: number;
+  doseUnit?: string;
+} => {
+  if (typeof value !== "string") {
+    return {};
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return {};
+  }
+
+  let index = 0;
+  while (
+    index < trimmed.length &&
+    trimmed[index] >= "0" &&
+    trimmed[index] <= "9"
+  ) {
+    index += 1;
+  }
+
+  if (index === 0) {
+    return { doseUnit: trimmed };
+  }
+
+  if (trimmed[index] === ".") {
+    const decimalStart = index + 1;
+    let decimalEnd = decimalStart;
+
+    while (
+      decimalEnd < trimmed.length &&
+      trimmed[decimalEnd] >= "0" &&
+      trimmed[decimalEnd] <= "9"
+    ) {
+      decimalEnd += 1;
+    }
+
+    if (decimalEnd === decimalStart) {
+      return { doseUnit: trimmed };
+    }
+
+    index = decimalEnd;
+  }
+
+  const doseQty = Number(trimmed.slice(0, index));
+  return {
+    doseQty: Number.isFinite(doseQty) && doseQty > 0 ? doseQty : undefined,
+    doseUnit: trimmed.slice(index).trim() || undefined,
+  };
+};
+
+const resolveFrequencyPerDay = (frequency?: string | null) => {
+  const normalized = frequency?.trim().toUpperCase();
+  if (!normalized) return undefined;
+
+  const directMap: Record<string, number> = {
+    OD: 1,
+    QD: 1,
+    SID: 1,
+    DAILY: 1,
+    QDLY: 1,
+    Q24H: 1,
+    BID: 2,
+    TID: 3,
+    QID: 4,
+    Q6H: 4,
+    Q8H: 3,
+    Q12H: 2,
+  };
+  if (Object.prototype.hasOwnProperty.call(directMap, normalized)) {
+    return directMap[normalized];
+  }
+
+  const everyNhours = /^Q(\d+)H$/.exec(normalized);
+  if (everyNhours) {
+    const hours = Number(everyNhours[1]);
+    if (Number.isFinite(hours) && hours > 0) {
+      return Math.max(1, Math.ceil(24 / hours));
+    }
+  }
+
+  const timesPerDay = /^(\d+)\s*X(?:\s*DAILY)?$/.exec(normalized);
+  if (timesPerDay) {
+    const count = Number(timesPerDay[1]);
+    if (Number.isFinite(count) && count > 0) {
+      return count;
+    }
+  }
+
+  return undefined;
+};
+
+const resolvePriceCents = (item: {
+  sellingPrice?: number | null;
+  unitCost?: number | null;
+}) => {
+  const price = asPositiveFloat(item.sellingPrice ?? item.unitCost);
+  if (price === undefined) return undefined;
+  return Math.round(price * 100);
+};
+
+const resolvePackQuantity = (
+  medication: Record<string, unknown>,
+): number | undefined =>
+  asPositiveNumber(
+    medication.stockUnitQuantity ??
+      medication.stockUnitQty ??
+      medication.unitQuantity ??
+      medication.packageQuantity,
+  );
+
+const toDispenseUnits = (quantity: number, packSize?: number) => {
+  if (!packSize || packSize <= 1) {
+    return quantity;
+  }
+  return Math.max(1, Math.ceil(quantity / packSize));
+};
+
+const resolveDispenseStockSource = (
+  appointmentKind?: AppointmentKindValue,
+): DispenseStockSource =>
+  appointmentKind === "INPATIENT" ? "ALLOCATED" : "NORMAL";
+
+const resolveDispenseStockSourceFromMetadata = (
+  metadata?: unknown,
+): DispenseStockSource | undefined => {
+  const record = toRecord(metadata);
+  const explicitSource = asNonEmptyString(record.dispenseStockSource);
+  if (explicitSource === "ALLOCATED" || explicitSource === "NORMAL") {
+    return explicitSource;
+  }
+
+  const appointmentKind = asNonEmptyString(record.appointmentKind);
+  if (appointmentKind === "INPATIENT") {
+    return "ALLOCATED";
+  }
+  if (appointmentKind === "OUTPATIENT") {
+    return "NORMAL";
+  }
+
+  if (record.originalMetadata !== undefined) {
+    return resolveDispenseStockSourceFromMetadata(record.originalMetadata);
+  }
+
+  return undefined;
+};
+
 const normalizeKey = (value: string) => value.trim().toLowerCase();
+
+const toRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const toTitleCase = (value: string) =>
+  value
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+
+const formatPetAge = (dateOfBirth: unknown): string | undefined => {
+  const birthDate =
+    dateOfBirth instanceof Date
+      ? dateOfBirth
+      : typeof dateOfBirth === "string" && dateOfBirth.trim()
+        ? new Date(dateOfBirth)
+        : null;
+
+  if (!birthDate || Number.isNaN(birthDate.getTime())) {
+    return undefined;
+  }
+
+  const now = new Date();
+  let months =
+    (now.getFullYear() - birthDate.getFullYear()) * 12 +
+    (now.getMonth() - birthDate.getMonth());
+  if (now.getDate() < birthDate.getDate()) {
+    months -= 1;
+  }
+
+  if (months < 0) {
+    return undefined;
+  }
+
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  return `${years}y ${remainingMonths}m`;
+};
+
+const resolvePetSpecies = (
+  patient: Record<string, unknown>,
+): string | undefined => {
+  const species = asNonEmptyString(patient.type);
+  if (species === "dog") return "Canine";
+  if (species === "cat") return "Feline";
+  if (species === "horse") return "Equine";
+  if (species) return toTitleCase(species);
+  return undefined;
+};
+
+const resolvePetSex = (
+  patient: Record<string, unknown>,
+): string | undefined => {
+  const gender = asNonEmptyString(patient.gender)?.toLowerCase();
+  if (gender === "male") return "Male";
+  if (gender === "female") return "Female";
+  if (gender) return toTitleCase(gender);
+  return undefined;
+};
+
+const resolvePetReproductiveStatus = (
+  patient: Record<string, unknown>,
+): string | undefined => {
+  const isNeutered = patient.isNeutered;
+  if (typeof isNeutered !== "boolean") return undefined;
+  if (!isNeutered) return "Intact";
+
+  const gender = asNonEmptyString(patient.gender)?.toLowerCase();
+  if (gender === "female") return "Spayed";
+  return "Neutered";
+};
+
+const resolvePetWeightUnit = (
+  patient: Record<string, unknown>,
+): string | undefined => {
+  const unit = asNonEmptyString(
+    patient.currentWeightUnit ?? patient.weightUnit ?? patient.unit,
+  );
+  if (unit) return unit;
+  if (patient.currentWeight !== undefined && patient.currentWeight !== null) {
+    return "kg";
+  }
+  return undefined;
+};
+
+const buildPetSnapshot = (patient: Record<string, unknown>) => {
+  const snapshot: Record<string, unknown> = {};
+  const petAge = formatPetAge(patient.dateOfBirth);
+  const petSpecies = resolvePetSpecies(patient);
+  const petSex = resolvePetSex(patient);
+  const petReproductiveStatus = resolvePetReproductiveStatus(patient);
+  const patientImageUrl =
+    asNonEmptyString(patient.photoUrl) ?? asNonEmptyString(patient.imageUrl);
+  const petWeight =
+    typeof patient.currentWeight === "number" &&
+    Number.isFinite(patient.currentWeight)
+      ? patient.currentWeight
+      : undefined;
+  const petWeightUnit = resolvePetWeightUnit(patient);
+
+  if (petAge) snapshot.petAge = petAge;
+  if (petSpecies) snapshot.petSpecies = petSpecies;
+  if (petSex) snapshot.petSex = petSex;
+  if (petReproductiveStatus) {
+    snapshot.petReproductiveStatus = petReproductiveStatus;
+  }
+  if (patientImageUrl) snapshot.patientImageUrl = patientImageUrl;
+  if (petWeight !== undefined) snapshot.petWeight = petWeight;
+  if (petWeightUnit) snapshot.petWeightUnit = petWeightUnit;
+
+  return snapshot;
+};
+
+const resolvePetParentName = (patient: Record<string, unknown>) => {
+  const parent = patient.parent;
+  if (parent && typeof parent === "object" && !Array.isArray(parent)) {
+    const parentRecord = parent as Record<string, unknown>;
+    const fullName = [
+      asNonEmptyString(parentRecord.firstName),
+      asNonEmptyString(parentRecord.lastName),
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join(" ")
+      .trim();
+    return asNonEmptyString(parentRecord.name) ?? fullName ?? undefined;
+  }
+
+  return undefined;
+};
+
+const loadPetSnapshot = async (
+  db: Pick<typeof prisma, "appointment" | "encounter" | "patient">,
+  params: {
+    organisationId: string;
+    context?: PrescriptionDispenseRequestContext;
+  },
+): Promise<{
+  snapshot: Record<string, unknown>;
+  appointmentKind?: AppointmentKindValue;
+}> => {
+  const appointmentId = asNonEmptyString(params.context?.appointmentId);
+  if (appointmentId) {
+    const appointment = await db.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        organisationId: params.organisationId,
+      },
+      select: {
+        patient: true,
+        appointmentKind: true,
+      },
+    });
+
+    if (appointment) {
+      const patientRecord = toRecord(appointment.patient);
+      const petParentName = resolvePetParentName(patientRecord);
+      return {
+        snapshot: {
+          ...buildPetSnapshot(patientRecord),
+          ...(petParentName ? { petParentName } : {}),
+        },
+        appointmentKind:
+          appointment.appointmentKind === "INPATIENT"
+            ? "INPATIENT"
+            : "OUTPATIENT",
+      };
+    }
+  }
+
+  const encounterId = asNonEmptyString(params.context?.encounterId);
+  if (!encounterId) {
+    return { snapshot: {} };
+  }
+
+  const encounter = await db.encounter.findFirst({
+    where: {
+      id: encounterId,
+      organisationId: params.organisationId,
+    },
+    select: {
+      patientId: true,
+    },
+  });
+
+  if (!encounter?.patientId) {
+    return { snapshot: {} };
+  }
+
+  const patient = await db.patient.findFirst({
+    where: {
+      id: encounter.patientId,
+    },
+    select: {
+      type: true,
+      dateOfBirth: true,
+      gender: true,
+      currentWeight: true,
+      isNeutered: true,
+      photoUrl: true,
+    },
+  });
+
+  const patientRecord = patient ? toRecord(patient) : undefined;
+  const petParentName = patientRecord
+    ? resolvePetParentName(patientRecord)
+    : undefined;
+  return {
+    snapshot:
+      patientRecord && petParentName
+        ? {
+            ...buildPetSnapshot(patientRecord),
+            petParentName,
+          }
+        : patientRecord
+          ? buildPetSnapshot(patientRecord)
+          : {},
+  };
+};
+
+const enrichDispenseRequestMedications = async (
+  db: Pick<typeof prisma, "inventoryItem">,
+  params: {
+    organisationId: string;
+    medications: unknown;
+  },
+): Promise<unknown> => {
+  if (!Array.isArray(params.medications)) {
+    return params.medications;
+  }
+
+  const normalized = params.medications.filter(
+    (item): item is Record<string, unknown> =>
+      typeof item === "object" && item !== null && !Array.isArray(item),
+  );
+  const ids = normalized
+    .map((item) => asNonEmptyString(item.inventoryItemId))
+    .filter((value): value is string => Boolean(value));
+  const skus = normalized
+    .map(
+      (item) =>
+        asNonEmptyString(item.inventoryItemSku) ?? asNonEmptyString(item.sku),
+    )
+    .filter((value): value is string => Boolean(value));
+  const codes = normalized.flatMap((item) =>
+    [
+      asNonEmptyString(item.inventoryItemCode),
+      asNonEmptyString(item.medicationCode),
+      asNonEmptyString(item.drugCode),
+      asNonEmptyString(item.code),
+      asNonEmptyString(item.name),
+    ].filter((value): value is string => Boolean(value)),
+  );
+
+  if (!ids.length && !skus.length && !codes.length) {
+    return params.medications;
+  }
+
+  const inventoryItems = await db.inventoryItem.findMany({
+    where: {
+      organisationId: params.organisationId,
+      OR: [
+        ...(ids.length ? [{ id: { in: ids } }] : []),
+        ...(skus.length ? [{ sku: { in: skus } }] : []),
+        ...(codes.length ? [{ name: { in: codes } }] : []),
+      ],
+    },
+    select: {
+      id: true,
+      sku: true,
+      name: true,
+      stockUnitType: true,
+      unitOfMeasure: true,
+      packageQuantity: true,
+      sellingPrice: true,
+      unitCost: true,
+      prescriptionRequired: true,
+      controlledItem: true,
+    },
+  });
+
+  const byId = new Map(inventoryItems.map((item) => [item.id, item]));
+  const bySku = new Map(
+    inventoryItems
+      .map((item) => [asNonEmptyString(item.sku), item] as const)
+      .filter(
+        (entry): entry is readonly [string, (typeof inventoryItems)[number]] =>
+          Boolean(entry[0]),
+      ),
+  );
+  const byCode = new Map(
+    inventoryItems
+      .map((item) => [normalizeKey(item.name), item] as const)
+      .filter(
+        (entry): entry is readonly [string, (typeof inventoryItems)[number]] =>
+          Boolean(entry[0]),
+      ),
+  );
+
+  return normalized.map<PrescriptionDispenseRequestMedication>((item) => {
+    const itemId = asNonEmptyString(item.inventoryItemId);
+    const itemSku = asNonEmptyString(item.inventoryItemSku);
+    const itemCode =
+      asNonEmptyString(item.inventoryItemCode) ??
+      asNonEmptyString(item.medicationCode) ??
+      asNonEmptyString(item.drugCode) ??
+      asNonEmptyString(item.code) ??
+      asNonEmptyString(item.name);
+    const frequency = asNonEmptyString(item.frequency ?? item.freq);
+    const doseParts = readDoseParts(item.dosage ?? item.dose);
+    const durationDays =
+      readPositiveInteger(item.durationDays) ??
+      readPositiveInteger(item.duration ?? item.days);
+    const refillsRemaining =
+      readPositiveInteger(item.refillsRemaining) ??
+      readPositiveInteger(item.refill);
+    const doseQty = readPositiveNumber(item.doseQty) ?? doseParts.doseQty;
+    const inventoryItem =
+      (itemId ? byId.get(itemId) : undefined) ??
+      (itemSku ? bySku.get(itemSku) : undefined) ??
+      (itemCode ? byCode.get(normalizeKey(itemCode)) : undefined);
+    const stockUnitQty =
+      readPositiveInteger(item.stockUnitQty ?? item.stockUnitQuantity) ??
+      inventoryItem?.packageQuantity ??
+      null;
+    const frequencyPerDay =
+      readPositiveInteger(item.frequencyPerDay) ??
+      resolveFrequencyPerDay(frequency);
+    const baseQuantity =
+      readPositiveInteger(
+        item.quantity ?? item.units ?? item.count ?? item.dispenseQuantity,
+      ) ??
+      (doseQty !== undefined &&
+      frequencyPerDay !== undefined &&
+      durationDays !== undefined
+        ? Math.max(1, Math.ceil(doseQty * frequencyPerDay * durationDays))
+        : undefined);
+
+    return {
+      ...item,
+      inventoryItemName:
+        inventoryItem?.name ??
+        asNonEmptyString(item.inventoryItemName) ??
+        asNonEmptyString(item.medication) ??
+        null,
+      inventoryItemCode: itemCode ?? null,
+      frequency,
+      frequencyPerDay,
+      durationDays,
+      doseQty,
+      doseUnit:
+        asNonEmptyString(item.doseUnit) ?? doseParts.doseUnit ?? undefined,
+      refillsRemaining,
+      isRx:
+        typeof item.isRx === "boolean"
+          ? item.isRx
+          : (inventoryItem?.prescriptionRequired ?? true),
+      isControlled:
+        typeof item.isControlled === "boolean"
+          ? item.isControlled
+          : (inventoryItem?.controlledItem ?? null),
+      stockUnitType: inventoryItem?.stockUnitType ?? null,
+      packageQuantity: stockUnitQty,
+      unitQuantity: stockUnitQty,
+      stockUnitQty,
+      stockUnitQuantity: stockUnitQty,
+      quantity: baseQuantity ?? item.quantity ?? undefined,
+      priceCents:
+        readPositiveInteger(item.priceCents) ??
+        resolvePriceCents(inventoryItem ?? {}),
+    };
+  });
+};
 
 const buildIdempotencyKey = (request: InventoryConsumptionRequest) =>
   request.idempotencyKey ??
@@ -90,6 +703,249 @@ const ensureQuantity = (quantity: number) => {
   return safe;
 };
 
+const createInventoryConsumptionSkippedEvent = (
+  tx: Prisma.TransactionClient,
+  params: {
+    organisationId: string;
+    sourceType: InventoryConsumptionSourceType;
+    sourceId: string;
+    sourceLineKey: string;
+    action: InventoryConsumptionAction;
+    idempotencyKey: string;
+    inventoryItemId: string;
+    quantity: number;
+    metadata?: Prisma.InputJsonValue;
+  },
+) =>
+  createInventoryConsumptionEvent(tx, {
+    ...params,
+    status: "SKIPPED",
+  });
+
+const createInventoryConsumptionAppliedEvent = (
+  tx: Prisma.TransactionClient,
+  params: {
+    organisationId: string;
+    sourceType: InventoryConsumptionSourceType;
+    sourceId: string;
+    sourceLineKey: string;
+    action: InventoryConsumptionAction;
+    idempotencyKey: string;
+    inventoryItemId: string;
+    quantity: number;
+    metadata?: Prisma.InputJsonValue;
+  },
+) =>
+  createInventoryConsumptionEvent(tx, {
+    ...params,
+    status: "APPLIED",
+  });
+
+const applyInventoryRelease = async (
+  tx: Prisma.TransactionClient,
+  params: {
+    organisationId: string;
+    inventoryItemId: string;
+    quantity: number;
+    metadata?: Prisma.InputJsonValue;
+    sourceType: InventoryConsumptionSourceType;
+    sourceId: string;
+    sourceLineKey: string;
+    idempotencyKey: string;
+    batchId?: string;
+    movementReason?: string;
+    stockSource?: DispenseStockSource;
+  },
+) => {
+  const item = await tx.inventoryItem.findFirst({
+    where: {
+      id: params.inventoryItemId,
+      organisationId: params.organisationId,
+    },
+  });
+  if (!item) {
+    throw new InventoryConsumptionServiceError("Inventory item not found", 404);
+  }
+
+  const movements = await tx.inventoryStockMovement.findMany({
+    where: {
+      itemId: params.inventoryItemId,
+      referenceId: params.sourceId,
+      change: { lt: 0 },
+      ...(params.batchId ? { batchId: params.batchId } : {}),
+    },
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  if (!movements.length) {
+    throw new InventoryConsumptionServiceError(
+      "No prior consumption found to release",
+      400,
+    );
+  }
+
+  let remainingRelease = params.quantity;
+  for (const movement of movements) {
+    if (remainingRelease <= 0) break;
+
+    const consumedQuantity = Math.abs(movement.change ?? 0);
+    if (consumedQuantity <= 0) continue;
+
+    const restore = Math.min(remainingRelease, consumedQuantity);
+    remainingRelease -= restore;
+
+    if (movement.batchId) {
+      await tx.inventoryBatch.update({
+        where: { id: movement.batchId },
+        data: { quantity: { increment: restore } },
+      });
+    }
+
+    await tx.inventoryStockMovement.create({
+      data: {
+        itemId: params.inventoryItemId,
+        batchId: movement.batchId ?? undefined,
+        change: restore,
+        reason: params.movementReason ?? "PRESCRIPTION_RELEASE",
+        referenceId: params.sourceId,
+      },
+    });
+  }
+
+  if (remainingRelease > 0) {
+    throw new InventoryConsumptionServiceError(
+      "Failed to release full requested quantity",
+      500,
+    );
+  }
+
+  const onHand = await updateInventoryItemOnHand(
+    tx,
+    params.organisationId,
+    params.inventoryItemId,
+  );
+  const allocated =
+    params.stockSource === "ALLOCATED"
+      ? Math.max(0, (item.allocated ?? 0) + params.quantity)
+      : (item.allocated ?? 0);
+  await tx.inventoryItem.update({
+    where: { id: params.inventoryItemId },
+    data:
+      params.stockSource === "ALLOCATED" ? { onHand, allocated } : { onHand },
+  });
+
+  return createInventoryConsumptionAppliedEvent(tx, {
+    organisationId: params.organisationId,
+    sourceType: params.sourceType,
+    sourceId: params.sourceId,
+    sourceLineKey: params.sourceLineKey,
+    action: "RELEASE",
+    idempotencyKey: params.idempotencyKey,
+    inventoryItemId: params.inventoryItemId,
+    quantity: params.quantity,
+    metadata: params.metadata,
+  });
+};
+
+const applyInventoryConsumption = async (
+  tx: Prisma.TransactionClient,
+  params: {
+    organisationId: string;
+    inventoryItemId: string;
+    quantity: number;
+    metadata?: Prisma.InputJsonValue;
+    sourceType: InventoryConsumptionSourceType;
+    sourceId: string;
+    sourceLineKey: string;
+    idempotencyKey: string;
+    batchId?: string;
+    movementReason?: string;
+    stockSource?: DispenseStockSource;
+  },
+) => {
+  const item = await tx.inventoryItem.findFirst({
+    where: {
+      id: params.inventoryItemId,
+      organisationId: params.organisationId,
+    },
+  });
+  if (!item) {
+    throw new InventoryConsumptionServiceError("Inventory item not found", 404);
+  }
+  if ((item.onHand ?? 0) < params.quantity) {
+    throw new InventoryConsumptionServiceError("Insufficient stock", 400);
+  }
+
+  let remaining = params.quantity;
+  const batches = await tx.inventoryBatch.findMany({
+    where: {
+      itemId: params.inventoryItemId,
+      organisationId: params.organisationId,
+      ...(params.batchId ? { id: params.batchId } : {}),
+    },
+    orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
+  });
+
+  for (const batch of batches) {
+    if (remaining <= 0) break;
+
+    const available = batch.quantity ?? 0;
+    if (available <= 0) continue;
+
+    const consume = Math.min(available, remaining);
+    remaining -= consume;
+
+    await tx.inventoryBatch.update({
+      where: { id: batch.id },
+      data: { quantity: available - consume },
+    });
+
+    await tx.inventoryStockMovement.create({
+      data: {
+        itemId: params.inventoryItemId,
+        batchId: batch.id,
+        change: -consume,
+        reason: params.movementReason ?? "MANUAL_ADJUSTMENT",
+        referenceId: params.sourceId,
+      },
+    });
+  }
+
+  if (remaining > 0) {
+    throw new InventoryConsumptionServiceError(
+      "Failed to consume full requested quantity",
+      500,
+    );
+  }
+
+  const onHand = await updateInventoryItemOnHand(
+    tx,
+    params.organisationId,
+    params.inventoryItemId,
+  );
+  const allocated =
+    params.stockSource === "ALLOCATED"
+      ? Math.max(0, (item.allocated ?? 0) - params.quantity)
+      : (item.allocated ?? 0);
+  await tx.inventoryItem.update({
+    where: { id: params.inventoryItemId },
+    data:
+      params.stockSource === "ALLOCATED" ? { onHand, allocated } : { onHand },
+  });
+
+  return createInventoryConsumptionAppliedEvent(tx, {
+    organisationId: params.organisationId,
+    sourceType: params.sourceType,
+    sourceId: params.sourceId,
+    sourceLineKey: params.sourceLineKey,
+    action: "CONSUME",
+    idempotencyKey: params.idempotencyKey,
+    inventoryItemId: params.inventoryItemId,
+    quantity: params.quantity,
+    metadata: params.metadata,
+  });
+};
+
 const consumeInventoryItem = async (
   tx: Prisma.TransactionClient,
   organisationId: string,
@@ -103,6 +959,7 @@ const consumeInventoryItem = async (
   idempotencyKey: string,
   batchId?: string,
   movementReason?: string,
+  stockSource?: DispenseStockSource,
 ) => {
   const existingEvent = await tx.inventoryConsumptionEvent.findUnique({
     where: { idempotencyKey },
@@ -112,76 +969,37 @@ const consumeInventoryItem = async (
   }
 
   if (action === "RESERVE") {
-    return tx.inventoryConsumptionEvent.create({
-      data: {
-        organisationId,
-        sourceType,
-        sourceId,
-        sourceLineKey,
-        action,
-        idempotencyKey,
-        inventoryItemId,
-        quantity,
-        status: "APPLIED",
-        metadata,
-      },
+    return createInventoryConsumptionAppliedEvent(tx, {
+      organisationId,
+      sourceType,
+      sourceId,
+      sourceLineKey,
+      action,
+      idempotencyKey,
+      inventoryItemId,
+      quantity,
+      metadata,
     });
   }
 
   if (action === "RELEASE") {
-    const movements = await tx.inventoryStockMovement.findMany({
-      where: {
-        itemId: inventoryItemId,
-        referenceId: sourceId,
-        change: { lt: 0 },
-        ...(batchId ? { batchId } : {}),
-      },
-      orderBy: [{ createdAt: "desc" }],
+    return applyInventoryRelease(tx, {
+      organisationId,
+      sourceType,
+      sourceId,
+      sourceLineKey,
+      idempotencyKey,
+      inventoryItemId,
+      quantity,
+      metadata,
+      batchId,
+      movementReason,
+      stockSource,
     });
+  }
 
-    if (!movements.length) {
-      throw new InventoryConsumptionServiceError(
-        "No prior consumption found to release",
-        400,
-      );
-    }
-
-    let remainingRelease = quantity;
-    for (const movement of movements) {
-      if (remainingRelease <= 0) break;
-      const consumedQuantity = Math.abs(movement.change ?? 0);
-      if (consumedQuantity <= 0) continue;
-      const restore = Math.min(remainingRelease, consumedQuantity);
-      remainingRelease -= restore;
-
-      if (movement.batchId) {
-        await tx.inventoryBatch.update({
-          where: { id: movement.batchId },
-          data: { quantity: { increment: restore } },
-        });
-      }
-
-      await tx.inventoryStockMovement.create({
-        data: {
-          itemId: inventoryItemId,
-          batchId: movement.batchId ?? undefined,
-          change: restore,
-          reason: movementReason ?? "PRESCRIPTION_RELEASE",
-          referenceId: sourceId,
-        },
-      });
-    }
-
-    if (remainingRelease > 0) {
-      throw new InventoryConsumptionServiceError(
-        "Failed to release full requested quantity",
-        500,
-      );
-    }
-
-    await updateInventoryItemTotals(tx, organisationId, inventoryItemId);
-
-    return createInventoryConsumptionEvent(tx, {
+  if (action !== "CONSUME") {
+    return createInventoryConsumptionSkippedEvent(tx, {
       organisationId,
       sourceType,
       sourceId,
@@ -190,87 +1008,22 @@ const consumeInventoryItem = async (
       idempotencyKey,
       inventoryItemId,
       quantity,
-      status: "APPLIED",
-      metadata,
-    });
-  } else if (action !== "CONSUME") {
-    return createInventoryConsumptionEvent(tx, {
-      organisationId,
-      sourceType,
-      sourceId,
-      sourceLineKey,
-      action,
-      idempotencyKey,
-      inventoryItemId,
-      quantity,
-      status: "SKIPPED",
       metadata,
     });
   }
 
-  const item = await tx.inventoryItem.findFirst({
-    where: { id: inventoryItemId, organisationId },
-  });
-  if (!item) {
-    throw new InventoryConsumptionServiceError("Inventory item not found", 404);
-  }
-  if ((item.onHand ?? 0) < quantity) {
-    throw new InventoryConsumptionServiceError("Insufficient stock", 400);
-  }
-
-  let remaining = quantity;
-  const batches = await tx.inventoryBatch.findMany({
-    where: {
-      itemId: inventoryItemId,
-      organisationId,
-      ...(batchId ? { id: batchId } : {}),
-    },
-    orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
-  });
-
-  for (const batch of batches) {
-    if (remaining <= 0) break;
-    const available = batch.quantity ?? 0;
-    if (available <= 0) continue;
-    const consume = Math.min(available, remaining);
-    remaining -= consume;
-
-    await tx.inventoryBatch.update({
-      where: { id: batch.id },
-      data: { quantity: available - consume },
-    });
-
-    await tx.inventoryStockMovement.create({
-      data: {
-        itemId: inventoryItemId,
-        batchId: batch.id,
-        change: -consume,
-        reason: movementReason ?? "MANUAL_ADJUSTMENT",
-        referenceId: sourceId,
-      },
-    });
-  }
-
-  if (remaining > 0) {
-    throw new InventoryConsumptionServiceError(
-      "Failed to consume full requested quantity",
-      500,
-    );
-  }
-
-  await updateInventoryItemTotals(tx, organisationId, inventoryItemId);
-
-  return createInventoryConsumptionEvent(tx, {
+  return applyInventoryConsumption(tx, {
     organisationId,
     sourceType,
     sourceId,
     sourceLineKey,
-    action,
     idempotencyKey,
     inventoryItemId,
     quantity,
-    status: "APPLIED",
     metadata,
+    batchId,
+    movementReason,
+    stockSource,
   });
 };
 
@@ -349,7 +1102,7 @@ const resolveInventoryItemIdByBatch = async (
   return batch ?? null;
 };
 
-const updateInventoryItemTotals = async (
+const updateInventoryItemOnHand = async (
   tx: Prisma.TransactionClient,
   organisationId: string,
   inventoryItemId: string,
@@ -361,15 +1114,13 @@ const updateInventoryItemTotals = async (
     (sum, batch) => sum + (batch.quantity ?? 0),
     0,
   );
-  const allocated = batchesAfter.reduce(
-    (sum, batch) => sum + (batch.allocated ?? 0),
-    0,
-  );
 
   await tx.inventoryItem.update({
     where: { id: inventoryItemId },
-    data: { onHand, allocated },
+    data: { onHand },
   });
+
+  return onHand;
 };
 
 const createInventoryConsumptionEvent = (
@@ -395,7 +1146,7 @@ const consumeResolvedLines = async (
   tx: Prisma.TransactionClient,
   request: InventoryConsumptionRequest,
   resolvedLines: InventoryConsumptionLineInput[],
-  options?: { movementReason?: string },
+  options?: { movementReason?: string; stockSource?: DispenseStockSource },
 ) => {
   const organisationId = asNonEmptyString(request.organisationId);
   const sourceId = asNonEmptyString(request.sourceId);
@@ -438,6 +1189,7 @@ const consumeResolvedLines = async (
       `${idempotencyBase}:${line.sourceLineKey}:${inventoryItemId}`,
       line.batchId,
       options?.movementReason,
+      options?.stockSource,
     );
     events.push(event);
   }
@@ -457,6 +1209,7 @@ const normalizePrescriptionLines = (medications: unknown) => {
         record.dispenseQuantity,
     );
     if (!quantity) return [];
+    const stockUnitQuantity = resolvePackQuantity(record);
 
     const sourceLineKey =
       asNonEmptyString(record.sourceLineKey) ??
@@ -483,6 +1236,7 @@ const normalizePrescriptionLines = (medications: unknown) => {
           record.expiryDate instanceof Date
             ? record.expiryDate
             : undefined,
+        stockUnitQuantity,
         ruleKeys: [
           asNonEmptyString(record.inventoryItemCode),
           asNonEmptyString(record.medicationCode),
@@ -511,12 +1265,16 @@ const resolvePrescriptionLines = async (
       lotNumber: line.lotNumber,
       expiryDate: line.expiryDate,
     });
+    const inventoryQuantity = toDispenseUnits(
+      line.quantity,
+      line.stockUnitQuantity,
+    );
 
     if (line.inventoryItemId) {
       resolved.push({
         sourceLineKey: line.sourceLineKey,
         inventoryItemId: line.inventoryItemId,
-        quantity: line.quantity,
+        quantity: inventoryQuantity,
         metadata: line.metadata,
         batchId: batchMatch?.id ?? line.batchId ?? undefined,
       });
@@ -533,7 +1291,7 @@ const resolvePrescriptionLines = async (
         resolved.push({
           sourceLineKey: line.sourceLineKey,
           inventoryItemId,
-          quantity: line.quantity,
+          quantity: inventoryQuantity,
           metadata: line.metadata,
           batchId: batchMatch?.id ?? line.batchId ?? undefined,
         });
@@ -545,7 +1303,7 @@ const resolvePrescriptionLines = async (
       resolved.push({
         sourceLineKey: line.sourceLineKey,
         inventoryItemId: batchMatch.itemId,
-        quantity: line.quantity,
+        quantity: inventoryQuantity,
         metadata: line.metadata,
         batchId: batchMatch.id,
       });
@@ -563,9 +1321,9 @@ const resolvePrescriptionLines = async (
         resolved.push({
           sourceLineKey: line.sourceLineKey,
           inventoryItemId: rule.inventoryItemId,
-          quantity: Math.max(
-            1,
-            Math.round(line.quantity * rule.quantityMultiplier),
+          quantity: toDispenseUnits(
+            Math.max(1, Math.round(line.quantity * rule.quantityMultiplier)),
+            line.stockUnitQuantity,
           ),
           metadata: line.metadata,
           batchId: batchMatch?.id ?? line.batchId ?? undefined,
@@ -596,6 +1354,7 @@ const runPrescriptionInventoryAction = async (params: {
   }
 
   return prisma.$transaction(async (tx) => {
+    const stockSource = resolveDispenseStockSourceFromMetadata(params.metadata);
     return consumePrescriptionMedications(tx, {
       organisationId,
       prescriptionId,
@@ -603,6 +1362,7 @@ const runPrescriptionInventoryAction = async (params: {
       metadata: params.metadata,
       action: params.action,
       movementReason: params.movementReason,
+      stockSource,
     });
   });
 };
@@ -616,6 +1376,7 @@ const consumePrescriptionMedications = async (
     metadata?: Prisma.InputJsonValue;
     action: InventoryConsumptionAction;
     movementReason?: string;
+    stockSource?: DispenseStockSource;
   },
 ) => {
   const lines = await resolvePrescriptionLines(
@@ -636,9 +1397,10 @@ const consumePrescriptionMedications = async (
       lines,
     },
     lines,
-    params.movementReason
-      ? { movementReason: params.movementReason }
-      : undefined,
+    {
+      movementReason: params.movementReason,
+      stockSource: params.stockSource,
+    },
   );
 };
 
@@ -695,6 +1457,87 @@ const buildPrescriptionDispenseRequestInclude = () =>
       },
     },
   }) as const;
+
+const resolveDispenseRequestDisplayFields = async (
+  db: Pick<typeof prisma, "appointment">,
+  request: {
+    prescription: {
+      artifact: {
+        appointmentId?: string | null;
+      };
+    };
+  },
+): Promise<PrescriptionDispenseRequestDisplayFields> => {
+  const appointmentId = asNonEmptyString(
+    request.prescription.artifact.appointmentId,
+  );
+  if (!appointmentId) {
+    return {};
+  }
+
+  const appointment = await db.appointment.findFirst({
+    where: { id: appointmentId },
+    select: {
+      patient: true,
+      lead: true,
+      room: true,
+    },
+  });
+
+  if (!appointment) {
+    return {};
+  }
+
+  const appointmentRecord = toRecord(appointment);
+  const patient = toRecord(appointmentRecord.patient);
+  const lead = toRecord(appointmentRecord.lead);
+  const room = toRecord(appointmentRecord.room);
+
+  const location =
+    asNonEmptyString(room?.name) ??
+    asNonEmptyString(room?.unitName) ??
+    (() => {
+      const unit = toRecord(room.unit);
+      return asNonEmptyString(unit.displayName) ?? asNonEmptyString(unit.name);
+    })();
+
+  return {
+    patientName:
+      asNonEmptyString(patient.name) ??
+      asNonEmptyString(patient.companionName) ??
+      asNonEmptyString(patient.displayName) ??
+      null,
+    parentName: resolvePetParentName(patient) ?? null,
+    leadName: asNonEmptyString(lead.name) ?? null,
+    location: location ?? null,
+  };
+};
+
+const hydrateDispenseRequest = async (
+  db: Pick<typeof prisma, "appointment">,
+  request:
+    | (NonNullable<
+        Awaited<ReturnType<typeof prisma.prescriptionDispenseRequest.findFirst>>
+      > & {
+        prescription: {
+          artifact: {
+            appointmentId?: string | null;
+          };
+        };
+      })
+    | null,
+) => {
+  if (!request) return request;
+
+  const displayFields = await resolveDispenseRequestDisplayFields(
+    db,
+    request as never,
+  );
+  return {
+    ...request,
+    ...displayFields,
+  };
+};
 
 export const InventoryConsumptionService = {
   async upsertRule(input: InventoryConsumptionRuleInput) {
@@ -762,7 +1605,7 @@ export const InventoryConsumptionService = {
       );
     }
 
-    return prisma.prescriptionDispenseRequest.findMany({
+    const requests = await prisma.prescriptionDispenseRequest.findMany({
       where: {
         organisationId,
         ...(params.status ? { status: params.status } : {}),
@@ -773,6 +1616,10 @@ export const InventoryConsumptionService = {
       include: buildPrescriptionDispenseRequestInclude(),
       orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }],
     });
+
+    return Promise.all(
+      requests.map((request) => hydrateDispenseRequest(prisma, request)),
+    );
   },
 
   async getPrescriptionDispenseRequest(params: {
@@ -803,7 +1650,7 @@ export const InventoryConsumptionService = {
       );
     }
 
-    return request;
+    return hydrateDispenseRequest(prisma, request);
   },
 
   async createPrescriptionDispenseRequest(params: {
@@ -812,6 +1659,7 @@ export const InventoryConsumptionService = {
     medications: unknown;
     metadata?: Prisma.InputJsonValue;
     requestedBy?: string | null;
+    context?: PrescriptionDispenseRequestContext;
   }) {
     const organisationId = asNonEmptyString(params.organisationId);
     const prescriptionId = asNonEmptyString(params.prescriptionId);
@@ -822,12 +1670,37 @@ export const InventoryConsumptionService = {
       );
     }
 
+    const [petContext, medications] = await Promise.all([
+      loadPetSnapshot(prisma, {
+        organisationId,
+        context: params.context,
+      }),
+      enrichDispenseRequestMedications(prisma, {
+        organisationId,
+        medications: params.medications,
+      }),
+    ]);
+
+    const appointmentKind = petContext.appointmentKind ?? "OUTPATIENT";
+    const dispenseStockSource = resolveDispenseStockSource(appointmentKind);
+
+    const metadataBase = {
+      ...toRecord(params.metadata),
+      ...petContext.snapshot,
+      appointmentKind,
+      dispenseStockSource,
+    } satisfies PrescriptionDispenseRequestMetadata;
+
+    const metadata = Object.keys(metadataBase).length
+      ? (metadataBase as Prisma.InputJsonValue)
+      : params.metadata;
+
     return prisma.$transaction((tx) =>
       upsertPendingDispenseRequest(tx, {
         organisationId,
         prescriptionId,
-        medications: params.medications,
-        metadata: params.metadata,
+        medications,
+        metadata,
         requestedBy: params.requestedBy,
       }),
     );
@@ -866,13 +1739,19 @@ export const InventoryConsumptionService = {
         );
       }
 
+      const medications = request.medications ?? params.medications;
+      const metadata = request.metadata ?? params.metadata;
+      const stockSource =
+        resolveDispenseStockSourceFromMetadata(metadata) ?? "NORMAL";
+
       const inventoryEvents = await consumePrescriptionMedications(tx, {
         organisationId,
         prescriptionId,
-        medications: params.medications,
-        metadata: params.metadata,
+        medications,
+        metadata,
         action: "CONSUME",
         movementReason: "PRESCRIPTION_DISPENSE",
+        stockSource,
       });
 
       await tx.prescriptionDispenseRequest.update({
@@ -903,7 +1782,7 @@ export const InventoryConsumptionService = {
       );
     }
 
-    return prisma.$transaction(async (tx) => {
+    const updatedId = await prisma.$transaction(async (tx) => {
       const request = await tx.prescriptionDispenseRequest.findFirst({
         where: {
           organisationId,
@@ -917,7 +1796,7 @@ export const InventoryConsumptionService = {
         return null;
       }
 
-      return tx.prescriptionDispenseRequest.update({
+      await tx.prescriptionDispenseRequest.update({
         where: { id: request.id },
         data: {
           status: "NOT_DISPENSED",
@@ -926,7 +1805,24 @@ export const InventoryConsumptionService = {
           reviewedAt: new Date(),
         },
       });
+      return request.id;
     });
+
+    if (!updatedId) {
+      return null;
+    }
+
+    const refreshedRequest = await prisma.prescriptionDispenseRequest.findFirst(
+      {
+        where: {
+          id: updatedId,
+          organisationId,
+        },
+        include: buildPrescriptionDispenseRequestInclude(),
+      },
+    );
+
+    return hydrateDispenseRequest(prisma, refreshedRequest);
   },
 
   async consume(request: InventoryConsumptionRequest) {
@@ -945,6 +1841,9 @@ export const InventoryConsumptionService = {
       }
 
       const action = request.action ?? "CONSUME";
+      const stockSource = resolveDispenseStockSourceFromMetadata(
+        request.metadata,
+      );
       const idempotencyBase = buildIdempotencyKey({
         ...request,
         organisationId,
@@ -986,6 +1885,8 @@ export const InventoryConsumptionService = {
           action,
           `${idempotencyBase}:${line.sourceLineKey}:${resolvedInventoryItemId}`,
           line.batchId,
+          undefined,
+          stockSource,
         );
         events.push(event);
       }
@@ -1118,20 +2019,27 @@ export const InventoryConsumptionService = {
 
     const lines: InventoryConsumptionLineInput[] = [];
     for (const item of product.package.items) {
+      const sourceId = item.childProductItemId ?? item.inventoryItemId;
+      if (!sourceId) {
+        throw new InventoryConsumptionServiceError(
+          "Package component is missing a source reference",
+          400,
+        );
+      }
       const rule = await resolveInventoryItemFromRule(
         prisma,
         organisationId,
         "PACKAGE",
-        item.childProductItemId,
+        sourceId,
       );
       if (!rule) {
         throw new InventoryConsumptionServiceError(
-          `Missing inventory mapping for package component ${item.childProductItemId}.`,
+          `Missing inventory mapping for package component ${sourceId}.`,
           400,
         );
       }
       lines.push({
-        sourceLineKey: item.childProductItemId,
+        sourceLineKey: sourceId,
         inventoryItemId: rule.inventoryItemId,
         quantity: Math.max(
           1,

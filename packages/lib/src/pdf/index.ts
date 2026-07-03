@@ -21,6 +21,7 @@ export type {
   PdfSectionContent,
   PdfRichTextRun,
   PrescriptionDocumentData,
+  PrescriptionLabelDocumentData,
   PrescriptionItem,
   VitalRecordMeasurement,
   RenderFooterInput,
@@ -33,8 +34,12 @@ export { BasePdfTemplate } from './BasePdfTemplate.js';
 export {
   generateClinicalPdf,
   generateClinicalPdfWithMetadata,
+  generateCombinedClinicalPdf,
+  generateCombinedClinicalPdfWithMetadata,
   createClinicalPdfContext,
   clinicalPdfTheme,
+  type CombinedClinicalSection,
+  type CombinedClinicalDocumentInput,
 } from './PdfEngine.js';
 export { generatePdf, generatePdfWithMetadata } from './GenericPdfEngine.js';
 export {
@@ -42,4 +47,13 @@ export {
   generateResolvedTemplatePdfWithMetadata,
   type ResolvedTemplatePdfInput,
 } from './ResolvedTemplatePdfEngine.js';
+export {
+  buildMergedClinicalPacketPdf,
+  ClinicalPacketPdfError,
+  type BuildMergedClinicalPacketPdfInput,
+  type MergedClinicalPacketPdf,
+  type MergedPacketDocument,
+  type PacketDocumentPdfLoader,
+} from './clinicalPacket.js';
+export { mergePdfBuffers } from './mergePdf.js';
 export * from './examples/index.js';

@@ -28,7 +28,7 @@ describe('PostHogBootstrap', () => {
   beforeEach(() => {
     process.env = {
       ...originalEnv,
-      NEXT_PUBLIC_POSTHOG_HOST: 'https://us.i.posthog.com',
+      NEXT_PUBLIC_POSTHOG_HOST: 'https://eu.i.posthog.com',
       NEXT_PUBLIC_POSTHOG_TOKEN: 'phc_test',
     };
     globalThis.localStorage.clear();
@@ -56,7 +56,7 @@ describe('PostHogBootstrap', () => {
     expect(posthog.init).toHaveBeenCalledWith(
       'phc_test',
       expect.objectContaining({
-        api_host: 'https://us.i.posthog.com',
+        api_host: 'https://eu.i.posthog.com',
         capture_pageview: 'history_change',
         defaults: '2026-01-30',
         opt_out_capturing_by_default: true,
@@ -123,6 +123,15 @@ describe('PostHogBootstrap', () => {
 
   it('skips initialization when PostHog env is incomplete', async () => {
     process.env.NEXT_PUBLIC_POSTHOG_TOKEN = '';
+    globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+
+    render(<PostHogBootstrap />);
+
+    await waitFor(() => expect(posthog.init).not.toHaveBeenCalled());
+  });
+
+  it('skips initialization when PostHog host is not the EU endpoint', async () => {
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = 'https://us.i.posthog.com';
     globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
 
     render(<PostHogBootstrap />);

@@ -9,12 +9,15 @@ export type RenderedDocumentKind =
   | 'DISCHARGE_SUMMARY'
   | 'VITAL_RECORD'
   | 'TASK_ASSIGNMENT'
-  | 'INPATIENT_SCHEDULE';
+  | 'INPATIENT_SCHEDULE'
+  | 'INVOICE';
 
 export type RenderedDocumentSourceKind =
   | 'TEMPLATE_INSTANCE'
   | 'CLINICAL_ARTIFACT'
-  | 'FORM_SUBMISSION';
+  | 'FORM_SUBMISSION'
+  | 'TASK_SCHEDULE'
+  | 'INVOICE';
 
 export type RenderedDocumentStatus = 'DRAFT' | 'SIGNED';
 export type DocumentSignatureSignerType = 'PMS_USER' | 'PARENT' | 'SYSTEM';
@@ -25,7 +28,7 @@ export type RenderedDocumentSource = {
   sourceKind: RenderedDocumentSourceKind;
   sourceId: string;
   organisationId: string;
-  templateKind: TemplateKind | ClinicalArtifactKind;
+  templateKind: TemplateKind | ClinicalArtifactKind | 'INVOICE';
   templateId?: string | null;
   templateVersion?: number | null;
   templateVersionId?: string | null;
@@ -132,9 +135,12 @@ const normalizeRequiredString = (value: string, fieldName: string): string => {
   return normalized;
 };
 
-const toRenderedDocumentKind = (
-  kind: TemplateKind | ClinicalArtifactKind
-): RenderedDocumentKind => {
+const toRenderedDocumentKind = (source: RenderedDocumentSource): RenderedDocumentKind => {
+  if (source.sourceKind === 'INVOICE') {
+    return 'INVOICE';
+  }
+
+  const kind = source.templateKind;
   switch (kind) {
     case 'FORM':
       return 'FORM';
@@ -199,7 +205,7 @@ export const buildRenderedDocumentDraft = (input: BuildRenderedDocumentInput): R
   const title = normalizeRequiredString(input.title, 'title');
   const organisationId = normalizeRequiredString(input.source.organisationId, 'organisationId');
   const sourceId = normalizeRequiredString(input.source.sourceId, 'sourceId');
-  const kind = toRenderedDocumentKind(input.source.templateKind);
+  const kind = toRenderedDocumentKind(input.source);
   const now = new Date();
 
   return {

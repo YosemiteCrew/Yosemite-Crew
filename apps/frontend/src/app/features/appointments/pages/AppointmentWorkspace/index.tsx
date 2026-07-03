@@ -12,17 +12,24 @@ import {
   resolveEncounterMode,
   resolveLandingStep,
 } from '@/app/lib/appointmentWorkspace';
+import { startRouteLoader } from '@/app/lib/routeLoader';
 import {
   WORKSPACE_STEPS,
+  type AppointmentEncounter,
   type CompanionAlert,
+  type SoapNoteEntry,
   type WorkspaceStep,
 } from '@/app/features/appointments/types/workspace';
+import { isRichTextEmpty } from '@/app/lib/richText';
 import { resolveLockHours } from '@/app/lib/appointmentLockWindow';
 import { getAppointmentCompanion, normalizeAppointmentStatus } from '@/app/lib/appointments';
 import { useAppointmentLockWindow } from '@/app/hooks/useAppointmentLockWindow';
 import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
+import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/roomService';
 import { useLoadCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { useCompanionStore } from '@/app/stores/companionStore';
+import { useParentStore } from '@/app/stores/parentStore';
 import { updateCompanion } from '@/app/features/companions/services/companionService';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
@@ -59,13 +66,25 @@ import {
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
 import { loadWorkspaceClinicalArtifacts } from '@/app/features/appointments/services/workspaceClinicalService';
-import { listSoapTemplatesForWorkspace } from '@/app/features/appointments/services/workspaceTemplateService';
+import {
+  listSoapTemplatesForWorkspace,
+  resolveSoapTemplate,
+} from '@/app/features/appointments/services/workspaceTemplateService';
 import {
   getAppointmentWorkspaceBootstrap,
   normalizeWorkspaceBootstrapForEncounter,
+  persistEncounterTreatmentLine,
 } from '@/app/features/appointments/services/workspaceAggregateService';
-import { markAppointmentReadyForBilling } from '@/app/features/billing/services/invoiceService';
+import {
+  markAppointmentReadyForBilling,
+  reverseAppointmentReadyForBilling,
+} from '@/app/features/billing/services/invoiceService';
 import { useNotify } from '@/app/hooks/useNotify';
+import {
+  getAssignableRoomUnits,
+  getFirstAssignableRoomUnitId,
+  toAssignableRoomOptions,
+} from '@/app/features/appointments/lib/roomUnitAvailability';
 
 type AppointmentWorkspaceProps = {
   appointment: Appointment;
@@ -76,16 +95,45 @@ type WorkspaceRoom = {
   name: string;
 };
 
+type RequiredStaffMember = {
+  id: string;
+  name: string;
+};
+
+const ADMISSIBLE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
+
+const isSameInstant = (left?: string | Date, right?: string | Date): boolean => {
+  if (!left || !right) return false;
+  const leftTime = new Date(left).getTime();
+  const rightTime = new Date(right).getTime();
+  return Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime === rightTime;
+};
+
+const isBareCheckInAdmission = (
+  encounter: AppointmentEncounter | undefined,
+  appointment: Appointment
+): boolean =>
+  Boolean(
+    encounter?.admittedAt &&
+    !encounter.unitId &&
+    !encounter.dischargedAt &&
+    isSameInstant(encounter.admittedAt, appointment.startTime)
+  );
+
 const getRoomUnits = (
   roomId: string | undefined,
   roomUnitsById: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitsById'],
-  roomUnitIdsByRoomId: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitIdsByRoomId']
-) => {
-  if (!roomId) return [];
-  return (roomUnitIdsByRoomId[roomId] ?? [])
-    .map((unitId) => roomUnitsById[unitId])
-    .filter((unit) => unit?.isActive !== false);
-};
+  roomUnitIdsByRoomId: ReturnType<typeof useOrganisationRoomStore.getState>['roomUnitIdsByRoomId'],
+  currentUnitId?: string
+) =>
+  getAssignableRoomUnits(
+    roomId,
+    {
+      roomUnitsById,
+      roomUnitIdsByRoomId,
+    },
+    currentUnitId
+  );
 
 const isValidStep = (value: string | null): value is WorkspaceStep =>
   value != null && (WORKSPACE_STEPS as string[]).includes(value);
@@ -163,7 +211,22 @@ type DischargeDateTimeModalProps = {
   setDischargeTime: (next: string) => void;
   onConfirm: () => void;
   isSaving: boolean;
+  /** Backend-owned discharge readiness; when disabled, an override reason is required. */
+  gate?: NonNullable<AppointmentEncounter['finalizationGate']>;
+  overrideReason: string;
+  setOverrideReason: (next: string) => void;
 };
+
+// A SOAP note carries real content if it is completed or any of its rich-text
+// sections is non-empty. Hoisted to module scope to keep the hydration effect flat.
+const hasMeaningfulSoapContent = (notes: SoapNoteEntry[]): boolean =>
+  notes.some(
+    (note) =>
+      note.status === 'COMPLETED' ||
+      ![note.chiefComplaint, note.subjective, note.objective, note.assessment, note.plan].every(
+        (value) => isRichTextEmpty(value)
+      )
+  );
 
 const DischargeDateTimeModal = ({
   showModal,
@@ -174,16 +237,45 @@ const DischargeDateTimeModal = ({
   setDischargeTime,
   onConfirm,
   isSaving,
+  gate,
+  overrideReason,
+  setOverrideReason,
 }: DischargeDateTimeModalProps) => {
   const handleCancel = () => {
     if (isSaving) return;
     setShowModal(false);
   };
 
+  // When the backend gate blocks discharge, the clinician must give an override
+  // reason before confirming — this is the audited, exceptional discharge path.
+  const gateBlocked = gate ? gate.enabled === false : false;
+  const overrideMissing = gateBlocked && !overrideReason.trim();
+  const confirmLabel = (() => {
+    if (isSaving) return 'Discharging...';
+    return gateBlocked ? 'Override & discharge' : 'Confirm discharge';
+  })();
+
   return (
     <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleCancel}>
       <div className="flex w-full flex-col gap-4">
         <ModalHeader title="Discharge date & time" onClose={handleCancel} />
+        {gateBlocked && (
+          <div className="flex flex-col gap-2 rounded-2xl bg-danger-100 p-3">
+            <p className="text-body-4 text-danger-700">
+              {gate?.disabledReason ?? 'This encounter is not ready for discharge.'}
+            </p>
+            <label className="flex flex-col gap-1 text-caption-2 text-text-secondary">
+              {'Override reason (required)'}
+              <textarea
+                value={overrideReason}
+                onChange={(event) => setOverrideReason(event.target.value)}
+                rows={2}
+                className="rounded-xl border border-input-border-default px-3 py-2 text-body-4 text-text-primary"
+                placeholder="Explain why discharge proceeds despite the open requirements"
+              />
+            </label>
+          </div>
+        )}
         <div className={`${isSaving ? 'pointer-events-none opacity-60' : ''} flex flex-col gap-3`}>
           <Datepicker
             type="input"
@@ -203,9 +295,9 @@ const DischargeDateTimeModal = ({
           />
           <Primary
             href="#"
-            text={isSaving ? 'Discharging...' : 'Confirm discharge'}
+            text={confirmLabel}
             onClick={onConfirm}
-            isDisabled={isSaving}
+            isDisabled={isSaving || overrideMissing}
             className="w-auto min-w-36"
           />
         </div>
@@ -222,12 +314,14 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { notify } = useNotify();
+  const terminologyText = useCompanionTerminologyText();
   const attributes = useAuthStore((s) => s.attributes);
-  useLoadRoomsForPrimaryOrg();
+  useLoadRoomsForPrimaryOrg({ force: true, silent: true });
   useLoadCompanionsForPrimaryOrg();
   const rooms = useRoomsForPrimaryOrg();
   const roomUnitsById = useOrganisationRoomStore((s) => s.roomUnitsById);
   const roomUnitIdsByRoomId = useOrganisationRoomStore((s) => s.roomUnitIdsByRoomId);
+  const setRoomUnitOccupied = useOrganisationRoomStore((s) => s.setRoomUnitOccupied);
   const catalogSpecialities = useRevampCatalogStore((s) => s.specialities);
   const catalogServices = useRevampCatalogStore((s) => s.services);
   const catalogPackages = useRevampCatalogStore((s) => s.packages);
@@ -249,6 +343,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   const initEncounter = useAppointmentWorkspaceStore((s) => s.initEncounter);
   const encounter = useAppointmentWorkspaceStore((s) => s.encountersById[appointmentId]);
   const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
+  const applySoapTemplate = useAppointmentWorkspaceStore((s) => s.applySoapTemplate);
+  const getEncounter = useAppointmentWorkspaceStore((s) => s.getEncounter);
   const activeStep = useAppointmentWorkspaceStore((s) => s.activeStep);
   const setActiveStep = useAppointmentWorkspaceStore((s) => s.setActiveStep);
   const activeSideAction = useAppointmentWorkspaceStore((s) => s.activeSideAction);
@@ -268,6 +364,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   const [summaryDischargeTime, setSummaryDischargeTime] = useState<string>(() =>
     toTimeString(new Date())
   );
+  const [dischargeOverrideReason, setDischargeOverrideReason] = useState('');
   const lifecycleEncounterIdRef = useRef<string | undefined>(appointment.encounterId);
   const supportStaffMember = useMemo(() => {
     const leadName = (appointment.lead?.name ?? '').trim();
@@ -333,8 +430,19 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         authorName: actor.name,
       }),
       listSoapTemplatesForWorkspace(organisationId),
+      // Resolve the service/package/species-linked SOAP template so the active
+      // draft prefills before YC defaults. 404 → null (no default) so it no-ops.
+      resolveSoapTemplate({
+        organisationId,
+        appointmentId,
+        encounterId: appointment.encounterId,
+        companionId: companion.id,
+        species: companion.species,
+        serviceId: appointment.appointmentType?.id,
+        mode: encounter.mode === 'INPATIENT' ? 'INPATIENT' : 'OUTPATIENT',
+      }),
     ])
-      .then(([aggregateResult, clinicalResult, templatesResult]) => {
+      .then(([aggregateResult, clinicalResult, templatesResult, resolvedSoapResult]) => {
         if (aggregateResult.status === 'fulfilled') {
           lifecycleEncounterIdRef.current =
             getWorkspaceBootstrapEncounterId(aggregateResult.value) ??
@@ -347,6 +455,15 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           ...(clinicalResult.status === 'fulfilled' ? clinicalResult.value : {}),
           soapTemplates: templatesResult.status === 'fulfilled' ? templatesResult.value : [],
         });
+        // Prefill the active SOAP draft from the resolved template only when there
+        // is no saved/typed SOAP content yet, so we never overwrite a real record.
+        const resolvedSoap =
+          resolvedSoapResult.status === 'fulfilled' ? resolvedSoapResult.value : null;
+        const liveEncounter = getEncounter(appointmentId);
+        const hasSoapContent = hasMeaningfulSoapContent(liveEncounter?.soap ?? []);
+        if (resolvedSoap && !hasSoapContent) {
+          applySoapTemplate(appointmentId, resolvedSoap);
+        }
       })
       .catch((error) => {
         console.error('Unable to hydrate workspace data:', error);
@@ -354,11 +471,16 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   }, [
     appointment.encounterId,
     appointment.organisationId,
+    appointment.appointmentType?.id,
     appointmentId,
     actor.id,
     actor.name,
+    companion.id,
+    companion.species,
     encounter,
     mergeEncounterData,
+    applySoapTemplate,
+    getEncounter,
   ]);
 
   const encounterMode = encounter?.mode ?? initialMode;
@@ -373,6 +495,17 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         resolveLockHours(encounterMode, lockWindow)
       ),
     [appointment.startTime, encounterMode, lockWindow]
+  );
+
+  // Ready-for-billing is a monotonic milestone: once any invoice for this visit is
+  // paid/settled it can't be un-marked (the backend 409s the revert), so lock the
+  // toggle in that state. This also keeps the box shown as satisfied after payment.
+  const billingSettled = useMemo(
+    () =>
+      (encounter?.pastInvoices ?? []).some(
+        (invoice) => invoice.status === 'PAID_FULL' || invoice.outstandingCents <= 0
+      ),
+    [encounter?.pastInvoices]
   );
 
   // Land on the step from the URL, else the status-driven landing step — once
@@ -398,9 +531,10 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           species: companion.species,
           breed: companion.breed,
         },
-        companionRecord
+        companionRecord,
+        terminologyText
       ),
-    [companion, companionRecord]
+    [companion, companionRecord, terminologyText]
   );
   // Clinical encounter — the time-based "Appointment lock window" freezes the
   // legal record (SOAP + Discharge/Summary). This is what the lock exists for.
@@ -421,6 +555,13 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   const displayedPatientAlerts = persistedPatientAlerts.length
     ? persistedPatientAlerts
     : (effectiveEncounter?.alerts ?? []);
+  // Client (parent) alerts: surfaced read-only alongside the patient alerts so
+  // the same alert state is visible in the workspace, not only the companion modal.
+  const parentRecord = useParentStore((s) => s.parentsById[companion.parent.id]);
+  const displayedClientAlerts = useMemo(
+    () => storedAlertsToCompanionAlerts(parentRecord?.alerts, 'client-alert'),
+    [parentRecord?.alerts]
+  );
   // Operational encounter — billing (Invoice, Services & Packages) and lab
   // orders (Diagnostics) are NOT frozen by the clinical time window. Industry
   // standard gates these on their own state (invoice finalized/paid,
@@ -436,21 +577,43 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     [encounter]
   );
   const isCompletedAppointment = normalizeAppointmentStatus(appointment.status) === 'COMPLETED';
+  const normalizedAppointmentStatus = normalizeAppointmentStatus(appointment.status);
+  const canAdmitAppointmentStatus = ADMISSIBLE_APPOINTMENT_STATUSES.has(
+    normalizedAppointmentStatus ?? ''
+  );
 
   const selectedRoom = useMemo(
     () => rooms.find((room) => room.id === effectiveEncounter?.roomId),
     [effectiveEncounter?.roomId, rooms]
   );
+  const roomIndexes = useMemo(
+    () => ({ roomUnitsById, roomUnitIdsByRoomId }),
+    [roomUnitIdsByRoomId, roomUnitsById]
+  );
   const selectedRoomUnits = useMemo(
-    () => getRoomUnits(selectedRoom?.id, roomUnitsById, roomUnitIdsByRoomId),
-    [roomUnitIdsByRoomId, roomUnitsById, selectedRoom?.id]
+    () =>
+      getRoomUnits(
+        selectedRoom?.id,
+        roomUnitsById,
+        roomUnitIdsByRoomId,
+        effectiveEncounter?.unitId
+      ),
+    [effectiveEncounter?.unitId, roomUnitIdsByRoomId, roomUnitsById, selectedRoom?.id]
   );
   const roomOptions = useMemo(() => {
-    if (rooms.length) return rooms.map((room) => ({ label: room.name, value: room.id }));
+    if (rooms.length) {
+      return toAssignableRoomOptions(
+        rooms,
+        roomIndexes,
+        effectiveEncounter?.roomId,
+        effectiveEncounter?.unitId,
+        encounterMode === 'INPATIENT'
+      );
+    }
     return effectiveEncounter?.roomId
       ? [{ label: 'Room 1', value: effectiveEncounter.roomId }]
       : [];
-  }, [effectiveEncounter?.roomId, rooms]);
+  }, [effectiveEncounter?.roomId, effectiveEncounter?.unitId, encounterMode, roomIndexes, rooms]);
   const unitOptions = useMemo(() => {
     if (selectedRoomUnits.length) {
       return selectedRoomUnits.map((unit) => ({
@@ -462,27 +625,53 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       ? [{ label: effectiveEncounter.unitId, value: effectiveEncounter.unitId }]
       : [];
   }, [effectiveEncounter?.unitId, selectedRoomUnits]);
-  const hasAdmission = Boolean(effectiveEncounter?.admittedAt);
+  const unitOptionsByRoomId = useMemo(() => {
+    const optionsByRoom: Record<string, { label: string; value: string }[]> = {};
+    for (const room of rooms) {
+      const options = getRoomUnits(
+        room.id,
+        roomUnitsById,
+        roomUnitIdsByRoomId,
+        effectiveEncounter?.unitId
+      ).map((unit) => ({
+        label: unit.displayName || unit.code,
+        value: unit.id,
+      }));
+      if (options.length) optionsByRoom[room.id] = options;
+    }
+    return optionsByRoom;
+  }, [effectiveEncounter?.unitId, roomUnitIdsByRoomId, roomUnitsById, rooms]);
+  const hasAdmission = Boolean(
+    effectiveEncounter?.admittedAt && !isBareCheckInAdmission(effectiveEncounter, appointment)
+  );
+  const roomAssignmentLocked = isCompletedAppointment || Boolean(effectiveEncounter?.dischargedAt);
   const supportOptions = useMemo(() => {
     const seen = new Set<string>();
     const options: { label: string; value: string }[] = [];
-    const add = (name?: string) => {
+    const add = (id?: string, name?: string) => {
+      const trimmedId = (id ?? '').trim();
       const trimmed = (name ?? '').trim();
-      if (!trimmed || seen.has(trimmed)) return;
-      seen.add(trimmed);
-      options.push({ label: trimmed, value: trimmed });
+      if (!trimmedId || !trimmed || seen.has(trimmedId)) return;
+      seen.add(trimmedId);
+      options.push({ label: trimmed, value: trimmedId });
     };
-    add(appointment.lead?.name);
-    (appointment.supportStaff ?? []).forEach((staff) => add(staff.name));
+    (appointment.supportStaff ?? []).forEach((staff) => add(staff.id, staff.name));
+    if (effectiveEncounter?.nurseId && effectiveEncounter.nurseName) {
+      add(effectiveEncounter.nurseId, effectiveEncounter.nurseName);
+    }
     return options;
-  }, [appointment.lead?.name, appointment.supportStaff]);
+  }, [appointment.supportStaff, effectiveEncounter?.nurseId, effectiveEncounter?.nurseName]);
   const hospitalizationServicePackages = useMemo(() => {
+    // Only INPATIENT-bookable items may be added on hospitalization. The backend derives
+    // `supportsInpatient` from `isInpatientPreferred` and rejects anything else with a 400
+    // ("not bookable for inpatient appointments"), so filter to inpatient-preferred items here.
     const serviceOptions = catalogServices
       .filter(
         (service) =>
           service.organisationId === appointment.organisationId &&
           service.status === 'ACTIVE' &&
-          service.isBookable !== false
+          service.isBookable !== false &&
+          service.isInpatientPreferred === true
       )
       .map((service) => ({
         id: service.id,
@@ -496,7 +685,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         (pkg) =>
           pkg.organisationId === appointment.organisationId &&
           pkg.status === 'ACTIVE' &&
-          pkg.isBookable !== false
+          pkg.isBookable !== false &&
+          pkg.isInpatientPreferred === true
       )
       .map((pkg) => ({
         id: pkg.id,
@@ -521,6 +711,13 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     if (next) handleStepChange(next);
   }, [activeStep, handleStepChange]);
 
+  const notifyRoomAssignmentLocked = useCallback(() => {
+    notify('warning', {
+      title: 'Room assignment locked',
+      text: 'Room and unit cannot be changed after the appointment is discharged or completed.',
+    });
+  }, [notify]);
+
   const refreshWorkspaceEncounterId = useCallback(async () => {
     const organisationId = appointment.organisationId;
     if (!organisationId || !appointmentId) return undefined;
@@ -531,6 +728,26 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     return encounterId;
   }, [appointment.organisationId, appointmentId, mergeEncounterData]);
 
+  // Resolve the encounter id for clinical persistence, creating one if needed. The backend only
+  // creates an encounter on CHECK-IN, so an outpatient appointment that hasn't started has no
+  // encounter and treatment/prescriptions can't persist. When that's the case we check the
+  // appointment in (which creates the encounter), then read the new encounter id from the
+  // bootstrap. Returns the encounter id, or undefined if it still can't be resolved.
+  const ensureEncounterId = useCallback(async (): Promise<string | undefined> => {
+    const existing = lifecycleEncounterIdRef.current ?? appointment.encounterId;
+    if (existing) return existing;
+    // Only attempt check-in when the appointment is in a state that can transition to CHECKED_IN.
+    const status = normalizeAppointmentStatus(appointment.status);
+    if (status !== 'COMPLETED' && status !== 'CANCELLED' && status !== 'CHECKED_IN') {
+      try {
+        await changeAppointmentStatus(appointment, 'CHECKED_IN');
+      } catch (error) {
+        console.error('Failed to check in appointment to create an encounter:', error);
+      }
+    }
+    return refreshWorkspaceEncounterId();
+  }, [appointment, refreshWorkspaceEncounterId]);
+
   const handleAdmit = useCallback(
     async (
       unitId?: string,
@@ -538,11 +755,18 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       options?: {
         admittedAt?: string;
         expectedStayDays?: number;
-        supportName?: string;
+        supportStaffMember?: RequiredStaffMember;
         allowModeConversion?: boolean;
       }
     ) => {
       if (isAdmitting) return false;
+      if (!canAdmitAppointmentStatus) {
+        notify('error', {
+          title: 'Check in required',
+          text: terminologyText('Check in the appointment before admitting the patient.'),
+        });
+        return false;
+      }
       if (encounterMode !== 'INPATIENT' && !options?.allowModeConversion) {
         notify('error', {
           title: 'Unable to admit',
@@ -555,20 +779,20 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       const resolvedRoomId = roomId ?? effectiveEncounter?.roomId ?? appointment.room?.id;
       const resolvedUnitId = unitId ?? effectiveEncounter?.unitId;
       const leadName = (effectiveEncounter?.leadName ?? appointment.lead?.name ?? '').trim();
-      const leadId = effectiveEncounter?.leadId ?? appointment.lead?.id;
-      const supportStaff: Array<{ id?: string; name?: string }> = (appointment.supportStaff ?? [])
+      const leadId = (effectiveEncounter?.leadId ?? appointment.lead?.id ?? '').trim();
+      const supportStaff: RequiredStaffMember[] = (appointment.supportStaff ?? [])
         .map((staff) => ({
-          id: staff.id,
-          name: staff.name,
+          id: (staff.id ?? '').trim(),
+          name: (staff.name ?? '').trim(),
         }))
-        .filter((staff) => staff.id || staff.name);
+        .filter((staff): staff is RequiredStaffMember => Boolean(staff.id && staff.name));
       if (
-        options?.supportName &&
-        !supportStaff.some((staff) => staff.name === options.supportName)
+        options?.supportStaffMember &&
+        !supportStaff.some((staff) => staff.id === options.supportStaffMember?.id)
       ) {
-        supportStaff.push({ name: options.supportName });
+        supportStaff.push(options.supportStaffMember);
       }
-      if (!supportStaff.length && (effectiveEncounter?.nurseId || effectiveEncounter?.nurseName)) {
+      if (!supportStaff.length && effectiveEncounter?.nurseId && effectiveEncounter.nurseName) {
         supportStaff.push({
           id: effectiveEncounter.nurseId,
           name: effectiveEncounter.nurseName,
@@ -580,7 +804,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         await admitAppointment(appointment.organisationId, appointmentId, {
           admittedAt,
           expectedStayDays: options?.expectedStayDays,
-          lead: leadId || leadName ? { id: leadId, name: leadName || undefined } : undefined,
+          lead: leadId && leadName ? { id: leadId, name: leadName } : undefined,
           supportStaff,
           room: resolvedRoomId
             ? { id: resolvedRoomId, name: getRoomName(rooms, resolvedRoomId) }
@@ -601,10 +825,17 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         if (resolvedRoomId || resolvedUnitId) {
           setRoomUnit(appointmentId, resolvedRoomId, resolvedUnitId);
         }
+        if (resolvedUnitId) {
+          setRoomUnitOccupied(resolvedUnitId, true);
+          await loadRoomsForOrgPrimaryOrg({ force: true, silent: true });
+        }
         refreshWorkspaceEncounterId().catch((error) => {
           console.error('Unable to refresh workspace after admission:', error);
         });
-        notify('success', { title: 'Patient admitted', text: 'Admission has been created.' });
+        notify('success', {
+          title: terminologyText('Patient admitted'),
+          text: 'Admission has been created.',
+        });
         return true;
       } catch (error) {
         notify('error', {
@@ -625,6 +856,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       appointment.room?.id,
       appointment.supportStaff,
       appointmentId,
+      canAdmitAppointmentStatus,
       effectiveEncounter?.leadId,
       effectiveEncounter?.leadName,
       effectiveEncounter?.nurseId,
@@ -637,7 +869,9 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       notify,
       refreshWorkspaceEncounterId,
       rooms,
+      setRoomUnitOccupied,
       setRoomUnit,
+      terminologyText,
     ]
   );
 
@@ -662,6 +896,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           assignedBy: actor.name,
           reason: 'Workspace room assignment',
         });
+        setRoomUnitOccupied(unitId, true);
+        await loadRoomsForOrgPrimaryOrg({ force: true, silent: true });
         return true;
       } catch (error) {
         const message = getErrorMessage(error);
@@ -684,6 +920,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       handleAdmit,
       notify,
       refreshWorkspaceEncounterId,
+      setRoomUnitOccupied,
     ]
   );
 
@@ -707,7 +944,15 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const handleRoomSelect = useCallback(
     async (option: { value: string }) => {
-      const firstUnit = getRoomUnits(option.value, roomUnitsById, roomUnitIdsByRoomId)[0]?.id;
+      if (roomAssignmentLocked) {
+        notifyRoomAssignmentLocked();
+        return;
+      }
+      const firstUnit = getFirstAssignableRoomUnitId(
+        option.value,
+        { roomUnitsById, roomUnitIdsByRoomId },
+        effectiveEncounter?.unitId
+      );
       const nextUnit = encounterMode === 'INPATIENT' ? firstUnit : undefined;
       const previousRoomId = effectiveEncounter?.roomId;
       const previousUnitId = effectiveEncounter?.unitId;
@@ -718,6 +963,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       ]);
       if (nextUnit && !unitPersisted) {
         setRoomUnit(appointmentId, previousRoomId, previousUnitId);
+      } else if (unitPersisted) {
+        setRoomUnitOccupied(previousUnitId, false);
       }
     },
     [
@@ -727,21 +974,30 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       effectiveEncounter?.unitId,
       persistRoomAssignment,
       persistUnitAssignment,
+      roomAssignmentLocked,
       roomUnitIdsByRoomId,
       roomUnitsById,
+      notifyRoomAssignmentLocked,
       setRoomUnit,
+      setRoomUnitOccupied,
     ]
   );
 
   const handleUnitSelect = useCallback(
     async (option: { value: string }) => {
+      if (roomAssignmentLocked) {
+        notifyRoomAssignmentLocked();
+        return;
+      }
       const previousUnitId = effectiveEncounter?.unitId;
       setRoomUnit(appointmentId, effectiveEncounter?.roomId, option.value);
       const [, unitPersisted] = await Promise.all([
         persistRoomAssignment(effectiveEncounter?.roomId),
         persistUnitAssignment(option.value),
       ]);
-      if (!unitPersisted) {
+      if (unitPersisted) {
+        setRoomUnitOccupied(previousUnitId, false);
+      } else {
         setRoomUnit(appointmentId, effectiveEncounter?.roomId, previousUnitId);
       }
     },
@@ -751,7 +1007,10 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       effectiveEncounter?.unitId,
       persistRoomAssignment,
       persistUnitAssignment,
+      roomAssignmentLocked,
+      notifyRoomAssignmentLocked,
       setRoomUnit,
+      setRoomUnitOccupied,
     ]
   );
 
@@ -783,23 +1042,35 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const handleReadyForDischargeToggle = useCallback(async () => {
     const nextReady = !(encounter?.readyForDischarge.value ?? false);
-    // The encounter id is hydrated asynchronously from the workspace bootstrap.
-    // If it hasn't resolved yet, fetch it now so the toggle actually persists
-    // instead of silently flipping only in local state.
-    if (!(lifecycleEncounterIdRef.current ?? appointment.encounterId)) {
-      await refreshWorkspaceEncounterId();
-    }
-    if (lifecycleEncounterIdRef.current ?? appointment.encounterId) {
-      await runEncounterLifecycleOperation(
-        nextReady ? markEncounterReadyForDischarge : undoEncounterReadyForDischarge
-      );
-    }
+    // Optimistic: flip the checkbox immediately for instant feedback, then persist in the
+    // background. If the write fails, roll the toggle back and surface an alert.
     toggleReadyForDischarge(appointmentId, actor);
+    try {
+      if (!(lifecycleEncounterIdRef.current ?? appointment.encounterId)) {
+        await refreshWorkspaceEncounterId();
+      }
+      if (lifecycleEncounterIdRef.current ?? appointment.encounterId) {
+        await runEncounterLifecycleOperation(
+          nextReady ? markEncounterReadyForDischarge : undoEncounterReadyForDischarge
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update ready for discharge:', error);
+      // Revert the optimistic flip back to its previous state.
+      toggleReadyForDischarge(appointmentId, actor);
+      notify('error', {
+        title: nextReady
+          ? 'Couldn’t mark ready for discharge'
+          : 'Couldn’t unmark ready for discharge',
+        text: 'The change wasn’t saved. Please try again.',
+      });
+    }
   }, [
     actor,
     appointment.encounterId,
     appointmentId,
     encounter?.readyForDischarge.value,
+    notify,
     refreshWorkspaceEncounterId,
     runEncounterLifecycleOperation,
     toggleReadyForDischarge,
@@ -807,16 +1078,52 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const handleReadyForBillingToggle = useCallback(async () => {
     const nextReady = !(encounter?.readyForBilling.value ?? false);
-    if (nextReady) {
-      await markAppointmentReadyForBilling(appointmentId, {
-        organisationId: appointment.organisationId,
-        patientId: companion.id,
-        parentId: companion.parent.id,
-        visitId: lifecycleEncounterIdRef.current ?? appointment.encounterId,
-        notes: 'Ready for billing from appointment workspace',
-      });
-    }
+    // Marking ready sets the invoice's visitBillingStage to READY_FOR_BILLING on
+    // the finance service; un-marking reverts it to DRAFT via the matching DELETE
+    // route. The backend refuses the revert (409) once any payment/credit has been
+    // applied to the invoice, so a paid visit stays marked — surface that case.
+    const billingInput = {
+      organisationId: appointment.organisationId,
+      patientId: companion.id,
+      parentId: companion.parent.id,
+      visitId: lifecycleEncounterIdRef.current ?? appointment.encounterId,
+      notes: 'Ready for billing from appointment workspace',
+    };
+    // Optimistic: flip the box immediately for instant feedback, then persist in the background.
     toggleReadyForBilling(appointmentId, actor);
+    try {
+      if (nextReady) {
+        await markAppointmentReadyForBilling(appointmentId, billingInput);
+      } else {
+        await reverseAppointmentReadyForBilling(appointmentId, billingInput);
+      }
+    } catch (error) {
+      // Roll the optimistic flip back so the UI doesn't show a state the server rejected.
+      toggleReadyForBilling(appointmentId, actor);
+      // A 409 on the revert means payments are already applied — that's an expected
+      // business outcome (not a failure), so explain why it's locked without logging.
+      if (!nextReady && getErrorStatus(error) === 409) {
+        notify('warning', {
+          title: 'Can’t unmark ready for billing',
+          text: 'A payment has already been applied to this visit’s invoice, so it can’t be reverted.',
+        });
+        return;
+      }
+      console.error('Failed to update appointment ready-for-billing:', error);
+      notify('error', {
+        title: nextReady ? 'Couldn’t mark ready for billing' : 'Couldn’t unmark ready for billing',
+        text: 'The change wasn’t saved. Please try again.',
+      });
+      return;
+    }
+    // Re-hydrate from the workspace bootstrap so the checkbox reflects confirmed server state
+    // (invoice visitBillingStage) across a refresh. Best-effort: the optimistic flip already
+    // shows the action, so a failed refresh is non-fatal.
+    try {
+      await refreshWorkspaceEncounterId();
+    } catch (error) {
+      console.error('Failed to refresh billing state after marking ready:', error);
+    }
   }, [
     actor,
     appointment.encounterId,
@@ -825,6 +1132,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     companion.id,
     companion.parent.id,
     encounter?.readyForBilling.value,
+    notify,
+    refreshWorkspaceEncounterId,
     toggleReadyForBilling,
   ]);
 
@@ -833,7 +1142,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       if (!companionRecord) {
         notify('error', {
           title: 'Unable to update alerts',
-          text: 'Patient details are still loading. Please try again.',
+          text: terminologyText('Patient details are still loading. Please try again.'),
         });
         return;
       }
@@ -842,7 +1151,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         alerts: companionAlertsToStoredAlerts(nextAlerts),
       });
     },
-    [companionRecord, notify]
+    [companionRecord, notify, terminologyText]
   );
 
   const handleAddPatientAlert = useCallback(
@@ -853,12 +1162,15 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       ];
       try {
         await persistPatientAlerts(nextAlerts);
-        notify('success', { title: 'Alert added', text: 'Patient alert has been saved.' });
+        notify('success', {
+          title: 'Alert added',
+          text: terminologyText('Patient alert has been saved.'),
+        });
       } catch {
         notify('error', { title: 'Failed to add alert', text: 'Please try again.' });
       }
     },
-    [persistPatientAlerts, persistedPatientAlerts, notify]
+    [persistPatientAlerts, persistedPatientAlerts, notify, terminologyText]
   );
 
   const handleRemovePatientAlert = useCallback(
@@ -866,17 +1178,24 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       const nextAlerts = persistedPatientAlerts.filter((alert) => alert.id !== id);
       try {
         await persistPatientAlerts(nextAlerts);
-        notify('success', { title: 'Alert removed', text: 'Patient alert has been removed.' });
+        notify('success', {
+          title: 'Alert removed',
+          text: terminologyText('Patient alert has been removed.'),
+        });
       } catch {
         notify('error', { title: 'Failed to remove alert', text: 'Please try again.' });
       }
     },
-    [persistPatientAlerts, persistedPatientAlerts, notify]
+    [persistPatientAlerts, persistedPatientAlerts, notify, terminologyText]
   );
 
   useEffect(() => {
     if (!appointmentId || !encounter || encounter.roomId || !appointment.room?.id) return;
-    const firstUnit = getRoomUnits(appointment.room.id, roomUnitsById, roomUnitIdsByRoomId)[0]?.id;
+    const firstUnit = getFirstAssignableRoomUnitId(
+      appointment.room.id,
+      { roomUnitsById, roomUnitIdsByRoomId },
+      encounter.unitId
+    );
     setRoomUnit(
       appointmentId,
       appointment.room.id,
@@ -921,18 +1240,21 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   }, [appointment, isCompletedAppointment]);
 
   const handleDischarge = useCallback(
-    async (dischargedAt: string) => {
+    async (dischargedAt: string, overrideReason?: string) => {
       if (isFinalizing) return;
       setIsFinalizing(true);
       try {
         await dischargeEncounter(
           lifecycleEncounterIdRef.current ?? appointment.encounterId,
-          dischargedAt
+          dischargedAt,
+          { overrideReason }
         );
         await completeAppointmentStatus();
+        setRoomUnitOccupied(effectiveEncounter?.unitId, false);
+        await loadRoomsForOrgPrimaryOrg({ force: true, silent: true });
         markDischarged(appointmentId, dischargedAt);
         notify('success', {
-          title: 'Patient discharged',
+          title: terminologyText('Patient discharged'),
           text: 'The inpatient stay has been closed.',
         });
       } catch (error) {
@@ -951,6 +1273,9 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       isFinalizing,
       markDischarged,
       notify,
+      effectiveEncounter?.unitId,
+      terminologyText,
+      setRoomUnitOccupied,
     ]
   );
 
@@ -986,12 +1311,14 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   }, [effectiveEncounter, handleComplete, isFinalizing]);
 
   const handleConfirmSummaryDischarge = useCallback(() => {
-    void handleDischarge(buildAdmissionDateTime(summaryDischargeDate, summaryDischargeTime)).then(
-      () => {
-        setIsSummaryDischargeModalOpen(false);
-      }
-    );
-  }, [handleDischarge, summaryDischargeDate, summaryDischargeTime]);
+    void handleDischarge(
+      buildAdmissionDateTime(summaryDischargeDate, summaryDischargeTime),
+      dischargeOverrideReason.trim() || undefined
+    ).then(() => {
+      setIsSummaryDischargeModalOpen(false);
+      setDischargeOverrideReason('');
+    });
+  }, [dischargeOverrideReason, handleDischarge, summaryDischargeDate, summaryDischargeTime]);
 
   const summaryPrimaryCta = useMemo(() => {
     if (activeStep !== 'SUMMARY' || !effectiveEncounter) return undefined;
@@ -1020,10 +1347,28 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           appointment={appointment}
           companionName={companion.name}
           alerts={displayedPatientAlerts}
-          onBack={() => router.push('/appointments')}
+          clientAlerts={displayedClientAlerts}
+          onBack={() => {
+            startRouteLoader();
+            router.push('/appointments');
+          }}
           onQuickActions={() => setActiveSideAction('RECORD')}
-          onHospitalize={() => setIsHospitalizeOpen(true)}
-          canAdmit={encounterMode === 'INPATIENT' && !hasAdmission && !effectiveEncounter.viewOnly}
+          onHospitalize={() => {
+            if (!canAdmitAppointmentStatus) {
+              notify('error', {
+                title: 'Check in required',
+                text: terminologyText('Check in the appointment before admitting the patient.'),
+              });
+              return;
+            }
+            setIsHospitalizeOpen(true);
+          }}
+          canAdmit={
+            encounterMode === 'INPATIENT' &&
+            canAdmitAppointmentStatus &&
+            !hasAdmission &&
+            !effectiveEncounter.viewOnly
+          }
           isAdmitting={isAdmitting}
           onAdmit={() => handleAdmit(effectiveEncounter.unitId, effectiveEncounter.roomId)}
           canHospitalize={encounterMode !== 'INPATIENT'}
@@ -1061,7 +1406,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         onSaveAndNext={handleSaveAndNext}
         onToggleReadyForBilling={handleReadyForBillingToggle}
         onToggleReadyForDischarge={handleReadyForDischargeToggle}
-        billingTogglesLocked={encounter?.viewOnly ?? false}
+        roomAssignmentLocked={roomAssignmentLocked}
+        billingTogglesLocked={(encounter?.viewOnly ?? false) || billingSettled}
         dischargeTogglesLocked={(encounter?.viewOnly ?? false) || lockedByWindow}
         primaryCta={workspacePrimaryCta}
       />
@@ -1096,6 +1442,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             encounterId={appointment.encounterId}
             authorId={actor.id}
             encounter={operationalEncounter}
+            ensureEncounterId={ensureEncounterId}
             onOpenInvoice={() => handleStepChange('INVOICE')}
           />
         )}
@@ -1107,6 +1454,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             parentId={companion.parent.id}
             encounter={operationalEncounter}
             hideBillBuilder={isCompletedAppointment}
+            bookedItemName={appointment.appointmentType?.name}
             onOpenSummary={() => handleStepChange('SUMMARY')}
           />
         )}
@@ -1115,6 +1463,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             appointmentId={appointmentId}
             appointment={appointment}
             encounter={effectiveEncounter}
+            resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
           />
         )}
       </section>
@@ -1128,6 +1477,9 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         setDischargeTime={setSummaryDischargeTime}
         onConfirm={handleConfirmSummaryDischarge}
         isSaving={isFinalizing}
+        gate={effectiveEncounter?.finalizationGate}
+        overrideReason={dischargeOverrideReason}
+        setOverrideReason={setDischargeOverrideReason}
       />
 
       <QuickActionsModal
@@ -1156,16 +1508,40 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         supportOptions={supportOptions}
         roomOptions={roomOptions}
         unitOptions={unitOptions}
+        unitOptionsByRoomId={unitOptionsByRoomId}
         servicePackages={hospitalizationServicePackages}
         defaultRoomId={effectiveEncounter.roomId}
         defaultUnitId={effectiveEncounter.unitId}
-        onConvert={(payload) => {
-          const selectedServicePackage = hospitalizationServicePackages.find(
-            (item) => item.id === payload.servicePackageId
+        onConvert={async (payload) => {
+          const selectedSupport = supportOptions.find(
+            (option) => option.value === payload.supportStaffId
           );
-          if (selectedServicePackage) {
+          const supportStaffMember =
+            selectedSupport && payload.supportStaffId
+              ? { id: payload.supportStaffId, name: selectedSupport.label }
+              : undefined;
+          const converted = await handleAdmit(payload.unitId, payload.roomId, {
+            admittedAt: buildAdmissionDateTime(payload.admissionDate, payload.admissionTime),
+            expectedStayDays: calculateExpectedStayDays(
+              payload.admissionDate,
+              payload.dischargeDate
+            ),
+            supportStaffMember,
+            allowModeConversion: true,
+          });
+          if (!converted) return false;
+          const selectedServicePackages = hospitalizationServicePackages.filter((item) =>
+            payload.servicePackageIds.includes(item.id)
+          );
+          // Admission has created/resolved the encounter — persist each chosen service/package as a
+          // treatment item so it survives a refresh (local addLineItem alone is lost on reload).
+          const admissionEncounterId =
+            lifecycleEncounterIdRef.current ??
+            appointment.encounterId ??
+            (await refreshWorkspaceEncounterId());
+          for (const selectedServicePackage of selectedServicePackages) {
             const amountCents = Math.max(0, Math.round(selectedServicePackage.cost * 100));
-            addLineItem(appointmentId, {
+            const line = {
               refId: selectedServicePackage.id,
               kind: selectedServicePackage.kind,
               name: selectedServicePackage.name,
@@ -1173,30 +1549,25 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
               instructions: 'Added during hospitalization',
               unitPriceCents: amountCents,
               amountCents,
-            });
+            };
+            if (appointment.organisationId && admissionEncounterId) {
+              try {
+                await persistEncounterTreatmentLine(
+                  appointment.organisationId,
+                  admissionEncounterId,
+                  line
+                );
+              } catch (error) {
+                console.error('Failed to persist hospitalization service/package:', error);
+              }
+            }
+            addLineItem(appointmentId, line);
           }
           setEncounterMode(appointmentId, 'INPATIENT');
           if (payload.roomId) {
             setRoomUnit(appointmentId, payload.roomId, payload.unitId);
-            return handleAdmit(payload.unitId, payload.roomId, {
-              admittedAt: buildAdmissionDateTime(payload.admissionDate, payload.admissionTime),
-              expectedStayDays: calculateExpectedStayDays(
-                payload.admissionDate,
-                payload.dischargeDate
-              ),
-              supportName: payload.supportName,
-              allowModeConversion: true,
-            });
           }
-          return handleAdmit(undefined, undefined, {
-            admittedAt: buildAdmissionDateTime(payload.admissionDate, payload.admissionTime),
-            expectedStayDays: calculateExpectedStayDays(
-              payload.admissionDate,
-              payload.dischargeDate
-            ),
-            supportName: payload.supportName,
-            allowModeConversion: true,
-          });
+          return true;
         }}
       />
     </div>

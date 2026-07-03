@@ -71,7 +71,7 @@ const matchMountedRouteRegexp = (path: string) => {
 
 describe("healthcare-service.router", () => {
   it("requires Cognito auth for component search", () => {
-    const route = findRoute("/$search-components", "post");
+    const route = findRoute(String.raw`/\$search-components`, "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
       authorizeCognito,
@@ -83,7 +83,7 @@ describe("healthcare-service.router", () => {
   });
 
   it("requires Cognito auth for resolve selection", () => {
-    const route = findRoute("/$resolve-selection", "post");
+    const route = findRoute(String.raw`/\$resolve-selection`, "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
       authorizeCognito,
@@ -95,8 +95,8 @@ describe("healthcare-service.router", () => {
   });
 
   it("matches the mounted search-components URL", () => {
-    const routePath = matchMountedRouteRegexp("/$search-components");
+    const routePath = matchMountedRouteRegexp(String.raw`/\$search-components`);
 
-    expect(routePath).toBe("/$search-components");
+    expect(routePath).toBe(String.raw`/\$search-components`);
   });
 });

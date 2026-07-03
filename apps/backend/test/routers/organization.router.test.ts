@@ -102,4 +102,15 @@ describe("organization.router", () => {
       OrganizationController.getBusinessById,
     ]);
   });
+
+  it("protects org logo presigned upload URLs", () => {
+    const route = findRoute("/logo/presigned-url/:orgId", "post");
+
+    expect(route?.stack.map((layer) => layer.handle)).toEqual([
+      authorizeCognito,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      OrganizationController.getLogoUploadUrl,
+    ]);
+  });
 });

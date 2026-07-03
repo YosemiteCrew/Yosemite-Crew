@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { LuCopy, LuEye, LuEyeOff, LuPlus, LuTrash2 } from 'react-icons/lu';
+import { LuCopy, LuEye, LuEyeOff, LuTrash2 } from 'react-icons/lu';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
+import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import Search from '@/app/ui/inputs/Search';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
@@ -20,6 +21,9 @@ type ServicesPackagesEditorProps = {
 };
 
 const formatCents = (cents: number): string => formatMoney(cents / 100, 'USD');
+
+const discountCentsFromPercent = (grossCents: number, percent: number): number =>
+  Math.min(grossCents, Math.round((grossCents * percent) / 100));
 
 const copyValue = (value?: string) => {
   if (!value || !globalThis.navigator?.clipboard) return;
@@ -89,7 +93,21 @@ const QtyInput = ({
     aria-label={`Quantity for ${item.name}`}
     onChange={(e) => {
       const qty = Math.max(1, Number.parseInt(e.target.value, 10) || 1);
-      onUpdateItem(item.id, { qty, amountCents: item.unitPriceCents * qty });
+      const grossCents = item.unitPriceCents * qty;
+      const defaultDiscountCents =
+        item.defaultDiscountPercent == null
+          ? (item.defaultDiscountCents ?? 0) * qty
+          : discountCentsFromPercent(grossCents, item.defaultDiscountPercent);
+      const maxDiscountCents =
+        item.maxDiscountPercent == null
+          ? item.maxDiscountCents
+          : discountCentsFromPercent(grossCents, item.maxDiscountPercent);
+      onUpdateItem(item.id, {
+        qty,
+        amountCents: grossCents - defaultDiscountCents,
+        defaultDiscountCents,
+        maxDiscountCents,
+      });
     }}
     className="h-9 w-20 rounded-xl border border-input-border-default bg-transparent px-3 text-body-4 text-text-primary focus-visible:border-input-border-active focus-visible:outline-none"
   />
@@ -139,20 +157,15 @@ const ServicesPackagesEditor = ({
           >
             <ul>
               {matches.map((item) => (
-                <li key={item.refId}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAddItem(item);
-                      setSearch('');
-                    }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-body-4 text-text-primary hover:bg-neutral-100"
-                  >
-                    <LuPlus aria-hidden="true" />
-                    <span className="flex-1">{item.name}</span>
-                    <ItemTag kind={item.kind} />
-                  </button>
-                </li>
+                <WorkspaceSearchResultRow
+                  key={item.refId}
+                  name={item.name}
+                  badge={<ItemTag kind={item.kind} />}
+                  onSelect={() => {
+                    onAddItem(item);
+                    setSearch('');
+                  }}
+                />
               ))}
             </ul>
           </SearchResultsDropdown>
@@ -161,7 +174,7 @@ const ServicesPackagesEditor = ({
 
       <SectionContainer
         titleClassName="text-yc-20-b-primary"
-        title="Services & Packages"
+        title="Additional services & packages"
         titleIcon={<TitleAddIcon />}
         className="flex flex-col gap-5"
       >

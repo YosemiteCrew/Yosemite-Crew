@@ -77,6 +77,7 @@ export type CatalogProductListFilters = {
   includeInactive?: boolean;
   active?: boolean;
   search?: string;
+  supportsInpatient?: boolean;
 };
 
 export type CatalogProductView = {
@@ -231,6 +232,7 @@ type ProductRecord = {
     items: Array<{
       id: string;
       childProductItemId: string;
+      inventoryItemId?: string | null;
       quantity: number;
       pricingMode: PackageItemPricingMode;
       overridePrice: number | null;
@@ -244,7 +246,15 @@ type ProductRecord = {
         kind: ProductKind;
         isActive: boolean;
         prices: ProductPriceRecord[];
-      };
+      } | null;
+      inventoryItem?: {
+        id: string;
+        name: string;
+        sku: string | null;
+        status: string;
+        sellingPrice: number | null;
+        currency: string | null;
+      } | null;
     }>;
   } | null;
 };
@@ -654,7 +664,9 @@ export const buildPackageGraph = async (organisationId: string) => {
   for (const product of products) {
     graph.set(
       product.id,
-      product.package?.items.map((item) => item.childProductItemId) ?? [],
+      product.package?.items
+        .map((item) => item.childProductItemId)
+        .filter((id): id is string => Boolean(id)) ?? [],
     );
   }
 
@@ -931,8 +943,20 @@ export const ensurePackageItemsValid = async (params: {
       },
     },
   });
+  const childInventoryItems =
+    (await prisma.inventoryItem.findMany({
+      where: {
+        organisationId: params.organisationId,
+        id: { in: uniqueIds },
+      },
+    })) ?? [];
 
-  if (childProducts.length !== uniqueIds.length) {
+  const knownIds = new Set([
+    ...childProducts.map((product) => product.id),
+    ...childInventoryItems.map((item) => item.id),
+  ]);
+
+  if (knownIds.size !== uniqueIds.length) {
     throw new CatalogServiceError(
       "One or more package child items are unavailable.",
       409,
@@ -943,42 +967,16 @@ export const ensurePackageItemsValid = async (params: {
   const childMap = new Map(
     childProducts.map((product) => [product.id, product]),
   );
+  const inventoryMap = new Map(
+    childInventoryItems.map((item) => [item.id, item]),
+  );
   for (const item of params.packageItems) {
-    const child = childMap.get(item.childProductItemId);
-    if (!child?.isActive) {
-      throw new CatalogServiceError(
-        "One or more package child items are unavailable.",
-        409,
-        "PACKAGE_CHILD_UNAVAILABLE",
-        { childProductItemId: item.childProductItemId },
-      );
-    }
-    if (
-      params.currentProductId &&
-      item.childProductItemId === params.currentProductId
-    ) {
-      throw new CatalogServiceError(
-        "Package cannot include itself.",
-        409,
-        "PACKAGE_HAS_CYCLE",
-      );
-    }
-
-    if (item.discountPercent != null) {
-      const childPrice = getDefaultPrice(child.prices);
-      const maxDiscountPercent = childPrice?.maxDiscountPercent ?? 0;
-      if (item.discountPercent > maxDiscountPercent) {
-        throw new CatalogServiceError(
-          "Package item discountPercent cannot exceed the child item's max discount.",
-          409,
-          "PACKAGE_ITEM_DISCOUNT_TOO_HIGH",
-          {
-            childProductItemId: item.childProductItemId,
-            maxDiscountPercent,
-          },
-        );
-      }
-    }
+    assertPackageItemValid(
+      item,
+      childMap,
+      inventoryMap,
+      params.currentProductId,
+    );
   }
 
   const graph = await buildPackageGraph(params.organisationId);
@@ -990,20 +988,8 @@ export const ensurePackageItemsValid = async (params: {
   }
 
   for (const item of params.packageItems) {
-    if (!graph.has(item.childProductItemId)) continue;
-    if (
-      params.currentProductId &&
-      packageContainsTarget(
-        graph,
-        item.childProductItemId,
-        params.currentProductId,
-      )
-    ) {
-      throw new CatalogServiceError(
-        "Package composition would create a cycle.",
-        409,
-        "PACKAGE_HAS_CYCLE",
-      );
+    if (childMap.has(item.childProductItemId)) {
+      assertPackageGraphItemValid(item, graph, params.currentProductId);
     }
   }
 
@@ -1017,6 +1003,149 @@ export const ensurePackageItemsValid = async (params: {
         { maxDepth: MAX_PACKAGE_NESTING_DEPTH },
       );
     }
+  }
+};
+
+const resolvePackageItemPersistenceData = async (params: {
+  organisationId: string;
+  packageItems: CatalogPackageItemInput[];
+}) => {
+  const uniqueIds = Array.from(
+    new Set(params.packageItems.map((item) => item.childProductItemId)),
+  );
+  const [childProducts, childInventoryItems] = await Promise.all([
+    prisma.productItem.findMany({
+      where: {
+        organisationId: params.organisationId,
+        id: { in: uniqueIds },
+      },
+      select: { id: true },
+    }),
+    prisma.inventoryItem
+      .findMany({
+        where: {
+          organisationId: params.organisationId,
+          id: { in: uniqueIds },
+        },
+        select: { id: true },
+      })
+      .then((rows) => rows ?? []),
+  ]);
+
+  const productIds = new Set(childProducts.map((item) => item.id));
+  const inventoryIds = new Set(childInventoryItems.map((item) => item.id));
+
+  return params.packageItems.map((item, index) => {
+    const id = item.childProductItemId;
+    if (productIds.has(id)) {
+      return {
+        childProductItemId: id,
+        inventoryItemId: null,
+        quantity: item.quantity,
+        pricingMode: item.pricingMode,
+        overridePrice: item.overridePrice ?? null,
+        discountPercent: item.discountPercent ?? null,
+        sortOrder: item.sortOrder ?? index,
+        isOptional: item.isOptional ?? false,
+      };
+    }
+
+    if (inventoryIds.has(id)) {
+      return {
+        childProductItemId: null,
+        inventoryItemId: id,
+        quantity: item.quantity,
+        pricingMode: item.pricingMode,
+        overridePrice: item.overridePrice ?? null,
+        discountPercent: item.discountPercent ?? null,
+        sortOrder: item.sortOrder ?? index,
+        isOptional: item.isOptional ?? false,
+      };
+    }
+
+    throw new CatalogServiceError(
+      "One or more package child items are unavailable.",
+      409,
+      "PACKAGE_CHILD_UNAVAILABLE",
+      { childProductItemId: id },
+    );
+  });
+};
+
+const getPackageItemSourceId = (item: {
+  childProductItemId: string | null;
+  inventoryItemId?: string | null;
+}) => item.childProductItemId ?? item.inventoryItemId ?? "";
+
+type PackageItemCreateData = Prisma.ProductPackageItemCreateManyInput;
+
+const assertPackageItemValid = (
+  item: CatalogPackageItemInput,
+  childMap: Map<string, { isActive: boolean; prices: ProductPriceRecord[] }>,
+  inventoryMap: Map<string, { status: string }>,
+  currentProductId?: string,
+) => {
+  const child = childMap.get(item.childProductItemId);
+  const inventoryItem = inventoryMap.get(item.childProductItemId);
+  if (inventoryItem) {
+    if (inventoryItem.status !== "ACTIVE") {
+      throw new CatalogServiceError(
+        "One or more package child items are unavailable.",
+        409,
+        "PACKAGE_CHILD_UNAVAILABLE",
+        { childProductItemId: item.childProductItemId },
+      );
+    }
+    return;
+  }
+  if (!child?.isActive) {
+    throw new CatalogServiceError(
+      "One or more package child items are unavailable.",
+      409,
+      "PACKAGE_CHILD_UNAVAILABLE",
+      { childProductItemId: item.childProductItemId },
+    );
+  }
+  if (currentProductId && item.childProductItemId === currentProductId) {
+    throw new CatalogServiceError(
+      "Package cannot include itself.",
+      409,
+      "PACKAGE_HAS_CYCLE",
+    );
+  }
+
+  if (item.discountPercent != null) {
+    const childPrice = getDefaultPrice(child.prices);
+    const maxDiscountPercent = childPrice?.maxDiscountPercent ?? 0;
+    if (item.discountPercent > maxDiscountPercent) {
+      throw new CatalogServiceError(
+        "Package item discountPercent cannot exceed the child item's max discount.",
+        409,
+        "PACKAGE_ITEM_DISCOUNT_TOO_HIGH",
+        {
+          childProductItemId: item.childProductItemId,
+          maxDiscountPercent,
+        },
+      );
+    }
+  }
+};
+
+const assertPackageGraphItemValid = (
+  item: CatalogPackageItemInput,
+  graph: Map<string, string[]>,
+  currentProductId?: string,
+) => {
+  if (!graph.has(item.childProductItemId)) return;
+  if (
+    currentProductId &&
+    packageContainsTarget(graph, item.childProductItemId, currentProductId)
+  ) {
+    throw new CatalogServiceError(
+      "Package composition would create a cycle.",
+      409,
+      "PACKAGE_HAS_CYCLE",
+    );
   }
 };
 
@@ -1161,7 +1290,25 @@ const mapProductRecordToView = (product: ProductRecord): CatalogProductView => {
 
 type ProductPackageItemRecord = NonNullable<
   ProductRecord["package"]
->["items"][number];
+>["items"][number] & {
+  inventoryItem?: {
+    id: string;
+    name: string;
+    sku: string | null;
+    status: string;
+    sellingPrice: number | null;
+    currency: string | null;
+  } | null;
+};
+
+type ProductPackageChildRecord = {
+  id: string;
+  name: string;
+  code: string | null;
+  kind: ProductKind;
+  prices: ProductPriceRecord[];
+  isActive: boolean;
+};
 
 const mapProductRecordToCatalogListRow = (
   product: ProductRecord,
@@ -1187,13 +1334,13 @@ const mapProductRecordToCatalogListRow = (
   const totalAmount =
     product.kind === "PACKAGE"
       ? (packageSummary?.finalAmount ?? 0)
-      : unitPrice != null
-        ? computeLineAmounts({
+      : unitPrice == null
+        ? 0
+        : computeLineAmounts({
             unitPrice,
             quantity: 1,
             discountPercent: defaultDiscountPercent ?? 0,
-          }).finalAmount
-        : 0;
+          }).finalAmount;
 
   return {
     id: product.id,
@@ -1273,6 +1420,35 @@ const toAppointmentKinds = (
 const getDefaultPrice = (prices: ProductPriceRecord[]) =>
   prices.find((price) => price.isDefault) ?? prices[0] ?? null;
 
+const resolvePackageChildRecord = (
+  item: ProductPackageItemRecord,
+): ProductPackageChildRecord | null => {
+  if (item.childProductItem) {
+    return item.childProductItem;
+  }
+
+  if (item.inventoryItem) {
+    return {
+      id: item.inventoryItem.id,
+      name: item.inventoryItem.name,
+      code: item.inventoryItem.sku ?? null,
+      kind: "INVENTORY_ITEM",
+      prices: [
+        {
+          unitPrice: item.inventoryItem.sellingPrice ?? 0,
+          currency: item.inventoryItem.currency ?? null,
+          defaultDiscountPercent: 0,
+          maxDiscountPercent: 0,
+          isDefault: true,
+        },
+      ],
+      isActive: item.inventoryItem.status === "ACTIVE",
+    };
+  }
+
+  return null;
+};
+
 const computeLineAmounts = (params: {
   unitPrice: number;
   quantity: number;
@@ -1323,7 +1499,8 @@ const computePackageFinancials = (params: {
 };
 
 const buildPackageBreakdownRow = (item: ProductPackageItemRecord) => {
-  const childPrice = getDefaultPrice(item.childProductItem.prices);
+  const child = resolvePackageChildRecord(item);
+  const childPrice = child ? getDefaultPrice(child.prices) : null;
   const baseUnitPrice =
     item.pricingMode === "OVERRIDE_PRICE"
       ? (item.overridePrice ?? 0)
@@ -1340,12 +1517,12 @@ const buildPackageBreakdownRow = (item: ProductPackageItemRecord) => {
 
   return {
     id: item.id,
-    type: item.childProductItem.kind,
-    childItemId: item.childProductItem.id,
-    childItemKind: item.childProductItem.kind,
-    childItemCode: item.childProductItem.code ?? null,
-    name: item.childProductItem.name,
-    childItemName: item.childProductItem.name,
+    type: child?.kind ?? "INVENTORY_ITEM",
+    childItemId: child?.id ?? getPackageItemSourceId(item),
+    childItemKind: child?.kind ?? "INVENTORY_ITEM",
+    childItemCode: child?.code ?? null,
+    name: child?.name ?? "",
+    childItemName: child?.name ?? "",
     quantity: item.quantity,
     unitPrice: item.pricingMode === "INCLUDED" ? 0 : baseUnitPrice,
     currency: childPrice?.currency ?? null,
@@ -1400,33 +1577,229 @@ const resolveSelectionTemplateKinds = (params: {
   productKind: ProductKind;
   appointmentKinds: AppointmentKind[];
 }): TemplateKind[] => {
-  const templateKinds: TemplateKind[] = [];
-
-  const pushUnique = (templateKind: TemplateKind) => {
-    if (!templateKinds.includes(templateKind)) {
-      templateKinds.push(templateKind);
-    }
-  };
-
   if (params.productKind === "MEDICATION") {
-    pushUnique("PRESCRIPTION");
-    return templateKinds;
+    return ["PRESCRIPTION"];
   }
 
   if (params.productKind === "PACKAGE") {
     if (params.appointmentKinds.includes("INPATIENT")) {
-      pushUnique("INPATIENT_SCHEDULE");
-      pushUnique("SOAP_NOTE");
-      pushUnique("DISCHARGE_SUMMARY");
-      return templateKinds;
+      return [
+        "TASK_ASSIGNMENT",
+        "INPATIENT_SCHEDULE",
+        "SOAP_NOTE",
+        "DISCHARGE_SUMMARY",
+      ];
     }
 
-    pushUnique("SOAP_NOTE");
-    return templateKinds;
+    return ["TASK_ASSIGNMENT", "SOAP_NOTE"];
   }
 
-  pushUnique("SOAP_NOTE");
-  return templateKinds;
+  return ["SOAP_NOTE"];
+};
+
+const resolveNonPackageCatalogSelection = (params: {
+  product: ProductRecord;
+  parentPrice: ReturnType<typeof getDefaultPrice>;
+  appointmentKinds: AppointmentKind[];
+  isBookable: boolean;
+  templateKinds: TemplateKind[];
+  templateBindings: CatalogTemplateBinding[];
+}) => {
+  const parentAmounts = computeLineAmounts({
+    unitPrice: params.parentPrice?.unitPrice ?? 0,
+    quantity: 1,
+    discountPercent: params.parentPrice?.defaultDiscountPercent ?? 0,
+  });
+
+  return {
+    productItemId: params.product.id,
+    productKind: params.product.kind,
+    name: params.product.name,
+    code: params.product.code,
+    currency: params.parentPrice?.currency ?? null,
+    legacyServiceId: params.product.legacyServiceId,
+    isBookable: params.isBookable,
+    appointmentKinds: params.appointmentKinds,
+    leadCount: null,
+    supportCount: null,
+    additionalDiscountPercent: null,
+    grossAmount: parentAmounts.grossAmount,
+    itemDiscountAmount: parentAmounts.discountAmount,
+    additionalDiscountAmount: 0,
+    finalAmount: parentAmounts.finalAmount,
+    breakdownItemCount: 1,
+    templateKinds: params.templateKinds,
+    templateBindings: params.templateBindings,
+    billingItems: [
+      buildResolvedItem({
+        productItemId: params.product.id,
+        code: params.product.code,
+        name: params.product.name,
+        kind: params.product.kind,
+        quantity: 1,
+        unitPrice: params.parentPrice?.unitPrice ?? 0,
+        currency: params.parentPrice?.currency ?? null,
+        defaultDiscountPercent:
+          params.parentPrice?.defaultDiscountPercent ?? null,
+        maxDiscountPercent: params.parentPrice?.maxDiscountPercent ?? null,
+        discountPercent: params.parentPrice?.defaultDiscountPercent ?? 0,
+        isPackageComponent: false,
+      }),
+    ],
+    includedItems: [],
+  };
+};
+
+const resolvePackageCatalogSelection = (params: {
+  product: ProductRecord;
+  parentPrice: ReturnType<typeof getDefaultPrice>;
+  appointmentKinds: AppointmentKind[];
+  isBookable: boolean;
+  templateKinds: TemplateKind[];
+  templateBindings: CatalogTemplateBinding[];
+}) => {
+  if (!params.product.package) {
+    throw new CatalogServiceError(
+      "Package product is missing package configuration.",
+      500,
+    );
+  }
+
+  const billingItems: ResolvedCatalogItem[] = [
+    buildResolvedItem({
+      productItemId: params.product.id,
+      code: params.product.code,
+      name: params.product.name,
+      kind: params.product.kind,
+      quantity: 1,
+      unitPrice: params.parentPrice?.unitPrice ?? 0,
+      currency: params.parentPrice?.currency ?? null,
+      defaultDiscountPercent:
+        params.parentPrice?.defaultDiscountPercent ?? null,
+      maxDiscountPercent: params.parentPrice?.maxDiscountPercent ?? null,
+      discountPercent: params.parentPrice?.defaultDiscountPercent ?? 0,
+      isPackageComponent: false,
+    }),
+  ];
+  const includedItems: ResolvedCatalogItem[] = [];
+
+  for (const item of params.product.package.items) {
+    const child = resolvePackageChildRecord(item);
+    if (!child) {
+      throw new CatalogServiceError(
+        "One or more package child items are unavailable.",
+        409,
+        "PACKAGE_CHILD_UNAVAILABLE",
+      );
+    }
+    if (!child.isActive) {
+      throw new CatalogServiceError(
+        `Package component ${child.name} is inactive.`,
+        400,
+      );
+    }
+
+    const childPrice = getDefaultPrice(child.prices);
+
+    if (item.pricingMode === "INCLUDED") {
+      includedItems.push(
+        buildResolvedItem({
+          productItemId: child.id,
+          code: child.code,
+          name: child.name,
+          kind: child.kind,
+          quantity: item.quantity,
+          unitPrice: 0,
+          currency: childPrice?.currency ?? null,
+          referenceUnitPrice: childPrice?.unitPrice ?? null,
+          defaultDiscountPercent: childPrice?.defaultDiscountPercent ?? null,
+          maxDiscountPercent: childPrice?.maxDiscountPercent ?? null,
+          discountPercent: 0,
+          isPackageComponent: true,
+          packageProductItemId: params.product.id,
+        }),
+      );
+      continue;
+    }
+
+    if (item.pricingMode === "OVERRIDE_PRICE" && item.overridePrice == null) {
+      throw new CatalogServiceError(
+        `Package component ${child.name} is missing override price.`,
+        500,
+      );
+    }
+
+    if (item.pricingMode === "INHERITED_PRICE" && !childPrice) {
+      throw new CatalogServiceError(
+        `Package component ${child.name} is missing default price.`,
+        500,
+      );
+    }
+
+    billingItems.push(
+      buildResolvedItem({
+        productItemId: child.id,
+        code: child.code,
+        name: child.name,
+        kind: child.kind,
+        quantity: item.quantity,
+        unitPrice:
+          item.pricingMode === "OVERRIDE_PRICE"
+            ? (item.overridePrice as number)
+            : (childPrice?.unitPrice ?? 0),
+        currency: childPrice?.currency ?? null,
+        referenceUnitPrice: childPrice?.unitPrice ?? null,
+        defaultDiscountPercent: childPrice?.defaultDiscountPercent ?? null,
+        maxDiscountPercent: childPrice?.maxDiscountPercent ?? null,
+        discountPercent:
+          item.discountPercent ?? childPrice?.defaultDiscountPercent ?? 0,
+        isPackageComponent: true,
+        packageProductItemId: params.product.id,
+      }),
+    );
+  }
+
+  const grossAmount = billingItems.reduce(
+    (sum, item) => sum + item.grossAmount,
+    0,
+  );
+  const itemDiscountAmount = billingItems.reduce(
+    (sum, item) => sum + item.discountAmount,
+    0,
+  );
+  const packageDiscountPercent =
+    params.product.package.additionalDiscountPercent ?? 0;
+  const additionalDiscountAmount =
+    (grossAmount - itemDiscountAmount) * (packageDiscountPercent / 100);
+  const finalAmount =
+    grossAmount - itemDiscountAmount - additionalDiscountAmount;
+  const currency =
+    params.parentPrice?.currency ??
+    billingItems.find((item) => item.currency != null)?.currency ??
+    null;
+
+  return {
+    productItemId: params.product.id,
+    productKind: params.product.kind,
+    name: params.product.name,
+    code: params.product.code,
+    currency,
+    legacyServiceId: params.product.legacyServiceId,
+    isBookable: params.isBookable,
+    appointmentKinds: params.appointmentKinds,
+    leadCount: params.product.package.leadCount ?? 1,
+    supportCount: params.product.package.supportCount ?? 0,
+    additionalDiscountPercent: packageDiscountPercent,
+    grossAmount,
+    itemDiscountAmount,
+    additionalDiscountAmount,
+    finalAmount,
+    breakdownItemCount: billingItems.length + includedItems.length,
+    templateKinds: params.templateKinds,
+    templateBindings: params.templateBindings,
+    billingItems,
+    includedItems,
+  };
 };
 
 export const resolveCatalogSelectionFromRecord = (
@@ -1446,183 +1819,24 @@ export const resolveCatalogSelectionFromRecord = (
   });
 
   if (product.kind !== "PACKAGE") {
-    const parentAmounts = computeLineAmounts({
-      unitPrice: parentPrice?.unitPrice ?? 0,
-      quantity: 1,
-      discountPercent: parentPrice?.defaultDiscountPercent ?? 0,
-    });
-
-    return {
-      productItemId: product.id,
-      productKind: product.kind,
-      name: product.name,
-      code: product.code,
-      currency: parentPrice?.currency ?? null,
-      legacyServiceId: product.legacyServiceId,
-      isBookable,
+    return resolveNonPackageCatalogSelection({
+      product,
+      parentPrice,
       appointmentKinds,
-      leadCount: null,
-      supportCount: null,
-      additionalDiscountPercent: null,
-      grossAmount: parentAmounts.grossAmount,
-      itemDiscountAmount: parentAmounts.discountAmount,
-      additionalDiscountAmount: 0,
-      finalAmount: parentAmounts.finalAmount,
-      breakdownItemCount: 1,
+      isBookable,
       templateKinds,
       templateBindings,
-      billingItems: [
-        buildResolvedItem({
-          productItemId: product.id,
-          code: product.code,
-          name: product.name,
-          kind: product.kind,
-          quantity: 1,
-          unitPrice: parentPrice?.unitPrice ?? 0,
-          currency: parentPrice?.currency ?? null,
-          defaultDiscountPercent: parentPrice?.defaultDiscountPercent ?? null,
-          maxDiscountPercent: parentPrice?.maxDiscountPercent ?? null,
-          discountPercent: parentPrice?.defaultDiscountPercent ?? 0,
-          isPackageComponent: false,
-        }),
-      ],
-      includedItems: [],
-    };
+    });
   }
 
-  if (!product.package) {
-    throw new CatalogServiceError(
-      "Package product is missing package configuration.",
-      500,
-    );
-  }
-
-  const billingItems: ResolvedCatalogItem[] = [
-    buildResolvedItem({
-      productItemId: product.id,
-      code: product.code,
-      name: product.name,
-      kind: product.kind,
-      quantity: 1,
-      unitPrice: parentPrice?.unitPrice ?? 0,
-      currency: parentPrice?.currency ?? null,
-      defaultDiscountPercent: parentPrice?.defaultDiscountPercent ?? null,
-      maxDiscountPercent: parentPrice?.maxDiscountPercent ?? null,
-      discountPercent: parentPrice?.defaultDiscountPercent ?? 0,
-      isPackageComponent: false,
-    }),
-  ];
-  const includedItems: ResolvedCatalogItem[] = [];
-
-  for (const item of product.package.items) {
-    if (!item.childProductItem.isActive) {
-      throw new CatalogServiceError(
-        `Package component ${item.childProductItem.name} is inactive.`,
-        400,
-      );
-    }
-
-    const childPrice = getDefaultPrice(item.childProductItem.prices);
-
-    if (item.pricingMode === "INCLUDED") {
-      includedItems.push(
-        buildResolvedItem({
-          productItemId: item.childProductItem.id,
-          code: item.childProductItem.code,
-          name: item.childProductItem.name,
-          kind: item.childProductItem.kind,
-          quantity: item.quantity,
-          unitPrice: 0,
-          currency: childPrice?.currency ?? null,
-          referenceUnitPrice: childPrice?.unitPrice ?? null,
-          defaultDiscountPercent: childPrice?.defaultDiscountPercent ?? null,
-          maxDiscountPercent: childPrice?.maxDiscountPercent ?? null,
-          discountPercent: 0,
-          isPackageComponent: true,
-          packageProductItemId: product.id,
-        }),
-      );
-      continue;
-    }
-
-    if (item.pricingMode === "OVERRIDE_PRICE" && item.overridePrice == null) {
-      throw new CatalogServiceError(
-        `Package component ${item.childProductItem.name} is missing override price.`,
-        500,
-      );
-    }
-
-    if (item.pricingMode === "INHERITED_PRICE" && !childPrice) {
-      throw new CatalogServiceError(
-        `Package component ${item.childProductItem.name} is missing default price.`,
-        500,
-      );
-    }
-
-    billingItems.push(
-      buildResolvedItem({
-        productItemId: item.childProductItem.id,
-        code: item.childProductItem.code,
-        name: item.childProductItem.name,
-        kind: item.childProductItem.kind,
-        quantity: item.quantity,
-        unitPrice:
-          item.pricingMode === "OVERRIDE_PRICE"
-            ? (item.overridePrice as number)
-            : (childPrice?.unitPrice ?? 0),
-        currency: childPrice?.currency ?? null,
-        referenceUnitPrice: childPrice?.unitPrice ?? null,
-        defaultDiscountPercent: childPrice?.defaultDiscountPercent ?? null,
-        maxDiscountPercent: childPrice?.maxDiscountPercent ?? null,
-        discountPercent:
-          item.discountPercent ?? childPrice?.defaultDiscountPercent ?? 0,
-        isPackageComponent: true,
-        packageProductItemId: product.id,
-      }),
-    );
-  }
-
-  const grossAmount = billingItems.reduce(
-    (sum, item) => sum + item.grossAmount,
-    0,
-  );
-  const itemDiscountAmount = billingItems.reduce(
-    (sum, item) => sum + item.discountAmount,
-    0,
-  );
-  const packageDiscountPercent =
-    product.package?.additionalDiscountPercent ?? 0;
-  const additionalDiscountAmount =
-    (grossAmount - itemDiscountAmount) * (packageDiscountPercent / 100);
-  const finalAmount =
-    grossAmount - itemDiscountAmount - additionalDiscountAmount;
-  const currency =
-    parentPrice?.currency ??
-    billingItems.find((item) => item.currency != null)?.currency ??
-    null;
-
-  return {
-    productItemId: product.id,
-    productKind: product.kind,
-    name: product.name,
-    code: product.code,
-    currency,
-    legacyServiceId: product.legacyServiceId,
-    isBookable,
+  return resolvePackageCatalogSelection({
+    product,
+    parentPrice,
     appointmentKinds,
-    leadCount: product.package?.leadCount ?? 1,
-    supportCount: product.package?.supportCount ?? 0,
-    additionalDiscountPercent: packageDiscountPercent,
-    grossAmount,
-    itemDiscountAmount,
-    additionalDiscountAmount,
-    finalAmount,
-    breakdownItemCount: billingItems.length + includedItems.length,
+    isBookable,
     templateKinds,
     templateBindings,
-    billingItems,
-    includedItems,
-  };
+  });
 };
 
 const productSelectionInclude = {
@@ -1648,11 +1862,12 @@ const productSelectionInclude = {
               },
             },
           },
+          inventoryItem: true,
         },
       },
     },
   },
-};
+} as const as Prisma.ProductItemInclude;
 
 const loadTemplateBindingsForProduct = async (params: {
   productItemId: string;
@@ -1715,6 +1930,13 @@ export const CatalogService = {
         packageItems,
       });
     }
+    const resolvedPackageItems =
+      input.kind === "PACKAGE" && packageItems
+        ? await resolvePackageItemPersistenceData({
+            organisationId,
+            packageItems,
+          })
+        : undefined;
 
     const resolvedCode =
       code ?? (await generateProductCode(organisationId, input.kind));
@@ -1762,9 +1984,9 @@ export const CatalogService = {
                 additionalDiscountPercent:
                   packageSummary?.additionalDiscountPercent ?? 0,
                 items:
-                  packageItems && packageItems.length > 0
+                  resolvedPackageItems && resolvedPackageItems.length > 0
                     ? {
-                        create: packageItems,
+                        create: resolvedPackageItems,
                       }
                     : undefined,
               } satisfies Prisma.ProductPackageCreateWithoutProductItemInput,
@@ -1810,10 +2032,16 @@ export const CatalogService = {
         : sanitizePackageItems(input.packageItems);
     const packageSummary =
       input.package === undefined ? undefined : (input.package ?? null);
-    assertPackageItems(
-      nextKind,
-      packageItems ?? existing.package?.items ?? null,
-    );
+    const existingPackageItems = existing.package?.items.map((item) => ({
+      childProductItemId: getPackageItemSourceId(item),
+      quantity: item.quantity,
+      pricingMode: item.pricingMode,
+      overridePrice: item.overridePrice,
+      discountPercent: item.discountPercent,
+      sortOrder: item.sortOrder,
+      isOptional: item.isOptional,
+    }));
+    assertPackageItems(nextKind, packageItems ?? existingPackageItems ?? null);
     assertBookableConfig(input.bookable);
     assertPriceConfig(input.price);
 
@@ -1833,9 +2061,24 @@ export const CatalogService = {
         currentProductId: productId,
       });
     }
+    const resolvedPackageItems =
+      nextKind === "PACKAGE" && packageItems
+        ? await resolvePackageItemPersistenceData({
+            organisationId: nextOrganisationId,
+            packageItems,
+          })
+        : undefined;
 
+    const shouldAutoUpdateCode =
+      input.code === undefined &&
+      input.kind !== undefined &&
+      input.kind !== existing.kind;
     const nextCode =
-      input.code === undefined ? existing.code : optionalSafeString(input.code);
+      input.code === undefined
+        ? shouldAutoUpdateCode
+          ? null
+          : existing.code
+        : optionalSafeString(input.code);
     const resolvedCode =
       nextCode ?? (await generateProductCode(nextOrganisationId, nextKind));
     await ensureCodeUniqueness({
@@ -1956,23 +2199,26 @@ export const CatalogService = {
         });
 
         if (packageItems !== undefined) {
-          const nextPackageItems = packageItems ?? [];
+          const nextPackageItems = resolvedPackageItems ?? [];
           await tx.productPackageItem.deleteMany({
             where: { packageId: pkg.id },
           });
 
           if (nextPackageItems.length > 0) {
             await tx.productPackageItem.createMany({
-              data: nextPackageItems.map((item) => ({
-                packageId: pkg.id,
-                childProductItemId: item.childProductItemId,
-                quantity: item.quantity,
-                pricingMode: item.pricingMode,
-                overridePrice: item.overridePrice,
-                discountPercent: item.discountPercent,
-                sortOrder: item.sortOrder,
-                isOptional: item.isOptional,
-              })),
+              data: nextPackageItems.map(
+                (item): PackageItemCreateData => ({
+                  packageId: pkg.id,
+                  childProductItemId: item.childProductItemId,
+                  inventoryItemId: item.inventoryItemId,
+                  quantity: item.quantity,
+                  pricingMode: item.pricingMode,
+                  overridePrice: item.overridePrice,
+                  discountPercent: item.discountPercent,
+                  sortOrder: item.sortOrder,
+                  isOptional: item.isOptional,
+                }),
+              ),
             });
           }
         }
@@ -2080,6 +2326,15 @@ export const CatalogService = {
                   },
                 },
               ],
+            }
+          : {}),
+        ...(typeof filters.supportsInpatient === "boolean"
+          ? {
+              bookable: {
+                is: {
+                  supportsInpatient: filters.supportsInpatient,
+                },
+              },
             }
           : {}),
       },
@@ -2402,7 +2657,7 @@ export const CatalogService = {
       select: { id: true, name: true, organisationId: true },
     });
 
-    const allProductsForOrgs = await prisma.productItem.findMany({
+    const allProductsForOrgs = (await prisma.productItem.findMany({
       where: {
         organisationId: { in: orgIds },
         isActive: true,
@@ -2437,6 +2692,7 @@ export const CatalogService = {
               select: {
                 id: true,
                 childProductItemId: true,
+                inventoryItemId: true,
                 quantity: true,
                 pricingMode: true,
                 overridePrice: true,
@@ -2463,12 +2719,22 @@ export const CatalogService = {
                     },
                   },
                 },
+                inventoryItem: {
+                  select: {
+                    id: true,
+                    name: true,
+                    sku: true,
+                    status: true,
+                    sellingPrice: true,
+                    currency: true,
+                  },
+                },
               },
             },
           },
         },
       },
-    });
+    } as unknown as Prisma.ProductItemFindManyArgs)) as unknown as ProductRecord[];
 
     return candidateOrgs
       .map((org) => {
@@ -2918,7 +3184,7 @@ export const CatalogService = {
       await ensurePackageItemsValid({
         organisationId: product.organisationId,
         packageItems: product.packageItems.map((item) => ({
-          childProductItemId: item.childProductItemId,
+          childProductItemId: getPackageItemSourceId(item),
           quantity: item.quantity,
           pricingMode: item.pricingMode,
           overridePrice: item.overridePrice,

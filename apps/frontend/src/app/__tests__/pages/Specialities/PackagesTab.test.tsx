@@ -284,13 +284,13 @@ describe('PackagesTab', () => {
     fireEvent.click(archiveButtons[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
     expect(mockArchivePackage).toHaveBeenCalledWith('pkg-1');
-    await waitFor(() =>
+    await waitFor(() => {
       expect(mockNotify).toHaveBeenCalledWith(
         'success',
         expect.objectContaining({ title: 'Package archived' })
-      )
-    );
-    expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+      );
+      expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+    });
   });
 
   it('closes delete modal via modal header close button', () => {

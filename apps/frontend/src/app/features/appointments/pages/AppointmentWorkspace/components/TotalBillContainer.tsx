@@ -1,28 +1,31 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { LuPlus, LuTrash2 } from 'react-icons/lu';
+import { AiOutlineInfoCircle } from 'react-icons/ai';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
+import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import Search from '@/app/ui/inputs/Search';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import type { InvoiceLineItem } from '@/app/features/appointments/types/workspace';
+import PackageBreakdownTooltip from '@/app/features/appointments/pages/AppointmentWorkspace/components/PackageBreakdownTooltip';
+import type { BillableKind, InvoiceLineItem } from '@/app/features/appointments/types/workspace';
 import { formatMoney } from '@/app/lib/money';
-
-/** Origin of a searchable bill item; rendered as a pill in the search dropdown. */
-export type BillableKind = 'SERVICE' | 'PACKAGE' | 'MEDICATION' | 'INVENTORY';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 export type BillableSearchItem = Omit<InvoiceLineItem, 'id'> & { kind?: BillableKind };
 
 const KIND_LABELS: Record<BillableKind, string> = {
-  SERVICE: 'Service',
-  PACKAGE: 'Package',
-  MEDICATION: 'Medication',
-  INVENTORY: 'Inventory',
+  EXISTING_TREATMENT: 'Existing treatment',
+  IN_HOUSE_PRESCRIPTION: 'In-house prescription',
+  PACKAGE_COMPONENT: 'Package component',
+  BILLING_ONLY: 'Billing-only',
+  INVENTORY: 'Stock item',
 };
 
 const KIND_PILL_CLASSES: Record<BillableKind, string> = {
-  SERVICE: 'border-pill-info-border bg-pill-info-bg text-pill-info-text',
-  PACKAGE: 'border-pill-success-border bg-pill-success-bg text-pill-success-text',
-  MEDICATION: 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text',
+  EXISTING_TREATMENT: 'border-pill-info-border bg-pill-info-bg text-pill-info-text',
+  IN_HOUSE_PRESCRIPTION: 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text',
+  PACKAGE_COMPONENT: 'border-pill-success-border bg-pill-success-bg text-pill-success-text',
+  BILLING_ONLY: 'border-card-border bg-neutral-100 text-text-secondary',
   INVENTORY: 'border-card-border bg-neutral-100 text-text-secondary',
 };
 
@@ -34,14 +37,39 @@ const KindPill = ({ kind }: { kind: BillableKind }) => (
   </span>
 );
 
+const InfoTooltipIcon = ({
+  label,
+  content,
+  maxWidth = 320,
+}: {
+  label: string;
+  content: React.ReactNode;
+  maxWidth?: number;
+}) => (
+  <GlassTooltip content={content} side="bottom" maxWidth={maxWidth}>
+    <button
+      type="button"
+      aria-label={label}
+      className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+    >
+      <AiOutlineInfoCircle aria-hidden="true" size={14} />
+    </button>
+  </GlassTooltip>
+);
+
 type TotalBillContainerProps = {
   items: InvoiceLineItem[];
   billableItems: BillableSearchItem[];
+  /** Lower-cased names of billed medications missing prescription details; these
+   *  rows get an (i) "Fill information in previous step" hint. */
+  incompleteItemNames?: Set<string>;
   /** ISO currency code for money formatting (from the encounter/finance). */
   currency?: string;
   depositCents: number;
   withdrawDeposit: boolean;
   overallDiscountPercent: number;
+  /** Backend tax rate for this bill; drives the exclusive-of-tax footer copy. */
+  taxPercent?: number;
   onToggleWithdrawDeposit: (value: boolean) => void;
   onChangeOverallDiscount: (percent: number) => void;
   onAddItem: (item: Omit<InvoiceLineItem, 'id'>) => void;
@@ -57,8 +85,10 @@ const formatCents = (cents: number, currency = 'USD'): string => formatMoney(cen
 
 const useCurrency = () => React.useContext(CurrencyContext);
 
-// Totals are shown exclusive of taxes — taxes are finalised by the finance/tax provider at
-// invoice finalisation, not estimated in the workspace.
+// Totals are estimated exclusive of tax — the backend operates in exclusive-tax
+// mode, finalising tax via the finance/tax provider at invoice finalisation. The
+// footer copy reflects the backend tax rate (taxPercent) rather than asserting a
+// flat "exclusive of taxes" when no rate applies.
 const buildTotals = (
   items: InvoiceLineItem[],
   discountPercent: number,
@@ -89,7 +119,7 @@ const buildTotals = (
  * column is the only fr track. Every other column is a fixed px width.
  */
 const ROW_GRID =
-  'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_110px_72px_110px_110px_120px_36px] sm:items-center';
+  'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_110px_72px_130px_150px_120px_36px] sm:items-center';
 
 /**
  * Each heading's text starts exactly where its value-box text starts: the value
@@ -111,8 +141,15 @@ const ColumnHeadings = () => (
 );
 
 /** Plain (non-editable) text cell for line values that the user cannot change. */
-const TextCell = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <span className={`flex h-10 items-center px-3 text-body-4 text-text-primary ${className ?? ''}`}>
+type TextCellProps = React.HTMLAttributes<HTMLSpanElement> & {
+  children?: React.ReactNode;
+};
+
+const TextCell = ({ children, className, ...rest }: TextCellProps) => (
+  <span
+    className={`flex h-10 items-center px-3 text-body-4 text-text-primary ${className ?? ''}`}
+    {...rest}
+  >
     {children}
   </span>
 );
@@ -150,9 +187,20 @@ const QtyInput = ({
   </div>
 );
 
-/** Editable per-line discount box (dollars) with leading "− $"; re-derives amount.
- *  Honours the catalog's per-line max-discount ceiling: the input is capped and a
- *  "Max $X" hint is shown so the user knows the limit. */
+const formatPercent = (value: number): number => Number(value.toFixed(2));
+
+const getDiscountPercent = (item: InvoiceLineItem): number => {
+  if (item.grossCents <= 0) return 0;
+  return (item.discountCents / item.grossCents) * 100;
+};
+
+const getMaxDiscountPercent = (item: InvoiceLineItem): number | undefined => {
+  if (item.maxDiscountPercent != null) return item.maxDiscountPercent;
+  if (item.maxDiscountCents == null || item.grossCents <= 0) return undefined;
+  return (item.maxDiscountCents / item.grossCents) * 100;
+};
+
+/** Editable per-line discount as a percentage; the money value is read-only. */
 const DiscountInput = ({
   item,
   onUpdateItem,
@@ -160,44 +208,68 @@ const DiscountInput = ({
   item: InvoiceLineItem;
   onUpdateItem: (id: string, patch: Partial<InvoiceLineItem>) => void;
 }) => {
-  const maxDollars = item.maxDiscountCents == null ? undefined : item.maxDiscountCents / 100;
+  const currency = useCurrency();
+  const maxPercent = getMaxDiscountPercent(item);
+  const discountPercent = getDiscountPercent(item);
   return (
-    <div className="relative">
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-body-4 text-pill-success-text"
-      >
-        − $
-      </span>
-      <input
-        type="number"
-        min={0}
-        max={maxDollars}
-        step={0.01}
-        value={item.discountCents / 100}
-        aria-label={`Discount for ${item.name}`}
-        onChange={(e) => {
-          const dollars = Math.max(0, Number.parseFloat(e.target.value) || 0);
-          const capped = maxDollars == null ? dollars : Math.min(dollars, maxDollars);
-          onUpdateItem(item.id, { discountCents: Math.round(capped * 100) });
-        }}
-        className={`${EDITABLE_BOX} pl-12 text-pill-success-text`}
-      />
-      {maxDollars != null && maxDollars > 0 && (
-        <span className="pointer-events-none absolute -bottom-4 left-3 text-caption-2 text-text-secondary">
-          Max ${maxDollars.toFixed(2)}
+    <div className="flex w-22 flex-col items-center gap-1">
+      <span className="relative inline-flex w-22 items-center">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-body-4 text-pill-success-text"
+        >
+          %
         </span>
-      )}
+        <input
+          type="number"
+          min={0}
+          max={maxPercent}
+          step={0.01}
+          value={formatPercent(discountPercent)}
+          aria-label={`Discount percent for ${item.name}`}
+          onChange={(e) => {
+            const percent = Math.max(0, Number.parseFloat(e.target.value) || 0);
+            const capped = maxPercent == null ? percent : Math.min(percent, maxPercent);
+            onUpdateItem(item.id, { discountCents: Math.round((item.grossCents * capped) / 100) });
+          }}
+          className={`${EDITABLE_BOX} pr-7 pl-3 text-right text-pill-success-text`}
+        />
+      </span>
+      {maxPercent != null && maxPercent > 0 ? (
+        <span className="w-max max-w-40 text-center text-caption-2 text-text-secondary">
+          Max discount {formatPercent(maxPercent)}% /{' '}
+          {formatCents(Math.round((item.grossCents * maxPercent) / 100), currency)}
+        </span>
+      ) : null}
     </div>
   );
 };
 
+const GrossAmountCell = ({ item, currency }: { item: InvoiceLineItem; currency: string }) => {
+  return (
+    <TextCell className="flex-col! items-start! justify-center font-medium">
+      <span>{formatCents(item.grossCents, currency)}</span>
+      {item.discountCents > 0 ? (
+        <span className="truncate text-caption-2 text-pill-success-text">
+          − {formatCents(item.discountCents, currency)}
+        </span>
+      ) : null}
+    </TextCell>
+  );
+};
+
+const AmountCell = ({ item, currency }: { item: InvoiceLineItem; currency: string }) => (
+  <TextCell className="self-start font-medium">{formatCents(item.amountCents, currency)}</TextCell>
+);
+
 const BillRow = ({
   item,
+  incomplete = false,
   onUpdateItem,
   onRemoveItem,
 }: {
   item: InvoiceLineItem;
+  incomplete?: boolean;
   onUpdateItem: (id: string, patch: Partial<InvoiceLineItem>) => void;
   onRemoveItem: (id: string) => void;
 }) => {
@@ -205,22 +277,38 @@ const BillRow = ({
   // Rows with a max-discount hint need extra bottom space so the absolutely
   // positioned "Max $X" caption doesn't collide with the next row.
   const hasMaxHint = item.maxDiscountCents != null && item.maxDiscountCents > 0;
+  const hasDiscountMeta = hasMaxHint || item.discountCents > 0;
   return (
-    <li className={`${ROW_GRID} text-body-4 text-text-primary ${hasMaxHint ? 'pb-4' : ''}`}>
+    <li className={`${ROW_GRID} text-body-4 text-text-primary ${hasDiscountMeta ? 'pb-2' : ''}`}>
       <TextCell className="min-w-0">
-        <span className="truncate">{item.name}</span>
+        <span className="inline-flex min-w-0 items-center gap-1">
+          <span className="truncate">{item.name}</span>
+          <PackageBreakdownTooltip item={item} currency={currency} />
+          {incomplete && (
+            <InfoTooltipIcon
+              label="Fill information in previous step"
+              content="Fill prescription information in the Treatment step before finalizing this invoice."
+            />
+          )}
+        </span>
       </TextCell>
       <TextCell>{formatCents(item.unitPriceCents, currency)}</TextCell>
       <QtyInput item={item} onUpdateItem={onUpdateItem} />
-      <TextCell>{formatCents(item.grossCents, currency)}</TextCell>
+      <GrossAmountCell item={item} currency={currency} />
       <DiscountInput item={item} onUpdateItem={onUpdateItem} />
-      <TextCell className="font-medium">{formatCents(item.amountCents, currency)}</TextCell>
-      <CircleIconButton
-        icon={<LuTrash2 aria-hidden="true" />}
-        label={`Remove ${item.name}`}
-        variant="danger"
-        onClick={() => onRemoveItem(item.id)}
-      />
+      <AmountCell item={item} currency={currency} />
+      {item.removable === false ? (
+        // The booked appointment service/consultation can't be removed from the bill — keep the
+        // trash column's width with an empty placeholder so the grid stays aligned.
+        <span aria-hidden="true" className="inline-block size-9" />
+      ) : (
+        <CircleIconButton
+          icon={<LuTrash2 aria-hidden="true" />}
+          label={`Remove ${item.name}`}
+          variant="danger"
+          onClick={() => onRemoveItem(item.id)}
+        />
+      )}
     </li>
   );
 };
@@ -321,6 +409,7 @@ const TotalsFooter = ({
   depositCents,
   overallDiscountPercent,
   withdrawDeposit,
+  taxPercent,
   onToggleWithdrawDeposit,
   onChangeOverallDiscount,
 }: {
@@ -328,6 +417,7 @@ const TotalsFooter = ({
   depositCents: number;
   overallDiscountPercent: number;
   withdrawDeposit: boolean;
+  taxPercent: number;
   onToggleWithdrawDeposit: (value: boolean) => void;
   onChangeOverallDiscount: (percent: number) => void;
 }) => {
@@ -394,7 +484,7 @@ const TotalsFooter = ({
         />
         <FooterBreakdownRow label="Estimated Total:" value={money(totals.estimatedTotalCents)} />
         <p className="text-right" style={FOOTER_HELPER_TEXT_STYLE}>
-          Exclusive of taxes
+          {taxPercent > 0 ? `Exclusive of ${taxPercent}% tax` : 'No tax applied'}
         </p>
       </div>
     </div>
@@ -404,10 +494,12 @@ const TotalsFooter = ({
 const TotalBillContainer = ({
   items,
   billableItems,
+  incompleteItemNames,
   currency = 'USD',
   depositCents,
   withdrawDeposit,
   overallDiscountPercent,
+  taxPercent = 0,
   onToggleWithdrawDeposit,
   onChangeOverallDiscount,
   onAddItem,
@@ -460,23 +552,16 @@ const TotalBillContainer = ({
             >
               <ul>
                 {matches.map((item) => (
-                  <li key={item.name}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        addCandidate(item);
-                        setSearch('');
-                      }}
-                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-body-4 text-text-primary hover:bg-neutral-100"
-                    >
-                      <LuPlus aria-hidden="true" className="shrink-0" />
-                      <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                      {item.kind && <KindPill kind={item.kind} />}
-                      <span className="shrink-0 text-text-secondary">
-                        {formatCents(item.amountCents, currency)}
-                      </span>
-                    </button>
-                  </li>
+                  <WorkspaceSearchResultRow
+                    key={item.name}
+                    name={item.name}
+                    badge={item.kind ? <KindPill kind={item.kind} /> : undefined}
+                    meta={formatCents(item.amountCents, currency)}
+                    onSelect={() => {
+                      addCandidate(item);
+                      setSearch('');
+                    }}
+                  />
                 ))}
               </ul>
             </SearchResultsDropdown>
@@ -502,6 +587,7 @@ const TotalBillContainer = ({
                   <BillRow
                     key={item.id}
                     item={item}
+                    incomplete={incompleteItemNames?.has(item.name.trim().toLowerCase())}
                     onUpdateItem={onUpdateItem}
                     onRemoveItem={onRemoveItem}
                   />
@@ -515,6 +601,7 @@ const TotalBillContainer = ({
             depositCents={depositCents}
             overallDiscountPercent={overallDiscountPercent}
             withdrawDeposit={withdrawDeposit}
+            taxPercent={taxPercent}
             onToggleWithdrawDeposit={onToggleWithdrawDeposit}
             onChangeOverallDiscount={onChangeOverallDiscount}
           />

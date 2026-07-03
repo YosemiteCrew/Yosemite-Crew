@@ -11,13 +11,13 @@ import BackToSignup from '@/app/features/legal/components/BackToSignup';
 
 function page() {
   return (
-    <div>
+    <>
       <Suspense fallback={null}>
         <BackToSignup />
       </Suspense>
       <TermsAndConditions />
       <Footer />
-    </div>
+    </>
   );
 }
 

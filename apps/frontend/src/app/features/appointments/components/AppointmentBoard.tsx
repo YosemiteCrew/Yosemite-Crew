@@ -67,6 +67,9 @@ import { startRouteLoader } from '@/app/lib/routeLoader';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import clsx from 'clsx';
 import { AppointmentModePill } from '@/app/features/appointments/components/AppointmentCardContent';
+import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import { useOrganisationRoomStore } from '@/app/stores/roomStore';
+import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
 
 type BoardStatus =
   | 'REQUESTED'
@@ -175,6 +178,8 @@ const AppointmentBoardComponent = ({
 }: AppointmentBoardProps) => {
   const { notify } = useNotify();
   const orgsById = useOrgStore((s) => s.orgsById);
+  const encountersById = useAppointmentWorkspaceStore((s) => s.encountersById);
+  const roomUnitsById = useOrganisationRoomStore((s) => s.roomUnitsById);
   const team = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
@@ -545,6 +550,11 @@ const AppointmentBoardComponent = ({
                 >
                   {columnAppointments.map((appointment) => {
                     const companion = appointment.companion ?? appointment.patient;
+                    const roomDisplay = getAppointmentRoomDisplay(
+                      appointment,
+                      encountersById,
+                      roomUnitsById
+                    );
                     const isCardDraggable =
                       canEditAppointments &&
                       getAllowedAppointmentStatusTransitions(appointment.status).length > 0;
@@ -603,7 +613,7 @@ const AppointmentBoardComponent = ({
                                 Reason: {appointment.concern || '-'}
                               </div>
                               <div className="break-words text-[10px] font-normal text-text-secondary">
-                                Room: {appointment.room?.name || '-'}
+                                {roomDisplay.label}: {roomDisplay.value}
                               </div>
                             </div>
                           </div>
@@ -672,19 +682,21 @@ const AppointmentBoardComponent = ({
                         )}
                         {!isRequestedLikeStatus(appointment.status) && (
                           <div className="relative z-10 mt-2 flex items-center gap-1.5 flex-wrap max-w-[184px]">
-                            <GlassTooltip content="View appointment" side="bottom">
-                              <button
-                                type="button"
-                                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  openAppointment(appointment);
-                                }}
-                              >
-                                <IoEyeOutline size={16} color="var(--color-neutral-900)" />
-                              </button>
-                            </GlassTooltip>
+                            {canEnterAppointmentWorkspace(appointment.status) && (
+                              <GlassTooltip content="View appointment" side="bottom">
+                                <button
+                                  type="button"
+                                  className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    openAppointment(appointment);
+                                  }}
+                                >
+                                  <IoEyeOutline size={16} color="var(--color-neutral-900)" />
+                                </button>
+                              </GlassTooltip>
+                            )}
                             <GlassTooltip content="Overview" side="bottom">
                               <button
                                 type="button"

@@ -8,12 +8,7 @@ import {
   AppointmentViewIntent,
   AppointmentDraftPrefill,
 } from '@/app/features/appointments/types/calendar';
-import {
-  allowCalendarDrag,
-  canAssignAppointmentRoom,
-  canShowStatusChangeAction,
-  getPreferredNextAppointmentStatus,
-} from '@/app/lib/appointments';
+import { allowCalendarDrag, canAssignAppointmentRoom } from '@/app/lib/appointments';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
   updateAppointment,
@@ -683,16 +678,9 @@ const AppointmentCalendar = ({
     setReschedulePopup?.(true);
   };
 
-  const handleChangeStatusAppointment = (appointment: Appointment) => {
-    if (!canShowStatusChangeAction(appointment.status)) {
-      notify('warning', {
-        title: 'Status change blocked',
-        text: 'No status changes are available for this appointment.',
-      });
-      return;
-    }
+  const handleAcceptAppointment = (appointment: Appointment) => {
     setActiveAppointment?.(appointment);
-    setChangeStatusPreferredStatus?.(getPreferredNextAppointmentStatus(appointment.status));
+    setChangeStatusPreferredStatus?.('UPCOMING');
     setChangeStatusPopup?.(true);
   };
 
@@ -777,6 +765,7 @@ const AppointmentCalendar = ({
           handleOpenWorkspace={onOpenWorkspace}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
+          handleAcceptAppointment={handleAcceptAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
           draggedAppointmentId={draggedAppointmentId}
@@ -840,8 +829,8 @@ const AppointmentCalendar = ({
           handleViewAppointment={handleViewAppointment}
           handleOpenWorkspace={onOpenWorkspace}
           handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeStatusAppointment={handleChangeStatusAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
+          handleAcceptAppointment={handleAcceptAppointment}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
@@ -910,7 +899,7 @@ const AppointmentCalendar = ({
           handleOpenWorkspace={onOpenWorkspace}
           handleRescheduleAppointment={handleRescheduleAppointment}
           handleChangeRoomAppointment={handleChangeRoomAppointment}
-          handleChangeStatusAppointment={handleChangeStatusAppointment}
+          handleAcceptAppointment={handleAcceptAppointment}
           setCurrentDate={setCurrentDate}
           canEditAppointments={canEditAppointments}
           draggedAppointmentId={draggedAppointmentId}

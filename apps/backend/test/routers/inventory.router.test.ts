@@ -8,6 +8,7 @@ const withInventoryItemOrgPermissions = jest.fn(() =>
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const InventoryController = {
+  getItemImageUploadUrl: jest.fn(),
   createItem: jest.fn(),
   updateItem: jest.fn(),
   hideItem: jest.fn(),
@@ -88,6 +89,22 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("inventory.router", () => {
+  it("registers the inventory image upload route with org RBAC", () => {
+    const uploadRoute = findRoute(
+      "/organisation/:organisationId/items/upload-url",
+      "post",
+    );
+
+    expect(uploadRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(withOrgPermissions).toHaveBeenCalled();
+    expect(requirePermission).toHaveBeenCalledWith("inventory:edit:any");
+    expect(uploadRoute?.stack.map((layer) => layer.handle)).toContain(
+      InventoryController.getItemImageUploadUrl,
+    );
+  });
+
   it("protects org-scoped inventory list routes with org RBAC", () => {
     const listItemsRoute = findRoute(
       "/organisation/:organisationId/items",

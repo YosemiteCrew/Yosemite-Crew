@@ -62,7 +62,7 @@ describe('DeveloperPortalHome page', () => {
       'href',
       '/developers/documentation'
     );
-    expect(screen.getByTestId('secondary-Contact support')).toHaveAttribute('href', '/contact');
+    expect(screen.getByTestId('secondary-Contact support')).toHaveAttribute('href', '/contact-us');
   });
 
   test('shows fallback name when no user name is available', () => {

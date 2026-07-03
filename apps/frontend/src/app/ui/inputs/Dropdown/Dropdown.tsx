@@ -17,7 +17,7 @@ import countries from '@/app/lib/data/countryList';
 
 import './Dropdown.css';
 
-type DropdownType = 'country' | 'breed' | 'general' | undefined;
+type DropdownType = 'country' | 'breed' | 'general';
 
 type DropdownProps = {
   placeholder: string;

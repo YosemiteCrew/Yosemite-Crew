@@ -1377,12 +1377,18 @@ export const PaymentInvoiceScreen: React.FC = () => {
   });
 
   useEffect(() => {
-    // Always ensure we have a payment intent when opening from Pay Now
-    const needsIntent =
-      (!paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId) &&
-      (isPaymentPendingStatus ||
-        (effectiveInvoice?.status ?? '').toString().toUpperCase() ===
-          'AWAITING_PAYMENT');
+    // Always ensure we have a payment intent when opening from Pay Now.
+    // Also re-fetch when connectedAccountId is missing — it only comes from the
+    // sessions endpoint, so existing appointments with a stored clientSecret but
+    // no connectedAccountId need a fresh session for Stripe Connect to work.
+    const missingSecret =
+      !paymentIntent?.clientSecret || !paymentIntent?.paymentIntentId;
+    const missingConnectedAccount = !paymentIntent?.connectedAccountId;
+    const isPending =
+      isPaymentPendingStatus ||
+      (effectiveInvoice?.status ?? '').toString().toUpperCase() ===
+        'AWAITING_PAYMENT';
+    const needsIntent = (missingSecret || missingConnectedAccount) && isPending;
     if (
       isInvoiceBasedFlow ||
       !appointmentId ||
@@ -1413,6 +1419,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     isPaymentPendingStatus,
     paymentIntent?.clientSecret,
     paymentIntent?.paymentIntentId,
+    paymentIntent?.connectedAccountId,
   ]);
 
   const {
@@ -1469,6 +1476,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
 
   const {handlePayNow, presentingSheet} = usePaymentHandler({
     clientSecret,
+    connectedAccountId: paymentIntent?.connectedAccountId ?? null,
     businessName,
     guardianName,
     guardianEmail,

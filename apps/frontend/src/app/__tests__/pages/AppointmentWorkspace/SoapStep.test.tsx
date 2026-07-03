@@ -4,27 +4,23 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import SoapStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SoapStep';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
-import {
-  getRenderedDocument,
-  saveSoapNote,
-} from '@/app/features/appointments/services/workspaceClinicalService';
+import { saveSoapNote } from '@/app/features/appointments/services/workspaceClinicalService';
+import { getWorkspaceTemplateById } from '@/app/features/appointments/services/workspaceTemplateService';
 
 expect.extend(toHaveNoViolations);
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
-  getRenderedDocument: jest.fn(),
   saveSoapNote: jest.fn(),
 }));
 
-jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
-  __esModule: true,
-  default: ({ open, title, pdfUrl }: { open: boolean; title: string; pdfUrl: string | null }) =>
-    open ? (
-      <div data-testid="pdf-preview">
-        <span>{title}</span>
-        <span>{pdfUrl}</span>
-      </div>
-    ) : null,
+jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
+  getWorkspaceTemplateById: jest.fn(),
+  resolveSoapTemplate: jest.fn().mockResolvedValue(null),
+  templateToSoapTemplate: jest.fn((template) => template),
+}));
+
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
 }));
 
 const APPT = 'appt-soap';
@@ -66,13 +62,15 @@ describe('SoapStep', () => {
     onRecordVitals.mockClear();
     onSaveAndNext.mockClear();
     (saveSoapNote as jest.Mock).mockResolvedValue({ id: 'soap-saved' });
-    (getRenderedDocument as jest.Mock).mockResolvedValue({ pdfUrl: 'https://files.test/soap.pdf' });
+    (getWorkspaceTemplateById as jest.Mock).mockReset();
+    (getWorkspaceTemplateById as jest.Mock).mockResolvedValue(undefined);
   });
 
   const renderSoapStep = (encounter = seedAndGet()) =>
     render(
       <SoapStep
         appointmentId={APPT}
+        organisationId="org-1"
         appointmentReason={APPOINTMENT_REASON}
         appointmentService={APPOINTMENT_SERVICE}
         appointmentSpeciality={APPOINTMENT_SPECIALITY}
@@ -83,7 +81,8 @@ describe('SoapStep', () => {
     );
 
   it('renders the four SOAP sections and chief complaint', () => {
-    renderSoapStep();
+    const encounter = seedAndGet();
+    renderSoapStep(encounter);
     expect(screen.getByText('Chief Complaint')).toBeInTheDocument();
     expect(screen.getByText(APPOINTMENT_REASON)).toBeInTheDocument();
     expect(screen.getByText('Service')).toBeInTheDocument();
@@ -98,13 +97,15 @@ describe('SoapStep', () => {
   });
 
   it('shows an empty state when no SOAP notes have been recorded', () => {
-    renderSoapStep();
+    const encounter = seedAndGet();
+    renderSoapStep(encounter);
     expect(screen.getByText('All SOAP notes')).toBeInTheDocument();
     expect(screen.getByText('No SOAP notes recorded yet.')).toBeInTheDocument();
   });
 
   it('keeps SOAP template search between chief complaint and subjective', () => {
-    renderSoapStep();
+    const encounter = seedAndGet();
+    renderSoapStep(encounter);
     const chiefComplaint = screen.getByText('Chief Complaint');
     const search = screen.getByLabelText(/search for soap template/i);
     const subjective = screen.getByText('Subjective (History)');
@@ -113,13 +114,55 @@ describe('SoapStep', () => {
   });
 
   it('searches and applies a SOAP template', () => {
-    renderSoapStep();
+    const encounter = seedAndGet();
+    (getWorkspaceTemplateById as jest.Mock).mockResolvedValue({
+      id: 'tpl-ortho',
+      name: 'Orthopaedic exam',
+      content: {
+        subjective: '<p>Resolved subjective</p>',
+        objective: '<p>Resolved objective</p>',
+        assessment: '<p>Resolved assessment</p>',
+        plan: '<p>Resolved plan</p>',
+      },
+    });
+    renderSoapStep(encounter);
     const search = screen.getByLabelText(/search for soap template/i);
     fireEvent.change(search, { target: { value: 'Ortho' } });
     fireEvent.click(screen.getByText('Orthopaedic exam'));
-    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.templateId).toBe(
-      'tpl-ortho'
-    );
+    return waitFor(() => {
+      expect(getWorkspaceTemplateById).toHaveBeenCalledWith('org-1', 'tpl-ortho');
+      expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.templateId).toBe(
+        'tpl-ortho'
+      );
+    });
+  });
+
+  it('uses the resolved template payload so SOAP content refreshes when selecting a template from search', async () => {
+    const encounter = seedAndGet();
+    (getWorkspaceTemplateById as jest.Mock).mockResolvedValue({
+      id: 'tpl-ortho',
+      name: 'Orthopaedic exam',
+      content: {
+        subjective: '<p>Resolved subjective</p>',
+        objective: '<p>Resolved objective</p>',
+        assessment: '<p>Resolved assessment</p>',
+        plan: '<p>Resolved plan</p>',
+      },
+    });
+    renderSoapStep(encounter);
+    fireEvent.change(screen.getByLabelText(/search for soap template/i), {
+      target: { value: 'Ortho' },
+    });
+    fireEvent.click(screen.getByText('Orthopaedic exam'));
+
+    await waitFor(() => {
+      expect(getWorkspaceTemplateById).toHaveBeenCalledWith('org-1', 'tpl-ortho');
+      const updated = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+      expect(updated.soap[0]?.subjective).toBe('<p>Resolved subjective</p>');
+      expect(updated.soap[0]?.objective).toBe('<p>Resolved objective</p>');
+      expect(updated.soap[0]?.assessment).toBe('<p>Resolved assessment</p>');
+      expect(updated.soap[0]?.plan).toBe('<p>Resolved plan</p>');
+    });
   });
 
   it('records the SOAP note, clears the form, and advances on Save & Next', () => {
@@ -155,8 +198,46 @@ describe('SoapStep', () => {
     // new SOAP can be started.
     expect(screen.getByText('All SOAP notes')).toBeInTheDocument();
     expect(screen.getByText(/By Dr\. Tim Apple/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Print to Sign' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save & Next' })).not.toBeDisabled();
+  });
+
+  it('uses the current author name for the optimistic signed SOAP note', async () => {
+    onSaveAndNext.mockClear();
+    seedAndGet();
+    useAppointmentWorkspaceStore.getState().upsertSoap(APPT, { subjective: '<p>history</p>' });
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    const { rerender } = render(
+      <SoapStep
+        appointmentId={APPT}
+        organisationId="org-1"
+        appointmentReason={APPOINTMENT_REASON}
+        encounter={enc}
+        authorId="current-user"
+        authorName="Dr Current User"
+        onRecordVitals={onRecordVitals}
+        onSaveAndNext={onSaveAndNext}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
+
+    await waitFor(() => expect(onSaveAndNext).toHaveBeenCalledTimes(1));
+    const updated = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    rerender(
+      <SoapStep
+        appointmentId={APPT}
+        organisationId="org-1"
+        appointmentReason={APPOINTMENT_REASON}
+        encounter={updated}
+        authorId="current-user"
+        authorName="Dr Current User"
+        onRecordVitals={onRecordVitals}
+        onSaveAndNext={onSaveAndNext}
+      />
+    );
+
+    expect(screen.getByText(/By Dr Current User/)).toBeInTheDocument();
+    expect(screen.queryByText(/By Dr\. Tim Apple/)).not.toBeInTheDocument();
   });
 
   it('starts a fresh draft after a note is signed', () => {
@@ -172,13 +253,13 @@ describe('SoapStep', () => {
     expect(soap.find((n) => n.status !== 'COMPLETED')?.subjective).toBe('<p>new visit</p>');
   });
 
-  it('keeps Print to Sign and Save & Next available after signing', () => {
+  it('keeps Save & Next available after signing without rendering Print to Sign', () => {
     seedAndGet();
     const store = useAppointmentWorkspaceStore.getState();
     store.upsertSoap(APPT, { subjective: '<p>history</p>' });
     store.signSoap(APPT, 'Dr Tim', false);
     renderSoapStep(store.getEncounter(APPT)!);
-    expect(screen.getByRole('button', { name: 'Print to Sign' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Print to Sign' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save & Next' })).toBeInTheDocument();
   });
 
@@ -222,15 +303,25 @@ describe('SoapStep', () => {
     expect(onRecordVitals).toHaveBeenCalledTimes(1);
   });
 
-  it('invokes print on the Print to Sign path', () => {
-    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+  it('advances without saving or recording a SOAP note when Save & Next is clicked on an empty draft', () => {
+    onSaveAndNext.mockClear();
     renderSoapStep();
-    fireEvent.click(screen.getByRole('button', { name: 'Print to Sign' }));
-    expect(printSpy).toHaveBeenCalled();
-    printSpy.mockRestore();
+    fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
+    expect(onSaveAndNext).toHaveBeenCalledTimes(1);
+    expect(saveSoapNote).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore
+        .getState()
+        .getEncounter(APPT)
+        ?.soap.some((entry) => entry.status === 'COMPLETED')
+    ).toBe(false);
   });
 
-  it('opens a rendered SOAP PDF overlay on the Print to Sign path when the backend provides one', async () => {
+  it('surfaces the backend error and does NOT sign or advance when the save fails', async () => {
+    // Override the global throwing console.error spy: the handler logs on failure.
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (saveSoapNote as jest.Mock).mockRejectedValueOnce(new Error('SOAP save rejected'));
+    onSaveAndNext.mockClear();
     seedAndGet();
     useAppointmentWorkspaceStore.getState().upsertSoap(APPT, { subjective: '<p>history</p>' });
     const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
@@ -245,24 +336,53 @@ describe('SoapStep', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Print to Sign' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
 
-    await waitFor(() => {
-      expect(saveSoapNote).toHaveBeenCalled();
-      expect(getRenderedDocument).toHaveBeenCalledWith('org-1', 'soap-saved');
-    });
-    expect(screen.getByTestId('pdf-preview')).toHaveTextContent('SOAP note - print to sign');
-    expect(screen.getByTestId('pdf-preview')).toHaveTextContent('https://files.test/soap.pdf');
-    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.id).toBe(
-      'soap-saved'
+    expect(await screen.findByRole('alert')).toHaveTextContent('SOAP save rejected');
+    // Critical: a failed save must not advance the step or mark the note COMPLETED.
+    expect(onSaveAndNext).not.toHaveBeenCalled();
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.status).not.toBe(
+      'COMPLETED'
     );
+    errorSpy.mockRestore();
   });
 
-  it('advances from the SOAP step when Save & Next is clicked', () => {
-    onSaveAndNext.mockClear();
-    renderSoapStep();
+  it('renders a custom template structure and blocks save until required custom fields are filled', async () => {
+    seedAndGet();
+    // Apply a CUSTOM template (structure override) via the store before rendering.
+    useAppointmentWorkspaceStore.getState().applySoapTemplate(APPT, {
+      id: 'tpl-custom',
+      name: 'Mobility',
+      customSchema: [
+        {
+          id: 'grp',
+          type: 'group',
+          label: 'Mobility',
+          fields: [{ id: 'gait', type: 'input', label: 'Gait quality', required: true }],
+        },
+      ],
+    });
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    render(
+      <SoapStep
+        appointmentId={APPT}
+        organisationId="org-1"
+        appointmentReason={APPOINTMENT_REASON}
+        encounter={enc}
+        onRecordVitals={onRecordVitals}
+        onSaveAndNext={onSaveAndNext}
+      />
+    );
+
+    // The custom structure REPLACES the four native editors.
+    expect(screen.queryByText('Subjective (History)')).not.toBeInTheDocument();
+    expect(screen.getByText('Gait quality')).toBeInTheDocument();
+
+    // A required custom field left empty blocks the save with a validation alert.
     fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
-    expect(onSaveAndNext).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Gait quality/i);
+    expect(saveSoapNote).not.toHaveBeenCalled();
+    expect(onSaveAndNext).not.toHaveBeenCalled();
   });
 
   it('falls back to the encounter lead name and omits date/time when not recorded', () => {

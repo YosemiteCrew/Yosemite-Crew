@@ -19,7 +19,6 @@ jest.mock("../../src/services/clinical-artifact.service", () => {
       getSoapNote: jest.fn(),
       listSoapNotesForAppointment: jest.fn(),
       listSoapNotesForEncounter: jest.fn(),
-      finalizeSoapNote: jest.fn(),
       reopenSoapNote: jest.fn(),
       amendSoapNote: jest.fn(),
       createPrescription: jest.fn(),
@@ -27,15 +26,15 @@ jest.mock("../../src/services/clinical-artifact.service", () => {
       getPrescription: jest.fn(),
       listPrescriptionsForAppointment: jest.fn(),
       listPrescriptionsForEncounter: jest.fn(),
-      finalizePrescription: jest.fn(),
       reopenPrescription: jest.fn(),
       amendPrescription: jest.fn(),
+      deletePrescription: jest.fn(),
+      cancelPrescription: jest.fn(),
       createDischargeSummary: jest.fn(),
       updateDischargeSummary: jest.fn(),
       getDischargeSummary: jest.fn(),
       listDischargeSummariesForAppointment: jest.fn(),
       listDischargeSummariesForEncounter: jest.fn(),
-      finalizeDischargeSummary: jest.fn(),
       reopenDischargeSummary: jest.fn(),
       amendDischargeSummary: jest.fn(),
       createVitalRecord: jest.fn(),
@@ -43,7 +42,6 @@ jest.mock("../../src/services/clinical-artifact.service", () => {
       getVitalRecord: jest.fn(),
       listVitalRecordsForAppointment: jest.fn(),
       listVitalRecordsForEncounter: jest.fn(),
-      finalizeVitalRecord: jest.fn(),
       reopenVitalRecord: jest.fn(),
       amendVitalRecord: jest.fn(),
     },
@@ -81,14 +79,17 @@ describe("ClinicalArtifactFhirController", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let jsonMock: jest.Mock;
+  let sendMock: jest.Mock;
   let statusMock: jest.Mock;
 
   const buildResponse = () => {
     jsonMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+    sendMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock, send: sendMock });
     res = {
       status: statusMock,
       json: jsonMock,
+      send: sendMock,
     } as unknown as Response;
   };
 
@@ -117,6 +118,7 @@ describe("ClinicalArtifactFhirController", () => {
     } as never);
     mockedMapper.compositionToSoapNoteInput.mockReturnValue({
       organisationId: "org-1",
+      status: "COMPLETED",
     } as never);
     mockedMapper.bundles.soapNotes.mockReturnValue({
       resourceType: "Bundle",
@@ -167,7 +169,9 @@ describe("ClinicalArtifactFhirController", () => {
       "org-1",
       "appt-1",
     );
-    expect(mockedService.createSoapNote).toHaveBeenCalled();
+    expect(mockedService.createSoapNote).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "COMPLETED" }),
+    );
     expect(mockedMapper.soapNoteToComposition).toHaveBeenCalledTimes(3);
     expect(statusMock).toHaveBeenCalledWith(201);
     expect(statusMock).toHaveBeenCalledWith(200);
@@ -179,6 +183,7 @@ describe("ClinicalArtifactFhirController", () => {
     } as never);
     mockedMapper.medicationRequestToPrescriptionInput.mockReturnValue({
       organisationId: "org-1",
+      status: "COMPLETED",
     } as never);
     mockedMapper.bundles.prescriptions.mockReturnValue({
       resourceType: "Bundle",
@@ -194,6 +199,10 @@ describe("ClinicalArtifactFhirController", () => {
       prescription: { id: "rx-1" },
     } as never);
     mockedService.updatePrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-2" },
+      prescription: { id: "rx-1" },
+    } as never);
+    mockedService.cancelPrescription.mockResolvedValueOnce({
       artifact: { id: "artifact-2" },
       prescription: { id: "rx-1" },
     } as never);
@@ -224,12 +233,27 @@ describe("ClinicalArtifactFhirController", () => {
       } as Request,
       res as Response,
     );
+    await ClinicalArtifactFhirController.deletePrescription(
+      req as Request,
+      res as Response,
+    );
+    await ClinicalArtifactFhirController.cancelPrescription(
+      req as Request,
+      res as Response,
+    );
 
-    expect(mockedService.createPrescription).toHaveBeenCalled();
+    expect(mockedService.createPrescription).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "COMPLETED" }),
+    );
     expect(mockedMapper.prescriptionToMedicationRequest).toHaveBeenCalledTimes(
-      3,
+      4,
+    );
+    expect(mockedService.cancelPrescription).toHaveBeenCalledWith(
+      "rx-1",
+      "org-1",
     );
     expect(statusMock).toHaveBeenCalledWith(201);
+    expect(statusMock).toHaveBeenCalledWith(204);
   });
 
   it("handles discharge summary operations", async () => {
@@ -238,6 +262,7 @@ describe("ClinicalArtifactFhirController", () => {
     } as never);
     mockedMapper.compositionToDischargeSummaryInput.mockReturnValue({
       organisationId: "org-1",
+      status: "COMPLETED",
     } as never);
     mockedMapper.bundles.dischargeSummaries.mockReturnValue({
       resourceType: "Bundle",
@@ -286,7 +311,9 @@ describe("ClinicalArtifactFhirController", () => {
       res as Response,
     );
 
-    expect(mockedService.createDischargeSummary).toHaveBeenCalled();
+    expect(mockedService.createDischargeSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "COMPLETED" }),
+    );
     expect(mockedMapper.dischargeSummaryToComposition).toHaveBeenCalledTimes(3);
   });
 
@@ -296,6 +323,7 @@ describe("ClinicalArtifactFhirController", () => {
     } as never);
     mockedMapper.observationToVitalRecordInput.mockReturnValue({
       organisationId: "org-1",
+      status: "COMPLETED",
     } as never);
     mockedMapper.bundles.vitalRecords.mockReturnValue({
       resourceType: "Bundle",
@@ -326,7 +354,16 @@ describe("ClinicalArtifactFhirController", () => {
     await ClinicalArtifactFhirController.createVitalRecord(
       {
         ...req,
-        body: { resourceType: "Observation", code: { text: "Vitals" } },
+        body: {
+          resourceType: "Observation",
+          code: { text: "Vitals" },
+          performer: [
+            {
+              reference: "Practitioner/nurse-1",
+              display: "Nurse Joy",
+            },
+          ],
+        },
       } as Request,
       res as Response,
     );
@@ -337,79 +374,43 @@ describe("ClinicalArtifactFhirController", () => {
     await ClinicalArtifactFhirController.updateVitalRecord(
       {
         ...req,
-        body: { resourceType: "Observation", code: { text: "Vitals" } },
+        body: {
+          resourceType: "Observation",
+          code: { text: "Vitals" },
+          performer: [
+            {
+              reference: "Practitioner/nurse-1",
+              display: "Nurse Joy",
+            },
+          ],
+        },
       } as Request,
       res as Response,
     );
 
-    expect(mockedService.createVitalRecord).toHaveBeenCalled();
+    expect(mockedService.createVitalRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "COMPLETED" }),
+    );
+    const firstVitalCall =
+      mockedMapper.observationToVitalRecordInput.mock.calls[0];
+    expect(firstVitalCall?.[0]).toEqual(
+      expect.objectContaining({
+        resourceType: "Observation",
+        performer: [
+          expect.objectContaining({
+            reference: "Practitioner/nurse-1",
+            display: "Nurse Joy",
+          }),
+        ],
+      }),
+    );
+    expect(firstVitalCall?.[1]).toEqual(
+      expect.objectContaining({
+        organisationId: "org-1",
+        recordedByDisplay: "Nurse Joy",
+      }),
+    );
     expect(mockedMapper.vitalRecordToObservation).toHaveBeenCalledTimes(3);
-  });
-
-  it("handles clinical artifact lifecycle operations", async () => {
-    mockedMapper.soapNoteToComposition.mockReturnValue({
-      resourceType: "Composition",
-    } as never);
-    mockedMapper.prescriptionToMedicationRequest.mockReturnValue({
-      resourceType: "MedicationRequest",
-    } as never);
-    mockedMapper.dischargeSummaryToComposition.mockReturnValue({
-      resourceType: "Composition",
-    } as never);
-    mockedMapper.vitalRecordToObservation.mockReturnValue({
-      resourceType: "Observation",
-    } as never);
-
-    mockedService.finalizeSoapNote.mockResolvedValueOnce({
-      artifact: { id: "artifact-1" },
-      soapNote: { id: "soap-1" },
-    } as never);
-    mockedService.reopenPrescription.mockResolvedValueOnce({
-      artifact: { id: "artifact-2" },
-      prescription: { id: "rx-1" },
-    } as never);
-    mockedService.amendDischargeSummary.mockResolvedValueOnce({
-      artifact: { id: "artifact-3" },
-      dischargeSummary: { id: "ds-1" },
-    } as never);
-    mockedService.finalizeVitalRecord.mockResolvedValueOnce({
-      artifact: { id: "artifact-4" },
-      vitalRecord: { id: "vital-1" },
-    } as never);
-
-    await ClinicalArtifactFhirController.finalizeSoapNote(
-      req as Request,
-      res as Response,
-    );
-    await ClinicalArtifactFhirController.reopenPrescription(
-      req as Request,
-      res as Response,
-    );
-    await ClinicalArtifactFhirController.amendDischargeSummary(
-      req as Request,
-      res as Response,
-    );
-    await ClinicalArtifactFhirController.finalizeVitalRecord(
-      req as Request,
-      res as Response,
-    );
-
-    expect(mockedService.finalizeSoapNote).toHaveBeenCalledWith(
-      "soap-1",
-      "org-1",
-    );
-    expect(mockedService.reopenPrescription).toHaveBeenCalledWith(
-      "rx-1",
-      "org-1",
-    );
-    expect(mockedService.amendDischargeSummary).toHaveBeenCalledWith(
-      "ds-1",
-      "org-1",
-    );
-    expect(mockedService.finalizeVitalRecord).toHaveBeenCalledWith(
-      "vital-1",
-      "org-1",
-    );
   });
 
   it("returns validation and service errors", async () => {

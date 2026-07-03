@@ -62,7 +62,7 @@ const AddAlertForm = ({
   onAdd,
 }: {
   companionName: string;
-  subject?: AddAlertModalProps['subject'];
+  subject?: NonNullable<AddAlertModalProps['subject']>;
   onClose: () => void;
   onAdd: (alert: Omit<CompanionAlert, 'id'>) => void;
 }) => {

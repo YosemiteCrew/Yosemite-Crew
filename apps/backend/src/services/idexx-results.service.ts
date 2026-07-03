@@ -130,7 +130,7 @@ const ensureResultDocument = async (params: {
     where: {
       patientId: params.patientId,
       category: "HEALTH",
-      subcategory: "LAB_TESTS",
+      subcategory: "LAB_TEST",
       title,
     },
     select: { id: true },
@@ -149,7 +149,7 @@ const ensureResultDocument = async (params: {
       patientId: params.patientId,
       appointmentId: params.appointmentId ?? null,
       category: "HEALTH",
-      subcategory: "LAB_TESTS",
+      subcategory: "LAB_TEST",
       title,
       issuingBusinessName: "IDEXX",
       issueDate: params.issueDate ?? undefined,

@@ -8,6 +8,7 @@ const router = Router();
 router.get(
   "/pms/resolve",
   authorizeCognito,
+  withOrgPermissions(),
   requirePermission(["forms:view:any"]),
   (req, res) => TemplateController.resolve(req, res),
 );

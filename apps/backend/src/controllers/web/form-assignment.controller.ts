@@ -24,6 +24,12 @@ const assignmentParamsSchema = z.object({
   assignmentId: z.string().min(1),
 });
 
+const organisationListQuerySchema = z.object({
+  parentId: z.string().min(1).optional(),
+  companionId: z.string().min(1).optional(),
+  status: z.string().trim().min(1).optional(),
+});
+
 const createBodySchema = createFormAssignmentSchema
   .omit({
     organisationId: true,
@@ -101,6 +107,25 @@ export const FormAssignmentController = {
         params.organisationId,
         params.companionId,
       );
+      return res.status(200).json(assignments);
+    } catch (error) {
+      return handleError(error, res);
+    }
+  },
+
+  async listForOrganisation(req: Request, res: Response) {
+    try {
+      const params = appointmentParamsSchema
+        .pick({ organisationId: true })
+        .parse(req.params);
+      const query = organisationListQuerySchema.parse(req.query ?? {});
+
+      const assignments = await FormAssignmentService.listForOrganisation({
+        organisationId: params.organisationId,
+        parentId: query.parentId,
+        companionId: query.companionId,
+        status: query.status,
+      });
       return res.status(200).json(assignments);
     } catch (error) {
       return handleError(error, res);

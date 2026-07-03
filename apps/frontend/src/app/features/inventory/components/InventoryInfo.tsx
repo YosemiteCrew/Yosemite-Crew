@@ -28,6 +28,8 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 
+const drugOnlyBatchFieldNames = new Set(['tracking']);
+
 const emptyBatch: BatchValues = {
   batch: '',
   manufactureDate: '',
@@ -57,8 +59,6 @@ const getBasicInfoErrors = (
   const errs: Record<string, string> = {};
   if (!values.name && !inventory.basicInfo.name) errs.name = 'Name is required';
   if (!values.category && !inventory.basicInfo.category) errs.category = 'Category is required';
-  if (!values.subCategory && !inventory.basicInfo.subCategory)
-    errs.subCategory = 'Sub category is required';
   return errs;
 };
 
@@ -202,9 +202,15 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   }, [inventory, onEditingChange]);
 
   const configForBusiness = InventoryFormConfig[businessType] || {};
+  const isNonDrug = String(inventory.classification?.itemType ?? '').toLowerCase() === 'non-drug';
   const sectionConfig = useMemo<ConfigItem<any>[]>(
-    () => configForBusiness.batch || [],
-    [configForBusiness.batch]
+    () =>
+      (configForBusiness.batch || []).filter((item) => {
+        if (!isNonDrug) return true;
+        const names = item.kind === 'row' ? item.fields.map((f: any) => f.name) : [item.field.name];
+        return names.every((n: string) => !drugOnlyBatchFieldNames.has(n));
+      }),
+    [configForBusiness.batch, isNonDrug]
   );
 
   const beginEditing = useCallback(() => {
@@ -266,6 +272,8 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
       'batch',
       'manufactureDate',
       'expiryDate',
+      'expiryWarningBefore',
+      'barcode',
       'serial',
       'tracking',
       'litterId',
@@ -380,7 +388,11 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
         inname={name}
         value={value}
         inlabel={placeholder || ''}
-        onChange={(e) => onChangeHandler(batchIndex, typedName, e.target.value)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          const val = field.numeric ? raw.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1') : raw;
+          onChangeHandler(batchIndex, typedName, val);
+        }}
         className="min-h-12!"
       />
     );
@@ -515,13 +527,14 @@ type InventoryInfoProps = {
   canEdit?: boolean;
   stockLocationOptions?: string[];
   initialSection?: InventorySectionKey;
+  organisationId?: string;
 };
 
 const modalSections: { key: InventorySectionKey; name: string }[] = [
   { key: 'basicInfo', name: 'Basic Details' },
   { key: 'classification', name: 'Clinical Details' },
-  { key: 'stock', name: 'Stock Control' },
   { key: 'batch', name: 'Batch and expiry' },
+  { key: 'stock', name: 'Stock Control' },
   { key: 'pricing', name: 'Pricing' },
   { key: 'vendor', name: 'Vendor details' },
 ];
@@ -608,36 +621,31 @@ const PreviewItem = ({ item, batchData }: { item: ConfigItem<any>; batchData: Ba
 const PricingCurrencySummary = ({ inventory }: { inventory: InventoryItem }) => {
   const currency = inventory.currency;
   return (
-    <div className="flex flex-col gap-2 px-1 pt-2 text-body-4 text-text-primary">
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Purchase cost</span>
-        <span className="font-semibold">
-          {formatCurrencyValue(inventory.pricing.purchaseCost, currency)}
-        </span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Selling price</span>
-        <span className="font-semibold">
-          {formatCurrencyValue(inventory.pricing.selling, currency)}
-        </span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Gross profit per unit</span>
+    <div className="flex flex-col gap-2 px-4 pt-2 text-body-4 text-text-primary">
+      <div>
+        <span>Gross profit per unit : </span>
         <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
           {formatCurrencyValue(getGrossProfitPerUnit(inventory), currency)}
         </span>
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Margin</span>
+      <div className="mb-4">
+        <span>Margin : </span>
         <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
           {formatPercentValue(getMarginPercent(inventory))}
         </span>
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-grey-bg">Total stock value</span>
-        <span className="font-semibold">
-          {formatCurrencyValue(getStockValue(inventory), currency)}
+      <div className="relative rounded-2xl border border-input-border-default px-6 py-3 min-h-12">
+        <span className="absolute left-4 -top-[11px] bg-white px-1.5 text-xs text-input-text-placeholder">
+          Total stock value
         </span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-body-4 text-text-primary">
+            {formatCurrencyValue(getStockValue(inventory), currency)}
+          </span>
+          <span className="text-caption-1 text-text-extra whitespace-nowrap">
+            on-hand stock x unit cost
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -656,6 +664,7 @@ const InventoryInfo = ({
   canEdit = true,
   stockLocationOptions,
   initialSection,
+  organisationId,
 }: InventoryInfoProps) => {
   const [activeLabel, setActiveLabel] = useState<InventorySectionKey>(
     initialSection ?? modalSections[0].key
@@ -848,7 +857,7 @@ const InventoryInfo = ({
             setActiveLabel={setActiveLabel}
           />
 
-          <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
+          <div className="flex flex-col overflow-y-auto flex-1 scrollbar-hidden">
             {activeInventory && (
               <>
                 {activeLabel === 'batch' ? (
@@ -872,6 +881,7 @@ const InventoryInfo = ({
                     disableEditing={!canEdit || isUpdating || isHiding}
                     onEditingChange={setIsSectionEditing}
                     stockLocationOptions={stockLocationOptions}
+                    organisationId={organisationId}
                     onRegisterActions={(actions) => {
                       sectionActions.current = actions;
                     }}

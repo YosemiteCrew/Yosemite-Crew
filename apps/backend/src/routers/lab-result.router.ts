@@ -21,6 +21,16 @@ router.get(
   (req, res) => LabResultController.search(req, res),
 );
 
+// Registered before the `:resultId` routes so the literal `/results/pdf`
+// (combined "print all results" PDF) is matched before `/results/:resultId`.
+router.get(
+  "/pms/organisation/:organisationId/:provider/results/pdf",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("labs:view:any"),
+  (req, res) => LabResultController.getCombinedPdf(req, res),
+);
+
 router.get(
   "/pms/organisation/:organisationId/:provider/results/:resultId",
   authorizeCognito,

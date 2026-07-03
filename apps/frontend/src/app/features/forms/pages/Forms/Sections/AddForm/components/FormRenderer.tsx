@@ -3,6 +3,7 @@ import DropdownRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/
 import InputRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputRenderer';
 import SignatureRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureRenderer';
 import TextRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer';
+import RichTextRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/RichText/RichTextRenderer';
 import BooleanRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanRenderer';
 import DateRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateRenderer';
 
@@ -37,6 +38,7 @@ type RuntimeRendererProps = {
 
 const runtimeComponentMap: Record<FormFieldType, React.ComponentType<RuntimeRendererProps>> = {
   textarea: TextRenderer as any,
+  richtext: RichTextRenderer as any,
   input: InputRenderer as any,
   number: InputRenderer as any,
   dropdown: DropdownRenderer as any,
@@ -82,7 +84,7 @@ const labelForField = (field: FormField): string => {
   const label = (field.label ?? '').trim();
   const id = field.id ?? '';
   if (label && label !== id) return label;
-  if (/_services$/i.test(id)) return 'Services';
+  if (/_services$/i.test(id)) return 'Services / Packages';
   return humanizeKey(id || 'Field');
 };
 
@@ -92,6 +94,7 @@ type FormRendererProps = {
   onChange: (id: string, value: any) => void;
   readOnly?: boolean;
   depth?: number;
+  parentLabel?: string;
 };
 
 export const FormRenderer: React.FC<FormRendererProps> = ({
@@ -100,6 +103,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
   onChange,
   readOnly = false,
   depth = 0,
+  parentLabel,
 }) => {
   const preventReadOnlyFocus: React.PointerEventHandler<HTMLDivElement> = (e) => {
     if (!readOnly) return;
@@ -126,6 +130,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
         const fieldWithLabel: FormField = { ...field, label: labelForField(field) };
         if (field.type === 'group') {
           const medicationGroup = isMedicationLikeGroup(field);
+          const nextParentLabel = field.label?.trim() || parentLabel;
           return (
             <div
               key={field.id}
@@ -138,6 +143,7 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
                 onChange={onChange}
                 readOnly={readOnly}
                 depth={depth + 1}
+                parentLabel={nextParentLabel}
               />
             </div>
           );
@@ -147,10 +153,12 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
         const existingValue = values[field.id];
         const defaultValue = (field as any).defaultValue;
         const value = existingValue ?? defaultValue ?? getFallbackValue(field);
+        const fieldLabel =
+          parentLabel && fieldWithLabel.label?.trim() === parentLabel ? '' : fieldWithLabel.label;
         return (
           <Component
             key={field.id}
-            field={fieldWithLabel}
+            field={{ ...fieldWithLabel, label: fieldLabel }}
             value={value}
             onChange={(v: any) => onChange(field.id, v)}
             readOnly={readOnly}

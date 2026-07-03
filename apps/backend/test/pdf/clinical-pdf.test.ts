@@ -101,6 +101,21 @@ class FakePdfDocument {
     return this;
   }
 
+  roundedRect(
+    _x: number,
+    _y: number,
+    _width: number,
+    _height: number,
+    _radius: number,
+  ): this {
+    this.operations.push({ type: "rect", page: this.currentPageIndex });
+    return this;
+  }
+
+  fill(_color: string): this {
+    return this;
+  }
+
   fillAndStroke(_fill: string, _stroke: string): this {
     return this;
   }
@@ -181,6 +196,7 @@ import {
   type DischargeSummaryDocumentData,
   type InvoiceDocumentData,
   type PrescriptionDocumentData,
+  type PrescriptionLabelDocumentData,
   type SoapNoteDocumentData,
 } from "@yosemite-crew/lib";
 
@@ -285,6 +301,40 @@ const prescriptionData: PrescriptionDocumentData = {
     signerDegree: "DVM",
     signedAt: new Date("2026-06-19T10:15:00Z"),
   },
+};
+
+const prescriptionLabelData: PrescriptionLabelDocumentData = {
+  title: "Prescription Label",
+  date: new Date("2026-06-19T00:00:00.000Z"),
+  prescriptionId: "RX-771",
+  patientName: "Bella Hadid",
+  clientName: "Yasmin Hadid",
+  prescriberName: "Dr. Tim Apple",
+  organisationName: "PetVet Clinic",
+  items: [
+    {
+      medication: "Carprofen",
+      strength: "25mg",
+      dosage: "1 tablet",
+      route: "PO",
+      frequency: "BID",
+      duration: "7 days",
+      quantity: "14",
+      instructions: "Give with food.",
+      controlled: false,
+    },
+  ],
+};
+
+const controlledPrescriptionLabelData: PrescriptionLabelDocumentData = {
+  ...prescriptionLabelData,
+  items: [
+    {
+      ...prescriptionLabelData.items[0],
+      medication: "Tramadol",
+      controlled: true,
+    },
+  ],
 };
 
 const invoiceData: InvoiceDocumentData = {
@@ -438,6 +488,7 @@ describe("generateClinicalPdf", () => {
     ["DISCHARGE_SUMMARY", longDischargeSummaryData],
     ["SOAP_NOTE", soapNoteData],
     ["PRESCRIPTION", prescriptionData],
+    ["PRESCRIPTION_LABEL", prescriptionLabelData],
     ["VITAL_RECORD", vitalRecordData],
     ["INVOICE", invoiceData],
   ] as const)("renders %s clinical PDFs", async (documentType, data) => {
@@ -459,6 +510,64 @@ describe("generateClinicalPdf", () => {
         (op) => op.type === "text" && op.text?.includes("Page 1 of"),
       ),
     ).toBe(true);
+  });
+
+  it("renders the controlled substance marking on prescription labels", async () => {
+    const buffer = await generateClinicalPdf({
+      documentType: "PRESCRIPTION_LABEL",
+      organization: baseOrganization,
+      data: controlledPrescriptionLabelData,
+    });
+
+    expect(buffer.subarray(0, 9).toString()).toBe("%PDF-FAKE");
+    expect(
+      pdfDocumentInstances[0].operations.some(
+        (op) => op.type === "text" && op.text === "CONTROLLED SUBSTANCE",
+      ),
+    ).toBe(true);
+    expect(
+      pdfDocumentInstances[0].operations.some(
+        (op) => op.type === "text" && op.text === "Tramadol 25mg",
+      ),
+    ).toBe(true);
+  });
+
+  it("omits the controlled substance marking for non-controlled labels", async () => {
+    const buffer = await generateClinicalPdf({
+      documentType: "PRESCRIPTION_LABEL",
+      organization: baseOrganization,
+      data: prescriptionLabelData,
+    });
+
+    expect(buffer.subarray(0, 9).toString()).toBe("%PDF-FAKE");
+    expect(
+      pdfDocumentInstances[0].operations.some(
+        (op) => op.type === "text" && op.text === "CONTROLLED SUBSTANCE",
+      ),
+    ).toBe(false);
+    expect(
+      pdfDocumentInstances[0].operations.some(
+        (op) => op.type === "text" && op.text === "Patient: ",
+      ),
+    ).toBe(true);
+  });
+
+  it("renders a vital record when metadata is null", async () => {
+    const buffer = await generateClinicalPdf({
+      documentType: "VITAL_RECORD",
+      organization: baseOrganization,
+      data: {
+        ...vitalRecordData,
+        metadata: null,
+      },
+    });
+
+    expect(buffer.subarray(0, 9).toString()).toBe("%PDF-FAKE");
+    expect(
+      pdfDocumentInstances[0].operations.some(
+        (op) => op.type === "text" && op.text === "Metadata",
+      ),
+    ).toBe(false);
   });
 
   it("paginates long discharge summaries and keeps the pending signature block together", async () => {

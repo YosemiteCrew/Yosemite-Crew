@@ -7,7 +7,7 @@ import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import { BusinessType } from '@/app/features/organization/types/org';
-import { RiUploadCloud2Fill } from 'react-icons/ri';
+import ImageUploadField from '@/app/features/inventory/components/AddInventory/ImageUploadField';
 
 import {
   InventoryItem,
@@ -77,6 +77,7 @@ type FormSectionProps = {
   onRemoveBatch?: (index: number) => void;
   stockLocationOptions?: string[];
   headerSlot?: React.ReactNode;
+  organisationId?: string;
 };
 
 const PricingSummary = ({ formData }: { formData: InventoryItem }) => (
@@ -87,23 +88,30 @@ const PricingSummary = ({ formData }: { formData: InventoryItem }) => (
         {formatCurrencyValue(getGrossProfitPerUnit(formData), formData.currency)}
       </span>
     </div>
-    <div>
+    <div className="mb-4">
       <span>Margin : </span>
       <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
         {formatPercentValue(getMarginPercent(formData))}
       </span>
     </div>
-    <FormInput
-      intype="text"
-      inname="stockValue"
-      value={formatCurrencyValue(getStockValue(formData), formData.currency)}
-      inlabel="Total stock value"
-      readonly
-    />
+    <div className="relative rounded-2xl border border-input-border-default px-6 py-3 min-h-12">
+      <span className="absolute left-4 -top-[11px] bg-white px-1.5 text-xs text-input-text-placeholder">
+        Total stock value
+      </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-body-4 text-text-primary">
+          {formatCurrencyValue(getStockValue(formData), formData.currency)}
+        </span>
+        <span className="text-caption-1 text-text-extra whitespace-nowrap">
+          on-hand stock x unit cost
+        </span>
+      </div>
+    </div>
   </div>
 );
 
 const drugOnlyClassificationFields = new Set([
+  'genericName',
   'drugSchedule',
   'form',
   'administration',
@@ -113,6 +121,275 @@ const drugOnlyClassificationFields = new Set([
   'prescriptionRequired',
   'reportableToGovernment',
 ]);
+
+const drugOnlyBatchFields = new Set(['tracking']);
+
+const drugOnlyStockFields = new Set(['withdrawlPeriod']);
+
+const isDrugOnlyField = (
+  sectionKey: InventorySectionKey,
+  isNonDrug: boolean,
+  fieldName: string
+): boolean => {
+  if (!isNonDrug) return false;
+  if (sectionKey === 'classification') return drugOnlyClassificationFields.has(fieldName);
+  if (sectionKey === 'batch') return drugOnlyBatchFields.has(fieldName);
+  if (sectionKey === 'stock') return drugOnlyStockFields.has(fieldName);
+  return false;
+};
+
+type DropdownOption = string | { label: string; value: string };
+
+type FieldChangeHandler = (
+  field: FieldDef<any>,
+  value: string | string[],
+  batchIndex?: number
+) => void;
+
+type InventoryFieldRenderParams = {
+  field: FieldDef<any>;
+  key?: React.Key;
+  index?: number;
+  sectionKey: InventorySectionKey;
+  formData: InventoryItem;
+  sectionData: any;
+  sectionErrors: any;
+  stockLocationOptions?: string[];
+  organisationId?: string;
+  handleChange: FieldChangeHandler;
+};
+
+const getResolvedDropdownOptions = (
+  sectionKey: InventorySectionKey,
+  fieldName: string,
+  stockLocationOptions: DropdownOption[] | undefined,
+  sectionCategory: string | undefined,
+  options: DropdownOption[] | undefined
+) => {
+  if (sectionKey === 'stock' && fieldName === 'stockLocation' && stockLocationOptions?.length) {
+    return stockLocationOptions;
+  }
+  if (fieldName === 'subCategory') {
+    return getSubCategoryOptions(sectionCategory);
+  }
+  return options || [];
+};
+
+const getMultiSelectValues = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const text = String(value);
+    if (!text) return [];
+    return text.split(',').map((v) => v.trim());
+  }
+  return [];
+};
+
+const getReadOnlyStockDisplayValue = (
+  field: FieldDef<any>,
+  formData: InventoryItem,
+  value: unknown
+): string => {
+  if (field.name === 'available') {
+    return String(getAvailableStock(formData) ?? toNumberSafe(value) ?? '0');
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value || '0');
+  }
+  return '0';
+};
+
+const renderTextInventoryField = ({
+  field,
+  key,
+  index,
+  sectionKey,
+  formData,
+  value,
+  error,
+  handleChange,
+}: {
+  field: FieldDef<any>;
+  key?: React.Key;
+  index?: number;
+  sectionKey: InventorySectionKey;
+  formData: InventoryItem;
+  value: any;
+  error: any;
+  handleChange: FieldChangeHandler;
+}) => {
+  const isReadOnlyStockField = sectionKey === 'stock' && field.readonly;
+  if (isReadOnlyStockField) {
+    const displayValue = getReadOnlyStockDisplayValue(field, formData, value);
+    return (
+      <div
+        key={key ?? field.name}
+        className="flex items-center gap-2 px-2 text-body-4 text-text-primary"
+      >
+        <span>{field.placeholder} :</span>
+        <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+          {displayValue}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <FormInput
+      key={key ?? field.name}
+      intype="text"
+      inname={field.name}
+      value={value}
+      inlabel={field.placeholder || ''}
+      onChange={(e) => {
+        const raw = e.target.value;
+        const val = field.numeric ? raw.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1') : raw;
+        handleChange(field, val, index);
+      }}
+      error={error}
+      className="min-h-12!"
+    />
+  );
+};
+
+const renderInventoryField = ({
+  field,
+  key,
+  index,
+  sectionKey,
+  formData,
+  sectionData,
+  sectionErrors,
+  stockLocationOptions,
+  organisationId,
+  handleChange,
+}: InventoryFieldRenderParams) => {
+  const { placeholder, component, options } = field;
+  const isBatch = sectionKey === 'batch' && typeof index === 'number';
+  const value = isBatch
+    ? ((formData.batches?.[index] as any)?.[field.name] ?? '')
+    : (sectionData?.[field.name] ?? '');
+  const error = sectionErrors?.[field.name];
+
+  const isNonDrug = String(formData.classification?.itemType ?? '').toLowerCase() === 'non-drug';
+
+  if (isDrugOnlyField(sectionKey, isNonDrug, String(field.name))) return null;
+
+  if (component === 'text') {
+    return renderTextInventoryField({
+      field,
+      key,
+      index,
+      sectionKey,
+      formData,
+      value,
+      error,
+      handleChange,
+    });
+  }
+
+  if (component === 'date') {
+    const currentDate = parseDate(value);
+    return (
+      <div key={key ?? field.name} className="flex flex-col gap-1">
+        <Datepicker
+          currentDate={currentDate}
+          setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
+            const resolved = typeof next === 'function' ? next(currentDate) : next;
+            handleChange(field, resolved ? formatDate(resolved) : '', index);
+          }}
+          placeholder={placeholder || ''}
+          type="input"
+          className="min-h-12!"
+          error={error}
+        />
+      </div>
+    );
+  }
+
+  if (component === 'dropdown') {
+    const resolvedOptions = getResolvedDropdownOptions(
+      sectionKey,
+      field.name,
+      stockLocationOptions,
+      sectionData?.category,
+      options
+    );
+    const dropdownOptions = resolvedOptions.map((opt) =>
+      typeof opt === 'string' ? { label: opt, value: opt } : opt
+    );
+    return (
+      <LabelDropdown
+        key={key ?? field.name}
+        placeholder={placeholder || ''}
+        defaultOption={value}
+        onSelect={(opt) => handleChange(field, opt.value, index)}
+        error={error}
+        options={dropdownOptions}
+      />
+    );
+  }
+
+  if (component === 'multiSelect') {
+    const arrayValue = getMultiSelectValues(value);
+    return (
+      <MultiSelectDropdown
+        key={key ?? field.name}
+        placeholder={placeholder || ''}
+        value={arrayValue}
+        onChange={(vals) => handleChange(field, vals, index)}
+        error={error}
+        options={options || []}
+      />
+    );
+  }
+
+  if (component === 'textarea') {
+    return (
+      <FormDesc
+        key={key ?? field.name}
+        intype="text"
+        inname={field.name}
+        value={value}
+        inlabel={placeholder || ''}
+        onChange={(e) => handleChange(field, e.target.value, index)}
+        className="min-h-[120px]!"
+      />
+    );
+  }
+
+  if (component === 'checkbox') {
+    const checked = value === 'true' || value === 'Yes';
+    return (
+      <label
+        key={key ?? field.name}
+        className="flex min-h-10 cursor-pointer items-center gap-3 text-body-4 text-text-primary"
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => handleChange(field, e.target.checked ? 'true' : 'false', index)}
+          className="size-5 rounded border-input-border-default accent-blue-text"
+        />
+        <span>{placeholder}</span>
+      </label>
+    );
+  }
+
+  if (component === 'upload') {
+    return (
+      <ImageUploadField
+        key={key ?? field.name}
+        label={placeholder}
+        value={value}
+        organisationId={organisationId}
+        onChange={(url) => handleChange(field, url, index)}
+      />
+    );
+  }
+
+  return null;
+};
 
 const FormSection: React.FC<FormSectionProps> = ({
   businessType,
@@ -129,6 +406,7 @@ const FormSection: React.FC<FormSectionProps> = ({
   onRemoveBatch,
   stockLocationOptions,
   headerSlot,
+  organisationId,
 }) => {
   const configForBusiness = InventoryFormConfig[businessType] ?? {};
   const sectionConfig = configForBusiness[sectionKey];
@@ -154,211 +432,9 @@ const FormSection: React.FC<FormSectionProps> = ({
       sectionData,
       sectionErrors,
       stockLocationOptions,
+      organisationId,
       handleChange,
     });
-
-  const getResolvedDropdownOptions = (
-    sectionKey: string,
-    fieldName: string,
-    stockLocationOptions: Array<string | { label: string; value: string }> | undefined,
-    sectionCategory: string | undefined,
-    options: Array<string | { label: string; value: string }> | undefined
-  ) => {
-    if (sectionKey === 'stock' && fieldName === 'stockLocation' && stockLocationOptions?.length) {
-      return stockLocationOptions;
-    }
-    if (fieldName === 'subCategory') {
-      return getSubCategoryOptions(sectionCategory);
-    }
-    return options || [];
-  };
-
-  const getMultiSelectValues = (value: unknown): string[] => {
-    if (Array.isArray(value)) return value;
-    if (typeof value === 'string' || typeof value === 'number') {
-      const text = String(value);
-      if (!text) return [];
-      return text.split(',').map((v) => v.trim());
-    }
-    return [];
-  };
-
-  const renderInventoryField = ({
-    field,
-    key,
-    index,
-    sectionKey,
-    formData,
-    sectionData,
-    sectionErrors,
-    stockLocationOptions,
-    handleChange,
-  }: {
-    field: FieldDef<any>;
-    key?: React.Key;
-    index?: number;
-    sectionKey: InventorySectionKey;
-    formData: InventoryItem;
-    sectionData: any;
-    sectionErrors: any;
-    stockLocationOptions?: string[];
-    handleChange: (field: FieldDef<any>, value: string | string[], batchIndex?: number) => void;
-  }) => {
-    const { placeholder, component, options } = field;
-    const isBatch = sectionKey === 'batch' && typeof index === 'number';
-    const value = isBatch
-      ? ((formData.batches?.[index] as any)?.[field.name] ?? '')
-      : (sectionData?.[field.name] ?? '');
-    const error = sectionErrors?.[field.name];
-
-    if (
-      sectionKey === 'classification' &&
-      String(formData.classification?.itemType ?? '').toLowerCase() === 'non-drug' &&
-      drugOnlyClassificationFields.has(String(field.name))
-    ) {
-      return null;
-    }
-
-    if (component === 'text') {
-      const isReadOnlyAvailable = sectionKey === 'stock' && field.name === 'available';
-      const resolvedValue = isReadOnlyAvailable
-        ? String(getAvailableStock(formData) ?? toNumberSafe(value) ?? '')
-        : value;
-      return (
-        <FormInput
-          key={key ?? field.name}
-          intype="text"
-          inname={field.name}
-          value={resolvedValue}
-          inlabel={placeholder || ''}
-          onChange={(e) => handleChange(field, e.target.value, index)}
-          error={error}
-          readonly={isReadOnlyAvailable}
-          className="min-h-12!"
-        />
-      );
-    }
-
-    if (component === 'date') {
-      const currentDate = parseDate(value);
-      return (
-        <div key={key ?? field.name} className="flex flex-col gap-1">
-          <Datepicker
-            currentDate={currentDate}
-            setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
-              const resolved = typeof next === 'function' ? next(currentDate) : next;
-              handleChange(field, resolved ? formatDate(resolved) : '', index);
-            }}
-            placeholder={placeholder || ''}
-            type="input"
-            className="min-h-12!"
-            error={error}
-          />
-        </div>
-      );
-    }
-
-    if (component === 'dropdown') {
-      const resolvedOptions = getResolvedDropdownOptions(
-        sectionKey,
-        field.name,
-        stockLocationOptions,
-        sectionData?.category,
-        options
-      );
-      const dropdownOptions = resolvedOptions.map((opt) =>
-        typeof opt === 'string' ? { label: opt, value: opt } : opt
-      );
-      return (
-        <LabelDropdown
-          key={key ?? field.name}
-          placeholder={placeholder || ''}
-          defaultOption={value}
-          onSelect={(opt) => handleChange(field, opt.value, index)}
-          error={error}
-          options={dropdownOptions}
-        />
-      );
-    }
-
-    if (component === 'multiSelect') {
-      const arrayValue = getMultiSelectValues(value);
-      return (
-        <MultiSelectDropdown
-          key={key ?? field.name}
-          placeholder={placeholder || ''}
-          value={arrayValue}
-          onChange={(vals) => handleChange(field, vals, index)}
-          error={error}
-          options={options || []}
-        />
-      );
-    }
-
-    if (component === 'textarea') {
-      return (
-        <FormDesc
-          key={key ?? field.name}
-          intype="text"
-          inname={field.name}
-          value={value}
-          inlabel={placeholder || ''}
-          onChange={(e) => handleChange(field, e.target.value, index)}
-          className="min-h-[120px]!"
-        />
-      );
-    }
-
-    if (component === 'checkbox') {
-      const checked = value === 'true' || value === 'Yes';
-      return (
-        <label
-          key={key ?? field.name}
-          className="flex min-h-10 cursor-pointer items-center gap-3 text-body-4 text-text-primary"
-        >
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={(e) => handleChange(field, e.target.checked ? 'true' : 'false', index)}
-            className="size-5 rounded border-input-border-default accent-blue-text"
-          />
-          <span>{placeholder}</span>
-        </label>
-      );
-    }
-
-    if (component === 'upload') {
-      return (
-        <div key={key ?? field.name} className="relative">
-          <div className="mb-1 px-4 text-caption-1 text-text-secondary">{placeholder}</div>
-          <button
-            type="button"
-            className="flex min-h-35 w-full flex-col items-center justify-center rounded-2xl border border-input-border-default bg-white px-4 py-5 text-center text-text-primary"
-            onClick={() => document.getElementById(`inventory-upload-${field.name}`)?.click()}
-          >
-            <RiUploadCloud2Fill size={34} className="text-blue-text" aria-hidden="true" />
-            <span className="mt-2 text-body-4-emphasis">Upload document</span>
-            <span className="text-caption-1 text-text-secondary">PNG, JPG, WebP</span>
-            <span className="text-caption-1 text-text-secondary">Max size 2mb</span>
-          </button>
-          <input
-            id={`inventory-upload-${field.name}`}
-            type="file"
-            className="hidden"
-            aria-label={placeholder || 'Upload inventory image'}
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-              handleChange(field, URL.createObjectURL(file), index);
-            }}
-          />
-        </div>
-      );
-    }
-
-    return null;
-  };
 
   const renderItem = (item: ConfigItem<any>, index: number, batchIndex?: number) => {
     const itemKey =

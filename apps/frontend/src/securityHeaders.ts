@@ -41,17 +41,20 @@ export const buildSecurityHeaders = (isProduction = isProductionRuntime()): Secu
 export const securityHeaders: SecurityHeader[] = buildSecurityHeaders();
 
 const getNonceSource = (nonce?: string) => (nonce ? `'nonce-${nonce}'` : undefined);
-const POSTHOG_DEFAULT_SCRIPT_HOSTS = [
-  'https://us-assets.i.posthog.com',
-  'https://eu-assets.i.posthog.com',
+const YC_CLOUDFRONT_HOSTS = [
+  'https://d2il6osz49gpup.cloudfront.net',
+  'https://d2kyjiikho62xx.cloudfront.net',
 ];
+const POSTHOG_DEFAULT_SCRIPT_HOSTS = ['https://eu-assets.i.posthog.com'];
 const POSTHOG_DEFAULT_CONNECT_HOSTS = [
-  'https://us.i.posthog.com',
   'https://eu.i.posthog.com',
-  'https://us-assets.i.posthog.com',
   'https://eu-assets.i.posthog.com',
 ];
 const getPostHogHost = () => process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
+const getAllowedPostHogHost = () => {
+  const host = getPostHogHost();
+  return host === 'https://eu.i.posthog.com' ? host : undefined;
+};
 
 export const buildContentSecurityPolicy = ({
   nonce,
@@ -65,7 +68,7 @@ export const buildContentSecurityPolicy = ({
   const isProduction = process.env.NODE_ENV === 'production';
   const isDevelopment = !isProduction;
   const nonceSource = getNonceSource(nonce);
-  const postHogHost = getPostHogHost();
+  const postHogHost = getAllowedPostHogHost();
   const postHogScriptHosts = [...POSTHOG_DEFAULT_SCRIPT_HOSTS, postHogHost].filter(Boolean);
   const postHogConnectHosts = [...POSTHOG_DEFAULT_CONNECT_HOSTS, postHogHost].filter(Boolean);
 
@@ -93,7 +96,19 @@ export const buildContentSecurityPolicy = ({
       .join(' '),
     "style-src-attr 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com https://cal.com https://app.cal.com",
-    "img-src 'self' data: blob: https://d2il6osz49gpup.cloudfront.net https://d2kyjiikho62xx.cloudfront.net https://images.unsplash.com https://plus.unsplash.com https://yosemitecrew-backend.s3.eu-central-1.amazonaws.com https://cdn.yc.dev https://laika.aitemsolutions.com https://upload.wikimedia.org https://*.stripe.com",
+    [
+      "img-src 'self'",
+      'data:',
+      'blob:',
+      ...YC_CLOUDFRONT_HOSTS,
+      'https://images.unsplash.com',
+      'https://plus.unsplash.com',
+      'https://yosemitecrew-backend.s3.eu-central-1.amazonaws.com',
+      'https://cdn.yc.dev',
+      'https://laika.aitemsolutions.com',
+      'https://upload.wikimedia.org',
+      'https://*.stripe.com',
+    ].join(' '),
     [
       "connect-src 'self'",
       'blob:',
@@ -135,6 +150,7 @@ export const buildContentSecurityPolicy = ({
       'https://*.merckmanuals.com',
       'https://*.idexx.com',
       'https://*.vetconnectplus.com',
+      ...YC_CLOUDFRONT_HOSTS,
       documensoHost,
     ]
       .filter(Boolean)

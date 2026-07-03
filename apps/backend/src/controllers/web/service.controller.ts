@@ -71,6 +71,124 @@ const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   return res.status(500).json({ message: defaultMessage });
 };
 
+const parseCoordinates = (
+  latString: string | undefined,
+  lngString: string | undefined,
+) => {
+  if (!latString || !lngString) {
+    return { lat: null, lng: null };
+  }
+
+  const lat = Number(latString);
+  const lng = Number(lngString);
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return { lat: null, lng: null };
+  }
+
+  return { lat, lng };
+};
+
+const resolveCoordinatesFromSavedAddress = async (authUserId: string) => {
+  const parentAddress = await getParentAddressForAuthUser(authUserId);
+
+  if (!parentAddress?.city || !parentAddress?.postalCode) {
+    return { lat: null, lng: null, reason: "missing-address" as const };
+  }
+
+  const locationQuery = `${parentAddress.city} ${parentAddress.postalCode}`;
+  const geo = await helpers.getGeoLocation(locationQuery);
+
+  const geoRecord =
+    geo && typeof geo === "object" ? (geo as Record<string, unknown>) : {};
+  const lat = typeof geoRecord.lat === "number" ? geoRecord.lat : null;
+  const lng = typeof geoRecord.lng === "number" ? geoRecord.lng : null;
+
+  return {
+    lat,
+    lng,
+    locationQuery,
+    reason:
+      lat === null || lng === null
+        ? ("unresolved" as const)
+        : ("resolved" as const),
+  };
+};
+
+type ServiceSearchContext = {
+  lat: number | null;
+  lng: number | null;
+  locationQuery: string | undefined;
+  error:
+    | "invalid-coordinates"
+    | "missing-auth"
+    | "missing-address"
+    | "unresolved"
+    | null;
+};
+
+const resolveServiceSearchContext = async (
+  req: Request,
+): Promise<ServiceSearchContext> => {
+  const latString = req.query.lat as string | undefined;
+  const lngString = req.query.lng as string | undefined;
+  const query = req.query.query as string | undefined;
+  const hasCoordinateParams =
+    latString !== undefined || lngString !== undefined;
+  const { lat: requestedLat, lng: requestedLng } = parseCoordinates(
+    latString,
+    lngString,
+  );
+
+  if (hasCoordinateParams && (requestedLat == null || requestedLng == null)) {
+    return {
+      lat: null,
+      lng: null,
+      locationQuery: query,
+      error: "invalid-coordinates",
+    };
+  }
+
+  if (requestedLat != null && requestedLng != null) {
+    return {
+      lat: requestedLat,
+      lng: requestedLng,
+      locationQuery: query,
+      error: null,
+    };
+  }
+
+  const authUserId = resolveUserIdFromRequest(req);
+  if (!authUserId) {
+    return {
+      lat: null,
+      lng: null,
+      locationQuery: query,
+      error: "missing-auth",
+    };
+  }
+
+  const resolved = await resolveCoordinatesFromSavedAddress(authUserId);
+  if (resolved.lat == null || resolved.lng == null) {
+    return {
+      lat: null,
+      lng: null,
+      locationQuery: resolved.locationQuery,
+      error:
+        resolved.reason === "missing-address"
+          ? "missing-address"
+          : "unresolved",
+    };
+  }
+
+  return {
+    lat: resolved.lat,
+    lng: resolved.lng,
+    locationQuery: resolved.locationQuery,
+    error: null,
+  };
+};
+
 const HealthcareServiceSchema = z
   .object({
     resourceType: z.literal("HealthcareService"),
@@ -172,9 +290,6 @@ export const ServiceController = {
   listOrganisationByServiceName: async (req: Request, res: Response) => {
     try {
       const serviceName = req.query.serviceName as string;
-      const latString = req.query.lat as string | undefined;
-      const lngString = req.query.lng as string | undefined;
-      const query = req.query.query as string | undefined;
 
       if (!serviceName) {
         return res
@@ -182,63 +297,28 @@ export const ServiceController = {
           .json({ message: "Query parameter serviceName is required." });
       }
 
-      let lat: number | null = null;
-      let lng: number | null = null;
-      let locationQuery: string | undefined = query;
-
-      // --- 1. If lat/lng are provided by user, validate & use them ---
-      if (latString && lngString) {
-        lat = Number(latString);
-        lng = Number(lngString);
-
-        if (Number.isNaN(lat) || Number.isNaN(lng)) {
-          return res
-            .status(400)
-            .json({ message: "lat and lng must be valid numbers" });
-        }
+      const locationContext = await resolveServiceSearchContext(req);
+      if (locationContext.error === "missing-auth") {
+        return res
+          .status(400)
+          .json("Povide Latitude and Longitude if no authenticated request.");
       }
 
-      // --- 2. Otherwise get location from authenticated user's address ---
-      if (lat === null || lng === null) {
-        const authUserId = resolveUserIdFromRequest(req);
+      if (locationContext.error) {
+        const message =
+          locationContext.error === "invalid-coordinates"
+            ? "lat and lng must be valid numbers"
+            : locationContext.error === "missing-address"
+              ? "Location not provided and user has no saved city/pincode."
+              : "Unable to resolve location from city and postal code.";
+        return res.status(400).json({ message });
+      }
 
-        if (!authUserId) {
-          return res
-            .status(400)
-            .json("Povide Latitude and Longitude if no authenticated request.");
-        }
-
-        const parentAddress = await getParentAddressForAuthUser(authUserId);
-
-        if (!parentAddress?.city || !parentAddress?.postalCode) {
-          return res.status(400).json({
-            message:
-              "Location not provided and user has no saved city/pincode.",
-          });
-        }
-
-        locationQuery = `${parentAddress.city} ${parentAddress.postalCode}`;
-
-        // 2a. Geocode city + pincode → lat/lng
-        const geo = await helpers.getGeoLocation(locationQuery);
-
-        const geoRecord =
-          geo && typeof geo === "object"
-            ? (geo as Record<string, unknown>)
-            : {};
-        const nextLat =
-          typeof geoRecord.lat === "number" ? geoRecord.lat : null;
-        const nextLng =
-          typeof geoRecord.lng === "number" ? geoRecord.lng : null;
-
-        lat = nextLat;
-        lng = nextLng;
-
-        if (!lat || !lng) {
-          return res.status(400).json({
-            message: "Unable to resolve location from city and postal code.",
-          });
-        }
+      const { lat, lng, locationQuery } = locationContext;
+      if (lat == null || lng == null) {
+        return res.status(400).json({
+          message: "Unable to resolve location from city and postal code.",
+        });
       }
 
       const results =

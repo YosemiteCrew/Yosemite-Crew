@@ -44,6 +44,29 @@ export const getSafeIdexxIframeUrl = (
   }
 };
 
+const LOCAL_PREVIEW_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+
+export const getSafePdfPreviewUrl = (
+  src: string | null | undefined,
+  options?: { allowBlob?: boolean }
+): string => {
+  const value = String(src ?? '').trim();
+  if (!value) return '';
+  if (options?.allowBlob && value.startsWith('blob:')) return value;
+  if (value.startsWith('/') && !value.startsWith('//') && !value.includes('\\')) return value;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === 'https:') return parsed.toString();
+    if (parsed.protocol === 'http:' && LOCAL_PREVIEW_HOSTS.has(parsed.hostname)) {
+      return parsed.toString();
+    }
+    return '';
+  } catch {
+    return '';
+  }
+};
+
 const getAllowedDocumensoOrigin = (): string => {
   const configuredOrigin = process.env.NEXT_PUBLIC_DOCUMENSO_HOST ?? DEFAULT_DOCUMENSO_ORIGIN;
 
@@ -81,6 +104,20 @@ export const getSafeImageUrl = (src: string | null | undefined, type: ImageType)
   if (!value || value === 'undefined' || value === 'null') return pick(fallbackPool);
   if (/\/(undefined|null)(\?.*)?$/.test(value)) return pick(fallbackPool);
   return isHttpsImageUrl(src) ? src : pick(fallbackPool);
+};
+
+export const getSafeOrgImageUrl = (
+  src: string | null | undefined,
+  options?: { allowBlob?: boolean }
+): string => {
+  const value = String(src ?? '').trim();
+  if (!value || value === 'undefined' || value === 'null') return '';
+  if (options?.allowBlob && value.startsWith('blob:')) return value;
+  if (/^https:\/\/.+/i.test(value)) return value;
+  if (value.includes(':')) return '';
+  if (value.includes('://')) return '';
+  const normalizedKey = value.replace(/^\/+/, '');
+  return normalizedKey ? MEDIA_SOURCES.organization.fromS3Key(normalizedKey) : '';
 };
 
 const STRIPE_ALLOWED_HOST_SUFFIXES = ['stripe.com'] as const;

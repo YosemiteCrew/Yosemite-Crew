@@ -87,12 +87,17 @@ jest.mock("../../src/services/audit-trail.service", () => ({
 jest.mock("../../src/services/template.service", () => ({
   TemplateService: {
     getById: jest.fn(),
+    createInstance: jest.fn(),
+    updateInstance: jest.fn(),
   },
 }));
 
 jest.mock("../../src/services/form-assignment.service", () => ({
   FormAssignmentService: {
+    syncLinkedTemplateAssignmentsForAppointment: jest.fn(),
     listForAppointment: jest.fn(),
+    markViewedForAppointment: jest.fn(),
+    markSubmittedFromSubmission: jest.fn(),
   },
 }));
 
@@ -134,6 +139,9 @@ jest.mock("src/config/prisma", () => ({
     templateInstance: {
       findMany: jest.fn(),
     },
+    templateVersion: {
+      findFirst: jest.fn(),
+    },
     appointment: {
       updateMany: jest.fn(),
       findUnique: jest.fn(),
@@ -153,6 +161,7 @@ jest.mock("@yosemite-crew/types", () => ({
   fromFormSubmissionRequestDTO: jest.fn((x) => x),
   toFHIRQuestionnaireResponse: jest.fn((x) => x),
   toFHIRQuestionnaire: jest.fn((x) => x),
+  templateSchemaToFormFields: jest.fn(() => []),
 }));
 
 // --- HELPERS ---
@@ -236,7 +245,12 @@ describe("FormService", () => {
     (FormSubmissionModel.aggregate as jest.Mock).mockReset();
 
     (FormAssignmentService.listForAppointment as jest.Mock).mockReset();
+    (
+      FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment as jest.Mock
+    ).mockReset();
     (TemplateService.getById as jest.Mock).mockReset();
+    (TemplateService.createInstance as jest.Mock).mockReset();
+    (TemplateService.updateInstance as jest.Mock).mockReset();
     (templateMapper.templateToQuestionnaire as jest.Mock).mockReset();
     (
       templateMapper.templateInstanceToQuestionnaireResponse as jest.Mock
@@ -269,6 +283,7 @@ describe("FormService", () => {
 
     (prisma.formVersion.findFirst as jest.Mock).mockReset();
     (prisma.formVersion.create as jest.Mock).mockReset();
+    (prisma.templateVersion.findFirst as jest.Mock).mockReset();
 
     (prisma.formSubmission.create as jest.Mock).mockReset();
     (prisma.formSubmission.findUnique as jest.Mock).mockReset();
@@ -724,7 +739,7 @@ describe("FormService", () => {
       (FormSubmissionModel.create as jest.Mock).mockResolvedValueOnce(
         createdSub,
       );
-      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+      (FormModel.findById as jest.Mock).mockReturnValue(
         createChainable({ orgId: "o1", name: "Form" }),
       );
 
@@ -748,13 +763,21 @@ describe("FormService", () => {
       expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
         expect.objectContaining({ actorType: "PARENT" }),
       );
+      expect(
+        FormAssignmentService.markSubmittedFromSubmission,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "o1",
+          templateId: validId,
+        }),
+      );
     });
 
     it("handles system audit trail without parent", async () => {
       (FormSubmissionModel.create as jest.Mock).mockResolvedValueOnce(
         mockDoc({ _id: validId }),
       );
-      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+      (FormModel.findById as jest.Mock).mockReturnValue(
         createChainable({ orgId: "o1" }),
       );
 
@@ -777,6 +800,9 @@ describe("FormService", () => {
       );
       (FormSubmissionModel.create as jest.Mock).mockResolvedValueOnce(
         mockDoc({ _id: validId }),
+      );
+      (FormModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({ orgId: "o1" }),
       );
 
       await FormService.submitFHIR({
@@ -826,6 +852,119 @@ describe("FormService", () => {
 
       expect(prisma.formSubmission.create).toHaveBeenCalled();
       expect(AuditTrailService.recordSafely).toHaveBeenCalled();
+      expect(
+        FormAssignmentService.markSubmittedFromSubmission,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "org-1",
+          templateId: validId,
+        }),
+      );
+    });
+
+    it("uses prisma form versions for uuid form ids when READ_FROM_POSTGRES is true", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const uuid = "ced99b20-fde8-4122-bab9-a947ad562a36";
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue({
+        schemaSnapshot: [],
+      });
+      (prisma.formSubmission.create as jest.Mock).mockResolvedValue({
+        id: "sub-uuid",
+      });
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue({
+        id: uuid,
+        orgId: "org-uuid",
+        name: "Postgres form",
+      });
+
+      await FormService.submitFHIR({
+        formId: uuid,
+        formVersion: 1,
+        appointmentId: "appt-1",
+        patientId: "patient-1",
+        parentId: "parent-1",
+        answers: {},
+        submittedAt: new Date("2026-06-25T00:00:00.000Z"),
+      } as any);
+
+      expect(prisma.formVersion.findFirst).toHaveBeenCalledWith({
+        where: {
+          formId: uuid,
+          version: 1,
+        },
+        select: { schemaSnapshot: true },
+      });
+      expect(FormVersionModel.findOne).not.toHaveBeenCalled();
+      expect(prisma.formSubmission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            formId: uuid,
+          }),
+        }),
+      );
+    });
+
+    it("creates a completed template instance for uuid template-backed submissions", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const templateId = "ced99b20-fde8-4122-bab9-a947ad562a36";
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.templateVersion.findFirst as jest.Mock).mockResolvedValue({
+        schemaSnapshot: { sections: [] },
+      });
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue(null);
+      (TemplateService.getById as jest.Mock).mockResolvedValue({
+        id: templateId,
+        organisationId: "org-template",
+        kind: "FORM",
+        name: "Template form",
+        status: "PUBLISHED",
+        versions: [{ version: 1, schemaSnapshot: { sections: [] } }],
+      });
+      (TemplateService.createInstance as jest.Mock).mockResolvedValue({
+        id: "instance-1",
+        templateVersion: 1,
+      });
+      (TemplateService.updateInstance as jest.Mock).mockResolvedValue({
+        id: "instance-1",
+        templateVersion: 1,
+      });
+
+      const result = await FormService.submitFHIR({
+        formId: templateId,
+        formVersion: 1,
+        appointmentId: "appt-1",
+        patientId: "patient-1",
+        parentId: "parent-1",
+        answers: { field1: "value" },
+        submittedAt: new Date("2026-06-25T00:00:00.000Z"),
+      } as any);
+
+      expect(TemplateService.createInstance).toHaveBeenCalledWith({
+        templateId,
+        organisationId: "org-template",
+        appointmentId: "appt-1",
+        authorId: "parent-1",
+        data: { field1: "value" },
+      });
+      expect(TemplateService.updateInstance).toHaveBeenCalledWith(
+        "instance-1",
+        {
+          data: { field1: "value" },
+          status: "COMPLETED",
+        },
+        "org-template",
+      );
+      expect(prisma.formSubmission.create).not.toHaveBeenCalled();
+      expect(
+        FormAssignmentService.markSubmittedFromSubmission,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: "org-template",
+          templateId,
+          parentId: "parent-1",
+        }),
+      );
+      expect(result._id).toBe("instance-1");
     });
   });
 
@@ -1310,6 +1449,32 @@ describe("FormService", () => {
           viewerParentId: "parent-b",
         }),
       ).rejects.toThrow("Forbidden");
+    });
+
+    it("marks assignments viewed when a parent opens the appointment forms", async () => {
+      (AppointmentModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({
+          organisationId: "o",
+          companion: { parent: { id: "parent-a" } },
+        }),
+      );
+      (OrganizationModel.findById as jest.Mock).mockReturnValueOnce(
+        createChainable({ type: "HOSPITAL" }),
+      );
+      (FormSubmissionModel.distinct as jest.Mock).mockResolvedValueOnce([]);
+      (FormModel.find as jest.Mock).mockReturnValue(createChainable([]));
+
+      await FormService.getFormsForAppointment({
+        appointmentId: validId,
+        viewerParentId: "parent-a",
+      });
+
+      expect(
+        FormAssignmentService.markViewedForAppointment,
+      ).toHaveBeenCalledWith({
+        organisationId: "o",
+        appointmentId: validId,
+      });
     });
 
     it("prefers template-backed forms when postgres assignments exist", async () => {

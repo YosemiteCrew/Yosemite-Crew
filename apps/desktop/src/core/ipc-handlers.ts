@@ -425,6 +425,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
       content,
       typeof mimeType === 'string' ? mimeType : undefined
     );
+    if ('error' in doc) return { ok: false, error: doc.error };
     return { ok: true, document: doc };
   });
 

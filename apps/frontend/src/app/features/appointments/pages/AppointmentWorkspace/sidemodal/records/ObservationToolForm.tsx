@@ -7,9 +7,15 @@ import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceS
 import { OBSERVATION_TOOLS } from '@/app/features/appointments/services/workspaceInitialData';
 import type { ObservationRecord } from '@/app/features/appointments/types/workspace';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
+import { createPmsObservationSubmission } from '@/app/features/appointments/services/workspaceClinicalService';
 
 type ObservationToolFormProps = {
   appointmentId: string;
+  organisationId?: string;
+  encounterId?: string;
+  companionId?: string;
+  filledBy?: string;
+  filledByName?: string;
   observations: ObservationRecord[];
 };
 
@@ -62,24 +68,60 @@ const ObservationRow = ({ entry }: { entry: ObservationRecord }) => {
  * Observation Tool tab: choose a scoring tool (FGS / CSU-CAP), read its intro,
  * Start to score and review recorded observations.
  */
-const ObservationToolForm = ({ appointmentId, observations }: ObservationToolFormProps) => {
-  const addObservation = useAppointmentWorkspaceStore((s) => s.addObservation);
+const ObservationToolForm = ({
+  appointmentId,
+  organisationId,
+  encounterId,
+  companionId,
+  filledBy,
+  filledByName,
+  observations,
+}: ObservationToolFormProps) => {
+  const addObservationRecord = useAppointmentWorkspaceStore((s) => s.addObservationRecord);
   const [activeToolKey, setActiveToolKey] = useState(OBSERVATION_TOOLS[0]?.key ?? 'FGS');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const activeTool =
     OBSERVATION_TOOLS.find((tool) => tool.key === activeToolKey) ?? OBSERVATION_TOOLS[0];
 
-  const handleStart = () => {
-    if (!activeTool) return;
-    // Until the scoring wizard is connected, record the selected clinical tool.
-    addObservation(appointmentId, {
-      toolKey: activeTool.key,
-      toolName: activeTool.name,
-      scores: { 'Pain expression': 1, Posture: 1, Activity: 0 },
-      total: 2,
-      recordedByName: 'Sarah Mitchell',
-      recordedAt: new Date().toISOString(),
-    });
+  // The scoring submission needs the encounter context + a clinician to attribute
+  // it to. Without them we cannot record a real, backend-scored observation, so the
+  // action is disabled with a reason instead of writing a fabricated local row.
+  const canRecord = Boolean(organisationId && companionId && filledBy);
+  const disabledReason = canRecord
+    ? undefined
+    : 'Recording is available once the encounter and clinician are loaded.';
+
+  const handleStart = async () => {
+    if (!activeTool || isSubmitting) return;
+    if (!organisationId || !companionId || !filledBy) return;
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      // The backend computes the score from the tool definition; we submit the
+      // selected tool + context and render the authoritative result it returns.
+      const record = await createPmsObservationSubmission({
+        organisationId,
+        appointmentId,
+        encounterId,
+        companionId,
+        toolId: activeTool.key,
+        filledBy,
+        answers: {},
+      });
+      // Prefer the clinician's display name we already hold for the recorded row;
+      // the backend resolves it too, but this keeps the UI correct immediately.
+      addObservationRecord(appointmentId, {
+        ...record,
+        recordedByName: filledByName ?? record.recordedByName,
+      });
+    } catch (submitError) {
+      console.error('Failed to record observation submission:', submitError);
+      setError('Unable to record the observation. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -108,13 +150,22 @@ const ObservationToolForm = ({ appointmentId, observations }: ObservationToolFor
         <div className="flex flex-col gap-3">
           <h3 className="text-body-2 font-bold text-text-primary">{activeTool.name}</h3>
           <p className="text-body-4 leading-[150%] text-text-secondary">{activeTool.intro}</p>
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-2">
             <Primary
-              text="Start"
+              text={isSubmitting ? 'Recording…' : 'Start'}
               icon={<LuArrowRight aria-hidden="true" />}
               iconPosition="right"
-              onClick={handleStart}
+              onClick={() => void handleStart()}
+              isDisabled={!canRecord || isSubmitting}
             />
+            {disabledReason && (
+              <p className="text-center text-[12px] text-text-secondary">{disabledReason}</p>
+            )}
+            {error && (
+              <p role="alert" className="text-center text-[12px] text-red-600">
+                {error}
+              </p>
+            )}
           </div>
         </div>
       )}

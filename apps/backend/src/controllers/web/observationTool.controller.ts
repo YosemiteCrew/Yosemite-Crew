@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { z } from "zod";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
@@ -40,6 +41,15 @@ const resolveUserId = (req: Request): string | undefined => {
 
   return undefined;
 };
+
+const CreateAppointmentSubmissionSchema = z.object({
+  toolId: z.string().min(1),
+  companionId: z.string().min(1),
+  filledBy: z.string().min(1),
+  answers: z.record(z.unknown()),
+  taskId: z.string().min(1).optional(),
+  summary: z.string().optional(),
+});
 
 export const ObservationToolDefinitionController = {
   // PMS — create definition
@@ -237,6 +247,43 @@ export const ObservationToolSubmissionController = {
           organisationId,
         );
       res.json(submissions);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  // PMS — clinician creates an observation-tool submission for an appointment
+  createForAppointment: async (req: Request, res: Response) => {
+    try {
+      const { appointmentId } = req.params;
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res
+          .status(400)
+          .json({ message: "Missing organisation context" });
+      }
+
+      const parsed = CreateAppointmentSubmissionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+
+      const { toolId, companionId, filledBy, answers, taskId, summary } =
+        parsed.data;
+
+      const submission =
+        await ObservationToolSubmissionService.createForAppointment({
+          appointmentId,
+          organisationId,
+          toolId,
+          patientId: companionId,
+          filledBy,
+          answers: answers as CreateObservationToolSubmissionInput["answers"],
+          taskId,
+          summary,
+        });
+
+      res.status(201).json(submission);
     } catch (error) {
       handleError(error, res);
     }

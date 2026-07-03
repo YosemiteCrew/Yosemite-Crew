@@ -104,6 +104,9 @@ describe('Stripe onboarding page', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Stripe Onboarding' })
     ).toBeInTheDocument();
+    const backButton = screen.getByRole('button', { name: 'Back' });
+    const heading = screen.getByRole('heading', { level: 1, name: 'Stripe Onboarding' });
+    expect(backButton.compareDocumentPosition(heading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(
       screen.getByRole('heading', { level: 2, name: 'Tax Business Details' })
     ).toBeInTheDocument();
@@ -113,7 +116,7 @@ describe('Stripe onboarding page', () => {
     expect(screen.getByTestId('connect-provider')).toBeInTheDocument();
     expect(screen.getByTestId('connect-onboarding')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    fireEvent.click(backButton);
     expect(backMock).toHaveBeenCalled();
   });
 

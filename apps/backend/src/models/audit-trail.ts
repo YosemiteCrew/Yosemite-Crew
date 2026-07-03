@@ -5,10 +5,13 @@ export type AuditActorType = "PMS_USER" | "PARENT" | "SYSTEM";
 export type AuditEntityType =
   | "PATIENT_ORGANISATION"
   | "APPOINTMENT"
+  | "ENCOUNTER"
   | "INVOICE"
   | "DOCUMENT"
   | "FORM"
-  | "TASK";
+  | "TASK"
+  | "PARENT"
+  | "COMPANION";
 
 export type AuditEventType =
   | "PATIENT_ORG_LINK_CREATED"
@@ -25,6 +28,8 @@ export type AuditEventType =
   | "APPOINTMENT_CANCELLED"
   | "APPOINTMENT_RESCHEDULED"
   | "APPOINTMENT_CHECKED_IN"
+  | "ENCOUNTER_DISCHARGE_OVERRIDDEN"
+  | "ENCOUNTER_DISCHARGED"
   | "INVOICE_CREATED"
   | "INVOICE_UPDATED"
   | "INVOICE_PAID"
@@ -38,7 +43,13 @@ export type AuditEventType =
   | "FORM_SUBMITTED"
   | "TASK_CREATED"
   | "TASK_REASSIGNED"
-  | "TASK_STATUS_CHANGED";
+  | "TASK_STATUS_CHANGED"
+  | "PARENT_ALERT_CREATED"
+  | "PARENT_ALERT_UPDATED"
+  | "PARENT_ALERT_DELETED"
+  | "COMPANION_ALERT_CREATED"
+  | "COMPANION_ALERT_UPDATED"
+  | "COMPANION_ALERT_DELETED";
 
 export interface AuditTrailMongo {
   organisationId: string;
@@ -77,10 +88,13 @@ const AuditTrailSchema = new Schema(
       enum: [
         "PATIENT_ORGANISATION",
         "APPOINTMENT",
+        "ENCOUNTER",
         "INVOICE",
         "DOCUMENT",
         "FORM",
         "TASK",
+        "PARENT",
+        "COMPANION",
       ],
       default: null,
     },

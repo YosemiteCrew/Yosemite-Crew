@@ -89,6 +89,26 @@ describe("AppointmentPrismaController", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("loads mobile appointment details through the linked parent", async () => {
+    (req as any).userId = "user_1";
+    req.params = { appointmentId: "appt_1" };
+    mockedAuth.getByProviderUserId.mockResolvedValue({
+      parentId: "parent_1",
+    } as any);
+    mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
+
+    await AppointmentController.getByIdMobile(req as any, res as any);
+
+    expect(mockedAuth.getByProviderUserId).toHaveBeenCalledWith("user_1");
+    expect(mockedService.getById).toHaveBeenCalledWith(
+      "appt_1",
+      undefined,
+      undefined,
+      "parent_1",
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("returns 401 when mobile user is missing", async () => {
     await AppointmentController.rescheduleFromMobile(req as any, res as any);
     expect(res.status).toHaveBeenCalledWith(401);
@@ -220,6 +240,7 @@ describe("AppointmentPrismaController", () => {
       req as any,
       res as any,
     );
+    (req as { userId?: string }).userId = "actor-1";
     await AppointmentController.admitFromPMS(req as any, res as any);
     await AppointmentController.updateFromPms(req as any, res as any);
 
@@ -228,6 +249,7 @@ describe("AppointmentPrismaController", () => {
       "appt_1",
       expect.objectContaining({
         admittedAt: new Date("2026-06-11T12:00:00.000Z"),
+        admittedBy: "actor-1",
         expectedStayDays: 3,
         lead: {
           id: "lead_1",
@@ -257,6 +279,7 @@ describe("AppointmentPrismaController", () => {
 
   it("marks appointments ready for billing from PMS", async () => {
     req.params = { appointmentId: "appt_1" };
+    (req as any).userId = "user-1";
     mockedInvoiceService.markAppointmentReadyForBilling.mockResolvedValue(
       null as any,
     );
@@ -268,10 +291,33 @@ describe("AppointmentPrismaController", () => {
 
     expect(
       mockedInvoiceService.markAppointmentReadyForBilling,
-    ).toHaveBeenCalledWith("appt_1");
+    ).toHaveBeenCalledWith("appt_1", "user-1");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: "Appointment marked ready for billing",
+    });
+  });
+
+  it("reverses appointments ready for billing from PMS", async () => {
+    req.params = { appointmentId: "appt_1" };
+    (req as any).userId = "user-1";
+    mockedInvoiceService.reverseAppointmentReadyForBilling.mockResolvedValue({
+      id: "inv_1",
+      visitBillingStage: "DRAFT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+    } as any);
+
+    await AppointmentController.reverseReadyForBillingForPMS(
+      req as any,
+      res as any,
+    );
+
+    expect(
+      mockedInvoiceService.reverseAppointmentReadyForBilling,
+    ).toHaveBeenCalledWith("appt_1", "user-1");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Appointment billing readiness reversed",
     });
   });
 
@@ -300,6 +346,7 @@ describe("AppointmentPrismaController", () => {
     ] as any);
 
     (req as any).userId = "user_1";
+    (req as any).userPermissions = ["appointments:view:any"];
     mockedAuth.getByProviderUserId.mockResolvedValue({
       parentId: "parent_1",
     } as any);
@@ -332,13 +379,13 @@ describe("AppointmentPrismaController", () => {
     expect(mockedService.cancelAppointmentFromParent).toHaveBeenCalledWith(
       "appt_1",
       "parent_1",
-      undefined,
     );
-    expect(mockedService.cancelAppointment).toHaveBeenCalledWith(
+    expect(mockedService.cancelAppointment).toHaveBeenCalledWith("appt_1");
+    expect(mockedService.getById).toHaveBeenCalledWith(
       "appt_1",
       undefined,
+      undefined,
     );
-    expect(mockedService.getById).toHaveBeenCalledWith("appt_1");
     expect(mockedService.getAppointmentsForCompanion).toHaveBeenCalledWith(
       "comp_1",
     );
@@ -349,6 +396,21 @@ describe("AppointmentPrismaController", () => {
       "parent_1",
     );
     expect(mockedService.getAppointmentsForLead).toHaveBeenCalledWith("lead_1");
+  });
+
+  it("binds own-scope appointment reads to the actor and organisation", async () => {
+    req.params = { appointmentId: "appt_1", organisationId: "org_1" };
+    (req as any).userId = "lead_1";
+    (req as any).userPermissions = ["appointments:view:own"];
+    mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
+
+    await AppointmentController.getById(req as any, res as any);
+
+    expect(mockedService.getById).toHaveBeenCalledWith(
+      "appt_1",
+      "org_1",
+      "lead_1",
+    );
   });
 
   it("handles mobile auth and upload validation errors", async () => {

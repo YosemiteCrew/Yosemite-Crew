@@ -41,12 +41,12 @@ import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistory
 import {
   buildWorkspaceHrefForIntent,
   canEnterAppointmentWorkspace,
-  resolveEncounterMode,
 } from '@/app/lib/appointmentWorkspace';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { AppointmentModePill } from '@/app/features/appointments/components/AppointmentCardContent';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
+import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
 
 import './DataTable.css';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -56,74 +56,6 @@ const normalizeLeadId = (value?: string | null): string => {
   if (!trimmed) return '';
   const lowered = trimmed.toLowerCase();
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
-};
-
-type AppointmentWithUnitFields = Appointment & {
-  unitId?: string;
-  roomUnitId?: string;
-  unitName?: string;
-  roomUnitName?: string;
-  unit?: { id?: string; name?: string; displayName?: string; code?: string };
-  room?: Appointment['room'] & {
-    unitId?: string;
-    roomUnitId?: string;
-    unitName?: string;
-    roomUnitName?: string;
-    unit?: { id?: string; name?: string; displayName?: string; code?: string };
-  };
-};
-
-type AppointmentEncounterLookup = Record<string, { unitId?: string } | undefined>;
-type RoomUnitLookup = Record<string, { displayName?: string; code?: string } | undefined>;
-
-const getInlineUnitLabel = (appointment: AppointmentWithUnitFields): string => {
-  const roomUnit = appointment.room?.unit;
-  const directUnit = appointment.unit;
-  return (
-    appointment.room?.roomUnitName?.trim() ||
-    appointment.room?.unitName?.trim() ||
-    roomUnit?.displayName?.trim() ||
-    roomUnit?.name?.trim() ||
-    roomUnit?.code?.trim() ||
-    appointment.roomUnitName?.trim() ||
-    appointment.unitName?.trim() ||
-    directUnit?.displayName?.trim() ||
-    directUnit?.name?.trim() ||
-    directUnit?.code?.trim() ||
-    ''
-  );
-};
-
-const getUnitId = (
-  appointment: AppointmentWithUnitFields,
-  encountersById: AppointmentEncounterLookup
-): string => {
-  const appointmentId = appointment.id ?? '';
-  return (
-    appointment.room?.roomUnitId?.trim() ||
-    appointment.room?.unitId?.trim() ||
-    appointment.room?.unit?.id?.trim() ||
-    appointment.roomUnitId?.trim() ||
-    appointment.unitId?.trim() ||
-    appointment.unit?.id?.trim() ||
-    encountersById[appointmentId]?.unitId?.trim() ||
-    ''
-  );
-};
-
-const getAppointmentUnitLabel = (
-  appointment: Appointment,
-  encountersById: AppointmentEncounterLookup,
-  roomUnitsById: RoomUnitLookup
-): string => {
-  if (resolveEncounterMode(appointment) !== 'INPATIENT') return '';
-  const appointmentWithUnit = appointment as AppointmentWithUnitFields;
-  const inlineLabel = getInlineUnitLabel(appointmentWithUnit);
-  if (inlineLabel) return inlineLabel;
-  const unitId = getUnitId(appointmentWithUnit, encountersById);
-  if (!unitId) return '';
-  const unit = roomUnitsById[unitId];
-  return unit?.displayName?.trim() || unit?.code?.trim() || unitId;
 };
 
 type Column<T> = {
@@ -323,11 +255,13 @@ const AppointmentsComponent = ({
       key: 'room',
       width: '130px',
       render: (item: Appointment) => {
-        const unitLabel = getAppointmentUnitLabel(item, encountersById, roomUnitsById);
+        const roomDisplay = getAppointmentRoomDisplay(item, encountersById, roomUnitsById);
         return (
           <div className="appointment-profile-two">
-            <div className="appointment-profile-title">{item.room?.name || '-'}</div>
-            {unitLabel && <div className="appointment-profile-sub text-[12px]">{unitLabel}</div>}
+            <div className="appointment-profile-title">{roomDisplay.roomName}</div>
+            {roomDisplay.unitLabel && (
+              <div className="appointment-profile-sub text-[12px]">{roomDisplay.unitLabel}</div>
+            )}
             <AppointmentModePill
               appointment={item}
               className="mt-1 h-6 w-fit px-2.5 text-[10px]"

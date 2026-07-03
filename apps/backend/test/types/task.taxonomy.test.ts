@@ -26,6 +26,13 @@ describe("task taxonomy", () => {
       "HYGIENE",
       "DIET",
       "CUSTOM",
+      "CARE",
+      "PROCEDURE",
+      "DIAGNOSTIC",
+      "COMMUNICATION",
+      "BILLING",
+      "RECORD",
+      "ADMIN",
     ]);
   });
 });

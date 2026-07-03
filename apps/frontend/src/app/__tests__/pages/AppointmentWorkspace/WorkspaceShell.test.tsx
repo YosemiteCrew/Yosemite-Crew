@@ -116,10 +116,26 @@ describe('WorkspaceHeader', () => {
     // Title uses the companion's first name only.
     expect(screen.getByText(/Gigi’s Appointment/)).toBeInTheDocument();
     expect(screen.getByText('Needs muzzle')).toBeInTheDocument();
+    expect(screen.getByTestId('workspace-alert-strip')).toHaveClass('overflow-x-auto');
     fireEvent.click(screen.getByRole('button', { name: /go back/i }));
     fireEvent.click(screen.getByRole('button', { name: /quick actions/i }));
     expect(onBack).toHaveBeenCalled();
     expect(onQuickActions).toHaveBeenCalled();
+  });
+
+  it('surfaces client (parent) alerts as read-only Client-labelled pills', () => {
+    render(
+      <WorkspaceHeader
+        appointment={headerAppointment}
+        companionName="Gigi Hadid"
+        alerts={[{ id: 'p1', label: 'Needs muzzle', severity: 'high' }]}
+        clientAlerts={[{ id: 'c1', label: 'Aggressive owner', severity: 'critical' }]}
+        onBack={jest.fn()}
+        onQuickActions={jest.fn()}
+      />
+    );
+    expect(screen.getByText('Needs muzzle')).toBeInTheDocument();
+    expect(screen.getByText('Client: Aggressive owner')).toBeInTheDocument();
   });
 
   it('fires the add-alert action when provided', () => {
@@ -154,7 +170,7 @@ describe('WorkspaceHeader', () => {
     expect(trigger).not.toBeNull();
     fireEvent.mouseEnter(trigger as Element);
 
-    expect(await screen.findByText('Add alerts for patient')).toBeInTheDocument();
+    expect(await screen.findByText('Add alerts for companion')).toBeInTheDocument();
   });
 
   it('omits the add-alert button when no handler is provided', () => {

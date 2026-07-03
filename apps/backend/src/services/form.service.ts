@@ -19,10 +19,13 @@ import {
   FormSubmissionRequestDTO,
   toFHIRQuestionnaireResponse,
   toFHIRQuestionnaire,
+  templateSchemaToFormFields,
+  type TemplateLike,
 } from "@yosemite-crew/types";
 import { templateMapper } from "src/services/fhir-template.mapper";
 import { buildPdfViewModel, renderPdf } from "./formPDF.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
+import logger from "src/utils/logger";
 import AppointmentModel from "src/models/appointment";
 import OrganizationModel from "src/models/organization";
 import { DocumensoService } from "./documenso.service";
@@ -82,6 +85,8 @@ const ensureObjectId = (id: string | Types.ObjectId, label: string) => {
     throw new FormServiceError(`Invalid ${label}`, 400);
   return new Types.ObjectId(id);
 };
+
+const isObjectIdString = (id: string) => Types.ObjectId.isValid(id);
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -606,8 +611,43 @@ const resolveSchemaForSubmission = async (
   if (providedSchema) return providedSchema;
   if (!submission.formId) return undefined;
 
+  const formId = String(submission.formId);
+  if (isReadFromPostgres()) {
+    const formVersion = await prisma.formVersion.findFirst({
+      where: {
+        formId,
+        version: submission.formVersion,
+      },
+      select: { schemaSnapshot: true },
+    });
+    if (formVersion?.schemaSnapshot) {
+      return formVersion.schemaSnapshot as unknown as FormField[];
+    }
+
+    const templateVersion = await prisma.templateVersion.findFirst({
+      where: {
+        templateId: formId,
+        version: submission.formVersion,
+      },
+      select: { schemaSnapshot: true },
+    });
+    if (templateVersion?.schemaSnapshot) {
+      return templateSchemaToFormFields(
+        templateVersion.schemaSnapshot as unknown as Parameters<
+          typeof templateSchemaToFormFields
+        >[0],
+      );
+    }
+
+    return undefined;
+  }
+
+  if (!isObjectIdString(formId)) {
+    throw new FormServiceError("Invalid formId", 400);
+  }
+
   const version = await FormVersionModel.findOne({
-    formId: ensureObjectId(String(submission.formId), "formId"),
+    formId: ensureObjectId(formId, "formId"),
     version: submission.formVersion,
   })
     .select("schemaSnapshot")
@@ -627,6 +667,18 @@ const buildDefaultSubmissionSigning = (
     status: "NOT_STARTED" as const,
     provider: "DOCUMENSO" as const,
   };
+};
+
+const getTemplateOrUndefined = async (
+  templateId: string,
+): Promise<TemplateLike | undefined> => {
+  try {
+    return (await TemplateService.getById(templateId)) as TemplateLike;
+  } catch (error) {
+    const maybeServiceError = error as { statusCode?: number } | undefined;
+    if (maybeServiceError?.statusCode === 404) return undefined;
+    throw error;
+  }
 };
 
 const pushAppointmentFormIdInPostgres = async (
@@ -943,6 +995,11 @@ const buildTemplateAppointmentFormItems = async (params: {
   if (!isReadFromPostgres()) {
     return null;
   }
+
+  await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
+    organisationId: params.organisationId,
+    appointmentId: params.appointmentId,
+  });
 
   const assignments = await FormAssignmentService.listForAppointment(
     params.organisationId,
@@ -1637,7 +1694,72 @@ export const FormService = {
     const signing = buildDefaultSubmissionSigning(resolvedSchema);
 
     const formIdString = String(submission.formId);
+
     if (isReadFromPostgres()) {
+      const formOrganisation = await prisma.form.findUnique({
+        where: { id: formIdString },
+        select: { orgId: true },
+      });
+
+      if (!formOrganisation) {
+        const template = await getTemplateOrUndefined(formIdString);
+        if (!template?.organisationId) {
+          throw new FormServiceError("Form not found", 404);
+        }
+
+        const submittedBy = submission.submittedBy ?? submission.parentId;
+        const instance = await TemplateService.createInstance({
+          templateId: formIdString,
+          organisationId: template.organisationId,
+          appointmentId: submission.appointmentId ?? undefined,
+          authorId: submittedBy ?? undefined,
+          data: submission.answers,
+        });
+
+        const completed = await TemplateService.updateInstance(
+          instance.id,
+          {
+            data: submission.answers,
+            status: "COMPLETED",
+          },
+          template.organisationId,
+        );
+
+        try {
+          await FormAssignmentService.markSubmittedFromSubmission({
+            organisationId: template.organisationId,
+            templateId: formIdString,
+            templateVersion:
+              completed.templateVersion ??
+              instance.templateVersion ??
+              submission.formVersion,
+            appointmentId: submission.appointmentId ?? undefined,
+            companionId:
+              submission.patientId ?? submission.companionId ?? undefined,
+            parentId: submission.parentId ?? undefined,
+            submittedAt: submission.submittedAt,
+          });
+        } catch (error) {
+          logger.warn(
+            "Failed to sync template form assignment submission status",
+            {
+              error,
+              formId: formIdString,
+              appointmentId: submission.appointmentId ?? null,
+            },
+          );
+        }
+
+        return {
+          ...submission,
+          _id: completed.id ?? instance.id,
+          formVersion:
+            completed.templateVersion ??
+            instance.templateVersion ??
+            submission.formVersion,
+        };
+      }
+
       const created = await prisma.formSubmission.create({
         data: {
           formId: formIdString,
@@ -1669,10 +1791,37 @@ export const FormService = {
         });
       }
 
+      try {
+        await FormAssignmentService.markSubmittedFromSubmission({
+          organisationId: String(formOrganisation.orgId),
+          templateId: formIdString,
+          templateVersion: submission.formVersion,
+          appointmentId: submission.appointmentId ?? undefined,
+          companionId:
+            submission.patientId ?? submission.companionId ?? undefined,
+          parentId: submission.parentId ?? undefined,
+          submittedAt: submission.submittedAt,
+        });
+      } catch (error) {
+        logger.warn("Failed to sync form assignment submission status", {
+          error,
+          formId: formIdString,
+          appointmentId: submission.appointmentId ?? null,
+        });
+      }
+
       return {
         ...submission,
         _id: created.id,
       };
+    }
+
+    const formOrganisation = await FormModel.findById(submission.formId)
+      .select({ orgId: 1 })
+      .lean();
+
+    if (!formOrganisation) {
+      throw new FormServiceError("Form not found", 404);
     }
 
     const created: FormSubmissionDoc = await FormSubmissionModel.create({
@@ -1735,6 +1884,25 @@ export const FormService = {
         appointmentId: submission.appointmentId,
         formId: formIdString,
         submissionId: created._id.toString(),
+      });
+    }
+
+    try {
+      await FormAssignmentService.markSubmittedFromSubmission({
+        organisationId: String(formOrganisation.orgId),
+        templateId: formIdString,
+        templateVersion: submission.formVersion,
+        appointmentId: submission.appointmentId ?? undefined,
+        companionId:
+          submission.patientId ?? submission.companionId ?? undefined,
+        parentId: submission.parentId ?? undefined,
+        submittedAt: submission.submittedAt,
+      });
+    } catch (error) {
+      logger.warn("Failed to sync form assignment submission status", {
+        error,
+        formId: formIdString,
+        appointmentId: submission.appointmentId ?? null,
       });
     }
 
@@ -2294,6 +2462,18 @@ export const FormService = {
         appointmentParentId !== params.viewerParentId
       ) {
         throw new FormServiceError("Forbidden", 403);
+      }
+
+      try {
+        await FormAssignmentService.markViewedForAppointment({
+          organisationId: appointment.organisationId,
+          appointmentId: appointmentId,
+        });
+      } catch (error) {
+        logger.warn("Failed to sync form assignment viewed status", {
+          error,
+          appointmentId,
+        });
       }
     }
 

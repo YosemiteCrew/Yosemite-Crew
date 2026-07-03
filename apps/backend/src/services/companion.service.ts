@@ -20,6 +20,7 @@ import {
   ParentCompanionService,
   ParentCompanionServiceError,
 } from "./parent-companion.service";
+import { AuditTrailService } from "./audit-trail.service";
 import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import escapeStringRegexp from "escape-string-regexp";
@@ -167,6 +168,45 @@ const toPersistable = (payload: CompanionRequestDTO): CompanionPersistable => {
     alerts: companion.alerts as unknown as Prisma.JsonValue | null,
   } as CompanionPersistable;
 };
+
+const toPatientWriteData = (persistable: CompanionPersistable) => ({
+  name: persistable.name,
+  type: persistable.type as PrismaPatientType,
+  breed: persistable.breed ?? "",
+  speciesCode: persistable.speciesCode ?? undefined,
+  breedCode: persistable.breedCode ?? undefined,
+  dateOfBirth: persistable.dateOfBirth,
+  gender: persistable.gender as PrismaGender,
+  photoUrl: persistable.photoUrl ?? undefined,
+  currentWeight: persistable.currentWeight ?? undefined,
+  colour: persistable.colour ?? undefined,
+  allergy: persistable.allergy ?? undefined,
+  bloodGroup: persistable.bloodGroup ?? undefined,
+  isNeutered: persistable.isneutered ?? undefined,
+  ageWhenNeutered: persistable.ageWhenNeutered ?? undefined,
+  microchipNumber: persistable.microchipNumber ?? undefined,
+  passportNumber: persistable.passportNumber ?? undefined,
+  isInsured: persistable.isInsured ?? false,
+  insurance: persistable.insurance
+    ? (persistable.insurance as unknown as Prisma.InputJsonValue)
+    : undefined,
+  countryOfOrigin: persistable.countryOfOrigin ?? undefined,
+  source: persistable.source as PrismaSourceType,
+  status: persistable.status as PrismaRecordStatus,
+  physicalAttribute: persistable.physicalAttribute
+    ? (persistable.physicalAttribute as unknown as Prisma.InputJsonValue)
+    : undefined,
+  breedingInfo: persistable.breedingInfo
+    ? (persistable.breedingInfo as unknown as Prisma.InputJsonValue)
+    : undefined,
+  medicalRecords: persistable.medicalRecords
+    ? (persistable.medicalRecords as unknown as Prisma.InputJsonValue)
+    : undefined,
+  alerts: persistable.alerts
+    ? (persistable.alerts as unknown as Prisma.InputJsonValue)
+    : undefined,
+  isProfileComplete: persistable.isProfileComplete ?? false,
+});
 
 const REQUIRED_PROFILE_FIELDS = [
   "name",
@@ -381,44 +421,7 @@ export const CompanionService = {
     persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
     const created = await prisma.patient.create({
-      data: {
-        name: persistable.name,
-        type: persistable.type as PrismaPatientType,
-        breed: persistable.breed ?? "",
-        speciesCode: persistable.speciesCode ?? undefined,
-        breedCode: persistable.breedCode ?? undefined,
-        dateOfBirth: persistable.dateOfBirth,
-        gender: persistable.gender as PrismaGender,
-        photoUrl: persistable.photoUrl ?? undefined,
-        currentWeight: persistable.currentWeight ?? undefined,
-        colour: persistable.colour ?? undefined,
-        allergy: persistable.allergy ?? undefined,
-        bloodGroup: persistable.bloodGroup ?? undefined,
-        isNeutered: persistable.isneutered ?? undefined,
-        ageWhenNeutered: persistable.ageWhenNeutered ?? undefined,
-        microchipNumber: persistable.microchipNumber ?? undefined,
-        passportNumber: persistable.passportNumber ?? undefined,
-        isInsured: persistable.isInsured ?? false,
-        insurance: persistable.insurance
-          ? (persistable.insurance as unknown as Prisma.InputJsonValue)
-          : undefined,
-        countryOfOrigin: persistable.countryOfOrigin ?? undefined,
-        source: persistable.source as PrismaSourceType,
-        status: persistable.status as PrismaRecordStatus,
-        physicalAttribute: persistable.physicalAttribute
-          ? (persistable.physicalAttribute as unknown as Prisma.InputJsonValue)
-          : undefined,
-        breedingInfo: persistable.breedingInfo
-          ? (persistable.breedingInfo as unknown as Prisma.InputJsonValue)
-          : undefined,
-        medicalRecords: persistable.medicalRecords
-          ? (persistable.medicalRecords as unknown as Prisma.InputJsonValue)
-          : undefined,
-        alerts: persistable.alerts
-          ? (persistable.alerts as unknown as Prisma.InputJsonValue)
-          : undefined,
-        isProfileComplete: persistable.isProfileComplete ?? false,
-      },
+      data: toPatientWriteData(persistable),
     });
 
     try {
@@ -561,51 +564,35 @@ export const CompanionService = {
     };
   },
 
-  async update(id: string, payload: CompanionRequestDTO) {
+  async update(
+    id: string,
+    payload: CompanionRequestDTO,
+    context?: CompanionCreateContext,
+  ) {
     const persistable = toPersistable(payload);
     await validateCompanionCodes(persistable);
     persistable.isProfileComplete = computeIsProfileComplete(persistable);
 
+    // Capture the prior alert set so an alert change can be audited.
+    const beforeUpdate = await prisma.patient.findUnique({
+      where: { id },
+      select: { alerts: true },
+    });
+
     const doc = await prisma.patient.update({
       where: { id },
-      data: {
-        name: persistable.name,
-        type: persistable.type as PrismaPatientType,
-        breed: persistable.breed ?? "",
-        speciesCode: persistable.speciesCode ?? undefined,
-        breedCode: persistable.breedCode ?? undefined,
-        dateOfBirth: persistable.dateOfBirth,
-        gender: persistable.gender as PrismaGender,
-        photoUrl: persistable.photoUrl ?? undefined,
-        currentWeight: persistable.currentWeight ?? undefined,
-        colour: persistable.colour ?? undefined,
-        allergy: persistable.allergy ?? undefined,
-        bloodGroup: persistable.bloodGroup ?? undefined,
-        isNeutered: persistable.isneutered ?? undefined,
-        ageWhenNeutered: persistable.ageWhenNeutered ?? undefined,
-        microchipNumber: persistable.microchipNumber ?? undefined,
-        passportNumber: persistable.passportNumber ?? undefined,
-        isInsured: persistable.isInsured ?? false,
-        insurance: persistable.insurance
-          ? (persistable.insurance as unknown as Prisma.InputJsonValue)
-          : undefined,
-        countryOfOrigin: persistable.countryOfOrigin ?? undefined,
-        source: persistable.source as PrismaSourceType,
-        status: persistable.status as PrismaRecordStatus,
-        physicalAttribute: persistable.physicalAttribute
-          ? (persistable.physicalAttribute as unknown as Prisma.InputJsonValue)
-          : undefined,
-        breedingInfo: persistable.breedingInfo
-          ? (persistable.breedingInfo as unknown as Prisma.InputJsonValue)
-          : undefined,
-        medicalRecords: persistable.medicalRecords
-          ? (persistable.medicalRecords as unknown as Prisma.InputJsonValue)
-          : undefined,
-        alerts: persistable.alerts
-          ? (persistable.alerts as unknown as Prisma.InputJsonValue)
-          : undefined,
-        isProfileComplete: persistable.isProfileComplete ?? false,
-      },
+      data: toPatientWriteData(persistable),
+    });
+
+    // Audit companion (patient) alert mutations. No-ops when alerts are unchanged or no org
+    // context is available, so a routine companion update is never spuriously audited.
+    await AuditTrailService.recordAlertMutation({
+      entity: "COMPANION",
+      organisationId: context?.organisationId,
+      patientId: id,
+      actorId: context?.authUserId,
+      previousAlerts: beforeUpdate?.alerts,
+      nextAlerts: persistable.alerts,
     });
 
     return { response: toFHIRFromPrisma(doc as CompanionRecord) };

@@ -6,6 +6,7 @@ import {
 } from "@yosemite-crew/types";
 import { ParentCreatedFrom, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { AuditTrailService } from "./audit-trail.service";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
@@ -281,6 +282,16 @@ const computeProfileCompletion = (p: {
     p.address,
   );
 
+const buildAddressFields = (address: ParentAddressInput) => ({
+  addressLine: address.addressLine ?? undefined,
+  country: address.country ?? undefined,
+  city: address.city ?? undefined,
+  state: address.state ?? undefined,
+  postalCode: address.postalCode ?? undefined,
+  latitude: address.latitude ?? undefined,
+  longitude: address.longitude ?? undefined,
+});
+
 const upsertParentAddress = async (
   parentId: string,
   address: ParentAddressInput,
@@ -289,23 +300,9 @@ const upsertParentAddress = async (
     where: { parentId },
     create: {
       parentId,
-      addressLine: address.addressLine ?? undefined,
-      country: address.country ?? undefined,
-      city: address.city ?? undefined,
-      state: address.state ?? undefined,
-      postalCode: address.postalCode ?? undefined,
-      latitude: address.latitude ?? undefined,
-      longitude: address.longitude ?? undefined,
+      ...buildAddressFields(address),
     },
-    update: {
-      addressLine: address.addressLine ?? undefined,
-      country: address.country ?? undefined,
-      city: address.city ?? undefined,
-      state: address.state ?? undefined,
-      postalCode: address.postalCode ?? undefined,
-      latitude: address.latitude ?? undefined,
-      longitude: address.longitude ?? undefined,
-    },
+    update: buildAddressFields(address),
   });
 };
 
@@ -316,6 +313,10 @@ const deleteParentAddress = async (parentId: string) => {
 export type ParentCreateContext = {
   source: "mobile" | "pms" | "invited";
   authUserId?: string;
+  /** Acting organisation + user for audit scoping (PMS edits). Optional: when absent,
+   *  the alert-mutation audit is skipped (the request still succeeds). */
+  organisationId?: string;
+  actorId?: string;
 };
 
 const resolveParentRecord = async (id: string) =>
@@ -323,6 +324,60 @@ const resolveParentRecord = async (id: string) =>
     where: { id },
     include: { address: true },
   });
+
+const resolveParentLinkedUserId = async (
+  source: ParentCreateContext["source"],
+  authUserId: string | undefined,
+) => {
+  if (source !== "mobile") {
+    return null;
+  }
+
+  if (!authUserId) {
+    throw new ParentServiceError("Authenticated user ID required.", 401);
+  }
+
+  const linkedUserId =
+    await AuthUserMobileService.getAuthUserMobileIdByProviderId(authUserId);
+  if (!linkedUserId) {
+    throw new ParentServiceError("Authenticated user not found.", 404);
+  }
+
+  return linkedUserId;
+};
+
+const resolveParentExistingByLinkedUser = async (
+  linkedUserId: string | null,
+) => {
+  if (!linkedUserId) {
+    return null;
+  }
+
+  return prisma.parent.findFirst({
+    where: { linkedUserId },
+    select: { id: true },
+  });
+};
+
+const maybeSyncParentProfileImage = async (
+  parentId: string,
+  profileImageUrl: string | undefined,
+) => {
+  if (!profileImageUrl) {
+    return;
+  }
+
+  try {
+    const finalKey = buildS3Key("parent", parentId, "image/jpg");
+    const uploadedUrl = await moveFile(profileImageUrl, finalKey);
+    await prisma.parent.update({
+      where: { id: parentId },
+      data: { profileImageUrl: uploadedUrl },
+    });
+  } catch (error) {
+    logger.warn("Invalid key has been sent", error);
+  }
+};
 
 export const ParentService = {
   toFHIR,
@@ -336,30 +391,14 @@ export const ParentService = {
       parent.timezone = validateTimezone(parent.timezone, "Timezone");
     }
 
-    if (ctx.source === "mobile") {
-      if (!ctx.authUserId) {
-        throw new ParentServiceError("Authenticated user ID required.", 401);
-      }
+    parent.linkedUserId = await resolveParentLinkedUserId(
+      ctx.source,
+      ctx.authUserId,
+    );
 
-      const linkedUserId =
-        await AuthUserMobileService.getAuthUserMobileIdByProviderId(
-          ctx.authUserId,
-        );
-      if (!linkedUserId) {
-        throw new ParentServiceError("Authenticated user not found.", 404);
-      }
-
-      parent.linkedUserId = linkedUserId;
-    } else {
-      parent.linkedUserId = null;
-    }
-
-    const existing = parent.linkedUserId
-      ? await prisma.parent.findFirst({
-          where: { linkedUserId: parent.linkedUserId },
-          select: { id: true },
-        })
-      : null;
+    const existing = await resolveParentExistingByLinkedUser(
+      parent.linkedUserId,
+    );
     if (existing) {
       throw new ParentServiceError("Parent already exists for this user.", 409);
     }
@@ -401,28 +440,15 @@ export const ParentService = {
       address: refreshed.address,
     });
 
-    const finalRecord =
-      refreshed.isProfileComplete === profileComplete
-        ? refreshed
-        : await prisma.parent.update({
-            where: { id: created.id },
-            data: { isProfileComplete: profileComplete },
-            include: { address: true },
-          });
-
-    if (parent.profileImageUrl) {
-      try {
-        const finalKey = buildS3Key("parent", created.id, "image/jpg");
-        const profileUrl = await moveFile(parent.profileImageUrl, finalKey);
-        await prisma.parent.update({
-          where: { id: created.id },
-          data: { profileImageUrl: profileUrl },
-        });
-        finalRecord.profileImageUrl = profileUrl;
-      } catch (error) {
-        logger.warn("Invalid key has been sent", error);
-      }
+    if (refreshed.isProfileComplete !== profileComplete) {
+      await prisma.parent.update({
+        where: { id: created.id },
+        data: { isProfileComplete: profileComplete },
+        include: { address: true },
+      });
     }
+
+    await maybeSyncParentProfileImage(created.id, parent.profileImageUrl);
 
     if (ctx.source === "mobile" && ctx.authUserId) {
       await AuthUserMobileService.linkParent(ctx.authUserId, created.id);
@@ -474,6 +500,12 @@ export const ParentService = {
       parent.timezone = validateTimezone(parent.timezone, "Timezone");
     }
 
+    // Capture the prior alert set so an alert change can be audited (created/updated/deleted).
+    const beforeUpdate = await prisma.parent.findUnique({
+      where: { id },
+      select: { alerts: true },
+    });
+
     await prisma.parent.update({
       where: { id },
       data: {
@@ -487,12 +519,35 @@ export const ParentService = {
         profileImageUrl: parent.profileImageUrl ?? undefined,
         isProfileComplete: false,
         createdFrom: parent.createdFrom as ParentCreatedFrom | undefined,
+        // Only the PMS path manages client alerts: it sends the full alert set, so an
+        // absent/empty set there means "cleared" (JsonNull, since Prisma treats undefined
+        // as "leave unchanged"). Mobile self-service updates never carry alerts, so the
+        // column is left untouched for them to avoid wiping vet/PMS-set client alerts.
+        ...(ctx?.source === "pms"
+          ? {
+              alerts:
+                ((parent as Parent & { alerts?: Parent["alerts"] }).alerts as
+                  | Prisma.InputJsonValue
+                  | undefined) ?? Prisma.JsonNull,
+            }
+          : {}),
       },
     });
 
     if (hasAddressData(parent.address)) {
       await upsertParentAddress(id, parent.address);
     }
+
+    // Audit client (parent) alert mutations. No-ops when alerts are unchanged or no org
+    // context is available, so a plain profile update is never spuriously audited.
+    await AuditTrailService.recordAlertMutation({
+      entity: "PARENT",
+      organisationId: ctx?.organisationId,
+      patientId: id,
+      actorId: ctx?.actorId,
+      previousAlerts: beforeUpdate?.alerts,
+      nextAlerts: (parent as Parent & { alerts?: unknown }).alerts,
+    });
 
     const refreshed = await resolveParentRecord(id);
     if (!refreshed) {

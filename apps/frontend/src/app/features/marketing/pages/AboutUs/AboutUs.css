@@ -19,7 +19,7 @@
 
 /* AboutHeroSec started  */
 .AboutHeroSec {
-  padding: 24px 0px 80px 0px;
+  padding: 88px 0px 80px 0px;
   background: var(--img-bg-about) no-repeat;
   background-size: 100% 100%;
   background-size: cover;
@@ -110,7 +110,7 @@
 }
 @media screen and (max-width: 1280px) {
   .AboutHeroSec {
-    padding-top: 48px;
+    padding-top: 88px;
     padding-bottom: 64px;
   }
   .AboutHeroSec .AbtHeroData {
@@ -148,7 +148,7 @@
 }
 @media screen and (max-width: 768px) {
   .AboutHeroSec {
-    padding-top: 32px;
+    padding-top: 80px;
     padding-bottom: 56px;
     height: auto;
     min-height: 100vh;

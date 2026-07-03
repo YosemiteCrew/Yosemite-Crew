@@ -4,36 +4,73 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import TreatmentStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/TreatmentStep';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import { useTaskStore } from '@/app/stores/taskStore';
+import type { Task } from '@/app/features/tasks/types/task';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
-import { savePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
 import {
-  applyInpatientScheduleTemplate,
-  createWorkspaceTemplateInstance,
-  listInpatientScheduleTemplates,
+  deletePrescriptionArtifact,
+  savePrescriptionArtifact,
+} from '@/app/features/appointments/services/workspaceClinicalService';
+import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
+import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
+import {
+  listScheduleTaskTemplates,
+  listPrescriptionTemplatesForWorkspace,
+  resolveScheduleTasksFromTemplate,
+  resolvePrescriptionTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
-import { loadTasksForPrimaryOrg } from '@/app/features/tasks/services/taskService';
+import {
+  changeTaskStatus,
+  createTask,
+  loadTasksForPrimaryOrg,
+  updateTask,
+} from '@/app/features/tasks/services/taskService';
+import {
+  getAppointmentWorkspaceBootstrap,
+  persistTreatmentItems,
+} from '@/app/features/appointments/services/workspaceAggregateService';
 
 jest.mock('@/app/features/inventory/services/inventoryService', () => ({
   fetchInventoryItems: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock('@/app/features/inventory/services/dispensaryService', () => ({
+  fetchPrescriptionLabelPdf: jest.fn(),
+}));
+
+jest.mock('@/app/features/appointments/services/workspaceAggregateService', () => ({
+  persistTreatmentItems: jest.fn().mockResolvedValue(undefined),
+  getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
+  normalizeWorkspaceBootstrapForEncounter: jest.fn().mockReturnValue({}),
+  deletePrescriptionTreatmentItem: jest.fn().mockResolvedValue(true),
+}));
+
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
   savePrescriptionArtifact: jest.fn().mockResolvedValue({ resourceType: 'MedicationRequest' }),
+  deletePrescriptionArtifact: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock('@/app/features/appointments/services/prescriptionWorkflowService', () => ({
+  finalizePrescription: jest.fn().mockResolvedValue({}),
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
-  applyInpatientScheduleTemplate: jest.fn().mockResolvedValue({ resourceType: 'Task' }),
-  createWorkspaceTemplateInstance: jest.fn().mockResolvedValue({ id: 'instance-1' }),
-  listInpatientScheduleTemplates: jest.fn().mockResolvedValue([]),
+  listScheduleTaskTemplates: jest.fn().mockResolvedValue([]),
+  resolveScheduleTasksFromTemplate: jest.fn().mockResolvedValue([]),
+  listPrescriptionTemplatesForWorkspace: jest.fn().mockResolvedValue([]),
   getInpatientScheduleForEncounter: jest
     .fn()
     .mockResolvedValue({ resourceType: 'Bundle', entry: [] }),
+  resolvePrescriptionTemplate: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock('@/app/features/tasks/services/taskService', () => ({
   loadTasksForPrimaryOrg: jest.fn().mockResolvedValue(undefined),
+  changeTaskStatus: jest.fn().mockResolvedValue(undefined),
+  updateTask: jest.fn().mockResolvedValue(undefined),
+  createTask: jest.fn().mockResolvedValue({ _id: 'new-task' }),
 }));
 
 jest.mock('@/app/hooks/useTeam', () => ({
@@ -215,11 +252,15 @@ const seedAndGet = (mode: 'OUTPATIENT' | 'INPATIENT' = 'OUTPATIENT') => {
           {
             id: 'rx-1',
             medicineName: 'Amoxicillin - 625',
-            dosage: '1 tab',
+            strength: '625',
+            strengthUnit: 'mg',
+            dosageForm: 'Tablet',
             route: 'Oral',
-            frequency: 'BID',
-            durationDays: '5 days',
-            refill: 'x 2',
+            frequency: 'BID (twice daily)',
+            durationDays: '5',
+            durationUnit: 'days',
+            qty: '10',
+            refill: '2',
             instructions: 'Do not skip dosage',
             fulfillment: 'IN_HOUSE',
             priceCents: 16500,
@@ -228,11 +269,15 @@ const seedAndGet = (mode: 'OUTPATIENT' | 'INPATIENT' = 'OUTPATIENT') => {
           {
             id: 'rx-2',
             medicineName: 'Prednisone',
-            dosage: '10mg',
+            strength: '10',
+            strengthUnit: 'mg',
+            dosageForm: 'Tablet',
             route: 'Oral',
-            frequency: 'QD',
-            durationDays: '5 days',
-            refill: 'x 1',
+            frequency: 'SID (once daily)',
+            durationDays: '5',
+            durationUnit: 'days',
+            qty: '5',
+            refill: '1',
             instructions: 'Morning with food',
             fulfillment: 'IN_HOUSE',
             priceCents: 9000,
@@ -240,52 +285,81 @@ const seedAndGet = (mode: 'OUTPATIENT' | 'INPATIENT' = 'OUTPATIENT') => {
             lowStock: true,
           },
         ],
-        schedule:
-          mode === 'INPATIENT'
-            ? [
-                {
-                  id: 'sch-1',
-                  time: '10:00 AM',
-                  description: 'Record observation for analgesic',
-                  category: 'Record',
-                  assignedToName: 'Sarah Mitchell',
-                  status: 'COMPLETED',
-                  autoGenerated: true,
-                },
-                {
-                  id: 'sch-2',
-                  time: '12:00 PM',
-                  description: 'Feed patient meal',
-                  category: 'Care',
-                  assignedToName: 'Sarah Mitchell',
-                  status: 'UPCOMING',
-                  autoGenerated: false,
-                },
-              ]
-            : [],
+        schedule: [],
       },
     },
   }));
   return useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
 };
 
+// Schedule tasks now derive from the task store (single source of truth). Seed the
+// equivalent real employee tasks so the timeline renders them exactly as it would
+// after a backend load. Returns the derived ScheduleTask ids for assertions.
+const buildTask = (over: Partial<Task>): Task =>
+  ({
+    _id: 'task-x',
+    organisationId: ORG,
+    appointmentId: APPT,
+    audience: 'EMPLOYEE_TASK',
+    source: 'CUSTOM',
+    category: 'RECORD',
+    name: 'Task',
+    status: 'PENDING',
+    ...over,
+  }) as Task;
+
+const seedScheduleTasks = () => {
+  useTaskStore.getState().setTasksForOrg(ORG, [
+    // No dueAt → undated rows always show (day-window filtering is exercised by its
+    // own test), so these tests focus purely on view/assign/status behaviour.
+    buildTask({
+      _id: 'task-1',
+      name: 'Record observation for analgesic',
+      category: 'RECORD',
+      assignedTo: 'member-1',
+      status: 'COMPLETED',
+      source: 'ORG_TEMPLATE',
+    }),
+    buildTask({
+      _id: 'task-2',
+      name: 'Feed patient meal',
+      category: 'CARE',
+      assignedTo: 'member-1',
+      status: 'IN_PROGRESS',
+    }),
+  ]);
+};
+
+const resetTasks = () => useTaskStore.setState({ tasksById: {}, taskIdsByOrgId: {} });
+
 describe('TreatmentStep', () => {
   beforeEach(() => {
     reset();
+    resetTasks();
     resetInventory();
     resetCatalog();
     seedPrescriptionInventory();
     (savePrescriptionArtifact as jest.Mock).mockClear();
-    (savePrescriptionArtifact as jest.Mock).mockResolvedValue({
-      resourceType: 'MedicationRequest',
-    });
-    (applyInpatientScheduleTemplate as jest.Mock).mockClear();
-    (createWorkspaceTemplateInstance as jest.Mock).mockClear();
-    (listInpatientScheduleTemplates as jest.Mock).mockClear();
+    // Echo back the saved artifact id (mirrors the create/update response) so finalize targets
+    // the real id and the save handler does not append a duplicate local row.
+    (savePrescriptionArtifact as jest.Mock).mockImplementation((_ctx, rx) =>
+      Promise.resolve({ resourceType: 'MedicationRequest', id: rx.id })
+    );
+    (finalizePrescription as jest.Mock).mockClear();
+    (finalizePrescription as jest.Mock).mockResolvedValue({});
+    (listScheduleTaskTemplates as jest.Mock).mockClear();
+    (resolveScheduleTasksFromTemplate as jest.Mock).mockClear();
+    (listPrescriptionTemplatesForWorkspace as jest.Mock).mockClear();
+    (resolvePrescriptionTemplate as jest.Mock).mockClear();
     (loadTasksForPrimaryOrg as jest.Mock).mockClear();
-    (applyInpatientScheduleTemplate as jest.Mock).mockResolvedValue({ resourceType: 'Task' });
-    (createWorkspaceTemplateInstance as jest.Mock).mockResolvedValue({ id: 'instance-1' });
-    (listInpatientScheduleTemplates as jest.Mock).mockResolvedValue([]);
+    (persistTreatmentItems as jest.Mock).mockClear();
+    (persistTreatmentItems as jest.Mock).mockResolvedValue(undefined);
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockClear();
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({});
+    (listScheduleTaskTemplates as jest.Mock).mockResolvedValue([]);
+    (resolveScheduleTasksFromTemplate as jest.Mock).mockResolvedValue([]);
+    (listPrescriptionTemplatesForWorkspace as jest.Mock).mockResolvedValue([]);
+    (resolvePrescriptionTemplate as jest.Mock).mockResolvedValue([]);
     (loadTasksForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
   });
 
@@ -318,7 +392,7 @@ describe('TreatmentStep', () => {
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    expect(screen.getByText('Services & Packages')).toBeInTheDocument();
+    expect(screen.getByText('Additional services & packages')).toBeInTheDocument();
     expect(screen.getAllByText('Prescription').length).toBeGreaterThan(0);
     expect(screen.getByText(/SC Injection - Cerenia 0\.5ml/)).toBeInTheDocument();
     expect(screen.getByText(/Amoxicillin - 625/)).toBeInTheDocument();
@@ -336,7 +410,7 @@ describe('TreatmentStep', () => {
     expect(screen.getByText('Low stock')).toBeInTheDocument();
     // Each row shows the line price at the right end and a Refill field.
     expect(screen.getByText('$165')).toBeInTheDocument();
-    expect(screen.getAllByLabelText('Refill').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Refills').length).toBeGreaterThan(0);
     // Fulfillment is a pill dropdown (not checkboxes), defaulting to the value.
     expect(screen.getAllByRole('combobox', { name: /fulfillment/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByText('In-house fulfilled').length).toBeGreaterThan(0);
@@ -466,10 +540,15 @@ describe('TreatmentStep', () => {
       target: { value: 'gabapentin' },
     });
     fireEvent.click(screen.getByRole('button', { name: /gabapentin/i }));
-    await waitFor(() => expect(savePrescriptionArtifact).toHaveBeenCalled());
-    expect(
-      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription.at(-1)?.medicineName
-    ).toBe('Gabapentin');
+    // Adding stages the row locally only — it must NOT persist on add (that previously dropped
+    // dosage/route/qty before the clinician filled them). Persisting happens on Save treatment.
+    await waitFor(() =>
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription.at(-1)
+          ?.medicineName
+      ).toBe('Gabapentin')
+    );
+    expect(savePrescriptionArtifact).not.toHaveBeenCalled();
 
     // Fulfillment is a compact pill dropdown: open it, then pick the option.
     fireEvent.change(screen.getAllByRole('combobox', { name: /fulfillment/i })[0], {
@@ -488,6 +567,199 @@ describe('TreatmentStep', () => {
     ).toBeUndefined();
   });
 
+  it('adds prescription template rows without replacing existing or duplicating medications', async () => {
+    (listPrescriptionTemplatesForWorkspace as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-otitis',
+        name: 'Otitis prescription',
+        items: [
+          {
+            inventoryItemId: 'inv-existing',
+            medicineName: 'Existing med',
+            dosageForm: 'Capsule',
+            route: 'Oral',
+            frequency: 'SID (once daily)',
+            durationDays: '4',
+            durationUnit: 'days',
+            qty: '4',
+            refill: '0',
+            instructions: 'Template duplicate should be skipped',
+            fulfillment: 'IN_HOUSE',
+          },
+          {
+            inventoryItemId: 'inv-otic',
+            medicineName: 'Otic drops',
+            dosageForm: 'Drops',
+            route: 'Otic',
+            frequency: 'BID (twice daily)',
+            durationDays: '7',
+            durationUnit: 'days',
+            qty: '1',
+            refill: '0',
+            instructions: 'Apply after cleaning',
+            fulfillment: 'IN_HOUSE',
+          },
+        ],
+      },
+    ]);
+    const existingPrescription = {
+      id: 'rx-existing',
+      medicineName: 'Existing med',
+      dosageForm: 'Capsule',
+      route: 'Oral',
+      frequency: 'SID (once daily)',
+      durationDays: '4',
+      durationUnit: 'days',
+      qty: '4',
+      refill: '0',
+      instructions: 'Keep current clinician directions',
+      fulfillment: 'IN_HOUSE' as const,
+    };
+    const enc = { ...seedAndGet(), prescription: [existingPrescription] };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(listPrescriptionTemplatesForWorkspace).toHaveBeenCalledWith(ORG));
+    fireEvent.change(screen.getByLabelText(/search medicines or prescription templates/i), {
+      target: { value: 'otitis' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /otitis prescription/i }));
+
+    const prescription = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription;
+    expect(prescription).toHaveLength(2);
+    expect(prescription?.[0]).toMatchObject({
+      medicineName: 'Existing med',
+      instructions: 'Keep current clinician directions',
+    });
+    const added = prescription?.[1];
+    expect(added).toMatchObject({
+      inventoryItemId: 'inv-otic',
+      medicineName: 'Otic drops',
+      dosageForm: 'Drops',
+      route: 'Otic',
+      frequency: 'BID (twice daily)',
+      durationDays: '7',
+      qty: '1',
+      instructions: 'Apply after cleaning',
+    });
+  });
+
+  it('auto-loads a service-linked prescription template once service context is available', async () => {
+    (resolvePrescriptionTemplate as jest.Mock).mockResolvedValue([
+      {
+        inventoryItemId: 'inv-linked',
+        medicineName: 'Linked med',
+        dosageForm: 'Tablet',
+        route: 'Oral',
+        frequency: 'SID (once daily)',
+        durationDays: '3',
+        durationUnit: 'days',
+        qty: '3',
+        fulfillment: 'IN_HOUSE',
+      },
+    ]);
+    const enc = { ...seedAndGet(), prescription: [] };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(resolvePrescriptionTemplate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: ORG,
+          appointmentId: APPT,
+          serviceId: 'svc-acupuncture',
+          packageId: 'svc-cerenia',
+        })
+      )
+    );
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0]
+    ).toMatchObject({
+      medicineName: 'Linked med',
+      frequency: 'SID (once daily)',
+      qty: '3',
+    });
+  });
+
+  it('deletes a persisted unbilled prescription via the artifact DELETE endpoint', async () => {
+    (deletePrescriptionArtifact as jest.Mock).mockClear();
+    (deletePrescriptionArtifact as jest.Mock).mockResolvedValue(true);
+    const seeded = seedAndGet();
+    const enc = { ...seeded, prescription: seeded.prescription.filter((p) => !p.billed) };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
+
+    await waitFor(() => expect(deletePrescriptionArtifact).toHaveBeenCalledWith(ORG, 'rx-1'));
+    expect(
+      useAppointmentWorkspaceStore
+        .getState()
+        .getEncounter(APPT)
+        ?.prescription.some((p) => p.id === 'rx-1')
+    ).toBe(false);
+  });
+
+  it('restores the row and warns when deleting a finalized/billed prescription returns 409', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (deletePrescriptionArtifact as jest.Mock).mockClear();
+    (deletePrescriptionArtifact as jest.Mock).mockRejectedValue({ response: { status: 409 } });
+    const seeded = seedAndGet();
+    const enc = { ...seeded, prescription: seeded.prescription.filter((p) => !p.billed) };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
+
+    expect(
+      await screen.findByText(/finalized or billed and can no longer be removed/i)
+    ).toBeInTheDocument();
+    // The row is restored after the conflict.
+    expect(
+      useAppointmentWorkspaceStore
+        .getState()
+        .getEncounter(APPT)
+        ?.prescription.some((p) => p.id === 'rx-1')
+    ).toBe(true);
+    errorSpy.mockRestore();
+  });
+
   it('renders empty editable inputs for incomplete medication rows', () => {
     const enc = {
       ...seedAndGet(),
@@ -498,60 +770,290 @@ describe('TreatmentStep', () => {
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
     expect(screen.getByText(/Minimal med/)).toBeInTheDocument();
-    // The editable cells (dose/route/freq/duration/refill/instructions) render as
-    // empty floating-label input boxes for a row that has no values yet.
-    expect((screen.getByLabelText('Dose') as HTMLInputElement).value).toBe('');
+    // The editable cells (qty/refills/duration/instructions) render as empty floating-label
+    // input boxes for a row that has no values yet. Form/Route render as dropdown triggers
+    // because inventory did not supply them.
+    expect((screen.getByLabelText('Qty') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Refills') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Duration') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Instructions') as HTMLInputElement).value).toBe('');
+    expect(screen.getByRole('button', { name: /^Form$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Route$/ })).toBeInTheDocument();
   });
 
-  it('edits a prescription field through the floating-label input', () => {
+  it('edits prescription fields through the line controls', () => {
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    const dosageInputs = screen.getAllByLabelText('Dose');
-    fireEvent.change(dosageInputs[0], { target: { value: '250mg' } });
-    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0].dosage).toBe(
-      '250mg'
+    // Qty is a plain input; Frequency is the shared (room/unit-style) LabelDropdown.
+    fireEvent.change(screen.getAllByLabelText('Qty')[0], { target: { value: '20' } });
+    fireEvent.click(screen.getAllByRole('button', { name: /^Frequency/ })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Every 12 hours' }));
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0].qty).toBe(
+      '20'
     );
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0].frequency
+    ).toBe('Every 12 hours');
   });
 
-  it('prints prescriptions and saves treatment to invoice', () => {
-    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+  it('shows a persisted frequency value on the frequency dropdown trigger', () => {
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-custom-frequency',
+          medicineName: 'Custom frequency med',
+          frequency: 'BID (twice daily)',
+          fulfillment: 'IN_HOUSE' as const,
+        },
+      ],
+    };
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    expect(
+      screen.getByRole('button', { name: /Frequency: BID \(twice daily\)/ })
+    ).toBeInTheDocument();
+  });
+
+  it('prints a label PDF for each saved prescription', async () => {
+    const labelBlob = new Blob(['pdf'], { type: 'application/pdf' });
+    (fetchPrescriptionLabelPdf as jest.Mock).mockResolvedValue(labelBlob);
+    const openSpy = jest
+      .spyOn(window, 'open')
+      .mockReturnValue({ focus: jest.fn() } as unknown as Window);
+    window.URL.createObjectURL = jest.fn().mockReturnValue('blob:label');
+    window.URL.revokeObjectURL = jest.fn();
+    const enc = seedAndGet();
+    const printableIds = enc.prescription.filter((rx) => rx.id).map((rx) => rx.id);
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
+
+    await waitFor(() =>
+      expect(fetchPrescriptionLabelPdf).toHaveBeenCalledTimes(printableIds.length)
+    );
+    printableIds.forEach((id) => expect(fetchPrescriptionLabelPdf).toHaveBeenCalledWith(ORG, id));
+    expect(openSpy).toHaveBeenCalledWith('blob:label', '_blank');
+
+    openSpy.mockRestore();
+  });
+
+  it('shows an error when there are no saved prescriptions to print', async () => {
+    const enc = { ...seedAndGet(), prescription: [] };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
+
+    expect(await screen.findByText(/save the treatment before printing/i)).toBeInTheDocument();
+    expect(fetchPrescriptionLabelPdf).not.toHaveBeenCalled();
+  });
+
+  it('completes treatment and opens the invoice', () => {
     const onOpenInvoice = jest.fn();
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={onOpenInvoice} />);
 
-    fireEvent.click(screen.getAllByRole('button', { name: /prescription/i })[0]);
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
-    expect(printSpy).toHaveBeenCalled();
     expect(onOpenInvoice).toHaveBeenCalled();
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
       'COMPLETED'
     );
-    printSpy.mockRestore();
   });
 
-  it('renders inpatient schedule and adds a manual task', () => {
+  it('blocks save and does not advance for an incomplete prescription, even without org/encounter', () => {
+    const onOpenInvoice = jest.fn();
+    // Incomplete in-house prescription (missing frequency/duration/qty). Render WITHOUT
+    // organisationId/encounterId — the validation gate must still run before advancing.
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-incomplete',
+          medicineName: 'Amoxicillin',
+          route: 'Oral',
+          dosageForm: 'Tablet',
+          fulfillment: 'IN_HOUSE' as const,
+        },
+      ],
+    };
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={onOpenInvoice} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+    ).not.toBe('COMPLETED');
+    expect(
+      screen.getByText(/Complete all prescription details before saving/i)
+    ).toBeInTheDocument();
+  });
+
+  it('does not fetch a label when no organisation is available', () => {
+    const enc = seedAndGet();
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
+
+    expect(fetchPrescriptionLabelPdf).not.toHaveBeenCalled();
+  });
+
+  it('surfaces an error when label printing fails', async () => {
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (fetchPrescriptionLabelPdf as jest.Mock).mockRejectedValue(new Error('boom'));
+    window.URL.createObjectURL = jest.fn().mockReturnValue('blob:err');
+    window.URL.revokeObjectURL = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
+
+    expect(await screen.findByText(/unable to print prescription labels/i)).toBeInTheDocument();
+    errSpy.mockRestore();
+  });
+
+  it('persists staged treatment items, rehydrates, then opens the invoice', async () => {
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    expect(persistTreatmentItems).toHaveBeenCalledWith(ORG, 'enc-1', enc.services);
+    expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT);
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-1');
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
+      'COMPLETED'
+    );
+  });
+
+  it('blocks the invoice and shows an error when treatment persistence fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (persistTreatmentItems as jest.Mock).mockRejectedValueOnce(new Error('save failed'));
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(await screen.findByText(/Unable to save treatment items/)).toBeInTheDocument();
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+    ).not.toBe('COMPLETED');
+    errorSpy.mockRestore();
+  });
+
+  it('renders inpatient schedule and opens Quick Actions to add a task', () => {
     const enc = seedAndGet('INPATIENT');
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
     expect(screen.getByText('Schedule')).toBeInTheDocument();
-    const before = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!.schedule.length;
+    // Add is no longer inline — it opens the Quick Actions Tasks side modal.
     fireEvent.click(screen.getByRole('button', { name: /add schedule task/i }));
-    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.schedule).toHaveLength(
-      before + 1
-    );
+    expect(useAppointmentWorkspaceStore.getState().activeSideAction).toBe('TASKS');
   });
 
-  it('applies an inpatient schedule template and refreshes tasks', async () => {
-    (listInpatientScheduleTemplates as jest.Mock).mockResolvedValue([
+  it('navigates schedule days and filters tasks by the selected day', () => {
+    const todayString = new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const enc = seedAndGet('INPATIENT');
+    // A task scoped to today should appear on the default day and disappear when
+    // navigating away — exercising the real day-window filter. The row derives from
+    // the task store (single source of truth), dated via the task's dueAt.
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+    useTaskStore.getState().setTasksForOrg(ORG, [
+      buildTask({
+        _id: 'task-today',
+        name: 'Day-scoped observation',
+        category: 'RECORD',
+        assignedTo: 'member-1',
+        status: 'IN_PROGRESS',
+        dueAt: today,
+      }),
+    ]);
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    // Header shows today's date; the row title renders as read-only text (no input).
+    expect(screen.getByText(`Today ${todayString}`)).toBeInTheDocument();
+    expect(screen.getByText('Day-scoped observation')).toBeInTheDocument();
+
+    // Moving to the next day hides the day-scoped task...
+    fireEvent.click(screen.getByRole('button', { name: /next day/i }));
+    expect(screen.queryByText('Day-scoped observation')).not.toBeInTheDocument();
+    expect(screen.getByText('No schedule tasks for this day.')).toBeInTheDocument();
+
+    // ...and returning to today shows it again.
+    fireEvent.click(screen.getByRole('button', { name: /previous day/i }));
+    expect(screen.getByText('Day-scoped observation')).toBeInTheDocument();
+  });
+
+  it('appends a task template found via the schedule search and creates tasks', async () => {
+    (listScheduleTaskTemplates as jest.Mock).mockResolvedValue([
       {
         id: 'tpl-care',
         name: 'Post-op care pathway',
-        kind: 'INPATIENT_SCHEDULE',
+        kind: 'TASK_ASSIGNMENT',
         status: 'PUBLISHED',
+      },
+    ]);
+    (resolveScheduleTasksFromTemplate as jest.Mock).mockResolvedValue([
+      {
+        description: 'Record vitals',
+        subtext: 'Check temperature and appetite',
+        category: 'Care',
+        status: 'UPCOMING',
+        autoGenerated: true,
+        sourceRefId: 'tpl-care',
+        time: '9:00 AM',
       },
     ]);
     const enc = seedAndGet('INPATIENT');
@@ -566,152 +1068,83 @@ describe('TreatmentStep', () => {
       />
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /load schedule template/i }));
-    fireEvent.click(screen.getByRole('button', { name: /post-op care pathway/i }));
+    // Searching by the template's name surfaces it as an appendable suggestion.
+    fireEvent.change(await screen.findByLabelText(/search tasks, assignees or templates/i), {
+      target: { value: 'Post-op' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /post-op care pathway/i }));
 
     await waitFor(() =>
-      expect(createWorkspaceTemplateInstance).toHaveBeenCalledWith(ORG, 'tpl-care', {
-        appointmentId: APPT,
-        encounterId: 'enc-1',
-        authorId: 'user-1',
-        data: {},
-        status: 'DRAFT',
-      })
+      expect(resolveScheduleTasksFromTemplate).toHaveBeenCalledWith(ORG, 'tpl-care')
     );
-    expect(applyInpatientScheduleTemplate).toHaveBeenCalledWith(ORG, 'instance-1', {
-      force: true,
-      notify: false,
-    });
-    expect(loadTasksForPrimaryOrg).toHaveBeenCalledWith({ force: true, silent: true });
+    // Resolved blocks are created as real employee tasks (not staged local rows).
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Record vitals',
+          description: 'Check temperature and appetite',
+          audience: 'EMPLOYEE_TASK',
+        })
+      )
+    );
   });
 
-  it('reschedule expands the row so the real time picker is used', () => {
+  it('opens a task in Quick Actions from the schedule View action', () => {
     const enc = seedAndGet('INPATIENT');
+    seedScheduleTasks();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    // Collapse the (initially expanded) first row, then Reschedule should re-open it
-    // — revealing the breakdown's real Set Time picker instead of writing a fake time.
-    fireEvent.click(screen.getByRole('button', { name: /hide record observation for analgesic/i }));
-    fireEvent.click(
-      screen.getByRole('button', { name: /reschedule record observation for analgesic/i })
-    );
-
-    expect(
-      screen.getByRole('button', { name: /hide record observation for analgesic/i })
-    ).toBeInTheDocument();
-    // The stored time is untouched by Reschedule itself.
-    const task = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.schedule[0];
-    expect(task?.time).toBe('10:00 AM');
+    fireEvent.click(screen.getByRole('button', { name: /view record observation for analgesic/i }));
+    const state = useAppointmentWorkspaceStore.getState();
+    expect(state.activeSideAction).toBe('TASKS');
+    // View focuses the backing task's id (the single source of truth).
+    expect(state.focusTaskId).toBe('task-1');
   });
 
-  it('uses inpatient schedule dropdowns, day controls and status pill', () => {
+  it('reassigns and changes status of a schedule task inline', async () => {
     const enc = seedAndGet('INPATIENT');
+    seedScheduleTasks();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    // Header day navigation + filter are present and clickable.
-    fireEvent.click(screen.getByRole('button', { name: /filter schedule/i }));
-    fireEvent.click(screen.getByRole('button', { name: /previous day/i }));
-    fireEvent.click(screen.getByRole('button', { name: /next day/i }));
-    // The first row is expanded by default, exposing the breakdown Record button.
-    fireEvent.click(screen.getByRole('button', { name: 'Record' }));
-    // Assign the first task via its Assigned-to dropdown.
-    fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Dr. Tim Apple' }));
-    expect(
-      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.schedule[0].assignedToName
-    ).toBe('Dr. Tim Apple');
-
-    // The status pill only renders for changeable (non-completed) tasks. Change
-    // the first such task to Pending.
-    const before = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!.schedule;
-    const changeableIndex = before.findIndex((t) => t.status !== 'COMPLETED');
+    // Changing status persists via the task endpoints and optimistically updates the
+    // task store, so the derived schedule row re-renders from the shared source.
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' })[0]);
     fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Pending' }));
-    expect(
-      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.schedule[changeableIndex].status
-    ).toBe('PENDING');
+    await waitFor(() =>
+      expect(changeTaskStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: 'task-2', status: 'PENDING' })
+      )
+    );
+    expect(useTaskStore.getState().tasksById['task-2'].status).toBe('PENDING');
+
+    // Reassigning persists via updateTask.
+    fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Dr. Tim Apple' }));
+    await waitFor(() => expect(updateTask).toHaveBeenCalled());
   });
 
   it('locks the status of completed schedule tasks (no caret, not changeable)', () => {
     const enc = seedAndGet('INPATIENT');
+    seedScheduleTasks();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    // The mock schedule has a COMPLETED task; its status renders as a static pill
-    // (a "Completed" label that is not a Status dropdown button).
+    // The seeded task store has a COMPLETED task; its status renders as a static pill
+    // (a "Completed" label that is not a Status dropdown button). Completed tasks are
+    // still shown — never hidden — so the record stays visible after a refresh.
     expect(screen.getByText('Completed')).toBeInTheDocument();
-    const statusButtons = screen.getAllByRole('button', { name: 'Status' });
-    const completedCount = enc.schedule.filter((t) => t.status === 'COMPLETED').length;
-    const changeableCount = enc.schedule.filter((t) => t.status !== 'COMPLETED').length;
-    expect(completedCount).toBeGreaterThan(0);
-    expect(statusButtons).toHaveLength(changeableCount);
-  });
-
-  it('updates the task start date and time through the shared pickers', () => {
-    const enc = seedAndGet('INPATIENT');
-    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
-
-    // Open the Starts datepicker and pick a day -> updates the task's startDate.
-    fireEvent.click(screen.getByRole('button', { name: /^Starts, toggle calendar$/i }));
-    const dayCells = document.querySelectorAll(
-      '.react-datepicker__day:not(.react-datepicker__day--outside-month)'
-    );
-    fireEvent.click(dayCells[10]);
-    expect(
-      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.schedule[0].startDate
-    ).toMatch(/\d{4}/);
-
-    // Open the Set Time picker and pick a time -> updates the task's time (12h).
-    fireEvent.click(screen.getByRole('button', { name: /Set Time/i }));
-    const timeCells = document.querySelectorAll('.react-datepicker__time-list-item');
-    fireEvent.click(timeCells[3]);
-    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.schedule[0].time).toMatch(
-      /(AM|PM)/
-    );
-  });
-
-  it('reuses the shared date and time pickers in the task breakdown', () => {
-    const enc = seedAndGet('INPATIENT');
-    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
-
-    // The first row is expanded by default; the breakdown reuses the shared
-    // Datepicker (Starts/Ends) and Timepicker (Set Time). The first task's time
-    // (10:00 AM) is shown in 24-hour form by the Timepicker.
-    expect(screen.getByRole('button', { name: /^Starts, toggle calendar$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Ends, toggle calendar$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Set Time: 10:00/i })).toBeInTheDocument();
+    // One completed + one changeable seeded task → exactly one Status dropdown button.
+    expect(screen.getAllByRole('button', { name: 'Status' })).toHaveLength(1);
   });
 
   it('filters inpatient schedule tasks to an empty state', () => {
     const enc = seedAndGet('INPATIENT');
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    fireEvent.change(screen.getByLabelText(/search schedule tasks/i), {
+    fireEvent.change(screen.getByLabelText(/search tasks, assignees or templates/i), {
       target: { value: 'not in schedule' },
     });
 
     expect(screen.getByText('No schedule tasks match this search.')).toBeInTheDocument();
-  });
-
-  it('renders empty date/time pickers for a task with no time or dates', () => {
-    const enc = {
-      ...seedAndGet('INPATIENT'),
-      schedule: [
-        {
-          id: 'sch-min',
-          description: 'Bare task',
-          category: 'Care' as const,
-          status: 'UPCOMING' as const,
-          autoGenerated: false,
-        },
-      ],
-    };
-    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
-
-    // The row is expanded by default; the pickers render empty (label-only) with
-    // no pre-filled value.
-    expect(screen.getByRole('button', { name: /^Starts, toggle calendar$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Ends, toggle calendar$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set Time' })).toBeInTheDocument();
   });
 
   it('shows empty states when there are no services or prescriptions', () => {
@@ -722,15 +1155,31 @@ describe('TreatmentStep', () => {
     expect(screen.getByText('No prescription items added yet.')).toBeInTheDocument();
   });
 
-  it('prints from the prescription print icon', () => {
-    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+  it('prints labels from the bottom Prescription button', async () => {
+    (fetchPrescriptionLabelPdf as jest.Mock).mockResolvedValue(
+      new Blob(['pdf'], { type: 'application/pdf' })
+    );
+    const openSpy = jest
+      .spyOn(window, 'open')
+      .mockReturnValue({ focus: jest.fn() } as unknown as Window);
+    window.URL.createObjectURL = jest.fn().mockReturnValue('blob:icon');
+    window.URL.revokeObjectURL = jest.fn();
     const enc = seedAndGet();
-    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
 
-    // The prescription print icon (top of the section) triggers print.
-    fireEvent.click(screen.getByRole('button', { name: 'Print prescription' }));
-    expect(printSpy).toHaveBeenCalled();
-    printSpy.mockRestore();
+    // The bottom "Print Labels" button shares the label-print handler.
+    const buttons = screen.getAllByRole('button', { name: /print labels/i });
+    fireEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() => expect(fetchPrescriptionLabelPdf).toHaveBeenCalledWith(ORG, 'rx-1'));
+    openSpy.mockRestore();
   });
 
   it('renders read-only treatment sections without editing affordances', () => {
@@ -740,23 +1189,25 @@ describe('TreatmentStep', () => {
     // The "click to search and add" dashed containers are hidden in view-only mode.
     expect(screen.queryByText(/click to search and add service/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/click to search and add medication/i)).not.toBeInTheDocument();
-    // Prescription fields keep the floating-label input style but are read-only.
-    const dosage = screen.getAllByLabelText('Dose')[0] as HTMLInputElement;
-    expect(dosage).toHaveAttribute('readonly');
-    expect(dosage.value).toBe('1 tab');
-    // Schedule Add control and the breakdown Record button are disabled.
+    expect(
+      screen.queryByLabelText(/search medicines or prescription templates/i)
+    ).not.toBeInTheDocument();
+    // Prescription editable fields keep the floating-label input style but are read-only.
+    const refills = screen.getAllByLabelText('Refills')[0] as HTMLInputElement;
+    expect(refills).toHaveAttribute('readonly');
+    // The schedule Add control is disabled in view-only mode.
     expect(screen.getByRole('button', { name: /add schedule task/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /^Record$/i })).toBeDisabled();
   });
 
-  it('locks destructive treatment removal once ready for billing', () => {
+  it('locks service removal once ready for billing but keeps prescriptions deletable', () => {
     const enc = { ...seedAndGet(), readyForBilling: { value: true } };
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
 
-    // Un-billed items keep their delete control but it is disabled once ready for
-    // billing (billed items have no delete control at all).
+    // Services lock their delete once ready for billing (billed items have no delete at all).
     expect(screen.getByLabelText(/remove acupuncture/i)).toBeDisabled();
-    expect(screen.getByLabelText(/remove prednisone/i)).toBeDisabled();
+    // Prescriptions are NOT locked by ready-for-billing — only an actually billed/paid
+    // prescription is read-only. An unbilled prescription stays deletable.
+    expect(screen.getByLabelText(/remove prednisone/i)).not.toBeDisabled();
     expect(screen.getByLabelText(/search for services and packages/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/search medicines/i)).toBeInTheDocument();
   });
