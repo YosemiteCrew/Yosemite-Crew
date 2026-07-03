@@ -83,8 +83,11 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
     entranceAnimations.start();
 
     // Add floating opacity animation for stars after entrance
+    let star1Float: Animated.CompositeAnimation | undefined;
+    let star2Float: Animated.CompositeAnimation | undefined;
+
     const startFloatingAnimation = () => {
-      const star1Float = Animated.loop(
+      star1Float = Animated.loop(
         Animated.sequence([
           Animated.timing(star1Anim, {
             toValue: 0.6,
@@ -99,7 +102,7 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
         ]),
       );
 
-      const star2Float = Animated.loop(
+      star2Float = Animated.loop(
         Animated.sequence([
           Animated.timing(star2Anim, {
             toValue: 0.7,
@@ -119,7 +122,7 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
     };
 
     // Start floating after entrance animations complete
-    setTimeout(startFloatingAnimation, 1500);
+    const floatingTimer = setTimeout(startFloatingAnimation, 1500);
 
     // Show custom splash for 4 seconds total, then exit
     const exitTimer = setTimeout(() => {
@@ -157,7 +160,12 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
     }, 4000);
 
     return () => {
+      clearTimeout(floatingTimer);
       clearTimeout(exitTimer);
+      star1Rotation.stop();
+      star2Rotation.stop();
+      star1Float?.stop();
+      star2Float?.stop();
     };
   }, [
     scaleAnim,
