@@ -14,7 +14,9 @@ import {
   followingUri,
   publicKeyId,
   sharedInboxUri,
+  buildActivity,
   buildActorObject,
+  buildAgentTaskObject,
   buildWebFingerResponse,
   buildOrderedCollection,
   buildFollowActivity,
@@ -558,6 +560,75 @@ export async function sendReferral(opts: {
   });
 
   return activity;
+}
+
+// ─── Agent-to-agent tasks ─────────────────────────────────────────────────────
+
+/**
+ * The programmatically-answerable capabilities of a clinic: its name, type,
+ * and active specialities (with the services each offers). Read-only, no
+ * patient data.
+ */
+export async function getOrgCapabilities(orgId: string) {
+  const org = await prisma.organization.findUniqueOrThrow({
+    where: { id: orgId },
+    select: { name: true, type: true },
+  });
+  const specialities = await prisma.speciality.findMany({
+    where: { organisationId: orgId, isActive: true },
+    select: { name: true, description: true, services: true },
+    orderBy: { name: "asc" },
+  });
+  return {
+    name: org.name,
+    type: org.type,
+    specialities: specialities.map((s) => ({
+      name: s.name,
+      description: s.description ?? undefined,
+      services: s.services,
+    })),
+  };
+}
+
+/**
+ * Sends an agent-to-agent task (an Offer wrapping a yc:AgentTask object) to a
+ * remote instance. v1 is read-only capability/availability queries.
+ */
+export async function sendAgentTask(opts: {
+  fromOrgId: string;
+  toActorUri: string;
+  taskType: string;
+  input?: Record<string, unknown>;
+}) {
+  const actor = await getOrCreateActor(opts.fromOrgId);
+  const remote = await fetchRemoteActor(opts.toActorUri);
+
+  const taskId = generateActivityId();
+  const activityId = generateActivityId();
+
+  const taskObject = buildAgentTaskObject({
+    id: taskId,
+    fromActorUri: actor.uri,
+    taskType: opts.taskType,
+    input: opts.input,
+    replyTo: `${apBaseUrl()}/ap/activities/${activityId}`,
+  });
+
+  const activity = buildActivity({
+    id: activityId,
+    type: "Offer",
+    actorUri: actor.uri,
+    object: taskObject,
+    to: [opts.toActorUri],
+  });
+
+  await ApDeliveryQueue.add("deliver", {
+    actorId: actor.id,
+    inboxUri: remote.sharedInboxUri ?? remote.inboxUri,
+    activity,
+  });
+
+  return { taskId, activityId };
 }
 
 // ─── Notes (cross-instance messaging) ────────────────────────────────────────

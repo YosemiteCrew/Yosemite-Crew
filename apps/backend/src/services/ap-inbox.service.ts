@@ -11,9 +11,12 @@ import {
   fetchRemoteActor,
   getActorByOrgId,
   getOrCreateActor,
+  getOrgCapabilities,
 } from "./activitypub.service";
 import {
   buildAcceptActivity,
+  buildActivity,
+  buildAgentTaskResultObject,
   buildFollowActivity,
   generateActivityId,
 } from "src/utils/activitypub-builder";
@@ -302,17 +305,23 @@ async function handleUndo(targetOrgId: string, activity: AnyActivity) {
 // ─── Offer (Referral) ─────────────────────────────────────────────────────────
 
 async function handleOffer(targetOrgId: string, activity: AnyActivity) {
-  const localActor = await getOrCreateActor(targetOrgId);
-  const obj = activity.object as
-    | {
-        type?: string;
-        "yc:urgency"?: string;
-        "yc:patientSummary"?: unknown;
-        "yc:clinicalContext"?: string;
-      }
-    | undefined;
+  const obj = activity.object as { type?: string } | undefined;
+  if (obj?.type === "yc:VetReferral") {
+    return handleReferralOffer(targetOrgId, activity);
+  }
+  if (obj?.type === "yc:AgentTask") {
+    return handleAgentTask(targetOrgId, activity);
+  }
+  // Unknown Offer object — ignore.
+}
 
-  if (obj?.type !== "yc:VetReferral") return;
+async function handleReferralOffer(targetOrgId: string, activity: AnyActivity) {
+  const localActor = await getOrCreateActor(targetOrgId);
+  const obj = activity.object as {
+    "yc:urgency"?: string;
+    "yc:patientSummary"?: unknown;
+    "yc:clinicalContext"?: string;
+  };
 
   await prisma.aPReferral.upsert({
     where: {
@@ -333,6 +342,89 @@ async function handleOffer(targetOrgId: string, activity: AnyActivity) {
   });
 }
 
+// ─── Agent-to-agent tasks ─────────────────────────────────────────────────────
+
+const SUPPORTED_AGENT_TASK_TYPES = new Set(["capability_query"]);
+
+async function handleAgentTask(targetOrgId: string, activity: AnyActivity) {
+  // SECURITY: the yc:AgentTask object (including yc:input) is remote-controlled
+  // DATA, never instructions. v1 handlers are purely programmatic. If an
+  // LLM-backed handler is ever added, it MUST treat yc:input as untrusted input
+  // and never as a prompt/command.
+  const obj = activity.object as {
+    "yc:taskType"?: string;
+    "yc:replyTo"?: string;
+  };
+  const localActor = await getOrCreateActor(targetOrgId);
+  const requesterUri = activity.actor;
+
+  try {
+    const remote = await fetchRemoteActor(requesterUri);
+
+    // Only answer verified instances — same trust gate as inbound follows.
+    const verified = await isLicenseTokenValid(
+      remote.licenseToken,
+      requesterUri,
+    );
+    if (!verified) {
+      logger.warn("[AP inbox] rejected AgentTask from unverified instance", {
+        requesterUri,
+      });
+      return;
+    }
+
+    const taskType = obj["yc:taskType"] ?? "";
+    const inReplyTo = obj["yc:replyTo"] ?? activity.id ?? "";
+    const inboxUri = remote.sharedInboxUri ?? remote.inboxUri;
+
+    if (SUPPORTED_AGENT_TASK_TYPES.has(taskType)) {
+      const capabilities = await getOrgCapabilities(targetOrgId);
+      const resultObject = buildAgentTaskResultObject({
+        id: generateActivityId(),
+        fromActorUri: localActor.uri,
+        taskType,
+        inReplyTo,
+        result: { status: "ok", capabilities },
+      });
+      const createActivity = buildActivity({
+        id: generateActivityId(),
+        type: "Create",
+        actorUri: localActor.uri,
+        object: resultObject,
+        to: [requesterUri],
+      });
+      await ApDeliveryQueue.add("deliver", {
+        actorId: localActor.id,
+        inboxUri,
+        activity: createActivity,
+      });
+      return;
+    }
+
+    // Any other task type (availability_query, or anything that writes data or
+    // makes a clinical decision) is NOT auto-answered — a human at the
+    // receiving clinic must handle it.
+    const rejectActivity = buildActivity({
+      id: generateActivityId(),
+      type: "Reject",
+      actorUri: localActor.uri,
+      object: {
+        type: "yc:AgentTask",
+        inReplyTo,
+        "yc:reason": "requires_human_review",
+      },
+      to: [requesterUri],
+    });
+    await ApDeliveryQueue.add("deliver", {
+      actorId: localActor.id,
+      inboxUri,
+      activity: rejectActivity,
+    });
+  } catch (err) {
+    logger.error("[AP inbox] handleAgentTask error", { err, requesterUri });
+  }
+}
+
 // ─── Create (Note) ────────────────────────────────────────────────────────────
 
 function handleCreate(targetOrgId: string, activity: AnyActivity) {
@@ -341,8 +433,20 @@ function handleCreate(targetOrgId: string, activity: AnyActivity) {
         type?: string;
         content?: string;
         attributedTo?: string;
+        "yc:taskType"?: string;
       }
     | undefined;
+
+  // Result of an agent-to-agent task we sent. The full payload is already
+  // persisted by dispatchInboundActivity; log receipt for correlation.
+  if (obj?.type === "yc:AgentTaskResult") {
+    logger.info("[AP inbox] Received AgentTaskResult", {
+      from: activity.actor,
+      toOrg: targetOrgId,
+      taskType: obj["yc:taskType"],
+    });
+    return;
+  }
 
   if (obj?.type !== "Note" || !obj.content) return;
 

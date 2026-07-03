@@ -209,6 +209,49 @@ export function buildReferralObject(opts: {
   };
 }
 
+// Agent-to-agent task types. Only capability_query is auto-answered in v1;
+// availability_query is reserved (needs scheduling integration) and any other
+// type is routed to a human at the receiving clinic.
+export type AgentTaskType = "capability_query" | "availability_query";
+
+export function buildAgentTaskObject(opts: {
+  id: string;
+  fromActorUri: string;
+  taskType: string;
+  input?: Record<string, unknown>;
+  replyTo?: string;
+}) {
+  return {
+    "@context": [...AP_CONTEXT, { yc: "https://yosemitecrew.com/ns#" }],
+    id: `${apBaseUrl()}/ap/agent-tasks/${opts.id}`,
+    type: "yc:AgentTask",
+    attributedTo: opts.fromActorUri,
+    "yc:taskType": opts.taskType,
+    "yc:input": opts.input ?? {},
+    "yc:replyTo": opts.replyTo,
+    published: new Date().toISOString(),
+  };
+}
+
+export function buildAgentTaskResultObject(opts: {
+  id: string;
+  fromActorUri: string;
+  taskType: string;
+  inReplyTo: string;
+  result: Record<string, unknown>;
+}) {
+  return {
+    "@context": [...AP_CONTEXT, { yc: "https://yosemitecrew.com/ns#" }],
+    id: `${apBaseUrl()}/ap/agent-task-results/${opts.id}`,
+    type: "yc:AgentTaskResult",
+    attributedTo: opts.fromActorUri,
+    "yc:taskType": opts.taskType,
+    inReplyTo: opts.inReplyTo,
+    "yc:result": opts.result,
+    published: new Date().toISOString(),
+  };
+}
+
 export function buildOfferActivity(opts: {
   id: string;
   fromActorUri: string;
