@@ -151,6 +151,15 @@ export class SuperTokensAuthProvider implements AuthProvider {
     });
   }
 
+  async getUserMetadata(appUserId: string): Promise<Record<string, unknown>> {
+    const result = await UserMetadata.getUserMetadata(appUserId);
+    return (result.metadata as Record<string, unknown>) ?? {};
+  }
+
+  async setUserRole(appUserId: string, role: string): Promise<void> {
+    await UserMetadata.updateUserMetadata(appUserId, { role });
+  }
+
   async deleteUser(appUserId: string): Promise<void> {
     await SuperTokens.deleteUser(appUserId);
   }
