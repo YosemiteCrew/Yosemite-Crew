@@ -6214,6 +6214,7 @@ model APActor {
   summary           String?
   iconUrl           String?
   licenseToken      String?
+  directoryListed   Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
