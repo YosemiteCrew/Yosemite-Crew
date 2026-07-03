@@ -16,5 +16,9 @@ export interface AuthProvider {
   // it; AuthService degrades to a no-op so product code stays provider-free.
   updateUserName?(appUserId: string, name: { firstName: string; lastName: string }): Promise<void>;
 
+  getUserMetadata?(appUserId: string): Promise<Record<string, unknown>>;
+
+  setUserRole?(appUserId: string, role: string): Promise<void>;
+
   deleteUser?(appUserId: string): Promise<void>;
 }

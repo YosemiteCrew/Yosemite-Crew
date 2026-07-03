@@ -29,6 +29,14 @@ export class AuthService {
     await this.provider.updateUserName?.(appUserId, name);
   }
 
+  async getUserMetadata(appUserId: string): Promise<Record<string, unknown>> {
+    return (await this.provider.getUserMetadata?.(appUserId)) ?? {};
+  }
+
+  async setUserRole(appUserId: string, role: string): Promise<void> {
+    await this.provider.setUserRole?.(appUserId, role);
+  }
+
   async deleteUser(appUserId: string): Promise<void> {
     await this.provider.deleteUser?.(appUserId);
   }
