@@ -399,6 +399,63 @@ describe('sessionManager', () => {
       expect(result).toEqual({kind: 'unauthenticated'});
     });
 
+    it('falls back to the stored user id when the SDK id read throws', async () => {
+      mockActiveSession();
+      mockSuperTokens.getUserId.mockRejectedValueOnce(new Error('no id'));
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        return Promise.resolve(null);
+      });
+      (fetchProfileStatus as jest.Mock).mockResolvedValue({
+        profileToken: 'tok',
+        isComplete: true,
+        parent: {id: 'pid-1'},
+      });
+
+      const result = await recoverAuthSession();
+
+      expect(result?.kind).toBe('authenticated');
+      // Fell back to the stored user's id, not the (failed) SDK read.
+      expect((result as any).user.id).toBe(mockUser.id);
+    });
+
+    it('returns unauthenticated when there is no resolvable user id', async () => {
+      mockActiveSession();
+      mockSuperTokens.getUserId.mockResolvedValueOnce(
+        undefined as unknown as string,
+      );
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+      (loadStoredTokens as jest.Mock).mockResolvedValue(null);
+
+      const result = await recoverAuthSession();
+
+      expect(result).toEqual({kind: 'unauthenticated'});
+    });
+
+    it('clears the pending flag and authenticates when the profile is now complete', async () => {
+      mockActiveSession();
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        if (key === '@pending_profile')
+          return Promise.resolve(JSON.stringify({userId: 'st-user-123'}));
+        return Promise.resolve(null);
+      });
+      (fetchProfileStatus as jest.Mock).mockResolvedValue({
+        profileToken: 'tok',
+        isComplete: true,
+        parent: {id: 'pid-1'},
+      });
+
+      const result = await recoverAuthSession();
+
+      expect(result?.kind).toBe('authenticated');
+      // The pending marker was cleared rather than short-circuiting to
+      // pendingProfile.
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@pending_profile');
+    });
+
     it('continues recovery when orphan sign-out fails', async () => {
       mockActiveSession();
       mockSuperTokens.signOut.mockRejectedValue(new Error('signout failed'));
