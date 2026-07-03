@@ -20,6 +20,7 @@ export {
   removeTotpRequirementForUser,
   getMfaStatusForRequest,
   requireMfaCompleted,
+  createTotpDeviceForUser,
 } from './express/mfa.js';
 
 // Provider-neutral auth boundary (product code depends on these, not on a
