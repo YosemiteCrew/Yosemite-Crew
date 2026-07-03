@@ -61,6 +61,7 @@
     "recharts": "^2.15.1",
     "stream-chat": "^9.25.0",
     "stream-chat-react": "^13.11.0",
+    "supertokens-web-js": "^0.16.0",
     "validator": "^13.15.22",
     "zustand": "^5.0.6"
   },

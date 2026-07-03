@@ -95,6 +95,7 @@
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0",
     "stream-chat-react-native": "^8.8.0",
+    "supertokens-react-native": "^5.1.5",
     "toastify-react-native": "^7.2.3",
     "ui-react-native": "link: @aws-amplify/ui-react-native",
     "use-sync-external-store": "^1.6.0",

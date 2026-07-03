@@ -537,6 +537,9 @@ importers:
       stream-chat-react:
         specifier: ^13.11.0
         version: 13.13.6(@types/react@19.2.11)(react-dom@19.2.4)(react@19.2.4)(stream-chat@9.31.0)(typescript@5.9.3)
+      supertokens-web-js:
+        specifier: ^0.16.0
+        version: 0.16.0
       validator:
         specifier: 13.15.22
         version: 13.15.22
@@ -883,6 +886,9 @@ importers:
       stream-chat-react-native:
         specifier: ^8.8.0
         version: 8.12.4(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@11.0.4)(@types/react@19.2.11)(react-native-blob-util@0.23.2)(react-native-gesture-handler@2.30.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.10)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.6.2)(react-native-share@12.2.5)(react-native-svg@15.15.2)(react-native-video@6.19.0)(react-native@0.81.4)(react@19.1.0)(typescript@5.9.3)
+      supertokens-react-native:
+        specifier: ^5.1.5
+        version: 5.1.5(@react-native-async-storage/async-storage@2.2.0)(axios@1.16.0)(react-native@0.81.4)
       toastify-react-native:
         specifier: ^7.2.3
         version: 7.2.3(react-native@0.81.4)(react@19.1.0)
@@ -16704,6 +16710,10 @@ packages:
   /@sideway/pinpoint@2.0.0:
     resolution: {integrity: sha512-RNiOoTPkptFtSVzQevY/yWtZwf/RxyVnPy/OcA9HBM3MlGDnBEYL5B41H0MTn0Uec8Hi+2qUtTfG2WWZBmMejQ==}
 
+  /@simplewebauthn/browser@13.3.0:
+    resolution: {integrity: sha512-BE/UWv6FOToAdVk0EokzkqQQDOWtNydYlY6+OrmiZ5SCNmb41VehttboTetUM3T/fr6EAFYVXjz4My2wg230rQ==}
+    dev: false
+
   /@sinclair/typebox@0.27.10:
     resolution: {integrity: sha512-MTBk/3jGLNB2tVxv6uLlFh1iu64iYOQ2PbdOSK3NW8JZsmlaOh2q6sdtKowBhfw8QFLmYNzTW4/oK4uATIi6ZA==}
 
@@ -22406,6 +22416,13 @@ packages:
   /browser-process-hrtime@1.0.0:
     resolution: {integrity: sha512-9o5UecI3GhkpM6DrXr69PblIuWxPKk9Y0jHBRhdocZ2y7YECBFCsHm79Pr3OyR2AvjhDkabFJaDJMYRazHgsow==}
     dev: true
+
+  /browser-tabs-lock@1.3.0:
+    resolution: {integrity: sha512-g6nHaobTiT0eMZ7jh16YpD2kcjAp+PInbiVq3M1x6KKaEIVhT4v9oURNIpZLOZ3LQbQ3XYfNhMAb/9hzNLIWrw==}
+    requiresBuild: true
+    dependencies:
+      lodash: 4.18.0
+    dev: false
 
   /browserify-zlib@0.2.0:
     resolution: {integrity: sha512-Z942RysHXmJrhqk88FmKBVq/v5tqmSkDz7p54G/MGyjMnCFFnC79XWNbg+Vta8W6Wb2qtSZTSxIGkJrRpCFEiA==}
@@ -37704,6 +37721,35 @@ packages:
     transitivePeerDependencies:
       - encoding
       - supports-color
+    dev: false
+
+  /supertokens-react-native@5.1.5(@react-native-async-storage/async-storage@2.2.0)(axios@1.16.0)(react-native@0.81.4):
+    resolution: {integrity: sha512-t3bq5cCIVmAKdSXdW80W9JbXUDGZQZN9ZN4kySG+oavLpOns6ep8E48Ye5UQMe1GVnAAWL2MuEWaYvVj/huBuw==}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.13.0 <=2.2.x'
+      axios: 1.16.0
+      react-native: '>=0.61.5 <1.0.x'
+    dependencies:
+      '@react-native-async-storage/async-storage': 2.2.0(react-native@0.81.4)
+      axios: 1.16.0(debug@4.4.3)
+      base-64: 1.0.0
+      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
+      supertokens-js-override: 0.0.4
+    dev: false
+
+  /supertokens-web-js@0.16.0:
+    resolution: {integrity: sha512-wuIdlVJtOsx4ZX0kCyl8lxmmAodXLlMAniZEHyVhsH2fhersh7bMrHpvgN9WoC470HYNC22qpHdlJngvyh/cSA==}
+    dependencies:
+      '@simplewebauthn/browser': 13.3.0
+      supertokens-js-override: 0.0.4
+      supertokens-website: 20.1.6
+    dev: false
+
+  /supertokens-website@20.1.6:
+    resolution: {integrity: sha512-WSehco2PsrFp4WY7h6tDutYyi2nPgJS8lahUadcL/cpBqgEuZ3pjnvN1NDASSNSTfXeO1smm3HrvvLZG5C7qHA==}
+    dependencies:
+      browser-tabs-lock: 1.3.0
+      supertokens-js-override: 0.0.4
     dev: false
 
   /supports-color@5.5.0:
