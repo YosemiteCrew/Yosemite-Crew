@@ -13,6 +13,16 @@ import logger from "../../../src/utils/logger";
 // --- Mocks ---
 jest.mock("../../../src/utils/logger");
 
+const mockUpdateUserName = jest.fn();
+const mockSetUserRole = jest.fn();
+let mockAuthService: {
+  updateUserName: typeof mockUpdateUserName;
+  setUserRole: typeof mockSetUserRole;
+} | null = null;
+jest.mock("@yosemite-crew/auth", () => ({
+  getAuthService: () => mockAuthService,
+}));
+
 // 3. Fix: Partially mock user.service to keep the Error class real
 jest.mock("../../../src/services/user.service", () => {
   const actual = jest.requireActual("../../../src/services/user.service");
@@ -53,6 +63,7 @@ describe("UserController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRes = createMockRes();
+    mockAuthService = null;
   });
 
   describe("create", () => {
@@ -78,6 +89,105 @@ describe("UserController", () => {
       });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(mockUser);
+    });
+
+    it("prefers body names/role and syncs them to the auth provider", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+      };
+      const mockUser = { id: "user-123" };
+      (UserService.create as jest.Mock).mockResolvedValue(mockUser);
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "SessionFirst",
+        lastName: "SessionLast",
+        body: {
+          firstName: "BodyFirst",
+          lastName: "BodyLast",
+          role: "developer",
+        },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.create).toHaveBeenCalledWith({
+        id: "user-123",
+        email: "test@example.com",
+        firstName: "BodyFirst",
+        lastName: "BodyLast",
+      });
+      expect(mockUpdateUserName).toHaveBeenCalledWith("user-123", {
+        firstName: "BodyFirst",
+        lastName: "BodyLast",
+      });
+      expect(mockSetUserRole).toHaveBeenCalledWith("user-123", "developer");
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    it("falls back to session names and drops an invalid role", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "SessionFirst",
+        lastName: "SessionLast",
+        body: { role: "not a valid role!!" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          firstName: "SessionFirst",
+          lastName: "SessionLast",
+        }),
+      );
+      expect(mockUpdateUserName).toHaveBeenCalledWith("user-123", {
+        firstName: "SessionFirst",
+        lastName: "SessionLast",
+      });
+      expect(mockSetUserRole).not.toHaveBeenCalled();
+    });
+
+    it("never blocks creation on an auth provider sync failure", async () => {
+      mockAuthService = {
+        updateUserName: jest.fn().mockRejectedValue(new Error("provider down")),
+        setUserRole: mockSetUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(logger.warn).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    it("skips provider sync entirely when no auth service is configured", async () => {
+      mockAuthService = null;
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockUpdateUserName).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(201);
     });
 
     it("should return 400 if userId or email is missing", async () => {
