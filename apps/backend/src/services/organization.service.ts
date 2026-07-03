@@ -8,6 +8,7 @@ import {
   type Organisation,
 } from "@yosemite-crew/types";
 import { UserOrganizationService } from "./user-organization.service";
+import { recomputeOrganizationVerification } from "./organization-verification.service";
 import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
@@ -785,6 +786,10 @@ export const OrganizationService = {
       }
     }
 
+    // isVerified is derived, never client-supplied: recompute from Stripe
+    // Connect status + compliance certs (honouring any manual override).
+    await recomputeOrganizationVerification(organisation.id);
+
     return {
       response: buildFHIRResponseFromPrisma(
         await prisma.organization.findUniqueOrThrow({
@@ -867,7 +872,13 @@ export const OrganizationService = {
     return buildFHIRResponseFromPrisma(updated);
   },
 
-  async upadtePofileVerificationStatus(id: string, isVerified: boolean) {
+  /**
+   * Sets (or clears) the manual verification override. Reserved for the
+   * verification authority (SuperAdmin), NOT org-scoped self-service — an org
+   * must never be able to verify itself and bypass the federation trust gate.
+   * Pass null to revert to automatic (Stripe Connect + compliance cert) status.
+   */
+  async setVerificationOverride(id: string, override: boolean | null) {
     const identifier = ensureSafeIdentifier(id);
     if (!identifier) {
       return null;
@@ -875,19 +886,23 @@ export const OrganizationService = {
 
     const organisation = await prisma.organization.findFirst({
       where: { OR: [{ id: identifier }, { fhirId: identifier }] },
-      include: { address: true },
     });
     if (!organisation) {
       return null;
     }
 
-    const updated = await prisma.organization.update({
+    await prisma.organization.update({
       where: { id: organisation.id },
-      data: { isVerified },
-      include: { address: true },
+      data: { verificationOverride: override },
     });
+    await recomputeOrganizationVerification(organisation.id);
 
-    return buildFHIRResponseFromPrisma(updated);
+    return buildFHIRResponseFromPrisma(
+      await prisma.organization.findUniqueOrThrow({
+        where: { id: organisation.id },
+        include: { address: true },
+      }),
+    );
   },
 
   async updateProfilePhotoUrl(id: string, imageURL: string) {
