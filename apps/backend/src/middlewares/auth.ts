@@ -1,201 +1,31 @@
 import type { NextFunction, Request, Response } from "express";
-import jwt, {
-  type JwtHeader,
-  type JwtPayload,
-  type SigningKeyCallback,
-} from "jsonwebtoken";
-import jwksClient from "jwks-rsa";
-import admin from "firebase-admin";
-import logger from "../utils/logger";
+import { createSessionMiddleware, type AuthSession } from "@yosemite-crew/auth";
 
-const {
-  COGNITO_REGION,
-  COGNITO_USER_POOL_ID,
-  COGNITO_AUDIENCE,
-  COGNITO_USER_POOL_ID_MOBILE,
-} = process.env;
+// Re-anchor the package middleware to this app's express types with the same
+// concrete signature the previous middlewares had (the package declares its
+// own @types/express dev copy; the runtime value is identical).
+type AuthMiddleware = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => Promise<void>;
 
-if (!COGNITO_REGION || !COGNITO_USER_POOL_ID) {
-  logger.warn(
-    "Cognito middleware is missing configuration. Set COGNITO_REGION and COGNITO_USER_POOL_ID to enable JWT validation.",
-  );
-}
+const asHandler = (handler: unknown): AuthMiddleware =>
+  handler as AuthMiddleware;
 
-const issuer =
-  COGNITO_REGION && COGNITO_USER_POOL_ID
-    ? `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`
-    : undefined;
+// Provider-neutral session guards. The provider (SuperTokens today) is
+// selected at deployment time via AUTH_PROVIDER and wired up in app.ts; this
+// module never touches a provider SDK. During the cutover grace window
+// (AUTH_LEGACY_TOKEN_GRACE=true) the middleware also accepts residual tokens
+// from the previous providers, scoped to the profile their issuer served.
 
-const mobileIssuer =
-  COGNITO_REGION && COGNITO_USER_POOL_ID_MOBILE
-    ? `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID_MOBILE}`
-    : undefined;
-
-const client = issuer
-  ? jwksClient({
-      jwksUri: `${issuer}/.well-known/jwks.json`,
-      cache: true,
-      cacheMaxEntries: 20,
-      cacheMaxAge: 10 * 60 * 1000,
-      rateLimit: true,
-      jwksRequestsPerMinute: 5,
-    })
-  : null;
-
-const mobileClient = mobileIssuer
-  ? jwksClient({
-      jwksUri: `${mobileIssuer}/.well-known/jwks.json`,
-      cache: true,
-      cacheMaxEntries: 20,
-      cacheMaxAge: 10 * 60 * 1000,
-      rateLimit: true,
-      jwksRequestsPerMinute: 5,
-    })
-  : null;
-
-const getKey = (header: JwtHeader, callback: SigningKeyCallback) => {
-  if (!client || !header.kid) {
-    callback(new Error("Unable to retrieve signing key"));
-    return;
-  }
-
-  client.getSigningKey(header.kid).then(
-    (key) => {
-      const signingKey = key.getPublicKey();
-      callback(null, signingKey);
-    },
-    (err: Error) => {
-      logger.error("Failed to fetch signing key from JWKS", err);
-      callback(err);
-    },
-  );
+// Claims of the verified session token. Kept intentionally loose: product code
+// must rely on the normalized fields below (userId, email, ...), not on
+// provider-specific claim names.
+export type AuthClaims = Record<string, unknown> & {
+  sub?: string;
+  email?: string;
 };
-
-const getKeyMobile = (header: JwtHeader, callback: SigningKeyCallback) => {
-  if (!mobileClient || !header.kid) {
-    callback(new Error("Unable to retrieve signing key"));
-    return;
-  }
-
-  mobileClient.getSigningKey(header.kid).then(
-    (key) => {
-      const signingKey = key.getPublicKey();
-      callback(null, signingKey);
-    },
-    (err: Error) => {
-      logger.error("Failed to fetch signing key from JWKS", err);
-      callback(err);
-    },
-  );
-};
-
-const verifyToken = (token: string): Promise<JwtPayload> => {
-  if (!issuer) {
-    return Promise.reject(
-      new Error("Cognito JWT verification is not configured"),
-    );
-  }
-
-  return new Promise((resolve, reject) => {
-    jwt.verify(
-      token,
-      getKey,
-      {
-        algorithms: ["RS256"],
-        issuer,
-        audience: COGNITO_AUDIENCE,
-      },
-      (err, decoded) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        if (!decoded || typeof decoded === "string") {
-          reject(new Error("JWT payload is not an object"));
-          return;
-        }
-
-        resolve(decoded);
-      },
-    );
-  });
-};
-
-const verifyTokenMobile = (token: string): Promise<JwtPayload> => {
-  if (!mobileIssuer) {
-    return Promise.reject(
-      new Error("Cognito JWT verification is not configured"),
-    );
-  }
-
-  return new Promise((resolve, reject) => {
-    jwt.verify(
-      token,
-      getKeyMobile,
-      {
-        algorithms: ["RS256"],
-        issuer: mobileIssuer,
-        audience: COGNITO_AUDIENCE,
-      },
-      (err, decoded) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        if (!decoded || typeof decoded === "string") {
-          reject(new Error("JWT payload is not an object"));
-          return;
-        }
-
-        resolve(decoded);
-      },
-    );
-  });
-};
-
-// Firebase Config
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(
-      process.env.GOOGLE_APPLICATION_CREDENTIALS!,
-    ),
-  });
-}
-
-const verifyFirebaseToken = async (token: string): Promise<JwtPayload> => {
-  try {
-    return await admin.auth().verifyIdToken(token);
-  } catch (err) {
-    logger.error("Failed to verify Firebase token", err);
-    throw new Error("Invalid Firebase token");
-  }
-};
-
-const detectProvider = (
-  decoded: JwtPayload | null,
-): "firebase" | "cognito" | null => {
-  if (!decoded || typeof decoded === "string") return null;
-
-  const iss = decoded.iss;
-  if (!iss) return null;
-
-  try {
-    const issuer = new URL(iss);
-    if (issuer.host === "securetoken.google.com") return "firebase";
-  } catch {
-    return null;
-  }
-
-  return "cognito";
-};
-
-export interface CognitoJwtPayload extends JwtPayload {
-  username?: string;
-  [claim: string]: unknown;
-}
 
 export type AuthenticatedRequest<
   TParams = Request["params"],
@@ -203,88 +33,25 @@ export type AuthenticatedRequest<
   TReqBody = unknown,
   TLocals extends Record<string, unknown> = Record<string, unknown>,
 > = Request<TParams, TResBody, TReqBody, TLocals> & {
-  auth?: CognitoJwtPayload;
+  auth?: AuthClaims;
   userId?: string;
   provider?: string;
   email?: string;
   emailVerified?: boolean;
   firstName?: string;
   lastName?: string;
+  authSession?: AuthSession;
 };
 
-export const authorizeCognito = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    const authHeader = req.headers.authorization;
+// Staff / PIMS web product routes.
+export const requireWebAuth = asHandler(
+  createSessionMiddleware({ profile: "pims_web" }),
+);
 
-    if (!authHeader?.startsWith("Bearer ")) {
-      res
-        .status(401)
-        .json({ message: "Authorization header missing or invalid" });
-      return;
-    }
+// Pet-parent mobile product routes.
+export const requireMobileAuth = asHandler(
+  createSessionMiddleware({ profile: "pet_parent_mobile" }),
+);
 
-    const token = authHeader.slice("Bearer ".length).trim();
-    const payload = await verifyToken(token);
-
-    const authReq = req as AuthenticatedRequest;
-    authReq.auth = payload;
-    authReq.userId = payload.sub; // Cognito sub
-    authReq.email = payload.email;
-    authReq.provider = "cognito";
-
-    // Optional for User creation:
-    authReq.firstName = payload.given_name;
-    authReq.lastName = payload.family_name;
-
-    next();
-  } catch (error) {
-    logger.warn(`JWT validation failed: ${(error as Error).message}`);
-    res.status(401).json({ message: "Invalid or expired token" });
-  }
-};
-
-export const authorizeCognitoMobile = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    const header = req.headers.authorization;
-
-    if (!header?.startsWith("Bearer ")) {
-      return res
-        .status(401)
-        .json({ message: "Missing or invalid Authorization header" });
-    }
-
-    const token = header.slice("Bearer ".length).trim();
-    const decodedUnverified = jwt.decode(token) as JwtPayload | null;
-
-    const provider = detectProvider(decodedUnverified);
-    let payload: JwtPayload;
-
-    if (provider == "cognito") {
-      payload = await verifyTokenMobile(token);
-    } else {
-      payload = await verifyFirebaseToken(token);
-    }
-
-    const normalizedEmailVerified =
-      payload.email_verified === true || payload.email_verified === "true";
-
-    (req as AuthenticatedRequest).auth = payload;
-    (req as AuthenticatedRequest).userId = payload.sub;
-    (req as AuthenticatedRequest).provider = provider?.toString();
-    (req as AuthenticatedRequest).email = payload.email!;
-    (req as AuthenticatedRequest).emailVerified = normalizedEmailVerified;
-
-    next();
-  } catch (error) {
-    logger.warn(`JWT validation failed: ${(error as Error).message}`);
-    res.status(401).json({ message: "Invalid or expired token" });
-  }
-};
+// Routes shared by both products (e.g. /v1/auth/me, logout).
+export const requireAnyAuth = asHandler(createSessionMiddleware());

@@ -313,7 +313,7 @@ export const UserOrganizationController = {
 
   listMappingsForUser: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req); // this is the Cognito sub from the token
+      const userId = resolveUserIdFromRequest(req); // stable app user id from the verified session
 
       if (!userId) {
         res.status(401).json({ message: "Unauthorized: missing user id." });

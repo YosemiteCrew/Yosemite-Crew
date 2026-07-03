@@ -12,7 +12,6 @@ import logger from "../../../src/utils/logger";
 
 // --- Mocks ---
 jest.mock("../../../src/utils/logger");
-jest.mock("../../../src/services/cognito.service");
 
 // 3. Fix: Partially mock user.service to keep the Error class real
 jest.mock("../../../src/services/user.service", () => {

@@ -1,4 +1,6 @@
+import SuperTokens from 'supertokens-node';
 import Session from 'supertokens-node/recipe/session';
+import UserMetadata from 'supertokens-node/recipe/usermetadata';
 import type { Request, Response } from 'express';
 
 import type { AuthProvider } from '../../auth-provider.js';
@@ -136,5 +138,20 @@ export class SuperTokensAuthProvider implements AuthProvider {
     if (session) {
       await session.revokeSession();
     }
+  }
+
+  async updateUserName(
+    appUserId: string,
+    name: { firstName: string; lastName: string }
+  ): Promise<void> {
+    // SuperTokens functions accept the external (mapped) user id directly.
+    await UserMetadata.updateUserMetadata(appUserId, {
+      first_name: name.firstName,
+      last_name: name.lastName,
+    });
+  }
+
+  async deleteUser(appUserId: string): Promise<void> {
+    await SuperTokens.deleteUser(appUserId);
   }
 }

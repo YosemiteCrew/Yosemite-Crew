@@ -11,4 +11,10 @@ export interface AuthProvider {
   requireSession(ctx: RequestContext): Promise<AuthSession>;
 
   signOut(ctx: RequestContext): Promise<void>;
+
+  // Optional admin capabilities. Providers that cannot support one simply omit
+  // it; AuthService degrades to a no-op so product code stays provider-free.
+  updateUserName?(appUserId: string, name: { firstName: string; lastName: string }): Promise<void>;
+
+  deleteUser?(appUserId: string): Promise<void>;
 }
