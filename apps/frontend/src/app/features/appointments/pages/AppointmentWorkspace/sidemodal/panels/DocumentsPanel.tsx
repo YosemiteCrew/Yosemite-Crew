@@ -30,6 +30,7 @@ import { downloadSubmissionPdf } from '@/app/features/forms/services/formSigning
 import {
   createEncounterDocumentPacket,
   getEncounterDocumentPacketPdfUrl,
+  listEncounterWorkspaceDocuments,
   reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
@@ -161,6 +162,9 @@ type PacketState = {
   signingStatus?: string;
 };
 
+const isSignedDocumentRow = (document: { signingStatus?: string | null }): boolean =>
+  document.signingStatus?.toUpperCase() === 'SIGNED';
+
 /**
  * Combined clinical packet (SOAP + Prescription + Discharge) surfaced at parity
  * with the Summary step. Reuses the shared aggregate-service exports — Print via
@@ -212,6 +216,20 @@ const ClinicalPacketSection = ({
   const refreshPacket = useCallback(async () => {
     if (!organisationId || !encounterId) return;
     try {
+      try {
+        const documents = await listEncounterWorkspaceDocuments(organisationId, encounterId);
+        if (documents.some(isSignedDocumentRow)) {
+          setPacket({
+            status: 'FINAL',
+            signingStatus: 'SIGNED',
+          });
+          return;
+        }
+      } catch (error) {
+        if (isAuthRedirectError(error)) throw error;
+        console.error('Unable to load clinical packet documents:', error);
+      }
+
       const result = await createEncounterDocumentPacket(organisationId, encounterId);
       setPacket({
         packetId: result?.packetId,
@@ -247,7 +265,14 @@ const ClinicalPacketSection = ({
     void (async () => {
       if (packetId && organisationId) {
         try {
-          await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+          const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+          if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
+            setPacket({
+              packetId: reconciled.packetId,
+              status: reconciled.status ?? 'FINAL',
+              signingStatus: 'SIGNED',
+            });
+          }
         } catch (error) {
           if (!isAuthRedirectError(error)) {
             console.error('Unable to reconcile packet signing:', error);

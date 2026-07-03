@@ -10,6 +10,7 @@ import {
 import { loadTemplateForms } from '@/app/features/forms/services/templateFormsService';
 import {
   createEncounterDocumentPacket,
+  listEncounterWorkspaceDocuments,
   reconcileWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 
@@ -23,6 +24,7 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
     signing: { status: 'IN_PROGRESS', signingUrl: 'https://sign.test/abc' },
   }),
   getEncounterDocumentPacketPdfUrl: jest.fn().mockResolvedValue('blob:packet-pdf'),
+  listEncounterWorkspaceDocuments: jest.fn().mockResolvedValue([]),
   reconcileWorkspaceDocumentPacket: jest.fn().mockResolvedValue({ packetId: 'packet-1' }),
 }));
 
@@ -78,6 +80,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   useSigningOverlayStore.setState({ open: false, url: null });
   (fetchAppointmentForms as jest.Mock).mockResolvedValue({ appointmentId: 'appt-1', forms: [] });
+  (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
   (loadTemplateForms as jest.Mock).mockResolvedValue([
     template(),
     // Clinical + plan-definition kinds must be filtered out of the search.
@@ -150,6 +153,35 @@ describe('DocumentsPanel forms search', () => {
 });
 
 describe('DocumentsPanel clinical packet', () => {
+  it('uses signed encounter document rows to keep quick actions in sync', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      {
+        documentId: 'doc-1',
+        title: 'Clinical packet',
+        signingStatus: 'SIGNED',
+      },
+    ]);
+
+    renderPanel();
+
+    expect(await screen.findByRole('button', { name: /download signed/i })).toBeInTheDocument();
+    expect(screen.getByText('Final')).toBeInTheDocument();
+    expect(screen.getByText('Signed')).toBeInTheDocument();
+    expect(createEncounterDocumentPacket).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the packet endpoint when encounter document rows fail to load', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (listEncounterWorkspaceDocuments as jest.Mock).mockRejectedValue(new Error('rows failed'));
+
+    renderPanel();
+
+    await waitFor(() =>
+      expect(createEncounterDocumentPacket).toHaveBeenCalledWith('org-1', 'enc-1')
+    );
+    errorSpy.mockRestore();
+  });
+
   it('reconciles the packet against Documenso when the signing overlay closes', async () => {
     renderPanel();
     await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
