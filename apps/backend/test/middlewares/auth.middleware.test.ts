@@ -104,7 +104,7 @@ describe("legacy token grace via session middleware", () => {
     const { req, res } = makeReqRes(signLegacyToken(WEB_POOL));
     const next = jest.fn();
 
-    await requireWebAuth(req, res as never, next);
+    await requireWebAuth(req as never, res as never, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.userId).toBe("legacy-user-1");
@@ -119,7 +119,7 @@ describe("legacy token grace via session middleware", () => {
     const { req, res } = makeReqRes(signLegacyToken(MOBILE_POOL));
     const next = jest.fn();
 
-    await requireMobileAuth(req, res as never, next);
+    await requireMobileAuth(req as never, res as never, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.userId).toBe("legacy-user-1");
@@ -130,7 +130,7 @@ describe("legacy token grace via session middleware", () => {
     const { req, res } = makeReqRes(signLegacyToken(MOBILE_POOL));
     const next = jest.fn();
 
-    await requireWebAuth(req, res as never, next);
+    await requireWebAuth(req as never, res as never, next);
 
     expect(res.statusCode).toBe(403);
     expect(next).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ describe("legacy token grace via session middleware", () => {
     const { req, res } = makeReqRes(token);
     const next = jest.fn();
 
-    await requireWebAuth(req, res as never, next);
+    await requireWebAuth(req as never, res as never, next);
 
     expect(res.statusCode).toBe(401);
     expect(next).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe("legacy token grace via session middleware", () => {
     const { req, res } = makeReqRes();
     const next = jest.fn();
 
-    await requireWebAuth(req, res as never, next);
+    await requireWebAuth(req as never, res as never, next);
 
     expect(res.statusCode).toBe(401);
     expect(next).not.toHaveBeenCalled();
