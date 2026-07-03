@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 export const AP_CONTEXT = [
   "https://www.w3.org/ns/activitystreams",

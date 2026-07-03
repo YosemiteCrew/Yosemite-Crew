@@ -8,7 +8,9 @@ import {
 } from "src/services/ap-inbox.service";
 import logger from "src/utils/logger";
 
-new Worker<ApInboxJobData>(
+const KEY_ID_RE = /keyId="([^"]+)"/;
+
+export const apInboxWorker = new Worker<ApInboxJobData>(
   "ap-inbox",
   async (job) => {
     const { targetOrgId, rawBody, headers, requestUrl, requestMethod } =
@@ -22,9 +24,13 @@ new Worker<ApInboxJobData>(
     });
 
     if (!ok) {
+      const signatureHeader = headers["signature"];
+      const keyId = signatureHeader
+        ? KEY_ID_RE.exec(signatureHeader)?.[1]
+        : undefined;
       logger.warn("[AP inbox] Signature verification failed", {
         targetOrgId,
-        keyId: headers["signature"]?.match(/keyId="([^"]+)"/)?.[1],
+        keyId,
       });
       return;
     }

@@ -36,7 +36,10 @@ import {
   decryptPrivateKey,
 } from "./activitypub-crypto.service";
 import { signRequest } from "src/utils/http-signature";
-import { assertPublicHttpsUrl } from "src/utils/ap-url-guard";
+import {
+  assertPublicHttpsUrl,
+  guardedHttpsAgent,
+} from "src/utils/ap-url-guard";
 import { ApDeliveryQueue } from "src/queues/ap-delivery.queue";
 
 // ─── Actor management ─────────────────────────────────────────────────────────
@@ -106,13 +109,15 @@ export async function buildActorResponse(orgId: string) {
 
 // ─── WebFinger ────────────────────────────────────────────────────────────────
 
+const ACCT_RESOURCE_RE = /^acct:([^@]+)@(.+)$/;
+
 export async function resolveWebFinger(resource: string) {
-  const acctMatch = resource.match(/^acct:([^@]+)@(.+)$/);
+  const acctMatch = ACCT_RESOURCE_RE.exec(resource);
   if (!acctMatch) return null;
 
   const [, username] = acctMatch;
   const actor = await getActorByUsername(username);
-  if (!actor || !actor.organisationId) return null;
+  if (!actor?.organisationId) return null;
 
   return buildWebFingerResponse({
     subject: resource,
@@ -151,6 +156,7 @@ export async function fetchRemoteActor(uri: string) {
     headers: { Accept: AP_CONTENT_TYPE },
     timeout: 10_000,
     maxRedirects: 0,
+    httpsAgent: guardedHttpsAgent,
   });
 
   const data = resp.data;
@@ -748,8 +754,8 @@ export async function updateActorProfile(
   return prisma.aPActor.update({
     where: { id: actor.id },
     data: {
-      ...(opts.summary !== undefined ? { summary: opts.summary } : {}),
-      ...(opts.iconUrl !== undefined ? { iconUrl: opts.iconUrl } : {}),
+      ...(opts.summary === undefined ? {} : { summary: opts.summary }),
+      ...(opts.iconUrl === undefined ? {} : { iconUrl: opts.iconUrl }),
     },
   });
 }

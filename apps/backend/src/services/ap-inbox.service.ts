@@ -12,12 +12,12 @@ import {
   getActorByOrgId,
   getOrCreateActor,
 } from "./activitypub.service";
-import { generateActivityId } from "src/utils/activitypub-builder";
-import { ApDeliveryQueue } from "src/queues/ap-delivery.queue";
 import {
   buildAcceptActivity,
   buildFollowActivity,
+  generateActivityId,
 } from "src/utils/activitypub-builder";
+import { ApDeliveryQueue } from "src/queues/ap-delivery.queue";
 
 type AnyActivity = {
   "@context"?: unknown;
@@ -312,7 +312,7 @@ async function handleOffer(targetOrgId: string, activity: AnyActivity) {
       }
     | undefined;
 
-  if (!obj || obj.type !== "yc:VetReferral") return;
+  if (obj?.type !== "yc:VetReferral") return;
 
   await prisma.aPReferral.upsert({
     where: {

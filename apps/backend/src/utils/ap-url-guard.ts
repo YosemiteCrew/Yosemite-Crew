@@ -1,10 +1,16 @@
-import { isIP } from "node:net";
+import { isIP, type LookupFunction } from "node:net";
 import { lookup } from "node:dns/promises";
+import {
+  lookup as lookupCb,
+  type LookupAddress,
+  type LookupOptions,
+} from "node:dns";
+import { Agent as HttpsAgent } from "node:https";
 
 function ipv4ToOctets(ip: string): number[] | null {
   const parts = ip.split(".");
   if (parts.length !== 4) return null;
-  const octets = parts.map((p) => Number(p));
+  const octets = parts.map(Number);
   if (octets.some((o) => !Number.isInteger(o) || o < 0 || o > 255)) return null;
   return octets;
 }
@@ -62,24 +68,24 @@ function expandIpv6ToHextets(rawIp: string): number[] | null {
   const dblIdx = ip.indexOf("::");
   let headParts: string[];
   let tailParts: string[];
-  if (dblIdx !== -1) {
+  if (dblIdx === -1) {
+    headParts = ip.split(":");
+    tailParts = [];
+    if (headParts.length !== 8) return null;
+  } else {
     const head = ip.slice(0, dblIdx);
     const rest = ip.slice(dblIdx + 2);
     headParts = head.length ? head.split(":") : [];
     tailParts = rest.length ? rest.split(":") : [];
-  } else {
-    headParts = ip.split(":");
-    tailParts = [];
-    if (headParts.length !== 8) return null;
   }
 
   const missing = 8 - (headParts.length + tailParts.length);
   if (missing < 0) return null;
 
   const hextets = [
-    ...headParts.map((p) => parseInt(p || "0", 16)),
-    ...Array<number>(missing).fill(0),
-    ...tailParts.map((p) => parseInt(p || "0", 16)),
+    ...headParts.map((p) => Number.parseInt(p || "0", 16)),
+    ...new Array<number>(missing).fill(0),
+    ...tailParts.map((p) => Number.parseInt(p || "0", 16)),
   ];
   if (hextets.length !== 8) return null;
   if (hextets.some((h) => !Number.isInteger(h) || h < 0 || h > 0xffff)) {
@@ -171,3 +177,48 @@ export async function assertPublicHttpsUrl(raw: string): Promise<void> {
     }
   }
 }
+
+/**
+ * A DNS lookup for use at socket-connect time. It re-runs the SSRF address
+ * check on the address actually resolved for the connection. Paired with the
+ * pre-flight assertPublicHttpsUrl, this closes the DNS-rebinding window where a
+ * host resolves to a public address during validation but to an internal one
+ * when the socket actually connects.
+ */
+export const guardedLookup: LookupFunction = (hostname, options, callback) => {
+  lookupCb(
+    hostname,
+    options as LookupOptions,
+    (
+      err: NodeJS.ErrnoException | null,
+      address: string | LookupAddress[],
+      family: number,
+    ) => {
+      if (err) {
+        callback(err, address as string, family);
+        return;
+      }
+      const entries: LookupAddress[] = Array.isArray(address)
+        ? address
+        : [{ address, family }];
+      const blocked = entries.find((entry) => isBlockedAddress(entry.address));
+      if (blocked) {
+        callback(
+          new Error(
+            `Refusing connection to ${hostname}: resolves to disallowed address ${blocked.address}`,
+          ),
+          "",
+          0,
+        );
+        return;
+      }
+      callback(err, address as string, family);
+    },
+  );
+};
+
+/**
+ * Shared HTTPS agent that validates the resolved IP at connect time via
+ * guardedLookup. Use for every outbound request to a remote-controlled URL.
+ */
+export const guardedHttpsAgent = new HttpsAgent({ lookup: guardedLookup });

@@ -5,11 +5,14 @@ import { prisma } from "@yosemite-crew/database";
 import { signRequest } from "src/utils/http-signature";
 import { decryptPrivateKey } from "src/services/activitypub-crypto.service";
 import { AP_CONTENT_TYPE } from "src/utils/activitypub-builder";
-import { assertPublicHttpsUrl } from "src/utils/ap-url-guard";
+import {
+  assertPublicHttpsUrl,
+  guardedHttpsAgent,
+} from "src/utils/ap-url-guard";
 import axios from "axios";
 import logger from "src/utils/logger";
 
-new Worker<ApDeliveryJobData>(
+export const apDeliveryWorker = new Worker<ApDeliveryJobData>(
   "ap-delivery",
   async (job) => {
     const { actorId, inboxUri, activity } = job.data;
@@ -38,6 +41,7 @@ new Worker<ApDeliveryJobData>(
       },
       timeout: 15_000,
       maxRedirects: 0,
+      httpsAgent: guardedHttpsAgent,
     });
 
     logger.info("[AP delivery] Delivered activity", {

@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import logger from "src/utils/logger";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -70,7 +70,7 @@ async function getRevokedJtis(): Promise<string[]> {
 }
 
 function base64urlDecode(str: string): Buffer {
-  const padded = str.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = str.replaceAll("-", "+").replaceAll("_", "/");
   const pad = (4 - (padded.length % 4)) % 4;
   return Buffer.from(padded + "=".repeat(pad), "base64");
 }

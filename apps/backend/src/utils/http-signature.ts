@@ -1,4 +1,4 @@
-import crypto, { createHash } from "crypto";
+import crypto, { createHash } from "node:crypto";
 
 export interface SignatureComponents {
   keyId: string;
@@ -52,7 +52,7 @@ function buildSigningString(
 export function signRequest(opts: SignRequestOptions): SignedHeaders {
   const url = new URL(opts.url);
   const date = opts.date ?? new Date().toUTCString();
-  const digest = opts.body !== undefined ? buildDigest(opts.body) : undefined;
+  const digest = opts.body === undefined ? undefined : buildDigest(opts.body);
 
   const { signingString, headers } = buildSigningString(
     opts.method,
