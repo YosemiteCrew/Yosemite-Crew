@@ -12,6 +12,7 @@ import TOTP from 'supertokens-node/recipe/totp';
 import Passwordless from 'supertokens-node/recipe/passwordless';
 import ThirdParty from 'supertokens-node/recipe/thirdparty';
 import UserMetadata from 'supertokens-node/recipe/usermetadata';
+import AccountLinking from 'supertokens-node/recipe/accountlinking';
 import { SMTPService as PasswordlessSMTPService } from 'supertokens-node/recipe/passwordless/emaildelivery';
 import { getAuthHooks } from '../hooks.js';
 import type { AuthProfile, LoginMethod } from '../types.js';
@@ -292,6 +293,17 @@ export function getSuperTokensConfig(): TypeInput {
             }),
           ]
         : []),
+      // Required by MultiFactorAuth (factors are linked recipe users) and by
+      // the migration's OTP first-login path: an email-OTP sign-in with a
+      // verified email links into the pre-provisioned account instead of
+      // creating a parallel user. Verification is required before linking to
+      // prevent account takeover via unverified sign-ups.
+      AccountLinking.init({
+        shouldDoAutomaticAccountLinking: async () => ({
+          shouldAutomaticallyLink: true,
+          shouldRequireVerification: true,
+        }),
+      }),
       UserMetadata.init(),
       Session.init({
         override: {
