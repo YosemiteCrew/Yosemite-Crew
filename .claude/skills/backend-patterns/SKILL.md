@@ -60,7 +60,7 @@ const data = CreateAppointmentSchema.parse(req.body);
 
 ## Authentication
 
-AWS Cognito is the auth provider. Use `jsonwebtoken` + `jwks-rsa` for token verification. Never roll custom auth.
+SuperTokens is the auth provider behind the provider-neutral boundary in `packages/auth` (#1672). Product code uses `requireWebAuth`/`requireMobileAuth` from `src/middlewares/auth.ts` and never imports a provider SDK (eslint-enforced). Never roll custom auth.
 
 ---
 

@@ -68,7 +68,7 @@ Make workers idempotent — jobs may be retried.
 
 ## Auth
 
-AWS Cognito + `jsonwebtoken` + `jwks-rsa`. Never roll custom auth flows.
+SuperTokens behind the provider-neutral boundary in `packages/auth` (#1672); product code uses `requireWebAuth`/`requireMobileAuth` and never imports a provider SDK. Never roll custom auth flows.
 
 ---
 
