@@ -15,6 +15,8 @@ import {
   announceEmergency,
   respondToReferral,
   updateActorProfile,
+  listDirectory,
+  setDirectoryListed,
 } from '@/app/features/federation/services/federationService';
 import { getData, postData, putData, patchData } from '@/app/services/axios';
 import type {
@@ -51,6 +53,8 @@ const mockActor: APActorSettings = {
   iconUrl: null,
   createdAt: '2026-06-30T00:00:00.000Z',
   licenseTokenStatus: 'valid',
+  isVerified: true,
+  directoryListed: false,
 };
 
 const mockFollower: APFollower = {
@@ -261,6 +265,47 @@ describe('federationService', () => {
     it('throws when putData rejects', async () => {
       mockPutData.mockRejectedValueOnce(new Error('Unauthorized'));
       await expect(updateActorProfile({ iconUrl: 'bad-url' })).rejects.toThrow('Unauthorized');
+    });
+  });
+
+  describe('listDirectory', () => {
+    it('returns the clinics array from the response', async () => {
+      const clinics = [
+        {
+          actorUri: 'https://remote.example/ap/organizations/r1',
+          orgName: 'Remote Clinic',
+          instanceHost: 'remote.example',
+          handle: '@remote-clinic',
+        },
+      ];
+      mockGetData.mockResolvedValueOnce({ data: { clinics } });
+      const result = await listDirectory();
+      expect(result).toEqual(clinics);
+      expect(mockGetData).toHaveBeenCalledWith('/ap/manage/directory');
+    });
+
+    it('throws when getData rejects', async () => {
+      mockGetData.mockRejectedValueOnce(new Error('Directory error'));
+      await expect(listDirectory()).rejects.toThrow('Directory error');
+    });
+  });
+
+  describe('setDirectoryListed', () => {
+    it('calls putData with listed true', async () => {
+      mockPutData.mockResolvedValueOnce({ data: { listed: true } });
+      await setDirectoryListed(true);
+      expect(mockPutData).toHaveBeenCalledWith('/ap/manage/directory-listing', { listed: true });
+    });
+
+    it('calls putData with listed false', async () => {
+      mockPutData.mockResolvedValueOnce({ data: { listed: false } });
+      await setDirectoryListed(false);
+      expect(mockPutData).toHaveBeenCalledWith('/ap/manage/directory-listing', { listed: false });
+    });
+
+    it('throws when putData rejects', async () => {
+      mockPutData.mockRejectedValueOnce(new Error('Not verified'));
+      await expect(setDirectoryListed(true)).rejects.toThrow('Not verified');
     });
   });
 });

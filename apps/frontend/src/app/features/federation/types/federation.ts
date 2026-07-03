@@ -18,6 +18,19 @@ export interface APActorSettings {
   iconUrl: string | null;
   createdAt: string;
   licenseTokenStatus: LicenseTokenStatus;
+  isVerified: boolean;
+  directoryListed: boolean;
+}
+
+export interface APDirectoryClinic {
+  actorUri: string;
+  orgName: string;
+  instanceHost: string;
+  handle: string;
+}
+
+export interface APDirectory {
+  clinics: APDirectoryClinic[];
 }
 
 export interface APFollower {

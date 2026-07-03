@@ -23,6 +23,7 @@ import {
   rejectFollower,
   respondToReferral,
   sendReferral,
+  setDirectoryListed,
   unfollowRemoteActor,
   updateLicenseToken,
 } from '@/app/features/federation/services/federationService';
@@ -195,6 +196,66 @@ const LicenseTokenCard = ({
           />
         </div>
       )}
+    </SectionCard>
+  );
+};
+
+const DirectoryListingCard = ({
+  isVerified,
+  directoryListed,
+  onUpdated,
+}: {
+  isVerified: boolean;
+  directoryListed: boolean;
+  onUpdated: () => void;
+}) => {
+  const { notify } = useNotify();
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleToggle = async () => {
+    const next = !directoryListed;
+    setSubmitting(true);
+    try {
+      await setDirectoryListed(next);
+      notify('success', {
+        title: next ? 'Listed in directory' : 'Removed from directory',
+        text: next
+          ? 'This clinic now appears in the federation directory.'
+          : 'This clinic no longer appears in the federation directory.',
+      });
+      onUpdated();
+    } catch {
+      notify('error', {
+        title: 'Update failed',
+        text: 'Could not update the directory listing.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const buttonLabel = directoryListed ? 'Remove from directory' : 'List in directory';
+
+  return (
+    <SectionCard title="Directory listing">
+      <div className="flex items-center gap-3">
+        <span className={`${BADGE_BASE} ${directoryListed ? BADGE_SUCCESS : BADGE_MUTED}`}>
+          {directoryListed ? 'Listed' : 'Not listed'}
+        </span>
+        <span className={TEXT_MUTED}>
+          {isVerified
+            ? 'List this clinic in the directory so other verified clinics can find and follow you.'
+            : 'Verify this clinic with a license token before you can list it in the directory.'}
+        </span>
+      </div>
+      <div className="flex justify-end pt-1">
+        <Primary
+          href="#"
+          text={submitting ? 'Saving...' : buttonLabel}
+          onClick={handleToggle}
+          isDisabled={submitting || !isVerified}
+        />
+      </div>
     </SectionCard>
   );
 };
@@ -685,6 +746,11 @@ const FederationSection = () => {
     <div className="flex flex-col gap-6">
       <ActorInfoCard actor={actor} />
       <LicenseTokenCard status={actor.licenseTokenStatus} onUpdated={loadActor} />
+      <DirectoryListingCard
+        isVerified={actor.isVerified}
+        directoryListed={actor.directoryListed}
+        onUpdated={loadActor}
+      />
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <FollowersCard />
         <FollowingCard />

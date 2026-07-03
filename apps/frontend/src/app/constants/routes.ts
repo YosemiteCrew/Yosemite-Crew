@@ -59,6 +59,12 @@ export const appRoutes: RouteItem[] = [
     requiredAnyPermissions: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
   },
   {
+    name: 'Network',
+    href: '/network',
+    verify: true,
+    requiredAnyPermissions: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
+  },
+  {
     name: 'Templates',
     href: '/forms',
     verify: true,

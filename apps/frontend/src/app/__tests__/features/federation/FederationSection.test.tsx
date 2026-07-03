@@ -25,6 +25,7 @@ jest.mock('@/app/features/federation/services/federationService', () => ({
   respondToReferral: jest.fn(),
   sendReferral: jest.fn(),
   updateLicenseToken: jest.fn(),
+  setDirectoryListed: jest.fn(),
   sendNote: jest.fn(),
   announceEmergency: jest.fn(),
 }));
@@ -40,6 +41,7 @@ import {
   rejectFollower,
   respondToReferral,
   updateLicenseToken,
+  setDirectoryListed,
   announceEmergency,
 } from '@/app/features/federation/services/federationService';
 
@@ -81,6 +83,8 @@ const mockActor: APActorSettings = {
   iconUrl: null,
   createdAt: '2026-06-30T00:00:00.000Z',
   licenseTokenStatus: 'valid',
+  isVerified: true,
+  directoryListed: false,
 };
 
 const mockFollower: APFollower = {
@@ -366,6 +370,78 @@ describe('FederationSection', () => {
 
       await waitFor(() =>
         expect(screen.getByRole('button', { name: 'Send referral' })).not.toBeDisabled()
+      );
+    });
+  });
+
+  describe('DirectoryListingCard', () => {
+    it('shows Not listed and enables the button when verified and not listed', async () => {
+      render(<FederationSection />);
+      await waitFor(() => screen.getByText('Directory listing'));
+      expect(screen.getByText('Not listed')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'List in directory' })).not.toBeDisabled();
+    });
+
+    it('shows Listed and a remove button when already listed', async () => {
+      (getActorSettings as jest.Mock).mockResolvedValue({ ...mockActor, directoryListed: true });
+      render(<FederationSection />);
+      await waitFor(() => screen.getByText('Directory listing'));
+      expect(screen.getByText('Listed')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Remove from directory' })).toBeInTheDocument();
+    });
+
+    it('disables the button with a hint when not verified', async () => {
+      (getActorSettings as jest.Mock).mockResolvedValue({
+        ...mockActor,
+        isVerified: false,
+      });
+      render(<FederationSection />);
+      await waitFor(() => screen.getByText('Directory listing'));
+      expect(screen.getByRole('button', { name: 'List in directory' })).toBeDisabled();
+      expect(
+        screen.getByText(
+          'Verify this clinic with a license token before you can list it in the directory.'
+        )
+      ).toBeInTheDocument();
+    });
+
+    it('calls setDirectoryListed(true) and reloads on list', async () => {
+      (getActorSettings as jest.Mock)
+        .mockResolvedValueOnce(mockActor)
+        .mockResolvedValueOnce({ ...mockActor, directoryListed: true });
+      (setDirectoryListed as jest.Mock).mockResolvedValueOnce({ listed: true });
+
+      render(<FederationSection />);
+      await waitFor(() => screen.getByRole('button', { name: 'List in directory' }));
+      fireEvent.click(screen.getByRole('button', { name: 'List in directory' }));
+
+      await waitFor(() => expect(setDirectoryListed).toHaveBeenCalledWith(true));
+      await waitFor(() => expect(getActorSettings).toHaveBeenCalledTimes(2));
+    });
+
+    it('calls setDirectoryListed(false) when removing', async () => {
+      (getActorSettings as jest.Mock).mockResolvedValue({ ...mockActor, directoryListed: true });
+      (setDirectoryListed as jest.Mock).mockResolvedValueOnce({ listed: false });
+
+      render(<FederationSection />);
+      await waitFor(() => screen.getByRole('button', { name: 'Remove from directory' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove from directory' }));
+
+      await waitFor(() => expect(setDirectoryListed).toHaveBeenCalledWith(false));
+    });
+
+    it('notifies error when setDirectoryListed rejects', async () => {
+      (setDirectoryListed as jest.Mock).mockRejectedValueOnce(new Error('nope'));
+
+      render(<FederationSection />);
+      await waitFor(() => screen.getByRole('button', { name: 'List in directory' }));
+      fireEvent.click(screen.getByRole('button', { name: 'List in directory' }));
+
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith('error', {
+          title: 'Update failed',
+          text: 'Could not update the directory listing.',
+        })
       );
     });
   });

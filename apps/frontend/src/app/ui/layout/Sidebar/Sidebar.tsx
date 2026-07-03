@@ -50,6 +50,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Companions: IoPaw,
   Inventory: IoCubeOutline,
   Integrations: IoGitNetworkOutline,
+  Network: IoGlobeOutline,
   Templates: IoBookOutline,
   'API Keys': IoKeyOutline,
   'Website - Builder': IoGlobeOutline,
@@ -62,7 +63,7 @@ const APP_ROUTE_GROUPS = [
   { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
   { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
   { label: 'Business', routeNames: ['Finance', 'Inventory'] },
-  { label: 'Administration', routeNames: ['Organization', 'Integrations'] },
+  { label: 'Administration', routeNames: ['Organization', 'Integrations', 'Network'] },
 ] as const;
 
 const DEV_ROUTE_GROUPS = [
