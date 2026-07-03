@@ -99,7 +99,7 @@ Never hardcode English strings in components.
 
 ## Authentication
 
-AWS Amplify Auth is the mobile auth provider. Firebase handles push notifications and supplementary auth flows. Never bypass Amplify for core auth.
+SuperTokens is the mobile auth provider (email OTP + social through the provider; `supertokens-react-native` manages sessions). Firebase remains for push notifications only. Never bypass the SuperTokens session layer for core auth.
 
 ---
 
