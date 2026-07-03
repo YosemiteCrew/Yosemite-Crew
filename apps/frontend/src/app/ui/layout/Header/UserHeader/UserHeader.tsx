@@ -179,7 +179,8 @@ const UserHeader = () => {
   const setQuery = useSearchStore((s) => s.setQuery);
   const clear = useSearchStore((s) => s.clear);
   const openUniversalSearch = useUniversalSearchStore((s) => s.open);
-  const orgDropdownRef = useRef<HTMLDivElement>(null);
+  const desktopOrgDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileOrgDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuId = 'user-mobile-menu';
   const orgMenuId = 'user-header-org-menu';
@@ -299,7 +300,10 @@ const UserHeader = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (orgDropdownRef.current && !orgDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedInsideDesktopOrgMenu = desktopOrgDropdownRef.current?.contains(target) ?? false;
+      const clickedInsideMobileOrgMenu = mobileOrgDropdownRef.current?.contains(target) ?? false;
+      if (!clickedInsideDesktopOrgMenu && !clickedInsideMobileOrgMenu) {
         setSelectOrg(false);
       }
     };
@@ -349,7 +353,7 @@ const UserHeader = () => {
       >
         <div className="yc-mobile-menu-shell">
           {primaryOrg && !isDev && (
-            <div className="yc-mobile-org-card" ref={orgDropdownRef}>
+            <div className="yc-mobile-org-card" ref={mobileOrgDropdownRef}>
               <button
                 type="button"
                 className="yc-mobile-org-trigger"
@@ -454,7 +458,7 @@ const UserHeader = () => {
       </div>
       <div className="yc-header-left">
         {primaryOrg && !isDev && (
-          <div className="yc-header-dropdown-wrap" ref={orgDropdownRef}>
+          <div className="yc-header-dropdown-wrap" ref={desktopOrgDropdownRef}>
             <button
               type="button"
               className={`yc-header-org-trigger ${selectOrg ? 'yc-header-trigger-open' : ''}`}
